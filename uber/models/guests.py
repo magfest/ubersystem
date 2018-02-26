@@ -5,7 +5,7 @@ import uuid
 from collections import defaultdict
 
 from sideboard.config import uniquify
-from sideboard.lib.sa import JSON, CoerceUTF8 as UnicodeText, UUID
+from residue import JSON, CoerceUTF8 as UnicodeText, UUID
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer

@@ -14,9 +14,8 @@ import sqlalchemy
 from dateutil import parser as dateparser
 from pockets import cached_classproperty, classproperty, listify
 from pockets.autolog import log
+from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
 from sideboard.lib import on_startup, stopped
-from sideboard.lib.sa import check_constraint_naming_convention, declarative_base, JSON, SessionManager, \
-    UTCDateTime, UUID
 from sqlalchemy import and_, func, or_, not_
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError

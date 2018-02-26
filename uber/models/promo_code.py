@@ -4,7 +4,7 @@ import string
 import textwrap
 from collections import OrderedDict
 
-from sideboard.lib.sa import CoerceUTF8 as UnicodeText, UTCDateTime
+from residue import CoerceUTF8 as UnicodeText, UTCDateTime
 from sqlalchemy import func, select, CheckConstraint
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.schema import Index

@@ -5,7 +5,7 @@ The attendee_tournaments module is no longer used, but has been
 included for backward compatibility with legacy servers.
 """
 
-from sideboard.lib.sa import CoerceUTF8 as UnicodeText
+from residue import CoerceUTF8 as UnicodeText
 from sqlalchemy import func
 from sqlalchemy.types import Boolean
 

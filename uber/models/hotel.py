@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from sideboard.lib.sa import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean
 

@@ -15,7 +15,7 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import sideboard.lib.sa
+import residue
 
 
 try:
@@ -54,9 +54,9 @@ sqlite_reflect_kwargs = {
 def upgrade():
     if is_sqlite:
         with op.batch_alter_table('attendee', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
-            batch_op.add_column(sa.Column('confirmed', sideboard.lib.sa.UTCDateTime(), nullable=True))
+            batch_op.add_column(sa.Column('confirmed', residue.UTCDateTime(), nullable=True))
     else:
-        op.add_column('attendee', sa.Column('confirmed', sideboard.lib.sa.UTCDateTime(), nullable=True))
+        op.add_column('attendee', sa.Column('confirmed', residue.UTCDateTime(), nullable=True))
 
 
 def downgrade():

@@ -8,7 +8,7 @@ import cherrypy
 from pockets.autolog import log
 from pytz import UTC
 from sideboard.lib import serializer
-from sideboard.lib.sa import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 
 from uber.config import c
 from uber.models import MagModel

@@ -3,7 +3,7 @@ from datetime import datetime, time, timedelta
 
 import pytz
 from pockets import camel, fieldify, listify
-from sideboard.lib.sa import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import Column

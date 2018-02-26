@@ -6,7 +6,7 @@ from functools import wraps
 
 from pytz import UTC
 from sideboard.lib import on_startup
-from sideboard.lib.sa import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey, UniqueConstraint
 from sqlalchemy.types import Boolean, Integer

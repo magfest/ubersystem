@@ -8,7 +8,7 @@ from uuid import uuid4
 from pockets import cached_property, classproperty, groupify, listify, is_listy, readable_join
 from pockets.autolog import log
 from pytz import UTC
-from sideboard.lib.sa import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, case, func, or_
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
