@@ -1,8 +1,8 @@
 import os
 from functools import wraps
 
-from sideboard.lib import on_startup
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from sideboard.lib import on_startup
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
 
