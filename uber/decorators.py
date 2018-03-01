@@ -393,7 +393,7 @@ def cached_page(func):
         return func
 
 
-def run_threaded(thread_name, lock=None, blocking=True, timeout=-1):
+def run_threaded(thread_name='', lock=None, blocking=True, timeout=-1):
     """
     Decorate a function to run in a new thread and return immediately.
 
@@ -446,15 +446,15 @@ def run_threaded(thread_name, lock=None, blocking=True, timeout=-1):
             thread.start()
         return with_run_threaded
 
-    if isinstance(thread_name, six.string_types):
-        return run_threaded_decorator
-    else:
+    if callable(thread_name):
         func = thread_name
         thread_name = func.__name__
         return run_threaded_decorator(func)
+    else:
+        return run_threaded_decorator
 
 
-def timed(prepend_text):
+def timed(prepend_text=''):
     def timed_decorator(func):
         @wraps(func)
         def with_timed(*args, **kwargs):
@@ -469,12 +469,12 @@ def timed(prepend_text):
                     (datetime.now() - before).total_seconds()))
         return with_timed
 
-    if isinstance(prepend_text, six.string_types):
-        return timed_decorator
-    else:
+    if callable(prepend_text):
         func = prepend_text
         prepend_text = ''
         return timed_decorator(func)
+    else:
+        return timed_decorator
 
 
 def sessionized(func):
