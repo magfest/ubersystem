@@ -5,9 +5,10 @@ from mock import Mock
 
 from tests.uber.email_tests.email_fixtures import *  # noqa: F401,F403
 from tests.uber.email_tests.email_fixtures import E, sept_15th
-from uber.automated_emails_server import AutomatedEmail, SendAllAutomatedEmailsJob
+from uber.automated_emails import AutomatedEmail
 from uber.config import c
 from uber.models import Attendee
+from uber.tasks.emails import SendAllAutomatedEmailsJob
 from uber.utils import before, days_after, days_before
 
 
@@ -38,9 +39,10 @@ class TestAutomatedEmailCategory:
 
         job = SendAllAutomatedEmailsJob()
         assert not get_test_email_category.approved
-        assert job.log_unsent_because_unapproved.call_count == 1
+        assert job.log_unsent_because_unapproved.call_count == 0
 
-        # attempt to send the same email and we should see the unapproved count go up because it's still unapproved
+        job.run()
+
         assert not get_test_email_category.approved
         assert job.log_unsent_because_unapproved.call_count == 2
 

@@ -3,8 +3,8 @@ from unittest.mock import patch
 import pytest
 
 from tests.uber.email_tests.email_fixtures import *  # noqa: F401,F403
-from uber.automated_emails_server import SendAllAutomatedEmailsJob
 from uber.config import c
+from uber.tasks.emails import SendAllAutomatedEmailsJob
 
 
 @pytest.fixture

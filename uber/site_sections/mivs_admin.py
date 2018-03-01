@@ -19,7 +19,7 @@ class Root:
     def index(self, session, message=''):
         return {
             'message': message,
-            'judges': session.indie_judges(),
+            'judges': session.indie_judges().all(),
             'games': [g for g in session.indie_games() if g.video_submitted]
         }
 

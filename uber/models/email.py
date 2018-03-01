@@ -4,13 +4,15 @@ from datetime import datetime
 from pockets import cached_property
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from sqlalchemy.schema import ForeignKey
+from sqlalchemy.types import Boolean, Integer
 
 from uber.custom_tags import safe_string
 from uber.models import MagModel
 from uber.models.types import DefaultColumn as Column
 
 
-__all__ = ['ApprovedEmail', 'Email']
+__all__ = ['ApprovedEmail', 'AutomatedEmail', 'Email']
 
 
 class ApprovedEmail(MagModel):
@@ -19,7 +21,37 @@ class ApprovedEmail(MagModel):
     _repr_attr_names = ['ident']
 
 
+class AutomatedEmail(MagModel):
+    unapproved_count = Column(Integer, default=0)
+    model = Column(UnicodeText)
+
+    ident = Column(UnicodeText, unique=True)
+    subject = Column(UnicodeText)
+    body = Column(UnicodeText)
+
+    sender = Column(UnicodeText)
+    cc = Column(UnicodeText)
+    bcc = Column(UnicodeText)
+
+    approved = Column(Boolean, default=True)
+    needs_approval = Column(Boolean, default=True)
+
+    post_con = Column(Boolean, default=False)
+    allow_during_con = Column(Boolean, default=False)
+
+    active_after = Column(UTCDateTime, nullable=True, default=None)
+    active_before = Column(UTCDateTime, nullable=True, default=None)
+
+    _repr_attr_names = ['ident']
+
+
 class Email(MagModel):
+    automated_email_id = Column(
+        UUID,
+        ForeignKey('automated_email.id', ondelete='set null'),
+        nullable=True,
+        default=None)
+
     fk_id = Column(UUID, nullable=True)
     ident = Column(UnicodeText)
     model = Column(UnicodeText)
@@ -37,7 +69,7 @@ class Email(MagModel):
             model_class = Session.resolve_model(self.model)
             query = self.session.query(model_class)
             return query.filter_by(id=self.fk_id).first()
-        except Exception as ex:
+        except Exception:
             return None
 
     @property

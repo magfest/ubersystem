@@ -1223,11 +1223,11 @@ class Session(SessionManager):
 
         def indie_judges(self):
             return self.query(IndieJudge).join(IndieJudge.admin_account).join(AdminAccount.attendee) \
-                .order_by(Attendee.full_name).all()
+                .order_by(Attendee.full_name)
 
         def indie_games(self):
             return self.query(IndieGame).options(
-                joinedload(IndieGame.studio), joinedload(IndieGame.reviews)).order_by('name').all()
+                joinedload(IndieGame.studio), joinedload(IndieGame.reviews)).order_by('name')
 
         # =========================
         # mits

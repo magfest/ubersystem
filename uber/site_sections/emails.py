@@ -3,12 +3,13 @@ from datetime import datetime
 from sqlalchemy import func, or_
 from pockets import listify
 
-from uber.automated_emails_server import AutomatedEmail, SendAllAutomatedEmailsJob
+from uber.automated_emails import AutomatedEmail
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, render_empty
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApprovedEmail, Attendee, Email, Group
 from uber.notifications import send_email
+from uber.tasks.emails import SendAllAutomatedEmailsJob
 from uber.utils import get_page
 
 

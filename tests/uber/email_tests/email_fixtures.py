@@ -5,9 +5,10 @@ from unittest.mock import patch, Mock
 import pytest
 
 from uber.amazon_ses import AmazonSES
-from uber.automated_emails_server import AutomatedEmail, SendAllAutomatedEmailsJob
+from uber.automated_emails import AutomatedEmail
 from uber.config import c, Config
 from uber.models import Attendee
+from uber.tasks.emails import SendAllAutomatedEmailsJob
 from uber.utils import DateBase, localize_datetime
 
 

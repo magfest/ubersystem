@@ -11,15 +11,228 @@ ALREADY SENT FOR THAT CATEGORY TO RE-SEND.
 
 """
 
+from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
 
+from pockets import listify
+from pockets.autolog import log
 from pytz import UTC
+from sqlalchemy.orm import joinedload, subqueryload
 
-from uber.automated_emails_server import AutomatedEmail
 from uber.config import c
-from uber.models import Attendee, Group, GuestGroup, IndieGame, IndieJudge, IndieStudio, MITSTeam, \
-    PanelApplication, Room
+from uber.decorators import render
+from uber.models import AdminAccount, Attendee, Department, Group, GuestGroup, IndieGame, IndieJudge, IndieStudio, \
+     MITSTeam, PanelApplication, PanelApplicant, Room, RoomAssignment, Shift
+from uber.notifications import send_email
 from uber.utils import before, days_after, days_before, localized_now, DeptChecklistConf
+
+
+class AutomatedEmail:
+    """
+    Represents one category of emails that we send out.
+    An example of an email category would be "Your registration has been confirmed".
+    """
+
+    # global: all instances of every registered email category, mapped by ident
+    instances = OrderedDict()
+
+    # global: all instances of every registered email category, mapped by model class
+    instances_by_model = defaultdict(list)
+
+    # a list of queries to run during each automated email sending run to
+    # return particular model instances of a given type.
+    queries = {
+        Attendee: lambda session: session.all_attendees().options(
+            subqueryload(Attendee.admin_account),
+            subqueryload(Attendee.group),
+            subqueryload(Attendee.shifts).subqueryload(Shift.job),
+            subqueryload(Attendee.assigned_depts),
+            subqueryload(Attendee.dept_membership_requests),
+            subqueryload(Attendee.checklist_admin_depts).subqueryload(Department.dept_checklist_items),
+            subqueryload(Attendee.dept_memberships),
+            subqueryload(Attendee.dept_memberships_with_role),
+            subqueryload(Attendee.depts_where_working),
+            subqueryload(Attendee.hotel_requests),
+            subqueryload(Attendee.assigned_panelists)),
+        Group: lambda session: session.query(Group).options(
+            subqueryload(Group.attendees)).order_by(Group.id),
+        Room: lambda session: session.query(Room).options(
+            subqueryload(Room.assignments).subqueryload(RoomAssignment.attendee)),
+        IndieStudio: lambda session: session.query(IndieStudio).options(
+            subqueryload(IndieStudio.developers),
+            subqueryload(IndieStudio.games)),
+        IndieGame: lambda session: session.query(IndieGame).options(
+            joinedload(IndieGame.studio).subqueryload(IndieStudio.developers)),
+        IndieJudge: lambda session: session.query(IndieJudge).options(
+            joinedload(IndieJudge.admin_account).joinedload(AdminAccount.attendee)),
+        MITSTeam: lambda session: session.mits_teams(),
+        PanelApplication: lambda session: session.query(PanelApplication).options(
+            subqueryload(PanelApplication.applicants).subqueryload(PanelApplicant.attendee)
+            ).order_by(PanelApplication.id),
+        GuestGroup: lambda session: session.query(GuestGroup).options(joinedload(GuestGroup.group))
+    }
+
+    def __init__(self, model, subject, template, filter, ident, *, when=(),
+                 sender=None, extra_data=None, cc=None, bcc=None,
+                 post_con=False, needs_approval=True, allow_during_con=False):
+
+        self.subject = subject.format(EVENT_NAME=c.EVENT_NAME, EVENT_DATE=c.EPOCH.strftime("(%b %Y)"))
+        self.ident = ident
+        self.model = model
+
+        assert self.ident, 'error: automated email ident may not be empty.'
+        assert self.ident not in self.instances, \
+            'error: automated email ident "{}" is registered twice.'.format(self.ident)
+
+        self.instances[self.ident] = self
+        self.instances_by_model[self.model].append(self)
+
+        self.template = template
+        self.needs_approval = needs_approval
+        self.allow_during_con = allow_during_con
+        self.cc = cc or []
+        self.bcc = bcc or []
+        self.extra_data = extra_data or {}
+        self.sender = sender or c.REGDESK_EMAIL
+        self.when = listify(when)
+
+        assert filter is not None
+
+        if post_con:
+            self.filter = lambda model_inst: c.POST_CON and filter(model_inst)
+        else:
+            self.filter = lambda model_inst: not c.POST_CON and filter(model_inst)
+
+    def filters_run(self, model_inst):
+        return all([self.filter(model_inst), self._run_date_filters()])
+
+    def _run_date_filters(self):
+        return all([date_filter() for date_filter in self.when])
+
+    def __repr__(self):
+        return '<{}: {!r}>'.format(self.__class__.__name__, self.subject)
+
+    def computed_subject(self, x):
+        """
+        Given a model instance, return an email subject email for that instance.
+        By default this just returns the default subject unmodified; this method
+        exists only to be overridden in subclasses.  For example, we might want
+        our panel email subjects to contain the name of the panel.
+        """
+        return self.subject
+
+    def _already_sent(self, model_inst):
+        """
+        Returns true if we have a record of previously sending this email to this model
+
+        NOTE: c.PREVIOUSLY_SENT_EMAILS is a cached property and will only update at the start of each daemon run.
+        """
+        return (model_inst.__class__.__name__, model_inst.id, self.ident) in c.PREVIOUSLY_SENT_EMAILS
+
+    def send_if_should(self, model_inst, raise_errors=False):
+        """
+        If it's OK to send an email of our category to this model instance (i.e. a particular Attendee) then send it.
+
+        Do any error handling in the client functions we call
+
+        :return: True if the email was actually sent, False otherwise.
+        """
+        if self._should_send(model_inst, raise_errors=raise_errors):
+            return self.really_send(model_inst, raise_errors=raise_errors)
+        return False
+
+    def _should_send(self, model_inst, raise_errors=False):
+        """
+        If True, we should generate an actual email created from our email category
+        and send it to a particular model instance.
+
+        This is determined based on a few things like:
+        1) whether we have sent this exact email out yet or not
+        2) whether the email category has been approved
+        3) whether the model instance passed in is the same type as what we want to process
+        4) do any date-based filters exist on this email category? (i.e. send 7 days before magfest)
+        5) do any other filters exist on this email category? (i.e. only if attendee.staffing == true)
+
+        Example #1 of a model instance to check:
+          self.ident: "You {attendee.name} have registered for our event!"
+          model_inst:  class Attendee: id #4532, name: "John smith"
+
+        Example #2 of a model instance to check:
+          self.ident: "Your group {group.name} owes money"
+          model_inst:  class Group: id #1251, name: "The Fighting Mongooses"
+
+        :param model_inst: The model we've been requested to use (i.e. Attendee, Group, etc)
+
+        :return: True if we should send this email to this model instance, False if not.
+        """
+
+        try:
+            return self.would_send_if_approved(model_inst) and self.approved
+        except Exception:
+            log.error('error determining whether to send {!r} email to {}',
+                      self.subject, model_inst.email, exc_info=True)
+            if raise_errors:
+                raise
+            return False
+
+    def would_send_if_approved(self, model_inst):
+        """
+        Check if this email category would be sent if this email category was approved.
+
+        :return: True if this email would be sent without considering it's approved status. False otherwise
+        """
+        return all(condition() for condition in [
+            lambda: not c.AT_THE_CON or self.allow_during_con,
+            lambda: isinstance(model_inst, self.model),
+            lambda: getattr(model_inst, 'email', None),
+            lambda: not self._already_sent(model_inst),
+            lambda: self.filters_run(model_inst),
+        ])
+
+    @property
+    def approved(self):
+        """
+        Check if this email category has been approved by the admins to send automated emails.
+
+        :return: True if we are approved to send this email, or don't need approval. False otherwise
+        """
+
+        return not self.needs_approval or self.ident in c.EMAIL_APPROVED_IDENTS
+
+    def render(self, model_instance):
+        model = getattr(model_instance, 'email_model_name', model_instance.__class__.__name__.lower())
+        return render('emails/' + self.template, dict({model: model_instance}, **self.extra_data))
+
+    def really_send(self, model_instance, raise_errors=False):
+        """
+        Actually send an email to a particular model instance (i.e. a particular attendee).
+
+        Doesn't perform any kind of checks at all if we should be sending this, just immediately sends the email
+        no matter what.
+
+        NOTE: use send_if_should() instead of calling this method unless you 100% know what you're doing.
+        NOTE: send_email() fails if c.SEND_EMAILS is False
+        """
+        try:
+            subject = self.computed_subject(model_instance)
+            format = 'text' if self.template.endswith('.txt') else 'html'
+            send_email(self.sender, model_instance.email, subject,
+                       self.render(model_instance), format,
+                       model=model_instance, cc=self.cc, ident=self.ident)
+            return True
+        except Exception:
+            log.error('error sending {!r} email to {}', self.subject, model_instance.email, exc_info=True)
+            if raise_errors:
+                raise
+        return False
+
+    @property
+    def when_txt(self):
+        """
+        Return a textual description of when the date filters are active for this email category.
+        """
+
+        return '\n'.join([filter.active_when for filter in self.when])
 
 
 # Payment reminder emails, including ones for groups, which are always safe to be here, since they just
