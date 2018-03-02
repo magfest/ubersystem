@@ -4,7 +4,7 @@ import pytest
 
 from tests.uber.email_tests.email_fixtures import *  # noqa: F401,F403
 from uber.config import c
-from uber.tasks.emails import SendAllAutomatedEmailsJob
+from uber.tasks.email import SendAllAutomatedEmailsJob
 
 
 @pytest.fixture

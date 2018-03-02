@@ -9,7 +9,7 @@ from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, rend
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApprovedEmail, Attendee, Email, Group
 from uber.notifications import send_email
-from uber.tasks.emails import SendAllAutomatedEmailsJob
+from uber.tasks.email import SendAllAutomatedEmailsJob
 from uber.utils import get_page
 
 

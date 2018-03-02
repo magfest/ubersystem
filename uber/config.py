@@ -80,7 +80,7 @@ class _Overridable:
         by c.include_plugin_config() if an "[enums]" section exists.
         """
         for name, subsection in config_section.items():
-            c.make_enum(name, subsection)
+            self.make_enum(name, subsection)
 
     def make_enum(self, enum_name, section, prices=False):
         """

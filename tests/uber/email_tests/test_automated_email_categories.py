@@ -8,7 +8,7 @@ from tests.uber.email_tests.email_fixtures import E, sept_15th
 from uber.automated_emails import AutomatedEmail
 from uber.config import c
 from uber.models import Attendee
-from uber.tasks.emails import SendAllAutomatedEmailsJob
+from uber.tasks.email import SendAllAutomatedEmailsJob
 from uber.utils import before, days_after, days_before
 
 

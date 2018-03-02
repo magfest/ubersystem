@@ -50,6 +50,14 @@ def run_scheduled_tasks():
         time.sleep(1)
 
 
-from uber.tasks import emails  # noqa: F401
+from uber.tasks import attractions  # noqa: F401
+from uber.tasks import email  # noqa: F401
 from uber.tasks import mivs  # noqa: F401
 from uber.tasks import registration  # noqa: F401
+from uber.tasks import tabletop  # noqa: F401
+
+
+# NOTE: This can be a useful debugging tool :)
+# from pockets.autolog import log
+# from uber.models import Session
+# schedule.every(5).seconds.do(lambda: log.error(Session.engine.pool.status()))

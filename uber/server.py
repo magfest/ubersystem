@@ -202,6 +202,3 @@ def register_jsonrpc(service, name=None):
 
 jsonrpc_handler = _make_jsonrpc_handler(jsonrpc_services, precall=jsonrpc_reset)
 cherrypy.tree.mount(jsonrpc_handler, os.path.join(c.PATH, 'jsonrpc'), c.APPCONF)
-
-# TODO: this should be replaced by something a little cleaner, but it can be a useful debugging tool
-# DaemonTask(lambda: log.error(Session.engine.pool.status()), interval=5)
