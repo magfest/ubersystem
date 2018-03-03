@@ -50,6 +50,14 @@ def run_scheduled_tasks():
         time.sleep(1)
 
 
+@entry_point
+def run_automated_emails():
+    from pprint import pprint
+    from uber.tasks.email import SendAutomatedEmailsJob
+    SendAutomatedEmailsJob.run()
+    pprint(SendAutomatedEmailsJob.last_result)
+
+
 from uber.tasks import attractions  # noqa: F401
 from uber.tasks import email  # noqa: F401
 from uber.tasks import mivs  # noqa: F401

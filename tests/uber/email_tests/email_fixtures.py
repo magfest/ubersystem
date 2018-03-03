@@ -8,7 +8,7 @@ from uber.amazon_ses import AmazonSES
 from uber.automated_emails import AutomatedEmail
 from uber.config import c, Config
 from uber.models import Attendee
-from uber.tasks.email import SendAllAutomatedEmailsJob
+from uber.tasks.email import SendAutomatedEmailsJob
 from uber.utils import DateBase, localize_datetime
 
 
@@ -81,8 +81,8 @@ def amazon_send_email_mock(monkeypatch):
 
 @pytest.fixture
 def log_unsent_because_unapproved(monkeypatch):
-    monkeypatch.setattr(SendAllAutomatedEmailsJob, 'log_unsent_because_unapproved', Mock(return_value=None))
-    return SendAllAutomatedEmailsJob.log_unsent_because_unapproved
+    monkeypatch.setattr(SendAutomatedEmailsJob, 'log_unsent_because_unapproved', Mock(return_value=None))
+    return SendAutomatedEmailsJob.log_unsent_because_unapproved
 
 
 @pytest.fixture

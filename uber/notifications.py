@@ -90,9 +90,8 @@ def get_twilio_client(twilio_sid, twilio_token):
             if twilio_sid and twilio_token:
                 return TwilioRestClient(twilio_sid, twilio_token)
             else:
-                log.warn('Twilio: could not create twilio client. Missing twilio {}, '
-                         'not going to try to start SMS notifications.'.format(readable_join(
-                            ['' if twilio_sid else 'SID', '' if twilio_token else 'TOKEN'])))
+                log.info('Twilio: could not create twilio client. Missing twilio {}.'.format(
+                    readable_join(['' if twilio_sid else 'SID', '' if twilio_token else 'TOKEN'])))
         except Exception:
             log.error('Twilio: could not create twilio client', exc_info=True)
     return None

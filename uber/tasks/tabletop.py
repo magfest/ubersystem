@@ -12,13 +12,10 @@ from uber.tasks import schedule
 __all__ = ['tabletop_check_notification_replies', 'tabletop_send_notifications']
 
 
-twilio_client = get_twilio_client(c.TABLETOP_TWILIO_SID, c.TABLETOP_TWILIO_TOKEN)
-if not twilio_client:
-    log.warn('SMS notifications disabled for tabletop')
-
-
 def tabletop_check_notification_replies():
+    twilio_client = get_twilio_client(c.TABLETOP_TWILIO_SID, c.TABLETOP_TWILIO_TOKEN)
     if not twilio_client or not c.TABLETOP_TWILIO_NUMBER:
+        log.warn('SMS notification replies disabled for tabletop')
         return
 
     with Session() as session:
@@ -57,7 +54,9 @@ def tabletop_check_notification_replies():
 
 
 def tabletop_send_notifications():
+    twilio_client = get_twilio_client(c.TABLETOP_TWILIO_SID, c.TABLETOP_TWILIO_TOKEN)
     if not twilio_client or not c.TABLETOP_TWILIO_NUMBER:
+        log.warn('SMS notification sending disabled for tabletop')
         return
 
     with Session() as session:
@@ -69,6 +68,6 @@ def tabletop_send_notifications():
                 entrant.session.commit()
 
 
-if twilio_client and c.TABLETOP_TWILIO_NUMBER:
+if c.SEND_SMS and c.TABLETOP_TWILIO_NUMBER and c.TABLETOP_TWILIO_SID and c.TABLETOP_TWILIO_TOKEN:
     schedule.every(3).minutes.do(tabletop_check_notification_replies)
     schedule.every(3).minutes.do(tabletop_send_notifications)

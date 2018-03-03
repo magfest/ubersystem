@@ -8,7 +8,7 @@ from tests.uber.email_tests.email_fixtures import E, sept_15th
 from uber.automated_emails import AutomatedEmail
 from uber.config import c
 from uber.models import Attendee
-from uber.tasks.email import SendAllAutomatedEmailsJob
+from uber.tasks.email import SendAutomatedEmailsJob
 from uber.utils import before, days_after, days_before
 
 
@@ -30,14 +30,14 @@ class TestAutomatedEmailCategory:
     def test_approval_needed_and_we_have_it(
             self, monkeypatch, set_test_approved_idents, get_test_email_category, log_unsent_because_unapproved):
 
-        job = SendAllAutomatedEmailsJob()
+        job = SendAutomatedEmailsJob()
         assert get_test_email_category.approved
         assert job.log_unsent_because_unapproved.call_count == 0
 
     def test_approval_needed_and_we_dont_have_it(
             self, monkeypatch, get_test_email_category, log_unsent_because_unapproved):
 
-        job = SendAllAutomatedEmailsJob()
+        job = SendAutomatedEmailsJob()
         assert not get_test_email_category.approved
         assert job.log_unsent_because_unapproved.call_count == 0
 

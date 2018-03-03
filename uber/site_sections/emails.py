@@ -9,7 +9,7 @@ from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, rend
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApprovedEmail, Attendee, Email, Group
 from uber.notifications import send_email
-from uber.tasks.email import SendAllAutomatedEmailsJob
+from uber.tasks.email import SendAutomatedEmailsJob
 from uber.utils import get_page
 
 
@@ -33,8 +33,8 @@ class Root:
 
     def pending(self, session, message=''):
         automated_emails = []
-        last_job_completed = SendAllAutomatedEmailsJob.last_result.get('completed', False)
-        categories_results = SendAllAutomatedEmailsJob.last_result.get('categories', None)
+        last_job_completed = SendAutomatedEmailsJob.last_result.get('completed', False)
+        categories_results = SendAutomatedEmailsJob.last_result.get('categories', None)
 
         count_query = session.query(Email.ident, func.count(Email.ident)).group_by(Email.ident)
         sent_email_counts = {c[0]: c[1] for c in count_query.all()}

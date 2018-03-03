@@ -23,13 +23,10 @@ __all__ = ['attractions_check_notification_replies', 'attractions_send_notificat
 TEXT_TEMPLATE = 'Checkin for {signup.event.name} {checkin}, {signup.event.location_room_name}. Reply N to drop out'
 
 
-twilio_client = get_twilio_client(c.PANELS_TWILIO_SID, c.PANELS_TWILIO_TOKEN)
-if not twilio_client:
-    log.warn('SMS notifications disabled for attractions')
-
-
 def attractions_check_notification_replies():
+    twilio_client = get_twilio_client(c.PANELS_TWILIO_SID, c.PANELS_TWILIO_TOKEN)
     if not twilio_client or not c.PANELS_TWILIO_NUMBER:
+        log.warn('SMS notification replies disabled for attractions')
         return
 
     with Session() as session:
@@ -76,6 +73,8 @@ def attractions_check_notification_replies():
 
 
 def attractions_send_notifications():
+    twilio_client = get_twilio_client(c.PANELS_TWILIO_SID, c.PANELS_TWILIO_TOKEN)
+
     with Session() as session:
         for attraction in session.query(Attraction):
             now = datetime.now(pytz.UTC)
@@ -204,5 +203,6 @@ def attractions_send_notifications():
 
 
 if c.ATTRACTIONS_ENABLED:
-    schedule.every(3).minutes.do(attractions_check_notification_replies)
     schedule.every(3).minutes.do(attractions_send_notifications)
+    if c.SEND_SMS and c.PANELS_TWILIO_NUMBER and c.PANELS_TWILIO_SID and c.PANELS_TWILIO_TOKEN:
+        schedule.every(3).minutes.do(attractions_check_notification_replies)
