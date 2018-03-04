@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from pockets import listify
 from pockets.autolog import log
 from pytz import UTC
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
@@ -105,11 +106,16 @@ class AutomatedEmailFixture:
         before = [d.active_before for d in self.when if d.active_before]
         return max(before) if before else None
 
-    def __init__(self, model, subject, template, filter, ident, *, when=(),
-                 sender=None, extra_data=None, cc=None, bcc=None,
-                 post_con=False, needs_approval=True, allow_during_con=False):
+    def __init__(
+            self, model, subject, template, ident, *,
+            query=(),
+            query_options=(),
+            filter=lambda model_instance: True,
+            when=(),
+            sender=None, extra_data=None, cc=None, bcc=None,
+            post_con=False, needs_approval=True, allow_during_con=False):
 
-        self.subject = subject.format(EVENT_NAME=c.EVENT_NAME, EVENT_DATE=c.EPOCH.strftime("(%b %Y)"))
+        self.subject = subject
         self.ident = ident
         self.model = model
 
@@ -129,12 +135,9 @@ class AutomatedEmailFixture:
         self.sender = sender or c.REGDESK_EMAIL
         self.when = listify(when)
 
-        assert filter is not None
-
-        if post_con:
-            self.filter = lambda model_inst: c.POST_CON and filter(model_inst)
-        else:
-            self.filter = lambda model_inst: not c.POST_CON and filter(model_inst)
+        self.query = listify(query)
+        self.query_options = listify(query_options)
+        self.filter = listify(filter)
 
     def filters_run(self, model_inst):
         return all([self.filter(model_inst), self._run_date_filters()])
@@ -274,7 +277,7 @@ class AutomatedEmailFixture:
 AutomatedEmailFixture(
     Attendee, '{EVENT_NAME} payment received',
     'reg_workflow/attendee_confirmation.html',
-    lambda a: a.paid == c.HAS_PAID,
+    query=Attendee.paid == c.HAS_PAID,
     needs_approval=False,
     allow_during_con=True,
     ident='attendee_payment_received')
@@ -282,7 +285,9 @@ AutomatedEmailFixture(
 AutomatedEmailFixture(
     Attendee, '{EVENT_NAME} registration confirmed',
     'reg_workflow/attendee_confirmation.html',
-    lambda a: a.paid == c.NEED_NOT_PAY and (a.confirmed or a.promo_code_id),
+    query=and_(
+        Attendee.paid == c.NEED_NOT_PAY,
+        or_(Attendee.confirmed != None, Attendee.promo_code_id != None)),  # noqa: E711
     needs_approval=False,
     allow_during_con=True,
     ident='attendee_badge_confirmed')
@@ -290,7 +295,10 @@ AutomatedEmailFixture(
 AutomatedEmailFixture(
     Group, '{EVENT_NAME} group payment received',
     'reg_workflow/group_confirmation.html',
-    lambda g: g.amount_paid == g.cost and g.cost != 0 and g.leader_id,
+    query=and_(
+        Group.amount_paid == Group.cost,
+        Group.cost != 0,
+        Group.leader_id != None),  # noqa: E711
     needs_approval=False,
     ident='group_payment_received')
 
