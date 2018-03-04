@@ -91,9 +91,6 @@ def upgrade():
     )
     for duplicate_ids in duplicates:
         duplicate_ids = sorted(duplicate_ids[0].split(','))
-        print('\n\nvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv')
-        print(duplicate_ids)
-        print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n')
         op.execute(
             approved_email_table.delete().where(
                 approved_email_table.c.id.in_(duplicate_ids[1:])
