@@ -595,20 +595,6 @@ class Config(_Overridable):
     def ADMIN_ACCESS_SET(self):
         return uber.models.AdminAccount.access_set()
 
-    @request_cached_property
-    @dynamic
-    def EMAIL_APPROVED_IDENTS(self):
-        with uber.models.Session() as session:
-            automated_emails = session.query(uber.models.AutomatedEmail).filter_by(approved=True, needs_approval=True)
-            return {automated_email.ident for automated_email in automated_emails}
-
-    @request_cached_property
-    @dynamic
-    def PREVIOUSLY_SENT_EMAILS(self):
-        from uber.models import Session, Email
-        with Session() as session:
-            return set(session.query(Email.model, Email.fk_id, Email.ident))
-
     # =========================
     # mivs
     # =========================

@@ -83,7 +83,7 @@ class TestAutomatedEmailCategory:
 
     def test_should_send_at_con(self, at_con, get_test_email_category, set_test_approved_idents, attendee1):
         assert not get_test_email_category._should_send(model_inst=attendee1)
-        get_test_email_category.allow_during_con = True
+        get_test_email_category.allow_at_the_con = True
         assert get_test_email_category._should_send(model_inst=attendee1)
 
     # -----------
@@ -96,10 +96,10 @@ class TestAutomatedEmailCategory:
         with pytest.raises(Exception):
             get_test_email_category.send_if_should(None, raise_errors=True)
 
-    def test_really_send_throws_exception(self, monkeypatch, get_test_email_category):
+    def test_send_to_throws_exception(self, monkeypatch, get_test_email_category):
         monkeypatch.setattr(get_test_email_category, 'computed_subject', Mock(side_effect=Exception('Boom!')))
         with pytest.raises(Exception):
-            get_test_email_category.really_send(None)
+            get_test_email_category.send_to(None)
 
     valid_when = days_after(3, sept_15th - timedelta(days=5))
     invalid_when = days_after(3, sept_15th)

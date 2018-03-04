@@ -44,9 +44,10 @@ def _is_dev_email(email):
     return email.endswith('mailinator.com') or c.DEVELOPER_EMAIL in email
 
 
-def send_email(sender, to, subject, body, format='text', cc=(), bcc=(), model=None, ident=None):
+def send_email(sender, to, subject, body, format='text', cc=(), bcc=(), model=None, ident=None, automated_email=None):
     subject = subject.format(EVENT_NAME=c.EVENT_NAME)
     to, cc, bcc = map(listify, [to, cc, bcc])
+    original_to, original_cc, original_bcc = to, cc, bcc
     ident = ident or subject
     if c.DEV_BOX:
         for xs in [to, cc, bcc]:
@@ -65,20 +66,23 @@ def send_email(sender, to, subject, body, format='text', cc=(), bcc=(), model=No
     else:
         log.error('email sending turned off, so unable to send {}', locals())
 
-    if model and to:
+    if model and original_to:
         body = body.decode('utf-8') if isinstance(body, bytes) else body
         if model == 'n/a':
             fk_kwargs = {'model': 'n/a'}
         else:
             fk_kwargs = {'fk_id': model.id, 'model': model.__class__.__name__}
 
+        if automated_email:
+            fk_kwargs['automated_email_id'] = automated_email.id
+
         _record_email_sent(uber.models.email.Email(
             subject=subject,
             body=body,
             sender=sender,
-            to=','.join(to),
-            cc=','.join(cc),
-            bcc=','.join(bcc),
+            to=','.join(original_to),
+            cc=','.join(original_cc),
+            bcc=','.join(original_bcc),
             ident=ident,
             **fk_kwargs))
 

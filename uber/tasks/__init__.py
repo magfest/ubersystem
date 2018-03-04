@@ -55,11 +55,10 @@ def run_scheduled_tasks():
 @entry_point
 def run_automated_emails():
     from pprint import pprint
-    from uber.tasks.email import SendAutomatedEmailsJob
+    from uber.tasks.email import send_automated_emails
 
     Session.initialize_db(initialize=True)
-    SendAutomatedEmailsJob.run()
-    pprint(SendAutomatedEmailsJob.last_result)
+    pprint(send_automated_emails())
 
 
 from uber.tasks import attractions  # noqa: F401

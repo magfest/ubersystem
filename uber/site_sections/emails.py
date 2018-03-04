@@ -9,7 +9,6 @@ from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, rend
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, AutomatedEmail, Email, Group
 from uber.notifications import send_email
-from uber.tasks.email import SendAutomatedEmailsJob
 from uber.utils import get_page
 
 
@@ -33,26 +32,23 @@ class Root:
 
     def pending(self, session, message=''):
         automated_emails = []
-        last_job_completed = SendAutomatedEmailsJob.completed
-        categories_results = SendAutomatedEmailsJob.last_result
+
+        approvable_emails = session.query(AutomatedEmail).filter(*AutomatedEmail.filters_for_approvable).all()
+        approvable_email_counts = {e.ident: e.unapproved_count for e in approvable_emails}
 
         count_query = session.query(Email.ident, func.count(Email.ident)).group_by(Email.ident)
         sent_email_counts = {c[0]: c[1] for c in count_query.all()}
 
         for automated_email in AutomatedEmailFixture.fixtures_by_ident.values():
-            category_results = categories_results.get(automated_email.ident, None) if categories_results else None
-            unsent_because_unapproved = category_results.get('unsent_because_unapproved', 0) if category_results else 0
-
             automated_emails.append({
                 'automated_email': automated_email,
                 'num_sent': sent_email_counts.get(automated_email.ident, 0),
-                'unsent_because_unapproved': unsent_because_unapproved if last_job_completed else '_'
+                'unsent_because_unapproved': approvable_email_counts.get(automated_email.ident, 0),
             })
 
         return {
             'message': message,
             'automated_emails': automated_emails,
-            'last_job_completed': last_job_completed
         }
 
     def pending_examples(self, session, ident):
@@ -61,7 +57,7 @@ class Root:
         email = AutomatedEmailFixture.fixtures_by_ident[ident]
         example = render_empty('emails/' + email.template)
         for x in AutomatedEmailFixture.queries[email.model](session):
-            if email.filters_run(x):
+            if email.would_send_if_approved(x):
                 count += 1
                 url = {
                     Group: '../groups/form?id={}',

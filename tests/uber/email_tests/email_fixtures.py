@@ -1,4 +1,4 @@
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict
 from datetime import datetime
 from unittest.mock import patch, Mock
 
@@ -37,7 +37,6 @@ def set_datebase_now_to_sept_15th(monkeypatch):
 @pytest.fixture
 def remove_all_email_categories(monkeypatch):
     monkeypatch.setattr(AutomatedEmailFixture, 'fixtures_by_ident', OrderedDict())
-    monkeypatch.setattr(AutomatedEmailFixture, 'fixtures_by_model', defaultdict(list))
 
 
 @pytest.fixture
@@ -64,7 +63,7 @@ def add_test_email_categories(remove_all_email_categories):
         extra_data=None,
         cc="proto@man.com",
         bcc=None,
-        post_con=False,
+        allow_post_con=False,
         needs_approval=True,
     )
 

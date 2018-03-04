@@ -42,35 +42,14 @@ def send_automated_emails():
                         if fixture:
                             if fixture.would_send_if_approved(model_instance):
                                 if automated_email.approved or not automated_email.needs_approval:
-                                    fixture.really_send(model_instance, automated_email)
+                                    fixture.send_to(model_instance, automated_email)
                                 else:
                                     automated_email.unapproved_count += 1
 
         return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
 
-        # TODO: This is how automated email sending should work eventually
-        #
-        # for automated_email in active_automated_emails:
-        #     fixture = AutomatedEmailFixture.fixtures_by_ident[automated_email.ident]
-        #     model_class = fixture.model_class
-        #     model_instances = session.query(model_class).filter(
-        #         not_(exists().where(and_(
-        #             Email.fk_id == model_class.id,
-        #             Email.automated_email_id == automated_email.id))
-        #         ),
-        #         *fixture.query
-        #     ).options(*fixture.query_options)
-        #
-        #     automated_email.unapproved_count = 0
-        #     for model_instance in model_instances:
-        #         if fixture.filter(model_instance):
-        #             if automated_email.approved or not automated_email.needs_approval:
-        #                 automated_email.send_to(model_instance)
-        #             else:
-        #                 automated_email.unapproved_count += 1
 
-
-def send_pending_email_report(pending_email_categories, sender):
+def _send_pending_email_report(pending_email_categories, sender):
     rendering_data = {
         'pending_email_categories': pending_email_categories,
         'primary_sender': sender,
@@ -91,7 +70,7 @@ def notify_admins_of_pending_emails():
         return
 
     with Session() as session:
-        pending_emails = session.query(AutomatedEmail).filter(*AutomatedEmail.filters_for_active_unapproved).all()
+        pending_emails = session.query(AutomatedEmail).filter(*AutomatedEmail.filters_for_pending).all()
         pending_email_categories = groupify(pending_emails, ['sender', 'ident'], lambda e: {
             'unapproved_count': e.unapproved_count,
             'subject': e.subject,
@@ -110,7 +89,7 @@ def notify_admins_of_pending_emails():
                 c_sender: categories for c_sender, categories in pending_email_categories.items() if c_sender == sender
             }
 
-        send_pending_email_report(included_categories, sender)
+        _send_pending_email_report(included_categories, sender)
 
 
 schedule.every().day.at('06:00').do(notify_admins_of_pending_emails)

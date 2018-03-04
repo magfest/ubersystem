@@ -17,7 +17,7 @@
 
             {% for ident, category in categories.items() %}
                 <li>
-                    {{ category.num_unsent }} pending: <b>{{ category.subject }}</b>
+                    {{ category.unapproved_count }} pending: <b>{{ category.subject }}</b>
                     [<a href="{{ c.URL_BASE }}/emails/pending_examples?ident={{ ident }}">view examples</a>]
                 </li>
             {% endfor %}

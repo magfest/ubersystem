@@ -12,13 +12,12 @@ ALREADY SENT FOR THAT CATEGORY TO RE-SEND.
 """
 
 import os
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict
 from datetime import datetime, timedelta
 
 from pockets import listify
 from pockets.autolog import log
 from pytz import UTC
-from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
@@ -37,9 +36,6 @@ class AutomatedEmailFixture:
 
     # global: all instances of every registered email fixture, mapped by ident
     fixtures_by_ident = OrderedDict()
-
-    # global: all instances of every registered email fixture, mapped by model class
-    fixtures_by_model = defaultdict(list)
 
     # a list of queries to run during each automated email sending run to
     # return particular model instances of a given type.
@@ -80,6 +76,7 @@ class AutomatedEmailFixture:
             for ident, fixture in cls.fixtures_by_ident.items():
                 automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first() or AutomatedEmail()
                 session.add(fixture.reconcile(automated_email))
+                session.flush()
 
     def reconcile(self, automated_email):
         automated_email.model = self.model.__name__
@@ -89,12 +86,45 @@ class AutomatedEmailFixture:
         automated_email.sender = self.sender
         automated_email.cc = ','.join(self.cc)
         automated_email.bcc = ','.join(self.bcc)
-        automated_email.approved = False
         automated_email.needs_approval = self.needs_approval
-        automated_email.unapproved_count = 0
+        automated_email.allow_at_the_con = self.allow_at_the_con
+        automated_email.allow_post_con = self.allow_post_con
         automated_email.active_after = self.active_after
         automated_email.active_before = self.active_before
+        automated_email.approved = False if automated_email.is_new else automated_email.approved
+        automated_email.unapproved_count = 0 if automated_email.is_new else automated_email.unapproved_count
         return automated_email
+
+    def __init__(self, model, subject, template, filter, ident, *, when=(),
+                 sender=None, extra_data=None, cc=None, bcc=None,
+                 allow_post_con=False, needs_approval=True, allow_at_the_con=False):
+
+        self.subject = subject.format(EVENT_NAME=c.EVENT_NAME, EVENT_DATE=c.EPOCH.strftime("(%b %Y)"))
+        self.ident = ident
+        self.model = model
+
+        assert self.ident, 'error: automated email ident may not be empty.'
+        assert self.ident not in self.fixtures_by_ident, \
+            'error: automated email ident "{}" is registered twice.'.format(self.ident)
+
+        self.fixtures_by_ident[self.ident] = self
+
+        self.template = template
+        self.needs_approval = needs_approval
+        self.allow_post_con = allow_post_con
+        self.allow_at_the_con = allow_at_the_con
+        self.cc = cc or []
+        self.bcc = bcc or []
+        self.extra_data = extra_data or {}
+        self.sender = sender or c.REGDESK_EMAIL
+        self.when = listify(when)
+
+        assert filter is not None
+
+        if allow_post_con:
+            self.filter = filter
+        else:
+            self.filter = lambda model_inst: not c.POST_CON and filter(model_inst)
 
     @property
     def active_after(self):
@@ -106,44 +136,13 @@ class AutomatedEmailFixture:
         before = [d.active_before for d in self.when if d.active_before]
         return max(before) if before else None
 
-    def __init__(
-            self, model, subject, template, ident, *,
-            query=(),
-            query_options=(),
-            filter=lambda model_instance: True,
-            when=(),
-            sender=None, extra_data=None, cc=None, bcc=None,
-            post_con=False, needs_approval=True, allow_during_con=False):
+    @property
+    def when_txt(self):
+        """
+        Return a textual description of when the date filters are active for this email category.
+        """
 
-        self.subject = subject
-        self.ident = ident
-        self.model = model
-
-        assert self.ident, 'error: automated email ident may not be empty.'
-        assert self.ident not in self.fixtures_by_ident, \
-            'error: automated email ident "{}" is registered twice.'.format(self.ident)
-
-        self.fixtures_by_ident[self.ident] = self
-        self.fixtures_by_model[self.model].append(self)
-
-        self.template = template
-        self.needs_approval = needs_approval
-        self.allow_during_con = allow_during_con
-        self.cc = cc or []
-        self.bcc = bcc or []
-        self.extra_data = extra_data or {}
-        self.sender = sender or c.REGDESK_EMAIL
-        self.when = listify(when)
-
-        self.query = listify(query)
-        self.query_options = listify(query_options)
-        self.filter = listify(filter)
-
-    def filters_run(self, model_inst):
-        return all([self.filter(model_inst), self._run_date_filters()])
-
-    def _run_date_filters(self):
-        return all([date_filter() for date_filter in self.when])
+        return '\n'.join([filter.active_when for filter in self.when])
 
     def __repr__(self):
         return '<{}: {!r}>'.format(self.__class__.__name__, self.subject)
@@ -157,89 +156,19 @@ class AutomatedEmailFixture:
         """
         return self.subject
 
-    def _already_sent(self, model_inst):
-        """
-        Returns true if we have a record of previously sending this email to this model
-
-        NOTE: c.PREVIOUSLY_SENT_EMAILS is a cached property and will only update at the start of each daemon run.
-        """
-        return (model_inst.__class__.__name__, model_inst.id, self.ident) in c.PREVIOUSLY_SENT_EMAILS
-
-    def send_if_should(self, model_inst, raise_errors=False):
-        """
-        If it's OK to send an email of our category to this model instance (i.e. a particular Attendee) then send it.
-
-        Do any error handling in the client functions we call
-
-        :return: True if the email was actually sent, False otherwise.
-        """
-        if self._should_send(model_inst, raise_errors=raise_errors):
-            return self.really_send(model_inst, raise_errors=raise_errors)
-        return False
-
-    def _should_send(self, model_inst, raise_errors=False):
-        """
-        If True, we should generate an actual email created from our email category
-        and send it to a particular model instance.
-
-        This is determined based on a few things like:
-        1) whether we have sent this exact email out yet or not
-        2) whether the email category has been approved
-        3) whether the model instance passed in is the same type as what we want to process
-        4) do any date-based filters exist on this email category? (i.e. send 7 days before magfest)
-        5) do any other filters exist on this email category? (i.e. only if attendee.staffing == true)
-
-        Example #1 of a model instance to check:
-          self.ident: "You {attendee.name} have registered for our event!"
-          model_inst:  class Attendee: id #4532, name: "John smith"
-
-        Example #2 of a model instance to check:
-          self.ident: "Your group {group.name} owes money"
-          model_inst:  class Group: id #1251, name: "The Fighting Mongooses"
-
-        :param model_inst: The model we've been requested to use (i.e. Attendee, Group, etc)
-
-        :return: True if we should send this email to this model instance, False if not.
-        """
-
-        try:
-            return self.would_send_if_approved(model_inst) and self.approved
-        except Exception:
-            log.error('error determining whether to send {!r} email to {}',
-                      self.subject, model_inst.email, exc_info=True)
-            if raise_errors:
-                raise
-            return False
-
     def would_send_if_approved(self, model_inst):
         """
         Check if this email category would be sent if this email category was approved.
 
         :return: True if this email would be sent without considering it's approved status. False otherwise
         """
-        return all(condition() for condition in [
-            lambda: not c.AT_THE_CON or self.allow_during_con,
-            lambda: isinstance(model_inst, self.model),
-            lambda: getattr(model_inst, 'email', None),
-            lambda: not self._already_sent(model_inst),
-            lambda: self.filters_run(model_inst),
-        ])
-
-    @property
-    def approved(self):
-        """
-        Check if this email category has been approved by the admins to send automated emails.
-
-        :return: True if we are approved to send this email, or don't need approval. False otherwise
-        """
-
-        return not self.needs_approval or self.ident in c.EMAIL_APPROVED_IDENTS
+        return getattr(model_inst, 'email', False) and self.filter(model_inst)
 
     def render(self, model_instance):
         model = getattr(model_instance, 'email_model_name', model_instance.__class__.__name__.lower())
         return render('emails/' + self.template, dict({model: model_instance}, **self.extra_data))
 
-    def really_send(self, model_instance, raise_errors=False):
+    def send_to(self, model_instance, raise_errors=False, automated_email=None):
         """
         Actually send an email to a particular model instance (i.e. a particular attendee).
 
@@ -254,21 +183,14 @@ class AutomatedEmailFixture:
             format = 'text' if self.template.endswith('.txt') else 'html'
             send_email(self.sender, model_instance.email, subject,
                        self.render(model_instance), format,
-                       model=model_instance, cc=self.cc, ident=self.ident)
+                       model=model_instance, cc=self.cc, ident=self.ident,
+                       automated_email=automated_email)
             return True
         except Exception:
             log.error('error sending {!r} email to {}', self.subject, model_instance.email, exc_info=True)
             if raise_errors:
                 raise
         return False
-
-    @property
-    def when_txt(self):
-        """
-        Return a textual description of when the date filters are active for this email category.
-        """
-
-        return '\n'.join([filter.active_when for filter in self.when])
 
 
 # Payment reminder emails, including ones for groups, which are always safe to be here, since they just
@@ -277,28 +199,23 @@ class AutomatedEmailFixture:
 AutomatedEmailFixture(
     Attendee, '{EVENT_NAME} payment received',
     'reg_workflow/attendee_confirmation.html',
-    query=Attendee.paid == c.HAS_PAID,
+    lambda a: a.paid == c.HAS_PAID,
     needs_approval=False,
-    allow_during_con=True,
+    allow_at_the_con=True,
     ident='attendee_payment_received')
 
 AutomatedEmailFixture(
     Attendee, '{EVENT_NAME} registration confirmed',
     'reg_workflow/attendee_confirmation.html',
-    query=and_(
-        Attendee.paid == c.NEED_NOT_PAY,
-        or_(Attendee.confirmed != None, Attendee.promo_code_id != None)),  # noqa: E711
+    lambda a: a.paid == c.NEED_NOT_PAY and (a.confirmed or a.promo_code_id),
     needs_approval=False,
-    allow_during_con=True,
+    allow_at_the_con=True,
     ident='attendee_badge_confirmed')
 
 AutomatedEmailFixture(
     Group, '{EVENT_NAME} group payment received',
     'reg_workflow/group_confirmation.html',
-    query=and_(
-        Group.amount_paid == Group.cost,
-        Group.cost != 0,
-        Group.leader_id != None),  # noqa: E711
+    lambda g: g.amount_paid == g.cost and g.cost != 0 and g.leader_id,
     needs_approval=False,
     ident='group_payment_received')
 
@@ -307,7 +224,7 @@ AutomatedEmailFixture(
     'reg_workflow/attendee_confirmation.html',
     lambda a: a.group and (a.id != a.group.leader_id or a.group.cost == 0) and not a.placeholder,
     needs_approval=False,
-    allow_during_con=True,
+    allow_at_the_con=True,
     ident='attendee_group_reg_confirmation')
 
 AutomatedEmailFixture(
@@ -468,7 +385,7 @@ AutomatedEmailFixture(
       c.AT_THE_CON
       or a.badge_type not in [c.GUEST_BADGE, c.STAFF_BADGE]
       and not set([c.DEALER_RIBBON, c.PANELIST_RIBBON, c.VOLUNTEER_RIBBON]).intersection(a.ribbon_ints)),
-    allow_during_con=True,
+    allow_at_the_con=True,
     ident='regular_badge_confirmation')
 
 AutomatedEmailFixture(
@@ -571,6 +488,10 @@ AutomatedEmailFixture(
 
 class DeptChecklistEmailFixture(AutomatedEmailFixture):
     def __init__(self, conf):
+        when = [days_before(10, conf.deadline)]
+        if conf.email_post_con:
+            when.append(days_after(0, c.EPOCH))
+
         AutomatedEmailFixture.__init__(
             self, Attendee, '{EVENT_NAME} Department Checklist: ' + conf.name,
             'shifts/dept_checklist.txt',
@@ -578,10 +499,10 @@ class DeptChecklistEmailFixture(AutomatedEmailFixture):
                 not d.checklist_item_for_slug(conf.slug)
                 for d in a.checklist_admin_depts),
             ident='department_checklist_{}'.format(conf.name),
-            when=days_before(10, conf.deadline),
+            when=when,
             sender=c.STAFF_EMAIL,
             extra_data={'conf': conf},
-            post_con=conf.email_post_con or False)
+            allow_post_con=conf.email_post_con)
 
 
 for _conf in DeptChecklistConf.instances.values():
@@ -757,7 +678,8 @@ MIVSEmailFixture(
     'mivs/reviews_summary.html',
     lambda game: game.status in c.FINAL_MIVS_GAME_STATUSES and game.reviews_to_email,
     ident='mivs_reviews_summary',
-    post_con=True)
+    when=days_after(0, c.EPOCH),
+    allow_post_con=True)
 
 MIVSEmailFixture(
     IndieGame, 'MIVS judging is wrapping up',
@@ -825,7 +747,8 @@ MIVSEmailFixture(
     'mivs/2018_feedback.txt',
     lambda game: game.confirmed,
     ident='2018_mivs_post_event_feedback',
-    post_con=True)
+    when=days_after(0, c.EPOCH),
+    allow_post_con=True)
 
 
 # =============================

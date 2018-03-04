@@ -523,7 +523,7 @@ class DeptChecklistConf(Registry):
         self.slug, self.description = slug, description
         self.name = name or slug.replace('_', ' ').title()
         self._path = path or '/dept_checklist/form?slug={slug}&department_id={department_id}'
-        self.email_post_con = email_post_con
+        self.email_post_con = bool(email_post_con)
         self.deadline = c.EVENT_TIMEZONE.localize(datetime.strptime(deadline, '%Y-%m-%d')).replace(hour=23, minute=59)
 
     def path(self, department_id):
