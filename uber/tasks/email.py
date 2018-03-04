@@ -1,7 +1,7 @@
 from collections import defaultdict
 from time import sleep
 
-from uber.automated_emails import AutomatedEmail
+from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
 from uber.decorators import render
 from uber.models import Session
@@ -25,15 +25,19 @@ class SendAutomatedEmailsJob:
         """
         Do one run of our automated email service.
 
+        Before sending any emails, the automated_email table in the database
+        will be reconciled with any existing AutomatedEmailFixtures.
+
         Call this periodically to send any emails that should go out
-        automatically. Returns immediately if we're not configured to send
-        emails.
+        automatically. Email sending is skipped entirely if the system is not
+        configured to send emails.
 
         Args:
             raise_errors (bool): If False, exceptions are squashed during email
                 sending and we'll try the next email.
         """
-        if not c.DEV_BOX or not c.SEND_EMAILS:
+        AutomatedEmailFixture.reconcile_fixtures()
+        if not (c.DEV_BOX or c.SEND_EMAILS):
             return
 
         # We use request_cached_context() to force cache invalidation
@@ -54,7 +58,7 @@ class SendAutomatedEmailsJob:
         """
         This function is the heart of the automated email daemon in ubersystem.
 
-        To send automated emails, we look at AutomatedEmail.queries for a list
+        To send automated emails, we look at AutomatedEmailFixture.queries for a list
         of DB queries to run. The result of these queries are a list of model
         instances that we might want to send emails for.
 
@@ -62,8 +66,8 @@ class SendAutomatedEmailsJob:
         'Group'. Each model instance is, for example, a particular group, or a
         particular attendee.
 
-        Next, we'll go through *ALL* AutomatedEmail's that are registered in
-        the system. (When you see AutomatedEmail think "email category"). On
+        Next, we'll go through *ALL* AutomatedEmailFixture's that are registered in
+        the system. (When you see AutomatedEmailFixture think "email category"). On
         each of these we'll ask that email category if it wants to send any
         emails for this particular model (i.e. a specific attendee).
 
@@ -73,14 +77,14 @@ class SendAutomatedEmailsJob:
         actually send an email for this model instance.
         """
         with Session() as session:
-            for model, query_fn in AutomatedEmail.queries.items():
+            for model, query_fn in AutomatedEmailFixture.queries.items():
                 model_instances = query_fn(session)
                 for model_instance in model_instances:
                     sleep(0.01)  # Throttle CPU usage
-                    for email_category in AutomatedEmail.instances_by_model.get(model, []):
-                        if not email_category.send_if_should(model_instance, raise_errors):
-                            if not email_category.approved and email_category.would_send_if_approved(model_instance):
-                                cls.log_unsent_because_unapproved(email_category)
+                    for fixture in AutomatedEmailFixture.fixtures_by_model.get(model, []):
+                        if not fixture.send_if_should(model_instance, raise_errors):
+                            if not fixture.approved and fixture.would_send_if_approved(model_instance):
+                                cls.log_unsent_because_unapproved(fixture)
 
     @classmethod
     def log_unsent_because_unapproved(cls, automated_email):
@@ -89,11 +93,27 @@ class SendAutomatedEmailsJob:
         but could not because it didn't have approval.
 
         Args:
-            automated_email (AutomatedEmail): The automated email category that
+            automated_email (AutomatedEmailFixture): The automated email category that
                 would have sent, but needed approval.
 
         """
         cls.running_result[automated_email.ident]['unsent_because_unapproved'] += 1
+
+
+# def send_automated_emails():
+#     AutomatedEmailFixture.reconcile_fixtures()
+#     if not (c.DEV_BOX or c.SEND_EMAILS):
+#         return
+#
+#     with Session() as session:
+#         for model, query_func in AutomatedEmailFixture.queries.items():
+#             model_instances = query_func(session)
+#             for model_instance in model_instances:
+#                 sleep(0.01)  # Throttle CPU usage
+#                 for email_category in AutomatedEmailFixture.fixtures_by_model.get(model, []):
+#                     if not email_category.send_if_should(model_instance, raise_errors):
+#                         if not email_category.approved and email_category.would_send_if_approved(model_instance):
+#                             cls.log_unsent_because_unapproved(email_category)
 
 
 def get_pending_email_data():
@@ -114,7 +134,7 @@ def get_pending_email_data():
 
     pending_emails_by_sender = defaultdict(dict)
 
-    for automated_email in AutomatedEmail.instances.values():
+    for automated_email in AutomatedEmailFixture.fixtures_by_ident.values():
         sender = automated_email.sender
         ident = automated_email.ident
 

@@ -5,7 +5,7 @@ from unittest.mock import patch, Mock
 import pytest
 
 from uber.amazon_ses import AmazonSES
-from uber.automated_emails import AutomatedEmail
+from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c, Config
 from uber.models import Attendee
 from uber.tasks.email import SendAutomatedEmailsJob
@@ -36,13 +36,13 @@ def set_datebase_now_to_sept_15th(monkeypatch):
 
 @pytest.fixture
 def remove_all_email_categories(monkeypatch):
-    monkeypatch.setattr(AutomatedEmail, 'instances', OrderedDict())
-    monkeypatch.setattr(AutomatedEmail, 'instances_by_model', defaultdict(list))
+    monkeypatch.setattr(AutomatedEmailFixture, 'fixtures_by_ident', OrderedDict())
+    monkeypatch.setattr(AutomatedEmailFixture, 'fixtures_by_model', defaultdict(list))
 
 
 @pytest.fixture
 def render_fake_email(monkeypatch):
-    with patch.object(AutomatedEmail, 'render', return_value='this is email text') as mock:
+    with patch.object(AutomatedEmailFixture, 'render', return_value='this is email text') as mock:
         yield mock
 
 
@@ -53,11 +53,11 @@ def record_email_was_sent():
 
 @pytest.fixture
 def add_test_email_categories(remove_all_email_categories):
-    AutomatedEmail(
+    AutomatedEmailFixture(
         model=Attendee,
         subject='{EVENT_NAME}: You Need To Know',
         ident='you_are_not_him',
-        template='unrest_in_the_house_of_light.html',
+        template='reg_workflow/attendee_confirmation.html',
         filter=lambda a: a.paid == c.NEED_NOT_PAY,
         when=(),
         sender="thomas.light@200X.com",
@@ -88,7 +88,7 @@ def log_unsent_because_unapproved(monkeypatch):
 @pytest.fixture
 def setup_fake_test_attendees(monkeypatch):
     # replace all email categories in the system with an empty list so we can add to it later
-    monkeypatch.setattr(AutomatedEmail, 'queries', {
+    monkeypatch.setattr(AutomatedEmailFixture, 'queries', {
         Attendee: lambda ignored_param: [
             Attendee(
                 placeholder=True,
@@ -136,12 +136,12 @@ def remove_approved_idents(monkeypatch):
 
 @pytest.fixture
 def attendee1():
-    return AutomatedEmail.queries[Attendee](None)[0]
+    return AutomatedEmailFixture.queries[Attendee](None)[0]
 
 
 @pytest.fixture
 def set_test_approved_idents(monkeypatch, remove_approved_idents):
-    # list of idents of emails which are approved for sending.  this matches AutomatedEmail.ident
+    # list of idents of emails which are approved for sending.  this matches AutomatedEmailFixture.ident
     approved_idents = [
         E.IDENT_TO_FIND,
     ]
@@ -171,7 +171,7 @@ def set_previously_sent_emails_to_attendee1(monkeypatch):
 
 @pytest.fixture
 def reset_unapproved_emails_count(monkeypatch):
-    for email_category in AutomatedEmail.instances.values():
+    for email_category in AutomatedEmailFixture.fixtures_by_ident.values():
         email_category.unapproved_emails_not_sent = None
 
 
@@ -195,4 +195,4 @@ def email_subsystem_sane_setup(
 
 @pytest.fixture
 def get_test_email_category():
-    return AutomatedEmail.instances.get(E.IDENT_TO_FIND)
+    return AutomatedEmailFixture.fixtures_by_ident.get(E.IDENT_TO_FIND)

@@ -44,9 +44,9 @@ def _is_dev_email(email):
     return email.endswith('mailinator.com') or c.DEVELOPER_EMAIL in email
 
 
-def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=None, ident=None):
+def send_email(sender, to, subject, body, format='text', cc=(), bcc=(), model=None, ident=None):
     subject = subject.format(EVENT_NAME=c.EVENT_NAME)
-    to, cc, bcc = map(listify, [dest, cc, bcc])
+    to, cc, bcc = map(listify, [to, cc, bcc])
     ident = ident or subject
     if c.DEV_BOX:
         for xs in [to, cc, bcc]:
@@ -56,7 +56,7 @@ def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=
         msg_kwargs = {'bodyText' if format == 'text' else 'bodyHtml': body}
         message = EmailMessage(subject=subject, **msg_kwargs)
         AmazonSES(c.AWS_ACCESS_KEY, c.AWS_SECRET_KEY).sendEmail(
-            source=source,
+            source=sender,
             toAddresses=to,
             ccAddresses=cc,
             bccAddresses=bcc,
@@ -65,7 +65,7 @@ def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=
     else:
         log.error('email sending turned off, so unable to send {}', locals())
 
-    if model and dest:
+    if model and to:
         body = body.decode('utf-8') if isinstance(body, bytes) else body
         if model == 'n/a':
             fk_kwargs = {'model': 'n/a'}
@@ -74,8 +74,11 @@ def send_email(source, dest, subject, body, format='text', cc=(), bcc=(), model=
 
         _record_email_sent(uber.models.email.Email(
             subject=subject,
-            dest=','.join(listify(dest)),
             body=body,
+            sender=sender,
+            to=','.join(to),
+            cc=','.join(cc),
+            bcc=','.join(bcc),
             ident=ident,
             **fk_kwargs))
 

@@ -599,7 +599,8 @@ class Config(_Overridable):
     @dynamic
     def EMAIL_APPROVED_IDENTS(self):
         with uber.models.Session() as session:
-            return {ae.ident for ae in session.query(uber.models.ApprovedEmail)}
+            automated_emails = session.query(uber.models.AutomatedEmail).filter_by(approved=True, needs_approval=True)
+            return {automated_email.ident for automated_email in automated_emails}
 
     @request_cached_property
     @dynamic
@@ -641,22 +642,22 @@ class Config(_Overridable):
     @property
     @dynamic
     def PANEL_ACCEPTED_EMAIL_APPROVED(self):
-        return uber.models.AutomatedEmail.instances['panel_accepted'].approved
+        return uber.models.AutomatedEmailFixture.fixtures_by_ident['panel_accepted'].approved
 
     @property
     @dynamic
     def PANEL_DECLINED_EMAIL_APPROVED(self):
-        return uber.models.AutomatedEmail.instances['panel_declined'].approved
+        return uber.models.AutomatedEmailFixture.fixtures_by_ident['panel_declined'].approved
 
     @property
     @dynamic
     def PANEL_WAITLISTED_EMAIL_APPROVED(self):
-        return uber.models.AutomatedEmail.instances['panel_waitlisted'].approved
+        return uber.models.AutomatedEmailFixture.fixtures_by_ident['panel_waitlisted'].approved
 
     @property
     @dynamic
     def PANEL_SCHEDULED_EMAIL_APPROVED(self):
-        return uber.models.AutomatedEmail.instances['panel_scheduled'].approved
+        return uber.models.AutomatedEmailFixture.fixtures_by_ident['panel_scheduled'].approved
 
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:

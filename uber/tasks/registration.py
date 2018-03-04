@@ -71,7 +71,7 @@ def check_placeholder_registrations():
         ]]  # noqa: E712
 
         with Session() as session:
-            for badge_type, dest, per_email_filter in emails:
+            for badge_type, to, per_email_filter in emails:
                 weeks_until = (c.EPOCH - localized_now()).days // 7
                 subject = '{} {} Placeholder Badge Report ({} weeks to go)'.format(
                     c.EVENT_NAME, badge_type, weeks_until)
@@ -86,7 +86,7 @@ def check_placeholder_registrations():
                                            .order_by(Attendee.registered, Attendee.full_name).all())  # noqa: E712
                     if placeholders:
                         body = render('emails/daily_checks/placeholders.html', {'placeholders': placeholders})
-                        send_email(c.ADMIN_EMAIL, dest, subject, body, format='html', model='n/a')
+                        send_email(c.ADMIN_EMAIL, to, subject, body, format='html', model='n/a')
 
 
 def check_unassigned_volunteers():

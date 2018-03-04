@@ -180,7 +180,7 @@ class Root:
 
         if group.leader:
             emails = session.query(Email).filter(
-                or_(Email.dest == group.leader.email, Email.fk_id == id)).order_by(Email.when).all()
+                or_(Email.to == group.leader.email, Email.fk_id == id)).order_by(Email.when).all()
         else:
             emails = {}
 

@@ -281,6 +281,14 @@ class DateBase:
         # This exists so we can patch this in unit tests
         return localized_now()
 
+    @property
+    def active_after(self):
+        return None
+
+    @property
+    def active_before(self):
+        return None
+
 
 class days_before(DateBase):
     """
@@ -316,6 +324,14 @@ class days_before(DateBase):
         return self.starting_date < self.now() < self.ending_date
 
     @property
+    def active_after(self):
+        return self.starting_date
+
+    @property
+    def active_before(self):
+        return self.ending_date
+
+    @property
     def active_when(self):
         if not self.deadline:
             return ''
@@ -340,6 +356,10 @@ class before(DateBase):
 
     def __call__(self):
         return bool(self.deadline) and self.now() < self.deadline
+
+    @property
+    def active_before(self):
+        return self.deadline
 
     @property
     def active_when(self):
@@ -367,6 +387,10 @@ class days_after(DateBase):
 
     def __call__(self):
         return bool(self.starting_date) and (self.now() > self.starting_date)
+
+    @property
+    def active_after(self):
+        return self.starting_date
 
     @property
     def active_when(self):

@@ -6,6 +6,7 @@ import schedule
 from sideboard.lib import entry_point
 
 from uber.decorators import run_threaded, swallow_exceptions, timed
+from uber.models import Session
 
 
 __all__ = ['schedule', 'run_scheduled_tasks']
@@ -45,6 +46,7 @@ schedule.n_times_per_day = schedule_n_times_per_day
 
 @entry_point
 def run_scheduled_tasks():
+    Session.initialize_db(initialize=True)
     while True:
         schedule.run_pending()
         time.sleep(1)
@@ -54,6 +56,8 @@ def run_scheduled_tasks():
 def run_automated_emails():
     from pprint import pprint
     from uber.tasks.email import SendAutomatedEmailsJob
+
+    Session.initialize_db(initialize=True)
     SendAutomatedEmailsJob.run()
     pprint(SendAutomatedEmailsJob.last_result)
 

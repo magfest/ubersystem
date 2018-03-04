@@ -85,7 +85,7 @@ class Root:
 
             if attendee:
                 last_email = (session.query(Email)
-                                     .filter_by(dest=attendee.email, subject=subject)
+                                     .filter_by(to=attendee.email, subject=subject)
                                      .order_by(Email.when.desc()).first())
                 if not last_email or last_email.when < (localized_now() - timedelta(days=7)):
                     send_email(

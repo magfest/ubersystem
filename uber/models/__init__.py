@@ -33,6 +33,31 @@ from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
 from uber.utils import check_csrf, normalize_phone, DeptChecklistConf
 
 
+def _make_getter(model):
+    def getter(
+            self, params=None, *, bools=(), checkgroups=(), allowed=(), restricted=False, ignore_csrf=False, **query):
+
+        if query:
+            return self.query(model).filter_by(**query).one()
+        elif isinstance(params, str):
+            return self.query(model).filter_by(id=params).one()
+        else:
+            params = params.copy()
+            id = params.pop('id', 'None')
+            if id == 'None':
+                inst = model()
+            else:
+                inst = self.query(model).filter_by(id=id).one()
+
+            if not ignore_csrf:
+                assert not {k for k in params if k not in allowed} or cherrypy.request.method == 'POST', 'POST required'
+
+            inst.apply(params, bools=bools, checkgroups=checkgroups, restricted=restricted, ignore_csrf=ignore_csrf)
+
+            return inst
+    return getter
+
+
 # Consistent naming conventions are necessary for alembic to be able to
 # reliably upgrade and downgrade versions. For more details, see:
 # http://alembic.zzzcomputing.com/en/latest/naming.html
@@ -522,6 +547,10 @@ class Session(SessionManager):
             drop: USE WITH CAUTION: If True, then we will drop any tables in
                 the database. Defaults to False.
         """
+        for model in cls.all_models():
+            if not hasattr(cls.SessionMixin, model.__tablename__):
+                setattr(cls.SessionMixin, model.__tablename__, _make_getter(model))
+
         if drop or modify_tables or initialize:
             super(Session, cls).initialize_db(drop=drop, create=modify_tables)
             if drop:
@@ -1343,31 +1372,6 @@ class Session(SessionManager):
         return target
 
 
-def _make_getter(model):
-    def getter(
-            self, params=None, *, bools=(), checkgroups=(), allowed=(), restricted=False, ignore_csrf=False, **query):
-
-        if query:
-            return self.query(model).filter_by(**query).one()
-        elif isinstance(params, str):
-            return self.query(model).filter_by(id=params).one()
-        else:
-            params = params.copy()
-            id = params.pop('id', 'None')
-            if id == 'None':
-                inst = model()
-            else:
-                inst = self.query(model).filter_by(id=id).one()
-
-            if not ignore_csrf:
-                assert not {k for k in params if k not in allowed} or cherrypy.request.method == 'POST', 'POST required'
-
-            inst.apply(params, bools=bools, checkgroups=checkgroups, restricted=restricted, ignore_csrf=ignore_csrf)
-
-            return inst
-    return getter
-
-
 @on_startup(priority=1)
 def initialize_db(modify_tables=False):
     """
@@ -1385,9 +1389,6 @@ def initialize_db(modify_tables=False):
     drop=True or modify_tables=True or initialize=True to
     Session.initialize_db()
     """
-    for _model in Session.all_models():
-        setattr(Session.SessionMixin, _model.__tablename__, _make_getter(_model))
-
     num_tries_remaining = 10
     while not stopped.is_set():
         try:

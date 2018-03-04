@@ -5,7 +5,7 @@ from mock import Mock
 
 from tests.uber.email_tests.email_fixtures import *  # noqa: F401,F403
 from tests.uber.email_tests.email_fixtures import E, sept_15th
-from uber.automated_emails import AutomatedEmail
+from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
 from uber.models import Attendee
 from uber.tasks.email import SendAutomatedEmailsJob
@@ -19,8 +19,8 @@ class FakeModel:
 @pytest.mark.usefixtures("email_subsystem_sane_setup")
 class TestAutomatedEmailCategory:
     def test_testing_environment(self, get_test_email_category):
-        assert len(AutomatedEmail.instances) == 1
-        assert len(AutomatedEmail.queries[Attendee](None)) == 3
+        assert len(AutomatedEmailFixture.fixtures_by_ident) == 1
+        assert len(AutomatedEmailFixture.queries[Attendee](None)) == 3
         assert not get_test_email_category.unapproved_emails_not_sent
 
     def test_event_name(self, get_test_email_category):
@@ -30,21 +30,19 @@ class TestAutomatedEmailCategory:
     def test_approval_needed_and_we_have_it(
             self, monkeypatch, set_test_approved_idents, get_test_email_category, log_unsent_because_unapproved):
 
-        job = SendAutomatedEmailsJob()
         assert get_test_email_category.approved
-        assert job.log_unsent_because_unapproved.call_count == 0
+        assert SendAutomatedEmailsJob.log_unsent_because_unapproved.call_count == 0
 
     def test_approval_needed_and_we_dont_have_it(
             self, monkeypatch, get_test_email_category, log_unsent_because_unapproved):
 
-        job = SendAutomatedEmailsJob()
         assert not get_test_email_category.approved
-        assert job.log_unsent_because_unapproved.call_count == 0
+        assert SendAutomatedEmailsJob.log_unsent_because_unapproved.call_count == 0
 
-        job.run()
+        SendAutomatedEmailsJob.run()
 
         assert not get_test_email_category.approved
-        assert job.log_unsent_because_unapproved.call_count == 2
+        assert SendAutomatedEmailsJob.log_unsent_because_unapproved.call_count == 2
 
     def test_approval_not_needed(self, monkeypatch, get_test_email_category):
         assert not get_test_email_category.approved
@@ -124,7 +122,7 @@ class TestAutomatedEmailCategory:
             when,
             expected_result):
         monkeypatch.setattr(get_test_email_category, 'when', when)
-        monkeypatch.setattr(AutomatedEmail, 'approved', True)
+        monkeypatch.setattr(AutomatedEmailFixture, 'approved', True)
 
         assert get_test_email_category.filters_run(attendee1) == expected_result
         assert get_test_email_category._run_date_filters() == expected_result
@@ -155,27 +153,27 @@ class TestAutomatedEmailCategory:
     ])
     def test_filters(self, monkeypatch, get_test_email_category, attendee1, filter, expected_result):
         monkeypatch.setattr(get_test_email_category, 'filter', filter)
-        monkeypatch.setattr(AutomatedEmail, 'approved', True)
+        monkeypatch.setattr(AutomatedEmailFixture, 'approved', True)
 
         assert get_test_email_category.filters_run(attendee1) == expected_result
         assert get_test_email_category._should_send(model_inst=attendee1) == expected_result
 
     def test_none_filter(self):
         with pytest.raises(AssertionError):
-            AutomatedEmail(Attendee, '', '', None, ident='test_none_filter')
+            AutomatedEmailFixture(Attendee, '', '', None, ident='test_none_filter')
 
     def test_no_filter(self):
         # this is slightly silly but, if this ever changes, we should be explicit about what the expected result is
         with pytest.raises(TypeError):
-            AutomatedEmail(Attendee, '', '', ident='test_no_filter')
+            AutomatedEmailFixture(Attendee, '', '', ident='test_no_filter')
 
     def test_missing_ident_arg(self):
         with pytest.raises(TypeError):
-            AutomatedEmail(Attendee, '', '', lambda a: False)
+            AutomatedEmailFixture(Attendee, '', '', lambda a: False)
 
     def test_empty_ident_arg(self):
         with pytest.raises(AssertionError):
-            AutomatedEmail(Attendee, '', '', lambda a: False, ident='')
+            AutomatedEmailFixture(Attendee, '', '', lambda a: False, ident='')
 
         with pytest.raises(AssertionError):
-            AutomatedEmail(Attendee, '', '', lambda a: False, ident=None)
+            AutomatedEmailFixture(Attendee, '', '', lambda a: False, ident=None)

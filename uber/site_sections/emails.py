@@ -3,11 +3,11 @@ from datetime import datetime
 from sqlalchemy import func, or_
 from pockets import listify
 
-from uber.automated_emails import AutomatedEmail
+from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, render_empty
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, ApprovedEmail, Attendee, Email, Group
+from uber.models import AdminAccount, Attendee, AutomatedEmail, Email, Group
 from uber.notifications import send_email
 from uber.tasks.email import SendAutomatedEmailsJob
 from uber.utils import get_page
@@ -19,7 +19,7 @@ class Root:
         emails = session.query(Email).order_by(Email.when.desc())
         search_text = search_text.strip()
         if search_text:
-            emails = emails.icontains(Email.dest, search_text)
+            emails = emails.icontains(Email.to, search_text)
         return {
             'page': page,
             'emails': get_page(page, emails),
@@ -33,13 +33,13 @@ class Root:
 
     def pending(self, session, message=''):
         automated_emails = []
-        last_job_completed = SendAutomatedEmailsJob.last_result.get('completed', False)
-        categories_results = SendAutomatedEmailsJob.last_result.get('categories', None)
+        last_job_completed = SendAutomatedEmailsJob.completed
+        categories_results = SendAutomatedEmailsJob.last_result
 
         count_query = session.query(Email.ident, func.count(Email.ident)).group_by(Email.ident)
         sent_email_counts = {c[0]: c[1] for c in count_query.all()}
 
-        for automated_email in AutomatedEmail.instances.values():
+        for automated_email in AutomatedEmailFixture.fixtures_by_ident.values():
             category_results = categories_results.get(automated_email.ident, None) if categories_results else None
             unsent_because_unapproved = category_results.get('unsent_because_unapproved', 0) if category_results else 0
 
@@ -58,9 +58,9 @@ class Root:
     def pending_examples(self, session, ident):
         count = 0
         examples = []
-        email = AutomatedEmail.instances[ident]
+        email = AutomatedEmailFixture.fixtures_by_ident[ident]
         example = render_empty('emails/' + email.template)
-        for x in AutomatedEmail.queries[email.model](session):
+        for x in AutomatedEmailFixture.queries[email.model](session):
             if email.filters_run(x):
                 count += 1
                 url = {
@@ -112,8 +112,8 @@ class Root:
         email = session.email(id)
         if email:
             # If this was an automated email, we can send out an updated template with the correct 'from' address
-            if email.ident in AutomatedEmail.instances:
-                email_category = AutomatedEmail.instances[email.ident]
+            if email.ident in AutomatedEmailFixture.fixtures_by_ident:
+                email_category = AutomatedEmailFixture.fixtures_by_ident[email.ident]
                 sender = email_category.sender
                 body = email_category.render(email.fk)
             else:
@@ -130,8 +130,11 @@ class Root:
 
     @csrf_protected
     def approve(self, session, ident):
-        session.add(ApprovedEmail(ident=ident))
-        raise HTTPRedirect('pending?message={}', 'Email approved and will be sent out shortly')
+        automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first()
+        if automated_email:
+            automated_email.approved = True
+            raise HTTPRedirect('pending?message={}', 'Email approved and will be sent out shortly')
+        raise HTTPRedirect('pending?message={}{}', 'Unknown email template: ', ident)
 
     def emails_by_interest(self, message=''):
         return {

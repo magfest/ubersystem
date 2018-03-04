@@ -12,17 +12,10 @@ from uber.models import MagModel
 from uber.models.types import DefaultColumn as Column
 
 
-__all__ = ['ApprovedEmail', 'AutomatedEmail', 'Email']
-
-
-class ApprovedEmail(MagModel):
-    ident = Column(UnicodeText)
-
-    _repr_attr_names = ['ident']
+__all__ = ['AutomatedEmail', 'Email']
 
 
 class AutomatedEmail(MagModel):
-    unapproved_count = Column(Integer, default=0)
     model = Column(UnicodeText)
 
     ident = Column(UnicodeText, unique=True)
@@ -35,6 +28,7 @@ class AutomatedEmail(MagModel):
 
     approved = Column(Boolean, default=True)
     needs_approval = Column(Boolean, default=True)
+    unapproved_count = Column(Integer, default=0)
 
     post_con = Column(Boolean, default=False)
     allow_during_con = Column(Boolean, default=False)
@@ -47,18 +41,20 @@ class AutomatedEmail(MagModel):
 
 class Email(MagModel):
     automated_email_id = Column(
-        UUID,
-        ForeignKey('automated_email.id', ondelete='set null'),
-        nullable=True,
-        default=None)
+        UUID, ForeignKey('automated_email.id', ondelete='set null'), nullable=True, default=None)
 
     fk_id = Column(UUID, nullable=True)
-    ident = Column(UnicodeText)
     model = Column(UnicodeText)
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+
+    ident = Column(UnicodeText)
     subject = Column(UnicodeText)
-    dest = Column(UnicodeText)
     body = Column(UnicodeText)
+
+    sender = Column(UnicodeText)
+    to = Column(UnicodeText)
+    cc = Column(UnicodeText)
+    bcc = Column(UnicodeText)
 
     _repr_attr_names = ['subject']
 
@@ -83,7 +79,7 @@ class Email(MagModel):
         if self.fk:
             is_group = self.model == 'Group'
             return self.fk.leader.email if is_group else self.fk.email
-        return self.dest or None
+        return self.to or None
 
     @property
     def is_html(self):

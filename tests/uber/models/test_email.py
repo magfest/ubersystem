@@ -48,7 +48,7 @@ def test_no_email():
 
 
 def test_email_from_dest():
-    assert "testattendee@example.com" == Email(dest="testattendee@example.com").rcpt_email
+    assert "testattendee@example.com" == Email(to="testattendee@example.com").rcpt_email
 
 
 def test_is_html():
