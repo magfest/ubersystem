@@ -2,24 +2,29 @@
 {% block title %}Example Automated Emails{% endblock %}
 {% block content %}
 
-<h2> {{ subject }} </h2>
+<h2>{% if email %}{{ email.subject }}{% else %}Could not find requested email{% endif %}</h2>
 
 <div class="center">
     <a href="pending">Return to pending email list</a>
 </div>
-<br/>
+<br>
 
-{% if examples %}
-    The following are some examples of the {{ count }} emails that will be sent once this email is approved:
-{% else %}
-    Nobody matches the email criteria.  Perhaps the email is time-based and it's not yet time for it to be sent out?
-    <br>Here's what the template looks like though:<br>
-    <pre style="white-space:pre-wrap">{{ example }}</pre>
+{% if email.unapproved_count > 0 %}
+  There are {{ email.unapproved_count }} copies of this email that will be sent once it's approved.<br><br>
+{% elif examples %}
+  Congratulations! There are no unsent copies of this email waiting to be approved!<br><br>
 {% endif %}
 
-{% for url, email in examples %}
-    {% if url %}<h3><a href="{{ url }}">Source</a></h3>{% endif %}
-    <pre style="white-space:pre-wrap">{{ email }}</pre>
-{% endfor %}
+{% if examples %}
+  The following are some examples of this email:
+  {% for model, body in examples %}
+      <h3>To: {{ model|form_link }}</h3>
+      <pre style="white-space:pre-wrap">{{ body }}</pre>
+  {% endfor %}
+{% else %}
+  No recepients match the email criteria.<br><br>
+  Here's what the template looks like though:<br>
+  <pre style="white-space:pre-wrap">{{ email.body }}</pre>
+{% endif %}
 
 {% endblock %}

@@ -11,15 +11,14 @@ from uber.config import c
 from uber.utils import normalize_phone
 
 
-__all__ = ['send_email', 'get_twilio_client', 'send_sms']
+__all__ = ['send_email', 'format_email_subject', 'get_twilio_client', 'send_sms']
 
 
 # ============================================================================
 # Email
 # ============================================================================
 
-
-def _record_email_sent(email):
+def _record_email_sent(email, session):
     """
     Save in our database the contents of the Email model passed in.
 
@@ -30,8 +29,7 @@ def _record_email_sent(email):
         This is in a separate function so we can unit test it.
 
     """
-    with uber.models.Session() as session:
-        session.add(email)
+    session.add(email)
 
 
 def _is_dev_email(email):
@@ -41,11 +39,15 @@ def _is_dev_email(email):
     Development email addresses either end in "mailinator.com" or exist
     in the `c.DEVELOPER_EMAIL` list.
     """
-    return email.endswith('mailinator.com') or c.DEVELOPER_EMAIL in email
+    return email.endswith('mailinator.com') or email in c.DEVELOPER_EMAIL
+
+
+def format_email_subject(subject):
+    return subject.format(EVENT_NAME=c.EVENT_NAME, EVENT_DATE=c.EPOCH.strftime('(%b %Y)'))
 
 
 def send_email(sender, to, subject, body, format='text', cc=(), bcc=(), model=None, ident=None, automated_email=None):
-    subject = subject.format(EVENT_NAME=c.EVENT_NAME)
+    subject = format_email_subject(subject)
     to, cc, bcc = map(listify, [to, cc, bcc])
     original_to, original_cc, original_bcc = to, cc, bcc
     ident = ident or subject
@@ -64,11 +66,11 @@ def send_email(sender, to, subject, body, format='text', cc=(), bcc=(), model=No
             message=message)
         sleep(0.1)  # Avoid hitting rate limit
     else:
-        log.error('email sending turned off, so unable to send {}', locals())
+        log.error('Email sending turned off, so unable to send {}', locals())
 
-    if model and original_to:
+    if original_to:
         body = body.decode('utf-8') if isinstance(body, bytes) else body
-        if model == 'n/a':
+        if not model or model == 'n/a':
             fk_kwargs = {'model': 'n/a'}
         else:
             fk_kwargs = {'fk_id': model.id, 'model': model.__class__.__name__}
@@ -76,7 +78,7 @@ def send_email(sender, to, subject, body, format='text', cc=(), bcc=(), model=No
         if automated_email:
             fk_kwargs['automated_email_id'] = automated_email.id
 
-        _record_email_sent(uber.models.email.Email(
+        email = uber.models.email.Email(
             subject=subject,
             body=body,
             sender=sender,
@@ -84,7 +86,14 @@ def send_email(sender, to, subject, body, format='text', cc=(), bcc=(), model=No
             cc=','.join(original_cc),
             bcc=','.join(original_bcc),
             ident=ident,
-            **fk_kwargs))
+            **fk_kwargs)
+
+        session = getattr(model, 'session', getattr(automated_email, 'session', None))
+        if session:
+            _record_email_sent(session, email)
+        else:
+            with uber.models.Session() as session:
+                _record_email_sent(session, email)
 
 
 # ============================================================================

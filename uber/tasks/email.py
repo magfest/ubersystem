@@ -1,5 +1,3 @@
-from time import sleep
-
 from pockets import groupify
 from sqlalchemy.orm import joinedload
 
@@ -13,50 +11,6 @@ from uber.utils import localized_now
 
 
 __all__ = ['notify_admins_of_pending_emails', 'send_automated_emails']
-
-
-def send_automated_emails():
-    AutomatedEmailFixture.reconcile_fixtures()
-
-    if not (c.DEV_BOX or c.SEND_EMAILS):
-        return
-
-    with Session() as session:
-        active_automated_emails = session.query(AutomatedEmail) \
-            .filter(*AutomatedEmail.filters_for_active) \
-            .options(joinedload(AutomatedEmail.emails)).all()
-
-        for automated_email in active_automated_emails:
-            automated_email.unapproved_count = 0
-        automated_emails_by_model = groupify(active_automated_emails, 'model')
-
-        for model, query_func in AutomatedEmailFixture.queries.items():
-            model_instances = query_func(session)
-            for model_instance in model_instances:
-                sleep(0.01)  # Throttle CPU usage
-
-                automated_emails = automated_emails_by_model.get(model.__name__, [])
-                for automated_email in automated_emails:
-                    if model_instance.id not in automated_email.emails_by_fk_id:
-                        fixture = AutomatedEmailFixture.fixtures_by_ident.get(automated_email.ident, None)
-                        if fixture:
-                            if fixture.would_send_if_approved(model_instance):
-                                if automated_email.approved or not automated_email.needs_approval:
-                                    fixture.send_to(model_instance, automated_email)
-                                else:
-                                    automated_email.unapproved_count += 1
-
-        return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
-
-
-def _send_pending_email_report(pending_email_categories, sender):
-    rendering_data = {
-        'pending_email_categories': pending_email_categories,
-        'primary_sender': sender,
-    }
-    subject = c.EVENT_NAME + ' Pending Emails Report for ' + localized_now().strftime('%Y-%m-%d')
-    body = render('emails/daily_checks/pending_emails.html', rendering_data)
-    send_email(c.STAFF_EMAIL, sender, subject, body, format='html', model='n/a')
 
 
 def notify_admins_of_pending_emails():
@@ -81,16 +35,41 @@ def notify_admins_of_pending_emails():
         return
 
     for sender, email_categories in pending_email_categories.items():
-        include_all_categories = sender == c.STAFF_EMAIL
-        included_categories = pending_email_categories
+        if sender == c.STAFF_EMAIL:
+            email_categories = pending_email_categories
 
-        if not include_all_categories:
-            included_categories = {
-                c_sender: categories for c_sender, categories in pending_email_categories.items() if c_sender == sender
-            }
+        subject = '{EVENT_NAME} Pending Emails Report for ' + localized_now().strftime('%Y-%m-%d')
+        body = render('emails/daily_checks/pending_emails.html', {
+            'pending_email_categories': email_categories,
+            'primary_sender': sender,
+        })
+        send_email(c.STAFF_EMAIL, sender, subject, body, format='html', model='n/a')
 
-        _send_pending_email_report(included_categories, sender)
+
+def send_automated_emails():
+    if not (c.DEV_BOX or c.SEND_EMAILS):
+        return
+
+    with Session() as session:
+        active_automated_emails = session.query(AutomatedEmail) \
+            .filter(*AutomatedEmail.filters_for_active) \
+            .options(joinedload(AutomatedEmail.emails)).all()
+
+        for automated_email in active_automated_emails:
+            automated_email.unapproved_count = 0
+        automated_emails_by_model = groupify(active_automated_emails, 'model')
+
+        for model, query_func in AutomatedEmailFixture.queries.items():
+            model_instances = query_func(session)
+            for model_instance in model_instances:
+                automated_emails = automated_emails_by_model.get(model.__name__, [])
+                for automated_email in automated_emails:
+                    if model_instance.id not in automated_email.emails_by_fk_id:
+                        automated_email.send_if_should(model_instance)
+
+        return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
 
 
 schedule.every().day.at('06:00').do(notify_admins_of_pending_emails)
 schedule.every(5).minutes.do(send_automated_emails)
+schedule.on_startup(AutomatedEmail.reconcile_fixtures)

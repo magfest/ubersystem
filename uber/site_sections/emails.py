@@ -1,13 +1,13 @@
 from datetime import datetime
 
-from sqlalchemy import func, or_
 from pockets import listify
+from sqlalchemy import or_
 
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, render_empty
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, Attendee, AutomatedEmail, Email, Group
+from uber.models import AdminAccount, Attendee, AutomatedEmail, Email
 from uber.notifications import send_email
 from uber.utils import get_page
 
@@ -31,46 +31,28 @@ class Root:
     sent.restricted = [c.PEOPLE, c.REG_AT_CON]
 
     def pending(self, session, message=''):
+        automated_emails_with_count = session.query(AutomatedEmail, AutomatedEmail.email_count).all()
         automated_emails = []
-
-        approvable_emails = session.query(AutomatedEmail).filter(*AutomatedEmail.filters_for_approvable).all()
-        approvable_email_counts = {e.ident: e.unapproved_count for e in approvable_emails}
-
-        count_query = session.query(Email.ident, func.count(Email.ident)).group_by(Email.ident)
-        sent_email_counts = {c[0]: c[1] for c in count_query.all()}
-
-        for automated_email in AutomatedEmailFixture.fixtures_by_ident.values():
-            automated_emails.append({
-                'automated_email': automated_email,
-                'num_sent': sent_email_counts.get(automated_email.ident, 0),
-                'unsent_because_unapproved': approvable_email_counts.get(automated_email.ident, 0),
-            })
+        for automated_email, email_count in automated_emails_with_count:
+            automated_email.sent_email_count = email_count
+            automated_emails.append(automated_email)
 
         return {
             'message': message,
-            'automated_emails': automated_emails,
+            'automated_emails': sorted(automated_emails, key=lambda e: e.ordinal),
         }
 
     def pending_examples(self, session, ident):
-        count = 0
+        email = session.query(AutomatedEmail).filter_by(ident=ident).first()
         examples = []
-        email = AutomatedEmailFixture.fixtures_by_ident[ident]
-        example = render_empty('emails/' + email.template)
-        for x in AutomatedEmailFixture.queries[email.model](session):
-            if email.would_send_if_approved(x):
-                count += 1
-                url = {
-                    Group: '../groups/form?id={}',
-                    Attendee: '../registration/form?id={}'
-                }.get(x.__class__, '').format(x.id)
-                if len(examples) < 10:
-                    examples.append([url, email.render(x).decode('utf-8')])
-
+        for model_instance in AutomatedEmailFixture.queries[email.model_class](session):
+            if email.would_send_if_approved(model_instance):
+                examples.append((model_instance, email.render_body(model_instance).decode('utf-8')))
+                if len(examples) > 4:
+                    break
         return {
-            'count': count,
-            'example': example,
+            'email': email,
             'examples': examples,
-            'subject': email.subject,
         }
 
     def test_email(self, session, subject=None, body=None, from_address=None, to_address=None, **params):

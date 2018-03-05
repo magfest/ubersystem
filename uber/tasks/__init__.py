@@ -12,14 +12,19 @@ from uber.models import Session
 __all__ = ['schedule', 'run_scheduled_tasks']
 
 
+def _safety_wrap(fn, threaded=True, thread_name=None):
+    thread_name = thread_name or fn.__name__
+    wrapped_func = timed('Finished {}: '.format('background thread' if threaded else 'task'))(swallow_exceptions(fn))
+    if threaded:
+        if not fn.__dict__.get('_lock', None):
+            fn.__dict__['_lock'] = RLock()
+        wrapped_func = run_threaded(thread_name, lock=fn._lock, blocking=False)(wrapped_func)
+    return wrapped_func
+
+
 class ThreadedJob(schedule.Job):
     def do(self, job_func, *args, threaded=True, thread_name=None, **kwargs):
-        thread_name = thread_name or job_func.__name__
-        wrapped_func = timed('Finished background thread: ')(swallow_exceptions(job_func))
-        if threaded:
-            if not job_func.__dict__.get('_lock', None):
-                job_func.__dict__['_lock'] = RLock()
-            wrapped_func = run_threaded(thread_name, lock=job_func._lock, blocking=False)(wrapped_func)
+        wrapped_func = _safety_wrap(job_func, threaded=threaded, thread_name=thread_name)
         return super(ThreadedJob, self).do(wrapped_func, *args, **kwargs)
 
 
@@ -40,25 +45,46 @@ def schedule_n_times_per_day(times_per_day, fn, *args, **kwargs):
     return jobs
 
 
+_is_started = False
+_startup_tasks = []
+
+
+def schedule_on_startup(fn, *args, **kwargs):
+    wrapped_func = _safety_wrap(fn, threaded=True, thread_name=None)
+    if _is_started:
+        wrapped_func(*args, **kwargs)
+    else:
+        _startup_tasks.append((wrapped_func, args, kwargs))
+
+
 schedule.default_scheduler = ThreadedScheduler()
 schedule.n_times_per_day = schedule_n_times_per_day
+schedule.on_startup = schedule_on_startup
 
 
 @entry_point
 def run_scheduled_tasks():
     Session.initialize_db(initialize=True)
+
+    global _is_started
+    _is_started = True
+    for fn, args, kwargs in _startup_tasks:
+        fn(*args, **kwargs)
+
     while True:
         schedule.run_pending()
         time.sleep(1)
 
 
 @entry_point
-def run_automated_emails():
+def send_automated_emails():
     from pprint import pprint
-    from uber.tasks.email import send_automated_emails
+    from uber.models import AutomatedEmail
+    from uber.tasks.email import send_automated_emails as send_emails
 
     Session.initialize_db(initialize=True)
-    pprint(send_automated_emails())
+    AutomatedEmail.reconcile_fixtures()
+    pprint(send_emails())
 
 
 from uber.tasks import attractions  # noqa: F401

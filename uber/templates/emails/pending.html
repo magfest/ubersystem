@@ -17,21 +17,21 @@
 </tr>
 </thead>
 <tbody>
-{% for entry in automated_emails %}
+{% for automated_email in automated_emails %}
     <tr>
-        <td>{{ entry.automated_email.subject }}</td>
-        <td>{{ entry.automated_email.sender }}</td>
-        <td>{{ entry.num_sent }}</td>
-        <td>{{ entry.unsent_because_unapproved }}</td>
-        <td><a href="pending_examples?ident={{ entry.automated_email.ident|urlencode }}">Examples</a></td>
+        <td>{{ automated_email.subject }}</td>
+        <td>{{ automated_email.sender }}</td>
+        <td>{{ automated_email.sent_email_count }}</td>
+        <td>{{ automated_email.unapproved_count }}</td>
+        <td><a href="pending_examples?ident={{ automated_email.ident|urlencode }}">Examples</a></td>
         <td>
-            {% if not entry.automated_email.needs_approval %}
+            {% if not automated_email.needs_approval %}
                 Automatic
             {% else %}
-                {% if not entry.automated_email.approved %}
+                {% if not automated_email.approved %}
                     <form method="post" action="approve">
                     {{ csrf_token() }}
-                    <input type="hidden" name="ident" value="{{ entry.automated_email.ident }}" />
+                    <input type="hidden" name="ident" value="{{ automated_email.ident }}" />
                     <input type="submit" value="Approve" />
                     </form>
                 {% else %}
@@ -39,7 +39,7 @@
                 {% endif %}
             {% endif %}
         </td>
-        <td>{{ entry.automated_email.when_txt|linebreaksbr }}</td>
+        <td>{{ automated_email.active_label|linebreaksbr }}</td>
     </tr>
 {% endfor %}
 </tbody>

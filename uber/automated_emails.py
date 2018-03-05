@@ -16,15 +16,14 @@ from collections import OrderedDict
 from datetime import datetime, timedelta
 
 from pockets import listify
-from pockets.autolog import log
 from pytz import UTC
 from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
-from uber.decorators import render, render_empty
+from uber.decorators import render_empty
 from uber.models import AdminAccount, Attendee, AutomatedEmail, Department, Group, GuestGroup, IndieGame, IndieJudge, \
-    IndieStudio, MITSTeam, PanelApplication, PanelApplicant, Room, RoomAssignment, Shift, Session
-from uber.notifications import send_email
+    IndieStudio, MITSTeam, PanelApplication, PanelApplicant, Room, RoomAssignment, Shift
+from uber.notifications import format_email_subject
 from uber.utils import before, days_after, days_before, localized_now, DeptChecklistConf
 
 
@@ -70,134 +69,49 @@ class AutomatedEmailFixture:
         GuestGroup: lambda session: session.query(GuestGroup).options(joinedload(GuestGroup.group))
     }
 
-    @classmethod
-    def reconcile_fixtures(cls):
-        with Session() as session:
-            for ident, fixture in cls.fixtures_by_ident.items():
-                automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first() or AutomatedEmail()
-                session.add(fixture.reconcile(automated_email))
-                session.flush()
-
-    def reconcile(self, automated_email):
-        automated_email.model = self.model.__name__
-        automated_email.ident = self.ident
-        automated_email.subject = self.subject
-        automated_email.body = render_empty(os.path.join('emails', self.template))
-        automated_email.sender = self.sender
-        automated_email.cc = ','.join(self.cc)
-        automated_email.bcc = ','.join(self.bcc)
-        automated_email.needs_approval = self.needs_approval
-        automated_email.allow_at_the_con = self.allow_at_the_con
-        automated_email.allow_post_con = self.allow_post_con
-        automated_email.active_after = self.active_after
-        automated_email.active_before = self.active_before
-        automated_email.approved = False if automated_email.is_new else automated_email.approved
-        automated_email.unapproved_count = 0 if automated_email.is_new else automated_email.unapproved_count
-        return automated_email
-
     def __init__(self, model, subject, template, filter, ident, *, when=(),
                  sender=None, extra_data=None, cc=None, bcc=None,
-                 allow_post_con=False, needs_approval=True, allow_at_the_con=False):
+                 needs_approval=True, allow_at_the_con=False, allow_post_con=False):
 
-        self.subject = subject.format(EVENT_NAME=c.EVENT_NAME, EVENT_DATE=c.EPOCH.strftime("(%b %Y)"))
+        assert ident, 'Error: AutomatedEmail ident may not be empty.'
+        assert ident not in AutomatedEmail._fixtures, \
+            'Error: AutomatedEmail ident "{}" already registered.'.format(ident)
+
+        AutomatedEmail._fixtures[ident] = self
+
         self.ident = ident
         self.model = model
-
-        assert self.ident, 'error: automated email ident may not be empty.'
-        assert self.ident not in self.fixtures_by_ident, \
-            'error: automated email ident "{}" is registered twice.'.format(self.ident)
-
-        self.fixtures_by_ident[self.ident] = self
-
-        self.template = template
+        self.subject = format_email_subject(subject)
+        self.body = render_empty(os.path.join('emails', template))
+        self.format = 'text' if template.endswith('.txt') else 'html'
+        self.sender = sender or c.REGDESK_EMAIL
+        self.cc = cc or []
+        self.bcc = bcc or []
         self.needs_approval = needs_approval
         self.allow_post_con = allow_post_con
         self.allow_at_the_con = allow_at_the_con
-        self.cc = cc or []
-        self.bcc = bcc or []
         self.extra_data = extra_data or {}
-        self.sender = sender or c.REGDESK_EMAIL
-        self.when = listify(when)
 
-        assert filter is not None
+        when = listify(when)
 
-        if allow_post_con:
+        after = [d.active_after for d in when if d.active_after]
+        self.active_after = min(after) if after else None
+
+        before = [d.active_before for d in when if d.active_before]
+        self.active_before = max(before) if before else None
+
+        if self.allow_post_con:
             self.filter = filter
         else:
-            self.filter = lambda model_inst: not c.POST_CON and filter(model_inst)
-
-    @property
-    def active_after(self):
-        after = [d.active_after for d in self.when if d.active_after]
-        return min(after) if after else None
-
-    @property
-    def active_before(self):
-        before = [d.active_before for d in self.when if d.active_before]
-        return max(before) if before else None
-
-    @property
-    def when_txt(self):
-        """
-        Return a textual description of when the date filters are active for this email category.
-        """
-
-        return '\n'.join([filter.active_when for filter in self.when])
-
-    def __repr__(self):
-        return '<{}: {!r}>'.format(self.__class__.__name__, self.subject)
-
-    def computed_subject(self, x):
-        """
-        Given a model instance, return an email subject email for that instance.
-        By default this just returns the default subject unmodified; this method
-        exists only to be overridden in subclasses.  For example, we might want
-        our panel email subjects to contain the name of the panel.
-        """
-        return self.subject
-
-    def would_send_if_approved(self, model_inst):
-        """
-        Check if this email category would be sent if this email category was approved.
-
-        :return: True if this email would be sent without considering it's approved status. False otherwise
-        """
-        return getattr(model_inst, 'email', False) and self.filter(model_inst)
-
-    def render(self, model_instance):
-        model = getattr(model_instance, 'email_model_name', model_instance.__class__.__name__.lower())
-        return render('emails/' + self.template, dict({model: model_instance}, **self.extra_data))
-
-    def send_to(self, model_instance, raise_errors=False, automated_email=None):
-        """
-        Actually send an email to a particular model instance (i.e. a particular attendee).
-
-        Doesn't perform any kind of checks at all if we should be sending this, just immediately sends the email
-        no matter what.
-
-        NOTE: use send_if_should() instead of calling this method unless you 100% know what you're doing.
-        NOTE: send_email() fails if c.SEND_EMAILS is False
-        """
-        try:
-            subject = self.computed_subject(model_instance)
-            format = 'text' if self.template.endswith('.txt') else 'html'
-            send_email(self.sender, model_instance.email, subject,
-                       self.render(model_instance), format,
-                       model=model_instance, cc=self.cc, ident=self.ident,
-                       automated_email=automated_email)
-            return True
-        except Exception:
-            log.error('error sending {!r} email to {}', self.subject, model_instance.email, exc_info=True)
-            if raise_errors:
-                raise
-        return False
+            self.filter = lambda m: not c.POST_CON and filter(m)
 
 
 # Payment reminder emails, including ones for groups, which are always safe to be here, since they just
 # won't get sent if group registration is turned off.
 
 AutomatedEmailFixture(
-    Attendee, '{EVENT_NAME} payment received',
+    Attendee,
+    '{EVENT_NAME} payment received',
     'reg_workflow/attendee_confirmation.html',
     lambda a: a.paid == c.HAS_PAID,
     needs_approval=False,
@@ -205,7 +119,8 @@ AutomatedEmailFixture(
     ident='attendee_payment_received')
 
 AutomatedEmailFixture(
-    Attendee, '{EVENT_NAME} registration confirmed',
+    Attendee,
+    '{EVENT_NAME} registration confirmed',
     'reg_workflow/attendee_confirmation.html',
     lambda a: a.paid == c.NEED_NOT_PAY and (a.confirmed or a.promo_code_id),
     needs_approval=False,
@@ -213,14 +128,16 @@ AutomatedEmailFixture(
     ident='attendee_badge_confirmed')
 
 AutomatedEmailFixture(
-    Group, '{EVENT_NAME} group payment received',
+    Group,
+    '{EVENT_NAME} group payment received',
     'reg_workflow/group_confirmation.html',
     lambda g: g.amount_paid == g.cost and g.cost != 0 and g.leader_id,
     needs_approval=False,
     ident='group_payment_received')
 
 AutomatedEmailFixture(
-    Attendee, '{EVENT_NAME} group registration confirmed',
+    Attendee,
+    '{EVENT_NAME} group registration confirmed',
     'reg_workflow/attendee_confirmation.html',
     lambda a: a.group and (a.id != a.group.leader_id or a.group.cost == 0) and not a.placeholder,
     needs_approval=False,
@@ -228,37 +145,34 @@ AutomatedEmailFixture(
     ident='attendee_group_reg_confirmation')
 
 AutomatedEmailFixture(
-    Attendee, '{EVENT_NAME} extra payment received',
+    Attendee,
+    '{EVENT_NAME} extra payment received',
     'reg_workflow/group_donation.txt',
     lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra,
     needs_approval=False,
     ident='group_extra_payment_received')
 
+
 # Reminder emails for groups to allocated their unassigned badges.  These emails are safe to be turned on for
 # all events, because they will only be sent for groups with unregistered badges, so if group preregistration
 # has been turned off, they'll just never be sent.
 
-
-class GroupEmailFixture(AutomatedEmailFixture):
-    def __init__(self, subject, template, filter, ident, **kwargs):
-        AutomatedEmailFixture.__init__(
-            self, Group, subject,
-            template,
-            lambda g: not g.is_dealer and filter(g),
-            ident,
-            sender=c.REGDESK_EMAIL,
-            **kwargs)
-
-
-GroupEmailFixture(
+AutomatedEmailFixture(
+    Group,
     'Reminder to pre-assign {EVENT_NAME} group badges',
     'reg_workflow/group_preassign_reminder.txt',
-    lambda g: days_after(30, g.registered)() and c.BEFORE_GROUP_PREREG_TAKEDOWN and g.unregistered_badges,
+    lambda g: (
+        c.BEFORE_GROUP_PREREG_TAKEDOWN
+        and days_after(30, g.registered)()
+        and g.unregistered_badges
+        and not g.is_dealer),
     needs_approval=False,
-    ident='group_preassign_badges_reminder')
+    ident='group_preassign_badges_reminder',
+    sender=c.REGDESK_EMAIL)
 
 AutomatedEmailFixture(
-    Group, 'Last chance to pre-assign {EVENT_NAME} group badges',
+    Group,
+    'Last chance to pre-assign {EVENT_NAME} group badges',
     'reg_workflow/group_preassign_reminder.txt',
     lambda g: (
       c.AFTER_GROUP_PREREG_TAKEDOWN
@@ -275,7 +189,9 @@ AutomatedEmailFixture(
 class MarketplaceEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
         AutomatedEmailFixture.__init__(
-            self, Group, subject,
+            self,
+            Group,
+            subject,
             template,
             lambda g: g.is_dealer and filter(g),
             ident,
@@ -337,7 +253,9 @@ MarketplaceEmailFixture(
 class StopsEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
         AutomatedEmailFixture.__init__(
-            self, Attendee, subject,
+            self,
+            Attendee,
+            subject,
             template,
             lambda a: a.staffing and filter(a),
             ident,
@@ -346,21 +264,24 @@ class StopsEmailFixture(AutomatedEmailFixture):
 
 
 AutomatedEmailFixture(
-    Attendee, '{EVENT_NAME} Panelist Badge Confirmation',
+    Attendee,
+    '{EVENT_NAME} Panelist Badge Confirmation',
     'placeholders/panelist.txt',
     lambda a: a.placeholder and c.PANELIST_RIBBON in a.ribbon_ints,
     sender=c.PANELS_EMAIL,
     ident='panelist_badge_confirmation')
 
 AutomatedEmailFixture(
-    Attendee, '{EVENT_NAME} Guest Badge Confirmation',
+    Attendee,
+    '{EVENT_NAME} Guest Badge Confirmation',
     'placeholders/guest.txt',
     lambda a: a.placeholder and a.badge_type == c.GUEST_BADGE,
     sender=c.GUEST_EMAIL,
     ident='guest_badge_confirmation')
 
 AutomatedEmailFixture(
-    Attendee, '{EVENT_NAME} Dealer Information Required',
+    Attendee,
+    '{EVENT_NAME} Dealer Information Required',
     'placeholders/dealer.txt',
     lambda a: a.placeholder and a.is_dealer and a.group.status == c.APPROVED,
     sender=c.MARKETPLACE_EMAIL,
@@ -379,7 +300,8 @@ StopsEmailFixture(
     ident='volunteer_badge_confirmation')
 
 AutomatedEmailFixture(
-    Attendee, '{EVENT_NAME} Badge Confirmation',
+    Attendee,
+    '{EVENT_NAME} Badge Confirmation',
     'placeholders/regular.txt',
     lambda a: a.placeholder and (
       c.AT_THE_CON
@@ -389,13 +311,15 @@ AutomatedEmailFixture(
     ident='regular_badge_confirmation')
 
 AutomatedEmailFixture(
-    Attendee, '{EVENT_NAME} Badge Confirmation Reminder',
+    Attendee,
+    '{EVENT_NAME} Badge Confirmation Reminder',
     'placeholders/reminder.txt',
     lambda a: days_after(7, a.registered)() and a.placeholder and not a.is_dealer,
     ident='badge_confirmation_reminder')
 
 AutomatedEmailFixture(
-    Attendee, 'Last Chance to Accept Your {EVENT_NAME} {EVENT_DATE} Badge',
+    Attendee,
+    'Last Chance to Accept Your {EVENT_NAME} {EVENT_DATE} Badge',
     'placeholders/reminder.txt',
     lambda a: a.placeholder and not a.is_dealer,
     when=days_before(7, c.PLACEHOLDER_DEADLINE),
@@ -459,7 +383,8 @@ StopsEmailFixture(
     ident='volunteer_personalized_badge_reminder')
 
 AutomatedEmailFixture(
-    Attendee, 'Personalized {EVENT_NAME} {EVENT_DATE} badges will be ordered next week',
+    Attendee,
+    'Personalized {EVENT_NAME} {EVENT_DATE} badges will be ordered next week',
     'personalized_badges/reminder.txt',
     lambda a: a.badge_type in c.PREASSIGNED_BADGE_TYPES and not a.placeholder,
     when=days_before(7, c.PRINTED_BADGE_DEADLINE),
@@ -469,7 +394,8 @@ AutomatedEmailFixture(
 # MAGFest requires signed and notarized parental consent forms for anyone under 18.  This automated email reminder to
 # bring the consent form only happens if this feature is turned on by setting the CONSENT_FORM_URL config option.
 AutomatedEmailFixture(
-    Attendee, '{EVENT_NAME} {EVENT_DATE} parental consent form reminder',
+    Attendee,
+    '{EVENT_NAME} {EVENT_DATE} parental consent form reminder',
     'reg_workflow/under_18_reminder.txt',
     lambda a: c.CONSENT_FORM_URL and a.age_group_conf['consent_form'],
     when=days_before(14, c.EPOCH),
@@ -479,7 +405,8 @@ AutomatedEmailFixture(
 # Emails sent out to all attendees who can check in. These emails contain useful information about the event and are
 # sent close to the event start date.
 AutomatedEmailFixture(
-    Attendee, 'Check in faster at {EVENT_NAME}',
+    Attendee,
+    'Check in faster at {EVENT_NAME}',
     'reg_workflow/attendee_qrcode.html',
     lambda a: not a.is_not_ready_to_checkin and c.USE_CHECKIN_BARCODE,
     when=days_before(14, c.EPOCH),
@@ -493,7 +420,9 @@ class DeptChecklistEmailFixture(AutomatedEmailFixture):
             when.append(days_after(0, c.EPOCH))
 
         AutomatedEmailFixture.__init__(
-            self, Attendee, '{EVENT_NAME} Department Checklist: ' + conf.name,
+            self,
+            Attendee,
+            '{EVENT_NAME} Department Checklist: ' + conf.name,
             'shifts/dept_checklist.txt',
             filter=lambda a: a.admin_account and any(
                 not d.checklist_item_for_slug(conf.slug)
@@ -514,42 +443,48 @@ for _conf in DeptChecklistConf.instances.values():
 # =============================
 
 AutomatedEmailFixture(
-    Attendee, 'Want volunteer hotel room space at {EVENT_NAME}?',
+    Attendee,
+    'Want volunteer hotel room space at {EVENT_NAME}?',
     'hotel/hotel_rooms.txt',
     lambda a: c.AFTER_SHIFTS_CREATED and a.hotel_eligible and a.takes_shifts, sender=c.ROOM_EMAIL_SENDER,
     when=days_before(45, c.ROOM_DEADLINE, 14),
     ident='volunteer_hotel_room_inquiry')
 
 AutomatedEmailFixture(
-    Attendee, 'Reminder to sign up for {EVENT_NAME} hotel room space',
+    Attendee,
+    'Reminder to sign up for {EVENT_NAME} hotel room space',
     'hotel/hotel_reminder.txt',
     lambda a: a.hotel_eligible and not a.hotel_requests and a.takes_shifts, sender=c.ROOM_EMAIL_SENDER,
     when=days_before(14, c.ROOM_DEADLINE, 2),
     ident='hotel_sign_up_reminder')
 
 AutomatedEmailFixture(
-    Attendee, 'Last chance to sign up for {EVENT_NAME} hotel room space',
+    Attendee,
+    'Last chance to sign up for {EVENT_NAME} hotel room space',
     'hotel/hotel_reminder.txt',
     lambda a: a.hotel_eligible and not a.hotel_requests and a.takes_shifts, sender=c.ROOM_EMAIL_SENDER,
     when=days_before(2, c.ROOM_DEADLINE),
     ident='hotel_sign_up_reminder_last_chance')
 
 AutomatedEmailFixture(
-    Attendee, 'Reminder to meet your {EVENT_NAME} hotel room requirements',
+    Attendee,
+    'Reminder to meet your {EVENT_NAME} hotel room requirements',
     'hotel/hotel_hours.txt',
     lambda a: a.hotel_shifts_required and a.weighted_hours < c.HOTEL_REQ_HOURS, sender=c.ROOM_EMAIL_SENDER,
     when=days_before(14, c.FINAL_EMAIL_DEADLINE, 7),
     ident='hotel_requirements_reminder')
 
 AutomatedEmailFixture(
-    Attendee, 'Final reminder to meet your {EVENT_NAME} hotel room requirements',
+    Attendee,
+    'Final reminder to meet your {EVENT_NAME} hotel room requirements',
     'hotel/hotel_hours.txt',
     lambda a: a.hotel_shifts_required and a.weighted_hours < c.HOTEL_REQ_HOURS, sender=c.ROOM_EMAIL_SENDER,
     when=days_before(7, c.FINAL_EMAIL_DEADLINE),
     ident='hotel_requirements_reminder_last_chance')
 
 AutomatedEmailFixture(
-    Room, '{EVENT_NAME} Hotel Room Assignment',
+    Room,
+    '{EVENT_NAME} Hotel Room Assignment',
     'hotel/room_assignment.txt',
     lambda r: r.locked_in,
     sender=c.ROOM_EMAIL_SENDER,
@@ -568,80 +503,93 @@ class MIVSEmailFixture(AutomatedEmailFixture):
 
 
 MIVSEmailFixture(
-    IndieStudio, 'Your MIVS Studio Has Been Registered',
+    IndieStudio,
+    'Your MIVS Studio Has Been Registered',
     'mivs/studio_registered.txt',
     ident='mivs_studio_registered')
 
 MIVSEmailFixture(
-    IndieGame, 'Your MIVS Game Video Has Been Submitted',
+    IndieGame,
+    'Your MIVS Game Video Has Been Submitted',
     'mivs/game_video_submitted.txt',
     lambda game: game.video_submitted,
     ident='mivs_video_submitted')
 
 MIVSEmailFixture(
-    IndieGame, 'Your MIVS Game Has Been Submitted',
+    IndieGame,
+    'Your MIVS Game Has Been Submitted',
     'mivs/game_submitted.txt',
     lambda game: game.submitted,
     ident='mivs_game_submitted')
 
 MIVSEmailFixture(
-    IndieStudio, 'MIVS - Wat no video?',
+    IndieStudio,
+    'MIVS - Wat no video?',
     'mivs/videoless_studio.txt',
     lambda studio: days_after(2, studio.registered)() and not any(game.video_submitted for game in studio.games),
     ident='mivs_missing_video_inquiry',
     when=days_before(7, c.MIVS_ROUND_ONE_DEADLINE))
 
 MIVSEmailFixture(
-    IndieGame, 'MIVS: Your Submitted Video Is Broken',
+    IndieGame,
+    'MIVS: Your Submitted Video Is Broken',
     'mivs/video_broken.txt',
     lambda game: game.video_broken,
     ident='mivs_video_broken')
 
 MIVSEmailFixture(
-    IndieGame, 'Last chance to submit your game to MIVS',
+    IndieGame,
+    'Last chance to submit your game to MIVS',
     'mivs/round_two_reminder.txt',
     lambda game: game.status == c.JUDGING and not game.submitted,
     ident='mivs_game_submission_reminder',
     when=days_before(7, c.MIVS_ROUND_TWO_DEADLINE))
 
 MIVSEmailFixture(
-    IndieGame, 'Your game has made it into MIVS Round Two',
+    IndieGame,
+    'Your game has made it into MIVS Round Two',
     'mivs/video_accepted.txt',
     lambda game: game.status == c.JUDGING,
     ident='mivs_game_made_it_to_round_two')
 
 MIVSEmailFixture(
-    IndieGame, 'Your game has been declined from MIVS',
+    IndieGame,
+    'Your game has been declined from MIVS',
     'mivs/video_declined.txt',
     lambda game: game.status == c.VIDEO_DECLINED,
     ident='mivs_video_declined')
 
 MIVSEmailFixture(
-    IndieGame, 'Your game has been accepted into MIVS',
+    IndieGame,
+    'Your game has been accepted into MIVS',
     'mivs/game_accepted.txt',
     lambda game: game.status == c.ACCEPTED and not game.waitlisted,
     ident='mivs_game_accepted')
 
 MIVSEmailFixture(
-    IndieGame, 'Your game has been accepted into MIVS from our waitlist',
+    IndieGame,
+    'Your game has been accepted into MIVS from our waitlist',
     'mivs/game_accepted_from_waitlist.txt',
     lambda game: game.status == c.ACCEPTED and game.waitlisted,
     ident='mivs_game_accepted_from_waitlist')
 
 MIVSEmailFixture(
-    IndieGame, 'Your game application has been declined from MIVS',
+    IndieGame,
+    'Your game application has been declined from MIVS',
     'mivs/game_declined.txt',
     lambda game: game.status == c.GAME_DECLINED,
     ident='mivs_game_declined')
 
 MIVSEmailFixture(
-    IndieGame, 'Your MIVS application has been waitlisted',
+    IndieGame,
+    'Your MIVS application has been waitlisted',
     'mivs/game_waitlisted.txt',
     lambda game: game.status == c.WAITLISTED,
     ident='mivs_game_waitlisted')
 
 MIVSEmailFixture(
-    IndieGame, 'Last chance to accept your MIVS booth',
+    IndieGame,
+    'Last chance to accept your MIVS booth',
     'mivs/game_accept_reminder.txt',
     lambda game: (
         game.status == c.ACCEPTED
@@ -650,31 +598,36 @@ MIVSEmailFixture(
     ident='mivs_accept_booth_reminder')
 
 MIVSEmailFixture(
-    IndieGame, 'MIVS December Updates: Hotels and Magfest Versus!',
+    IndieGame,
+    'MIVS December Updates: Hotels and Magfest Versus!',
     'mivs/december_updates.txt',
     lambda game: game.confirmed,
     ident='mivs_december_updates')
 
 MIVSEmailFixture(
-    IndieGame, 'REQUIRED: Pre-flight for MIVS due by midnight, January 2nd',
+    IndieGame,
+    'REQUIRED: Pre-flight for MIVS due by midnight, January 2nd',
     'mivs/game_preflight.txt',
     lambda game: game.confirmed,
     ident='mivs_game_preflight_reminder')
 
 MIVSEmailFixture(
-    IndieGame, 'MIVS 2018: Hotel and selling signups',
+    IndieGame,
+    'MIVS 2018: Hotel and selling signups',
     'mivs/2018_hotel_info.txt',
     lambda game: game.confirmed,
     ident='2018_hotel_info')
 
 MIVSEmailFixture(
-    IndieGame, 'MIVS 2018: November Updates & info',
+    IndieGame,
+    'MIVS 2018: November Updates & info',
     'mivs/2018_email_blast.txt',
     lambda game: game.confirmed,
     ident='2018_email_blast')
 
 MIVSEmailFixture(
-    IndieGame, 'Summary of judging feedback for your game',
+    IndieGame,
+    'Summary of judging feedback for your game',
     'mivs/reviews_summary.html',
     lambda game: game.status in c.FINAL_MIVS_GAME_STATUSES and game.reviews_to_email,
     ident='mivs_reviews_summary',
@@ -682,68 +635,80 @@ MIVSEmailFixture(
     allow_post_con=True)
 
 MIVSEmailFixture(
-    IndieGame, 'MIVS judging is wrapping up',
+    IndieGame,
+    'MIVS judging is wrapping up',
     'mivs/round_two_closing.txt',
     lambda game: game.submitted, when=days_before(14, c.MIVS_JUDGING_DEADLINE),
     ident='mivs_round_two_closing')
 
 MIVSEmailFixture(
-    IndieJudge, 'MIVS Judging is about to begin!',
+    IndieJudge,
+    'MIVS Judging is about to begin!',
     'mivs/judge_intro.txt',
     ident='mivs_judge_intro')
 
 MIVSEmailFixture(
-    IndieJudge, 'MIVS Judging has begun!',
+    IndieJudge,
+    'MIVS Judging has begun!',
     'mivs/judging_begun.txt',
     ident='mivs_judging_has_begun')
 
 MIVSEmailFixture(
-    IndieJudge, 'MIVS Judging is almost over!',
+    IndieJudge,
+    'MIVS Judging is almost over!',
     'mivs/judging_reminder.txt',
     when=days_before(7, c.SOFT_MIVS_JUDGING_DEADLINE),
     ident='mivs_judging_due_reminder')
 
 MIVSEmailFixture(
-    IndieJudge, 'Reminder: MIVS Judging due by {}'.format(c.MIVS_JUDGING_DEADLINE.strftime('%B %-d')),
+    IndieJudge,
+    'Reminder: MIVS Judging due by {}'.format(c.MIVS_JUDGING_DEADLINE.strftime('%B %-d')),
     'mivs/final_judging_reminder.txt',
     lambda judge: not judge.judging_complete,
     when=days_before(5, c.MIVS_JUDGING_DEADLINE),
     ident='mivs_judging_due_reminder_last_chance')
 
 MIVSEmailFixture(
-    IndieJudge, 'MIVS Judging and {EVENT_NAME} Staffing',
+    IndieJudge,
+    'MIVS Judging and {EVENT_NAME} Staffing',
     'mivs/judge_staffers.txt',
     ident='mivs_judge_staffers')
 
 MIVSEmailFixture(
-    IndieJudge, 'MIVS Judge badge information',
+    IndieJudge,
+    'MIVS Judge badge information',
     'mivs/judge_badge_info.txt',
     ident='mivs_judge_badge_info')
 
 MIVSEmailFixture(
-    IndieJudge, 'MIVS Judging about to begin',
+    IndieJudge,
+    'MIVS Judging about to begin',
     'mivs/judge_2016.txt',
     ident='mivs_selected_to_judge')
 
 MIVSEmailFixture(
-    IndieJudge, 'MIVS Judges: A Request for our MIVSY awards',
+    IndieJudge,
+    'MIVS Judges: A Request for our MIVSY awards',
     'mivs/2018_mivsy_request.txt',
     ident='2018_mivsy_request')
 
 MIVSEmailFixture(
-    IndieGame, 'MIVS: 2018 MIVSY Awards happening on January 6th, 7pm ',
+    IndieGame,
+    'MIVS: 2018 MIVSY Awards happening on January 6th, 7pm ',
     'mivs/2018_indie_mivsy_explination.txt',
     lambda game: game.confirmed,
     ident='2018_indie_mivsy_explination')
 
 MIVSEmailFixture(
-    IndieGame, 'MIVS: December updates ',
+    IndieGame,
+    'MIVS: December updates ',
     'mivs/2018_december_updates.txt',
     lambda game: game.confirmed,
     ident='2018_december_updates')
 
 MIVSEmailFixture(
-    IndieGame, 'Thanks for Being part of MIVS 2018 - A Request for Feedback',
+    IndieGame,
+    'Thanks for Being part of MIVS 2018 - A Request for Feedback',
     'mivs/2018_feedback.txt',
     lambda game: game.confirmed,
     ident='2018_mivs_post_event_feedback',
@@ -816,7 +781,9 @@ MITSEmailFixture(
 class PanelAppEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
         AutomatedEmailFixture.__init__(
-            self, PanelApplication, subject,
+            self,
+            PanelApplication,
+            subject,
             template,
             lambda app: filter(app) and (
                 not app.submitter or
@@ -826,43 +793,41 @@ class PanelAppEmailFixture(AutomatedEmailFixture):
             sender=c.PANELS_EMAIL,
             **kwargs)
 
-    def computed_subject(self, x):
-        return self.subject.replace('<PANEL_NAME>', x.name)
-
 
 PanelAppEmailFixture(
-    'Your {EVENT_NAME} Panel Application Has Been Received: <PANEL_NAME>',
+    'Your {EVENT_NAME} Panel Application Has Been Received: {{ app.name }}',
     'panels/panel_app_confirmation.txt',
     lambda a: True,
     needs_approval=False,
     ident='panel_received')
 
 PanelAppEmailFixture(
-    'Your {EVENT_NAME} Panel Application Has Been Accepted: <PANEL_NAME>',
+    'Your {EVENT_NAME} Panel Application Has Been Accepted: {{ app.name }}',
     'panels/panel_app_accepted.txt',
     lambda app: app.status == c.ACCEPTED,
     ident='panel_accepted')
 
 PanelAppEmailFixture(
-    'Your {EVENT_NAME} Panel Application Has Been Declined: <PANEL_NAME>',
+    'Your {EVENT_NAME} Panel Application Has Been Declined: {{ app.name }}',
     'panels/panel_app_declined.txt',
     lambda app: app.status == c.DECLINED,
     ident='panel_declined')
 
 PanelAppEmailFixture(
-    'Your {EVENT_NAME} Panel Application Has Been Waitlisted: <PANEL_NAME>',
+    'Your {EVENT_NAME} Panel Application Has Been Waitlisted: {{ app.name }}',
     'panels/panel_app_waitlisted.txt',
     lambda app: app.status == c.WAITLISTED,
     ident='panel_waitlisted')
 
 PanelAppEmailFixture(
-    'Your {EVENT_NAME} Panel Has Been Scheduled: <PANEL_NAME>',
+    'Your {EVENT_NAME} Panel Has Been Scheduled: {{ app.name }}',
     'panels/panel_app_scheduled.txt',
     lambda app: app.event_id,
     ident='panel_scheduled')
 
 AutomatedEmailFixture(
-    Attendee, 'Your {EVENT_NAME} Event Schedule',
+    Attendee,
+    'Your {EVENT_NAME} Event Schedule',
     'panels/panelist_schedule.txt',
     lambda a: a.badge_type != c.GUEST_BADGE and a.assigned_panelists,
     ident='event_schedule',
@@ -876,7 +841,9 @@ AutomatedEmailFixture(
 class BandEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
         AutomatedEmailFixture.__init__(
-            self, GuestGroup, subject,
+            self,
+            GuestGroup,
+            subject,
             template,
             lambda b: b.group_type == c.BAND and filter(b),
             ident,
@@ -887,7 +854,9 @@ class BandEmailFixture(AutomatedEmailFixture):
 class GuestEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
         AutomatedEmailFixture.__init__(
-            self, GuestGroup, subject,
+            self,
+            GuestGroup,
+            subject,
             template,
             lambda b: b.group_type == c.GUEST and filter(b),
             ident,
@@ -896,7 +865,8 @@ class GuestEmailFixture(AutomatedEmailFixture):
 
 
 AutomatedEmailFixture(
-    GuestGroup, '{EVENT_NAME} Performer Checklist',
+    GuestGroup,
+    '{EVENT_NAME} Performer Checklist',
     'guests/band_notification.txt',
     lambda b: b.group_type == c.BAND, sender=c.BAND_EMAIL,
     ident='band_checklist_inquiry')
@@ -951,7 +921,8 @@ BandEmailFixture(
     ident='band_stage_plot_reminder')
 
 AutomatedEmailFixture(
-    GuestGroup, 'It\'s time to send us your info for {EVENT_NAME}!',
+    GuestGroup,
+    'It\'s time to send us your info for {EVENT_NAME}!',
     'guests/guest_checklist_announce.html',
     lambda g: g.group_type == c.GUEST,
     ident='guest_checklist_inquiry',

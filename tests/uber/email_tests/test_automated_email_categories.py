@@ -99,7 +99,7 @@ class TestAutomatedEmailCategory:
     def test_send_to_throws_exception(self, monkeypatch, get_test_email_category):
         monkeypatch.setattr(get_test_email_category, 'computed_subject', Mock(side_effect=Exception('Boom!')))
         with pytest.raises(Exception):
-            get_test_email_category.send_to(None)
+            get_test_email_category.send(None)
 
     valid_when = days_after(3, sept_15th - timedelta(days=5))
     invalid_when = days_after(3, sept_15th)

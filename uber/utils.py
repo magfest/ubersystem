@@ -272,10 +272,9 @@ def get_age_from_birthday(birthdate, today=None):
     return today.year - birthdate.year - upcoming_birthday
 
 
-_when_dateformat = "%m/%d"
-
-
 class DateBase:
+    _when_dateformat = '%m/%d'
+
     @staticmethod
     def now():
         # This exists so we can patch this in unit tests
@@ -336,8 +335,8 @@ class days_before(DateBase):
         if not self.deadline:
             return ''
 
-        start_txt = self.starting_date.strftime(_when_dateformat)
-        end_txt = self.ending_date.strftime(_when_dateformat)
+        start_txt = self.starting_date.strftime(self._when_dateformat)
+        end_txt = self.ending_date.strftime(self._when_dateformat)
 
         return 'between {} and {}'.format(start_txt, end_txt)
 
@@ -363,7 +362,7 @@ class before(DateBase):
 
     @property
     def active_when(self):
-        return 'before {}'.format(self.deadline.strftime(_when_dateformat)) if self.deadline else ''
+        return 'before {}'.format(self.deadline.strftime(self._when_dateformat)) if self.deadline else ''
 
 
 class days_after(DateBase):
@@ -394,7 +393,7 @@ class days_after(DateBase):
 
     @property
     def active_when(self):
-        return 'after {}'.format(self.starting_date.strftime(_when_dateformat)) if self.starting_date else ''
+        return 'after {}'.format(self.starting_date.strftime(self._when_dateformat)) if self.starting_date else ''
 
 
 # ======================================================================
