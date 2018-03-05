@@ -33,7 +33,7 @@ class ThreadedScheduler(schedule.Scheduler):
         return ThreadedJob(interval, self)
 
 
-def schedule_n_times_per_day(times_per_day, fn, *args, **kwargs):
+def schedule_n_times_per_day(times_per_day, fn, *args, threaded=True, thread_name=None, **kwargs):
     assert 1 <= times_per_day <= 1440
     hours = 24.0 / times_per_day
     jobs = []
@@ -41,7 +41,8 @@ def schedule_n_times_per_day(times_per_day, fn, *args, **kwargs):
         hour_fraction, hour = modf(hours * i)
         minute = hour_fraction * 60.0
         time_of_day = '{:02.0f}:{:02.0f}'.format(hour, minute)
-        jobs.append(schedule.every().day.at(time_of_day).do(fn, *args, **kwargs))
+        jobs.append(schedule.every().day.at(time_of_day).do(
+            fn, *args, threaded=threaded, thread_name=thread_name, **kwargs))
     return jobs
 
 
@@ -49,8 +50,8 @@ _is_started = False
 _startup_tasks = []
 
 
-def schedule_on_startup(fn, *args, **kwargs):
-    wrapped_func = _safety_wrap(fn, threaded=True, thread_name=None)
+def schedule_on_startup(fn, *args, threaded=True, thread_name=None, **kwargs):
+    wrapped_func = _safety_wrap(fn, threaded=threaded, thread_name=thread_name)
     if _is_started:
         wrapped_func(*args, **kwargs)
     else:
