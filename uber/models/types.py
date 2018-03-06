@@ -233,8 +233,8 @@ def JSONColumnMixin(column_name, fields, admin_only=False):
     For example::
 
         >>> SocialMediaMixin = JSONColumnMixin('social_media', ['Twitter', 'LinkedIn'])
-        >>> SocialMediaMixin.social_media
-        Column('social_media', JSON(), table=None, nullable=False, default=ColumnDefault({}), server_default=DefaultClause('{}', for_update=False))
+        >>> SocialMediaMixin.social_media # doctest: +ELLIPSIS
+        Column('social_media', JSON(), ... server_default=DefaultClause('{}', for_update=False))
         >>> SocialMediaMixin._social_media_fields
         OrderedDict([('twitter', 'Twitter'), ('linked_in', 'LinkedIn')])
         >>> SocialMediaMixin._social_media_qualified_fields
@@ -271,7 +271,7 @@ def JSONColumnMixin(column_name, fields, admin_only=False):
     Returns:
         type: A new mixin class with a JSON column named column_name.
 
-    """  # noqa: E501
+    """
 
     fields_name = '_{}_fields'.format(column_name)
     qualified_fields_name = '_{}_qualified_fields'.format(column_name)

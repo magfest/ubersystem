@@ -24,19 +24,10 @@ from uber.utils import localized_now, normalize_newlines
 __all__ = ['AutomatedEmail', 'Email']
 
 
-class ModelClassColumnMixin(object):
+class BaseEmailMixin(object):
+    ident = Column(UnicodeText)
     model = Column(UnicodeText)
 
-    @property
-    def model_class(self):
-        try:
-            from uber.models import Session
-            return Session.resolve_model(self.model)
-        except ValueError:
-            return None
-
-
-class BaseEmailMixin(object):
     subject = Column(UnicodeText)
     body = Column(UnicodeText)
 
@@ -47,21 +38,25 @@ class BaseEmailMixin(object):
     _repr_attr_names = ['subject']
 
     @property
-    def is_html(self):
-        return '<body' in self.body
-
-    @property
     def body_as_html(self):
         if self.is_html:
             return re.split('<body[^>]*>', self.body)[1].split('</body>')[0]
         else:
             return normalize_newlines(self.body).replace('\n', '<br>')
 
+    @property
+    def is_html(self):
+        return '<body' in self.body
 
-class AutomatedEmail(MagModel, BaseEmailMixin, ModelClassColumnMixin):
+    @property
+    def model_class(self):
+        from uber.models import Session
+        return Session.resolve_model(self.model)
+
+
+class AutomatedEmail(MagModel, BaseEmailMixin):
     _fixtures = OrderedDict()
 
-    ident = Column(UnicodeText, unique=True)
     format = Column(UnicodeText, default='text')
 
     approved = Column(Boolean, default=False)
@@ -114,7 +109,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin, ModelClassColumnMixin):
                 session.add(automated_email.reconcile(fixture))
 
     @property
-    def active_label(self):
+    def active_when_label(self):
         """
         Readable description of when the date filters are active for this email.
         """
@@ -222,35 +217,28 @@ class AutomatedEmail(MagModel, BaseEmailMixin, ModelClassColumnMixin):
         return getattr(model_instance, 'email', False) and self.fixture.filter(model_instance)
 
 
-class Email(MagModel, BaseEmailMixin, ModelClassColumnMixin):
+class Email(MagModel, BaseEmailMixin):
     automated_email_id = Column(
         UUID, ForeignKey('automated_email.id', ondelete='set null'), nullable=True, default=None)
 
     fk_id = Column(UUID, nullable=True)
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
-
-    ident = Column(UnicodeText)
     to = Column(UnicodeText)
 
     @cached_property
     def fk(self):
-        try:
-            return self.session.query(self.model_class).filter_by(id=self.fk_id).first()
-        except Exception:
-            return None
+        return self.session.query(self.model_class).filter_by(id=self.fk_id).first() if self.session else None
 
     @property
     def rcpt_name(self):
-        if self.fk:
-            is_group = self.model == 'Group'
-            return self.fk.leader.full_name if is_group else self.fk.full_name
+        if self.fk_id:
+            return self.fk.leader.full_name if (self.model == 'Group') else self.fk.full_name
 
     @property
     def rcpt_email(self):
-        if self.fk:
-            is_group = self.model == 'Group'
-            return self.fk.leader.email if is_group else self.fk.email
-        return self.to or None
+        if self.fk_id:
+            return self.fk.leader.email if (self.model == 'Group') else self.fk.email
+        return self.to
 
     @property
     def format(self):
