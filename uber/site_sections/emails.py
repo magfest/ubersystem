@@ -107,7 +107,7 @@ class Root:
                 else:
                     send_email(
                         c.ADMIN_EMAIL,
-                        email.rcpt_email,
+                        email.fk_email,
                         email.subject,
                         email.body,
                         format=email.format,

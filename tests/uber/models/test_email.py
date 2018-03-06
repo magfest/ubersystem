@@ -19,36 +19,22 @@ def test_get_fk_fake_id():
     assert None is Email(fk_id="blah").fk
 
 
-def test_group_name(monkeypatch):
-    monkeypatch.setattr(Email, 'fk', Group(leader=Attendee(first_name="Test", last_name="Leader")))
-    assert "Test Leader" == Email(model='Group').rcpt_name
-
-
-def test_attendee_name(monkeypatch):
-    monkeypatch.setattr(Email, 'fk', Attendee(first_name="Test", last_name="Attendee"))
-    assert "Test Attendee" == Email(model='Attendee').rcpt_name
-
-
-def test_no_name():
-    assert None is Email().rcpt_name
-
-
 def test_group_email(monkeypatch):
     monkeypatch.setattr(Email, 'fk', Group(leader=Attendee(email="testleader@example.com")))
-    assert "testleader@example.com" == Email(model='Group').rcpt_email
+    assert "testleader@example.com" == Email(model='Group').fk_email
 
 
 def test_attendee_email(monkeypatch):
     monkeypatch.setattr(Email, 'fk', Attendee(email="testattendee@example.com"))
-    assert "testattendee@example.com" == Email(model='Attendee').rcpt_email
+    assert "testattendee@example.com" == Email(model='Attendee').fk_email
 
 
 def test_no_email():
-    assert None is Email().rcpt_email
+    assert None is Email().fk_email
 
 
 def test_email_from_dest():
-    assert "testattendee@example.com" == Email(to="testattendee@example.com").rcpt_email
+    assert "testattendee@example.com" == Email(to="testattendee@example.com").fk_email
 
 
 def test_is_html():

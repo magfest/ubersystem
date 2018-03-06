@@ -230,13 +230,8 @@ class Email(MagModel, BaseEmailMixin):
         return self.session.query(self.model_class).filter_by(id=self.fk_id).first() if self.session else None
 
     @property
-    def rcpt_name(self):
-        if self.fk_id:
-            return self.fk.leader.full_name if (self.model == 'Group') else self.fk.full_name
-
-    @property
-    def rcpt_email(self):
-        if self.fk_id:
+    def fk_email(self):
+        if self.fk:
             return self.fk.leader.email if (self.model == 'Group') else self.fk.email
         return self.to
 
