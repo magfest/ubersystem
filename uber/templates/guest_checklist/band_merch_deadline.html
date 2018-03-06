@@ -31,8 +31,8 @@
 {% block form_extra %}
   {{ super() }}
 
-  {% if c.REQUIRE_DEDICATED_GUEST_TABLE_PRESENCE %}
-    <div id="coverage" style="display:none">
+  <div id="coverage" style="display:none">
+    {% if c.REQUIRE_DEDICATED_GUEST_TABLE_PRESENCE %}
       <div class="form-group">
         <div class="col-sm-9 col-sm-offset-3 checkbox">
           <label class="checkbox-label">
@@ -50,8 +50,8 @@
           </label>
         </div>
       </div>
-    </div>
-  {% endif %}
+    {% endif %}
+  </div>
 
   <script>
       var checkCoverage = function() {
@@ -66,8 +66,10 @@
 
       $(function () {
           checkCoverage();
-          $.field('warning').on('click', checkCoverage);
-          $.field('coverage').on('click', checkCoverage);
+          {% if c.REQUIRE_DEDICATED_GUEST_TABLE_PRESENCE %}
+            $.field('warning').on('click', checkCoverage);
+            $.field('coverage').on('click', checkCoverage);
+          {% endif %}
           $.field('selling_merch').on('change', checkCoverage);
       });
   </script>
