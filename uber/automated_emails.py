@@ -65,27 +65,40 @@ class AutomatedEmailFixture:
         GuestGroup: lambda session: session.query(GuestGroup).options(joinedload(GuestGroup.group))
     }
 
-    def __init__(self, model, subject, template, filter, ident, *, when=(),
-                 sender=None, extra_data=None, cc=None, bcc=None,
-                 needs_approval=True, allow_at_the_con=False, allow_post_con=False):
+    def __init__(
+            self,
+            model,
+            subject,
+            template,
+            filter,
+            ident,
+            *,
+            when=(),
+            sender=None,
+            cc=(),
+            bcc=(),
+            needs_approval=True,
+            allow_at_the_con=False,
+            allow_post_con=False,
+            extra_data=None):
 
-        assert ident, 'Error: AutomatedEmail ident may not be empty.'
-        assert ident not in AutomatedEmail._fixtures, \
-            'Error: AutomatedEmail ident "{}" already registered.'.format(ident)
+        assert ident, 'AutomatedEmail ident may not be empty.'
+        assert ident not in AutomatedEmail._fixtures, 'AutomatedEmail ident "{}" already registered.'.format(ident)
 
         AutomatedEmail._fixtures[ident] = self
 
-        self.ident = ident
         self.model = model
         self.subject = format_email_subject(subject)
         self.body = render_empty(os.path.join('emails', template))
         self.format = 'text' if template.endswith('.txt') else 'html'
+        self.filter = filter or (lambda x: True)
+        self.ident = ident
         self.sender = sender or c.REGDESK_EMAIL
-        self.cc = cc or []
-        self.bcc = bcc or []
+        self.cc = listify(cc)
+        self.bcc = listify(bcc)
         self.needs_approval = needs_approval
-        self.allow_post_con = allow_post_con
         self.allow_at_the_con = allow_at_the_con
+        self.allow_post_con = allow_post_con
         self.extra_data = extra_data or {}
 
         when = listify(when)
@@ -95,11 +108,6 @@ class AutomatedEmailFixture:
 
         before = [d.active_before for d in when if d.active_before]
         self.active_before = max(before) if before else None
-
-        if self.allow_post_con:
-            self.filter = filter
-        else:
-            self.filter = lambda m: not c.POST_CON and filter(m)
 
 
 # Payment reminder emails, including ones for groups, which are always safe to be here, since they just
