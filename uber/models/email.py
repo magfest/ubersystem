@@ -6,20 +6,19 @@ from pockets import cached_property, classproperty, groupify
 from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
-from sqlalchemy.schema import ForeignKey
+from sqlalchemy.schema import ForeignKey, Index
 from sqlalchemy.types import Boolean, Integer
 
 from uber.config import c
-from uber.custom_tags import safe_string
 from uber.decorators import renderable_data
 from uber.jinja import JinjaEnv
 from uber.models import MagModel
-from uber.models.types import DefaultColumn as Column
+from uber.models.types import DefaultColumn as Column, utcmax, utcmin
 from uber.notifications import send_email
-from uber.utils import localized_now
+from uber.utils import localized_now, normalize_newlines
 
 
 __all__ = ['AutomatedEmail', 'Email']
@@ -37,17 +36,33 @@ class ModelClassColumnMixin(object):
             return None
 
 
-class AutomatedEmail(MagModel, ModelClassColumnMixin):
-    _fixtures = OrderedDict()
-
-    ident = Column(UnicodeText, unique=True)
+class BaseEmailMixin(object):
     subject = Column(UnicodeText)
     body = Column(UnicodeText)
-    format = Column(UnicodeText, default='text')
 
     sender = Column(UnicodeText)
     cc = Column(UnicodeText)
     bcc = Column(UnicodeText)
+
+    _repr_attr_names = ['subject']
+
+    @property
+    def is_html(self):
+        return '<body' in self.body
+
+    @property
+    def body_as_html(self):
+        if self.is_html:
+            return re.split('<body[^>]*>', self.body)[1].split('</body>')[0]
+        else:
+            return normalize_newlines(self.body).replace('\n', '<br>')
+
+
+class AutomatedEmail(MagModel, BaseEmailMixin, ModelClassColumnMixin):
+    _fixtures = OrderedDict()
+
+    ident = Column(UnicodeText, unique=True)
+    format = Column(UnicodeText, default='text')
 
     approved = Column(Boolean, default=False)
     needs_approval = Column(Boolean, default=True)
@@ -56,12 +71,12 @@ class AutomatedEmail(MagModel, ModelClassColumnMixin):
     allow_post_con = Column(Boolean, default=False)
     allow_at_the_con = Column(Boolean, default=False)
 
-    active_after = Column(UTCDateTime, nullable=True, default=None)
-    active_before = Column(UTCDateTime, nullable=True, default=None)
+    active_after = Column(UTCDateTime, default=lambda: utcmin.datetime, server_default=utcmin())
+    active_before = Column(UTCDateTime, default=lambda: utcmax.datetime, server_default=utcmax())
 
     emails = relationship('Email', backref='automated_email', order_by='Email.id')
 
-    _repr_attr_names = ['subject']
+    __table_args__ = (Index('ix_automated_email_active_after_active_before', 'active_after', 'active_before'),)
 
     @classproperty
     def filters_for_allowed(cls):
@@ -74,16 +89,14 @@ class AutomatedEmail(MagModel, ModelClassColumnMixin):
     @classproperty
     def filters_for_active(cls):
         now = localized_now()
-        return cls.filters_for_allowed + [
-            or_(cls.active_after == None, cls.active_after <= now),
-            or_(cls.active_before == None, cls.active_before >= now)]  # noqa: E711
+        return cls.filters_for_allowed + [cls.active_after <= now, cls.active_before >= now]
 
     @classproperty
     def filters_for_approvable(cls):
         return [
             cls.approved == False,
             cls.needs_approval == True,
-            or_(cls.active_before == None, cls.active_before >= localized_now())]  # noqa: E711,E712
+            cls.active_before >= localized_now()]  # noqa: E711,E712
 
     @classproperty
     def filters_for_pending(cls):
@@ -105,11 +118,11 @@ class AutomatedEmail(MagModel, ModelClassColumnMixin):
         """
         Readable description of when the date filters are active for this email.
         """
-        if self.active_after and self.active_before:
+        if self.active_after != utcmin.datetime and self.active_before != utcmax.datetime:
             return 'between {} and {}'.format(self.active_after.strftime('%m/%d'), self.active_before.strftime('%m/%d'))
-        elif self.active_after:
+        elif self.active_after != utcmin.datetime:
             return 'after {}'.format(self.active_after.strftime('%m/%d'))
-        elif self.active_before:
+        elif self.active_before != utcmax.datetime:
             return 'before {}'.format(self.active_before.strftime('%m/%d'))
         return ''
 
@@ -136,6 +149,10 @@ class AutomatedEmail(MagModel, ModelClassColumnMixin):
         except ValueError:
             return -1
 
+    @property
+    def is_html(self):
+        return self.format == 'html'
+
     def reconcile(self, fixture):
         self.model = fixture.model.__name__
         self.ident = fixture.ident
@@ -148,18 +165,15 @@ class AutomatedEmail(MagModel, ModelClassColumnMixin):
         self.needs_approval = fixture.needs_approval
         self.allow_at_the_con = fixture.allow_at_the_con
         self.allow_post_con = fixture.allow_post_con
-        self.active_after = fixture.active_after
-        self.active_before = fixture.active_before
+        self.active_after = fixture.active_after or utcmin.datetime
+        self.active_before = fixture.active_before or utcmax.datetime
         self.approved = False if self.is_new else self.approved
         self.unapproved_count = 0 if self.is_new else self.unapproved_count
         return self
 
     def renderable_data(self, model_instance):
         model_name = getattr(model_instance, 'email_model_name', model_instance.__class__.__name__.lower())
-        data = {
-            model_name: model_instance,
-            'EVENT_NAME': c.EVENT_NAME,
-            'EVENT_DATE': c.EPOCH.strftime('(%b %Y)')}
+        data = {model_name: model_instance}
         if self.fixture:
             data.update(self.fixture.extra_data)
         return renderable_data(data)
@@ -171,7 +185,7 @@ class AutomatedEmail(MagModel, ModelClassColumnMixin):
         return self.render_template(self.subject, self.renderable_data(model_instance))
 
     def render_template(self, text, data):
-        return JinjaEnv.env().from_string(text).render(data).encode('utf-8')
+        return JinjaEnv.env().from_string(text).render(data)
 
     def send(self, model_instance, raise_errors=False):
         assert self.session, 'AutomatedEmail.send() may only be used by instances attached to a session.'
@@ -181,7 +195,7 @@ class AutomatedEmail(MagModel, ModelClassColumnMixin):
                 self.sender,
                 model_instance.email,
                 self.render_template(self.subject, data),
-                self.render_template(self.body, data),
+                self.render_template(self.body, data).encode('utf-8'),
                 self.format,
                 model=model_instance,
                 cc=self.cc,
@@ -208,7 +222,7 @@ class AutomatedEmail(MagModel, ModelClassColumnMixin):
         return getattr(model_instance, 'email', False) and self.fixture.filter(model_instance)
 
 
-class Email(MagModel, ModelClassColumnMixin):
+class Email(MagModel, BaseEmailMixin, ModelClassColumnMixin):
     automated_email_id = Column(
         UUID, ForeignKey('automated_email.id', ondelete='set null'), nullable=True, default=None)
 
@@ -216,15 +230,7 @@ class Email(MagModel, ModelClassColumnMixin):
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
 
     ident = Column(UnicodeText)
-    subject = Column(UnicodeText)
-    body = Column(UnicodeText)
-
-    sender = Column(UnicodeText)
     to = Column(UnicodeText)
-    cc = Column(UnicodeText)
-    bcc = Column(UnicodeText)
-
-    _repr_attr_names = ['subject']
 
     @cached_property
     def fk(self):
@@ -247,13 +253,5 @@ class Email(MagModel, ModelClassColumnMixin):
         return self.to or None
 
     @property
-    def is_html(self):
-        return '<body' in self.body
-
-    @property
-    def html(self):
-        if self.is_html:
-            body = re.split('<body[^>]*>', self.body)[1].split('</body>')[0]
-            return safe_string(body)
-        else:
-            return safe_string(self.body.replace('\n', '<br/>'))
+    def format(self):
+        return 'html' if self.is_html else 'text'

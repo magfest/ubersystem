@@ -625,26 +625,6 @@ class Config(_Overridable):
                                 .filter(AdminAccount.access.contains(str(c.PANEL_APPS)))
             ], key=lambda tup: tup[1], reverse=False)
 
-    @property
-    @dynamic
-    def PANEL_ACCEPTED_EMAIL_APPROVED(self):
-        return uber.models.AutomatedEmailFixture.fixtures_by_ident['panel_accepted'].approved
-
-    @property
-    @dynamic
-    def PANEL_DECLINED_EMAIL_APPROVED(self):
-        return uber.models.AutomatedEmailFixture.fixtures_by_ident['panel_declined'].approved
-
-    @property
-    @dynamic
-    def PANEL_WAITLISTED_EMAIL_APPROVED(self):
-        return uber.models.AutomatedEmailFixture.fixtures_by_ident['panel_waitlisted'].approved
-
-    @property
-    @dynamic
-    def PANEL_SCHEDULED_EMAIL_APPROVED(self):
-        return uber.models.AutomatedEmailFixture.fixtures_by_ident['panel_scheduled'].approved
-
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:
             date_setting = getattr(c, name.split('_', 1)[1])

@@ -12,7 +12,6 @@ ALREADY SENT FOR THAT CATEGORY TO RE-SEND.
 """
 
 import os
-from collections import OrderedDict
 from datetime import datetime, timedelta
 
 from pockets import listify
@@ -32,9 +31,6 @@ class AutomatedEmailFixture:
     Represents one category of emails that we send out.
     An example of an email category would be "Your registration has been confirmed".
     """
-
-    # global: all instances of every registered email fixture, mapped by ident
-    fixtures_by_ident = OrderedDict()
 
     # a list of queries to run during each automated email sending run to
     # return particular model instances of a given type.
@@ -214,7 +210,7 @@ MarketplaceEmailFixture(
     ident='dealer_reg_payment_reminder')
 
 MarketplaceEmailFixture(
-    'Your {EVENT_NAME} {EVENT_DATE} Dealer registration is due in one week',
+    'Your {EVENT_NAME} ({EVENT_DATE}) Dealer registration is due in one week',
     'dealers/payment_reminder.txt',
     lambda g: g.status == c.APPROVED and g.is_unpaid,
     when=days_before(7, c.DEALER_PAYMENT_DUE, 2),
@@ -222,7 +218,7 @@ MarketplaceEmailFixture(
     ident='dealer_reg_payment_reminder_due_soon')
 
 MarketplaceEmailFixture(
-    'Last chance to pay for your {EVENT_NAME} {EVENT_DATE} Dealer registration',
+    'Last chance to pay for your {EVENT_NAME} ({EVENT_DATE}) Dealer registration',
     'dealers/payment_reminder.txt',
     lambda g: g.status == c.APPROVED and g.is_unpaid,
     when=days_before(2, c.DEALER_PAYMENT_DUE),
@@ -319,7 +315,7 @@ AutomatedEmailFixture(
 
 AutomatedEmailFixture(
     Attendee,
-    'Last Chance to Accept Your {EVENT_NAME} {EVENT_DATE} Badge',
+    'Last Chance to Accept Your {EVENT_NAME} ({EVENT_DATE}) Badge',
     'placeholders/reminder.txt',
     lambda a: a.placeholder and not a.is_dealer,
     when=days_before(7, c.PLACEHOLDER_DEADLINE),
@@ -336,7 +332,7 @@ StopsEmailFixture(
     ident='volunteer_checklist_completion_request')
 
 StopsEmailFixture(
-    'Reminder to sign up for {EVENT_NAME} {EVENT_DATE} shifts',
+    'Reminder to sign up for {EVENT_NAME} ({EVENT_DATE}) shifts',
     'shifts/reminder.txt',
     lambda a: (
         c.AFTER_SHIFTS_CREATED
@@ -347,14 +343,14 @@ StopsEmailFixture(
     ident='volunteer_shift_signup_reminder')
 
 StopsEmailFixture(
-    'Last chance to sign up for {EVENT_NAME} {EVENT_DATE} shifts',
+    'Last chance to sign up for {EVENT_NAME} ({EVENT_DATE}) shifts',
     'shifts/reminder.txt',
     lambda a: c.AFTER_SHIFTS_CREATED and c.BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.hours,
     when=days_before(10, c.EPOCH),
     ident='volunteer_shift_signup_reminder_last_chance')
 
 StopsEmailFixture(
-    'Still want to volunteer at {EVENT_NAME} {EVENT_DATE}?',
+    'Still want to volunteer at {EVENT_NAME} ({EVENT_DATE})?',
     'shifts/volunteer_check.txt',
     lambda a: (
         c.SHIFTS_CREATED
@@ -365,7 +361,7 @@ StopsEmailFixture(
     ident='volunteer_still_interested_inquiry')
 
 StopsEmailFixture(
-    'Your {EVENT_NAME} {EVENT_DATE} shift schedule',
+    'Your {EVENT_NAME} ({EVENT_DATE}) shift schedule',
     'shifts/schedule.html',
     lambda a: c.SHIFTS_CREATED and a.weighted_hours,
     when=days_before(1, c.FINAL_EMAIL_DEADLINE),
@@ -376,7 +372,7 @@ StopsEmailFixture(
 # one email for our volunteers who haven't bothered to confirm they're coming yet (bleh) and one for everyone else.
 
 StopsEmailFixture(
-    'Last chance to personalize your {EVENT_NAME} {EVENT_DATE} badge',
+    'Last chance to personalize your {EVENT_NAME} ({EVENT_DATE}) badge',
     'personalized_badges/volunteers.txt',
     lambda a: a.staffing and a.badge_type in c.PREASSIGNED_BADGE_TYPES and a.placeholder,
     when=days_before(7, c.PRINTED_BADGE_DEADLINE),
@@ -384,7 +380,7 @@ StopsEmailFixture(
 
 AutomatedEmailFixture(
     Attendee,
-    'Personalized {EVENT_NAME} {EVENT_DATE} badges will be ordered next week',
+    'Personalized {EVENT_NAME} ({EVENT_DATE}) badges will be ordered next week',
     'personalized_badges/reminder.txt',
     lambda a: a.badge_type in c.PREASSIGNED_BADGE_TYPES and not a.placeholder,
     when=days_before(7, c.PRINTED_BADGE_DEADLINE),
@@ -395,7 +391,7 @@ AutomatedEmailFixture(
 # bring the consent form only happens if this feature is turned on by setting the CONSENT_FORM_URL config option.
 AutomatedEmailFixture(
     Attendee,
-    '{EVENT_NAME} {EVENT_DATE} parental consent form reminder',
+    '{EVENT_NAME} ({EVENT_DATE}) parental consent form reminder',
     'reg_workflow/under_18_reminder.txt',
     lambda a: c.CONSENT_FORM_URL and a.age_group_conf['consent_form'],
     when=days_before(14, c.EPOCH),
@@ -613,14 +609,14 @@ MIVSEmailFixture(
 
 MIVSEmailFixture(
     IndieGame,
-    'MIVS 2018: Hotel and selling signups',
+    'MIVS {EVENT_YEAR}: Hotel and selling signups',
     'mivs/2018_hotel_info.txt',
     lambda game: game.confirmed,
     ident='2018_hotel_info')
 
 MIVSEmailFixture(
     IndieGame,
-    'MIVS 2018: November Updates & info',
+    'MIVS {EVENT_YEAR}: November Updates & info',
     'mivs/2018_email_blast.txt',
     lambda game: game.confirmed,
     ident='2018_email_blast')
@@ -694,7 +690,7 @@ MIVSEmailFixture(
 
 MIVSEmailFixture(
     IndieGame,
-    'MIVS: 2018 MIVSY Awards happening on January 6th, 7pm ',
+    'MIVS: {EVENT_YEAR} MIVSY Awards happening on January 6th, 7pm ',
     'mivs/2018_indie_mivsy_explination.txt',
     lambda game: game.confirmed,
     ident='2018_indie_mivsy_explination')
@@ -708,7 +704,7 @@ MIVSEmailFixture(
 
 MIVSEmailFixture(
     IndieGame,
-    'Thanks for Being part of MIVS 2018 - A Request for Feedback',
+    'Thanks for Being part of MIVS {EVENT_YEAR} - A Request for Feedback',
     'mivs/2018_feedback.txt',
     lambda game: game.confirmed,
     ident='2018_mivs_post_event_feedback',

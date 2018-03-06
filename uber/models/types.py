@@ -68,6 +68,27 @@ SQLAlchemy_Column, Column = Column, DefaultColumn
 SQLAlchemy_relationship, relationship = relationship, default_relationship
 
 
+class utcmax(FunctionElement):
+    """
+    Exactly the same as utcnow(), but uses '9999-12-31 23:59' instead of now.
+
+    See utcmin and utcnow for more details.
+
+    """
+    datetime = datetime(9999, 12, 31, 23, 59, 59, tzinfo=pytz.UTC)
+    type = UTCDateTime()
+
+
+@compiles(utcmax, 'postgresql')
+def pg_utcmax(element, compiler, **kw):
+    return "timezone('utc', '9999-12-31 23:59:59')"
+
+
+@compiles(utcmax, 'sqlite')
+def sqlite_utcmax(element, compiler, **kw):
+    return "(datetime('9999-12-31 23:59:59', 'utc'))"
+
+
 class utcmin(FunctionElement):
     """
     Exactly the same as utcnow(), but uses '0001-01-01 00:00' instead of now.
@@ -92,7 +113,7 @@ class utcmin(FunctionElement):
         Attendee.checkin_time > utcmin.datetime
 
     """
-    datetime = datetime(1, 1, 1, 0, 0, tzinfo=pytz.UTC)
+    datetime = datetime(1, 1, 1, 0, 0, 0, tzinfo=pytz.UTC)
     type = UTCDateTime()
 
 

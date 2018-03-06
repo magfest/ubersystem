@@ -42,8 +42,14 @@ def _is_dev_email(email):
     return email.endswith('mailinator.com') or email in c.DEVELOPER_EMAIL
 
 
+_EVENT_DATE = c.EPOCH.strftime('%b %Y')
+
+
 def format_email_subject(subject):
-    return subject.format(EVENT_NAME=c.EVENT_NAME, EVENT_DATE=c.EPOCH.strftime('(%b %Y)'))
+    return subject \
+        .replace('{EVENT_NAME}', c.EVENT_NAME) \
+        .replace('{EVENT_YEAR}', c.EVENT_YEAR) \
+        .replace('{EVENT_DATE}', _EVENT_DATE)
 
 
 def send_email(sender, to, subject, body, format='text', cc=(), bcc=(), model=None, ident=None, automated_email=None):

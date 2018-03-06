@@ -2,15 +2,7 @@
 {% block title %}Example Automated Emails{% endblock %}
 {% block content %}
 
-{% macro preview(body, format) %}
-  {% if format == 'html' %}
-    <div class="well">{{ body|safe }}</div>
-  {% else %}
-    <pre class="well" style="white-space:pre-wrap">{{ body }}</pre>
-  {% endif %}
-{% endmacro %}
-
-<h2>{{ email.subject }}</h2>
+<h2>{{ (examples|default([(None, email)], True)|first).1.subject }}</h2>
 
 <div class="center">
   <a href="pending">Return to pending email list</a>
@@ -24,15 +16,15 @@
 {% endif %}
 
 {% if examples %}
-  The following are some examples of this email:
-  {% for model, body in examples %}
-    <h3>To: {{ model|form_link }}</h3>
-    {{ preview(body, email.format) }}
+  The following are some examples of this email looks like when sent:
+  {% for model, example in examples %}
+    <h3>To: {{ model|form_link }} ({{ example.to }})</h3>
+    {{ macros.preview_email(example) }}
   {% endfor %}
 {% else %}
   No recepients match the email criteria.<br><br>
   Here's what the template looks like though:<br>
-  {{ preview(email.body, email.format) }}
+  {{ macros.preview_email(email) }}
 {% endif %}
 
 {% endblock %}

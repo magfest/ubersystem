@@ -60,8 +60,10 @@ def test_is_not_html():
 
 
 def test_html_from_html():
-    assert "HTML Content" == Email(body="<body>HTML Content</body>").html
+    assert "HTML Content" == Email(body="<body>HTML Content</body>").body_as_html
+    assert "HTML Content" == Email(body="<html><body>HTML Content</body></html>").body_as_html
+    assert "<p>HTML Content</p>" == Email(body="<html><body><p>HTML Content</p></body></html>").body_as_html
 
 
 def test_html_from_text():
-    assert "Test<br/>Content" == Email(body="Test\nContent").html
+    assert "Test<br>Content" == Email(body="Test\nContent").body_as_html

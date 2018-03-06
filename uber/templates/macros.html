@@ -445,3 +445,17 @@
     {{ label }}
   </label>
 {%- endmacro %}
+
+{% macro preview_email(email) %}
+  {% if email.format == 'html' %}
+    {% if email.to is defined %}
+      <div class="well email-preview">{{ email.body_as_html|safe }}</div>
+    {% else %}
+      <pre class="well email-preview" style="white-space: pre-wrap">{{ email.body }}</pre>
+    {% endif %}
+  {% else %}
+    <div class="well email-preview" style='font-family: Menlo, Monaco, Consolas, "Courier New", monospace; font-size: 13px'>
+      {{ email.body_as_html|safe }}
+    </div>
+  {% endif %}
+{% endmacro %}

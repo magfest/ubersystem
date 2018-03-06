@@ -313,8 +313,10 @@ class days_before(DateBase):
         if deadline:
             self.starting_date = self.deadline - timedelta(days=self.days)
             self.ending_date = deadline if not until else (deadline - timedelta(days=until))
-
             assert self.starting_date < self.ending_date
+        else:
+            self.starting_date = None
+            self.ending_date = None
 
     def __call__(self):
         if not self.deadline:

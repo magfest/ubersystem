@@ -47,7 +47,19 @@ class Root:
         examples = []
         for model_instance in AutomatedEmailFixture.queries[email.model_class](session):
             if email.would_send_if_approved(model_instance):
-                examples.append((model_instance, email.render_body(model_instance).decode('utf-8')))
+                # These examples are never added to the session or saved to the database.
+                # The are only used to render an example of the automated email.
+                example = Email(
+                    subject=email.render_subject(model_instance),
+                    body=email.render_body(model_instance),
+                    sender=email.sender,
+                    to=model_instance.email,
+                    cc=email.cc,
+                    bcc=email.bcc,
+                    ident=email.ident,
+                    fk_id=model_instance.id,
+                    automated_email_id=email.id)
+                examples.append((model_instance, example))
                 if len(examples) > 4:
                     break
         return {
@@ -86,20 +98,21 @@ class Root:
 
         This is useful for if someone had an invalid email address and did not receive an automated email.
         """
-
         email = session.email(id)
         if email:
-            # If this was an automated email, we can send out an updated template with the correct 'from' address
-            if email.ident in AutomatedEmailFixture.fixtures_by_ident:
-                email_category = AutomatedEmailFixture.fixtures_by_ident[email.ident]
-                sender = email_category.sender
-                body = email_category.render(email.fk)
-            else:
-                sender = c.ADMIN_EMAIL
-                body = email.html
-
             try:
-                send_email(sender, email.rcpt_email, email.subject, body, model=email.fk, ident=email.ident)
+                # If this was an automated email, we can send out an updated copy
+                if email.automated_email and email.fk:
+                    email.automated_email.send(email.fk, raise_errors=True)
+                else:
+                    send_email(
+                        c.ADMIN_EMAIL,
+                        email.rcpt_email,
+                        email.subject,
+                        email.body,
+                        format=email.format,
+                        model=email.fk,
+                        ident=email.ident)
             except Exception:
                 return {'success': False, 'message': 'Email not sent: unknown error.'}
             else:
