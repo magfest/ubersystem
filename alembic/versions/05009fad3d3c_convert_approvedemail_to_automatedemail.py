@@ -22,8 +22,6 @@ from sqlalchemy.sql import table
 from sqlalchemy.types import String
 import residue
 
-from uber.models.types import utcmin, utcmax
-
 
 try:
     is_sqlite = op.get_context().dialect.name == 'sqlite'
@@ -114,8 +112,8 @@ def upgrade():
             batch_op.add_column(sa.Column('unapproved_count', sa.Integer(), server_default='0', nullable=False))
             batch_op.add_column(sa.Column('allow_post_con', sa.Boolean(), server_default='False', nullable=False))
             batch_op.add_column(sa.Column('allow_at_the_con', sa.Boolean(), server_default='False', nullable=False))
-            batch_op.add_column(sa.Column('active_after', residue.UTCDateTime(), server_default=utcmin(), nullable=False))
-            batch_op.add_column(sa.Column('active_before', residue.UTCDateTime(), server_default=utcmax(), nullable=False))
+            batch_op.add_column(sa.Column('active_after', residue.UTCDateTime(), nullable=True))
+            batch_op.add_column(sa.Column('active_before', residue.UTCDateTime(), nullable=True))
             if 'pk_approved_email' in existing_primarykeys:
                 batch_op.drop_constraint('pk_approved_email', type_='primary')
             batch_op.create_primary_key(op.f('pk_automated_email'), ['id'])
@@ -135,12 +133,11 @@ def upgrade():
         op.add_column('automated_email', sa.Column('unapproved_count', sa.Integer(), server_default='0', nullable=False))
         op.add_column('automated_email', sa.Column('allow_post_con', sa.Boolean(), server_default='False', nullable=False))
         op.add_column('automated_email', sa.Column('allow_at_the_con', sa.Boolean(), server_default='False', nullable=False))
-        op.add_column('automated_email', sa.Column('active_after', residue.UTCDateTime(), server_default=utcmin(), nullable=False))
-        op.add_column('automated_email', sa.Column('active_before', residue.UTCDateTime(), server_default=utcmax(), nullable=False))
+        op.add_column('automated_email', sa.Column('active_after', residue.UTCDateTime(), nullable=True))
+        op.add_column('automated_email', sa.Column('active_before', residue.UTCDateTime(), nullable=True))
         op.drop_constraint('pk_approved_email', 'automated_email', type_='primary')
         op.create_primary_key(op.f('pk_automated_email'), 'automated_email', ['id'])
         op.create_unique_constraint(op.f('uq_automated_email_ident'), 'automated_email', ['ident'])
-        op.create_index(op.f('ix_automated_email_active_after_active_before'), 'automated_email', ['active_after', 'active_before'], unique=False)
 
 
     if is_sqlite:
@@ -181,7 +178,6 @@ def downgrade():
     op.drop_column('email', 'cc')
     op.drop_column('email', 'bcc')
 
-    op.drop_index(op.f('ix_automated_email_active_after_active_before'), table_name='automated_email')
     op.drop_column('automated_email', 'model')
     op.drop_column('automated_email', 'subject')
     op.drop_column('automated_email', 'body')

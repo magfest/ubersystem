@@ -6,17 +6,17 @@ from pockets import cached_property, classproperty, groupify
 from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
-from sqlalchemy.schema import ForeignKey, Index
+from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
 
 from uber.config import c
 from uber.decorators import renderable_data
 from uber.jinja import JinjaEnv
 from uber.models import MagModel
-from uber.models.types import DefaultColumn as Column, utcmax, utcmin
+from uber.models.types import DefaultColumn as Column
 from uber.notifications import send_email
 from uber.utils import localized_now, normalize_newlines
 
@@ -66,12 +66,10 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
     allow_post_con = Column(Boolean, default=False)
     allow_at_the_con = Column(Boolean, default=False)
 
-    active_after = Column(UTCDateTime, default=lambda: utcmin.datetime, server_default=utcmin())
-    active_before = Column(UTCDateTime, default=lambda: utcmax.datetime, server_default=utcmax())
+    active_after = Column(UTCDateTime, nullable=True, default=None)
+    active_before = Column(UTCDateTime, nullable=True, default=None)
 
     emails = relationship('Email', backref='automated_email', order_by='Email.id')
-
-    __table_args__ = (Index('ix_automated_email_active_after_active_before', 'active_after', 'active_before'),)
 
     @classproperty
     def filters_for_allowed(cls):
@@ -84,14 +82,16 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
     @classproperty
     def filters_for_active(cls):
         now = localized_now()
-        return cls.filters_for_allowed + [cls.active_after <= now, cls.active_before >= now]
+        return cls.filters_for_allowed + [
+            or_(cls.active_after == None, cls.active_after <= now),
+            or_(cls.active_before == None, cls.active_before >= now)]  # noqa: E711
 
     @classproperty
     def filters_for_approvable(cls):
         return [
             cls.approved == False,
             cls.needs_approval == True,
-            cls.active_before >= localized_now()]  # noqa: E711,E712
+            or_(cls.active_before == None, cls.active_before >= localized_now())]  # noqa: E711,E712
 
     @classproperty
     def filters_for_pending(cls):
@@ -113,11 +113,11 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
         """
         Readable description of when the date filters are active for this email.
         """
-        if self.active_after != utcmin.datetime and self.active_before != utcmax.datetime:
+        if self.active_after and self.active_before:
             return 'between {} and {}'.format(self.active_after.strftime('%m/%d'), self.active_before.strftime('%m/%d'))
-        elif self.active_after != utcmin.datetime:
+        elif self.active_after:
             return 'after {}'.format(self.active_after.strftime('%m/%d'))
-        elif self.active_before != utcmax.datetime:
+        elif self.active_before:
             return 'before {}'.format(self.active_before.strftime('%m/%d'))
         return ''
 
@@ -160,8 +160,8 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
         self.needs_approval = fixture.needs_approval
         self.allow_at_the_con = fixture.allow_at_the_con
         self.allow_post_con = fixture.allow_post_con
-        self.active_after = fixture.active_after or utcmin.datetime
-        self.active_before = fixture.active_before or utcmax.datetime
+        self.active_after = fixture.active_after
+        self.active_before = fixture.active_before
         self.approved = False if self.is_new else self.approved
         self.unapproved_count = 0 if self.is_new else self.unapproved_count
         return self
