@@ -25,7 +25,6 @@ __all__ = ['AutomatedEmail', 'Email']
 
 
 class BaseEmailMixin(object):
-    ident = Column(UnicodeText)
     model = Column(UnicodeText)
 
     subject = Column(UnicodeText)
@@ -58,13 +57,14 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
     _fixtures = OrderedDict()
 
     format = Column(UnicodeText, default='text')
+    ident = Column(UnicodeText, unique=True)
 
     approved = Column(Boolean, default=False)
     needs_approval = Column(Boolean, default=True)
     unapproved_count = Column(Integer, default=0)
 
-    allow_post_con = Column(Boolean, default=False)
     allow_at_the_con = Column(Boolean, default=False)
+    allow_post_con = Column(Boolean, default=False)
 
     active_after = Column(UTCDateTime, nullable=True, default=None)
     active_before = Column(UTCDateTime, nullable=True, default=None)
@@ -222,8 +222,9 @@ class Email(MagModel, BaseEmailMixin):
         UUID, ForeignKey('automated_email.id', ondelete='set null'), nullable=True, default=None)
 
     fk_id = Column(UUID, nullable=True)
-    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    ident = Column(UnicodeText)
     to = Column(UnicodeText)
+    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
 
     @cached_property
     def fk(self):
