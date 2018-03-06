@@ -1,4 +1,4 @@
-{%- set HAS_ROCK_ISLAND = c.ROCK_ISLAND and guest.group_type in c.ROCK_ISLAND_GROUPS -%}
+{%- set HAS_ROCK_ISLAND = c.ROCK_ISLAND in c.GUEST_MERCHS and guest.group_type in c.ROCK_ISLAND_GROUPS -%}
 
 {% if snippet %}
   <tr>
