@@ -73,6 +73,31 @@ def send_automated_emails():
 
         return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
 
+        # TODO: Once we finish converting each AutomatedEmailFixture.filter
+        #       into an AutomatedEmailFixture.query, we'll be able to get rid
+        #       of AutomatedEmailFixture.queries entirely, and send our
+        #       automated emails using the code below.
+        #
+        # for automated_email in active_automated_emails:
+        #     model_class = automated_email.model_class or Attendee
+        #     model_instances = session.query(model_class).filter(
+        #         not_(exists().where(and_(
+        #             Email.fk_id == model_class.id,
+        #             Email.automated_email_id == automated_email.id))
+        #         ),
+        #         *automated_email.query
+        #     ).options(*automated_email.query_options)
+        #
+        #     automated_email.unapproved_count = 0
+        #     for model_instance in model_instances:
+        #         if automated_email.would_send_if_approved(model_instance):
+        #             if automated_email.approved or not automated_email.needs_approval:
+        #                 automated_email.send_to(model_instance)
+        #             else:
+        #                 automated_email.unapproved_count += 1
+        #
+        # return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
+
 
 schedule.on_startup(AutomatedEmail.reconcile_fixtures)
 schedule.every().day.at('06:00').do(notify_admins_of_pending_emails)

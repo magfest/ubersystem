@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 import pytest
 from mock import Mock
 
-from uber.utils import before, days_after, days_before, localize_datetime, DateBase
+from uber.utils import after, before, days_after, days_before, localize_datetime, DateBase
 
 
 sept_15th = localize_datetime(datetime(year=2016, month=9, day=15, hour=12, minute=30))
@@ -105,6 +105,18 @@ class TestDateFunctions:
         (before, 0, +100, None, None, True),
 
         (before, 0, 0, None, None, False),
+
+        # ---------- after -----------
+
+        (after, 0, -10, None, None, True),
+        (after, 0, -1, None, None, True),
+        (after, 0, -100, None, None, True),
+
+        (after, 0, +10, None, None, False),
+        (after, 0, +1, None, None, False),
+        (after, 0, +100, None, None, False),
+
+        (after, 0, 0, None, None, False),
     ])
     def test_dates(self, monkeypatch, which_class, todays_date_offset, deadline_offset, days, until, expected_result):
 
@@ -123,12 +135,12 @@ class TestDateFunctions:
             kwargs['until'] = until
 
         if days is not None:
-            assert which_class != before
+            assert which_class is not before and which_class is not after
 
-        if which_class != before:
+        if which_class is not before and which_class is not after:
             kwargs['days'] = days
 
-        assert which_class in [days_before, days_after, before]
+        assert which_class in [days_before, days_after, before, after]
 
         # setup code is done, run the actual test:
         assert which_class(**kwargs)() == expected_result

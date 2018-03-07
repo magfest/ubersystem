@@ -23,7 +23,7 @@ from uber import decorators
 from uber.models import AdminAccount, Attendee, AutomatedEmail, Department, Group, GuestGroup, IndieGame, IndieJudge, \
     IndieStudio, MITSTeam, PanelApplication, PanelApplicant, Room, RoomAssignment, Shift
 from uber.notifications import format_email_subject
-from uber.utils import before, days_after, days_before, localized_now, DeptChecklistConf
+from uber.utils import after, before, days_after, days_before, localized_now, DeptChecklistConf
 
 
 class AutomatedEmailFixture:
@@ -73,6 +73,8 @@ class AutomatedEmailFixture:
             filter,
             ident,
             *,
+            query=(),
+            query_options=(),
             when=(),
             sender=None,
             cc=(),
@@ -93,6 +95,8 @@ class AutomatedEmailFixture:
         self.format = 'text' if template.endswith('.txt') else 'html'
         self.filter = filter or (lambda x: True)
         self.ident = ident
+        self.query = listify(query)
+        self.query_options = listify(query_options)
         self.sender = sender or c.REGDESK_EMAIL
         self.cc = listify(cc)
         self.bcc = listify(bcc)
@@ -118,6 +122,7 @@ AutomatedEmailFixture(
     '{EVENT_NAME} payment received',
     'reg_workflow/attendee_confirmation.html',
     lambda a: a.paid == c.HAS_PAID,
+    # query=Attendee.paid == c.HAS_PAID,
     needs_approval=False,
     allow_at_the_con=True,
     ident='attendee_payment_received')
@@ -127,6 +132,9 @@ AutomatedEmailFixture(
     '{EVENT_NAME} registration confirmed',
     'reg_workflow/attendee_confirmation.html',
     lambda a: a.paid == c.NEED_NOT_PAY and (a.confirmed or a.promo_code_id),
+    # query=and_(
+    #     Attendee.paid == c.NEED_NOT_PAY,
+    #     or_(Attendee.confirmed != None, Attendee.promo_code_id != None)),
     needs_approval=False,
     allow_at_the_con=True,
     ident='attendee_badge_confirmed')
@@ -136,6 +144,7 @@ AutomatedEmailFixture(
     '{EVENT_NAME} group payment received',
     'reg_workflow/group_confirmation.html',
     lambda g: g.amount_paid == g.cost and g.cost != 0 and g.leader_id,
+    # query=and_(Group.amount_paid >= Group.cost, Group.cost > 0, Group.leader_id != None),
     needs_approval=False,
     ident='group_payment_received')
 
@@ -144,6 +153,10 @@ AutomatedEmailFixture(
     '{EVENT_NAME} group registration confirmed',
     'reg_workflow/attendee_confirmation.html',
     lambda a: a.group and (a.id != a.group.leader_id or a.group.cost == 0) and not a.placeholder,
+    # query=and_(
+    #     Attendee.placeholder == False,
+    #     Attendee.group_id != None,
+    #     or_(Attendee.id != Group.leader_id, Group.cost == 0)),
     needs_approval=False,
     allow_at_the_con=True,
     ident='attendee_group_reg_confirmation')
@@ -153,6 +166,10 @@ AutomatedEmailFixture(
     '{EVENT_NAME} extra payment received',
     'reg_workflow/group_donation.txt',
     lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra,
+    # query=and_(
+    #     Attendee.paid == c.PAID_BY_GROUP,
+    #     Attendee.amount_extra != 0,
+    #     Attendee.amount_paid >= Attendee.amount_extra),
     needs_approval=False,
     ident='group_extra_payment_received')
 
@@ -170,6 +187,11 @@ AutomatedEmailFixture(
         and days_after(30, g.registered)()
         and g.unregistered_badges
         and not g.is_dealer),
+    # query=and_(
+    #     Group.unregistered_badges == True,
+    #     Group.is_dealer == False,
+    #     Group.registered < (func.now() - timedelta(days=30))),
+    when=before(c.GROUP_PREREG_TAKEDOWN),
     needs_approval=False,
     ident='group_preassign_badges_reminder',
     sender=c.REGDESK_EMAIL)
@@ -182,8 +204,13 @@ AutomatedEmailFixture(
       c.AFTER_GROUP_PREREG_TAKEDOWN
       and g.unregistered_badges
       and (not g.is_dealer or g.status == c.APPROVED)),
+    # query=and_(
+    #     Group.unregistered_badges == True,
+    #     or_(Group.is_dealer == False, Group.status == c.APPROVED)),
+    when=after(c.GROUP_PREREG_TAKEDOWN),
     needs_approval=False,
-    ident='group_preassign_badges_reminder_last_chance')
+    ident='group_preassign_badges_reminder_last_chance',
+    sender=c.REGDESK_EMAIL)
 
 
 # Dealer emails; these are safe to be turned on for all events because even if the event doesn't have dealers,
@@ -199,6 +226,7 @@ class MarketplaceEmailFixture(AutomatedEmailFixture):
             template,
             lambda g: g.is_dealer and filter(g),
             ident,
+            # query=[Group.is_dealer == False] + listify(query),
             sender=c.MARKETPLACE_EMAIL,
             **kwargs)
 
@@ -207,6 +235,7 @@ MarketplaceEmailFixture(
     'Your {EVENT_NAME} Dealer registration has been approved',
     'dealers/approved.html',
     lambda g: g.status == c.APPROVED,
+    # query=Group.status == c.APPROVED,
     needs_approval=False,
     ident='dealer_reg_approved')
 
@@ -214,6 +243,10 @@ MarketplaceEmailFixture(
     'Reminder to pay for your {EVENT_NAME} Dealer registration',
     'dealers/payment_reminder.txt',
     lambda g: g.status == c.APPROVED and days_after(30, g.approved)() and g.is_unpaid,
+    # query=and_(
+    #     Group.status == c.APPROVED,
+    #     Group.approved < (func.now() - timedelta(days=30)),
+    #     Group.is_unpaid == True),
     needs_approval=False,
     ident='dealer_reg_payment_reminder')
 
@@ -221,6 +254,7 @@ MarketplaceEmailFixture(
     'Your {EVENT_NAME} ({EVENT_DATE}) Dealer registration is due in one week',
     'dealers/payment_reminder.txt',
     lambda g: g.status == c.APPROVED and g.is_unpaid,
+    # query=and_(Group.status == c.APPROVED, Group.is_unpaid == True),
     when=days_before(7, c.DEALER_PAYMENT_DUE, 2),
     needs_approval=False,
     ident='dealer_reg_payment_reminder_due_soon')
@@ -229,6 +263,7 @@ MarketplaceEmailFixture(
     'Last chance to pay for your {EVENT_NAME} ({EVENT_DATE}) Dealer registration',
     'dealers/payment_reminder.txt',
     lambda g: g.status == c.APPROVED and g.is_unpaid,
+    # query=and_(Group.status == c.APPROVED, Group.is_unpaid == True),
     when=days_before(2, c.DEALER_PAYMENT_DUE),
     needs_approval=False,
     ident='dealer_reg_payment_reminder_last_chance')
@@ -237,6 +272,7 @@ MarketplaceEmailFixture(
     '{EVENT_NAME} Dealer waitlist has been exhausted',
     'dealers/waitlist_closing.txt',
     lambda g: g.status == c.WAITLISTED,
+    # query=Group.status == c.WAITLISTED,
     when=days_after(0, c.DEALER_WAITLIST_CLOSED),
     ident='uber_marketplace_waitlist_exhausted')
 
@@ -253,7 +289,6 @@ MarketplaceEmailFixture(
 # These emails are safe to be turned on for all events because none of them are sent unless an administrator explicitly
 # creates a "placeholder" registration.
 
-
 class StopsEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
         AutomatedEmailFixture.__init__(
@@ -263,6 +298,7 @@ class StopsEmailFixture(AutomatedEmailFixture):
             template,
             lambda a: a.staffing and filter(a),
             ident,
+            # query=[Attendee.staffing == True] + listify(query),
             sender=c.STAFF_EMAIL,
             **kwargs)
 
@@ -272,6 +308,7 @@ AutomatedEmailFixture(
     '{EVENT_NAME} Panelist Badge Confirmation',
     'placeholders/panelist.txt',
     lambda a: a.placeholder and c.PANELIST_RIBBON in a.ribbon_ints,
+    # query=and_(Attendee.placeholder == True, Attendee.ribbon.like('%{}%'.format(c.PANELIST_RIBBON))),
     sender=c.PANELS_EMAIL,
     ident='panelist_badge_confirmation')
 
@@ -280,6 +317,7 @@ AutomatedEmailFixture(
     '{EVENT_NAME} Guest Badge Confirmation',
     'placeholders/guest.txt',
     lambda a: a.placeholder and a.badge_type == c.GUEST_BADGE,
+    # query=and_(Attendee.placeholder == True, Attendee.badge_type == c.GUEST_BADGE),
     sender=c.GUEST_EMAIL,
     ident='guest_badge_confirmation')
 
@@ -288,6 +326,12 @@ AutomatedEmailFixture(
     '{EVENT_NAME} Dealer Information Required',
     'placeholders/dealer.txt',
     lambda a: a.placeholder and a.is_dealer and a.group.status == c.APPROVED,
+    # query=and_(
+    #     Attendee.placeholder == True,
+    #     Attendee.paid == c.PAID_BY_GROUP,
+    #     Group.id == Attendee.group_id,
+    #     Group.is_dealer == True,
+    #     Group.status == c.APPROVED))),
     sender=c.MARKETPLACE_EMAIL,
     ident='dealer_info_required')
 

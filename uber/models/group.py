@@ -4,6 +4,8 @@ from uuid import uuid4
 
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from sqlalchemy import and_, exists, or_
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer, Numeric
 
@@ -111,7 +113,7 @@ class Group(MagModel, TakesPaymentMixin):
         else:
             return badge.badge_type_label
 
-    @property
+    @hybrid_property
     def is_dealer(self):
         return bool(
             self.tables
@@ -119,9 +121,17 @@ class Group(MagModel, TakesPaymentMixin):
             and self.tables != '0.0'
             and (not self.registered or self.amount_paid or self.cost))
 
-    @property
+    @is_dealer.expression
+    def is_dealer(cls):
+        return and_(cls.tables > 0, or_(cls.amount_paid > 0, cls.cost > 0))
+
+    @hybrid_property
     def is_unpaid(self):
         return self.cost > 0 and self.amount_paid == 0
+
+    @is_unpaid.expression
+    def is_unpaid(cls):
+        return and_(cls.cost > 0, cls.amount_paid == 0)
 
     @property
     def email(self):
@@ -135,17 +145,27 @@ class Group(MagModel, TakesPaymentMixin):
             if len(emails) == 1:
                 return emails[0]
 
-    @property
+    @hybrid_property
     def badges_purchased(self):
         return len([a for a in self.attendees if a.paid == c.PAID_BY_GROUP])
+
+    @badges_purchased.expression
+    def badges_purchased(cls):
+        from uber.models import Attendee
+        return exists().where(and_(Attendee.group_id == cls.id, Attendee.paid == c.PAID_BY_GROUP))
 
     @property
     def badges(self):
         return len(self.attendees)
 
-    @property
+    @hybrid_property
     def unregistered_badges(self):
         return len([a for a in self.attendees if a.is_unassigned])
+
+    @unregistered_badges.expression
+    def unregistered_badges(cls):
+        from uber.models import Attendee
+        return exists().where(and_(Attendee.group_id == cls.id, Attendee.first_name == ''))
 
     @cost_property
     def table_cost(self):

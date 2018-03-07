@@ -84,8 +84,8 @@ def send_automated_emails():
     from uber.tasks.email import send_automated_emails as send_emails
 
     Session.initialize_db(initialize=True)
-    AutomatedEmail.reconcile_fixtures()
-    pprint(send_emails())
+    timed(AutomatedEmail.reconcile_fixtures)()
+    pprint(timed(send_emails)())
 
 
 from uber.tasks import attractions  # noqa: F401

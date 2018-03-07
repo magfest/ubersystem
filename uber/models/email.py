@@ -139,6 +139,10 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
         return select([func.count(cls.emails)]).where(Email.automated_email_id == cls.id).label('email_count')
 
     @property
+    def filter(self):
+        return self.fixture.filter if self.fixture else lambda x: True
+
+    @property
     def fixture(self):
         return AutomatedEmail._fixtures.get(self.ident)
 
@@ -148,6 +152,14 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
             return list(AutomatedEmail._fixtures.keys()).index(self.ident)
         except ValueError:
             return -1
+
+    @property
+    def query(self):
+        return self.fixture.query if self.fixture else tuple()
+
+    @property
+    def query_options(self):
+        return self.fixture.query_options if self.fixture else tuple()
 
     @property
     def is_html(self):
@@ -210,9 +222,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
         return False
 
     def would_send_if_approved(self, model_instance):
-        if not model_instance or not self.fixture:
-            return False
-        return getattr(model_instance, 'email', False) and self.fixture.filter(model_instance)
+        return model_instance and getattr(model_instance, 'email', False) and self.filter(model_instance)
 
 
 class Email(MagModel, BaseEmailMixin):

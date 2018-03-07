@@ -289,58 +289,28 @@ class DateBase:
         return None
 
 
-class days_before(DateBase):
+class after(DateBase):
     """
-    Returns true if today is # days before a deadline.
+    Returns true if today is anytime after a deadline.
 
-    :param: days - number of days before deadline to start
     :param: deadline - datetime of the deadline
-    :param: until - (optional) number of days prior to deadline to end (default: 0)
 
     Examples:
-        days_before(45, c.POSITRON_BEAM_DEADLINE)() - True if it's 45 days before c.POSITRON_BEAM_DEADLINE
-        days_before(10, c.WARP_COIL_DEADLINE, 2)() - True if it's between 10 and 2 days before c.WARP_COIL_DEADLINE
+        after(c.POSITRON_BEAM_DEADLINE)() - True if it's after c.POSITRON_BEAM_DEADLINE
     """
-    def __init__(self, days, deadline, until=None):
-        if days <= 0:
-            raise ValueError("'days' paramater must be > 0. days={}".format(days))
-
-        if until and days <= until:
-            raise ValueError("'days' paramater must be less than 'until'. days={}, until={}".format(days, until))
-
-        self.days, self.deadline, self.until = days, deadline, until
-
-        if deadline:
-            self.starting_date = self.deadline - timedelta(days=self.days)
-            self.ending_date = deadline if not until else (deadline - timedelta(days=until))
-            assert self.starting_date < self.ending_date
-        else:
-            self.starting_date = None
-            self.ending_date = None
+    def __init__(self, deadline):
+        self.deadline = deadline
 
     def __call__(self):
-        if not self.deadline:
-            return False
-
-        return self.starting_date < self.now() < self.ending_date
+        return bool(self.deadline) and self.now() > self.deadline
 
     @property
     def active_after(self):
-        return self.starting_date
-
-    @property
-    def active_before(self):
-        return self.ending_date
+        return self.deadline
 
     @property
     def active_when(self):
-        if not self.deadline:
-            return ''
-
-        start_txt = self.starting_date.strftime(self._when_dateformat)
-        end_txt = self.ending_date.strftime(self._when_dateformat)
-
-        return 'between {} and {}'.format(start_txt, end_txt)
+        return 'after {}'.format(self.deadline.strftime(self._when_dateformat)) if self.deadline else ''
 
 
 class before(DateBase):
@@ -396,6 +366,60 @@ class days_after(DateBase):
     @property
     def active_when(self):
         return 'after {}'.format(self.starting_date.strftime(self._when_dateformat)) if self.starting_date else ''
+
+
+class days_before(DateBase):
+    """
+    Returns true if today is # days before a deadline.
+
+    :param: days - number of days before deadline to start
+    :param: deadline - datetime of the deadline
+    :param: until - (optional) number of days prior to deadline to end (default: 0)
+
+    Examples:
+        days_before(45, c.POSITRON_BEAM_DEADLINE)() - True if it's 45 days before c.POSITRON_BEAM_DEADLINE
+        days_before(10, c.WARP_COIL_DEADLINE, 2)() - True if it's between 10 and 2 days before c.WARP_COIL_DEADLINE
+    """
+    def __init__(self, days, deadline, until=None):
+        if days <= 0:
+            raise ValueError("'days' paramater must be > 0. days={}".format(days))
+
+        if until and days <= until:
+            raise ValueError("'days' paramater must be less than 'until'. days={}, until={}".format(days, until))
+
+        self.days, self.deadline, self.until = days, deadline, until
+
+        if deadline:
+            self.starting_date = self.deadline - timedelta(days=self.days)
+            self.ending_date = deadline if not until else (deadline - timedelta(days=until))
+            assert self.starting_date < self.ending_date
+        else:
+            self.starting_date = None
+            self.ending_date = None
+
+    def __call__(self):
+        if not self.deadline:
+            return False
+
+        return self.starting_date < self.now() < self.ending_date
+
+    @property
+    def active_after(self):
+        return self.starting_date
+
+    @property
+    def active_before(self):
+        return self.ending_date
+
+    @property
+    def active_when(self):
+        if not self.deadline:
+            return ''
+
+        start_txt = self.starting_date.strftime(self._when_dateformat)
+        end_txt = self.ending_date.strftime(self._when_dateformat)
+
+        return 'between {} and {}'.format(start_txt, end_txt)
 
 
 # ======================================================================

@@ -170,7 +170,15 @@ def upgrade():
                 )
 
 
+    if is_sqlite:
+        with op.batch_alter_table('attendee', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
+            batch_op.create_index(op.f('ix_attendee_placeholder'), ['placeholder'], unique=False)
+    else:
+        op.create_index(op.f('ix_attendee_placeholder'), 'attendee', ['placeholder'], unique=False)
+
+
 def downgrade():
+    op.drop_index(op.f('ix_attendee_placeholder'), table_name='attendee')
     op.drop_constraint(op.f('fk_email_automated_email_id_automated_email'), 'email', type_='foreignkey')
     op.alter_column('email', 'to', new_column_name='dest')
     op.drop_column('email', 'sender')
