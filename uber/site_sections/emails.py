@@ -33,13 +33,18 @@ class Root:
     def pending(self, session, message=''):
         automated_emails_with_count = session.query(AutomatedEmail, AutomatedEmail.email_count).all()
         automated_emails = []
-        for automated_email, email_count in automated_emails_with_count:
+        pending_emails = []
+        for automated_email, email_count in sorted(automated_emails_with_count, key=lambda e: e[0].ordinal):
             automated_email.sent_email_count = email_count
-            automated_emails.append(automated_email)
+            if automated_email.unapproved_count > 0:
+                pending_emails.append(automated_email)
+            else:
+                automated_emails.append(automated_email)
 
         return {
             'message': message,
-            'automated_emails': sorted(automated_emails, key=lambda e: e.ordinal),
+            'automated_emails': automated_emails,
+            'pending_emails': pending_emails,
         }
 
     def pending_examples(self, session, ident):
@@ -103,7 +108,7 @@ class Root:
             try:
                 # If this was an automated email, we can send out an updated copy
                 if email.automated_email and email.fk:
-                    email.automated_email.send(email.fk, raise_errors=True)
+                    email.automated_email.send_to(email.fk, raise_errors=True)
                 else:
                     send_email(
                         c.ADMIN_EMAIL,
@@ -113,6 +118,7 @@ class Root:
                         format=email.format,
                         model=email.fk,
                         ident=email.ident)
+                session.commit()
             except Exception:
                 return {'success': False, 'message': 'Email not sent: unknown error.'}
             else:

@@ -12,13 +12,14 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
 
+from uber import utils
 from uber.config import c
 from uber.decorators import renderable_data
 from uber.jinja import JinjaEnv
 from uber.models import MagModel
 from uber.models.types import DefaultColumn as Column
 from uber.notifications import send_email
-from uber.utils import localized_now, normalize_newlines
+from uber.utils import normalize_newlines
 
 
 __all__ = ['AutomatedEmail', 'Email']
@@ -39,7 +40,7 @@ class BaseEmailMixin(object):
     @property
     def body_as_html(self):
         if self.is_html:
-            return re.split('<body[^>]*>', self.body)[1].split('</body>')[0]
+            return re.split('<body[^>]*>', self.body)[-1].split('</body>')[0]
         else:
             return normalize_newlines(self.body).replace('\n', '<br>')
 
@@ -73,15 +74,15 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
 
     @classproperty
     def filters_for_allowed(cls):
+        if c.AT_THE_CON:
+            return [cls.allow_at_the_con == True]  # noqa: E712
         if c.POST_CON:
             return [cls.allow_post_con == True]  # noqa: E712
-        elif c.AT_THE_CON:
-            return [cls.allow_at_the_con == True]  # noqa: E712
         return []
 
     @classproperty
     def filters_for_active(cls):
-        now = localized_now()
+        now = utils.localized_now()
         return cls.filters_for_allowed + [
             or_(cls.active_after == None, cls.active_after <= now),
             or_(cls.active_before == None, cls.active_before >= now)]  # noqa: E711
@@ -91,7 +92,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
         return [
             cls.approved == False,
             cls.needs_approval == True,
-            or_(cls.active_before == None, cls.active_before >= localized_now())]  # noqa: E711,E712
+            or_(cls.active_before == None, cls.active_before >= utils.localized_now())]  # noqa: E711,E712
 
     @classproperty
     def filters_for_pending(cls):
@@ -113,12 +114,13 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
         """
         Readable description of when the date filters are active for this email.
         """
+        fmt = '%b %-d'
         if self.active_after and self.active_before:
-            return 'between {} and {}'.format(self.active_after.strftime('%m/%d'), self.active_before.strftime('%m/%d'))
+            return 'between {} and {}'.format(self.active_after.strftime(fmt), self.active_before.strftime(fmt))
         elif self.active_after:
-            return 'after {}'.format(self.active_after.strftime('%m/%d'))
+            return 'after {}'.format(self.active_after.strftime(fmt))
         elif self.active_before:
-            return 'before {}'.format(self.active_before.strftime('%m/%d'))
+            return 'before {}'.format(self.active_before.strftime(fmt))
         return ''
 
     @cached_property
@@ -182,8 +184,8 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
     def render_template(self, text, data):
         return JinjaEnv.env().from_string(text).render(data)
 
-    def send(self, model_instance, raise_errors=False):
-        assert self.session, 'AutomatedEmail.send() may only be used by instances attached to a session.'
+    def send_to(self, model_instance, raise_errors=False):
+        assert self.session, 'AutomatedEmail.send_to() may only be used by instances attached to a session.'
         try:
             data = self.renderable_data(model_instance)
             send_email(
@@ -203,13 +205,6 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
             if raise_errors:
                 raise
         return False
-
-    def send_if_should(self, model_instance, raise_errors=False):
-        if self.would_send_if_approved(model_instance):
-            if self.approved or not self.needs_approval:
-                self.send(model_instance, raise_errors)
-            else:
-                self.unapproved_count += 1
 
     def would_send_if_approved(self, model_instance):
         if not model_instance or not self.fixture:

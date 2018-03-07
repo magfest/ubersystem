@@ -65,7 +65,11 @@ def send_automated_emails():
                 automated_emails = automated_emails_by_model.get(model.__name__, [])
                 for automated_email in automated_emails:
                     if model_instance.id not in automated_email.emails_by_fk_id:
-                        automated_email.send_if_should(model_instance)
+                        if automated_email.would_send_if_approved(model_instance):
+                            if automated_email.approved or not automated_email.needs_approval:
+                                automated_email.send_to(model_instance)
+                            else:
+                                automated_email.unapproved_count += 1
 
         return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
 

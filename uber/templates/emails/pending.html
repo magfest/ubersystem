@@ -2,36 +2,42 @@
 {% block title %}Automated Emails Pending Approval{% endblock %}
 {% block content %}
 
-<h2>Email Categories</h2>
+<style>
+  h2 {margin-bottom: 0;}
+</style>
 
-<table class="table table-striped" data-page-size="9999999">
-<thead>
-<tr class="header">
-    <th>Subject</th>
-    <th>Sender</th>
-    <th>Emails Sent</th>
-    <th>Emails waiting to send but need approval</th>
-    <th>Show Examples</th>
-    <th>Approval Status</th>
-    <th>Date emails generated</th>
-</tr>
-</thead>
-<tbody>
-{% for automated_email in automated_emails %}
-    <tr>
-        <td>{{ automated_email.subject }}</td>
-        <td>{{ automated_email.sender }}</td>
-        <td>{{ automated_email.sent_email_count }}</td>
-        <td>{{ automated_email.unapproved_count }}</td>
-        <td><a href="pending_examples?ident={{ automated_email.ident|urlencode }}">Examples</a></td>
-        <td>
-            {% if not automated_email.needs_approval %}
+{% macro email_table(emails) %}
+  <table class="table table-striped datatable"
+      data-paging="false"
+      data-info="false"
+      data-ordering="false">
+    <thead>
+    <tr class="header">
+      <th>Subject</th>
+      <th>Sender</th>
+      <th>Emails Sent</th>
+      <th>Emails waiting to send but need approval</th>
+      <th>Show Examples</th>
+      <th>Approval Status</th>
+      <th>Date emails generated</th>
+    </tr>
+    </thead>
+    <tbody>
+      {% for email in emails %}
+        <tr>
+          <td>{{ email.subject }}</td>
+          <td>{{ email.sender }}</td>
+          <td>{{ email.sent_email_count }}</td>
+          <td>{{ email.unapproved_count }}</td>
+          <td><a href="pending_examples?ident={{ email.ident|urlencode }}">Examples</a></td>
+          <td>
+            {% if not email.needs_approval %}
                 Automatic
             {% else %}
-                {% if not automated_email.approved %}
+                {% if not email.approved %}
                     <form method="post" action="approve">
                     {{ csrf_token() }}
-                    <input type="hidden" name="ident" value="{{ automated_email.ident }}" />
+                    <input type="hidden" name="ident" value="{{ email.ident }}" />
                     <input type="submit" value="Approve" />
                     </form>
                 {% else %}
@@ -39,10 +45,21 @@
                 {% endif %}
             {% endif %}
         </td>
-        <td>{{ automated_email.active_when_label|linebreaksbr }}</td>
-    </tr>
-{% endfor %}
-</tbody>
+        <td>{{ email.active_when_label|linebreaksbr }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
 </table>
+{% endmacro %}
+
+{% if pending_emails %}
+  <h2>Automated Emails - Pending Approval</h2>
+  {{ email_table(pending_emails) }}
+{% endif %}
+<br><br>
+{% if automated_emails %}
+  <h2>Automated Emails</h2>
+  {{ email_table(automated_emails) }}
+{% endif %}
 
 {% endblock %}

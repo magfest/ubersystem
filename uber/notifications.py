@@ -18,20 +18,6 @@ __all__ = ['send_email', 'format_email_subject', 'get_twilio_client', 'send_sms'
 # Email
 # ============================================================================
 
-def _record_email_sent(email, session):
-    """
-    Save in our database the contents of the Email model passed in.
-
-    We'll use this for history tracking, and to know that we shouldn't
-    re-send this email because it already exists
-
-    Note:
-        This is in a separate function so we can unit test it.
-
-    """
-    session.add(email)
-
-
 def _is_dev_email(email):
     """
     Returns True if `email` is a development email address.
@@ -55,11 +41,10 @@ def format_email_subject(subject):
 def send_email(sender, to, subject, body, format='text', cc=(), bcc=(), model=None, ident=None, automated_email=None):
     subject = format_email_subject(subject)
     to, cc, bcc = map(listify, [to, cc, bcc])
-    original_to, original_cc, original_bcc = to, cc, bcc
+    original_to, original_cc, original_bcc = [to, cc, bcc]
     ident = ident or subject
     if c.DEV_BOX:
-        for xs in [to, cc, bcc]:
-            xs[:] = [email for email in xs if _is_dev_email(email)]
+        to, cc, bcc = map(lambda xs: list(filter(_is_dev_email, xs)), [to, cc, bcc])
 
     if c.SEND_EMAILS and to:
         msg_kwargs = {'bodyText' if format == 'text' else 'bodyHtml': body}
@@ -84,6 +69,11 @@ def send_email(sender, to, subject, body, format='text', cc=(), bcc=(), model=No
         if automated_email:
             fk_kwargs['automated_email_id'] = automated_email.id
 
+        print('\n\nvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv')
+        print('send_email')
+        print(fk_kwargs)
+        print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n')
+
         email = uber.models.email.Email(
             subject=subject,
             body=body,
@@ -96,10 +86,10 @@ def send_email(sender, to, subject, body, format='text', cc=(), bcc=(), model=No
 
         session = getattr(model, 'session', getattr(automated_email, 'session', None))
         if session:
-            _record_email_sent(session, email)
+            session.add(email)
         else:
             with uber.models.Session() as session:
-                _record_email_sent(session, email)
+                session.add(email)
 
 
 # ============================================================================

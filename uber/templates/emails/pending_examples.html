@@ -18,7 +18,7 @@
 {% if examples %}
   The following are some examples of this email looks like when sent:
   {% for model, example in examples %}
-    <h3>To: {{ model|form_link }} ({{ example.to }})</h3>
+    <h3>To: {{ model|form_link }} ({{ example.to|readable_join }})</h3>
     {{ macros.preview_email(example) }}
   {% endfor %}
 {% else %}

@@ -1,24 +1,37 @@
-from datetime import timedelta
+"""
+Tests for uber.utils date-based functions.
+
+These probably could go in test_utils, however, they're an integral part of the
+email subsystem, and it's nice to be able to run all the email tests by running
+only the tests in this directory.
+"""
+
+from datetime import datetime, timedelta
 
 import pytest
 from mock import Mock
 
-from tests.uber.email_tests.email_fixtures import *  # noqa: F401,F403
-from tests.uber.email_tests.email_fixtures import sept_15th
-from uber.utils import before, days_after, days_before, DateBase
+from uber.utils import before, days_after, days_before, localize_datetime, DateBase
 
 
-"""
-Tests for utils.py date-based functions.
-
-These probably could go in test_utils.py, however, they're an integral part of the email subsystem,
-and it's nice to be able to run all the email tests by running only the tests in this directory.
-"""
+sept_15th = localize_datetime(datetime(year=2016, month=9, day=15, hour=12, minute=30))
 
 
-@pytest.mark.usefixtures("set_datebase_now_to_sept_15th")
-class Test_DateFunctions:
-    @pytest.mark.parametrize("which_class, todays_date_offset, deadline_offset, days, until, expected_result", [
+@pytest.fixture
+def set_datebase_now_to_sept_15th(monkeypatch):
+    # TODO: would love to be able to do the code below:
+    # monkeypatch.setattr(uber.utils, 'localized_now', Mock(return_value=fake_todays_date))
+    #
+    # However, we can't override bare functions in modules and get it to
+    # propagate out to all the app code. We could (and probably should) solve
+    # this in a larger sense by moving localized_now() into a Util class and
+    # patching that class. For now, do it this way:
+    monkeypatch.setattr(DateBase, 'now', Mock(return_value=sept_15th))
+
+
+@pytest.mark.usefixtures('set_datebase_now_to_sept_15th')
+class TestDateFunctions:
+    @pytest.mark.parametrize('which_class, todays_date_offset, deadline_offset, days, until, expected_result', [
 
         # ------- days_before tests ----------
 
@@ -121,7 +134,7 @@ class Test_DateFunctions:
         assert which_class(**kwargs)() == expected_result
 
 
-@pytest.mark.usefixtures("set_datebase_now_to_sept_15th")
+@pytest.mark.usefixtures('set_datebase_now_to_sept_15th')
 class TestDaysBefore_DateFunctions:
     def test_no_deadline_set(self):
         assert not days_before(1, None)()
@@ -154,7 +167,7 @@ class TestDaysBefore_DateFunctions:
         assert before(deadline=None).active_when == ''
 
 
-@pytest.mark.usefixtures("set_datebase_now_to_sept_15th")
+@pytest.mark.usefixtures('set_datebase_now_to_sept_15th')
 class TestDaysAfter_DateFunctions:
     def test_no_deadline_set(self):
         assert not days_after(1, None)()

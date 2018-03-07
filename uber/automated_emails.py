@@ -19,7 +19,7 @@ from pytz import UTC
 from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
-from uber.decorators import render_empty
+from uber import decorators
 from uber.models import AdminAccount, Attendee, AutomatedEmail, Department, Group, GuestGroup, IndieGame, IndieJudge, \
     IndieStudio, MITSTeam, PanelApplication, PanelApplicant, Room, RoomAssignment, Shift
 from uber.notifications import format_email_subject
@@ -89,7 +89,7 @@ class AutomatedEmailFixture:
 
         self.model = model
         self.subject = format_email_subject(subject)
-        self.body = render_empty(os.path.join('emails', template))
+        self.body = decorators.render_empty(os.path.join('emails', template))
         self.format = 'text' if template.endswith('.txt') else 'html'
         self.filter = filter or (lambda x: True)
         self.ident = ident
