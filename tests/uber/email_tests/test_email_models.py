@@ -101,7 +101,7 @@ def automated_email_fixtures(clear_automated_email_fixtures, render_empty_attend
     """
     Generates 8 AutomatedEmails. Of those:
      * 4 are currently active (within the sending window)
-     * 6 that can be approved (already active, or will become active in the future)
+     * 6 can be approved (already active, or will become active in the future)
      * 4 are html formatted
     """
     for i, when in enumerate(ACTIVE_WHEN):
