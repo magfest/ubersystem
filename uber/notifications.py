@@ -69,11 +69,6 @@ def send_email(sender, to, subject, body, format='text', cc=(), bcc=(), model=No
         if automated_email:
             fk_kwargs['automated_email_id'] = automated_email.id
 
-        print('\n\nvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv')
-        print('send_email')
-        print(fk_kwargs)
-        print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n')
-
         email = uber.models.email.Email(
             subject=subject,
             body=body,
