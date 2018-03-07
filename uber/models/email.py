@@ -50,8 +50,11 @@ class BaseEmailMixin(object):
 
     @property
     def model_class(self):
-        from uber.models import Session
-        return Session.resolve_model(self.model)
+        if self.model and self.model != 'n/a':
+            from uber.models import Session
+            return Session.resolve_model(self.model)
+        else:
+            return None
 
 
 class AutomatedEmail(MagModel, BaseEmailMixin):

@@ -74,6 +74,6 @@ def send_automated_emails():
         return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
 
 
+schedule.on_startup(AutomatedEmail.reconcile_fixtures)
 schedule.every().day.at('06:00').do(notify_admins_of_pending_emails)
 schedule.every(5).minutes.do(send_automated_emails)
-schedule.on_startup(AutomatedEmail.reconcile_fixtures)

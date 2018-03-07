@@ -1,3 +1,7 @@
+"""
+Tests for uber.automated_emails.AutomatedEmailFixture.
+"""
+
 import pytest
 from jinja2.exceptions import TemplateNotFound
 

@@ -1,3 +1,7 @@
+"""
+Tests for uber.tasks.email scheduled tasks.
+"""
+
 from datetime import datetime, timedelta
 
 import pytest
@@ -65,7 +69,7 @@ def set_email_fk_attendee(monkeypatch):
 @pytest.fixture
 def automated_email_fixture(clear_automated_email_fixtures, render_empty_attendee_template):
     """
-    Generates a single active AutomatedEmail.
+    Generates a single AutomatedEmail that is currently active.
     """
     AutomatedEmailFixture(
         Attendee,
@@ -124,6 +128,9 @@ def automated_email_fixtures(clear_automated_email_fixtures, render_empty_attend
 
 
 def test_localized_now(localized_now):
+    """
+    Asserts that our localized_now monkeypatch is working as expected.
+    """
     assert localized_now == utils.localized_now()
     assert not before(localized_now)()
     assert before(localized_now + timedelta(microseconds=1))()
@@ -152,13 +159,14 @@ class TestAutomatedEmail(object):
         assert AutomatedEmail(body=body, format=format).body_as_html == expected
 
     @pytest.mark.parametrize('model,expected', [
-        pytest.param('', None, marks=pytest.mark.xfail(raises=ValueError)),
+        pytest.param('', None),
+        pytest.param('n/a', None),
         pytest.param('INVALID', None, marks=pytest.mark.xfail(raises=ValueError)),
         ('Attendee', Attendee),
         ('Group', Group),
     ])
     def test_model_class(self, model, expected):
-        assert Email(model=model).model_class is expected
+        assert AutomatedEmail(model=model).model_class is expected
 
     def test_reconcile_fixtures(self, automated_email_fixtures):
         assert len(AutomatedEmail._fixtures) == 8
@@ -322,7 +330,8 @@ class TestEmail(object):
         assert Email(body=body).body_as_html == expected
 
     @pytest.mark.parametrize('model,expected', [
-        pytest.param('', None, marks=pytest.mark.xfail(raises=ValueError)),
+        pytest.param('', None),
+        pytest.param('n/a', None),
         pytest.param('INVALID', None, marks=pytest.mark.xfail(raises=ValueError)),
         ('Attendee', Attendee),
         ('Group', Group),
