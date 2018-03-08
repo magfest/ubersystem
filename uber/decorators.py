@@ -426,6 +426,7 @@ def run_threaded(thread_name='', lock=None, blocking=True, timeout=-1):
 
     """
     def run_threaded_decorator(func):
+        name = thread_name if thread_name else '{}.{}'.format(func.__module__, func.__name__)
         @wraps(func)
         def with_run_threaded(*args, **kwargs):
             if lock:
@@ -437,18 +438,18 @@ def run_threaded(thread_name='', lock=None, blocking=True, timeout=-1):
                         finally:
                             lock.release()
                     else:
-                        log.warn("Can't acquire lock, skipping background thread: {}".format(thread_name))
+                        log.warn("Can't acquire lock, skipping background thread: {}".format(name))
                 thread = threading.Thread(target=locked_func, *args, **kwargs)
             else:
                 thread = threading.Thread(target=func, *args, **kwargs)
-            thread.name = thread_name
-            log.debug('Starting background thread: {}'.format(thread_name))
+            thread.name = name
+            log.debug('Starting background thread: {}'.format(name))
             thread.start()
         return with_run_threaded
 
     if callable(thread_name):
         func = thread_name
-        thread_name = func.__name__
+        thread_name = '{}.{}'.format(func.__module__, func.__name__)
         return run_threaded_decorator(func)
     else:
         return run_threaded_decorator

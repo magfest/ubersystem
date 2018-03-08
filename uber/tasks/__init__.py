@@ -13,9 +13,9 @@ from uber.models import AutomatedEmail, Session
 __all__ = ['schedule', 'run_scheduled_tasks']
 
 
-def _safety_wrap(fn, threaded=True, thread_name=None):
-    thread_name = thread_name or fn.__name__
-    wrapped_func = timed('Finished {}: '.format('background thread' if threaded else 'task'))(swallow_exceptions(fn))
+def _safety_wrap(fn, threaded=True, thread_name=''):
+    display = '{}: '.format(thread_name) if thread_name else ''
+    wrapped_func = timed('Finished background thread: {}'.format(display) if threaded else '')(swallow_exceptions(fn))
     if threaded:
         if not fn.__dict__.get('_lock', None):
             fn.__dict__['_lock'] = RLock()
@@ -24,7 +24,7 @@ def _safety_wrap(fn, threaded=True, thread_name=None):
 
 
 class ThreadedJob(schedule.Job):
-    def do(self, job_func, *args, threaded=True, thread_name=None, **kwargs):
+    def do(self, job_func, *args, threaded=True, thread_name='', **kwargs):
         wrapped_func = _safety_wrap(job_func, threaded=threaded, thread_name=thread_name)
         return super(ThreadedJob, self).do(wrapped_func, *args, **kwargs)
 
@@ -34,7 +34,7 @@ class ThreadedScheduler(schedule.Scheduler):
         return ThreadedJob(interval, self)
 
 
-def schedule_n_times_per_day(times_per_day, fn, *args, threaded=True, thread_name=None, **kwargs):
+def schedule_n_times_per_day(times_per_day, fn, *args, threaded=True, thread_name='', **kwargs):
     assert 1 <= times_per_day <= 1440
     hours = 24.0 / times_per_day
     jobs = []
@@ -51,7 +51,7 @@ _is_started = False
 _startup_tasks = []
 
 
-def schedule_on_startup(fn, *args, threaded=True, thread_name=None, **kwargs):
+def schedule_on_startup(fn, *args, threaded=True, thread_name='', **kwargs):
     wrapped_func = _safety_wrap(fn, threaded=threaded, thread_name=thread_name)
     if _is_started:
         wrapped_func(*args, **kwargs)
@@ -82,7 +82,10 @@ def run_scheduled_tasks():
 def notify_admins_of_pending_emails():
     from uber.tasks.email import notify_admins_of_pending_emails as notify_admins
     Session.initialize_db(initialize=True)
-    pprint(timed(notify_admins)())
+    results = timed(notify_admins)()
+    if results:
+        print('Notification emails sent to:')
+        pprint(results)
 
 
 @entry_point
@@ -90,7 +93,10 @@ def send_automated_emails():
     from uber.tasks.email import send_automated_emails as send_emails
     Session.initialize_db(initialize=True)
     timed(AutomatedEmail.reconcile_fixtures)()
-    pprint(timed(send_emails)())
+    results = timed(send_emails)()
+    if results:
+        print('Unapproved email counts:')
+        pprint(results)
 
 
 from uber.tasks import attractions  # noqa: F401
