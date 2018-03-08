@@ -12,13 +12,12 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
 
-from uber import utils
+from uber import notifications, utils
 from uber.config import c
 from uber.decorators import renderable_data
 from uber.jinja import JinjaEnv
 from uber.models import MagModel
 from uber.models.types import DefaultColumn as Column
-from uber.notifications import send_email
 from uber.utils import normalize_newlines
 
 
@@ -203,7 +202,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
         assert self.session, 'AutomatedEmail.send_to() may only be used by instances attached to a session.'
         try:
             data = self.renderable_data(model_instance)
-            send_email(
+            notifications.send_email(
                 self.sender,
                 model_instance.email,
                 self.render_template(self.subject, data),

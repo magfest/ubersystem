@@ -1,12 +1,13 @@
 import time
 from math import modf
+from pprint import pprint
 from threading import RLock
 
 import schedule
 from sideboard.lib import entry_point
 
 from uber.decorators import run_threaded, swallow_exceptions, timed
-from uber.models import Session
+from uber.models import AutomatedEmail, Session
 
 
 __all__ = ['schedule', 'run_scheduled_tasks']
@@ -78,11 +79,15 @@ def run_scheduled_tasks():
 
 
 @entry_point
-def send_automated_emails():
-    from pprint import pprint
-    from uber.models import AutomatedEmail
-    from uber.tasks.email import send_automated_emails as send_emails
+def notify_admins_of_pending_emails():
+    from uber.tasks.email import notify_admins_of_pending_emails as notify_admins
+    Session.initialize_db(initialize=True)
+    pprint(timed(notify_admins)())
 
+
+@entry_point
+def send_automated_emails():
+    from uber.tasks.email import send_automated_emails as send_emails
     Session.initialize_db(initialize=True)
     timed(AutomatedEmail.reconcile_fixtures)()
     pprint(timed(send_emails)())

@@ -11,7 +11,7 @@ from uber.config import c
 from uber.utils import normalize_phone
 
 
-__all__ = ['send_email', 'format_email_subject', 'get_twilio_client', 'send_sms']
+__all__ = ['send_email', 'get_twilio_client', 'send_sms']
 
 
 # ============================================================================
@@ -28,18 +28,19 @@ def _is_dev_email(email):
     return email.endswith('mailinator.com') or email in c.DEVELOPER_EMAIL
 
 
-_EVENT_DATE = c.EPOCH.strftime('%b %Y')
+def send_email(
+        sender,
+        to,
+        subject,
+        body,
+        format='text',
+        cc=(),
+        bcc=(),
+        model=None,
+        ident=None,
+        automated_email=None,
+        session=None):
 
-
-def format_email_subject(subject):
-    return subject \
-        .replace('{EVENT_NAME}', c.EVENT_NAME) \
-        .replace('{EVENT_YEAR}', c.EVENT_YEAR) \
-        .replace('{EVENT_DATE}', _EVENT_DATE)
-
-
-def send_email(sender, to, subject, body, format='text', cc=(), bcc=(), model=None, ident=None, automated_email=None):
-    subject = format_email_subject(subject)
     to, cc, bcc = map(listify, [to, cc, bcc])
     original_to, original_cc, original_bcc = [to, cc, bcc]
     ident = ident or subject
@@ -79,7 +80,7 @@ def send_email(sender, to, subject, body, format='text', cc=(), bcc=(), model=No
             ident=ident,
             **fk_kwargs)
 
-        session = getattr(model, 'session', getattr(automated_email, 'session', None))
+        session = session or getattr(model, 'session', getattr(automated_email, 'session', None))
         if session:
             session.add(email)
         else:

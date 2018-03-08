@@ -22,7 +22,6 @@ from uber.config import c
 from uber import decorators
 from uber.models import AdminAccount, Attendee, AutomatedEmail, Department, Group, GuestGroup, IndieGame, IndieJudge, \
     IndieStudio, MITSTeam, PanelApplication, PanelApplicant, Room, RoomAssignment, Shift
-from uber.notifications import format_email_subject
 from uber.utils import after, before, days_after, days_before, localized_now, DeptChecklistConf
 
 
@@ -90,7 +89,10 @@ class AutomatedEmailFixture:
         AutomatedEmail._fixtures[ident] = self
 
         self.model = model
-        self.subject = format_email_subject(subject)
+        self.subject = subject \
+            .replace('{EVENT_NAME}', c.EVENT_NAME) \
+            .replace('{EVENT_YEAR}', c.EVENT_YEAR) \
+            .replace('{EVENT_DATE}', c.EPOCH.strftime('%b %Y'))
         self.body = decorators.render_empty(os.path.join('emails', template))
         self.format = 'text' if template.endswith('.txt') else 'html'
         self.filter = filter or (lambda x: True)
@@ -273,7 +275,7 @@ MarketplaceEmailFixture(
     'dealers/waitlist_closing.txt',
     lambda g: g.status == c.WAITLISTED,
     # query=Group.status == c.WAITLISTED,
-    when=days_after(0, c.DEALER_WAITLIST_CLOSED),
+    when=after(c.DEALER_WAITLIST_CLOSED),
     ident='uber_marketplace_waitlist_exhausted')
 
 
@@ -380,7 +382,7 @@ StopsEmailFixture(
     'Please complete your {EVENT_NAME} Staff/Volunteer Checklist',
     'shifts/created.txt',
     lambda a: a.takes_shifts,
-    when=days_after(0, c.SHIFTS_CREATED),
+    when=after(c.SHIFTS_CREATED),
     ident='volunteer_checklist_completion_request')
 
 StopsEmailFixture(
@@ -465,7 +467,7 @@ class DeptChecklistEmailFixture(AutomatedEmailFixture):
     def __init__(self, conf):
         when = [days_before(10, conf.deadline)]
         if conf.email_post_con:
-            when.append(days_after(0, c.EPOCH))
+            when.append(after(c.EPOCH))
 
         AutomatedEmailFixture.__init__(
             self,
@@ -679,7 +681,7 @@ MIVSEmailFixture(
     'mivs/reviews_summary.html',
     lambda game: game.status in c.FINAL_MIVS_GAME_STATUSES and game.reviews_to_email,
     ident='mivs_reviews_summary',
-    when=days_after(0, c.EPOCH),
+    when=after(c.EPOCH),
     allow_post_con=True)
 
 MIVSEmailFixture(
@@ -760,7 +762,7 @@ MIVSEmailFixture(
     'mivs/2018_feedback.txt',
     lambda game: game.confirmed,
     ident='2018_mivs_post_event_feedback',
-    when=days_after(0, c.EPOCH),
+    when=after(c.EPOCH),
     allow_post_con=True)
 
 

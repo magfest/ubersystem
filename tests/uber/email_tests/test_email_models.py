@@ -1,59 +1,14 @@
 """
-Tests for uber.tasks.email scheduled tasks.
+Tests for uber.models.email model classes.
 """
 
-from datetime import datetime, timedelta
-
 import pytest
-from mock import Mock
 
-from uber import utils
-from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
 from uber.models import Attendee, AutomatedEmail, Email, Group, Session
-from uber.utils import before, days_after
 
+from tests.uber.email_tests.email_fixtures import ACTIVE_WHEN, ACTIVE_WHEN_LABELS, NOW, TOMORROW, YESTERDAY
 from tests.uber.email_tests.email_fixtures import *  # noqa: F401,F403
-
-
-NOW = datetime(year=2016, month=8, day=10, hour=12, tzinfo=c.EVENT_TIMEZONE)
-TWO_DAYS_FROM_NOW = NOW + timedelta(days=2)
-TOMORROW = NOW + timedelta(days=1)
-YESTERDAY = NOW - timedelta(days=1)
-TWO_DAYS_AGO = NOW - timedelta(days=2)
-
-ACTIVE_WHEN = [
-    # ==== ACTIVE ====
-    [],  # Always active
-    [before(TOMORROW)],  # Will expire tomorrow
-    [days_after(0, YESTERDAY)],  # Became active yesterday
-    [days_after(0, YESTERDAY), before(TOMORROW)],  # Became active yesterday, will expire tomorrow
-
-    # ==== INACTIVE ====
-    [before(YESTERDAY)],  # Expired yesterday
-    [days_after(0, TWO_DAYS_AGO), before(YESTERDAY)],  # Became active 2 days ago, expired yesterday
-
-    # ==== INACTIVE BUT APPROVABLE ====
-    [days_after(0, TOMORROW)],  # Will become active tomorrow
-    [days_after(0, TOMORROW), before(TWO_DAYS_FROM_NOW)],  # Will become active tomorrow, will expire in 2 days
-]
-
-ACTIVE_WHEN_LABELS = [
-    '',
-    'before Aug 11',
-    'after Aug 9',
-    'between Aug 9 and Aug 11',
-    'before Aug 9',
-    'between Aug 8 and Aug 9',
-    'after Aug 11',
-    'between Aug 11 and Aug 12',
-]
-
-
-@pytest.fixture
-def localized_now(monkeypatch):
-    monkeypatch.setattr(utils, 'localized_now', Mock(return_value=NOW))
-    return NOW
 
 
 @pytest.fixture
@@ -64,77 +19,6 @@ def set_email_fk_group(monkeypatch):
 @pytest.fixture
 def set_email_fk_attendee(monkeypatch):
     monkeypatch.setattr(Email, 'fk', Attendee(email='testattendee@example.com'))
-
-
-@pytest.fixture
-def automated_email_fixture(clear_automated_email_fixtures, render_empty_attendee_template):
-    """
-    Generates a single AutomatedEmail that is currently active.
-    """
-    AutomatedEmailFixture(
-        Attendee,
-        '{EVENT_NAME} {EVENT_YEAR} {EVENT_DATE} {{ attendee.full_name }}',
-        'attendee.txt',
-        filter=lambda a: True,
-        ident='attendee_txt',
-        sender='test@example.com',
-        extra_data={'extra_data': 'EXTRA DATA'})
-    AutomatedEmail.reconcile_fixtures()
-
-
-@pytest.fixture
-def send_emails_for_automated_email_fixture(automated_email_fixture):
-    """
-    Sends two copies of the same email to five newly created attendees.
-    """
-    with Session() as session:
-        automated_email = session.query(AutomatedEmail).one()
-        for s in map(str, range(5)):
-            attendee = Attendee(
-                id='00000000-0000-0000-0000-00000000000{}'.format(s),
-                first_name=s,
-                last_name=s,
-                email='{}@example.com'.format(s))
-            session.add(attendee)
-            assert automated_email.send_to(attendee)
-            assert automated_email.send_to(attendee)
-
-
-@pytest.fixture
-def automated_email_fixtures(clear_automated_email_fixtures, render_empty_attendee_template):
-    """
-    Generates 8 AutomatedEmails. Of those:
-     * 4 are currently active (within the sending window)
-     * 6 can be approved (already active, or will become active in the future)
-     * 4 are html formatted
-    """
-    for i, when in enumerate(ACTIVE_WHEN):
-        template_ext = ['html', 'txt'][i % 2]
-        AutomatedEmailFixture(
-            Attendee,
-            '{EVENT_NAME} {EVENT_YEAR} {EVENT_DATE} {{ attendee.full_name }}',
-            'attendee.{}'.format(template_ext),
-            filter=lambda a: True,
-            ident='attendee_{}{}'.format(
-                template_ext,
-                '_{}'.format('_'.join(w.active_when for w in when)).replace(' ', '_') if when else ''),
-            when=when,
-            sender='test@example.com',
-            needs_approval=False,
-            allow_at_the_con=False,
-            allow_post_con=False,
-            extra_data={'extra_data': 'EXTRA DATA'})
-    AutomatedEmail.reconcile_fixtures()
-
-
-def test_localized_now(localized_now):
-    """
-    Asserts that our localized_now monkeypatch is working as expected.
-    """
-    assert localized_now == utils.localized_now()
-    assert not before(localized_now)()
-    assert before(localized_now + timedelta(microseconds=1))()
-    assert not before(localized_now - timedelta(microseconds=1))()
 
 
 class TestAutomatedEmail(object):
@@ -199,7 +83,7 @@ class TestAutomatedEmail(object):
         (False, True, 0),
         (False, False, 4),
     ])
-    def test_filters_for_active(self, automated_email_fixtures, monkeypatch, localized_now,
+    def test_filters_for_active(self, automated_email_fixtures, monkeypatch, fixed_localized_now,
                                 at_the_con, post_con, expected):
         monkeypatch.setattr(c, 'AT_THE_CON', at_the_con)
         monkeypatch.setattr(c, 'POST_CON', post_con)
@@ -213,7 +97,7 @@ class TestAutomatedEmail(object):
             emails = session.query(AutomatedEmail).filter(*AutomatedEmail.filters_for_active).all()
             self._assert_all_active(emails, 4)
 
-    def test_filters_for_approvable(self, automated_email_fixtures, localized_now):
+    def test_filters_for_approvable(self, automated_email_fixtures, fixed_localized_now):
         with Session() as session:
             assert session.query(AutomatedEmail).filter(*AutomatedEmail.filters_for_approvable).count() == 0
             for automated_email in session.query(AutomatedEmail):
@@ -230,7 +114,7 @@ class TestAutomatedEmail(object):
         (True, 0, False, False, 0),
         (False, 0, False, False, 0),
     ])
-    def test_filters_for_pending(self, automated_email_fixtures, monkeypatch, localized_now,
+    def test_filters_for_pending(self, automated_email_fixtures, monkeypatch, fixed_localized_now,
                                  needs_approval, unapproved_count, at_the_con, post_con, expected):
         monkeypatch.setattr(c, 'AT_THE_CON', at_the_con)
         monkeypatch.setattr(c, 'POST_CON', post_con)

@@ -1,13 +1,12 @@
 from pockets import groupify
 from sqlalchemy.orm import joinedload
 
+from uber import notifications, utils
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
 from uber.decorators import render
 from uber.models import AutomatedEmail, Session
-from uber.notifications import send_email
 from uber.tasks import schedule
-from uber.utils import localized_now
 
 
 __all__ = ['notify_admins_of_pending_emails', 'send_automated_emails']
@@ -15,40 +14,45 @@ __all__ = ['notify_admins_of_pending_emails', 'send_automated_emails']
 
 def notify_admins_of_pending_emails():
     """
-    Generate an email a report which alerts admins that there are emails which
-    are ready to send, but won't because they need approval from an admin.
+    Generate and email a report which alerts admins that there are automated
+    emails which are ready to send, but can't be sent until they are approved
+    by an admin.
 
-    This is useful so we don't forget to let certain categories of emails send.
+    This is important so we don't forget to let certain automated emails send.
     """
     if not c.ENABLE_PENDING_EMAILS_REPORT or not c.PRE_CON or not (c.DEV_BOX or c.SEND_EMAILS):
-        return
+        return None
 
     with Session() as session:
         pending_emails = session.query(AutomatedEmail).filter(*AutomatedEmail.filters_for_pending).all()
-        pending_email_categories = groupify(pending_emails, ['sender', 'ident'], lambda e: {
-            'unapproved_count': e.unapproved_count,
-            'subject': e.subject,
-            'sender': e.sender,
-        })
+        pending_emails_by_sender = groupify(pending_emails, ['sender', 'ident'])
 
-    if not pending_email_categories:
-        return
+        for sender, emails_by_ident in pending_emails_by_sender.items():
+            if sender == c.STAFF_EMAIL:
+                # STOPS receives a report on ALL the pending emails.
+                emails_by_sender = pending_emails_by_sender
+            else:
+                emails_by_sender = {sender: emails_by_ident}
 
-    for sender, email_categories in pending_email_categories.items():
-        if sender == c.STAFF_EMAIL:
-            email_categories = pending_email_categories
+            subject = '{} Pending Emails Report for {}'.format(c.EVENT_NAME, utils.localized_now().strftime('%Y-%m-%d'))
+            body = render('emails/daily_checks/pending_emails.html', {
+                'pending_emails_by_sender': emails_by_sender,
+                'primary_sender': sender,
+            })
+            notifications.send_email(c.STAFF_EMAIL, sender, subject, body, format='html', model='n/a', session=session)
 
-        subject = '{EVENT_NAME} Pending Emails Report for ' + localized_now().strftime('%Y-%m-%d')
-        body = render('emails/daily_checks/pending_emails.html', {
-            'pending_email_categories': email_categories,
-            'primary_sender': sender,
-        })
-        send_email(c.STAFF_EMAIL, sender, subject, body, format='html', model='n/a')
+        return groupify(pending_emails, 'sender', 'ident')
 
 
 def send_automated_emails():
+    """
+    Send any automated emails that are currently active, and have been approved
+    or do not need approval. For each unapproved email that needs approval from
+    an admin, the unapproved_count will be updated to indicate the number of
+    recepients that _would have_ received the email if it had been approved.
+    """
     if not (c.DEV_BOX or c.SEND_EMAILS):
-        return
+        return None
 
     with Session() as session:
         active_automated_emails = session.query(AutomatedEmail) \
@@ -74,8 +78,8 @@ def send_automated_emails():
         return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
 
         # TODO: Once we finish converting each AutomatedEmailFixture.filter
-        #       into an AutomatedEmailFixture.query, we'll be able to get rid
-        #       of AutomatedEmailFixture.queries entirely, and send our
+        #       into an AutomatedEmailFixture.query, we'll be able to remove
+        #       AutomatedEmailFixture.queries entirely and send our
         #       automated emails using the code below.
         #
         # for automated_email in active_automated_emails:

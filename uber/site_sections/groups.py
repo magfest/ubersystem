@@ -74,7 +74,7 @@ def _decline_and_convert_dealer_group(session, group, delete_when_able=False):
                     send_email(
                         c.REGDESK_EMAIL,
                         attendee.email,
-                        'Do you still want to come to {EVENT_NAME}?',
+                        'Do you still want to come to {}?'.format(c.EVENT_NAME),
                         render('emails/dealers/badge_converted.html', {
                             'attendee': attendee,
                             'group': group}),
@@ -216,7 +216,7 @@ class Root:
     def unapprove(self, session, id, action, email, convert=None, message=''):
         assert action in ['waitlisted', 'declined']
         group = session.group(id)
-        subject = 'Your {EVENT_NAME} Dealer registration has been ' + action
+        subject = 'Your {} Dealer registration has been {}'.format(c.EVENT_NAME, action)
         if group.email:
             send_email(c.MARKETPLACE_EMAIL, group.email, subject, email, bcc=c.MARKETPLACE_EMAIL, model=group)
         if action == 'waitlisted':

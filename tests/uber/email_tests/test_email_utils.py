@@ -11,7 +11,10 @@ from datetime import datetime, timedelta
 import pytest
 from mock import Mock
 
+from uber import utils
 from uber.utils import after, before, days_after, days_before, localize_datetime, DateBase
+
+from tests.uber.email_tests.email_fixtures import *  # noqa: F401,F403
 
 
 sept_15th = localize_datetime(datetime(year=2016, month=9, day=15, hour=12, minute=30))
@@ -27,6 +30,16 @@ def set_datebase_now_to_sept_15th(monkeypatch):
     # this in a larger sense by moving localized_now() into a Util class and
     # patching that class. For now, do it this way:
     monkeypatch.setattr(DateBase, 'now', Mock(return_value=sept_15th))
+
+
+def test_localized_now(fixed_localized_now):
+    """
+    Asserts that our localized_now monkeypatch is working as expected.
+    """
+    assert fixed_localized_now == utils.localized_now()
+    assert not before(fixed_localized_now)()
+    assert before(fixed_localized_now + timedelta(microseconds=1))()
+    assert not before(fixed_localized_now - timedelta(microseconds=1))()
 
 
 @pytest.mark.usefixtures('set_datebase_now_to_sept_15th')
