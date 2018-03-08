@@ -412,7 +412,6 @@ def run_threaded(thread_name='', lock=None, blocking=True, timeout=-1):
             # do some stuff ...
             pass
 
-
     Additionally, a lock can be passed in to lock the thread during the
     function call, for example::
 
@@ -420,9 +419,6 @@ def run_threaded(thread_name='', lock=None, blocking=True, timeout=-1):
         def background_task():
             # do some stuff ...
             pass
-
-    Note:
-        Caller is responsible for all thread safety, this is very lightweight.
 
     """
     def run_threaded_decorator(func):
