@@ -427,6 +427,7 @@ def run_threaded(thread_name='', lock=None, blocking=True, timeout=-1):
     """
     def run_threaded_decorator(func):
         name = thread_name if thread_name else '{}.{}'.format(func.__module__, func.__name__)
+
         @wraps(func)
         def with_run_threaded(*args, **kwargs):
             if lock:
