@@ -1,3 +1,4 @@
+import re
 import uuid
 from datetime import datetime
 from functools import wraps
@@ -8,15 +9,17 @@ import six
 from cherrypy import HTTPError
 from dateutil import parser as dateparser
 from pockets import unwrap
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import subqueryload
 
 from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
-from uber.decorators import department_id_adapter
+from uber.decorators import department_id_adapter, renderable_override
 from uber.errors import CSRFException
-from uber.models import AdminAccount, ApiToken, Attendee, Job, Session, Shift
+from uber.models import AdminAccount, ApiToken, Attendee, DeptMembership, DeptMembershipRequest, Job, \
+    Session, Shift
 from uber.server import register_jsonrpc
-from uber.utils import check_csrf
+from uber.utils import check_csrf, normalize_newlines
 
 
 __version__ = '0.1'
@@ -84,7 +87,11 @@ def auth_by_token(required_access):
         if api_token.revoked_time:
             return (403, 'Revoked auth token: {}'.format(token))
         if not required_access.issubset(set(api_token.access_ints)):
-            return (403, 'Insufficient access for auth token: {}'.format(token))
+            # If the API call requires extra access, like c.ADMIN, check if the
+            # associated admin account has the required access.
+            extra_required_access = required_access.difference(set(c.API_ACCESS.keys()))
+            if not extra_required_access or not extra_required_access.issubset(api_token.admin_account.access_ints):
+                return (403, 'Insufficient access for auth token: {}'.format(token))
         cherrypy.session['account_id'] = api_token.admin_account_id
     return None
 
@@ -109,21 +116,21 @@ def auth_by_session(required_access):
 def api_auth(*required_access):
     required_access = set(required_access)
 
-    def _decorator(func):
-        inner_func = unwrap(func)
+    def _decorator(fn):
+        inner_func = unwrap(fn)
         if getattr(inner_func, 'required_access', None) is not None:
-            return func
+            return fn
         else:
             inner_func.required_access = required_access
 
-        @wraps(func)
+        @wraps(fn)
         def _with_api_auth(*args, **kwargs):
             error = None
             for auth in [auth_by_token, auth_by_session]:
                 result = auth(required_access)
                 error = error or result
                 if not result:
-                    return func(*args, **kwargs)
+                    return fn(*args, **kwargs)
             raise HTTPError(*error)
         return _with_api_auth
     return _decorator
@@ -134,9 +141,9 @@ class all_api_auth:
         self.required_access = required_access
 
     def __call__(self, cls):
-        for name, func in cls.__dict__.items():
-            if hasattr(func, '__call__'):
-                setattr(cls, name, api_auth(*self.required_access)(func))
+        for name, fn in cls.__dict__.items():
+            if hasattr(fn, '__call__'):
+                setattr(cls, name, api_auth(*self.required_access)(fn))
         return cls
 
 
@@ -220,6 +227,121 @@ class AttendeeLookup:
             attendee_query = session.search(query)
             fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
             return [a.to_dict(fields) for a in attendee_query.limit(100)]
+
+    @renderable_override(c.ADMIN)
+    def export(self, query, full=False):
+        """
+        Searches for attendees by either email or first and last name.
+
+        `query` should be a comma or newline separated list of emails and
+        "first last" name combos.
+
+        Results are returned in the format expected by
+        <a href="../import/staff">the staff importer</a>.
+        """
+        queries = [s.strip() for s in re.split('[\n,]', normalize_newlines(query)) if s.strip()]
+
+        names = dict()
+        emails = dict()
+        ids = set()
+        for q in queries:
+            if '@' in q:
+                emails[Attendee.normalize_email(q)] = q
+            elif q:
+                try:
+                    ids.add(str(uuid.UUID(q)))
+                except Exception:
+                    first, _, last = [s.strip() for s in q.partition(' ')]
+                    names[q] = (first.lower(), last.lower())
+
+        with Session() as session:
+            if full:
+                options = [
+                    subqueryload(Attendee.dept_memberships).subqueryload(DeptMembership.department),
+                    subqueryload(Attendee.dept_membership_requests).subqueryload(DeptMembershipRequest.department)]
+            else:
+                options = []
+
+            email_attendees = []
+            if emails:
+                email_attendees = session.query(Attendee).filter(Attendee.normalized_email.in_(list(emails.keys()))) \
+                    .options(*options).order_by(Attendee.email, Attendee.id).all()
+
+            known_emails = set(a.normalized_email for a in email_attendees)
+            unknown_emails = sorted([email for normalized, email in emails.items() if normalized not in known_emails])
+
+            name_attendees = []
+            if names:
+                filters = [
+                    and_(func.lower(Attendee.first_name) == n[0], func.lower(Attendee.last_name) == n[1])
+                    for n in names.values()]
+                name_attendees = session.query(Attendee).filter(or_(*filters)) \
+                    .options(*options).order_by(Attendee.email, Attendee.id).all()
+
+            id_attendees = []
+            if ids:
+                id_attendees = session.query(Attendee).filter(Attendee.id.in_(ids)) \
+                    .options(*options).order_by(Attendee.email, Attendee.id).all()
+
+            known_names = set(a.full_name.lower() for a in name_attendees)
+            unknown_names = sorted([full_name for full_name in names.keys() if full_name.lower() not in known_names])
+
+            seen = set()
+            all_attendees = [
+                a for a in (id_attendees + email_attendees + name_attendees)
+                if a.id not in seen and not seen.add(a.id)]
+
+            fields = [
+                'first_name',
+                'last_name',
+                'birthdate',
+                'email',
+                'zip_code',
+                'birthdate',
+                'international',
+                'ec_name',
+                'ec_phone',
+                'cellphone',
+                'badge_printed_name',
+                'found_how',
+                'comments',
+                'admin_notes',
+                'all_years',
+            ]
+            attendees = []
+            for a in all_attendees:
+                d = a.to_dict(fields)
+                if full:
+                    assigned_depts = {}
+                    checklist_admin_depts = {}
+                    dept_head_depts = {}
+                    poc_depts = {}
+                    for membership in a.dept_memberships:
+                        assigned_depts[membership.department_id] = membership.department.name
+                        if membership.is_checklist_admin:
+                            checklist_admin_depts[membership.department_id] = membership.department.name
+                        if membership.is_dept_head:
+                            dept_head_depts[membership.department_id] = membership.department.name
+                        if membership.is_poc:
+                            poc_depts[membership.department_id] = membership.department.name
+
+                    d.update({
+                        'assigned_depts': assigned_depts,
+                        'checklist_admin_depts': checklist_admin_depts,
+                        'dept_head_depts': dept_head_depts,
+                        'poc_depts': poc_depts,
+                        'requested_depts': {
+                            (m.department_id if m.department_id else 'All'):
+                            (m.department.name if m.department_id else 'Anywhere')
+                            for m in a.dept_membership_requests},
+                    })
+                attendees.append(d)
+
+            return {
+                'unknown_emails': unknown_emails,
+                'unknown_names': unknown_names,
+                'attendees': attendees,
+            }
 
 
 @all_api_auth(c.API_UPDATE)

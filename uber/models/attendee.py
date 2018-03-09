@@ -2,7 +2,7 @@ import json
 import math
 import random
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from uuid import uuid4
 
 from pockets import cached_property, classproperty, groupify, listify, is_listy, readable_join
@@ -18,7 +18,7 @@ from sqlalchemy.types import Boolean, Date, Integer
 
 import uber
 from uber.config import c
-from uber.custom_tags import safe_string
+from uber.custom_tags import safe_string, time_day_local
 from uber.decorators import cost_property, department_id_adapter, predelete_adjustment, presave_adjustment, render
 from uber.models import MagModel
 from uber.models.group import Group
@@ -1305,6 +1305,42 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def past_years_json(self):
         return json.loads(self.past_years or '[]')
+
+    @property
+    def all_years(self):
+        """
+        Work history for all past years, plus this year's work history,
+        as a json formatted string.
+        """
+        return json.dumps(self.all_years_json)
+
+    @property
+    def all_years_json(self):
+        """
+        Work history for all past years, plus this year's work history.
+        """
+        return self.past_years_json + [{
+            'year': '{} {}'.format(c.EVENT_NAME, c.EVENT_YEAR),
+            'admin_notes': self.admin_notes,
+            'worked_hours': self.worked_hours,
+            'unworked_hours': self.weighted_hours - self.worked_hours,
+            'nonshift_hours': self.nonshift_hours,
+            'shifts': [{
+                'worked': shift.worked_label,
+                'rating': shift.rating_label,
+                'comment': shift.comment,
+                'job': {
+                    'location': shift.job.location_label,
+                    'name': shift.job.name,
+                    'weight': shift.job.weight,
+                    'when': (
+                            time_day_local(shift.job.start_time) + ' - ' +
+                            time_day_local(shift.job.start_time + timedelta(hours=shift.job.duration))
+                        ).replace('<nobr>', '').replace('</nobr>', ''),
+                    'total_hours': shift.job.duration * shift.job.weight,
+                }
+            } for shift in self.shifts]
+        }]
 
     @property
     def must_contact(self):
