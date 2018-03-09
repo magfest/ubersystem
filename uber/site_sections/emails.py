@@ -31,7 +31,8 @@ class Root:
     sent.restricted = [c.PEOPLE, c.REG_AT_CON]
 
     def pending(self, session, message=''):
-        automated_emails_with_count = session.query(AutomatedEmail, AutomatedEmail.email_count).all()
+        automated_emails_with_count = session.query(AutomatedEmail, AutomatedEmail.email_count).filter(
+            AutomatedEmail.subject != '', AutomatedEmail.sender != '',).all()
         automated_emails = []
         pending_emails = []
         for automated_email, email_count in sorted(automated_emails_with_count, key=lambda e: e[0].ordinal):
@@ -50,10 +51,14 @@ class Root:
     def pending_examples(self, session, ident):
         email = session.query(AutomatedEmail).filter_by(ident=ident).first()
         examples = []
-        for model_instance in AutomatedEmailFixture.queries[email.model_class](session):
+        model = email.model_class
+        query = AutomatedEmailFixture.queries.get(model)(session).order_by(model.id)
+        limit = 100
+        offset = 0
+        for model_instance in query.limit(limit).offset(offset):
             if email.would_send_if_approved(model_instance):
                 # These examples are never added to the session or saved to the database.
-                # The are only used to render an example of the automated email.
+                # They are only used to render an example of the automated email.
                 example = Email(
                     subject=email.render_subject(model_instance),
                     body=email.render_body(model_instance),
@@ -65,8 +70,10 @@ class Root:
                     fk_id=model_instance.id,
                     automated_email_id=email.id)
                 examples.append((model_instance, example))
-                if len(examples) > 4:
+                example_count = len(examples)
+                if example_count > 1 or (example_count == 1 and offset > 0):
                     break
+            offset += limit
         return {
             'email': email,
             'examples': examples,
@@ -130,8 +137,21 @@ class Root:
         automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first()
         if automated_email:
             automated_email.approved = True
-            raise HTTPRedirect('pending?message={}', 'Email approved and will be sent out shortly')
-        raise HTTPRedirect('pending?message={}{}', 'Unknown email template: ', ident)
+            raise HTTPRedirect(
+                'pending?message={}',
+                '"{}" approved and will be sent out shortly'.format(automated_email.subject))
+        raise HTTPRedirect('pending?message={}{}', 'Unknown automated email: ', ident)
+
+    @csrf_protected
+    def unapprove(self, session, ident):
+        automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first()
+        if automated_email:
+            automated_email.approved = False
+            raise HTTPRedirect(
+                'pending?message={}',
+                'Approval to send "{}" rescinded, '
+                'and it will not be sent until approved again'.format(automated_email.subject))
+        raise HTTPRedirect('pending?message={}{}', 'Unknown automated email: ', ident)
 
     def emails_by_interest(self, message=''):
         return {

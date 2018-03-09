@@ -41,7 +41,12 @@
                     <input type="submit" value="Approve" />
                     </form>
                 {% else %}
-                    Yes
+                    Approved
+                    <form method="post" action="unapprove">
+                    {{ csrf_token() }}
+                    <input type="hidden" name="ident" value="{{ email.ident }}" />
+                    <input type="submit" value="Undo Approval" />
+                    </form>
                 {% endif %}
             {% endif %}
         </td>
@@ -52,14 +57,23 @@
 </table>
 {% endmacro %}
 
-{% if pending_emails %}
-  <h2>Automated Emails - Pending Approval</h2>
-  {{ email_table(pending_emails) }}
-{% endif %}
-<br><br>
-{% if automated_emails %}
+{% if not pending_emails and not automated_emails %}
   <h2>Automated Emails</h2>
-  {{ email_table(automated_emails) }}
+  <br>
+  <p class="text-info">
+    There are currently no automated emails. The system is probably updating,
+    and should be finished in at most 5 minutes.
+  </p>
+{% else %}
+  {% if pending_emails %}
+    <h2>Automated Emails - Pending Approval</h2>
+    {{ email_table(pending_emails) }}
+    <br><br>
+  {% endif %}
+  {% if automated_emails %}
+    <h2>Automated Emails</h2>
+    {{ email_table(automated_emails) }}
+  {% endif %}
 {% endif %}
 
 {% endblock %}
