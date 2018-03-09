@@ -51,7 +51,7 @@ class Root:
                     if 'self' in args:
                         args.remove('self')
                     access = getattr(method, 'required_access', set())
-                    required_access = sorted(c.API_ACCESS[i] for i in access)
+                    required_access = sorted(c.API_ACCESS.get(i, c.ACCESS[i]) for i in access)
                     methods.append({
                         'name': method_name,
                         'doc': newlines.sub(r'\1 \2', doc).strip(),

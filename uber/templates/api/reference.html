@@ -224,6 +224,10 @@
         response will have a "result" property. An error response will have an
         error message in an "error" property.
       </p>
+      <p>
+        The API endpoint URL is:<br>
+        <code>{{ c.URL_BASE }}/jsonrpc/</code>
+      </p>
     </div>
     <div class="col-sm-6 code-column">
       <div class="example">
@@ -263,12 +267,12 @@
     <div class="col-sm-6 prose-column">
       <p>
         Third party applications can authenticate requests by adding the
-        "X-Auth-Token" header to each HTTP POST. You can find your auth tokens,
+        <code>X-Auth-Token</code> header to each HTTP POST. You can find your auth tokens,
         or generate a new token, on the <a href="../api">API Access</a> page.
       </p>
       <p>
-        Requests without an "X-Auth-Token" header will return
-        <em>401 Unauthorized</em>. Requests with an invalid "X-Auth-Token"
+        Requests without an <code>X-Auth-Token</code> header will return
+        <em>401 Unauthorized</em>. Requests with an invalid <code>X-Auth-Token</code>
         header will return <em>403 Forbidden</em>.
       </p>
     </div>

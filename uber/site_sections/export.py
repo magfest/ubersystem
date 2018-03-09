@@ -3,7 +3,7 @@ from uber.decorators import all_renderable, csv_file, set_csv_filename
 from uber.models import Choice, Session, UTCDateTime, MultiChoice
 
 
-@all_renderable(c.PEOPLE)
+@all_renderable(c.ACCOUNTS)
 class Root:
     def index(self, message='', **params):
         if 'model' in params:
@@ -13,7 +13,6 @@ class Root:
             'message': message,
             'tables': sorted(model.__name__ for model in Session.all_models())
         }
-    index.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
 
     @csv_file
     def export_model(self, out, session, selected_model=''):
@@ -45,9 +44,7 @@ class Root:
                     # consider adding more special cases for things like foreign keys.
                     row.append(getattr(attendee, col.name))
             out.writerow(row)
-    export_model.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
 
     @set_csv_filename
     def valid_attendees(self):
         return self.export_model(selected_model='attendee')
-    valid_attendees.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
