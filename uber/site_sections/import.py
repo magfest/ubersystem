@@ -12,7 +12,7 @@ from sqlalchemy.types import Date, Integer
 
 from uber.config import c
 from uber.custom_tags import pluralize
-from uber.decorators import all_renderable
+from uber.decorators import all_renderable, renderable_override
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Choice, Department, DeptMembership, DeptMembershipRequest, MultiChoice, \
     Session, UTCDateTime
@@ -100,6 +100,7 @@ class Root:
 
         return self.index(message, all_instances)
 
+    @renderable_override(c.ACCOUNTS)
     def staff(self, session, target_server='', api_token='', query='', message=''):
         target_url = _server_to_url(target_server)
         if cherrypy.request.method == 'POST':
@@ -138,6 +139,7 @@ class Root:
             'existing_attendees': existing_attendees,
         }
 
+    @renderable_override(c.ACCOUNTS)
     def confirm_staff(self, session, target_server, api_token, query, attendee_ids):
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('staff?target_server={}&api_token={}&query={}', target_server, api_token, query)
