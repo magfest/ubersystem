@@ -1,5 +1,6 @@
 import csv
 from datetime import datetime
+from itertools import chain
 
 import cherrypy
 from pockets import groupify, listify
@@ -122,7 +123,7 @@ class Root:
             existing_attendees = session.query(Attendee).filter(Attendee.normalized_email.in_(emails)).all()
             for attendee in existing_attendees:
                 attendees_by_email.pop(attendee.normalized_email, {})
-            attendees = list(attendees_by_email.values())
+            attendees = list(chain(*attendees_by_email.values()))
         else:
             existing_attendees = []
 
