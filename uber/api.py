@@ -228,7 +228,6 @@ class AttendeeLookup:
             fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
             return [a.to_dict(fields) for a in attendee_query.limit(100)]
 
-    @api_auth(c.ADMIN)
     def export(self, query, full=False):
         """
         Searches for attendees by either email or first and last name.
