@@ -14,7 +14,7 @@ from sqlalchemy.orm import subqueryload
 
 from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
-from uber.decorators import department_id_adapter, renderable_override
+from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
 from uber.models import AdminAccount, ApiToken, Attendee, DeptMembership, DeptMembershipRequest, Job, \
     Session, Shift
