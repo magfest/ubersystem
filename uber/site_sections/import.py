@@ -191,7 +191,7 @@ class Root:
             del d['id']
             del d['all_years']
 
-            attendee = Attendee(**d)
+            attendee = Attendee().apply(d, restricted=False)
 
             for id, dept in assigned_depts.items():
                 attendee.dept_memberships.append(DeptMembership(
