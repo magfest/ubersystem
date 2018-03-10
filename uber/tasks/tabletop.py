@@ -1,3 +1,4 @@
+from datetime import timedelta
 from http.client import BadStatusLine
 from pytz import UTC
 from pockets.autolog import log
@@ -5,8 +6,8 @@ from pockets.autolog import log
 from uber.config import c
 from uber.models import Session
 from uber.models.tabletop import TabletopSmsReply, TabletopSmsReminder
-from uber.notifications import get_twilio_client, send_sms
-from uber.tasks import schedule
+from uber.tasks import celery
+from uber.tasks.sms import get_twilio_client, send_sms
 
 
 __all__ = ['tabletop_check_notification_replies', 'tabletop_send_notifications']
@@ -69,5 +70,5 @@ def tabletop_send_notifications():
 
 
 if c.SEND_SMS and c.TABLETOP_TWILIO_NUMBER and c.TABLETOP_TWILIO_SID and c.TABLETOP_TWILIO_TOKEN:
-    schedule.every(3).minutes.do(tabletop_check_notification_replies)
-    schedule.every(3).minutes.do(tabletop_send_notifications)
+    tabletop_check_notification_replies = celery.schedule(timedelta(minutes=3))(tabletop_check_notification_replies)
+    tabletop_send_notifications = celery.schedule(timedelta(minutes=3))(tabletop_send_notifications)

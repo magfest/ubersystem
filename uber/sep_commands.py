@@ -1,5 +1,6 @@
 import sys
 from glob import glob
+from json import dumps
 from os.path import join
 from pprint import pprint
 
@@ -7,7 +8,8 @@ from sideboard.lib import entry_point
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.models import Attendee, Group, Session
+from uber.decorators import timed
+from uber.models import Attendee, AutomatedEmail, Group, Session
 
 
 @entry_point
@@ -130,38 +132,6 @@ def resave_all_attendees_and_groups():
 
 
 @entry_point
-def resave_all_staffers():
-    """
-    Re-save all staffers in the database, and re-assign all badge numbers.
-
-    SAFETY: This -should- be safe to run at any time, but, for safety sake,
-    recommend turning off any running sideboard servers before running this
-    command.
-    """
-    assert c.BEFORE_PRINTED_BADGE_DEADLINE, \
-        'resave_all_staffers is only available before badge numbers have been sent to the printer'
-    Session.initialize_db(modify_tables=False, drop=False, initialize=True)
-    with Session() as session:
-        staffers = session.query(Attendee).filter_by(badge_type=c.STAFF_BADGE).all()
-
-        first_staff_badge_num = c.BADGE_RANGES[c.STAFF_BADGE][0]
-        last_staff_badge_num = c.BADGE_RANGES[c.STAFF_BADGE][1]
-        assert len(staffers) < last_staff_badge_num - first_staff_badge_num + 1, \
-            'not enough free staff badges, please increase limit'
-
-        badge_num = first_staff_badge_num
-
-        print("Re-saving all staffers....")
-        for a in staffers:
-            a.presave_adjustments()
-            a.badge_num = badge_num
-            badge_num += 1
-            assert badge_num <= last_staff_badge_num
-        print("Saving resulting changes to database (can take a few minutes)...")
-    print("Done!")
-
-
-@entry_point
 def insert_admin():
     Session.initialize_db(initialize=True)
     with Session() as session:
@@ -200,3 +170,22 @@ def decline_and_convert_dealer_groups():
             print('{}: {}'.format(
                 group.name,
                 _decline_and_convert_dealer_group(session, group, False)))
+
+
+@entry_point
+def notify_admins_of_pending_emails():
+    from uber.tasks.email import notify_admins_of_pending_emails as notify_admins
+    Session.initialize_db(initialize=True)
+    results = timed(notify_admins)()
+    if results:
+        print('Notification emails sent to:\n{}'.format(dumps(results, indent=2, sort_keys=True)))
+
+
+@entry_point
+def send_automated_emails():
+    from uber.tasks.email import send_automated_emails as send_emails
+    Session.initialize_db(initialize=True)
+    timed(AutomatedEmail.reconcile_fixtures)()
+    results = timed(send_emails)()
+    if results:
+        print('Unapproved email counts:\n{}'.format(dumps(results, indent=2, sort_keys=True)))

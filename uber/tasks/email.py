@@ -1,17 +1,98 @@
-from pockets import groupify
+from datetime import timedelta
+from time import sleep
+
+from celery.schedules import crontab
+from pockets import groupify, listify
+from pockets.autolog import log
 from sqlalchemy.orm import joinedload
 
-from uber import notifications, utils
+from uber import utils
+from uber.amazon_ses import AmazonSES, EmailMessage  # TODO: replace this after boto adds Python 3 support
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
 from uber.decorators import render
-from uber.models import AutomatedEmail, Session
-from uber.tasks import schedule
+from uber.models import AutomatedEmail, Email, Session
+from uber.tasks import celery
 
 
-__all__ = ['notify_admins_of_pending_emails', 'send_automated_emails']
+__all__ = ['notify_admins_of_pending_emails', 'send_automated_emails', 'send_email']
 
 
+celery.on_startup(AutomatedEmail.reconcile_fixtures)
+
+
+def _is_dev_email(email):
+    """
+    Returns True if `email` is a development email address.
+
+    Development email addresses either end in "mailinator.com" or exist
+    in the `c.DEVELOPER_EMAIL` list.
+    """
+    return email.endswith('mailinator.com') or email in c.DEVELOPER_EMAIL
+
+
+@celery.task
+def send_email(
+        sender,
+        to,
+        subject,
+        body,
+        format='text',
+        cc=(),
+        bcc=(),
+        model=None,
+        ident=None,
+        automated_email=None,
+        session=None):
+
+    to, cc, bcc = map(listify, [to, cc, bcc])
+    original_to, original_cc, original_bcc = to, cc, bcc
+    ident = ident or subject
+    if c.DEV_BOX:
+        to, cc, bcc = map(lambda xs: list(filter(_is_dev_email, xs)), [to, cc, bcc])
+
+    if c.SEND_EMAILS and to:
+        msg_kwargs = {'bodyText' if format == 'text' else 'bodyHtml': body}
+        message = EmailMessage(subject=subject, **msg_kwargs)
+        AmazonSES(c.AWS_ACCESS_KEY, c.AWS_SECRET_KEY).sendEmail(
+            source=sender,
+            toAddresses=to,
+            ccAddresses=cc,
+            bccAddresses=bcc,
+            message=message)
+        sleep(0.1)  # Avoid hitting rate limit
+    else:
+        log.error('Email sending turned off, so unable to send {}', locals())
+
+    if original_to:
+        body = body.decode('utf-8') if isinstance(body, bytes) else body
+        if not model or model == 'n/a':
+            fk_kwargs = {'model': 'n/a'}
+        else:
+            fk_kwargs = {'fk_id': model.id, 'model': model.__class__.__name__}
+
+        if automated_email:
+            fk_kwargs['automated_email_id'] = automated_email.id
+
+        email = Email(
+            subject=subject,
+            body=body,
+            sender=sender,
+            to=','.join(original_to),
+            cc=','.join(original_cc),
+            bcc=','.join(original_bcc),
+            ident=ident,
+            **fk_kwargs)
+
+        session = session or getattr(model, 'session', getattr(automated_email, 'session', None))
+        if session:
+            session.add(email)
+        else:
+            with Session() as session:
+                session.add(email)
+
+
+@celery.schedule(crontab(hour=6))
 def notify_admins_of_pending_emails():
     """
     Generate and email a report which alerts admins that there are automated
@@ -39,11 +120,12 @@ def notify_admins_of_pending_emails():
                 'pending_emails_by_sender': emails_by_sender,
                 'primary_sender': sender,
             })
-            notifications.send_email(c.STAFF_EMAIL, sender, subject, body, format='html', model='n/a', session=session)
+            send_email(c.STAFF_EMAIL, sender, subject, body, format='html', model='n/a', session=session)
 
         return groupify(pending_emails, 'sender', 'ident')
 
 
+@celery.schedule(timedelta(minutes=5))
 def send_automated_emails():
     """
     Send any automated emails that are currently active, and have been approved
@@ -71,7 +153,7 @@ def send_automated_emails():
                     if model_instance.id not in automated_email.emails_by_fk_id:
                         if automated_email.would_send_if_approved(model_instance):
                             if automated_email.approved or not automated_email.needs_approval:
-                                automated_email.send_to(model_instance)
+                                automated_email.send_to(model_instance, delay=False)
                             else:
                                 automated_email.unapproved_count += 1
 
@@ -96,13 +178,8 @@ def send_automated_emails():
         #     for model_instance in model_instances:
         #         if automated_email.would_send_if_approved(model_instance):
         #             if automated_email.approved or not automated_email.needs_approval:
-        #                 automated_email.send_to(model_instance)
+        #                 automated_email.send_to(model_instance, delay=False)
         #             else:
         #                 automated_email.unapproved_count += 1
         #
         # return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
-
-
-schedule.on_startup(AutomatedEmail.reconcile_fixtures)
-schedule.every().day.at('06:00').do(notify_admins_of_pending_emails)
-schedule.every(5).minutes.do(send_automated_emails)

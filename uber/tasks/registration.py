@@ -1,20 +1,22 @@
 from collections import defaultdict
 from datetime import timedelta
 
+from celery.schedules import crontab
 from sqlalchemy import not_, or_
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import render
 from uber.models import Attendee, Session
-from uber.notifications import send_email
-from uber.tasks import schedule
+from uber.tasks.email import send_email
+from uber.tasks import celery
 from uber.utils import localized_now
 
 
 __all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_unassigned_volunteers']
 
 
+@celery.schedule(crontab(hour='*/6'))
 def check_duplicate_registrations():
     """
     This function looks through registered attendees for attendees with the
@@ -51,6 +53,7 @@ def check_duplicate_registrations():
                     send_email(c.ADMIN_EMAIL, c.REGDESK_EMAIL, subject, body, format='html', model='n/a')
 
 
+@celery.schedule(crontab(hour='*/6'))
 def check_placeholder_registrations():
     if c.PRE_CON and c.CHECK_PLACEHOLDERS and (c.DEV_BOX or c.SEND_EMAILS):
         emails = [[
@@ -89,6 +92,7 @@ def check_placeholder_registrations():
                         send_email(c.ADMIN_EMAIL, to, subject, body, format='html', model='n/a')
 
 
+@celery.schedule(crontab(hour='*/6'))
 def check_unassigned_volunteers():
     if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS):
         with Session() as session:
@@ -99,8 +103,3 @@ def check_unassigned_volunteers():
             if unassigned and session.no_email(subject):
                 body = render('emails/daily_checks/unassigned.html', {'unassigned': unassigned})
                 send_email(c.STAFF_EMAIL, c.STAFF_EMAIL, subject, body, format='html', model='n/a')
-
-
-schedule.n_times_per_day(4, check_duplicate_registrations)
-schedule.n_times_per_day(4, check_placeholder_registrations)
-schedule.n_times_per_day(4, check_unassigned_volunteers)

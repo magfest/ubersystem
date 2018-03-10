@@ -12,7 +12,7 @@ from uber.decorators import all_renderable, check_if_can_reg, credit_card, csrf_
     redirect_if_at_con_to_kiosk, render
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Email, Group, Tracking
-from uber.notifications import send_email
+from uber.tasks.email import send_email
 from uber.utils import add_opt, check, localized_now, Charge
 
 
@@ -88,7 +88,7 @@ class Root:
                                      .filter_by(to=attendee.email, subject=subject)
                                      .order_by(Email.when.desc()).first())
                 if not last_email or last_email.when < (localized_now() - timedelta(days=7)):
-                    send_email(
+                    send_email.delay(
                         c.REGDESK_EMAIL,
                         attendee.email,
                         subject,
@@ -206,10 +206,12 @@ class Root:
                     session.add_all([attendee, group])
                     session.commit()
                     try:
-                        send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Application Received',
-                                   render('emails/dealers/reg_notification.txt', {'group': group}), model=group)
-                        send_email(c.MARKETPLACE_EMAIL, attendee.email, 'Dealer Application Received',
-                                   render('emails/dealers/application.html', {'group': group}), 'html', model=group)
+                        send_email.delay(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Application Received',
+                                         render('emails/dealers/reg_notification.txt', {'group': group}),
+                                         model=group)
+                        send_email.delay(c.MARKETPLACE_EMAIL, attendee.email, 'Dealer Application Received',
+                                         render('emails/dealers/application.html', {'group': group}), 'html',
+                                         model=group)
                     except Exception:
                         log.error('unable to send marketplace application confirmation email', exc_info=True)
                     raise HTTPRedirect('dealer_confirmation?id={}', group.id)
@@ -428,7 +430,7 @@ class Root:
             else:
                 session.commit()
                 if group.is_dealer:
-                    send_email(
+                    send_email.delay(
                         c.MARKETPLACE_EMAIL,
                         c.MARKETPLACE_EMAIL,
                         'Dealer Application Changed',
@@ -511,8 +513,9 @@ class Root:
             session.merge(group)
             if group.is_dealer:
                 try:
-                    send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Payment Completed',
-                               render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
+                    send_email.delay(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Payment Completed',
+                                     render('emails/dealers/payment_notification.txt', {'group': group}),
+                                     model=group)
                 except Exception:
                     log.error('unable to send dealer payment confirmation email', exc_info=True)
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'Your payment has been accepted!')
@@ -521,8 +524,9 @@ class Root:
     def unset_group_member(self, session, id):
         attendee = session.attendee(id)
         try:
-            send_email(c.REGDESK_EMAIL, attendee.email, '{} group registration dropped'.format(c.EVENT_NAME),
-                       render('emails/reg_workflow/group_member_dropped.txt', {'attendee': attendee}), model=attendee)
+            send_email.delay(c.REGDESK_EMAIL, attendee.email, '{} group registration dropped'.format(c.EVENT_NAME),
+                             render('emails/reg_workflow/group_member_dropped.txt', {'attendee': attendee}),
+                             model=attendee)
         except Exception:
             log.error('unable to send group unset email', exc_info=True)
 
@@ -576,8 +580,8 @@ class Root:
             group.amount_paid += charge.dollar_amount
             session.merge(group)
             if group.is_dealer:
-                send_email(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Paid for Extra Members',
-                           render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
+                send_email.delay(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Paid for Extra Members',
+                                 render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
             raise HTTPRedirect(
                 'group_members?id={}&message={}',
                 group.id,
@@ -607,7 +611,7 @@ class Root:
                 body = render('emails/reg_workflow/badge_transfer.txt', {'new': attendee, 'old': old})
 
                 try:
-                    send_email(
+                    send_email.delay(
                         c.REGDESK_EMAIL,
                         [old.email, attendee.email, c.REGDESK_EMAIL],
                         subject,

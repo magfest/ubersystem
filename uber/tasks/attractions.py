@@ -12,8 +12,9 @@ from uber.models import Session
 from uber.models.attendee import Attendee
 from uber.models.attraction import Attraction, AttractionEvent, AttractionNotification, \
     AttractionNotificationReply, AttractionSignup
-from uber.notifications import get_twilio_client, send_email, send_sms
-from uber.tasks import schedule
+from uber.tasks import celery
+from uber.tasks.email import send_email
+from uber.tasks.sms import get_twilio_client, send_sms
 from uber.utils import normalize_phone
 
 
@@ -203,6 +204,7 @@ def attractions_send_notifications():
 
 
 if c.ATTRACTIONS_ENABLED:
-    schedule.every(3).minutes.do(attractions_send_notifications)
+    attractions_send_notifications = celery.schedule(timedelta(minutes=3))(attractions_send_notifications)
     if c.SEND_SMS and c.PANELS_TWILIO_NUMBER and c.PANELS_TWILIO_SID and c.PANELS_TWILIO_TOKEN:
-        schedule.every(3).minutes.do(attractions_check_notification_replies)
+        attractions_check_notification_replies = celery.schedule(
+            timedelta(minutes=3))(attractions_check_notification_replies)

@@ -3,7 +3,7 @@ import cherrypy
 from uber.config import c
 from uber.decorators import all_renderable, render
 from uber.errors import HTTPRedirect
-from uber.notifications import send_email
+from uber.tasks.email import send_email
 from uber.utils import check
 
 
@@ -42,7 +42,7 @@ class Root:
                 if review.video_status in c.MIVS_PROBLEM_STATUSES\
                         and review.video_status != review.orig_value_of('video_status'):
                     body = render('emails/admin_video_broken.txt', {'review': review})
-                    send_email(c.MIVS_EMAIL, c.MIVS_EMAIL, 'MIVS Video Submission Marked as Broken', body)
+                    send_email.delay(c.MIVS_EMAIL, c.MIVS_EMAIL, 'MIVS Video Submission Marked as Broken', body)
                 raise HTTPRedirect('index?message={}{}', review.game.title, ' video review has been uploaded')
 
         return {
@@ -64,7 +64,7 @@ class Root:
                 if review.game_status in c.MIVS_PROBLEM_STATUSES\
                         and review.game_status != review.orig_value_of('game_status'):
                     body = render('emails/admin_game_broken.txt', {'review': review})
-                    send_email(c.MIVS_EMAIL, c.MIVS_EMAIL, 'MIVS Game Submission Marked as Broken', body)
+                    send_email.delay(c.MIVS_EMAIL, c.MIVS_EMAIL, 'MIVS Game Submission Marked as Broken', body)
                 raise HTTPRedirect('index?message={}{}', review.game.title, ' game review has been uploaded')
 
         return {

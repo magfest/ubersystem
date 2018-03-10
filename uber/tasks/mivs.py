@@ -1,13 +1,16 @@
+from datetime import timedelta
+
 from pockets.autolog import log
 
 from uber.config import c
 from uber.models import Session
-from uber.tasks import schedule
+from uber.tasks import celery
 
 
 __all__ = ['mivs_assign_game_codes_to_judges']
 
 
+@celery.schedule(timedelta(minutes=5))
 def mivs_assign_game_codes_to_judges():
     if not c.PRE_CON:
         return
@@ -29,6 +32,3 @@ def mivs_assign_game_codes_to_judges():
                             'Unable to find free code for game {} to assign to judge {}',
                             game.title,
                             review.judge.full_name)
-
-
-schedule.every(5).minutes.do(mivs_assign_game_codes_to_judges)

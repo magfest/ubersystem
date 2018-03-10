@@ -8,7 +8,7 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, AutomatedEmail, Email
-from uber.notifications import send_email
+from uber.tasks.email import send_email
 from uber.utils import get_page
 
 
@@ -87,7 +87,7 @@ class Root:
         output_msg = ""
 
         if subject and body and from_address and to_address:
-            send_email(from_address, to_address, subject, body)
+            send_email.delay(from_address, to_address, subject, body)
             output_msg = "RAMS has attempted to send your email."
 
         right_now = str(datetime.now())
@@ -115,9 +115,9 @@ class Root:
             try:
                 # If this was an automated email, we can send out an updated copy
                 if email.automated_email and email.fk:
-                    email.automated_email.send_to(email.fk, raise_errors=True)
+                    email.automated_email.send_to(email.fk, delay=True, raise_errors=True)
                 else:
-                    send_email(
+                    send_email.delay(
                         c.ADMIN_EMAIL,
                         email.fk_email,
                         email.subject,

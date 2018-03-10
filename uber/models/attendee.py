@@ -462,7 +462,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_status == c.NEW_STATUS and self.banned:
             self.badge_status = c.WATCHED_STATUS
             try:
-                uber.notifications.send_email(
+                uber.tasks.email.send_email.delay(
                     c.SECURITY_EMAIL,
                     [c.REGDESK_EMAIL, c.SECURITY_EMAIL],
                     c.EVENT_NAME + ' WatchList Notification',

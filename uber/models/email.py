@@ -12,7 +12,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
 
-from uber import notifications, utils
+from uber import utils
 from uber.config import c
 from uber.decorators import renderable_data
 from uber.jinja import JinjaEnv
@@ -103,11 +103,11 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
             cls.needs_approval == True,
             cls.unapproved_count > 0]  # noqa: E712
 
-    @classmethod
-    def reconcile_fixtures(cls):
+    @staticmethod
+    def reconcile_fixtures():
         from uber.models import Session
         with Session() as session:
-            for ident, fixture in cls._fixtures.items():
+            for ident, fixture in AutomatedEmail._fixtures.items():
                 automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first() or AutomatedEmail()
                 session.add(automated_email.reconcile(fixture))
 
@@ -198,11 +198,12 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
     def render_template(self, text, data):
         return JinjaEnv.env().from_string(text).render(data)
 
-    def send_to(self, model_instance, raise_errors=False):
-        assert self.session, 'AutomatedEmail.send_to() may only be used by instances attached to a session.'
+    def send_to(self, model_instance, delay=True, raise_errors=False):
         try:
+            from uber.tasks.email import send_email
             data = self.renderable_data(model_instance)
-            notifications.send_email(
+            send_func = send_email.delay if delay else send_email
+            send_func(
                 self.sender,
                 model_instance.email,
                 self.render_template(self.subject, data),

@@ -121,8 +121,8 @@ def send_emails_for_automated_email_fixture(create_test_attendees, automated_ema
         for s in map(str, range(5)):
             attendee = session.query(Attendee).filter_by(first_name=s, last_name=s).one()
             session.add(attendee)
-            assert automated_email.send_to(attendee)
-            assert automated_email.send_to(attendee)
+            assert automated_email.send_to(attendee, delay=False)
+            assert automated_email.send_to(attendee, delay=False)
 
 
 @pytest.fixture
