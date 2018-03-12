@@ -512,7 +512,7 @@ def render(template_name_list, data=None):
 def render_empty(template_name_list):
     env = JinjaEnv.env()
     template = env.get_or_select_template(template_name_list)
-    return str(open(template.filename, 'r').read())
+    return open(template.filename, 'rb').read().decode('utf-8')
 
 
 def get_module_name(class_or_func):
