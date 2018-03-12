@@ -1,15 +1,17 @@
 from celery import Celery
 from celery.signals import beat_init, worker_process_init
 
+from uber.config import _config as config_dict
 from uber.models import Session
 
 
 __all__ = ['celery']
 
 
-celery = Celery('tasks', broker='pyamqp://guest@localhost//')
+celery = Celery('tasks')
 celery.conf.beat_schedule = {}
 celery.conf.beat_startup_tasks = []
+celery.conf.update(config_dict['celery'])
 
 
 def celery_on_startup(fn, *args, **kwargs):

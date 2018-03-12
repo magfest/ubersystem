@@ -7,7 +7,7 @@ from uber.config import c
 from uber.models import Session
 from uber.models.tabletop import TabletopSmsReply, TabletopSmsReminder
 from uber.tasks import celery
-from uber.tasks.sms import get_twilio_client, send_sms
+from uber.tasks.sms import get_twilio_client, send_sms_with_client
 
 
 __all__ = ['tabletop_check_notification_replies', 'tabletop_send_notifications']
@@ -64,7 +64,7 @@ def tabletop_send_notifications():
         for entrant in session.entrants():
             if entrant.should_send_reminder:
                 body = c.TABLETOP_REMINDER_SMS.format(entrant=entrant)
-                sid = send_sms(twilio_client, entrant.attendee.cellphone, body, c.TABLETOP_TWILIO_NUMBER)
+                sid = send_sms_with_client(twilio_client, entrant.attendee.cellphone, body, c.TABLETOP_TWILIO_NUMBER)
                 entrant.session.add(TabletopSmsReminder(entrant=entrant, text=body, sid=sid))
                 entrant.session.commit()
 

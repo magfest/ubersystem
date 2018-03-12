@@ -14,7 +14,7 @@ from uber.models.attraction import Attraction, AttractionEvent, AttractionNotifi
     AttractionNotificationReply, AttractionSignup
 from uber.tasks import celery
 from uber.tasks.email import send_email
-from uber.tasks.sms import get_twilio_client, send_sms
+from uber.tasks.sms import get_twilio_client, send_sms_with_client
 from uber.utils import normalize_phone
 
 
@@ -152,7 +152,7 @@ def attractions_send_notifications():
                         to_ = attendee.cellphone
                         body = TEXT_TEMPLATE.format(signup=signup, checkin=checkin)
                         subject = ''
-                        sid = send_sms(twilio_client, to_, body, from_)
+                        sid = send_sms_with_client(twilio_client, to_, body, from_)
 
                     if not use_text or is_first_signup:
                         type_ = Attendee._NOTIFICATION_EMAIL

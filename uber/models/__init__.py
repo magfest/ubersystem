@@ -497,7 +497,7 @@ from uber.models.department import Job, Shift, Department  # noqa: E402
 from uber.models.email import Email  # noqa: E402
 from uber.models.group import Group  # noqa: E402
 from uber.models.mits import MITSApplicant, MITSTeam  # noqa: E402
-from uber.models.mivs import IndieJudge, IndieGame  # noqa: E402
+from uber.models.mivs import IndieJudge, IndieGame, IndieStudio  # noqa: E402
 from uber.models.panels import PanelApplication, PanelApplicant  # noqa: E402
 from uber.models.promo_code import PromoCode  # noqa: E402
 from uber.models.tabletop import TabletopEntrant, TabletopTournament  # noqa: E402
@@ -1255,8 +1255,8 @@ class Session(SessionManager):
                 .order_by(Attendee.full_name)
 
         def indie_games(self):
-            return self.query(IndieGame).options(
-                joinedload(IndieGame.studio), joinedload(IndieGame.reviews)).order_by('name')
+            return self.query(IndieGame).join(IndieStudio).options(
+                joinedload(IndieGame.studio), joinedload(IndieGame.reviews)).order_by(IndieStudio.name, IndieGame.title)
 
         # =========================
         # mits

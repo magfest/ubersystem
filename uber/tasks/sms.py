@@ -10,7 +10,7 @@ from uber.tasks import celery
 from uber.utils import normalize_phone
 
 
-__all__ = ['get_twilio_client', 'send_sms']
+__all__ = ['get_twilio_client', 'send_sms', 'send_sms_with_client']
 
 
 def get_twilio_client(twilio_sid, twilio_token):
@@ -27,7 +27,11 @@ def get_twilio_client(twilio_sid, twilio_token):
 
 
 @celery.task
-def send_sms(twilio_client, to, body, from_):
+def send_sms(twilio_sid, twilio_token, to, body, from_):
+    return send_sms_with_client(get_twilio_client(twilio_sid, twilio_token), to, body, from_)
+
+
+def send_sms_with_client(twilio_client, to, body, from_):
     message = None
     sid = 'Unable to send SMS'
     try:
