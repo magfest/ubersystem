@@ -2,18 +2,14 @@ import json
 import mimetypes
 import os
 from pprint import pformat
-from time import sleep
 
 import cherrypy
 import jinja2
 from pockets.autolog import log
 from sideboard.jsonrpc import _make_jsonrpc_handler
-from sideboard.lib import DaemonTask
 from sideboard.server import jsonrpc_reset
 
-from uber.automated_emails_server import SendAllAutomatedEmailsJob
 from uber.config import c, Config
-from uber.badge_funcs import check_placeholders, check_unassigned, detect_duplicates
 from uber.decorators import all_renderable, render
 from uber.errors import HTTPRedirect
 from uber.utils import mount_site_sections, static_overrides
@@ -206,46 +202,3 @@ def register_jsonrpc(service, name=None):
 
 jsonrpc_handler = _make_jsonrpc_handler(jsonrpc_services, precall=jsonrpc_reset)
 cherrypy.tree.mount(jsonrpc_handler, os.path.join(c.PATH, 'jsonrpc'), c.APPCONF)
-
-
-def reg_checks():
-    sleep(600)  # Delay by 10 minutes to give the system time to start up
-    check_unassigned()
-    detect_duplicates()
-    check_placeholders()
-
-
-# Registration checks are run every six hours
-DaemonTask(reg_checks, interval=21600, name="mail reg checks")
-
-DaemonTask(SendAllAutomatedEmailsJob.send_all_emails, interval=300, name="send emails")
-
-# TODO: this should be replaced by something a little cleaner, but it can be a useful debugging tool
-# DaemonTask(lambda: log.error(Session.engine.pool.status()), interval=5)
-
-
-def mivs_assign_codes():
-    if not c.PRE_CON:
-        return
-
-    from uber.models import Session
-
-    with Session() as session:
-        for game in session.indie_games():
-            if game.code_type == c.NO_CODE or game.unlimited_code:
-                continue
-
-            for review in game.reviews:
-                if not set(game.codes).intersection(review.judge.codes):
-                    for code in game.codes:
-                        if not code.judge_id:
-                            code.judge = review.judge
-                            session.commit()
-                            break
-                    else:
-                        log.warning(
-                            'unable to find free code for game {} to assign '
-                            'to judge {}', game.title, review.judge.full_name)
-
-
-DaemonTask(mivs_assign_codes, interval=300)

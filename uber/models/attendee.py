@@ -174,7 +174,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         foreign_keys=promo_code_id,
         cascade='merge,refresh-expire,expunge')
 
-    placeholder = Column(Boolean, default=False, admin_only=True)
+    placeholder = Column(Boolean, default=False, admin_only=True, index=True)
     first_name = Column(UnicodeText)
     last_name = Column(UnicodeText)
     legal_name = Column(UnicodeText)
@@ -462,7 +462,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_status == c.NEW_STATUS and self.banned:
             self.badge_status = c.WATCHED_STATUS
             try:
-                uber.notifications.send_email(
+                uber.tasks.email.send_email.delay(
                     c.SECURITY_EMAIL,
                     [c.REGDESK_EMAIL, c.SECURITY_EMAIL],
                     c.EVENT_NAME + ' WatchList Notification',
@@ -671,18 +671,36 @@ class Attendee(MagModel, TakesPaymentMixin):
     def paid_for_badge(self):
         return self.paid == c.HAS_PAID or self.group_id and self.group and self.group.amount_paid
 
-    @property
+    @hybrid_property
     def is_unpaid(self):
         return self.paid == c.NOT_PAID
 
-    @property
+    @is_unpaid.expression
+    def is_unpaid(cls):
+        return cls.paid == c.NOT_PAID
+
+    @hybrid_property
     def is_unassigned(self):
         return not self.first_name
 
-    @property
+    @is_unassigned.expression
+    def is_unassigned(cls):
+        return cls.first_name == ''
+
+    @hybrid_property
     def is_dealer(self):
         return c.DEALER_RIBBON in self.ribbon_ints or self.badge_type == c.PSEUDO_DEALER_BADGE or (
             self.group and self.group.is_dealer and self.paid == c.PAID_BY_GROUP)
+
+    @is_dealer.expression
+    def is_dealer(cls):
+        return or_(
+            cls.badge_type == c.PSEUDO_DEALER_BADGE,
+            cls.ribbon.like('%{}%'.format(c.DEALER_RIBBON)),
+            and_(
+                cls.paid == c.PAID_BY_GROUP,
+                Group.id == cls.group_id,
+                Group.is_dealer == True))  # noqa: E712
 
     @property
     def is_checklist_admin(self):

@@ -28,6 +28,18 @@ def watchlist_session():
         session.delete(watch_list)
 
 
+@pytest.mark.parametrize('first_names,last_name,expected', [
+    ('', '', 'Unknown'),
+    ('', 'Last', 'Last'),
+    ('First', '', 'First'),
+    ('First', 'Last', 'First Last'),
+    ('First, Second', 'Last', 'First, Second Last'),
+    ('First, Second, Third', 'Last', 'First, Second, Third Last'),
+])
+def test_full_name(first_names, last_name, expected):
+    assert WatchList(first_names=first_names, last_name=last_name).full_name == expected
+
+
 class TestIfBanned:
     def test_no_last_name_match(self, session):
         assert not Attendee(first_name='Banned', last_name='Not').banned

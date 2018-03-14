@@ -10,7 +10,7 @@ from uber.config import c
 from uber.decorators import all_renderable, csrf_protected, csv_file, multifile_zipfile, render, xlsx_file
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, Group, IndieGame, IndieGameReview, IndieStudio
-from uber.notifications import send_email
+from uber.tasks.email import send_email
 from uber.utils import check, genpasswd
 
 
@@ -19,7 +19,7 @@ class Root:
     def index(self, session, message=''):
         return {
             'message': message,
-            'judges': session.indie_judges(),
+            'judges': session.indie_judges().all(),
             'games': [g for g in session.indie_games() if g.video_submitted]
         }
 
@@ -156,7 +156,8 @@ class Root:
                     'password': password,
                     'account': attendee.admin_account
                 })
-                send_email(c.MIVS_EMAIL, attendee.email, 'New ' + c.EVENT_NAME + ' Ubersystem Account', email_body)
+                send_email.delay(
+                    c.MIVS_EMAIL, attendee.email, 'New {} Ubersystem Account'.format(c.EVENT_NAME), email_body)
                 raise HTTPRedirect(
                     'index?message={}{}', attendee.full_name, ' has been given an admin account as an Indie Judge')
 
@@ -286,13 +287,13 @@ class Root:
         for review in game.reviews:
             if review.has_video_issues:
                 body = render('emails/video_fixed.txt', {'review': review})
-                send_email(c.MIVS_EMAIL, review.judge.email,
-                           'MIVS: Video Problems Resolved for {}'.format(review.game.title), body)
+                send_email.delay(c.MIVS_EMAIL, review.judge.email,
+                                 'MIVS: Video Problems Resolved for {}'.format(review.game.title), body)
                 review.video_status = c.PENDING
             if review.has_game_issues:
                 body = render('emails/game_fixed.txt', {'review': review})
-                send_email(c.MIVS_EMAIL, review.judge.email,
-                           'MIVS: Game Problems Resolved for {}'.format(review.game.title), body)
+                send_email.delay(c.MIVS_EMAIL, review.judge.email,
+                                 'MIVS: Game Problems Resolved for {}'.format(review.game.title), body)
                 review.game_status = c.PENDING
         raise HTTPRedirect(
             'index?message={}{}', review.game.title, ' has been marked as having its judging issues fixed')

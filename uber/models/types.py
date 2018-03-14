@@ -68,6 +68,27 @@ SQLAlchemy_Column, Column = Column, DefaultColumn
 SQLAlchemy_relationship, relationship = relationship, default_relationship
 
 
+class utcmax(FunctionElement):
+    """
+    Exactly the same as utcnow(), but uses '9999-12-31 23:59' instead of now.
+
+    See utcmin and utcnow for more details.
+
+    """
+    datetime = datetime(9999, 12, 31, 23, 59, 59, tzinfo=pytz.UTC)
+    type = UTCDateTime()
+
+
+@compiles(utcmax, 'postgresql')
+def pg_utcmax(element, compiler, **kw):
+    return "timezone('utc', '9999-12-31 23:59:59')"
+
+
+@compiles(utcmax, 'sqlite')
+def sqlite_utcmax(element, compiler, **kw):
+    return "(datetime('9999-12-31 23:59:59', 'utc'))"
+
+
 class utcmin(FunctionElement):
     """
     Exactly the same as utcnow(), but uses '0001-01-01 00:00' instead of now.
@@ -92,7 +113,7 @@ class utcmin(FunctionElement):
         Attendee.checkin_time > utcmin.datetime
 
     """
-    datetime = datetime(1, 1, 1, 0, 0, tzinfo=pytz.UTC)
+    datetime = datetime(1, 1, 1, 0, 0, 0, tzinfo=pytz.UTC)
     type = UTCDateTime()
 
 
@@ -212,8 +233,8 @@ def JSONColumnMixin(column_name, fields, admin_only=False):
     For example::
 
         >>> SocialMediaMixin = JSONColumnMixin('social_media', ['Twitter', 'LinkedIn'])
-        >>> SocialMediaMixin.social_media
-        Column('social_media', JSON(), table=None, nullable=False, default=ColumnDefault({}), server_default=DefaultClause('{}', for_update=False))
+        >>> SocialMediaMixin.social_media # doctest: +ELLIPSIS
+        Column('social_media', JSON(), ... server_default=DefaultClause('{}', for_update=False))
         >>> SocialMediaMixin._social_media_fields
         OrderedDict([('twitter', 'Twitter'), ('linked_in', 'LinkedIn')])
         >>> SocialMediaMixin._social_media_qualified_fields
@@ -250,7 +271,7 @@ def JSONColumnMixin(column_name, fields, admin_only=False):
     Returns:
         type: A new mixin class with a JSON column named column_name.
 
-    """  # noqa: E501
+    """
 
     fields_name = '_{}_fields'.format(column_name)
     qualified_fields_name = '_{}_qualified_fields'.format(column_name)

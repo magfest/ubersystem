@@ -81,6 +81,7 @@ c.MENU = MenuItem(name='Root', submenu=[
     MenuItem(name='Admin', submenu=[
         MenuItem(name='Admin Accounts', href='../accounts/', access=c.ACCOUNTS),
         MenuItem(name='API Access', href='../api/', access=list(c.API_ACCESS.keys())),
+        MenuItem(name='Pending Emails', href='../emails/pending', access=c.PEOPLE),
         MenuItem(name='Jobs', href='../jobs/', access=c.PEOPLE),
         MenuItem(name='All Unfilled Shifts', href='../jobs/everywhere', access=c.PEOPLE),
         MenuItem(name='Departments', href='../departments/', access=c.PEOPLE),

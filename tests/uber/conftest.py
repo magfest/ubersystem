@@ -8,10 +8,14 @@ import pytest
 from sideboard.lib import threadlocal
 from sideboard.tests import patch_session
 
+import uber
 from uber.config import c
 from uber.models import Attendee, Department, DeptMembership, DeptRole, Job, PromoCode, Session, WatchList, \
     initialize_db, register_session_listeners
 from uber.utils import localized_now
+
+
+uber.on_load()
 
 
 try:

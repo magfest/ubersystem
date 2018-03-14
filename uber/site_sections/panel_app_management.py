@@ -2,12 +2,15 @@ from collections import defaultdict
 from datetime import timedelta
 
 import cherrypy
+from pockets import groupify
 from pockets.autolog import log
+from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file
 from uber.errors import HTTPRedirect
-from uber.models import AssignedPanelist, Attendee, Event, EventFeedback, joinedload, PanelApplicant, PanelApplication
+from uber.models import AssignedPanelist, Attendee, AutomatedEmail, Event, EventFeedback, \
+    PanelApplicant, PanelApplication
 from uber.utils import add_opt, check
 
 
@@ -37,8 +40,10 @@ class Root:
             'message': message
         }
 
-    def email_statuses(self):
-        return {}
+    def email_statuses(self, session):
+        emails = session.query(AutomatedEmail).filter(AutomatedEmail.ident.in_(
+            ['panel_accepted', 'panel_declined', 'panel_waitlisted', 'panel_scheduled']))
+        return {'emails': groupify(emails, 'ident')}
 
     def assigned_to(self, session, id):
         attendee = session.attendee(id)

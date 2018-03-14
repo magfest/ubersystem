@@ -80,7 +80,7 @@ class _Overridable:
         by c.include_plugin_config() if an "[enums]" section exists.
         """
         for name, subsection in config_section.items():
-            c.make_enum(name, subsection)
+            self.make_enum(name, subsection)
 
     def make_enum(self, enum_name, section, prices=False):
         """
@@ -595,19 +595,6 @@ class Config(_Overridable):
     def ADMIN_ACCESS_SET(self):
         return uber.models.AdminAccount.access_set()
 
-    @request_cached_property
-    @dynamic
-    def EMAIL_APPROVED_IDENTS(self):
-        with uber.models.Session() as session:
-            return {ae.ident for ae in session.query(uber.models.ApprovedEmail)}
-
-    @request_cached_property
-    @dynamic
-    def PREVIOUSLY_SENT_EMAILS(self):
-        from uber.models import Session, Email
-        with Session() as session:
-            return set(session.query(Email.model, Email.fk_id, Email.ident))
-
     # =========================
     # mivs
     # =========================
@@ -637,26 +624,6 @@ class Config(_Overridable):
                                 .options(joinedload(AdminAccount.attendee))
                                 .filter(AdminAccount.access.contains(str(c.PANEL_APPS)))
             ], key=lambda tup: tup[1], reverse=False)
-
-    @property
-    @dynamic
-    def PANEL_ACCEPTED_EMAIL_APPROVED(self):
-        return uber.models.AutomatedEmail.instances['panel_accepted'].approved
-
-    @property
-    @dynamic
-    def PANEL_DECLINED_EMAIL_APPROVED(self):
-        return uber.models.AutomatedEmail.instances['panel_declined'].approved
-
-    @property
-    @dynamic
-    def PANEL_WAITLISTED_EMAIL_APPROVED(self):
-        return uber.models.AutomatedEmail.instances['panel_waitlisted'].approved
-
-    @property
-    @dynamic
-    def PANEL_SCHEDULED_EMAIL_APPROVED(self):
-        return uber.models.AutomatedEmail.instances['panel_scheduled'].approved
 
     def __getattr__(self, name):
         if name.split('_')[0] in ['BEFORE', 'AFTER']:

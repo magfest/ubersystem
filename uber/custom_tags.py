@@ -221,22 +221,22 @@ def form_link(model):
     if not model:
         return ''
 
-    from uber.models import Attendee, Attraction, Department, Group, Job
+    from uber.models import Attendee, Attraction, Department, Group, Job, PanelApplication
 
     site_sections = {
         Attendee: 'registration',
+        Attraction: 'attractions_admin',
+        Department: 'departments',
         Group: 'groups',
         Job: 'jobs',
-        Department: 'departments',
-        Attraction: 'attractions_admin'}
+        PanelApplication: 'panel_app_management'}
 
     cls = model.__class__
     site_section = site_sections.get(cls, form_link_site_sections.get(cls))
-    name = getattr(model, 'name', getattr(model, 'full_name', repr(model)))
+    name = getattr(model, 'name', getattr(model, 'full_name', cls.__name__))
 
     if site_section:
-        return safe_string('<a href="../{}/form?id={}">{}</a>'.format(
-            site_section, model.id, jinja2.escape(name)))
+        return safe_string('<a href="../{}/form?id={}">{}</a>'.format(site_section, model.id, jinja2.escape(name)))
     return name
 
 

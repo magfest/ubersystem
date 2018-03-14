@@ -2,13 +2,18 @@
 {% block title %}Sent Emails{% endblock %}
 {% block content %}
 
-<h2>Emails Sent to {{ emails.0.rcpt_name }} ({{ emails.0.dest }})</h2>
-
 <div><a href="index">Go Back</a></div>
 
 {% for email in emails  %}
     <h3>{{ email.subject }} ({{ email.when|full_datetime_local }})</h3>
-    <div style="font-family:courier" class="well">{{ email.html }}</div>
+    <h4>To:
+      {% if email.fk_id %}
+        {{ email.fk|form_link }} ({{ email.to }})
+      {% else %}
+        {{ email.to }}
+      {% endif %}
+    </h4>
+    {{ macros.preview_email(email) }}
     <form method="post" action="resend_email" id="resend_email_{{ email.id }}">
         {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ email.id }}" />

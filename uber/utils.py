@@ -272,14 +272,100 @@ def get_age_from_birthday(birthdate, today=None):
     return today.year - birthdate.year - upcoming_birthday
 
 
-_when_dateformat = "%m/%d"
-
-
 class DateBase:
+    _when_dateformat = '%m/%d'
+
     @staticmethod
     def now():
         # This exists so we can patch this in unit tests
         return localized_now()
+
+    @property
+    def active_after(self):
+        return None
+
+    @property
+    def active_before(self):
+        return None
+
+
+class after(DateBase):
+    """
+    Returns true if today is anytime after a deadline.
+
+    :param: deadline - datetime of the deadline
+
+    Examples:
+        after(c.POSITRON_BEAM_DEADLINE)() - True if it's after c.POSITRON_BEAM_DEADLINE
+    """
+    def __init__(self, deadline):
+        self.deadline = deadline
+
+    def __call__(self):
+        return bool(self.deadline) and self.now() > self.deadline
+
+    @property
+    def active_after(self):
+        return self.deadline
+
+    @property
+    def active_when(self):
+        return 'after {}'.format(self.deadline.strftime(self._when_dateformat)) if self.deadline else ''
+
+
+class before(DateBase):
+    """
+    Returns true if today is anytime before a deadline.
+
+    :param: deadline - datetime of the deadline
+
+    Examples:
+        before(c.POSITRON_BEAM_DEADLINE)() - True if it's before c.POSITRON_BEAM_DEADLINE
+    """
+    def __init__(self, deadline):
+        self.deadline = deadline
+
+    def __call__(self):
+        return bool(self.deadline) and self.now() < self.deadline
+
+    @property
+    def active_before(self):
+        return self.deadline
+
+    @property
+    def active_when(self):
+        return 'before {}'.format(self.deadline.strftime(self._when_dateformat)) if self.deadline else ''
+
+
+class days_after(DateBase):
+    """
+    Returns true if today is at least a certain number of days after a deadline.
+
+    :param: days - number of days after deadline to start
+    :param: deadline - datetime of the deadline
+
+    Examples:
+        days_after(6, c.TRANSPORTER_ROOM_DEADLINE)() - True if it's at least 6 days after c.TRANSPORTER_ROOM_DEADLINE
+    """
+    def __init__(self, days, deadline):
+        if days is None:
+            days = 0
+
+        if days < 0:
+            raise ValueError("'days' paramater must be >= 0. days={}".format(days))
+
+        self.starting_date = None if not deadline else deadline + timedelta(days=days)
+
+    def __call__(self):
+        return bool(self.starting_date) and (self.now() > self.starting_date)
+
+    @property
+    def active_after(self):
+        return self.starting_date
+
+    @property
+    def active_when(self):
+        return 'after {}'.format(self.starting_date.strftime(self._when_dateformat)) if self.starting_date else ''
 
 
 class days_before(DateBase):
@@ -306,8 +392,10 @@ class days_before(DateBase):
         if deadline:
             self.starting_date = self.deadline - timedelta(days=self.days)
             self.ending_date = deadline if not until else (deadline - timedelta(days=until))
-
             assert self.starting_date < self.ending_date
+        else:
+            self.starting_date = None
+            self.ending_date = None
 
     def __call__(self):
         if not self.deadline:
@@ -316,61 +404,22 @@ class days_before(DateBase):
         return self.starting_date < self.now() < self.ending_date
 
     @property
+    def active_after(self):
+        return self.starting_date
+
+    @property
+    def active_before(self):
+        return self.ending_date
+
+    @property
     def active_when(self):
         if not self.deadline:
             return ''
 
-        start_txt = self.starting_date.strftime(_when_dateformat)
-        end_txt = self.ending_date.strftime(_when_dateformat)
+        start_txt = self.starting_date.strftime(self._when_dateformat)
+        end_txt = self.ending_date.strftime(self._when_dateformat)
 
         return 'between {} and {}'.format(start_txt, end_txt)
-
-
-class before(DateBase):
-    """
-    Returns true if today is anytime before a deadline.
-
-    :param: deadline - datetime of the deadline
-
-    Examples:
-        before(c.POSITRON_BEAM_DEADLINE)() - True if it's before c.POSITRON_BEAM_DEADLINE
-    """
-    def __init__(self, deadline):
-        self.deadline = deadline
-
-    def __call__(self):
-        return bool(self.deadline) and self.now() < self.deadline
-
-    @property
-    def active_when(self):
-        return 'before {}'.format(self.deadline.strftime(_when_dateformat)) if self.deadline else ''
-
-
-class days_after(DateBase):
-    """
-    Returns true if today is at least a certain number of days after a deadline.
-
-    :param: days - number of days after deadline to start
-    :param: deadline - datetime of the deadline
-
-    Examples:
-        days_after(6, c.TRANSPORTER_ROOM_DEADLINE)() - True if it's at least 6 days after c.TRANSPORTER_ROOM_DEADLINE
-    """
-    def __init__(self, days, deadline):
-        if days is None:
-            days = 0
-
-        if days < 0:
-            raise ValueError("'days' paramater must be >= 0. days={}".format(days))
-
-        self.starting_date = None if not deadline else deadline + timedelta(days=days)
-
-    def __call__(self):
-        return bool(self.starting_date) and (self.now() > self.starting_date)
-
-    @property
-    def active_when(self):
-        return 'after {}'.format(self.starting_date.strftime(_when_dateformat)) if self.starting_date else ''
 
 
 # ======================================================================
@@ -499,7 +548,7 @@ class DeptChecklistConf(Registry):
         self.slug, self.description = slug, description
         self.name = name or slug.replace('_', ' ').title()
         self._path = path or '/dept_checklist/form?slug={slug}&department_id={department_id}'
-        self.email_post_con = email_post_con
+        self.email_post_con = bool(email_post_con)
         self.deadline = c.EVENT_TIMEZONE.localize(datetime.strptime(deadline, '%Y-%m-%d')).replace(hour=23, minute=59)
 
     def path(self, department_id):
@@ -530,13 +579,13 @@ def report_critical_exception(msg, subject="Critical Error"):
             to "Critical Error".
 
     """
-    from uber.notifications import send_email
+    from uber.tasks.email import send_email
 
     # Log with lots of cherrypy context in here
     uber.server.log_exception_with_verbose_context(msg)
 
     # Also attempt to email the admins
-    send_email(c.ADMIN_EMAIL, [c.ADMIN_EMAIL], subject, msg + '\n{}'.format(traceback.format_exc()))
+    send_email.delay(c.ADMIN_EMAIL, [c.ADMIN_EMAIL], subject, msg + '\n{}'.format(traceback.format_exc()))
 
 
 def get_page(page, queryset):

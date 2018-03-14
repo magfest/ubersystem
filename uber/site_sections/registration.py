@@ -231,7 +231,7 @@ class Root:
         return {
             'attendee':  attendee,
             'emails':    session.query(Email)
-                                .filter(or_(Email.dest == attendee.email,
+                                .filter(or_(Email.to == attendee.email,
                                             and_(Email.model == 'Attendee', Email.fk_id == id)))
                                 .order_by(Email.when).all(),
             'changes':   session.query(Tracking)

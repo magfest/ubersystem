@@ -12,10 +12,10 @@
 
         Here's the current status of the panel-related emails:
         <ul>
-            <li>{{ c.PANEL_DECLINED_EMAIL_APPROVED|yesno("approved,queued") }}: Panel Declined</li>
-            <li>{{ c.PANEL_WAITLISTED_EMAIL_APPROVED|yesno("approved,queued") }}: Panel Waitlisted</li>
-            <li>{{ c.PANEL_ACCEPTED_EMAIL_APPROVED|yesno("approved,queued") }}: Panel Accepted</li>
-            <li>{{ c.PANEL_SCHEDULED_EMAIL_APPROVED|yesno("approved,queued") }}: Panel Scheduled</li>
+            <li>Panel Declined: {{ emails['panel_declined']|yesno("approved,queued") }}</li>
+            <li>Panel Waitlisted: {{ emails['panel_waitlisted']|yesno("approved,queued") }}</li>
+            <li>Panel Accepted: {{ emails['panel_accepted']|yesno("approved,queued") }}</li>
+            <li>Panel Scheduled: {{ emails['panel_scheduled']|yesno("approved,queued") }}</li>
         </ul>
     </body>
 </html>

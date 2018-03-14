@@ -62,11 +62,16 @@ class TestDatetimeFilters(object):
         assert expected == template.render(dt=None)
 
 
-class TestFormLink(object):
-
-    def test_watch_list(self):
-        watch_list = WatchList(id='c4c29b35-a1cf-4662-a577-041d8be63edf')
-        assert form_link(watch_list) == "<WatchList id='c4c29b35-a1cf-4662-a577-041d8be63edf'>"
+@pytest.mark.parametrize('first_names,last_name,expected', [
+    ('', '', 'Unknown'),
+    ('', 'Last', 'Last'),
+    ('First', '', 'First'),
+    ('First', 'Last', 'First Last'),
+    ('First, Second', 'Last', 'First, Second Last'),
+    ('First, Second, Third', 'Last', 'First, Second, Third Last'),
+])
+def test_watch_list(first_names, last_name, expected):
+    assert form_link(WatchList(first_names=first_names, last_name=last_name)) == expected
 
 
 class TestHumanizeTimedelta(object):

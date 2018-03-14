@@ -118,6 +118,10 @@ class WatchList(MagModel):
     active = Column(Boolean, default=True)
     attendees = relationship('Attendee', backref=backref('watch_list', load_on_pending=True))
 
+    @property
+    def full_name(self):
+        return '{} {}'.format(self.first_names, self.last_name).strip() or 'Unknown'
+
     @presave_adjustment
     def _fix_birthdate(self):
         if self.birthdate == '':

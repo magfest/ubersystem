@@ -46,8 +46,7 @@ class MultiPathEnvironment(jinja2.Environment):
         if self.cache is not None:
             template = self.cache.get(cache_key)
             if template and (not self.auto_reload or template.is_up_to_date):
-                self._templates_loaded_for_current_request.add(
-                    template.filename)
+                self._templates_loaded_for_current_request.add(template.filename)
                 return template
 
         template = self.loader.load(self, filename, globals)
@@ -65,8 +64,7 @@ class AbsolutePathLoader(jinja2.FileSystemLoader):
         Overridden to also accept absolute paths.
         """
         if not os.path.isabs(template):
-            return super(AbsolutePathLoader, self).get_source(
-                environment, template)
+            return super(AbsolutePathLoader, self).get_source(environment, template)
 
         # Security check, ensure the abs path is part of a valid search path
         if not any(template.startswith(s) for s in self.searchpath):

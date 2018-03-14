@@ -12,7 +12,7 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, render, unrestricted
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, PasswordReset
-from uber.notifications import send_email
+from uber.tasks.email import send_email
 from uber.utils import check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd
 
 
@@ -66,7 +66,7 @@ class Root:
                     'password': password,
                     'creator': AdminAccount.admin_name()
                 })
-                send_email(
+                send_email.delay(
                     c.ADMIN_EMAIL,
                     session.attendee(account.attendee_id).email,
                     'New ' + c.EVENT_NAME + ' Ubersystem Account',
@@ -148,7 +148,7 @@ class Root:
                     'name': account.attendee.full_name,
                     'password':  password})
 
-                send_email(c.ADMIN_EMAIL, account.attendee.email, c.EVENT_NAME + ' Admin Password Reset', body)
+                send_email.delay(c.ADMIN_EMAIL, account.attendee.email, c.EVENT_NAME + ' Admin Password Reset', body)
                 raise HTTPRedirect('login?message={}', 'Your new password has been emailed to you')
 
         return {
@@ -286,7 +286,7 @@ class Root:
                             'account': account,
                             'password': password
                         })
-                        send_email(c.ADMIN_EMAIL, match.email, 'New ' + c.EVENT_NAME + ' RAMS Account', body)
+                        send_email.delay(c.ADMIN_EMAIL, match.email, 'New ' + c.EVENT_NAME + ' RAMS Account', body)
 
                         success_count += 1
         if success_count == 0:

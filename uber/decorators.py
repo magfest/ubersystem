@@ -3,6 +3,7 @@ import functools
 import inspect
 import json
 import os
+import threading
 import traceback
 import uuid
 import zipfile
@@ -39,7 +40,7 @@ def swallow_exceptions(func):
         try:
             return func(*args, **kwargs)
         except Exception:
-            log.error("Exception raised, but we're going to ignore it and continue.", exc_info=True)
+            log.error('Unexpected error', exc_info=True)
     return swallow_exception
 
 
@@ -392,16 +393,86 @@ def cached_page(func):
         return func
 
 
-def timed(func):
-    @wraps(func)
-    def with_timing(*args, **kwargs):
-        before = datetime.now()
-        try:
-            return func(*args, **kwargs)
-        finally:
-            log.debug('{}.{} loaded in {} seconds'.format(
-                func.__module__, func.__name__, (datetime.now() - before).total_seconds()))
-    return with_timing
+def run_threaded(thread_name='', lock=None, blocking=True, timeout=-1):
+    """
+    Decorate a function to run in a new thread and return immediately.
+
+    The thread name can be passed in as an argument::
+
+        @run_threaded('My Background Task')
+        def background_task():
+            # do some stuff ...
+            pass
+
+    Or it can be used as a bare decorator, and the function name will be used
+    as the thread name::
+
+        @run_threaded
+        def background_task():
+            # do some stuff ...
+            pass
+
+    Additionally, a lock can be passed in to lock the thread during the
+    function call, for example::
+
+        @run_threaded('My Background Task', lock=threading.RLock(), blocking=False)
+        def background_task():
+            # do some stuff ...
+            pass
+
+    """
+    def run_threaded_decorator(func):
+        name = thread_name if thread_name else '{}.{}'.format(func.__module__, func.__name__)
+
+        @wraps(func)
+        def with_run_threaded(*args, **kwargs):
+            if lock:
+                @wraps(func)
+                def locked_func(*a, **kw):
+                    if lock.acquire(blocking=blocking, timeout=timeout):
+                        try:
+                            return func(*a, **kw)
+                        finally:
+                            lock.release()
+                    else:
+                        log.warn("Can't acquire lock, skipping background thread: {}".format(name))
+                thread = threading.Thread(target=locked_func, *args, **kwargs)
+            else:
+                thread = threading.Thread(target=func, *args, **kwargs)
+            thread.name = name
+            log.debug('Starting background thread: {}'.format(name))
+            thread.start()
+        return with_run_threaded
+
+    if callable(thread_name):
+        func = thread_name
+        thread_name = '{}.{}'.format(func.__module__, func.__name__)
+        return run_threaded_decorator(func)
+    else:
+        return run_threaded_decorator
+
+
+def timed(prepend_text=''):
+    def timed_decorator(func):
+        @wraps(func)
+        def with_timed(*args, **kwargs):
+            before = datetime.now()
+            try:
+                return func(*args, **kwargs)
+            finally:
+                log.debug('{}{}.{} loaded in {} seconds'.format(
+                    prepend_text,
+                    func.__module__,
+                    func.__name__,
+                    (datetime.now() - before).total_seconds()))
+        return with_timed
+
+    if callable(prepend_text):
+        func = prepend_text
+        prepend_text = ''
+        return timed_decorator(func)
+    else:
+        return timed_decorator
 
 
 def sessionized(func):
@@ -441,7 +512,7 @@ def render(template_name_list, data=None):
 def render_empty(template_name_list):
     env = JinjaEnv.env()
     template = env.get_or_select_template(template_name_list)
-    return str(open(template.filename, 'r').read())
+    return open(template.filename, 'rb').read().decode('utf-8')
 
 
 def get_module_name(class_or_func):
