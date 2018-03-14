@@ -45,7 +45,7 @@ def send_email(
         automated_email=None,
         session=None):
 
-    to, cc, bcc = map(listify, [to, cc, bcc])
+    to, cc, bcc = map(lambda x: listify(x if x else []), [to, cc, bcc])
     original_to, original_cc, original_bcc = to, cc, bcc
     ident = ident or subject
     if c.DEV_BOX:
