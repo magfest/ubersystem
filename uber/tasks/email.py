@@ -1,3 +1,4 @@
+from collections import Mapping
 from datetime import timedelta
 from time import sleep
 
@@ -11,7 +12,7 @@ from uber.amazon_ses import AmazonSES, EmailMessage  # TODO: replace this after 
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
 from uber.decorators import render
-from uber.models import AutomatedEmail, Email, Session
+from uber.models import AutomatedEmail, Email, MagModel, Session
 from uber.tasks import celery
 
 
@@ -66,13 +67,18 @@ def send_email(
 
     if original_to:
         body = body.decode('utf-8') if isinstance(body, bytes) else body
-        if not model or model == 'n/a':
-            fk_kwargs = {'model': 'n/a'}
-        else:
+        if isinstance(model, MagModel):
             fk_kwargs = {'fk_id': model.id, 'model': model.__class__.__name__}
+        elif isinstance(model, Mapping):
+            fk_kwargs = {'fk_id': model.get('id', None), 'model': model.get('_model', model.get('__type__', 'n/a'))}
+        else:
+            fk_kwargs = {'model': 'n/a'}
 
         if automated_email:
-            fk_kwargs['automated_email_id'] = automated_email.id
+            if isinstance(automated_email, MagModel):
+                fk_kwargs['automated_email_id'] = automated_email.id
+            elif isinstance(model, Mapping):
+                fk_kwargs['automated_email_id'] = automated_email.get('id', None)
 
         email = Email(
             subject=subject,

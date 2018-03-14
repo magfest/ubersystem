@@ -207,13 +207,13 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
                 self.sender,
                 model_instance.email,
                 self.render_template(self.subject, data),
-                self.render_template(self.body, data).encode('utf-8'),
+                self.render_template(self.body, data),
                 self.format,
-                model=model_instance,
+                model=model_instance.to_dict('id'),
                 cc=self.cc,
                 bcc=self.bcc,
                 ident=self.ident,
-                automated_email=self)
+                automated_email=self.to_dict('id'))
             return True
         except Exception:
             log.error('Error sending {!r} email to {}', self.subject, model_instance.email, exc_info=True)

@@ -466,10 +466,10 @@ class Attendee(MagModel, TakesPaymentMixin):
                     c.SECURITY_EMAIL,
                     [c.REGDESK_EMAIL, c.SECURITY_EMAIL],
                     c.EVENT_NAME + ' WatchList Notification',
-                    render('emails/reg_workflow/attendee_watchlist.txt', {'attendee': self}),
+                    render('emails/reg_workflow/attendee_watchlist.txt', {'attendee': self}, encoding=None),
                     model='n/a')
             except Exception as ex:
-                log.error('unable to send banned email about {}', self)
+                log.error('unable to send banned email about {}', self, exc_info=True)
 
         elif self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name and (
                     self.paid in [c.HAS_PAID, c.NEED_NOT_PAY]

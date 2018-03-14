@@ -58,19 +58,21 @@ class Root:
         message = message or check(account)
         if not message:
             message = 'Account settings uploaded'
-            account.attendee = session.attendee(account.attendee_id)  # dumb temporary hack, will fix later with tests
+            attendee = session.attendee(account.attendee_id)  # dumb temporary hack, will fix later with tests
+            account.attendee = attendee
             session.add(account)
             if account.is_new and not c.AT_OR_POST_CON:
                 body = render('emails/accounts/new_account.txt', {
                     'account': account,
                     'password': password,
                     'creator': AdminAccount.admin_name()
-                })
+                }, encoding=None)
                 send_email.delay(
                     c.ADMIN_EMAIL,
-                    session.attendee(account.attendee_id).email,
+                    attendee.email,
                     'New ' + c.EVENT_NAME + ' Ubersystem Account',
-                    body)
+                    body,
+                    model=attendee.to_dict('id'))
         else:
             session.rollback()
 
@@ -146,9 +148,14 @@ class Root:
                 session.add(PasswordReset(admin_account=account, hashed=bcrypt.hashpw(password, bcrypt.gensalt())))
                 body = render('emails/accounts/password_reset.txt', {
                     'name': account.attendee.full_name,
-                    'password':  password})
+                    'password':  password}, encoding=None)
 
-                send_email.delay(c.ADMIN_EMAIL, account.attendee.email, c.EVENT_NAME + ' Admin Password Reset', body)
+                send_email.delay(
+                    c.ADMIN_EMAIL,
+                    account.attendee.email,
+                    c.EVENT_NAME + ' Admin Password Reset',
+                    body,
+                    model=account.attendee.to_dict('id'))
                 raise HTTPRedirect('login?message={}', 'Your new password has been emailed to you')
 
         return {
@@ -285,8 +292,13 @@ class Root:
                         body = render('emails/accounts/new_account.txt', {
                             'account': account,
                             'password': password
-                        })
-                        send_email.delay(c.ADMIN_EMAIL, match.email, 'New ' + c.EVENT_NAME + ' RAMS Account', body)
+                        }, encoding=None)
+                        send_email.delay(
+                            c.ADMIN_EMAIL,
+                            match.email,
+                            'New ' + c.EVENT_NAME + ' Ubersystem Account',
+                            body,
+                            model=match.to_dict('id'))
 
                         success_count += 1
         if success_count == 0:

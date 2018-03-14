@@ -8,14 +8,10 @@ import pytest
 from sideboard.lib import threadlocal
 from sideboard.tests import patch_session
 
-import uber
 from uber.config import c
 from uber.models import Attendee, Department, DeptMembership, DeptRole, Job, PromoCode, Session, WatchList, \
     initialize_db, register_session_listeners
 from uber.utils import localized_now
-
-
-uber.on_load()
 
 
 try:
@@ -76,6 +72,12 @@ def admin_attendee():
 @pytest.fixture
 def clear_price_bumps(request, monkeypatch):
     monkeypatch.setattr(c, 'PRICE_BUMPS', {})
+
+
+@pytest.fixture(autouse=True)
+def patch_send_email_delay(request, monkeypatch):
+    from uber.tasks import email as email_tasks
+    monkeypatch.setattr(email_tasks.send_email, 'delay', email_tasks.send_email)
 
 
 @pytest.fixture(scope='session', autouse=True)

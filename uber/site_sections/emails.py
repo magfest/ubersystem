@@ -123,7 +123,7 @@ class Root:
                         email.subject,
                         email.body,
                         format=email.format,
-                        model=email.fk,
+                        model=email.fk.to_dict('id') if email.fk else None,
                         ident=email.ident)
                 session.commit()
             except Exception:

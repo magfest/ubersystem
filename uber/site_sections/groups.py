@@ -77,9 +77,9 @@ def _decline_and_convert_dealer_group(session, group, delete_when_able=False):
                         'Do you still want to come to {}?'.format(c.EVENT_NAME),
                         render('emails/dealers/badge_converted.html', {
                             'attendee': attendee,
-                            'group': group}),
+                            'group': group}, encoding=None),
                         format='html',
-                        model=attendee)
+                        model=attendee.to_dict('id'))
                     emails_sent += 1
                 except Exception:
                     emails_failed += 1
@@ -218,7 +218,13 @@ class Root:
         group = session.group(id)
         subject = 'Your {} Dealer registration has been {}'.format(c.EVENT_NAME, action)
         if group.email:
-            send_email.delay(c.MARKETPLACE_EMAIL, group.email, subject, email, bcc=c.MARKETPLACE_EMAIL, model=group)
+            send_email.delay(
+                c.MARKETPLACE_EMAIL,
+                group.email,
+                subject,
+                email,
+                bcc=c.MARKETPLACE_EMAIL,
+                model=group.to_dict('id'))
         if action == 'waitlisted':
             group.status = c.WAITLISTED
         else:

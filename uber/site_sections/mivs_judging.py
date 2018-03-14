@@ -41,7 +41,7 @@ class Root:
             else:
                 if review.video_status in c.MIVS_PROBLEM_STATUSES\
                         and review.video_status != review.orig_value_of('video_status'):
-                    body = render('emails/admin_video_broken.txt', {'review': review})
+                    body = render('emails/admin_video_broken.txt', {'review': review}, encoding=None)
                     send_email.delay(c.MIVS_EMAIL, c.MIVS_EMAIL, 'MIVS Video Submission Marked as Broken', body)
                 raise HTTPRedirect('index?message={}{}', review.game.title, ' video review has been uploaded')
 
@@ -63,7 +63,7 @@ class Root:
             else:
                 if review.game_status in c.MIVS_PROBLEM_STATUSES\
                         and review.game_status != review.orig_value_of('game_status'):
-                    body = render('emails/admin_game_broken.txt', {'review': review})
+                    body = render('emails/admin_game_broken.txt', {'review': review}, encoding=None)
                     send_email.delay(c.MIVS_EMAIL, c.MIVS_EMAIL, 'MIVS Game Submission Marked as Broken', body)
                 raise HTTPRedirect('index?message={}{}', review.game.title, ' game review has been uploaded')
 

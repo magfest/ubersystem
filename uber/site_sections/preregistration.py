@@ -92,8 +92,8 @@ class Root:
                         c.REGDESK_EMAIL,
                         attendee.email,
                         subject,
-                        render('emails/reg_workflow/prereg_check.txt', {'attendee': attendee}),
-                        model=attendee)
+                        render('emails/reg_workflow/prereg_check.txt', {'attendee': attendee}, encoding=None),
+                        model=attendee.to_dict('id'))
 
         return {'message': message}
 
@@ -206,12 +206,19 @@ class Root:
                     session.add_all([attendee, group])
                     session.commit()
                     try:
-                        send_email.delay(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Application Received',
-                                         render('emails/dealers/reg_notification.txt', {'group': group}),
-                                         model=group)
-                        send_email.delay(c.MARKETPLACE_EMAIL, attendee.email, 'Dealer Application Received',
-                                         render('emails/dealers/application.html', {'group': group}), 'html',
-                                         model=group)
+                        send_email.delay(
+                            c.MARKETPLACE_EMAIL,
+                            c.MARKETPLACE_EMAIL,
+                            'Dealer Application Received',
+                            render('emails/dealers/reg_notification.txt', {'group': group}, encoding=None),
+                            model=group.to_dict('id'))
+                        send_email.delay(
+                            c.MARKETPLACE_EMAIL,
+                            attendee.email,
+                            'Dealer Application Received',
+                            render('emails/dealers/application.html', {'group': group}, encoding=None),
+                            'html',
+                            model=group.to_dict('id'))
                     except Exception:
                         log.error('unable to send marketplace application confirmation email', exc_info=True)
                     raise HTTPRedirect('dealer_confirmation?id={}', group.id)
@@ -434,9 +441,9 @@ class Root:
                         c.MARKETPLACE_EMAIL,
                         c.MARKETPLACE_EMAIL,
                         'Dealer Application Changed',
-                        render('emails/dealers/appchange_notification.html', {'group': group}),
+                        render('emails/dealers/appchange_notification.html', {'group': group}, encoding=None),
                         'html',
-                        model=group)
+                        model=group.to_dict('id'))
 
                 message = 'Thank you! Your application has been updated.'
 
@@ -513,9 +520,12 @@ class Root:
             session.merge(group)
             if group.is_dealer:
                 try:
-                    send_email.delay(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Payment Completed',
-                                     render('emails/dealers/payment_notification.txt', {'group': group}),
-                                     model=group)
+                    send_email.delay(
+                        c.MARKETPLACE_EMAIL,
+                        c.MARKETPLACE_EMAIL,
+                        'Dealer Payment Completed',
+                        render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
+                        model=group.to_dict('id'))
                 except Exception:
                     log.error('unable to send dealer payment confirmation email', exc_info=True)
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'Your payment has been accepted!')
@@ -524,9 +534,12 @@ class Root:
     def unset_group_member(self, session, id):
         attendee = session.attendee(id)
         try:
-            send_email.delay(c.REGDESK_EMAIL, attendee.email, '{} group registration dropped'.format(c.EVENT_NAME),
-                             render('emails/reg_workflow/group_member_dropped.txt', {'attendee': attendee}),
-                             model=attendee)
+            send_email.delay(
+                c.REGDESK_EMAIL,
+                attendee.email,
+                '{} group registration dropped'.format(c.EVENT_NAME),
+                render('emails/reg_workflow/group_member_dropped.txt', {'attendee': attendee}, encoding=None),
+                model=attendee.to_dict('id'))
         except Exception:
             log.error('unable to send group unset email', exc_info=True)
 
@@ -580,8 +593,12 @@ class Root:
             group.amount_paid += charge.dollar_amount
             session.merge(group)
             if group.is_dealer:
-                send_email.delay(c.MARKETPLACE_EMAIL, c.MARKETPLACE_EMAIL, 'Dealer Paid for Extra Members',
-                                 render('emails/dealers/payment_notification.txt', {'group': group}), model=group)
+                send_email.delay(
+                    c.MARKETPLACE_EMAIL,
+                    c.MARKETPLACE_EMAIL,
+                    'Dealer Paid for Extra Members',
+                    render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
+                    model=group.to_dict('id'))
             raise HTTPRedirect(
                 'group_members?id={}&message={}',
                 group.id,
@@ -608,7 +625,7 @@ class Root:
 
             if not message:
                 subject = c.EVENT_NAME + ' Registration Transferred'
-                body = render('emails/reg_workflow/badge_transfer.txt', {'new': attendee, 'old': old})
+                body = render('emails/reg_workflow/badge_transfer.txt', {'new': attendee, 'old': old}, encoding=None)
 
                 try:
                     send_email.delay(
@@ -616,7 +633,7 @@ class Root:
                         [old.email, attendee.email, c.REGDESK_EMAIL],
                         subject,
                         body,
-                        model=attendee)
+                        model=attendee.to_dict('id'))
                 except Exception:
                     log.error('unable to send badge change email', exc_info=True)
 

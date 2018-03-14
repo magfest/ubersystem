@@ -501,12 +501,14 @@ def renderable_data(data=None):
 
 
 # render using the first template that actually exists in template_name_list
-def render(template_name_list, data=None):
+def render(template_name_list, data=None, encoding='utf-8'):
     data = renderable_data(data)
     env = JinjaEnv.env()
     template = env.get_or_select_template(template_name_list)
     rendered = template.render(data)
-    return rendered.encode('utf-8')
+    if encoding:
+        return rendered.encode(encoding)
+    return rendered
 
 
 def render_empty(template_name_list):
