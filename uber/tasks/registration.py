@@ -16,7 +16,7 @@ from uber.utils import localized_now
 __all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_unassigned_volunteers']
 
 
-@celery.schedule(crontab(hour='*/6'))
+@celery.schedule(crontab(minute=0, hour='*/6'))
 def check_duplicate_registrations():
     """
     This function looks through registered attendees for attendees with the
@@ -53,7 +53,7 @@ def check_duplicate_registrations():
                     send_email(c.ADMIN_EMAIL, c.REGDESK_EMAIL, subject, body, format='html', model='n/a')
 
 
-@celery.schedule(crontab(hour='*/6'))
+@celery.schedule(crontab(minute=0, hour='*/6'))
 def check_placeholder_registrations():
     if c.PRE_CON and c.CHECK_PLACEHOLDERS and (c.DEV_BOX or c.SEND_EMAILS):
         emails = [[
@@ -92,7 +92,7 @@ def check_placeholder_registrations():
                         send_email(c.ADMIN_EMAIL, to, subject, body, format='html', model='n/a')
 
 
-@celery.schedule(crontab(hour='*/6'))
+@celery.schedule(crontab(minute=0, hour='*/6'))
 def check_unassigned_volunteers():
     if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS):
         with Session() as session:
