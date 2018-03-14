@@ -12,6 +12,7 @@ celery = Celery('tasks')
 celery.conf.beat_schedule = {}
 celery.conf.beat_startup_tasks = []
 celery.conf.update(config_dict['celery'])
+celery.conf.update(broker_url=config_dict['secret']['broker_url'])
 
 
 def celery_on_startup(fn, *args, **kwargs):
