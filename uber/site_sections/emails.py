@@ -37,7 +37,7 @@ class Root:
         pending_emails = []
         for automated_email, email_count in sorted(automated_emails_with_count, key=lambda e: e[0].ordinal):
             automated_email.sent_email_count = email_count
-            if automated_email.unapproved_count > 0:
+            if automated_email.unapproved_count > 0 and not automated_email.approved:
                 pending_emails.append(automated_email)
             else:
                 automated_emails.append(automated_email)
