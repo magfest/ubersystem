@@ -158,16 +158,11 @@ def upgrade():
 
     # Use the ident to try to establish a foreign key relationship
     # between the email and automated_email tables
-    emails = connection.execute(email_table.select())
-    for email in emails:
-        if email.ident:
-            automated_email = connection.execute(
-                automated_email_table.select().where(automated_email_table.c.ident == email.ident)
-            ).fetchone()
-            if automated_email:
-                connection.execute(
-                    email_table.update().where(email_table.c.id == email.id).values({'automated_email_id': automated_email.id})
-                )
+    automated_emails = connection.execute(automated_email_table.select())
+    for automated_email in automated_emails:
+        connection.execute(
+            email_table.update().where(email_table.c.ident == automated_email.ident).values({'automated_email_id': automated_email.id})
+        )
 
 
     if is_sqlite:
