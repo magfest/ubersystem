@@ -6,7 +6,7 @@ from pockets import cached_property, classproperty, groupify
 from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
@@ -110,6 +110,10 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
             for ident, fixture in AutomatedEmail._fixtures.items():
                 automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first() or AutomatedEmail()
                 session.add(automated_email.reconcile(fixture))
+            session.flush()
+            for automated_email in session.query(AutomatedEmail):
+                session.execute(update(Email).where(Email.ident == automated_email.ident).values(
+                    automated_email_id=automated_email.id))
 
     @property
     def active_when_label(self):

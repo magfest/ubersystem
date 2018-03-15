@@ -72,6 +72,7 @@ automated_email_table = table(
     'automated_email',
     sa.Column('id', residue.UUID()),
     sa.Column('ident', sa.Unicode()),
+    sa.Column('approved', sa.Boolean()),
 )
 
 
@@ -90,12 +91,13 @@ def upgrade():
         .having(func.count() > 1)
     )
     for duplicate_ids in duplicates:
-        duplicate_ids = sorted(duplicate_ids[0].split(','))
-        op.execute(
-            approved_email_table.delete().where(
-                approved_email_table.c.id.in_(duplicate_ids[1:])
+        duplicate_ids = sorted(duplicate_ids[0].split(','))[1:]
+        if duplicate_ids:
+            connection.execute(
+                approved_email_table.delete().where(
+                    approved_email_table.c.id.in_(duplicate_ids)
+                )
             )
-        )
 
     op.rename_table('approved_email', 'automated_email')
     if is_sqlite:
@@ -156,6 +158,10 @@ def upgrade():
         op.add_column('email', sa.Column('sender', sa.Unicode(), server_default='', nullable=False))
         op.create_foreign_key(op.f('fk_email_automated_email_id_automated_email'), 'email', 'automated_email', ['automated_email_id'], ['id'], ondelete='set null')
 
+    connection.execute(
+        automated_email_table.update().values({'approved': True})
+    )
+
     # Use the ident to try to establish a foreign key relationship
     # between the email and automated_email tables
     automated_emails = connection.execute(automated_email_table.select())
@@ -163,7 +169,6 @@ def upgrade():
         connection.execute(
             email_table.update().where(email_table.c.ident == automated_email.ident).values({'automated_email_id': automated_email.id})
         )
-
 
     if is_sqlite:
         with op.batch_alter_table('attendee', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
@@ -180,6 +185,11 @@ def downgrade():
     op.drop_column('email', 'automated_email_id')
     op.drop_column('email', 'cc')
     op.drop_column('email', 'bcc')
+
+    connection = op.get_bind()
+    connection.execute(
+        automated_email_table.delete().where(automated_email_table.c.approved == False)
+    )
 
     op.drop_column('automated_email', 'model')
     op.drop_column('automated_email', 'subject')
