@@ -137,7 +137,8 @@ def upgrade():
         op.add_column('automated_email', sa.Column('allow_at_the_con', sa.Boolean(), server_default='False', nullable=False))
         op.add_column('automated_email', sa.Column('active_after', residue.UTCDateTime(), nullable=True))
         op.add_column('automated_email', sa.Column('active_before', residue.UTCDateTime(), nullable=True))
-        op.drop_constraint('pk_approved_email', 'automated_email', type_='primary')
+        if 'pk_approved_email' in existing_primarykeys:
+            op.drop_constraint('pk_approved_email', 'automated_email', type_='primary')
         op.create_primary_key(op.f('pk_automated_email'), 'automated_email', ['id'])
         op.create_unique_constraint(op.f('uq_automated_email_ident'), 'automated_email', ['ident'])
 
