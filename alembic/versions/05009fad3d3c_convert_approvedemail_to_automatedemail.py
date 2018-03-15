@@ -118,6 +118,8 @@ def upgrade():
             batch_op.add_column(sa.Column('active_before', residue.UTCDateTime(), nullable=True))
             if 'pk_approved_email' in existing_primarykeys:
                 batch_op.drop_constraint('pk_approved_email', type_='primary')
+            if 'approved_email_pkey' in existing_primarykeys:
+                batch_op.drop_constraint('approved_email_pkey', type_='primary')
             if 'pk_automated_email' not in existing_primarykeys:
                 batch_op.create_primary_key(op.f('pk_automated_email'), ['id'])
             batch_op.create_unique_constraint(op.f('uq_automated_email_ident'), ['ident'])
@@ -140,6 +142,8 @@ def upgrade():
         op.add_column('automated_email', sa.Column('active_before', residue.UTCDateTime(), nullable=True))
         if 'pk_approved_email' in existing_primarykeys:
             op.drop_constraint('pk_approved_email', 'automated_email', type_='primary')
+        if 'approved_email_pkey' in existing_primarykeys:
+            op.drop_constraint('approved_email_pkey', 'automated_email', type_='primary')
         if 'pk_automated_email' not in existing_primarykeys:
             op.create_primary_key(op.f('pk_automated_email'), 'automated_email', ['id'])
         op.create_unique_constraint(op.f('uq_automated_email_ident'), 'automated_email', ['ident'])
