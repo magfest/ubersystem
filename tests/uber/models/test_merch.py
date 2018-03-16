@@ -109,7 +109,7 @@ class TestMerchAttrs:
             monkeypatch.setattr(Attendee, 'gets_staff_shirt', staff)
             monkeypatch.setattr(Attendee, 'num_event_shirts_owed', swag)
             assert expected == Attendee().gets_any_kind_of_shirt
-            
+
     def test_shirt_info_marked_event_shirtless(self, monkeypatch):
         monkeypatch.setattr(c, 'SHIRTS_PER_STAFFER', 0)
         for marked, gets_shirt, expected in [
