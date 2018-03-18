@@ -132,7 +132,8 @@ class Root:
             expiration_date=c.ESCHATON,
             discount_type=0,
             discount=10,
-            uses_allowed=1)
+            uses_allowed=1,
+            export=False)
         params = dict(defaults, **{k: v for k, v in params.items() if k in defaults})
 
         params['code'] = params['code'].strip()
@@ -203,7 +204,7 @@ class Root:
             if generated_count != params['count']:
                 result['message'] = 'Some of the requested promo codes could not be generated'
 
-        if 'export' in params:
+        if params['export']:
             return self.export_promo_codes(codes=result['promo_codes'])
 
         result.update(defaults)
