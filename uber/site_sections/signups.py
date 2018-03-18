@@ -50,7 +50,7 @@ class Root:
                 message = 'You must select a shirt size'
             else:
                 attendee.shirt = int(shirt)
-                if attendee.gets_staff_shirt and c.BEFORE_SHIRT_DEADLINE:
+                if attendee.gets_staff_shirt and c.SHIRTS_PER_STAFFER > 1 and c.BEFORE_SHIRT_DEADLINE:
                     attendee.second_shirt = int(second_shirt)
                 raise HTTPRedirect('index?message={}', 'Shirt info uploaded')
 
