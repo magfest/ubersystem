@@ -3,12 +3,13 @@ from datetime import datetime
 from itertools import chain
 
 import cherrypy
+import six
 from pockets import groupify, listify
 from pockets.autolog import log
 from pytz import UTC
 from rpctools.jsonrpc import ServerProxy
 from sqlalchemy import or_
-from sqlalchemy.types import Date, Integer
+from sqlalchemy.types import Date, Boolean, Integer
 
 from uber.config import c
 from uber.custom_tags import pluralize
@@ -59,7 +60,12 @@ class Root:
                     # in a lot of cases we'll just have the empty string, so we'll just
                     # do nothing for those cases
                     continue
-                if isinstance(col.type, Choice):
+                if isinstance(col.type, Boolean):
+                    if isinstance(val, six.string_types):
+                        val = val.strip().lower() not in ('f', 'false', 'n', 'no', '0')
+                    else:
+                        val = bool(val)
+                elif isinstance(col.type, Choice):
                     # the export has labels, and we want to convert those back into their
                     # integer values, so let's look that up (note: we could theoretically
                     # modify the Choice class to do this automatically in the future)
