@@ -312,7 +312,7 @@ class Root:
             session,
             Attendee.amount_extra >= c.SUPPORTER_LEVEL,
             order_by=Attendee.full_name,
-            badge_type_override='supporter')
+            badge_type_override=lambda a: 'Super Supporter' if a.amount_extra >= c.SEASON_LEVEL else 'Supporter')
 
     """
     Enumerate individual CSVs here that will be integrated into the .zip which will contain all the

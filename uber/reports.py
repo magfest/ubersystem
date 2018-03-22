@@ -45,7 +45,13 @@ class PersonalizedBadgeReport(ReportBase):
 
             # write the actual data
             row = [a.badge_num] if self._include_badge_nums else []
-            badge_type_label = badge_type_override if badge_type_override else a.badge_type_label
+            if badge_type_override:
+                if callable(badge_type_override):
+                    badge_type_label = badge_type_override(a)
+                else:
+                    badge_type_label = badge_type_override
+            else:
+                badge_type_label = a.badge_type_label
 
             if a.unassigned_name:
                 printed_name = ''
