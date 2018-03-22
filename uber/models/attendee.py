@@ -990,9 +990,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     def staff_merch_items(self):
         """Used by the merch and staff_merch properties for staff swag."""
         merch = []
-        if self.gets_staff_shirt:
-            staff_shirts = '{} Staff Shirt{}'.format(
-                self.num_staff_shirts_owed, 's' if self.num_staff_shirts_owed > 1 else '')
+        num_staff_shirts_owed = self.num_staff_shirts_owed
+        if num_staff_shirts_owed > 0:
+            staff_shirts = '{} Staff Shirt{}'.format(num_staff_shirts_owed, 's' if num_staff_shirts_owed > 1 else '')
             if self.shirt_size_marked:
                 staff_shirts += ' [{}]'.format(c.SHIRTS[self.shirt])
             merch.append(staff_shirts)

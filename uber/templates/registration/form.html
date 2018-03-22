@@ -373,10 +373,12 @@
 <div class="form-group">
     <label class="col-sm-3 control-label">Merch Owed</label>
     <div class="col-sm-9">
-        <p class="form-control-static">{{ attendee.merch }}</p>
-        {% if attendee.got_merch %} (Merch has been picked up) {% endif %}
+      <p class="form-control-static">{{ attendee.merch }}</p>
+      {% if attendee.got_merch %} (Merch has been picked up) {% endif %}
+      {% if c.SEPARATE_STAFF_MERCH %}
         <p class="form-control-static">{{ attendee.staff_merch }}</p>
-      {% if attendee.got_staff_merch %} (Staff merch has been picked up) {% endif %}
+        {% if attendee.got_staff_merch %} (Staff merch has been picked up) {% endif %}
+      {% endif %}
     </div>
 </div>
 
