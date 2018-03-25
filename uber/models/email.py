@@ -111,9 +111,20 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
                 automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first() or AutomatedEmail()
                 session.add(automated_email.reconcile(fixture))
             session.flush()
-            for automated_email in session.query(AutomatedEmail):
-                session.execute(update(Email).where(Email.ident == automated_email.ident).values(
-                    automated_email_id=automated_email.id))
+            for automated_email in session.query(AutomatedEmail).all():
+                if automated_email.ident in AutomatedEmail._fixtures:
+                    # This automated email exists in our email fixtures.
+                    session.execute(update(Email).where(Email.ident == automated_email.ident).values(
+                        automated_email_id=automated_email.id))
+                else:
+                    # This automated email no longer exists in our email
+                    # fixtures. It was probably deleted because it was no
+                    # longer relevant, or perhaps it was removed by disabling
+                    # a feature flag. Either way, we want to clean up and
+                    # delete it from the database.
+                    session.execute(update(Email).where(Email.ident == automated_email.ident).values(
+                        automated_email_id=None))
+                    session.delete(automated_email)
 
     @property
     def active_when_label(self):
