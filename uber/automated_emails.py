@@ -306,6 +306,7 @@ class StopsEmailFixture(AutomatedEmailFixture):
             sender=c.STAFF_EMAIL,
             **kwargs)
 
+
 AutomatedEmailFixture(
     Attendee,
     '{EVENT_NAME} Panelist Badge Confirmation',
