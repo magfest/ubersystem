@@ -14,3 +14,5 @@ XlsxWriter==1.0.2
 uszipcode==0.1.3
 geopy==1.11.0
 twilio==6.10.0
+cherrys==0.4
+redis==2.10.6
