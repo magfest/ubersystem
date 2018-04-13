@@ -9,7 +9,6 @@
       var showOrHidePOC = function () {
           setVisible('#point_of_contact', $.val('other_panelists'));
       };
-
       $(function () {
           $('<br/>').insertBefore('nobr');
           showOrHidePOC();
@@ -33,15 +32,13 @@
           <br/> <br/>
         {% endif %}
         We expect many requests being sent in and will be unable to accept them
-        all. To increase your odds of acceptance, fill this form out
-        accurately, keep your schedule open, and contact us if there are any
-        questions pertaining to the form. The contact e-mail is <b>{{ c.PANELS_EMAIL }}</b>.
+        all. We WILL be contacting potential panelists for more information as necessary. To increase your odds of acceptance, fill this form out accurately and keep an eye out for communication from us.
         <br/> <br/>
-        Panel requests are due by {{ c.PANEL_APP_DEADLINE|datetime_local }},
-        but this form will close once we have received a certain number of
-        applicants beyond the time slots we have available.
+        Panel requests are due by {{ c.PANEL_APP_DEADLINE|datetime_local }}.
         <br/> <br/>
-        We will send acceptance e-mails out by {{ c.EXPECTED_RESPONSE }}.
+        We hope to send acceptance e-mails out by {{ c.EXPECTED_RESPONSE }}.
+        <br/> <br/>
+        Contact us if there are any questions pertaining to the form at <b>{{ c.PANELS_EMAIL }}</b>.
         <br/> <br/>
         Good luck!  We're excited to hear what you've got!
 
@@ -93,14 +90,13 @@
           </div>
 
           <div class="form-group">
-            <label class="col-sm-3 control-label">When are you unavailable?</label>
+            <label class="col-sm-3 control-label">When are you NOT available?</label>
             <div class="col-sm-6">
               <textarea class="form-control" name="unavailable" rows="4" required="required">{{ app.unavailable }}</textarea>
             </div>
             <div class="clearfix"></div>
             <p class="help-block col-sm-9 col-sm-offset-3">
-              Please list all times during the event when you will be UNAVAILABLE to hold your panel.
-              If we book you into a time slot, that is very difficult to change, so please be thorough.
+              Please list all times during the event when you will NOT be available to hold your panel. This is used for scheduling purposes. Rescheduling based on information not given here will be very difficult.
             </p>
           </div>
           <div class="form-group">
@@ -154,7 +150,7 @@
           <h3>Panelist Terms of Accommodation</h3>
           <div class="form-group">
             <p class="col-sm-9 col-sm-offset-3">
-              "Panelists" at {{ c.EVENT_NAME }} receive free admission and
+              "Panelists" at {{ c.EVENT_NAME }} are eligable to free admission and
               the ability to present an awesome panel for like-minded
               people.  No travel, hotel, or other accommodations are
               provided by {{ c.EVENT_NAME }}.  If you have any questions,
