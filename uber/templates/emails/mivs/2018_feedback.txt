@@ -1,0 +1,13 @@
+Ahoy {{ game.studio.primary_contact.first_name }},
+
+We hope you enjoyed attending MAGFest 2018! One thing you can do to make MIVS Better for next year is give us feedback by filling out this google form:
+
+https://goo.gl/forms/jurwsLCNZ778aHpN2
+
+Anyone from your team is eligible to fill out the form, you are welcome to distribute to your team members. 
+
+It will help us out if you can complete the form by Sunday, January 21st.  
+
+Lastly, thanks for being a part of MIVS this year. We know it's a big time commitment for you to attend, and we were happy you could be there with us.
+
+-MIVS Staff

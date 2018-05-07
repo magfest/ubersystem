@@ -1,0 +1,36 @@
+{% extends "preregistration/preregbase.html" %}
+{% block title %}MITS Application{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+<style type="text/css">
+    table { max-width: 100%; }
+    table td, table th { padding: 5px; }
+    table td ul { margin: 0px; }
+
+    .panel-body .dataTables_wrapper {
+      margin-left: -15px;
+      margin-right: -15px;
+    }
+
+    .checkbox-label {
+        font-weight: normal;
+    }
+
+    table.nobr td {
+      white-space: nowrap;
+    }
+
+    div.info {
+        padding-top: 7px;
+        font-family: Courier;
+    }
+</style>
+
+<div class="masthead"></div>
+<div class="panel panel-default">
+  <div class="panel-body">
+    {% block body %}{% endblock %}
+  </div>
+</div>
+
+{% endblock %}

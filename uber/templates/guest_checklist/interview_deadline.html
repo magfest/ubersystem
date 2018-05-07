@@ -1,0 +1,85 @@
+{% if snippet %}
+  <tr>
+    <td width="25">{{ macros.checklist_image(guest.interview_status) }}</td>
+    <td><b><a href="interview?guest_id={{ guest.id }}">
+      {% block deadline_headline %}Interview Preferences{% endblock %}</a></b></td>
+    <td><i>Deadline:</i> {{ guest.deadline_from_model('interview')|datetime_local }}</td>
+  </tr>
+  <tr>
+    <td colspan="3">
+      {% block deadline_text %}
+        {% if guest.interview_status %}
+          You have already {% if not guest.interview.will_interview %}declined interviews{% else %}told us your interview
+          preferences{% endif %}, but you can use the link above to update your preferences.
+        {% else %}
+          Use the link above to let us know how you would like us to handle interview requests from press.
+        {% endif %}
+      {% endblock %}
+      <br/></br>
+    </td>
+  </tr>
+{% else %}
+  <script type="text/javascript">
+      var showOrHideInterviewOpts = function() {
+          setVisible($('.interview-opts'), $.field("will_interview").is(":checked"));
+      };
+      $(function() {
+          showOrHideInterviewOpts();
+          $.field("will_interview").on('click', showOrHideInterviewOpts);
+      });
+  </script>
+
+  <h2>{% block form_title %}Interview Inquiries for {{ guest.group.name }}{% endblock %}</h2>
+
+  {% block form_desc %}
+    MAGFest does not directly handle interview arrangements between guests and press.
+    Please answer these questions regarding interviews:
+  {% endblock %}
+
+  <br/> <br/>
+
+  <form method="post" action="interview" class="form-horizontal" role="form" enctype="multipart/form-data">
+    <input type="hidden" name="guest_id" value="{{ guest.id }}" />
+    <input type="hidden" name="id" value="{{ guest_interview.db_id }}" />
+    {{ csrf_token() }}
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Interview Interest</label>
+      <div class="col-sm-6">
+        {{ macros.checkbox(guest_interview, 'will_interview',
+            label="I am interested in participating in interviews with the press.") }}
+      </div>
+    </div>
+
+    <div class="form-group interview-opts">
+      <label class="col-sm-3 control-label">Email</label>
+      <div class="col-sm-6">
+        <input type="email" class="form-control" placeholder="Email address" name="email" value="{{ guest_interview.email }}" />
+      </div>
+      <div class="clearfix"></div>
+      <p class="col-sm-9 col-sm-offset-3 help-block">
+        The email address you would like interview inquiries to be directed or forwarded to.
+      </p>
+    </div>
+
+    <div class="form-group interview-opts">
+      <label class="col-sm-3 control-label">Direct Contact</label>
+      <div class="col-sm-6">
+        {{ macros.checkbox(guest_interview, 'direct_contact',
+            label="Yes, the press can contact me directly for interviews.") }}
+      </div>
+      <div class="clearfix"></div>
+      <p class="col-sm-9 col-sm-offset-3 help-block">
+        If you leave this box unchecked, MAGFest will instead pass on interview requests for you to contact them at your own convenience.
+      </p>
+    </div>
+
+    {% block form_extra %}{% endblock %}
+
+    <div class="form-group">
+      <div class="col-sm-6 col-sm-offset-3">
+        <button type="submit" class="btn btn-primary">Upload Interview Preferences</button>
+      </div>
+    </div>
+  </form>
+{% endif %}

@@ -1,0 +1,88 @@
+{% extends "mivs_base.html" %}
+{% block body %}
+
+<style type="text/css">
+    #mainContainer { max-width: 1200px; }
+</style>
+
+<h3>MIVS Judges</h3>
+
+<a href="create_judge">Add a judge</a>
+
+<table class="table datatable" data-page-length="-1">
+<thead>
+    <tr>
+        <th>Judge</th>
+        <th>Games Assigned</th>
+        <th>Video Reviews Completed</th>
+        <th>Game Reviews Completed</th>
+    </tr>
+</thead>
+<tbody>
+{% for judge in judges %}
+    <tr>
+        <td><a href="edit_judge?id={{ judge.id }}">{{ judge.full_name }}</a></td>
+        <td><a href="assign_games?judge_id={{ judge.id }}">{{ judge.reviews|length }}</a></td>
+        <td>{{ judge.video_reviews|length }}</td>
+        <td>{{ judge.game_reviews|length }}</td>
+    </tr>
+{% endfor %}
+</tbody>
+</table>
+
+<h3>MIVS Submitted Games</h3>
+
+<table class="table datatable" data-page-length="-1">
+<thead>
+    <tr>
+        <th>Game</th>
+        <th>Status</th>
+        <th>Issues</th>
+        <th>Studio</th>
+        <th>Primary Contact</th>
+        <th>Judges Assigned</th>
+        <th>Video Reviews Completed</th>
+        <th>Game Reviews Completed</th>
+        <th>Average Score</th>
+    </tr>
+</thead>
+<tbody>
+{% for game in games %}
+    <tr>
+        <td>{{ game.title }}</td>
+        <td>
+            {% if game.confirmed %}
+                confirmed
+            {% else %}
+                {{ game.status_label }}
+            {% endif %}
+        </td>
+        <td class="issue">
+            {% if game.has_issues %}
+                <a href="problems?game_id={{ game.id }}">!</a>
+            {% endif %}
+        </td>
+        <td><a href="../mivs_applications/continue_app?id={{ game.studio.id }}" target="_blank">{{ game.studio.name }}</a></td>
+        <td>{{ game.studio.primary_contact.full_name }}</td>
+        <td><a href="assign_judges?game_id={{ game.id }}">{{ game.reviews|length }}</a></td>
+        <td>
+            {% if game.video_reviews %}
+                <a href="video_results?id={{ game.id }}">{{ game.video_reviews|length }}
+            {% else %}
+                0
+            {% endif %}
+        </td>
+        <td>
+            {% if game.game_reviews %}
+                <a href="game_results?id={{ game.id }}">{{ game.game_reviews|length }}
+            {% else %}
+                0
+            {% endif %}
+        </td>
+        <td>{{ game.average_score }}</td>
+    </tr>
+{% endfor %}
+</tbody>
+</table>
+
+{% endblock %}

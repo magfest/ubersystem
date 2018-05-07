@@ -1,0 +1,49 @@
+{% extends "mits_base.html" %}
+{% block body %}
+
+<h2>Set Status of {{ team.name }}</h2>
+
+{% if team.status != c.PENDING %}
+    <div class="warning">
+        <b>WARNING:</b> This application has already been marked as <b>{{ team.status_label }}</b>.  You should only fill
+        out this form if you really intend to change the already-marked status of this application.
+    </div>
+{% endif %}
+
+{% if matching %}
+    <div class="warning">
+        <b>WARNING:</b> We also have {{ matching|length }} other application{{ matching|length|pluralize }} with the same
+        name ({{ team.name }}):
+        <ul>
+        {% for t in matching %}
+            <li>
+                <a href="form?id={{ t.id }}">
+                    [{{ t.status_label }}] with {{ t.applicants|length }} applicants and {{ t.games|length }} games
+                </a>
+            </li>
+        {% endfor %}
+        </ul>
+        You should probably delete all but one of these similarly-named applications before continuing.
+    </div>
+{% endif %}
+
+{% if team.completion_percentage < 100 %}
+    <div class="warning">
+        <b>WARNING:</b> This application is only {{ team.completion_percentage }}% complete.  You may still edit
+        its acceptance status, but you should only do so if you're sure that this is correct.
+    </div>
+{% endif %}
+
+<form method="post" action="set_status">
+    {{ csrf_token() }}
+    <input type="hidden" name="confirmed" value="true" />
+    <input type="hidden" name="id" value="{{ team.id }}" />
+    <input type="hidden" name="return_to" value="{{ return_to }}" />
+
+    <select name="status">
+        {{ options(c.MITS_APP_STATUS_OPTS, team.status) }}
+    </select>
+    <button>Set Status</button>
+</form>
+
+{% endblock %}

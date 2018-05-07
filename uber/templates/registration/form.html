@@ -1,8 +1,12 @@
-{% extends "base-admin.html" %}
+{% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Attendee Form - {{ attendee.full_name }}{% endblock %}
 {% block content %}
 
 {% include "registration/menu.html" %}
+
+{% if c.COLLECT_FULL_ADDRESS %}
+    <script type="text/javascript">{% include "region_opts.html" %}</script>
+{% endif %}
 
 <script type="text/javascript">
     var isPreassignedBadgeType = function (badge_type) {
@@ -113,7 +117,7 @@
 </script>
 
 <div class="panel panel-default">
-
+<div class="panel-body">
 <form method="post" action="form" class="form-horizontal">
 {{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />
@@ -126,30 +130,48 @@
     Last Updated by {{ attendee.last_updated.who }} on {{ attendee.last_updated.when|full_datetime_local }}
 {% endif %}
 
+{% if attendee.regdesk_info %}
     <div class="form-group">
-        <label for="first_name" class="col-sm-2 control-label">Placeholder</label>
-        <div class="col-sm-6">
+        <div class="col-sm-3 text-right">
+          <span class="label label-danger">Special Regdesk Instructions:</span>
+        </div>
+        <div class="col-sm-9">
+          {{ attendee.regdesk_info }}
+          <p class="help-block"><em>You can update these instructions below</em></p>
+        </div>
+    </div>
+{% endif %}
+
+    <div class="form-group">
+        <label for="first_name" class="col-sm-3 control-label">Placeholder</label>
+        <div class="checkbox col-sm-9">
+            <label for='placeholder'>
             {{ macros.checkbox(attendee, 'placeholder') }} This attendee needs to
             {% if attendee.is_new %}
                 register themself
+                </label>
             {% else %}
+                </label>
                 <a href="../preregistration/confirm?id={{ attendee.id }}">register themself</a>
             {% endif %}
         </div>
     </div>
 
     <div class="form-group">
-        <label for="badge_status" class="col-sm-2 control-label">Status</label>
+        <label for="badge_status" class="col-sm-3 control-label">Status</label>
         <div class="col-sm-6">
-            <select name="badge_status">
+          <select name="badge_status"{% if c.AT_THE_CON and not admin_can_change_status %} disabled="true"{% endif %}>
             {{ options(c.BADGE_STATUS_OPTS,attendee.badge_status) }}
             </select>
+          {% if c.AT_THE_CON and not admin_can_change_status %}
+            <input type="hidden" name="badge_status" value="{{ attendee.badge_status }}"/>
+            Altering the badge status is disabled during the event. The system will update it automatically.{% endif %}
         </div>
     </div>
 
     {% if c.HAS_ACCOUNTS_ACCESS %}
         <div class="form-group">
-            <label for="admin_status" class="col-sm-2 control-label">Admin</label>
+            <label for="admin_status" class="col-sm-3 control-label">Admin</label>
             <div class="col-sm-6">
                 {% if attendee.admin_account %}
                     <p name="admin_status">True</p>
@@ -161,8 +183,8 @@
 
         {% if attendee.admin_account %}
             <div class="form-group">
-                <label for="admin_options" class="col-sm-2 control-label">Permissions</label>
-                <div class="col-sm-6">
+                <label for="admin_options" class="col-sm-3 control-label">Permissions</label>
+                <div class="col-sm-9">
                     {{ attendee.admin_account.access_labels|join(' / ') }}
                 </div>
             </div>
@@ -170,8 +192,9 @@
         {% endif %}
     {% endif %}
 
+
 <div class="form-group">
-    <label class="col-sm-2 control-label">Badge</label>
+    <label class="col-sm-3 control-label">Badge</label>
     <div class="col-sm-6">
         {% if not attendee.is_new %}
             {{ attendee.badge }}
@@ -182,15 +205,12 @@
                 {{ options(c.BADGE_OPTS,attendee.badge_type) }}
             </select>
             {% if c.AT_THE_CON and c.NUMBERED_BADGES %}
-                #<input type="text" style="width:4em" name="badge_num" value='{{ attendee.badge_num if attendee.badge_num else '' }}' />
+                #<input class="focus" type="text" style="width:4em" name="badge_num" value="{{ attendee.badge_num|default('', boolean=True) }}" />
             {% else %}
                 <span id="badge_message" style="font-style:italic"></span>
             {% endif %}
         {% endif %}
         &nbsp;&nbsp;
-        <select name="ribbon">
-            {{ options(c.RIBBON_OPTS,attendee.ribbon) }}
-        </select>
         {% if c.AT_THE_CON and not attendee.badge_num and c.NUMBERED_BADGES %}
             <br/> <input type="checkbox" name="omit_badge" value="yes" {% if omit_badge %}checked{% endif %} /> Omit badge number
         {% elif c.AT_THE_CON and not attendee.checked_in and not c.NUMBERED_BADGES %}
@@ -201,7 +221,14 @@
 </div>
 
 <div class="form-group">
-    <label for="group_opt" class="col-sm-2 control-label">Group</label>
+    <label class="col-sm-3 control-label">Ribbons</label>
+    <div class="col-sm-9">
+        {{ macros.checkgroup(attendee, 'ribbon') }}
+    </div>
+</div>
+
+<div class="form-group">
+    <label for="group_opt" class="col-sm-3 control-label">Group</label>
     <div class="col-sm-6">
         <select name="group_opt" onChange="boldOrRegular() ; setGroupLink() ; groupWarning()">
             <option value="">Choose a group, if applicable</option>
@@ -216,56 +243,85 @@
 
 {% if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or attendee.amount_extra >= c.SUPPORTER_LEVEL %}
     <div class="form-group">
-        <label for="badge_printed_name" class="col-sm-2 control-label">Name Printed on Badge</label>
+        <label for="badge_printed_name" class="col-sm-3 control-label">Name Printed on Badge</label>
         <div class="col-sm-6">
             <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" />
         </div>
     </div>
 {% endif %}
 
+{% if attendee.panel_applicants -%}
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Panels</label>
+    <div class="col-sm-9">
+      <div class="form-control-static">
+        Panel applications this attendee is associated with:
+        <ul>
+          {% for applicant in attendee.panel_applicants -%}
+            <li>
+              <a href="../panel_app_management/app?id={{ applicant.application.id }}">{{ applicant.application.name }}</a>
+            </li>
+          {%- endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+{%- endif %}
+
+{% block pre_regform %}{% endblock %}
+
 {% include "regform.html" %}
 
+{% block post_regform %}{% endblock %}
+
 <div class="form-group staffing staffing-checked">
-    <label class="col-sm-2 control-label">Assigned Depts</label>
-    <div class="col-sm-6">
-        {{ macros.checkgroup(attendee, 'assigned_depts') }}
+    <label class="col-sm-3 control-label">Assigned Depts</label>
+    <div class="col-sm-9">
+      <div class="form-control-static">
+        {{ macros.checkgroup_opts(
+            'assigned_depts_ids',
+            c.DEPARTMENT_OPTS_WITH_DESC,
+            defaults=attendee.assigned_depts_ids,
+            include_empty_hidden=True) }}
+      </div>
     </div>
 </div>
 
 <div class="form-group staffing staffing-checked">
-    <label class="col-sm-2 control-label">Trusted in which depts</label>
-    <div class="col-sm-6">
-        {{ macros.checkgroup(attendee, 'trusted_depts') }}
-        <span class="popup">{{ macros.popup_link("../static_views/trustDesc.html", "What does this mean?") }}</span>
-    </div>
-</div>
-
-<div class="form-group staffing staffing-checked">
-    <label class="col-sm-2 control-label">Approved for Setup/Teardown</label>
-    <div class="col-sm-6">
-        {{ macros.checkbox(attendee, 'can_work_setup') }} Approved for setup <br/>
-        {{ macros.checkbox(attendee, 'can_work_teardown') }} Approved for teardown
+    <label class="col-sm-3 control-label">Approved for Setup/Teardown</label>
+    <div class="checkbox col-sm-9">
+        {{ macros.checkbox(attendee, 'can_work_setup', label='Approved for setup') }} <br/>
+        {{ macros.checkbox(attendee, 'can_work_teardown', label='Approved for teardown') }}
     </div>
 </div>
 
 {% if not attendee.is_new %}
     {% if c.AT_THE_CON %}
         <div class="form-group">
-            <label class="col-sm-2 control-label">Received Merch</label>
-            <div class="col-sm-6">
-                {{ macros.checkbox(attendee, 'got_merch') }} Yes
+            <label class="col-sm-3 control-label">Received Merch</label>
+            <div class="checkbox col-sm-6">
+                {{ macros.checkbox(attendee, 'got_merch', label='Yes') }}
             </div>
         </div>
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Received Staff Merch</label>
+        <div class="checkbox col-sm-6">
+          {{ macros.checkbox(attendee, 'got_staff_merch', label='Yes') }}
+        </div>
+      </div>
+    {% else %}
+        <input type="hidden" name="got_merch" value="{{ '1' if attendee.got_merch else '0' }}" />
+      <input type="hidden" name="got_staff_merch" value="{{ '1' if attendee.got_staff_merch else '0' }}"/>
     {% endif %}
     <div class="form-group">
-        <label class="col-sm-2 control-label">Signed Up</label>
-        <div class="col-sm-6">
+        <label class="col-sm-3 control-label">Signed Up</label>
+        <div class="col-sm-9">
             <i>{{ attendee.registered_local|datetime("%B %-d, %Y, %-I:%M %p") }}</i>
         </div>
     </div>
     <div class="form-group">
-        <label class="col-sm-2 control-label">Checked In</label>
-        <div class="col-sm-6">
+        <label class="col-sm-3 control-label">Checked In</label>
+        <div class="col-sm-9">
             {% if attendee.checked_in %}
                 Checked in at {{ attendee.checked_in_local|datetime("%B %-d, %Y, %-I:%M %p") }}
             {% else %}
@@ -277,16 +333,19 @@
 
 <!-- TODO: integrate this with extra stuff -->
 <div class="form-group">
-    <label class="col-sm-2 control-label">Badge Price</label>
-    <div class="col-sm-6">
-        Base Price: $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost|round(2) }}" />
-        <input type="checkbox" name="no_override" {% if attendee.overridden_price == None %} checked {% endif %}> Automatically recalculate badge price.
+    <label class="col-sm-3 control-label">Badge Price</label>
+    <div class="checkbox col-sm-9">
+        $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost|round(2) }}" />
+        <label>
+          <input type="checkbox" name="no_override" {% if attendee.overridden_price == None %} checked {% endif %}>
+          Let the system determine base badge price. (uncheck to override badge price)
+        </label>
     </div>
 </div>
 
 
 <div class="form-group">
-    <label class="col-sm-2 control-label">Paid</label>
+    <label class="col-sm-3 control-label">Paid</label>
     <div class="col-sm-6">
         <select name="paid" onChange="showOrHideAmounts(true)">
             {{ options(c.PAYMENT_OPTS,attendee.paid) }}
@@ -311,9 +370,21 @@
     </div>
 </div>
 
-{% if attendee.amount_extra >= c.SHIRT_LEVEL %}
+<div class="form-group">
+    <label class="col-sm-3 control-label">Merch Owed</label>
+    <div class="col-sm-9">
+      <p class="form-control-static">{{ attendee.merch }}</p>
+      {% if attendee.got_merch %} (Merch has been picked up) {% endif %}
+      {% if c.SEPARATE_STAFF_MERCH %}
+        <p class="form-control-static">{{ attendee.staff_merch }}</p>
+        {% if attendee.got_staff_merch %} (Staff merch has been picked up) {% endif %}
+      {% endif %}
+    </div>
+</div>
+
+{% if attendee.gets_any_kind_of_shirt %}
     <div class="form-group">
-        <label for="shirt" class="col-sm-2 control-label">Shirt Size</label>
+        <label for="shirt" class="col-sm-3 control-label">Shirt Size</label>
         <div class="col-sm-6">
             <select name="shirt" class="form-control">
                 {{ options(c.SHIRT_OPTS,attendee.shirt) }}
@@ -323,35 +394,35 @@
 {% endif %}
 
 <div class="form-group">
-    <label class="col-sm-2 control-label">Extra Merch</label>
+    <label class="col-sm-3 control-label">Extra Merch</label>
     <div class="col-sm-6">
         <input type="text" name="extra_merch" value="{{ attendee.extra_merch }}" style="width:80%" />
     </div>
 </div>
 
 <div class="form-group">
-    <label class="col-sm-2 control-label">Special Regdesk Instructions</label>
+    <label class="col-sm-3 control-label">Special Regdesk Instructions</label>
     <div class="col-sm-6">
         <input type="text" name="regdesk_info" value="{{ attendee.regdesk_info }}" style="width:80%" />
     </div>
 </div>
 
 <div class="form-group">
-    <label class="col-sm-2 control-label">Notes for Later Review</label>
+    <label class="col-sm-3 control-label">Notes for Later Review</label>
     <div class="col-sm-6">
         <textarea name="for_review" rows="3" style="width:66%">{{ attendee.for_review }}</textarea>
     </div>
 </div>
 
 <div class="form-group">
-    <label class="col-sm-2 control-label">Admin Notes</label>
+    <label class="col-sm-3 control-label">Admin Notes</label>
     <div class="col-sm-6">
         <textarea name="admin_notes" rows="3" style="width:66%">{{ attendee.admin_notes }}</textarea>
     </div>
 </div>
 
 <div class="form-group">
-    <div class="col-sm-6 col-sm-offset-2">
+    <div class="col-sm-9 col-sm-offset-3">
         <button type="submit" name="save" class="btn btn-primary" value="save_return_to_search">Save + return{% if not return_to %} to search{% endif %}</button>
         <button type="submit" name="save" class="btn btn-primary" value="save">Save</button>
     </div>
@@ -381,6 +452,7 @@
     {% endif %}
 {% endif %}
 
+</div>
 </div>
 
 {% endblock %}

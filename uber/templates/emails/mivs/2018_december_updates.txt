@@ -1,0 +1,34 @@
+Ahoy {{ game.studio.primary_contact.first_name }},
+
+We have some December updates for you from MIVS!
+
+* Core Hours
+As posted in the Google Group earlier, Core hours for 2018 are the following:
+Thursday : 1pm - 7pm
+Friday : 12pm - 7pm
+Saturday : 12pm - 7pm
+Sunday: 12pm - 2pm
+
+You will be required to have someone at your booth during these times.  This is to ensure that you are able to provide the best experience you can for the MAGFest Attendees.  More information is contained in your pre-flight training. (See below) 
+
+
+* Having to Drop out of MIVS
+We understand that things may come up which may prevent your team from coming to MAGFest.  If this is the case, please let us know ASAP as this will allow one of our many wait-listed entries to participate. Telling us that you are unable to attend leaves your team on good terms with the MIVS staff; failing to show will impact your ability to be in MIVS in future years.
+
+
+* MIVS Mixer at POSE Lounge
+We're happy to tell you that MIVS will be having a mixer for indies during MAGFest!  This will be at the POSE Lounge in the Gaylord at 8pm, Friday January 5th. The POSE Lounge is expansive, so we'll be meeting in the upper section.  POSE is 21+, so please bring your MAGFest Badge and Photo ID.  
+
+
+* MIVSY Awards
+The MIVSY Awards will be happening at 7pm, Saturday January 6th in the MIVS Area
+
+* Preflight training
+Preflight is our training form that will be giving you more information about the Gaylord and what to expect at MAGFest.  As the primary contact, you will be required to complete your pre-flight by Tuesday, January 2nd.  If you do not complete it by then, you may receive phone calls from us until it is complete.
+
+You can find the training at https://docs.google.com/forms/d/e/1FAIpQLSdtl-ULOA8o04C2PdKOZk_bDud-jNZrU4785HsszoCBgA3x9w/viewform
+
+
+Thanks for taking the time to showcase your game at MIVS this year.  We look forward to seeing you soon!
+
+-MIVS Staff

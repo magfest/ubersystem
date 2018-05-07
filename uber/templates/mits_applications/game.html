@@ -1,0 +1,107 @@
+{% extends "mits_base.html" %}
+{% block body %}
+
+<h2>Enter Your Game Info</h2>
+
+<form method="post" action="game" class="form-horizontal" role="form">
+    {{ csrf_token() }}
+    <input type="hidden" name="id" value="{{ game.db_id }}" />
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Name</label>
+        <div class="col-sm-6">
+            <input class="form-control focus" type="text" name="name" value="{{ game.name }}" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Promo Blurb</label>
+        <div class="col-sm-6">
+            <input class="form-control focus" type="text" name="promo_blurb" value="{{ game.promo_blurb }}" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Your Game's Genre</label>
+        <div class="col-sm-6">
+            <input class="form-control focus" type="text" name="genre" value="{{ game.genre }}" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Description</label>
+        <div class="col-sm-6">
+            <textarea class="form-control" name="description" rows="4">{{ game.description }}</textarea>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Game's Development Phase</label>
+        <div class="col-sm-6">
+            <select name="phase" class="form-control">
+                {{ options(c.MITS_PHASE_OPTS, game.phase) }}
+            </select>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Min Recommended Age</label>
+        <div class="col-sm-6">
+            <select name="min_age" class="form-control">
+                {{ options(c.MITS_AGE_OPTS, game.min_age) }}
+            </select>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Min Required Players</label>
+        <div class="col-sm-6">
+            <select name="min_players" class="form-control">
+                {{ int_options(1, 20, game.min_players) }}
+            </select>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Max Players</label>
+        <div class="col-sm-6">
+            <select name="max_players" class="form-control">
+                {{ int_options(1, 20, game.max_players) }}
+            </select>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Do You Own This Game?</label>
+        <div class="col-sm-6">
+            {{ macros.checkbox(game, 'personally_own', label='I or the company I represent own this game.') }}
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Do You Own Your IP?</label>
+        <div class="col-sm-6">
+            {{ macros.checkbox(game, 'unlicensed', label='Not yet; this game involves IP (Intellectual Property) which I have not yet licensed.') }}
+        </div>
+        <p class="help-block col-sm-9 col-sm-offset-3">
+            You are allowed to present games with unlicensed intellectual property if you are
+            working towards securing those rights but you may NOT sell or even presell games
+            with unlicensed IP even if you've paid us for the right to sell your merchandise.
+        </p>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Is This Your Job?</label>
+        <div class="col-sm-6">
+            {{ macros.checkbox(game, 'professional', label='Yes, my employment involves working on this game for any large company, e.g. Fantasy Flight or Wizards of the Coast.') }}
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-3">
+            <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+    </div>
+</form>
+
+{% endblock %}

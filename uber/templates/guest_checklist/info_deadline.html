@@ -1,0 +1,22 @@
+{% if snippet %}
+<tr>
+  <td width="25">{{ macros.checklist_image(guest.info_status) }}</td>
+  <td><b><a href="agreement?guest_id={{ guest.id }}">
+    {% block deadline_headline %}{{ guest.group_type_label }} Agreement{% endblock %}</a></b></td>
+  <td><i>Deadline:</i> {{ guest.deadline_from_model('info')|datetime_local }}</td>
+</tr>
+<tr>
+  <td colspan="3">
+  {% block deadline_text %}
+    {% if guest.info_status %}
+      You have already provided all the information required as part of your agreement.  You may edit your
+      information (e.g. if you've discovered that you'll be arriving on a different day or time) using the link above.
+    {% else %}
+      Use the link above to provide us with the necessary information we require about your appearance at {{ c.EVENT_NAME }}.
+    {% endif %}
+  {% endblock %}
+    <br/></br>
+  </td>
+</tr>
+{# The agreement pages are always unique, e.g., guests/band_agreement.html #}
+{% endif %}

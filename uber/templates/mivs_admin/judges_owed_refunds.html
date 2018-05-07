@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Judges Owed Refunds{% endblock %}
+{% block content %}
+
+<h2>Judges Owed Refunds</h2>
+
+The following is a list of {{ judges|length }} attendee{{ judges|length|pluralize }} who have MIVS Judge access and who
+  have paid and not been refunded:
+<ul>
+{% for attendee in judges %}
+    <li>
+        {{ attendee|form_link }}
+        {% if attendee.group_id %}
+            (<a href="../groups/form?id={{ attendee.group_id }}">{{ attendee.group.name }}</a>)
+        {% endif %}
+    </li>
+{% endfor %}
+</ul>
+
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "mits_base.html" %}
+{% block body %}
+
+<h2>Hotel Requests</h2>
+
+We have a limited number of rooms set aside for people who need hotel space and haven't secured it for themselves.
+If you plan to get a room either way, we recommend you do that.  Otherwise, you can request space in a reserved room
+and pay for 1/4th the cost of the room per person staying in it.  These reserved rooms will be shared 4 people per
+room with others in the Indie Tabletop Showcase.
+
+<form method="post" action="hotel_requests" class="form-horizontal" role="form">
+    {{ csrf_token() }}
+
+    {% for applicant in team.applicants %}
+        <div class="form-group">
+            <label class="col-sm-3 control-label">{{ applicant.full_name }}</label>
+            <div class="checkbox col-sm-6">
+                <label class='checkbox-label'>
+                    <input type="checkbox" name="{{ applicant.id }}-declined" value="1" {% if applicant.declined_hotel_space %}checked{% endif %} />
+                    {{ applicant.first_name }} doesn't need hotel space
+                </label>
+                <br/><b>or</b><br/>
+                If {{ applicant.first_name }} does need hotel space, please indicate which nights: <br/>
+                {% for val, desc in c.MITS_ROOM_NIGHT_OPTS %}
+                    <label class='checkbox-label'>
+                        <input type="checkbox" name="{{ applicant.id }}-night" value="{{ val }}" {% if applicant.has_requested(val) %}checked{% endif %} />
+                        {{ desc }}
+                    </label>
+                    <br/>
+                {% endfor %}
+            </div>
+        </div>
+    {% endfor %}
+
+    <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-3">
+            <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+    </div>
+</form>
+
+{% endblock %}

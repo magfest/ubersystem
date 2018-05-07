@@ -1,0 +1,25 @@
+{{ game.studio.primary_contact.first_name }},
+
+<br/><br/>We are happy to provide the feedback our judges left your game submission ({{ game.title }}) to the {{ c.ESCHATON.year }} MAGFest Indie Videogame Showcase
+(MIVS). In the past, it's been difficult to get this information from the judges to you, the developer, but we understand how helpful this can be to those of you still in development, and it's always nice to know what someone thinks of your work!
+
+<br/><br/>Our judges are not required to leave feedback, but we do ask them to, and ask that it be constructive and helpful. We apologise if the judges that scored your game did not leave feedback - because of the time constraints we place on our judges to play submitted games thoroughly enough to score them, some are unable to leave additional comments.
+You may do with this information what you wish! Hopefully you find use out of this feedback, but if not, we are not able to contact the judges to elaborate on the comments they gave.
+
+
+<ul>
+  {% for review in game.reviews_to_email %}
+  <li>
+    <strong>Review Notes:</strong>
+    {% if review.game_review %}
+      {{ review.game_review|linebreaksbr }}
+    {% else %}
+      <i>No feedback was left</i>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+
+<br/><br/>We hope this feedback helps you in your continued development of your game.
+
+<br/><br/>{{ c.MIVS_EMAIL_SIGNATURE|linebreaksbr }}

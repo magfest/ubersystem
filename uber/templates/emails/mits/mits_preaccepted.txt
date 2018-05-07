@@ -1,0 +1,9 @@
+{{ team.salutation }},
+
+Thanks again for signing up for the MAGFest Indie Tabletop Showcase.  As we've previously discussed, your application has been pre-accepted, but we still need you to fill out the remainder of the information about your team, since your application is currently only {{ team.completion_percentage }}% complete.
+
+You can finish providing us the remaining info at {{ c.URL_BASE }}/mits_applications/continue_app?id={{ team.id }}
+
+In the meantime, please let us know if you have any questions!
+
+{{ c.MITS_EMAIL_SIGNATURE }}

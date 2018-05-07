@@ -15,14 +15,20 @@ this coming {{ event_dates() }}. Below is a copy of your application. You may
     <li><strong>Description</strong>: {{ group.description }}</li>
     {% if group.special_needs %}<li><strong>Table Requests and Special Requests</strong>: {{ group.special_needs }}</li>{% endif %}
     <li><strong>Website URL</strong>: {{ group.website }}</li>
-    {% if group.address %}<li><strong>Address and Phone Number</strong>: {{ group.address }}</li>{% endif %}
+    <li><strong>Address</strong>: {{ group.address1 }}{% if group.address2 %}, {{ group.address2 }}{% endif %}
+    <br/> {{ group.city }}, {{ group.region }} {{ group.zip_code }} ({{ group.country }})</li>
 </ul>
 
-{% if c.AFTER_DEALER_REG_DEADLINE %}
+{% if c.DEALER_REG_SOFT_CLOSED %}
     Because our marketplace is currently full, your submission has been automatically placed on our waitlist.  We'll let you know if your application is later approved.
 {% else %}
     We will review your request and provide you with a payment link once your application has been approved.
 {% endif %}
+
+{% if group.requested_hotel_info and c.PREREG_REQUEST_HOTEL_INFO_OPEN -%}
+    <br/> <br/>
+    {% include "preregistration/hotel_disclaimer.html" %}
+{%- endif %}
 
 <br/> <br/> <u>Dealer Rules and Information</u>
 {% include "static_views/dealerRules.html" %}

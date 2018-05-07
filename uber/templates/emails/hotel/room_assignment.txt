@@ -1,0 +1,23 @@
+{{ room.first_names|readable_join }},
+
+This email is to confirm your upcoming {{ c.EVENT_NAME }} hotel staff room assignments.  Your roommates are listed below, so please take a moment to look over the information.  We will assume that your room is ok if you don’t reply to this email by {{ c.ONE_WEEK_OR_TAKEDOWN_OR_EPOCH|datetime_local }}.
+
+You can check in at the hotel front desk starting at {{ c.CHECK_IN_TIME }} on {{ room.check_in_date|datetime("%A, %b %-d") }}.
+PLEASE - Make sure this is the first thing you do when you get onsite. If you have problems, come to {{ c.EVENT_NAME }} Staff Operations Department to get it resolved.
+
+Your check-out is at {{ c.CHECK_OUT_TIME }} on {{ room.check_out_date|datetime("%A, %b %-d") }}.  You do not need to drop off your room keys at the front desk; all you need to do is simply vacate the room by that time.  If for any reason you need additional time to vacate the room, please call the hotel front desk to see if you can have additional time.  If the hotel provides additional time, then you need to comply with the time provided.  Do not expect that this will be provided.
+
+Here are the people assigned to this room, along with their contact information and what nights they'll be using the room:
+{% for ra in room.assignments %}
+-> {{ ra.attendee.full_name }} ({{ ra.attendee.email }}){% if ra.attendee.cellphone %} [{{ ra.attendee.cellphone }}]{% endif %}: {{ ra.attendee.hotel_requests.nights_display }}
+{% endfor %}
+
+If you are assigned to receive a room on a night before {{ c.CORE_NIGHT_NAMES|first }}, please make sure that you have signed up for a setup shift for each of those days earlier days.  Similarly if you are staying past {{ c.CORE_NIGHT_NAMES|last }} please sign up for a corresponding tear-down shift after {{ c.EVENT_NAME }}.  If you were expecting to work setup and/or teardown and there are no available shifts, please let us know.  You MUST sign up for setup and teardown shifts if you are working during setup and/or teardown.
+
+We make every attempt to room staffers with those people that they have requested.  We do our best to assign everyone to a room with at least one requested person, but this may not possible for everyone, and we may add staff to rooms that have an open slot.
+
+{% if room.message %}{{ room.message }}
+
+{% endif %}Again, PLEASE - Make sure that checking into your room is the first thing you do when you get onsite. If you have problems in that process, come to {{ c.EVENT_NAME }} Staff Operations Department to get it resolved.  If there are any roommates related issues with your room at event, please come to Staff Operations and let one of the Operations Staff know.  We will work with the hotel liaison team in an attempt to resolve your issue as soon as possible.  We appreciate your hard work and we hope that you enjoy {{ c.EVENT_NAME }}.
+
+{{ c.STOPS_EMAIL_SIGNATURE }}
