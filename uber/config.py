@@ -1092,7 +1092,8 @@ c.ACCESS.update(c.GUEST_ACCESS_LEVELS)
 c.ACCESS_OPTS.extend(c.GUEST_ACCESS_LEVEL_OPTS)
 c.ACCESS_VARS.extend(c.GUEST_ACCESS_LEVEL_VARS)
 
-c.ROCK_ISLAND_GROUPS = [getattr(c, group_type.upper()) for group_type in c.ROCK_ISLAND_GROUPS]
+if c.ROCK_ISLAND_GROUPS != ['']:
+    c.ROCK_ISLAND_GROUPS = [getattr(c, group_type.upper()) for group_type in c.ROCK_ISLAND_GROUPS]
 
 # A list of checklist items for display on the guest group admin page
 c.GUEST_CHECKLIST_ITEMS = [
