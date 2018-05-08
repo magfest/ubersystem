@@ -1378,7 +1378,7 @@ def initialize_db(modify_tables=False):
     Initialize the session on startup.
 
     We want to do this only after all other plugins have had a chance to
-    initialize and add their 'mixin' data (i.e. extra colums) into the models.
+    initialize and add their 'mixin' data (i.e. extra columns) into the models.
 
     Also, it's possible that the DB is still initializing and isn't ready to
     accept connections, so, if this fails, keep trying until we're able to
