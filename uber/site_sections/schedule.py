@@ -40,7 +40,7 @@ class Root:
         max_simul = {}
         for id, name in c.EVENT_LOCATION_OPTS:
             max_events = 1
-            for i in range(2 * c.CON_LENGTH):
+            for i in range(c.PANEL_SCHEDULE_LENGTH):
                 half_hour = c.EPOCH + timedelta(minutes=30 * i)
                 max_events = max(max_events, len(schedule[half_hour][id]))
             max_simul[id] = max_events
