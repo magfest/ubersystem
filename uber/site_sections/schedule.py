@@ -223,10 +223,6 @@ class Root:
 
         assigned_panelists = sorted(event.assigned_panelists, reverse=True, key=lambda a: a.attendee.first_name)
 
-        all_panelists = session.query(Attendee).filter(or_(
-            Attendee.ribbon.contains(c.PANELIST_RIBBON),
-            Attendee.badge_type == c.GUEST_BADGE)).order_by(Attendee.full_name).all()
-
         approved_panel_apps = session.query(PanelApplication).filter(
             PanelApplication.status == c.ACCEPTED).order_by('applied')
 
@@ -234,7 +230,7 @@ class Root:
             'message': message,
             'event':   event,
             'assigned': [ap.attendee_id for ap in assigned_panelists],
-            'panelists': [(a.id, a.full_name) for a in all_panelists],
+            'panelists': [(a.id, a.full_name) for a in session.all_panelists()],
             'approved_panel_apps': approved_panel_apps
         }
 
