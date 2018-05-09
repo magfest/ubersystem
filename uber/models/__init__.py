@@ -952,6 +952,11 @@ class Session(SessionManager):
         def staffers(self):
             return self.all_attendees(only_staffing=True)
 
+        def all_panelists(self):
+            return self.query(Attendee).filter(or_(
+                Attendee.ribbon.contains(c.PANELIST_RIBBON),
+                Attendee.badge_type == c.GUEST_BADGE)).order_by(Attendee.full_name).all()
+
         @department_id_adapter
         def jobs(self, department_id=None):
             job_filter = {'department_id': department_id} if department_id else {}

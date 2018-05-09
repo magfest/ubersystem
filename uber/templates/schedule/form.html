@@ -109,7 +109,7 @@
 
 </form>
 
-{% if event.id %}
+{% if not event.is_new %}
     <br/>
     <div style="width:75% ; margin-left:25%">
         <form method="post" action="delete" onSubmit="return confirm('Are you sure you want to delete this event?');">

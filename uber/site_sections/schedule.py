@@ -5,7 +5,6 @@ from time import mktime
 
 import cherrypy
 from pockets import listify
-from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
@@ -40,7 +39,7 @@ class Root:
         max_simul = {}
         for id, name in c.EVENT_LOCATION_OPTS:
             max_events = 1
-            for i in range(2 * c.CON_LENGTH):
+            for i in range(c.PANEL_SCHEDULE_LENGTH):
                 half_hour = c.EPOCH + timedelta(minutes=30 * i)
                 max_events = max(max_events, len(schedule[half_hour][id]))
             max_simul[id] = max_events
@@ -223,10 +222,6 @@ class Root:
 
         assigned_panelists = sorted(event.assigned_panelists, reverse=True, key=lambda a: a.attendee.first_name)
 
-        all_panelists = session.query(Attendee).filter(or_(
-            Attendee.ribbon.contains(c.PANELIST_RIBBON),
-            Attendee.badge_type == c.GUEST_BADGE)).order_by(Attendee.full_name).all()
-
         approved_panel_apps = session.query(PanelApplication).filter(
             PanelApplication.status == c.ACCEPTED).order_by('applied')
 
@@ -234,7 +229,7 @@ class Root:
             'message': message,
             'event':   event,
             'assigned': [ap.attendee_id for ap in assigned_panelists],
-            'panelists': [(a.id, a.full_name) for a in all_panelists],
+            'panelists': [(a.id, a.full_name) for a in session.all_panelists()],
             'approved_panel_apps': approved_panel_apps
         }
 
