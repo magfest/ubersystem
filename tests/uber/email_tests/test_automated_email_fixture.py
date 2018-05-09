@@ -27,4 +27,4 @@ class TestAutomatedEmailFixture(object):
 
     def test_invalid_template(self, clear_automated_email_fixtures):
         with pytest.raises(TemplateNotFound):
-            AutomatedEmailFixture(Attendee, 'subject', 'template.txt', lambda x: True, 'ident')
+            AutomatedEmailFixture(Attendee, 'subject', 'template.txt', lambda x: True, 'ident').body
