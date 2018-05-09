@@ -5,7 +5,6 @@ from time import mktime
 
 import cherrypy
 from pockets import listify
-from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
