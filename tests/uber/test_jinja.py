@@ -93,6 +93,23 @@ class TestMultiPathEnvironment(object):
             template = environment.get_template(name)
             assert abs_path == template.filename
 
+    @pytest.mark.parametrize('name,relative_paths', [
+        ('test_extends_1.html', ('templates/templates_3', 'templates/templates_2', 'templates/templates_1',)),
+        ('test_import_macros.html', ('templates/templates_1',)),
+        ('test_include_1.html', ('templates/templates_1',)),
+        ('test_standalone_1.html', ('templates/templates_1',)),
+        ('test_extends_2.html', ('templates/templates_3', 'templates/templates_2',)),
+        ('test_include_2.html', ('templates/templates_2',)),
+        ('test_standalone_2.html', ('templates/templates_2',)),
+        ('test_include_3.html', ('templates/templates_3',)),
+        ('test_standalone_3.html', ('templates/templates_3',)),
+    ])
+    def test_get_template_repeatedly_without_request_cache(self, environment, name, relative_paths):
+        abs_path = os.path.join(__here__, relative_paths[0], name)
+        for relative_path in relative_paths:
+            template = environment.get_template(name, use_request_cache=False)
+            assert abs_path == template.filename
+
     @pytest.mark.parametrize('name,content', [
         ('test_extends_1.html', textwrap.dedent("""\
             templates_1.test_extends_1.header

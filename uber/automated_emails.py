@@ -93,7 +93,7 @@ class AutomatedEmailFixture:
             .replace('{EVENT_NAME}', c.EVENT_NAME) \
             .replace('{EVENT_YEAR}', c.EVENT_YEAR) \
             .replace('{EVENT_DATE}', c.EPOCH.strftime('%b %Y'))
-        self.body = decorators.render_empty(os.path.join('emails', template))
+        self.template = template
         self.format = 'text' if template.endswith('.txt') else 'html'
         self.filter = filter or (lambda x: True)
         self.ident = ident
@@ -114,6 +114,10 @@ class AutomatedEmailFixture:
 
         before = [d.active_before for d in when if d.active_before]
         self.active_before = max(before) if before else None
+
+    @property
+    def body(self):
+        return decorators.render_empty(os.path.join('emails', self.template))
 
 
 # Payment reminder emails, including ones for groups, which are always safe to be here, since they just
