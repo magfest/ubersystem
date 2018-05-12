@@ -20,7 +20,7 @@ import residue
 
 try:
     is_sqlite = op.get_context().dialect.name == 'sqlite'
-except:
+except Exception:
     is_sqlite = False
 
 if is_sqlite:
