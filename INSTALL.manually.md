@@ -58,14 +58,14 @@ $ psql --host=localhost --username=m13 --password m13 < uber/tests/test_data.sql
 Alternate Manual Installation - sqlite (quick start)
 ====================================================
 
-* Install python 3 and sqlite
-* Install (via package manager or `pip install --user`): virtualenv, paver
+* Install python 3, sqlite, and libcap-dev
+* Install (via package manager or `pip3 install --user`): virtualenv, paver
 * `git clone https://github.com/magfest/sideboard`
 * `cd sideboard`
 * `git clone https://github.com/magfest/ubersystem plugins/uber`
     * (the above *must* be a dir named uber, not ubersystem)
-* `paver make_venv` (may be at `~/.local/bin/paver`, depending on how you installed it)
-* `./bin/env/paver install_deps`
+* `paver make_venv` (may be at `~/.local/bin/paver`, depending on how you installed it) (Note: paver must use Python3 for this)
+* `./env/bin/paver install_deps`
 * Init the DB, and create test admin account: `./env/bin/sep reset_uber_db`
 * Run it! `./env/bin/python sideboard/run_server.py`
 * RAMS is now running on `localhost:8282`!
