@@ -1,0 +1,19 @@
+{{ game.studio.primary_contact.first_name }},
+
+Congratulations!  Your game ({{ game.title }}) has made it past Round 1 judging for the MAGFest Indie Videogame Showcase (MIVS).
+
+Round 2, the final round, requires your team to submit your game in a playable form or a demo version of your game for the judges to play.  You may submit your demo by continuing your application at {{ c.URL_BASE }}/mivs_applications/continue_app?id={{ game.studio.id }}
+
+Rules for round 2 submissions:
+1) Deadlines to submit your game is before September 30th, 2017.
+2) After the deadline, updated builds will not be accepted
+3) Demos must have at least 15 minutes of game play.
+4) If a registration/unlock code is required; please provide {{ c.MIVS_CODES_REQUIRED }} codes for our judges or a single code which works for all judges.
+
+Judging will start October 14th and last throughout the month.
+
+Results will be posted in the beginning of November; expecting the absolute latest date would be November 6th.
+
+If you have questions, please e-mail indie@magfest.org but do so after first checking the MIVS FAQ (http://magfest.org/mivsfaq).  New information and any modifications will be sent out via e-mail, although we will keep the most up-to-date information on the MIVS FAQ.
+
+{{ c.MIVS_EMAIL_SIGNATURE }}

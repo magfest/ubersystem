@@ -1,0 +1,286 @@
+<style type="text/css">
+
+#overlay {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10001;
+
+  background-color: #00000080;
+}
+
+#overlay h1 {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  bottom: 0;
+  right: 0;
+  z-index: 10002;
+
+  margin-left: -150px;
+  margin-top: -50px;
+  height: 100px;
+  width: 300px;
+
+  text-align: center;
+  color: #fff;
+}
+
+.inventory-item > .panel-body > h2 {
+  font-size: 1.625em;
+  margin-top: 0;
+}
+
+.inventory-item h4 {
+  font-size: 1.5em;
+  margin-top: 0;
+}
+
+.inventory-item h5 {
+  font-size: 1.5em;
+}
+
+.inventory-item {
+  box-shadow: 0 0 10px 10px rgba(0, 0, 0, 0.075)
+}
+
+.inventory-item .panel-sizes {
+  max-height: 240px;
+  overflow: auto;
+}
+
+.inventory-item .panel-sizes.disabled, .panel-sizes.disabled input {
+  color: #555;
+  background-color: #eee;
+}
+
+.inventory-item .panel-sizes input, .inventory-item .one_size_quantity {
+  width: 5em;
+  float: right;
+}
+
+.inventory-item .col-variety .form-one_size {
+  padding-top: 0;
+  padding-bottom: 5px;
+  margin-bottom: 5px;
+}
+
+.inventory-item .inventory-file {
+  white-space: nowrap;
+}
+
+.inventory-item .inventory-file:last-child {
+  margin-bottom: 0;
+}
+
+.inventory-item .inventory-file audio {
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+.inventory-item .inventory-file .close {
+  margin-bottom: 10px;
+}
+
+.inventory-item .inventory-file .file {
+  display: inline;
+}
+
+.inventory-item .inventory-file-image {
+  padding: 0;
+}
+
+.inventory-item .inventory-file-image img {
+  display: block;
+  width: 100%;
+}
+
+.inventory-item .inventory-file-image span.current-file {
+  margin: 6px -12px 6px 12px;
+}
+
+.inventory-item .inventory-file-image .file {
+  margin: 6px 0 6px 12px;
+}
+
+h3 .inventory-add-item {
+  float: right;
+}
+
+.inventory-add-item > h4,
+.inventory-add-item > div {
+  margin-bottom: 10px;
+  display: block;
+}
+
+.inventory-add-item .glyphicon {
+  font-size: 32px;
+  vertical-align: middle;
+}
+
+.inventory-add-item select {
+  display: inline-block;
+  font-weight: normal;
+  width: auto;
+}
+
+.inventory-table-panel h2 {
+  margin-top: 0;
+}
+
+.inventory-table-panel h3.panel-body {
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.inventory-table-panel > .panel-body:first-child {
+  padding-bottom: 0;
+}
+
+.inventory-table .image-preview > img {
+  width: 200px;
+  max-width: 100%;
+}
+
+.inventory-table .image-preview > div {
+  max-width: 100%;
+  display: inline-block;
+  background-color: #f8f8ff;
+  border: 1px solid #428bca;
+  padding: 25px 10px;
+  text-align: center;
+}
+
+.inventory-table .image-preview > div:hover {
+  background-color: #f0f0f8;
+  border-color: #2a6496;
+}
+
+.inventory-table dt {
+  color: #606060;
+  margin-right: 0.5em;
+}
+
+.inventory-table .inventory-item-details .inventory-item-name dd {
+  font-weight: bold;
+}
+
+.inventory-table .inventory-item-image {
+  text-align: right;
+  max-width: 25%;
+}
+
+.inventory-table .inventory-item-controls {
+  text-align: center;
+  width: 56px;
+}
+
+.inventory-table th.inventory-item-controls {
+  padding-right: 8px;
+}
+
+.inventory-table dt,
+.inventory-table dd {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.inventory-table .data-item {
+  padding: 1px 10px;
+}
+
+.inventory-table .data-item:hover {
+  background-color: #e0e0e0;
+}
+
+.inventory-table .inventory-item-name.data-item:hover {
+  background-color: inherit;
+}
+
+.inventory-table .audio-track {
+  padding: 5px 10px;
+}
+
+.inventory-table .audio-track dt {
+  line-height: 32px;
+  margin-right: 4px;
+}
+
+.inventory-table dl {
+  margin-bottom: 0;
+}
+
+.inventory-table .data-item:after {
+  content: "";
+  display: block;
+  clear: both;
+}
+
+.inventory-table .inventory-item-custom dd {
+  float: right;
+}
+
+.inventory-table .inventory-item-custom hr {
+  border-top: 1px solid #e8e8e8;
+  margin-bottom: 4px;
+  margin-top: 4px;
+}
+
+.inventory-table .inventory-item-apparel-custom > dl {
+  max-height: 224px;
+  overflow: auto;
+  border: 1px solid #e8e8e8;
+}
+
+.panel.inventory-table-panel>.panel-body+.table-responsive {
+  border-top: 0 none transparent;
+}
+
+.optional-field {
+  font-weight: normal;
+}
+
+.well-form-control {
+  margin-bottom: 15px;
+  padding: 6px 12px;
+  background-color: #f8f8f8;
+  background-image: -webkit-linear-gradient(top, #f8f8f8 0%, #f8f8f8 100%);
+  background-image:      -o-linear-gradient(top, #f8f8f8 0%, #f8f8f8 100%);
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#f8f8f8), to(#f8f8f8));
+  background-image:         linear-gradient(to bottom, #f8f8f8 0%, #f8f8f8 100%);
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#fff8f8f8', endColorstr='#fff8f8f8', GradientType=0);
+  background-repeat: repeat-x;
+  border-color: #ccc;
+  -webkit-box-shadow: none;
+          box-shadow: none;
+}
+
+.well-info {
+  background-color: #d9edf7;
+  background-image: -webkit-linear-gradient(top, #d9edf7 0%, #d9edf7 100%);
+  background-image:      -o-linear-gradient(top, #d9edf7 0%, #d9edf7 100%);
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#d9edf7), to(#d9edf7));
+  background-image:         linear-gradient(to bottom, #d9edf7 0%, #d9edf7 100%);
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffd9edf7', endColorstr='#ffd9edf7', GradientType=0);
+  background-repeat: repeat-x;
+  border-color: #d1e6ef;
+  -webkit-box-shadow: none;
+          box-shadow: none;
+}
+
+.well-success {
+  background-color: #dff0d8;
+  background-image: -webkit-linear-gradient(top, #dff0d8 0%, #dff0d8 100%);
+  background-image:      -o-linear-gradient(top, #dff0d8 0%, #dff0d8 100%);
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#dff0d8), to(#dff0d8));
+  background-image:         linear-gradient(to bottom, #dff0d8 0%, #dff0d8 100%);
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffdff0d8', endColorstr='#ffdff0d8', GradientType=0);
+  background-repeat: repeat-x;
+  border-color: #d8e8d0;
+  -webkit-box-shadow: none;
+          box-shadow: none;
+}
+
+</style>

@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head>
+    <title>Tabletop Checkins</title>
+    <link rel="stylesheet" href="../static/deps/combined.css" />
+    <link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
+    <script src="../static/deps/combined.js"></script>
+    <script src="../angular/magfest.js"></script>
+    <script src="../static/angular-apps/tabletop_checkins/app.js"></script>
+    <script>
+        var GAMES = {{ games|jsonize }};          // Game service checks for this global variable to get preloaded data
+        var ATTENDEES = {{ attendees|jsonize }};  // Attendee service checks for this global variable to get preloaded data
+        angular.module('tabletop.checkins')
+            .controller('MainController', function ($scope, $http) {
+                $http.defaults.headers.common = {'CSRF-Token': '{{ c.CSRF_TOKEN }}'};
+            });
+    </script>
+
+</head>
+<body ng-app="tabletop.checkins">
+    {% include "tabletop_common.html" %}
+    <div ng-controller="MainController">
+        <div ng-view></div>
+    </div>
+</body>
+</html>

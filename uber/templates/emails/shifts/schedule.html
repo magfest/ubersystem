@@ -3,32 +3,67 @@
 <body>
 
 {{ attendee.first_name }},
-<br/> <br/>
+<br><br>
 
-{% if attendee.badge_type == c.STAFF_BADGE %}    
-Thanks again for Staffing at {{ c.EVENT_NAME }}!
+{% if attendee.badge_type == c.STAFF_BADGE %}
+    Thanks again for Staffing at {{ c.EVENT_NAME }}!
+{% elif c.VOLUNTEER_RIBBON in attendee.ribbon_ints %}
+    Thanks again for Volunteering at {{ c.EVENT_NAME }}!
 {% endif %}
-    
-{% if attendee.ribbon == c.VOLUNTEER_RIBBON %}    
-Thanks again for Volunteering at {{ c.EVENT_NAME }}!
-{% endif %}
-<br/> <br/>
 
-{% if attendee.badge_type == c.STAFF_BADGE %}   
-- Please remember to also pick up your TWO {{ c.EVENT_NAME }} Staff Shirts from the MAGFest MERCH Booth when you get to {{ c.EVENT_NAME }}.  As a reminder, there is an expectation that you will wear one of these two shirts while working your scheduled shifts during {{ c.EVENT_NAME }}, (Thurs-Sunday, not during load-in or load-out).  When not on shift, you should wear a different shirt, so you can enjoy MAGFest 2017 with everyone else.    
-{% endif %}    
-    
+{% if attendee.badge_type == c.STAFF_BADGE and (c.SHIRTS_PER_STAFFER > 0 or c.STAFF_ELIGIBLE_FOR_SWAG_SHIRT) %}
+    <br><br>
+    Please remember to also pick up your
+    {% if c.SHIRTS_PER_STAFFER > 1 %}
+        {{ c.SHIRTS_PER_STAFFER }}
+    {% endif %}
+    {{ c.EVENT_NAME }}
+    {% if c.SHIRTS_PER_STAFFER > 0 %}
+        Staff Shirt{{ c.SHIRTS_PER_STAFFER|pluralize }}
+    {% else %}
+        Shirt
+    {% endif %}
+    from the {{ c.EVENT_NAME }} MERCH Booth when you get to {{ c.EVENT_NAME }}.
+    {% if c.SHIRTS_PER_STAFFER > 0 %}
+        As a reminder, there is an expectation that you will wear
+        {% if c.SHIRTS_PER_STAFFER > 1 %}
+            one of these shirts
+        {% else %}
+            this shirt
+        {% endif %}
+        while working your scheduled shifts during {{ c.EVENT_NAME }},
+        (Thurs-Sunday, not during load-in or load-out).  When not on shift, you
+        should wear a different shirt, so you can enjoy {{ c.EVENT_NAME }} with
+        everyone else.
+    {% endif %}
+
+    {% if c.SHIRTS_PER_STAFFER > 0 and c.STAFF_ELIGIBLE_FOR_SWAG_SHIRT %}
+        <br><br>
+        You also qualify for a {{ c.EVENT_NAME }} swag shirt. This is the same
+        shirt that attendees can buy and is provided as a perk for staffing.
+    {% endif %}
+{% endif %}
+
+{% if attendee.gets_any_kind_of_shirt %}
+    <br><br>
+    After you've picked up your badge, you can pick up your shirt and other
+    swag at the {{ c.EVENT_NAME }} merch booth.
+{% endif %}
+
 {% if attendee.takes_shifts and attendee.shifts %}
-    The schedule of shifts you've signed up for is below; please print it out so that you can have your department managers
-    mark each shift as worked.
-    <br/> <br/>
-    If you forget to print out this sheet and would like to pick up a spare copy, or if you want to change your hours,
-    you can drop by Staffing Ops during {{ c.EVENT_NAME }}.
+    <br><br>
+    The schedule of shifts you've signed up for is below; please print it out
+    so that you can have your department managers mark each shift as worked.
+    <br><br>
+    If you forget to print out this sheet and would like to pick up a spare
+    copy, or if you want to change your hours, you can drop by Staffing Ops
+    during {{ c.EVENT_NAME }}.
 {% endif %}
 
+<br><br>
 {% include "signups/printable_schedule.html" %}
 
-<br/> {{ c.STOPS_EMAIL_SIGNATURE|linebreaksbr }}
+<br> {{ c.STOPS_EMAIL_SIGNATURE|linebreaksbr }}
 
 </body>
 </html>

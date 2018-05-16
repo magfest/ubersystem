@@ -1,0 +1,26 @@
+{% if snippet %}
+  <td width="25">{{ macros.checklist_image(guest.all_badges_claimed) }}</td>
+  <td><b><a target="_blank" href="../preregistration/group_members?id={{ guest.group.id }}">
+    {% block deadline_headline %}Assign Your Unclaimed Badges{% endblock %}</a></b></td>
+  <td><i>Deadline:</i> {{ guest.deadline_from_model('badges')|datetime_local }}</td>
+</tr>
+<tr>
+  <td colspan="3">
+    {% block deadline_text %}
+      {% if guest.all_badges_claimed %}
+        You have already assigned all badges which have been assigned to your group, but you may change who your
+        complementary badges are assigned to using the link above anytime until the start of {{ c.EVENT_NAME }}.
+      {% else %}
+        You currently have {{ guest.group.floating|length }} unassigned complementary
+        badge{{ guest.group.floating|length|pluralize }} available to your group.  You may use the link above to
+        assign these badges.
+      {% endif %}
+      <br/><br/>
+      By default, each guest receives a badge for themselves, plus an additional badge.
+      Additional complimentary badges may be issued upon request.
+    {% endblock %}
+    <br/></br>
+  </td>
+</tr>
+{# This deadline links elsewhere, so there's no non-snippet version #}
+{% endif %}

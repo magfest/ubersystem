@@ -1,0 +1,102 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Department Role{% endblock %}
+
+{% block content %}
+<style type="text/css">
+  h2 {
+    margin-bottom: 30px;
+  }
+
+  form {
+    max-width: 738px;
+  }
+</style>
+
+<script type="text/javascript">
+  $(function() {
+    var table = $('.table').DataTable();
+
+    $('form').on('submit', function(event) {
+      event.preventDefault();
+      try {
+        var $tableInputs = $('table').DataTable().$('input');
+        $('#table-inputs-fix').append($tableInputs);
+        this.submit();
+      } catch(ex) {
+        window.location = window.location + '&message=There was an error saving the department role'
+      }
+    });
+
+    $('tbody').on('click', 'tr', function(event) {
+      var tag = event.target.nodeName.toUpperCase();
+      if (tag != 'INPUT' && tag != 'A') {
+        event.preventDefault();
+        var $checkbox = $(this).find('input');
+        $checkbox.prop('checked', !$checkbox.prop('checked'));
+      }
+    });
+  });
+</script>
+
+<h2>
+  {%- if role.is_new -%}
+    <span class="glyphicon glyphicon-plus"></span> New Role for {{ department|form_link }}
+  {%- else -%}
+    <span class="glyphicon glyphicon-cog"></span> Edit {{ role.name }} Role for {{ department|form_link }}
+  {%- endif -%}
+</h2>
+
+<form method="post" action="role" class="form-horizontal" role="form">
+  {{ csrf_token() }}
+  <input type="hidden" name="department_id" value="{{ department.id }}" />
+  <input type="hidden" name="id" value="{{ 'None' if role.is_new else role.id }}" />
+  <input type="hidden" name="dept_memberships_ids" value="">
+  {{ macros.form_group(role, 'name', is_focused=True) }}
+  {{ macros.form_group(role, 'description') }}
+
+  <div class="form-group">
+    <div class="col-sm-10 col-sm-offset-1">
+      <h3>Members Assigned to Role</h3>
+      {% if department.memberships %}
+        <div class="table-responsive">
+          <table class="table table-hover datatable" data-page-length="25" data-order="[[ 1, &quot;asc&quot; ]]">
+            <thead>
+              <tr>
+                <th class="text-nowrap">Has Role</th>
+                <th>Name</th>
+                <th>Badge</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for membership in department.memberships|sort(attribute='attendee.full_name') %}
+                {%- set attendee = membership.attendee -%}
+                {%- set has_role = attendee.has_role(role) -%}
+                <tr>
+                  <td data-order="{{ has_role }}" >
+                    <input type="checkbox" name="dept_memberships_ids" value="{{ membership.id }}" {% if has_role %}checked="checked"{% endif %}>
+                  </td>
+                  <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
+                    {{ attendee|form_link }}
+                  </td>
+                  <td>{{ attendee.badge }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div><i>No volunteers have been assigned in the {{ department.name }} department yet.</i></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div id="table-inputs-fix" style="display: none;"></div>
+
+  <div class="form-group">
+    <div class="col-sm-9 col-sm-offset-3">
+      <button type="submit" class="btn btn-primary">Save</button>
+      <a href="form?id={{ department.id }}" type="button" class="btn btn-default">Cancel</a>
+    </div>
+  </div>
+</form>
+{% endblock %}

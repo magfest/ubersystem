@@ -1,0 +1,12 @@
+{{ app.submitter.first_name }},
+
+Thank you for submitting your panel, "{{ app.name }}", for {{ c.EVENT_NAME }} {{ c.EVENT_YEAR }}.  {{ c.EVENT_NAME }} is growing and changing every year, and due to our time and space constraints we have to decline the majority of submissions that we receive, including many we wish we could accept.  Unfortunately, we did not have enough space in our schedule this year to accommodate your panel.
+
+We still encourage you to post about meetups where you can join with people to talk about these topics.  In addition, we encourage you to check out the Soapbox.  It’s an experimental space we’re trying out this year where anyone can sign up (first-come, first-served) for a few minutes on stage to present on a topic of choice.
+
+Finally, as always, we encourage you to please apply again next year!
+
+If you have any questions or concerns, please don't hesitate to send them to {{ c.PANELS_EMAIL|email_only }}.
+
+
+{{ c.PEGLEGS_EMAIL_SIGNATURE }}

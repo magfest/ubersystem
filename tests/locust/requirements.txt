@@ -1,0 +1,4 @@
+# Locust version 0.8a2 and below do not support Python 3. The easiest way of
+# getting locust to run on Python 3 is to install straight from github:
+git+https://github.com/locustio/locust#egg=locustio
+faker>=0.7.11

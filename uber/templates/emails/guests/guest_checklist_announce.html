@@ -1,0 +1,15 @@
+Hello {{ guest.group.leader.first_name }} and {{ guest.group.name }}!
+
+<br/><br/>It's here! And we're SUPER excited to share it with you! Our brand new Guest Checklist is taking the place of
+our old form, and will walk you through all the info we need to gather about you and your group, panels, events, and
+plans.
+
+<br/><br/>You can get to your checklist from this link:
+<a href="{{ c.URL_BASE }}/guests/index?id={{ guest.id }}" target="_blank">{{ c.URL_BASE }}/guests/index?id={{ guest.id }}</a>
+
+<br/><br/>Please remember that <strong>the deadline to complete the checklist is {{ c.GUEST_INFO_DEADLINE|datetime_local }}</strong>.
+
+<br/><br/>If you have any questions or run into any snags, hit us up at guests@magfest.org.
+
+<br/><br/>Can't wait to see you in January!
+<br/>-The Guests/Events Crew

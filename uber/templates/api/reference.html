@@ -1,0 +1,368 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}API Reference{% endblock %}
+
+{% block content %}
+  <style type="text/css">
+    pre {
+      margin: 0;
+    }
+
+    dl > div {
+      display: block;
+      padding-left: 10px;
+    }
+
+    dt:after {
+      content: ' - ';
+    }
+
+    dt, dd {
+      display: inline;
+    }
+
+    .row {
+      margin-bottom: 0;
+      margin-top: 0;
+    }
+
+    #mainContainer {
+      padding-bottom: 0;
+    }
+
+    #mainContainer > .navbar {
+      margin-bottom: 0;
+    }
+
+    .background {
+      background-color: #303038;
+      margin: 0 -15px;
+    }
+
+    .background > .row {
+      margin: 0;
+    }
+
+    .prose-column {
+      background-color: #fff;
+      color: #333;
+      padding-bottom: 15px;
+      padding-top: 15px;
+    }
+
+    .prose-title {
+      padding-bottom: 0;
+      padding-top: 0;
+    }
+
+    .prose-title h1, .prose-title h2, .prose-title h3 {
+      margin: 0;
+      padding-top: 20px;
+    }
+
+    .code-column {
+      color: #e0e0d8;
+      overflow: hidden;
+    }
+
+    .example, .example {
+      padding: 5px 0 15px;
+    }
+
+    .method {
+      padding-left: 15px;
+    }
+
+    .code-column {
+      padding-top: 5px;
+    }
+
+    .code-column h4 {
+      color: #ddd;
+    }
+
+    .code-column pre {
+      background-color: #262626;
+      border-color: #262626;
+      color: #eee;
+    }
+
+    .method-title {
+      font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+      color: #eeb;
+      padding: 5px 0 10px;
+    }
+
+    .method-body {
+      padding-left: 30px;
+      margin-bottom: 30px;
+    }
+
+    .method-body .doc {
+      padding-bottom: 10px;
+    }
+
+    .method-body .required_access .access {
+      font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+      color: #faa;
+    }
+
+    .opts td {
+      padding: 0 10px;
+    }
+
+    .opts .opt-value {
+      font-weight: bold;
+      color: #eeb;
+    }
+
+    .output {
+      height: 240px;
+      overflow: auto;
+    }
+
+    @media only screen and (min-width : 768px) {
+      /* Makes the left/right columns the same height  */
+      .row { overflow: hidden; }
+      .row .col-sm-6 {
+        margin-bottom: -99999px;
+        padding-bottom: 99999px;
+      }
+    }
+  </style>
+
+  <script type="text/javascript">
+    $(function() {
+      var $forms = $('form');
+      $forms.on('submit', function(event) {
+        event.preventDefault();
+        var $form = $(this),
+            $btn = $form.find('[type=submit]'),
+            $textarea = $form.find('textarea'),
+            $output = $form.parent().find('.output');
+
+        var print = function(text) {
+          $output.append(text + '\n');
+        };
+
+        var handleError = function(message) {
+          $btn.prop('disabled', false);
+          $output.css({
+            'border-color': '#f00',
+            'background-color': '#faf5f5'
+          });
+          print(JSON.stringify(message, null, 2))
+        };
+
+        try {
+          toastr.clear();
+          $output.text('');
+          $output.css({
+            'border-color': '',
+            'background-color': ''
+          });
+
+          var data = $.parseJSON($textarea.val());
+          $btn.prop('disabled', true);
+          $.ajax({
+            method: 'POST',
+            url: $form.prop('action'),
+            headers: {'CSRF-Token': csrf_token},
+            data: JSON.stringify(data),
+            success: function (result, textStatus, xhr) {
+              if (result.error || result.result.error) {
+                handleError(result)
+              } else {
+                print(JSON.stringify(result, null, 2));
+              }
+            },
+            error: function (xhr, textStatus, errorThrown) {
+              handleError('Error ' + xhr.status + ': ' + xhr.statusText);
+            },
+            beforeSend: function(xhr, settings) {
+              print(this.type + ' ' + this.url);
+              print(this.data);
+              print('\n--------------------------------\n');
+            },
+            complete: function(xhr, textStatus) {
+              $btn.prop('disabled', false);
+              print('');
+            }
+          });
+        } catch(ex) {
+          print(ex);
+          handleError(ex);
+        }
+      });
+    });
+  </script>
+
+<div class="background">
+  <div class="row">
+    <div class="col-sm-6 prose-column prose-title">
+      <h1>API Reference</h1>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-sm-6 prose-column">
+      <p>
+        The API is based around JSON RPC. API calls should be made using HTTP
+        POST requests. The request body should be a JSON formatted string
+        including the following properties:
+      </p>
+      <dl>
+        <div>
+          <dt>method</dt>
+          <dd>service and method name in dotted format "service.method"</dd>
+        </div>
+        <div>
+          <dt>params</dt>
+          <dd>method parameters, if relevant, in an array</dd>
+        </div>
+      </dl>
+      <p>
+        The response is returned as a JSON formatted object. A successful
+        response will have a "result" property. An error response will have an
+        error message in an "error" property.
+      </p>
+      <p>
+        The API endpoint URL is:<br>
+        <code>{{ c.URL_BASE }}/jsonrpc/</code>
+      </p>
+    </div>
+    <div class="col-sm-6 code-column">
+      <div class="example">
+        <label>Example Request Body</label>
+        <pre>
+{
+  "method": "attendee.search",
+  "params": ["{{ admin_account.attendee.full_name }}"]
+}
+</pre>
+      </div>
+      <div class="example">
+        <label>Example Response Body</label>
+        <pre>
+{
+  "id": null,
+  "jsonrpc": "2.0",
+  "result": [
+    {
+      "first_name": "{{ admin_account.attendee.first_name }}",
+      "last_name": "{{ admin_account.attendee.last_name }}",
+      "email": "{{ admin_account.attendee.email }}",
+      "id": "{{ admin_account.attendee.id }}"
+    }
+  ]
+}
+</pre>
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-sm-6 prose-column prose-title">
+      <h3>Authentication</h3>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-sm-6 prose-column">
+      <p>
+        Third party applications can authenticate requests by adding the
+        <code>X-Auth-Token</code> header to each HTTP POST. You can find your auth tokens,
+        or generate a new token, on the <a href="../api">API Access</a> page.
+      </p>
+      <p>
+        Requests without an <code>X-Auth-Token</code> header will return
+        <em>401 Unauthorized</em>. Requests with an invalid <code>X-Auth-Token</code>
+        header will return <em>403 Forbidden</em>.
+      </p>
+    </div>
+    <div class="col-sm-6 code-column">
+      <div class="example">
+        <label>HTTP Request Headers</label>
+        <pre class="code">X-Auth-Token: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX</pre>
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-sm-6 prose-column prose-title">
+      <h3>Command Line Example</h3>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-sm-6 prose-column">
+      <p>
+        The API can be tested by making requests from the command line using
+        <a href="https://curl.haxx.se">curl</a>. In the given example, replace
+        "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" with a token from the
+        <a href="../api">API Access</a> page.
+      </p>
+    </div>
+    <div class="col-sm-6 code-column">
+      <div class="example">
+        <label>Using Curl</label>
+        <pre class="code">curl -v -k -d '{"method": "config.info"}' -H "X-Auth-Token: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" -w "\n" {{ c.URL_BASE }}/jsonrpc/</pre>
+      </div>
+    </div>
+  </div>
+  {%-
+    set examples = {
+      'attendee': '{"method": "attendee.search", "params": ["' ~ admin_account.attendee.full_name ~ '"]}',
+      'barcode': '{"method": "barcode.lookup_attendee_from_barcode", "params": ["~v22pcw"]}',
+      'config': '{"method": "config.info"}',
+      'dept': '{"method": "dept.list"}',
+      'shifts': '{"method": "shifts.lookup", "params": {"department_id": "' ~ c.DEFAULT_DEPARTMENT_ID ~ '", "start_time": "now"}}'
+    }
+  -%}
+  {% for service in services %}
+    <div class="row">
+      <div class="col-sm-6 prose-column">
+        {% if loop.first %}<h1>Live Examples</h1>{% endif %}
+        <h2>{{ service.name|title }} Service</h2>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-6 col-sm-push-6 code-column">
+        {% if service.doc %}<p class="doc">{{ service.doc|safe|linebreaksbr }}</p>{% endif %}
+        <h4>Available Methods</h4>
+        {% for method in service.methods %}
+          {% set comma = joiner(', ') %}
+          <div class="method">
+            <div class="method-title">
+              {{ service.name }}.{{ method.name }}({% for arg in method.args %}{{ comma() }}{{ arg }}{%endfor%})
+            </div>
+            <div class="method-body">
+              {% if method.doc %}<div class="doc">{{ method.doc|safe|linebreaksbr }}</div>{% endif %}
+              {% if method.required_access %}
+                <div class="required_access">
+                  <label>Required Access</label>
+                  <span class="access">{{ method.required_access|join(' / ') }}</span>
+                </div>
+              {% endif %}
+              {% set comma = joiner(', ') %}
+              <div class="example">
+                <label>Example Request Body</label>
+                <pre>{"method": "{{ service.name }}.{{ method.name }}"{% if method.args %}, "params": [{% for arg in method.args %}{{ comma() }}"{{ arg }}"{%endfor%}]{% endif %}}</pre>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="col-sm-6 col-sm-pull-6 prose-column">
+        <label>Request Body</label>
+        <form method="post" action="../jsonrpc">
+          {{ csrf_token() }}
+          <div class="form-group">
+            <textarea name="json" class="form-control">{{ examples[service.name] }}</textarea>
+          </div>
+          <div class="form-group">
+            <input type="submit" class="btn btn-primary" value="Try it!">
+          </div>
+        </form>
+        <div class="form-group">
+          <pre class="output"></pre>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

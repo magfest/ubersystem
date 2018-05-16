@@ -1,0 +1,25 @@
+{% extends "guest_checklist/merch_deadline.html" %}
+
+{%- set HAS_ROCK_ISLAND = c.ROCK_ISLAND in c.GUEST_MERCHS and guest.group_type in c.ROCK_ISLAND_GROUPS -%}
+
+{% block form_extra %}
+  {{ super() }}
+
+  <div id="tax-info">
+    <div class="form-group">
+      <div class="col-sm-6 col-sm-offset-3">Please provide tax info for selling your merch.</div>
+    </div>
+    {{ macros.form_group(guest.merch, 'tax_phone', label="Phone Number", placeholder=guest.info.poc_phone, is_required=True) }}
+    {{ macros.address_form(guest.group) }}
+  </div>
+  <script type="text/javascript">
+      var showOrHideTaxInfo = function() {
+          setVisible('#tax-info', $.val('selling_merch') === {{ c.OWN_TABLE }});
+          $.field('tax_phone').prop('required', $.val('selling_merch') === {{ c.OWN_TABLE }});
+      };
+      $(function() {
+          showOrHideTaxInfo();
+          $.field('selling_merch').on('change', showOrHideTaxInfo);
+      });
+  </script>
+{% endblock %}

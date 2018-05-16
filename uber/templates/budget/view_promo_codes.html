@@ -1,0 +1,145 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}View Promo Codes{% endblock %}
+{% block content %}
+
+<style>
+h1 {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+table .form-control {
+  width: 100%;
+}
+
+table form {
+  display: inline;
+}
+</style>
+
+<script>
+$(document).ready(function() {
+    $('table').on('click', '.delete-button', function(event) {
+        event.preventDefault();
+        var $self = $(this),
+            $formToSubmit = $self.closest('form'),
+            code = $self.data('code');
+        bootbox.confirm({
+            backdrop: true,
+            title: 'Delete "' + code + '"?',
+            message: 'Anyone who has already used this promo code, but has not yet ' +
+                'paid, will lose their discounted badge price. This cannot be undone.',
+            buttons: {
+                confirm: { label: 'Delete Promo Code', className: 'btn-danger' },
+                cancel: { label: 'Nevermind', className: 'btn-default' }
+            },
+            callback: function(result) {
+                if (result) {
+                    $formToSubmit.submit();
+                }
+            }
+        });
+    });
+});
+</script>
+
+<h1>
+  Promo Codes
+  <small><a href="generate_promo_codes">Generate new promo codes</a></small>
+  <button class="btn btn-sm btn-danger pull-right" data-toggle="modal" data-target="#modal-delete-unused">
+    Delete Unused
+  </button>
+</h1>
+<div id="modal-delete-unused" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="title-delete-unused">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="title-delete-unused">Delete all unused promo codes?</h4>
+      </div>
+      <div class="modal-footer">
+        <form method="post" action="delete_promo_codes" class="form-horizontal">
+          {{ csrf_token() }}
+          <button type="button" class="btn btn-default" data-dismiss="modal">Nevermind</button>
+          <button type="submit" class="btn btn-danger">Delete Unused</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="table-responsive">
+  <table class="table table-striped datatable form-horizontal">
+    <thead>
+      <tr>
+        <th>Promo Code</th>
+        <th>Expiration Date</th>
+        <th>Expired?</th>
+        <th>Discount</th>
+        <th>Allowed Uses</th>
+        <th>Number of Uses</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for promo_code in promo_codes %}
+      <tr id="{{ promo_code.id }}">
+        <td data-order="{{ promo_code.code }}" data-search="{{ promo_code.code }}">
+          {{ promo_code.code }}
+        </td>
+        <td data-order="{{ promo_code.expiration_date }}" data-search="{{ promo_code.expiration_date }}">
+          <input type="text" form="update_promo_code_{{ promo_code.id }}" name="expiration_date" class="form-control expiration-date" value="{{ promo_code.expiration_date }}" />
+        </td>
+        <td data-order="{{ promo_code.is_expired }}">
+          {% if promo_code.is_expired %}Expired{% else %}
+          <button type="submit" class="btn btn-sm btn-warning" name="expire" value="1" form="update_promo_code_{{ promo_code.id }}">Expire Now</button>
+          {% endif %}
+        </td>
+        <td data-order="{{ promo_code.discount }}">{{ promo_code.discount_str }}</td>
+        <td data-order="{{ promo_code.uses_allowed }}">
+          <input
+            type="text"
+            form="update_promo_code_{{ promo_code.id }}"
+            name="uses_allowed"
+            class="form-control"
+            size="8"
+            {% if promo_code.is_unlimited -%}
+            placeholder="Unlimited"
+            {%- else -%}
+            value="{{ promo_code.uses_allowed }}"
+            {%- endif -%}/>
+        </td>
+        <td data-order="{{ promo_code.uses_count }}">
+          {{ promo_code.uses_count_str }}, {{ promo_code.uses_remaining_str }}
+          <br>
+          {% for attendee in promo_code.used_by %}
+          <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a>{% if not loop.last %}, {% endif %}
+          {% endfor %}
+        </td>
+        <td class="text-nowrap">
+          <form id="update_promo_code_{{ promo_code.id }}" method="post" action="update_promo_code">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ promo_code.id }}" />
+            <button type="submit" class="btn btn-sm btn-primary update-button">
+              <span class="glyphicon glyphicon-ok"></span>
+            </button>
+          </form>
+          <form method="post" action="delete_promo_codes">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ promo_code.id }}" />
+            {% if promo_code.uses_count > 0 %}
+            <div title="Promo codes that have already been used cannot be deleted" style="display: inline-block;">
+            {% endif %}
+            <button class="btn btn-sm btn-danger delete-button {% if promo_code.uses_count > 0 %}disabled{% endif %}" data-code="{{ promo_code.code }}">
+              <span class="glyphicon glyphicon-trash"></span>
+            </button>
+            {% if promo_code.uses_count > 0 %}
+            </div>
+            {% endif %}
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

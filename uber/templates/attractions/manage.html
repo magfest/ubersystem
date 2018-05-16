@@ -1,0 +1,546 @@
+{% extends "preregistration/preregbase.html" %}
+{% block title %}My Signups{% endblock %}
+{% import 'attractions_macros.html' as attractions_macros with context %}
+
+{% block content %}
+
+{% include 'attractions/attractions_common.html' %}
+{% include 'attractions_badge_num.html' %}
+{% include 'attractions_checkin.html' %}
+
+<style>
+  #notifications {
+
+  }
+
+  #notifications .form-group {
+    margin-bottom: 10px;
+  }
+
+  #notifications .input-group {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  #notifications .input-group-addon {
+    text-align: left;
+  }
+
+  #notifications .input-group-addon:first-child {
+    width: 100px;
+  }
+
+  .checkgroup label,
+  #notifications .input-group-addon,
+  #notifications .input-group-addon input {
+    cursor: pointer;
+  }
+
+  #notifications .input-group.disabled .input-group-addon,
+  #notifications .input-group.disabled .input-group-addon input {
+    cursor: not-allowed;
+  }
+
+  #notifications .input-group-addon .glyphicon {
+    vertical-align: text-top;
+  }
+
+  #notifications .input-group-addon input {
+    margin-right: 6px;
+  }
+
+  #notifications .input-group-addon,
+  #notifications .form-control-static {
+    border-color: #d8d8d8;
+  }
+
+  #notifications .form-control-static {
+    -webkit-box-shadow: none;
+    box-shadow: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #notifications .form-control-static.input-group-addon {
+    cursor: default;
+    padding-top: 9px;
+  }
+
+  #filter {
+    margin: 0 0 10px 0;
+  }
+
+  .header {
+    display: inline-block;
+  }
+
+  .hover-btn {
+    border: 1px solid transparent;
+    border-radius: 3px;
+    padding: 10px;
+    margin-bottom: 20px;
+  }
+
+  .hover-btn:last-child {
+    margin-bottom: 0;
+  }
+
+  .hover-btn:hover {
+    background-color: #f8f8f8;
+    border-color: #b0b0b0;
+  }
+
+  .hover-btn-title {
+    margin-bottom: 5px;
+  }
+
+  .hover-btn-title h2 {
+    display: inline;
+    font-size: 1.125em;
+    margin: 0;
+  }
+
+  .hover-btn-title button {
+    margin: 0 0 10px 10px;
+  }
+
+  .hover-btn-body {
+    padding-left: 0.75em;
+  }
+
+  .hover-btn-body p {
+    margin: 0;
+  }
+
+  .slots {
+    font-size: 1.2em;
+    vertical-align: middle;
+  }
+
+  .checkin_time {
+    font-size: 1.125em;
+    text-align: center;
+  }
+
+  .checkin_time b {
+    font-style: italic;
+  }
+
+  .checked-in { display: none; }
+  .show-checked-in .checked-in { display: block; }
+
+  .checked-in-hidden { display: inline-block; }
+  .checked-in .checked-in-hidden { display: none; }
+  .checked-in-visible { display: none; }
+  .checked-in .checked-in-visible { display: inline-block; }
+
+  .empty-message {
+    font-size: 1.25em;
+    margin: 20px 0;
+  }
+</style>
+
+<script>
+  $(function() {
+    var $container = $('#container')
+        $signupModal = $('#signup_modal'),
+        $showCheckedInButton = $('#filter'),
+        $optout = $('#attractions_opt_out'),
+        $notificationPref = $('input[name="notification_pref"]');
+
+    var toggleShowCheckedIn = function(isShowing) {
+      $showCheckedInButton.toggleClass('btn-plain', !isShowing);
+      $showCheckedInButton.toggleClass('btn-default', isShowing);
+      $container.toggleClass('show-checked-in', !isShowing);
+    };
+    toggleShowCheckedIn({{ has_unchecked_in|string|lower }});
+
+    $showCheckedInButton.on('click', function(event) {
+      event.preventDefault();
+      toggleShowCheckedIn($showCheckedInButton.hasClass('btn-plain'));
+    });
+
+    $optout.on('change', function(event) {
+      var isOptedOut = $optout.prop('checked');
+
+      var callback = function(response) {
+        if(response && response['error']) {
+          $optout.prop('checked', !isOptedOut)
+          toastr.error(response['error'], '', {timeOut: 3000});
+        } else {
+          var message = isOptedOut ?
+            'Attraction signups disabled':
+            'Attraction signups re-enabled';
+          toastr.success(message, '', {timeOut: 3000});
+        }
+      };
+
+      $.ajax({
+        method: 'POST',
+        url: 'opt_out',
+        data: {
+          id: '{{ attendee.id }}',
+          attractions_opt_out: isOptedOut,
+          csrf_token: csrf_token
+        },
+        success: function(response, status) {
+          callback(response);
+        },
+        error: function(response, status, statusText) {
+          callback({'error': 'There was an error changing your preference: ' + statusText});
+        }
+      });
+    });
+
+    $notificationPref.on('change', function(event) {
+      var notificationPref = $(this).val();
+
+      var callback = function(response) {
+        if(response && response['error']) {
+          $optout.prop('checked', !isOptedOut)
+          toastr.error(response['error'], '', {timeOut: 3000});
+        } else {
+          toastr.success('Communication prefs updated', '', {timeOut: 3000});
+        }
+      };
+
+      $.ajax({
+        method: 'POST',
+        url: 'notification_pref',
+        data: {
+          id: '{{ attendee.id }}',
+          notification_pref: notificationPref,
+          csrf_token: csrf_token
+        },
+        success: function(response, status) {
+          callback(response);
+        },
+        error: function(response, status, statusText) {
+          callback({'error': 'There was an error changing your preference: ' + statusText});
+        }
+      });
+    });
+
+    var signupForEvent = function(eventId, extraParams, callback) {
+      $.ajax({
+        method: 'POST',
+        url: 'signup_for_event',
+        data: $.extend({
+          id: eventId,
+          csrf_token: csrf_token
+        }, extraParams),
+        success: function(response, status) {
+          if (response && response['event_id']) {
+            $signupModal.toggleClass('soldout', response['is_sold_out']);
+            $('#' + eventId).toggleClass('soldout', response['is_sold_out']);
+            $('#' + eventId + ' .remaining-slots').text(response['remaining_slots']);
+            callback(response);
+          } else {
+            toastr.error(response['error'] || 'Error signing up for event', '', {timeOut: 3000});
+            callback(false);
+          }
+        },
+        error: function(response, status, statusText) {
+          toastr.error('Error signing up for event', '', {timeOut: 3000});
+          callback(false);
+        }
+      });
+    };
+
+    $signupModal.on('hide.bs.modal', function (event) {
+      toastr.clear();
+    });
+
+    $signupModal.on('show.bs.modal', function (event) {
+      resetBadgeNum($(this));
+    });
+
+    $signupModal.on('shown.bs.modal', function (event) {
+      focusBadgeNum($(this));
+    });
+
+    $signupModal.find('.confirm-row .btn-success').on('click', function (event) {
+      event.preventDefault();
+      var eventId = $signupModal.data('eventId'),
+          eventLabel = $signupModal.data('eventLabel'),
+          $badgeNum = $signupModal.find('input[name=badge_num]');
+
+      signupForEvent(eventId, {badge_num: $badgeNum.val()}, function(response) {
+        if (response) {
+          var $attendee = $signupModal.find('.confirm-row .attendee'),
+              message = ' successfully signed up for ';
+          if (response['remaining_slots'] === response['old_remaining_slots']) {
+            message = ' was already signed up for ';
+          }
+          toastr.info($attendee.html() + message + eventLabel);
+          hideBadgeNumConfirm($signupModal, true);
+        } else {
+          hideBadgeNumConfirm($signupModal, false);
+        }
+      });
+    });
+
+    $container.on('click', '.btn-success', function(event) {
+      event.preventDefault();
+      var $signup = $(this).closest('.hover-btn'),
+          signupId = $signup.data('signupId'),
+          eventId = $signup.data('eventId'),
+          eventLabel = $signup.data('eventLabel'),
+          isSoldout = $signup.hasClass('soldout');
+
+      if (isSoldout) {
+        return;
+      }
+
+      $signupModal.data('eventId', eventId);
+      $signupModal.data('eventLabel', eventLabel);
+      $signupModal.toggleClass('soldout', isSoldout);
+      $('.signup-event-label').html(eventLabel);
+
+      $signupModal.modal('show');
+    });
+
+    $container.on('click', '.btn-danger', function(event) {
+      event.preventDefault();
+      var $signup = $(this).closest('.hover-btn'),
+          signupId = $signup.data('signupId'),
+          eventLabel = $signup.data('eventLabel');
+
+      var callback = function(response) {
+        if(response && response['error']) {
+          toastr.error(response['error'], '', {timeOut: 3000});
+        } else {
+          $signup.fadeOut();
+          toastr.success('Signup for ' + eventLabel + ' successfully cancelled', '', {timeOut: 3000});
+        }
+      };
+
+      bootbox.confirm({
+        backdrop: true,
+        message: '<p>Are you sure you want to cancel your signup for ' + eventLabel + '?</p>',
+        buttons: {
+          confirm: { label: 'Cancel Signup', className: 'btn-danger' },
+          cancel: { label: 'Nevermind', className: 'btn-default' }
+        },
+        callback: function (result) {
+          if (result) {
+            $.ajax({
+              method: 'POST',
+              url: 'cancel_signup',
+              data: {
+                attendee_id: '{{ attendee.id }}',
+                id: signupId,
+                csrf_token: csrf_token
+              },
+              success: function(response, status) {
+                callback(response);
+              },
+              error: function(response, status, statusText) {
+                callback({'error': 'There was an error cancelling the signup: ' + statusText});
+              }
+            });
+          }
+        }
+      });
+    });
+  });
+</script>
+
+<div id="signup_modal" class="modal fade" tabindex="-1" role="dialog" style="display: none"
+    aria-labelledby="signup_modal_title">
+  <div class="modal-dialog modal-md" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+        <h4 class="modal-title">
+          <span class="bling-icon"></span> <span class="signup-event-label"></span>
+        </h4>
+      </div>
+      <div class="modal-body form-horizontal">
+        <div class="hidden-soldout">
+          <p>Want to go as a group? You can sign up some friends below...</p>
+          {{ attractions_macros.badge_num_form('Sign up a friend') }}
+        </div>
+        <div class="form-group text-center visible-soldout-block">
+          <em class="text-danger">This event is <b>SOLD OUT</b>!</em>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default btn-lg btn-xl" data-dismiss="modal">
+          All Done!
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="masthead"></div>
+<div class="panel panel-default">
+  <div class="panel-body">
+    {% block body %}
+      {% include 'attractions_tabs.html' with context %}
+      <div id="container">
+        <h2>Notifications</h2>
+        <div id="notifications" class="row form-horizontal">
+          <div class="col-sm-6">
+            <div class="form-group">
+              <div class="col-sm-12">
+                <div class="checkgroup">
+                  <label>
+                    <input id="attractions_opt_out"
+                        type="checkbox"
+                        value="1"
+                        {%- if attendee.attractions_opt_out %} checked="checked"{% endif %}>
+                    Prevent any more attraction signups
+                  </label>
+                  <p class="help-block">
+                    This will prevent anyone from signing up for attractions
+                    on your behalf. If you see any attraction signups below
+                    that you don't recognize, please cancel them.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="form-group">
+              <div class="col-sm-12">
+                <label>Communication Prefs</label>
+                <em class="text-muted">
+                  Update your info <a href="../preregistration/confirm?id={{ attendee.id }}">here</a>
+                </em>
+              </div>
+              <div class="col-sm-12">
+                <div class="input-group">
+                  <label class="input-group-addon">
+                    <input type="radio"
+                        name="notification_pref"
+                        value="{{ attendee._NOTIFICATION_EMAIL }}"
+                        {%- if attendee.notification_pref == attendee._NOTIFICATION_EMAIL%} checked="checked"{% endif %}>
+                    <span class="glyphicon glyphicon-envelope"></span> Email
+                  </label>
+                  <div class="form-control form-control-static">{{ attendee.email }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="col-sm-12">
+                <div class="input-group{% if not attendee.cellphone %} disabled{% endif %}">
+                  <label class="input-group-addon">
+                    <input type="radio"
+                        name="notification_pref"
+                        value="{{ attendee._NOTIFICATION_TEXT }}"
+                        {%- if not attendee.cellphone %} disabled="disabled"{% endif %}
+                        {%- if attendee.notification_pref == attendee._NOTIFICATION_TEXT %} checked="checked"{% endif %}>
+                    <span class="glyphicon glyphicon-phone"></span> Text
+                  </label>
+                  <div class="form-control form-control-static">
+                    {% if attendee.cellphone %}
+                      {{ attendee.cellphone }}
+                    {% else %}
+                      <em class="text-muted">No phone number</em>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="col-sm-12">
+                <div class="input-group">
+                  <label class="input-group-addon">
+                    <input type="radio"
+                        name="notification_pref"
+                        value="{{ attendee._NOTIFICATION_NONE }}"
+                        {%- if attendee.notification_pref == attendee._NOTIFICATION_NONE %} checked="checked"{% endif %}>
+                    <span class="glyphicon glyphicon-ban-circle"></span> None
+                  </label>
+                  <div class="input-group-addon form-control form-control-static">
+                    <em>Don't notify me about my signups</em>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h2>
+          Signups
+          <small>
+            <a href="index"><span class="glyphicon glyphicon-check"></span> Browse attractions & sign up for events!</a>
+          </small>
+        </h2>
+        {% if signups %}
+          {% if has_checked_in %}
+            <button id="filter" class="btn btn-xs btn-xs btn-default">
+              <span class="glyphicon glyphicon-filter"></span>
+              Show Already Checked In
+            </button>
+          {% endif %}
+
+          <div id="signups">
+            {% for signup in signups %}
+              {%- set is_soldout = signup.event.is_sold_out -%}
+              <div id="{{ signup.event.id }}"
+                  class="hover-btn{% if signup.is_checked_in %} checked-in{% endif %}{% if is_soldout %} soldout{% endif %}"
+                  data-signup-id="{{ signup.id }}"
+                  data-event-id="{{ signup.event.id }}"
+                  data-event-label="{{ signup.event.feature.attraction.name }} – {{ signup.event.label }}">
+                <div class="hover-btn-title">
+                  <button class="btn btn-sm btn-danger pull-right checked-in-hidden">
+                    <span class="glyphicon glyphicon-remove"></span>
+                    Cancel<span class="hidden-xs"> Signup</span>
+                  </button>
+                  <button class="btn btn-sm btn-success pull-right hidden-soldout">
+                    <span class="glyphicon glyphicon-check"></span>
+                    <span class="hidden-xs">Sign up </span>Friends
+                  </button>
+                  <h2>
+                    <span class="bling-icon"></span>
+                    {{ signup.event.feature.attraction.name }} – {{ signup.event.feature.name }}
+                  </h2>
+                </div>
+                <div class="hover-btn-body">
+                  <p class="event-label">
+                    <span class="text-hilite">{{ signup.event.time_span_label }}</span>
+                    <em class="text-nowrap text-muted">{{ signup.event.duration_label }}</em>
+                  </p>
+                  <p class="event-location">
+                    Location: {{ format_location(signup.event.location, separator=' ', spacer='', text_class='') }}
+                  </p>
+                  <p>
+                    <span class="visible-soldout-inline">
+                      <em class="slots">SOLD OUT</em> all
+                      <em class="slots">{{ signup.event.slots }}</em>
+                      slot{{ signup.event.slots|pluralize }} taken
+                    </span>
+                    <span class="hidden-soldout">
+                      <em class="slots remaining-slots">{{ signup.event.remaining_slots }}</em> out of
+                      <em class="slots total-slots">{{ signup.event.slots }}</em>
+                      slot{{ signup.event.slots|pluralize }} available
+                    </span>
+                  </p>
+                  {% if not signup.is_checked_in %}
+                    <p class="checkin_time checkin_time">
+                      Checkin is at <b>{{ signup.event.checkin_start_time_label }}</b>
+                    </p>
+                  {% else %}
+                    <p class="checkin_time text-success">
+                      Checked in at {{ signup.checkin_time_label }}
+                    </p>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-center">
+            <p class="empty-message help-block"><em>You are not signed up for any events!</em></p>
+          </div>
+        {% endif %}
+      </div>
+    {% endblock %}
+  </div>
+</div>
+{% endblock %}

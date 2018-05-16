@@ -1,0 +1,331 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}{{ attraction.name }} Check In{% endblock %}
+
+{% import 'attractions_macros.html' as attractions_macros with context %}
+
+{% block content %}
+<style type="text/css">
+  h2 {
+    margin: 0 0 2px 0;
+    font-size: 20px
+  }
+
+  #container {
+    max-width: 1024px;
+    margin: 0 auto;
+  }
+
+  .signup-body {
+    border: 1px solid transparent;
+    border-radius: 3px;
+    padding: 10px;
+  }
+
+  .signup-body:hover {
+    background-color: #f8f8f8;
+    border-color: #b0b0b0;
+  }
+
+  .signup-body .btn-success {
+    margin: 0 0 4px 4px;
+  }
+
+  .attendee,
+  .badge-num-form,
+  #filter,
+  .signup {
+    margin-bottom: 24px;
+  }
+
+  .attendee label {
+    color: #666;
+    margin: 0;
+  }
+
+  .attendee sup {
+    color: #808080;
+  }
+
+  .empty-message {
+    font-size: 2em;
+    font-style: italic;
+  }
+
+  .checked-in { display: none; }
+  .checked-in-force-visible,
+  .show-checked-in .checked-in { display: block; }
+
+  .checked-in-visible { display: none; }
+  .checked-in .checked-in-visible { display: inline-block; }
+
+  .checked-in-hidden { display: inline-block; }
+  .checked-in .checked-in-hidden { display: none; }
+
+  .attendee,
+  #filter {
+    display: none;
+  }
+
+  .has-attendee .attendee,
+  .has-attendee #filter {
+    display: inline-block;
+  }
+
+  .form-horizontal .has-feedback .form-control-feedback {
+    color: #808080;
+    right: 0;
+  }
+
+  .form-horizontal .has-feedback .form-control-feedback:hover {
+    color: #333;
+    cursor: pointer;
+  }
+</style>
+
+{% include 'barcode_client.html' %}
+{% include 'attractions_checkin.html' %}
+
+<script>
+
+  $(function() {
+    var $container = $('#container'),
+        $badgeNum = $('input[name=badge_num]'),
+        $signups = $('#signups'),
+        $showCheckedInButton = $('#filter'),
+        $attendee = $('#attendee');
+
+    $('input[name=badge_num]').barcodeField({
+      blurOnKeys: ['~', '\\'],
+      detectBadgeNum: true,
+      autoSubmitForm: 'form.badge-num-form'
+    });
+
+    var updateAttendee = function(attendee) {
+      $container.toggleClass('has-attendee', !!attendee);
+      if(attendee) {
+        $attendee.find('.name').text(attendee.first_name + ' ' + attendee.last_name);
+        $attendee.find('.badge_num').text('#' + attendee.badge_num);
+        $attendee.find('.email').text(attendee.email);
+        $attendee.find('.cellphone').text(attendee.cellphone);
+        $attendee.find('.birthdate').text(attendee.birthdate ? moment(attendee.birthdate).format('MMMM D, YYYY') : '');
+        $attendee.find('.zip_code').text(attendee.zip_code);
+      } else {
+        $attendee.find('.name').text('');
+        $attendee.find('.badge_num').text('');
+        $attendee.find('.email').text('');
+        $attendee.find('.cellphone').text('');
+        $attendee.find('.birthdate').text('');
+        $attendee.find('.zip_code').text('');
+      }
+    };
+
+    var updateSignupTemplate = function($signup, signup) {
+      $signup.data('signupId', signup.id);
+      $signup.toggleClass('checked-in', signup.is_checked_in);
+      $signup.find('.feature_name').text(signup.event.feature.name);
+      $signup.find('.event_time_span_label').text(signup.event.time_span_label);
+      $signup.find('.event_location_label').text(signup.event.location_label);
+    };
+
+    var resetSignups = function() {
+      updateAttendee();
+      $signups.html('');
+    };
+
+    var setEmpty = function() {
+      $signups.html('<div class="text-center text-danger empty-message">No signups found!</div>');
+      toggleShowCheckedIn(true);
+    };
+
+    var getSignups = function(badgeNum) {
+      resetSignups();
+
+      if (!badgeNum) {
+        $badgeNum.focus();
+        return;
+      }
+
+      $.ajax({
+        method: 'POST',
+        url: 'get_signups',
+        data: {
+          badge_num: badgeNum,
+          attraction_id: '{{ attraction.id }}',
+          csrf_token: csrf_token
+        },
+        success: function(response, status) {
+          if(response && response['error']) {
+            toastr.error(response['error'], '', {timeOut: 3000});
+
+          } else if(response && response['result']) {
+            updateAttendee(response['result']['attendee']);
+
+            if(response['result']['signups'].length) {
+              var signups = response['result']['signups'],
+                  len = signups.length,
+                  $template = $('#signup_template > .signup');
+
+              var hasUncheckedIn = false;
+              $signups.html('');
+              for (var i = 0; i < len; i++) {
+                var signup = signups[i],
+                    $signup = $template.clone();
+                updateSignupTemplate($signup, signup);
+                $signups.append($signup);
+
+                if(!signup.is_checked_in) {
+                  hasUncheckedIn = true;
+                }
+              }
+              toggleShowCheckedIn(hasUncheckedIn);
+
+            } else {
+              setEmpty();
+            }
+          } else {
+            setEmpty();
+          }
+          $badgeNum.focus();
+        },
+        error: function(response, status, statusText) {
+          toastr.error('Error searching badge number: ' + statusText, '', {timeOut: 3000});
+          $badgeNum.focus();
+        }
+      });
+    };
+
+    var toggleShowCheckedIn = function(isShowing) {
+      $showCheckedInButton.toggleClass('btn-plain', !isShowing);
+      $showCheckedInButton.toggleClass('btn-default', isShowing);
+      $container.toggleClass('show-checked-in', !isShowing);
+    };
+
+    $showCheckedInButton.on('click', function(event) {
+      event.preventDefault();
+      toggleShowCheckedIn($showCheckedInButton.hasClass('btn-plain'));
+    });
+
+    $('.form-control-feedback').on('click', function(event) {
+      event.preventDefault();
+      $badgeNum.val('');
+      getSignups('');
+      $badgeNum.focus();
+    });
+
+    $signups.on('click', '.btn-success', function(event) {
+      event.preventDefault();
+      var $signup = $(this).closest('.signup'),
+          signupId = $signup.data('signupId');
+      checkinSignup(signupId, function(response) {
+        if(response && response['error']) {
+          toastr.error(response['error'], '', {timeOut: 3000});
+        } else {
+          $signup.addClass('checked-in').addClass('checked-in-force-visible');
+        }
+      });
+    });
+
+    $signups.on('click', '.btn-warning', function(event) {
+      event.preventDefault();
+      var $signup = $(this).closest('.signup'),
+          signupId = $signup.data('signupId');
+      undoCheckinSignup(signupId, function(response) {
+        if(response && response['error']) {
+          toastr.error(response['error'], '', {timeOut: 3000});
+        } else {
+          $signup.removeClass('checked-in').removeClass('checked-in-force-visible');
+        }
+      });
+    });
+
+    $('.badge-num-form').on('submit', function(event) {
+      event.preventDefault();
+      var $form = $(this),
+          $badgeNum = $form.find('input[name=badge_num]');
+      getSignups($badgeNum.val());
+    });
+  });
+
+</script>
+
+<h1>
+  <span class="glyphicon glyphicon-check"></span>
+  {{ attraction|form_link }} Check In
+</h1>
+
+<div id="container">
+  <form class="form-horizontal badge-num-form" method="post" action="get_signups" role="form">
+    <div class="form-group">
+      <label class="col-sm-offset-2 col-sm-8">
+        <span class="badge-num-label">Badge Number</span>
+      </label>
+      <div class="col-sm-offset-2 col-sm-8">
+        <div class="badge-num-row row">
+          <div class="col-xs-6" style="padding-right: 7px;">
+            <div class="has-feedback">
+              <input class="form-control input-lg text-center"
+                  type="text"
+                  name="badge_num"
+                  placeholder="Badge #"
+                  autofocus="autofocus"
+                  min="1">
+              <span class="glyphicon glyphicon-remove form-control-feedback" aria-hidden="true"></span>
+            </div>
+          </div>
+          <div class="col-xs-6" style="padding-left: 8px;">
+            <button type="submit" class="btn btn-lg btn-primary" style="width: 100%">
+              <span class="glyphicon glyphicon-user"></span> Search
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+  <div id="signup_template" style="display: none;">
+    <div class="signup row">
+      <div class="col-sm-offset-2 col-sm-8">
+        <div class="signup-body">
+          <button class="btn btn-success btn-lg pull-right checked-in-hidden">
+            <span class="glyphicon glyphicon-check"></span>
+            Check In
+          </button>
+          <button class="btn btn-warning btn-lg pull-right checked-in-visible">
+            <span class="glyphicon glyphicon-check"></span>
+            Undo
+          </button>
+          <h2 class="feature_name"></h2>
+          <div class="event_time_span_label"></div>
+          <div class="event_location_label"></div>
+          <div class="clearfix"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="text-center">
+    <div id="attendee" class="attendee text-left">
+      <h2 class="ident">
+        <span class="name"></span>{#- strip -#}
+        <sup class="badge_num"></sup>
+      </h2>
+      <div class="email"></div>
+      <div class="cellphone"></div>
+      <div>
+        <label>Birthdate</label>
+        <span class="birthdate"></span>
+      </div>
+      <div>
+        <label>Zip Code</label>
+        <span class="zip_code"></span>
+      </div>
+    </div>
+  </div>
+  <div class="text-center">
+    <button id="filter" class="btn btn-xs btn-xs btn-default">
+      <span class="glyphicon glyphicon-filter"></span>
+      Show Already Checked In
+    </button>
+  </div>
+  <div id="signups"></div>
+</div>
+
+{% endblock %}

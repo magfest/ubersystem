@@ -1,0 +1,48 @@
+{% if snippet %}
+  <tr>
+    <td width="25">{{ macros.checklist_image(guest.stage_plot_status) }}</td>
+    <td><b><a href="stage_plot?guest_id={{ guest.id }}">
+      {% block deadline_headline %}Stage Layouts & Tech Requests{% endblock %}</a></b></td>
+    <td><i>Deadline:</i> {{ guest.deadline_from_model('stage_plot')|datetime_local }}</td>
+  </tr>
+  <tr>
+    <td colspan="3">
+      {% block deadline_text %}
+        We require that you upload an exact description of your desired stage layout.
+        Also include any needed extra rental requests, set lists, information regarding
+        video/visuals, etc...
+        <br/></br>
+        Failure to do so may result in you not receiving the setup you expect or want.
+      {% endblock %}
+      <br/></br>
+    </td>
+  </tr>
+{% else %}
+  <h2>{% block form_title %}Stage Layout for {{ guest.group.name }}{% endblock %}</h2>
+
+  {% block form_desc %}
+    {% if guest.stage_plot_status %}
+      <a href="{{ guest.stage_plot.url }}">Click here to view the stage layouts you uploaded.</a>
+      <br/><br/>
+      Need to update something?
+    {% endif %}
+
+    Please upload your desired stage layouts. Also include any needed extra rental
+    requests, set lists, information regarding video/visuals, etc...
+    <br/><br/>
+    This can be in the form of written directions, an image, PDF, or a zipfile
+    containing a collection of files explaining what you need.
+  {% endblock %}
+
+  <br/><br/>
+
+  <form method="post" action="stage_plot" enctype="multipart/form-data">
+    <input type="hidden" name="guest_id" value="{{ guest.id }}" />
+    <input type="hidden" name="id" value="{{ guest_stage_plot.db_id }}" />
+    {{ csrf_token() }}
+    <input type="file" name="plot" />
+    <br>
+    {% block form_extra %}{% endblock %}
+    <input type="submit" class="btn btn-primary" value="Upload Desired Stage Layouts" />
+  </form>
+{% endif %}

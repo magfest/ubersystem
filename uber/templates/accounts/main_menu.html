@@ -1,16 +1,16 @@
 
 <script type="text/javascript">
     var mainMenuDropdownChanged = function () {
-        window.location = "bulk?location=" + $("#location").val();
+        window.location = "bulk?department_id=" + $("#department_id").val();
     };
 </script>
 
 <table style="text-align:center">
 <tr>
     <td width="50%">
-        <select id="location" style="font-size:14pt ; font-weight:bold" onChange="mainMenuDropdownChanged()">
+        <select id="department_id" style="font-size:14pt ; font-weight:bold" onChange="mainMenuDropdownChanged()">
             <option>All</option>
-            {{ options(c.JOB_LOCATION_OPTS, default=location) }}
+            {{ options(c.DEPARTMENT_OPTS, default=department_id) }}
         </select>
     </td>
 </tr>

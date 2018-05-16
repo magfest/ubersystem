@@ -1,0 +1,281 @@
+{% import 'macros.html' as macros %}
+
+{% macro attendee_name(attendee=None, field='first_name', salutation='') %}
+  <div class="attendee"{% if not attendee %} style="display:none"{% endif %}>{#- strip -#}
+    <span class="salutation">{{ salutation }}</span>{#- strip -#}
+    <span class="ident">{#- strip -#}
+      <span class="name">{{ attendee[field] }}</span>
+      <sup class="badge-num">#{{ attendee.badge_num }}</sup>{#- strip -#}
+    </span>{#- strip -#}
+  </div>
+{% endmacro %}
+
+
+{% macro greeting(attendee=None) %}
+  <div class="greeting"{% if not attendee %} style="display:none"{% endif %}>{#- strip -#}
+    {{ attendee_name(attendee, 'Hello ') }}{#- strip -#}
+    <a href="index" class="label label-danger label-danger-empty logout">I'm somebody else, log out!</a>{#- strip -#}
+  </div>
+  <div class="clearfix"></div>
+{% endmacro %}
+
+
+{% macro badge_num_form(label='Sign up', confirm_label='Is this right?') %}
+  <form class="form-horizontal badge-num-form" method="post" action="verify_badge_num" role="form">
+    <div class="form-group">
+      <label class="col-sm-offset-2 col-sm-8">
+        <span class="badge-num-label">{{label }}</span>
+        <span class="confirm-label" style="display: none;">{{ confirm_label }}</span>
+        <span>&nbsp;</span>
+      </label>
+      <div class="col-sm-offset-2 col-sm-8 slide-box">
+        <div class="badge-num-row row">
+          <div class="col-xs-6" style="padding-right: 7px;">
+            <input class="form-control input-lg text-center"
+                type="number"
+                name="badge_num"
+                placeholder="Badge #"
+                required="required"
+                min="1">
+          </div>
+          <div class="col-xs-6" style="padding-left: 8px;">
+            <button class="btn btn-lg btn-success" style="width: 100%">
+              <span class="glyphicon glyphicon-ok"></span> Sign up
+            </button>
+          </div>
+        </div>
+        <div class="confirm-row row" style="display: none;">
+          <div class="col-xs-12">
+            <div class="attendee form-control-static">
+              <span class="name"></span>
+              <sup class="badge-num"></sup>
+            </div>
+            <div class="controls pull-right">
+              <button class="btn btn-lg btn-danger">
+                <span class="glyphicon glyphicon-remove"></span>
+              </button>
+              <button class="btn btn-lg btn-success">
+                <span class="glyphicon glyphicon-ok"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+{% endmacro %}
+
+
+{% macro form_datetime(model, field_name) %}
+  {%- set is_class = model is class -%}
+  {%- set html_id = model.__name__|lower if is_class else model.__class__.__name__|lower ~ '_' ~ model.id -%}
+  {%- set value = c.EPOCH if is_class else [c.EPOCH, [c.ESCHATON, model[field_name].astimezone(c.EVENT_TIMEZONE)]|sort|first]|sort|last -%}
+  <div id="{{ html_id }}" class="input-group">
+    <input
+        name="{{ field_name }}"
+        type="text"
+        class="form-control"
+        value="{{ value.strftime('%-m/%-d/%Y %-I:%M %p') }}">
+    <span class="input-group-addon">
+      <span class="glyphicon glyphicon-calendar"></span>
+    </span>
+  </div>
+  <script>
+    $('#{{ html_id }} input[name="{{ field_name }}"]').datetimepicker({
+      sideBySide: true,
+      useCurrent: false,
+      defaultDate: '{{ value.isoformat() }}',
+      minDate: '{{ c.EPOCH.isoformat() }}',
+      maxDate: '{{ c.ESCHATON.isoformat() }}',
+      format: 'M/D/Y h:mm A'
+    });
+  </script>
+{% endmacro %}
+
+
+{% macro form_duration(model, field_name, min=0) %}
+  {%- set is_class = model is class -%}
+  {%- set html_id = model.__name__|lower if is_class else model.__class__.__name__|lower ~ '_' ~ model.id -%}
+  <div id="{{ html_id }}" class="row">
+    <input name="{{ field_name }}" type="hidden" value="{{ 900 if is_class else model[field_name] }}">
+    <div class="col-xs-6" style="padding-right: 10px;">
+      <div class="input-group">
+        <input
+            type="number"
+            {% if min is not none %}min="{{ min }}"{% endif %}
+            value="{{ 0 if is_class else timedelta_component(seconds=model[field_name], units='hours') }}"
+            class="form-control {{ field_name ~ '_hours' }}">
+        <span class="input-group-addon">hours</span>
+      </div>
+    </div>
+    <div class="col-xs-6" style="padding-left: 5px;">
+      <div class="input-group">
+        <input
+            type="number"
+            {% if min is not none %}min="{{ min }}"{% endif %}
+            value="{{ 15 if is_class else timedelta_component(seconds=model[field_name], units='minutes') }}"
+            class="form-control {{ field_name ~ '_minutes' }}">
+        <span class="input-group-addon">minutes</span>
+      </div>
+    </div>
+  </div>
+  <script>
+    $('#{{ html_id }} input[type="number"]').on('keyup blur change', function() {
+      try {
+        var hours = parseInt($('#{{ html_id }} input.{{ field_name ~ "_hours" }}').val().trim() || 0);
+        var minutes = parseInt($('#{{ html_id }} input.{{ field_name ~ "_minutes" }}').val().trim() || 0);
+        if ($.isNumeric(hours) && $.isNumeric(minutes)) {
+          {% if min is none %}
+          var seconds = (hours * 3600) + (minutes * 60);
+          {% else %}
+          var seconds = (Math.max(hours, 0) * 3600) + (Math.max(minutes, 0) * 60);
+          {% endif %}
+          $('#{{ html_id }} input[name="{{ field_name }}"]').val(seconds);
+        }
+      } catch(ex) {}
+    });
+  </script>
+{% endmacro %}
+
+
+{% macro attraction_form(attraction) %}
+  {%- set is_class = attraction is class -%}
+  {{ csrf_token() }}
+  <input type="hidden" name="id" value="{{ 'None' if attraction is class else attraction.id }}">
+  {{ macros.form_group(attraction, 'name', is_focused=True, is_required=True) }}
+  {{ macros.form_group(
+      attraction,
+      'description',
+      type='textarea',
+      is_required=True,
+      help="This description will be displayed to attendees when they're signing up.") }}
+  <div class="form-group">
+    <div class="col-sm-offset-3 col-sm-9">
+      <label class="checkbox-label">
+        <input type="checkbox" name="is_public" value="1"
+            {%- if not is_class and attraction.is_public %} checked="checked"{% endif %}/>
+        Open to the public
+      </label>
+      <p class="help-block">
+        This attraction will not be visible to attendees for signup until it is marked as open to the public.
+      </p>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Belongs to Department</label>
+    <div class="col-sm-6">
+      <select name="department_id" class="form-control">
+        <option value="">This attraction doesn't belong to any department</option>
+        {% if not is_class
+              and attraction.department_id
+              and attraction.department_id not in admin_account.attendee.assigned_depts_ids %}
+          <option value="{{ attraction.department_id }}" selected="selected">
+            {{ attraction.department.name }}
+          </option>
+        {% endif %}
+        {{ options(admin_account.attendee.assigned_depts_opts, attraction.department_id) }}
+      </select>
+    </div>
+    <div class="col-sm-offset-3 col-sm-9 help-block">
+      If the attraction belongs to a department, then department heads can
+      also edit it.
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Attendance Restriction</label>
+    <div class="col-sm-6">
+      <select name="restriction" class="form-control">
+        {%- set restriction = 0 if is_class else attraction.restriction -%}
+        {{ options(attraction._RESTRICTION_OPTS, restriction) }}
+      </select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Required Checkin</label>
+    <div class="col-sm-6">
+      <select name="advance_checkin" class="form-control">
+        {%- set advance_checkin = 0 if is_class else attraction.advance_checkin -%}
+        {{ options(attraction._ADVANCE_CHECKIN_OPTS, advance_checkin) }}
+      </select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Notifications</label>
+    <div class="col-sm-9">
+      <div class="form-control-static advance_notices">
+        <div>
+          Attendees who have <b>not</b> checked in for an event will be notified:
+        </div>
+        <div class="form-inline notification">
+          <select name="advance_notices" class="form-control" style="width: auto; display: inline-block;">
+            {{ options(attraction._ADVANCE_NOTICES_OPTS, attraction.advance_notices) }}
+          </select>
+          <span class="glyphicon glyphicon-plus-sign"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .notification {
+      margin-top: 8px;
+    }
+
+    .advance_notices .glyphicon-plus-sign,
+    .advance_notices .glyphicon-minus-sign {
+      font-size: 28px;
+      vertical-align: middle;
+    }
+
+    .advance_notices .glyphicon-plus-sign:hover,
+    .advance_notices .glyphicon-minus-sign:hover {
+      opacity: 0.8;
+      cursor: pointer;
+    }
+
+    .advance_notices .glyphicon-plus-sign { color: #60b060; }
+    .advance_notices .glyphicon-minus-sign { color: #e06060; }
+  </style>
+
+  <script>
+    $(function() {
+      var $advance_notices = $('.advance_notices'),
+          $notification = $advance_notices.children('.notification'),
+          $select = $notification.children('select'),
+          $button = $('.advance_notices .glyphicon-plus-sign'),
+          template = $notification[0].outerHTML;
+
+      var insertNotification = function(value) {
+        $newNotification = $(template);
+        $newNotification.insertBefore($notification);
+        $newNotification.find('.glyphicon-plus-sign')
+          .removeClass('glyphicon-plus-sign').addClass('glyphicon-minus-sign');
+        $newSelect = $newNotification.children('select');
+        $newSelect.val(value);
+      };
+
+      $advance_notices.on('click', '.glyphicon-minus-sign', function(event) {
+        event.preventDefault();
+        var $notification = $(this).closest('.notification');
+        $notification.remove();
+      });
+
+      $button.on('click', function(event) {
+        event.preventDefault();
+        currentVal = $select.val();
+        insertNotification(currentVal);
+        $select.val($select.children('option[value="' + currentVal + '"]').next().prop('value'));
+      });
+
+      var ns = {{ '[900]' if attraction is class else attraction.advance_notices }},
+          nsLength = ns.length;
+
+      if(nsLength > 0) {
+        for(var i = 0; i < nsLength - 1; i++) {
+          insertNotification(ns[i]);
+        }
+        $select.val(ns[nsLength - 1]);
+      }
+    });
+  </script>
+{% endmacro %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Panel Feedback{% endblock %}}
+{% block content %}
+
+<script>
+    var toggleCount = function (checkbox, fieldName) {
+        var field = $.field(fieldName);
+        var unchecked = $(checkbox).is(':not(:checked)');
+        setVisible(field, unchecked);
+        if (unchecked) {
+            field.val('0');
+        }
+    };
+</script>
+
+<div class="masthead"></div>
+<div class="panel panel-default">
+  <div class="panel-body">
+    <h2>Feedback for {{ event.name }}</h2>
+    <form method="post" action="panel_feedback" class="form-horizontal" role="form">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ feedback.db_id }}" />
+        <input type="hidden" name="event_id" value="{{ event.id }}" />
+        <div class="form-group">
+            <label class="col-sm-2 control-label">Rating:</label>
+            <div class="col-sm-6">
+                <select class="form-control" name="rating">
+                    {{ options(c.PANEL_RATING_OPTS, feedback.rating) }}
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="col-sm-2 control-label">Attendance 5 minutes after start:</label>
+            <div class="col-sm-6">
+                <input class="form-control" type="number" name="headcount_starting" value="{{ feedback.headcount_starting }}" />
+                <input type="checkbox" onClick="toggleCount(this, 'headcount_starting')" />
+                I don't know.
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="col-sm-2 control-label">Attendance 15 minutes after start:</label>
+            <div class="col-sm-6">
+                <input class="form-control" type="number" name="headcount_during" value="{{ feedback.headcount_during }}" />
+                <input type="checkbox" onClick="toggleCount(this, 'headcount_during')" />
+                I don't know.
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="col-sm-2 control-label">Overall Comments:</label>
+            <div class="col-sm-6">
+                <textarea class="form-control" name="comments" rows="4">{{ feedback.comments }}</textarea>
+            </div>
+        </div>
+        <div class="form-group">
+            <div class="col-sm-6 col-sm-offset-2">
+                <button type="submit" class="btn btn-primary">Save Feedback</button>
+            </div>
+        </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

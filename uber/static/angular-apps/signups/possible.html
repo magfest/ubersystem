@@ -27,7 +27,7 @@
         {{ job.name }}
         <sup ng-if="job.description" style="color:blue ; cursor:pointer" title="{{ job.description }}" ng-click="showDesc(job)">?</sup>
     </td>
-    <td>{{ job.location_label }}</td>
+    <td>{{ job.department_name }}</td>
     <td>{{ job.start_time_local|hourDay }}</td>
     <td>{{ job.duration }} hours<span ng-if="job.extra15">, 15 minutes</span></td>
     <td>x{{ job.weight }}</td>
