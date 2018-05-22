@@ -84,6 +84,7 @@
         <label for="categories" class="col-sm-3 control-label">What kinds of things do you sell?</label>
         <div class="col-sm-9">
             {{ macros.checkgroup(group, 'categories') }}
+            <input type="hidden" name="categories" value="{{ group.categories }}" disabled />
         </div>
         <div class="clearfix"></div>
         <div class="col-sm-6 col-sm-offset-3">

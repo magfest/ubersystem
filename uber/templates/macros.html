@@ -379,6 +379,13 @@
 
           $('#region{{ suffix }}').val('{{ model[region_attr] }}');
           regionChange{{ suffix }}();
+          {% if model.status in [c.APPROVED, c.CANCELLED, c.DECLINED] and not admin_area %}
+        $(function() {
+            $("[name='group_region']").prop("disabled", false);
+            $("select[name='group_region']").prop("disabled", true);
+            $("[placeholder='Country']").prop("readonly", true);
+        });
+      {% endif %}
       });
   </script>
 
@@ -410,6 +417,7 @@
   <div class="form-group address_details{{ suffix }}">
     <label for="region{{ suffix }}" class="col-sm-3 control-label">State/Region</label>
     <div class="col-sm-6">
+      <input type="hidden" name="{{ name_prefix }}region" value="{{ model[region_attr] }}" id="hidden_region{{ suffix }}" disabled />
       <input type="text" name="{{ name_prefix }}region" id="region{{ suffix }}" class="form-control" placeholder="State/Province" value="{{ model[region_attr] }}" autocomplete="address-level1" {% if is_required %}required="required"{% endif %}/>
     </div>
   </div>

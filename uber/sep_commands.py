@@ -169,7 +169,7 @@ def decline_and_convert_dealer_groups():
         for group in groups:
             print('{}: {}'.format(
                 group.name,
-                _decline_and_convert_dealer_group(session, group, False)))
+                _decline_and_convert_dealer_group(session, group)))
 
 
 @entry_point
