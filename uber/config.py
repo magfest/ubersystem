@@ -422,6 +422,16 @@ class Config(_Overridable):
             if badge_type not in opts:
                 opts.append(
                     (badge_type, '{} (${})'.format(self.BADGES[badge_type], self.BADGE_TYPE_PRICES[badge_type])))
+            opts.append((self.ATTENDEE_BADGE, 'Standard (${})'.format(self.BADGE_PRICE)))
+        if self.SHINY_BADGE_AVAILABLE and c.SHINY_BADGE not in opts:
+            opts.append(
+                (c.SHINY_BADGE, '{} (${})'.format(self.BADGES[c.SHINY_BADGE], self.BADGE_TYPE_PRICES[c.SHINY_BADGE])))
+        if self.SPONSOR_BADGE_AVAILABLE and c.SPONSOR_BADGE not in opts:
+            opts.append((c.SPONSOR_BADGE,
+                         '{} (${})'.format(self.BADGES[c.SPONSOR_BADGE], self.BADGE_TYPE_PRICES[c.SPONSOR_BADGE])))
+        """for badge_type in self.BADGE_TYPE_PRICES:
+            if badge_type not in opts and getattr(self, badge_type.upper() + '_AVAILABLE', None):
+                opts.append((badge_type, '{} (${})'.format(self.BADGES[badge_type], self.BADGE_TYPE_PRICES[badge_type])))"""
         if self.ONE_DAYS_ENABLED:
             if self.PRESELL_ONE_DAYS:
                 day = max(uber.utils.localized_now(), self.EPOCH)
@@ -868,7 +878,10 @@ if c.ONE_DAYS_ENABLED and c.PRESELL_ONE_DAYS:
         c.BADGE_OPTS.append((_val, _name))
         c.BADGE_VARS.append(_name.upper())
         c.BADGE_RANGES[_val] = c.BADGE_RANGES[c.ONE_DAY_BADGE]
-        c.TRANSFERABLE_BADGE_TYPES.append(_val)
+        if c.ONE_DAY_BADGE in c.TRANSFERABLE_BADGE_TYPES:
+            c.TRANSFERABLE_BADGE_TYPES.append(_val)
+        if c.ONE_DAY_BADGE in c.PREASSIGNED_BADGE_TYPES:
+            c.PREASSIGNED_BADGE_TYPES.append(_val)
         _day += timedelta(days=1)
 
 c.MAX_BADGE = max(xs[1] for xs in c.BADGE_RANGES.values())

@@ -845,7 +845,7 @@ class Root:
         raise HTTPRedirect('new?message={}&checked_in={}', message, checked_in)
 
     @unrestricted
-    def arbitrary_charge_form(self, message='', amount=None, description=''):
+    def arbitrary_charge_form(self, message='', amount=None, description='', sale_id=None):
         charge = None
         if amount is not None:
             if not amount.isdigit() or not (1 <= int(amount) <= 999):
@@ -859,7 +859,8 @@ class Root:
             'charge': charge,
             'message': message,
             'amount': amount,
-            'description': description
+            'description': description,
+            'sale_id': sale_id
         }
 
     @unrestricted
@@ -875,7 +876,7 @@ class Root:
                 what=charge.description,
                 reg_station=cherrypy.session.get('reg_station')
             ))
-            raise HTTPRedirect('arbitrary_charge_form?message={}', 'Charge successfully processed')
+            raise HTTPRedirect('new?message={}', 'Charge successfully processed')
 
     def reg_take_report(self, session, **params):
         if params:
