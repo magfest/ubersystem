@@ -419,7 +419,7 @@ class Root:
     def group_members(self, session, id, message='', **params):
         group = session.group(id)
         charge = Charge(group)
-        if group.status != c.APPROVED and 'name' in params:
+        if cherrypy.request.method == 'POST':
             # Both the Attendee class and Group class have identically named
             # address fields. In order to distinguish the two sets of address
             # fields in the params, the Group fields are prefixed with "group_"
