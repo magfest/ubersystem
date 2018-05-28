@@ -18,7 +18,7 @@ from uber.models import Attendee, AutomatedEmail, Session
 from uber.utils import after, before
 
 
-NOW = datetime(year=2016, month=8, day=10, hour=12, tzinfo=c.EVENT_TIMEZONE)
+NOW = c.EVENT_TIMEZONE.localize(datetime(year=2016, month=8, day=10, hour=12, tzinfo=None))
 TWO_DAYS_FROM_NOW = NOW + timedelta(days=2)
 TOMORROW = NOW + timedelta(days=1)
 YESTERDAY = NOW - timedelta(days=1)

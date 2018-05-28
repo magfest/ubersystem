@@ -4,6 +4,8 @@ from collections import defaultdict
 from datetime import timedelta
 
 import cherrypy
+import six
+from dateutil import parser as dateparser
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
@@ -11,6 +13,12 @@ from uber.decorators import ajax, all_renderable, csv_file, log_pageview, site_m
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Group, MPointsForCash, PromoCode, PromoCodeWord, Sale, Session
 from uber.utils import check, check_all, localized_now
+
+
+def _normalize_expiration_date(dt):
+    if isinstance(dt, six.string_types):
+        dt = dateparser.parse(dt)
+    return c.EVENT_TIMEZONE.localize(dt.replace(hour=23, minute=59, second=59, tzinfo=None))
 
 
 def prereg_money(session):
@@ -137,6 +145,7 @@ class Root:
         params = dict(defaults, **{k: v for k, v in params.items() if k in defaults})
 
         params['code'] = params['code'].strip()
+        params['expiration_date'] = _normalize_expiration_date(params['expiration_date'])
 
         try:
             params['count'] = int(params['count'])
@@ -212,6 +221,7 @@ class Root:
 
     def update_promo_code(self, session, message='', **params):
         if 'id' in params:
+            params['expiration_date'] = _normalize_expiration_date(params['expiration_date'])
             promo_code = session.promo_code(params)
             message = check(promo_code)
             if message:
