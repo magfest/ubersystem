@@ -4,6 +4,8 @@ import string
 import textwrap
 from collections import OrderedDict
 
+import six
+from dateutil import parser as dateparser
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime
 from sqlalchemy import func, select, CheckConstraint
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -235,6 +237,15 @@ class PromoCode(MagModel):
 
     _repr_attr_names = ('code',)
 
+    @classmethod
+    def normalize_expiration_date(cls, dt):
+        """
+        Converts the given datetime to 11:59pm local in the event timezone.
+        """
+        if isinstance(dt, six.string_types):
+            dt = dateparser.parse(dt)
+        return c.EVENT_TIMEZONE.localize(dt.replace(hour=23, minute=59, second=59, tzinfo=None))
+
     @property
     def discount_str(self):
         if not self.discount:
@@ -338,6 +349,9 @@ class PromoCode(MagModel):
         else:
             # Replace multiple whitespace characters with a single space
             self.code = re.sub(r'\s+', ' ', self.code)
+
+        # Always make expiration_date 11:59pm of the given date
+        self.expiration_date = self.normalize_expiration_date(self.expiration_date)
 
     def calculate_discounted_price(self, price):
         """

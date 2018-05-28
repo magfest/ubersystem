@@ -137,6 +137,7 @@ class Root:
         params = dict(defaults, **{k: v for k, v in params.items() if k in defaults})
 
         params['code'] = params['code'].strip()
+        params['expiration_date'] = PromoCode.normalize_expiration_date(params['expiration_date'])
 
         try:
             params['count'] = int(params['count'])

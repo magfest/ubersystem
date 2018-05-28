@@ -310,7 +310,7 @@ $(document).ready(function() {
     <div class="form-group">
       <label for="expiration_date" class="col-sm-3 control-label">Expiration date</label>
       <div class="col-sm-8">
-        <input type="text" name="expiration_date" value="{{ expiration_date }}" class="form-control expiration-date" />
+        <input type="text" name="expiration_date" value="{{ expiration_date_local }}" class="form-control expiration-date" />
       </div>
       <div class="col-sm-9 col-sm-offset-3 help-block">
         Promo codes will expire on 11:59pm of this date in the event's timezone
@@ -377,7 +377,7 @@ $(document).ready(function() {
     {% for code in promo_codes %}
     <tr>
       <td>{{ code.code }}</td>
-      <td>{{ code.expiration_date|datetime_local("%Y-%m-%d") }}</td>
+      <td>{{ code.expiration_date|datetime_local("%Y-%m-%d %-I:%M%p") }}</td>
       <td>{{ code.discount_str }}</td>
       <td>{{ code.uses_allowed_str }}</td>
     </tr>
