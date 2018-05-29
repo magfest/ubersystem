@@ -177,7 +177,8 @@
         <div id="status" class="col-sm-6">
                 <select name="status">
                     {{ options(c.DEALER_STATUS_OPTS,group.status) }}
-                </select><br/>
+                </select>
+                {% if not new_dealer %}<br/>
                 <a href="#" onClick="$('#setstatus').toggle(); return false;">Waitlist or Decline (with Email)</a> <br/>
                 <div id="setstatus" style="display:none">
                     Enter an email message to be sent along with the notification: <br/>
@@ -187,6 +188,7 @@
                     <br/><button onClick="unapprove('declined'); return false;">Reject and Convert Badges</button>
                     <p class="help-block">(Allows rejected dealers to register at the price they would have paid when they applied.)</p>
                 </div>
+                {% endif %}
         </div>
     </div>
 
