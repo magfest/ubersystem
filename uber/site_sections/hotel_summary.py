@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from datetime import timedelta
 
 from sqlalchemy.orm import joinedload, subqueryload
@@ -47,13 +47,13 @@ def _inconsistent_shoulder_shifts(session):
     return shoulder_nights_missing_shifts
 
 
-def _hours_vs_rooms(session):
+def _attendee_hotel_nights(session):
     query = session.query(Attendee).filter(Attendee.assigned_depts.any()).options(
         subqueryload(Attendee.depts_where_working),
         subqueryload(Attendee.shifts).subqueryload(Shift.job).subqueryload(Job.department),
         subqueryload(Attendee.hotel_requests)).order_by(Attendee.full_name, Attendee.id)
 
-    hours_vs_rooms = []
+    attendee_hotel_nights = []
 
     for attendee in query:
         if attendee.hotel_requests and attendee.hotel_requests.approved:
@@ -72,30 +72,65 @@ def _hours_vs_rooms(session):
             first_hotel_night = None
             last_hotel_night = None
 
-        by_dept = {}
-        for dept in attendee.depts_where_working:
-            by_dept[dept] = dict(
-                weighted_hours=attendee.weighted_hours_in(dept),
-                worked_hours=attendee.worked_hours_in(dept),
-                unweighted_hours=attendee.unweighted_hours_in(dept),
-                unweighted_worked_hours=attendee.unweighted_worked_hours_in(dept),
-            )
-
-        hours_vs_rooms.append(dict(
+        attendee_hotel_nights.append(dict(
             attendee=attendee,
-            weighted_hours=attendee.weighted_hours - attendee.nonshift_hours,
-            worked_hours=attendee.worked_hours - attendee.nonshift_hours,
-            unweighted_hours=attendee.unweighted_hours - attendee.nonshift_hours,
-            unweighted_worked_hours=attendee.unweighted_worked_hours - attendee.nonshift_hours,
-            nonshift_hours=attendee.nonshift_hours,
             hotel_nights=hotel_nights,
             hotel_shoulder_nights=hotel_shoulder_nights,
             hotel_night_dates=hotel_night_dates,
             first_hotel_night=first_hotel_night,
             last_hotel_night=last_hotel_night,
         ))
+    return attendee_hotel_nights
 
-    return hours_vs_rooms
+
+def _hours_vs_rooms(session):
+    attendee_hotel_nights = _attendee_hotel_nights(session)
+    for report in attendee_hotel_nights:
+        attendee = report['attendee']
+        report.update(
+            weighted_hours=attendee.weighted_hours - attendee.nonshift_hours,
+            worked_hours=attendee.worked_hours - attendee.nonshift_hours,
+            unweighted_hours=attendee.unweighted_hours - attendee.nonshift_hours,
+            unweighted_worked_hours=attendee.unweighted_worked_hours - attendee.nonshift_hours,
+            nonshift_hours=attendee.nonshift_hours,
+        )
+    return attendee_hotel_nights
+
+
+def _hours_vs_rooms_by_dept(session):
+    departments = defaultdict(lambda: dict(
+        attendees=[],
+        total_weighted_hours=0,
+        total_worked_hours=0,
+        total_unweighted_hours=0,
+        total_unweighted_worked_hours=0,
+        total_hotel_nights=0,
+        total_hotel_shoulder_nights=0,
+    ))
+    attendee_hotel_nights = _attendee_hotel_nights(session)
+    for attendee_report in attendee_hotel_nights:
+        attendee = attendee_report['attendee']
+        for dept in attendee.depts_where_working:
+            attendee_report = dict(attendee_report)
+            attendee_report.update(
+                department=dept,
+                weighted_hours=attendee.weighted_hours_in(dept),
+                worked_hours=attendee.worked_hours_in(dept),
+                unweighted_hours=attendee.unweighted_hours_in(dept),
+                unweighted_worked_hours=attendee.unweighted_worked_hours_in(dept),
+                nonshift_hours=attendee.nonshift_hours,
+            )
+
+            dept_report = departments[dept]
+            dept_report['attendees'].append(attendee_report)
+            dept_report['total_weighted_hours'] += attendee_report['weighted_hours']
+            dept_report['total_worked_hours'] += attendee_report['worked_hours']
+            dept_report['total_unweighted_hours'] += attendee_report['unweighted_hours']
+            dept_report['total_unweighted_worked_hours'] += attendee_report['unweighted_worked_hours']
+            dept_report['total_hotel_nights'] += len(attendee_report['hotel_nights'])
+            dept_report['total_hotel_shoulder_nights'] += len(attendee_report['hotel_shoulder_nights'])
+
+    return OrderedDict(sorted(departments.items(), key=lambda d: d[0].name))
 
 
 @all_renderable(c.PEOPLE)
@@ -175,6 +210,7 @@ class Root:
         for report in hours_vs_rooms_report:
             rows.append([
                 report['attendee'].full_name,
+                report['attendee'].email,
                 ' / '.join(sorted(map(lambda d: d.name, report['attendee'].depts_where_working))),
                 report['weighted_hours'],
                 report['worked_hours'],
@@ -187,10 +223,49 @@ class Root:
 
         out.writerow([
             'Attendee',
+            'Email',
             'Depts Where Working',
             'Assigned Shift Hours (weighted)',
             'Worked Shift Hours (weighted)',
             'Nonshift Hours',
+            'First Hotel Night',
+            'Last Hotel Night',
+            'Total Hotel Nights',
+            'Total Shoulder Nights',
+        ])
+        for row in rows:
+            out.writerow(row)
+
+    def hours_vs_rooms_by_dept(self, session):
+        return {'departments': _hours_vs_rooms_by_dept(session)}
+
+    @csv_file
+    def hours_vs_rooms_by_dept_csv(self, out, session):
+        departments = _hours_vs_rooms_by_dept(session)
+
+        rows = []
+        for department, hours_vs_rooms_report in departments.items():
+            for report in hours_vs_rooms_report['attendees']:
+                rows.append([
+                    report['attendee'].full_name,
+                    report['attendee'].email,
+                    department.name,
+                    report['weighted_hours'],
+                    report['worked_hours'],
+                    report['nonshift_hours'],
+                    report['first_hotel_night'].strftime('%Y-%m-%d') if report['first_hotel_night'] else '',
+                    report['last_hotel_night'].strftime('%Y-%m-%d') if report['last_hotel_night'] else '',
+                    len(report['hotel_nights']),
+                    len(report['hotel_shoulder_nights']),
+                ])
+
+        out.writerow([
+            'Attendee',
+            'Email',
+            'Department',
+            'Assigned Shift Hours (weighted)',
+            'Worked Shift Hours (weighted)',
+            'Nonshift Hours (everywhere)',
             'First Hotel Night',
             'Last Hotel Night',
             'Total Hotel Nights',

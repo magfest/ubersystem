@@ -1,0 +1,98 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Volunteers Hours vs Room Nights by Dept{% endblock %}
+{% block content %}
+
+<style>
+  .table>tbody+tbody {
+    border-top: 1px solid #ddd;
+  }
+
+  .table > thead > tr > th,
+  .table > tbody > tr > th {
+    vertical-align: middle;
+    background-color: #f0f0f0;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .table-hover > tbody > tr.nohover-body:hover > td,
+  .table-hover > tbody > tr.nohover-body:hover > th {
+    background-color: transparent;
+  }
+
+  .table-hover > tbody > tr.nohover-head:hover > td,
+  .table-hover > tbody > tr.nohover-head:hover > th {
+    background-color: #f0f0f0;
+  }
+
+  table {
+    border: 1px solid #ddd;
+  }
+
+  .collapsed .glyphicon-chevron-down:before {
+    content: "\e080";
+  }
+</style>
+
+<h2 style="margin-bottom: 20px;">
+  Volunteers Hours vs Room Nights by Dept
+  <small style="margin-left: 10px;">
+    <a href="hours_vs_rooms_by_dept_csv"><span class="glyphicon glyphicon-download"></span> Download CSV</a>
+  </small>
+</h2>
+
+{% for department, dept_report in departments.items() %}
+  <table class="table table-hover" style="margin-bottom: 40px">
+    <thead>
+      <tr>
+        <th colspan="2"><h3 style="margin: 0">{{ department|form_link }}</h3></th>
+        <th>Total Assigned Shift Hours <small>(weighted)</small></th>
+        <th>Total Worked Shift Hours <small>(weighted)</small></th>
+        <th colspan="3"></th>
+        <th>Total Hotel Nights</th>
+        <th>Total Shoulder Nights</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="nohover-body">
+        <td colspan="2">
+          <a href="#{{ department.id }}" data-toggle="collapse" class="collapsed">
+            <span class="glyphicon glyphicon-chevron-down"></span> Attendees
+          </a>
+        </td>
+        <td>{{ dept_report.total_weighted_hours }}</td>
+        <td>{{ dept_report.total_worked_hours }}</td>
+        <td colspan="3"></td>
+        <td>{{ dept_report.total_hotel_nights }}</td>
+        <td>{{ dept_report.total_hotel_shoulder_nights }}</td>
+      </tr>
+    </tbody>
+    <tbody id="{{ department.id }}" class="collapse">
+      <tr class="nohover-head">
+        <th>Attendees</th>
+        <th>Email</th>
+        <th>Assigned Shift Hours <small>(weighted)</small></th>
+        <th>Worked Shift Hours <small>(weighted)</small></th>
+        <th>Nonshift Hours</th>
+        <th>First Hotel Night</th>
+        <th>Last Hotel Night</th>
+        <th>Total Hotel Nights</th>
+        <th>Total Shoulder Nights</th>
+      </tr>
+      {% for report in dept_report.attendees %}
+        <tr>
+          <td>{{ report.attendee|form_link }}</td>
+          <td>{{ report.attendee.email }}</td>
+          <td>{{ report.weighted_hours }}</td>
+          <td>{{ report.worked_hours }}</td>
+          <td>{{ report.nonshift_hours }}</td>
+          <td>{{ report.first_hotel_night or '' }}</td>
+          <td>{{ report.last_hotel_night or '' }}</td>
+          <td>{{ report.hotel_nights|length }}</td>
+          <td>{{ report.hotel_shoulder_nights|length }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endfor %}
+
+{% endblock %}
