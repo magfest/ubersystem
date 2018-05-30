@@ -1197,16 +1197,44 @@ class Attendee(MagModel, TakesPaymentMixin):
         weighted_hours = sum(s.job.weighted_hours for s in self.shifts)
         return weighted_hours + self.nonshift_hours
 
+    @property
+    def unweighted_hours(self):
+        unweighted_hours = sum(s.job.real_duration for s in self.shifts)
+        return unweighted_hours + self.nonshift_hours
+
     @department_id_adapter
     def weighted_hours_in(self, department_id):
         if not department_id:
             return self.weighted_hours
-        return sum(shift.job.weighted_hours for shift in self.shifts if shift.job.department_id == department_id)
+        return sum(s.job.weighted_hours for s in self.shifts if s.job.department_id == department_id)
+
+    @department_id_adapter
+    def unweighted_hours_in(self, department_id):
+        if not department_id:
+            return self.unweighted_hours
+        return sum(s.job.real_duration for s in self.shifts if s.job.department_id == department_id)
 
     @property
     def worked_hours(self):
-        weighted_hours = sum(s.job.real_duration * s.job.weight for s in self.worked_shifts)
+        weighted_hours = sum(s.job.weighted_hours for s in self.worked_shifts)
         return weighted_hours + self.nonshift_hours
+
+    @property
+    def unweighted_worked_hours(self):
+        unweighted_hours = sum(s.job.real_duration for s in self.worked_shifts)
+        return unweighted_hours + self.nonshift_hours
+
+    @department_id_adapter
+    def worked_hours_in(self, department_id):
+        if not department_id:
+            return self.worked_hours
+        return sum(s.job.weighted_hours for s in self.worked_shifts if s.job.department_id == department_id)
+
+    @department_id_adapter
+    def unweighted_worked_hours_in(self, department_id):
+        if not department_id:
+            return self.unweighted_worked_hours
+        return sum(s.job.real_duration for s in self.worked_shifts if s.job.department_id == department_id)
 
     @department_id_adapter
     def dept_membership_for(self, department_id):
