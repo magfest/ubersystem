@@ -98,7 +98,6 @@ def _hours_vs_rooms(session):
     return hours_vs_rooms
 
 
-
 @all_renderable(c.PEOPLE)
 class Root:
     # TODO: handle people who didn't request setup / teardown but who were assigned to a setup / teardown room
@@ -166,7 +165,7 @@ class Root:
             out.writerow(row)
 
     def hours_vs_rooms(self, session):
-        return {'hours_vs_rooms_report': _hours_vs_rooms(session) }
+        return {'hours_vs_rooms_report': _hours_vs_rooms(session)}
 
     @csv_file
     def hours_vs_rooms_csv(self, out, session):
@@ -175,15 +174,15 @@ class Root:
         rows = []
         for report in hours_vs_rooms_report:
             rows.append([
-                report.attendee.full_name,
-                map(lambda d: d.name, report.attendee.depts_where_working).join(' / '),
-                report.weighted_hours,
-                report.worked_hours,
-                report.nonshift_hours,
-                report.first_hotel_night.strftime('%Y-%m-%d') if report.first_hotel_night else '',
-                report.last_hotel_night.strftime('%Y-%m-%d') if report.last_hotel_night else '',
-                len(report.hotel_nights),
-                len(report.hotel_shoulder_nights),
+                report['attendee'].full_name,
+                ' / '.join(sorted(map(lambda d: d.name, report['attendee'].depts_where_working))),
+                report['weighted_hours'],
+                report['worked_hours'],
+                report['nonshift_hours'],
+                report['first_hotel_night'].strftime('%Y-%m-%d') if report['first_hotel_night'] else '',
+                report['last_hotel_night'].strftime('%Y-%m-%d') if report['last_hotel_night'] else '',
+                len(report['hotel_nights']),
+                len(report['hotel_shoulder_nights']),
             ])
 
         out.writerow([
