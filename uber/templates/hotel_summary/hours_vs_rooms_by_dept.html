@@ -40,10 +40,10 @@
   </small>
 </h2>
 
-{% for department, dept_report in departments.items() %}
-  <table class="table table-hover" style="margin-bottom: 40px">
-    <thead>
-      <tr>
+<table class="table table-hover">
+  {% for department, dept_report in departments.items() %}
+    <tbody>
+      <tr class="nohover-head">
         <th colspan="2"><h3 style="margin: 0">{{ department|form_link }}</h3></th>
         <th>Total Assigned Shift Hours <small>(weighted)</small></th>
         <th>Total Worked Shift Hours <small>(weighted)</small></th>
@@ -51,8 +51,6 @@
         <th>Total Hotel Nights</th>
         <th>Total Shoulder Nights</th>
       </tr>
-    </thead>
-    <tbody>
       <tr class="nohover-body">
         <td colspan="2">
           <a href="#{{ department.id }}" data-toggle="collapse" class="collapsed">
@@ -92,7 +90,7 @@
         </tr>
       {% endfor %}
     </tbody>
-  </table>
-{% endfor %}
+  {% endfor %}
+</table>
 
 {% endblock %}
