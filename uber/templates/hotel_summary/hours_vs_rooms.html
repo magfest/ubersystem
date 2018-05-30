@@ -1,0 +1,41 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Volunteers Hours vs Room Nights{% endblock %}
+{% block content %}
+
+<h2>
+  Volunteers Hours vs Room Nights
+  <small><a href="hours_vs_rooms_csv"><span class="glyphicon glyphicon-download"></span> Download CSV</a></small>
+</h2>
+
+<table class="table table-hover datatable" style="margin-top: 10px">
+  <thead>
+    <tr>
+      <th>Attendee</th>
+      <th>Depts Where Working</th>
+      <th>Assigned Shift Hours <small>(weighted)</small></th>
+      <th>Worked Shift Hours <small>(weighted)</small></th>
+      <th>Nonshift Hours</th>
+      <th>First Hotel Night</th>
+      <th>Last Hotel Night</th>
+      <th>Total Hotel Nights</th>
+      <th>Total Shoulder Nights</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for report in hours_vs_rooms_report %}
+      <tr>
+        <td>{{ report.attendee|form_link }}</td>
+        <td>{{ report.attendee.depts_where_working|map(attribute="name")|join(" / ") }}</td>
+        <td>{{ report.weighted_hours }}</td>
+        <td>{{ report.worked_hours }}</td>
+        <td>{{ report.nonshift_hours }}</td>
+        <td>{{ report.first_hotel_night or '' }}</td>
+        <td>{{ report.last_hotel_night or '' }}</td>
+        <td>{{ report.hotel_nights|length }}</td>
+        <td>{{ report.hotel_shoulder_nights|length }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}
