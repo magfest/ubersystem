@@ -271,6 +271,14 @@ class Department(MagModel):
     def member_count(cls):
         return func.count(cls.memberships)
 
+    @property
+    def member_emails(self):
+        return [a.email for a in self.members if a.email]
+
+    @property
+    def members_with_shifts_emails(self):
+        return [a.email for a in self.members if a.weighted_hours_in(self) > 0]
+
     @classmethod
     def to_id(cls, department):
         if not department:
