@@ -1,0 +1,153 @@
+{% block guest_text_venue %}
+  <h2>
+    Guest agreement for <strong>{{ guest.group.name }}</strong> to appear at {{ c.EVENT_NAME_AND_YEAR }}!
+  </h2>
+  <p>
+    {{ c.EVENT_NAME_AND_YEAR }} will be held on <strong>{{ c.EPOCH|datetime_local("%B %-d") }} - {{ c.ESCHATON|datetime_local("%-d, %Y") }}.</strong><br>
+    Venue Address: <strong>{{ c.EVENT_VENUE }}: {{ c.EVENT_VENUE_ADDRESS }}</strong>
+    <br><br>
+    Guests are encouraged to attend the full event and interact with staff, fellow performers, and attendees
+    in a relaxed environment.
+    <br><br>
+    If guests will not be attending the full event, we ask that they inform us in advance so we may better
+    allocate sleeping arrangements.
+  </p>
+{% endblock %}
+
+{% block guest_text_panels %}
+  <h3>Panels and Events</h3>
+  <p>
+  Panel times and dates for {{ guest.group.name }} to be determined, and will be provided prior to the event as an
+    update to this document.
+  </p>
+{% endblock %}
+
+{% block guest_text_merch %}
+  <h3>
+    Merch
+  </h3>
+  <p>
+    {% block guest_text_merch_inner %}
+      Space will be provided in our marketplace area for merchandise sales. It’s a 6’x3’ table, with chairs, and
+      electricity can be provided.
+    {% endblock guest_text_merch_inner %}
+  </p>
+{% endblock %}
+
+{% block guest_text_accommodations %}
+  {% if guest.num_hotel_rooms > 0 %}
+    <h3>
+      Accommodations
+    </h3>
+    <p>
+      {% block guest_text_accommodations_inner %}
+        {{ guest.num_hotel_rooms }} hotel room{{ guest.num_hotel_rooms|pluralize }} with 2 queen beds
+        will be provided, with check in on {{ c.EPOCH|datetime_local("%A, %B %-d") }}
+        and check out on {{ c.ESCHATON|datetime_local("%A, %B %-d") }}, unless
+        otherwise explicitly arranged via email.
+      {% endblock %}
+    </p>
+  {% endif %}
+{% endblock %}
+
+{% block guest_text_parking %}
+  {% if guest.vehicles > 0 %}
+  <h3>
+    Parking
+  </h3>
+  <p>
+    {% block guest_text_parking_inner %}
+      To be included
+      {% if guest.num_hotel_rooms > 0 %}with hotel room{% endif %}
+      for <b>{{ guest.vehicles }} vehicle{{ guest.vehicles|pluralize }}</b>.
+    {% endblock %}
+  </p>
+  {% endif %}
+{% endblock %}
+
+{% block guest_text_admission %}
+  <h3>
+    Admission
+  </h3>
+  <p>
+    {% block guest_text_admission_inner %}
+      Each guest will receive one badge, and additional complimentary badges may be issued upon request.
+    {% endblock %}
+  </p>
+{% endblock %}
+
+{% block guest_information_form %}
+  <h3>
+    Your Information
+  </h3>
+  <form method="post" action="agreement" class="form-horizontal" role="form">
+    <input type="hidden" name="guest_id" value="{{ guest.id }}" />
+    <input type="hidden" name="id" value="{{ guest_info.db_id }}" />
+    {{ csrf_token() }}
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Guest Count</label>
+      <div class="col-sm-6">
+        <input class="form-control" type="number" min="1" name="performer_count" value="{{ guest_info.performer_count|default(guest.estimated_performer_count) }}" />
+        <p class="help-text">
+          To ensure that we have assigned the correct number of badges to your group, please confirm the number of
+          badges you'd like.
+        </p>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">PoC Phone Number</label>
+      <div class="col-sm-6">
+        <input class="form-control" type="text" name="poc_phone" value="{{ guest_info.poc_phone|default(guest.group.leader.cellphone) }}" />
+        <p class="help-text">
+          Please enter the cellphone number of your preferred Point of Contact for any issues we may need to
+          contact you about on-site.
+        </p>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Parking</label>
+      <div class="checkbox col-sm-9">
+        {{ macros.checkbox(guest_info, 'bringing_vehicle', label='We will be parking at ' + c.EVENT_NAME) }}
+      </div>
+    </div>
+
+    <div id="vehicle-info" class="form-group" style="display:none">
+      <label class="col-sm-3 control-label">Vehicle Information</label>
+      <div class="col-sm-6">
+        <input class="form-control" type="text" name="vehicle_info" value="{{ guest_info.vehicle_info }}" />
+        <p class="help-text">
+          If you're parking on-site, then please tell us the vehicle info (car, truck, attached trailer, tour bus, monster truck), so we can ensure parking availability.
+        </p>
+      </div>
+    </div>
+
+    <h3>
+      Guest Agreement
+    </h3>
+    <p>
+      By clicking below and submitting your information, you agree to the terms of this guest agreement.
+    </p>
+
+    <div class="form-group">
+      <div class="col-sm-6 col-sm-offset-3">
+        <button type="submit" class="btn btn-primary">
+          Save Information and Agree
+        </button>
+      </div>
+    </div>
+  </form>
+
+  <script>
+      var showOrHideVehicleInfo = function () {
+          setVisible('#vehicle-info', $.field('bringing_vehicle').prop('checked'));
+      };
+      $(function () {
+          showOrHideVehicleInfo();
+          $.field('bringing_vehicle').on('click', showOrHideVehicleInfo);
+      });
+  </script>
+
+{% endblock guest_information_form %}

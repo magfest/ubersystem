@@ -1,0 +1,7 @@
+{{ guest.group.name }},
+
+In order to prepare for your performance at this upcoming {{ c.EVENT_NAME }}, we need you to upload an exact description of your desired stage layout, which you can do at {{ c.URL_BASE }}/guests/stage_plot?guest_id={{ guest.id }}
+
+Failure to provide exact stage directions may result in you not receiving the setup you expect or want.  Please provide this description no later than {{ c.BAND_STAGE_PLOT_DEADLINE|datetime_local }}.
+
+{{ c.BAND_EMAIL_SIGNATURE }}

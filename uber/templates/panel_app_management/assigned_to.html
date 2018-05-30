@@ -1,0 +1,22 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}{{ attendee.full_name }}'s panel applications{% endblock %}}
+{% block content %}
+
+<h3>Panels for which {{ attendee|form_link }} is the point of contact</h3>
+
+You can download a CSV spreadsheet of all of {{ attendee.first_name }}'s panels
+<a href="panels_by_poc?poc_id={{ attendee.id }}">here</a>.
+</br>
+You can view a schedule of all of {{ attendee.first_name }}'s panels
+<a href="panel_poc_schedule?attendee_id={{ attendee.id }}">here</a>.
+
+<ul>
+{% for app in panels %}
+    <li>
+        [{{ app.status_label }}]
+        <a href="app?id={{ app.id }}">{{ app.name }}</a>
+    </li>
+{% endfor %}
+</ul>
+
+{% endblock %}

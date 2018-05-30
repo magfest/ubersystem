@@ -1,0 +1,467 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}{{ department.name }}{% endblock %}
+
+{% block content %}
+
+<style type="text/css">
+  h1 form.pull-right {
+    margin: 0;
+    display: inline;
+  }
+
+  h3 .pull-right {
+    margin: 8px 0;
+  }
+
+  .glyphicon {
+    vertical-align: text-top;
+  }
+
+  .glyphicon-ban-circle {
+    color: #f4128b;
+  }
+
+  .empty-message {
+    font-style: italic;
+  }
+
+  .table > tbody > tr > td {
+    border-top: 0 transparent none;
+    padding: 4px 10px;
+  }
+
+  .table .controls {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .table .controls .btn-group {
+    white-space: nowrap;
+  }
+
+  .table .controls form,
+  .table .controls .btn {
+    display: inline-block;
+    float: none;
+  }
+
+  .inherent_role .table-container {
+    padding-left: 15px;
+  }
+
+  .inherent_role .table .controls {
+    padding-right: 4px;
+  }
+</style>
+
+<script type="text/javascript">
+  $(function() {
+    $(document.body).on('click', '.btn-inherent_role', function(event) {
+      event.preventDefault();
+      var $btn = $(this),
+          hasRole = !$btn.hasClass('btn-default'),
+          role = $btn.data('role'),
+          $btnGroup = $btn.closest('.btn-group'),
+          attendeeId = $btnGroup.data('attendee_id');
+
+      $btn.prop('disabled', true);
+      $.post('../departments/set_inherent_role', {
+          department_id: '{{ department.id }}',
+          attendee_id: attendeeId,
+          role: role,
+          value: !hasRole,
+          csrf_token: csrf_token
+      }, function(result) {
+          $btn.prop('disabled', false);
+          if (result.error) {
+            toastr.error(result.error);
+          } else {
+            $btn.toggleClass('btn-default')
+          }
+      }, 'json');
+    });
+  });
+</script>
+
+{%- set can_admin_dept = admin.can_admin_dept_for(department.id) -%}
+{%- set is_admin_dept_head = admin.can_dept_head_for(department.id) -%}
+{%- set is_admin_checklist_admin = admin.is_checklist_admin_of(department.id) -%}
+{%- set is_admin_dept_member = admin.assigned_to(department.id) -%}
+
+{% macro controls(attendee, require_admin_account=True) -%}
+  <div
+      class="btn-group"
+      role="group"
+      data-attendee_id="{{ attendee.id }}">
+    {%- set is_dept_head = attendee.is_dept_head_of(department.id) -%}
+    {%- set is_poc = attendee.is_poc_of(department.id) -%}
+    {%- set is_checklist_admin = attendee.is_checklist_admin_of(department.id) -%}
+    {%- if not require_admin_account or attendee.admin_account -%}
+      {%- if is_admin_dept_head -%}
+      <button
+          type="button"
+          class="btn btn-xs btn-inherent_role btn-{% if is_dept_head %}plain{% else %}default{% endif %}"
+          data-role="dept_head"
+          {% if is_dept_head %}
+            title="Remove {{ attendee.full_name }} as a department head of the {{ department.name }} department"
+          {% else %}
+            title="Make {{ attendee.full_name }} a department head of the {{ department.name }} department"
+          {% endif %}>
+        <span class="glyphicon glyphicon-user"></span>
+      </button>{%- endif -%}
+      <button
+          type="button"
+          class="btn btn-xs btn-inherent_role btn-{% if is_poc %}plain{% else %}default{% endif %}"
+          data-role="poc"
+          {% if is_poc %}
+            title="Remove {{ attendee.full_name }} as a point of contact of the {{ department.name }} department"
+          {% else %}
+            title="Make {{ attendee.full_name }} a point of contact of the {{ department.name }} department"
+          {% endif %}>
+        <span class="glyphicon glyphicon-envelope"></span>
+      </button>{#- strip whitespace -#}
+      <button
+          type="button"
+          class="btn btn-xs btn-inherent_role btn-{% if is_checklist_admin %}plain{% else %}default{% endif %}"
+          data-role="checklist_admin"
+          {% if is_checklist_admin %}
+            title="Remove {{ attendee.full_name }} as a checklist admin of the {{ department.name }} department"
+          {% else %}
+            title="Make {{ attendee.full_name }} a checklist admin of the {{ department.name }} department"
+          {% endif %}>
+        <span class="glyphicon glyphicon-edit"></span>
+      </button>
+    {%- else -%}
+      <small title="This member doesn't have an admin account">
+        <i>No admin acct</i>
+      </small>
+    {%- endif -%}
+  </div>
+{%- endmacro %}
+
+{% macro inherent_role_list(role, title, icon, link_href=None, link_text=None) -%}
+  <div class="col-sm-4 inherent_role inherent_role_{{ role }}">
+    <h3>
+      <span class="glyphicon glyphicon-{{ icon }}"></span>
+      {{ title }}
+      {% if link_href %}<small class="pull-right"><a href="{{ link_href }}">{{ link_text }}</a></small>{% endif %}
+    </h3>
+    <div class="table-container">
+      <table class="table table-hover">
+        <tbody>
+          {% for attendee in department[role] %}
+            <tr>
+              <td>
+                {%- if not attendee.admin_account  -%}
+                  <span class="glyphicon glyphicon-ban-circle" title="This member doesn't have an admin account"></span>
+                {%- endif %}
+                {{ attendee|form_link }}
+              </td>
+              {% if can_admin_dept -%}
+                <td class="controls">{{ controls(attendee, require_admin_account=False) }}</td>
+              {%- endif %}
+            </tr>
+          {% else %}
+            <tr><td class="empty-message">No {{ title|lower }} have been assigned yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{%- endmacro %}
+
+{% if can_admin_dept -%}
+  <div
+      id="edit_department"
+      class="modal fade"
+      tabindex="-1"
+      role="dialog"
+      aria-labelledby="edit_department_title"
+      style="display: none">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <h4 class="modal-title" id="edit_department_title">
+            <span class="glyphicon glyphicon-cog"></span>
+            Edit {{ department.name }}
+          </h4>
+        </div>
+        <form method="post" action="form" class="form-horizontal" role="form">
+          <div class="modal-body">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ department.id }}" />
+            {{ macros.form_group(department, 'name') }}
+            {{ macros.form_group(
+                department,
+                'description',
+                help='The description will be displayed to potential volunteers during registration.') }}
+            <div class="form-group">
+              <label class="col-sm-3 control-label">Shiftless?</label>
+              <div class="col-sm-9">
+                <div class="form-control-static checkbox">
+                  {{ macros.checkbox(
+                      department,
+                      'is_shiftless',
+                      label='This department does not have any shifts') }}
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="col-sm-3 control-label">Solicits Volunteers?</label>
+              <div class="col-sm-9">
+                <div class="form-control-static checkbox">
+                  {{ macros.checkbox(
+                      department,
+                      'solicits_volunteers',
+                      label='This department publicly asks volunteers for help') }}
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="col-sm-3 control-label">Setup/Teardown Approval?</label>
+              <div class="col-sm-9">
+                <div class="form-control-static checkbox">
+                  {{ macros.checkbox(department, 'is_setup_approval_exempt', label='Setup approval exempt') }}
+                  &nbsp;
+                  {{ macros.checkbox(department, 'is_teardown_approval_exempt', label='Teardown approval exempt') }}
+                </div>
+                <div class="help-block">
+                  These settings determine whether members of this department require
+                  approval to work setup/teardown shifts for this department.
+                  <br><br>
+                  Unless most of the department's work is done during setup/teardown,
+                  these should remain unchecked (members of the department should
+                  probably require approval to work setup/teardown).
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{%- endif %}
+
+<h1>
+  {{ department.name }} Department
+  {% if is_admin_dept_head -%}
+    <button type="button" class="btn btn-xs btn-primary" data-toggle="modal" data-target="#edit_department">
+      <span class="glyphicon glyphicon-cog"></span>
+    </button>
+    <form
+        method="post"
+        action="delete"
+        class="pull-right"
+        role="form"
+        onsubmit="return confirm('Are you sure you want to delete this department?');"
+        {% if department.member_count > 1 %}
+          title="You cannot delete a department with more than one member"
+        {% endif %}>
+      {{ csrf_token() }}
+      <input type="hidden" name="id" value="{{ department.id }}">
+      <input
+          type="submit"
+          value="Delete Department"
+          class="btn btn-xs btn-danger"
+          {% if department.member_count > 1 %}disabled="disabled"{% endif %}>
+    </form>
+  {%- endif %}
+</h1>
+<p>{{ department.description }}</p>
+{% if department.is_shiftless -%}
+  <p>This department is <b>shiftless</b>; it does not track staff hours using shifts.</p>
+{%- endif %}
+<p>This department {% if department.solicits_volunteers %}solicits{% else %}<b>does not</b> solicit{% endif %} volunteers.</p>
+{% if department.is_setup_approval_exempt or department.is_teardown_approval_exempt %}
+  <p>
+    Members of this department <b>do not need approval</b> to work
+    {%- if department.is_setup_approval_exempt %} setup{%- endif -%}
+    {%- if department.is_teardown_approval_exempt %}{% if department.is_setup_approval_exempt %} or{% endif %} teardown{% endif %} shifts.
+  </p>
+{% endif %}
+{% if is_admin_checklist_admin or can_admin_dept -%}
+  <p>
+    <a href="../dept_checklist/index?department_id={{ department.id }}">
+      <span class="glyphicon glyphicon-edit"></span>
+      View Department Checklist
+    </a>
+  </p>
+{%- endif %}
+<p>
+  <a href="../jobs/index?department_id={{ department.id }}">
+    <span class="glyphicon glyphicon-time"></span>
+    View Department Jobs
+  </a>
+</p>
+{% if is_admin_dept_member or can_admin_dept -%}
+  <p>
+    <a href="mailto:{{ department.pocs|selectattr('email')|map(attribute='email')|join(',') }}">
+      <span class="glyphicon glyphicon-envelope"></span>
+      Email Points of Contact
+    </a>
+  <p>
+{%- endif %}
+
+<div>
+  <div class="row">
+    {{ inherent_role_list('dept_heads', 'Department Heads', 'user') }}
+    {{ inherent_role_list('pocs', 'Points of Contact', 'envelope') }}
+    {{ inherent_role_list('checklist_admins', 'Checklist Admins', 'edit') }}
+  </div>
+  <div class="row">
+    <div class="col-sm-12 dept_roles">
+      <h3>
+        Roles
+        {% if can_admin_dept -%}
+          <a
+              class="btn btn-xs btn-primary"
+              title="Create a new department role"
+              href="role?department_id={{ department.id }}">
+            <span class="glyphicon glyphicon-plus"></span>
+          </a>
+        {%- endif %}
+      </h3>
+      {% if department.dept_roles %}
+        <div class="table-responsive">
+          <table
+              class="table table-hover datatable"
+              data-page-length="25"
+              data-searching="false"
+              data-paging="false"
+              data-info="false">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th># With Role</th>
+                {% if can_admin_dept -%}
+                  <th class="controls" data-orderable="false"></th>
+                {%- endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for role in department.dept_roles %}
+                {%- set member_count = role.dept_memberships|length -%}
+                <tr>
+                  <td>{{ role.name }}</td>
+                  <td>{{ role.description }}</td>
+                  <td>{{ member_count }} member{{ member_count|pluralize }}</td>
+                  {% if can_admin_dept -%}
+                    <td class="controls">
+                      <a
+                          class="btn btn-xs btn-primary"
+                          title="Edit the {{ role.name }} department role"
+                          href="role?id={{ role.id }}">
+                        <span class="glyphicon glyphicon-cog"></span>
+                      </a>
+                      <form
+                          method="post"
+                          action="delete_role"
+                          role="form"
+                          onsubmit="return confirm('Are you sure you want to delete this department role?');"
+                          title="Delete the {{ role.name }} department role">
+                        {{ csrf_token() }}
+                        <input type="hidden" name="id" value="{{ role.id }}">
+                        <button type="submit" class="btn btn-xs btn-danger">
+                          <span class="glyphicon glyphicon-remove"></span>
+                        </button>
+                      </form>
+                    </td>
+                  {%- endif %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-message">No roles have been created for the {{ department.name }} department yet.</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-sm-12">
+      <h3>
+        Members
+        <small><a href="requests?department_id={{ department.id }}">View Membership Requests</a></small>
+      </h3>
+      {% if department.members %}
+        <div class="table-responsive">
+          <table class="table table-hover datatable" data-page-length="25">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Badge</th>
+                <th>Paid</th>
+                <th>Hours Here</th>
+                <th>Hours Overall</th>
+                {% if c.AT_OR_POST_CON %}
+                  <th>Worked</th>
+                {% endif %}
+                {% if c.AT_THE_CON %}
+                  <th>Checked In</th>
+                {% endif %}
+                {% if can_admin_dept -%}
+                  <th class="controls" data-orderable="false"></th>
+                {%- endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for attendee in department.members %}
+                {%- set hours_here = attendee.weighted_hours_in(department) -%}
+                {%- set weighted_hours = attendee.weighted_hours -%}
+                <tr>
+                  <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
+                    {{ attendee|form_link }}
+                  </td>
+                  <td>{{ attendee.badge }}</td>
+                  <td>{{ attendee.paid_label }}</td>
+                  <td data-order="{{ hours_here }}" data-search="{{ hours_here }}">
+                    {{ hours_here }}
+                  </td>
+                  <td data-order="{{ weighted_hours }}" data-search="{{ weighted_hours }}">
+                    <a href="../registration/shifts?id={{ attendee.id }}">{{ weighted_hours }}</a>
+                  </td>
+                  {% if c.AT_OR_POST_CON %}
+                    <td data-order="{{ attendee.worked_hours }}" data-search="{{ attendee.worked_hours }}">
+                      <a href="../registration/shifts?id={{ attendee.id }}">{{ attendee.worked_hours }}</a>
+                    </td>
+                  {% endif %}
+                  {% if c.AT_THE_CON %}
+                    <td>{{ attendee.checked_in|yesno("Checked In, Not Checked In") }}</td>
+                  {% endif %}
+                  {% if can_admin_dept -%}
+                    <td class="controls">
+                      {{ controls(attendee) }}
+                      <form
+                          method="post"
+                          action="unassign_member"
+                          role="form"
+                          onsubmit="return confirm('Are you sure you want to remove this attendee from the department?');"
+                          title="Remove {{ attendee.full_name }} from the {{ department.name }} department">
+                        {{ csrf_token() }}
+                        <input type="hidden" name="department_id" value="{{ department.id }}" />
+                        <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
+                        <button type="submit" class="btn btn-xs btn-danger">
+                          <span class="glyphicon glyphicon-remove"></span>
+                        </button>
+                      </form>
+                    </td>
+                  {%- endif %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-message">No volunteers have been assigned in the {{ department.name }} department yet.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}

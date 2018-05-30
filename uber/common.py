@@ -1,3 +1,6 @@
+# This is kept as-is for legacy plugin support
+
+import collections
 import os
 import re
 import csv
@@ -17,8 +20,11 @@ import warnings
 import treepoem
 import importlib
 import mimetypes
+import shlex
+import shutil
 import threading
 import traceback
+import xlsxwriter
 from glob import glob
 from uuid import uuid4
 from pprint import pprint
@@ -44,8 +50,10 @@ import bcrypt
 import stripe
 import jinja2
 import cherrypy
+from dateutil import parser as dateparser
 from markupsafe import text_type, Markup
 from pytz import UTC
+from six.moves import urllib
 
 import sqlalchemy
 from sqlalchemy.sql import case
@@ -53,16 +61,17 @@ from sqlalchemy.event import listen
 from sqlalchemy.ext import declarative
 from sqlalchemy import func, or_, and_, not_
 from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.sql.expression import FunctionElement
+from sqlalchemy.sql.expression import FunctionElement, extract
 from sqlalchemy.orm.attributes import get_history, instance_state
-from sqlalchemy.schema import Column, ForeignKey, MetaData, UniqueConstraint
+from sqlalchemy.schema import Column, ForeignKey, Index, MetaData, UniqueConstraint
 from sqlalchemy.orm import Query, relationship, joinedload, subqueryload, backref
 from sqlalchemy.types import Boolean, Integer, Float, TypeDecorator, Date, Numeric
-from sqlalchemy.util import immutabledict, classproperty
+from sqlalchemy.util import immutabledict
 
-from sideboard.lib import log, parse_config, entry_point, is_listy, listify, DaemonTask, serializer, cached_property, request_cached_property, stopped, on_startup, services, threadlocal
+from sideboard.lib import parse_config, entry_point, DaemonTask, serializer, request_cached_property, stopped, services, threadlocal
 from sideboard.lib.sa import declarative_base, SessionManager, UTCDateTime, UUID, CoerceUTF8 as UnicodeText
 
 import uber
@@ -74,6 +83,8 @@ from uber.utils import *
 from uber.reports import *
 from uber.decorators import *
 from uber.models import *
+from uber.models.types import *
+from uber.models.promo_code import *
 from uber.automated_emails import *
 from uber.badge_funcs import *
 from uber.menu import *
@@ -81,5 +92,4 @@ from uber import model_checks
 from uber import custom_tags
 from uber import server
 from uber import sep_commands
-from uber.tests import import_test_data
 import uber.api

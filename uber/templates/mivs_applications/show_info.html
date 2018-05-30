@@ -1,0 +1,189 @@
+{% extends "mivs_base.html" %}
+{% block body %}
+  <script type="text/javascript">
+      var showOrHideTournamentInfo = function () {
+          setVisible('#tournament-details', $.field('tournament_at_event').prop('checked'));
+      };
+      var showOrHideMultiplayerInfo = function () {
+          setVisible('#multiplayer-details', $.field('has_multiplayer').prop('checked'));
+      };
+      $(function () {
+          showOrHideTournamentInfo();
+          showOrHideMultiplayerInfo();
+          $.field('tournament_at_event').on('click', showOrHideTournamentInfo);
+          $.field('has_multiplayer').on('click', showOrHideMultiplayerInfo);
+      });
+  </script>
+
+  <h2>Show Information for MIVS</h2>
+
+  Thank you for confirming your acceptance into MIVS! We have several things we still need to know about your game to
+  help us build the show, run tournaments, etc. Please fill out the form below.
+
+  <br/><br/>
+
+  <h4>Gameplay Images</h4>
+  Please mark your two best gameplay images, or upload new ones.
+  <table>
+    {% for screenshot in game.screenshots %}
+      <tr>
+        <td><ul><li></li></ul></td>
+        <td><a target="_blank" href="{{ screenshot.url }}">{{ screenshot.filename }}</a></td>
+        <td>{{ screenshot.description }}</td>
+        <td>
+          {% if screenshot.use_in_promo %}
+            <form method="post" action="unmark_screenshot">
+              {{ csrf_token() }}
+              <input type="hidden" name="id" value="{{ screenshot.id }}" />
+              <input class="btn btn-sm btn-danger" type="submit" value="Unmark as Best" />
+            </form>
+          {% else %}
+            <form method="post" action="mark_screenshot">
+              {{ csrf_token() }}
+              <input type="hidden" name="id" value="{{ screenshot.id }}" />
+              <input class="btn btn-sm btn-success" type="submit" value="Mark as Best" />
+            </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+  <a class="btn btn-primary" href="screenshot?game_id={{ game.id }}&use_in_promo=True">Upload a Screenshot</a>
+
+  <form method="post" enctype="multipart/form-data" class="form-horizontal" action="show_info">
+    {{ csrf_token() }}
+    <input type="hidden" name="id" value="{{ game.id }}" />
+
+    <h4>Promo Information</h4>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Studio Name</label>
+      <div class="col-sm-6">
+        <input class="form-control focus" type="text" name="studio_name" value="{{ game.studio.name }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Game Title</label>
+      <div class="col-sm-6">
+        <input class="form-control" type="text" name="title" value="{{ game.title }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Brief Description</label>
+      <div class="col-sm-6">
+        <input class="form-control" type="text" maxlength="80" name="brief_description" value="{{ game.brief_description }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Gameplay Video</label>
+      <div class="col-sm-6">
+        <input class="form-control" type="text" name="link_to_promo_video" value="{{ game.link_to_promo_video }}" />
+        <p class="help-block">
+          Thirty seconds of your game's best gameplay. Must be YouTube-hosted, 720p or better.
+        </p>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Web/Store Link</label>
+      <div class="col-sm-6">
+        <input class="form-control" type="text" name="link_to_webpage" value="{{ game.link_to_webpage }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Twitter</label>
+      <div class="col-sm-6">
+        <input class="form-control" type="text" name="twitter" value="{{ game.twitter|default(game.studio.twitter) }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Facebook</label>
+      <div class="col-sm-6">
+        <input class="form-control" type="text" name="facebook" value="{{ game.facebook|default(game.studio.facebook) }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Other Social Media</label>
+      <div class="col-sm-6">
+        <input class="form-control" type="text" name="other_social_media" value="{{ game.other_social_media }}" />
+        <p class="help-block">
+          A link to your game's main social media platform that is not Twitter or Facebook, if applicable.
+        </p>
+      </div>
+    </div>
+
+    <h4>Tournament Information</h4>
+    <div class="form-group">
+      <div class="col-sm-6 col-sm-offset-3">
+        {{ macros.checkbox(game, 'tournament_at_event', label="Yes, we'd like to run a tournament for this game
+      at the event.") }}
+      </div>
+    </div>
+
+    <div id="tournament-details">
+      <div class="form-group">
+        <label for="has_multiplayer" class="col-sm-3 control-label">Multiplayer</label>
+        <div class="checkbox col-sm-9">
+          {{ macros.checkbox(game, 'has_multiplayer', label="This game has a multiplayer mode.") }}
+        </div>
+      </div>
+
+      <div id="multiplayer-details">
+        <div class="form-group">
+          <label class="col-sm-3 control-label">Player Count</label>
+          <div class="col-sm-6">
+            <input class="form-control" type="text" name="player_count" value="{{ game.player_count }}" />
+            <p class="help-block">
+              How many players are supported? E.g., "2 or 4 players."
+            </p>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="col-sm-3 control-label">Multiplayer Game Length</label>
+          <div class="col-sm-6">
+            <input class="form-control" type="number" name="multiplayer_game_length" value="{{ game.multiplayer_game_length }}" />
+            <p class="help-block">
+              The length of each multiplayer game or match, in minutes.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Promo Image</label>
+        <div class="col-sm-6">
+          <input class="form-control" type="file" name="promo_image" />
+          <p class="help-block">
+            Hi-res cover art or a game logo.
+          </p>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-3 control-label optional-field">Tournament Prizes</label>
+        <div class="col-sm-6">
+          <textarea class="form-control" name="tournament_prizes" rows="4">{{ game.tournament_prizes }}</textarea>
+          <p class="help-block">
+            A description of the prizes you're willing to offer for the game tournament, if any.
+          </p>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-3 control-label optional-field">Leaderboard Challenge</label>
+        <div class="checkbox col-sm-9">
+          {{ macros.checkbox(game, 'leaderboard_challenge', label="Yes, we would like to run a leaderboard challenge for
+        this game.") }}
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Upload Information</button>
+  </form>
+{% endblock %}

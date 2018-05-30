@@ -1,0 +1,71 @@
+{% extends "mivs_base.html" %}
+{% block body %}
+
+<h2>Your Preferences</h2>
+  In order to help us match you with the right kinds of games, please tell us what genres you prefer to play and what
+  platforms you own.
+  <form method="post" action="index" role="form" class="form-horizontal">
+    <input type="hidden" name="id" value="{{ judge.id }}" />
+    {{ csrf_token() }}
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Genres</label>
+      <div class="col-sm-6">
+        {{ macros.checkgroup(judge, 'genres') }}
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Platforms Owned</label>
+      <div class="col-sm-6">
+        {{ macros.checkgroup(judge, 'platforms') }}
+      </div>
+      <div class="clearfix"></div>
+      <div class="col-sm-6 col-sm-offset-3">
+        <input id="platforms-other" class="form-control" type="text" name="platforms_text" value="{{ judge.platforms_text }}" placeholder="Other platform(s)"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="col-sm-6 col-sm-offset-2">
+        <button type="submit" class="btn btn-primary">Update Preferences</button>
+      </div>
+    </div>
+  </form>
+
+<h2>Your MIVS Games For Review</h2>
+
+You ({{ judge.full_name }}) have been assigned {{ judge.reviews|length }} games for review
+of which {{ judge.video_reviews|length }} have had their videos reviewed
+and {{ judge.game_reviews|length }} have had the actual game reviewed.
+
+<table class="table datatable">
+<thead>
+    <tr>
+        <th>Game</th>
+        <th>Studio</th>
+        {% if c.AFTER_MIVS_ROUND_TWO_START %}
+            <th>Game Review Status</th>
+            <th>Your Score</th>
+        {% else %}
+            <th>Video Review Status</th>
+        {% endif %}
+    </tr>
+</thead>
+<tbody>
+{% for review in judge.reviews %}
+    {% if not c.AFTER_MIVS_ROUND_TWO_START or review.game.status != c.VIDEO_DECLINED %}
+        <tr>
+            <td>{{ review.game.title }}</td>
+            <td><a href="studio?id={{ review.game.studio.id }}">{{ review.game.studio.name }}</a></td>
+            {% if c.AFTER_MIVS_ROUND_TWO_START %}
+                <td><a href="game_review?id={{ review.id }}">{{ review.game_status_label }}</a></td>
+                <td>{{ review.game_score|default("not reviewed yet") }}</td>
+            {% else %}
+                <td><a href="video_review?id={{ review.id }}">{{ review.video_status_label }}</a></td>
+            {% endif %}
+        </tr>
+    {% endif %}
+{% endfor %}
+</tbody>
+</table>
+
+{% endblock %}

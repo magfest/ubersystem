@@ -1,0 +1,33 @@
+{% extends "mits_base.html" %}
+{% block body %}
+
+<h3>Upload a Document</h3>
+
+You may optionally upload documents such as the rulebook for your game, advertisements, endorsements, etc.
+<br/> <br/>
+
+<form method="post" enctype="multipart/form-data" action="document" class="form-horizontal" role="form">
+    {{ csrf_token() }}
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Description of Document</label>
+        <div class="col-sm-6">
+            <textarea class="form-control" name="description" rows="4">{{ doc.description }}</textarea>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Upload</label>
+        <div class="col-sm-6">
+            <input type="file" name="upload" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-3">
+            <button type="submit" class="btn btn-primary">Upload Document</button>
+        </div>
+    </div>
+</form>
+
+{% endblock %}

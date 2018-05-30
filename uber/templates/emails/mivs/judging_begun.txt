@@ -1,0 +1,11 @@
+{{ judge.attendee.first_name }},
+
+We're ready for you to start judging this year's MIVS entries!  While the majority of games are for PC,  our system isn't granular enough yet to know if you have the hardware to judge specific platforms.  For example, we have iPhone games, but you may not own an iPhone.  In that case, just let us know, and we'll try to get you a replacement game.  If you find other issues such as download codes not working, again, let us know.
+
+You'll be rating games on a scale of 1 (the least) to 5 (the best).  We've found that playing for at least 15 minutes is needed to assign a valuable score.  You'll also be able to provide optional feedback to the developers.  THIS WILL BE READ BY THEM, so please have that in mind when leaving feedback.  Also, if you'd like extra credit and want to judge additional games, let us know and we'll hook you up.
+
+The final date we can accept judging is {{ c.MIVS_JUDGING_DEADLINE|datetime_local }}.  However, we are encouraging judges to finish by {{ c.SOFT_MIVS_JUDGING_DEADLINE|datetime_local }}, which will help us so that we can reassign any entries that still need judging.  As always, if you find you don't have the time this year to judge, it's ok!  But let us know ASAP so we can assign replacements.
+
+Here's the link to start judging: {{ c.URL_BASE }}/mivs_judging
+
+{{ c.MIVS_EMAIL_SIGNATURE }}

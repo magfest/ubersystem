@@ -1,0 +1,17 @@
+<html>
+<head></head>
+<body>
+{{ signup.attendee.first_name }},
+<br><br>
+You recently signed up for {{ signup.event.name }}. Checkin {{ checkin }} in {{ signup.event.location_room_name }}.
+<br><br>
+<a href="{{ c.URL_BASE }}/attractions/manage?id={{ signup.attendee.id }}">Click here</a>
+to manage your signups, change your notification preferences, and find more events to attend.
+<br><br>
+If you did not sign up for this event, you can also use
+<a href="{{ c.URL_BASE }}/attractions/manage?id={{ signup.attendee.id }}">this link</a>
+to cancel the signup and unsubscribe from further notifications.
+<br><br>
+Thanks for coming to {{ c.EVENT_NAME }}!
+</body>
+</html>

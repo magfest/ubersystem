@@ -1,0 +1,11 @@
+<html>
+<head></head>
+<body>
+{{ signup.attendee.first_name }},
+<br><br>
+Checkin for {{ signup.event.name }} {{ checkin }} in {{ signup.event.location_room_name }}.
+<br><br>
+<a href="{{ c.URL_BASE }}/attractions/manage?id={{ signup.attendee.id }}">Click here</a>
+to manage your signups, drop out, or change your notification preferences.
+</body>
+</html>

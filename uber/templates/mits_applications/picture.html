@@ -1,0 +1,30 @@
+{% extends "mits_base.html" %}
+{% block body %}
+
+<h3>Upload a Picture</h3>
+
+<form method="post" enctype="multipart/form-data" action="picture" class="form-horizontal" role="form">
+    {{ csrf_token() }}
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Description of Picture</label>
+        <div class="col-sm-6">
+            <textarea class="form-control" name="description" rows="4">{{ picture.description }}</textarea>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Upload</label>
+        <div class="col-sm-6">
+            <input type="file" name="image" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-3">
+            <button type="submit" class="btn btn-primary">Upload Picture</button>
+        </div>
+    </div>
+</form>
+
+{% endblock %}

@@ -1,5 +1,10 @@
-from uber.common import *
+import cherrypy
+
+from uber.config import c
 from uber.custom_tags import safe_string
+from uber.decorators import ajax, ajax_gettable, all_renderable, check_shutdown, csrf_protected, render, unrestricted
+from uber.errors import HTTPRedirect
+from uber.utils import check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, localized_now
 
 
 @all_renderable(c.SIGNUPS)
@@ -19,6 +24,7 @@ class Root:
 
     @check_shutdown
     def food_restrictions(self, session, message='', **params):
+        from uber.models.attendee import FoodRestrictions
         attendee = session.logged_in_volunteer()
         fr = attendee.food_restrictions or FoodRestrictions()
         if params:
@@ -36,7 +42,7 @@ class Root:
         }
 
     @check_shutdown
-    def shirt_size(self, session, message='', shirt=None, csrf_token=None):
+    def shirt_size(self, session, message='', shirt=None, second_shirt=None, csrf_token=None):
         attendee = session.logged_in_volunteer()
         if shirt is not None:
             check_csrf(csrf_token)
@@ -44,7 +50,9 @@ class Root:
                 message = 'You must select a shirt size'
             else:
                 attendee.shirt = int(shirt)
-                raise HTTPRedirect('index?message={}', 'Shirt size uploaded')
+                if attendee.gets_staff_shirt and c.SHIRTS_PER_STAFFER > 1 and c.BEFORE_SHIRT_DEADLINE:
+                    attendee.second_shirt = int(second_shirt)
+                raise HTTPRedirect('index?message={}', 'Shirt info uploaded')
 
         return {
             'message': message,
@@ -54,27 +62,58 @@ class Root:
 
     @check_shutdown
     @unrestricted
-    def volunteer(self, session, id, csrf_token=None, requested_depts='', message='Select which departments interest you as a volunteer.'):
+    def volunteer(self, session, id, csrf_token=None, requested_depts_ids=None, message=''):
         attendee = session.attendee(id)
-        if requested_depts:
+        if requested_depts_ids:
             check_csrf(csrf_token)
             attendee.staffing = True
-            attendee.requested_depts = ','.join(listify(requested_depts))
-            raise HTTPRedirect('login?message={}', "Thanks for signing up as a volunteer; you'll be emailed as soon as you are assigned to one or more departments.")
+            attendee.requested_depts_ids = requested_depts_ids
+            raise HTTPRedirect(
+                'login?message={}',
+                "Thanks for signing up as a volunteer; you'll be emailed as "
+                "soon as you are assigned to one or more departments.")
 
         return {
             'message': message,
             'attendee': attendee,
-            'requested_depts': requested_depts
+            'requested_depts_ids': requested_depts_ids
         }
 
     @check_shutdown
-    def shifts(self, session, tgt_date='', state=''):
+    def shifts(self, session, view='', start=''):
         joblist = session.jobs_for_signups()
+        con_days = -(-c.CON_LENGTH // 24)  # Equivalent to ceil(c.CON_LENGTH / 24)
+
+        volunteer = session.logged_in_volunteer()
+        assigned_dept_ids = set(volunteer.assigned_depts_ids)
+        has_public_jobs = False
+        for job in joblist:
+            job['is_public_to_volunteer'] = job['is_public'] and job['department_id'] not in assigned_dept_ids
+            if job['is_public_to_volunteer']:
+                has_public_jobs = True
+
+        has_setup = volunteer.can_work_setup or any(d.is_setup_approval_exempt for d in volunteer.assigned_depts)
+        has_teardown = volunteer.can_work_teardown or any(
+            d.is_teardown_approval_exempt for d in volunteer.assigned_depts)
+
+        if has_setup and has_teardown:
+            cal_length = c.CON_TOTAL_LENGTH
+        elif has_setup:
+            cal_length = con_days + c.SETUP_SHIFT_DAYS
+        elif has_teardown:
+            cal_length = con_days + 2  # There's no specific config for # of shift signup days
+        else:
+            cal_length = con_days
         return {
             'jobs': joblist,
+            'has_public_jobs': has_public_jobs,
             'name': session.logged_in_volunteer().full_name,
-            'hours': session.logged_in_volunteer().weighted_hours
+            'hours': session.logged_in_volunteer().weighted_hours,
+            'assigned_depts_labels': volunteer.assigned_depts_labels,
+            'view': view,
+            'start': start,
+            'start_day': c.SHIFTS_START_DAY if has_setup else c.EPOCH,
+            'cal_length': cal_length
         }
 
     @check_shutdown
@@ -97,7 +136,7 @@ class Root:
             shift = session.shift(job_id=job_id, attendee_id=session.logged_in_volunteer().id)
             session.delete(shift)
             session.commit()
-        except:
+        except Exception:
             pass
         finally:
             return {'jobs': session.jobs_for_signups()}
@@ -110,14 +149,17 @@ class Root:
             try:
                 attendee = session.lookup_attendee(first_name.strip(), last_name.strip(), email, zip_code)
                 if not attendee.staffing:
-                    message = safe_string('You are not signed up as a volunteer.  <a href="volunteer?id={}">Click Here</a> to sign up.'.format(attendee.id))
-                elif not attendee.assigned_depts_ints and not c.AT_THE_CON:
-                    message = 'You have not been assigned to any departmemts; an admin must assign you to a department before you can log in'
-            except:
+                    message = safe_string(
+                        'You are not signed up as a volunteer. '
+                        '<a href="volunteer?id={}">Click Here</a> to sign up.'.format(attendee.id))
+                elif not attendee.dept_memberships and not c.AT_THE_CON:
+                    message = 'You have not been assigned to any departments; ' \
+                        'an admin must assign you to a department before you can log in'
+            except Exception as ex:
                 message = 'No attendee matches that name and email address and zip code'
 
             if not message:
-                cherrypy.session['csrf_token'] = uuid4().hex
+                ensure_csrf_token_exists()
                 cherrypy.session['staffer_id'] = attendee.id
                 raise HTTPRedirect(original_location)
 
@@ -136,7 +178,7 @@ class Root:
             'message': message,
             'attendee': attendee,
             'jobs': [job for job in attendee.possible_and_current
-                         if getattr(job, 'taken', False) or job.start_time > localized_now()]
+                     if getattr(job, 'taken', False) or job.start_time > localized_now()]
         }
 
     @csrf_protected

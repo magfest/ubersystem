@@ -12,15 +12,38 @@
             var formToSubmit = this;
             event.preventDefault();
             bootbox.confirm({
-                message: "This will permanently delete this person's badge. They will receive an email about this. Are you sure?",
+                message: "This will permanently unassign this person's badge. They will receive an email about this. Are you sure?",
                 buttons: {
                     confirm: {
-                        label: 'Yes',
-                        className: 'btn-success'
+                        label: 'Unassign Badge',
+                        className: 'btn-danger'
                     },
                     cancel: {
-                        label: 'No',
+                        label: 'Nevermind',
+                        className: 'btn-default'
+                    }
+                },
+                callback: function (result) {
+                    if(result) {
+                        formToSubmit.submit();
+                    }
+                }
+            });
+        })
+
+        $("form[action='../groups/cancel_dealer']").submit(function(event){
+            var formToSubmit = this;
+            event.preventDefault();
+            bootbox.confirm({
+                message: "This will permanently cancel this application. All registered badges in the group will be converted to individual badges. Are you sure?",
+                buttons: {
+                    confirm: {
+                        label: 'Cancel Application',
                         className: 'btn-danger'
+                    },
+                    cancel: {
+                        label: 'Nevermind',
+                        className: 'btn-default'
                     }
                 },
                 callback: function (result) {
@@ -31,39 +54,59 @@
             });
         })
     });
-    {% if group.status == c.APPROVED %}
+    {% if group.status in [c.APPROVED, c.CANCELLED, c.DECLINED] %}
         $(function() {
-            $("form[action='group_members'] :input").attr("disabled", true).prop('title','You cannot edit your information after you have been approved.')
+            $("form[action='group_members'] :input").prop("readonly", true).prop('title','You cannot edit your information after you have {{ "cancelled" if group.status == c.CANCELLED else "been "~group.status_label }}');
+            $("form[action='group_members'] :submit, form[action='../groups/cancel_dealer'] :submit").prop("disabled", true);
+            $("[name='categories']").prop("disabled", false);
+            $("[name='categories']:checkbox, [name='group_country']").prop("disabled", true);
         });
     {% endif %}
 </script>
-<div class="masthead">
-</div>
+
+<div class="masthead"></div>
 <div class="panel panel-default">
-{% if group.is_dealer %}
-    <h2>"{{ group.name }}" Information</h2>
-    <form method="post" action="group_members" class="form-horizontal" role="form">
+  <div class="panel-body">
+    {% if group.is_dealer %}
+    {% if group.status == c.APPROVED %}
+      <div class="alert alert-success">
+        Congratulations, your dealer application has been <strong>approved</strong>!
+          {% if group.amount_unpaid %}
+              {{ stripe_form('process_group_payment',charge) }}
+          {% endif %}
+        {% elif group.status == c.CANCELLED %}
+      <div class="alert alert-info">
+        You have <strong>cancelled</strong> your dealer application. If this was a mistake, please contact us at
+        <a href="mailto:{{ c.MARKETPLACE_EMAIL }}">{{ c.MARKETPLACE_EMAIL }}</a>.
+        {% else %}
+      <div class="alert alert-{{ 'danger' if group.status == c.DECLINED else 'warning' }}">
+        Your dealer application {{ 'is' if group.status == c.UNAPPROVED else 'has been' }} <strong>{{ group.status_label }}</strong>.
+        {% endif %}
+      </div>
+      <h2>"{{ group.name }}" Information</h2>
+      <form method="post" action="group_members" class="form-horizontal" role="form">
         <input type="hidden" name="id" value="{{ group.id }}" />
         {% include "groupform.html" %}
         <button type="submit" class="btn btn-primary" value="Update Application">Update Application</button>
-    </form>
-{% endif%}
-</div>
-<div class="panel panel-default">
+        <button type="submit" class="btn btn-danger" value="Cancel Dealer Application" form="cancel_dealer">Cancel Application</button>
+      </form>
+        <form method="post" id="cancel_dealer" action="../groups/cancel_dealer" class="form-horizontal" role="form">
+          <input type="hidden" name="id" value="{{ group.id }}" />
+        </form>
+    {% endif%}
+
+{% if group.status not in [c.CANCELLED, c.DECLINED] %}
 <h2> Members of "{{ group.name }}" </h2>
 
-{% if group.amount_unpaid and group.status != c.WAITLISTED %}
-    {% if not group.is_dealer or group.status != c.UNAPPROVED %}
-        <div style="text-align:center">
-            {{ stripe_form('process_group_payment',charge) }}
-        </div>
-    {% endif %}
+{% if group.amount_unpaid and not group.is_dealer %}
+    <div style="text-align:center">
+        {{ stripe_form('process_group_payment',charge) }}
+    </div>
 {% endif %}
 
 <div style="margin:15px">
     {% if group.unregistered_badges and group.tables %}
-        Some of your Dealer Assistant badges are not yet assigned to a specific person. Please assign these badges
-        between now (using the links below) and the close of preregistration; any badges unclaimed at that time will be
+        Some of your Dealer Assistant badges are not yet assigned to a specific person. Using the links below, please assign these badges before the close of preregistration; any badges unclaimed at that time will be
         invalid. You may also distribute each of the registration links below to the individual members of your group,
         which will allow them to fill in their own information as well as purchase any upgrades on their own.
         <br/> <br/>
@@ -75,46 +118,45 @@
 </div>
 
 <br/> <b>Here are the badges for your group:</b>
-<table style="width:auto">
+<table style="width: auto">
 {% for attendee in group.sorted_attendees %}
     <tr>
-        <td> <ul style="padding-right:0px"><li></li></ul> </td>
+        <td><ul style="margin: 5px 0; padding-right: 0"><li></li></ul></td>
         {% if attendee.first_name %}
-            <td>
-                {{ attendee.full_name }}
-                &nbsp;&nbsp;&nbsp;&nbsp;
+            <td style="padding-right: 10px">
+                <a href="confirm?id={{ attendee.id }}">{{ attendee.full_name }}</a>
             </td>
-            <td>
-                <a href="mailto:{{ attendee.email }}">{{ attendee.email }}</a>
-                &nbsp;&nbsp;&nbsp;&nbsp;
+            <td style="padding-right: 10px">
+                {{ attendee.email|email_to_link }}
+            </td>
+            <td style="padding-right: 10px">
                 {{ attendee.badge }}
             </td>
-            <td>
+            <td style="padding-right: 10px">
                 <!-- placeholder group leader registrations won't have a zip code -->
                 {% if attendee.zip_code %}
                     zip code: {{ attendee.zip_code }}
-                    &nbsp;&nbsp;&nbsp;&nbsp;
                 {% endif %}
             </td>
             <td>
                 {% if attendee != group.leader and not attendee.amount_extra and attendee.is_transferable %}
-                    <form method="post" action="unset_group_member">
+                  <form method="post" action="unset_group_member">
                     {{ csrf_token() }}
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
-                    <button class="btn btn-warning" type="submit">This person isn't coming</button>
-                    </form>
+                    <button class="btn btn-sm btn-warning" type="submit" style="margin: 5px 0;">This person isn't coming</button>
+                  </form>
                 {% elif attendee.is_transferable and attendee.total_donation %}
-                    <form method="get" action="transfer_badge">
+                  <form method="get" action="transfer_badge">
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
                     <b> Added on an extra ${{ attendee.total_donation }}! </b>
                     <input type="submit" value="Transfer Registration" />
-                    </form>
+                  </form>
                 {% endif %}
             </td>
         {% else %}
-            <td> <a style="font-size:10pt" href="register_group_member?group_id={{ group.id }}">Register someone for this badge</a>: </td>
-            <td colspan="3">
-                {{ attendee.badge }}
+            <td colspan="5">
+              <a href="register_group_member?group_id={{ group.id }}">Register someone for this badge</a>:
+              {{ attendee.badge }}
             </td>
         {% endif %}
     </tr>
@@ -125,34 +167,52 @@
 
 {% if c.PRE_CON and group.min_badges_addable %}
     <div id="add" style="display:none">
-        <form method="get" action="add_group_members">
+      <form class="form-inline" method="get" action="add_group_members">
         <input type="hidden" name="id" value="{{ group.id }}" />
-        Enter a number of {{ group.is_dealer|yesno("Dealer Assistants,group members") }} to add{% if group.min_badges_addable > 1 %} (you cannot add fewer than {{ group.min_badges_addable }} badges to an existing group){% endif %}: <br/>
-        {% if group.is_dealer %}
-            <select name="count">{{ int_options(group.min_badges_addable, group.dealer_badges_remaining) }}</select>
-        {% else %}
-            <select name="count">{{ int_options(group.min_badges_addable, 10) }}</select>
-        {% endif %}
-        <input type="submit" value="{{ group.is_dealer|yesno("Add Dealer Assistants,Add Group Members") }}">
-        </form>
+        <p>
+          {%- set min_badges = group.min_badges_addable -%}
+          {%- set members = group.is_dealer|yesno("Dealer Assistants,group members") -%}
+          Enter the number of {{ members }} to add.
+          {% if min_badges > 1 -%}
+            {%- set hours_remaining = group.hours_remaining_in_grace_period -%}
+            {%- if hours_remaining > 0 -%}
+              {%- set min_badges = 1 -%}
+              You have {{ humanize_timedelta(hours=hours_remaining, granularity='minutes') }}
+              remaining to add individual {{ members }}. After that you'll have to add at
+              least {{ group.min_badges_addable }} badges at a time.
+            {%- else -%}
+              You can't add fewer than {{ group.min_badges_addable }} badges to an existing group.
+            {%- endif -%}
+          {%- endif -%}
+        </p>
+        <select class="form-control" name="count">
+          {%- if group.is_dealer -%}
+            {{ int_options(min_badges, group.dealer_badges_remaining) }}
+          {%- else -%}
+            {{ int_options(min_badges, 10) }}
+          {%- endif -%}
+        </select>
+        <input class="btn btn-primary" type="submit" value="{{ group.is_dealer|yesno("Add Dealer Assistants,Add Group Members") }}">
+      </form>
     </div>
-    
+
     <script type="text/javascript">
         {% if group.amount_unpaid %}
             $(function(){
-                $('<button disabled title="Group must be paid for before new members can be added." style="cursor:pointer; background-color:#7F7F7F; border-style:none;">Click here to add more {{ group.is_dealer|yesno("Dealer Assistants,group members") }}.</button>')
-                    .insertAfter($("#add"));
+                $('<div class="disabled" title="Group must be paid for before new members can be added">' +
+                    '<button disabled class="btn btn-primary">Click here to add more {{ group.is_dealer|yesno("Dealer Assistants,group members") }}</button>' +
+                  '</div>').insertAfter($("#add"));
             });
         {% else %}
             $(function(){
-                $('<button style="cursor:pointer">Click here to add more {{ group.is_dealer|yesno("Dealer Assistants,group members") }}.</button>').click(function(e){
+                $('<button class="btn btn-primary">Click here to add more {{ group.is_dealer|yesno("Dealer Assistants,group members") }}</button>').click(function(e){
                         $(e.target).hide();
                         $("#add").show();
                     }).insertAfter($("#add"));
             });
         {% endif %}
     </script>
-    
+{% endif %}
 {% endif %}
 </div>
 {% endblock %}

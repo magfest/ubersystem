@@ -1,0 +1,3 @@
+
+class TestResendEmail():
+    pass

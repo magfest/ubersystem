@@ -1,0 +1,7 @@
+{{ team.salutation }},
+
+Thanks for registering your team with the MAGFest Indie Tabletop Showcase!  Your application is currently {{ team.completion_percentage }}% complete, and you can finish it anytime before the deadline of {{ c.MITS_SUBMISSION_DEADLINE|datetime_local }} by visiting {{ c.URL_BASE }}/mits_applications/continue_app?id={{ team.id }}
+
+In the meantime, let us know if you have any questions!
+
+{{ c.MITS_EMAIL_SIGNATURE }}

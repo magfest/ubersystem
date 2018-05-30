@@ -3,8 +3,16 @@
 <body>
 
 You ({{ attendee.full_name }}) have preregistered for {{ c.EVENT_NAME }} this coming {{ event_dates() }}
+{% if attendee.promo_code_id %}
+    using promotional code {{ attendee.promo_code.code }}
+{% endif %}
+
 {% if attendee.group %}
     by claiming one of the badges in the {{ attendee.group.name }} group.
+{% elif attendee.paid == c.NEED_NOT_PAY and attendee.promo_code_id %}
+    to claim a free badge.
+{% elif attendee.paid == c.NEED_NOT_PAY %}
+    by claiming your free badge.
 {% else %}
     and your payment of ${{ attendee.amount_paid }} has been received.
 {% endif %}
@@ -13,6 +21,11 @@ Your registration confirmation number is {{ attendee.id }}, and you can update y
     even more
 {% endif %}
 extra money <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">here</a>.
+
+{% if attendee.is_group_leader %}
+    If you don't remember claiming a badge, it may have been created for you by {{ c.EVENT_NAME }} staff. Please
+    check your information to make sure it is correct.
+{% endif %}
 
 <br/> <br/>
 
@@ -25,11 +38,26 @@ Badges are not mailed out before the event, so your badge will be available for 
 {% if attendee.amount_extra %}
     <br/> <br/>
     Your additional contribution of ${{ attendee.amount_extra }} provides you with these bonus items, which may be picked up at our merch booth:
-    <ul>
-    {% for swag in attendee.donation_swag|list + attendee.addons|list %}
+    <ul style="margin-bottom: 0">
+    {% for swag in attendee.donation_swag|list %}
         <li>{{ swag }}</li>
     {% endfor %}
     </ul>
+{% endif %}
+
+{% if attendee.addons %}
+    <br/> <br/>
+    Additionally, you will receive the following add-ons:
+    <ul style="margin-bottom: 0">
+    {% for addon in attendee.addons|list %}
+        <li>{{ addon }}</li>
+    {% endfor %}
+    </ul>
+{% endif %}
+
+{% if attendee.requested_hotel_info and c.PREREG_REQUEST_HOTEL_INFO_OPEN %}
+    <br/> <br/>
+    {% include "preregistration/hotel_disclaimer.html" %}
 {% endif %}
 
 {% include "emails/reg_workflow/reg_notes.html" %}

@@ -1,0 +1,111 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}{{ department.name }} Membership Requests{% endblock %}
+
+{% block content %}
+<style type="text/css">
+  h2 {
+    margin-bottom: 30px;
+  }
+
+  form {
+    max-width: 738px;
+  }
+</style>
+
+<script type="text/javascript">
+  $(function() {
+    var table = $('.table').DataTable();
+
+    $('form').on('submit', function(event) {
+      event.preventDefault();
+      try {
+        var $tableInputs = $('table').DataTable().$('input');
+        $('#table-inputs-fix').append($tableInputs);
+        this.submit();
+      } catch(ex) {
+        window.location = window.location + '&message=There was an error adding new members'
+      }
+    });
+
+    $('tbody').on('click', 'tr', function(event) {
+      var tag = event.target.nodeName.toUpperCase();
+      if (tag != 'INPUT' && tag != 'A') {
+        event.preventDefault();
+        var $checkbox = $(this).find('input');
+        $checkbox.prop('checked', !$checkbox.prop('checked'));
+      }
+    });
+  });
+</script>
+
+<h2>
+  <span class="glyphicon glyphicon-cog"></span>
+  Membership Requests for {{ department|form_link }}
+  {% if requested_any %}
+    <a class="btn btn-xs btn-plain" href="requests?department_id={{ department.id }}">
+  {% else %}
+    <a class="btn btn-xs btn-default" href="requests?department_id={{ department.id }}&requested_any=1">
+  {% endif %}
+      <span class="glyphicon glyphicon-filter"></span>
+      Include volunteers willing to help Anywhere
+    </a>
+</h2>
+
+{%- set requesting_attendees = department.unassigned_requesting_attendees
+    if requested_any else department.unassigned_explicitly_requesting_attendees -%}
+
+{% if requesting_attendees %}
+  <form method="post" action="requests" class="form-horizontal" role="form">
+    {{ csrf_token() }}
+    <input type="hidden" name="department_id" value="{{ department.id }}" />
+    <input type="hidden" name="attendee_ids" value="">
+
+    <div class="form-group">
+      <div class="col-sm-10 col-sm-offset-1">
+        <div class="table-responsive">
+          <table class="table table-hover datatable" data-page-length="25" data-order="[[ 1, &quot;asc&quot; ]]">
+            <thead>
+              <tr>
+                <th class="text-nowrap">Add</th>
+                <th>Name</th>
+                <th>Badge</th>
+                {%- if requested_any -%}
+                  <th class="text-right">Anywhere</th>
+                {%- endif -%}
+              </tr>
+            </thead>
+            <tbody>
+              {% for attendee in requesting_attendees %}
+                <tr>
+                  <td>
+                    <input type="checkbox" name="attendee_ids" value="{{ attendee.id }}">
+                  </td>
+                  <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
+                    {{ attendee|form_link }}
+                  </td>
+                  <td>{{ attendee.badge }}</td>
+                  {%- if requested_any -%}
+                    <td class="text-right">{{ attendee.anywhere_dept_membership_request|yesno('Yes,No') }}</td>
+                  {%- endif -%}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="table-inputs-fix" style="display: none;"></div>
+
+    <div class="form-group">
+      <div class="col-sm-9 col-sm-offset-3">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a href="form?id={{ department.id }}" type="button" class="btn btn-default">Cancel</a>
+      </div>
+    </div>
+  </form>
+{% else %}
+  <div><i>No unassigned volunteers have requested to help in the {{ department.name }} department yet.</i></div>
+{% endif %}
+
+{% endblock %}

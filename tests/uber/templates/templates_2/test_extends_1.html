@@ -1,0 +1,20 @@
+{%- import 'test_import_macros.html' as macros -%}
+{%- extends 'test_extends_1.html' -%}
+
+{%- block header -%}
+{{ super() }}
+templates_2.test_extends_1.header
+{{ super() }}
+{%- endblock -%}
+
+{%- block main -%}
+{{ super() }}
+templates_2.test_extends_1.main
+{{ super() }}
+{%- endblock -%}
+
+{%- block footer -%}
+{{ super() }}
+templates_2.test_extends_1.footer
+{{ super() }}
+{%- endblock -%}

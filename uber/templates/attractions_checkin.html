@@ -1,0 +1,55 @@
+<script>
+  var cancelSignup = function(signupId, callback) {
+    callback = callback || function() {}
+    $.ajax({
+      method: 'POST',
+      url: 'cancel_signup',
+      data: {
+        id: signupId,
+        csrf_token: csrf_token
+      },
+      success: function(response, status) {
+        callback(response);
+      },
+      error: function(response, status, statusText) {
+        callback({'error': 'There was an error cancelling the signup: ' + statusText});
+      }
+    });
+  };
+
+  var checkinSignup = function(signupId, callback) {
+    callback = callback || function() {}
+    $.ajax({
+      method: 'POST',
+      url: 'checkin_signup',
+      data: {
+        id: signupId,
+        csrf_token: csrf_token
+      },
+      success: function(response, status) {
+        callback(response);
+      },
+      error: function(response, status, statusText) {
+        callback({'error': 'There was an error checking in: ' + statusText});
+      }
+    });
+  };
+
+  var undoCheckinSignup = function(signupId, callback) {
+    callback = callback || function() {}
+    $.ajax({
+      method: 'POST',
+      url: 'undo_checkin_signup',
+      data: {
+        id: signupId,
+        csrf_token: csrf_token
+      },
+      success: function(response, status) {
+        callback(response);
+      },
+      error: function(response, status, statusText) {
+        callback({'error': 'There was an error undoing the check in: ' + statusText});
+      }
+    });
+  };
+</script>

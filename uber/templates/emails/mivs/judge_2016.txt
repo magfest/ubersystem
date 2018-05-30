@@ -1,0 +1,14 @@
+{{ judge.attendee.first_name }},
+
+You're receiving this email as you've been selected to be a judge for the 2017 Magfest Indie Game Showcase. As a judge, you should know: Judging. Has. Begun!
+
+As a Judge, you'll be responsible for playing and judging up to ***13*** different games.  Judging has begun, and you'll have until October 29th to complete your assignments.  We've found in the past to expect to spend around 15 minutes per game to get an accurate assessment.  You'll be assigning games a score from 1 to 10, and are encouraged to leave helpful feedback for the developers.  As thanks for helping us, we'll be able to give you a complementary pass to MagFest 2018. If you've already bought a pass, get in touch and we'll take a look at what options are available for you.
+
+If you find that you don't have time to complete your games, it's certainly ok! But please let us know sooner rather than later so that we can assign replacements in time.
+
+Here's the link to start judging: {{ c.URL_BASE }}/mivs_judging
+Don't forget - scores must be in by October 30th!
+
+From myself and everyone else on the MIVS team, we want to thank you for helping us and the independent developers who rely on us.  It's thanks to your efforts that we're able to have an amazing showcase year after year.
+
+{{ c.MIVS_EMAIL_SIGNATURE }}

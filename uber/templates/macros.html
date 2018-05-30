@@ -1,5 +1,5 @@
 {% macro ie7_compatibility_check() -%}
-    <!--[if lte IE 7]>
+  <!--[if lte IE 7]>
         <script>
             if (!document.documentMode) { //if documentMode exists, this is a later IE in compatibility mode
                 alert("This website requires IE 8 or later.");
@@ -10,60 +10,463 @@
 
 
 {% macro stripe_button(label) -%}
-    <button class="stripe-button-el">
-        <span class="display: block; min-height: 30px;">{{label}}</span>
-    </button>
+  <button class="btn btn-primary stripe-button-el">
+    <span class="display: block; min-height: 30px;">{{label}}</span>
+  </button>
 {%- endmacro %}
 
 
 {% macro popup_link(href, text='<sup>?</sup>') -%}
-    <a onClick="window.open('{{ href }}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;" href="{{ href }}">{{ text|safe }}</a>
-    {#-
-    TODO: integrate these changes from upstream, if needed. they may not be needed anymore
-
-    inner_text = "window.open('{self.href}', 'info', 'toolbar=no,height=500,width=375,scrollbars=yes').focus(); return false;".format(self=self)
-    inner_text = inner_text.replace("'", "&quot;")
-    return "<a onClick='{inner_text}' href='{self.href}'>{self.text}</a>".format(inner_text=inner_text, self=self)
-    -#}
+  <a onClick='window.open(&quot;{{ href }}&quot;, &quot;info&quot;, &quot;toolbar=no,height=500,width=375,scrollbars=yes&quot;).focus(); return false;' href='{{ href }}'>{{ text|safe }}</a>
 {%- endmacro %}
 
 
-{% macro checkbox(model, field_name, id=None) -%}
-    <input type="checkbox" name="{{ field_name }}" id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}" value="1" {% if model[field_name] %}checked{% endif %} />
+{% macro checkbox(model, field_name, id=None, label=None, label_class=None, is_readonly=False, title=None) -%}
+  {%- set is_class = model is class -%}
+  {%- set is_checked = not is_class and model[field_name] -%}
+  {% if label %}
+    <label
+        class="checkbox-label{% if label_class %} {{ label_class }}{% endif %}{% if is_readonly %} disabled{% endif %}"
+        {% if title %} title="{{ title }}"{% endif %}>
+  {% endif %}
+  {% if is_readonly %}
+    <input
+        type="hidden"
+        name="{{ field_name }}"
+        id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
+        value="{% if is_checked %}1{% else %}0{% endif %}" />
+    <input
+        type="checkbox"
+        value="1"
+        disabled
+        {% if not label and title %} title="{{ title }}"{% endif %}
+        {% if is_checked %} checked{% endif %} />
+  {% else %}
+    <input
+        type="checkbox"
+        name="{{ field_name }}"
+        id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
+        value="1"
+        {% if not label and title %} title="{{ title }}"{% endif %}
+        {% if is_checked %} checked{% endif %} />
+  {% endif %}
+  {% if label %} {{ label }}</label>{% endif %}
 {%- endmacro %}
 
 
-{% macro checkgroup(model, field_name, no_instance=False) -%}
-    {%- set defaults = model[field_name] if not no_instance else None -%}
-    {%- set defaults = defaults.split(",") if defaults else [] -%}
-    {% for num, desc in model.get_field(field_name).type.choices -%}
-        <label style="font-weight: normal;">
-            <input type="checkbox" name="{{ field_name }}" value="{{ num }}" {% if num|string in defaults %}checked{% endif %} />
-            {{ desc }}
+{% macro checkgroup_opts(field_name, choices, suffix='', defaults=[], is_readonly=False, include_empty_hidden=False) -%}
+  <div class="checkgroup">
+    {% for choice in choices -%}
+      {%- set value = choice.0 -%}
+      {%- set label = choice.1 -%}
+      {%- set desc = choice.2 -%}
+      {%- set has_value = value|string in defaults -%}
+      {%- if not is_readonly or has_value -%}
+        <label
+            class="checkbox-label{% if is_readonly %} disabled{% endif %}"
+            style="font-weight: normal;"
+            {% if desc %}title="{{ desc }}"{% endif %}>
+          {% if is_readonly %}
+            <input type="hidden" name="{{ field_name }}{{ suffix }}" value="{{ value }}"/>
+            <input type="checkbox" disabled checked/>
+            {{ label }}
+          {% else %}
+            {% if include_empty_hidden %}
+              <input type="hidden" name="{{ field_name }}{{ suffix }}" value=""/>
+            {% endif %}
+            <input
+                type="checkbox"
+                name="{{ field_name }}{{ suffix }}"
+                value="{{ value }}"
+                {% if has_value %}checked{% endif %}/>
+            {{ label }}
+          {% endif %}
         </label>
-        {% if not loop.last %}&nbsp;&nbsp;{% endif %}
+      {% endif %}
     {% endfor %}
+  </div>
+{%- endmacro %}
+
+
+{% macro checkgroup(model, field_name, suffix='', defaults=False, is_readonly=False) -%}
+  {%- set is_class = model is class -%}
+  {%- set defaults = model[field_name] if not defaults and not is_class else '' -%}
+  {%- set defaults = defaults.split(",") if defaults else [] -%}
+  {%- set choices = model.get_field(field_name).type.choices -%}
+  {{ checkgroup_opts(field_name, choices, suffix, defaults, is_readonly) }}
+{%- endmacro %}
+
+
+{% macro access_checkgroup(model, suffix='', is_readonly=False) -%}
+  {%- if is_readonly -%}
+    {{ checkgroup(model, 'access', suffix=suffix, is_readonly=True) }}
+  {%- else -%}
+    {%- set is_class = model is class -%}
+    {%- set defaults = [] if is_class else model.access.split(',') -%}
+    {% for value, label in c.DISALLOWED_ACCESS_OPTS -%}
+      {%- set has_value = value|string in defaults -%}
+      {%- if has_value -%}
+        <input type="hidden" name="access{{ suffix }}" value="{{ value }}"/>
+      {%- endif -%}
+    {%- endfor %}
+    {{ checkgroup_opts('access', c.ALLOWED_ACCESS_OPTS, suffix=suffix, defaults=defaults) }}
+  {%- endif -%}
+{%- endmacro %}
+
+
+{% macro form_group_scaffolding(
+    label=False,
+    help=False,
+    is_required=False,
+    size=6,
+    form_class='',
+    static_wrap=False) -%}
+  <div class="form-group {{ form_class }}">
+    <label class="col-sm-3 control-label{% if not is_required %} optional-field{% endif %}">
+      {{ label }}
+    </label>
+    <div class="col-sm-{{ size }}">
+      {% if static_wrap %}
+        <div class="form-control-static">
+          {{ caller() }}
+        </div>
+      {% else %}
+        {{ caller() }}
+      {% endif %}
+    </div>
+    {% if help %}
+      <div class="clearfix"></div>
+      <p class="col-sm-9 col-sm-offset-3 help-block">
+        {{ help }}
+      </p>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+
+{% macro form_group(
+    model,
+    field,
+    url_field=False,
+    url_text=False,
+    url_is_relative=False,
+    suffix='',
+    type='text',
+    id=False,
+    label=False,
+    placeholder='',
+    help=False,
+    form_class='',
+    is_required=False,
+    is_readonly=False,
+    is_admin=False,
+    is_focused=False) -%}
+
+  {%- set is_class = model is class -%}
+  {%- set has_value = not is_class and model[field] -%}
+  {%- set is_url = url_field or url_text or url_is_relative or type == 'url' -%}
+  {%- set url_field = url_field if url_field else field -%}
+  {% if not is_readonly or has_value %}
+    {% call form_group_scaffolding(label if label else field|unfieldify, help if not is_readonly else False, is_required, form_class=form_class) %}
+      {%- if is_readonly -%}
+        <div class="form-control-static">
+          {%- if type == 'email' -%}
+            {{ model[field]|email_to_link }}
+          {%- elif is_url -%}
+            {{ model[url_field]|url_to_link(text=url_text or model[field], is_relative=url_is_relative) }}
+          {%- else -%}
+            {{ '' if is_class else model[field]|linebreaksbr }}
+          {%- endif -%}
+        </div>
+      {%- else -%}
+        {%- if type == 'textarea' -%}
+          <textarea
+              class="form-control"
+              name="{{ field }}{{ suffix }}"
+              rows="4"
+              placeholder="{{ placeholder }}"
+              {% if is_required %} required="required"{% endif %}
+              {% if is_focused %} autofocus{% endif %}>{{ '' if is_class else model[field] }}</textarea>
+        {%- else -%}
+          <input
+                  class="form-control"
+                  type="{{ type }}"
+                  name="{{ field }}{{ suffix }}"
+                  {% if id %} id="{{ id }}"{% endif %}
+                  value="{{ '' if is_class else model[field] }}"
+                  placeholder="{{ placeholder }}"
+                  {% if is_required %} required="required"{% endif %}
+                  {% if is_focused %} autofocus{% endif %}/>
+        {%- endif -%}
+        {%- if is_admin and has_value -%}
+          {%- if type == 'email' -%}
+            {{ model[field]|email_to_link }}
+          {%- elif is_url -%}
+            {{ model[url_field]|url_to_link(text=url_text or model[field], is_relative=url_is_relative) }}
+          {%- endif -%}
+        {%- endif -%}
+      {%- endif -%}
+    {% endcall %}
+  {% endif %}
+{%- endmacro %}
+
+
+{% macro form_checkgroup(
+    model,
+    field,
+    other_field=False,
+    other_placeholder=False,
+    form_class='',
+    suffix='',
+    label=False,
+    help=False,
+    desc=False,
+    is_required=False,
+    is_readonly=False,
+    is_admin=False) -%}
+
+  {%- set is_class = model is class -%}
+  {%- set has_value = not is_class and model[field] -%}
+  {%- set has_other_value = not is_class and other_field and model[other_field] -%}
+  {%- set is_other_value_visible = not is_readonly or has_other_value -%}
+  {%- set is_wrapped = not is_readonly or has_value or desc -%}
+  {% call form_group_scaffolding(label if label else field|unfieldify, help if not is_readonly else False, is_required, 9, form_class, is_wrapped) %}
+    {%- if desc and not is_admin -%}<p>{{ desc }}</p>{%- endif -%}
+
+    {% if not is_readonly or has_value %}
+      {{ checkgroup(model, field, suffix=suffix, is_readonly=is_readonly) }}
+      <div class="clearfix"></div>
+    {% endif %}
+
+    {% if is_other_value_visible %}
+      <div class="form-group" style="margin-bottom: 0;">
+        {% if is_readonly %}
+          <div class="col-sm-8">
+            {% if not is_wrapped %}<div class="form-control-static">{% endif %}
+            {{ '' if is_class else model[other_field] }}
+            {% if not is_wrapped %}</div>{% endif %}
+          </div>
+        {% else %}
+          <div class="col-sm-1">
+            <div class="form-control-static">Other:</div>
+          </div>
+          <div class="col-sm-7">
+            <input
+                    class="form-control"
+                    type="text"
+                    name="{{ other_field }}{{ suffix }}"
+                    value="{{ '' if is_class else model[other_field] }}"
+                    placeholder="{{ other_placeholder }}"/>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+  {% endcall %}
+{%- endmacro %}
+
+
+{% macro name_form_group(model=None, label='Name', first_name_attr='first_name', last_name_attr='last_name', prefix='', suffix='', form_class='', is_required=False) -%}
+  <div class="form-group {{ form_class }}">
+    <label class="col-sm-3 control-label {% if not is_required %}optional-field{% endif %}">{{ label }}</label>
+    <div class="col-sm-6">
+      <div class="form-group">
+        <div class="col-sm-6">
+          <input class="form-control first_name" type="text" name="{{ prefix }}{{ first_name_attr }}{{ suffix }}" value="{{ model[first_name_attr] if model else '' }}" placeholder="First Name" {% if is_required %}required{% endif %} />
+        </div>
+        <div class="col-sm-6">
+          <input class="form-control last_name" type="text" name="{{ prefix }}{{ last_name_attr }}{{ suffix }}" value="{{ model[last_name_attr] if model else '' }}" placeholder="Last Name" {% if is_required %}required{% endif %} />
+        </div>
+      </div>
+    </div>
+  </div>
 {%- endmacro %}
 
 
 {% macro nav_menu(model, current_page_path) -%}
-    {% if not model.is_new -%}
-        <table class="menu"><tr>
-        {% for href, label, display in varargs|batch(3, False) if display %}
-            {% set href = href.format(**model.__dict__) %}
-            <td width="{{ 100 // loop.length }}%">
-                {%- if current_page_path.endswith(href.split('?')[0]) -%}
-                    {{ label }}
-                {%- else -%}
-                    <a href="{{ href }}">{{ label }}</a>
-                {%- endif -%}
-            </td>
-        {% endfor %}
-        </tr></table>
-    {%- endif %}
+  {% if not model.is_new -%}
+    <table class="navmenu"><tr>
+      {% for href, label, display in varargs|batch(3, False) if display %}
+        {% set href = href.format(**model.__dict__) %}
+        <td width="{{ 100 // loop.length }}%">
+          {%- if current_page_path.endswith(href.split('?')[0]) -%}
+            {{ label }}
+          {%- else -%}
+            <a href="{{ href }}">{{ label }}</a>
+          {%- endif -%}
+        </td>
+      {% endfor %}
+    </tr></table>
+  {%- endif %}
 {%- endmacro %}
 
 
 {% macro checklist_image(enabled) -%}
-    <img src="../static/images/checkbox_{% if not enabled %}un{% endif %}checked.png" style="vertical-align:top ; margin-right:5px" height="20" width="20" />
+  <img src="../static/images/checkbox_{% if not enabled %}un{% endif %}checked.png" style="vertical-align:top ; margin-right:5px" height="20" width="20" />
 {%- endmacro %}
+
+
+{% macro prereg_wizard(page_path, prereg_request_hotel_info_open) -%}
+  {%- if prereg_request_hotel_info_open -%}
+    {%-
+            set steps = [
+                (('form', 'post_form'), 'Enter Info'),
+                (('hotel',), 'Hotel Booking'),
+                (('index', 'preregistration', ''), 'Review & Pay'),
+                (('paid_preregistrations',), 'Done')]
+            -%}
+  {% else %}
+    {%-
+            set steps = [
+                (('form', 'post_form'), 'Enter Info'),
+                (('index', 'preregistration', ''), 'Review & Pay'),
+                (('paid_preregistrations',), 'Done')]
+            -%}
+  {%- endif -%}
+  {%- set step_count = steps|length -%}
+  {%- set col_size = (12 / step_count)|round(0, 'floor')|int -%}
+  {%- set vars = {'is_complete': False} -%}
+  <div class="row bs-wizard">
+    {% for url, text in steps -%}
+      <div class="col-xs-{{ col_size }} bs-wizard-step {% if page_path|basename in url -%}active{%- if vars.update({'is_complete': True}) -%}{%- endif -%}{%- elif vars.is_complete -%}disabled{%- else -%}complete{%- endif %}">
+        <div class="text-center bs-wizard-stepnum">Step {{ loop.index }}</div>
+        <div class="progress"><div class="progress-bar"></div></div>
+        <a class="bs-wizard-dot"></a>
+        <div class="bs-wizard-info text-center">{{ text }}</div>
+      </div>
+    {%- endfor %}
+  </div>
+{%- endmacro %}
+
+
+{% macro address_form(model, name_prefix='', model_prefix='', update_international=False, is_required=False) -%}
+  {%- set suffix = model.id|replace("-", "") -%}
+  {%- set zip_code_attr = model_prefix ~ 'zip_code' -%}
+  {%- set address1_attr = model_prefix ~ 'address1' -%}
+  {%- set address2_attr = model_prefix ~ 'address2' -%}
+  {%- set city_attr = model_prefix ~ 'city' -%}
+  {%- set region_attr = model_prefix ~ 'region' -%}
+  {%- set country_attr = model_prefix ~ 'country' -%}
+
+  <script type="text/javascript">
+      var regionChange{{ suffix }} = function() {
+          {% if update_international %}setInternational();{% endif %}
+          var regionopts = $('#region{{ suffix }}');
+          var whichCountry = $('#country{{ suffix }}').find(':selected').text();
+          switch(whichCountry) {
+              case 'United States':
+                  regionopts.replaceWith('<select name="{{ name_prefix }}region" id="region{{ suffix }}" class="form-control"></select>');
+                  $('[name="{{ name_prefix }}region"]').html(regionsforUS);
+                  break;
+              case 'Canada':
+                  regionopts.replaceWith('<select name="{{ name_prefix }}region" id="region{{ suffix }}" class="form-control"></select>');
+                  $('[name="{{ name_prefix }}region"]').html(regionsforCanada);
+                  break;
+          }
+          var optionToSelect{{ suffix }} = $('#region{{ suffix }} option[value="{{ model[region_attr] }}"]');
+          if (optionToSelect{{ suffix }}.length) {
+              optionToSelect{{ suffix }}.prop('selected', true)
+          }
+      };
+
+      $(function() {
+          {% if update_international %}setInternational();{% endif %}
+          $('#country{{ suffix }}').val('{{ model[country_attr] }}');
+          $('#country{{ suffix }}').selectToAutocomplete();
+          $('#country{{ suffix }}').change(function() {
+              $('#region{{ suffix }}').replaceWith('<input type="text" name="{{ name_prefix }}region" id="region{{ suffix }}" value="{{ model[region_attr] }}" class="form-control" placeholder="State/Province">');
+              regionChange{{ suffix }}();
+          });
+
+          $('#region{{ suffix }}').val('{{ model[region_attr] }}');
+          regionChange{{ suffix }}();
+          {% if model.status in [c.APPROVED, c.CANCELLED, c.DECLINED] and not admin_area %}
+        $(function() {
+            $("[name='group_region']").prop("disabled", false);
+            $("select[name='group_region']").prop("disabled", true);
+            $("[placeholder='Country']").prop("readonly", true);
+        });
+      {% endif %}
+      });
+  </script>
+
+  <div class="form-group address_details{{ suffix }}">
+    <label for="country{{ suffix }}" class="col-sm-3 control-label">Country</label>
+    <div class="col-sm-6">
+      <select name="{{ name_prefix }}country" id="country{{ suffix }}" class="form-control" placeholder="Country" autocorrect="off" autocomplete="country" {% if is_required %}required="required"{% endif %}>
+        {% include "country_opts.html" %}
+      </select>
+    </div>
+  </div>
+  <div class="form-group address_details{{ suffix }}">
+    <label for="address1{{ suffix }}" class="col-sm-3 control-label">Street</label>
+    <div class="col-sm-6">
+      <input type="text" name="{{ name_prefix }}address1" class="form-control" placeholder="Address Line 1" value="{{ model[address1_attr] }}" {% if is_required %}required="required"{% endif %}/>
+    </div>
+  </div>
+  <div class="form-group address_details{{ suffix }}">
+    <div class="col-sm-6 col-sm-offset-3">
+      <input type="text" name="{{ name_prefix }}address2" class="form-control" placeholder="Address Line 2" value="{{ model[address2_attr] }}" />
+    </div>
+  </div>
+  <div class="form-group address_details{{ suffix }}">
+    <label for="city{{ suffix }}" class="col-sm-3 control-label">City</label>
+    <div class="col-sm-6">
+      <input type="text" name="{{ name_prefix }}city" class="form-control" placeholder="City" value="{{ model[city_attr] }}" {% if is_required %}required="required"{% endif %}/>
+    </div>
+  </div>
+  <div class="form-group address_details{{ suffix }}">
+    <label for="region{{ suffix }}" class="col-sm-3 control-label">State/Region</label>
+    <div class="col-sm-6">
+      <input type="hidden" name="{{ name_prefix }}region" value="{{ model[region_attr] }}" id="hidden_region{{ suffix }}" disabled />
+      <input type="text" name="{{ name_prefix }}region" id="region{{ suffix }}" class="form-control" placeholder="State/Province" value="{{ model[region_attr] }}" autocomplete="address-level1" {% if is_required %}required="required"{% endif %}/>
+    </div>
+  </div>
+  <div class="form-group address_details{{ suffix }}">
+    <label for="zip_code{{ suffix }}" class="col-sm-3 control-label">ZIP/Postal Code</label>
+    <div class="col-sm-6">
+      <input type="text" name="{{ name_prefix }}zip_code" class="form-control" value="{{ model[zip_code_attr] }}" {% if is_required %}required="required"{% endif %}/>
+    </div>
+  </div>
+{%- endmacro %}
+
+
+{% macro toggle_checkbox(selector, label, suffix='', name='', value='1', required_selector=False, hide_on_checked=True, mode='visibility', checked=False) -%}
+  <script type="text/javascript">
+      var toggleVisibility{{ suffix }} = function () {
+          var isChecked = $('#toggle_visibility{{ suffix }}').prop('checked'),
+              hideOnChecked = {%- if hide_on_checked -%}true{%- else -%}false{%- endif -%},
+              isVisible = isChecked != hideOnChecked;
+          if ('{{ mode }}' == 'visibility') {
+              $('{{ selector }}').toggle(isVisible);
+          } else {
+              $('{{ mode }}').prop('disabled', !isVisible);
+          }
+          {%- if required_selector -%}$('{{ required_selector }}').prop('required', isVisible);{%- endif -%}
+      };
+      $(function () {
+          toggleVisibility{{ suffix }}();
+          $('#toggle_visibility{{ suffix }}').change(toggleVisibility{{ suffix }});
+      })
+  </script>
+  <label for="toggle_visibility{{ suffix }}" class="checkbox-label">
+    <input type="checkbox" name="{{ name }}" id="toggle_visibility{{ suffix }}" value="{{ value }}" {% if checked %}checked="checked"{% endif %} />
+    {{ label }}
+  </label>
+{%- endmacro %}
+
+{% macro preview_email(email) %}
+  {% if email.format == 'html' %}
+    {% if email.to is defined %}
+      {# HTML formatted Email to a specific model instance #}
+      <div class="well email-preview">{{ email.body_as_html|safe }}</div>
+    {% else %}
+      {# HTML formatted AutomatedEmail template #}
+      <pre class="well email-preview" style="white-space: pre-wrap">{{ email.body }}</pre>
+    {% endif %}
+  {% else %}
+    {# Text formatted Email or AutomatedEmail #}
+    <div class="well email-preview" style='font-family: Menlo, Monaco, Consolas, "Courier New", monospace; font-size: 13px'>
+      {{ email.body_as_html|safe }}
+    </div>
+  {% endif %}
+{% endmacro %}

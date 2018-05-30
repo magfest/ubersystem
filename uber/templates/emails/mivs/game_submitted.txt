@@ -1,0 +1,9 @@
+{{ game.studio.primary_contact.first_name }},
+
+This is a confirmation that you have submitted your game {{ game.title }} to our panel of judges for Round Two (the final round) of judging.
+
+Judging will last through the month of October, and results will be posted in November - we are aiming for November 6th.
+
+Good luck!
+
+{{ c.MIVS_EMAIL_SIGNATURE }}

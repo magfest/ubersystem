@@ -13,12 +13,12 @@ span.jq-dte-inner {
   padding: 1px;
   margin: 1px;
   white-space: nowrap;
-  background-color: #ffffff;
+  background-color: transparent;
 }
 
 span.jq-dte input {
   border: none;
-  background-color: #ffffff;
+  background-color: transparent;
   text-align: center;
   margin: 0;
   padding: 0;

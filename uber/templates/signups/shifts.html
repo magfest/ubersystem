@@ -22,26 +22,20 @@
 	color:white;
 	float:right;
 }
-.shift_button {
-	background-color:#3276b1;
-
-}
-
-.shift_button.drop {
-	background-color:#239875;
-
+.text-public {
+  color: #40c000;
 }
 </style> {% endblock %} {% block main_content %} <div class="hidden csrf_token"> {{ csrf_token() }} </div>
 
 
 <div class="row">
 	<div class="col-md-12 text-center">
-	<span style="font-size:16pt ; font-weight:bold" class="ng-binding">T U's available shifts</span>
+	<span style="font-size:16pt ; font-weight:bold" class="ng-binding">{{ name }}'s available shifts</span>
    	</div>
 </div>
 <div class="row">
 	<div class="col-md-12 text-center">
-   		<span style="font-size:12pt ; font-style:italic" class="ng-binding">(If you are not T U, <a href="login">log in here</a>.)</span>
+   		<span style="font-size:12pt ; font-style:italic" class="ng-binding">(If you are not {{ name }}, <a href="login">log in here</a>.)</span>
 	</div>
 </div>
 <div class=row">
@@ -52,6 +46,20 @@
        <!-- ngIf: !c.HIDE_SCHEDULE -->
    </tr>
    </tbody></table>
+   <br>
+   You are assigned to the following department{{ assigned_depts_labels|length|pluralize }}: {{ assigned_depts_labels|join(' / ') }}.
+   {% if has_public_jobs %}
+     <br><br>
+     Some of the listed jobs are for departments you are not assigned to
+     (marked like this<sup class="text-public"> public</sup>).
+     <br>
+     {% if c.MAX_DEPTS_WHERE_WORKING > 0 %}
+       You may sign up any of the listed jobs, but you'll be prevented from
+       working in more than {{ c.MAX_DEPTS_WHERE_WORKING }}
+       department{{ c.MAX_DEPTS_WHERE_WORKING|pluralize }}.
+       <br>
+     {% endif %}
+   {% endif %}
    <br>
         <a href="#" class="toggle-cal" state="all">Click Here</a>
 	<span class="all-state-text state-text"> to see the {{hours}} weighted hours worth of shifts you are signed up for</span>
@@ -70,8 +78,8 @@
 </div>
 {% endblock %}
 {% block page_script %}
-    <script src="../static/deps/combined.js"></script>
-    <script src="../angular/magfest.js"></script>
+<script src="../static/deps/combined.min.js"></script>
+<script src="../angular/magfest.js"></script>
 
 <script type="text/javascript" src="../static/js/moment.js"></script>
 
@@ -81,104 +89,111 @@
 	var eventList = new Array();
 	var shiftList = new Array();
 
-
-
-        $(document).ready(function() {
-		    {% for job in jobs %}
-                    {% if job.taken %}
-			shiftList.push({
-                                        title : "{{job.name}}",
-                                        start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-                                        end : "{{job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-                                        id : "{{job.id}}",
-                                        {% if job.taken %}
-                                        backgroundColor: "#239875",
-                                        taken: true
-                                        {% else %}
-                                        backgroundColor: "#305fc9",
-                                        taken: false
-                                        {% endif %}
-                                });
-			{% endif %}
-                        eventList.push({
-                                        title : "{{job.name}}",
-                                        start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-                                        end : "{{job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
-                                        id : "{{job.id}}",
-                                        {% if job.taken %}
-                                        backgroundColor: "#239875",
-                                        taken: true
-                                        {% else %}
-                                        backgroundColor: "#305fc9",
-                                        taken: false
-                                        {% endif %}
-                                });
-
-    		    {% endfor %}
-
-                $('#shift_cal').fullCalendar({
-                        header: {
-                                left: 'prev,next today',
-                                center: 'title',
-                                right: 'agendaDay,listWeek'
-                        },
-			buttonText : {
-                                today : 'Today',
-                                agendaWeek : 'Week',
-                                agendaDay : 'Day',
-                                listWeek : 'Week'
-                        },
-			views: {
-                		agendaDay: { buttonText: 'Day' },
-                		listWeek: { buttonText: 'Week' }
-           	 	},
-                        defaultView: 'listWeek',
-                        editable: true,
-			slotDuration: '00:15:00',
-                        allDaySlot: false,
-                        eventLimit: true, // allow "more" link when too many events
-                        slotEventOverlap: false,
-			events: eventList,
-			eventRender:function(event,element) {
-				var buttonTag = '<a class="btn btn-primary shift_button ';
-				if (event.taken) {
-				buttonTag += 'drop';
-				}
-				buttonTag += '" ';
-
-				buttonTag += 'onclick="click_shift(\'' + event.taken;
-				buttonTag += '\',\'' +  event.id;
-                                buttonTag += '\',\'' +  moment(event.start).toISOString();
-                                buttonTag += '\',\'' +  event.title
-				buttonTag += '\')" ';
-				buttonTag += '>';
-				if(event.taken) {
-					buttonTag += 'Drop';
-				} else {
-					buttonTag += 'Sign-up';
-				}
-				buttonTag += '</a>';
-				element.find('.fc-list-item-title').append(buttonTag);
-				element.find('.fc-title').append('</br>' + buttonTag);
-			},
+    $(document).ready(function() {
+        {% for job in jobs %}
+            {% if job.taken %}
+                shiftList.push({
+                    title : "{{ job.name }} ({{ job.department_name }}) x{{ job.weight }}",
+                    start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
+                    end : "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
+                    id : "{{ job.id }}",
+                    is_public: {{ job.is_public|string|lower }},
+                    is_public_to_volunteer: {{ job.is_public_to_volunteer|string|lower }},
+                    description: "{{ job.description }}",
+                    extra15: {{ job.extra15|string|lower }},
+                    backgroundColor: "#239875",
+                    taken: true
                 });
-   		{% if 'schedule' in c.QUERY_STRING %}
+            {% endif %}
+            eventList.push({
+                title : "{{ job.name }} ({{ job.department_name }}) x{{ job.weight }}",
+                start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
+                end : "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
+                id : "{{ job.id }}",
+                is_public: {{ job.is_public|string|lower }},
+                is_public_to_volunteer: {{ job.is_public_to_volunteer|string|lower }},
+                description: "{{ job.description }}",
+                extra15: {{ job.extra15|string|lower }},
+                {% if job.taken %}
+                    backgroundColor: "#239875",
+                    taken: true
+                {% else %}
+                    backgroundColor: "#305fc9",
+                    taken: false
+                {% endif %}
+            });
+        {% endfor %}
 
-                        $("#shift_cal").fullCalendar( 'changeView','listWeek');
-
-		{% else %}
-
-                // if opened with tgt_date, go to date in calendar
-
-		{% endif %}
-                var curDate = $.urlParam('tgt_date');
-                if(curDate != null) {
-                        $("#shift_cal").fullCalendar( 'changeView','agendaDay');
-			$("#shift_cal").fullCalendar( 'gotoDate',curDate);
-
+        $('#shift_cal').fullCalendar({
+            header: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'agendaDay,agendaConWeek,listConDuration'
+            },
+            views: {
+                agendaDay: { buttonText: 'Day' },
+                agendaConWeek: {
+                    type: 'agenda',
+                    duration: { days: {{ cal_length }} },
+                    buttonText: 'Calendar'
+                },
+                listConDuration: {
+                    type: 'list',
+                    duration: { days: {{ cal_length }} },
+                    buttonText: 'List'
+                }
+            },
+            defaultView: 'listConDuration',
+            defaultDate: '{{ start_day.strftime('%Y-%m-%d') }}',
+            slotDuration: '00:30:00',
+            allDaySlot: false,
+            eventLimit: true, // allow "more" link when too many events
+            slotEventOverlap: false,
+            events: eventList,
+            eventRender: function(event, element, view) {
+                var eventDesc = "";
+                if (event.description) {
+                    eventDesc += "<br/>" + event.description;
+                }
+                if (event.extra15) {
+                    eventDesc += " + 15 minute end-time."
+                }
+                var buttonTag = '<a class="btn shift_button ';
+                if (view.name !== 'listConDuration') {
+                    buttonTag += 'btn-xs ';
+                }
+                if (event.taken) {
+                    buttonTag += 'btn-warning"';
                 } else {
-			$("#shift_cal").fullCalendar('gotoDate', eventList[0].start);
-		}
+                    buttonTag += 'btn-primary"';
+                }
+
+                buttonTag += "onclick=\"click_shift('" + event.taken + "','" + event.id + "','" +
+                moment(event.start).toISOString() + "','" + $('<div/>').text(event.title).html() + "')\"";
+
+                buttonTag += '>';
+                if(event.taken) {
+                    buttonTag += 'Drop';
+                } else {
+                    buttonTag += 'Sign up';
+                }
+                buttonTag += '</a>';
+
+                if(event.is_public_to_volunteer) {
+                  element.find('.fc-list-item-title').append($('<sup class="text-public"> public</sup>'));
+                  element.find('.fc-title').append($('<sup class="text-public"> public</sup>'));
+                }
+                element.find('.fc-list-item-title').append(eventDesc + buttonTag);
+                element.find('.fc-title').append(" " + buttonTag + '<br/>' + eventDesc);
+            }
+        });
+        {% if view %}
+            // Keep the view they were on when they added or dropped a shift
+            $('#shift_cal').fullCalendar('changeView', '{{ view }}');
+            {% if start %}
+                $('#shift_cal').fullCalendar('gotoDate', '{{ start }}');
+            {% endif %}
+        {% endif %}
 		$(".toggle-cal").click(function() {
 			$("#shift_cal").fullCalendar('removeEventSources');
 			if($(this).attr('state')=='all') {
@@ -191,40 +206,31 @@
 			$("#shift_cal").fullCalendar('refetchEvents');
 			$(".state-text").toggleClass('hidden');
 		});
+    });
 
-        });
-
-function click_shift(state,id,time,title) {
+    function click_shift(taken,id,start,title) {
         var postData = {};
+        var time = moment(start).format("h:mma");
+        var date = moment(start).format("dddd, MMM Do");
         postData['csrf_token'] =  $("div.csrf_token input").attr('value');
         var confirmStr = "Do you want to ";
-        if (state=='true') {
+        if (taken=='true') {
         	confirmStr += "drop ";
         } else {
-                confirmStr += "signup ";
+            confirmStr += "sign up for ";
         }
-        confirmStr += title + " at " + time + "?";
+        confirmStr += title + " at " + time + " on " + date + "?";
         var r = confirm(confirmStr);
         if (r == true) {
         	var tgtShiftURL = "sign_up?job_id="+ id;
-                if(state=='true') {
-                	tgtShiftURL = "drop?job_id=" + id;
-                }
-                $.post( tgtShiftURL,postData,function( data,status ) {
-                        window.location.href = window.location.pathname + "?tgt_date=" + moment(event.start).toISOString();
-                });
+            if(taken=='true') {
+                tgtShiftURL = "drop?job_id=" + id;
+            }
+            $.post( tgtShiftURL,postData,function( data,status ) {
+                var view = $('#shift_cal').fullCalendar('getView');
+                window.location.href = window.location.pathname + "?view=" + view.name + "&start=" + view.start.toISOString();
+            });
         }
-
-}
-
-$.urlParam = function(name){
-   var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
-   if (results==null){
-      return null;
-   }
-   else{
-      return results[1] || 0;
-   }
-}
+    }
 </script>
 {% endblock %}

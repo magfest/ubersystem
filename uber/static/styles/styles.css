@@ -1,8 +1,16 @@
+body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.42857143;
+    color: #333;
+    background-color: #fff
+}
 
 a, a:visited {
     color:           blue;
     text-decoration: none;
 }
+
 a:hover {
     color:           red;
     text-decoration: underline;
@@ -32,14 +40,6 @@ ul {
     margin: 0px;
 }
 
-table {
-    width:          100%;
-    border-spacing: 5px;
-}
-td {
-    padding: 5px;
-}
-
 table.calendar {
     width:          auto;
     border:         2px solid black;
@@ -49,41 +49,6 @@ table.calendar {
 table.calendar td {
     border:  1px solid black;
     padding: 15px;
-}
-
-table.menu {
-    border-collapse: collapse;
-    text-align:      center;
-    margin-top:      10px;
-    margin-bottom:   10px;
-}
-table.menu td {
-    border: 2px solid gray;
-}
-
-table.list {
-    width:           100%;
-    text-align:      center;
-    border-collapse: collapse;
-}
-table.list td {
-    border:  1px solid black;
-    padding: 5px;
-}
-table.list tr.header {
-    background:     #99CCFF;
-    font-weight:    bold;
-    vertical-align: bottom;
-}
-table.list tr.header a,
-table.list tr.header a:hover,
-table.list tr.header a:visited {
-    color:           black;
-    text-decoration: none;
-}
-table.list table td {
-    border:  0;
-    padding: 0;
 }
 
 table.form {
@@ -134,12 +99,4 @@ ul.select2-results {
 .select2-bolded {
     font-weight: bold;
     font-size: 16pt;
-}
-
-.pad-top-10 li {
-    padding-top: 10px;
-}
-
-.center {
-    text-align: center;
 }
