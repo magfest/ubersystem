@@ -9,7 +9,7 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, department_id_adapter, \
     assert_dept_admin, requires_dept_admin
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Department, DeptRole, Job
+from uber.models import Attendee, Department, Job
 from uber.utils import check, localized_now
 
 
