@@ -235,6 +235,12 @@ def promo_code_is_useful(attendee):
     if attendee.promo_code:
         if not attendee.is_unpaid:
             return "You can't apply a promo code after you've paid or if you're in a group."
+        elif attendee.is_dealer:
+            return "You can't apply a promo code to a dealer registration."
+        elif attendee.age_discount != 0:
+            return "You are already receiving an age based discount, you can't use a promo code on top of that."
+        elif attendee.badge_type == c.ONE_DAY_BADGE or attendee.is_presold_oneday:
+            return "You can't apply a promo code to a one day badge."
         elif attendee.overridden_price:
             return "You already have a special badge price, you can't use a promo code on top of that."
         elif attendee.badge_cost >= attendee.badge_cost_without_promo_code:
