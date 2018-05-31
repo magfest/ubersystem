@@ -44,12 +44,6 @@ class TestCosts:
         monkeypatch.setattr(c, 'get_oneday_price', Mock(return_value=10))
         monkeypatch.setattr(c, 'get_attendee_price', Mock(return_value=20))
 
-    def test_new_badge_cost_and_discount(self):
-        assert (10, 'age discount') == Attendee(age_group=c.UNDER_13).new_badge_cost_and_discount
-        assert (10, 'one day badge') == Attendee(badge_type=c.ONE_DAY_BADGE).new_badge_cost_and_discount
-        assert (10, 'group discount') == Attendee(paid=c.PAID_BY_GROUP, group=Group()).new_badge_cost_and_discount
-        assert (20, 'dealer discount') == Attendee(badge_type=c.PSEUDO_DEALER_BADGE).new_badge_cost_and_discount
-
     def test_badge_cost(self):
         assert 10 == Attendee(badge_type=c.ONE_DAY_BADGE).badge_cost
         assert 20 == Attendee().badge_cost

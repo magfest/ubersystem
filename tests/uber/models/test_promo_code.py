@@ -169,10 +169,9 @@ class TestAttendeePromoCodeModelChecks:
             "You already have a special badge price, you can't use a promo code on top of that."
 
     def test_promo_code_is_useful_special_price(self, monkeypatch):
-        monkeypatch.setattr(c, 'get_oneday_price', lambda r: 0)
+        monkeypatch.setattr(c, 'get_attendee_price', lambda r: 0)
         promo_code = PromoCode(discount=1, expiration_date=next_week)
         attendee = Attendee(
-            badge_type=c.ONE_DAY_BADGE,
             promo_code=promo_code,
             placeholder=True,
             first_name='First',
@@ -190,19 +189,20 @@ class TestAttendeePromoCodeModelChecks:
             first_name='First',
             last_name='Last')
         assert check(attendee, prereg=True) == \
-            "That promo code doesn't make your badge any cheaper. You may already have other discounts."
+            "You can't apply a promo code to a one day badge."
 
     def test_promo_code_does_not_help_dealer(self, monkeypatch):
         promo_code = PromoCode(discount=1, expiration_date=next_week)
         attendee = Attendee(
             badge_type=c.PSEUDO_DEALER_BADGE,
             group=Group(),
+            cellphone='555-555-1234',
             promo_code=promo_code,
             placeholder=True,
             first_name='First',
             last_name='Last')
         assert check(attendee, prereg=True) == \
-            "That promo code doesn't make your badge any cheaper. You may already have other discounts."
+            "You can't apply a promo code to a dealer registration."
 
     def test_promo_code_does_not_help_minor(self, monkeypatch):
         promo_code = PromoCode(discount=1, expiration_date=next_week)
@@ -213,7 +213,7 @@ class TestAttendeePromoCodeModelChecks:
             first_name='First',
             last_name='Last')
         assert check(attendee, prereg=True) == \
-            "That promo code doesn't make your badge any cheaper. You may already have other discounts."
+            "You are already receiving an age based discount, you can't use a promo code on top of that."
 
     def test_promo_code_not_is_expired(self):
         expire = datetime.now(pytz.UTC) - timedelta(days=9)
