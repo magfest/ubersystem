@@ -578,6 +578,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.calculate_badge_cost(use_promo_code=False)
 
     def calculate_badge_cost(self, use_promo_code=True):
+        discount = None
         if self.paid == c.NEED_NOT_PAY:
             return 0
         elif self.overridden_price is not None:
@@ -585,32 +586,36 @@ class Attendee(MagModel, TakesPaymentMixin):
         elif self.base_badge_price:
             cost = self.base_badge_price
         else:
-            cost = self.new_badge_cost
+            (cost, discount) = self.new_badge_cost_and_discount
 
-        if c.BADGE_PROMO_CODES_ENABLED and self.promo_code and use_promo_code:
+        if c.BADGE_PROMO_CODES_ENABLED and self.promo_code and use_promo_code and not discount:
             return self.promo_code.calculate_discounted_price(cost)
         else:
             return cost
 
     @property
     def new_badge_cost(self):
+        return self.new_badge_cost_and_discount[0]
+
+    @property
+    def new_badge_cost_and_discount(self):
         # What this badge would cost if it were new, i.e., not taking into
         # account special overrides
         registered = self.registered_local if self.registered else None
         if self.is_dealer:
-            return c.DEALER_BADGE_PRICE
+            return (c.DEALER_BADGE_PRICE, 'dealer discount')
         elif self.badge_type == c.ONE_DAY_BADGE:
-            return c.get_oneday_price(registered)
+            return (c.get_oneday_price(registered), 'one day badge')
         elif self.is_presold_oneday:
-            return c.get_presold_oneday_price(self.badge_type)
+            return (c.get_presold_oneday_price(self.badge_type), 'one day badge')
         elif self.badge_type in c.BADGE_TYPE_PRICES:
-            return int(c.BADGE_TYPE_PRICES[self.badge_type])
+            return (int(c.BADGE_TYPE_PRICES[self.badge_type]), None)
         elif self.age_discount != 0:
-            return max(0, c.get_attendee_price(registered) + self.age_discount)
-        elif self.group and self.paid == c.PAID_BY_GROUP:
-            return c.get_attendee_price(registered) - c.GROUP_DISCOUNT
+            return (max(0, c.get_attendee_price(registered) + self.age_discount), 'age discount')
+        elif self.group and self.paid == c.PAID_BY_GROUP and c.GROUP_DISCOUNT > 0:
+            return (c.get_attendee_price(registered) - c.GROUP_DISCOUNT, 'group discount')
         else:
-            return c.get_attendee_price(registered)
+            return (c.get_attendee_price(registered), None)
 
     @property
     def promo_code_code(self):
