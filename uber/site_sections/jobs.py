@@ -180,7 +180,7 @@ class Root:
 
         departments = session.admin_attendee().depts_where_can_admin
         can_admin_dept = any(job.department_id == d.id for d in departments)
-        if not can_admin_dept:
+        if not can_admin_dept and (job.department or job.department_id):
             job_department = job.department or session.query(Department).get(job.department_id)
             if job.is_new:
                 departments = sorted(departments + [job_department], key=lambda d: d.name)
