@@ -166,9 +166,9 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
         if not is_dept_admin:
             if department_id:
                 department = session.query(Department).get(department_id)
-                dept_msg = ' of {} '.format(department.name)
+                dept_msg = ' of {}'.format(department.name)
             else:
-                dept_msg = ' '
+                dept_msg = ''
             return 'You must be a department admin{} to complete that action.'.format(dept_msg)
 
 
