@@ -186,10 +186,19 @@ class Department(MagModel):
         secondary='dept_membership',
         order_by='Attendee.full_name',
         viewonly=True)
+    members_with_inherent_role = relationship(
+        'Attendee',
+        backref=backref('depts_with_inherent_role', order_by='Department.name'),
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='and_('
+                    'Department.id == DeptMembership.department_id, '
+                    'DeptMembership.has_inherent_role)',
+        secondary='dept_membership',
+        order_by='Attendee.full_name',
+        viewonly=True)
     members_who_can_admin_checklist = relationship(
         'Attendee',
-        backref=backref(
-            'can_admin_checklist_depts', order_by='Department.name'),
+        backref=backref('can_admin_checklist_depts', order_by='Department.name'),
         cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
                     'Department.id == DeptMembership.department_id, '

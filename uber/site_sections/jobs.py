@@ -6,7 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, department_id_adapter
+from uber.decorators import ajax, all_renderable, csrf_protected, department_id_adapter, \
+    assert_dept_admin, requires_dept_admin
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, DeptRole, Job
 from uber.utils import check, localized_now
@@ -147,6 +148,7 @@ class Root:
             'checklist': session.checklist_status('assigned_volunteers', department_id)
         }
 
+    @requires_dept_admin
     def form(self, session, message='', **params):
         defaults = {}
         if params.get('id') == 'None' and cherrypy.request.method != 'POST':
@@ -176,14 +178,25 @@ class Root:
             else:
                 job.type = c.SETUP if local_start_time < c.EPOCH else c.TEARDOWN
 
+        departments = session.admin_attendee().depts_where_can_admin
+        can_admin_dept = any(job.department_id == d.id for d in departments)
+        if not can_admin_dept:
+            job_department = job.department or session.query(Department).get(job.department_id)
+            if job.is_new:
+                departments = sorted(departments + [job_department], key=lambda d: d.name)
+            else:
+                departments = [job_department]
+
         dept_roles = defaultdict(list)
-        for d in session.query(DeptRole):
-            dept_roles[d.department_id].append((d.id, d.name, d.description))
+        for department in departments:
+            for d in department.dept_roles:
+                dept_roles[d.department_id].append((d.id, d.name, d.description))
 
         return {
             'job': job,
             'message': message,
             'dept_roles': dept_roles,
+            'dept_opts': [(d.id, d.name) for d in departments],
             'defaults': 'defaults' in locals() and defaults
         }
 
@@ -198,6 +211,7 @@ class Root:
     @csrf_protected
     def delete(self, session, id):
         job = session.job(id)
+        assert_dept_admin(session, job.department)
         for shift in job.shifts:
             session.delete(shift)
         session.delete(job)

@@ -284,13 +284,13 @@ class Attendee(MagModel, TakesPaymentMixin):
         'DeptMembership',
         primaryjoin='and_('
                     'Attendee.id == DeptMembership.attendee_id, '
-                    'DeptMembership.has_inherent_role == True)',
+                    'DeptMembership.has_inherent_role)',
         viewonly=True)
     dept_memberships_with_role = relationship(
         'DeptMembership',
         primaryjoin='and_('
                     'Attendee.id == DeptMembership.attendee_id, '
-                    'DeptMembership.has_role == True)',
+                    'DeptMembership.has_role)',
         viewonly=True)
     dept_memberships_as_dept_head = relationship(
         'DeptMembership',
@@ -1344,6 +1344,13 @@ class Attendee(MagModel, TakesPaymentMixin):
             - has a dept role
         """
         return bool(self.dept_memberships_with_role)
+
+    @property
+    def depts_where_can_admin(self):
+        if self.admin_account and c.ACCOUNTS in self.admin_account.access_ints:
+            from uber.models.department import Department
+            return self.session.query(Department).order_by(Department.name).all()
+        return self.depts_with_inherent_role
 
     def has_shifts_in(self, department):
         return department in self.depts_where_working
