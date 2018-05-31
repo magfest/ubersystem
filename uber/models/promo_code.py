@@ -243,7 +243,10 @@ class PromoCode(MagModel):
         Converts the given datetime to 11:59pm local in the event timezone.
         """
         if isinstance(dt, six.string_types):
-            dt = dateparser.parse(dt)
+            if dt.strip():
+                dt = dateparser.parse(dt)
+            else:
+                dt = c.ESCHATON
         return c.EVENT_TIMEZONE.localize(dt.replace(hour=23, minute=59, second=59, tzinfo=None))
 
     @property
