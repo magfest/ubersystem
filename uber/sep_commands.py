@@ -152,6 +152,7 @@ def has_admin():
             print('At least one admin account exists', file=sys.stderr)
             sys.exit(0)
 
+
 @entry_point
 def drop_uber_db():
     assert c.DEV_BOX, 'drop_uber_db is only available on development boxes'
