@@ -22,8 +22,14 @@ from uber.utils import add_opt, check, check_csrf, Charge, get_page, hour_day_fo
 
 
 def pre_checkin_check(attendee, group):
-    if c.NUMBERED_BADGES and not attendee.badge_num:
-        return 'Badge number is required'
+    if c.NUMBERED_BADGES:
+        min_badge, max_badge = c.BADGE_RANGES[attendee.badge_type]
+        if not attendee.badge_num:
+            return 'Badge number is required'
+        elif not (min_badge <= int(attendee.badge_num) <= max_badge):
+            return ('{a.full_name} has a {a.badge_type_label} badge, but '
+                    '{a.badge_num} is not a valid number for '
+                    '{a.badge_type_label} badges').format(a=attendee)
 
     if c.COLLECT_EXACT_BIRTHDATE:
         if not attendee.birthdate:
@@ -39,12 +45,6 @@ def pre_checkin_check(attendee, group):
 
     if attendee.paid == c.NOT_PAID:
         return 'You cannot check in an attendee that has not paid.'
-
-    min_badge, max_badge = c.BADGE_RANGES[attendee.badge_type]
-    if not (min_badge <= int(attendee.badge_num) <= max_badge):
-        return ('{a.full_name} has a {a.badge_type_label} badge, but '
-                '{a.badge_num} is not a valid number for '
-                '{a.badge_type_label} badges').format(a=attendee)
 
     return check(attendee)
 
