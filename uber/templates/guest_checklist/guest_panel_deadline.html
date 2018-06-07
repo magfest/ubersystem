@@ -2,7 +2,7 @@
 {% block deadline_headline %}Add a Panel{% endblock %}
 {% block deadline_text %}
   {% if not guest.group.leader.panel_applications %}
-    What panels and/or events are you putting on at MAGFest? Please use the above link to submit each panel.
+    What panels and/or events are you putting on at {{ c.EVENT_NAME }}? Please use the above link to submit each panel.
   {% else %}
     You have already submitted {{ guest.group.leader.panel_applications|length }} panel
     idea{{ guest.group.leader.panel_applications|length|pluralize }}.
