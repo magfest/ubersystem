@@ -146,6 +146,7 @@ class all_api_auth:
                 setattr(cls, name, api_auth(*self.required_access)(fn))
         return cls
 
+
 @all_api_auth(c.API_READ)
 class GuestLookup:
     fields = {
@@ -195,6 +196,7 @@ class GuestLookup:
             else:
                 query = session.query(GuestGroup)
             return [guest.to_dict(self.fields) for guest in query]
+
 
 @all_api_auth(c.API_READ)
 class AttendeeLookup:
