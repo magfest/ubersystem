@@ -502,10 +502,10 @@ class ConfigLookup:
         Returns a list of all available configuration settings.
         """
         output = {field: getattr(c, field) for field in self.fields}
-        
+
         # This is to allow backward compatibility with pre 1.0 code
         output['YEAR'] = c.EVENT_YEAR
-        
+
         output['API_VERSION'] = __version__
         return output
 
