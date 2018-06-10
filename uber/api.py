@@ -22,7 +22,7 @@ from uber.server import register_jsonrpc
 from uber.utils import check_csrf, normalize_newlines
 
 
-__version__ = '0.1'
+__version__ = '1.0'
 
 
 def docstring_format(*args, **kwargs):
@@ -488,7 +488,7 @@ class ConfigLookup:
     fields = [
         'EVENT_NAME',
         'ORGANIZATION_NAME',
-        'YEAR',
+        'EVENT_YEAR',
         'EPOCH',
         'ESCHATON',
         'EVENT_VENUE',
@@ -502,6 +502,10 @@ class ConfigLookup:
         Returns a list of all available configuration settings.
         """
         output = {field: getattr(c, field) for field in self.fields}
+        
+        # This is to allow backward compatibility with pre 1.0 code
+        output['YEAR'] = c.EVENT_YEAR
+        
         output['API_VERSION'] = __version__
         return output
 
