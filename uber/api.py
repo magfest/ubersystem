@@ -546,6 +546,7 @@ class ConfigLookup:
         'EVENT_VENUE_ADDRESS',
         'AT_THE_CON',
         'POST_CON',
+        'URL_BASE',
     ]
 
     def info(self):
