@@ -310,6 +310,7 @@
       'barcode': '{"method": "barcode.lookup_attendee_from_barcode", "params": ["~v22pcw"]}',
       'config': '{"method": "config.info"}',
       'dept': '{"method": "dept.list"}',
+      'guest': '{"method": "guest.list", "params": ["guest"]}',
       'shifts': '{"method": "shifts.lookup", "params": {"department_id": "' ~ c.DEFAULT_DEPARTMENT_ID ~ '", "start_time": "now"}}'
     }
   -%}
