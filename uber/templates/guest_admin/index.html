@@ -47,7 +47,7 @@
               {% set item_display = group.guest[item.name ~ '_status'] if group.guest else '' -%}
 
               {% if item.is_link -%}
-                <td>{{ item_display|url_to_link("Yes", "_blank") if '../' in item_display else item_display -}}</td>
+                <td>{{ item_display|url_to_link("Yes", "_blank") if (item_display.startswith('../') or item_display.startswith('http')) else item_display -}}</td>
               {% else -%}
                 <td>{{ item_display -}}</td>
               {% endif -%}
