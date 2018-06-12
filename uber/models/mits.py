@@ -155,7 +155,7 @@ class MITSPicture(MagModel):
 
     @property
     def url(self):
-        return '../mits_applications/view_picture?id={}'.format(self.id)
+        return '{}/mits_applications/view_picture?id={}'.format(c.URL_BASE, self.id)
 
     @property
     def filepath(self):
@@ -169,7 +169,7 @@ class MITSDocument(MagModel):
 
     @property
     def url(self):
-        return '../mits_applications/download_doc?id={}'.format(self.id)
+        return '{}/mits_applications/download_doc?id={}'.format(c.URL_BASE, self.id)
 
     @property
     def filepath(self):
