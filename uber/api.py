@@ -17,7 +17,7 @@ from uber.config import c
 from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
 from uber.models import AdminAccount, ApiToken, Attendee, DeptMembership, DeptMembershipRequest, Job, \
-    Session, Shift
+    Session, Shift, GuestGroup
 from uber.server import register_jsonrpc
 from uber.utils import check_csrf, normalize_newlines
 
@@ -145,6 +145,57 @@ class all_api_auth:
             if hasattr(fn, '__call__'):
                 setattr(cls, name, api_auth(*self.required_access)(fn))
         return cls
+
+
+@all_api_auth(c.API_READ)
+class GuestLookup:
+    fields = {
+        'group_id': True,
+        'group_type': True,
+        'info': {
+            'status': True,
+            'poc_phone': True
+        },
+        'bio': {
+            'status': True,
+            'desc': True,
+            'website': True,
+            'facebook': True,
+            'twitter': True,
+            'other_social_media': True,
+            'teaser_song_url': True,
+            'pic_url': True
+        },
+        'interview': {
+            'will_interview': True,
+            'email': True,
+            'direct_contact': True
+        },
+        'group': {
+            'name': True,
+            'website': True,
+            'description': True
+        }
+    }
+
+    def types(self):
+        return c.GROUP_TYPE_VARS
+
+    def list(self, type=None):
+        """
+        Returns a list of Guests.
+
+        Optionally, 'type' may be passed to limit the results to a specific
+        guest type.  For a full list of guest types, call the "guest.types"
+        method.
+
+        """
+        with Session() as session:
+            if type and type.upper() in c.GROUP_TYPE_VARS:
+                query = session.query(GuestGroup).filter_by(group_type=getattr(c, type.upper()))
+            else:
+                query = session.query(GuestGroup)
+            return [guest.to_dict(self.fields) for guest in query]
 
 
 @all_api_auth(c.API_READ)
@@ -564,3 +615,4 @@ if c.API_ENABLED:
     register_jsonrpc(DepartmentLookup(), 'dept')
     register_jsonrpc(ConfigLookup(), 'config')
     register_jsonrpc(BarcodeLookup(), 'barcode')
+    register_jsonrpc(GuestLookup(), 'guest')
