@@ -358,7 +358,7 @@ class IndieGameImage(MagModel):
 
     @property
     def url(self):
-        return '{}/mivs_applications/view_image?id={}'.format(c.URL_BASE, self.id)
+        return '{}/mivs_applications/view_image?id={}'.format(c.PATH, self.id)
 
     @property
     def filepath(self):

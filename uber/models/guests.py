@@ -173,7 +173,7 @@ class GuestBio(MagModel):
     @property
     def pic_url(self):
         if self.uploaded_pic:
-            return '{}/guests/view_bio_pic?id={}'.format(c.URL_BASE, self.guest.id)
+            return '{}/guests/view_bio_pic?id={}'.format(c.PATH, self.guest.id)
         return ''
 
     @property
@@ -206,7 +206,7 @@ class GuestTaxes(MagModel):
     @property
     def w9_url(self):
         if self.w9_filename:
-            return '{}/guests/view_w9?id={}'.format(c.URL_BASE, self.guest.id)
+            return '{}/guests/view_w9?id={}'.format(c.PATH, self.guest.id)
         return ''
 
     @property
@@ -235,7 +235,7 @@ class GuestStagePlot(MagModel):
     @property
     def url(self):
         if self.uploaded_file:
-            return '{}/guests/view_stage_plot?id={}'.format(c.URL_BASE, self.guest.id)
+            return '{}/guests/view_stage_plot?id={}'.format(c.PATH, self.guest.id)
         return ''
 
     @property
@@ -334,11 +334,11 @@ class GuestMerch(MagModel):
 
     @property
     def rock_island_url(self):
-        return '{}/guest_admin/rock_island?id={}'.format(c.URL_BASE, self.guest_id)
+        return '{}/guest_admin/rock_island?id={}'.format(c.PATH, self.guest_id)
 
     @property
     def rock_island_csv_url(self):
-        return '{}/guest_admin/rock_island_csv?id={}'.format(c.URL_BASE, self.guest_id)
+        return '{}/guest_admin/rock_island_csv?id={}'.format(c.PATH, self.guest_id)
 
     @property
     def status(self):
@@ -518,7 +518,7 @@ class GuestMerch(MagModel):
         return os.path.join(c.GUESTS_INVENTORY_DIR, file)
 
     def inventory_url(self, item_id, name):
-        return '{}/guests/view_inventory_file?id={}&item_id={}&name={}'.format(c.URL_BASE, self.id, item_id, name)
+        return '{}/guests/view_inventory_file?id={}&item_id={}&name={}'.format(c.PATH, self.id, item_id, name)
 
     def remove_inventory_item(self, item_id, *, persist_files=True):
         item = None
