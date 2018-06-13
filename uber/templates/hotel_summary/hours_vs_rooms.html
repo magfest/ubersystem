@@ -17,6 +17,8 @@
       <th>Depts Where Working</th>
       <th>Assigned Shift Hours <small>(weighted)</small></th>
       <th>Worked Shift Hours <small>(weighted)</small></th>
+      <th>Assigned Shift Hours <small>(unweighted)</small></th>
+      <th>Worked Shift Hours <small>(unweighted)</small></th>
       <th>Nonshift Hours</th>
       <th>First Hotel Night</th>
       <th>Last Hotel Night</th>
@@ -32,6 +34,8 @@
         <td>{{ report.attendee.depts_where_working|map(attribute="name")|join(" / ") }}</td>
         <td>{{ report.weighted_hours }}</td>
         <td>{{ report.worked_hours }}</td>
+        <td>{{ report.unweighted_hours }}</td>
+        <td>{{ report.unweighted_worked_hours }}</td>
         <td>{{ report.nonshift_hours }}</td>
         <td>{{ report.first_hotel_night or '' }}</td>
         <td>{{ report.last_hotel_night or '' }}</td>
