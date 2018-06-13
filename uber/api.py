@@ -547,6 +547,8 @@ class ConfigLookup:
         'AT_THE_CON',
         'POST_CON',
         'URL_BASE',
+        'URL_ROOT',
+        'PATH',
     ]
 
     def info(self):
