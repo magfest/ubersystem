@@ -2,7 +2,7 @@ import uuid
 from datetime import timedelta
 
 import six
-from pockets import cached_property, classproperty, readable_join
+from pockets import cached_property, classproperty, groupify, readable_join
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -324,6 +324,14 @@ class Department(MagModel):
     @classmethod
     def normalize_name(cls, name):
         return name.lower().replace('_', '').replace(' ', '')
+
+    @property
+    def dept_roles_by_id(self):
+        return groupify(self.dept_roles, 'id')
+
+    @property
+    def dept_roles_by_name(self):
+        return groupify(self.dept_roles, 'name')
 
 
 class Job(MagModel):
