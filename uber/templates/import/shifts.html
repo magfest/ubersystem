@@ -18,7 +18,6 @@
     var $shiftsForm = $("form[action='shifts']"),
         $departmentsBlock = $('#departments_block'),
         $targetUrl = $('#target_url'),
-        $toDepartment = $('#to_department_id'),
         $fromDepartment = $('#from_department_id');
 
     $('#lookup_departments').on('click', function(e) {
@@ -43,8 +42,6 @@
                   $.each(result.departments, function(i, d) {
                       $('<option>').val(d[0]).text(d[1]).appendTo($fromDepartment);
                   });
-                  $fromDepartment.prop('selectedIndex', 1);
-                  $toDepartment.prop('selectedIndex', 1);
                   $departmentsBlock.show();
                 } else {
                   toastr.error('Did not find any results.');
@@ -74,8 +71,7 @@
           class="form-control"
           type="text"
           name="target_server"
-          {# value="{{ target_server }}" #}
-          value="https://labs2.uber.magfest.org/uber/api/"
+          value="{{ target_server }}"
           placeholder="event.uber.magfest.org"
           required>
     </div>
@@ -87,8 +83,7 @@
           class="form-control"
           type="text"
           name="api_token"
-          {# value="{{ api_token }}" #}
-          value="4a8cc2c3-8e85-4d50-92d6-5c7e448fe93c"
+          value="{{ api_token }}"
           placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
           required>
     </div>
