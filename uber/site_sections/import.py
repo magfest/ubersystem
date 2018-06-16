@@ -189,7 +189,6 @@ class Root:
                 to_dept_roles_by_name = to_department.dept_roles_by_name
                 dept_role_map = {}
                 for from_dept_role in from_department['dept_roles']:
-                    print(from_dept_role['name'])
                     to_dept_role = to_dept_roles_by_id.get(from_dept_role['id'], [None])[0]
                     if not to_dept_role:
                         to_dept_role = to_dept_roles_by_name.get(from_dept_role['name'], [None])[0]
