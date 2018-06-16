@@ -16,7 +16,7 @@ from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
 from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
-from uber.models import AdminAccount, ApiToken, Attendee, DeptMembership, DeptMembershipRequest, Job, \
+from uber.models import AdminAccount, ApiToken, Attendee, Department, DeptMembership, DeptMembershipRequest, Job, \
     Session, Shift, GuestGroup
 from uber.server import register_jsonrpc
 from uber.utils import check_csrf, normalize_newlines
@@ -532,6 +532,45 @@ class DepartmentLookup:
         Returns a list of department ids and names.
         """
         return c.DEPARTMENTS
+
+    @department_id_adapter
+    @api_auth(c.API_READ)
+    def jobs(self, department_id):
+        """
+        Returns a list of all roles and jobs for the given department.
+
+        Takes the department id as the first parameter. For a list of all
+        department ids call the "dept.list" method.
+        """
+        with Session() as session:
+            department = session.query(Department).get(department_id)
+            return department.to_dict({
+                'id': True,
+                'name': True,
+                'description': True,
+                'solicits_volunteers': True,
+                'is_shiftless': True,
+                'is_setup_approval_exempt': True,
+                'is_teardown_approval_exempt': True,
+                'jobs': {
+                    'id': True,
+                    'type': True,
+                    'name': True,
+                    'description': True,
+                    'start_time': True,
+                    'duration': True,
+                    'weight': True,
+                    'slots': True,
+                    'extra15': True,
+                    'visibility': True,
+                    'required_roles': {'id': True},
+                },
+                'dept_roles': {
+                    'id': True,
+                    'name': True,
+                    'description': True,
+                },
+            })
 
 
 @all_api_auth(c.API_READ)
