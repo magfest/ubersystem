@@ -11,7 +11,7 @@ from uber.config import c
 from uber.decorators import all_renderable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Email, Group, Tracking
+from uber.models import Attendee, Attraction, Email, Group, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, localized_now, Charge
 
@@ -730,6 +730,7 @@ class Root:
             'attendee':      attendee,
             'message':       message,
             'affiliates':    session.affiliates(),
+            'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
             'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
         }
 

@@ -23,7 +23,7 @@
 <div class="masthead"></div>
 <div class="panel panel-default">
   <div class="panel-body">
-    {% if c.ATTRACTIONS_ENABLED %}
+    {% if c.ATTRACTIONS_ENABLED and attractions %}
       {% include 'attractions_tabs.html' with context %}
     {% endif %}
     {% block panel_top %}{% endblock %}
