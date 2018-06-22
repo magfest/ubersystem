@@ -13,8 +13,8 @@ __here__ = os.path.dirname(os.path.abspath(__file__))
 
 @pytest.mark.parametrize('plugins,expected', [
     (['plugin_1'], 'Hello plugin_1!'),
-    (['plugin_1', 'plugin_2'], 'Hello plugin_2!'),
-    (['plugin_1', 'plugin_2', 'plugin_3'], 'Hello plugin_3!'),
+    (['plugin_1', 'plugin_2'], 'Hey plugin_2!'),
+    (['plugin_1', 'plugin_2', 'plugin_3'], 'Hey plugin_3!'),
 ])
 def test_email_templates(plugins, expected, monkeypatch):
     monkeypatch.setattr(JinjaEnv, '_env', None)
@@ -46,5 +46,5 @@ def test_email_templates(plugins, expected, monkeypatch):
         attendee = Attendee(first_name='Test', last_name='Email', email='test@example.com')
         for i in range(1, 4):
             automated_email = session.query(AutomatedEmail).filter_by(ident='test_template_{}'.format(i)).one()
-            for i in range(4):
-                assert expected == automated_email.render_body(attendee).strip()
+            for i in range(1, 4):
+                assert expected == automated_email.render_body(attendee).strip(), 'render() call {}'.format(i)
