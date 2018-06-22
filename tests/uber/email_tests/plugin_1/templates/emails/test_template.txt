@@ -1,0 +1,1 @@
+{% include 'emails/greeting.txt' %} {% block plugin_name %}plugin_1{% endblock %}!

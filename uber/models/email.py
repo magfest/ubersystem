@@ -18,7 +18,7 @@ from uber.decorators import renderable_data
 from uber.jinja import JinjaEnv
 from uber.models import MagModel
 from uber.models.types import DefaultColumn as Column
-from uber.utils import normalize_newlines
+from uber.utils import normalize_newlines, request_cached_context
 
 
 __all__ = ['AutomatedEmail', 'Email']
@@ -211,7 +211,8 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
         return self.render_template(self.subject, self.renderable_data(model_instance))
 
     def render_template(self, text, data):
-        return JinjaEnv.env().from_string(text).render(data)
+        with request_cached_context(clear_cache_on_start=True):
+            return JinjaEnv.env().from_string(text).render(data)
 
     def send_to(self, model_instance, delay=True, raise_errors=False):
         try:
