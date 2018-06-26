@@ -16,3 +16,4 @@ geopy==1.11.0
 twilio==6.10.0
 cherrys==0.4
 redis==2.10.6
+ics==0.4

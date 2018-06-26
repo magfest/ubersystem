@@ -241,6 +241,7 @@ label.radio-label {
 
 
 <script>
+  filtered_locs = [];
   $(function() {
     var $scheduleTable = $('.schedule-table'),
         $scheduleRooms = $('.schedule-rooms'),
@@ -264,6 +265,8 @@ label.radio-label {
       var text = $(this).val().toLowerCase(),
           textLength = text.length,
           rooms = roomTrie;
+      filtered_locs = [];
+      $('#filtered_locations').val('');
 
       if (textLength <= 0) {
         $scheduleRooms.find('td, th').css('display', '');
@@ -282,11 +285,13 @@ label.radio-label {
         $scheduleRooms.find('td, th').hide();
         $.each(rooms['__rooms__'], function(location, index) {
           $scheduleRooms.find('td.room_' + location + ', th.room_' + location).css('display', '');
+          filtered_locs.push(location);
         });
       } else {
         $scheduleRooms.find('td, th').hide();
       }
       $scheduleRooms.scrollLeft(0);
+      $('#filtered_locations').val(JSON.stringify(filtered_locs))
     });
 
     var delay = (function(){
@@ -324,7 +329,12 @@ label.radio-label {
     <label class="radio-label"><input type="radio" name="toggle" class="toggle" id="show_other"> Other</label>
   </div>
   <div id="room_filter">
+    <form method="post" action="ical" class="form-horizontal" role="form">
     <label for="room_filter_text">Filter</label>
     <input type="text" name="filter" class="filter" id="room_filter_text" autofocus="autofocus" placeholder="Room Name">
+
+      <input type="hidden" id="filtered_locations" name="locations" />
+    <button class="btn btn-primary form-inline">Export to iCal</button>
+      </form>
   </div>
 </div>
