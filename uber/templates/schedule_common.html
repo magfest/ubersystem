@@ -242,6 +242,17 @@ label.radio-label {
 
 <script>
   filtered_locs = [];
+  var updateiCalFilter = function() {
+      filtered_locs = [];
+      $('#filtered_locations').val('');
+
+      $("th:visible[class*='room_']").each(function() {
+          var location = this.className.split('room_')[1].split(' ', 1)[0];
+          filtered_locs.push(location);
+      });
+      $('#filtered_locations').val(JSON.stringify(filtered_locs))
+  };
+
   $(function() {
     var $scheduleTable = $('.schedule-table'),
         $scheduleRooms = $('.schedule-rooms'),
@@ -258,6 +269,7 @@ label.radio-label {
       if (isToggledOn) {
         $scheduleRooms.scrollLeft(0);
       }
+      updateiCalFilter();
     });
 
     var roomTrie = {{ c.ROOM_TRIE|jsonize }};
@@ -265,11 +277,10 @@ label.radio-label {
       var text = $(this).val().toLowerCase(),
           textLength = text.length,
           rooms = roomTrie;
-      filtered_locs = [];
-      $('#filtered_locations').val('');
 
       if (textLength <= 0) {
         $scheduleRooms.find('td, th').css('display', '');
+        updateiCalFilter();
         return;
       }
 
@@ -285,13 +296,12 @@ label.radio-label {
         $scheduleRooms.find('td, th').hide();
         $.each(rooms['__rooms__'], function(location, index) {
           $scheduleRooms.find('td.room_' + location + ', th.room_' + location).css('display', '');
-          filtered_locs.push(location);
         });
       } else {
         $scheduleRooms.find('td, th').hide();
       }
       $scheduleRooms.scrollLeft(0);
-      $('#filtered_locations').val(JSON.stringify(filtered_locs))
+      updateiCalFilter();
     });
 
     var delay = (function(){
