@@ -137,6 +137,9 @@ class Root:
 
         return icalendar
 
+    if not c.HIDE_SCHEDULE:
+        ical.restricted = False
+
     @csv_file
     def csv(self, out, session):
         out.writerow(['Session Title', 'Date', 'Time Start', 'Time End', 'Room/Location',
