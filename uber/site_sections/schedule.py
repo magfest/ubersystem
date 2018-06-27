@@ -111,13 +111,17 @@ class Root:
 
         if 'locations' not in params or not params['locations']:
             locations = [id for id, name in c.EVENT_LOCATION_OPTS]
-            calname="all_locations"
+            calname = "all_locations"
         else:
             locations = json.loads(params['locations'])
-            calname="_".join([name for id, name in c.EVENT_LOCATION_OPTS if str(id) in locations]).lower().replace(' ', '_')
+            calname = "_".join([name for id, name in c.EVENT_LOCATION_OPTS
+                                if str(id) in locations])\
+                .lower().replace(' ', '_')
 
         for location in locations:
-            for event in session.query(Event).filter_by(location=int(location)).order_by('start_time').all():
+            for event in session.query(Event)\
+                    .filter_by(location=int(location))\
+                    .order_by('start_time').all():
                 icalendar.events.add(ics.Event(
                     name=event.name,
                     begin=event.start_time,
@@ -126,10 +130,10 @@ class Root:
                     created=event.created.when,
                     location=event.location_label))
 
-        cherrypy.response.headers['Content-Type'] = 'text/calendar;' \
-                                                    'charset=utf-8'
-        cherrypy.response.headers['Content-Disposition'] = 'attachment;' \
-                                     'filename="{}.ics"'.format(calname)
+        cherrypy.response.headers['Content-Type'] = \
+            'text/calendar; charset=utf-8'
+        cherrypy.response.headers['Content-Disposition'] = \
+            'attachment; filename="{}.ics"'.format(calname)
 
         return icalendar
 
