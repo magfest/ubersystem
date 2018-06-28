@@ -111,12 +111,16 @@ class Root:
 
         if 'locations' not in params or not params['locations']:
             locations = [id for id, name in c.EVENT_LOCATION_OPTS]
-            calname = "all_locations"
+            calname = "full"
         else:
             locations = json.loads(params['locations'])
-            calname = "_".join([name for id, name in c.EVENT_LOCATION_OPTS
-                                if str(id) in locations])\
-                .lower().replace(' ', '_')
+            if len(locations) > 3:
+                calname = "partial"
+            else:
+                calname = "_".join([name for id, name in c.EVENT_LOCATION_OPTS 
+                                    if str(id) in locations])
+                
+        calname = '{}_{}_schedule'.format(c.EVENT_NAME, calname).lower().replace(' ', '_')
 
         for location in locations:
             for event in session.query(Event)\
