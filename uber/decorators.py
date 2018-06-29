@@ -146,7 +146,7 @@ department_id_adapter = argmod(['location', 'department', 'department_id'], lamb
 
 @department_id_adapter
 def check_dept_admin(session, department_id=None, inherent_role=None):
-    from uber.models import AdminAccount, DeptMembership
+    from uber.models import AdminAccount, DeptMembership, Department
     account_id = cherrypy.session['account_id']
     admin_account = session.query(AdminAccount).get(account_id)
     if c.ACCOUNTS not in admin_account.access_ints:
@@ -164,7 +164,18 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
 
         is_dept_admin = session.query(AdminAccount).filter(*dh_filter).first()
         if not is_dept_admin:
-            return 'You must be a department admin to complete that action.'
+            if department_id:
+                department = session.query(Department).get(department_id)
+                dept_msg = ' of {}'.format(department.name)
+            else:
+                dept_msg = ''
+            return 'You must be a department admin{} to complete that action.'.format(dept_msg)
+
+
+def assert_dept_admin(session, department_id=None, inherent_role=None):
+    message = check_dept_admin(session, department_id, inherent_role)
+    if message:
+        raise HTTPRedirect("../common/invalid?message={}", message)
 
 
 def requires_dept_admin(func=None, inherent_role=None):
@@ -176,8 +187,7 @@ def requires_dept_admin(func=None, inherent_role=None):
                     'department_id', kwargs.get('department', kwargs.get('location', kwargs.get('id'))))
 
                 with uber.models.Session() as session:
-                    message = check_dept_admin(session, department_id, inherent_role)
-                    assert not message, message
+                    assert_dept_admin(session, department_id, inherent_role)
             return func(*args, **kwargs)
         return _protected
 

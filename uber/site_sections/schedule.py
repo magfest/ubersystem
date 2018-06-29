@@ -1,4 +1,5 @@
 import json
+import ics
 from collections import defaultdict
 from datetime import datetime, time, timedelta
 from time import mktime
@@ -104,6 +105,44 @@ class Root:
         return render('schedule/schedule.tsv', {
             'schedule': sorted(schedule.items(), key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[1][0]['location']))
         })
+
+    def ical(self, session, **params):
+        icalendar = ics.Calendar()
+
+        if 'locations' not in params or not params['locations']:
+            locations = [id for id, name in c.EVENT_LOCATION_OPTS]
+            calname = "full"
+        else:
+            locations = json.loads(params['locations'])
+            if len(locations) > 3:
+                calname = "partial"
+            else:
+                calname = "_".join([name for id, name in c.EVENT_LOCATION_OPTS
+                                    if str(id) in locations])
+
+        calname = '{}_{}_schedule'.format(c.EVENT_NAME, calname).lower().replace(' ', '_')
+
+        for location in locations:
+            for event in session.query(Event)\
+                    .filter_by(location=int(location))\
+                    .order_by('start_time').all():
+                icalendar.events.add(ics.Event(
+                    name=event.name,
+                    begin=event.start_time,
+                    end=(event.start_time + timedelta(minutes=event.minutes)),
+                    description=normalize_newlines(event.description),
+                    created=event.created.when,
+                    location=event.location_label))
+
+        cherrypy.response.headers['Content-Type'] = \
+            'text/calendar; charset=utf-8'
+        cherrypy.response.headers['Content-Disposition'] = \
+            'attachment; filename="{}.ics"'.format(calname)
+
+        return icalendar
+
+    if not c.HIDE_SCHEDULE:
+        ical.restricted = False
 
     @csv_file
     def csv(self, out, session):

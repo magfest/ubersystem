@@ -52,6 +52,7 @@
     var showOrHideAmounts = function (focus) {
         var paid = $.val('paid'), extra = $.val('amount_extra');
         setVisible('#amount_paid', paid !== {{ c.NEED_NOT_PAY }} && paid !== {{ c.PAID_BY_GROUP }} || extra > 0);
+        setVisible('#payment_method', paid !== {{ c.NEED_NOT_PAY }} && paid !== {{ c.PAID_BY_GROUP }} || extra > 0);
         setVisible('#amount_refunded', paid === {{ c.REFUNDED }});
         setAmountPaid(focus);
     };
@@ -349,6 +350,11 @@
     <div class="col-sm-6">
         <select name="paid" onChange="showOrHideAmounts(true)">
             {{ options(c.PAYMENT_OPTS,attendee.paid) }}
+        </select>
+        &nbsp;&nbsp;&nbsp;
+        <select id="payment_method" name="payment_method">
+            <option value="">Payment Method</option>
+            {{ options(c.NEW_REG_PAYMENT_METHOD_OPTS,attendee.payment_method) }}
         </select>
         &nbsp;&nbsp;&nbsp;
         <span id="amount_paid">

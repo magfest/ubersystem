@@ -241,6 +241,18 @@ label.radio-label {
 
 
 <script>
+  filtered_locs = [];
+  var updateiCalFilter = function() {
+      filtered_locs = [];
+      $('#filtered_locations').val('');
+
+      $("th:visible[class*='room_']").each(function() {
+          var location = this.className.split('room_')[1].split(' ', 1)[0];
+          filtered_locs.push(location);
+      });
+      $('#filtered_locations').val(JSON.stringify(filtered_locs))
+  };
+
   $(function() {
     var $scheduleTable = $('.schedule-table'),
         $scheduleRooms = $('.schedule-rooms'),
@@ -257,6 +269,7 @@ label.radio-label {
       if (isToggledOn) {
         $scheduleRooms.scrollLeft(0);
       }
+      updateiCalFilter();
     });
 
     var roomTrie = {{ c.ROOM_TRIE|jsonize }};
@@ -267,6 +280,7 @@ label.radio-label {
 
       if (textLength <= 0) {
         $scheduleRooms.find('td, th').css('display', '');
+        updateiCalFilter();
         return;
       }
 
@@ -287,6 +301,7 @@ label.radio-label {
         $scheduleRooms.find('td, th').hide();
       }
       $scheduleRooms.scrollLeft(0);
+      updateiCalFilter();
     });
 
     var delay = (function(){
@@ -324,7 +339,12 @@ label.radio-label {
     <label class="radio-label"><input type="radio" name="toggle" class="toggle" id="show_other"> Other</label>
   </div>
   <div id="room_filter">
+    <form method="post" action="ical" class="form-horizontal" role="form">
     <label for="room_filter_text">Filter</label>
     <input type="text" name="filter" class="filter" id="room_filter_text" autofocus="autofocus" placeholder="Room Name">
+
+      <input type="hidden" id="filtered_locations" name="locations" />
+    <button class="btn btn-primary form-inline">Export to iCal</button>
+      </form>
   </div>
 </div>

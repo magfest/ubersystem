@@ -284,13 +284,13 @@ class Attendee(MagModel, TakesPaymentMixin):
         'DeptMembership',
         primaryjoin='and_('
                     'Attendee.id == DeptMembership.attendee_id, '
-                    'DeptMembership.has_inherent_role == True)',
+                    'DeptMembership.has_inherent_role)',
         viewonly=True)
     dept_memberships_with_role = relationship(
         'DeptMembership',
         primaryjoin='and_('
                     'Attendee.id == DeptMembership.attendee_id, '
-                    'DeptMembership.has_role == True)',
+                    'DeptMembership.has_role)',
         viewonly=True)
     dept_memberships_as_dept_head = relationship(
         'DeptMembership',
@@ -877,7 +877,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         to the event shirt count.
         """
         is_replaced = self.second_shirt in [c.UNKNOWN, c.STAFF_AND_EVENT_SHIRT]
-        return 1 if self.gets_staff_shirt and is_replaced else 0
+        return 1 if c.SHIRTS_PER_STAFFER > 1 and self.gets_staff_shirt and is_replaced else 0
 
     @property
     def num_event_shirts_owed(self):
@@ -1197,16 +1197,44 @@ class Attendee(MagModel, TakesPaymentMixin):
         weighted_hours = sum(s.job.weighted_hours for s in self.shifts)
         return weighted_hours + self.nonshift_hours
 
+    @property
+    def unweighted_hours(self):
+        unweighted_hours = sum(s.job.real_duration for s in self.shifts)
+        return unweighted_hours + self.nonshift_hours
+
     @department_id_adapter
     def weighted_hours_in(self, department_id):
         if not department_id:
             return self.weighted_hours
-        return sum(shift.job.weighted_hours for shift in self.shifts if shift.job.department_id == department_id)
+        return sum(s.job.weighted_hours for s in self.shifts if s.job.department_id == department_id)
+
+    @department_id_adapter
+    def unweighted_hours_in(self, department_id):
+        if not department_id:
+            return self.unweighted_hours
+        return sum(s.job.real_duration for s in self.shifts if s.job.department_id == department_id)
 
     @property
     def worked_hours(self):
-        weighted_hours = sum(s.job.real_duration * s.job.weight for s in self.worked_shifts)
+        weighted_hours = sum(s.job.weighted_hours for s in self.worked_shifts)
         return weighted_hours + self.nonshift_hours
+
+    @property
+    def unweighted_worked_hours(self):
+        unweighted_hours = sum(s.job.real_duration for s in self.worked_shifts)
+        return unweighted_hours + self.nonshift_hours
+
+    @department_id_adapter
+    def worked_hours_in(self, department_id):
+        if not department_id:
+            return self.worked_hours
+        return sum(s.job.weighted_hours for s in self.worked_shifts if s.job.department_id == department_id)
+
+    @department_id_adapter
+    def unweighted_worked_hours_in(self, department_id):
+        if not department_id:
+            return self.unweighted_worked_hours
+        return sum(s.job.real_duration for s in self.worked_shifts if s.job.department_id == department_id)
 
     @department_id_adapter
     def dept_membership_for(self, department_id):
@@ -1316,6 +1344,13 @@ class Attendee(MagModel, TakesPaymentMixin):
             - has a dept role
         """
         return bool(self.dept_memberships_with_role)
+
+    @property
+    def depts_where_can_admin(self):
+        if self.admin_account and c.ACCOUNTS in self.admin_account.access_ints:
+            from uber.models.department import Department
+            return self.session.query(Department).order_by(Department.name).all()
+        return self.depts_with_inherent_role
 
     def has_shifts_in(self, department):
         return department in self.depts_where_working

@@ -2,16 +2,23 @@
 {% block title %}Inconsistent Shoulder Shifts{% endblock %}
 {% block content %}
 
-<h2>Attendees With Inconsistent Shoulder Shifts</h2>
+<h2>
+  Volunteers With Inconsistent Shoulder Shifts
+  <small><a href="inconsistent_shoulder_shifts_csv"><span class="glyphicon glyphicon-download"></span> Download CSV</a></small>
+</h2>
 
 {% for department in departments %}
   <div style="margin-bottom: 30px">
-    <h3 style="margin-bottom: 10px">{{ department|form_link }}</h3>
-    <a href="mailto:{{ department.dept_head_emails }}" style="margin-left: 10px;">
-      <span class="glyphicon glyphicon-envelope"></span>
-      Email Department Heads
-    </a>
-    <table class="table table-hover" style="margin-top: 10px">
+    <h3 style="margin-bottom: 10px">
+      {{ department|form_link }}
+      <small style="margin-left: 10px">
+        <a href="mailto:{{ department.dept_head_emails }}">
+          <span class="glyphicon glyphicon-envelope"></span>
+          Email Department Heads
+        </a>
+      </small>
+    </h3>
+    <table class="table table-hover">
       <thead>
         <tr>
           <th>Attendee</th>

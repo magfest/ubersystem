@@ -9,7 +9,7 @@ from sqlalchemy.orm import subqueryload
 
 from uber.config import c
 from uber.decorators import timed
-from uber.models import Attendee, AutomatedEmail, Group, Session
+from uber.models import AdminAccount, Attendee, AutomatedEmail, Group, Session
 
 
 @entry_point
@@ -139,6 +139,18 @@ def insert_admin():
             print("Test admin account created successfully")
         else:
             print("Not allowed to create admin account at this time")
+
+
+@entry_point
+def has_admin():
+    Session.initialize_db(initialize=True)
+    with Session() as session:
+        if session.query(AdminAccount).first() is None:
+            print('Could not find any admin accounts', file=sys.stderr)
+            sys.exit(1)
+        else:
+            print('At least one admin account exists', file=sys.stderr)
+            sys.exit(0)
 
 
 @entry_point

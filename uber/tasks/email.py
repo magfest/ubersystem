@@ -98,7 +98,7 @@ def send_email(
                 session.add(email)
 
 
-@celery.schedule(crontab(minute=0, hour=6))
+@celery.schedule(crontab(hour=6, minute=0, day_of_week=1))
 def notify_admins_of_pending_emails():
     """
     Generate and email a report which alerts admins that there are automated
