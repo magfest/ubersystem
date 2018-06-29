@@ -170,7 +170,7 @@ def url_to_link(url=None, text=None, target=None, is_relative=True):
     # `http` in the name. This works with relative links and allows you to
     # also define link text.
     if not url:
-        return ''
+        return text or ''
 
     if not text:
         text = url

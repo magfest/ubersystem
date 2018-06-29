@@ -1151,7 +1151,7 @@ class Session(SessionManager):
             Returns:
                 bool: True if success, False if failure
             """
-            if self.query(AdminAccount).count() != 0:
+            if self.query(AdminAccount).first() is not None:
                 return False
 
             attendee = Attendee(

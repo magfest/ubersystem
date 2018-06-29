@@ -175,6 +175,21 @@
       </div>
     {% endif %}
 </div>
+{% if attendees|length > 15 %}
+<ul class="pagination{% if not page %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
+{% for pagenum in pages %}
+   {% if pagenum == page %}
+   <li class="page-item active">
+      <a class="page-link" href="#">{{ pagenum }}</a>
+    </li>
+    {% else %}
+    <li class="page-item">
+        <a class="page-link" href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">{{ pagenum }}</a>
+    {% endif %}
+    </li>
+{% endfor %}
+</ul>
+{% endif %}
 
 {% endblock table %}
 {% endblock content %}

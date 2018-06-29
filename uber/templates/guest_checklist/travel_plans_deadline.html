@@ -9,10 +9,10 @@
     <td colspan="3">
       {% block deadline_text %}
         {% if guest.travel_plans_status %}
-          You have already told us how you will be traveling to MAGFest, but you can use the link above to update your
+          You have already told us how you will be traveling to {{ c.EVENT_NAME }}, but you can use the link above to update your
           preferences.
         {% else %}
-          Use the link above to let us know your travel plans for getting to MAGFest.
+          Use the link above to let us know your travel plans for getting to {{ c.EVENT_NAME }}.
         {% endif %}
       {% endblock %}
       <br/></br>

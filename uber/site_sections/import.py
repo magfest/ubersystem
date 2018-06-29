@@ -1,9 +1,11 @@
 import csv
+import urllib
 from datetime import datetime
 from itertools import chain
 
 import cherrypy
 import six
+from dateutil import parser as dateparser
 from pockets import groupify, listify
 from pockets.autolog import log
 from pytz import UTC
@@ -13,15 +15,23 @@ from sqlalchemy.types import Date, Boolean, Integer
 
 from uber.config import c
 from uber.custom_tags import pluralize
-from uber.decorators import all_renderable, renderable_override
+from uber.decorators import all_renderable, ajax_gettable, renderable_override
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Choice, Department, DeptMembership, DeptMembershipRequest, MultiChoice, \
-    Session, UTCDateTime
+from uber.models import Attendee, Choice, Department, DeptMembership, DeptMembershipRequest, DeptRole, Job, \
+    MultiChoice, Session, UTCDateTime
 
 
 def _server_to_url(server):
-    host = server.replace('http://', '').replace('https://', '').split('/')[0]
+    if not server:
+        return ''
+    host = urllib.parse.unquote(server).replace('http://', '').replace('https://', '').split('/')[0]
     return 'https://{}{}'.format(host, c.PATH)
+
+
+def _server_to_host(server):
+    if not server:
+        return ''
+    return urllib.parse.unquote(server).replace('http://', '').replace('https://', '').split('/')[0]
 
 
 @all_renderable(c.ADMIN)
@@ -144,6 +154,97 @@ class Root:
             'attendees': attendees,
             'existing_attendees': existing_attendees,
         }
+
+    @renderable_override(c.ACCOUNTS)
+    def shifts(
+            self,
+            session,
+            target_server='',
+            api_token='',
+            to_department_id='',
+            from_department_id='',
+            message='',
+            **kwargs):
+
+        target_url = _server_to_url(target_server)
+        uri = '{}/jsonrpc/'.format(target_url)
+
+        service = None
+        if target_url and api_token:
+            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': api_token.strip()})
+
+        department = {}
+        from_departments = []
+        if service:
+            from_departments = [(id, name) for id, name in sorted(service.dept.list().items(), key=lambda d: d[1])]
+            if cherrypy.request.method == 'POST':
+                from_host = _server_to_host(uri)
+                from_department = service.dept.jobs(department_id=from_department_id)
+                to_department = session.query(Department).get(to_department_id)
+                from_config = service.config.info()
+                FROM_EPOCH = c.EVENT_TIMEZONE.localize(datetime.strptime(from_config['EPOCH'], '%Y-%m-%d %H:%M:%S.%f'))
+                EPOCH_DELTA = c.EPOCH - FROM_EPOCH
+
+                to_dept_roles_by_id = to_department.dept_roles_by_id
+                to_dept_roles_by_name = to_department.dept_roles_by_name
+                dept_role_map = {}
+                for from_dept_role in from_department['dept_roles']:
+                    to_dept_role = to_dept_roles_by_id.get(from_dept_role['id'], [None])[0]
+                    if not to_dept_role:
+                        to_dept_role = to_dept_roles_by_name.get(from_dept_role['name'], [None])[0]
+                    if not to_dept_role:
+                        to_dept_role = DeptRole(
+                            name=from_dept_role['name'],
+                            description='{}\n\nImported from {}'.format(from_dept_role['description'], from_host),
+                            department_id=to_department.id)
+                        to_department.dept_roles.append(to_dept_role)
+                    dept_role_map[from_dept_role['id']] = to_dept_role
+
+                for from_job in from_department['jobs']:
+                    to_job = Job(
+                        name=from_job['name'],
+                        description='{}\n\nImported from {}'.format(from_job['description'], from_host),
+                        duration=from_job['duration'],
+                        type=from_job['type'],
+                        extra15=from_job['extra15'],
+                        slots=from_job['slots'],
+                        start_time=UTC.localize(dateparser.parse(from_job['start_time'])) + EPOCH_DELTA,
+                        visibility=from_job['visibility'],
+                        weight=from_job['weight'],
+                        department_id=to_department.id)
+                    for from_required_role in from_job['required_roles']:
+                        to_job.required_roles.append(dept_role_map[from_required_role['id']])
+                    to_department.jobs.append(to_job)
+
+                message = '{} shifts successfully imported from {}'.format(to_department.name, uri)
+                raise HTTPRedirect('shifts?target_server={}&api_token={}&message={}', target_server, api_token, message)
+
+        return {
+            'target_server': target_server,
+            'target_url': uri,
+            'api_token': api_token,
+            'department': department,
+            'to_departments': c.DEPARTMENT_OPTS,
+            'from_departments': from_departments,
+            'message': message,
+        }
+
+    @renderable_override(c.ACCOUNTS)
+    @ajax_gettable
+    def lookup_departments(self, session, target_server='', api_token='', **kwargs):
+        target_url = _server_to_url(target_server)
+        uri = '{}/jsonrpc/'.format(target_url)
+        try:
+            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': api_token.strip()})
+            return {
+                'departments': [(id, name) for id, name in sorted(service.dept.list().items(), key=lambda d: d[1])],
+                'target_url': uri,
+            }
+        except Exception as ex:
+            return {
+                'error': str(ex),
+                'target_url': uri,
+            }
 
     @renderable_override(c.ACCOUNTS)
     def confirm_staff(self, session, target_server, api_token, query, attendee_ids):

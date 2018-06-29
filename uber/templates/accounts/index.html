@@ -78,7 +78,7 @@ table form {
             <form class="form delete-form" method="post" action="delete">
               {{ csrf_token() }}
               <input type="hidden" name="id" value="{{ account.id }}" />
-              <button type="submit" type="button" class="btn btn-sm btn-danger delete-button" data-last_first="{{ account.attendee.last_first }}">
+              <button type="submit" class="btn btn-sm btn-danger delete-button" data-last_first="{{ account.attendee.last_first }}">
                 <span class="glyphicon glyphicon-trash"></span>
               </button>
             </form>

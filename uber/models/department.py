@@ -2,7 +2,7 @@ import uuid
 from datetime import timedelta
 
 import six
-from pockets import cached_property, classproperty, readable_join
+from pockets import cached_property, classproperty, groupify, readable_join
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -186,10 +186,19 @@ class Department(MagModel):
         secondary='dept_membership',
         order_by='Attendee.full_name',
         viewonly=True)
+    members_with_inherent_role = relationship(
+        'Attendee',
+        backref=backref('depts_with_inherent_role', order_by='Department.name'),
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='and_('
+                    'Department.id == DeptMembership.department_id, '
+                    'DeptMembership.has_inherent_role)',
+        secondary='dept_membership',
+        order_by='Attendee.full_name',
+        viewonly=True)
     members_who_can_admin_checklist = relationship(
         'Attendee',
-        backref=backref(
-            'can_admin_checklist_depts', order_by='Department.name'),
+        backref=backref('can_admin_checklist_depts', order_by='Department.name'),
         cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
                     'Department.id == DeptMembership.department_id, '
@@ -271,6 +280,14 @@ class Department(MagModel):
     def member_count(cls):
         return func.count(cls.memberships)
 
+    @property
+    def member_emails(self):
+        return [a.email for a in self.members if a.email]
+
+    @property
+    def members_with_shifts_emails(self):
+        return [a.email for a in self.members if a.weighted_hours_in(self) > 0]
+
     @classmethod
     def to_id(cls, department):
         if not department:
@@ -307,6 +324,14 @@ class Department(MagModel):
     @classmethod
     def normalize_name(cls, name):
         return name.lower().replace('_', '').replace(' ', '')
+
+    @property
+    def dept_roles_by_id(self):
+        return groupify(self.dept_roles, 'id')
+
+    @property
+    def dept_roles_by_name(self):
+        return groupify(self.dept_roles, 'name')
 
 
 class Job(MagModel):

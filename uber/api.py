@@ -16,13 +16,13 @@ from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
 from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
-from uber.models import AdminAccount, ApiToken, Attendee, DeptMembership, DeptMembershipRequest, Job, \
-    Session, Shift
+from uber.models import AdminAccount, ApiToken, Attendee, Department, DeptMembership, DeptMembershipRequest, Job, \
+    Session, Shift, GuestGroup
 from uber.server import register_jsonrpc
 from uber.utils import check_csrf, normalize_newlines
 
 
-__version__ = '0.1'
+__version__ = '1.0'
 
 
 def docstring_format(*args, **kwargs):
@@ -145,6 +145,57 @@ class all_api_auth:
             if hasattr(fn, '__call__'):
                 setattr(cls, name, api_auth(*self.required_access)(fn))
         return cls
+
+
+@all_api_auth(c.API_READ)
+class GuestLookup:
+    fields = {
+        'group_id': True,
+        'group_type': True,
+        'info': {
+            'status': True,
+            'poc_phone': True
+        },
+        'bio': {
+            'status': True,
+            'desc': True,
+            'website': True,
+            'facebook': True,
+            'twitter': True,
+            'other_social_media': True,
+            'teaser_song_url': True,
+            'pic_url': True
+        },
+        'interview': {
+            'will_interview': True,
+            'email': True,
+            'direct_contact': True
+        },
+        'group': {
+            'name': True,
+            'website': True,
+            'description': True
+        }
+    }
+
+    def types(self):
+        return c.GROUP_TYPE_VARS
+
+    def list(self, type=None):
+        """
+        Returns a list of Guests.
+
+        Optionally, 'type' may be passed to limit the results to a specific
+        guest type.  For a full list of guest types, call the "guest.types"
+        method.
+
+        """
+        with Session() as session:
+            if type and type.upper() in c.GROUP_TYPE_VARS:
+                query = session.query(GuestGroup).filter_by(group_type=getattr(c, type.upper()))
+            else:
+                query = session.query(GuestGroup)
+            return [guest.to_dict(self.fields) for guest in query]
 
 
 @all_api_auth(c.API_READ)
@@ -482,19 +533,61 @@ class DepartmentLookup:
         """
         return c.DEPARTMENTS
 
+    @department_id_adapter
+    @api_auth(c.API_READ)
+    def jobs(self, department_id):
+        """
+        Returns a list of all roles and jobs for the given department.
+
+        Takes the department id as the first parameter. For a list of all
+        department ids call the "dept.list" method.
+        """
+        with Session() as session:
+            department = session.query(Department).get(department_id)
+            return department.to_dict({
+                'id': True,
+                'name': True,
+                'description': True,
+                'solicits_volunteers': True,
+                'is_shiftless': True,
+                'is_setup_approval_exempt': True,
+                'is_teardown_approval_exempt': True,
+                'jobs': {
+                    'id': True,
+                    'type': True,
+                    'name': True,
+                    'description': True,
+                    'start_time': True,
+                    'duration': True,
+                    'weight': True,
+                    'slots': True,
+                    'extra15': True,
+                    'visibility': True,
+                    'required_roles': {'id': True},
+                },
+                'dept_roles': {
+                    'id': True,
+                    'name': True,
+                    'description': True,
+                },
+            })
+
 
 @all_api_auth(c.API_READ)
 class ConfigLookup:
     fields = [
         'EVENT_NAME',
         'ORGANIZATION_NAME',
-        'YEAR',
+        'EVENT_YEAR',
         'EPOCH',
         'ESCHATON',
         'EVENT_VENUE',
         'EVENT_VENUE_ADDRESS',
         'AT_THE_CON',
         'POST_CON',
+        'URL_BASE',
+        'URL_ROOT',
+        'PATH',
     ]
 
     def info(self):
@@ -502,6 +595,10 @@ class ConfigLookup:
         Returns a list of all available configuration settings.
         """
         output = {field: getattr(c, field) for field in self.fields}
+
+        # This is to allow backward compatibility with pre 1.0 code
+        output['YEAR'] = c.EVENT_YEAR
+
         output['API_VERSION'] = __version__
         return output
 
@@ -564,3 +661,4 @@ if c.API_ENABLED:
     register_jsonrpc(DepartmentLookup(), 'dept')
     register_jsonrpc(ConfigLookup(), 'config')
     register_jsonrpc(BarcodeLookup(), 'barcode')
+    register_jsonrpc(GuestLookup(), 'guest')

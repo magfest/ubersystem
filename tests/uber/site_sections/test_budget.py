@@ -35,7 +35,7 @@ class TestGeneratePromoCodes(object):
             code='Expires 2111',
             uses_allowed=1)
 
-        expiration_date = c.EVENT_TIMEZONE.localize(datetime(2111, 1, 1))
+        expiration_date = c.EVENT_TIMEZONE.localize(datetime(2111, 1, 1, 23, 59, 59))
 
         with Session() as session:
             promo_code = session.lookup_promo_code('Expires 2111')

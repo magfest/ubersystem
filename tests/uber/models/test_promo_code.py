@@ -4,12 +4,13 @@ import pytest
 import pytz
 from mock import Mock
 
-from uber.models import Attendee, PromoCode, Session
+from uber.models import Attendee, Group, PromoCode, Session
 from uber.config import c
 from uber.utils import Charge, check
 
 
 next_week = datetime.now(pytz.UTC) + timedelta(days=7)
+last_week = datetime.now(pytz.UTC) - timedelta(days=7)
 
 
 class TestPromoCodeAdjustments:
@@ -168,7 +169,18 @@ class TestAttendeePromoCodeModelChecks:
             "You already have a special badge price, you can't use a promo code on top of that."
 
     def test_promo_code_is_useful_special_price(self, monkeypatch):
-        monkeypatch.setattr(c, 'get_oneday_price', lambda r: 0)
+        monkeypatch.setattr(c, 'get_attendee_price', lambda r: 0)
+        promo_code = PromoCode(discount=1, expiration_date=next_week)
+        attendee = Attendee(
+            promo_code=promo_code,
+            placeholder=True,
+            first_name='First',
+            last_name='Last')
+        assert check(attendee, prereg=True) == \
+            "That promo code doesn't make your badge any cheaper. You may already have other discounts."
+
+    def test_promo_code_does_not_help_one_day_badge(self, monkeypatch):
+        monkeypatch.setattr(c, 'get_oneday_price', lambda r: 10)
         promo_code = PromoCode(discount=1, expiration_date=next_week)
         attendee = Attendee(
             badge_type=c.ONE_DAY_BADGE,
@@ -177,7 +189,31 @@ class TestAttendeePromoCodeModelChecks:
             first_name='First',
             last_name='Last')
         assert check(attendee, prereg=True) == \
-            "That promo code doesn't make your badge any cheaper. You may already have other discounts."
+            "You can't apply a promo code to a one day badge."
+
+    def test_promo_code_does_not_help_dealer(self, monkeypatch):
+        promo_code = PromoCode(discount=1, expiration_date=next_week)
+        attendee = Attendee(
+            badge_type=c.PSEUDO_DEALER_BADGE,
+            group=Group(),
+            cellphone='555-555-1234',
+            promo_code=promo_code,
+            placeholder=True,
+            first_name='First',
+            last_name='Last')
+        assert check(attendee, prereg=True) == \
+            "You can't apply a promo code to a dealer registration."
+
+    def test_promo_code_does_not_help_minor(self, monkeypatch):
+        promo_code = PromoCode(discount=1, expiration_date=next_week)
+        attendee = Attendee(
+            birthdate=last_week,
+            promo_code=promo_code,
+            placeholder=True,
+            first_name='First',
+            last_name='Last')
+        assert check(attendee, prereg=True) == \
+            "You are already receiving an age based discount, you can't use a promo code on top of that."
 
     def test_promo_code_not_is_expired(self):
         expire = datetime.now(pytz.UTC) - timedelta(days=9)
