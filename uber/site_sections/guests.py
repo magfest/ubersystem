@@ -167,14 +167,16 @@ class Root:
 
                     if not guest.info and not guest_merch.tax_phone:
                         message = 'You must provide a phone number for tax purposes.'
-                    elif not (params['country']
-                              and params['region']
-                              and params['zip_code']
-                              and params['address1']
-                              and params['city']):
-
-                        message = 'You must provide an address for tax purposes.'
                     else:
+                        for attr, label in [('country', 'Country'),
+                                            ('region', 'State/Region'),
+                                            ('zip_code', 'Zip/Postal Code'),
+                                            ('address1', 'Street Address'),
+                                            ('city', 'City')]:
+                            if not params.get(attr):
+                                message = 'You must provide your {} for tax purposes.'.format(label)
+                                break
+                    if not message:
                         guest.group.apply(group_params, restricted=True)
             if not message:
                 guest.merch = guest_merch
