@@ -124,7 +124,8 @@ def normalize_newlines(text):
 def convert_to_absolute_url(relative_uber_page_url):
     """
     In ubersystem, we always use relative url's of the form
-    "../{some_site_section}/{somepage}". We use relative URLs so that no
+    "../{some_site_section}/{somepage}" or
+    "/{c.PATH}/{some_site_section}/{somepage}". We use relative URLs so that no
     matter what proxy server we are behind on the web, it always works.
 
     We normally avoid using absolute URLs at all costs, but sometimes
@@ -140,10 +141,16 @@ def convert_to_absolute_url(relative_uber_page_url):
     if not relative_uber_page_url:
         return ''
 
-    if relative_uber_page_url[:3] != '../':
-        raise ValueError("relative url MUST start with '../'")
+    if relative_uber_page_url.startswith('../'):
+        return urljoin(c.URL_BASE + '/', relative_uber_page_url[3:])
 
-    return urljoin(c.URL_BASE + "/", relative_uber_page_url[3:])
+    if relative_uber_page_url.startswith(c.PATH):
+        return urljoin(c.URL_ROOT, relative_uber_page_url)
+
+    if relative_uber_page_url.startswith(c.URL_BASE):
+        return relative_uber_page_url
+
+    raise ValueError("relative url MUST start with '../' or '{}'".format(c.PATH))
 
 
 def make_url(s):

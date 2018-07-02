@@ -13,11 +13,21 @@ from uber.utils import add_opt, convert_to_absolute_url, Charge, get_age_from_bi
 
 @pytest.fixture
 def base_url(monkeypatch):
+    monkeypatch.setattr(c, 'PATH', '/uber')
+    monkeypatch.setattr(c, 'URL_ROOT', 'https://server.com')
     monkeypatch.setattr(c, 'URL_BASE', 'https://server.com/uber')
 
 
 def test_absolute_urls(base_url):
     assert convert_to_absolute_url('../somepage.html') == 'https://server.com/uber/somepage.html'
+
+
+def test_absolute_urls_relative_root(base_url):
+    assert convert_to_absolute_url('/uber/somepage.html') == 'https://server.com/uber/somepage.html'
+
+
+def test_absolute_urls_already_absolute(base_url):
+    assert convert_to_absolute_url('https://server.com/uber/somepage.html') == 'https://server.com/uber/somepage.html'
 
 
 def test_absolute_urls_empty(base_url):
@@ -34,6 +44,9 @@ def test_absolute_url_error(base_url):
 
     with pytest.raises(ValueError):
         convert_to_absolute_url('////')
+
+    with pytest.raises(ValueError):
+        convert_to_absolute_url('https://server.com/somepage.html')
 
 
 @pytest.mark.parametrize('test_input,expected', [
