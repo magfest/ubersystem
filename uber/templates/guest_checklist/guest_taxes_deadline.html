@@ -1,0 +1,9 @@
+{% extends "guest_checklist/taxes_deadline.html" %}
+
+{% block form_desc %}
+  {{ super() }}
+  <br/><br/>
+  If you are acting as a company (e.g., an LLC or corporation) with its own TIN, you should fill out the W9 with the
+  information for that entity. If you are not incorporated, then please fill out the W9 with the information
+  of the individual that payment will be made to.
+{% endblock %}
