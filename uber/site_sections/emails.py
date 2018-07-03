@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pockets import listify
+from pockets import groupify, listify
 from sqlalchemy import or_
 
 from uber.automated_emails import AutomatedEmailFixture
@@ -31,21 +31,18 @@ class Root:
     sent.restricted = [c.PEOPLE, c.REG_AT_CON]
 
     def pending(self, session, message=''):
-        automated_emails_with_count = session.query(AutomatedEmail, AutomatedEmail.email_count).filter(
+        emails_with_count = session.query(AutomatedEmail, AutomatedEmail.email_count).filter(
             AutomatedEmail.subject != '', AutomatedEmail.sender != '',).all()
-        automated_emails = []
-        pending_emails = []
-        for automated_email, email_count in sorted(automated_emails_with_count, key=lambda e: e[0].ordinal):
-            automated_email.sent_email_count = email_count
-            if automated_email.unapproved_count > 0 and not automated_email.approved:
-                pending_emails.append(automated_email)
-            else:
-                automated_emails.append(automated_email)
+        emails = []
+        for email, email_count in sorted(emails_with_count, key=lambda e: e[0].ordinal):
+            email.sent_email_count = email_count
+            emails.append(email)
+
+        emails_by_sender = groupify(emails, 'sender')
 
         return {
             'message': message,
-            'automated_emails': automated_emails,
-            'pending_emails': pending_emails,
+            'automated_emails': emails_by_sender,
         }
 
     def pending_examples(self, session, ident):
