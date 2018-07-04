@@ -203,7 +203,7 @@ class Root:
                 for from_job in from_department['jobs']:
                     to_job = Job(
                         name=from_job['name'],
-                        description='{}\n\nImported from {}'.format(from_job['description'], from_host),
+                        description=from_job['description'],
                         duration=from_job['duration'],
                         type=from_job['type'],
                         extra15=from_job['extra15'],
