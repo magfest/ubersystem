@@ -80,17 +80,20 @@ class Root:
         }
 
     @check_shutdown
-    def shifts(self, session, view='', start=''):
-        joblist = session.jobs_for_signups()
+    def shifts(self, session, view='', start='', include_public=False):
+        potential_joblist = session.jobs_for_signups()
         con_days = -(-c.CON_LENGTH // 24)  # Equivalent to ceil(c.CON_LENGTH / 24)
 
         volunteer = session.logged_in_volunteer()
         assigned_dept_ids = set(volunteer.assigned_depts_ids)
         has_public_jobs = False
-        for job in joblist:
+        joblist = []
+        for job in potential_joblist:
             job['is_public_to_volunteer'] = job['is_public'] and job['department_id'] not in assigned_dept_ids
-            if job['is_public_to_volunteer']:
-                has_public_jobs = True
+            if include_public or not job['is_public_to_volunteer']:
+                if job['is_public_to_volunteer']:
+                    has_public_jobs = True
+                joblist.append(job)
 
         has_setup = volunteer.can_work_setup or any(d.is_setup_approval_exempt for d in volunteer.assigned_depts)
         has_teardown = volunteer.can_work_teardown or any(
@@ -104,9 +107,11 @@ class Root:
             cal_length = con_days + 2  # There's no specific config for # of shift signup days
         else:
             cal_length = con_days
+
         return {
             'jobs': joblist,
             'has_public_jobs': has_public_jobs,
+            'include_public': include_public,
             'name': session.logged_in_volunteer().full_name,
             'hours': session.logged_in_volunteer().weighted_hours,
             'assigned_depts_labels': volunteer.assigned_depts_labels,
