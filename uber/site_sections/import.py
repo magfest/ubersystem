@@ -195,7 +195,7 @@ class Root:
                     if not to_dept_role:
                         to_dept_role = DeptRole(
                             name=from_dept_role['name'],
-                            description='{}\n\nImported from {}'.format(from_dept_role['description'], from_host),
+                            description=from_dept_role['description'],
                             department_id=to_department.id)
                         to_department.dept_roles.append(to_dept_role)
                     dept_role_map[from_dept_role['id']] = to_dept_role
