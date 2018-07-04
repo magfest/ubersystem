@@ -178,7 +178,6 @@ class Root:
         if service:
             from_departments = [(id, name) for id, name in sorted(service.dept.list().items(), key=lambda d: d[1])]
             if cherrypy.request.method == 'POST':
-                from_host = _server_to_host(uri)
                 from_department = service.dept.jobs(department_id=from_department_id)
                 to_department = session.query(Department).get(to_department_id)
                 from_config = service.config.info()
