@@ -99,7 +99,7 @@
                     id : "{{ job.id }}",
                     is_public: {{ job.is_public|string|lower }},
                     is_public_to_volunteer: {{ job.is_public_to_volunteer|string|lower }},
-                    description: "{{ job.description }}",
+                    description: "{{ job.description|linebreaksbr }}",
                     extra15: {{ job.extra15|string|lower }},
                     backgroundColor: "#239875",
                     taken: true
@@ -112,7 +112,7 @@
                 id : "{{ job.id }}",
                 is_public: {{ job.is_public|string|lower }},
                 is_public_to_volunteer: {{ job.is_public_to_volunteer|string|lower }},
-                description: "{{ job.description }}",
+                description: "{{ job.description|linebreaksbr }}",
                 extra15: {{ job.extra15|string|lower }},
                 {% if job.taken %}
                     backgroundColor: "#239875",
