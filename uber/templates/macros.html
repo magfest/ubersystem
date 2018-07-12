@@ -380,12 +380,14 @@
           $('#region{{ suffix }}').val('{{ model[region_attr] }}');
           regionChange{{ suffix }}();
           {% if model.status in [c.APPROVED, c.CANCELLED, c.DECLINED] and not admin_area %}
-        $(function() {
-            $("[name='group_region']").prop("disabled", false);
-            $("select[name='group_region']").prop("disabled", true);
-            $("[placeholder='Country']").prop("readonly", true);
-        });
-      {% endif %}
+            $(function() {
+                if($("select[name='group_region']").is(":visible")) {
+                  $("[name='group_region']").prop("disabled", false);
+                  $("select[name='group_region']").prop("disabled", true);
+                }
+                $("[placeholder='Country']").prop("readonly", true);
+            });
+          {% endif %}
       });
   </script>
 
