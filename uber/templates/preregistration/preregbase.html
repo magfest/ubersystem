@@ -241,9 +241,11 @@
                     });
                     $row.append('<div class="clearfix"></div>');
                 });
-                if (window.REG_TYPES && $(REG_TYPES.row).size()) {
+                {% if attendee and attendee.badge_type in [c.ATTENDEE_BADGE, c.PSEUDO_GROUP_BADGE, c.PSEUDO_DEALER_BADGE] %}
+                if (window.REG_TYPES && $(REG_TYPES.row).size() ) {
                     setBadge(REG_TYPES, $.field('name') && $.val('name') ? 1 : 0);  // default to attendee or group
                 }
+                {% endif %}
                 makeBadgeMatchExtra();
                 if ($.field('amount_extra')) {
                     {% if not c.PREREG_DONATION_DESCRIPTIONS %}
