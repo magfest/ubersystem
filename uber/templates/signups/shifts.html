@@ -54,16 +54,6 @@
     <br><br>
     You are assigned to the following department{{ assigned_depts_labels|length|pluralize }}: {{ assigned_depts_labels|join(' / ') }}.
     <br>
-    {% if include_public %}
-      {% set query_string = c.QUERY_STRING.replace('&include_public=True', '').replace('include_public=True&', '').replace('include_public=True', '') %}
-      <a href="{{ c.PATH }}{{ c.PAGE_PATH }}?{{ query_string }}">Click Here</a> to <b>hide</b>
-      <span class="text-public">public</span> jobs in departments you are not assigned to
-    {% else %}
-      {% set query_string = (c.QUERY_STRING ~ '&' if c.QUERY_STRING else '') ~ 'include_public=True' %}
-      <a href="{{ c.PATH }}{{ c.PAGE_PATH }}?{{ query_string }}">Click Here</a> to <b>show</b>
-      <span class="text-public">public</span> jobs in departments you are not assigned to
-    {% endif %}
-    <br>
     {% if has_public_jobs %}
       <br>
       Some of the listed jobs are in departments you are not assigned to
@@ -77,6 +67,16 @@
       {% endif %}
     {% endif %}
     <br>
+    <div class="state-text">
+      <a href="#" class="toggle-is_public" state="nonpublic">Click Here</a>
+      <span class="nonpublic-state-text is_public-state-text">
+        to <b>show</b> <span class="text-public">public</span> jobs in departments you are not assigned to.
+      </span>
+      <span class="public-state-text hidden is_public-state-text">
+        to <b>hide</b> <span class="text-public">public</span> jobs in departments you are not assigned to.
+      </span>
+      <br>
+    </div>
     <a href="#" class="toggle-cal" state="all">Click Here</a>
     <span class="all-state-text state-text"> to see the {{hours}} weighted hours worth of shifts you are signed up for</span>
     <span class="shift-state-text hidden state-text"> to sign up for more shifts; you are currently signed up for {{hours}} weighted hours</span>
@@ -102,11 +102,12 @@
 <script type="text/javascript">
   var eventList = new Array();
   var shiftList = new Array();
+  var publicEventList = new Array();
 
     $(document).ready(function() {
         {% for job in jobs %}
             {% if job.taken %}
-                shiftList.push({
+                var takenShift = {
                     title : "{{ job.name }} ({{ job.department_name }}) x{{ job.weight }}",
                     start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                     end : "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
@@ -117,9 +118,10 @@
                     extra15: {{ job.extra15|string|lower }},
                     backgroundColor: "#239875",
                     taken: true
-                });
+                };
+                shiftList.push(takenShift);
             {% endif %}
-            eventList.push({
+            var shift = {
                 title : "{{ job.name }} ({{ job.department_name }}) x{{ job.weight }}",
                 start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                 end : "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
@@ -135,7 +137,11 @@
                     backgroundColor: "#305fc9",
                     taken: false
                 {% endif %}
-            });
+            };
+            publicEventList.push(shift);
+            if (shift.taken || !shift.is_public_to_volunteer) {
+              eventList.push(shift);
+            }
         {% endfor %}
 
         $('#shift_cal').fullCalendar({
@@ -208,18 +214,35 @@
                 $('#shift_cal').fullCalendar('gotoDate', '{{ start }}');
             {% endif %}
         {% endif %}
-    $(".toggle-cal").click(function() {
-      $("#shift_cal").fullCalendar('removeEventSources');
-      if($(this).attr('state')=='all') {
-        $("#shift_cal").fullCalendar('addEventSource',shiftList);
-        $(this).attr('state','shift');
-      } else {
-        $("#shift_cal").fullCalendar('addEventSource',eventList);
-        $(this).attr('state','all');
-      }
-      $("#shift_cal").fullCalendar('refetchEvents');
-      $(".state-text").toggleClass('hidden');
-    });
+
+      $(".toggle-cal").click(function() {
+        $("#shift_cal").fullCalendar('removeEventSources');
+        if ($(this).attr('state')=='all') {
+          $("#shift_cal").fullCalendar('addEventSource', shiftList);
+          $(this).attr('state', 'shift');
+        } else {
+          var isPublic = $(".toggle-is_public").attr('state') == 'public';
+          $("#shift_cal").fullCalendar('addEventSource', isPublic ? publicEventList : eventList);
+          $(this).attr('state', 'all');
+        }
+        $("#shift_cal").fullCalendar('refetchEvents');
+        $(".state-text").toggleClass('hidden');
+      });
+
+      $(".toggle-is_public").click(function() {
+        var isShifts = $(".toggle-cal").attr('state') == 'shift';
+        $("#shift_cal").fullCalendar('removeEventSources');
+        if ($(this).attr('state')=='public') {
+          $("#shift_cal").fullCalendar('addEventSource', isShifts ? shiftList: eventList);
+          $(this).attr('state', 'nonpublic');
+        } else {
+          $("#shift_cal").fullCalendar('addEventSource', isShifts ? shiftList: publicEventList);
+          $(this).attr('state', 'public');
+        }
+        $("#shift_cal").fullCalendar('refetchEvents');
+        $(".is_public-state-text").toggleClass('hidden');
+      });
+
     });
 
     function click_shift(taken,id,start,title) {
