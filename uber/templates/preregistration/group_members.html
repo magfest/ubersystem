@@ -59,7 +59,7 @@
             $("form[action='group_members'] :input").prop("readonly", true).prop('title','You cannot edit your information after you have {{ "cancelled" if group.status == c.CANCELLED else "been "~group.status_label }}');
             $("form[action='group_members'] :submit, form[action='../groups/cancel_dealer'] :submit").prop("disabled", true);
             $("[name='categories']").prop("disabled", false);
-            $("[name='categories']:checkbox, [name='group_country']").prop("disabled", true);
+            $("[name='categories']:checkbox").prop("disabled", true);
         });
     {% endif %}
 </script>

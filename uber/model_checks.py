@@ -168,7 +168,7 @@ def group_money(group):
         return "What you entered for Amount Refunded ({}) wasn't even a number".format(group.amount_refunded)
 
 
-@validation.Group
+@prereg_validation.Group
 def no_edit_post_approval(group):
     if group.status == c.APPROVED:
         return "You cannot change your dealer application after approval."
