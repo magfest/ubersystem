@@ -588,6 +588,9 @@ class ConfigLookup:
         'URL_BASE',
         'URL_ROOT',
         'PATH',
+        'BADGE_PRICE',
+        'BADGES_SOLD',
+        'REMAINING_BADGES',
     ]
 
     def info(self):
