@@ -20,7 +20,6 @@ def on_load():
     from uber import server  # noqa: F401
     from uber import tasks  # noqa: F401
 
-
     # TODO: There's almost certainly a better way to ensure directories
     #       exist before they're accessed. Perhaps we could nest these
     #       under a [directories] section in the config, and ensure those
