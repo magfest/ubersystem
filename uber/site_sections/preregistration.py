@@ -207,7 +207,7 @@ class Root:
                     session.commit()
                     try:
                         send_email.delay(
-                            c.MARKETPLACE_EMAIL,
+                            c.ADMIN_EMAIL,
                             c.MARKETPLACE_EMAIL,
                             'Dealer Application Received',
                             render('emails/dealers/reg_notification.txt', {'group': group}, encoding=None),
@@ -438,7 +438,7 @@ class Root:
                 session.commit()
                 if group.is_dealer:
                     send_email.delay(
-                        c.MARKETPLACE_EMAIL,
+                        c.ADMIN_EMAIL,
                         c.MARKETPLACE_EMAIL,
                         'Dealer Application Changed',
                         render('emails/dealers/appchange_notification.html', {'group': group}, encoding=None),
@@ -521,7 +521,7 @@ class Root:
             if group.is_dealer:
                 try:
                     send_email.delay(
-                        c.MARKETPLACE_EMAIL,
+                        c.ADMIN_EMAIL,
                         c.MARKETPLACE_EMAIL,
                         'Dealer Payment Completed',
                         render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
@@ -594,7 +594,7 @@ class Root:
             session.merge(group)
             if group.is_dealer:
                 send_email.delay(
-                    c.MARKETPLACE_EMAIL,
+                    c.ADMIN_EMAIL,
                     c.MARKETPLACE_EMAIL,
                     'Dealer Paid for Extra Members',
                     render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
