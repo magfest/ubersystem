@@ -1,0 +1,23 @@
+{% set abandon_action, abandon_button, must_keep='delete', "I'm not coming", not attendee.can_abandon_badge and not attendee.can_refund_badge %}
+{% if attendee.amount_paid %}
+  {% set abandon_action, abandon_button='refund', 'Refund my Badge' %}
+{% endif %}
+{% if must_keep %}
+  {% set abandon_hover_text %}
+    {% if attendee.amount_paid and not c.BEFORE_REFUND_CUTOFF %}
+Refunds are not {% if c.REFUND_CUTOFF %}currently {% endif %}allowed.
+    {% elif attendee.amount_paid %}
+We cannot automatically refund your badge.
+    {% elif attendee.is_group_leader %}
+As a leader of a group, you cannot abandon your badge.
+    {% elif attendee.paid == c.NEED_NOT_PAY %}
+You cannot abandon a comped badge.
+    {% endif %}
+Please {% if attendee.is_transferable %}transfer your badge instead{% else %}contact us at {{ c.REGDESK_EMAIL|email_only }}{% endif %}.
+  {% endset %}
+<span class="tooltip-wrapper" tabindex="0" data-toggle="tooltip" data-placement="top"{% if must_keep %} title="{{ abandon_hover_text }}"{% endif %}>
+{% endif %}
+<button type="submit" form="abandon_badge" class="btn btn-danger"
+        {% if must_keep %}disabled style="pointer-events: none;" {% endif %}
+        onClick="return confirm('Are you sure you want to {{ abandon_action }} your badge? This can\'t be undone!');">{{ abandon_button }}</button>
+{% if must_keep %}</span>{% endif %}

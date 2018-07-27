@@ -7,8 +7,10 @@ from sqlalchemy.types import Integer
 
 from uber.config import c
 from uber.models import MagModel
+from uber.models.admin import AdminAccount
 from uber.models.attendee import Attendee
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column
+from uber.utils import report_critical_exception
 
 
 __all__ = [
@@ -83,3 +85,43 @@ class StripeTransaction(MagModel):
     desc = Column(UnicodeText)
     fk_id = Column(UUID)
     fk_model = Column(UnicodeText)
+
+    def process_refund(self):
+        """
+        Attempts to refund self
+        Returns:
+            error: an error message
+            response: a Stripe Refund() object, or None
+        """
+        import stripe
+        from pockets.autolog import log
+
+        if self.type != c.PAYMENT:
+            return 'This is not a payment and cannot be refunded.', None
+        else:
+            log.debug(
+                'REFUND: attempting to refund stripeID {} {} cents for {}',
+                self.stripe_id, self.amount, self.desc)
+            try:
+                response = stripe.Refund.create(
+                    charge=self.stripe_id, reason='requested_by_customer')
+            except stripe.StripeError as e:
+                error_txt = 'Error while calling process_refund' \
+                            '(self, stripeID={!r})'.format(self.stripe_id)
+                report_critical_exception(
+                    msg=error_txt,
+                    subject='ERROR: MAGFest Stripe invalid request error')
+                return 'An unexpected problem occurred: ' + str(e), None
+
+            if self.session:
+                self.session.add(StripeTransaction(
+                    stripe_id=response.id or None,
+                    amount=response.amount,
+                    desc=self.desc,
+                    type=c.REFUND,
+                    who=AdminAccount.admin_name() or 'non-admin',
+                    fk_id=self.fk_id,
+                    fk_model=self.fk_model)
+                )
+
+            return '', response

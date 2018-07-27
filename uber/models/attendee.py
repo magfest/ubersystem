@@ -750,6 +750,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         return not self.amount_paid and not self.paid == c.NEED_NOT_PAY and not self.is_group_leader
 
     @property
+    def can_refund_badge(self):
+        return self.amount_paid and self.paid not in [c.NEED_NOT_PAY, c.REFUNDED] \
+               and not self.is_group_leader and self.stripe_transactions \
+               and c.BEFORE_REFUND_CUTOFF
+
+    @property
     def shirt_size_marked(self):
         return self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN]
 
