@@ -25,7 +25,7 @@
           {% endif %}
         </tr>
       </table>
-      {% if attendee.can_abandon_badge %}
+      {% if attendee.can_abandon_badge or attendee.can_refund_badge %}
         <form method="post" action="abandon_badge" id="abandon_badge">
           <input type="hidden" name="id" value="{{ attendee.id }}"/>
         </form>
