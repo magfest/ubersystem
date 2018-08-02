@@ -881,6 +881,7 @@ c.JOB_PAGE_OPTS = (
     ('staffers', 'Staffer Summary')
 )
 c.WEIGHT_OPTS = (
+    ('0.5', 'x0.5'),
     ('1.0', 'x1.0'),
     ('1.5', 'x1.5'),
     ('2.0', 'x2.0'),
