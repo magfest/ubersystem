@@ -24,8 +24,14 @@ from uber.models import Attendee, Choice, Department, DeptMembership, DeptMember
 def _server_to_url(server):
     if not server:
         return ''
-    host = urllib.parse.unquote(server).replace('http://', '').replace('https://', '').split('/')[0]
-    return 'https://{}{}'.format(host, c.PATH)
+    host, _, path = urllib.parse.unquote(server).replace('http://', '').replace('https://', '').partition('/')
+    if path.startswith('reggie'):
+        return 'https://{}/reggie'.format(host)
+    elif path.startswith('uber'):
+        return 'https://{}/uber'.format(host)
+    elif c.PATH == '/uber':
+        return 'https://{}{}'.format(host, c.PATH)
+    return 'https://{}'.format(host)
 
 
 def _server_to_host(server):
