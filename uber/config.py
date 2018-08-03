@@ -145,7 +145,7 @@ class Config(_Overridable):
 
             # Only check bucket-based pricing if we're not checking an existing badge AND
             # we don't have hardcore_optimizations_enabled config on AND we're not on-site
-            # (because on-site pricing doesn't involve checking badges sold).
+            # (because on-site pricing doesn't involve checking badges sold).`
             if not dt and not self.HARDCORE_OPTIMIZATIONS_ENABLED and uber.utils.localized_now() < c.EPOCH:
                 badges_sold = self.BADGES_SOLD
 
@@ -881,8 +881,8 @@ c.JOB_PAGE_OPTS = (
     ('staffers', 'Staffer Summary')
 )
 c.WEIGHT_OPTS = (
-    ('0.5', 'x0.5'),
     ('1.0', 'x1.0'),
+    ('0.5', 'x0.5'),
     ('1.5', 'x1.5'),
     ('2.0', 'x2.0'),
     ('2.5', 'x2.5'),
