@@ -57,6 +57,7 @@ def get_schedule_data(session, message):
         'max_simul': sorted(max_simul, key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[0]))
     }
 
+
 @all_renderable(c.STUFF)
 class Root:
     @cached
