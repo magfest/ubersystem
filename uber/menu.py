@@ -77,6 +77,18 @@ class MenuItem:
                 return sm
 
 
+def get_external_schedule_menu_name():
+    if getattr(c, 'ALT_SCHEDULE_URL', ''):
+        try:
+            url = urlparse(c.ALT_SCHEDULE_URL)
+            return 'View External Public Schedule on {}'.format(url.netloc)
+        except Exception:
+            log.warning('Menu: Unable to parse ALT_SCHEDULE_URL: "{}"', c.ALT_SCHEDULE_URL)
+            return 'View External Public Schedule'
+
+    return 'View Public Schedule'
+
+
 c.MENU = MenuItem(name='Root', submenu=[
     MenuItem(name='Admin', submenu=[
         MenuItem(name='Admin Accounts', href='../accounts/', access=c.ACCOUNTS),
@@ -98,6 +110,7 @@ c.MENU = MenuItem(name='Root', submenu=[
     ]),
 
     MenuItem(name='Schedule', access=[c.STUFF, c.PEOPLE, c.REG_AT_CON], submenu=[
+        MenuItem(name=get_external_schedule_menu_name(), href='../schedule/'),
         MenuItem(name='Edit Schedule', access=c.STUFF, href='../schedule/edit'),
     ]),
 
@@ -107,19 +120,6 @@ c.MENU = MenuItem(name='Root', submenu=[
     ]),
 ])
 
-if getattr(c, 'ALT_SCHEDULE_URL', ''):
-    try:
-        url = urlparse(c.ALT_SCHEDULE_URL)
-        external_schedule_name = 'View Schedule on {}'.format(url.netloc)
-    except Exception:
-        log.warning('Unable to parse ALT_SCHEDULE_URL: "{}"', c.ALT_SCHEDULE_URL)
-        external_schedule_name = 'View Schedule Externally'
-    c.MENU['Schedule'].append_menu_item(
-        MenuItem(name='View Schedule Internally', access=c.STUFF, href='../schedule/internal'))
-
-    c.MENU['Schedule'].append_menu_item(MenuItem(name=external_schedule_name, href='../schedule/'))
-else:
-    c.MENU['Schedule'].append_menu_item(MenuItem(name='View Schedule', access=c.STUFF, href='../schedule/internal'))
 
 if c.ATTRACTIONS_ENABLED:
     c.MENU['Schedule'].append_menu_item(MenuItem(name='Attractions', href='../attractions_admin/'))
