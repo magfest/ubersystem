@@ -29,9 +29,19 @@
 
         <script src="../static/deps/combined.min.js" type="text/javascript"></script>
         <script src="../static/js/common-static.js" type="text/javascript"></script>
-        <script type="text/javascript">
-            var csrf_token = '{{ c.CSRF_TOKEN }}';
-        </script>
+
+        {% if not dont_show_csrf_token %}
+            {#
+                NOTE: never set dont_show_csrf_token to True unless you know exactly what you're doing.
+                this should only ever be used in situations where a page is cached for all users.
+                EXPERTS ONLY
+            #}
+            <script type="text/javascript">
+                var csrf_token = '{{ c.CSRF_TOKEN }}';
+            </script>
+        {% else %}
+            <!-- skipped showing CSRF token -->
+        {% endif %}
 
         {% if 'preregistration' not in c.PAGE_PATH %}
             {% for js in c.JAVASCRIPT_INCLUDES %}

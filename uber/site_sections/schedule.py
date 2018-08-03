@@ -15,61 +15,69 @@ from uber.models import AdminAccount, AssignedPanelist, Attendee, Event, PanelAp
 from uber.utils import check, localized_now, normalize_newlines
 
 
+def get_schedule_data(session, message):
+    schedule = defaultdict(lambda: defaultdict(list))
+    for event in session.query(Event).all():
+        schedule[event.start_time_local][event.location].append(event)
+        for i in range(1, event.duration):
+            half_hour = event.start_time_local + timedelta(minutes=30 * i)
+            schedule[half_hour][event.location].append(c.EVENT_BOOKED)
+
+    max_simul = {}
+    for id, name in c.EVENT_LOCATION_OPTS:
+        max_events = 1
+        for i in range(c.PANEL_SCHEDULE_LENGTH):
+            half_hour = c.EPOCH + timedelta(minutes=30 * i)
+            max_events = max(max_events, len(schedule[half_hour][id]))
+        max_simul[id] = max_events
+
+    for half_hour in schedule:
+        for location in schedule[half_hour]:
+            for event in schedule[half_hour][location]:
+                if isinstance(event, Event):
+                    simul = max(len(schedule[half_hour][event.location]) for half_hour in event.half_hours)
+                    event.colspan = 1 if simul > 1 else max_simul[event.location]
+                    for i in range(1, event.duration):
+                        schedule[half_hour + timedelta(minutes=30 * i)][event.location].remove(c.EVENT_BOOKED)
+                        schedule[half_hour + timedelta(minutes=30 * i)][event.location].append(event.colspan)
+
+    for half_hour in schedule:
+        for id, name in c.EVENT_LOCATION_OPTS:
+            span_sum = sum(getattr(e, 'colspan', e) for e in schedule[half_hour][id])
+            for i in range(max_simul[id] - span_sum):
+                schedule[half_hour][id].append(c.EVENT_OPEN)
+
+        schedule[half_hour] = sorted(
+            schedule[half_hour].items(), key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[0]))
+
+    max_simul = [(id, c.EVENT_LOCATIONS[id], colspan) for id, colspan in max_simul.items()]
+    return {
+        'message': message,
+        'schedule': sorted(schedule.items()),
+        'max_simul': sorted(max_simul, key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[0]))
+    }
+
 @all_renderable(c.STUFF)
 class Root:
+    @cached
     @unrestricted
     def index(self, session, message=''):
+        # show a public-facing view of the schedule
+        # anything returned here should be cache-friendly and ready to be shown to the public.
+
+        dont_allow_schedule_to_be_viewed = \
+            c.HIDE_SCHEDULE and not AdminAccount.access_set() and not cherrypy.session.get('staffer_id')
+
+        if dont_allow_schedule_to_be_viewed:
+            return "The {} schedule is being developed and will be made public " \
+                   "when it's closer to being finalized.".format(c.EVENT_NAME)
+
         if c.ALT_SCHEDULE_URL:
             raise HTTPRedirect(c.ALT_SCHEDULE_URL)
         else:
-            raise HTTPRedirect("internal")
-
-    @cached
-    def internal(self, session, message=''):
-        if c.HIDE_SCHEDULE and not AdminAccount.access_set() and not cherrypy.session.get('staffer_id'):
-            return "The {} schedule is being developed and will be made public " \
-                "when it's closer to being finalized.".format(c.EVENT_NAME)
-
-        schedule = defaultdict(lambda: defaultdict(list))
-        for event in session.query(Event).all():
-            schedule[event.start_time_local][event.location].append(event)
-            for i in range(1, event.duration):
-                half_hour = event.start_time_local + timedelta(minutes=30 * i)
-                schedule[half_hour][event.location].append(c.EVENT_BOOKED)
-
-        max_simul = {}
-        for id, name in c.EVENT_LOCATION_OPTS:
-            max_events = 1
-            for i in range(c.PANEL_SCHEDULE_LENGTH):
-                half_hour = c.EPOCH + timedelta(minutes=30 * i)
-                max_events = max(max_events, len(schedule[half_hour][id]))
-            max_simul[id] = max_events
-
-        for half_hour in schedule:
-            for location in schedule[half_hour]:
-                for event in schedule[half_hour][location]:
-                    if isinstance(event, Event):
-                        simul = max(len(schedule[half_hour][event.location]) for half_hour in event.half_hours)
-                        event.colspan = 1 if simul > 1 else max_simul[event.location]
-                        for i in range(1, event.duration):
-                            schedule[half_hour + timedelta(minutes=30*i)][event.location].remove(c.EVENT_BOOKED)
-                            schedule[half_hour + timedelta(minutes=30*i)][event.location].append(event.colspan)
-
-        for half_hour in schedule:
-            for id, name in c.EVENT_LOCATION_OPTS:
-                span_sum = sum(getattr(e, 'colspan', e) for e in schedule[half_hour][id])
-                for i in range(max_simul[id] - span_sum):
-                    schedule[half_hour][id].append(c.EVENT_OPEN)
-
-            schedule[half_hour] = sorted(
-                schedule[half_hour].items(), key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[0]))
-
-        max_simul = [(id, c.EVENT_LOCATIONS[id], colspan) for id, colspan in max_simul.items()]
-        return {
-            'message':   message,
-            'schedule':  sorted(schedule.items()),
-            'max_simul': sorted(max_simul, key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[0]))
-        }
+            # external view attendees can look at with no admin menus/etc
+            # we cache this view because it takes a while to generate
+            return get_schedule_data(session, message)
 
     @unrestricted
     @csv_file
