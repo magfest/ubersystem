@@ -145,7 +145,7 @@ class Config(_Overridable):
 
             # Only check bucket-based pricing if we're not checking an existing badge AND
             # we don't have hardcore_optimizations_enabled config on AND we're not on-site
-            # (because on-site pricing doesn't involve checking badges sold).`
+            # (because on-site pricing doesn't involve checking badges sold).
             if not dt and not self.HARDCORE_OPTIMIZATIONS_ENABLED and uber.utils.localized_now() < c.EPOCH:
                 badges_sold = self.BADGES_SOLD
 
