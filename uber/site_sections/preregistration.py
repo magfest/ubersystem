@@ -181,7 +181,7 @@ class Root:
             }
 
         if attendee.is_dealer and not c.DEALER_REG_OPEN:
-            return render('static_views/dealer_reg_closed.html') if c.AFTER_DEALER_REG_SHUTDOWN \
+            return render('static_views/dealer_reg_closed.html') if c.AFTER_DEALER_REG_START \
                 else render('static_views/dealer_reg_not_open.html')
 
         if 'first_name' in params:

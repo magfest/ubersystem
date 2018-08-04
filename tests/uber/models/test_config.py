@@ -246,6 +246,14 @@ class TestDealerConfig:
         monkeypatch.setattr(c, 'DEALER_REG_SHUTDOWN', localized_now() + timedelta(days=1))
         assert c.DEALER_REG_OPEN
 
+    def test_dealer_reg_not_open_yet(self, monkeypatch):
+        monkeypatch.setattr(c, 'DEALER_REG_START', localized_now() + timedelta(days=1))
+        assert not c.DEALER_REG_OPEN
+
+    def test_dealer_reg_closed(self, monkeypatch):
+        monkeypatch.setattr(c, 'DEALER_REG_SHUTDOWN', localized_now() - timedelta(days=1))
+        assert not c.DEALER_REG_OPEN
+
     def test_dealer_reg_not_soft_closed(self, monkeypatch):
         monkeypatch.setattr(c, 'DEALER_REG_DEADLINE', localized_now() + timedelta(days=1))
         monkeypatch.setattr(uber.config.Config, 'DEALER_APPS', 10)
