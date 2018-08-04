@@ -78,6 +78,10 @@ class TestCosts:
         assert 10 == Attendee(overridden_price=10).total_cost
         assert 15 == Attendee(overridden_price=10, amount_extra=5).total_cost
 
+    def test_age_discount_doesnt_stack(self, monkeypatch):
+        monkeypatch.setattr(Attendee, 'age_group_conf', {'discount': 5})
+        assert 10 == Attendee(badge_type=c.ONE_DAY_BADGE).badge_cost
+
 
 class TestHalfPriceAgeDiscountCosts:
     @pytest.fixture(autouse=True)
