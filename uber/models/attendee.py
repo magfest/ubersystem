@@ -579,12 +579,22 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.calculate_badge_cost(use_promo_code=False)
 
     def calculate_badge_cost(self, use_promo_code=True):
+        registered = self.registered_local if self.registered else None
+        base_badge_price = self.base_badge_price or c.get_attendee_price(registered)
+
         if self.paid == c.NEED_NOT_PAY:
             return 0
         elif self.overridden_price is not None:
             return self.overridden_price
+        elif self.is_dealer:
+            return c.DEALER_BADGE_PRICE
+        elif self.badge_type == c.ATTENDEE_BADGE and self.age_discount != 0:
+            return max(0, base_badge_price + self.age_discount)
+        elif self.badge_type == c.ATTENDEE_BADGE and self.group \
+                and self.paid == c.PAID_BY_GROUP:
+            return base_badge_price - c.GROUP_DISCOUNT
         elif self.base_badge_price:
-            cost = self.base_badge_price
+            cost = base_badge_price
         else:
             cost = self.new_badge_cost
 
@@ -598,18 +608,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         # What this badge would cost if it were new, i.e., not taking into
         # account special overrides
         registered = self.registered_local if self.registered else None
-        if self.is_dealer:
-            return c.DEALER_BADGE_PRICE
-        elif self.badge_type == c.ONE_DAY_BADGE:
+        if self.badge_type == c.ONE_DAY_BADGE:
             return c.get_oneday_price(registered)
         elif self.is_presold_oneday:
             return c.get_presold_oneday_price(self.badge_type)
         elif self.badge_type in c.BADGE_TYPE_PRICES:
             return int(c.BADGE_TYPE_PRICES[self.badge_type])
-        elif self.age_discount != 0:
-            return max(0, c.get_attendee_price(registered) + self.age_discount)
-        elif self.group and self.paid == c.PAID_BY_GROUP:
-            return c.get_attendee_price(registered) - c.GROUP_DISCOUNT
         else:
             return c.get_attendee_price(registered)
 
