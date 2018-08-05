@@ -246,7 +246,6 @@ class Root:
 
         else:
             if edit_id is None:
-                attendee.can_spam = True  # Only defaults to True on new forms, not edit forms
                 if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                     # All new dealer signups should default to receiving the
                     # hotel info email, even if the deadline has passed.
