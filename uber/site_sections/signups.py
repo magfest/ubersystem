@@ -1,4 +1,5 @@
 import cherrypy
+from datetime import timedelta
 
 from uber.config import c
 from uber.custom_tags import safe_string
@@ -58,6 +59,23 @@ class Root:
             'message': message,
             'attendee': attendee,
             'opts': [('', 'Enter your shirt size')] + c.SHIRT_OPTS[1:]
+        }
+
+    @check_shutdown
+    def volunteer_agreement(self, session, message='', agreed_to_terms=None, csrf_token=None):
+        attendee = session.logged_in_volunteer()
+        if csrf_token is not None:
+            check_csrf(csrf_token)
+            if agreed_to_terms:
+                attendee.agreed_to_volunteer_agreement = True
+                raise HTTPRedirect('index?message={}', 'Agreement received')
+
+            message = "You must agree to the terms of the agreement"
+
+        return {
+            'message': message,
+            'attendee': attendee,
+            'agreement_end_date': c.ESCHATON.date() + timedelta(days=31),
         }
 
     @check_shutdown

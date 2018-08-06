@@ -342,6 +342,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         viewonly=True)
 
     staffing = Column(Boolean, default=False)
+    agreed_to_volunteer_agreement = Column(Boolean, default=False)
     nonshift_hours = Column(Integer, default=0, admin_only=True)
     past_years = Column(UnicodeText, admin_only=True)
     can_work_setup = Column(Boolean, default=False, admin_only=True)

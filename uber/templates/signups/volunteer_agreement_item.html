@@ -1,0 +1,13 @@
+{% import 'macros.html' as macros %}
+
+{% if c.VOLUNTEER_AGREEMENT_ENABLED %}
+    <li>
+        {{ macros.checklist_image(attendee.agreed_to_volunteer_agreement) }}
+        {% if not attendee.agreed_to_volunteer_agreement %}
+            Please read and agree
+        {% else %}
+            You have agreed
+        {% endif %}
+        to the terms of the <a href="volunteer_agreement">Volunteer Agreement</a>
+    </li>
+{% endif %}
