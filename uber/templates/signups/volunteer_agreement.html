@@ -1,0 +1,91 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Volunteer Agreement{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<h1>Volunteer Agreement</h1>
+
+<p>
+This Volunteer Agreement (the "Agreement") is entered into by and between MAGFest, Inc. (the "Company"),
+and {{ attendee.full_name }} ("Volunteer"), and is effective as of {{ now()|datetime("%m/%d, %Y") }} (the "Effective Date").
+</p>
+
+<p>
+In consideration of the mutual promises contained herein and other good and sufficient consideration, the receipt and
+adequacy of which is hereby acknowledged, the parties hereby agree as follows:
+</p>
+
+<p><b>Services.</b>
+Volunteer agrees that he/she will provide the following services, ("Services"), to the Company:<br/>
+(a) attend the Company's event ("{{ c.EVENT_NAME }}") Volunteer training;<br/>
+(b) assist the Company in hosting {{ c.EVENT_NAME }} and assist {{ c.EVENT_NAME }} patrons;<br/>
+(c) preparation and cleaning of the {{ c.EVENT_NAME }} venue; and<br/>
+(d) any other tasks requested by the Company.<br/>
+<br/>
+Volunteer agrees that he/she would like to provide the Services without compensation
+and wishes to contribute his/her time.  All costs and expenses incurred by Volunteer
+in providing the Services shall be the responsibility of Volunteer,
+unless approved in writing in advance by the Company. </p>
+
+<p>
+<b>Swag.</b>
+Volunteer shall receive the following Swag. determined by the amount of Services provided by the Volunteer::<br/>
+(a) for providing six (6) hours of Services, the Company shall give the Volunteer a {{ c.EVENT_NAME }} t-shirt;<br/>
+(b) for providing eighteen (18) hours of Services, the Company shall give the Volunteer a complementary staff badge
+for the following year's {{ c.EVENT_NAME }}, allowing the Volunteer to be eligible for a staff hotel room;<br/>
+(c) for providing twenty-four (24) hours of Services, the Company shall reimburse the amount, if any, Volunteer
+paid for Volunteer's {{ c.EVENT_NAME }} badge; and<br/>
+(d) for providing twenty-four (24) hours of Services at this {{ c.EVENT_NAME }} and providing Services at one of the Company's
+previous events, the Company shall allow the Volunteer space in one of the Company's staff hotel rooms for this {{ c.EVENT_NAME }}.<br/>
+
+Other than the aforesaid amounts Volunteer acknowledges and agrees he/she is not entitled to any compensation of any
+type from {{ c.EVENT_NAME }}.</p>
+
+<p>
+<b>Term.</b>
+Volunteer's Services will commence on the Effective Date and will remain in effect until {{ agreement_end_date|datetime("%m/%d/%Y") }} unless
+earlier terminated by the Company, for any reason or no reason, effective immediately upon written notice to Volunteer.
+</p>
+<p>
+<b>Acknowledgement.</b>
+Volunteer acknowledges and agrees that:<br/>
+(a) the Services will be performed faithfully and to the best of his/her ability;<br/>
+(b) the Services will be performed in compliance with all applicable laws and regulations;<br/>
+(c) neither the Services nor the Work Product will infringe the rights of any third party or violate any law; and<br/>
+(d) Volunteer has full power and authority to enter into this Agreement and to provide the Services in accordance with this Agreement.
+The Company acknowledges and agrees that it has full power and authority to enter into this Agreement.
+</p>
+<p>
+<b>Miscellaneous.</b>
+This Agreement and all performance under this Agreement shall be governed by the laws of the State of California,
+without regard to conflict of law principles. In any dispute relating to this Agreement,
+the parties hereto admit venue and submit themselves to the exclusive jurisdiction of the state or federal courts
+located in Los Angeles County, California. Volunteer's remedy, if any, for any breach of this Agreement shall be
+solely in damages, and Volunteer shall not be entitled to equitable relief by way of injunction or otherwise.
+In the event any provision of this Agreement is determined to be invalid, prohibited or unenforceable by a court or
+other body of competent jurisdiction, this Agreement shall be construed as if such provision has been more narrowly
+drawn so as not to be invalid, prohibited or unenforceable. No waiver of any provision of this Agreement will be
+effective unless it is in writing and signed by both parties, and no such waiver will result in the waiver of any
+other provision of this Agreement. Failure of either party at any time to enforce any of the provisions of this Agreement
+will not be construed as a waiver of such provisions or in any way affect the validity of this Agreement or parts thereof.
+In performing the Services, Volunteer will act and represent itself as an independent volunteer and not as an employee
+or agent of the Company. Volunteer has no authority to obligate the Company by contract or otherwise.
+Volunteer may not assign any rights or obligations under this Agreement without the advance written consent of the Company,
+which may be withheld in its sole discretion. The Company may assign its rights or obligations under this Agreement in its
+sole discretion. This Agreement is the parties' final, exclusive and complete understanding and agreement, and supersedes
+all prior and contemporaneous understandings and agreements relating to the subject matter of this Agreement.
+This Agreement may be amended only by a writing signed by both parties. This Agreement may be executed in counterparts
+which, when taken together, will constitute one Agreement.
+</p>
+
+{% if not attendee.agreed_to_volunteer_agreement %}
+    <form method="post" action="volunteer_agreement">
+        {{ csrf_token() }}
+        I agree to the terms of the volunteer agreement: <input type="checkbox" name="agreed_to_terms" /><br/>
+        <input type="submit" value="Save" />
+    </form>
+{% else %}
+    <p>You have accepted the terms of this agreement already.</p>
+{% endif %}
+
+{% endblock %}
