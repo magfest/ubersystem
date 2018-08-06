@@ -384,7 +384,6 @@ AutomatedEmailFixture(
 
 # Volunteer emails; none of these will be sent unless SHIFTS_CREATED is set.
 
-
 StopsEmailFixture(
     'Please complete your {EVENT_NAME} Staff/Volunteer Checklist',
     'shifts/created.txt',
