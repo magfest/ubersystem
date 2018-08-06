@@ -89,6 +89,11 @@ def full_datetime_local(dt):
 
 
 @JinjaEnv.jinja_export
+def now():
+    return datetime.utcnow()
+
+
+@JinjaEnv.jinja_export
 def event_dates():
     if c.EPOCH.date() == c.ESCHATON.date():
         return c.EPOCH.strftime('%B %-d')
