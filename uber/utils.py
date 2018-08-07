@@ -477,6 +477,21 @@ def check_all(models, *, prereg=False):
             return message
 
 
+def check_pii_consent(params, attendee=None):
+    """
+    Checks that the "pii_consent" field was passed up in the POST params if consent is needed.
+
+    Returns:
+        Empty string if "pii_consent" was given or not needed, or an error message otherwise.
+    """
+    if cherrypy.request.method == 'POST':
+        has_pii_consent = params.get('pii_consent') == '1'
+        needs_pii_consent = not attendee or attendee.needs_pii_consent
+        if needs_pii_consent and not has_pii_consent:
+            return 'You must agree to allow us to store your personal information in order to register.'
+    return ''
+
+
 def check_csrf(csrf_token=None):
     """
     Accepts a csrf token (and checks the request headers if None is provided)
