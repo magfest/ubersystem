@@ -255,7 +255,10 @@
                 }
             };
             var message = '{{ message }}';
-            if (message.length) {
+            var error_message = '{{ error_message }}';
+            if (error_message.length) {
+                toastr.error(error_message);
+            } else if (message.length) {
                 toastr.info(message);
             }
 

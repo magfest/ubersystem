@@ -575,7 +575,7 @@
     <label for="promo_code" class="col-sm-3 control-label optional-field">Promo Code</label>
     <div class="col-sm-6">
         {% if attendee.is_unpaid %}
-        <input type="textarea" name="promo_code" value="{{ attendee.promo_code_code }}" class="form-control" placeholder="Promo Code">
+        <input type="textarea" name="promo_code" value="{{ attendee.promo_code_code or promo_code }}" class="form-control" placeholder="Promo Code">
         {% else %}
         <input type="hidden" name="promo_code" value="{{ attendee.promo_code_code }}">
         <p class="form-control-static">{{ attendee.promo_code_code }}</p>
@@ -590,7 +590,7 @@
 
 {% include "regextra.html" %}
 
-{% if not admin_area and (attendee.is_new or attendee.placeholder) %}
+{% if not admin_area and attendee.needs_pii_consent %}
 <div class="form-group">
   <div class="checkbox col-sm-9 col-sm-offset-3">
     <label for="pii_consent" class="checkbox-label">

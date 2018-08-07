@@ -13,7 +13,7 @@ from uber.decorators import all_renderable, check_if_can_reg, credit_card, csrf_
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Email, Group, Tracking
 from uber.tasks.email import send_email
-from uber.utils import add_opt, check, localized_now, Charge
+from uber.utils import add_opt, check, check_pii_consent, localized_now, Charge
 
 
 def to_sessionized(attendee, group):
@@ -158,15 +158,14 @@ class Root:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
             group = session.group(group_params, ignore_csrf=True, restricted=True)
 
-        message = ''
-        if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
-            message = session.add_promo_code_to_attendee(
-                attendee, params.get('promo_code'))
-
         if not attendee.badge_type:
             attendee.badge_type = c.ATTENDEE_BADGE
-        if attendee.badge_type not in c.PREREG_BADGE_TYPES:
+
+        message = check_pii_consent(params, attendee) or message
+        if not message and attendee.badge_type not in c.PREREG_BADGE_TYPES:
             message = 'Invalid badge type!'
+        if not message and c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
+            message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
 
         if message:
             return {
@@ -177,7 +176,8 @@ class Root:
                 'badges':     params.get('badges'),
                 'affiliates': session.affiliates(),
                 'cart_not_empty': Charge.unpaid_preregs,
-                'copy_address': params.get('copy_address')
+                'copy_address': params.get('copy_address'),
+                'promo_code': params.get('promo_code', ''),
             }
 
         if attendee.is_dealer and not c.DEALER_REG_OPEN:
@@ -268,7 +268,8 @@ class Root:
             'badges':     params.get('badges'),
             'affiliates': session.affiliates(),
             'cart_not_empty': Charge.unpaid_preregs,
-            'copy_address': params.get('copy_address')
+            'copy_address': params.get('copy_address'),
+            'promo_code': params.get('promo_code', ''),
         }
 
     @redirect_if_at_con_to_kiosk
@@ -458,7 +459,8 @@ class Root:
         group = session.group(group_id)
         attendee = session.attendee(params, restricted=True)
 
-        if 'first_name' in params:
+        message = check_pii_consent(params, attendee) or message
+        if not message and 'first_name' in params:
             message = check(attendee, prereg=True)
             if not message and not params['first_name']:
                 message = 'First and Last Name are required fields'

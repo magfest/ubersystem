@@ -750,6 +750,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         return not self.amount_paid and not self.paid == c.NEED_NOT_PAY and not self.is_group_leader
 
     @property
+    def needs_pii_consent(self):
+        return self.is_new or self.placeholder or not self.first_name
+
+    @property
     def shirt_size_marked(self):
         return self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN]
 
