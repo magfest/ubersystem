@@ -64,6 +64,7 @@ class Root:
     @ajax
     def edit_room(self, session, **params):
         params['nights'] = list(filter(bool, [params.pop(night, None) for night in c.NIGHT_NAMES]))
+        params['locked_in'] = str(params.get('locked_in', 'false')).lower() == 'true'
         session.room(params)
         session.commit()
         return _hotel_dump(session)
