@@ -246,7 +246,6 @@ class Root:
 
         else:
             if edit_id is None:
-                attendee.can_spam = True  # Only defaults to True on new forms, not edit forms
                 if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                     # All new dealer signups should default to receiving the
                     # hotel info email, even if the deadline has passed.
@@ -495,8 +494,6 @@ class Root:
                     raise HTTPRedirect('attendee_donation_form?id={}', attendee.id)
                 else:
                     raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Badge registered successfully')
-        else:
-            attendee.can_spam = True    # only defaults to true for these forms
 
         return {
             'message':  message,
@@ -719,7 +716,6 @@ class Root:
 
         attendee.placeholder = placeholder
         if not message and attendee.placeholder:
-            attendee.can_spam = True
             message = 'You are not yet registered!  You must fill out this form to complete your registration.'
         elif not message:
             message = 'You are already registered but you may update your information with this form.'
