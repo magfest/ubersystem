@@ -1,0 +1,34 @@
+<h2>Add a Tourmament</h2>
+
+Tournaments must be on the schedule.  Select an event on the schedule to make into a tournament, then enter the name
+of the tournament as you'd like it to appear in reminder texts sent to tournament entrants.  This name may be no longer
+than 20 characters and should NOT include the word "Tournament".
+
+<br/> <br/>
+
+<a style="display:block ; text-align:center" href="#/">Cancel</a>
+
+<table>
+    <tbody>
+        <tr>
+            <td>Event:</td>
+            <td>
+                <input type="text" size="50" ng-model="tournament.event" typeahead-editable="false"
+                                   typeahead="e as (e.name + ' (' + e.when + ')') for e in events | filter:$viewValue | limitTo:8" />
+            </td>
+        </tr>
+        <tr ng-if="tournament.event">
+            <td>Tournament Name:</td>
+            <td><input type="text" size="20" maxlength="20" ng-model="tournament.name" /></td>
+        </tr>
+        <tr ng-if="tournament.event && tournament.name">
+            <td></td>
+            <td>
+                <button ng-click="create()">Create Tournament</button>
+                &nbsp;&nbsp;&nbsp;&nbsp;
+                <button ng-click="cancel()">Cancel</button>
+            </td>
+        </tr>
+    </tbody>
+</table>
+

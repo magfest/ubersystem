@@ -1,8 +1,16 @@
-from uber.common import *
+import os
 from functools import lru_cache
+from types import FunctionType
+
+import jinja2
+from jinja2._compat import string_types
+from jinja2.environment import Template
 from jinja2.loaders import split_template_path
 from jinja2.utils import open_if_exists
-from jinja2.exceptions import TemplateNotFound
+from jinja2.exceptions import TemplateNotFound, TemplatesNotFound
+from sideboard.lib import request_cached_property
+
+from uber.config import c
 
 
 class MultiPathEnvironment(jinja2.Environment):
@@ -21,10 +29,13 @@ class MultiPathEnvironment(jinja2.Environment):
                 matching_filenames.append(filename)
         return matching_filenames
 
-    def _load_template(self, name, globals):
+    def _load_template(self, name, globals, use_request_cache=True):
         """
         Overridden to consider templates already loaded by the current request.
         """
+        if not use_request_cache:
+            return super(MultiPathEnvironment, self)._load_template(name, globals)
+
         if self.loader is None:
             raise TypeError('no loader for this environment specified')
 
@@ -40,8 +51,7 @@ class MultiPathEnvironment(jinja2.Environment):
         if self.cache is not None:
             template = self.cache.get(cache_key)
             if template and (not self.auto_reload or template.is_up_to_date):
-                self._templates_loaded_for_current_request.add(
-                    template.filename)
+                self._templates_loaded_for_current_request.add(template.filename)
                 return template
 
         template = self.loader.load(self, filename, globals)
@@ -51,6 +61,45 @@ class MultiPathEnvironment(jinja2.Environment):
             self.cache[cache_key] = template
         return template
 
+    def get_template(self, name, parent=None, globals=None, use_request_cache=True):
+        """
+        Overridden to add the `use_request_cache` parameter.
+        """
+        if isinstance(name, Template):
+            return name
+        if parent is not None:
+            name = self.join_path(name, parent)
+        return self._load_template(name, self.make_globals(globals), use_request_cache)
+
+    def select_template(self, names, parent=None, globals=None, use_request_cache=True):
+        """
+        Overridden to add the `use_request_cache` parameter.
+        """
+        if not names:
+            raise TemplatesNotFound(message='Tried to select from an empty list of templates.')
+
+        globals = self.make_globals(globals)
+        for name in names:
+            if isinstance(name, Template):
+                return name
+            if parent is not None:
+                name = self.join_path(name, parent)
+            try:
+                return self._load_template(name, globals, use_request_cache)
+            except TemplateNotFound:
+                pass
+        raise TemplatesNotFound(names)
+
+    def get_or_select_template(self, template_name_or_list, parent=None, globals=None, use_request_cache=True):
+        """
+        Overridden to add the `use_request_cache` parameter.
+        """
+        if isinstance(template_name_or_list, string_types):
+            return self.get_template(template_name_or_list, parent, globals, use_request_cache)
+        elif isinstance(template_name_or_list, Template):
+            return template_name_or_list
+        return self.select_template(template_name_or_list, parent, globals, use_request_cache)
+
 
 class AbsolutePathLoader(jinja2.FileSystemLoader):
 
@@ -59,8 +108,7 @@ class AbsolutePathLoader(jinja2.FileSystemLoader):
         Overridden to also accept absolute paths.
         """
         if not os.path.isabs(template):
-            return super(AbsolutePathLoader, self).get_source(
-                environment, template)
+            return super(AbsolutePathLoader, self).get_source(environment, template)
 
         # Security check, ensure the abs path is part of a valid search path
         if not any(template.startswith(s) for s in self.searchpath):
@@ -111,7 +159,10 @@ class JinjaEnv:
     def _init_env(cls):
         env = MultiPathEnvironment(
             autoescape=True,
-            loader=AbsolutePathLoader(cls._template_dirs))
+            loader=AbsolutePathLoader(cls._template_dirs),
+            lstrip_blocks=True,
+            trim_blocks=True,
+        )
 
         for name, func in cls._exportable_functions.items():
             env.globals[name] = func
@@ -139,6 +190,7 @@ class JinjaEnv:
             def registrar(func):
                 _register(func, name)
                 return func
+            registrar.__name__ = name
             return registrar
 
     @classmethod
@@ -156,6 +208,7 @@ class JinjaEnv:
             def registrar(func):
                 _register(func, name)
                 return func
+            registrar.__name__ = name
             return registrar
 
     @classmethod
@@ -173,6 +226,7 @@ class JinjaEnv:
             def registrar(func):
                 _register(func, name)
                 return func
+            registrar.__name__ = name
             return registrar
 
 
@@ -182,6 +236,7 @@ def template_overrides(dirname):
     its own by calling this method and passing its templates directory.
     """
     JinjaEnv.insert_template_dir(dirname)
+
 
 for _directory in c.TEMPLATE_DIRS:
     template_overrides(_directory)

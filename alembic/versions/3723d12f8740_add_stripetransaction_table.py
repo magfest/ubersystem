@@ -15,7 +15,7 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import sideboard.lib.sa
+import residue
 
 
 try:
@@ -32,14 +32,14 @@ else:
 
 def upgrade():
     op.create_table('stripe_transaction',
-    sa.Column('id', sideboard.lib.sa.UUID(), nullable=False),
+    sa.Column('id', residue.UUID(), nullable=False),
     sa.Column('stripe_id', sa.Unicode(), server_default='', nullable=True),
     sa.Column('type', sa.Integer(), server_default='186441959', nullable=False),
     sa.Column('amount', sa.Integer(), nullable=False),
-    sa.Column('when', sideboard.lib.sa.UTCDateTime(), nullable=False),
+    sa.Column('when', residue.UTCDateTime(), nullable=False),
     sa.Column('who', sa.Unicode(), server_default='', nullable=False),
     sa.Column('desc', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('fk_id', sideboard.lib.sa.UUID(), nullable=False),
+    sa.Column('fk_id', residue.UUID(), nullable=False),
     sa.Column('fk_model', sa.Unicode(), server_default='', nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_stripe_transaction'))
     )

@@ -15,12 +15,21 @@
 <h2>
   All Unfilled Shifts
   {% if show_restricted %}
-    <a href="everywhere" class="btn btn-xs btn-plain">
+    <a href="everywhere{% if show_nonpublic %}?show_nonpublic=true{% endif %}" class="btn btn-xs btn-plain">
   {% else %}
-    <a href="everywhere?show_restricted=true" class="btn btn-xs btn-default">
+    <a href="everywhere?show_restricted=true{% if show_nonpublic %}&show_nonpublic=true{% endif %}" class="btn btn-xs btn-default">
   {% endif %}
       <span class="glyphicon glyphicon-filter"></span>
-      Show Restricted Shifts
+      Show Restricted
+    </a>
+
+  {% if show_nonpublic %}
+    <a href="everywhere{% if show_restricted %}?show_restricted=true{% endif %}" class="btn btn-xs btn-plain">
+  {% else %}
+    <a href="everywhere?show_nonpublic=true{% if show_restricted %}?show_restricted=true{% endif %}" class="btn btn-xs btn-default">
+  {% endif %}
+      <span class="glyphicon glyphicon-filter"></span>
+      Show Non Public
     </a>
 </h2>
 

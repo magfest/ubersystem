@@ -1,0 +1,73 @@
+{% if snippet %}
+  <tr>
+    <td width="25">{{ macros.checklist_image(guest.travel_plans_status) }}</td>
+    <td><b><a href="travel_plans?guest_id={{ guest.id }}">
+      {% block deadline_headline %}Travel Plans{% endblock %}</a></b></td>
+    <td><i>Deadline:</i> {{ guest.deadline_from_model('travel_plans')|datetime_local }}</td>
+  </tr>
+  <tr>
+    <td colspan="3">
+      {% block deadline_text %}
+        {% if guest.travel_plans_status %}
+          You have already told us how you will be traveling to {{ c.EVENT_NAME }}, but you can use the link above to update your
+          preferences.
+        {% else %}
+          Use the link above to let us know your travel plans for getting to {{ c.EVENT_NAME }}.
+        {% endif %}
+      {% endblock %}
+      <br/></br>
+    </td>
+  </tr>
+{% else %}
+  <script type="text/javascript">
+      var showOrHideModesText = function() {
+          setVisible('#modes-other', $(":checkbox[name=modes][value={{ c.OTHER }}]").prop("checked"));
+      };
+
+      $(function () {
+          showOrHideCategoriesText();
+          $(":checkbox[name=modes]").click(showOrHideModesText);
+      });
+  </script>
+
+  <h2>{% block form_title %}Travel Plans for {{ guest.group.name }}{% endblock %}</h2>
+
+  {% block form_desc %}{% endblock %}
+  <br/> <br/>
+
+  <form method="post" action="travel_plans" class="form-horizontal" role="form" enctype="multipart/form-data">
+    <input type="hidden" name="guest_id" value="{{ guest.id }}" />
+    <input type="hidden" name="id" value="{{ guest_travel_plans.db_id }}" />
+    {{ csrf_token() }}
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Travel Plans</label>
+      <div class="col-sm-9">
+        {{ macros.checkgroup(guest_travel_plans, 'modes') }}
+      </div>
+      <div class="clearfix"></div>
+      <div class="col-sm-6 col-sm-offset-3">
+        <input id="modes-other" class="form-control" type="text" name="modes_text"
+               value="{{ guest_travel_plans.modes_text }}" placeholder="Other (Please Specify)"/>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Arrival and Departure Plans</label>
+      <div class="col-sm-6">
+        <textarea class="form-control" name="details" rows="4">{{ guest_travel_plans.details }}</textarea>
+      </div>
+      <div class="clearfix"></div>
+      <p class="help-block col-sm-9 col-sm-offset-3">PLEASE be aware that this affects programming, so the more precise
+        you can be the better. We don’t want to accidentally put you down for a panel when you won’t even be there.</p>
+    </div>
+
+    {% block form_extra %}{% endblock %}
+
+    <div class="form-group">
+      <div class="col-sm-6 col-sm-offset-3">
+        <button type="submit" class="btn btn-primary">Upload Travel Plans</button>
+      </div>
+    </div>
+  </form>
+{% endif %}

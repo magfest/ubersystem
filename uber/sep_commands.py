@@ -1,6 +1,15 @@
+import sys
 from glob import glob
-from os.path import exists, join
-from uber.common import *
+from json import dumps
+from os.path import join
+from pprint import pprint
+
+from sideboard.lib import entry_point
+from sqlalchemy.orm import subqueryload
+
+from uber.config import c
+from uber.decorators import timed
+from uber.models import AdminAccount, Attendee, AutomatedEmail, Group, Session
 
 
 @entry_point
@@ -30,9 +39,7 @@ def alembic(*args):
     """
     from alembic.config import CommandLine
     from sideboard.config import config as sideboard_config
-    from sideboard.internal.imports import plugin_dirs
-    from uber.migration import create_alembic_config, \
-        get_plugin_head_revision, version_locations
+    from uber.migration import create_alembic_config, get_plugin_head_revision, version_locations
 
     argv = args if args else sys.argv[1:]
 
@@ -97,7 +104,8 @@ def alembic(*args):
 def print_config():
     """
     print all config values to stdout, used for debugging / status checking
-    useful if you want to verify that Ubersystem has pulled in the INI values you think it has.
+    useful if you want to verify that Ubersystem has pulled in the INI values
+    you think it has.
     """
     from uber.config import _config
     pprint(_config.dict())
@@ -113,40 +121,12 @@ def resave_all_attendees_and_groups():
     SAFETY: This -should- be safe to run at any time, but, for safety sake, recommend turning off
     any running sideboard servers before running this command.
     """
-    Session.initialize_db(modify_tables=False, drop=False)
+    Session.initialize_db(modify_tables=False, drop=False, initialize=True)
     with Session() as session:
         print("Re-saving all attendees....")
         [a.presave_adjustments() for a in session.query(Attendee).all()]
         print("Re-saving all groups....")
         [g.presave_adjustments() for g in session.query(Group).all()]
-        print("Saving resulting changes to database (can take a few minutes)...")
-    print("Done!")
-
-
-@entry_point
-def resave_all_staffers():
-    """
-    Re-save all staffers in the database, and re-assign all
-
-    SAFETY: This -should- be safe to run at any time, but, for safety sake, recommend turning off
-    any running sideboard servers before running this command.
-    """
-    Session.initialize_db(modify_tables=False, drop=False)
-    with Session() as session:
-        staffers = session.query(Attendee).filter_by(badge_type=c.STAFF_BADGE).all()
-
-        first_staff_badge_num = c.BADGE_RANGES[c.STAFF_BADGE][0]
-        last_staff_badge_num = c.BADGE_RANGES[c.STAFF_BADGE][1]
-        assert len(staffers) < last_staff_badge_num - first_staff_badge_num + 1, 'not enough free staff badges, please increase limit'
-
-        badge_num = first_staff_badge_num
-
-        print("Re-saving all staffers....")
-        for a in staffers:
-            a.presave_adjustments()
-            a.badge_num = badge_num
-            badge_num += 1
-            assert badge_num <= last_staff_badge_num
         print("Saving resulting changes to database (can take a few minutes)...")
     print("Done!")
 
@@ -162,6 +142,18 @@ def insert_admin():
 
 
 @entry_point
+def has_admin():
+    Session.initialize_db(initialize=True)
+    with Session() as session:
+        if session.query(AdminAccount).first() is None:
+            print('Could not find any admin accounts', file=sys.stderr)
+            sys.exit(1)
+        else:
+            print('At least one admin account exists', file=sys.stderr)
+            sys.exit(0)
+
+
+@entry_point
 def drop_uber_db():
     assert c.DEV_BOX, 'drop_uber_db is only available on development boxes'
     Session.initialize_db(modify_tables=False, drop=True)
@@ -172,3 +164,40 @@ def reset_uber_db():
     assert c.DEV_BOX, 'reset_uber_db is only available on development boxes'
     Session.initialize_db(modify_tables=True, drop=True)
     insert_admin()
+
+
+@entry_point
+def decline_and_convert_dealer_groups():
+    from uber.site_sections.groups import _decline_and_convert_dealer_group
+    Session.initialize_db(initialize=True)
+    with Session() as session:
+        groups = session.query(Group) \
+            .filter(Group.tables > 0, Group.status == c.WAITLISTED) \
+            .options(
+                subqueryload(Group.attendees).subqueryload(Attendee.admin_account),
+                subqueryload(Group.attendees).subqueryload(Attendee.shifts)) \
+            .order_by(Group.name, Group.id).all()
+
+        for group in groups:
+            print('{}: {}'.format(
+                group.name,
+                _decline_and_convert_dealer_group(session, group, False)))
+
+
+@entry_point
+def notify_admins_of_pending_emails():
+    from uber.tasks.email import notify_admins_of_pending_emails as notify_admins
+    Session.initialize_db(initialize=True)
+    results = timed(notify_admins)()
+    if results:
+        print('Notification emails sent to:\n{}'.format(dumps(results, indent=2, sort_keys=True)))
+
+
+@entry_point
+def send_automated_emails():
+    from uber.tasks.email import send_automated_emails as send_emails
+    Session.initialize_db(initialize=True)
+    timed(AutomatedEmail.reconcile_fixtures)()
+    results = timed(send_emails)()
+    if results:
+        print('Unapproved email counts:\n{}'.format(dumps(results, indent=2, sort_keys=True)))

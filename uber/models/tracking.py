@@ -5,9 +5,10 @@ from threading import current_thread
 from urllib.parse import parse_qsl
 
 import cherrypy
+from pockets.autolog import log
 from pytz import UTC
-from sideboard.lib import log, serializer
-from sideboard.lib.sa import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from sideboard.lib import serializer
 
 from uber.config import c
 from uber.models import MagModel
@@ -46,11 +47,7 @@ class PageViewTracking(MagModel):
 
         from uber.models import Session
         with Session() as session:
-            session.add(PageViewTracking(
-                who=AdminAccount.admin_name(),
-                page=c.PAGE_PATH,
-                what=what
-            ))
+            session.add(PageViewTracking(who=AdminAccount.admin_name(), page=c.PAGE_PATH, what=what))
 
 
 class Tracking(MagModel):
@@ -88,8 +85,7 @@ class Tracking(MagModel):
             else:
                 return repr(value)
         except Exception as e:
-            raise ValueError(
-                'Error formatting {} ({!r})'.format(column.name, value)) from e
+            raise ValueError('Error formatting {} ({!r})'.format(column.name, value)) from e
 
     @classmethod
     def differences(cls, instance):
@@ -121,17 +117,13 @@ class Tracking(MagModel):
                 try:
                     old_val_repr = cls.repr(column, old_val)
                 except Exception as e:
-                    log.error(
-                        'Tracking repr({}) failed on old value'.format(attr),
-                        exc_info=True)
+                    log.error('Tracking repr({}) failed on old value'.format(attr), exc_info=True)
                     old_val_repr = '<ERROR>'
 
                 try:
                     new_val_repr = cls.repr(column, new_val)
                 except Exception as e:
-                    log.error(
-                        'Tracking repr({}) failed on new value'.format(attr),
-                        exc_info=True)
+                    log.error('Tracking repr({}) failed on new value'.format(attr), exc_info=True)
                     new_val_repr = '<ERROR>'
 
                 diff[attr] = "'{} -> {}'".format(old_val_repr, new_val_repr)
@@ -153,21 +145,15 @@ class Tracking(MagModel):
                 return
         else:
             data = 'id={}'.format(instance.id)
+
         links = ', '.join(
-            '{}({})'.format(
-                list(column.foreign_keys)[0].column.table.name,
-                getattr(instance, name))
-            for name, column in instance.__table__.columns.items()
-            if column.foreign_keys and getattr(instance, name)
-        )
+            '{}({})'.format(list(column.foreign_keys)[0].column.table.name, getattr(instance, name))
+            for name, column in instance.__table__.columns.items() if column.foreign_keys and getattr(instance, name))
 
         if sys.argv == ['']:
             who = 'server admin'
         else:
-            who = AdminAccount.admin_name() or (
-                current_thread().name
-                if current_thread().daemon
-                else 'non-admin')
+            who = AdminAccount.admin_name() or (current_thread().name if current_thread().daemon else 'non-admin')
 
         def _insert(session):
             session.add(Tracking(

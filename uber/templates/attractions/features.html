@@ -1,0 +1,71 @@
+{% extends "preregistration/preregbase.html" %}
+{% block title %}{{ attraction.name }}{% endblock %}
+{% import 'attractions_macros.html' as attractions_macros with context %}
+
+{% block content %}
+{% include 'attractions/attractions_common.html' %}
+<style type="text/css">
+  .hover-btn h3 {
+    margin: 5px 0;
+    font-size: 1.125em;
+  }
+</style>
+
+<script>
+  $(function() {
+    $('#features').on('click', '.feature', clickNextButton);
+  });
+</script>
+
+<div class="masthead"></div>
+<div class="panel panel-default">
+  <div class="panel-body">
+    {% block body %}
+      {% if show_all %}
+        <a class="btn btn-success btn-back" href="index">
+          <span class="glyphicon glyphicon-chevron-left"></span>
+          <span class="hidden-xxs">All Attractions</span>
+          <span class="visible-xxs-inline">Back</span>
+        </a>
+      {% endif %}
+      <h1 class="text-center">{{ attraction.name }}</h1>
+      <p class="text-center">
+        {{ attraction.description|linebreaksbr }}
+      </p>
+      <hr>
+      <div id="features">
+        {% for feature in attraction.public_features %}
+          <div class="feature hover-btn"
+              data-feature-id="{{ feature.id }}"
+              data-feature-name="{{ feature.name }}">
+            <div class="hover-btn-title">
+              <a class="btn btn-success btn-next pull-right" href="{{ attraction.slug }}?feature={{ feature.slug }}">
+                <span class="glyphicon glyphicon-chevron-right"></span>
+              </a>
+              <h2><span class="bling-icon"></span> {{ feature.name }}</h2>
+            </div>
+            <div class="hover-btn-body">
+              <p>{{ feature.description|linebreaksbr }}</p>
+              {%- set summary = feature.available_events_summary -%}
+              {% if summary %}
+                {% for day, times in summary.items() %}
+                  <h3>{{ day }}</h3>
+                  <ul>
+                    {% for time_of_day, slots in times.items() %}
+                      <li>{{ time_of_day }}: {{ slots }} slot{{ slots|pluralize }} available</li>
+                    {% endfor %}
+                  </ul>
+                {% endfor %}
+              {% else %}
+                <em class="help-block">No events are available for {{ feature.name }}.</em>
+              {% endif %}
+            </div>
+          </div>
+        {% else %}
+          <em class="help-block text-center">{{ attraction.name }} doesn't have any features yet.</em>
+        {% endfor %}
+      </div>
+    {% endblock %}
+  </div>
+</div>
+{% endblock %}

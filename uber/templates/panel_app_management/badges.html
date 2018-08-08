@@ -1,0 +1,70 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Panelist Badges{% endblock %}}
+{% block content %}
+
+<script>
+    var hideRows = function (ids) {
+        $.each(ids, function (i, id) {
+            $('#' + id).hide('slow');
+        });
+    };
+    var link = function (applicantId, attendeeId) {
+        $.post('link_badge', {csrf_token: csrf_token, applicant_id: applicantId, attendee_id: attendeeId}, function (response) {
+            if (response.error) {
+                toastr.error(response.error);
+            } else {
+                toastr.info('Linked panelist to ' + response.name);
+                hideRows(response.linked);
+            }
+        }, 'json');
+    };
+    var create = function (applicantId) {
+        $.post('create_badge', {csrf_token: csrf_token, applicant_id: applicantId}, function (response) {
+            if (response.error) {
+                toastr.error(response.error);
+            } else {
+                toastr.info('Added panelist');
+                hideRows(response.added);
+            }
+        }, 'json');
+    };
+</script>
+
+<h3>Panelists needing badges</h3>
+
+The following is a list of panelists with accepted panels which are NOT marked as having a badge.  You may use the
+forms below to add badges for those without them OR associate these panelists with existing attendee records.
+
+<table class="table table-striped">
+<thead>
+    <tr>
+        <th>Panel</th>
+        <th>Panelist Name</th>
+        <th>Panelist Email</th>
+        <th>Possible Matches</th>
+        <th></th>
+    </tr>
+</thead>
+<tbody>
+{% for pa, matches in applicants %}
+    <tr id="{{ pa.id }}">
+        <td><a href="app?id={{ pa.application.id }}">{{ pa.application.name }}</a></td>
+        <td>{{ pa.full_name }}</td>
+        <td>{{ pa.email|email_to_link }}</td>
+        <td>
+            {% for attendee in matches %}
+                <p>
+                    <button onClick="link('{{ pa.id }}', '{{ attendee.id }}')">Link</button>
+                    {{ attendee|form_link }} [{{ attendee.badge }}] ({{ attendee.email }})
+                </p>
+            {% else %}
+                (no matching attendees)
+            {% endfor %}
+        </td>
+        <td><button onClick="create('{{ pa.id }}')">Add New Badge</button></td>
+    </tr>
+{% endfor %}
+</tbody>
+</table>
+
+{% endblock %}

@@ -1,0 +1,423 @@
+{%- set HAS_ROCK_ISLAND = c.ROCK_ISLAND in c.GUEST_MERCHS and guest.group_type in c.ROCK_ISLAND_GROUPS -%}
+
+{% if snippet %}
+  <tr>
+    <td width="25">{{ macros.checklist_image(guest.merch_status) }}</td>
+    <td><b><a href="merch?guest_id={{ guest.id }}">
+      {% block deadline_headline %}Selling Merchandise{% endblock %}</a></b></td>
+    <td><i>Deadline:</i> {{ guest.deadline_from_model('merch')|datetime_local }}</td>
+  </tr>
+  <tr>
+    <td colspan="3">
+      {% block deadline_text %}
+        {% if guest.merch_status %}
+          You have already indicated your merchandise preferences, but you may update them using the link above.
+        {% else %}
+          Let us know if you want a table space in our marketplace area for merchandise sales!
+        {% endif %}
+      {% endblock %}
+      <br/></br>
+    </td>
+  </tr>
+  {% if HAS_ROCK_ISLAND and guest.merch.selling_merch == c.ROCK_ISLAND %}
+    <tr>
+      <td></td>
+      <td>{{ macros.checklist_image(guest.merch.inventory) }} <b><a href="merch?guest_id={{ guest.id }}">Rock Island Inventory</a></b></td>
+      <td><i>Deadline:</i> {{ c.ROCK_ISLAND_DEADLINE|datetime_local }}</td>
+    </tr>
+    <tr>
+      <td></td>
+      <td colspan="2">
+        {% if not guest.merch.inventory %}
+          You haven't uploaded any inventory for Rock Island yet!
+        {% else %}
+           Thanks for uploading your Rock Island inventory!
+        {% endif %}
+        You can update your inventory using the link above.
+        <br/></br>
+      </td>
+    </tr>
+  {% endif %}
+{% else %}
+
+  {% import 'guests_macros.html' as guests_macros with context %}
+
+  {% block form_header %}
+    {% if HAS_ROCK_ISLAND %}
+      <style type="text/css">
+
+        .well-success {
+          margin-bottom: 0;
+          margin-top: 10px;
+        }
+
+        #inventory_container {
+          margin-left: -15px;
+          margin-right: -15px;
+        }
+
+        #rockisland {
+          padding-top: 10px;
+        }
+
+        #rockisland > h3 {
+          margin-bottom: 10px;
+        }
+
+        .well .inventory-add-item {
+          margin-bottom: 10px;
+        }
+
+        .inventory-item-custom .audio-track dd {
+          display: block;
+          float: none;
+        }
+
+        .inventory-item-custom .audio-track dt {
+          line-height: inherit;
+        }
+
+        p.help-block {
+          margin-top: 0;
+        }
+
+        .form-group .form-group {
+          margin-bottom: 0;
+        }
+
+        .first_name { margin-bottom: 15px; }
+        @media(min-width: 768px) {
+          .first_name { margin-bottom: 0; }
+        }
+
+      </style>
+
+      <iframe id="upload_frame" name="upload_frame" style="display:none"></iframe>
+
+      {%- macro inventory_modal(type, item=None) -%}
+        {% set type = type|int %}
+        {%- set label = c.MERCH_TYPES[type] -%}
+        <div
+            id="inventory_item_{{ item.id or type }}"
+            class="modal fade inventory-item"
+            tabindex="-1"
+            role="dialog"
+            aria-labelledby="inventory_item_title_{{ item.id or type }}"
+            style="display:none">
+          <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="inventory_item_title_{{ item.id or type }}">{{ label }}</h4>
+              </div>
+              <form method="post" action="save_inventory_item" target="upload_frame" class="form-horizontal" role="form" enctype="multipart/form-data">
+                <div class="modal-body">
+                  {{ csrf_token() }}
+                  <input type="hidden" name="guest_id" value="{{ guest.id }}" />
+                  {{ guests_macros.inventory_form(type, item=item) }}
+                </div>
+                <div class="modal-footer">
+                  <button type="submit" class="btn btn-primary save_inventory">Save</button>
+                  <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      {%- endmacro -%}
+
+      <div id="inventory_modals">
+        {% for type, label in c.MERCH_TYPES_OPTS -%}
+          {{ inventory_modal(type) }}
+        {%- endfor %}
+        {% if guest_merch.inventory -%}
+          {% for item in guest_merch.inventory.values() -%}
+            {{ inventory_modal(item.type, item=item) }}
+          {%- endfor %}
+        {%- endif %}
+      </div>
+    {% endif %}
+  {% endblock %}
+
+  <h2>{% block form_title %}Selling Merch{% endblock %}</h2>
+
+  {% block form_desc %}
+    <p>
+      Space will be provided in our marketplace area for merchandise sales{% if not HAS_ROCK_ISLAND %}.{% else %};
+      either at a dedicated table or at our “Rock Island” sales area, where {{ c.EVENT_NAME }} staff will sell {{ guest.group_type_label|lower }}-provided
+      merchandise throughout the festival.{% endif %}
+    </p>
+
+    {% if HAS_ROCK_ISLAND %}
+      <p>
+        It is recommended, but not required, for {{ guest.group_type_label|lower }}s to use our Rock Island service in this area, as merchandise can
+        be sold more consistently, and for many more hours.
+      </p>
+      <p>
+        <a href="../static/RockIsland.pdf">
+          Click here for more info about our Rock Island service!
+        </a>
+      </p>
+    {% endif %}
+  {% endblock %}
+
+  <br>
+
+  <form method="post" action="merch" class="form-horizontal" role="form" enctype="multipart/form-data">
+    {{ csrf_token() }}
+    <input type="hidden" name="guest_id" value="{{ guest.id }}" />
+    <input type="hidden" name="id" value="{{ guest_merch.db_id or 'None' }}" />
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Want to sell merch?</label>
+      <div class="col-sm-6">
+        <select name="selling_merch" class="form-control">
+          <option value="">Tell us how you'd like to sell your merch</option>
+          {% if HAS_ROCK_ISLAND %}
+            {{ options(c.GUEST_MERCH_OPTS,guest_merch.selling_merch) }}
+          {% else %}
+            {{ options(c.GUEST_MERCH_OPTS|rejectattr('0', 'equalto', c.ROCK_ISLAND), guest_merch.selling_merch) }}
+          {% endif %}
+        </select>
+      </div>
+    </div>
+
+    {% block form_extra %}
+      {% if HAS_ROCK_ISLAND %}
+        <div id="rockisland" style="display:none">
+          <h3>Your Inventory</h3>
+          <div id="inventory_container"{% if not guest_merch.inventory %} style="display:none"{% endif %}>
+            {{ guests_macros.inventory_table(show_controls=True) }}
+          </div>
+          <div class="well well-sm well-success col-sm-6 col-sm-offset-3 text-success text-center">
+            <h4>Add some merch to your inventory!</h4>
+            <div class="inventory-add-item text-success">
+              <span class="glyphicon glyphicon-plus-sign"></span>
+              <select class="form-control add_inventory">
+                <option value="">Select an item to add it...</option>
+                {{ options(c.MERCH_TYPES_OPTS) }}
+              </select>
+            </div>
+          </div>
+          <div class="clearfix"></div>
+          <h3>Merch Point of Contact</h3>
+
+          <div class="form-group">
+            <div class="col-sm-9 col-sm-offset-3 checkbox">
+              {{ macros.toggle_checkbox(
+                  '.form-group-poc',
+                  'Use group leader, ' ~ guest.group.leader.full_name ~ ', as point of contact?',
+                  suffix='_poc',
+                  name='poc_is_group_leader',
+                  mode='.form-group-poc .form-control',
+                  required_selector='.form-group-poc .form-control',
+                  hide_on_checked=True,
+                  checked=guest_merch.poc_is_group_leader) }}
+            </div>
+          </div>
+
+          {{ macros.name_form_group(guest_merch, first_name_attr='poc_first_name', last_name_attr='poc_last_name', form_class='form-group-poc', is_required=True) }}
+          {{ macros.form_group(guest_merch, 'poc_phone', label='Phone Number', type='tel', placeholder='555-555-1234', form_class='form-group-poc', is_required=True) }}
+          {{ macros.form_group(guest_merch, 'poc_email', label='Email', type='email', placeholder='merch@example.com', form_class='form-group-poc', is_required=True) }}
+
+          <h4>Mailing Address</h4>
+          {{ macros.address_form(guest_merch, name_prefix='poc_', model_prefix='poc_', is_required=True) }}
+          <h3>Trusted Merch Handlers</h3>
+          <p class="help-block">
+            Please include the first and last names of trusted people authorized to drop-off/pick-up your merch.
+          </p>
+          <div class="clearfix"></div>
+          {% for index in range(0, 6) -%}
+            {%- set handler = guest_merch.handlers[index] if guest_merch.handlers else None -%}
+            {{ macros.name_form_group(handler, label='Merch Handler', prefix='handlers_', suffix='_' ~ index) }}
+          {%- endfor %}
+          <h3>Extra Info</h3>
+          {{ macros.form_group(guest_merch, 'bringing_boxes', type='textarea', label='Bringing any boxes?',
+              placeholder='How many boxes and how big are they?',
+              help='Please tell us how many boxes you plan on bringing and how big they are. We would like to plan accordingly.',
+              is_required=False) }}
+          {{ macros.form_group(guest_merch, 'extra_info', type='textarea', label='Anything else?',
+              placeholder='Anything else we might need to know?',
+              is_required=False) }}
+        </div>
+
+        <script>
+            var showOrHideRockIsland = function() {
+                var isRockIsland = $.val('selling_merch') === {{ c.ROCK_ISLAND }};
+                setVisible('#rockisland', isRockIsland);
+
+                $('#rockisland input, #rockisland textarea, #rockisland select').prop('disabled', !isRockIsland);
+                if (isRockIsland) {
+                    toggleVisibility_poc();
+                }
+            };
+
+            var onChooseInventoryType = function() {
+              var $addInventory = $(this),
+                  $inventoryItem = $('#inventory_item_' + $addInventory.val());
+
+              $inventoryItem.find('.one_size').each(function() { onOneSizeChange.call(this); });
+              $inventoryItem.modal();
+              $addInventory.val('');
+            };
+
+            var onEditInventory = function(e) {
+              e.preventDefault();
+              var $inventoryRow = $(this).closest('.inventory-row'),
+                  itemId = $inventoryRow.data('item_id'),
+                  $inventoryItem = $('#inventory_item_' + itemId);
+
+              $inventoryItem.find('.one_size').each(function() { onOneSizeChange.call(this); });
+              $inventoryItem.modal();
+            };
+
+            var onRemoveInventory = function(e) {
+              e.preventDefault();
+              var $inventoryRow = $(this).closest('.inventory-row'),
+                  dataTable = $inventoryRow.closest('.inventory-table').DataTable(),
+                  $title = $inventoryRow.find('td.inventory-item-details label'),
+                  titleText = $title.text().trim() || 'item',
+                  itemId = $inventoryRow.data('item_id');
+              if (itemId) {
+                bootbox.confirm({
+                    backdrop: true,
+                    message: 'Remove this ' + titleText + ' from your inventory?',
+                    buttons: {
+                        confirm: { label: 'Remove', className: 'btn-danger' },
+                        cancel: { label: 'Nevermind', className: 'btn-default' }
+                    },
+                    callback: function (result) {
+                        if (result) {
+                            $.ajax({
+                                method: 'POST',
+                                url: 'remove_inventory_item',
+                                data: {
+                                    guest_id: '{{ guest.id }}',
+                                    item_id: itemId,
+                                    csrf_token: csrf_token
+                                },
+                                success: function(response, status) {
+                                  if (response['error']) {
+                                    toastr.error('There was an error removing the item: ' + response['error']);
+                                  } else {
+                                    dataTable.row($inventoryRow).remove();
+                                    dataTable.draw();
+                                    if (!dataTable.rows().count()) {
+                                        $('#inventory_container').hide();
+                                    }
+                                    toastr.success('', titleText + ' successfully removed!', {timeOut: 2000});
+                                  }
+                                },
+                                error: function(response, status) {
+                                  toastr.error('There was an error removing the item: ' + response);
+                                }
+                            });
+                        }
+                    }
+                });
+              }
+            };
+
+            var onRemoveFile = function(e) {
+              e.preventDefault();
+              var $inventoryFile = $(this).closest('.inventory-file'),
+                  $downloadFilename = $inventoryFile.find('.download_filename'),
+                  $filename = $inventoryFile.find('.filename'),
+                  $contentType = $inventoryFile.find('.content_type'),
+                  $currentFile = $inventoryFile.find('.current-file');
+              bootbox.confirm({
+                  backdrop: true,
+                  message: 'Remove ' + $downloadFilename.val() + ' from your inventory?',
+                  buttons: {
+                      confirm: { label: 'Remove', className: 'btn-danger' },
+                      cancel: { label: 'Nevermind', className: 'btn-default' }
+                  },
+                  callback: function (result) {
+                      if (result) {
+                          $currentFile.remove();
+                          $downloadFilename.val('');
+                          $filename.val('');
+                          $contentType.val('');
+                      }
+                  }
+              });
+            };
+
+            var onOneSizeChange = function() {
+              var $varietyColumn = $(this).closest('.col-variety'),
+                  $oneSizeQuantity = $varietyColumn.find('.one_size_quantity'),
+                  $sizesPanel = $varietyColumn.find('.panel-sizes'),
+                  isOneSize = $(this).prop('checked');
+
+              $oneSizeQuantity.toggle(isOneSize);
+              $oneSizeQuantity.prop('disabled', !isOneSize);
+              $sizesPanel.find('input').prop('disabled', isOneSize);
+              $sizesPanel.toggleClass('disabled', isOneSize);
+            };
+
+            $(function () {
+                showOrHideRockIsland();
+                $.field('selling_merch').on('change', showOrHideRockIsland);
+                $('.add_inventory').on('change', onChooseInventoryType);
+
+                var $inventoryContainer = $('#inventory_container'),
+                    $inventoryModals = $('#inventory_modals');
+
+                $inventoryContainer.on('click', '.remove_inventory', onRemoveInventory);
+                $inventoryContainer.on('click', '.edit_inventory', onEditInventory);
+
+                $inventoryModals.on('click', '.remove_file', onRemoveFile);
+                $inventoryModals.on('change', '.one_size', onOneSizeChange);
+                $inventoryModals.find('.one_size').each(function() { onOneSizeChange.call(this); });
+
+                $inventoryModals.find('form').submit(function(e) {
+                  $('body').prepend(
+                    '<div id="overlay" style="display: none;">' +
+                      '<h1>Saving...</h1>' +
+                    '</div>');
+                  $('#overlay').fadeIn('fast');
+                  $(this).find('.save_inventory').prop('disabled', true);
+                  return true;
+                });
+
+                $('#upload_frame').load(function() {
+                  try {
+                    var responseText = $(this.contentDocument.body).text().trim();
+                    this.contentDocument.body.innerHTML = '';
+                    if (responseText) {
+                      try {
+                        var response = $.parseJSON(responseText);
+                        if (!response['error']) {
+                          var $modals = $inventoryModals.find('.modal');
+                          $modals.on('hidden.bs.modal', function (e) {
+                            location.href = '?guest_id={{ guest.id }}';
+                          });
+                          $modals.modal('hide');
+                        } else {
+                          toastr.error('', response['error'], {timeOut: 5000});
+                        }
+                      } catch(ex) {
+                        toastr.error('', 'There was an error saving the form: ' + responseText.substring(0, 1024), {timeOut: 5000});
+                      }
+                    }
+                  } finally {
+                    $('#overlay').fadeOut('fast', function() {
+                      $('#overlay').remove();
+                      $inventoryModals.find('.save_inventory').prop('disabled', false);
+                    });
+                  }
+                });
+            });
+        </script>
+      {% endif %}
+    {% endblock %}
+
+    <div class="form-group">
+      <div class="col-sm-9 col-sm-offset-3">
+        <input type="submit" class="btn btn-primary" value="Save Merch Preference" />
+      </div>
+    </div>
+  </form>
+
+  {% block form_footer %}{% endblock %}
+{% endif %}

@@ -52,6 +52,7 @@
     var showOrHideAmounts = function (focus) {
         var paid = $.val('paid'), extra = $.val('amount_extra');
         setVisible('#amount_paid', paid !== {{ c.NEED_NOT_PAY }} && paid !== {{ c.PAID_BY_GROUP }} || extra > 0);
+        setVisible('#payment_method', paid !== {{ c.NEED_NOT_PAY }} && paid !== {{ c.PAID_BY_GROUP }} || extra > 0);
         setVisible('#amount_refunded', paid === {{ c.REFUNDED }});
         setAmountPaid(focus);
     };
@@ -160,9 +161,12 @@
     <div class="form-group">
         <label for="badge_status" class="col-sm-3 control-label">Status</label>
         <div class="col-sm-6">
-            <select name="badge_status">
+          <select name="badge_status"{% if c.AT_THE_CON and not admin_can_change_status %} disabled="true"{% endif %}>
             {{ options(c.BADGE_STATUS_OPTS,attendee.badge_status) }}
             </select>
+          {% if c.AT_THE_CON and not admin_can_change_status %}
+            <input type="hidden" name="badge_status" value="{{ attendee.badge_status }}"/>
+            Altering the badge status is disabled during the event. The system will update it automatically.{% endif %}
         </div>
     </div>
 
@@ -247,6 +251,24 @@
     </div>
 {% endif %}
 
+{% if attendee.panel_applicants -%}
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Panels</label>
+    <div class="col-sm-9">
+      <div class="form-control-static">
+        Panel applications this attendee is associated with:
+        <ul>
+          {% for applicant in attendee.panel_applicants -%}
+            <li>
+              <a href="../panel_app_management/app?id={{ applicant.application.id }}">{{ applicant.application.name }}</a>
+            </li>
+          {%- endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+{%- endif %}
+
 {% block pre_regform %}{% endblock %}
 
 {% include "regform.html" %}
@@ -282,8 +304,15 @@
                 {{ macros.checkbox(attendee, 'got_merch', label='Yes') }}
             </div>
         </div>
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Received Staff Merch</label>
+        <div class="checkbox col-sm-6">
+          {{ macros.checkbox(attendee, 'got_staff_merch', label='Yes') }}
+        </div>
+      </div>
     {% else %}
         <input type="hidden" name="got_merch" value="{{ '1' if attendee.got_merch else '0' }}" />
+      <input type="hidden" name="got_staff_merch" value="{{ '1' if attendee.got_staff_merch else '0' }}"/>
     {% endif %}
     <div class="form-group">
         <label class="col-sm-3 control-label">Signed Up</label>
@@ -323,6 +352,11 @@
             {{ options(c.PAYMENT_OPTS,attendee.paid) }}
         </select>
         &nbsp;&nbsp;&nbsp;
+        <select id="payment_method" name="payment_method">
+            <option value="">Payment Method</option>
+            {{ options(c.NEW_REG_PAYMENT_METHOD_OPTS,attendee.payment_method) }}
+        </select>
+        &nbsp;&nbsp;&nbsp;
         <span id="amount_paid">
             Paid: $<input type="text" style="width:4em" name="amount_paid" value="{{ attendee.amount_paid }}" />
         </span>
@@ -345,8 +379,12 @@
 <div class="form-group">
     <label class="col-sm-3 control-label">Merch Owed</label>
     <div class="col-sm-9">
-        <p class="form-control-static">{{ attendee.merch }}</p>
-        {% if attendee.got_merch %} (Merch has been picked up) {% endif %}
+      <p class="form-control-static">{{ attendee.merch }}</p>
+      {% if attendee.got_merch %} (Merch has been picked up) {% endif %}
+      {% if c.SEPARATE_STAFF_MERCH %}
+        <p class="form-control-static">{{ attendee.staff_merch }}</p>
+        {% if attendee.got_staff_merch %} (Staff merch has been picked up) {% endif %}
+      {% endif %}
     </div>
 </div>
 

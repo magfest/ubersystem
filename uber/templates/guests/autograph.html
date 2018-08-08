@@ -1,0 +1,7 @@
+{% extends "guestbase.html" %}
+{% set snippet=False %}
+{% block body %}
+
+{%- include ['guest_checklist/' ~ guest.group_type_label|lower ~ '_autograph_deadline.html', 'guest_checklist/autograph_deadline.html'] -%}
+
+{% endblock %}

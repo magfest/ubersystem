@@ -1,4 +1,4 @@
-from uber.common import *
+from uber.decorators import all_renderable
 
 
 @all_renderable()

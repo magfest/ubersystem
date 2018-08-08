@@ -2,11 +2,42 @@
 {% block title %}Merch Booth{% endblock %}
 {% block content %}
 
+{% include 'barcode_client.html' %}
+
+<style type="text/css">
+    #give .merch-list { color: red; }
+</style>
+
 <script type="text/javascript">
+
     var $shirtOpts = $('<select/>').attr('id', 'shirt');
     $.each({{ c.MERCH_SHIRT_OPTS|jsonize }}, function(i,size) {
         $shirtOpts.append($('<option/>').val(size[0]).text(size[1]));
     });
+
+    /**
+     * Given the list of items returned by Attendee.merch_list, return a nested
+     * list of those items for display when that attendee's merch is checked.
+     */
+    var createMerchList = function (message, merchItems) {
+        var $merchList = $('<ul></ul>');
+        $.each(merchItems, function (i, item) {
+            if ($.isArray(item)) {
+                var $subList = $('<ul></ul>');
+                $.each(item, function (j, subItem) {
+                    $subList.append(
+                        $('<li></li>').text(subItem));
+                });
+                $merchList.append($subList);
+            } else {
+                $merchList.append(
+                    $('<li></li>').text(item));
+            }
+        });
+        return $('<div class="merch-list"></div>')
+            .append(message)
+            .append($merchList);
+    };
 
     var recordSale = function () {
         $.post('record_sale', {
@@ -21,12 +52,13 @@
                 $('#message').append(' &nbsp; <a href="#" onClick="undoSale(\'' + json.id + '\') ; return false">Undo</a>');
             }
         }, 'json');
-    }
+    };
+
     var undoSale = function (id) {
         $.post('undo_sale', {id: id, csrf_token: csrf_token}, function(message) {
             $('#message').html(message);
         });
-    }
+    };
 
     var showOrHideWhatText = function (pageLoading) {
         $('#store_mpoints').val('0');
@@ -42,8 +74,8 @@
                 $('#store_amount').focus();
             }
         }
-    }
-    
+    };
+
     var recordMPointExchange = function () {
         $.post('record_old_mpoint_exchange', {
             badge_num:  $('#ex_badge_num').val(),
@@ -60,16 +92,24 @@
                     }));
             }
        }, 'json');
-    }
+    };
     var undoMPointExchange = function (id) {
         $.post('undo_mpoint_exchange', {'id': id, csrf_token: csrf_token}, function(s) {
             $('#message').html(s);
         });
-    }
+    };
 
-    var giveMerch = function (noShirt, id, shirtSize) {
+    var giveMerch = function (noShirt, id, staffMerch, shirtSize, giveSwadge) {
         $('#give button').attr('disabled', true);
-        $.post('give_merch', {id: id, csrf_token: csrf_token, no_shirt: noShirt, shirt_size: shirtSize || null}, function(json) {
+        var params = {
+            id: id,
+            no_shirt: noShirt,
+            csrf_token: csrf_token,
+            staff_merch: staffMerch,
+            shirt_size: shirtSize || null,
+            give_swadge: giveSwadge ? 'true' : ''
+        };
+        $.post('give_merch', params, function(json) {
             $('#give').html('');
             $('#badge_num').val('');
             $('#message').html(json.message);
@@ -78,17 +118,22 @@
                     .append(' &nbsp; ')
                     .append(
                         $('<a href="#">Undo</a>').click(function(){
-                            takeBackMerch(id);
+                            takeBackMerch(id, staffMerch);
                             return false;
                          }));
             }
         }, 'json');
-    }
-    var takeBackMerch = function (id) {
-        $.post('take_back_merch', {id: id, csrf_token: csrf_token}, function(message) {
+    };
+    var takeBackMerch = function (id, staffMerch) {
+        var params = {
+            id: id,
+            csrf_token: csrf_token,
+            staff_merch: staffMerch
+        };
+        $.post('take_back_merch', params, function (message) {
             $('#message').html(message);
         });
-    }
+    };
 
     var checkDiscount = function () {
         var $num = $('#dis_badge_num'),
@@ -125,8 +170,14 @@
             }
         });
     };
-    
-    $(function(){
+
+    $(function() {
+        $('body').barcodeField({
+          targetField: 'input.badge_num:focus',
+          blurOnKeys: ['~', '\\'],
+          detectBadgeNum: true
+        });
+
         $('#message').ajaxError(function () {
             toastr.error('Oh noes - the web server is down or something!!!!!');
         });
@@ -138,13 +189,15 @@
 
         showOrHideWhatText(true);
         $('#what_text,#store_amount').keypress(function(e){
-            if( (e.keyCode || e.which) == 13 )  // ENTER
+            if( (e.keyCode || e.which) == 13 ) { // ENTER
                 recordSale();
+            }
         });
 
         $('#ex_badge_num,#ex_mpoints,#cash').keypress(function(e){
-            if( (e.keyCode || e.which) == 13 )  // ENTER
+            if( (e.keyCode || e.which) == 13 ) { // ENTER
                 recordMPointExchange();
+            }
         });
 
         $('#dis_badge_num').keypress(function (e) {
@@ -153,38 +206,56 @@
             }
         });
 
-        $('#swag').on('submit', function(e){
-            $('#give,#message').html('');
-            $.post('check_merch', {csrf_token: csrf_token, badge_num: $('#badge_num').val()}, function(resp) {
-                if (!resp.id) {
-                    $('#message').html(resp.message);
-                } else {
-                    $('#give').html(resp.message.replace(' and ', ',')
-                                        .replace(' received ', ' received<br/>- ')
-                                        .replace(/,/g, '<br/>- ')
-                                        .replace('<br/>- <br/>- ', '<br/>- ')
-                                  + '<br/>');
-                    if (resp.shirt != {{ c.NO_SHIRT }}) {
-                        $('#give').append('Choose a shirt size:').append($shirtOpts);
-                        $('#give select').val(resp.shirt);
-                    }
-                    $('#give').append(
-                        $('<button>Give Merch</button>').click(function() {
-                            giveMerch('', resp.id, $("#shirt").val());
-                            return false;
-                        })
-                    );
-                    {% if c.OUT_OF_SHIRTS %}
-                        $("#give").append(
-                            $('<button>Give Merch Without Shirt</button>').click(function() {
-                                giveMerch('no_shirt', resp.id, $('#shirt').val());
-                                return false;
-                            })
+        $.each(['#check_merch', '#check_staff_merch'], function (i, id) {
+            $(id).on('click', function() {
+                var staffMerch = id == '#check_staff_merch' ? 'true' : '';
+                var params = {
+                    csrf_token: csrf_token,
+                    staff_merch: staffMerch,
+                    badge_num: $('#badge_num').val(),
+                };
+                $('#give,#message').html('');
+                $.post('check_merch', params, function (resp) {
+                    if (!resp.id) {
+                        $('#message').html(resp.message);
+                    } else {
+                        $('#give').empty().append(
+                            createMerchList(resp.message, resp.merch_items)
                         );
-                    {% endif %}
-                }
-            }, 'json');
-            return false;
+                        if (resp.shirt != {{ c.NO_SHIRT }}) {
+                            $('#give').append('Choose a shirt size:').append($shirtOpts);
+                            $('#give select').val(resp.shirt);
+                        }
+
+                        if (resp.swadges_available || !resp.gets_swadge) {
+                            $('#give').append(
+                                $('<button>Give Merch</button>').click(function () {
+                                    giveMerch('', resp.id, staffMerch, $("#shirt").val(), resp.gets_swadge);
+                                })
+                            );
+                        } else {
+                            $('#give').append(
+                                $('<button>Give Merch WITH Swadge</button>').click(function () {
+                                    giveMerch('', resp.id, staffMerch, $("#shirt").val(), true);
+                                })
+                            );
+                            $('#give').append(
+                                $('<button>Give Merch WITHOUT Swadge</button>').click(function () {
+                                    giveMerch('', resp.id, staffMerch, $("#shirt").val(), false);
+                                })
+                            );
+                        }
+
+                        {% if c.OUT_OF_SHIRTS %}
+                            $("#give").append(
+                                $('<button>Give Merch Without Shirt</button>').click(function () {
+                                    giveMerch('no_shirt', resp.id, staffMerch, $('#shirt').val());
+                                })
+                            );
+                        {% endif %}
+                    }
+                }, 'json');
+            });
         });
     });
 </script>
@@ -200,7 +271,7 @@
 <table>
 <tr>
     <td> Last year's MPoints turned in: </td>
-    <td> Badge num: <input type="number" id="ex_badge_num" min="1" max="99999" /> </td>
+    <td> Badge num: <input type="number" id="ex_badge_num" class="badge_num" min="1" max="99999" /> </td>
     <td> exchanged <input type="number" id="ex_mpoints" min="1" max="9999" /> MPoints </td>
     <td> <input type="submit" id="record_mpe" value="Record Exchange" onClick="recordMPointExchange()" /> </td>
 </tr>
@@ -221,7 +292,7 @@
 </tr><tr> <td colspan="4"> ---OR--- </td> </tr>
     <td> Apply a merch discount </td>
     <td>
-        Badge num: <input type="number" id="dis_badge_num" min="1" max="99999" />
+        Badge num: <input type="number" id="dis_badge_num" class="badge_num" min="1" max="99999" />
         <input type="submit" id="discount_check" value="Check Eligibility" onClick="checkDiscount()" />
         &nbsp;
         <span id="discount_confirm"></span>
@@ -231,16 +302,17 @@
 <tr>
     <td> Give Merch </td>
     <td colspan="2">
-        <form id="swag">
-        Badge Number: <input type="number" id="badge_num" min="1" max="99999" />
-        <input type="submit" id="give_merch" value="Check Merch" />
-        </form>
+        Badge Number: <input type="number" id="badge_num"  class="badge_num"min="1" max="99999" />
+        <input type="submit" id="check_merch" value="Check Merch" />
+        {% if c.SEPARATE_STAFF_MERCH %}
+            <input type="submit" id="check_staff_merch" value="Check Staff Merch" />
+        {% endif %}
     </td>
     <td colspan="2"></td>
 </tr>
 <tr>
     <td></td>
-    <td id="give" colspan="4" style="color:red"></td>
+    <td id="give" colspan="4"></td>
 </tr>
 </table>
 

@@ -29,9 +29,19 @@
 
         <script src="../static/deps/combined.min.js" type="text/javascript"></script>
         <script src="../static/js/common-static.js" type="text/javascript"></script>
-        <script type="text/javascript">
-            var csrf_token = '{{ c.CSRF_TOKEN }}';
-        </script>
+
+        {% if not dont_show_csrf_token %}
+            {#
+                NOTE: never set dont_show_csrf_token to True unless you know exactly what you're doing.
+                this should only ever be used in situations where a page is cached for all users.
+                EXPERTS ONLY
+            #}
+            <script type="text/javascript">
+                var csrf_token = '{{ c.CSRF_TOKEN }}';
+            </script>
+        {% else %}
+            <!-- skipped showing CSRF token -->
+        {% endif %}
 
         {% if 'preregistration' not in c.PAGE_PATH %}
             {% for js in c.JAVASCRIPT_INCLUDES %}
@@ -78,6 +88,7 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="mobile-web-app-capable" content="yes">
     {% block sectionStyle %}{% endblock %}
 
     <style>
@@ -124,16 +135,102 @@
           }
         }
     </style>
+
+    {% block feedback_javascript %}
+      {% if admin_area %}
+      <script type="text/javascript" src="https://jira.magfest.net/s/7cedd06b64911e869dc2b32a6477230c-T/kby73n/73019/6d39734591565d7d1928c35b4400d05a/2.0.23/_/download/batch/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector.js?locale=en-US&collectorId=a192a515"></script>
+      <script type="text/javascript" src="https://jira.magfest.net/s/7cedd06b64911e869dc2b32a6477230c-T/kby73n/73019/6d39734591565d7d1928c35b4400d05a/2.0.23/_/download/batch/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector.js?locale=en-US&collectorId=a9568879"></script>
+      <script type="text/javascript">
+        window.ATL_JQ_PAGE_PROPS = $.extend(window.ATL_JQ_PAGE_PROPS || {}, {
+          "a192a515": {
+            triggerFunction: function(showCollectorDialog) {
+              $('#report-a-bug').click(function(e) {
+                e.preventDefault();
+                showCollectorDialog();
+              });
+            },
+            fieldValues: {
+              priority: '2'
+            }
+          },
+          "a9568879": {
+            triggerFunction: function(showCollectorDialog) {
+              $('#request-an-improvement').click(function(e) {
+                e.preventDefault();
+                showCollectorDialog();
+              });
+            },
+            fieldValues: {
+              priority: '2'
+            }
+          }
+        });
+      </script>
+      {% endif %}
+    {% endblock %}
+
     <script>
         var DISABLE_STRIPE_BUTTONS_ON_CLICK = true;
 
         var parseQueryString = function(queryString) {
             var params = {}, temp, i, len, queries = queryString.split('&');
             for (i = 0, len = queries.length; i < len; i++) {
+              if(queries[i]) {
                 temp = queries[i].split('=');
                 params[temp[0]] = temp[1];
+              }
             }
             return params;
+        };
+
+        var replaceQueryParam = function(queryParam, value) {
+            var queryString = window.location.search.substring(1);
+            var params = parseQueryString(queryString);
+            if (_.has(params, queryParam) || value) {
+                if (value) {
+                    params[queryParam] = value;
+                } else {
+                    delete params[queryParam];
+                }
+                queryString = $.param(params);
+            }
+            if (queryString) {
+                queryString = '?' + queryString;
+            }
+            return queryString;
+        };
+
+        var replaceQueryParamInUrl = function(queryParam, value) {
+          try {
+              // Replace the query parameter in the web browser's address bar
+              if (history && history.replaceState) {
+                  var queryString = replaceQueryParam(queryParam, value);
+                  history.replaceState({}, document.title, window.location.pathname + queryString);
+                  return true;
+              }
+          } catch(ex) {
+              // Don't let any errors here disrupt the rest of the app!
+              try { console.log(ex); } catch(ex) {}
+          }
+          return false;
+        };
+
+        var removeHashFromUrl = function() {
+            try {
+                if (history && history.replaceState) {
+                    var url = window.location.toString();
+                    if (url.indexOf('#') > 0) {
+                        history.replaceState({}, document.title, url.substring(0, url.indexOf('#')));
+                    }
+                } else {
+                    window.location.hash = '';
+                }
+                return true;
+            } catch(ex) {
+                // Don't let any errors here disrupt the rest of the app!
+                try { console.log(ex); } catch(ex) {}
+            }
+            return false;
         };
 
         $(function() {
@@ -154,29 +251,14 @@
                 showMethod: "fadeIn",
                 hideMethod: "fadeOut",
                 onShown: function() {
-                  try {
-                    // Remove the message parameter from the URL, if it exists
-                    if (history && history.replaceState) {
-                      var queryString = window.location.search.substring(1);
-                      if (queryString) {
-                        var params = parseQueryString(queryString);
-                        if (_.has(params, 'message')) {
-                          delete params['message'];
-                          queryString = $.param(params);
-                          if (queryString) {
-                            queryString = '?' + queryString;
-                          }
-                          history.replaceState({}, '', window.location.pathname + queryString);
-                        }
-                      }
-                    }
-                  } catch(ex) {
-                    // Don't let any errors here disrupt the rest of the app!
-                  }
+                  replaceQueryParamInUrl('message');
                 }
             };
             var message = '{{ message }}';
-            if (message.length) {
+            var error_message = '{{ error_message }}';
+            if (error_message.length) {
+                toastr.error(error_message);
+            } else if (message.length) {
                 toastr.info(message);
             }
 
@@ -282,21 +364,33 @@
                 <!-- Collect the nav links, forms, and other content for toggling -->
                 <div class="collapse navbar-collapse" id="main-navbar-collapse-1">
                     <ul class="nav navbar-nav navbar-right">
-                        <li><a href="https://github.com/magfest/ubersystem/issues"><span title="Report A Bug" class="glyphicon glyphicon-book"></span></a></li>
+                      {% block feedback_menu %}
+                        <li class="dropdown">
+                          <a href="#" class="dropdown-toggle" data-toggle="dropdown" title="Submit feedback">
+                            <span class="glyphicon glyphicon-send"></span>
+                          </a>
+                          <ul class="dropdown-menu" role="menu">
+                            <li><a id="report-a-bug" href="#" title="Report a Bug">Report a Bug</a></li>
+                            <li><a id="request-an-improvement" href="#" title="Request an Improvement">Request an Improvement</a></li>
+                          </ul>
+                        </li>
+                      {% endblock %}
                         <li><a href="../accounts/sitemap"><span title="Site Map" class="glyphicon glyphicon-road"></span></a></li>
                         <li class="dropdown">
                             <a href="#" class="dropdown-toggle" data-toggle="dropdown">
                                 <span>Logged in as: {{ c.CURRENT_ADMIN.first_name }} {{ c.CURRENT_ADMIN.last_name }}</span> <span title="Account Settings" class="glyphicon glyphicon-cog"></span><span class="caret"></span>
                             </a>
                             <ul class="dropdown-menu" role="menu">
-                                <li><a href="../registration/form?id={{ c.CURRENT_ADMIN.id }}">My Registration</a></li>
-                                {% if c.CURRENT_ADMIN.assigned_depts %}
-                                  <li><a href="../departments/?filtered=1">My Departments</a></li>
-                                  {% for dept in c.CURRENT_ADMIN.assigned_depts %}
-                                    <li><a href="../departments/form?id={{ dept.id }}">&nbsp;&#8226;&nbsp;{{ dept.name }}</a></li>
-                                  {% endfor %}
+                                {% if 'admin_account' in c.CURRENT_ADMIN %}
+                                  <li><a href="../registration/form?id={{ c.CURRENT_ADMIN.id }}">My Registration</a></li>
+                                  {% if c.PEOPLE|string in c.CURRENT_ADMIN.admin_account.access and c.CURRENT_ADMIN.assigned_depts %}
+                                    <li><a href="../departments/?filtered=1">My Departments</a></li>
+                                    {% for dept in c.CURRENT_ADMIN.assigned_depts %}
+                                      <li><a href="../departments/form?id={{ dept.id }}">&nbsp;&#8226;&nbsp;{{ dept.name }}</a></li>
+                                    {% endfor %}
+                                  {% endif %}
+                                  <li role="separator" class="divider"></li>
                                 {% endif %}
-                                <li role="separator" class="divider"></li>
                                 <li><a href="../accounts/change_password">Change Password</a></li>
                                 <li><a href="../accounts/logout">Logout</a></li>
                             </ul>
@@ -305,11 +399,10 @@
                     {% block mainmenu %}
                     <ul class="nav navbar-nav" id="main-menu">
                         {% block mainmenu_items %}
-                        {% for menu_item in c.MENU_FILTERED_BY_ACCESS_LEVELS.submenu %}
-                            {% if menu_item.href %}
+                        {% for menu_item in c.MENU_FILTERED_BY_ACCESS_LEVELS.submenu -%}
+                            {% if menu_item.href -%}
                                 <li><a href="{{ menu_item.href }}">{{ menu_item.name }}</a></li>
-                            {% elif menu_item.submenu %}
-
+                            {% elif menu_item.submenu -%}
                                 <li class="dropdown">
                                     <a href="#" class="dropdown-toggle" data-toggle="dropdown">
                                         {{ menu_item.name }}
@@ -317,21 +410,21 @@
                                     </a>
 
                                     <ul class="dropdown-menu" role="menu">
-                                    {% for submenu_item in menu_item.submenu %}
+                                    {% for submenu_item in menu_item.submenu -%}
                                         <li>
-                                            {% if submenu_item.href %}
+                                            {% if submenu_item.href -%}
                                                 <a href="{{ submenu_item.href }}">
-                                            {% else %}
+                                            {% else -%}
                                                 <a class="disabled">
-                                            {% endif %}
+                                            {% endif -%}
                                             {{ submenu_item.name }}</a>
                                         </li>
-                                    {% endfor %}
+                                    {% endfor -%}
                                     </ul>
                                 </li>
 
-                            {% endif %}
-                        {% endfor %}
+                            {% endif -%}
+                        {% endfor -%}
                         {% endblock mainmenu_items %}
                     </ul>
                     {% endblock mainmenu %}

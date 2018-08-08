@@ -1,4 +1,16 @@
-from uber.common import *
+import shlex
+import urllib
+from collections import defaultdict
+from datetime import timedelta
+
+import cherrypy
+from sqlalchemy.orm import joinedload
+
+from uber.config import c
+from uber.decorators import ajax, all_renderable, csv_file, log_pageview, site_mappable
+from uber.errors import HTTPRedirect
+from uber.models import Attendee, Group, MPointsForCash, PromoCode, PromoCodeWord, Sale, Session
+from uber.utils import check, check_all, localized_now
 
 
 def prereg_money(session):
@@ -7,11 +19,12 @@ def prereg_money(session):
         preregs['Attendee'] += attendee.amount_paid - attendee.amount_extra
         preregs['extra'] += attendee.amount_extra
 
-    preregs['group_badges'] = sum(g.badge_cost for g in session.query(Group)
-                                                               .filter(Group.tables == 0, Group.amount_paid > 0)
-                                                               .options(joinedload(Group.attendees)))
+    preregs['group_badges'] = sum(
+        g.badge_cost for g in session.query(Group).filter(
+            Group.tables == 0, Group.amount_paid > 0).options(joinedload(Group.attendees)))
 
-    dealers = session.query(Group).filter(Group.tables > 0, Group.amount_paid > 0).options(joinedload(Group.attendees)).all()
+    dealers = session.query(Group).filter(
+        Group.tables > 0, Group.amount_paid > 0).options(joinedload(Group.attendees)).all()
     preregs['dealer_tables'] = sum(d.table_cost for d in dealers)
     preregs['dealer_badges'] = sum(d.badge_cost for d in dealers)
 
@@ -29,7 +42,7 @@ def sale_money(session):
 class Root:
     @log_pageview
     def index(self, session):
-        sales   = sale_money(session)
+        sales = sale_money(session)
         preregs = prereg_money(session)
         total = sum(preregs.values()) + sum(sales.values())
         return {
@@ -41,8 +54,10 @@ class Root:
     @log_pageview
     def mpoints(self, session):
         groups = defaultdict(list)
-        for mpu in session.query(MPointsForCash).options(joinedload(MPointsForCash.attendee).subqueryload(Attendee.group)):
+        for mpu in session.query(MPointsForCash).options(
+                joinedload(MPointsForCash.attendee).subqueryload(Attendee.group)):
             groups[mpu.attendee and mpu.attendee.group].append(mpu)
+
         all = [(sum(mpu.amount for mpu in mpus), group, mpus)
                for group, mpus in groups.items()]
         return {'all': sorted(all, reverse=True)}
@@ -53,9 +68,8 @@ class Root:
         words = []
         if text:
             with Session() as session:
-                old_words = set(s for (s,) in session.query(
-                    PromoCodeWord.normalized_word).filter(
-                        PromoCodeWord.part_of_speech == part_of_speech).all())
+                old_words = set(s for (s,) in session.query(PromoCodeWord.normalized_word).filter(
+                    PromoCodeWord.part_of_speech == part_of_speech).all())
 
             for word in [s for s in shlex.split(text.replace(',', ' ')) if s]:
                 if PromoCodeWord.normalize_word(word) not in old_words:
@@ -68,8 +82,7 @@ class Root:
     def delete_all_promo_code_words(self, session, part_of_speech=None):
         query = session.query(PromoCodeWord)
         if part_of_speech is not None:
-            query = query.filter(
-                PromoCodeWord.part_of_speech == part_of_speech)
+            query = query.filter(PromoCodeWord.part_of_speech == part_of_speech)
         result = query.delete(synchronize_session=False)
         return {'result': result}
 
@@ -79,8 +92,8 @@ class Root:
         word = PromoCodeWord.normalize_word(word)
         if word:
             result = session.query(PromoCodeWord).filter(
-                PromoCodeWord.normalized_word == word).delete(
-                    synchronize_session=False)
+                PromoCodeWord.normalized_word == word).delete(synchronize_session=False)
+
         return {'result': result}
 
     def delete_promo_codes(self, session, id=None, **params):
@@ -93,9 +106,7 @@ class Root:
         referer = cherrypy.request.headers.get('Referer', 'view_promo_codes')
         page = urllib.parse.urlparse(referer).path.split('/')[-1]
 
-        raise HTTPRedirect(page + '?message={}',
-            '{} promo code{} deleted'.format(
-                result, '' if result == 1 else 's'))
+        raise HTTPRedirect(page + '?message={}', '{} promo code{} deleted'.format(result, '' if result == 1 else 's'))
 
     @csv_file
     def export_promo_codes(self, out, session, codes):
@@ -121,27 +132,28 @@ class Root:
             expiration_date=c.ESCHATON,
             discount_type=0,
             discount=10,
-            uses_allowed=1)
-        params = dict(defaults,
-            **{k: v for k, v in params.items() if k in defaults})
+            uses_allowed=1,
+            export=False)
+        params = dict(defaults, **{k: v for k, v in params.items() if k in defaults})
 
         params['code'] = params['code'].strip()
+        params['expiration_date'] = PromoCode.normalize_expiration_date(params['expiration_date'])
 
         try:
             params['count'] = int(params['count'])
-        except:
+        except Exception:
             params['count'] = 1
 
         try:
             params['is_single_promo_code'] = int(params['is_single_promo_code'])
-        except:
+        except Exception:
             params['is_single_promo_code'] = 0
 
         words = PromoCodeWord.group_by_parts_of_speech(
-            session.query(PromoCodeWord).order_by(
-                PromoCodeWord.normalized_word).all())
+            session.query(PromoCodeWord).order_by(PromoCodeWord.normalized_word).all())
 
-        result = dict(params,
+        result = dict(
+            params,
             message=message,
             promo_codes=[],
             words=[(i, s) for (i, s) in words.items()])
@@ -164,11 +176,11 @@ class Root:
                 else:
                     try:
                         length = int(params['length'])
-                    except:
+                    except Exception:
                         length = 9
                     try:
                         segment_length = int(params['segment_length'])
-                    except:
+                    except Exception:
                         segment_length = 3
                     codes = PromoCode.generate_random_code(
                         params['count'], length, segment_length)
@@ -186,16 +198,14 @@ class Root:
             result['promo_codes'] = session.bulk_insert(promo_codes)
             generated_count = len(result['promo_codes'])
             if generated_count <= 0:
-                result['message'] = "Could not generate any of the " \
-                    "requested promo codes. Perhaps they've all been taken " \
-                    "already?"
+                result['message'] = "Could not generate any of the requested " \
+                    "promo codes. Perhaps they've all been taken already?"
                 return result
 
             if generated_count != params['count']:
-                result['message'] = 'Some of the requested promo codes ' \
-                    'could not be generated'
+                result['message'] = 'Some of the requested promo codes could not be generated'
 
-        if 'export' in params:
+        if params['export']:
             return self.export_promo_codes(codes=result['promo_codes'])
 
         result.update(defaults)
@@ -204,9 +214,7 @@ class Root:
     def update_promo_code(self, session, message='', **params):
         if 'id' in params:
             promo_code = session.promo_code(params)
-
             message = check(promo_code)
-
             if message:
                 session.rollback()
             else:
@@ -221,8 +229,7 @@ class Root:
     @site_mappable
     @log_pageview
     def view_promo_codes(self, session, message='', **params):
-        promo_codes = session.query(PromoCode).options(
-            joinedload(PromoCode.used_by)).all()
+        promo_codes = session.query(PromoCode).options(joinedload(PromoCode.used_by)).all()
         return {
             'message': message,
             'promo_codes': promo_codes

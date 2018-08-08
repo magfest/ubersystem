@@ -1,3 +1,4 @@
+import os
 import re
 import uuid
 from collections import defaultdict
@@ -11,9 +12,10 @@ import cherrypy
 import six
 import sqlalchemy
 from dateutil import parser as dateparser
-from sideboard.lib import listify, log, on_startup, stopped
-from sideboard.lib.sa import check_constraint_naming_convention, \
-    declarative_base, JSON, SessionManager, UTCDateTime, UUID
+from pockets import cached_classproperty, classproperty, listify
+from pockets.autolog import log
+from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
+from sideboard.lib import on_startup, stopped
 from sqlalchemy import and_, func, or_, not_
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError
@@ -23,12 +25,37 @@ from sqlalchemy.schema import MetaData
 from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric
 from sqlalchemy.util import immutabledict
 
+import uber
 from uber.config import c, create_namespace_uuid
-from uber.decorators import cached_classproperty, classproperty, \
-    cost_property, department_id_adapter, presave_adjustment, suffix_property
+from uber.errors import HTTPRedirect
+from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
-from uber.utils import check_csrf, get_real_badge_type, DeptChecklistConf, \
-    HTTPRedirect
+from uber.utils import check_csrf, normalize_phone, DeptChecklistConf
+
+
+def _make_getter(model):
+    def getter(
+            self, params=None, *, bools=(), checkgroups=(), allowed=(), restricted=False, ignore_csrf=False, **query):
+
+        if query:
+            return self.query(model).filter_by(**query).one()
+        elif isinstance(params, str):
+            return self.query(model).filter_by(id=params).one()
+        else:
+            params = params.copy()
+            id = params.pop('id', 'None')
+            if id == 'None':
+                inst = model()
+            else:
+                inst = self.query(model).filter_by(id=id).one()
+
+            if not ignore_csrf:
+                assert not {k for k in params if k not in allowed} or cherrypy.request.method == 'POST', 'POST required'
+
+            inst.apply(params, bools=bools, checkgroups=checkgroups, restricted=restricted, ignore_csrf=ignore_csrf)
+
+            return inst
+    return getter
 
 
 # Consistent naming conventions are necessary for alembic to be able to
@@ -110,14 +137,12 @@ class MagModel:
         """Returns the names of all cost properties on this model."""
         return [
             s for s in cls._class_attr_names
-            if s != 'cost_property_names' and
-            isinstance(getattr(cls, s), cost_property)]
+            if s != 'cost_property_names'
+            and isinstance(getattr(cls, s), cost_property)]
 
     @cached_classproperty
     def multichoice_columns(cls):
-        return [
-            c for c in cls.__table__.columns
-            if isinstance(c.type, MultiChoice)]
+        return [c for c in cls.__table__.columns if isinstance(c.type, MultiChoice)]
 
     @property
     def default_cost(self):
@@ -133,8 +158,7 @@ class MagModel:
                 value = getattr(self, name, 'ATTRIBUTE NOT FOUND')
                 values.append(int(value))
             except Exception as ex:
-                log.error('Error calculating cost property {}: "{}"'.format(
-                    name, value))
+                log.error('Error calculating cost property {}: "{}"'.format(name, value))
                 log.exception(ex)
         return max(0, sum(values))
 
@@ -144,8 +168,7 @@ class MagModel:
         Returns all logged Stripe transactions with this model's ID.
         """
         from uber.models.commerce import StripeTransaction
-        return self.session.query(StripeTransaction).filter_by(
-            fk_id=self.id).all()
+        return self.session.query(StripeTransaction).filter_by(fk_id=self.id).all()
 
     @cached_classproperty
     def unrestricted(cls):
@@ -153,42 +176,32 @@ class MagModel:
         Returns a set of column names which are allowed to be set by non-admin
         attendees filling out one of the registration forms.
         """
-        return {
-            col.name for col in cls.__table__.columns
-            if not getattr(col, 'admin_only', True)}
+        return {col.name for col in cls.__table__.columns if not getattr(col, 'admin_only', True)}
 
     @cached_classproperty
     def all_bools(cls):
         """Returns the set of Boolean column names for this table."""
-        return {
-            col.name for col in cls.__table__.columns
-            if isinstance(col.type, Boolean)}
+        return {col.name for col in cls.__table__.columns if isinstance(col.type, Boolean)}
 
     @cached_classproperty
     def all_checkgroups(cls):
         """Returns the set of MultiChoice column names for this table."""
-        return {
-            col.name for col in cls.__table__.columns
-            if isinstance(col.type, MultiChoice)}
+        return {col.name for col in cls.__table__.columns if isinstance(col.type, MultiChoice)}
 
     @cached_classproperty
     def regform_bools(cls):
         """Returns the set of non-admin-only Boolean columns for this table."""
-        return {
-            colname for colname in cls.all_bools
-            if colname in cls.unrestricted}
+        return {colname for colname in cls.all_bools if colname in cls.unrestricted}
 
     @cached_classproperty
     def regform_checkgroups(cls):
         """
         Returns the set of non-admin-only MultiChoice columns for this table.
         """
-        return {
-            colname for colname in cls.all_checkgroups
-            if colname in cls.unrestricted}
+        return {colname for colname in cls.all_checkgroups if colname in cls.unrestricted}
 
     @classproperty
-    def extra_apply_attrs(cls):
+    def _extra_apply_attrs(cls):
         """
         Returns a set of extra attrs used by apply(). These are settable
         attributes or properties that are not in cls.__table__columns.
@@ -196,7 +209,7 @@ class MagModel:
         return set()
 
     @classproperty
-    def extra_apply_attrs_restricted(cls):
+    def _extra_apply_attrs_restricted(cls):
         """
         Returns a set of extra attrs used by apply(restricted=True). These are
         settable attributes or properties that are not in cls.__table__columns.
@@ -232,8 +245,7 @@ class MagModel:
         return cls.__table__.columns[name]
 
     def __eq__(self, m):
-        return self.id is not None and \
-            isinstance(m, MagModel) and self.id == m.id
+        return self.id is not None and isinstance(m, MagModel) and self.id == m.id
 
     def __ne__(self, m):
         return not (self == m)
@@ -252,13 +264,11 @@ class MagModel:
 
     @property
     def created(self):
-        return self.get_tracking_by_instance(
-            self, action=c.CREATED, last_only=True)
+        return self.get_tracking_by_instance(self, action=c.CREATED, last_only=True)
 
     @property
     def last_updated(self):
-        return self.get_tracking_by_instance(
-            self, action=c.UPDATED, last_only=True)
+        return self.get_tracking_by_instance(self, action=c.UPDATED, last_only=True)
 
     @property
     def db_id(self):
@@ -315,16 +325,12 @@ class MagModel:
         try:
             val = int(val)
         except ValueError:
-            log.debug(
-                '{} is not an int. Did we forget to migrate data for {} '
-                'during a DB migration?', val, name)
+            log.debug('{} is not an int. Did we forget to migrate data for {} during a DB migration?', val, name)
             return ''
 
         label = self.get_field(name).type.choices.get(val)
         if not label:
-            log.debug(
-                '{} does not have a label for {}, check your enum '
-                'generating code', name, val)
+            log.debug('{} does not have a label for {}, check your enum generating code', name, val)
         return label
 
     @suffix_property
@@ -356,13 +362,10 @@ class MagModel:
 
     def get_tracking_by_instance(self, instance, action, last_only=True):
         from uber.models.tracking import Tracking
-        query = self.session.query(Tracking).filter_by(
-            fk_id=instance.id, action=action).order_by(Tracking.when.desc())
+        query = self.session.query(Tracking).filter_by(fk_id=instance.id, action=action).order_by(Tracking.when.desc())
         return query.first() if last_only else query.all()
 
-    def apply(
-            self, params, *, bools=(), checkgroups=(), restricted=True,
-            ignore_csrf=True):
+    def apply(self, params, *, bools=(), checkgroups=(), restricted=True, ignore_csrf=True):
         """
         Args:
             restricted (bool): If True, restrict any changes only to fields
@@ -372,10 +375,10 @@ class MagModel:
         bools = self.regform_bools if restricted else bools
         checkgroups = self.regform_checkgroups if restricted else checkgroups
         for column in self.__table__.columns:
-            if (not restricted or column.name in self.unrestricted) and \
-                    column.name in params and column.name != 'id':
-
-                if isinstance(params[column.name], list):
+            if (not restricted or column.name in self.unrestricted) and column.name in params and column.name != 'id':
+                if column.type is JSON or isinstance(column.type, JSON):
+                    value = params[column.name]
+                elif isinstance(params[column.name], list):
                     value = ','.join(map(str, params[column.name]))
                 elif isinstance(params[column.name], bool):
                     value = params[column.name]
@@ -404,8 +407,7 @@ class MagModel:
                             value = int(float(value))
                     elif isinstance(column.type, UTCDateTime):
                         try:
-                            value = datetime.strptime(
-                                value, c.TIMESTAMP_FORMAT)
+                            value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
                         except ValueError:
                             value = dateparser.parse(value)
                         value = c.EVENT_TIMEZONE.localize(value)
@@ -417,14 +419,14 @@ class MagModel:
                         value = value.date()
                 except Exception as error:
                     log.debug(
-                        'Ignoring error coercing value for column {}.{}: {}',
-                        self.__tablename__, column.name, error)
+                        'Ignoring error coercing value for column {}.{}: {}', self.__tablename__, column.name, error)
 
                 setattr(self, column.name, value)
 
         for column in self.__table__.columns:
-            if (not restricted or column.name in self.unrestricted) and (
-                    column.type is JSON or isinstance(column.type, JSON)):
+            if (not restricted or column.name in self.unrestricted) \
+                    and (column.type is JSON or isinstance(column.type, JSON)):
+
                 fields = getattr(self, '_{}_fields'.format(column.name), {})
                 for field in fields.keys():
                     if field in params:
@@ -433,20 +435,16 @@ class MagModel:
         if cherrypy.request.method.upper() == 'POST':
             for column in self.__table__.columns:
                 if column.name in bools:
-                    setattr(
-                        self,
-                        column.name,
-                        bool(int(params.get(column.name, 0))))
+                    setattr(self, column.name, bool(int(params.get(column.name, 0))))
                 elif column.name in checkgroups and column.name not in params:
                     setattr(self, column.name, '')
 
             if not ignore_csrf:
                 check_csrf(params.get('csrf_token'))
 
-        extra_apply_attrs = self.extra_apply_attrs_restricted \
-            if restricted else self.extra_apply_attrs
+        _extra_apply_attrs = self._extra_apply_attrs_restricted if restricted else self._extra_apply_attrs
 
-        for attr in extra_apply_attrs:
+        for attr in _extra_apply_attrs:
             if attr in params:
                 setattr(self, attr, params[attr])
 
@@ -459,11 +457,8 @@ class MagModel:
         timespan = timedelta(minutes=minute_increment * self.duration)
         endtime = self.start_time_local + timespan
 
-        startstr = self.start_time_local.strftime('%I').lstrip('0') + \
-            minutestr(self.start_time_local)
-
-        endstr = endtime.strftime('%I').lstrip('0') + \
-            minutestr(endtime) + endtime.strftime('%p').lower()
+        startstr = self.start_time_local.strftime('%I').lstrip('0') + minutestr(self.start_time_local)
+        endstr = endtime.strftime('%I').lstrip('0') + minutestr(endtime) + endtime.strftime('%p').lower()
 
         if self.start_time_local.day == endtime.day:
             endstr += endtime.strftime(' %A')
@@ -472,8 +467,7 @@ class MagModel:
             else:
                 return startstr + '-' + endstr
         else:
-            return startstr + self.start_time_local.strftime('pm %a - ') + \
-                endstr + endtime.strftime(' %a')
+            return startstr + self.start_time_local.strftime('pm %a - ') + endstr + endtime.strftime(' %a')
 
 
 # Make all of our model classes available from uber.models
@@ -487,13 +481,26 @@ from uber.models.group import *  # noqa: F401,E402,F403
 from uber.models.tracking import *  # noqa: F401,E402,F403
 from uber.models.types import *  # noqa: F401,E402,F403
 from uber.models.api import *  # noqa: F401,E402,F403
+from uber.models.hotel import *  # noqa: F401,E402,F403
+from uber.models.attendee_tournaments import *  # noqa: F401,E402,F403
+from uber.models.mivs import *  # noqa: F401,E402,F403
+from uber.models.mits import *  # noqa: F401,E402,F403
+from uber.models.panels import *  # noqa: F401,E402,F403
+from uber.models.attraction import *  # noqa: F401,E402,F403
+from uber.models.tabletop import *  # noqa: F401,E402,F403
+from uber.models.guests import *  # noqa: F401,E402,F403
 
 # Explicitly import models used by the Session class to quiet flake8
 from uber.models.admin import AdminAccount, WatchList  # noqa: E402
-from uber.models.department import Job, Shift, Department  # noqa: E402
 from uber.models.attendee import Attendee  # noqa: E402
+from uber.models.department import Job, Shift, Department  # noqa: E402
 from uber.models.email import Email  # noqa: E402
 from uber.models.group import Group  # noqa: E402
+from uber.models.mits import MITSApplicant, MITSTeam  # noqa: E402
+from uber.models.mivs import IndieJudge, IndieGame, IndieStudio  # noqa: E402
+from uber.models.panels import PanelApplication, PanelApplicant  # noqa: E402
+from uber.models.promo_code import PromoCode  # noqa: E402
+from uber.models.tabletop import TabletopEntrant, TabletopTournament  # noqa: E402
 from uber.models.tracking import Tracking  # noqa: E402
 
 
@@ -540,6 +547,10 @@ class Session(SessionManager):
             drop: USE WITH CAUTION: If True, then we will drop any tables in
                 the database. Defaults to False.
         """
+        for model in cls.all_models():
+            if not hasattr(cls.SessionMixin, model.__tablename__):
+                setattr(cls.SessionMixin, model.__tablename__, _make_getter(model))
+
         if drop or modify_tables or initialize:
             super(Session, cls).initialize_db(drop=drop, create=modify_tables)
             if drop:
@@ -553,9 +564,8 @@ class Session(SessionManager):
 
         @property
         def model(self):
-            assert self.is_single_table_query, (
-                'actions such as .order() and .icontains() and .iexact() are '
-                'only valid for single-table queries')
+            assert self.is_single_table_query, \
+                'actions such as .order() and .icontains() and .iexact() are only valid for single-table queries'
 
             return self.column_descriptions[0]['type']
 
@@ -583,8 +593,7 @@ class Session(SessionManager):
             conditions = []
             if len(self.column_descriptions) == 1 and filters:
                 for colname, val in filters.items():
-                    conditions.append(
-                        getattr(self.model, colname).ilike('%{}%'.format(val)))
+                    conditions.append(getattr(self.model, colname).ilike('%{}%'.format(val)))
             if attr and val:
                 conditions.append(attr.ilike('%{}%'.format(val)))
             return and_(*conditions)
@@ -605,9 +614,7 @@ class Session(SessionManager):
             return self.filter(condition)
 
         def iexact(self, **filters):
-            filters = [
-                func.lower(getattr(self.model, attr)) == func.lower(val)
-                for attr, val in filters.items()]
+            filters = [func.lower(getattr(self.model, attr)) == func.lower(val) for attr, val in filters.items()]
             return self.filter(*filters)
 
     class SessionMixin:
@@ -625,8 +632,7 @@ class Session(SessionManager):
             conf = DeptChecklistConf.instances.get(slug)
             if not conf:
                 raise ValueError(
-                    "Can't access dept checklist INI settings for section "
-                    "'{}', check your INI file".format(slug))
+                    "Can't access dept checklist INI settings for section '{}', check your INI file".format(slug))
 
             if not department_id:
                 return {'conf': conf, 'relevant': False, 'completed': None}
@@ -647,9 +653,10 @@ class Session(SessionManager):
 
         def jobs_for_signups(self):
             fields = [
-                'name', 'department_name', 'description', 'weight',
-                'start_time_local', 'end_time_local', 'duration',
-                'weighted_hours', 'restricted', 'extra15', 'taken']
+                'name', 'department_id', 'department_name', 'description',
+                'weight', 'start_time_local', 'end_time_local', 'duration',
+                'weighted_hours', 'restricted', 'extra15', 'taken',
+                'visibility', 'is_public', 'is_setup', 'is_teardown']
             jobs = self.logged_in_volunteer().possible_and_current
             restricted_hours = set()
             for job in jobs:
@@ -657,14 +664,11 @@ class Session(SessionManager):
                     restricted_hours.add(frozenset(job.hours))
             return [
                 job.to_dict(fields)
-                for job in jobs
-                if (job.required_roles
-                    or frozenset(job.hours) not in restricted_hours)]
+                for job in jobs if (job.required_roles or frozenset(job.hours) not in restricted_hours)]
 
-        def guess_attendee_watchentry(self, attendee):
+        def guess_attendee_watchentry(self, attendee, active=True):
             or_clauses = [
-                func.lower(WatchList.first_names).contains(
-                    attendee.first_name.lower()),
+                func.lower(WatchList.first_names).contains(attendee.first_name.lower()),
                 and_(
                     WatchList.email != '',
                     func.lower(WatchList.email) == attendee.email.lower())]
@@ -674,27 +678,21 @@ class Session(SessionManager):
                     try:
                         birthdate = dateparser.parse(attendee.birthdate).date()
                     except Exception as ex:
-                        log.debug(
-                            'Error parsing attendee birthdate: '
-                            '{}'.format(attendee.birthdate))
+                        log.debug('Error parsing attendee birthdate: {}'.format(attendee.birthdate))
                     else:
                         or_clauses.append(WatchList.birthdate == birthdate)
                 elif isinstance(attendee.birthdate, datetime):
-                    or_clauses.append(
-                        WatchList.birthdate == attendee.birthdate.date())
+                    or_clauses.append(WatchList.birthdate == attendee.birthdate.date())
                 elif isinstance(attendee.birthdate, date):
-                    or_clauses.append(
-                        WatchList.birthdate == attendee.birthdate)
+                    or_clauses.append(WatchList.birthdate == attendee.birthdate)
 
             return self.query(WatchList).filter(and_(
                 or_(*or_clauses),
                 func.lower(WatchList.last_name) == attendee.last_name.lower(),
-                WatchList.active == True)).all()  # noqa: E712
+                WatchList.active == active)).all()  # noqa: E712
 
         def get_account_by_email(self, email):
-            return self.query(AdminAccount) \
-                .join(Attendee) \
-                .filter(func.lower(Attendee.email) == func.lower(email)).one()
+            return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
 
         def no_email(self, subject):
             return not self.query(Email).filter_by(subject=subject).all()
@@ -703,9 +701,11 @@ class Session(SessionManager):
             attendees = self.query(Attendee).iexact(
                 first_name=first_name,
                 last_name=last_name,
-                email=email,
-                zip_code=zip_code).filter(
-                    Attendee.badge_status != c.INVALID_STATUS).limit(10).all()
+                zip_code=zip_code
+            ).filter(
+                Attendee.normalized_email == Attendee.normalize_email(email),
+                Attendee.badge_status != c.INVALID_STATUS
+            ).limit(10).all()
 
             if attendees:
                 statuses = defaultdict(lambda: six.MAXSIZE, {
@@ -765,7 +765,6 @@ class Session(SessionManager):
                 PromoCode: Either the matching PromoCode object, or None
                     if not found.
             """
-            from uber.models.promo_code import PromoCode
             if isinstance(code, uuid.UUID):
                 code = code.hex
 
@@ -774,9 +773,7 @@ class Session(SessionManager):
                 return None
 
             unambiguous_code = PromoCode.disambiguate_code(code)
-            clause = or_(
-                PromoCode.normalized_code == normalized_code,
-                PromoCode.normalized_code == unambiguous_code)
+            clause = or_(PromoCode.normalized_code == normalized_code, PromoCode.normalized_code == unambiguous_code)
 
             # Make sure that code is a valid UUID before adding
             # PromoCode.id to the filter clause
@@ -787,8 +784,7 @@ class Session(SessionManager):
             else:
                 clause = clause.or_(PromoCode.id == promo_code_id)
 
-            return self.query(PromoCode).filter(clause).order_by(
-                PromoCode.normalized_code.desc()).first()
+            return self.query(PromoCode).filter(clause).order_by(PromoCode.normalized_code.desc()).first()
 
         def get_next_badge_num(self, badge_type):
             """
@@ -802,7 +798,7 @@ class Session(SessionManager):
                     type's range.
 
             """
-            badge_type = get_real_badge_type(badge_type)
+            badge_type = uber.badge_funcs.get_real_badge_type(badge_type)
 
             new_badge_num = self.auto_badge_num(badge_type)
             lower_bound = c.BADGE_RANGES[badge_type][0]
@@ -811,12 +807,10 @@ class Session(SessionManager):
             # Adjusts the badge number based on badges in the session
             all_models = chain(self.new, self.dirty)
             for attendee in [m for m in all_models if isinstance(m, Attendee)]:
-                if attendee.badge_num is not None and \
-                        lower_bound <= attendee.badge_num <= upper_bound:
+                if attendee.badge_num is not None and lower_bound <= attendee.badge_num <= upper_bound:
                     new_badge_num = max(new_badge_num, 1 + attendee.badge_num)
 
-            assert new_badge_num < upper_bound, \
-                'There are no more badge numbers available in this range!'
+            assert new_badge_num < upper_bound, 'There are no more badge numbers available in this range!'
 
             return new_badge_num
 
@@ -836,9 +830,7 @@ class Session(SessionManager):
             """
             from uber.badge_funcs import needs_badge_num
 
-            if c.SHIFT_CUSTOM_BADGES and c.BEFORE_PRINTED_BADGE_DEADLINE and \
-                    not c.AT_THE_CON:
-
+            if c.SHIFT_CUSTOM_BADGES and c.BEFORE_PRINTED_BADGE_DEADLINE and not c.AT_THE_CON:
                 badge_collision = False
                 if attendee.badge_num:
                     badge_collision = self.query(Attendee.badge_num).filter(
@@ -851,38 +843,22 @@ class Session(SessionManager):
                         if old_badge_type == attendee.badge_type:
                             if old_badge_num < attendee.badge_num:
                                 self.shift_badges(
-                                    old_badge_type,
-                                    old_badge_num + 1,
-                                    until=attendee.badge_num,
-                                    down=True)
+                                    old_badge_type, old_badge_num + 1, until=attendee.badge_num, down=True)
                             else:
-                                self.shift_badges(
-                                    old_badge_type,
-                                    attendee.badge_num,
-                                    until=old_badge_num - 1,
-                                    up=True)
+                                self.shift_badges(old_badge_type, attendee.badge_num, until=old_badge_num - 1, up=True)
                         else:
-                            self.shift_badges(
-                                old_badge_type,
-                                old_badge_num + 1,
-                                down=True)
-                            self.shift_badges(
-                                attendee.badge_type,
-                                attendee.badge_num,
-                                up=True)
+                            self.shift_badges(old_badge_type, old_badge_num + 1, down=True)
+                            self.shift_badges(attendee.badge_type, attendee.badge_num, up=True)
                     else:
-                        self.shift_badges(
-                            old_badge_type, old_badge_num + 1, down=True)
+                        self.shift_badges(old_badge_type, old_badge_num + 1, down=True)
 
                 elif attendee.badge_num and badge_collision:
-                    self.shift_badges(
-                        attendee.badge_type, attendee.badge_num, up=True)
+                    self.shift_badges(attendee.badge_type, attendee.badge_num, up=True)
 
                 attendee.badge_num = desired_badge_num
 
             if not attendee.badge_num and needs_badge_num(attendee):
-                attendee.badge_num = self.get_next_badge_num(
-                    attendee.badge_type)
+                attendee.badge_num = self.get_next_badge_num(attendee.badge_type)
 
             return 'Badge updated'
 
@@ -903,8 +879,7 @@ class Session(SessionManager):
                 Attendee.badge_num >= c.BADGE_RANGES[badge_type][0],
                 Attendee.badge_num <= c.BADGE_RANGES[badge_type][1])
 
-            in_range_list = [
-                int(row[0]) for row in in_range.order_by(Attendee.badge_num)]
+            in_range_list = [int(row[0]) for row in in_range.order_by(Attendee.badge_num)]
 
             if len(in_range_list):
                 # Searches badge range for a gap in badge numbers; if none
@@ -912,8 +887,7 @@ class Session(SessionManager):
                 # Doing this lets admins manually set high badge numbers
                 # without filling up the badge type's range.
                 start, end = c.BADGE_RANGES[badge_type][0], in_range_list[-1]
-                gap_nums = sorted(
-                    set(range(start, end + 1)).difference(in_range_list))
+                gap_nums = sorted(set(range(start, end + 1)).difference(in_range_list))
 
                 if not gap_nums:
                     return end + 1
@@ -922,12 +896,9 @@ class Session(SessionManager):
             else:
                 return c.BADGE_RANGES[badge_type][0]
 
-        def shift_badges(
-                self, badge_type, badge_num, *, until=None, up=False,
-                down=False):
+        def shift_badges(self, badge_type, badge_num, *, until=None, up=False, down=False):
 
-            if not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE or \
-                    c.AT_THE_CON:
+            if not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE or c.AT_THE_CON:
                 return False
 
             from uber.badge_funcs import get_badge_type
@@ -941,15 +912,12 @@ class Session(SessionManager):
                 Attendee.badge_num >= badge_num,
                 Attendee.badge_num <= until)
 
-            query.update(
-                {Attendee.badge_num: Attendee.badge_num + shift},
-                synchronize_session='evaluate')
+            query.update({Attendee.badge_num: Attendee.badge_num + shift}, synchronize_session='evaluate')
 
             return True
 
         def valid_attendees(self):
-            return self.query(Attendee).filter(
-                Attendee.badge_status != c.INVALID_STATUS)
+            return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)
 
         def attendees_with_badges(self):
             return self.query(Attendee).filter(not_(Attendee.badge_status.in_(
@@ -968,8 +936,7 @@ class Session(SessionManager):
             parameter for clients to indicate that all attendees should be
             returned.
             """
-            staffing_filter = [Attendee.staffing == True] \
-                if only_staffing else []  # noqa: E712
+            staffing_filter = [Attendee.staffing == True] if only_staffing else []  # noqa: E712
 
             badge_filter = Attendee.badge_status.in_(
                 [c.NEW_STATUS, c.COMPLETED_STATUS])
@@ -979,63 +946,53 @@ class Session(SessionManager):
                 .options(
                     subqueryload(Attendee.dept_memberships),
                     subqueryload(Attendee.group),
-                    subqueryload(Attendee.shifts)
-                    .subqueryload(Shift.job)
-                    .subqueryload(Job.department)) \
+                    subqueryload(Attendee.shifts).subqueryload(Shift.job).subqueryload(Job.department)) \
                 .order_by(Attendee.full_name, Attendee.id)
 
         def staffers(self):
             return self.all_attendees(only_staffing=True)
 
+        def all_panelists(self):
+            return self.query(Attendee).filter(or_(
+                Attendee.ribbon.contains(c.PANELIST_RIBBON),
+                Attendee.badge_type == c.GUEST_BADGE)).order_by(Attendee.full_name).all()
+
         @department_id_adapter
         def jobs(self, department_id=None):
-            job_filter = {
-                'department_id': department_id} if department_id else {}
+            job_filter = {'department_id': department_id} if department_id else {}
 
-            return self.query(Job) \
-                .filter_by(**job_filter) \
+            return self.query(Job).filter_by(**job_filter) \
                 .options(
                     subqueryload(Job.department),
-                    subqueryload(Job.shifts)
-                    .subqueryload(Shift.attendee)
-                    .subqueryload(Attendee.group)) \
+                    subqueryload(Job.required_roles),
+                    subqueryload(Job.shifts).subqueryload(Shift.attendee).subqueryload(Attendee.group)) \
                 .order_by(Job.start_time, Job.name)
 
         def staffers_for_dropdown(self):
             query = self.query(Attendee.id, Attendee.full_name)
-            return [{
-                'id': id,
-                'full_name': full_name.title()}
-                for id, full_name in query.filter_by(staffing=True)
-                                          .order_by(Attendee.full_name)]
+            return [
+                {'id': id, 'full_name': full_name.title()}
+                for id, full_name in query.filter_by(staffing=True).order_by(Attendee.full_name)]
 
         @department_id_adapter
         def dept_heads(self, department_id=None):
             if department_id:
                 return self.query(Department).get(department_id).dept_heads
-            return self.query(Attendee) \
-                .filter(Attendee.dept_memberships.any(is_dept_head=True)) \
+            return self.query(Attendee).filter(Attendee.dept_memberships.any(is_dept_head=True)) \
                 .order_by(Attendee.full_name).all()
 
         def match_to_group(self, attendee, group):
             available = [a for a in group.attendees if a.is_unassigned]
             if not available:
-                return 'The last badge for that group has already been ' \
-                    'assigned by another station'
+                return 'The last badge for that group has already been assigned by another station'
 
-            matching = [
-                a for a in available if a.badge_type == attendee.badge_type]
-
+            matching = [a for a in available if a.badge_type == attendee.badge_type]
             if not matching:
-                return 'Badge #{} is a {} badge, but {} has no badges of ' \
-                    'that type'.format(
-                        attendee.badge_num,
-                        attendee.badge_type_label,
-                        group.name)
+                return 'Badge #{} is a {} badge, but {} has no badges of that type'.format(
+                        attendee.badge_num, attendee.badge_type_label, group.name)
             else:
                 # First preserve the attributes to copy to the new group member
-                attrs = matching[0].to_dict(attrs=[
-                    'group', 'group_id', 'paid', 'amount_paid', 'ribbon'])
+                attrs = matching[0].to_dict(attrs=['group', 'group_id', 'paid', 'amount_paid', 'ribbon'])
 
                 # Then delete the old unassigned group member
                 self.delete(matching[0])
@@ -1057,9 +1014,7 @@ class Session(SessionManager):
             if ':' in text:
                 target, term = text.split(':', 1)
                 if target == 'email':
-                    return attendees.icontains(
-                        Attendee.normalized_email,
-                        Attendee.normalize_email(term))
+                    return attendees.icontains(Attendee.normalized_email, Attendee.normalize_email(term))
                 elif target == 'group':
                     return attendees.icontains(Group.name, term.strip())
 
@@ -1068,10 +1023,8 @@ class Session(SessionManager):
                 first, last = terms
                 if first.endswith(','):
                     last, first = first.strip(','), last
-                name_cond = attendees.icontains_condition(
-                    first_name=first, last_name=last)
-                legal_name_cond = attendees.icontains_condition(
-                    legal_name="{}%{}".format(first, last))
+                name_cond = attendees.icontains_condition(first_name=first, last_name=last)
+                legal_name_cond = attendees.icontains_condition(legal_name="{}%{}".format(first, last))
                 return attendees.filter(or_(name_cond, legal_name_cond))
 
             elif len(terms) == 1 and terms[0].endswith(','):
@@ -1083,18 +1036,15 @@ class Session(SessionManager):
 
             elif len(terms) == 1 and terms[0].isdigit():
                 if len(terms[0]) == 10:
-                    return attendees.filter(or_(
-                        Attendee.ec_phone == terms[0],
-                        Attendee.cellphone == terms[0]))
+                    return attendees.filter(or_(Attendee.ec_phone == terms[0], Attendee.cellphone == terms[0]))
                 elif int(terms[0]) <= sorted(
                         c.BADGE_RANGES.items(),
                         key=lambda badge_range: badge_range[1][0])[-1][1][1]:
                     return attendees.filter(Attendee.badge_num == terms[0])
 
-            elif len(terms) == 1 and re.match(
-                    '^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-'
-                    '[a-z0-9]{4}-[a-z0-9]{12}$',
-                    terms[0]):
+            elif len(terms) == 1 \
+                    and re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', terms[0]):
+
                 return attendees.filter(or_(
                     Attendee.id == terms[0],
                     Attendee.public_id == terms[0],
@@ -1103,10 +1053,7 @@ class Session(SessionManager):
 
             elif len(terms) == 1 and terms[0].startswith(c.EVENT_QR_ID):
                 search_uuid = terms[0][len(c.EVENT_QR_ID):]
-                if re.match(
-                        '^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-'
-                        '[a-z0-9]{4}-[a-z0-9]{12}$',
-                        search_uuid):
+                if re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', search_uuid):
                     return attendees.filter(or_(
                         Attendee.public_id == search_uuid,
                         Group.public_id == search_uuid))
@@ -1139,16 +1086,11 @@ class Session(SessionManager):
                 **extra_create_args):
 
             diff = int(new_badge_count) - group.badges
-            sorted_unassigned = sorted(
-                group.floating, key=lambda a: a.registered, reverse=True)
+            sorted_unassigned = sorted(group.floating, key=lambda a: a.registered, reverse=True)
+            ribbon_to_use = ','.join(map(str, listify(new_ribbon_type))) if new_ribbon_type else group.new_ribbon
 
-            ribbon_to_use = ','.join(map(str, listify(new_ribbon_type))) \
-                if new_ribbon_type else group.new_ribbon
-
-            if int(new_badge_type) in c.PREASSIGNED_BADGE_TYPES and \
-                    c.AFTER_PRINTED_BADGE_DEADLINE and diff > 0:
-                return 'Custom badges have already been ordered, so you ' \
-                    'will need to select a different badge type'
+            if int(new_badge_type) in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE and diff > 0:
+                return 'Custom badges have already been ordered, so you will need to select a different badge type'
             elif diff > 0:
                 for i in range(diff):
                     group.attendees.append(Attendee(
@@ -1158,8 +1100,7 @@ class Session(SessionManager):
                         **extra_create_args))
             elif diff < 0:
                 if len(group.floating) < abs(diff):
-                    return 'You cannot reduce the number of badges for a ' \
-                        'group to below the number of assigned badges'
+                    return 'You cannot reduce the number of badges for a group to below the number of assigned badges'
                 else:
                     for attendee in sorted_unassigned[:abs(diff)]:
                         self.delete_from_group(attendee, group)
@@ -1173,16 +1114,14 @@ class Session(SessionManager):
             attendee = self.attendee(attendee_id)
 
             if not attendee.has_required_roles(job):
-                return 'You cannot assign an attendee to this shift who ' \
-                    'does not have the required roles: ' \
-                    '{}'.format(job.required_roles_labels)
+                return 'You cannot assign an attendee to this shift who does not have the required roles: {}'.format(
+                    job.required_roles_labels)
 
             if job.slots <= len(job.shifts):
                 return 'All slots for this job have already been filled'
 
             if not job.no_overlap(attendee):
-                return 'This volunteer is already signed up for a shift ' \
-                    'during that time'
+                return 'This volunteer is already signed up for a shift during that time'
 
             self.add(Shift(attendee=attendee, job=job))
             self.commit()
@@ -1192,9 +1131,7 @@ class Session(SessionManager):
                 int, {a: -i for i, a in enumerate(c.DEFAULT_AFFILIATES)})
 
             query = self.query(Attendee.affiliate, Attendee.amount_extra) \
-                .filter(and_(
-                    Attendee.amount_extra >
-                    0, Attendee.affiliate != ''))
+                .filter(and_(Attendee.amount_extra > 0, Attendee.affiliate != ''))
 
             for aff, amt in query:
                 amounts[aff] += amt
@@ -1214,7 +1151,7 @@ class Session(SessionManager):
             Returns:
                 bool: True if success, False if failure
             """
-            if self.query(AdminAccount).count() != 0:
+            if self.query(AdminAccount).first() is not None:
                 return False
 
             attendee = Attendee(
@@ -1236,8 +1173,7 @@ class Session(SessionManager):
 
         def set_relation_ids(self, instance, field, cls, value):
             values = set(s for s in listify(value) if s and s != 'None')
-            relations = self.query(cls).filter(cls.id.in_(values)).all() \
-                if values else []
+            relations = self.query(cls).filter(cls.id.in_(values)).all() if values else []
             setattr(instance, field, relations)
 
         def bulk_insert(self, models):
@@ -1283,6 +1219,140 @@ class Session(SessionManager):
                         self.rollback()
                 return inserted_models
 
+        # ========================
+        # mivs
+        # ========================
+
+        def logged_in_studio(self):
+            try:
+                return self.indie_studio(cherrypy.session['studio_id'])
+            except Exception as ex:
+                raise HTTPRedirect('../mivs_applications/studio')
+
+        def logged_in_judge(self):
+            judge = self.admin_attendee().admin_account.judge
+            if judge:
+                return judge
+            else:
+                raise HTTPRedirect(
+                    '../accounts/homepage?message={}',
+                    'You have been given judge access but not had a judge entry created for you - '
+                    'please contact a MIVS admin to correct this.')
+
+        def code_for(self, game):
+            if game.unlimited_code:
+                return game.unlimited_code
+            else:
+                for code in self.logged_in_judge().codes:
+                    if code.game == game:
+                        return code
+
+        def delete_screenshot(self, screenshot):
+            self.delete(screenshot)
+            try:
+                os.remove(screenshot.filepath)
+            except Exception as ex:
+                pass
+            self.commit()
+
+        def indie_judges(self):
+            return self.query(IndieJudge).join(IndieJudge.admin_account).join(AdminAccount.attendee) \
+                .order_by(Attendee.full_name)
+
+        def indie_games(self):
+            return self.query(IndieGame).join(IndieStudio).options(
+                joinedload(IndieGame.studio), joinedload(IndieGame.reviews)).order_by(IndieStudio.name, IndieGame.title)
+
+        # =========================
+        # mits
+        # =========================
+
+        def log_in_as_mits_team(
+                self, team_id, redirect_to='../mits_applications/index'):
+            try:
+                team = self.mits_team(team_id)
+                duplicate_teams = []
+                while team.duplicate_of:
+                    duplicate_teams.append(team.id)
+                    team = self.mits_team(team.duplicate_of)
+                    assert team.id not in duplicate_teams, 'circular reference in duplicate_of: {}'.format(
+                        duplicate_teams)
+            except Exception as ex:
+                log.error('attempt to log into invalid team {}', team_id, exc_info=True)
+                raise HTTPRedirect('../mits_applications/login_explanation')
+            else:
+                cherrypy.session['mits_team_id'] = team.id
+                raise HTTPRedirect(redirect_to)
+
+        def logged_in_mits_team(self):
+            try:
+                team = self.mits_team(cherrypy.session['mits_team_id'])
+                assert not team.deleted or team.duplicate_of
+            except Exception as ex:
+                raise HTTPRedirect('../mits_applications/login_explanation')
+            else:
+                if team.duplicate_of:
+                    # The currently-logged-in team was deleted, so log
+                    # back in as the correct team.
+                    self.log_as_as_mits_team(team.id)
+                else:
+                    return team
+
+        def mits_teams(self, include_deleted=False):
+            if include_deleted:
+                deleted_filter = []
+            else:
+                deleted_filter = [MITSTeam.deleted == False]  # noqa: E712
+            return self.query(MITSTeam).filter(*deleted_filter).options(
+                joinedload(MITSTeam.applicants).subqueryload(MITSApplicant.attendee),
+                joinedload(MITSTeam.games),
+                joinedload(MITSTeam.schedule),
+                joinedload(MITSTeam.pictures),
+                joinedload(MITSTeam.documents)
+            ).order_by(MITSTeam.name)
+
+        def delete_mits_file(self, model):
+            try:
+                os.remove(model.filepath)
+            except Exception as ex:
+                log.error('Unexpected error deleting MITS file {}', model.filepath)
+
+            # Regardless of whether removing the file from the
+            # filesystem succeeded, we still want the delete it from the
+            # database. The most likely cause of failure is if the file
+            # was already deleted or is otherwise not present, so it
+            # wouldn't make sense to keep the database record around.
+            self.delete(model)
+            self.commit()
+
+        # =========================
+        # panels
+        # =========================
+
+        def panel_apps(self):
+            return self.query(PanelApplication).order_by('applied').all()
+
+        def panel_applicants(self):
+            return self.query(PanelApplicant).options(joinedload(PanelApplicant.application)) \
+                .order_by('first_name', 'last_name')
+
+        # =========================
+        # tabletop
+        # =========================
+
+        def entrants(self):
+            return self.query(TabletopEntrant).options(
+                joinedload(TabletopEntrant.reminder),
+                joinedload(TabletopEntrant.attendee),
+                subqueryload(TabletopEntrant.tournament).subqueryload(TabletopTournament.event))
+
+        def entrants_by_phone(self):
+            entrants = defaultdict(list)
+            for entrant in self.entrants():
+                cellphone = normalize_phone(entrant.attendee.cellphone)
+                entrants[cellphone].append(entrant)
+            return entrants
+
     @classmethod
     def model_mixin(cls, model):
         if model.__name__ in ['SessionMixin', 'QuerySubclass']:
@@ -1292,14 +1362,12 @@ class Session(SessionManager):
                 if target.__name__ == model.__name__:
                     break
             else:
-                raise ValueError(
-                    'No existing model with name {}'.format(model.__name__))
+                raise ValueError('No existing model with name {}'.format(model.__name__))
 
         for name in dir(model):
             if not name.startswith('_'):
                 attr = getattr(model, name)
-                if hasattr('target', '__table__') and \
-                        name in target.__table__.c:
+                if hasattr('target', '__table__') and name in target.__table__.c:
                     attr.key = attr.key or name
                     attr.name = attr.name or name
                     attr.table = target.__table__
@@ -1307,36 +1375,6 @@ class Session(SessionManager):
                 else:
                     setattr(target, name, attr)
         return target
-
-
-def _make_getter(model):
-    def getter(
-            self, params=None, *, bools=(), checkgroups=(), allowed=(),
-            restricted=False, ignore_csrf=False, **query):
-
-        if query:
-            return self.query(model).filter_by(**query).one()
-        elif isinstance(params, str):
-            return self.query(model).filter_by(id=params).one()
-        else:
-            params = params.copy()
-            id = params.pop('id', 'None')
-            if id == 'None':
-                inst = model()
-            else:
-                inst = self.query(model).filter_by(id=id).one()
-
-            if not ignore_csrf:
-                assert (
-                    not {k for k in params if k not in allowed} or
-                    cherrypy.request.method == 'POST'), 'POST required'
-
-            inst.apply(
-                params, bools=bools, checkgroups=checkgroups,
-                restricted=restricted, ignore_csrf=ignore_csrf)
-
-            return inst
-    return getter
 
 
 @on_startup(priority=1)
@@ -1356,26 +1394,18 @@ def initialize_db(modify_tables=False):
     drop=True or modify_tables=True or initialize=True to
     Session.initialize_db()
     """
-    for _model in Session.all_models():
-        setattr(
-            Session.SessionMixin, _model.__tablename__, _make_getter(_model))
-
     num_tries_remaining = 10
     while not stopped.is_set():
         try:
             Session.initialize_db(modify_tables=modify_tables, initialize=True)
         except KeyboardInterrupt:
-            log.critical(
-                'DB initialize: Someone hit Ctrl+C while we were starting up')
+            log.critical('DB initialize: Someone hit Ctrl+C while we were starting up')
         except Exception as ex:
             num_tries_remaining -= 1
             if num_tries_remaining == 0:
-                log.error(
-                    "DB initialize: couldn't connect to DB, we're giving up")
+                log.error("DB initialize: couldn't connect to DB, we're giving up")
                 raise
-            log.error(
-                "DB initialize: can't connect to / initialize DB, will try "
-                "again in 5 seconds", exc_info=True)
+            log.error("DB initialize: can't connect to / initialize DB, will try again in 5 seconds", exc_info=True)
             stopped.wait(5)
         else:
             break
@@ -1389,10 +1419,8 @@ def _attendee_validity_check():
     def with_validity_check(self, *args, **kwargs):
         allow_invalid = kwargs.pop('allow_invalid', False)
         attendee = orig_getter(self, *args, **kwargs)
-        if not allow_invalid and not attendee.is_new and \
-                attendee.badge_status == c.INVALID_STATUS:
-            raise HTTPRedirect(
-                '../preregistration/invalid_badge?id={}', attendee.id)
+        if not allow_invalid and not attendee.is_new and attendee.badge_status == c.INVALID_STATUS:
+            raise HTTPRedirect('../preregistration/invalid_badge?id={}', attendee.id)
         else:
             return attendee
     Session.SessionMixin.attendee = with_validity_check

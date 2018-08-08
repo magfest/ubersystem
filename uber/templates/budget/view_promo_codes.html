@@ -86,8 +86,8 @@ $(document).ready(function() {
         <td data-order="{{ promo_code.code }}" data-search="{{ promo_code.code }}">
           {{ promo_code.code }}
         </td>
-        <td data-order="{{ promo_code.expiration_date }}" data-search="{{ promo_code.expiration_date }}">
-          <input type="text" form="update_promo_code_{{ promo_code.id }}" name="expiration_date" class="form-control expiration-date" value="{{ promo_code.expiration_date }}" />
+        <td data-order="{{ promo_code.expiration_date_local }}" data-search="{{ promo_code.expiration_date_local }}">
+          <input type="text" form="update_promo_code_{{ promo_code.id }}" name="expiration_date" class="form-control expiration-date" value="{{ promo_code.expiration_date_local }}" />
         </td>
         <td data-order="{{ promo_code.is_expired }}">
           {% if promo_code.is_expired %}Expired{% else %}

@@ -1,0 +1,52 @@
+{% extends "mivs_base.html" %}
+{% block body %}
+
+<style type="text/css">
+  #mainContainer { max-width: 1200px; }
+</style>
+
+<h3>
+  MIVS Studios
+  <a href="../mivs_applications/studio" class="btn btn-primary">Add a Studio</a>
+</h3>
+
+<table class="table datatable" data-page-length="-1">
+<thead>
+  <tr>
+    <th>Studio Name</th>
+    <th>Primary Contact</th>
+    <th>Website</th>
+    <th>Status</th>
+  </tr>
+</thead>
+<tbody>
+{% for studio in studios %}
+  <tr>
+    <td>
+      <a href="../mivs_applications/continue_app?id={{ studio.id }}" target="_blank">{{ studio.name }}</a>
+    </td>
+    <td>
+      {%- if studio.primary_contact.matching_attendee -%}
+        <a href="../registration/form?id={{ studio.primary_contact.matching_attendee.id }}">{{ studio.primary_contact.full_name }}</a>
+      {%- else -%}
+        {{ studio.primary_contact.full_name }}
+      {%- endif %}
+      <br>
+      <a href="mailto:{{ studio.primary_contact.email }}">{{ studio.primary_contact.email }}</a>
+      {% if studio.primary_contact.cellphone -%}
+        <br>
+        {{ studio.primary_contact.cellphone }}
+      {%- endif %}
+    </td>
+    <td>
+      {{ studio.website|url_to_link(is_relative=False) }}
+    </td>
+    <td>
+      {{ studio.status_label }}
+    </td>
+  </tr>
+{% endfor %}
+</tbody>
+</table>
+
+{% endblock %}

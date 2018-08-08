@@ -1,5 +1,19 @@
+from collections import defaultdict, OrderedDict
+from datetime import datetime, timedelta
+
+import cherrypy
+import six
 from dateutil.relativedelta import relativedelta
-from uber.common import *
+from pytz import UTC
+from sqlalchemy import and_, or_
+from sqlalchemy.sql.expression import extract
+from sqlalchemy.orm import joinedload, subqueryload
+
+from uber.config import c
+from uber.decorators import all_renderable, csv_file, multifile_zipfile, render, site_mappable, xlsx_file
+from uber.errors import HTTPRedirect
+from uber.models import Attendee, Department, FoodRestrictions, Group
+from uber.reports import PersonalizedBadgeReport, PrintedBadgeReport
 
 
 def generate_staff_badges(start_badge, end_badge, out, session):
@@ -8,7 +22,7 @@ def generate_staff_badges(start_badge, end_badge, out, session):
 
     badge_range = (start_badge, end_badge)
 
-    uber.reports.PrintedBadgeReport(
+    PrintedBadgeReport(
         badge_type=c.STAFF_BADGE,
         range=badge_range,
         badge_type_name='Staff').run(out, session)
@@ -31,7 +45,8 @@ class Root:
             'ages': c.AGE_GROUP_OPTS,
             'ribbons': c.RIBBON_OPTS,
             'interests': c.INTEREST_OPTS,
-            'statuses': c.BADGE_STATUS_OPTS
+            'statuses': c.BADGE_STATUS_OPTS,
+            'checked_in_by_type': c.BADGE_OPTS,
         }
         for label, opts in count_labels.items():
             for val, desc in opts:
@@ -40,6 +55,7 @@ class Root:
         for var in c.BADGE_VARS:
             badge_type = getattr(c, var)
             counts['stocks'][c.BADGES[badge_type]] = stocks.get(var.lower(), 'no limit set')
+            counts['counts'][c.BADGES[badge_type]] = c.get_badge_count_by_type(badge_type)
 
         for a in session.query(Attendee).options(joinedload(Attendee.group)):
             counts['paid'][a.paid_label] += 1
@@ -49,6 +65,8 @@ class Root:
             counts['badges'][a.badge_type_label] += 1
             counts['statuses'][a.badge_status_label] += 1
             counts['checked_in']['yes' if a.checked_in else 'no'] += 1
+            if a.checked_in:
+                counts['checked_in_by_type'][a.badge_type_label] += 1
             for val in a.interests_ints:
                 counts['interests'][c.INTERESTS[val]] += 1
             if a.paid == c.PAID_BY_GROUP and a.group:
@@ -60,7 +78,8 @@ class Root:
                 if a.amount_extra >= amount and a.amount_extra < next_amount:
                     counts['donation_tiers'][amount] = counts['donation_tiers'][amount] + 1
             if not a.checked_in:
-                key = 'paid' if a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid else 'free'
+                is_paid = a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid
+                key = 'paid' if is_paid else 'free'
                 counts['noshows'][key] += 1
 
         return {
@@ -108,7 +127,9 @@ class Root:
         return {'everything': everything}
 
     def found_how(self, session):
-        return {'all': sorted([a.found_how for a in session.query(Attendee).filter(Attendee.found_how != '').all()], key=lambda s: s.lower())}
+        return {'all': sorted(
+            [a.found_how for a in session.query(Attendee).filter(Attendee.found_how != '').all()],
+            key=lambda s: s.lower())}
 
     def all_schedules(self, session):
         return {'staffers': [a for a in session.staffers() if a.shifts]}
@@ -116,8 +137,10 @@ class Root:
     def food_restrictions(self, session):
         all_fr = session.query(FoodRestrictions).all()
         guests = session.query(Attendee).filter_by(badge_type=c.GUEST_BADGE).count()
-        volunteers = len([a for a in session.query(Attendee).filter_by(staffing=True).all()
-                            if a.badge_type == c.STAFF_BADGE or a.weighted_hours or not a.takes_shifts])
+        volunteers = len([
+            a for a in session.query(Attendee).filter_by(staffing=True).all()
+            if a.badge_type == c.STAFF_BADGE or a.weighted_hours or not a.takes_shifts])
+
         return {
             'guests': guests,
             'volunteers': volunteers,
@@ -174,10 +197,18 @@ class Root:
     @csv_file
     def dealer_table_info(self, out, session):
         out.writerow([
-            'Name',
+            'Business Name',
             'Description',
             'URL',
-            'Address',
+            'Point of Contact',
+            'Email',
+            'Phone Number',
+            'Address1',
+            'Address2',
+            'City',
+            'State/Region',
+            'Zip Code',
+            'Country',
             'Tables',
             'Amount Paid',
             'Cost',
@@ -190,7 +221,15 @@ class Root:
                     group.name,
                     group.description,
                     group.website,
+                    group.leader.legal_name or group.leader.full_name,
+                    group.leader.email,
+                    group.leader.cellphone,
                     group.address1,
+                    group.address2,
+                    group.city,
+                    group.region,
+                    group.zip_code,
+                    group.country,
                     group.tables,
                     group.amount_paid,
                     group.cost,
@@ -198,21 +237,42 @@ class Root:
                 ])
 
     @xlsx_file
+    def vendor_comptroller_info(self, out, session):
+        dealer_groups = session.query(Group).filter(Group.tables > 0).all()
+        rows = []
+        for group in dealer_groups:
+            if group.approved and group.is_dealer:
+                rows.append([
+                    group.name,
+                    group.leader.email,
+                    group.leader.legal_name or group.leader.full_name,
+                    group.leader.cellphone,
+                    group.physical_address
+                ])
+        header_row = [
+            'Vendor Name',
+            'Contact Email',
+            'Primary Contact',
+            'Contact Phone #',
+            'Physical Address']
+        out.writerows(header_row, rows)
+
+    @xlsx_file
     def printed_badges_attendee(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE, badge_type_name='Attendee').run(out, session)
+        PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE, badge_type_name='Attendee').run(out, session)
 
     @xlsx_file
     def printed_badges_guest(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.GUEST_BADGE, badge_type_name='Guest').run(out, session)
+        PrintedBadgeReport(badge_type=c.GUEST_BADGE, badge_type_name='Guest').run(out, session)
 
     @xlsx_file
     def printed_badges_one_day(self, out, session):
-        uber.reports.PrintedBadgeReport(badge_type=c.ONE_DAY_BADGE, badge_type_name='OneDay').run(out, session)
+        PrintedBadgeReport(badge_type=c.ONE_DAY_BADGE, badge_type_name='OneDay').run(out, session)
 
     @xlsx_file
     def printed_badges_minor(self, out, session):
         try:
-            uber.reports.PrintedBadgeReport(badge_type=c.CHILD_BADGE, badge_type_name='Minor').run(out, session)
+            PrintedBadgeReport(badge_type=c.CHILD_BADGE, badge_type_name='Minor').run(out, session)
         except AttributeError:
             pass
 
@@ -220,10 +280,12 @@ class Root:
     def printed_badges_staff(self, out, session):
 
         # part 1, include only staff badges that have an assigned name
-        uber.reports.PersonalizedBadgeReport().run(out, session,
-                                                   Attendee.badge_type == c.STAFF_BADGE,
-                                                   Attendee.badge_num != None,
-                                                   order_by='badge_num')
+        PersonalizedBadgeReport().run(
+            out,
+            session,
+            Attendee.badge_type == c.STAFF_BADGE,
+            Attendee.badge_num != None,
+            order_by='badge_num')  # noqa: E711
 
         # part 2, include some extra for safety marging
         minimum_extra_amount = 5
@@ -245,10 +307,12 @@ class Root:
 
     @xlsx_file
     def badge_hangars_supporters(self, out, session):
-        uber.reports.PersonalizedBadgeReport(include_badge_nums=False).run(out, session,
-            sa.Attendee.amount_extra >= c.SUPPORTER_LEVEL,
-            order_by=sa.Attendee.full_name,
-            badge_type_override='supporter')
+        PersonalizedBadgeReport(include_badge_nums=False).run(
+            out,
+            session,
+            Attendee.amount_extra >= c.SUPPORTER_LEVEL,
+            order_by=Attendee.full_name,
+            badge_type_override=lambda a: 'Super Supporter' if a.amount_extra >= c.SEASON_LEVEL else 'Supporter')
 
     """
     Enumerate individual CSVs here that will be integrated into the .zip which will contain all the
@@ -287,9 +351,10 @@ class Root:
         eligible = {
             a: {attr.lower(): getattr(a.food_restrictions, attr, False) for attr in c.FOOD_RESTRICTION_VARS}
             for a in session.staffers().all() + session.query(Attendee).filter_by(badge_type=c.GUEST_BADGE).all()
-            if not a.is_unassigned
-                and (a.badge_type in (c.STAFF_BADGE, c.GUEST_BADGE)
-                  or c.VOLUNTEER_RIBBON in a.ribbon_ints and a.weighted_hours >= 12)
+            if not a.is_unassigned and (
+                a.badge_type in (c.STAFF_BADGE, c.GUEST_BADGE)
+                or c.VOLUNTEER_RIBBON in a.ribbon_ints
+                and a.weighted_hours >= 12)
         }
         return render('summary/food_eligible.xml', {'attendees': eligible})
 
@@ -313,8 +378,12 @@ class Root:
         """
         counts = defaultdict(lambda: defaultdict(int))
         labels = ['size unknown'] + [label for val, label in c.SHIRT_OPTS][1:]
-        sort = lambda d: sorted(d.items(), key=lambda tup: labels.index(tup[0]))
-        label = lambda s: 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
+
+        def sort(d):
+            return sorted(d.items(), key=lambda tup: labels.index(tup[0]))
+
+        def label(s):
+            return 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
 
         for attendee in session.all_attendees():
             shirt_label = attendee.shirt_label or 'size unknown'
@@ -334,9 +403,16 @@ class Root:
     def shirt_counts(self, session):
         counts = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
         labels = ['size unknown'] + [label for val, label in c.SHIRT_OPTS][1:]
-        sort = lambda d: sorted(d.items(), key=lambda tup: labels.index(tup[0]))
-        label = lambda s: 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
-        status = lambda got_merch: 'picked_up' if got_merch else 'outstanding'
+
+        def sort(d):
+            return sorted(d.items(), key=lambda tup: labels.index(tup[0]))
+
+        def label(s):
+            return 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
+
+        def status(got_merch):
+            return 'picked_up' if got_merch else 'outstanding'
+
         sales_by_week = OrderedDict([(i, 0) for i in range(50)])
 
         for attendee in session.all_attendees():
@@ -366,7 +442,8 @@ class Root:
         }
 
     def extra_merch(self, session):
-        return {'attendees': session.query(Attendee).filter(Attendee.extra_merch != '').order_by(Attendee.full_name).all()}
+        return {
+            'attendees': session.query(Attendee).filter(Attendee.extra_merch != '').order_by(Attendee.full_name).all()}
 
     def restricted_untaken(self, session):
         untaken = defaultdict(lambda: defaultdict(list))
@@ -412,8 +489,14 @@ class Root:
 
     def volunteers_owed_refunds(self, session):
         attendees = session.all_attendees().filter(Attendee.paid.in_([c.HAS_PAID, c.PAID_BY_GROUP, c.REFUNDED])).all()
-        is_unrefunded = lambda a: a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid\
-                                                          and not a.group.amount_refunded
+
+        def is_unrefunded(a):
+            return a.paid == c.HAS_PAID \
+                or a.paid == c.PAID_BY_GROUP \
+                and a.group \
+                and a.group.amount_paid \
+                and not a.group.amount_refunded
+
         return {
             'attendees': [(
                 'Volunteers Owed Refunds',
@@ -423,8 +506,8 @@ class Root:
                 [a for a in attendees if not is_unrefunded(a) and a.staffing]
             ), (
                 'Volunteers Who Can Be Refunded Once Their Shifts Are Marked',
-                [a for a in attendees if is_unrefunded(a) and a.worked_hours < c.HOURS_FOR_REFUND
-                                                          and a.weighted_hours >= c.HOURS_FOR_REFUND]
+                [a for a in attendees if is_unrefunded(a)
+                    and a.worked_hours < c.HOURS_FOR_REFUND and a.weighted_hours >= c.HOURS_FOR_REFUND]
             )]
         }
 
@@ -440,7 +523,7 @@ class Root:
             'Subject', 'Start Date', 'Start Time', 'End Date', 'End Time',
             'All Day Event', 'Description', 'Location', 'Private'])
 
-        query = session.query(Attendee).filter(Attendee.birthdate != None)
+        query = session.query(Attendee).filter(Attendee.birthdate != None)  # noqa: E711
         for person in query.all():
             subject = "%s's Birthday" % person.full_name
             delta_years = year - person.birthdate.year
@@ -461,7 +544,7 @@ class Root:
 
         is_multiyear = c.EPOCH.year != c.ESCHATON.year
         is_multimonth = c.EPOCH.month != c.ESCHATON.month
-        query = session.query(Attendee).filter(Attendee.birthdate != None)
+        query = session.query(Attendee).filter(Attendee.birthdate != None)  # noqa: E711
         birth_month = extract('month', Attendee.birthdate)
         birth_day = extract('day', Attendee.birthdate)
         if is_multiyear:
@@ -513,3 +596,7 @@ class Root:
             out.writerow([
                 subject, start_date, '', end_date, '', all_day, '', '', private
             ])
+
+    def all_attendees(self):
+        raise HTTPRedirect('../export/valid_attendees')
+    all_attendees.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]

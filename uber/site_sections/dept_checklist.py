@@ -1,4 +1,35 @@
-from uber.common import *
+from datetime import datetime
+
+from pytz import UTC
+from sqlalchemy.orm import subqueryload
+
+from uber.config import c
+from uber.decorators import all_renderable, csrf_protected, department_id_adapter, render
+from uber.errors import HTTPRedirect
+from uber.models import Attendee, Department, DeptChecklistItem
+from uber.utils import check, check_csrf, days_before, DeptChecklistConf
+
+
+def _submit_checklist_item(session, department_id, submitted, csrf_token, slug):
+    if not department_id:
+        raise HTTPRedirect('../dept_checklist/index')
+    attendee = session.admin_attendee()
+    department = session.query(Department).options(
+        subqueryload(Department.dept_checklist_items)).get(department_id)
+    if submitted:
+        item = department.checklist_item_for_slug(slug)
+        if not item:
+            item = DeptChecklistItem(attendee=attendee, department=department, slug=slug)
+
+        # since this form doesn't use our normal utility methods, we need to do this manually
+        check_csrf(csrf_token)
+        session.add(item)
+        raise HTTPRedirect(
+            '../dept_checklist/index?department_id={}&message={}',
+            department_id,
+            'Thanks for completing the {} form!'.format(slug.replace('_', ' ')))
+
+    return {'department': department}
 
 
 @all_renderable(c.PEOPLE)
@@ -33,12 +64,11 @@ class Root:
         attendee = session.admin_attendee()
         department = session.query(Department).options(
             subqueryload(Department.dept_checklist_items)).get(department_id)
-        conf = DeptChecklistConf.instances[slug]
+
         if department.checklist_item_for_slug(slug):
             message = 'Checklist item already marked as complete'
         else:
-            item = DeptChecklistItem(
-                attendee=attendee, department=department, slug=slug)
+            item = DeptChecklistItem(attendee=attendee, department=department, slug=slug)
             message = check(item)
             if not message:
                 session.add(item)
@@ -59,8 +89,7 @@ class Root:
                 attendee=attendee, department=department, slug=slug)
 
         if comments is not None:
-            # since this form doesn't use our normal utility methods, we need
-            # to check the csrf_token manually
+            # since this form doesn't use our normal utility methods, we need to check the csrf_token manually
             check_csrf(csrf_token)
             item.comments = comments
             message = check(item)
@@ -127,8 +156,15 @@ class Root:
                 subqueryload(Department.checklist_admins),
                 subqueryload(Department.dept_checklist_items)) \
             .order_by(Department.name)
+
+        emails = []
+        for dept in departments:
+            if not dept.checklist_item_for_slug(conf.slug):
+                emails.extend([dh.email for dh in dept.dept_heads if dh.email])
+
         return {
             'conf': conf,
+            'delinquent_emails': sorted(set(emails)),
             'overview': [(
                 dept,
                 dept.checklist_item_for_slug(conf.slug),
@@ -139,22 +175,79 @@ class Root:
 
     @department_id_adapter
     def hotel_setup(self, session, department_id=None, submitted=None, csrf_token=None):
+        return _submit_checklist_item(session, department_id, submitted, csrf_token, 'hotel_setup')
+
+    @department_id_adapter
+    def logistics(self, session, department_id=None, submitted=None, csrf_token=None):
+        return _submit_checklist_item(session, department_id, submitted, csrf_token, 'logistics')
+
+    @department_id_adapter
+    def treasury(self, session, department_id=None, submitted=None, csrf_token=None):
         if not department_id:
             raise HTTPRedirect('../dept_checklist/index')
         attendee = session.admin_attendee()
         department = session.query(Department).options(
             subqueryload(Department.dept_checklist_items)).get(department_id)
         if submitted:
-            slug = 'hotel_setup'
+            slug = 'treasury'
             item = department.checklist_item_for_slug(slug)
             if not item:
-                item = DeptChecklistItem(
-                    attendee=attendee, department=department, slug=slug)
-            check_csrf(csrf_token)  # since this form doesn't use our normal utility methods, we need to do this manually
+                item = DeptChecklistItem(attendee=attendee, department=department, slug=slug)
+
+            # since this form doesn't use our normal utility methods, we need to do this manually
+            check_csrf(csrf_token)
             session.add(item)
             raise HTTPRedirect(
                 '../dept_checklist/index?department_id={}&message={}',
                 department_id,
-                'Thanks for completing the hotel setup form!')
+                'Thanks for completing the MPoints form!')
+
+        return {'department': department}
+
+    @department_id_adapter
+    def allotments(self, session, department_id=None, submitted=None, csrf_token=None, **params):
+        if not department_id:
+            raise HTTPRedirect('../dept_checklist/index')
+        attendee = session.admin_attendee()
+        department = session.query(Department).options(
+            subqueryload(Department.dept_checklist_items)).get(department_id)
+
+        if submitted:
+            slug = 'allotments'
+            item = department.checklist_item_for_slug(slug)
+            if not item:
+                item = DeptChecklistItem(attendee=attendee, department=department, slug=slug)
+
+            # since this form doesn't use our normal utility methods, we need to do this manually
+            check_csrf(csrf_token)
+            item.comments = render('dept_checklist/allotments.txt', params).decode('utf-8')
+            session.add(item)
+            raise HTTPRedirect(
+                '../dept_checklist/index?department_id={}&message={}',
+                department_id,
+                'Treasury checklist data uploaded')
+
+        return {'department': department}
+
+    @department_id_adapter
+    def tech_requirements(self, session, department_id=None, submitted=None, csrf_token=None):
+        if not department_id:
+            raise HTTPRedirect('../dept_checklist/index')
+        attendee = session.admin_attendee()
+        department = session.query(Department).options(
+            subqueryload(Department.dept_checklist_items)).get(department_id)
+        if submitted:
+            slug = 'tech_requirements'
+            item = department.checklist_item_for_slug(slug)
+            if not item:
+                item = DeptChecklistItem(attendee=attendee, department=department, slug=slug)
+
+            # since this form doesn't use our normal utility methods, we need to do this manually
+            check_csrf(csrf_token)
+            session.add(item)
+            raise HTTPRedirect(
+                '../dept_checklist/index?department_id={}&message={}',
+                department_id,
+                'Thanks for completing the tech requirements form!')
 
         return {'department': department}

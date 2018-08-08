@@ -3,63 +3,92 @@
 {% block page_style %}
 <style>
 .fc-toolbar.fc-header-toolbar {
-	margin-left:15px;
-	margin-right:15px;
+  margin-left:15px;
+  margin-right:15px;
+}
+#shift_cal {
+  margin-top: 15px;
 }
 .shift_icon {
-	border-radius:15px;
-	width:30px;
-	height:30px;
-	display:inline-block;
+  border-radius:15px;
+  width:30px;
+  height:30px;
+  display:inline-block;
 }
 .shift_taken {
-	background-color:#239875;
+  background-color:#239875;
 }
 .shift_available {
-	background-color:#305fc9;
+  background-color:#305fc9;
 }
 .fc-list-item-title .shift_button {
-	color:white;
-	float:right;
+  color:white;
+  float:right;
 }
-
+.text-public {
+  color: #40c000;
 }
 </style> {% endblock %} {% block main_content %} <div class="hidden csrf_token"> {{ csrf_token() }} </div>
 
 
 <div class="row">
-	<div class="col-md-12 text-center">
-	<span style="font-size:16pt ; font-weight:bold" class="ng-binding">{{ name }}'s available shifts</span>
-   	</div>
+  <div class="col-md-12 text-center">
+  <span style="font-size:16pt ; font-weight:bold" class="ng-binding">{{ name }}'s available shifts</span>
+    </div>
 </div>
 <div class="row">
-	<div class="col-md-12 text-center">
-   		<span style="font-size:12pt ; font-style:italic" class="ng-binding">(If you are not {{ name }}, <a href="login">log in here</a>.)</span>
-	</div>
+  <div class="col-md-12 text-center">
+      <span style="font-size:12pt ; font-style:italic" class="ng-binding">(If you are not {{ name }}, <a href="login">log in here</a>.)</span>
+  </div>
 </div>
-<div class=row">
-	<div class="col-md-12 text-center">
-		<table width="100%" style="text-align:center">
-   		<tbody><tr>
-       			<td ng-bind-html-unsafe="'../static_views/stafferComps.html' | popupLink:'See What You Get For Volunteering'"></td>
-       <!-- ngIf: !c.HIDE_SCHEDULE -->
-   </tr>
-   </tbody></table>
-   <br>
-        <a href="#" class="toggle-cal" state="all">Click Here</a>
-	<span class="all-state-text state-text"> to see the {{hours}} weighted hours worth of shifts you are signed up for</span>
-        <span class="shift-state-text hidden state-text"> to sign up for more shifts; you are currently signed up for {{hours}} weighted hours</span>
-
-
-   <br> or <a href="index">Click Here</a> to return to the main page of the Volunteer Checklist.
-	</div>
+<div class="row">
+  <div class="col-md-12 text-center">
+    <span style="margin-right: 15px;">
+      {{ macros.popup_link("../static_views/stafferComps.html", "What do I get for volunteering?") }}
+    </span>
+    {% if not c.HIDE_SCHEDULE %}
+      <span style="margin-left: 15px;">
+        <a target="_blank" href="../schedule/">View the {{ c.EVENT_NAME }} Schedule</a>
+      </span>
+    {% endif %}
+    <br><br>
+    You are assigned to the following department{{ assigned_depts_labels|length|pluralize }}: {{ assigned_depts_labels|join(' / ') }}.
+    <br>
+    {% if has_public_jobs %}
+      <br>
+      Some of the listed jobs are in departments you are not assigned to
+      (marked like this <sup class="text-public">public</sup>).
+      <br>
+      {% if c.MAX_DEPTS_WHERE_WORKING > 0 %}
+        You may sign up any of the listed jobs, but you'll be prevented from
+        working in more than {{ c.MAX_DEPTS_WHERE_WORKING }}
+        department{{ c.MAX_DEPTS_WHERE_WORKING|pluralize }}.
+        <br>
+      {% endif %}
+    {% endif %}
+    <br>
+    <div class="state-text">
+      <a href="#" class="toggle-is_public" state="nonpublic">Click Here</a>
+      <span class="nonpublic-state-text is_public-state-text">
+        to <b>show</b> <span class="text-public">public</span> jobs in departments you are not assigned to.
+      </span>
+      <span class="public-state-text hidden is_public-state-text">
+        to <b>hide</b> <span class="text-public">public</span> jobs in departments you are not assigned to.
+      </span>
+      <br>
+    </div>
+    <a href="#" class="toggle-cal" state="all">Click Here</a>
+    <span class="all-state-text state-text"> to see the {{hours}} weighted hours worth of shifts you are signed up for</span>
+    <span class="shift-state-text hidden state-text"> to sign up for more shifts; you are currently signed up for {{hours}} weighted hours</span>
+    <br>
+    or <a href="index">Click Here</a> to return to the main page of the Volunteer Checklist.
+  </div>
 </div>
 
 <div class="row">
-
-	<div class="col-md-10 col-md-offset-1 col-xs-12">
-		<div id="shift_cal"></div>
-	</div>
+  <div class="col-md-10 col-md-offset-1 col-xs-12">
+    <div id="shift_cal"></div>
+  </div>
 </div>
 {% endblock %}
 {% block page_script %}
@@ -71,29 +100,35 @@
 <script type="text/javascript" src="../static/js/fullcalendar.min.js"></script>
 
 <script type="text/javascript">
-	var eventList = new Array();
-	var shiftList = new Array();
+  var eventList = new Array();
+  var shiftList = new Array();
+  var publicEventList = new Array();
 
     $(document).ready(function() {
         {% for job in jobs %}
             {% if job.taken %}
-                shiftList.push({
+                var takenShift = {
                     title : "{{ job.name }} ({{ job.department_name }}) x{{ job.weight }}",
                     start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                     end : "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                     id : "{{ job.id }}",
-                    description: "{{ job.description }}",
+                    is_public: {{ job.is_public|string|lower }},
+                    is_public_to_volunteer: {{ job.is_public_to_volunteer|string|lower }},
+                    description: "{{ job.description|linebreaksbr }}",
                     extra15: {{ job.extra15|string|lower }},
                     backgroundColor: "#239875",
                     taken: true
-                });
+                };
+                shiftList.push(takenShift);
             {% endif %}
-            eventList.push({
+            var shift = {
                 title : "{{ job.name }} ({{ job.department_name }}) x{{ job.weight }}",
                 start : "{{ job.start_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                 end : "{{ job.end_time_local|datetime("%Y-%m-%dT%H:%M:%S") }}",
                 id : "{{ job.id }}",
-                description: "{{ job.description }}",
+                is_public: {{ job.is_public|string|lower }},
+                is_public_to_volunteer: {{ job.is_public_to_volunteer|string|lower }},
+                description: "{{ job.description|linebreaksbr }}",
                 extra15: {{ job.extra15|string|lower }},
                 {% if job.taken %}
                     backgroundColor: "#239875",
@@ -102,7 +137,11 @@
                     backgroundColor: "#305fc9",
                     taken: false
                 {% endif %}
-            });
+            };
+            publicEventList.push(shift);
+            if (shift.taken || !shift.is_public_to_volunteer) {
+              eventList.push(shift);
+            }
         {% endfor %}
 
         $('#shift_cal').fullCalendar({
@@ -111,7 +150,7 @@
                 center: 'title',
                 right: 'agendaDay,agendaConWeek,listConDuration'
             },
-			views: {
+            views: {
                 agendaDay: { buttonText: 'Day' },
                 agendaConWeek: {
                     type: 'agenda',
@@ -159,6 +198,11 @@
                     buttonTag += 'Sign up';
                 }
                 buttonTag += '</a>';
+
+                if(event.is_public_to_volunteer) {
+                  element.find('.fc-list-item-title').append($('<sup class="text-public"> public</sup>'));
+                  element.find('.fc-title').append($('<sup class="text-public"> public</sup>'));
+                }
                 element.find('.fc-list-item-title').append(eventDesc + buttonTag);
                 element.find('.fc-title').append(" " + buttonTag + '<br/>' + eventDesc);
             }
@@ -170,18 +214,35 @@
                 $('#shift_cal').fullCalendar('gotoDate', '{{ start }}');
             {% endif %}
         {% endif %}
-		$(".toggle-cal").click(function() {
-			$("#shift_cal").fullCalendar('removeEventSources');
-			if($(this).attr('state')=='all') {
-				$("#shift_cal").fullCalendar('addEventSource',shiftList);
-				$(this).attr('state','shift');
-			} else {
-				$("#shift_cal").fullCalendar('addEventSource',eventList);
-				$(this).attr('state','all');
-			}
-			$("#shift_cal").fullCalendar('refetchEvents');
-			$(".state-text").toggleClass('hidden');
-		});
+
+      $(".toggle-cal").click(function() {
+        $("#shift_cal").fullCalendar('removeEventSources');
+        if ($(this).attr('state')=='all') {
+          $("#shift_cal").fullCalendar('addEventSource', shiftList);
+          $(this).attr('state', 'shift');
+        } else {
+          var isPublic = $(".toggle-is_public").attr('state') == 'public';
+          $("#shift_cal").fullCalendar('addEventSource', isPublic ? publicEventList : eventList);
+          $(this).attr('state', 'all');
+        }
+        $("#shift_cal").fullCalendar('refetchEvents');
+        $(".state-text").toggleClass('hidden');
+      });
+
+      $(".toggle-is_public").click(function() {
+        var isShifts = $(".toggle-cal").attr('state') == 'shift';
+        $("#shift_cal").fullCalendar('removeEventSources');
+        if ($(this).attr('state')=='public') {
+          $("#shift_cal").fullCalendar('addEventSource', isShifts ? shiftList: eventList);
+          $(this).attr('state', 'nonpublic');
+        } else {
+          $("#shift_cal").fullCalendar('addEventSource', isShifts ? shiftList: publicEventList);
+          $(this).attr('state', 'public');
+        }
+        $("#shift_cal").fullCalendar('refetchEvents');
+        $(".is_public-state-text").toggleClass('hidden');
+      });
+
     });
 
     function click_shift(taken,id,start,title) {
@@ -191,14 +252,14 @@
         postData['csrf_token'] =  $("div.csrf_token input").attr('value');
         var confirmStr = "Do you want to ";
         if (taken=='true') {
-        	confirmStr += "drop ";
+          confirmStr += "drop ";
         } else {
             confirmStr += "sign up for ";
         }
         confirmStr += title + " at " + time + " on " + date + "?";
         var r = confirm(confirmStr);
         if (r == true) {
-        	var tgtShiftURL = "sign_up?job_id="+ id;
+          var tgtShiftURL = "sign_up?job_id="+ id;
             if(taken=='true') {
                 tgtShiftURL = "drop?job_id=" + id;
             }

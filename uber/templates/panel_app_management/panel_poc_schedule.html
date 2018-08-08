@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+    <head><title>{{ attendee.full_name }} event schedule</title></head>
+    <body>
+        <h2>{{ attendee.full_name }} event schedule</h2>
+        {% if locations %}
+        <table cellspacing="5" cellpadding="5" border="2">
+            <thead>
+                <tr>
+                    <th></th>
+                    {% for location in locations %}
+                        <th>{{ location }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for when, events in schedule %}
+                    <tr>
+                        <td>{{ when|datetime_local("%I:%M %p")|lower }} {{ when|datetime_local("%a") }}</td>
+                        {% for rowspan, event_name in events %}
+                            {% if rowspan %}
+                                <td rowspan="{{ rowspan }}" {% if not event_name %}style="border:0px"{% endif %}>{{ event_name }}</td>
+                            {% endif %}
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        The attendee is not the point of contact for any scheduled events.
+        {% endif %}
+    </body>
+</html>

@@ -1,15 +1,14 @@
 from datetime import datetime
 
 from pytz import UTC
-from sideboard.lib.sa import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Integer
 
 from uber.config import c
 from uber.models import MagModel
 from uber.models.attendee import Attendee
-from uber.models.types import default_relationship as relationship, Choice, \
-    DefaultColumn as Column
+from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column
 
 
 __all__ = [
@@ -66,8 +65,7 @@ class OldMPointExchange(MagModel):
 
 
 class Sale(MagModel):
-    attendee_id = Column(
-        UUID, ForeignKey('attendee.id', ondelete='set null'), nullable=True)
+    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='set null'), nullable=True)
     what = Column(UnicodeText)
     cash = Column(Integer, default=0)
     mpoints = Column(Integer, default=0)

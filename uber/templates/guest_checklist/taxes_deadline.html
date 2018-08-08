@@ -1,0 +1,48 @@
+{% if snippet %}
+  {% if guest.payment %}
+    <tr>
+      <td width="25">{{ macros.checklist_image(guest.taxes_status) }}</td>
+      <td><b><a href="taxes?guest_id={{ guest.id }}">
+        {% block deadline_headline %}Completed W9{% endblock %}</a></b></td>
+      <td><i>Deadline:</i> {{ guest.deadline_from_model('taxes')|datetime_local }}</td>
+    </tr>
+    <tr>
+      <td colspan="3">
+        {% block deadline_text %}
+          {% if guest.taxes_status %}
+            You have already uploaded your W9 form, but if you need to make changes you can upload a new one
+            using the link above.
+          {% else %}
+            Use the link above to upload a completed W9 form (a link will be provided to a blank form).
+          {% endif %}
+        {% endblock %}
+        <br/></br>
+      </td>
+    </tr>
+  {% endif %}
+{% else %}
+  <h2>{% block form_title %}Completed W9 for {{ guest.group.name }}{% endblock %}</h2>
+
+  {% block form_desc %}
+    {% if guest.taxes_status %}
+      <a href="{{ guest.taxes.w9_url }}">Click here to view the W9 tax form you uploaded.</a>
+      <br/><br/>
+      Need to update this form?
+    {% endif %}
+
+    You can find a blank W9 form <a target="_blank" href="https://www.irs.gov/pub/irs-pdf/fw9.pdf">here</a>.
+    Please upload a filled out copy of this form.
+  {% endblock %}
+
+  <br/><br/>
+
+  <form method="post" action="w9" enctype="multipart/form-data">
+    <input type="hidden" name="guest_id" value="{{ guest.id }}" />
+    <input type="hidden" name="id" value="{{ guest_taxes.db_id }}" />
+    {{ csrf_token() }}
+    <input type="file" name="w9" />
+    <br/>
+    {% block form_extra %}{% endblock %}
+    <input type="submit" class="btn btn-primary" value="Upload Completed Form" />
+  </form>
+{% endif %}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Panelist Badges{% endblock %}}
+{% block content %}
+
+<script>
+    var hideRow = function (applicantId) {
+        $('#' + applicantId).hide('slow');
+    };
+    var setCompCount = function (teamId, newCount) {
+        $('.' + teamId).text(newCount);
+    };
+    var link = function (teamId, applicantId, attendeeId) {
+        $.post('link_badge', {csrf_token: csrf_token, applicant_id: applicantId, attendee_id: attendeeId}, function (response) {
+            if (response.error) {
+                toastr.error(response.error);
+            } else {
+                toastr.info('Linked applicant to ' + response.name);
+                hideRow(applicantId);
+                setCompCount(teamId, response.comp_count);
+            }
+        }, 'json');
+    };
+    var create = function (teamId, applicantId) {
+        $.post('create_badge', {csrf_token: csrf_token, applicant_id: applicantId}, function (response) {
+            if (response.error) {
+                toastr.error(response.error);
+            } else {
+                toastr.info('Added new attendee badge for applicant');
+                hideRow(applicantId);
+                setCompCount(teamId, response.comp_count);
+            }
+        }, 'json');
+    };
+</script>
+
+<h3>Applicants needing badges</h3>
+
+The following is a list of applicants from accepted teams which are NOT marked as having a badge.  You may use the
+forms below to add badges for those without them OR associate these applicants with existing attendee records.
+
+<table class="table table-striped">
+<thead>
+    <tr>
+        <th>Team</th>
+        <th>Comped Badges</th>
+        <th>Applicant Name</th>
+        <th>Applicant Email</th>
+        <th>Possible Matches</th>
+        <th></th>
+    </tr>
+</thead>
+<tbody>
+{% for a, matches in applicants %}
+    <tr id="{{ a.id }}">
+        <td><a href="team?id={{ a.team_id }}">{{ a.team.name }}</a></td>
+        <td class="{{ a.team_id }}">{{ a.team.comped_badge_count }}</td>
+        <td>{{ a.full_name }}</td>
+        <td>{{ a.email|email_to_link }}</td>
+        <td>
+            {% for attendee in matches %}
+                <p>
+                    <button onClick="link('{{ a.team_id }}', '{{ a.id }}', '{{ attendee.id }}')">Link</button>
+                    {{ attendee|form_link }} [{{ attendee.badge }}] ({{ attendee.email }})
+                </p>
+            {% else %}
+                (no matching attendees)
+            {% endfor %}
+        </td>
+        <td><button onClick="create('{{ a.team_id }}', '{{ a.id }}')">Add Comped Badge</button></td>
+    </tr>
+{% else %}
+    <tr>
+        <td colspan="5"><i>No un-associated applicants</td>
+    </tr>
+{% endfor %}
+</tbody>
+</table>
+
+{% endblock %}

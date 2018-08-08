@@ -1,0 +1,16 @@
+Ahoy {{ game.studio.primary_contact.first_name }},
+
+We're looking forward to seeing you and your games at MAGFest 2018. We wanted to send you information about two items that require your timely attention.
+
+* MIVS Hotel Signups
+Each team showcasing at MIVS has the ability to purchase one room at the Gaylord. Information that we currently have such as pricing are on the form.  If you're interested in doing this, your primary contact will need to fill out the google form here by November 26th, 11:59pm. (EST) 
+https://docs.google.com/forms/d/11p-K4UKzPcLrsh576YgZc0AOhctAjSe2_I3xPGiwm0k/edit?ts=5a10aa3c
+
+* Selling at MAGFest
+If you're interested in selling your game while at MAGFest, we need to collect your groups tax information so it can be sent to the comptroller. The deadline for filling this out is December 1st.  
+https://docs.google.com/forms/d/e/1FAIpQLSdOc5Ox6E9wDFGxqORoWkf7tSxnqh9ho4e9OdUdJTVN01zbBg/viewform
+
+
+We're collecting more information and you can an email from us again within the next week. We want you to know that it's a pleasure to you have in the 2018 MAGFest Indie Video Game Showcase.
+
+-MIVS Staff

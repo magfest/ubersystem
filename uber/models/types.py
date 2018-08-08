@@ -1,22 +1,23 @@
 from collections import Mapping, OrderedDict
 from datetime import datetime, time, timedelta
 
-from sideboard.lib import listify
-from sideboard.lib.sa import _underscore_to_camelcase as camel, JSON, \
-    CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+import pytz
+from pockets import camel, fieldify, listify
+from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import Column
 from sqlalchemy.sql.expression import FunctionElement
 from sqlalchemy.types import Integer, TypeDecorator
 
-from uber.config import c
-from uber.custom_tags import fieldify
+from uber.config import c, _config as config
+from uber.utils import url_domain
 
 
 __all__ = [
-    'default_relationship', 'relationship', 'utcnow', 'Choice', 'Column',
-    'DefaultColumn', 'JSONColumnMixin', 'MultiChoice', 'TakesPaymentMixin']
+    'default_relationship', 'relationship', 'utcmin', 'utcnow', 'Choice',
+    'Column', 'DefaultColumn', 'JSONColumnMixin', 'MultiChoice',
+    'SocialMediaMixin', 'TakesPaymentMixin']
 
 
 def DefaultColumn(*args, admin_only=False, private=False, **kwargs):
@@ -65,6 +66,65 @@ def default_relationship(*args, **kwargs):
 # Alias Column and relationship to maintain backwards compatibility
 SQLAlchemy_Column, Column = Column, DefaultColumn
 SQLAlchemy_relationship, relationship = relationship, default_relationship
+
+
+class utcmax(FunctionElement):
+    """
+    Exactly the same as utcnow(), but uses '9999-12-31 23:59' instead of now.
+
+    See utcmin and utcnow for more details.
+
+    """
+    datetime = datetime(9999, 12, 31, 23, 59, 59, tzinfo=pytz.UTC)
+    type = UTCDateTime()
+
+
+@compiles(utcmax, 'postgresql')
+def pg_utcmax(element, compiler, **kw):
+    return "timezone('utc', '9999-12-31 23:59:59')"
+
+
+@compiles(utcmax, 'sqlite')
+def sqlite_utcmax(element, compiler, **kw):
+    return "(datetime('9999-12-31 23:59:59', 'utc'))"
+
+
+class utcmin(FunctionElement):
+    """
+    Exactly the same as utcnow(), but uses '0001-01-01 00:00' instead of now.
+
+    Useful for datetime columns that you would like to index. We often need
+    to create datetime columns that are NULL until a particular event happens,
+    like an attendee checks in to an event. For those columns that we'd like
+    to query (either for "IS NULL", or "IS NOT NULL"), an index isn't helpful,
+    because Postgres doesn't index NULL values.
+
+    In those cases where we'd like to query against a NULL datetime column,
+    instead of using NULLable, we can use a NOT NULL datetime column, and make
+    the default value utcmin(). We can consider any value in the column
+    greater than '0001-01-01 00:00' to be NOT NULL.
+
+    Instead of::
+
+        Attendee.checkin_time != None
+
+    We can get the benefits of indexing by doing::
+
+        Attendee.checkin_time > utcmin.datetime
+
+    """
+    datetime = datetime(1, 1, 1, 0, 0, 0, tzinfo=pytz.UTC)
+    type = UTCDateTime()
+
+
+@compiles(utcmin, 'postgresql')
+def pg_utcmin(element, compiler, **kw):
+    return "timezone('utc', '0001-01-01 00:00')"
+
+
+@compiles(utcmin, 'sqlite')
+def sqlite_utcmin(element, compiler, **kw):
+    return "(datetime('0001-01-01 00:00', 'utc'))"
 
 
 class utcnow(FunctionElement):
@@ -173,8 +233,8 @@ def JSONColumnMixin(column_name, fields, admin_only=False):
     For example::
 
         >>> SocialMediaMixin = JSONColumnMixin('social_media', ['Twitter', 'LinkedIn'])
-        >>> SocialMediaMixin.social_media
-        Column('social_media', JSON(), table=None, nullable=False, default=ColumnDefault({}), server_default=DefaultClause('{}', for_update=False))
+        >>> SocialMediaMixin.social_media # doctest: +ELLIPSIS
+        Column('social_media', JSON(), ... server_default=DefaultClause('{}', for_update=False))
         >>> SocialMediaMixin._social_media_fields
         OrderedDict([('twitter', 'Twitter'), ('linked_in', 'LinkedIn')])
         >>> SocialMediaMixin._social_media_qualified_fields
@@ -211,15 +271,16 @@ def JSONColumnMixin(column_name, fields, admin_only=False):
     Returns:
         type: A new mixin class with a JSON column named column_name.
 
-    """  # noqa: E501
+    """
+
     fields_name = '_{}_fields'.format(column_name)
     qualified_fields_name = '_{}_qualified_fields'.format(column_name)
     if isinstance(fields, Mapping):
         fields = OrderedDict([(fieldify(k), v) for k, v in fields.items()])
     else:
         fields = OrderedDict([(fieldify(s), s) for s in listify(fields)])
-    qualified_fields = OrderedDict(
-        [(column_name + '__' + s, s) for s in fields.keys()])
+
+    qualified_fields = OrderedDict([(column_name + '__' + s, s) for s in fields.keys()])
     column = Column(column_name, JSON, default={}, server_default='{}')
     attrs = {
         column_name: column,
@@ -271,10 +332,45 @@ def JSONColumnMixin(column_name, fields, admin_only=False):
     return _Mixin
 
 
+class SocialMediaMixin(JSONColumnMixin('social_media', c.SOCIAL_MEDIA)):
+    _social_media_urls = config.get('social_media_urls', {})
+    _social_media_placeholders = config.get('social_media_placeholders', {})
+
+    @classmethod
+    def get_placeholder(cls, name):
+        name = cls.unqualify(name)
+        return cls._social_media_placeholders.get(name, '')
+
+    @property
+    def has_social_media(self):
+        return any(getattr(self, f) for f in self._social_media_fields.keys())
+
+    def __getattr__(self, name):
+        if name.endswith('_url'):
+            field_name = self.unqualify(name[:-4])
+            if field_name in self._social_media_fields:
+                attr = super(SocialMediaMixin, self).__getattr__(field_name)
+                attr = attr.strip('@#?=. ') if attr else ''
+                if attr:
+                    if attr.startswith('http:') or attr.startswith('https:'):
+                        return attr
+                    else:
+                        url = self._social_media_urls.get(field_name, '{}')
+                        if url_domain(url.format('')) in url_domain(attr):
+                            return attr
+                        return url.format(attr)
+                return ''
+            else:
+                return super(SocialMediaMixin, self).__getattr__(name)
+        elif name.endswith('_placeholder'):
+            return self.get_placeholder(name[:-12])
+        else:
+            return super(SocialMediaMixin, self).__getattr__(name)
+
+
 class TakesPaymentMixin(object):
     @property
     def payment_deadline(self):
         return min(
             c.UBER_TAKEDOWN - timedelta(days=2),
-            datetime.combine(
-                (self.registered + timedelta(days=14)).date(), time(23, 59)))
+            datetime.combine((self.registered + timedelta(days=14)).date(), time(23, 59)))

@@ -3,19 +3,43 @@
 {% block content %}
 
 {% block adminheader %}
-<script type="text/javascript">
-    $(function(){
-        document.getElementById('search_bar').select();
-    });
+  {% if c.REG_USES_BARCODES %}
+    {% include 'barcode_client.html' %}
+  {% endif %}
 
-</script>
-    {% include "check_in.html" %}
+  <script>
+    $(function() {
+      $('#search_bar').select();
+
+      {% if c.REG_USES_BARCODES %}
+        $('#search_bar').barcodeField({
+          detectUUID: true,
+          detectBadgeNum: true,
+          autoSubmitForm: '#search_form',
+          shouldAutoFill: function() {
+            return !$('#checkin-badge').is(':visible');
+          },
+          shouldAutoSubmit: function() {
+            return !$('#checkin-badge').is(':visible');
+          }
+        });
+
+        $('body').barcodeField({
+          targetField: '#checkin-badge',
+          blurOnKeys: ['~', '\\'],
+          detectBadgeNum: true,
+          showErrorMessageWhenHidden: false
+        });
+      {% endif %}
+    });
+  </script>
+  {% include "check_in.html" %}
 
 {% endblock adminheader %}
 {% block admin_controls %}
 <div class="row">
     <div class="col-sm-6 col-md-4">
-        <form role="form" method="get" action="index">
+      <form role="form" method="get" action="index" id="search_form">
             <input type="hidden" name="order" value="{{ order }}" />
             <input type="hidden" name="invalid" value="{{ invalid }}" />
             <div class="input-group">
@@ -151,6 +175,21 @@
       </div>
     {% endif %}
 </div>
+{% if attendees|length > 15 %}
+<ul class="pagination{% if not page %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
+{% for pagenum in pages %}
+   {% if pagenum == page %}
+   <li class="page-item active">
+      <a class="page-link" href="#">{{ pagenum }}</a>
+    </li>
+    {% else %}
+    <li class="page-item">
+        <a class="page-link" href="index?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">{{ pagenum }}</a>
+    {% endif %}
+    </li>
+{% endfor %}
+</ul>
+{% endif %}
 
 {% endblock table %}
 {% endblock content %}

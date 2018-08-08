@@ -385,11 +385,32 @@
   </div>
   <div class="row">
     <div class="col-sm-12">
-      <h3>
-        Members
-        <small><a href="requests?department_id={{ department.id }}">View Membership Requests</a></small>
-      </h3>
+      <h3>Members</h3>
       {% if department.members %}
+        <p>
+          <a href="requests?department_id={{ department.id }}">
+            <span class="glyphicon glyphicon-bell"></span>
+            View membership requests
+          </a>
+        </p>
+        {% set member_emails = department.member_emails %}
+        {% if member_emails %}
+          <p>
+            <a href="mailto:{{ c.ADMIN_EMAIL }}?bcc={{ member_emails|join(',') }}">
+              <span class="glyphicon glyphicon-envelope"></span>
+              Email all members
+            </a>
+          </p>
+        {% endif %}
+        {% set members_with_shifts_emails = department.members_with_shifts_emails %}
+        {% if members_with_shifts_emails %}
+          <p>
+            <a href="mailto:{{ c.ADMIN_EMAIL }}?bcc={{ members_with_shifts_emails|join(',') }}">
+              <span class="glyphicon glyphicon-envelope"></span>
+              Email members with shifts
+            </a>
+          </p>
+        {% endif %}
         <div class="table-responsive">
           <table class="table table-hover datatable" data-page-length="25">
             <thead>

@@ -66,9 +66,12 @@
           <table class="table table-hover datatable" data-page-length="25" data-order="[[ 1, &quot;asc&quot; ]]">
             <thead>
               <tr>
-                <th class="text-nowrap">Add Member</th>
+                <th class="text-nowrap">Add</th>
                 <th>Name</th>
                 <th>Badge</th>
+                {%- if requested_any -%}
+                  <th class="text-right">Anywhere</th>
+                {%- endif -%}
               </tr>
             </thead>
             <tbody>
@@ -81,6 +84,9 @@
                     {{ attendee|form_link }}
                   </td>
                   <td>{{ attendee.badge }}</td>
+                  {%- if requested_any -%}
+                    <td class="text-right">{{ attendee.anywhere_dept_membership_request|yesno('Yes,No') }}</td>
+                  {%- endif -%}
                 </tr>
               {% endfor %}
             </tbody>

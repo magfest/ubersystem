@@ -23,11 +23,18 @@
 <div class="masthead"></div>
 <div class="panel panel-default">
   <div class="panel-body">
+    {% if c.ATTRACTIONS_ENABLED %}
+      {% include 'attractions_tabs.html' with context %}
+    {% endif %}
+    {% block panel_top %}{% endblock %}
+
     <form method="post" action="confirm" class="form-horizontal">
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ attendee.id }}" />
       <input type="hidden" name="return_to" value="{{ return_to }}" />
       <input type="hidden" name="undoing_extra" value="{{ undoing_extra }}" />
+
+      {% block form_top %}{% endblock %}
 
       {% if attendee.amount_unpaid and c.HTTP_METHOD == 'GET' %}
         <br/>
@@ -55,7 +62,7 @@
           {% if attendee.is_transferable %}
             <button type="button" class="btn btn-primary" onClick='location.href="transfer_badge?id={{ attendee.id }}"'>Transfer my Badge</button>
           {% endif %}
-          {% if can_abandon %}
+          {% if attendee.can_abandon_badge %}
             <button type="submit" form="abandon_badge" class="btn btn-danger" onClick="return confirm('Are you sure you want to delete your badge? This can\'t be undone!');">I'm not coming</button>
           {% endif %}
         </div>
@@ -76,7 +83,7 @@
       {% endif %}
     </form>
 
-    {% if can_abandon %}
+    {% if attendee.can_abandon_badge %}
       <form method="post" action="abandon_badge" id="abandon_badge">
         <input type="hidden" name="id" value="{{ attendee.id }}"/>
       </form>

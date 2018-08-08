@@ -1,0 +1,258 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Attraction Event{% endblock %}
+
+{% import 'attractions_macros.html' as attractions_macros with context %}
+
+{% block content %}
+<style type="text/css">
+  form {
+    max-width: 738px;
+  }
+
+  .event-title {
+    margin-bottom: 30px;
+  }
+
+  .attendees-title {
+    margin-top: 30px;
+  }
+
+  .footer {
+    padding: 100px 0;
+  }
+
+  .save_another .dropdown-menu > li > a {
+    padding: 0;
+  }
+
+  .save_another .dropdown-menu > li > a > input {
+    background-color: transparent;
+    border: 0 none transparent;
+    color: #333;
+    margin: 0;
+    padding: 3px 20px;
+  }
+
+  .table .controls {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .checked-in-hidden { display: inline-block; }
+  .checked-in .checked-in-hidden { display: none; }
+  .checked-in-visible { display: none; }
+  .checked-in .checked-in-visible { display: inline-block; }
+</style>
+
+{% include 'attractions_checkin.html' %}
+
+<script>
+  $(function() {
+    var $attendeesTable = $('#attendees-table');
+
+    $attendeesTable.on('click', '.btn-success', function(event) {
+      event.preventDefault();
+      var $button = $(this),
+          signupId = $button.data('signupId');
+      checkinSignup(signupId, function(response) {
+        if(response && response['error']) {
+          toastr.error(response['error'], '', {timeOut: 3000});
+        } else {
+          var $checkinTd = $button.closest('td'),
+              $cancelButton = $checkinTd.closest('tr').find('.controls button'),
+              $checkinTime = $checkinTd.children('.checkin_time');
+          $cancelButton.prop('disabled', true);
+          $checkinTime.text(moment(response['result']).format('dddd, MMM D [at] h:mma'));
+          $checkinTd.addClass('checked-in');
+        }
+      });
+    });
+
+    $attendeesTable.on('click', '.btn-warning', function(event) {
+      event.preventDefault();
+      var $button = $(this),
+          signupId = $button.data('signupId');
+      undoCheckinSignup(signupId, function(response) {
+        if(response && response['error']) {
+          toastr.error(response['error'], '', {timeOut: 3000});
+        } else {
+          var $checkinTd = $button.closest('td'),
+              $cancelButton = $checkinTd.closest('tr').find('.controls button'),
+              $checkinTime = $checkinTd.children('.checkin_time');
+          $cancelButton.prop('disabled', false);
+          $checkinTime.text('');
+          $checkinTd.removeClass('checked-in');
+        }
+      });
+    });
+
+    $attendeesTable.on('click', '.btn-danger', function(event) {
+      event.preventDefault();
+      var $button = $(this),
+          signupId = $button.data('signupId'),
+          attendeeName = $button.data('attendeeName');
+
+      bootbox.confirm({
+        backdrop: true,
+        message: '<p>Are you sure you want to cancel the signup for ' + attendeeName + '?</p>',
+        buttons: {
+          confirm: { label: 'Cancel Signup', className: 'btn-danger' },
+          cancel: { label: 'Nevermind', className: 'btn-default' }
+        },
+        callback: function (result) {
+          if (result) {
+            cancelSignup(signupId, function(response) {
+              if(response && response['error']) {
+                toastr.error(response['error'], '', {timeOut: 3000});
+              } else {
+                var $signupRow = $button.closest('tr');
+                $signupRow.fadeOut(function() {
+                  $attendeesTable.DataTable().row($signupRow).remove().draw();
+                });
+                toastr.success('Signup for ' + attendeeName + ' successfully cancelled', '', {timeOut: 3000});
+              }
+            });
+          }
+        }
+      });
+    });
+  });
+</script>
+
+<h2 class="event-title">
+  {%- if event.is_new -%}
+    <span class="glyphicon glyphicon-plus"></span> New event for the {{ attraction|form_link }} attraction
+  {%- else -%}
+    <span class="glyphicon glyphicon-cog"></span> Edit the {{ event.feature.name }} event for the {{ attraction|form_link }} attraction
+  {%- endif -%}
+</h2>
+
+<form method="post" action="event" class="form-horizontal" role="form">
+  {{ csrf_token() }}
+  <input type="hidden" name="id" value="{{ 'None' if event.is_new else event.id }}" />
+  <input type="hidden" name="attraction_id" value="{{ attraction.id }}">
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Feature</label>
+    <div class="col-sm-6">
+      {% if feature %}
+        <div class="form-control-static">{{ feature.name }}</div>
+        <input type="hidden" name="attraction_feature_id" value="{{ feature.id }}">
+      {% else %}
+        <select name="attraction_feature_id" class="form-control">
+          {{ options(attraction.feature_opts, event.attraction_feature_id) }}
+        </select>
+      {% endif %}
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Location</label>
+    <div class="col-sm-6">
+      <select name="location" class="form-control">
+        {% set used_location_opts = attraction.used_location_opts %}
+        {% if used_location_opts %}
+          {{ options(used_location_opts, event.location) }}
+          <option disabled="disabled">––––––––––</option>
+        {% endif %}
+        {{ options(attraction.unused_location_opts, event.location) }}
+      </select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Start Time</label>
+    <div class="col-sm-6">
+      {{ attractions_macros.form_datetime(event, 'start_time') }}
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Duration</label>
+    <div class="col-sm-6">
+      {{ attractions_macros.form_duration(event, 'duration') }}
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Slots</label>
+    <div class="col-sm-6">
+      <input name="slots" value="{{ event.slots }}" class="form-control" type="number" required="required" min="1">
+    </div>
+    <div class="clearfix"></div>
+    <div class="col-sm-offset-3 col-sm-9 help-block">
+      How many attendees can participate in this event at the same time?
+    </div>
+  </div>
+  <div class="form-group">
+    <div class="col-sm-9 col-sm-offset-3">
+      <input type="submit" name="save" class="btn btn-primary" value="Save">
+      <div class="btn-group save_another">
+        <button type="submit" name="save_another_0" class="btn btn-primary">Save & Add Another</button>
+        <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <span class="caret"></span>
+          <span class="sr-only">Toggle Dropdown</span>
+        </button>
+        <ul class="dropdown-menu">
+          <li><a href="#"><input type="submit" name="save_another_300" value="After 5 minute break"></a></li>
+          <li><a href="#"><input type="submit" name="save_another_600" value="After 10 minute break"></a></li>
+          <li><a href="#"><input type="submit" name="save_another_900" value="After 15 minute break"></a></li>
+          <li><a href="#"><input type="submit" name="save_another_1200" value="After 20 minute break"></a></li>
+          <li><a href="#"><input type="submit" name="save_another_1800" value="After 30 minute break"></a></li>
+          <li><a href="#"><input type="submit" name="save_another_2700" value="After 45 minute break"></a></li>
+          <li><a href="#"><input type="submit" name="save_another_3600" value="After 1 hour break"></a></li>
+        </ul>
+      </div>
+      <a href="form?id={{ attraction.id }}" type="button" class="btn btn-default">Cancel</a>
+    </div>
+  </div>
+</form>
+
+{%- if event.signups -%}
+  <h2 class="attendees-title">Attendees Signed Up</h2>
+  <table id="attendees-table" class="table table-hover table-responsive datatable"
+      data-paging="false"
+      data-info="false">
+    <thead>
+      <tr>
+        <th>Attendee</th>
+        <th>Badge #</th>
+        <th>Signup Time</th>
+        <th>Checkin Time</th>
+        <th class="controls" data-orderable="false"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for signup in event.signups %}
+        <tr id="{{ signup.id }}">
+          <td>{{ signup.attendee|form_link }}</td>
+          <td>#{{ signup.attendee.badge_num }}</td>
+          <td>{{ signup.signup_time|datetime_local('%A, %b %-e at %-I:%M%p') }}</td>
+          <td class="checkin {% if signup.is_checked_in %} checked-in{% endif %}" data-order="{{ signup.checkin_time }}">
+            <button class="btn btn-warning btn-xs checked-in-visible" data-signup-id="{{ signup.id }}">
+              <span class="glyphicon glyphicon-check"></span>
+              Undo
+            </button>
+            <span class="checkin_time checked-in-visible">
+              {{ signup.checkin_time_local|datetime('%A, %b %-e at %-I:%M%p') }}
+            </span>
+            <button class="btn btn-success btn-xs checked-in-hidden" data-signup-id="{{ signup.id }}">
+              <span class="glyphicon glyphicon-check"></span>
+              Check In Now
+            </button>
+          </td>
+          <td class="controls">
+            <span {% if signup.is_checked_in -%}
+                title="You cannot cancel a signup that has already checked in" {% endif -%}
+                style="display: inline-block;">
+              <button class="btn btn-xs btn-danger"
+                  {%- if signup.is_checked_in %} disabled="disabled"{% endif %}
+                  data-signup-id="{{ signup.id }}"
+                  data-attendee-name="{{ signup.attendee.full_name }}">
+                <span class="glyphicon glyphicon-remove"></span>
+              </button>
+            </span>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{%- endif -%}
+
+<div class="footer"></div>
+{% endblock %}

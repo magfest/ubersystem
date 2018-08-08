@@ -1,0 +1,53 @@
+Ahoy {{ game.studio.primary_contact.first_name }},
+
+We have information for you on the following:
+
+1. Game Submission Link
+2. MIVS 2017 Google Group 
+3. MAGFest Versus! - A gameshow looking for indie games
+4. Hotel information
+
+
+IMPORTANT: If you wish to participate in MAGFest Versus or secure a self-paid hotel room, you must complete the instructions in the given time.
+
+
+
+1. *** Game Submission Link ***
+
+We wanted to re-send the link that lets you access your game submissions, the link is {{ c.URL_BASE }}/mivs_applications/continue_app?id={{ game.studio.id }}
+
+2. MIVS 2017 Google Group
+
+You should have received a link inviting you to the MIVS 2017 Google Group.  This is a great way to talk with others about best practices for this year's MIVS.
+
+
+
+3. *** MAGFest Versus! ****
+
+MAGfest Versus! is a fan recreation of Nick Arcade, a 90’s show on Nickelodeon hat pitied contestants in tests of video game skill. We debuted Versus in September at MAGFest Laboratories, and hosting it again at Super MAGFest. You can view it on youtube: https://youtu.be/qXHILYLRklM
+
+We're looking to independent games for our video challenges.  Do you think your MIVS game would create an awesome challenge for our contestants?  We're looking for local multiplayer or single player games that utilize a high score or has timers so we know which contestant completed a challenge faster.
+
+If interested, your game must meet the following criteria:
+- playable on Windows
+- compatible with an XBOX 360 controller or compatible pc based controller 
+- have a save state available (prefered) or fast loading times to get into play quickly.
+- have high scores, times or some other goal that can be beaten in either 30 or 60 seconds
+
+Please include a short biography about your studio, the game’s theme/story, and links to your webpage for attendees to get more information about you.
+ 
+If you are interested in showcasing your game on our program, we’d love to hear from you. Please contact us at Gameshow@magfest.org no later than December 10th, at 11:59 p.m.  
+ 
+
+
+4. *** Hotels! ***
+
+As you are showing a game in MIVS, you have the option of self-paying for one hotel room to use during MAGFest. The cost of a room is $200 a night. If you wish to do so, please fill out the following form by *Thursday, December 8th*
+
+https://goo.gl/forms/p7BR5fieFV3l0wNi1
+
+This service is being made available to you for being part of MIVS.  If you are unable to use this room after signing up for it, you *must* email mivs@magfest.org know so we may reallocate the room.  Your arrival is being secured by MAGFest, if you don't let us know about changes, MAGFest may be charged and the brute squad called. You are not able to transfer your reservation to someone else unless authorized by MAGFest.  If you have any questions, please ask email mivs@magfest.org or hotel@magfest.org. 
+
+
+Thanks again and we're looking forward to seeing you in January,
+MIVS Staff

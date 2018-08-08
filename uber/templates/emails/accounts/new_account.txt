@@ -3,8 +3,11 @@
 {{ creator }} has created an admin account for you on the {{ c.EVENT_NAME }} ubersystem at {{ c.URL_BASE }}.
 
 This account allows you to:
-{% if c.ACCOUNTS|string() in account.access %}
-    - edit and create admin accounts.
+{% if c.PANEL_APPS|string() in account.access %}
+    - review and approve panel applications.
+{% endif %}
+{% if c.BANDS|string() in account.access %}
+    - add and manage guests and their contracts.
 {% endif %}
 {% if c.PEOPLE|string() in account.access %}
     - view and manage attendees.

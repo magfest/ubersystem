@@ -1,0 +1,97 @@
+{% if snippet %}
+  <tr>
+    <td width="25">{{ macros.checklist_image(guest.bio_status) }}</td>
+    <td><b><a href="bio?guest_id={{ guest.id }}">{% block deadline_headline %}Announcement Information{% endblock %}</a></b></td>
+    <td><i>Deadline:</i> {{ guest.deadline_from_model('bio')|datetime_local }}</td>
+  </tr>
+  <tr>
+    <td colspan="3">
+      {% block deadline_text %}
+        {% if guest.bio_status %}
+          You have already provided us with your bio information, but you can use the link above to update it.
+          {% if not guest.bio.uploaded_pic %}
+            We encourage you to upload a bio pic (which you have NOT yet done) so that we can
+            include it on our website.
+          {% endif %}
+        {% else %}
+          Use the link above to provide us with the bio information we can put on our website.
+        {% endif %}
+      {% endblock %}
+      <br/></br>
+    </td>
+  </tr>
+{% else %}
+  <h2>{% block form_title %}Bio Info for {{ guest.group.name }}{% endblock %}</h2>
+  {% block form_desc %}
+    Please provide a short bio for our website.  Everything else is optional, but if you provide a picture and any social media
+    information, we'll include that as well.
+  {% endblock %}
+
+  <form method="post" action="bio" class="form-horizontal" role="form" enctype="multipart/form-data">
+    <input type="hidden" name="guest_id" value="{{ guest.id }}" />
+    <input type="hidden" name="id" value="{{ guest_bio.db_id }}" />
+    {{ csrf_token() }}
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Short Bio</label>
+      <div class="col-sm-6">
+        <textarea class="form-control" name="desc">{{ guest_bio.desc }}</textarea>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Website</label>
+      <div class="col-sm-6">
+        <input type="text" class="form-control" name="website" value="{{ guest_bio.website }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Facebook</label>
+      <div class="col-sm-6">
+        <input type="text" class="form-control" name="facebook" value="{{ guest_bio.facebook }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Twitter</label>
+      <div class="col-sm-6">
+        <input type="text" class="form-control" name="twitter" value="{{ guest_bio.twitter }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Other Social Media</label>
+      <div class="col-sm-6">
+        <input type="text" class="form-control" name="other_social_media" value="{{ guest_bio.other_social_media }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Picture</label>
+      <div class="col-sm-6">
+        <div class="form-control-static">
+          {% if guest.bio.uploaded_pic -%}
+            <a href="{{ guest.bio.pic_url }}">View your current bio pic</a> or upload a new one:
+          {%- endif -%}
+          <input type="file" name="bio_pic" />
+        </div>
+      </div>
+    </div>
+
+    {% block form_extra %}
+      {{ macros.form_group(
+            guest.bio,
+            'teaser_song_url',
+            label='Teaser Song',
+            placeholder='www.example.com/teaser-song.mp3',
+            help='Please provide a cloud storage link to an .mp3 of the song you would like featured in a "teaser" to be shared via ' ~ c.EVENT_NAME ~ ' social media.') }}
+    {% endblock %}
+
+    <div class="form-group">
+      <div class="col-sm-6 col-sm-offset-3">
+        <button type="submit" class="btn btn-primary">Upload Bio Info</button>
+      </div>
+    </div>
+  </form>
+{% endif %}

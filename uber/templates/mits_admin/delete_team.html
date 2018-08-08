@@ -1,0 +1,77 @@
+{% extends "mits_base.html" %}
+{% block body %}
+
+<h2>Delete {{ team.name }}</h2>
+
+This will delete this team's application.  The most common reason for this is when a team fills out the form
+multiple times.  In that case you should select which of the other applications this is a duplicate of, since
+then when someone tries to log into that application we can automatically redirect them to the correct application.
+
+<br/> <br/>
+
+{% if matching_teams %}
+    We have <b>{{ match_count }} other non-deleted application{{ match_count|pluralize }}<b>
+    with the same name as this one (<i>{{ team.name }}</i>), so you should probably select one of those.
+{% else %}
+    There are no other non-deleted applications with the same name as this one.  Therefore you probably want to
+    just mark this as deleted without selecting one of those applications as a duplicate.
+{% endif %}
+
+<br/> <br/>
+
+If applicable, select the duplicate team from the following list:
+
+<br/> <br/>
+
+<form method="post" action="delete_team">
+    {{ csrf_token() }}
+    <input type="hidden" name="id" value="{{ team.id }}" />
+    <table style="width:100%">
+        <thead><tr>
+            <th></th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Completion</th>
+            <th>Applicants</th>
+            <th>Games</th>
+            <th></th>
+        </tr></thead>
+        <tbody>
+            <tr>
+                <td><input type="radio" name="duplicate_of" value="" {% if not match_count %}checked{% endif %} /></td>
+                <td colspan="5"><i>Delete this application without marking it as a duplicate of anything.</i></td>
+                <td><button>Delete</button></td>
+            </tr>
+            {% for t in other_teams %}
+                <tr>
+                    <td>
+                        <input type="radio" name="duplicate_of" value="{{ t.id }}"
+                            {% if match_count and loop.index == 0 %}checked{% endif %} />
+                    </td>
+                    <td><a href="../mits_applications/continue_app?id={{ t.id }}">{{ t.name }}</a></td>
+                    <td>[{{ t.status_label }}]</td>
+                    <td>{{ t.completion_percentage }}%</td>
+                    <td>
+                        <ul>
+                        {% for applicant in t.applicants %}
+                            <li>{{ applicant.full_name }}</li>
+                        {% endfor %}
+                        </ul>
+                    </td>
+                    <td>
+                        <ul>
+                        {% for game in t.games %}
+                            <li>{{ game.name }}</li>
+                        {% else %}
+                            <i>No games listed</i>
+                        {% endfor %}
+                        </ul>
+                    </td>
+                    <td><button>Delete</button></td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</form>
+
+{% endblock %}

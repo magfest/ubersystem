@@ -1,4 +1,9 @@
-from uber.common import *
+from urllib.parse import urlparse
+
+from pockets import listify
+from pockets.autolog import log
+
+from uber.config import c
 
 
 class MenuItem:
@@ -45,20 +50,20 @@ class MenuItem:
 
         self.submenu.append(m)
 
-    def render_items_filtered_by_current_access(self):
+    def render_items_filtered_by_current_access(self, access_set):
         """
         Returns: dict of menu items which are allowed to be seen by the logged in user's access levels
         """
         out = {}
 
-        if self.access and self.access.isdisjoint(sa.AdminAccount.access_set()):
+        if self.access and self.access.isdisjoint(access_set):
             return None
 
         out['name'] = self.name
         if self.submenu:
             out['submenu'] = []
             for menu_item in self.submenu:
-                filtered_menu_items = menu_item.render_items_filtered_by_current_access()
+                filtered_menu_items = menu_item.render_items_filtered_by_current_access(access_set)
                 if filtered_menu_items:
                     out['submenu'].append(filtered_menu_items)
         else:
@@ -72,22 +77,49 @@ class MenuItem:
                 return sm
 
 
+def get_external_schedule_menu_name():
+    if getattr(c, 'ALT_SCHEDULE_URL', ''):
+        try:
+            url = urlparse(c.ALT_SCHEDULE_URL)
+            return 'View External Public Schedule on {}'.format(url.netloc)
+        except Exception:
+            log.warning('Menu: Unable to parse ALT_SCHEDULE_URL: "{}"', c.ALT_SCHEDULE_URL)
+            return 'View External Public Schedule'
+
+    return 'View Public Schedule'
+
+
 c.MENU = MenuItem(name='Root', submenu=[
     MenuItem(name='Admin', submenu=[
         MenuItem(name='Admin Accounts', href='../accounts/', access=c.ACCOUNTS),
         MenuItem(name='API Access', href='../api/', access=list(c.API_ACCESS.keys())),
+        MenuItem(name='Pending Emails', href='../emails/pending', access=c.PEOPLE),
         MenuItem(name='Jobs', href='../jobs/', access=c.PEOPLE),
         MenuItem(name='All Unfilled Shifts', href='../jobs/everywhere', access=c.PEOPLE),
         MenuItem(name='Departments', href='../departments/', access=c.PEOPLE),
         MenuItem(name='Department Checklists', href='../dept_checklist/overview', access=c.PEOPLE),
-        MenuItem(name='Feed of Database Changes', href='../registration/feed', access=c.PEOPLE),
+        MenuItem(name='Feed of Database Changes', href='../registration/feed', access=[c.ACCOUNTS, c.STAFF_ROOMS]),
     ]),
 
     MenuItem(name='People', access=[c.PEOPLE, c.REG_AT_CON], submenu=[
         MenuItem(name='Attendees', href='../registration/{}'.format('?invalid=True' if c.AT_THE_CON else '')),
         MenuItem(name='Groups', href='../groups/'),
+        MenuItem(name='Bands', href='../guest_admin/?filter=only-bands', access=c.BANDS),
+        MenuItem(name='Guests', href='../guest_admin/?filter=only-guests', access=c.BANDS),
         MenuItem(name='Watchlist', href='../registration/watchlist_entries', access=c.WATCHLIST),
     ]),
 
-    MenuItem(name='Statistics', href='../summary/', access=c.STATS),
+    MenuItem(name='Schedule', access=[c.STUFF, c.PEOPLE, c.REG_AT_CON], submenu=[
+        MenuItem(name=get_external_schedule_menu_name(), href='../schedule/'),
+        MenuItem(name='Edit Schedule', access=c.STUFF, href='../schedule/edit'),
+    ]),
+
+    MenuItem(name='Statistics', access=c.STATS, submenu=[
+        MenuItem(name='Summary', href='../summary/'),
+        MenuItem(name='Graphs', href='../graphs/'),
+    ]),
 ])
+
+
+if c.ATTRACTIONS_ENABLED:
+    c.MENU['Schedule'].append_menu_item(MenuItem(name='Attractions', href='../attractions_admin/'))

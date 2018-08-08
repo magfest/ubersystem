@@ -1,0 +1,60 @@
+Ahoy {{ game.studio.primary_contact.first_name }},
+
+We wanted to give you some upcoming info for this year's MIVS:
+
+1) Selling singup reminder
+2) Badge refunds
+3) 2018 MIVS Google group
+4) MAGFest Versus!
+
+
+1) Selling at MAGFest singup reminder
+If you're interested in selling your game while at MAGFest, we need to collect your groups tax information so it can be sent to the comptroller. The deadline for filling this out is December 1st.
+https://docs.google.com/forms/d/e/1FAIpQLSdOc5Ox6E9wDFGxqORoWkf7tSxnqh9ho4e9OdUdJTVN01zbBg/viewform
+
+
+
+2) Badge refunds
+As being part of MIVS, you're given two free badges to MAGFest.  If you already paid for a badge, we're now ready to handle refunds.  Please email mivs@magfest.org with your refund request.  
+
+
+
+3) 2018 MIVS Google Group
+We've created a google group and will be adding everyone who is showcasing this year at MIVS.  You will be added to it automatically! This will be used for us to send information and discuss best practices for 2018's MAGFest. MIVS Staff is also on the list to answer your questions.
+
+
+4) MAGFest Versus!
+MAGfest Versus is a game-show like no other, based on Nick Arcade.  This year, MAGFest Versus! will be hosted by Phil Moore, the original host of Nick Arcade, and We're looking for MIVS Games to be used as the challenges!
+ 
+ Here is a highlight real of last year's Versus:
+ https://www.youtube.com/watch?v=5zY6Ws7l6J0&feature=youtu.be
+
+If you'd like to submit your game for consideration for Versus, please note the following conditions:
+* Gameplay must be 60 seconds or less
+* At the end of time the game must clearly display whether the goal was achieved or if the player won or lost.
+* Gameplay must start within 10 seconds of selecting the versus option (From game start screen to gameplay). 
+* No character selection, level selection, No options
+* Must start paused or with a “ready?” prompt.
+* Remove or Mute all music from game. Sound effects are ok.
+* Game should have a clearly stated objective (Collect 60 beers)
+* Must be compatible with xbox 360 controller
+* Must identify player
+
+To submit, you will need to provide the following to us in an email to mivs@magfest.org
+* 20 second video of the most exciting gameplay (Only gameplay no text or logos)
+* 60 second video tutorial of how to play the game
+* A script (for the host to read) that accompanies the video
+* .png of game logo (with transparency)
+* .png of studio logo (with transparency)
+* 60 word or less description of your game
+
+Critical Dates for this:
+December 3rd:  Deadline for Indies to submit for versus (via E-mail to MIVS@magfest.org)
+December 10th:  Decisions made on games eligible for versus
+December 17th:  Games selected must submit build to MAGfest Versus.
+
+
+
+That's all for now.  We look forward to seeing you soon at MAGFest in January.
+
+-MIVS Staff

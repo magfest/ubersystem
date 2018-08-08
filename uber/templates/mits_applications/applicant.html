@@ -1,0 +1,57 @@
+{% extends "mits_base.html" %}
+{% block body %}
+
+<h2>Team Member Information</h2>
+
+<form method="post" action="applicant" class="form-horizontal" role="form">
+    {{ csrf_token() }}
+    <input type="hidden" name="id" value="{{ applicant.db_id }}" />
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">First Name</label>
+        <div class="col-sm-6">
+            <input class="form-control focus" type="text" name="first_name" value="{{ applicant.first_name }}" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Last Name</label>
+        <div class="col-sm-6">
+            <input class="form-control focus" type="text" name="last_name" value="{{ applicant.last_name }}" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Email Address</label>
+        <div class="col-sm-6">
+            <input class="form-control focus" type="text" name="email" value="{{ applicant.email }}" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Cellphone Number</label>
+        <div class="col-sm-6">
+            <input class="form-control focus" type="text" name="cellphone" value="{{ applicant.cellphone }}" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Preferred Contact Method</label>
+        <div class="col-sm-6">
+            <select name="contact_method" class="form-control">
+                {{ options(c.MITS_CONTACT_OPTS, applicant.contact_method) }}
+            </select>
+        </div>
+        <p class="help-block col-sm-9 col-sm-offset-3">
+            If we need to get in touch with you during the event, which method of contact do you prefer?
+        </p>
+    </div>
+
+    <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-3">
+            <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+    </div>
+</form>
+
+{% endblock %}

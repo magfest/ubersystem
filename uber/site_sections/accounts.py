@@ -1,4 +1,19 @@
-from uber.common import *
+import inspect
+import uuid
+from collections import defaultdict
+
+import bcrypt
+import cherrypy
+from pockets import unwrap
+from sqlalchemy.orm import subqueryload
+from sqlalchemy.orm.exc import NoResultFound
+
+from uber.config import c
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, render, unrestricted
+from uber.errors import HTTPRedirect
+from uber.models import AdminAccount, Attendee, PasswordReset
+from uber.tasks.email import send_email
+from uber.utils import check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd
 
 
 def valid_password(password, account):
@@ -14,16 +29,20 @@ def valid_password(password, account):
 @all_renderable(c.ACCOUNTS)
 class Root:
     def index(self, session, message=''):
+        attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
+            .filter(Attendee.first_name != '', Attendee.badge_status not in [c.INVALID_STATUS, c.WATCHED_STATUS])
+
+        attendees = [
+            (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
+            for id, name, badge_type, badge_num in attendee_attrs]
+
         return {
             'message':  message,
-            'accounts': session.query(AdminAccount).join(Attendee)
-                               .options(subqueryload(AdminAccount.attendee))
-                               .order_by(Attendee.last_first).all(),
-            'all_attendees': sorted([
-                (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
-                for id, name, badge_type, badge_num in session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num)
-                                    .filter(Attendee.first_name != '').filter(Attendee.badge_status not in [c.INVALID_STATUS, c.WATCHED_STATUS]).all()
-            ], key=lambda tup: tup[1])
+            'accounts': (session.query(AdminAccount)
+                         .join(Attendee)
+                         .options(subqueryload(AdminAccount.attendee))
+                         .order_by(Attendee.last_first).all()),
+            'all_attendees': sorted(attendees, key=lambda tup: tup[1])
         }
 
     @csrf_protected
@@ -39,15 +58,21 @@ class Root:
         message = message or check(account)
         if not message:
             message = 'Account settings uploaded'
-            account.attendee = session.attendee(account.attendee_id)   # dumb temporary hack, will fix later with tests
+            attendee = session.attendee(account.attendee_id)  # dumb temporary hack, will fix later with tests
+            account.attendee = attendee
             session.add(account)
             if account.is_new and not c.AT_OR_POST_CON:
                 body = render('emails/accounts/new_account.txt', {
                     'account': account,
                     'password': password,
                     'creator': AdminAccount.admin_name()
-                })
-                send_email(c.ADMIN_EMAIL, session.attendee(account.attendee_id).email, 'New ' + c.EVENT_NAME + ' Ubersystem Account', body)
+                }, encoding=None)
+                send_email.delay(
+                    c.ADMIN_EMAIL,
+                    attendee.email,
+                    'New ' + c.EVENT_NAME + ' Ubersystem Account',
+                    body,
+                    model=attendee.to_dict('id'))
         else:
             session.rollback()
 
@@ -123,9 +148,14 @@ class Root:
                 session.add(PasswordReset(admin_account=account, hashed=bcrypt.hashpw(password, bcrypt.gensalt())))
                 body = render('emails/accounts/password_reset.txt', {
                     'name': account.attendee.full_name,
-                    'password':  password
-                })
-                send_email(c.ADMIN_EMAIL, account.attendee.email, c.EVENT_NAME + ' Admin Password Reset', body)
+                    'password':  password}, encoding=None)
+
+                send_email.delay(
+                    c.ADMIN_EMAIL,
+                    account.attendee.email,
+                    c.EVENT_NAME + ' Admin Password Reset',
+                    body,
+                    model=account.attendee.to_dict('id'))
                 raise HTTPRedirect('login?message={}', 'Your new password has been emailed to you')
 
         return {
@@ -133,7 +163,16 @@ class Root:
             'message': message
         }
 
-    def update_password_of_other(self, session, id, message='', updater_password=None, new_password=None, csrf_token=None, confirm_new_password=None):
+    def update_password_of_other(
+            self,
+            session,
+            id,
+            message='',
+            updater_password=None,
+            new_password=None,
+            csrf_token=None,
+            confirm_new_password=None):
+
         if updater_password is not None:
             new_password = new_password.strip()
             updater_account = session.admin_account(cherrypy.session['account_id'])
@@ -155,7 +194,15 @@ class Root:
         }
 
     @unrestricted
-    def change_password(self, session, message='', old_password=None, new_password=None, csrf_token=None, confirm_new_password=None):
+    def change_password(
+            self,
+            session,
+            message='',
+            old_password=None,
+            new_password=None,
+            csrf_token=None,
+            confirm_new_password=None):
+
         if not cherrypy.session.get('account_id'):
             raise HTTPRedirect('login?message={}', 'You are not logged in')
 
@@ -200,22 +247,26 @@ class Root:
 
     @unrestricted
     def sitemap(self):
-        site_sections = cherrypy.tree.apps[c.PATH].root
+        site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
         modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
         pages = defaultdict(list)
+        access_set = AdminAccount.access_set()
         for module_name, module_root in modules.items():
             for name in dir(module_root):
                 method = getattr(module_root, name)
                 if getattr(method, 'exposed', False):
-                    spec = inspect.getfullargspec(get_innermost(method))
-                    if set(getattr(method, 'restricted', []) or []).intersection(AdminAccount.access_set()) \
+                    spec = inspect.getfullargspec(unwrap(method))
+                    has_defaults = len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or [])
+                    if set(getattr(method, 'restricted', []) or []).intersection(access_set) \
                             and not getattr(method, 'ajax', False) \
                             and (getattr(method, 'site_mappable', False)
-                              or len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or []) and not spec.varkw):
+                                 or has_defaults and not spec.varkw):
+
                         pages[module_name].append({
                             'name': name.replace('_', ' ').title(),
                             'path': '/{}/{}'.format(module_name, name)
                         })
+
         return {'pages': sorted(pages.items())}
 
     @ajax
@@ -241,8 +292,13 @@ class Root:
                         body = render('emails/accounts/new_account.txt', {
                             'account': account,
                             'password': password
-                        })
-                        send_email(c.ADMIN_EMAIL, match.email, 'New ' + c.EVENT_NAME + ' RAMS Account', body)
+                        }, encoding=None)
+                        send_email.delay(
+                            c.ADMIN_EMAIL,
+                            match.email,
+                            'New ' + c.EVENT_NAME + ' Ubersystem Account',
+                            body,
+                            model=match.to_dict('id'))
 
                         success_count += 1
         if success_count == 0:

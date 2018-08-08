@@ -75,13 +75,7 @@ themselves:
        |          |
        |          +-(tabletop)->[tabletop@head]
        |
-       +-(attendee_tournaments)->[attendee_tournaments@head]
-       |
-       +-(hotel)->[hotel@head]
-       |
        +-(magprime)->[magprime@head]
-       |
-       +-(magstock)->[magstock@head]
        |
        +-(mivs)->[mivs@head]
 ```

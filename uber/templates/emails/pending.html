@@ -2,54 +2,97 @@
 {% block title %}Automated Emails Pending Approval{% endblock %}
 {% block content %}
 
-<h2>Email Categories</h2>
+<style>
+  h2 {
+    margin-bottom: 0;
+  }
 
-{% if not last_job_completed %}
-<p><font color="red">
-    Note: Incomplete information is available about the number of emails requiring approval. Either the email daemon has
-    not run yet (should be a max wait of 5 minutes), or, email sending is disabled.
-</font></p>
-{% endif %}
+  table.table > tbody > tr.danger > td {
+    border-top: 1px solid #f28e8e;
+  }
 
-<table class="table table-striped" data-page-size="9999999">
-<thead>
-<tr class="header">
-    <th>Subject</th>
-    <th>Sender</th>
-    <th>Emails Sent</th>
-    <th>Emails waiting to send but need approval</th>
-    <th>Show Examples</th>
-    <th>Approval Status</th>
-    <th>Date emails generated</th>
-</tr>
-</thead>
-<tbody>
-{% for entry in automated_emails %}
-    <tr>
-        <td>{{ entry.automated_email.subject }}</td>
-        <td>{{ entry.automated_email.sender }}</td>
-        <td>{{ entry.num_sent }}</td>
-        <td>{{ entry.unsent_because_unapproved }}</td>
-        <td><a href="pending_examples?ident={{ entry.automated_email.ident|urlencode }}">Examples</a></td>
-        <td>
-            {% if not entry.automated_email.needs_approval %}
+  .pending .subject {
+    color: #e00000;
+  }
+
+  .pending .subject span {
+    font-weight: bold;
+  }
+</style>
+
+
+{% macro email_table(emails) %}
+  <table class="table table-striped datatable"
+      data-paging="false"
+      data-info="false"
+      data-ordering="false">
+    <thead>
+    <tr class="header">
+      <th>Subject</th>
+      <th>Sender</th>
+      <th>Emails Sent</th>
+      <th>Emails waiting to send but need approval</th>
+      <th>Show Examples</th>
+      <th>Approval Status</th>
+      <th>Date emails generated</th>
+    </tr>
+    </thead>
+    <tbody>
+      {% for email in emails %}
+        {% set is_pending = email.unapproved_count > 0 and not email.approved %}
+        <tr class="{% if is_pending %}pending{% endif %}">
+          <td class="subject">
+            <span>{{ email.subject }}</span>
+            {% if is_pending %}
+              <br>
+              {{ email.unapproved_count }}
+              pending email{{ email.unapproved_count|pluralize }}
+              require{{ email.unapproved_count|pluralize('s', '') }} approval
+            {% endif %}
+          </td>
+          <td>{{ email.sender }}</td>
+          <td>{{ email.sent_email_count }}</td>
+          <td>{{ email.unapproved_count }}</td>
+          <td><a href="pending_examples?ident={{ email.ident|urlencode }}">Examples</a></td>
+          <td>
+            {% if not email.needs_approval %}
                 Automatic
             {% else %}
-                {% if not entry.automated_email.approved %}
+                {% if not email.approved %}
                     <form method="post" action="approve">
                     {{ csrf_token() }}
-                    <input type="hidden" name="ident" value="{{ entry.automated_email.ident }}" />
-                    <input type="submit" value="Approve" />
+                    <input type="hidden" name="ident" value="{{ email.ident }}" />
+                    <input type="submit" value="Approve" class="btn btn-sm btn-success"/>
                     </form>
                 {% else %}
-                    Yes
+                    Approved
+                    <form method="post" action="unapprove">
+                    {{ csrf_token() }}
+                    <input type="hidden" name="ident" value="{{ email.ident }}" />
+                    <input type="submit" value="Undo Approval" class="btn btn-sm btn-warning"/>
+                    </form>
                 {% endif %}
             {% endif %}
         </td>
-        <td>{{ entry.automated_email.when_txt|linebreaksbr }}</td>
-    </tr>
-{% endfor %}
-</tbody>
+        <td>{{ email.active_when_label|linebreaksbr }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
 </table>
+{% endmacro %}
+
+<h2>Automated Emails</h2>
+<br>
+{% if not automated_emails %}
+  <p class="text-info">
+    There are currently no automated emails. The system is probably updating,
+    and should be finished in at most 5 minutes.
+  </p>
+{% else %}
+  {% for sender, emails in automated_emails.items() %}
+    <h3>{{ sender }}</h3>
+    {{ email_table(emails) }}
+  {% endfor %}
+{% endif %}
 
 {% endblock %}

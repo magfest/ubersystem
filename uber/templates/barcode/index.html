@@ -1,0 +1,64 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Barcode Scan Test{% endblock %}
+{% block content %}
+
+<SCRIPT type="text/javascript">
+    if(window.location.hash!=""){
+        localStorage["barcode"] = window.location.hash.substr(1);
+        self.close();
+        window.location.assign("about:blank");// In case dom.allow_scripts_to_close_windows is not set
+    }else{
+        window.addEventListener("storage", function(e){
+            localStorage["barcode"]="";
+            if(e.url.split("\#")[0]==window.location.href){
+                window.focus();
+                processBarcode(e.newValue);
+            }
+        }, false);
+        window.addEventListener("hashchange", function(e){
+            var hash = window.location.hash.substr(1);
+            if (hash != "") {
+                window.location.hash = "";
+                processBarcode(unescape(hash));
+            }
+        }, false);
+    }
+    function getScan(){
+        var href = window.location.href.split("\#")[0];
+        window.open("zxing://scan/?ret=" + escape( href + "#{CODE}"),'_self');
+    }
+    function processBarcode(barcode){
+        $.post( "get_badge_num_from_barcode", { csrf_token: csrf_token, barcode: barcode })
+        .done(function(data) {
+            txt = "badge_num: " + data['badge_num']
+            if (!data['attendee']) {
+                txt += '<br/>name: <a href="../registration/form?id=' + data['attendee_id'] + '">' + data['attendee_name'] + '</a>';
+            }
+            $("#result").html(txt);
+            $("#result_msg").html(data.message);
+        })
+        .fail(function() {
+            $("#result").html("failed: couldn't get badge# - server error");
+        });
+    }
+    $(function() {
+        $("#barcode_scan").click(function () {
+            getScan();
+        });
+    });
+</SCRIPT>
+
+<h2>Scan a Barcode</h2>
+
+<button type="button" id="barcode_scan">SCAN BARCODE</button>
+<br/>
+<h2><div id="result"></div><br/></h2>
+<div id="result_msg"></div><br/>
+
+<Br/><br/>
+
+Note: Works only on Android with
+<a href="https://play.google.com/store/apps/details?id=com.google.zxing.client.android">ZXing Team: Barcode Scanner</a>
+installed.
+
+{% endblock %}

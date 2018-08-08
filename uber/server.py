@@ -1,15 +1,32 @@
+import json
+import mimetypes
+import os
+from pprint import pformat
+
+import cherrypy
+import jinja2
+from pockets.autolog import log
 from sideboard.jsonrpc import _make_jsonrpc_handler
 from sideboard.server import jsonrpc_reset
-from uber.common import *
+
+from uber.config import c, Config
+from uber.decorators import all_renderable, render
+from uber.errors import HTTPRedirect
+from uber.utils import mount_site_sections, static_overrides
+
 
 mimetypes.init()
 
 
 def _add_email():
     [body] = cherrypy.response.body
-    body = body.replace(b'<body>', b'''<body>Please contact us via <a href="CONTACT_URL">CONTACT_URL</a> if you're not sure why you're seeing this page.'''.replace(b'CONTACT_URL', c.CONTACT_URL.encode('utf-8')))
+    body = body.replace(b'<body>', (
+        b'<body>Please contact us via <a href="CONTACT_URL">CONTACT_URL</a> if you\'re not sure why '
+        b'you\'re seeing this page.').replace(b'CONTACT_URL', c.CONTACT_URL.encode('utf-8')))
     cherrypy.response.headers['Content-Length'] = len(body)
     cherrypy.response.body = [body]
+
+
 cherrypy.tools.add_email_to_error_page = cherrypy.Tool('after_error_response', _add_email)
 
 
@@ -21,6 +38,8 @@ def get_verbose_request_context():
     Returns:
 
     """
+    from uber.models.admin import AdminAccount
+
     page_location = 'Request: ' + cherrypy.request.request_line
 
     admin_name = AdminAccount.admin_name()
@@ -107,7 +126,40 @@ class AngularJavascript:
         for attr in dir(c):
             try:
                 consts[attr] = getattr(c, attr, None)
-            except:
+            except Exception:
+                pass
+
+        js_consts = json.dumps({k: v for k, v in consts.items() if isinstance(v, (bool, int, str))}, indent=4)
+        return '\n'.join([
+            'angular.module("magfest", [])',
+            '.constant("c", {})'.format(js_consts),
+            '.constant("magconsts", {})'.format(js_consts),
+            '.run(function ($http) {',
+            '   $http.defaults.headers.common["CSRF-Token"] = "{}";'.format(c.CSRF_TOKEN),
+            '});'
+        ])
+
+    @cherrypy.expose
+    def static_magfest_js(self):
+        """
+        We have several Angular apps which need to be able to access our constants like c.ATTENDEE_BADGE and such.
+        We also need those apps to be able to make HTTP requests with CSRF tokens, so we set that default.
+
+        The static_magfest_js() version of magfest_js() omits any config
+        properties that generate database queries.
+        """
+        cherrypy.response.headers['Content-Type'] = 'text/javascript'
+
+        consts = {}
+        for attr in dir(c):
+            try:
+                prop = getattr(Config, attr, None)
+                if prop:
+                    fget = getattr(prop, 'fget', None)
+                    if fget and getattr(fget, '_dynamic', None):
+                        continue
+                consts[attr] = getattr(c, attr, None)
+            except Exception:
                 pass
 
         js_consts = json.dumps({k: v for k, v in consts.items() if isinstance(v, (bool, int, str))}, indent=4)
@@ -129,16 +181,18 @@ class Root:
     static_views = StaticViews()
     angular = AngularJavascript()
 
+
 mount_site_sections(c.MODULE_ROOT)
 
 
 def error_page_404(status, message, traceback, version):
     return "Sorry, page not found!<br/><br/>{}<br/>{}".format(status, message)
 
+
 c.APPCONF['/']['error_page.404'] = error_page_404
 
-cherrypy.tree.mount(Root(), c.PATH, c.APPCONF)
-static_overrides(join(c.MODULE_ROOT, 'static'))
+cherrypy.tree.mount(Root(), c.CHERRYPY_MOUNT_PATH, c.APPCONF)
+static_overrides(os.path.join(c.MODULE_ROOT, 'static'))
 
 
 jsonrpc_services = {}
@@ -149,20 +203,6 @@ def register_jsonrpc(service, name=None):
     assert name not in jsonrpc_services, '{} has already been registered'.format(name)
     jsonrpc_services[name] = service
 
+
 jsonrpc_handler = _make_jsonrpc_handler(jsonrpc_services, precall=jsonrpc_reset)
-cherrypy.tree.mount(jsonrpc_handler, join(c.PATH, 'jsonrpc'), c.APPCONF)
-
-
-def reg_checks():
-    sleep(600)  # Delay by 10 minutes to give the system time to start up
-    check_unassigned()
-    detect_duplicates()
-    check_placeholders()
-
-# Registration checks are run every six hours
-DaemonTask(reg_checks, interval=21600, name="mail reg checks")
-
-DaemonTask(SendAllAutomatedEmailsJob.send_all_emails, interval=300, name="send emails")
-
-# TODO: this should be replaced by something a little cleaner, but it can be a useful debugging tool
-# DaemonTask(lambda: log.error(Session.engine.pool.status()), interval=5)
+cherrypy.tree.mount(jsonrpc_handler, os.path.join(c.CHERRYPY_MOUNT_PATH, 'jsonrpc'), c.APPCONF)

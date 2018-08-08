@@ -3,6 +3,8 @@ Manual Installation
 
 Linux is currently the only supported development platform.  Theoretically this codebase should work on other platforms, but this has not been tested.
 
+This method of installation uses postgres, which is what the actual production server uses, and so should be more supported (but is more complex to set up). A simpler alternate installation method, using sqlite, is at the bottom of this document.
+
 Here's what you need installed before you can run this:
 * Python >= 3.3 (with source headers)
 * Postgresql 9.0 or later
@@ -52,3 +54,20 @@ Alternatively, you could insert directly with the sql file in the same directory
 ```bash
 $ psql --host=localhost --username=m13 --password m13 < uber/tests/test_data.sql
 ```
+
+Alternate Manual Installation - sqlite (quick start)
+====================================================
+
+* Install python 3, sqlite, and libcap-dev
+* Install (via package manager or `pip3 install --user`): virtualenv, paver
+* `git clone https://github.com/magfest/sideboard`
+* `cd sideboard`
+* `git clone https://github.com/magfest/ubersystem plugins/uber`
+    * (the above *must* be a dir named uber, not ubersystem)
+* `paver make_venv` (may be at `~/.local/bin/paver`, depending on how you installed it) (Note: paver must use Python3 for this)
+* `./env/bin/paver install_deps`
+* Init the DB, and create test admin account: `./env/bin/sep reset_uber_db`
+* Run it! `./env/bin/python sideboard/run_server.py`
+* RAMS is now running on `localhost:8282`!
+
+You now may perform tasks like configuration customization or test data insertion as described above.

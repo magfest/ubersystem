@@ -1,4 +1,16 @@
-from uber.common import *
+from collections import defaultdict
+from datetime import datetime, timedelta
+
+import cherrypy
+from sqlalchemy import select
+from sqlalchemy.orm import subqueryload
+
+from uber.config import c
+from uber.decorators import ajax, all_renderable, csrf_protected, department_id_adapter, \
+    assert_dept_admin, requires_dept_admin
+from uber.errors import HTTPRedirect
+from uber.models import Attendee, Department, Job
+from uber.utils import check, localized_now
 
 
 def job_dict(job, shifts=None):
@@ -8,6 +20,8 @@ def job_dict(job, shifts=None):
         'slots': job.slots,
         'weight': job.weight,
         'restricted': job.restricted,
+        'visibility': job.visibility,
+        'is_public': job.is_public,
         'required_roles_ids': job.required_roles_ids,
         'timespan': job.timespan(),
         'department_id': job.department_id,
@@ -81,14 +95,23 @@ class Root:
             'checklist': department_id and session.checklist_status('postcon_hours', department_id)
         }
 
-    def everywhere(self, session, message='', show_restricted=''):
+    def everywhere(self, session, message='', show_restricted='', show_nonpublic=''):
+        job_filters = [Job.start_time > localized_now() - timedelta(hours=2)]
+        if not show_restricted:
+            job_filters.append(Job.restricted == False)  # noqa: E712
+        if not show_nonpublic:
+            job_filters.append(Job.department_id.in_(
+                select([Department.id]).where(
+                    Department.solicits_volunteers == True)))  # noqa: E712
+
+        jobs = session.jobs().filter(*job_filters)
+
         return {
             'message': message,
             'show_restricted': show_restricted,
+            'show_nonpublic': show_nonpublic,
             'attendees': session.staffers_for_dropdown(),
-            'jobs': [job_dict(job) for job in session.jobs()
-                                                     .filter(Job.start_time > localized_now() - timedelta(hours=2))
-                                                     .filter_by(**{} if show_restricted else {'restricted': False})]
+            'jobs': [job_dict(job) for job in jobs]
         }
 
     @department_id_adapter
@@ -106,8 +129,10 @@ class Root:
             else [Attendee.dept_memberships.any(department_id=department_id)]
         attendees = session.staffers().filter(*dept_filter).all()
         for attendee in attendees:
-            attendee.is_dept_head_here = attendee.is_dept_head_of(department_id) if department_id else attendee.is_dept_head
-            attendee.trusted_here = attendee.trusted_in(department_id) if department_id else attendee.has_role_somewhere
+            attendee.is_dept_head_here = attendee.is_dept_head_of(department_id) if department_id \
+                else attendee.is_dept_head
+            attendee.trusted_here = attendee.trusted_in(department_id) if department_id \
+                else attendee.has_role_somewhere
             attendee.hours_here = attendee.weighted_hours_in(department_id)
 
         counts = defaultdict(int)
@@ -119,17 +144,22 @@ class Root:
             'department_id': department_id,
             'attendees': attendees,
             'emails': ','.join(a.email for a in attendees),
+            'emails_with_shifts': ','.join([a.email for a in attendees if a.hours_here]),
             'checklist': session.checklist_status('assigned_volunteers', department_id)
         }
 
+    @requires_dept_admin
     def form(self, session, message='', **params):
         defaults = {}
         if params.get('id') == 'None' and cherrypy.request.method != 'POST':
             defaults = cherrypy.session.get('job_defaults', defaultdict(dict))[params['department_id']]
             params.update(defaults)
 
-        job = session.job(params, bools=['extra15'],
-                                  allowed=['department_id', 'start_time', 'type'] + list(defaults.keys()))
+        job = session.job(
+            params,
+            bools=['extra15'],
+            allowed=['department_id', 'start_time', 'type'] + list(defaults.keys()))
+
         if cherrypy.request.method == 'POST':
             message = check(job)
             if not message:
@@ -148,14 +178,25 @@ class Root:
             else:
                 job.type = c.SETUP if local_start_time < c.EPOCH else c.TEARDOWN
 
+        departments = session.admin_attendee().depts_where_can_admin
+        can_admin_dept = any(job.department_id == d.id for d in departments)
+        if not can_admin_dept and (job.department or job.department_id):
+            job_department = job.department or session.query(Department).get(job.department_id)
+            if job.is_new:
+                departments = sorted(departments + [job_department], key=lambda d: d.name)
+            else:
+                departments = [job_department]
+
         dept_roles = defaultdict(list)
-        for d in session.query(DeptRole):
-            dept_roles[d.department_id].append((d.id, d.name, d.description))
+        for department in departments:
+            for d in department.dept_roles:
+                dept_roles[d.department_id].append((d.id, d.name, d.description))
 
         return {
             'job': job,
             'message': message,
             'dept_roles': dept_roles,
+            'dept_opts': [(d.id, d.name) for d in departments],
             'defaults': 'defaults' in locals() and defaults
         }
 
@@ -170,6 +211,7 @@ class Root:
     @csrf_protected
     def delete(self, session, id):
         job = session.job(id)
+        assert_dept_admin(session, job.department)
         for shift in job.shifts:
             session.delete(shift)
         session.delete(job)
@@ -200,7 +242,7 @@ class Root:
             shift = session.shift(id)
             session.delete(shift)
             session.commit()
-        except:
+        except Exception:
             return {'error': 'Shift was already deleted'}
         else:
             return job_dict(session.job(shift.job_id))
@@ -211,7 +253,7 @@ class Root:
             shift = session.shift(id)
             shift.worked = int(status)
             session.commit()
-        except:
+        except Exception:
             return {'error': 'Unexpected error setting status'}
         else:
             return job_dict(session.job(shift.job_id))
@@ -235,7 +277,8 @@ class Root:
             update_counts(job, departments[job.department_name])
             update_counts(job, departments['All Departments Combined'])
 
-        return {'departments': sorted(departments.items(), key=lambda d: d[1]['regular_signups'] - d[1]['regular_total'])}
+        return {
+            'departments': sorted(departments.items(), key=lambda d: d[1]['regular_signups'] - d[1]['regular_total'])}
 
     def all_shifts(self, session):
         departments = session.query(Department).options(
@@ -253,8 +296,9 @@ class Root:
             'not_already_here': [
                 (a.id, a.full_name)
                 for a in session.query(Attendee)
-                                .filter(Attendee.email != '',
-                                         ~Attendee.dept_memberships.any(department_id=department_id))
+                                .filter(
+                                    Attendee.email != '',
+                                    ~Attendee.dept_memberships.any(department_id=department_id))
                                 .order_by(Attendee.full_name).all()
             ]
         }

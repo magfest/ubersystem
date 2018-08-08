@@ -101,6 +101,20 @@
       padding-bottom: 10px;
     }
 
+    .method-body .required_access .access {
+      font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+      color: #faa;
+    }
+
+    .opts td {
+      padding: 0 10px;
+    }
+
+    .opts .opt-value {
+      font-weight: bold;
+      color: #eeb;
+    }
+
     .output {
       height: 240px;
       overflow: auto;
@@ -210,6 +224,10 @@
         response will have a "result" property. An error response will have an
         error message in an "error" property.
       </p>
+      <p>
+        The API endpoint URL is:<br>
+        <code>{{ c.URL_BASE }}/jsonrpc/</code>
+      </p>
     </div>
     <div class="col-sm-6 code-column">
       <div class="example">
@@ -249,8 +267,13 @@
     <div class="col-sm-6 prose-column">
       <p>
         Third party applications can authenticate requests by adding the
-        "X-Auth-Token" header to each HTTP POST. You can find your auth tokens,
+        <code>X-Auth-Token</code> header to each HTTP POST. You can find your auth tokens,
         or generate a new token, on the <a href="../api">API Access</a> page.
+      </p>
+      <p>
+        Requests without an <code>X-Auth-Token</code> header will return
+        <em>401 Unauthorized</em>. Requests with an invalid <code>X-Auth-Token</code>
+        header will return <em>403 Forbidden</em>.
       </p>
     </div>
     <div class="col-sm-6 code-column">
@@ -284,10 +307,11 @@
   {%-
     set examples = {
       'attendee': '{"method": "attendee.search", "params": ["' ~ admin_account.attendee.full_name ~ '"]}',
-      'barcode': '{"method": "barcode.lookup_attendee_from_barcode", "params": ["~JGdWzw"]}',
+      'barcode': '{"method": "barcode.lookup_attendee_from_barcode", "params": ["~v22pcw"]}',
       'config': '{"method": "config.info"}',
-      'dept': '{"method": "dept.list"}',
-      'shifts': '{"method": "shifts.lookup", "params": ["' ~ c.DEFAULT_DEPARTMENT_ID ~ '"]}'
+      'dept': '{"method": "dept.jobs", "params": {"department_id": "' ~ c.DEFAULT_DEPARTMENT_ID ~ '"}}',
+      'guest': '{"method": "guest.list", "params": ["guest"]}',
+      'shifts': '{"method": "shifts.lookup", "params": {"department_id": "' ~ c.DEFAULT_DEPARTMENT_ID ~ '", "start_time": "now"}}'
     }
   -%}
   {% for service in services %}
@@ -299,7 +323,7 @@
     </div>
     <div class="row">
       <div class="col-sm-6 col-sm-push-6 code-column">
-        {% if service.doc %}<p class="doc">{{ service.doc }}</p>{% endif %}
+        {% if service.doc %}<p class="doc">{{ service.doc|safe|linebreaksbr }}</p>{% endif %}
         <h4>Available Methods</h4>
         {% for method in service.methods %}
           {% set comma = joiner(', ') %}
@@ -308,10 +332,18 @@
               {{ service.name }}.{{ method.name }}({% for arg in method.args %}{{ comma() }}{{ arg }}{%endfor%})
             </div>
             <div class="method-body">
-              {% if method.doc %}<p class="doc">{{ method.doc }}</p>{% endif %}
+              {% if method.doc %}<div class="doc">{{ method.doc|safe|linebreaksbr }}</div>{% endif %}
+              {% if method.required_access %}
+                <div class="required_access">
+                  <label>Required Access</label>
+                  <span class="access">{{ method.required_access|join(' / ') }}</span>
+                </div>
+              {% endif %}
               {% set comma = joiner(', ') %}
-              <label>Example Request Body</label>
-              <pre>{"method": "{{ service.name }}.{{ method.name }}"{% if method.args %}, "params": [{% for arg in method.args %}{{ comma() }}"{{ arg }}"{%endfor%}]{% endif %}}</pre>
+              <div class="example">
+                <label>Example Request Body</label>
+                <pre>{"method": "{{ service.name }}.{{ method.name }}"{% if method.args %}, "params": [{% for arg in method.args %}{{ comma() }}"{{ arg }}"{%endfor%}]{% endif %}}</pre>
+              </div>
             </div>
           </div>
         {% endfor %}

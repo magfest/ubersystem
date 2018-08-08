@@ -1,4 +1,15 @@
-from uber.common import *
+from datetime import datetime
+
+from pockets import groupify, listify
+from sqlalchemy import or_
+
+from uber.automated_emails import AutomatedEmailFixture
+from uber.config import c
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file
+from uber.errors import HTTPRedirect
+from uber.models import AdminAccount, Attendee, AutomatedEmail, Email
+from uber.tasks.email import send_email
+from uber.utils import get_page
 
 
 @all_renderable(c.PEOPLE)
@@ -7,7 +18,7 @@ class Root:
         emails = session.query(Email).order_by(Email.when.desc())
         search_text = search_text.strip()
         if search_text:
-            emails = emails.icontains(Email.dest, search_text)
+            emails = emails.icontains(Email.to, search_text)
         return {
             'page': page,
             'emails': get_page(page, emails),
@@ -20,49 +31,49 @@ class Root:
     sent.restricted = [c.PEOPLE, c.REG_AT_CON]
 
     def pending(self, session, message=''):
-        automated_emails = []
-        last_job_completed = SendAllAutomatedEmailsJob.last_result.get('completed', False)
-        categories_results = SendAllAutomatedEmailsJob.last_result.get('categories', None)
+        emails_with_count = session.query(AutomatedEmail, AutomatedEmail.email_count).filter(
+            AutomatedEmail.subject != '', AutomatedEmail.sender != '',).all()
+        emails = []
+        for email, email_count in sorted(emails_with_count, key=lambda e: e[0].ordinal):
+            email.sent_email_count = email_count
+            emails.append(email)
 
-        count_query = session.query(Email.ident, func.count(Email.ident)).group_by(Email.ident)
-        sent_email_counts = {c[0]: c[1] for c in count_query.all()}
-
-        for automated_email in AutomatedEmail.instances.values():
-            category_results = categories_results.get(automated_email.ident, None) if categories_results else None
-            unsent_because_unapproved = category_results.get('unsent_because_unapproved', 0) if category_results else 0
-
-            automated_emails.append({
-                'automated_email': automated_email,
-                'num_sent': sent_email_counts.get(automated_email.ident, 0),
-                'unsent_because_unapproved': unsent_because_unapproved if last_job_completed else '_'
-            })
+        emails_by_sender = groupify(emails, 'sender')
 
         return {
             'message': message,
-            'automated_emails': automated_emails,
-            'last_job_completed': last_job_completed
+            'automated_emails': emails_by_sender,
         }
 
     def pending_examples(self, session, ident):
-        count = 0
+        email = session.query(AutomatedEmail).filter_by(ident=ident).first()
         examples = []
-        email = AutomatedEmail.instances[ident]
-        example = render_empty('emails/' + email.template)
-        for x in AutomatedEmail.queries[email.model](session):
-            if email.filters_run(x):
-                count += 1
-                url = {
-                    Group: '../groups/form?id={}',
-                    Attendee: '../registration/form?id={}'
-                }.get(x.__class__, '').format(x.id)
-                if len(examples) < 10:
-                    examples.append([url, email.render(x).decode('utf-8')])
-
+        model = email.model_class
+        query = AutomatedEmailFixture.queries.get(model)(session).order_by(model.id)
+        limit = 100
+        offset = 0
+        for model_instance in query.limit(limit).offset(offset):
+            if email.would_send_if_approved(model_instance):
+                # These examples are never added to the session or saved to the database.
+                # They are only used to render an example of the automated email.
+                example = Email(
+                    subject=email.render_subject(model_instance),
+                    body=email.render_body(model_instance),
+                    sender=email.sender,
+                    to=model_instance.email,
+                    cc=email.cc,
+                    bcc=email.bcc,
+                    ident=email.ident,
+                    fk_id=model_instance.id,
+                    automated_email_id=email.id)
+                examples.append((model_instance, example))
+                example_count = len(examples)
+                if example_count > 1 or (example_count == 1 and offset > 0):
+                    break
+            offset += limit
         return {
-            'count': count,
-            'example': example,
+            'email': email,
             'examples': examples,
-            'subject': email.subject,
         }
 
     def test_email(self, session, subject=None, body=None, from_address=None, to_address=None, **params):
@@ -73,16 +84,17 @@ class Root:
         output_msg = ""
 
         if subject and body and from_address and to_address:
-            send_email(from_address, to_address, subject, body)
+            send_email.delay(from_address, to_address, subject, body)
             output_msg = "RAMS has attempted to send your email."
 
         right_now = str(datetime.now())
 
         return {
             'from_address': from_address or c.STAFF_EMAIL,
-            'to_address': to_address or
-                          ("goldenaxe75t6489@mailinator.com" if c.DEV_BOX else AdminAccount.admin_email())
-                          or "",
+            'to_address': (
+                to_address or
+                ("goldenaxe75t6489@mailinator.com" if c.DEV_BOX else AdminAccount.admin_email())
+                or ""),
             'subject':  c.EVENT_NAME_AND_YEAR + " test email " + right_now,
             'body': body or "ignore this email, <b>it is a test</b> of the <u>RAMS email system</u> " + right_now,
             'message': output_msg,
@@ -95,21 +107,23 @@ class Root:
 
         This is useful for if someone had an invalid email address and did not receive an automated email.
         """
-
         email = session.email(id)
         if email:
-            # If this was an automated email, we can send out an updated template with the correct 'from' address
-            if email.ident in AutomatedEmail.instances:
-                email_category = AutomatedEmail.instances[email.ident]
-                sender = email_category.sender
-                body = email_category.render(email.fk)
-            else:
-                sender = c.ADMIN_EMAIL
-                body = email.html
-
             try:
-                send_email(sender, email.rcpt_email, email.subject, body, model=email.fk, ident=email.ident)
-            except:
+                # If this was an automated email, we can send out an updated copy
+                if email.automated_email and email.fk:
+                    email.automated_email.send_to(email.fk, delay=True, raise_errors=True)
+                else:
+                    send_email.delay(
+                        c.ADMIN_EMAIL,
+                        email.fk_email,
+                        email.subject,
+                        email.body,
+                        format=email.format,
+                        model=email.fk.to_dict('id') if email.fk else None,
+                        ident=email.ident)
+                session.commit()
+            except Exception:
                 return {'success': False, 'message': 'Email not sent: unknown error.'}
             else:
                 return {'success': True, 'message': 'Email resent.'}
@@ -117,8 +131,24 @@ class Root:
 
     @csrf_protected
     def approve(self, session, ident):
-        session.add(ApprovedEmail(ident=ident))
-        raise HTTPRedirect('pending?message={}', 'Email approved and will be sent out shortly')
+        automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first()
+        if automated_email:
+            automated_email.approved = True
+            raise HTTPRedirect(
+                'pending?message={}',
+                '"{}" approved and will be sent out shortly'.format(automated_email.subject))
+        raise HTTPRedirect('pending?message={}{}', 'Unknown automated email: ', ident)
+
+    @csrf_protected
+    def unapprove(self, session, ident):
+        automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first()
+        if automated_email:
+            automated_email.approved = False
+            raise HTTPRedirect(
+                'pending?message={}',
+                'Approval to send "{}" rescinded, '
+                'and it will not be sent until approved again'.format(automated_email.subject))
+        raise HTTPRedirect('pending?message={}{}', 'Unknown automated email: ', ident)
 
     def emails_by_interest(self, message=''):
         return {
@@ -146,3 +176,32 @@ class Root:
         for a in attendees:
             if set(interests).intersection(a.interests_ints):
                 out.writerow([a.full_name, a.email, a.zip_code])
+
+    def emails_by_kickin(self, message=''):
+        return {
+            'message': message
+        }
+
+    @csv_file
+    def emails_by_kickin_csv(self, out, session, **params):
+        """
+        Generate a list of attendee emails by what kick-in level they've donated at.
+        We also select attendees with kick-in levels above the selected level.
+        """
+        if 'amount_extra' not in params:
+            raise HTTPRedirect('emails_by_kickin?message={}', 'You must select a kick-in level')
+
+        amount_extra = params['amount_extra']
+
+        base_filter = Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])
+        email_filter = [Attendee.can_spam == True] if 'only_can_spam' in params else []  # noqa: E712
+        attendee_filter = Attendee.amount_extra >= amount_extra
+        if 'include_staff' in params:
+            attendee_filter = or_(attendee_filter, Attendee.badge_type == c.STAFF_BADGE)
+
+        attendees = session.query(Attendee).filter(
+            base_filter, attendee_filter, *email_filter).all()
+
+        out.writerow(["fullname", "email", "zipcode"])
+        for a in attendees:
+            out.writerow([a.full_name, a.email, a.zip_code])
