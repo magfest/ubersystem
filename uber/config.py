@@ -56,6 +56,9 @@ class _Overridable:
         if 'dates' in plugin_config:
             self.make_dates(plugin_config['dates'])
 
+        if 'data_dirs' in plugin_config:
+            self.make_data_dirs(plugin_config['data_dirs'])
+
     def make_dates(self, config_section):
         """
         Plugins can define a [dates] section in their config to create their
@@ -72,6 +75,17 @@ class _Overridable:
             setattr(self, _opt.upper(), _dt)
             if _dt:
                 self.DATES[_opt.upper()] = _dt
+
+    def make_data_dirs(self, config_section):
+        """
+        Plugins can define a [data_dirs] section in their config to create their
+        own data directories on the global c object. Data directories are
+        automatically created on server startup.  This method is called automatically
+        by c.include_plugin_config() if a "[data_dirs]" section exists.
+        """
+        for _opt, _val in config_section.items():
+            setattr(self, _opt.upper(), _val)
+            self.DATA_DIRS[_opt.upper()] = _val
 
     def make_enums(self, config_section):
         """
@@ -717,6 +731,9 @@ c.TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
 c.DATE_FORMAT = '%Y-%m-%d'
 c.EVENT_TIMEZONE = pytz.timezone(c.EVENT_TIMEZONE)
 c.make_dates(_config['dates'])
+
+c.DATA_DIRS = {}
+c.make_data_dirs(_config['data_dirs'])
 
 if "sqlite" in _config['secret']['sqlalchemy_url']:
     # SQLite does not suport pool_size and max_overflow,
