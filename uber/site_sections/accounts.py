@@ -247,7 +247,7 @@ class Root:
 
     @unrestricted
     def sitemap(self):
-        site_sections = cherrypy.tree.apps[c.PATH].root
+        site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
         modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
         pages = defaultdict(list)
         access_set = AdminAccount.access_set()
