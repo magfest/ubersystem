@@ -187,7 +187,7 @@ def error_page_404(status, message, traceback, version):
 
 c.APPCONF['/']['error_page.404'] = error_page_404
 
-cherrypy.tree.mount(Root(), c.PATH, c.APPCONF)
+cherrypy.tree.mount(Root(), c.CHERRYPY_MOUNT_PATH, c.APPCONF)
 static_overrides(os.path.join(c.MODULE_ROOT, 'static'))
 
 
@@ -201,4 +201,4 @@ def register_jsonrpc(service, name=None):
 
 
 jsonrpc_handler = _make_jsonrpc_handler(jsonrpc_services, precall=jsonrpc_reset)
-cherrypy.tree.mount(jsonrpc_handler, os.path.join(c.PATH, 'jsonrpc'), c.APPCONF)
+cherrypy.tree.mount(jsonrpc_handler, os.path.join(c.CHERRYPY_MOUNT_PATH, 'jsonrpc'), c.APPCONF)
