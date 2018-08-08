@@ -464,7 +464,7 @@ def report_critical_exception(msg, subject="Critical Error"):
     """
 
     # log with lots of cherrypy context in here
-    uber.server.log_exception_with_verbose_context(msg=msg)
+    uber.server.log_exception_with_verbose_context(msg)
 
     # also attempt to email the admins
     # TODO: Don't hardcode emails here.
