@@ -604,7 +604,7 @@ def report_critical_exception(msg, subject="Critical Error"):
     from uber.tasks.email import send_email
 
     # Log with lots of cherrypy context in here
-    uber.server.log_exception_with_verbose_context(msg)
+    uber.server.log_exception_with_verbose_context(msg=msg)
 
     # Also attempt to email the admins
     send_email.delay(c.ADMIN_EMAIL, [c.ADMIN_EMAIL], subject, msg + '\n{}'.format(traceback.format_exc()))
