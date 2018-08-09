@@ -562,14 +562,6 @@
   <input type="hidden" name="requested_hotel_info" id="requested_hotel_info" value="{{ '1' if attendee.requested_hotel_info or attendee.is_placeholder else '0' }}" />
 {% endif %}
 
-<div class="form-group">
-    <label for="email_option" class="col-sm-3 control-label optional-field">Keep Me Updated</label>
-    <div class="checkbox col-sm-9">
-        {{ macros.checkbox(attendee, 'can_spam', label='Send me emails relating to ') }} {{ organization_with_event_name() }} in future years.<br/>
-        <span class="popup">{{ macros.popup_link("../static_views/privacy.html", "View Our Privacy Policy") }}</span>
-    </div>
-</div>
-
 {% if c.BADGE_PROMO_CODES_ENABLED and not group_id and (attendee.is_unpaid or attendee.promo_code_code) %}
 <div class="non_group_fields form-group">
     <label for="promo_code" class="col-sm-3 control-label optional-field">Promo Code</label>
@@ -583,6 +575,14 @@
     </div>
 </div>
 {% endif %}
+
+<div class="form-group">
+    <label for="email_option" class="col-sm-3 control-label optional-field">Keep Me Updated</label>
+    <div class="checkbox col-sm-9">
+        {{ macros.checkbox(attendee, 'can_spam', label='Send me emails relating to ') }} {{ organization_with_event_name() }} in future years.<br/>
+        <span class="popup">{{ macros.popup_link("../static_views/privacy.html", "View Our Privacy Policy") }}</span>
+    </div>
+</div>
 
 {% if (c.PAGE_PATH != '/registration/form' or not attendee.is_new) and c.PAGE_PATH != '/registration/register' %}
     <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
