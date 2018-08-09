@@ -37,9 +37,14 @@ class BaseEmailMixin(object):
     _repr_attr_names = ['subject']
 
     @property
+    def body_with_body_tag_stripped(self):
+        body = re.split(r'<\s*body[^>]*>', self.body)[-1]
+        return re.split(r'<\s*\/\s*body\s*>', body)[0]
+
+    @property
     def body_as_html(self):
         if self.is_html:
-            return re.split('<body[^>]*>', self.body)[-1].split('</body>')[0]
+            return self.body_with_body_tag_stripped
         else:
             return normalize_newlines(self.body).replace('\n', '<br>')
 
