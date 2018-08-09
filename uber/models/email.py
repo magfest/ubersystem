@@ -263,3 +263,9 @@ class Email(MagModel, BaseEmailMixin):
     @property
     def format(self):
         return 'html' if self.is_html else 'text'
+
+    @property
+    def is_html(self):
+        return self.automated_email.is_html \
+            if self.automated_email_id and self.automated_email \
+            else super(Email, self).is_html

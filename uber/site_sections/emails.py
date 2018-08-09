@@ -65,7 +65,9 @@ class Root:
                     bcc=email.bcc,
                     ident=email.ident,
                     fk_id=model_instance.id,
-                    automated_email_id=email.id)
+                    automated_email_id=email.id,
+                    automated_email=email,
+                )
                 examples.append((model_instance, example))
                 example_count = len(examples)
                 if example_count > 1 or (example_count == 1 and offset > 0):
