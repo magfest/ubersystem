@@ -447,7 +447,12 @@
 {%- endmacro %}
 
 {% macro preview_email(email) %}
-  {% if email.format == 'html' %}
+  {% if email.format == 'text' %}
+    {# Text formatted Email or AutomatedEmail #}
+    <div class="well email-preview" style='font-family: Menlo, Monaco, Consolas, "Courier New", monospace; font-size: 13px'>
+      {{ email.body_as_html|safe }}
+    </div>
+  {% else %}
     {% if email.to is defined %}
       {# HTML formatted Email to a specific model instance #}
       <div class="well email-preview">{{ email.body_as_html|safe }}</div>
@@ -455,10 +460,5 @@
       {# HTML formatted AutomatedEmail template #}
       <pre class="well email-preview" style="white-space: pre-wrap">{{ email.body }}</pre>
     {% endif %}
-  {% else %}
-    {# Text formatted Email or AutomatedEmail #}
-    <div class="well email-preview" style='font-family: Menlo, Monaco, Consolas, "Courier New", monospace; font-size: 13px'>
-      {{ email.body_as_html|safe }}
-    </div>
   {% endif %}
 {% endmacro %}
