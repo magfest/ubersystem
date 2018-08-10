@@ -1,3 +1,5 @@
+import os
+import re
 from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
 
@@ -509,6 +511,34 @@ class Root:
                 [a for a in attendees if is_unrefunded(a)
                     and a.worked_hours < c.HOURS_FOR_REFUND and a.weighted_hours >= c.HOURS_FOR_REFUND]
             )]
+        }
+
+    def volunteer_checklists(self, session):
+        attendees = session.query(Attendee) \
+            .filter(
+                Attendee.staffing == True,
+                Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])) \
+            .order_by(Attendee.full_name, Attendee.id).all()
+
+        checklist_items = OrderedDict()
+        for item_template in c.VOLUNTEER_CHECKLIST:
+            item_name = os.path.splitext(os.path.basename(item_template))[0]
+            if item_name.endswith('_item'):
+                item_name = item_name[:-5]
+            item_name = item_name.replace('_', ' ').title()
+            checklist_items[item_name] = item_template
+
+        re_checkbox = re.compile(r'<img src="\.\./static/images/checkbox_.*?/>')
+        for attendee in attendees:
+            attendee.checklist_items = OrderedDict()
+            for item_name, item_template in checklist_items.items():
+                html = render(item_template, {'attendee': attendee}, encoding=None)
+                match = re_checkbox.search(html)
+                attendee.checklist_items[item_name] = match.group(0) if match else '<span>N/A</span>'
+
+        return {
+            'checklist_items': checklist_items,
+            'attendees': attendees,
         }
 
     @csv_file
