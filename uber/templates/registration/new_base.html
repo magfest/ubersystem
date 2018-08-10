@@ -238,7 +238,18 @@
                 <div style="color:red">There is a problem with this registration. Please contact your department head.</div>
             {% endif %}
         </td>
-        <td>{{ attendee.badge_type_label }}</td>
+        <td>
+            {{ attendee.badge_type_label }}
+            {% if attendee.ribbon %}
+                ({{ attendee.ribbon_labels|join(", ") }})
+            {% endif %}
+            {% if c.VOLUNTEER_AGREEMENT_ENABLED
+                  and (attendee.staffing or c.VOLUNTEER in attendee.ribbon_ints)
+                  and not attendee.agreed_to_volunteer_agreement %}
+                <br>
+                <b class="text-danger">Volunteer Agreement Incomplete</b>
+            {% endif %}
+        </td>
         <td>
             {% if c.COLLECT_EXACT_BIRTHDATE %}
                 {{ attendee.birthdate|datetime("%m / %d / %Y") }}
