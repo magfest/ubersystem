@@ -24,8 +24,8 @@
       {% for attendee in attendees %}
         <tr>
           <td>{{ attendee|form_link }}</td>
-          {% for checkbox in attendee.checklist_items.values() %}
-            <td>{{ checkbox|safe }}</td>
+          {% for item_name, checkbox in attendee.checklist_items.items() %}
+            <td title="{{ item_name }}">{{ checkbox|safe }}</td>
           {% endfor %}
         </tr>
       {% endfor %}
