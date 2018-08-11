@@ -1,0 +1,17 @@
+User-agent: *
+Disallow: {{ c.CHERRYPY_MOUNT_PATH }}/preregistration/attendee_donation_form
+Disallow: {{ c.CHERRYPY_MOUNT_PATH }}/preregistration/prereg_payment
+Disallow: {{ c.CHERRYPY_MOUNT_PATH }}/preregistration/delete
+Disallow: {{ c.CHERRYPY_MOUNT_PATH }}/preregistration/dealer_confirmation
+Disallow: {{ c.CHERRYPY_MOUNT_PATH }}/preregistration/group_members
+Disallow: {{ c.CHERRYPY_MOUNT_PATH }}/preregistration/register_group_member
+Disallow: {{ c.CHERRYPY_MOUNT_PATH }}/preregistration/process_group_payment
+Disallow: {{ c.CHERRYPY_MOUNT_PATH }}/preregistration/unset_group_member
+Disallow: {{ c.CHERRYPY_MOUNT_PATH }}/preregistration/add_group_members
+Disallow: {{ c.CHERRYPY_MOUNT_PATH }}/preregistration/pay_for_extra_members
+Disallow: {{ c.CHERRYPY_MOUNT_PATH }}/preregistration/invalid_badge
+Disallow: {{ c.CHERRYPY_MOUNT_PATH }}/preregistration/invalidate
+Disallow: {{ c.CHERRYPY_MOUNT_PATH }}/preregistration/confirm
+Disallow: {{ c.CHERRYPY_MOUNT_PATH }}/preregistration/guest_food
+Disallow: {{ c.CHERRYPY_MOUNT_PATH }}/preregistration/undo_attendee_donation
+Disallow: {{ c.CHERRYPY_MOUNT_PATH }}/preregistration/process_attendee_donation
