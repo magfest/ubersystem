@@ -337,7 +337,6 @@ class AttendeeLookup:
             known_emails = set(a.normalized_email for a in email_attendees)
             unknown_emails = sorted([raw for normalized, raw in emails.items() if normalized not in known_emails])
 
-
             name_attendees = []
             if names:
                 filters = [
