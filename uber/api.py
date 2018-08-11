@@ -281,11 +281,14 @@ class AttendeeLookup:
 
     def export(self, query, full=False):
         """
-        Searches for attendees by either email, first & last name, or both
-        email and first & last name.
+        Searches for attendees by either email, "first last" name, or
+        "first last &lt;email&gt;" combinations.
 
-        `query` should be a comma or newline separated list of emails,
-        "first last" names, or "first last <email>" combos.
+        `query` should be a comma or newline separated list of email/name
+        queries.
+
+        Example:
+        <pre>Merrium Webster, only.email@example.com, John Doe &lt;jdoe@example.com&gt;</pre>
 
         Results are returned in the format expected by
         <a href="../import/staff">the staff importer</a>.
