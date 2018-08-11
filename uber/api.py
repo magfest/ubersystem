@@ -295,6 +295,7 @@ class AttendeeLookup:
         """
         _re_name_email = re.compile(r'^\s*(.*?)\s*<\s*(.*?@.*?)\s*>\s*$')
         _re_sep = re.compile(r'[\n,]')
+        _re_whitespace = re.compile(r'\s+')
         queries = [s.strip() for s in _re_sep.split(normalize_newlines(query)) if s.strip()]
 
         names = dict()
@@ -308,8 +309,8 @@ class AttendeeLookup:
                     name = match.group(1)
                     email = Attendee.normalize_email(match.group(2))
                     if name:
-                        first, _, last = [s.strip() for s in name.partition(' ')]
-                        names_and_emails[(first.lower(), last.lower(), email)] = q
+                        first, last = (_re_whitespace.split(name.lower(), 1) + [''])[0:2]
+                        names_and_emails[(first, last, email)] = q
                     else:
                         emails[email] = q
                 else:
@@ -318,8 +319,8 @@ class AttendeeLookup:
                 try:
                     ids.add(str(uuid.UUID(q)))
                 except Exception:
-                    first, _, last = [s.strip() for s in q.partition(' ')]
-                    names[(first.lower(), last.lower())] = q
+                    first, last = (_re_whitespace.split(q.lower(), 1) + [''])[0:2]
+                    names[(first, last)] = q
 
         with Session() as session:
             if full:
@@ -340,8 +341,8 @@ class AttendeeLookup:
             name_attendees = []
             if names:
                 filters = [
-                    and_(func.lower(Attendee.first_name) == n[0], func.lower(Attendee.last_name) == n[1])
-                    for n in names.keys()]
+                    and_(func.lower(Attendee.first_name) == first, func.lower(Attendee.last_name) == last)
+                    for first, last in names.keys()]
                 name_attendees = session.query(Attendee).filter(or_(*filters)) \
                     .options(*options).order_by(Attendee.email, Attendee.id).all()
 
@@ -352,10 +353,10 @@ class AttendeeLookup:
             if names_and_emails:
                 filters = [
                     and_(
-                        func.lower(Attendee.first_name) == n[0],
-                        func.lower(Attendee.last_name) == n[1],
-                        Attendee.normalized_email == n[2])
-                    for n in names_and_emails.keys()]
+                        func.lower(Attendee.first_name) == first,
+                        func.lower(Attendee.last_name) == last,
+                        Attendee.normalized_email == email)
+                    for first, last, email in names_and_emails.keys()]
                 name_and_email_attendees = session.query(Attendee).filter(or_(*filters)) \
                     .options(*options).order_by(Attendee.email, Attendee.id).all()
 
@@ -394,6 +395,9 @@ class AttendeeLookup:
                 'admin_notes',
                 'all_years',
             ]
+            if full:
+                fields.extend(['shirt'])
+
             attendees = []
             for a in all_attendees:
                 d = a.to_dict(fields)
