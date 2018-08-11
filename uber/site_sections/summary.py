@@ -35,7 +35,7 @@ def volunteer_checklists(session):
         .filter(
             Attendee.staffing == True,
             Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])) \
-        .order_by(Attendee.full_name, Attendee.id).all()
+        .order_by(Attendee.full_name, Attendee.id).all()  # noqa: E712
 
     checklist_items = OrderedDict()
     for item_template in c.VOLUNTEER_CHECKLIST:
