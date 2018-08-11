@@ -281,28 +281,42 @@ class AttendeeLookup:
 
     def export(self, query, full=False):
         """
-        Searches for attendees by either email or first and last name.
+        Searches for attendees by either email, first & last name, or both
+        email and first & last name.
 
-        `query` should be a comma or newline separated list of emails and
-        "first last" name combos.
+        `query` should be a comma or newline separated list of emails,
+        "first last" names, or "first last <email>" combos.
 
         Results are returned in the format expected by
         <a href="../import/staff">the staff importer</a>.
         """
-        queries = [s.strip() for s in re.split('[\n,]', normalize_newlines(query)) if s.strip()]
+        _re_name_email = re.compile(r'^\s*(.*?)\s*<\s*(.*?@.*?)\s*>\s*$')
+        _re_sep = re.compile(r'[\n,]')
+        queries = [s.strip() for s in _re_sep.split(normalize_newlines(query)) if s.strip()]
 
         names = dict()
         emails = dict()
+        names_and_emails = dict()
         ids = set()
         for q in queries:
             if '@' in q:
-                emails[Attendee.normalize_email(q)] = q
+                match = _re_name_email.match(q)
+                if match:
+                    name = match.group(1)
+                    email = Attendee.normalize_email(match.group(2))
+                    if name:
+                        first, _, last = [s.strip() for s in name.partition(' ')]
+                        names_and_emails[(first.lower(), last.lower(), email)] = q
+                    else:
+                        emails[email] = q
+                else:
+                    emails[Attendee.normalize_email(q)] = q
             elif q:
                 try:
                     ids.add(str(uuid.UUID(q)))
                 except Exception:
                     first, _, last = [s.strip() for s in q.partition(' ')]
-                    names[q] = (first.lower(), last.lower())
+                    names[(first.lower(), last.lower())] = q
 
         with Session() as session:
             if full:
@@ -318,27 +332,47 @@ class AttendeeLookup:
                     .options(*options).order_by(Attendee.email, Attendee.id).all()
 
             known_emails = set(a.normalized_email for a in email_attendees)
-            unknown_emails = sorted([email for normalized, email in emails.items() if normalized not in known_emails])
+            unknown_emails = sorted([raw for normalized, raw in emails.items() if normalized not in known_emails])
+
 
             name_attendees = []
             if names:
                 filters = [
                     and_(func.lower(Attendee.first_name) == n[0], func.lower(Attendee.last_name) == n[1])
-                    for n in names.values()]
+                    for n in names.keys()]
                 name_attendees = session.query(Attendee).filter(or_(*filters)) \
                     .options(*options).order_by(Attendee.email, Attendee.id).all()
+
+            known_names = set((a.first_name.lower(), a.last_name.lower()) for a in name_attendees)
+            unknown_names = sorted([raw for normalized, raw in names.items() if normalized not in known_names])
+
+            name_and_email_attendees = []
+            if names_and_emails:
+                filters = [
+                    and_(
+                        func.lower(Attendee.first_name) == n[0],
+                        func.lower(Attendee.last_name) == n[1],
+                        Attendee.normalized_email == n[2])
+                    for n in names_and_emails.keys()]
+                name_and_email_attendees = session.query(Attendee).filter(or_(*filters)) \
+                    .options(*options).order_by(Attendee.email, Attendee.id).all()
+
+            known_names_and_emails = set(
+                (a.first_name.lower(), a.last_name.lower(), a.normalized_email) for a in name_and_email_attendees)
+            unknown_names_and_emails = sorted([
+                raw for normalized, raw in names_and_emails.items() if normalized not in known_names_and_emails])
 
             id_attendees = []
             if ids:
                 id_attendees = session.query(Attendee).filter(Attendee.id.in_(ids)) \
                     .options(*options).order_by(Attendee.email, Attendee.id).all()
 
-            known_names = set(a.full_name.lower() for a in name_attendees)
-            unknown_names = sorted([full_name for full_name in names.keys() if full_name.lower() not in known_names])
+            known_ids = set(str(a.id) for a in id_attendees)
+            unknown_ids = sorted([i for i in ids if i not in known_ids])
 
             seen = set()
             all_attendees = [
-                a for a in (id_attendees + email_attendees + name_attendees)
+                a for a in (id_attendees + email_attendees + name_attendees + name_and_email_attendees)
                 if a.id not in seen and not seen.add(a.id)]
 
             fields = [
@@ -388,8 +422,10 @@ class AttendeeLookup:
                 attendees.append(d)
 
             return {
+                'unknown_ids': unknown_ids,
                 'unknown_emails': unknown_emails,
                 'unknown_names': unknown_names,
+                'unknown_names_and_emails': unknown_names_and_emails,
                 'attendees': attendees,
             }
 

@@ -141,7 +141,7 @@
             $output = $form.parent().find('.output');
 
         var print = function(text) {
-          $output.append(text + '\n');
+          $output.append(_.escape(text) + '\n');
         };
 
         var handleError = function(message) {
