@@ -72,7 +72,7 @@
         type="text"
         name="target_server"
         value="{{ target_server }}"
-        placeholder="event.uber.magfest.org"
+        placeholder="event.uber.magfest.org/uber"
         required>
   </div>
   <div class="form-group">
@@ -82,8 +82,8 @@
         type="text"
         name="api_token"
         value="{{ api_token }}"
-        placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-        required>
+        placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX">
+    <p class="static-form-control help-block">Leave blank to try using system API token</p>
   </div>
   <div class="form-group">
     <label class="control-label">

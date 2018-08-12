@@ -13,7 +13,7 @@ from rpctools.jsonrpc import ServerProxy
 from sqlalchemy import and_, or_, func
 from sqlalchemy.types import Date, Boolean, Integer
 
-from uber.config import c
+from uber.config import c, _config
 from uber.custom_tags import pluralize
 from uber.decorators import all_renderable, ajax_gettable, renderable_override
 from uber.errors import HTTPRedirect
@@ -38,6 +38,16 @@ def _server_to_host(server):
     if not server:
         return ''
     return urllib.parse.unquote(server).replace('http://', '').replace('https://', '').split('/')[0]
+
+
+def _format_import_params(target_server, api_token):
+    target_url = _server_to_url(target_server)
+    target_host = _server_to_host(target_server)
+    remote_api_token = api_token.strip()
+    if not remote_api_token:
+        remote_api_tokens = _config.get('secret', {}).get('remote_api_tokens', {})
+        remote_api_token = remote_api_tokens.get(target_host, remote_api_tokens.get('default', ''))
+    return (target_url, target_host, remote_api_token.strip())
 
 
 @all_renderable(c.ADMIN)
@@ -124,17 +134,22 @@ class Root:
 
     @renderable_override(c.ACCOUNTS)
     def attendees(self, session, target_server='', api_token='', query='', message=''):
-        target_url = _server_to_url(target_server)
+        target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
+
+        results = {}
         if cherrypy.request.method == 'POST':
-            try:
-                uri = '{}/jsonrpc/'.format(target_url)
-                service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': api_token.strip()})
-                results = service.attendee.export(query=query)
-            except Exception as ex:
-                message = str(ex)
-                results = {}
-        else:
-            results = {}
+            if not remote_api_token:
+                message = 'No API token given and could not find a token for: {}'.format(target_host)
+            elif not target_url:
+                message = 'Unrecognized hostname: {}'.format(target_server)
+
+            if not message:
+                try:
+                    uri = '{}/jsonrpc/'.format(target_url)
+                    service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
+                    results = service.attendee.export(query=query)
+                except Exception as ex:
+                    message = str(ex)
 
         attendees = results.get('attendees', [])
         for attendee in attendees:
@@ -182,15 +197,16 @@ class Root:
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('attendees?target_server={}&api_token={}&query={}', target_server, api_token, query)
 
-        target_url = _server_to_url(target_server)
+        target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
         results = {}
         try:
             uri = '{}/jsonrpc/'.format(target_url)
-            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': api_token.strip()})
+            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
             results = service.attendee.export(query=','.join(listify(attendee_ids)), full=True)
         except Exception as ex:
             raise HTTPRedirect(
-                'attendees?target_server={}&api_token={}&query={}&message={}', target_server, api_token, query, str(ex))
+                'attendees?target_server={}&api_token={}&query={}&message={}',
+                target_server, remote_api_token, query, str(ex))
 
         depts = {}
 
@@ -294,16 +310,23 @@ class Root:
             message='',
             **kwargs):
 
-        target_url = _server_to_url(target_server)
+        target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
         uri = '{}/jsonrpc/'.format(target_url)
 
+        message = ''
         service = None
-        if target_url and api_token:
-            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': api_token.strip()})
+        if target_server or api_token:
+            if not remote_api_token:
+                message = 'No API token given and could not find a token for: {}'.format(target_host)
+            elif not target_url:
+                message = 'Unrecognized hostname: {}'.format(target_server)
+
+            if not message:
+                service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
 
         department = {}
         from_departments = []
-        if service:
+        if not message and service:
             from_departments = [(id, name) for id, name in sorted(service.dept.list().items(), key=lambda d: d[1])]
             if cherrypy.request.method == 'POST':
                 from_department = service.dept.jobs(department_id=from_department_id)
@@ -359,10 +382,17 @@ class Root:
     @renderable_override(c.ACCOUNTS)
     @ajax_gettable
     def lookup_departments(self, session, target_server='', api_token='', **kwargs):
-        target_url = _server_to_url(target_server)
+        target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
         uri = '{}/jsonrpc/'.format(target_url)
+
+        if not remote_api_token:
+            return {
+                'error': 'No API token given and could not find a token for: ' + target_host,
+                'target_url': uri,
+            }
+
         try:
-            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': api_token.strip()})
+            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
             return {
                 'departments': [(id, name) for id, name in sorted(service.dept.list().items(), key=lambda d: d[1])],
                 'target_url': uri,
