@@ -69,7 +69,7 @@ table form {
               {{ csrf_token() }}
               <div class="form-group">{{ macros.access_checkgroup(account) }}</div>
             </form>
-            {% if account.attendee.depts_with_inherent_role %}
+            {% if account.attendee.assigned_depts %}
               <br>
               <small><i>Assigned to {{ account.attendee.assigned_depts|map('form_link')|list|readable_join|safe }}</i></small>
             {% endif %}
