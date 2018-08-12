@@ -59,7 +59,9 @@ table form {
       <tbody>
       {% for account in accounts %}
         <tr id="{{ account.email|idize }}">
-          <td data-order="{{ account.attendee.last_first }}" data-search="{{ account.attendee.last_first }}"> <nobr><a href="../registration/form?id={{ account.attendee.id }}">{{ account.attendee.last_first }}</a></nobr> </td>
+          <td data-order="{{ account.attendee.last_first }}" data-search="{{ account.attendee.last_first }}">
+            <nobr><a href="../registration/form?id={{ account.attendee.id }}">{{ account.attendee.last_first }}</a></nobr>
+          </td>
           <td> {{ account.attendee.email|email_to_link }} </td>
           <td>
             <form class="form update-form" method="post" action="update">
@@ -67,6 +69,10 @@ table form {
               {{ csrf_token() }}
               <div class="form-group">{{ macros.access_checkgroup(account) }}</div>
             </form>
+            {% if account.attendee.depts_with_inherent_role %}
+              <br>
+              <small><i>Admin for {{ account.attendee.depts_with_inherent_role|map('form_link')|list|readable_join|safe }}</i></small>
+            {% endif %}
           </td>
           <td>
             <a href="update_password_of_other?id={{account.id}}">Change Password</a>

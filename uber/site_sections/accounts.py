@@ -40,7 +40,7 @@ class Root:
             'message':  message,
             'accounts': (session.query(AdminAccount)
                          .join(Attendee)
-                         .options(subqueryload(AdminAccount.attendee))
+                         .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.depts_with_inherent_role))
                          .order_by(Attendee.last_first).all()),
             'all_attendees': sorted(attendees, key=lambda tup: tup[1])
         }
