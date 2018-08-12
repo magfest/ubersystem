@@ -213,8 +213,8 @@ class Root:
 
         attendees = results.get('attendees', [])
         for d in attendees:
-            import_from_url = '{}/registration/form?id={}\n'.format(target_url, d['id'])
-            admin_notes = '{}\n'.format(admin_notes) if admin_notes else ''
+            import_from_url = '{}/registration/form?id={}\n\n'.format(target_url, d['id'])
+            new_admin_notes = '{}\n\n'.format(admin_notes) if admin_notes else ''
             old_admin_notes = 'Old Admin Notes:\n{}\n'.format(d['admin_notes']) if d['admin_notes'] else ''
 
             d.update({
@@ -223,7 +223,7 @@ class Root:
                 'placeholder': True,
                 'requested_hotel_info': True,
                 'admin_notes': 'Imported {} from {}{}{}'.format(
-                    badge_label, import_from_url, admin_notes, old_admin_notes),
+                    badge_label, import_from_url, new_admin_notes, old_admin_notes),
                 'past_years': d['all_years'],
             })
             del d['id']
