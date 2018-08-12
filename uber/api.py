@@ -394,6 +394,8 @@ class AttendeeLookup:
                 'comments',
                 'admin_notes',
                 'all_years',
+                'badge_status',
+                'badge_status_label',
             ]
             if full:
                 fields.extend(['shirt'])

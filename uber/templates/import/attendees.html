@@ -20,6 +20,39 @@
     min-width: 50%;
   }
 
+  .badge-status-invalid .badge-status-label {
+    color: #f00;
+  }
+
+  .badge-status-refunded .badge-status-label {
+    color: #808;
+  }
+
+  .badge-status-new .badge-status-label {
+    color: #f80;
+  }
+
+  .badge-status-deferred .badge-status-label {
+    color: #080;
+  }
+
+  .badge-status-on-hold .badge-status-label {
+    color: #f00;
+  }
+
+  .badge-status-label {
+    font-weight: bold;
+  }
+
+  .badge-status-unknown .badge-status-label {
+    font-weight: normal;
+    font-style: italic;
+  }
+
+  .badge-status-complete .badge-status-label {
+    font-weight: normal;
+  }
+
   #confirm_attendees .control-label {
     font-size: 1.5em;
   }
@@ -82,11 +115,19 @@
 
 {% if existing_attendees %}
   <h3>Existing Attendees</h3>
-  <table id="existing" class="table table-responsive table-striped form">
-    <thead><th>Email</th><th>Name</th></tr></thead>
+  <table id="existing" class="table table-responsive form">
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Name</th>
+      </tr>
+    </thead>
     <tbody>
       {% for attendee in existing_attendees %}
-        <tr><td>{{ attendee.email }}</td><td>{{ attendee|form_link }}</td></tr>
+        <tr>
+          <td>{{ attendee.email }}</td>
+          <td>{{ attendee|form_link }}</td>
+        </tr>
       {% endfor %}
     </tbody>
   </table>
@@ -98,12 +139,26 @@
     <input type="hidden" name="target_server" value="{{ target_server }}">
     <input type="hidden" name="api_token" value="{{ api_token }}">
     <input type="hidden" name="query" value="{{ query }}">
-    <table id="matching" class="table table-responsive table-striped table-bordered">
-      <thead><tr><th></th><th>Email</th><th>Name</th></tr></thead>
+    <table id="matching" class="table table-responsive table-bordered">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Badge Status</th>
+          <th>Email</th>
+          <th>Name</th>
+        </tr>
+      </thead>
       <tbody>
         {% for attendee in attendees %}
-          <tr>
-            <td><input type="checkbox" name="attendee_ids" value="{{ attendee.id }}" checked></td>
+          <tr class="badge-status-{{ attendee.badge_status_label|default('Unknown')|lower|replace(' ', '-') }}">
+            <td>
+              <input
+                type="checkbox"
+                name="attendee_ids"
+                value="{{ attendee.id }}"
+                {% if not attendee.badge_status or attendee.badge_status in [c.COMPLETED_STATUS, c.DEFERRED_STATUS] %}checked{% endif %}>
+            </td>
+            <td class="badge-status-label">{{ attendee.badge_status_label|default('Unknown') }}</td>
             <td>{{ attendee.email }}</td>
             <td><a href="{{ attendee.href }}">{{ attendee.first_name }} {{ attendee.last_name }}</a></td>
           </tr>

@@ -219,6 +219,7 @@ class Root:
 
             d.update({
                 'badge_type': badge_type,
+                'badge_status': c.NEW_STATUS,
                 'paid': c.NEED_NOT_PAY,
                 'placeholder': True,
                 'requested_hotel_info': True,
