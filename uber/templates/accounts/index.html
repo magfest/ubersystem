@@ -71,7 +71,7 @@ table form {
             </form>
             {% if account.attendee.depts_with_inherent_role %}
               <br>
-              <small><i>Admin for {{ account.attendee.depts_with_inherent_role|map('form_link')|list|readable_join|safe }}</i></small>
+              <small><i>Assigned to {{ account.attendee.assigned_depts|map('form_link')|list|readable_join|safe }}</i></small>
             {% endif %}
           </td>
           <td>
