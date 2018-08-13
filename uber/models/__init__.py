@@ -386,29 +386,26 @@ class MagModel:
                         pass  # Totally fine for value to be None
 
                     elif isinstance(value, six.string_types):
+                        value = value.strip()
                         if isinstance(column.type, Float):
-                            value = value.strip()
                             if value == '':
                                 value = None
                             else:
                                 value = float(value)
 
                         elif isinstance(column.type, Numeric):
-                            value = value.strip()
                             if value == '':
                                 value = None
                             elif value.endswith('.0'):
                                 value = int(value[:-2])
 
                         elif isinstance(column.type, (Choice, Integer)):
-                            value = value.strip()
                             if value == '':
                                 value = None
                             else:
                                 value = int(float(value))
 
                         elif isinstance(column.type, UTCDateTime):
-                            value = value.strip()
                             try:
                                 value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
                             except ValueError:
@@ -417,7 +414,6 @@ class MagModel:
                                 value = c.EVENT_TIMEZONE.localize(value)
 
                         elif isinstance(column.type, Date):
-                            value = value.strip()
                             try:
                                 value = datetime.strptime(value, c.DATE_FORMAT)
                             except ValueError:
