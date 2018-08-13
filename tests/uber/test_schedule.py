@@ -14,20 +14,6 @@ UTC20DAYSLATER = UTCNOW + timedelta(days=20)
 
 
 @pytest.fixture()
-def admin_attendee():
-    with Session() as session:
-        session.insert_test_admin_account()
-
-    with Session() as session:
-        attendee = session.query(Attendee).filter(
-            Attendee.email == 'magfest@example.com').one()
-        cherrypy.session['account_id'] = attendee.admin_account.id
-        yield attendee
-        cherrypy.session['account_id'] = None
-        session.delete(attendee)
-
-
-@pytest.fixture()
 def create_events():
     with Session() as session:
         for index, (loc, desc) in enumerate(c.EVENT_LOCATION_OPTS):

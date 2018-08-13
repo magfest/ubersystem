@@ -32,20 +32,6 @@ def csrf_token(monkeypatch):
     yield token
 
 
-@pytest.fixture()
-def admin_attendee():
-    with Session() as session:
-        session.insert_test_admin_account()
-
-    with Session() as session:
-        attendee = session.query(Attendee).filter(
-            Attendee.email == 'magfest@example.com').one()
-        cherrypy.session['account_id'] = attendee.admin_account.id
-        yield attendee
-        cherrypy.session['account_id'] = None
-        session.delete(attendee)
-
-
 class TestAddGuestGroup(object):
 
     def _add_group_response(self, **params):

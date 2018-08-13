@@ -376,49 +376,54 @@ class MagModel:
         checkgroups = self.regform_checkgroups if restricted else checkgroups
         for column in self.__table__.columns:
             if (not restricted or column.name in self.unrestricted) and column.name in params and column.name != 'id':
-                if isinstance(params[column.name], list):
-                    value = ','.join(map(str, params[column.name]))
-                else:
-                    value = params[column.name]
+                value = params[column.name]
+                if isinstance(value, six.string_types):
+                    value = value.strip()
 
                 try:
                     if value is None:
                         pass  # Totally fine for value to be None
 
-                    elif isinstance(value, six.string_types):
-                        value = value.strip()
-                        if isinstance(column.type, Float):
-                            if value == '':
-                                value = None
-                            else:
-                                value = float(value)
+                    elif isinstance(column.type, Float):
+                        if value == '':
+                            value = None
+                        else:
+                            value = float(value)
 
-                        elif isinstance(column.type, Numeric):
-                            if value == '':
-                                value = None
-                            elif value.endswith('.0'):
-                                value = int(value[:-2])
+                    elif isinstance(column.type, Numeric):
+                        if value == '':
+                            value = None
+                        elif value.endswith('.0'):
+                            value = int(value[:-2])
 
-                        elif isinstance(column.type, (Choice, Integer)):
-                            if value == '':
-                                value = None
-                            else:
-                                value = int(float(value))
+                    elif isinstance(column.type, (MultiChoice)):
+                        if not value:
+                            value = ''
+                        elif isinstance(value, list):
+                            value = ','.join(map(lambda x: str(x).strip(), value))
+                        else:
+                            value = str(value).strip()
 
-                        elif isinstance(column.type, UTCDateTime):
-                            try:
-                                value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
-                            except ValueError:
-                                value = dateparser.parse(value)
-                            if not value.tzinfo:
-                                value = c.EVENT_TIMEZONE.localize(value)
+                    elif isinstance(column.type, (Choice, Integer)):
+                        if value == '':
+                            value = None
+                        else:
+                            value = int(float(value))
 
-                        elif isinstance(column.type, Date):
-                            try:
-                                value = datetime.strptime(value, c.DATE_FORMAT)
-                            except ValueError:
-                                value = dateparser.parse(value)
-                            value = value.date()
+                    elif isinstance(column.type, UTCDateTime):
+                        try:
+                            value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
+                        except ValueError:
+                            value = dateparser.parse(value)
+                        if not value.tzinfo:
+                            value = c.EVENT_TIMEZONE.localize(value)
+
+                    elif isinstance(column.type, Date):
+                        try:
+                            value = datetime.strptime(value, c.DATE_FORMAT)
+                        except ValueError:
+                            value = dateparser.parse(value)
+                        value = value.date()
 
                 except Exception as error:
                     log.debug(
@@ -563,9 +568,24 @@ class Session(SessionManager):
                 from uber.migration import stamp
                 stamp('heads' if modify_tables else None)
 
+    def __init__(self, force_new_session=False, no_cache=False, use_nested_transaction=False):
+        """
+        Create a new SessionManager database session context manager.
 
-    def __init__(self, force_new_session=False, use_nested_transaction=False):
-        if not force_new_session and threadlocal.get(self._SESSION_KEY):
+        Args:
+            force_new_session (bool): Force the creation of a new database session instead of checking the
+                threadlocal cache for an existing session. If a new session is created, and there is no
+                cached session, the newly created session will be added to the threadlocal cache.
+            no_cache: (bool): When True, the threadlocal cache is avoided entirely. A new session will be
+                always be created and will never be cached. When True, `force_new_session=True` is implied.
+            use_nested_transaction (bool): When True, and a cached database session is available, a nested
+                transaction SAVEPOINT will be created using `Session.begin_nested()`.
+        """
+        self.force_new_session = force_new_session
+        self.no_cache = no_cache
+        self.use_nested_transaction = use_nested_transaction
+
+        if not self.no_cache and not self.force_new_session and threadlocal.get(self._SESSION_KEY):
             self.session = threadlocal.get(self._SESSION_KEY)
             self.is_new_session = False
         else:
@@ -578,9 +598,7 @@ class Session(SessionManager):
                     assert not hasattr(self.session, name) and hasattr(val, '__call__')
                     setattr(self.session, name, types.MethodType(val, self.session))
 
-        self.use_nested_transaction = use_nested_transaction
-        self.transaction = None
-        if not threadlocal.get(self._SESSION_KEY):
+        if not self.no_cache and not threadlocal.get(self._SESSION_KEY):
             threadlocal.set(self._SESSION_KEY, self.session)
 
     def __enter__(self):
@@ -601,7 +619,8 @@ class Session(SessionManager):
 
     def __del__(self):
         if self.is_new_session and self.session.transaction._connections:
-            log.error('SessionManager went out of scope without underlying connection being closed; did you forget to use it as a context manager?')
+            log.error('SessionManager went out of scope without underlying connection being closed; '
+                      'did you forget to use it as a context manager?')
             self._close_session()
 
     def _close_session(self):
