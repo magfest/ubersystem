@@ -15,7 +15,7 @@ from dateutil import parser as dateparser
 from pockets import cached_classproperty, classproperty, listify
 from pockets.autolog import log
 from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
-from sideboard.lib import on_startup, stopped
+from sideboard.lib import on_startup, stopped, threadlocal
 from sqlalchemy import and_, func, or_, not_
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError
@@ -376,47 +376,54 @@ class MagModel:
         checkgroups = self.regform_checkgroups if restricted else checkgroups
         for column in self.__table__.columns:
             if (not restricted or column.name in self.unrestricted) and column.name in params and column.name != 'id':
-                if column.type is JSON or isinstance(column.type, JSON):
-                    value = params[column.name]
-                elif isinstance(params[column.name], list):
+                if isinstance(params[column.name], list):
                     value = ','.join(map(str, params[column.name]))
-                elif isinstance(params[column.name], bool):
-                    value = params[column.name]
-                elif params[column.name] is None:
-                    value = None
                 else:
-                    value = str(params[column.name]).strip()
+                    value = params[column.name]
 
                 try:
                     if value is None:
                         pass  # Totally fine for value to be None
-                    elif isinstance(column.type, Float):
-                        if value == '':
-                            value = None
-                        else:
-                            value = float(value)
-                    elif isinstance(column.type, Numeric):
-                        if value == '':
-                            value = None
-                        elif value.endswith('.0'):
-                            value = int(value[:-2])
-                    elif isinstance(column.type, (Choice, Integer)):
-                        if value == '':
-                            value = None
-                        else:
-                            value = int(float(value))
-                    elif isinstance(column.type, UTCDateTime):
-                        try:
-                            value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
-                        except ValueError:
-                            value = dateparser.parse(value)
-                        value = c.EVENT_TIMEZONE.localize(value)
-                    elif isinstance(column.type, Date):
-                        try:
-                            value = datetime.strptime(value, c.DATE_FORMAT)
-                        except ValueError:
-                            value = dateparser.parse(value)
-                        value = value.date()
+
+                    elif isinstance(value, six.string_types):
+                        if isinstance(column.type, Float):
+                            value = value.strip()
+                            if value == '':
+                                value = None
+                            else:
+                                value = float(value)
+
+                        elif isinstance(column.type, Numeric):
+                            value = value.strip()
+                            if value == '':
+                                value = None
+                            elif value.endswith('.0'):
+                                value = int(value[:-2])
+
+                        elif isinstance(column.type, (Choice, Integer)):
+                            value = value.strip()
+                            if value == '':
+                                value = None
+                            else:
+                                value = int(float(value))
+
+                        elif isinstance(column.type, UTCDateTime):
+                            value = value.strip()
+                            try:
+                                value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
+                            except ValueError:
+                                value = dateparser.parse(value)
+                            if not value.tzinfo:
+                                value = c.EVENT_TIMEZONE.localize(value)
+
+                        elif isinstance(column.type, Date):
+                            value = value.strip()
+                            try:
+                                value = datetime.strptime(value, c.DATE_FORMAT)
+                            except ValueError:
+                                value = dateparser.parse(value)
+                            value = value.date()
+
                 except Exception as error:
                     log.debug(
                         'Ignoring error coercing value for column {}.{}: {}', self.__tablename__, column.name, error)
@@ -505,6 +512,9 @@ from uber.models.tracking import Tracking  # noqa: E402
 
 
 class Session(SessionManager):
+
+    _SESSION_KEY = 'uber.models.Session.session'
+
     # This looks strange, but `sqlalchemy.create_engine` will throw an error
     # if it's passed arguments that aren't supported by the given DB engine.
     # For example, SQLite doesn't support either `pool_size` or `max_overflow`,
@@ -556,6 +566,52 @@ class Session(SessionManager):
             if drop:
                 from uber.migration import stamp
                 stamp('heads' if modify_tables else None)
+
+
+    def __init__(self, force_new_session=False, use_nested_transaction=False):
+        if not force_new_session and threadlocal.get(self._SESSION_KEY):
+            self.session = threadlocal.get(self._SESSION_KEY)
+            self.is_new_session = False
+        else:
+            self.session = self.session_factory()
+            self.is_new_session = True
+
+            import types
+            for name, val in self.SessionMixin.__dict__.items():
+                if not name.startswith('__'):
+                    assert not hasattr(self.session, name) and hasattr(val, '__call__')
+                    setattr(self.session, name, types.MethodType(val, self.session))
+
+        self.use_nested_transaction = use_nested_transaction
+        self.transaction = None
+        if not threadlocal.get(self._SESSION_KEY):
+            threadlocal.set(self._SESSION_KEY, self.session)
+
+    def __enter__(self):
+        if not self.is_new_session and self.use_nested_transaction:
+            self.session.begin_nested()
+        return self.session
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            if self.is_new_session or self.use_nested_transaction:
+                if exc_type is None:
+                    self.session.commit()
+                else:
+                    self.session.rollback()
+        finally:
+            if self.is_new_session:
+                self._close_session()
+
+    def __del__(self):
+        if self.is_new_session and self.session.transaction._connections:
+            log.error('SessionManager went out of scope without underlying connection being closed; did you forget to use it as a context manager?')
+            self._close_session()
+
+    def _close_session(self):
+        if self.session is threadlocal.get(self._SESSION_KEY):
+            threadlocal.set(self._SESSION_KEY, None)
+        self.session.close()
 
     class QuerySubclass(Query):
         @property
