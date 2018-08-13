@@ -1,11 +1,10 @@
 from datetime import datetime, timedelta
 
-import cherrypy
 import pytest
 import pytz
 
 from uber.config import c
-from uber.models import Attendee, Event, Session
+from uber.models import Event, Session
 from uber.site_sections import schedule
 
 

@@ -5,7 +5,7 @@ import pytest
 
 from uber.config import c
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Group, Session
+from uber.models import Group, Session
 from uber.site_sections import guest_admin
 
 
