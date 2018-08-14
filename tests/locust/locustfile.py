@@ -19,14 +19,29 @@ class AttendeeBehavior(TaskSet):
             '//127.0.0.1' in self.client.base_url)
         self.get_preregistration()
 
+    def get_static_assets(self):
+        self.client.get('/static/deps/combined.min.css', verify=self.verify)
+        self.client.get('/static_views/styles/main.css', verify=self.verify)
+        self.client.get('/static/theme/prereg.css', verify=self.verify)
+        self.client.get('/static/theme/prereg_extra.css', verify=self.verify)
+        self.client.get('/static/deps/combined.min.js', verify=self.verify)
+        self.client.get('/static/js/common-static.js', verify=self.verify)
+        self.client.get('/static/theme/tile-background.png', verify=self.verify)
+        self.client.get('/static/images/loading.gif', verify=self.verify)
+        self.client.get('/static/theme/banner_2x.png', verify=self.verify)
+
     @task(4)
     def get_preregistration(self):
-        self.client.get('/uber/preregistration/form', verify=self.verify)
+        self.client.get('/preregistration/form', verify=self.verify)
+        self.get_static_assets()
 
     @task(1)
     def post_preregistration(self):
+        self.client.get('/preregistration/form', verify=self.verify)
+        self.get_static_assets()
+
         self.client.post(
-            '/uber/preregistration/post_form',
+            '/preregistration/post_form',
             verify=self.verify,
             data={
                 'badge_type': '51352218',
@@ -40,8 +55,7 @@ class AttendeeBehavior(TaskSet):
                 'badge_printed_name': '',
                 'affiliate': '',
                 'shirt': '0',
-                'birthdate': fake.date_time_between(
-                    '-80y', '-14y').strftime('%Y-%m-%d'),
+                'birthdate': fake.date_time_between('-80y', '-14y').strftime('%Y-%m-%d'),
                 'email': fake.safe_email(),
                 'zip_code': fake.zipcode(),
                 'ec_name': fake.name(),
@@ -49,8 +63,17 @@ class AttendeeBehavior(TaskSet):
                 'cellphone': fake.phone_number(),
                 'found_how': fake.catch_phrase(),
                 'comments': fake.paragraph(),
-                'extra_donation': ''})
-        self.client.get('/uber/preregistration/index', verify=self.verify)
+                'extra_donation': '',
+                'pii_consent': '1',
+            }
+        )
+
+        self.client.get('/preregistration/index', verify=self.verify)
+        self.get_static_assets()
+
+        self.client.get('/preregistration/process_free_prereg', verify=self.verify)
+        self.client.get('/preregistration/paid_preregistrations?payment_received=0', verify=self.verify)
+        self.get_static_assets()
 
 
 class AttendeeLocust(HttpLocust):
