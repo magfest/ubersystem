@@ -397,9 +397,7 @@ class MagModel:
                             value = int(value[:-2])
 
                     elif isinstance(column.type, (MultiChoice)):
-                        if not value:
-                            value = ''
-                        elif isinstance(value, list):
+                        if isinstance(value, list):
                             value = ','.join(map(lambda x: str(x).strip(), value))
                         else:
                             value = str(value).strip()
