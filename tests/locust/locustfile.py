@@ -14,9 +14,7 @@ class AttendeeBehavior(TaskSet):
     max_wait = 10000
 
     def on_start(self):
-        self.verify = not(
-            '//localhost' in self.client.base_url or
-            '//127.0.0.1' in self.client.base_url)
+        self.verify = False
         self.get_preregistration()
 
     def get_static_assets(self):
