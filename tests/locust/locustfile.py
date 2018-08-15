@@ -28,15 +28,14 @@ class AttendeeBehavior(TaskSet):
         self.client.get('/static/images/loading.gif', verify=self.verify)
         self.client.get('/static/theme/banner_2x.png', verify=self.verify)
 
-    @task(4)
+    @task(3)
     def get_preregistration(self):
         self.client.get('/preregistration/form', verify=self.verify)
         self.get_static_assets()
 
     @task(1)
     def post_preregistration(self):
-        self.client.get('/preregistration/form', verify=self.verify)
-        self.get_static_assets()
+        self.get_preregistration()
 
         self.client.post(
             '/preregistration/post_form',
@@ -67,11 +66,8 @@ class AttendeeBehavior(TaskSet):
         )
 
         self.client.get('/preregistration/index', verify=self.verify)
-        self.get_static_assets()
-
         self.client.get('/preregistration/process_free_prereg', verify=self.verify)
         self.client.get('/preregistration/paid_preregistrations?payment_received=0', verify=self.verify)
-        self.get_static_assets()
 
 
 class AttendeeLocust(HttpLocust):
