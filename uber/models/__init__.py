@@ -512,7 +512,7 @@ from uber.models.tracking import Tracking  # noqa: E402
 
 class Session(SessionManager):
 
-    # _SESSION_KEY = 'uber.models.Session.session'
+    _SESSION_KEY = 'uber.models.Session.session'
 
     # This looks strange, but `sqlalchemy.create_engine` will throw an error
     # if it's passed arguments that aren't supported by the given DB engine.
@@ -566,64 +566,64 @@ class Session(SessionManager):
                 from uber.migration import stamp
                 stamp('heads' if modify_tables else None)
 
-    # def __init__(self, force_new_session=False, no_cache=False, use_nested_transaction=False):
-    #     """
-    #     Create a new SessionManager database session context manager.
+    def __init__(self, force_new_session=False, no_cache=False, use_nested_transaction=False):
+        """
+        Create a new SessionManager database session context manager.
 
-    #     Args:
-    #         force_new_session (bool): Force the creation of a new database session instead of checking the
-    #             threadlocal cache for an existing session. If a new session is created, and there is no
-    #             cached session, the newly created session will be added to the threadlocal cache.
-    #         no_cache: (bool): When True, the threadlocal cache is avoided entirely. A new session will be
-    #             always be created and will never be cached. When True, `force_new_session=True` is implied.
-    #         use_nested_transaction (bool): When True, and a cached database session is available, a nested
-    #             transaction SAVEPOINT will be created using `Session.begin_nested()`.
-    #     """
-    #     self.force_new_session = force_new_session
-    #     self.no_cache = no_cache
-    #     self.use_nested_transaction = use_nested_transaction
+        Args:
+            force_new_session (bool): Force the creation of a new database session instead of checking the
+                threadlocal cache for an existing session. If a new session is created, and there is no
+                cached session, the newly created session will be added to the threadlocal cache.
+            no_cache: (bool): When True, the threadlocal cache is avoided entirely. A new session will be
+                always be created and will never be cached. When True, `force_new_session=True` is implied.
+            use_nested_transaction (bool): When True, and a cached database session is available, a nested
+                transaction SAVEPOINT will be created using `Session.begin_nested()`.
+        """
+        self.force_new_session = force_new_session
+        self.no_cache = no_cache
+        self.use_nested_transaction = use_nested_transaction
 
-    #     if not self.no_cache and not self.force_new_session and threadlocal.get(self._SESSION_KEY):
-    #         self.session = threadlocal.get(self._SESSION_KEY)
-    #         self.is_new_session = False
-    #     else:
-    #         self.session = self.session_factory()
-    #         self.is_new_session = True
+        if not self.no_cache and not self.force_new_session and threadlocal.get(self._SESSION_KEY):
+            self.session = threadlocal.get(self._SESSION_KEY)
+            self.is_new_session = False
+        else:
+            self.session = self.session_factory()
+            self.is_new_session = True
 
-    #         import types
-    #         for name, val in self.SessionMixin.__dict__.items():
-    #             if not name.startswith('__'):
-    #                 assert not hasattr(self.session, name) and hasattr(val, '__call__')
-    #                 setattr(self.session, name, types.MethodType(val, self.session))
+            import types
+            for name, val in self.SessionMixin.__dict__.items():
+                if not name.startswith('__'):
+                    assert not hasattr(self.session, name) and hasattr(val, '__call__')
+                    setattr(self.session, name, types.MethodType(val, self.session))
 
-    #     if not self.no_cache and not threadlocal.get(self._SESSION_KEY):
-    #         threadlocal.set(self._SESSION_KEY, self.session)
+        if not self.no_cache and not threadlocal.get(self._SESSION_KEY):
+            threadlocal.set(self._SESSION_KEY, self.session)
 
-    # def __enter__(self):
-    #     if not self.is_new_session and self.use_nested_transaction:
-    #         self.session.begin_nested()
-    #     return self.session
+    def __enter__(self):
+        if not self.is_new_session and self.use_nested_transaction:
+            self.session.begin_nested()
+        return self.session
 
-    # def __exit__(self, exc_type, exc_value, traceback):
-    #     try:
-    #         if self.is_new_session or self.use_nested_transaction:
-    #             if exc_type is None:
-    #                 try:
-    #                     self.session.commit()
-    #                 except Exception:
-    #                     self.session.rollback()
-    #                     raise
-    #             else:
-    #                 self.session.rollback()
-    #     finally:
-    #         if self.is_new_session:
-    #             self._close_session()
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            if self.is_new_session or self.use_nested_transaction:
+                if exc_type is None:
+                    try:
+                        self.session.commit()
+                    except Exception:
+                        self.session.rollback()
+                        raise
+                else:
+                    self.session.rollback()
+        finally:
+            if self.is_new_session:
+                self._close_session()
 
-    # def __del__(self):
-    #     if self.is_new_session and self.session.transaction._connections:
-    #         log.error('SessionManager went out of scope without underlying connection being closed; '
-    #                   'did you forget to use it as a context manager?')
-    #         self._close_session()
+    def __del__(self):
+        if self.is_new_session and self.session.transaction._connections:
+            log.error('SessionManager went out of scope without underlying connection being closed; '
+                      'did you forget to use it as a context manager?')
+            self._close_session()
 
     def _close_session(self):
         if self.session is threadlocal.get(self._SESSION_KEY):
