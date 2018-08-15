@@ -154,6 +154,7 @@ class MagModel:
         """
         values = []
         for name in self.cost_property_names:
+            value = 'ATTRIBUTE NOT FOUND'
             try:
                 value = getattr(self, name, 'ATTRIBUTE NOT FOUND')
                 values.append(int(value))
