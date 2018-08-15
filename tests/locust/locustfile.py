@@ -1,9 +1,13 @@
 """
 Load tests using locust.io.
 """
+import resource
+
 import faker
 from locust import HttpLocust, TaskSet, task
 
+
+resource.setrlimit(resource.RLIMIT_NOFILE, (8192, 9223372036854775807))
 
 fake = faker.Faker()
 faker.providers.phone_number.en_US.Provider.formats = ('888-555-####',)
@@ -15,7 +19,6 @@ class AttendeeBehavior(TaskSet):
 
     def on_start(self):
         self.verify = False
-        self.preregister()
 
     def get_static_assets(self):
         self.client.get('/static/deps/combined.min.css', verify=self.verify)
