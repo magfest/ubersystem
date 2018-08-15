@@ -15,7 +15,7 @@ class AttendeeBehavior(TaskSet):
 
     def on_start(self):
         self.verify = False
-        self.get_preregistration()
+        self.preregister()
 
     def get_static_assets(self):
         self.client.get('/static/deps/combined.min.css', verify=self.verify)
@@ -28,14 +28,10 @@ class AttendeeBehavior(TaskSet):
         self.client.get('/static/images/loading.gif', verify=self.verify)
         self.client.get('/static/theme/banner_2x.png', verify=self.verify)
 
-    @task(3)
-    def get_preregistration(self):
+    @task
+    def preregister(self):
         self.client.get('/preregistration/form', verify=self.verify)
         self.get_static_assets()
-
-    @task(1)
-    def post_preregistration(self):
-        self.get_preregistration()
 
         self.client.post(
             '/preregistration/post_form',
