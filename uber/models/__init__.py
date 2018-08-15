@@ -608,7 +608,11 @@ class Session(SessionManager):
         try:
             if self.is_new_session or self.use_nested_transaction:
                 if exc_type is None:
-                    self.session.commit()
+                    try:
+                        self.session.commit()
+                    except Exception:
+                        self.session.rollback()
+                        raise
                 else:
                     self.session.rollback()
         finally:
