@@ -1,13 +1,10 @@
 """
 Load tests using locust.io.
 """
-import resource
 
 import faker
 from locust import HttpLocust, TaskSet, task
 
-
-resource.setrlimit(resource.RLIMIT_NOFILE, (8192, 9223372036854775807))
 
 fake = faker.Faker()
 faker.providers.phone_number.en_US.Provider.formats = ('888-555-####',)
