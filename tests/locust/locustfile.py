@@ -2,10 +2,13 @@
 Load tests using locust.io.
 """
 
+import urllib3
+
 import faker
 from locust import HttpLocust, TaskSet, task
 
 
+urllib3.disable_warnings()
 fake = faker.Faker()
 faker.providers.phone_number.en_US.Provider.formats = ('888-555-####',)
 
@@ -30,10 +33,13 @@ class AttendeeBehavior(TaskSet):
 
     @task
     def preregister(self):
-        self.client.get('/preregistration/form', verify=self.verify)
+        response = self.client.get('/preregistration/form', verify=self.verify)
+        if response.status_code != 200:
+            return
+
         self.get_static_assets()
 
-        self.client.post(
+        response = self.client.post(
             '/preregistration/post_form',
             verify=self.verify,
             data={
@@ -60,10 +66,20 @@ class AttendeeBehavior(TaskSet):
                 'pii_consent': '1',
             }
         )
+        if response.status_code != 200:
+            return
 
-        self.client.get('/preregistration/index', verify=self.verify)
-        self.client.get('/preregistration/process_free_prereg', verify=self.verify)
-        self.client.get('/preregistration/paid_preregistrations?payment_received=0', verify=self.verify)
+        response = self.client.get('/preregistration/index', verify=self.verify)
+        if response.status_code != 200:
+            return
+
+        response = self.client.get('/preregistration/process_free_prereg', verify=self.verify)
+        if response.status_code != 200:
+            return
+
+        response = self.client.get('/preregistration/paid_preregistrations?payment_received=0', verify=self.verify)
+        if response.status_code != 200:
+            return
 
 
 class AttendeeLocust(HttpLocust):
