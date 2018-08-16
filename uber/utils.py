@@ -850,7 +850,7 @@ class Charge:
     @classmethod
     def from_sessionized_group(cls, d):
         d = dict(d, attendees=[cls.from_sessionized_attendee(a) for a in d.get('attendees', [])])
-        return uber.models.Group(**d)
+        return uber.models.Group(_defer_defaults_=True, **d)
 
     @classmethod
     def from_sessionized_attendee(cls, d):
@@ -859,8 +859,8 @@ class Charge:
             del d['requested_any_dept']
 
         if d.get('promo_code'):
-            d = dict(d, promo_code=uber.models.PromoCode(**d['promo_code']))
-        return uber.models.Attendee(**d)
+            d = dict(d, promo_code=uber.models.PromoCode(_defer_defaults_=True, **d['promo_code']))
+        return uber.models.Attendee(_defer_defaults_=True, **d)
 
     @classmethod
     def get(cls, payment_id):
