@@ -158,9 +158,8 @@ class Config(_Overridable):
                     price = bumped_price
 
             # Only check bucket-based pricing if we're not checking an existing badge AND
-            # we don't have hardcore_optimizations_enabled config on AND we're not on-site
-            # (because on-site pricing doesn't involve checking badges sold).
-            if not dt and not self.HARDCORE_OPTIMIZATIONS_ENABLED and localized_now < c.EPOCH:
+            # we're not on-site (because on-site pricing doesn't involve checking badges sold)
+            if not dt and localized_now < c.EPOCH:
                 badges_sold = self.BADGES_SOLD
 
                 for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
@@ -201,7 +200,7 @@ class Config(_Overridable):
     @dynamic
     def DEALER_REG_SOFT_CLOSED(self):
         return self.AFTER_DEALER_REG_DEADLINE or self.DEALER_APPS >= self.MAX_DEALER_APPS \
-            if self.MAX_DEALER_APPS and not self.HARDCORE_OPTIMIZATIONS_ENABLED else self.AFTER_DEALER_REG_DEADLINE
+            if self.MAX_DEALER_APPS else self.AFTER_DEALER_REG_DEADLINE
 
     @request_cached_property
     @dynamic
@@ -222,18 +221,27 @@ class Config(_Overridable):
     @dynamic
     def BADGES_SOLD(self):
         from uber.models import Session, Attendee, Group
-        with Session() as session:
-            attendees = session.query(Attendee)
-            individuals = attendees.filter(or_(
-                Attendee.paid == self.HAS_PAID,
-                Attendee.paid == self.REFUNDED)
-            ).filter(Attendee.badge_status == self.COMPLETED_STATUS).count()
+        if self.BADGES_SOLD_ESTIMATE_ENABLED:
+            with Session() as session:
+                attendee_count = int(session.execute(
+                    "SELECT reltuples AS count FROM pg_class WHERE relname = 'attendee'").scalar())
 
-            group_badges = attendees.join(Attendee.group).filter(
-                Attendee.paid == self.PAID_BY_GROUP,
-                Group.amount_paid > 0).count()
+                # This will be efficient because we've indexed attendee(badge_type, badge_status)
+                staff_count = self.get_badge_count_by_type(c.STAFF_BADGE)
+                return max(0, attendee_count - staff_count)
+        else:
+            with Session() as session:
+                attendees = session.query(Attendee)
+                individuals = attendees.filter(or_(
+                    Attendee.paid == self.HAS_PAID,
+                    Attendee.paid == self.REFUNDED)
+                ).filter(Attendee.badge_status == self.COMPLETED_STATUS).count()
 
-            return individuals + group_badges
+                group_badges = attendees.join(Attendee.group).filter(
+                    Attendee.paid == self.PAID_BY_GROUP,
+                    Group.amount_paid > 0).count()
+
+                return individuals + group_badges
 
     @request_cached_property
     @dynamic
@@ -241,9 +249,6 @@ class Config(_Overridable):
         """
         Returns a string representing a rough estimate of how many badges are left at the current badge price tier.
         """
-        if c.HARDCORE_OPTIMIZATIONS_ENABLED:
-            return None
-
         is_badge_price_ordered = c.BADGE_PRICE in c.ORDERED_PRICE_LIMITS
         current_price_tier = c.ORDERED_PRICE_LIMITS.index(c.BADGE_PRICE) if is_badge_price_ordered else -1
 

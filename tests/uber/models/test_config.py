@@ -164,10 +164,6 @@ class TestBadgePriceEstimate:
         monkeypatch.setattr(c, 'MAX_BADGE_SALES', 100)
         assert 100 == c.BADGES_LEFT_AT_CURRENT_PRICE
 
-    def test_hardcore_optimized_estimate(self, monkeypatch):
-        monkeypatch.setattr(c, 'HARDCORE_OPTIMIZATIONS_ENABLED', True)
-        assert None is c.BADGES_LEFT_AT_CURRENT_PRICE
-
     def test_almost_gone_estimate(self, monkeypatch):
         monkeypatch.setattr(uber.config.Config, 'BADGES_SOLD', 990)
         assert 10 == c.BADGES_LEFT_AT_CURRENT_PRICE
@@ -264,18 +260,6 @@ class TestDealerConfig:
         monkeypatch.setattr(c, 'DEALER_REG_DEADLINE', localized_now() + timedelta(days=1))
         monkeypatch.setattr(uber.config.Config, 'DEALER_APPS', 10)
         monkeypatch.setattr(c, 'MAX_DEALER_APPS', 0)
-        assert not c.DEALER_REG_SOFT_CLOSED
-
-    def test_dealer_reg_soft_closed_optimizations(self, monkeypatch):
-        monkeypatch.setattr(c, 'DEALER_REG_DEADLINE', localized_now() - timedelta(days=1))
-        monkeypatch.setattr(c, 'HARDCORE_OPTIMIZATIONS_ENABLED', True)
-        assert c.DEALER_REG_SOFT_CLOSED
-
-    def test_dealer_reg_not_soft_closed_optimizations(self, monkeypatch):
-        monkeypatch.setattr(c, 'DEALER_REG_DEADLINE', localized_now() + timedelta(days=1))
-        monkeypatch.setattr(uber.config.Config, 'DEALER_APPS', 10)
-        monkeypatch.setattr(c, 'MAX_DEALER_APPS', 1)
-        monkeypatch.setattr(c, 'HARDCORE_OPTIMIZATIONS_ENABLED', True)
         assert not c.DEALER_REG_SOFT_CLOSED
 
     def test_dealer_reg_soft_closed_over_max(self, monkeypatch):
