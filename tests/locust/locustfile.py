@@ -12,7 +12,7 @@ faker.providers.phone_number.en_US.Provider.formats = ('888-555-####',)
 
 class AttendeeBehavior(TaskSet):
     min_wait = 1000
-    max_wait = 5000
+    max_wait = 10000
 
     def on_start(self):
         self.verify = False
