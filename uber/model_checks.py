@@ -232,7 +232,7 @@ def reasonable_total_cost(attendee):
 
 @prereg_validation.Attendee
 def promo_code_is_useful(attendee):
-    if attendee.promo_code:
+    if attendee.is_new and attendee.promo_code:
         if not attendee.is_unpaid:
             return "You can't apply a promo code after you've paid or if you're in a group."
         elif attendee.is_dealer:
@@ -249,13 +249,13 @@ def promo_code_is_useful(attendee):
 
 @prereg_validation.Attendee
 def promo_code_not_is_expired(attendee):
-    if attendee.promo_code and attendee.promo_code.is_expired:
+    if attendee.is_new and attendee.promo_code and attendee.promo_code.is_expired:
         return 'That promo code is expired.'
 
 
 @prereg_validation.Attendee
 def promo_code_has_uses_remaining(attendee):
-    if attendee.promo_code and not attendee.promo_code.is_unlimited:
+    if attendee.is_new and attendee.promo_code and not attendee.promo_code.is_unlimited:
         unpaid_uses_count = Charge.get_unpaid_promo_code_uses_count(
             attendee.promo_code.id, attendee.id)
         if (attendee.promo_code.uses_remaining - unpaid_uses_count) < 0:
