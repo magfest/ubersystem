@@ -152,15 +152,15 @@ class Config(_Overridable):
     def get_attendee_price(self, dt=None):
         price = self.INITIAL_ATTENDEE
         if self.PRICE_BUMPS_ENABLED:
-
+            localized_now = uber.utils.localized_now()
             for day, bumped_price in sorted(self.PRICE_BUMPS.items()):
-                if (dt or uber.utils.localized_now()) >= day:
+                if (dt or localized_now) >= day:
                     price = bumped_price
 
             # Only check bucket-based pricing if we're not checking an existing badge AND
             # we don't have hardcore_optimizations_enabled config on AND we're not on-site
             # (because on-site pricing doesn't involve checking badges sold).
-            if not dt and not self.HARDCORE_OPTIMIZATIONS_ENABLED and uber.utils.localized_now() < c.EPOCH:
+            if not dt and not self.HARDCORE_OPTIMIZATIONS_ENABLED and localized_now < c.EPOCH:
                 badges_sold = self.BADGES_SOLD
 
                 for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
