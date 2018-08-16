@@ -407,7 +407,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     checkouts = relationship('TabletopCheckout', backref='attendee')
     entrants = relationship('TabletopEntrant', backref='attendee')
 
-    _attendee_table_args = [Index('ix_attendee_paid_group_id', paid, group_id)]
+    _attendee_table_args = [
+        Index('ix_attendee_paid_group_id', paid, group_id),
+        Index('ix_attendee_badge_status_badge_type', badge_status, badge_type),
+    ]
     if not c.SQLALCHEMY_URL.startswith('sqlite'):
         _attendee_table_args.append(UniqueConstraint('badge_num', deferrable=True, initially='DEFERRED'))
 
