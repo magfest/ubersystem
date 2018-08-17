@@ -69,10 +69,6 @@ class AttendeeBehavior(TaskSet):
         if response.status_code != 200:
             return
 
-        response = self.client.get('/preregistration/index', verify=self.verify)
-        if response.status_code != 200:
-            return
-
         response = self.client.get('/preregistration/process_free_prereg', verify=self.verify)
         if response.status_code != 200:
             return
