@@ -57,10 +57,10 @@ def csrf_token(monkeypatch):
 
 @pytest.fixture()
 def admin_attendee():
-    with Session(no_cache=True) as session:
+    with Session() as session:
         session.insert_test_admin_account()
 
-    with Session(no_cache=True) as session:
+    with Session() as session:
         attendee = session.query(Attendee).filter(
             Attendee.email == 'magfest@example.com').one()
         cherrypy.session['account_id'] = attendee.admin_account.id
@@ -87,7 +87,7 @@ def init_db(request):
     patch_session(Session, request)
     initialize_db(modify_tables=True)
     register_session_listeners()
-    with Session(no_cache=True) as session:
+    with Session() as session:
         session.add(Attendee(
             placeholder=True,
             first_name='Regular',
