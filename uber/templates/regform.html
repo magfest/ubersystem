@@ -517,7 +517,7 @@
     </div>
 </div>
 
-{% if c.HOTELS_ENABLED and (admin_area or (not is_prereg_form and not is_after_request_hotel)) %}
+{% if c.HOTELS_ENABLED and c.PREREG_REQUEST_HOTEL_INFO_DURATION > 0 and (admin_area or (not is_prereg_form and not is_after_request_hotel)) %}
   {#-
     In both the admin area and non-preregistration forms, we will display a
     "Request Hotel Info" label and a checkbox.
