@@ -74,10 +74,15 @@ def check_if_can_reg(func):
         is_dealer_post = c.HTTP_METHOD == 'POST' and \
             int(kwargs.get('badge_type', 0)) == c.PSEUDO_DEALER_BADGE and \
             int(kwargs.get('tables', 0)) > 0
-        is_dealer_reg = c.DEALER_REG_OPEN and (is_dealer_get or is_dealer_post)
+        is_dealer_reg = is_dealer_get or is_dealer_post
 
         if c.DEV_BOX:
             pass  # Don't redirect to any of the pages below.
+        elif is_dealer_reg and not c.DEALER_REG_OPEN:
+            if c.AFTER_DEALER_REG_START:
+                return render('static_views/dealer_reg_closed.html')
+            else:
+                return render('static_views/dealer_reg_not_open.html')
         elif c.ATTENDEE_BADGES_SOLD >= c.MAX_BADGE_SALES:
             # ===============================================================
             # TODO: MAKE THIS COMPARE THE SPECIFIC BADGE TYPE AGAINST OUR
