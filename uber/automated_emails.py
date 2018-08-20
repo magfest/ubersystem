@@ -592,7 +592,7 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieStudio,
-        'MIVS - Wat no video?',
+        'Reminder to submit your game\'s video to MIVS',
         'mivs/videoless_studio.txt',
         lambda studio: days_after(2, studio.registered)() and not any(game.video_submitted for game in studio.games),
         ident='mivs_missing_video_inquiry',
@@ -607,7 +607,7 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieGame,
-        'Last chance to submit your game to MIVS',
+        'Reminder to submit your game to MIVS',
         'mivs/round_two_reminder.txt',
         lambda game: game.status == c.JUDGING and not game.submitted,
         ident='mivs_game_submission_reminder',
