@@ -1121,6 +1121,7 @@ c.ROCK_ISLAND_GROUPS = [getattr(c, group.upper()) for group in c.ROCK_ISLAND_GRO
 # A list of checklist items for display on the guest group admin page
 c.GUEST_CHECKLIST_ITEMS = [
     {'name': 'panel', 'header': 'Panel'},
+    {'name': 'mc', 'header': 'MC'},
     {'name': 'bio', 'header': 'Bio Provided'},
     {'name': 'info', 'header': 'Agreement Completed'},
     {'name': 'taxes', 'header': 'W9 Uploaded', 'is_link': True},

@@ -41,6 +41,19 @@
     </div>
   </div>
 
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Wants MC?</label>
+    <div class="col-sm-6">
+      <div class="form-control-static">
+        {% if guest.wants_mc is none %}
+          This band hasn't answered if they want an MC or not.
+        {% else %}
+          {{ guest.wants_mc|yesno('Yes,No') }}, this band <strong>{{ guest.wants_mc|yesno('DOES,DOES NOT') }}</strong> want an MC.
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
   {{ macros.form_group(guest.bio, 'website', type='url', is_readonly=True) }}
   {{ macros.form_group(guest.bio, 'facebook', is_readonly=True) }}
   {{ macros.form_group(guest.bio, 'twitter', is_readonly=True) }}
@@ -77,7 +90,7 @@
 
   {{ macros.form_group(guest, 'payment', type='number',
         help="""The number of dollars we're paying the band.  If you leave this
-        at zero, then no mention of payment will be made in their band agreement,
+        at zero, then no mention of payment will be made in their performance contract,
         otherwise the amount will be listed and the band will be told they will
         receive a check on-site after their performance.""") }}
 
@@ -103,8 +116,8 @@
         {{ options(events,guest.event_id) }}
       </select>
       <p class="help-block">
-        If not set, the band agreement will say "date and time information coming soon"<br/>
-        If this is set, the band agreement will reflect the start time of the event on the schedule.
+        If not set, the performance contract will say "date and time information coming soon"<br/>
+        If this is set, the performance contract will reflect the start time of the event on the schedule.
       </p>
     </div>
   </div>

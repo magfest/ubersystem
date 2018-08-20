@@ -80,6 +80,15 @@
       </div>
     </div>
 
+    <div class="form-group panel-info">
+      <label class="col-sm-3 control-label">Want an MC?</label>
+      <div class="checkbox col-sm-9">
+        {{ macros.checkbox(guest_panel, 'wants_mc', label="Would you like one of our Official MAGFest Guests™ "
+            "to introduce your band to the crowd before your set, or do you not need no stinkin’ MC? "
+            "Let us know! Previous example MCs: Wes Johnson, Alexander Brandon, Mustin, etc.") }}
+      </div>
+    </div>
+
     {{ macros.form_checkgroup(
         guest_panel,
         'tech_needs',
