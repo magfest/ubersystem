@@ -2,7 +2,7 @@
 <tr>
   <td width="25">{{ macros.checklist_image(guest.info_status) }}</td>
   <td><b><a href="agreement?guest_id={{ guest.id }}">
-    {% block deadline_headline %}{{ guest.group_type_label }} Agreement{% endblock %}</a></b></td>
+    {% block deadline_headline %}{{ guest.group_type_label }} Performance Contract{% endblock %}</a></b></td>
   <td><i>Deadline:</i> {{ guest.deadline_from_model('info')|datetime_local }}</td>
 </tr>
 <tr>

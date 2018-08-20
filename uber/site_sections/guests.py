@@ -147,6 +147,17 @@ class Root:
             'message': message
         }
 
+    def mc(self, session, guest_id, message='', **params):
+        guest = session.guest_group(guest_id)
+        if cherrypy.request.method == 'POST':
+            guest.wants_mc = bool(params.get('wants_mc', False))
+            raise HTTPRedirect('index?id={}&message={}', guest.id, 'MC preferences updated')
+
+        return {
+            'guest': guest,
+            'message': message
+        }
+
     def merch(self, session, guest_id, message='', coverage=False, warning=False, **params):
         guest = session.guest_group(guest_id)
         guest_merch = session.guest_merch(params, checkgroups=GuestMerch.all_checkgroups, bools=GuestMerch.all_bools)
