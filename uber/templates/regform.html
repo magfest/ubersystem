@@ -263,7 +263,11 @@
                                   <h4>{{ tier.name }}</h4>
                                   {% if tier.price %}
                                     <span>
-                                      <img src="{{ tier.icon }}" alt=""> + ${{ tier.price }}
+                                      <img
+                                          class="tier-icon tier-icon-{{ tier.icon|basename|replace('_', '-')|replace('.png', '') }}"
+                                          src="{{ tier.icon }}"
+                                          alt="">
+                                      + ${{ tier.price }}
                                     </span>
                                   {% endif %}
                                 </div>
