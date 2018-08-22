@@ -2,6 +2,7 @@ from collections import defaultdict, OrderedDict
 from datetime import timedelta
 
 import cherrypy
+from sqlalchemy import or_
 from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
@@ -278,15 +279,35 @@ class Root:
 
     @csv_file
     def requested_hotel_info(self, out, session):
-        hotel_query = session.query(Attendee).filter(
-            Attendee.badge_status != c.INVALID_STATUS,
-            Attendee.requested_hotel_info == True,
-            Attendee.first_name != '')  # noqa: E712
+        eligibility_filters = []
+        if c.PREREG_REQUEST_HOTEL_INFO_DURATION > 0:
+            eligibility_filters.append(Attendee.requested_hotel_info == True)  # noqa: E711
+        if c.PREREG_HOTEL_ELIGIBILITY_CUTOFF:
+            eligibility_filters.append(Attendee.registered <= c.PREREG_HOTEL_ELIGIBILITY_CUTOFF)
 
-        attendees_without_hotel_pin = hotel_query.filter(Attendee.hotel_pin == None).all()  # noqa: E711
+        hotel_query = session.query(Attendee).filter(*eligibility_filters).filter(
+            Attendee.badge_status != c.INVALID_STATUS,
+            Attendee.first_name != '',
+        )  # noqa: E712
+
+        attendees_without_hotel_pin = hotel_query.filter(*eligibility_filters).filter(or_(
+            Attendee.hotel_pin == None,
+            Attendee.hotel_pin == '',
+        )).all()  # noqa: E711
+
         if attendees_without_hotel_pin:
+            hotel_pin_rows = session.query(Attendee.hotel_pin).filter(*eligibility_filters).filter(
+                Attendee.hotel_pin != None,
+                Attendee.hotel_pin != '',
+            ).all()
+
+            hotel_pins = set(map(lambda r: r[0], hotel_pin_rows))
             for a in attendees_without_hotel_pin:
-                a.hotel_pin = _generate_hotel_pin()
+                new_hotel_pin = _generate_hotel_pin()
+                while new_hotel_pin in hotel_pins:
+                    new_hotel_pin = _generate_hotel_pin()
+                hotel_pins.add(new_hotel_pin)
+                a.hotel_pin = new_hotel_pin
             session.commit()
 
         out.writerow(['First Name', 'Last Name', 'E-mail Address', 'Password'])
