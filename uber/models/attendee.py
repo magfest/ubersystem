@@ -366,7 +366,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     room_assignments = relationship('RoomAssignment', backref=backref('attendee', load_on_pending=True))
 
     # The PIN/password used by third party hotel reservation systems
-    hotel_pin = Column(UnicodeText, nullable=True, default=_generate_hotel_pin)
+    hotel_pin = Column(UnicodeText, nullable=True, unique=True)
 
     # =========================
     # mits
