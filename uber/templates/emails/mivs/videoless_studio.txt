@@ -1,8 +1,8 @@
 Hi {{ studio.primary_contact.first_name }},
 
-According to our records, you've registered your studio ({{ studio.name }}) for the {{ c.EVENT_YEAR }} MAGFest Indie Video Game Showcase (MIVS) but have not yet submitted a video.  
+According to our records, you've registered your studio ({{ studio.name }}) for the {{ c.EVENT_YEAR }} MAGFest Indie Video Game Showcase (MIVS) but have not yet submitted a video.
 
-We're sending a friendly reminder that you have until {{ c.MIVS_ROUND_ONE_DEADLINE|datetime_local }} to submit a video of your game.  Please note that we have no plans to extend the deadline. You can submit through your studio management link at {{ c.URL_BASE }}/mivs_applications/continue_app?id={{ game.studio.id }}
+We're sending a friendly reminder that you have until {{ c.MIVS_ROUND_ONE_DEADLINE|datetime_local }} to submit a video of your game.  Please note that we have no plans to extend the deadline. You can submit through your studio management link at {{ c.URL_BASE }}/mivs_applications/continue_app?id={{ studio.id }}
 
 We hope to see your video submission and wish you luck and no bugs in all your game development efforts!
 
