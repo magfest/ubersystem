@@ -425,6 +425,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def _misc_adjustments(self):
+        if not self.hotel_pin or not self.hotel_pin.strip():
+            self.hotel_pin = None
+
         if not self.amount_extra:
             self.affiliate = ''
 
