@@ -13,7 +13,7 @@ from sqlalchemy import and_, case, func, or_
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, subqueryload
-from sqlalchemy.schema import ForeignKey, Index, UniqueConstraint
+from sqlalchemy.schema import Column as SQLAlchemyColumn, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.types import Boolean, Date, Integer
 
 import uber
@@ -366,7 +366,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     room_assignments = relationship('RoomAssignment', backref=backref('attendee', load_on_pending=True))
 
     # The PIN/password used by third party hotel reservation systems
-    hotel_pin = Column(UnicodeText, nullable=True, unique=True)
+    hotel_pin = SQLAlchemyColumn(UnicodeText, nullable=True, unique=True)
 
     # =========================
     # mits
