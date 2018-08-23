@@ -299,7 +299,7 @@ class Root:
             hotel_pin_rows = session.query(Attendee.hotel_pin).filter(*eligibility_filters).filter(
                 Attendee.hotel_pin != None,
                 Attendee.hotel_pin != '',
-            ).all()
+            ).all()  # noqa: E711
 
             hotel_pins = set(map(lambda r: r[0], hotel_pin_rows))
             for a in attendees_without_hotel_pin:

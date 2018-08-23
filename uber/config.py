@@ -626,7 +626,8 @@ class Config(_Overridable):
     @property
     @dynamic
     def CAN_SUBMIT_MIVS_ROUND_TWO(self):
-        return c.AFTER_MIVS_ROUND_TWO_START and (not really_past_mivs_deadline(c.MIVS_ROUND_TWO_DEADLINE) or c.HAS_INDIE_ADMIN_ACCESS)
+        return c.AFTER_MIVS_ROUND_TWO_START and (
+            not really_past_mivs_deadline(c.MIVS_ROUND_TWO_DEADLINE) or c.HAS_INDIE_ADMIN_ACCESS)
 
     # =========================
     # panels
