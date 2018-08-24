@@ -103,7 +103,8 @@
                 type="radio"
                 name="{{ field_name }}{{ suffix }}"
                 value="{{ value }}"
-                {% if has_value %}checked{% elif is_readonly %}disabled{% endif %}{% if is_required %}required{% endif %}/>
+                {% if has_value %}checked{% elif is_readonly %}disabled{% endif %}
+                {% if is_required %} required{% endif %}/>
             {{ label }}
         </label>
       {% endif %}
