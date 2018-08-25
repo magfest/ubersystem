@@ -112,7 +112,7 @@ class GuestGroup(MagModel):
 
     @property
     def mc_status(self):
-        return None if self.wants_mc is None else yesno(self.wants_mc)
+        return None if self.wants_mc is None else yesno(self.wants_mc, 'Yes,No')
 
     @property
     def checklist_completed(self):
