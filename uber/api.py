@@ -260,7 +260,7 @@ class AttendeeLookup:
             if attendee:
                 return attendee.to_dict(fields)
             else:
-                return {'error': 'No attendee found with Badge #{}'.format(badge_num)}
+                raise HTTPError(404, 'No attendee found with badge #{}'.format(badge_num))
 
     def search(self, query, full=False):
         """
@@ -502,7 +502,7 @@ class JobLookup:
         with Session() as session:
             message = session.assign(attendee_id, job_id)
             if message:
-                return {'error': message}
+                raise HTTPError(400, message)
             else:
                 session.commit()
                 return session.job(job_id).to_dict(self.fields)
@@ -514,14 +514,13 @@ class JobLookup:
         Takes the shift id as the only parameter.
         """
         with Session() as session:
-            try:
-                shift = session.shift(shift_id)
-                session.delete(shift)
-                session.commit()
-            except Exception:
-                return {'error': 'Shift was already deleted'}
-            else:
-                return session.job(shift.job_id).to_dict(self.fields)
+            shift = session.query(Shift).filter_by(id=shift_id).first()
+            if not shift:
+                raise HTTPError(404, 'Shift id not found:{}'.format(shift_id))
+
+            session.delete(shift)
+            session.commit()
+            return session.job(shift.job_id).to_dict(self.fields)
 
     @docstring_format(
         _format_opts(c.WORKED_STATUS_OPTS),
@@ -544,29 +543,28 @@ class JobLookup:
             status = int(status)
             assert c.WORKED_STATUS[status] is not None
         except Exception:
-            return {'error': 'Invalid status: {}'.format(status)}
+            raise HTTPError(400, 'Invalid status: {}'.format(status))
 
         try:
             rating = int(rating)
             assert c.RATINGS[rating] is not None
         except Exception:
-            return {'error': 'Invalid rating: {}'.format(rating)}
+            raise HTTPError(400, 'Invalid rating: {}'.format(rating))
 
         if rating in (c.RATED_BAD, c.RATED_GREAT) and not comment:
-            return {'error': 'You must leave a comment explaining why the '
-                    'staffer was rated as: {}'.format(c.RATINGS[rating])}
+            raise HTTPError(400, 'You must leave a comment explaining why the staffer was rated as: {}'.format(
+                c.RATINGS[rating]))
 
         with Session() as session:
-            try:
-                shift = session.shift(shift_id)
-                shift.worked = status
-                shift.rating = rating
-                shift.comment = comment
-                session.commit()
-            except Exception:
-                return {'error': 'Unexpected error setting status'}
-            else:
-                return session.job(shift.job_id).to_dict(self.fields)
+            shift = session.query(Shift).filter_by(id=shift_id).first()
+            if not shift:
+                raise HTTPError(404, 'Shift id not found:{}'.format(shift_id))
+
+            shift.worked = status
+            shift.rating = rating
+            shift.comment = comment
+            session.commit()
+            return session.job(shift.job_id).to_dict(self.fields)
 
 
 @all_api_auth(c.API_READ)
@@ -587,7 +585,9 @@ class DepartmentLookup:
         department ids call the "dept.list" method.
         """
         with Session() as session:
-            department = session.query(Department).get(department_id)
+            department = session.query(Department).filter_by(id=department_id).first()
+            if not department:
+                raise HTTPError(404, 'Department id not found: {}'.format(department_id))
             return department.to_dict({
                 'id': True,
                 'name': True,
@@ -657,6 +657,8 @@ class ConfigLookup:
         """
         if field.upper() in self.fields:
             return getattr(c, field.upper())
+        else:
+            raise HTTPError(404, 'Config field not found: {}'.format(field))
 
 
 @all_api_auth(c.API_READ)
@@ -676,7 +678,7 @@ class BarcodeLookup:
             result = get_badge_num_from_barcode(barcode_value)
             badge_num = result['badge_num']
         except Exception as e:
-            return {'error': "Couldn't look up barcode value: " + str(e)}
+            raise HTTPError(500, "Couldn't look up barcode value: " + str(e))
 
         # Note: A decrypted barcode can yield a valid badge num,
         # but that badge num may not be assigned to an attendee.
@@ -687,7 +689,7 @@ class BarcodeLookup:
             if attendee:
                 return attendee.to_dict(fields)
             else:
-                return {'error': 'Valid barcode, but no attendee found with Badge #{}'.format(badge_num)}
+                raise HTTPError(404, 'Valid barcode, but no attendee found with Badge #{}'.format(badge_num))
 
     def lookup_badge_number_from_barcode(self, barcode_value):
         """
@@ -699,7 +701,7 @@ class BarcodeLookup:
             result = get_badge_num_from_barcode(barcode_value)
             return {'badge_num': result['badge_num']}
         except Exception as e:
-            return {'error': "Couldn't look up barcode value: " + str(e)}
+            raise HTTPError(500, "Couldn't look up barcode value: " + str(e))
 
 
 if c.API_ENABLED:
