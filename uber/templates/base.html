@@ -138,32 +138,34 @@
 
     {% block feedback_javascript %}
       {% if admin_area %}
-      <script type="text/javascript" src="https://jira.magfest.net/s/7cedd06b64911e869dc2b32a6477230c-T/kby73n/73019/6d39734591565d7d1928c35b4400d05a/2.0.23/_/download/batch/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector.js?locale=en-US&collectorId=a192a515"></script>
-      <script type="text/javascript" src="https://jira.magfest.net/s/7cedd06b64911e869dc2b32a6477230c-T/kby73n/73019/6d39734591565d7d1928c35b4400d05a/2.0.23/_/download/batch/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector.js?locale=en-US&collectorId=a9568879"></script>
+      <script type="text/javascript" async="async" src="https://jira.magfest.net/s/7cedd06b64911e869dc2b32a6477230c-T/kby73n/73019/6d39734591565d7d1928c35b4400d05a/2.0.23/_/download/batch/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector.js?locale=en-US&collectorId=a192a515"></script>
+      <script type="text/javascript" async="async" src="https://jira.magfest.net/s/7cedd06b64911e869dc2b32a6477230c-T/kby73n/73019/6d39734591565d7d1928c35b4400d05a/2.0.23/_/download/batch/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector.js?locale=en-US&collectorId=a9568879"></script>
       <script type="text/javascript">
-        window.ATL_JQ_PAGE_PROPS = $.extend(window.ATL_JQ_PAGE_PROPS || {}, {
-          "a192a515": {
-            triggerFunction: function(showCollectorDialog) {
-              $('#report-a-bug').click(function(e) {
-                e.preventDefault();
-                showCollectorDialog();
-              });
+        $(function() {
+          window.ATL_JQ_PAGE_PROPS = $.extend(window.ATL_JQ_PAGE_PROPS || {}, {
+            "a192a515": {
+              triggerFunction: function(showCollectorDialog) {
+                $('#report-a-bug').click(function(e) {
+                  e.preventDefault();
+                  showCollectorDialog();
+                });
+              },
+              fieldValues: {
+                priority: '2'
+              }
             },
-            fieldValues: {
-              priority: '2'
+            "a9568879": {
+              triggerFunction: function(showCollectorDialog) {
+                $('#request-an-improvement').click(function(e) {
+                  e.preventDefault();
+                  showCollectorDialog();
+                });
+              },
+              fieldValues: {
+                priority: '2'
+              }
             }
-          },
-          "a9568879": {
-            triggerFunction: function(showCollectorDialog) {
-              $('#request-an-improvement').click(function(e) {
-                e.preventDefault();
-                showCollectorDialog();
-              });
-            },
-            fieldValues: {
-              priority: '2'
-            }
-          }
+          });
         });
       </script>
       {% endif %}
