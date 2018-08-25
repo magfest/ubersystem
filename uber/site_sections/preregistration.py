@@ -150,9 +150,13 @@ class Root:
             attendee, group = self._get_unsaved(
                 edit_id,
                 if_not_found=HTTPRedirect('form?message={}', 'That preregistration has already been finalized'))
-
             attendee.apply(params, restricted=True)
             group.apply(group_params, restricted=True)
+            if attendee.badge_type not in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE]:
+                # Disassociate the attendee from the group, just in case the unpaid badge
+                # was edited and switched from a group badge back to a single badge.
+                group.attendees = []
+                attendee.group_id = None
             params.setdefault('badges', group.badges)
         else:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
@@ -224,7 +228,13 @@ class Root:
                     raise HTTPRedirect('dealer_confirmation?id={}', group.id)
                 else:
                     target = group if group.badges else attendee
-                    track_type = c.EDITED_PREREG if target.id in Charge.unpaid_preregs else c.UNPAID_PREREG
+                    track_type = c.UNPAID_PREREG
+                    for target_id in [attendee.id, group.id]:
+                        if target_id in Charge.unpaid_preregs:
+                            track_type = c.EDITED_PREREG
+                            # Clear out any previously cached targets, in case the unpaid badge
+                            # has been edited and changed from a single to a group or vice versa.
+                            del Charge.unpaid_preregs[target_id]
                     Charge.unpaid_preregs[target.id] = to_sessionized(attendee, group)
                     Tracking.track(track_type, attendee)
                     if group.badges:

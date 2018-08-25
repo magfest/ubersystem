@@ -368,8 +368,8 @@ def credit_card(func):
         except Exception:
             error_text = \
                 'Got an error while calling charge' \
-                '(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}\n' \
-                '\n IMPORTANT: This could have resulted in an attendee paying and not being' \
+                '(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}\n\n' \
+                'IMPORTANT: This could have resulted in an attendee paying and not being ' \
                 'marked as paid in the database. Definitely double check this.'\
                 .format(payment_id, stripeToken, ignored, traceback.format_exc())
 
