@@ -45,15 +45,15 @@ def test_fail_wrong_event_id(cfg, monkeypatch):
     with pytest.raises(ValueError) as ex:
         barcode = generate_barcode_from_badge_num(badge_num=1, event_id=1)
         get_badge_num_from_barcode(barcode_num=barcode, event_id=2)
-    assert "doesn't match our event ID" in str(ex.value)
+    assert 'unrecognized event id' in str(ex.value)
 
 
 def test_dontfail_wrong_event_id(cfg):
     badge_num = 78946
     barcode = generate_barcode_from_badge_num(badge_num=badge_num)
-    decrytped = get_badge_num_from_barcode(barcode_num=barcode, event_id=2, verify_event_id_matches=False)
-    assert decrytped['badge_num'] == badge_num
-    assert decrytped['event_id'] == c.BARCODE_EVENT_ID
+    decrypted = get_badge_num_from_barcode(barcode_num=barcode, event_id=2, verify_event_id_matches=False)
+    assert decrypted['badge_num'] == badge_num
+    assert decrypted['event_id'] == c.BARCODE_EVENT_ID
 
 
 def test_valid_barcode_character_validations(cfg):
