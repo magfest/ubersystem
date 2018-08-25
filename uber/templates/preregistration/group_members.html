@@ -139,7 +139,7 @@
                 {% endif %}
             </td>
             <td>
-                {% if attendee != group.leader and not attendee.amount_extra and attendee.is_transferable %}
+                {% if attendee.can_abandon_badge %}
                   <form method="post" action="unset_group_member">
                     {{ csrf_token() }}
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
