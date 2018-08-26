@@ -2,8 +2,8 @@ import cherrypy
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.custom_tags import pluralize
-from uber.decorators import all_renderable, ajax, check_dept_admin, csrf_protected, department_id_adapter, \
+from uber.custom_tags import pluralize, yesno
+from uber.decorators import all_renderable, ajax, check_dept_admin, csrf_protected, csv_file, department_id_adapter, \
     requires_dept_admin
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, Department, DeptMembership, DeptRole, Shift
@@ -171,6 +171,26 @@ class Root:
             'message': message,
             'requested_any': requested_any
         }
+
+    @department_id_adapter
+    @csv_file
+    def dept_requests_export(self, out, session, department_id, requested_any=False, message='', **params):
+        department = session.query(Department).get(department_id)
+
+        requesting_attendees = department.unassigned_requesting_attendees \
+            if requested_any else department.unassigned_explicitly_requesting_attendees
+
+        headers = ['Name', 'Email', 'Badge']
+        if requested_any:
+            headers.append('Explicitly Requested {}'.format(department.name))
+
+        out.writerow(headers)
+        for attendee in requesting_attendees:
+            row = [attendee.full_name, attendee.email, attendee.badge]
+            if requested_any:
+                row.append(yesno(attendee in department.unassigned_explicitly_requesting_attendees, 'Yes,No'))
+
+            out.writerow(row)
 
     @department_id_adapter
     def role(self, session, department_id=None, message='', **params):
