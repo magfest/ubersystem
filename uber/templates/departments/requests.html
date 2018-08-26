@@ -80,6 +80,7 @@
                 <th class="text-nowrap">Add</th>
                 <th>Name</th>
                 <th>Badge</th>
+                <th>Placeholder</th>
                 {%- if requested_any -%}
                   <th class="text-right">Explicitly Requested {{ department.name }}</th>
                 {%- endif -%}
@@ -95,6 +96,7 @@
                     {{ attendee|form_link }}
                   </td>
                   <td>{{ attendee.badge }}</td>
+                  <td>{{ attendee.placeholder|yesno('Yes,No') }}</td>
                   {%- if requested_any -%}
                     <td class="text-right">{{ (attendee in department.unassigned_explicitly_requesting_attendees)|yesno('Yes,No') }}</td>
                   {%- endif -%}

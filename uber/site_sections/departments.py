@@ -180,13 +180,13 @@ class Root:
         requesting_attendees = department.unassigned_requesting_attendees \
             if requested_any else department.unassigned_explicitly_requesting_attendees
 
-        headers = ['Name', 'Email', 'Badge']
+        headers = ['Name', 'Email', 'Badge', 'Placeholder']
         if requested_any:
             headers.append('Explicitly Requested {}'.format(department.name))
 
         out.writerow(headers)
         for attendee in requesting_attendees:
-            row = [attendee.full_name, attendee.email, attendee.badge]
+            row = [attendee.full_name, attendee.email, attendee.badge, yesno(attendee.placeholder, 'Yes,No')]
             if requested_any:
                 row.append(yesno(attendee in department.unassigned_explicitly_requesting_attendees, 'Yes,No'))
 
