@@ -157,6 +157,8 @@ class Root:
                 # was edited and switched from a group badge back to a single badge.
                 group.attendees = []
                 attendee.group_id = None
+                if attendee.paid == c.PAID_BY_GROUP:
+                    attendee.paid = c.NOT_PAID
             params.setdefault('badges', group.badges)
         else:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
