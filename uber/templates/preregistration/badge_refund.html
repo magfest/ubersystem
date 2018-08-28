@@ -2,10 +2,11 @@
 {% if attendee.amount_paid %}
   {% set abandon_action1, abandon_action2, abandon_button='Refunding', 'request a refund', 'Refund my Badge' %}
 {% endif %}
+{% if (c.REFUND_CUTOFF and (c.AFTER_REFUND_START or not c.REFUND_START)) or not attendee.amount_paid %}
 {% if must_keep %}
   {% set abandon_hover_text %}
     {% if attendee.amount_paid and not c.SELF_SERVICE_REFUNDS_OPEN %}
-Refunds are not {% if c.REFUND_CUTOFF %}currently {% endif %}allowed.
+Refunds are no longer available.
     {% elif attendee.amount_paid %}
 We cannot automatically refund your badge.
     {% elif attendee.is_group_leader %}
@@ -17,7 +18,7 @@ Please {% if attendee.is_transferable %}transfer your badge instead{% else %}con
   {% endset %}
 <span class="tooltip-wrapper" tabindex="0" data-toggle="tooltip" data-placement="top"{% if must_keep %} title="{{ abandon_hover_text }}"{% endif %}>
 {% endif %}
-<button type="submit" form="abandon_badge" id="abandon_button" class="btn btn-danger"
+<button type="submit" form="abandon_badge" alt="{{ abandon_hover_text }}" id="abandon_button" class="btn btn-danger"
         {% if must_keep %}disabled style="pointer-events: none;" {% endif %}>
   {{ abandon_button }}</button>
 {% if must_keep %}</span>{% endif %}
@@ -50,3 +51,4 @@ Please {% if attendee.is_transferable %}transfer your badge instead{% else %}con
         })
     });
 </script>
+{% endif %}
