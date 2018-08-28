@@ -672,12 +672,45 @@ class Root:
 
     def abandon_badge(self, session, id):
         attendee = session.attendee(id)
-        success_message = "Sorry you can't make it! We hope to see you next year!"
-        failure_message = "You cannot abandon your badge because you are the leader of a group."
+        if attendee.amount_paid:
+            failure_message = "Something went wrong with your refund. Please contact us at {}."\
+                .format(c.REGDESK_EMAIL)
+            new_status = c.REFUNDED_STATUS
+            page_redirect = 'repurchase'
+        else:
+            success_message = "Sorry you can't make it! We hope to see you next year!"
+            new_status = c.INVALID_STATUS
+            page_redirect = 'invalid_badge'
+            if attendee.is_group_leader:
+                failure_message = "You cannot abandon your badge because you are the leader of a group."
+            else:
+                failure_message = "You cannot abandon your badge for some reason. Please contact us at {}."\
+                    .format(c.REGDESK_EMAIL)
 
-        # a group leader may not abandon their badge
-        if attendee.is_group_leader:
+        if (not attendee.amount_paid and not attendee.can_abandon_badge)\
+                or (attendee.amount_paid and not attendee.can_self_service_refund_badge):
             raise HTTPRedirect('confirm?id={}&message={}', id, failure_message)
+
+        if attendee.amount_paid:
+            amount_refunded = 0
+            if not all(txn.stripe_id
+                       and txn.type == c.PAYMENT
+                       for txn in attendee.stripe_transactions):
+                raise HTTPRedirect('confirm?id={}&message={}', id,
+                                   failure_message)
+            for txn in attendee.stripe_transactions:
+                error, response = session.process_refund(txn)
+                if error:
+                    raise HTTPRedirect('confirm?id={}&message={}', id,
+                                       failure_message)
+                elif response:
+                    amount_refunded += response.amount
+
+            success_message = "Your refund of ${:,.2f} should appear on your credit card in a few days."\
+                .format(amount_refunded/100)
+            if attendee.paid == c.HAS_PAID:
+                attendee.paid = c.REFUNDED
+                attendee.amount_refunded = amount_refunded/100
 
         # if attendee is part of a group, we must delete attendee and remove them from the group
         if attendee.group:
@@ -693,8 +726,8 @@ class Root:
             raise HTTPRedirect('not_found?id={}&message={}', attendee.id, success_message)
         # otherwise, we will mark attendee as invalid
         else:
-            attendee.badge_status = c.INVALID_STATUS
-            raise HTTPRedirect('invalid_badge?id={}&message={}', attendee.id, success_message)
+            attendee.badge_status = new_status
+            raise HTTPRedirect('{}?id={}&message={}', page_redirect, attendee.id, success_message)
 
     def badge_updated(self, session, id, message=''):
         return {'id': id, 'message': message}

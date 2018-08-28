@@ -29,6 +29,11 @@
 
         <script src="../static/deps/combined.min.js" type="text/javascript"></script>
         <script src="../static/js/common-static.js" type="text/javascript"></script>
+        <script type="text/javascript">
+            $(function () {
+              $('[data-toggle="tooltip"]').tooltip()
+            })
+        </script>
 
         {% if not dont_show_csrf_token %}
             {#

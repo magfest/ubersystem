@@ -30,7 +30,7 @@ from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
-from uber.utils import check_csrf, normalize_phone, DeptChecklistConf
+from uber.utils import check_csrf, normalize_phone, DeptChecklistConf, report_critical_exception
 
 
 def _make_getter(model):
@@ -673,6 +673,46 @@ class Session(SessionManager):
             return [
                 job.to_dict(fields)
                 for job in jobs if (job.required_roles or frozenset(job.hours) not in restricted_hours)]
+
+        def process_refund(self, txn):
+            """
+            Attempts to refund a given Stripe transaction
+            Returns:
+                error: an error message
+                response: a Stripe Refund() object, or None
+            """
+            import stripe
+            from pockets.autolog import log
+            from uber.models.commerce import StripeTransaction
+
+            if txn.type != c.PAYMENT:
+                return 'This is not a payment and cannot be refunded.', None
+            else:
+                log.debug(
+                    'REFUND: attempting to refund stripeID {} {} cents for {}',
+                    txn.stripe_id, txn.amount, txn.desc)
+                try:
+                    response = stripe.Refund.create(
+                        charge=txn.stripe_id, reason='requested_by_customer')
+                except stripe.StripeError as e:
+                    error_txt = 'Error while calling process_refund' \
+                                '(self, stripeID={!r})'.format(txn.stripe_id)
+                    report_critical_exception(
+                        msg=error_txt,
+                        subject='ERROR: MAGFest Stripe invalid request error')
+                    return 'An unexpected problem occurred: ' + str(e), None
+
+                self.add(StripeTransaction(
+                    stripe_id=response.id or None,
+                    amount=response.amount,
+                    desc=txn.desc,
+                    type=c.REFUND,
+                    who=AdminAccount.admin_name() or 'non-admin',
+                    fk_id=txn.fk_id,
+                    fk_model=txn.fk_model)
+                )
+
+                return '', response
 
         def guess_attendee_watchentry(self, attendee, active=True):
             or_clauses = [

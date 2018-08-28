@@ -761,6 +761,16 @@ class Attendee(MagModel, TakesPaymentMixin):
         return not self.amount_paid and not self.paid == c.NEED_NOT_PAY and not self.is_group_leader
 
     @property
+    def can_self_service_refund_badge(self):
+        return self.amount_paid \
+               and self.amount_paid > 0 \
+               and self.paid not in [c.NEED_NOT_PAY, c.REFUNDED] \
+               and not self.is_group_leader \
+               and self.stripe_transactions \
+               and not self.checked_in \
+               and c.SELF_SERVICE_REFUNDS_OPEN
+
+    @property
     def needs_pii_consent(self):
         return self.is_new or self.placeholder or not self.first_name
 

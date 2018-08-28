@@ -311,3 +311,18 @@ class TestDealerConfig:
             session.commit()
 
         assert c.DEALER_APPS == 0
+
+
+class TestMiscConfig:
+    @pytest.mark.parametrize('cutoff,start,expected', [
+        ('', '', False),
+        ('', localized_now() - timedelta(days=1), False),
+        (localized_now() + timedelta(days=3), localized_now() + timedelta(days=2), False),
+        (localized_now() - timedelta(days=2), localized_now() + timedelta(days=3), False),
+        (localized_now() + timedelta(days=3), '', True),
+        (localized_now() + timedelta(days=3), localized_now() - timedelta(days=2), True),
+    ])
+    def test_self_service_refunds(self, monkeypatch, cutoff, start, expected):
+        monkeypatch.setattr(c, 'REFUND_CUTOFF', cutoff)
+        monkeypatch.setattr(c, 'REFUND_START', start)
+        assert c.SELF_SERVICE_REFUNDS_OPEN == expected
