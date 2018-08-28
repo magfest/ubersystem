@@ -18,13 +18,7 @@ copy of their barcode and ID.
 <img src="{{ c.URL_BASE }}/registration/qrcode_generator?data={{ attendee.public_id }}" />
 <br><br>
 {% include "emails/reg_workflow/reg_notes.html" %}
-{% if attendee.is_transferable %}
-    <br><br>
-    {{ c.EVENT_NAME }} has a no-refund policy for all registrations.  If for any
-    reason you can't make it, we allow and encourage you to resell your
-    registration up to the exact price you paid for it.  To transfer your
-    registration to another person, send them
-    <a href="{{ c.URL_BASE }}/preregistration/transfer_badge?id={{ attendee.id }}">this personalized link</a>.
-{% endif %}
+<br/><br/>
+{% include "emails/reg_workflow/refund_policy.html" %}
 </body>
 </html>

@@ -664,15 +664,19 @@ class Root:
         if attendee.amount_paid:
             failure_message = "Something went wrong with your refund. Please contact us at {}."\
                 .format(c.REGDESK_EMAIL)
+            new_status = c.REFUNDED_STATUS
+            page_redirect = 'repurchase'
         else:
             success_message = "Sorry you can't make it! We hope to see you next year!"
+            new_status = c.INVALID_STATUS
+            page_redirect = 'invalid_badge'
             if attendee.is_group_leader:
                 failure_message = "You cannot abandon your badge because you are the leader of a group."
             else:
                 failure_message = "You cannot abandon your badge for some reason. Please contact us at {}."\
                     .format(c.REGDESK_EMAIL)
 
-        if not attendee.can_abandon_badge and not attendee.can_refund_badge:
+        if not attendee.can_abandon_badge and not attendee.can_self_service_refund_badge:
             raise HTTPRedirect('confirm?id={}&message={}', id, failure_message)
 
         if attendee.amount_paid:
@@ -683,7 +687,7 @@ class Root:
                 raise HTTPRedirect('confirm?id={}&message={}', id,
                                    failure_message)
             for txn in attendee.stripe_transactions:
-                error, response = txn.process_refund()
+                error, response = session.process_refund(txn)
                 if error:
                     raise HTTPRedirect('confirm?id={}&message={}', id,
                                        failure_message)
@@ -710,8 +714,8 @@ class Root:
             raise HTTPRedirect('not_found?id={}&message={}', attendee.id, success_message)
         # otherwise, we will mark attendee as invalid
         else:
-            attendee.badge_status = c.REFUNDED_STATUS if attendee.paid == c.REFUNDED else c.INVALID_STATUS
-            raise HTTPRedirect('invalid_badge?id={}&message={}', attendee.id, success_message)
+            attendee.badge_status = new_status
+            raise HTTPRedirect('{}?id={}&message={}', page_redirect, attendee.id, success_message)
 
     def badge_updated(self, session, id, message=''):
         return {'id': id, 'message': message}

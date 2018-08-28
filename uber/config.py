@@ -189,6 +189,10 @@ class Config(_Overridable):
         return self.AFTER_DEALER_REG_DEADLINE or self.DEALER_APPS >= self.MAX_DEALER_APPS \
             if self.MAX_DEALER_APPS and not self.HARDCORE_OPTIMIZATIONS_ENABLED else self.AFTER_DEALER_REG_DEADLINE
 
+    @property
+    def SELF_SERVICE_REFUNDS_OPEN(self):
+        return self.BEFORE_REFUND_CUTOFF and (self.AFTER_REFUND_START or not self.REFUND_START)
+
     @request_cached_property
     @dynamic
     def DEALER_APPS(self):

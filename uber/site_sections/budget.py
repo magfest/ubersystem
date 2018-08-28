@@ -9,7 +9,7 @@ from sqlalchemy.orm import joinedload
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csv_file, log_pageview, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Group, MPointsForCash, PromoCode, PromoCodeWord, Sale, Session
+from uber.models import Attendee, Group, MPointsForCash, PromoCode, PromoCodeWord, Sale, Session, StripeTransaction
 from uber.utils import check, check_all, localized_now
 
 
@@ -61,6 +61,20 @@ class Root:
         all = [(sum(mpu.amount for mpu in mpus), group, mpus)
                for group, mpus in groups.items()]
         return {'all': sorted(all, reverse=True)}
+
+    @log_pageview
+    def refunds(self, session):
+        refunds = session.query(StripeTransaction).filter_by(type=c.REFUND)
+
+        refund_attendees = {}
+        for refund in refunds:
+            refund_attendees[refund.id] = session.query(Attendee)\
+                .filter_by(id=refund.fk_id).first() if refund.fk_model == 'Attendee' else None
+
+        return {
+            'refunds': refunds,
+            'refund_attendees': refund_attendees,
+        }
 
     @ajax
     def add_promo_code_words(self, session, text='', part_of_speech=0):

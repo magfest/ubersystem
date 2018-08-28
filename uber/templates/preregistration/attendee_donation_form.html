@@ -17,7 +17,7 @@
             <td style="width:100px ; text-align:center">or</td>
             <td><a href="undo_attendee_donation?id={{ attendee.id }}">{{ macros.stripe_button("Undo Extra Money") }}</a></td>
           {% endif %}
-          {% if attendee.can_abandon_badge or attendee.can_refund_badge %}
+          {% if attendee.can_abandon_badge or attendee.can_self_service_refund_badge %}
             <td style="width:100px ; text-align:center">or</td>
             <td>
               {% include '/preregistration/badge_refund.html' %}
@@ -25,7 +25,7 @@
           {% endif %}
         </tr>
       </table>
-      {% if attendee.can_abandon_badge or attendee.can_refund_badge %}
+      {% if attendee.can_abandon_badge or attendee.can_self_service_refund_badge %}
         <form method="post" action="abandon_badge" id="abandon_badge">
           <input type="hidden" name="id" value="{{ attendee.id }}"/>
         </form>

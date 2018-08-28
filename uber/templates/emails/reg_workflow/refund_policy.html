@@ -1,0 +1,17 @@
+{% if not c.REFUND_CUTOFF %}
+{{ c.EVENT_NAME }} has a no-refund policy for all registrations.
+{% elif c.REFUND_CUTOFF < c.ESCHATON %}
+{{ c.EVENT_NAME }} has a limited refund policy for registrations.
+{% endif %}
+{% if attendee.is_transferable %}
+If for any reason you can't make it, we allow and encourage you to resell your
+registration up to the exact price you paid for it. To transfer your
+registration to another person, send them
+<a href="{{ c.URL_BASE }}/preregistration/transfer_badge?id={{ attendee.id }}">this personalized link</a>.
+{% endif %}
+{% if c.REFUND_CUTOFF %}
+{% if c.BEFORE_REFUND_CUTOFF %}You may {% if attendee.is_transferable %}also {% endif %}
+  refund your badge {% elif c.AFTER_REFUND_CUTOFF %}Refunds were available{% endif %}
+{% if c.REFUND_START %}from {{ c.REFUND_START|datetime_local }}{% endif %} until {{ c.REFUND_CUTOFF|datetime_local }}
+  using <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">this{% if not attendee.is_transferable %} personalized{% endif %} link</a>.
+{% endif %}
