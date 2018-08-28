@@ -153,18 +153,22 @@
     </p>
 </div>
 
-{{ macros.form_checkgroup(
-    app,
-    'tech_needs',
-    other_field='other_tech_needs',
-    other_placeholder='Additional technical needs',
-    label='Technical Needs',
-    desc='Check the following technical needs that apply. Panel rooms will by default have VGA compatible projector with 3.5mm (1/8") audio, and a local PA with enough microphones setup.',
-    is_required=True) }}
 
 <div class="form-group">
-    <label class="col-sm-3 control-label">What are you bringing?</label>
-    <div class="col-sm-6">
-        <input type="input" class="form-control" name="panelist_bringing" value="{{ app.panelist_bringing }}" placeholder="Windows laptop, Macbook, gaming console, etc" />
-    </div>
+  <label class="col-sm-3 control-label optional-field">Technical Needs</label>
+  <div class="col-sm-6">
+    <textarea
+      class="form-control"
+      name="other_tech_needs"
+      rows="4"
+      placeholder="Do you need any other tehcnical equipment?">{{ app.other_tech_needs }}</textarea>
+  </div>
+  <div class="clearfix"></div>
+  <p class="help-block col-sm-9 col-sm-offset-3">
+    By default, each panel room will have a table with four microphones,
+    power for a laptop, and connections for 1/8" audio and HDMI video. If
+    you need anything beyond this please describe it above. Our techops
+    department (techops@magfest.org) will reach out to you directly for
+    details.
+  </p>
 </div>
