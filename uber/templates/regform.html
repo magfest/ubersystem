@@ -580,10 +580,19 @@
 </div>
 {% endif %}
 
+{% if c.ACCESSIBILITY_SERVICES_ENABLED %}
+<div class="form-group">
+    <label for="email_option" class="col-sm-3 control-label optional-field">Accessibility Services</label>
+    <div class="checkbox col-sm-9">
+      {{ macros.checkbox(attendee, 'requested_accessibility_services', label='I would like to be contacted by the ' ~ c.EVENT_NAME ~ ' Accessibility Services department prior to the event.') }}
+    </div>
+</div>
+{% endif %}
+
 <div class="form-group">
     <label for="email_option" class="col-sm-3 control-label optional-field">Keep Me Updated</label>
     <div class="checkbox col-sm-9">
-        {{ macros.checkbox(attendee, 'can_spam', label='Send me emails relating to ') }} {{ organization_with_event_name() }} in future years.<br/>
+        {{ macros.checkbox(attendee, 'can_spam', label='Send me emails relating to ' ~ organization_with_event_name() ~ ' in future years.') }}<br/>
         <span class="popup">{{ macros.popup_link("../static_views/privacy.html", "View Our Privacy Policy") }}</span>
     </div>
 </div>
