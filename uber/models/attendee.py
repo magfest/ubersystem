@@ -196,6 +196,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     # Represents a request for hotel booking info during preregistration
     requested_hotel_info = Column(Boolean, default=False)
+    requested_accessibility_services = Column(Boolean, default=False)
 
     interests = Column(MultiChoice(c.INTEREST_OPTS))
     found_how = Column(UnicodeText)
