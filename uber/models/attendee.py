@@ -417,7 +417,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     __table_args__ = tuple(_attendee_table_args)
     _repr_attr_names = ['full_name']
-    
+
     age_discountable_badge_types = [c.ATTENDEE_BADGE]
 
     @predelete_adjustment
