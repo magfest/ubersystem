@@ -676,7 +676,8 @@ class Root:
                 failure_message = "You cannot abandon your badge for some reason. Please contact us at {}."\
                     .format(c.REGDESK_EMAIL)
 
-        if not attendee.can_abandon_badge and not attendee.can_self_service_refund_badge:
+        if (not attendee.amount_paid and not attendee.can_abandon_badge)\
+                or (attendee.amount_paid and not attendee.can_self_service_refund_badge):
             raise HTTPRedirect('confirm?id={}&message={}', id, failure_message)
 
         if attendee.amount_paid:

@@ -296,6 +296,16 @@ def test_self_service_refunds_no_stripe(monkeypatch):
     assert not attendee.can_self_service_refund_badge
 
 
+def test_self_service_refunds_group_leader(monkeypatch):
+    monkeypatch.setattr(config.Config, 'SELF_SERVICE_REFUNDS_OPEN',
+                        property(lambda s: True))
+    attendee = Attendee(paid=c.HAS_PAID, amount_paid=10)
+    attendee.group = Group(leader_id=attendee.id)
+    monkeypatch.setattr(Attendee, 'stripe_transactions',
+                        [StripeTransaction(fk_id=attendee.id, amount=1000)])
+    assert not attendee.can_self_service_refund_badge
+
+
 def test_has_role_somewhere(dept, trusted_role):
     with Session() as session:
         attendee = Attendee(paid=c.HAS_PAID)
