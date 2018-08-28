@@ -122,7 +122,7 @@
     <p class="col-sm-10 col-sm-offset-1">
         <br>
         {% if attendee.is_dealer %}
-            Please enter your <strong>personal</strong> information below.  Information for any additional vendors at your table can be filled out once your application is approved.
+            Please enter your <strong>personal</strong> information below.  Information for any additional helpers at your table can be filled out once your application is approved.
         {% else %}
             Please enter the information for the group leader below (additional group member information will be entered after purchase is complete):
         {% endif %}
@@ -263,7 +263,11 @@
                                   <h4>{{ tier.name }}</h4>
                                   {% if tier.price %}
                                     <span>
-                                      <img src="{{ tier.icon }}" alt=""> + ${{ tier.price }}
+                                      <img
+                                          class="tier-icon tier-icon-{{ tier.icon|basename|replace('_', '-')|replace('.png', '') }}"
+                                          src="{{ tier.icon }}"
+                                          alt="">
+                                      + ${{ tier.price }}
                                     </span>
                                   {% endif %}
                                 </div>
@@ -517,7 +521,7 @@
     </div>
 </div>
 
-{% if c.HOTELS_ENABLED and (admin_area or (not is_prereg_form and not is_after_request_hotel)) %}
+{% if c.HOTELS_ENABLED and c.PREREG_REQUEST_HOTEL_INFO_DURATION > 0 and (admin_area or (not is_prereg_form and not is_after_request_hotel)) %}
   {#-
     In both the admin area and non-preregistration forms, we will display a
     "Request Hotel Info" label and a checkbox.
@@ -562,20 +566,12 @@
   <input type="hidden" name="requested_hotel_info" id="requested_hotel_info" value="{{ '1' if attendee.requested_hotel_info or attendee.is_placeholder else '0' }}" />
 {% endif %}
 
-<div class="form-group">
-    <label for="email_option" class="col-sm-3 control-label optional-field">Keep Me Updated</label>
-    <div class="checkbox col-sm-9">
-        {{ macros.checkbox(attendee, 'can_spam', label='Send me emails relating to ') }} {{ organization_with_event_name() }} in future years.<br/>
-        <span class="popup">{{ macros.popup_link("../static_views/privacy.html", "View Our Privacy Policy") }}</span>
-    </div>
-</div>
-
 {% if c.BADGE_PROMO_CODES_ENABLED and not group_id and (attendee.is_unpaid or attendee.promo_code_code) %}
 <div class="non_group_fields form-group">
     <label for="promo_code" class="col-sm-3 control-label optional-field">Promo Code</label>
     <div class="col-sm-6">
         {% if attendee.is_unpaid %}
-        <input type="textarea" name="promo_code" value="{{ attendee.promo_code_code }}" class="form-control" placeholder="Promo Code">
+        <input type="textarea" name="promo_code" value="{{ attendee.promo_code_code or promo_code }}" class="form-control" placeholder="Promo Code">
         {% else %}
         <input type="hidden" name="promo_code" value="{{ attendee.promo_code_code }}">
         <p class="form-control-static">{{ attendee.promo_code_code }}</p>
@@ -584,11 +580,30 @@
 </div>
 {% endif %}
 
+<div class="form-group">
+    <label for="email_option" class="col-sm-3 control-label optional-field">Keep Me Updated</label>
+    <div class="checkbox col-sm-9">
+        {{ macros.checkbox(attendee, 'can_spam', label='Send me emails relating to ') }} {{ organization_with_event_name() }} in future years.<br/>
+        <span class="popup">{{ macros.popup_link("../static_views/privacy.html", "View Our Privacy Policy") }}</span>
+    </div>
+</div>
+
 {% if (c.PAGE_PATH != '/registration/form' or not attendee.is_new) and c.PAGE_PATH != '/registration/register' %}
     <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
 {% endif %}
 
 {% include "regextra.html" %}
+
+{% if not admin_area and attendee.needs_pii_consent %}
+<div class="form-group">
+  <div class="checkbox col-sm-9 col-sm-offset-3">
+    <label for="pii_consent" class="checkbox-label">
+    <input type="checkbox" name="pii_consent" id="pii_consent" value="1" required />
+    <strong>Yes</strong>, you may store the personal information above in order to contact me about my registration.
+    </label>
+  </div>
+</div>
+{% endif %}
 
 <script type="text/javascript">
     {% if not attendee.is_new and not attendee.amount_unpaid %}

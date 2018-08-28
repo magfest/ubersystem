@@ -1,3 +1,5 @@
+import os
+import re
 from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
 
@@ -26,6 +28,45 @@ def generate_staff_badges(start_badge, end_badge, out, session):
         badge_type=c.STAFF_BADGE,
         range=badge_range,
         badge_type_name='Staff').run(out, session)
+
+
+def volunteer_checklists(session):
+    attendees = session.query(Attendee) \
+        .filter(
+            Attendee.staffing == True,
+            Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])) \
+        .order_by(Attendee.full_name, Attendee.id).all()  # noqa: E712
+
+    checklist_items = OrderedDict()
+    for item_template in c.VOLUNTEER_CHECKLIST:
+        item_name = os.path.splitext(os.path.basename(item_template))[0]
+        if item_name.endswith('_item'):
+            item_name = item_name[:-5]
+        item_name = item_name.replace('_', ' ').title()
+        checklist_items[item_name] = item_template
+
+    re_checkbox = re.compile(r'<img src="\.\./static/images/checkbox_.*?/>')
+    for attendee in attendees:
+        attendee.checklist_items = OrderedDict()
+        for item_name, item_template in checklist_items.items():
+            html = render(item_template, {'attendee': attendee}, encoding=None)
+            match = re_checkbox.search(html)
+            is_complete = False
+            is_applicable = False
+            if match:
+                is_applicable = True
+                checkbox_html = match.group(0)
+                if 'checkbox_checked' in checkbox_html:
+                    is_complete = True
+            attendee.checklist_items[item_name] = {
+                'is_applicable': is_applicable,
+                'is_complete': is_complete,
+            }
+
+    return {
+        'checklist_items': checklist_items,
+        'attendees': attendees,
+    }
 
 
 @all_renderable(c.STATS)
@@ -510,6 +551,19 @@ class Root:
                     and a.worked_hours < c.HOURS_FOR_REFUND and a.weighted_hours >= c.HOURS_FOR_REFUND]
             )]
         }
+
+    @csv_file
+    def volunteer_checklist_csv(self, out, session):
+        checklists = volunteer_checklists(session)
+        out.writerow(['Volunteer', 'Email'] + [s for s in checklists['checklist_items'].keys()])
+        for attendee in checklists['attendees']:
+            checklist_items = []
+            for item in attendee.checklist_items.values():
+                checklist_items.append('Yes' if item['is_complete'] else 'No' if item['is_applicable'] else 'N/A')
+            out.writerow([attendee.full_name, attendee.email] + checklist_items)
+
+    def volunteer_checklists(self, session):
+        return volunteer_checklists(session)
 
     @csv_file
     @site_mappable

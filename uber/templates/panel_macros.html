@@ -65,6 +65,9 @@
 
   {% if not is_readonly or (not is_class and panelist.has_credentials) -%}
     <h3>Credentials</h3>
+    {% if not is_admin %}
+      <p class="help-block">Your credentials may be included in the panel description on our public schedule.</p>
+    {% endif %}
     {{ macros.form_group(
         panelist,
         'occupation',
@@ -94,6 +97,9 @@
 
   {% if not is_readonly or (not is_class and panelist.has_social_media) -%}
     <h3>Social Media</h3>
+    {% if not is_admin %}
+      <p class="help-block">Your social media links may be included in the panel description on our public schedule.</p>
+    {% endif %}
     {% for name, label in panelist._social_media_fields.items() -%}
       {{ macros.form_group(
           panelist,

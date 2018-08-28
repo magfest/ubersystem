@@ -260,7 +260,7 @@ class AttendeeLookup:
             if attendee:
                 return attendee.to_dict(fields)
             else:
-                return {'error': 'No attendee found with Badge #{}'.format(badge_num)}
+                raise HTTPError(404, 'No attendee found with badge #{}'.format(badge_num))
 
     def search(self, query, full=False):
         """
@@ -281,28 +281,46 @@ class AttendeeLookup:
 
     def export(self, query, full=False):
         """
-        Searches for attendees by either email or first and last name.
+        Searches for attendees by either email, "first last" name, or
+        "first last &lt;email&gt;" combinations.
 
-        `query` should be a comma or newline separated list of emails and
-        "first last" name combos.
+        `query` should be a comma or newline separated list of email/name
+        queries.
+
+        Example:
+        <pre>Merrium Webster, only.email@example.com, John Doe &lt;jdoe@example.com&gt;</pre>
 
         Results are returned in the format expected by
         <a href="../import/staff">the staff importer</a>.
         """
-        queries = [s.strip() for s in re.split('[\n,]', normalize_newlines(query)) if s.strip()]
+        _re_name_email = re.compile(r'^\s*(.*?)\s*<\s*(.*?@.*?)\s*>\s*$')
+        _re_sep = re.compile(r'[\n,]')
+        _re_whitespace = re.compile(r'\s+')
+        queries = [s.strip() for s in _re_sep.split(normalize_newlines(query)) if s.strip()]
 
         names = dict()
         emails = dict()
+        names_and_emails = dict()
         ids = set()
         for q in queries:
             if '@' in q:
-                emails[Attendee.normalize_email(q)] = q
+                match = _re_name_email.match(q)
+                if match:
+                    name = match.group(1)
+                    email = Attendee.normalize_email(match.group(2))
+                    if name:
+                        first, last = (_re_whitespace.split(name.lower(), 1) + [''])[0:2]
+                        names_and_emails[(first, last, email)] = q
+                    else:
+                        emails[email] = q
+                else:
+                    emails[Attendee.normalize_email(q)] = q
             elif q:
                 try:
                     ids.add(str(uuid.UUID(q)))
                 except Exception:
-                    first, _, last = [s.strip() for s in q.partition(' ')]
-                    names[q] = (first.lower(), last.lower())
+                    first, last = (_re_whitespace.split(q.lower(), 1) + [''])[0:2]
+                    names[(first, last)] = q
 
         with Session() as session:
             if full:
@@ -318,27 +336,46 @@ class AttendeeLookup:
                     .options(*options).order_by(Attendee.email, Attendee.id).all()
 
             known_emails = set(a.normalized_email for a in email_attendees)
-            unknown_emails = sorted([email for normalized, email in emails.items() if normalized not in known_emails])
+            unknown_emails = sorted([raw for normalized, raw in emails.items() if normalized not in known_emails])
 
             name_attendees = []
             if names:
                 filters = [
-                    and_(func.lower(Attendee.first_name) == n[0], func.lower(Attendee.last_name) == n[1])
-                    for n in names.values()]
+                    and_(func.lower(Attendee.first_name) == first, func.lower(Attendee.last_name) == last)
+                    for first, last in names.keys()]
                 name_attendees = session.query(Attendee).filter(or_(*filters)) \
                     .options(*options).order_by(Attendee.email, Attendee.id).all()
+
+            known_names = set((a.first_name.lower(), a.last_name.lower()) for a in name_attendees)
+            unknown_names = sorted([raw for normalized, raw in names.items() if normalized not in known_names])
+
+            name_and_email_attendees = []
+            if names_and_emails:
+                filters = [
+                    and_(
+                        func.lower(Attendee.first_name) == first,
+                        func.lower(Attendee.last_name) == last,
+                        Attendee.normalized_email == email)
+                    for first, last, email in names_and_emails.keys()]
+                name_and_email_attendees = session.query(Attendee).filter(or_(*filters)) \
+                    .options(*options).order_by(Attendee.email, Attendee.id).all()
+
+            known_names_and_emails = set(
+                (a.first_name.lower(), a.last_name.lower(), a.normalized_email) for a in name_and_email_attendees)
+            unknown_names_and_emails = sorted([
+                raw for normalized, raw in names_and_emails.items() if normalized not in known_names_and_emails])
 
             id_attendees = []
             if ids:
                 id_attendees = session.query(Attendee).filter(Attendee.id.in_(ids)) \
                     .options(*options).order_by(Attendee.email, Attendee.id).all()
 
-            known_names = set(a.full_name.lower() for a in name_attendees)
-            unknown_names = sorted([full_name for full_name in names.keys() if full_name.lower() not in known_names])
+            known_ids = set(str(a.id) for a in id_attendees)
+            unknown_ids = sorted([i for i in ids if i not in known_ids])
 
             seen = set()
             all_attendees = [
-                a for a in (id_attendees + email_attendees + name_attendees)
+                a for a in (id_attendees + email_attendees + name_attendees + name_and_email_attendees)
                 if a.id not in seen and not seen.add(a.id)]
 
             fields = [
@@ -357,7 +394,12 @@ class AttendeeLookup:
                 'comments',
                 'admin_notes',
                 'all_years',
+                'badge_status',
+                'badge_status_label',
             ]
+            if full:
+                fields.extend(['shirt'])
+
             attendees = []
             for a in all_attendees:
                 d = a.to_dict(fields)
@@ -388,8 +430,10 @@ class AttendeeLookup:
                 attendees.append(d)
 
             return {
+                'unknown_ids': unknown_ids,
                 'unknown_emails': unknown_emails,
                 'unknown_names': unknown_names,
+                'unknown_names_and_emails': unknown_names_and_emails,
                 'attendees': attendees,
             }
 
@@ -458,7 +502,7 @@ class JobLookup:
         with Session() as session:
             message = session.assign(attendee_id, job_id)
             if message:
-                return {'error': message}
+                raise HTTPError(400, message)
             else:
                 session.commit()
                 return session.job(job_id).to_dict(self.fields)
@@ -470,14 +514,13 @@ class JobLookup:
         Takes the shift id as the only parameter.
         """
         with Session() as session:
-            try:
-                shift = session.shift(shift_id)
-                session.delete(shift)
-                session.commit()
-            except Exception:
-                return {'error': 'Shift was already deleted'}
-            else:
-                return session.job(shift.job_id).to_dict(self.fields)
+            shift = session.query(Shift).filter_by(id=shift_id).first()
+            if not shift:
+                raise HTTPError(404, 'Shift id not found:{}'.format(shift_id))
+
+            session.delete(shift)
+            session.commit()
+            return session.job(shift.job_id).to_dict(self.fields)
 
     @docstring_format(
         _format_opts(c.WORKED_STATUS_OPTS),
@@ -500,29 +543,28 @@ class JobLookup:
             status = int(status)
             assert c.WORKED_STATUS[status] is not None
         except Exception:
-            return {'error': 'Invalid status: {}'.format(status)}
+            raise HTTPError(400, 'Invalid status: {}'.format(status))
 
         try:
             rating = int(rating)
             assert c.RATINGS[rating] is not None
         except Exception:
-            return {'error': 'Invalid rating: {}'.format(rating)}
+            raise HTTPError(400, 'Invalid rating: {}'.format(rating))
 
         if rating in (c.RATED_BAD, c.RATED_GREAT) and not comment:
-            return {'error': 'You must leave a comment explaining why the '
-                    'staffer was rated as: {}'.format(c.RATINGS[rating])}
+            raise HTTPError(400, 'You must leave a comment explaining why the staffer was rated as: {}'.format(
+                c.RATINGS[rating]))
 
         with Session() as session:
-            try:
-                shift = session.shift(shift_id)
-                shift.worked = status
-                shift.rating = rating
-                shift.comment = comment
-                session.commit()
-            except Exception:
-                return {'error': 'Unexpected error setting status'}
-            else:
-                return session.job(shift.job_id).to_dict(self.fields)
+            shift = session.query(Shift).filter_by(id=shift_id).first()
+            if not shift:
+                raise HTTPError(404, 'Shift id not found:{}'.format(shift_id))
+
+            shift.worked = status
+            shift.rating = rating
+            shift.comment = comment
+            session.commit()
+            return session.job(shift.job_id).to_dict(self.fields)
 
 
 @all_api_auth(c.API_READ)
@@ -543,7 +585,9 @@ class DepartmentLookup:
         department ids call the "dept.list" method.
         """
         with Session() as session:
-            department = session.query(Department).get(department_id)
+            department = session.query(Department).filter_by(id=department_id).first()
+            if not department:
+                raise HTTPError(404, 'Department id not found: {}'.format(department_id))
             return department.to_dict({
                 'id': True,
                 'name': True,
@@ -613,6 +657,8 @@ class ConfigLookup:
         """
         if field.upper() in self.fields:
             return getattr(c, field.upper())
+        else:
+            raise HTTPError(404, 'Config field not found: {}'.format(field))
 
 
 @all_api_auth(c.API_READ)
@@ -632,7 +678,7 @@ class BarcodeLookup:
             result = get_badge_num_from_barcode(barcode_value)
             badge_num = result['badge_num']
         except Exception as e:
-            return {'error': "Couldn't look up barcode value: " + str(e)}
+            raise HTTPError(500, "Couldn't look up barcode value: " + str(e))
 
         # Note: A decrypted barcode can yield a valid badge num,
         # but that badge num may not be assigned to an attendee.
@@ -643,7 +689,7 @@ class BarcodeLookup:
             if attendee:
                 return attendee.to_dict(fields)
             else:
-                return {'error': 'Valid barcode, but no attendee found with Badge #{}'.format(badge_num)}
+                raise HTTPError(404, 'Valid barcode, but no attendee found with Badge #{}'.format(badge_num))
 
     def lookup_badge_number_from_barcode(self, barcode_value):
         """
@@ -655,7 +701,7 @@ class BarcodeLookup:
             result = get_badge_num_from_barcode(barcode_value)
             return {'badge_num': result['badge_num']}
         except Exception as e:
-            return {'error': "Couldn't look up barcode value: " + str(e)}
+            raise HTTPError(500, "Couldn't look up barcode value: " + str(e))
 
 
 if c.API_ENABLED:

@@ -386,13 +386,13 @@
   <div class="row">
     <div class="col-sm-12">
       <h3>Members</h3>
+      <p>
+        <a href="requests?department_id={{ department.id }}">
+          <span class="glyphicon glyphicon-bell"></span>
+          View membership requests
+        </a>
+      </p>
       {% if department.members %}
-        <p>
-          <a href="requests?department_id={{ department.id }}">
-            <span class="glyphicon glyphicon-bell"></span>
-            View membership requests
-          </a>
-        </p>
         {% set member_emails = department.member_emails %}
         {% if member_emails %}
           <p>

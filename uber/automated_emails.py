@@ -427,6 +427,14 @@ StopsEmailFixture(
     when=days_before(1, c.FINAL_EMAIL_DEADLINE),
     ident='volunteer_shift_schedule')
 
+if c.VOLUNTEER_AGREEMENT_ENABLED:
+    StopsEmailFixture(
+        'Reminder: Please agree to terms of {EVENT_NAME} ({EVENT_DATE}) volunteer agreement',
+        'signups/volunteer_agreement.txt',
+        lambda a: c.SHIFTS_CREATED and c.VOLUNTEER_AGREEMENT_ENABLED and not a.agreed_to_volunteer_agreement,
+        when=days_before(45, c.FINAL_EMAIL_DEADLINE),
+        ident='volunteer_agreement')
+
 
 # For events with customized badges, these emails remind people to let us know what we want on their badges.  We have
 # one email for our volunteers who haven't bothered to confirm they're coming yet (bleh) and one for everyone else.
@@ -584,7 +592,7 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieStudio,
-        'MIVS - Wat no video?',
+        'Reminder to submit your game\'s video to MIVS',
         'mivs/videoless_studio.txt',
         lambda studio: days_after(2, studio.registered)() and not any(game.video_submitted for game in studio.games),
         ident='mivs_missing_video_inquiry',
@@ -599,7 +607,7 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieGame,
-        'Last chance to submit your game to MIVS',
+        'Reminder to submit your game to MIVS',
         'mivs/round_two_reminder.txt',
         lambda game: game.status == c.JUDGING and not game.submitted,
         ident='mivs_game_submission_reminder',

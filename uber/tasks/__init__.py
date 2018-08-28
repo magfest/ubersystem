@@ -1,5 +1,5 @@
 from celery import Celery
-from celery.signals import beat_init, worker_process_init
+from celery.signals import after_setup_logger, beat_init, worker_process_init
 
 from uber.config import _config as config_dict
 from uber.models import Session
@@ -45,6 +45,17 @@ def init_worker_process(*args, **kwargs):
 def run_startup_tasks(*args, **kwargs):
     for fn, a, kw in celery.conf.beat_startup_tasks:
         fn.delay(*a, **kw)
+
+
+@after_setup_logger.connect
+def configure_celery_logger(loglevel, logfile, format, colorize, **kwargs):
+    if 'logger' not in kwargs:
+        return
+
+    from sideboard.internal.logging import IndentMultilinesLogFormatter
+    log_format = '%(asctime)s [%(levelname)s] (%(processName)s) %(name)s: %(message)s'
+    for handler in kwargs['logger'].handlers:
+        handler.setFormatter(IndentMultilinesLogFormatter(log_format))
 
 
 from uber.tasks import attractions  # noqa: F401

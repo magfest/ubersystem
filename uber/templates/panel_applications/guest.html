@@ -5,8 +5,7 @@
 {% block content %}
   {% include "panels_common.html" %}
 
-
-  <div class="masthead"></div>
+  {% include 'prereg_masthead.html' %}
   <div class="panel panel-default">
     <div class="panel-body">
     {% if c.APP_LIMIT and attendee.panel_applications|length >= c.APP_LIMIT %}
