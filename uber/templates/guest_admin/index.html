@@ -48,14 +48,14 @@
 
               {% if item.is_link -%}
                 <td>
-                  {%- if item_display.startswith('../') or item_display.startswith(c.PATH) or item_display.startswith('http') -%}
+                  {%- if item_display.startswith('../') or item_display.startswith('/') or item_display.startswith('http') -%}
                     {{ item_display|url_to_link("Yes", "_blank") }}
                   {%- else -%}
                     {{ item_display }}
                   {%- endif -%}
                 </td>
               {% else -%}
-                <td>{{ item_display -}}</td>
+                <td>{% if item_display is not none %}{{ item_display }}{% endif %}</td>
               {% endif -%}
             {% endif -%}
           {% endfor -%}

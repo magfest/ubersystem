@@ -1,0 +1,61 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Volunteer Checklists{% endblock %}
+{% block content %}
+
+<style type="text/css">
+
+.table .glyphicon {
+  font-size: 2em;
+  vertical-align: -25%;
+  display: inline-block;
+}
+
+.glyphicon-check {
+  color: #0c0;
+}
+
+.glyphicon-unchecked {
+  color: #808080;
+}
+
+</style>
+
+<h1>Volunteer Checklists <small><a href="volunteer_checklist_csv">Download CSV</a></h1>
+
+<div class="table-responsive">
+  <table
+      class="table table-hover datatable"
+      data-page-length="-1"
+      data-paging="true"
+      data-info="false">
+    <thead>
+      <tr>
+        <th>Volunteer</th>
+        {% for item_name in checklist_items.keys() %}
+          <th data-searchable="false">{{ item_name }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for attendee in attendees %}
+        <tr>
+          <td>{{ attendee|form_link }}</td>
+          {% for item_name, status in attendee.checklist_items.items() %}
+            <td data-order="{{ (0 if status.is_complete else (2 if status.is_applicable else 1)) }}">
+              <div title="{{ item_name }}">
+                {% if status.is_complete %}
+                  <span class="glyphicon glyphicon-check"></span>
+                {% elif status.is_applicable %}
+                  <span class="glyphicon glyphicon-unchecked"></span>
+                {% else %}
+                  <span>N/A</span>
+                {% endif %}
+              </div>
+            </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -37,9 +37,14 @@ class BaseEmailMixin(object):
     _repr_attr_names = ['subject']
 
     @property
+    def body_with_body_tag_stripped(self):
+        body = re.split(r'<\s*body[^>]*>', self.body)[-1]
+        return re.split(r'<\s*\/\s*body\s*>', body)[0]
+
+    @property
     def body_as_html(self):
         if self.is_html:
-            return re.split('<body[^>]*>', self.body)[-1].split('</body>')[0]
+            return self.body_with_body_tag_stripped
         else:
             return normalize_newlines(self.body).replace('\n', '<br>')
 
@@ -263,3 +268,9 @@ class Email(MagModel, BaseEmailMixin):
     @property
     def format(self):
         return 'html' if self.is_html else 'text'
+
+    @property
+    def is_html(self):
+        return self.automated_email.is_html \
+            if self.automated_email_id and self.automated_email \
+            else super(Email, self).is_html

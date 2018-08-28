@@ -13,7 +13,7 @@ from sqlalchemy import and_, case, func, or_
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, subqueryload
-from sqlalchemy.schema import ForeignKey, Index, UniqueConstraint
+from sqlalchemy.schema import Column as SQLAlchemyColumn, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.types import Boolean, Date, Integer
 
 import uber
@@ -342,6 +342,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         viewonly=True)
 
     staffing = Column(Boolean, default=False)
+    agreed_to_volunteer_agreement = Column(Boolean, default=False)
     nonshift_hours = Column(Integer, default=0, admin_only=True)
     past_years = Column(UnicodeText, admin_only=True)
     can_work_setup = Column(Boolean, default=False, admin_only=True)
@@ -364,8 +365,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     hotel_requests = relationship('HotelRequests', backref=backref('attendee', load_on_pending=True), uselist=False)
     room_assignments = relationship('RoomAssignment', backref=backref('attendee', load_on_pending=True))
 
-    # The PIN/password used by third party hotel reservervation systems
-    hotel_pin = Column(UnicodeText, nullable=True, default=_generate_hotel_pin)
+    # The PIN/password used by third party hotel reservation systems
+    hotel_pin = SQLAlchemyColumn(UnicodeText, nullable=True, unique=True)
 
     # =========================
     # mits
@@ -406,7 +407,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     checkouts = relationship('TabletopCheckout', backref='attendee')
     entrants = relationship('TabletopEntrant', backref='attendee')
 
-    _attendee_table_args = [Index('ix_attendee_paid_group_id', paid, group_id)]
+    _attendee_table_args = [
+        Index('ix_attendee_paid_group_id', paid, group_id),
+        Index('ix_attendee_badge_status_badge_type', badge_status, badge_type),
+    ]
     if not c.SQLALCHEMY_URL.startswith('sqlite'):
         _attendee_table_args.append(UniqueConstraint('badge_num', deferrable=True, initially='DEFERRED'))
 
@@ -421,6 +425,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def _misc_adjustments(self):
+        if not self.hotel_pin or not self.hotel_pin.strip():
+            self.hotel_pin = None
+
         if not self.amount_extra:
             self.affiliate = ''
 
@@ -578,12 +585,22 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.calculate_badge_cost(use_promo_code=False)
 
     def calculate_badge_cost(self, use_promo_code=True):
+        registered = self.registered_local if self.registered else None
+        base_badge_price = self.base_badge_price or c.get_attendee_price(registered)
+
         if self.paid == c.NEED_NOT_PAY:
             return 0
         elif self.overridden_price is not None:
             return self.overridden_price
+        elif self.is_dealer:
+            return c.DEALER_BADGE_PRICE
+        elif self.badge_type == c.ATTENDEE_BADGE and self.age_discount != 0:
+            return max(0, base_badge_price + self.age_discount)
+        elif self.badge_type == c.ATTENDEE_BADGE and self.group \
+                and self.paid == c.PAID_BY_GROUP:
+            return base_badge_price - c.GROUP_DISCOUNT
         elif self.base_badge_price:
-            cost = self.base_badge_price
+            cost = base_badge_price
         else:
             cost = self.new_badge_cost
 
@@ -597,18 +614,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         # What this badge would cost if it were new, i.e., not taking into
         # account special overrides
         registered = self.registered_local if self.registered else None
-        if self.is_dealer:
-            return c.DEALER_BADGE_PRICE
-        elif self.badge_type == c.ONE_DAY_BADGE:
+        if self.badge_type == c.ONE_DAY_BADGE:
             return c.get_oneday_price(registered)
         elif self.is_presold_oneday:
             return c.get_presold_oneday_price(self.badge_type)
         elif self.badge_type in c.BADGE_TYPE_PRICES:
             return int(c.BADGE_TYPE_PRICES[self.badge_type])
-        elif self.age_discount != 0:
-            return max(0, c.get_attendee_price(registered) + self.age_discount)
-        elif self.group and self.paid == c.PAID_BY_GROUP:
-            return c.get_attendee_price(registered) - c.GROUP_DISCOUNT
         else:
             return c.get_attendee_price(registered)
 
@@ -758,6 +769,10 @@ class Attendee(MagModel, TakesPaymentMixin):
                and self.stripe_transactions \
                and not self.checked_in \
                and c.SELF_SERVICE_REFUNDS_OPEN
+
+    @property
+    def needs_pii_consent(self):
+        return self.is_new or self.placeholder or not self.first_name
 
     @property
     def shirt_size_marked(self):

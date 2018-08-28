@@ -13,7 +13,7 @@ from uber.decorators import all_renderable, check_if_can_reg, credit_card, csrf_
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Email, Group, Tracking
 from uber.tasks.email import send_email
-from uber.utils import add_opt, check, localized_now, Charge
+from uber.utils import add_opt, check, check_pii_consent, localized_now, Charge
 
 
 def to_sessionized(attendee, group):
@@ -150,23 +150,28 @@ class Root:
             attendee, group = self._get_unsaved(
                 edit_id,
                 if_not_found=HTTPRedirect('form?message={}', 'That preregistration has already been finalized'))
-
             attendee.apply(params, restricted=True)
             group.apply(group_params, restricted=True)
+            if attendee.badge_type not in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE]:
+                # Disassociate the attendee from the group, just in case the unpaid badge
+                # was edited and switched from a group badge back to a single badge.
+                group.attendees = []
+                attendee.group_id = None
+                if attendee.paid == c.PAID_BY_GROUP:
+                    attendee.paid = c.NOT_PAID
             params.setdefault('badges', group.badges)
         else:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
             group = session.group(group_params, ignore_csrf=True, restricted=True)
 
-        message = ''
-        if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
-            message = session.add_promo_code_to_attendee(
-                attendee, params.get('promo_code'))
-
         if not attendee.badge_type:
             attendee.badge_type = c.ATTENDEE_BADGE
-        if attendee.badge_type not in c.PREREG_BADGE_TYPES:
+
+        message = check_pii_consent(params, attendee) or message
+        if not message and attendee.badge_type not in c.PREREG_BADGE_TYPES:
             message = 'Invalid badge type!'
+        if not message and c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
+            message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
 
         if message:
             return {
@@ -177,11 +182,12 @@ class Root:
                 'badges':     params.get('badges'),
                 'affiliates': session.affiliates(),
                 'cart_not_empty': Charge.unpaid_preregs,
-                'copy_address': params.get('copy_address')
+                'copy_address': params.get('copy_address'),
+                'promo_code': params.get('promo_code', ''),
             }
 
         if attendee.is_dealer and not c.DEALER_REG_OPEN:
-            return render('static_views/dealer_reg_closed.html') if c.AFTER_DEALER_REG_SHUTDOWN \
+            return render('static_views/dealer_reg_closed.html') if c.AFTER_DEALER_REG_START \
                 else render('static_views/dealer_reg_not_open.html')
 
         if 'first_name' in params:
@@ -224,7 +230,13 @@ class Root:
                     raise HTTPRedirect('dealer_confirmation?id={}', group.id)
                 else:
                     target = group if group.badges else attendee
-                    track_type = c.EDITED_PREREG if target.id in Charge.unpaid_preregs else c.UNPAID_PREREG
+                    track_type = c.UNPAID_PREREG
+                    for target_id in [attendee.id, group.id]:
+                        if target_id in Charge.unpaid_preregs:
+                            track_type = c.EDITED_PREREG
+                            # Clear out any previously cached targets, in case the unpaid badge
+                            # has been edited and changed from a single to a group or vice versa.
+                            del Charge.unpaid_preregs[target_id]
                     Charge.unpaid_preregs[target.id] = to_sessionized(attendee, group)
                     Tracking.track(track_type, attendee)
                     if group.badges:
@@ -246,7 +258,6 @@ class Root:
 
         else:
             if edit_id is None:
-                attendee.can_spam = True  # Only defaults to True on new forms, not edit forms
                 if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                     # All new dealer signups should default to receiving the
                     # hotel info email, even if the deadline has passed.
@@ -268,7 +279,8 @@ class Root:
             'badges':     params.get('badges'),
             'affiliates': session.affiliates(),
             'cart_not_empty': Charge.unpaid_preregs,
-            'copy_address': params.get('copy_address')
+            'copy_address': params.get('copy_address'),
+            'promo_code': params.get('promo_code', ''),
         }
 
     @redirect_if_at_con_to_kiosk
@@ -458,7 +470,8 @@ class Root:
         group = session.group(group_id)
         attendee = session.attendee(params, restricted=True)
 
-        if 'first_name' in params:
+        message = check_pii_consent(params, attendee) or message
+        if not message and 'first_name' in params:
             message = check(attendee, prereg=True)
             if not message and not params['first_name']:
                 message = 'First and Last Name are required fields'
@@ -495,8 +508,6 @@ class Root:
                     raise HTTPRedirect('attendee_donation_form?id={}', attendee.id)
                 else:
                     raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Badge registered successfully')
-        else:
-            attendee.can_spam = True    # only defaults to true for these forms
 
         return {
             'message':  message,
@@ -752,7 +763,6 @@ class Root:
 
         attendee.placeholder = placeholder
         if not message and attendee.placeholder:
-            attendee.can_spam = True
             message = 'You are not yet registered!  You must fill out this form to complete your registration.'
         elif not message:
             message = 'You are already registered but you may update your information with this form.'

@@ -68,7 +68,6 @@ def _decline_and_convert_dealer_group(session, group, delete_when_able=False):
         else:
             if _is_dealer_convertible(attendee):
                 attendee.badge_status = c.NEW_STATUS
-                attendee.overridden_price = attendee.new_badge_cost
 
                 try:
                     send_email.delay(

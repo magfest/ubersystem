@@ -154,6 +154,7 @@ class MagModel:
         """
         values = []
         for name in self.cost_property_names:
+            value = 'ATTRIBUTE NOT FOUND'
             try:
                 value = getattr(self, name, 'ATTRIBUTE NOT FOUND')
                 values.append(int(value))
@@ -376,47 +377,53 @@ class MagModel:
         checkgroups = self.regform_checkgroups if restricted else checkgroups
         for column in self.__table__.columns:
             if (not restricted or column.name in self.unrestricted) and column.name in params and column.name != 'id':
-                if column.type is JSON or isinstance(column.type, JSON):
-                    value = params[column.name]
-                elif isinstance(params[column.name], list):
-                    value = ','.join(map(str, params[column.name]))
-                elif isinstance(params[column.name], bool):
-                    value = params[column.name]
-                elif params[column.name] is None:
-                    value = None
-                else:
-                    value = str(params[column.name]).strip()
+                value = params[column.name]
+                if isinstance(value, six.string_types):
+                    value = value.strip()
 
                 try:
                     if value is None:
                         pass  # Totally fine for value to be None
+
                     elif isinstance(column.type, Float):
                         if value == '':
                             value = None
                         else:
                             value = float(value)
+
                     elif isinstance(column.type, Numeric):
                         if value == '':
                             value = None
                         elif value.endswith('.0'):
                             value = int(value[:-2])
+
+                    elif isinstance(column.type, (MultiChoice)):
+                        if isinstance(value, list):
+                            value = ','.join(map(lambda x: str(x).strip(), value))
+                        else:
+                            value = str(value).strip()
+
                     elif isinstance(column.type, (Choice, Integer)):
                         if value == '':
                             value = None
                         else:
                             value = int(float(value))
+
                     elif isinstance(column.type, UTCDateTime):
                         try:
                             value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
                         except ValueError:
                             value = dateparser.parse(value)
-                        value = c.EVENT_TIMEZONE.localize(value)
+                        if not value.tzinfo:
+                            value = c.EVENT_TIMEZONE.localize(value)
+
                     elif isinstance(column.type, Date):
                         try:
                             value = datetime.strptime(value, c.DATE_FORMAT)
                         except ValueError:
                             value = dateparser.parse(value)
                         value = value.date()
+
                 except Exception as error:
                     log.debug(
                         'Ignoring error coercing value for column {}.{}: {}', self.__tablename__, column.name, error)
@@ -505,6 +512,7 @@ from uber.models.tracking import Tracking  # noqa: E402
 
 
 class Session(SessionManager):
+
     # This looks strange, but `sqlalchemy.create_engine` will throw an error
     # if it's passed arguments that aren't supported by the given DB engine.
     # For example, SQLite doesn't support either `pool_size` or `max_overflow`,

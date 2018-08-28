@@ -1,0 +1,17 @@
+User-agent: *
+Disallow: {{ c.PATH }}/preregistration/attendee_donation_form
+Disallow: {{ c.PATH }}/preregistration/prereg_payment
+Disallow: {{ c.PATH }}/preregistration/delete
+Disallow: {{ c.PATH }}/preregistration/dealer_confirmation
+Disallow: {{ c.PATH }}/preregistration/group_members
+Disallow: {{ c.PATH }}/preregistration/register_group_member
+Disallow: {{ c.PATH }}/preregistration/process_group_payment
+Disallow: {{ c.PATH }}/preregistration/unset_group_member
+Disallow: {{ c.PATH }}/preregistration/add_group_members
+Disallow: {{ c.PATH }}/preregistration/pay_for_extra_members
+Disallow: {{ c.PATH }}/preregistration/invalid_badge
+Disallow: {{ c.PATH }}/preregistration/invalidate
+Disallow: {{ c.PATH }}/preregistration/confirm
+Disallow: {{ c.PATH }}/preregistration/guest_food
+Disallow: {{ c.PATH }}/preregistration/undo_attendee_donation
+Disallow: {{ c.PATH }}/preregistration/process_attendee_donation

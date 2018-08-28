@@ -56,6 +56,9 @@ class _Overridable:
         if 'dates' in plugin_config:
             self.make_dates(plugin_config['dates'])
 
+        if 'data_dirs' in plugin_config:
+            self.make_data_dirs(plugin_config['data_dirs'])
+
     def make_dates(self, config_section):
         """
         Plugins can define a [dates] section in their config to create their
@@ -72,6 +75,17 @@ class _Overridable:
             setattr(self, _opt.upper(), _dt)
             if _dt:
                 self.DATES[_opt.upper()] = _dt
+
+    def make_data_dirs(self, config_section):
+        """
+        Plugins can define a [data_dirs] section in their config to create their
+        own data directories on the global c object. Data directories are
+        automatically created on server startup.  This method is called automatically
+        by c.include_plugin_config() if a "[data_dirs]" section exists.
+        """
+        for _opt, _val in config_section.items():
+            setattr(self, _opt.upper(), _val)
+            self.DATA_DIRS[_opt.upper()] = _val
 
     def make_enums(self, config_section):
         """
@@ -138,15 +152,14 @@ class Config(_Overridable):
     def get_attendee_price(self, dt=None):
         price = self.INITIAL_ATTENDEE
         if self.PRICE_BUMPS_ENABLED:
-
+            localized_now = uber.utils.localized_now()
             for day, bumped_price in sorted(self.PRICE_BUMPS.items()):
-                if (dt or uber.utils.localized_now()) >= day:
+                if (dt or localized_now) >= day:
                     price = bumped_price
 
             # Only check bucket-based pricing if we're not checking an existing badge AND
-            # we don't have hardcore_optimizations_enabled config on AND we're not on-site
-            # (because on-site pricing doesn't involve checking badges sold).
-            if not dt and not self.HARDCORE_OPTIMIZATIONS_ENABLED and uber.utils.localized_now() < c.EPOCH:
+            # we're not on-site (because on-site pricing doesn't involve checking badges sold)
+            if not dt and localized_now < c.EPOCH:
                 badges_sold = self.BADGES_SOLD
 
                 for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
@@ -187,7 +200,7 @@ class Config(_Overridable):
     @dynamic
     def DEALER_REG_SOFT_CLOSED(self):
         return self.AFTER_DEALER_REG_DEADLINE or self.DEALER_APPS >= self.MAX_DEALER_APPS \
-            if self.MAX_DEALER_APPS and not self.HARDCORE_OPTIMIZATIONS_ENABLED else self.AFTER_DEALER_REG_DEADLINE
+            if self.MAX_DEALER_APPS else self.AFTER_DEALER_REG_DEADLINE
 
     @property
     def SELF_SERVICE_REFUNDS_OPEN(self):
@@ -212,18 +225,27 @@ class Config(_Overridable):
     @dynamic
     def BADGES_SOLD(self):
         from uber.models import Session, Attendee, Group
-        with Session() as session:
-            attendees = session.query(Attendee)
-            individuals = attendees.filter(or_(
-                Attendee.paid == self.HAS_PAID,
-                Attendee.paid == self.REFUNDED)
-            ).filter(Attendee.badge_status == self.COMPLETED_STATUS).count()
+        if self.BADGES_SOLD_ESTIMATE_ENABLED:
+            with Session() as session:
+                attendee_count = int(session.execute(
+                    "SELECT reltuples AS count FROM pg_class WHERE relname = 'attendee'").scalar())
 
-            group_badges = attendees.join(Attendee.group).filter(
-                Attendee.paid == self.PAID_BY_GROUP,
-                Group.amount_paid > 0).count()
+                # This will be efficient because we've indexed attendee(badge_type, badge_status)
+                staff_count = self.get_badge_count_by_type(c.STAFF_BADGE)
+                return max(0, attendee_count - staff_count)
+        else:
+            with Session() as session:
+                attendees = session.query(Attendee)
+                individuals = attendees.filter(or_(
+                    Attendee.paid == self.HAS_PAID,
+                    Attendee.paid == self.REFUNDED)
+                ).filter(Attendee.badge_status == self.COMPLETED_STATUS).count()
 
-            return individuals + group_badges
+                group_badges = attendees.join(Attendee.group).filter(
+                    Attendee.paid == self.PAID_BY_GROUP,
+                    Group.amount_paid > 0).count()
+
+                return individuals + group_badges
 
     @request_cached_property
     @dynamic
@@ -231,9 +253,6 @@ class Config(_Overridable):
         """
         Returns a string representing a rough estimate of how many badges are left at the current badge price tier.
         """
-        if c.HARDCORE_OPTIMIZATIONS_ENABLED:
-            return None
-
         is_badge_price_ordered = c.BADGE_PRICE in c.ORDERED_PRICE_LIMITS
         current_price_tier = c.ORDERED_PRICE_LIMITS.index(c.BADGE_PRICE) if is_badge_price_ordered else -1
 
@@ -611,7 +630,8 @@ class Config(_Overridable):
     @property
     @dynamic
     def CAN_SUBMIT_MIVS_ROUND_TWO(self):
-        return not really_past_mivs_deadline(c.MIVS_ROUND_TWO_DEADLINE) or c.HAS_INDIE_ADMIN_ACCESS
+        return c.AFTER_MIVS_ROUND_TWO_START and (
+            not really_past_mivs_deadline(c.MIVS_ROUND_TWO_DEADLINE) or c.HAS_INDIE_ADMIN_ACCESS)
 
     # =========================
     # panels
@@ -721,6 +741,9 @@ c.TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
 c.DATE_FORMAT = '%Y-%m-%d'
 c.EVENT_TIMEZONE = pytz.timezone(c.EVENT_TIMEZONE)
 c.make_dates(_config['dates'])
+
+c.DATA_DIRS = {}
+c.make_data_dirs(_config['data_dirs'])
 
 if "sqlite" in _config['secret']['sqlalchemy_url']:
     # SQLite does not suport pool_size and max_overflow,
@@ -886,6 +909,7 @@ c.JOB_PAGE_OPTS = (
 )
 c.WEIGHT_OPTS = (
     ('1.0', 'x1.0'),
+    ('0.5', 'x0.5'),
     ('1.5', 'x1.5'),
     ('2.0', 'x2.0'),
     ('2.5', 'x2.5'),
@@ -1102,6 +1126,7 @@ c.ROCK_ISLAND_GROUPS = [getattr(c, group.upper()) for group in c.ROCK_ISLAND_GRO
 # A list of checklist items for display on the guest group admin page
 c.GUEST_CHECKLIST_ITEMS = [
     {'name': 'panel', 'header': 'Panel'},
+    {'name': 'mc', 'header': 'MC'},
     {'name': 'bio', 'header': 'Bio Provided'},
     {'name': 'info', 'header': 'Agreement Completed'},
     {'name': 'taxes', 'header': 'W9 Uploaded', 'is_link': True},

@@ -40,7 +40,7 @@ class Root:
             'message':  message,
             'accounts': (session.query(AdminAccount)
                          .join(Attendee)
-                         .options(subqueryload(AdminAccount.attendee))
+                         .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts))
                          .order_by(Attendee.last_first).all()),
             'all_attendees': sorted(attendees, key=lambda tup: tup[1])
         }
@@ -247,7 +247,7 @@ class Root:
 
     @unrestricted
     def sitemap(self):
-        site_sections = cherrypy.tree.apps[c.PATH].root
+        site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
         modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
         pages = defaultdict(list)
         access_set = AdminAccount.access_set()

@@ -477,6 +477,21 @@ def check_all(models, *, prereg=False):
             return message
 
 
+def check_pii_consent(params, attendee=None):
+    """
+    Checks that the "pii_consent" field was passed up in the POST params if consent is needed.
+
+    Returns:
+        Empty string if "pii_consent" was given or not needed, or an error message otherwise.
+    """
+    if cherrypy.request.method == 'POST':
+        has_pii_consent = params.get('pii_consent') == '1'
+        needs_pii_consent = not attendee or attendee.needs_pii_consent
+        if needs_pii_consent and not has_pii_consent:
+            return 'You must agree to allow us to store your personal information in order to register.'
+    return ''
+
+
 def check_csrf(csrf_token=None):
     """
     Accepts a csrf token (and checks the request headers if None is provided)
@@ -589,7 +604,7 @@ def report_critical_exception(msg, subject="Critical Error"):
     from uber.tasks.email import send_email
 
     # Log with lots of cherrypy context in here
-    uber.server.log_exception_with_verbose_context(msg)
+    uber.server.log_exception_with_verbose_context(msg=msg)
 
     # Also attempt to email the admins
     send_email.delay(c.ADMIN_EMAIL, [c.ADMIN_EMAIL], subject, msg + '\n{}'.format(traceback.format_exc()))
@@ -606,7 +621,7 @@ def static_overrides(dirname):
     are the theme image files, but theoretically a plugin can override anything
     it wants by calling this method and passing its static directory.
     """
-    appconf = cherrypy.tree.apps[c.PATH].config
+    appconf = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].config
     basedir = os.path.abspath(dirname).rstrip('/')
     for dpath, dirs, files in os.walk(basedir):
         relpath = dpath[len(basedir):]
@@ -835,7 +850,7 @@ class Charge:
     @classmethod
     def from_sessionized_group(cls, d):
         d = dict(d, attendees=[cls.from_sessionized_attendee(a) for a in d.get('attendees', [])])
-        return uber.models.Group(**d)
+        return uber.models.Group(_defer_defaults_=True, **d)
 
     @classmethod
     def from_sessionized_attendee(cls, d):
@@ -844,8 +859,8 @@ class Charge:
             del d['requested_any_dept']
 
         if d.get('promo_code'):
-            d = dict(d, promo_code=uber.models.PromoCode(**d['promo_code']))
-        return uber.models.Attendee(**d)
+            d = dict(d, promo_code=uber.models.PromoCode(_defer_defaults_=True, **d['promo_code']))
+        return uber.models.Attendee(_defer_defaults_=True, **d)
 
     @classmethod
     def get(cls, payment_id):

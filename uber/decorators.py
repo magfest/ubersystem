@@ -74,10 +74,15 @@ def check_if_can_reg(func):
         is_dealer_post = c.HTTP_METHOD == 'POST' and \
             int(kwargs.get('badge_type', 0)) == c.PSEUDO_DEALER_BADGE and \
             int(kwargs.get('tables', 0)) > 0
-        is_dealer_reg = c.DEALER_REG_OPEN and (is_dealer_get or is_dealer_post)
+        is_dealer_reg = is_dealer_get or is_dealer_post
 
         if c.DEV_BOX:
             pass  # Don't redirect to any of the pages below.
+        elif is_dealer_reg and not c.DEALER_REG_OPEN:
+            if c.AFTER_DEALER_REG_START:
+                return render('static_views/dealer_reg_closed.html')
+            else:
+                return render('static_views/dealer_reg_not_open.html')
         elif c.ATTENDEE_BADGES_SOLD >= c.MAX_BADGE_SALES:
             # ===============================================================
             # TODO: MAKE THIS COMPARE THE SPECIFIC BADGE TYPE AGAINST OUR
@@ -363,8 +368,8 @@ def credit_card(func):
         except Exception:
             error_text = \
                 'Got an error while calling charge' \
-                '(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}\n' \
-                '\n IMPORTANT: This could have resulted in an attendee paying and not being' \
+                '(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}\n\n' \
+                'IMPORTANT: This could have resulted in an attendee paying and not being ' \
                 'marked as paid in the database. Definitely double check this.'\
                 .format(payment_id, stripeToken, ignored, traceback.format_exc())
 
@@ -546,11 +551,11 @@ def renderable(func):
             result = func(*args, **kwargs)
         except CSRFException as e:
             message = "Your CSRF token is invalid. Please go back and try again."
-            uber.server.log_exception_with_verbose_context(str(e))
+            uber.server.log_exception_with_verbose_context(msg=str(e))
             raise HTTPRedirect("../common/invalid?message={}", message)
         except (AssertionError, ValueError) as e:
             message = str(e)
-            uber.server.log_exception_with_verbose_context(message)
+            uber.server.log_exception_with_verbose_context(msg=message)
             raise HTTPRedirect("../common/invalid?message={}", message)
         else:
             try:

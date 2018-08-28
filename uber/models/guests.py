@@ -11,6 +11,7 @@ from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
 
 from uber.config import c
+from uber.custom_tags import yesno
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column, MultiChoice
@@ -33,6 +34,7 @@ class GuestGroup(MagModel):
     estimated_loadin_minutes = Column(Integer, default=c.DEFAULT_LOADIN_MINUTES, admin_only=True)
     estimated_performance_minutes = Column(Integer, default=c.DEFAULT_PERFORMANCE_MINUTES, admin_only=True)
 
+    wants_mc = Column(Boolean, nullable=True)
     info = relationship('GuestInfo', backref=backref('guest', load_on_pending=True), uselist=False)
     bio = relationship('GuestBio', backref=backref('guest', load_on_pending=True), uselist=False)
     taxes = relationship('GuestTaxes', backref=backref('guest', load_on_pending=True), uselist=False)
@@ -107,6 +109,10 @@ class GuestGroup(MagModel):
         application_count = len(self.group.leader.panel_applications)
         return '{} Panel Application(s)'.format(application_count) \
             if self.group.leader.panel_applications else self.status('panel')
+
+    @property
+    def mc_status(self):
+        return None if self.wants_mc is None else yesno(self.wants_mc, 'Yes,No')
 
     @property
     def checklist_completed(self):

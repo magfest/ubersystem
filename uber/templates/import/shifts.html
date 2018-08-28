@@ -63,30 +63,26 @@
 
 <h2>Import Shifts</h2>
 
-<form id="shifts" action="shifts" method="post" class="form form-horizontal">
+<form id="shifts" action="shifts" method="post" class="form">
   <div class="form-group">
-    <label class="col-sm-12">Hostname</label>
-    <div class="col-sm-12">
-      <input
-          class="form-control"
-          type="text"
-          name="target_server"
-          value="{{ target_server }}"
-          placeholder="event.uber.magfest.org"
-          required>
-    </div>
+    <label class="control-label">Hostname</label>
+    <input
+        class="form-control"
+        type="text"
+        name="target_server"
+        value="{{ target_server }}"
+        placeholder="event.uber.magfest.org/uber"
+        required>
   </div>
   <div class="form-group">
-    <label class="col-sm-12">API Token</label>
-    <div class="col-sm-12">
-      <input
-          class="form-control"
-          type="text"
-          name="api_token"
-          value="{{ api_token }}"
-          placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-          required>
-    </div>
+    <label class="control-label">API Token</label>
+    <input
+        class="form-control"
+        type="text"
+        name="api_token"
+        value="{{ api_token }}"
+        placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX">
+    <p class="static-form-control help-block">Leave blank to try using system API token</p>
   </div>
   <input class="btn btn-primary" type="submit" id="lookup_departments" value="Lookup Departments" />
 

@@ -5,7 +5,7 @@ import pytest
 
 from uber.config import c
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Group, Session
+from uber.models import Group, Session
 from uber.site_sections import guest_admin
 
 
@@ -30,20 +30,6 @@ def csrf_token(monkeypatch):
     monkeypatch.setitem(cherrypy.session, 'csrf_token', token)
     monkeypatch.setitem(cherrypy.request.headers, 'CSRF-Token', token)
     yield token
-
-
-@pytest.fixture()
-def admin_attendee():
-    with Session() as session:
-        session.insert_test_admin_account()
-
-    with Session() as session:
-        attendee = session.query(Attendee).filter(
-            Attendee.email == 'magfest@example.com').one()
-        cherrypy.session['account_id'] = attendee.admin_account.id
-        yield attendee
-        cherrypy.session['account_id'] = None
-        session.delete(attendee)
 
 
 class TestAddGuestGroup(object):
