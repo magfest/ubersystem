@@ -419,8 +419,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     _repr_attr_names = ['full_name']
 
     # TODO: Delete lowercase version of age_discountable_badge_types after prereg launch
-    age_discountable_badge_types = None
-    _AGE_DISCOUNTABLE_BADGE_TYPES = [c.ATTENDEE_BADGE]
+    _AGE_DISCOUNTABLE_BADGE_TYPES = None
+    _DISCOUNTABLE_BADGE_TYPES = [c.ATTENDEE_BADGE]
 
     @predelete_adjustment
     def _shift_badges(self):
@@ -599,9 +599,9 @@ class Attendee(MagModel, TakesPaymentMixin):
             return self.overridden_price
         elif self.is_dealer:
             return c.DEALER_BADGE_PRICE
-        elif self.badge_type in self._AGE_DISCOUNTABLE_BADGE_TYPES and self.age_discount != 0:
+        elif self.badge_type in self._DISCOUNTABLE_BADGE_TYPES and self.age_discount != 0:
             return max(0, base_badge_price + self.age_discount)
-        elif self.badge_type == c.ATTENDEE_BADGE and self.group and self.paid == c.PAID_BY_GROUP:
+        elif self.badge_type in self._DISCOUNTABLE_BADGE_TYPES and self.group and self.paid == c.PAID_BY_GROUP:
             return base_badge_price - c.GROUP_DISCOUNT
         elif self.base_badge_price:
             cost = base_badge_price
