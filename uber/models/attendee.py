@@ -589,16 +589,19 @@ class Attendee(MagModel, TakesPaymentMixin):
         registered = self.registered_local if self.registered else None
         base_badge_price = self.base_badge_price or c.get_attendee_price(registered)
 
+        attendee_badges = [c.ATTENDEE_BADGE]
+        if getattr(c, 'CHILD_BADGE', None):
+            attendee_badges.append(c.CHILD_BADGE)
+
         if self.paid == c.NEED_NOT_PAY:
             return 0
         elif self.overridden_price is not None:
             return self.overridden_price
         elif self.is_dealer:
             return c.DEALER_BADGE_PRICE
-        elif self.badge_type == c.ATTENDEE_BADGE and self.age_discount != 0:
+        elif self.badge_type in attendee_badges and self.age_discount != 0:
             return max(0, base_badge_price + self.age_discount)
-        elif self.badge_type == c.ATTENDEE_BADGE and self.group \
-                and self.paid == c.PAID_BY_GROUP:
+        elif self.badge_type == c.ATTENDEE_BADGE and self.group and self.paid == c.PAID_BY_GROUP:
             return base_badge_price - c.GROUP_DISCOUNT
         elif self.base_badge_price:
             cost = base_badge_price
