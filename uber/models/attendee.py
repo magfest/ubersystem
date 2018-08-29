@@ -419,7 +419,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     _repr_attr_names = ['full_name']
 
     # TODO: Delete lowercase version of age_discountable_badge_types after prereg launch
-    _AGE_DISCOUNTABLE_BADGE_TYPES = None
+    age_discountable_badge_types = None
     _DISCOUNTABLE_BADGE_TYPES = [c.ATTENDEE_BADGE]
 
     @predelete_adjustment
