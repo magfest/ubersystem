@@ -703,6 +703,12 @@ if c.MIVS_ENABLED:
         allow_post_con=True)
 
     MIVSEmailFixture(
+        IndieJudge,
+        'Welcome to MIVS Juding 2019!',
+        'mivs/2018_JudgingAudit.txt',
+        ident='mivs_2018_JudgingAudit')
+
+    MIVSEmailFixture(
         IndieGame,
         'MIVS judging is wrapping up',
         'mivs/round_two_closing.txt',
