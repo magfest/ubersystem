@@ -854,9 +854,10 @@ class Charge:
 
     @classmethod
     def from_sessionized_attendee(cls, d):
-        # Fix for attendees that were sessionized while the "requested_any_dept" column existed
-        if 'requested_any_dept' in d:
-            del d['requested_any_dept']
+        # Fix for attendees that were sessionized while no-longer-existing attributes existed
+        for attr in ['age_discountable_badge_types', 'requested_any_dept']:
+            if attr in d:
+                del d[attr]
 
         if d.get('promo_code'):
             d = dict(d, promo_code=uber.models.PromoCode(_defer_defaults_=True, **d['promo_code']))
