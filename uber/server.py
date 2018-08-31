@@ -215,7 +215,6 @@ def _make_jsonrpc_handler(services, debug=c.DEV_BOX, precall=lambda body: None):
             return response
 
         def success(result):
-            result = '“TEST😀”'
             response = {'jsonrpc': '2.0', 'id': id, 'result': result}
             log.debug('Returning success message: {!r}',
                       {'jsonrpc': '2.0', 'id': id, 'result': len(result) if is_listy(result) else str(result)})
