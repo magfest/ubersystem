@@ -286,8 +286,8 @@ class Root:
             eligibility_filters.append(Attendee.registered <= c.PREREG_HOTEL_ELIGIBILITY_CUTOFF)
 
         hotel_query = session.query(Attendee).filter(*eligibility_filters).filter(
-            Attendee.badge_status != c.INVALID_STATUS,
-            Attendee.first_name != '',
+            Attendee.badge_status.notin_([c.INVALID_STATUS, c.REFUNDED_STATUS]),
+            Attendee.email != '',
         )  # noqa: E712
 
         attendees_without_hotel_pin = hotel_query.filter(*eligibility_filters).filter(or_(
