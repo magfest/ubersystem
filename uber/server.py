@@ -209,13 +209,13 @@ def _make_jsonrpc_handler(services, debug=c.DEV_BOX, precall=lambda body: None):
 
         def error(status, code, message):
             response = {'jsonrpc': '2.0', 'id': id, 'error': {'code': code, 'message': message}}
-            log.debug('Returning error message: {!r}', response)
+            log.debug('Returning error message: {!r}'.format(response))
             cherrypy.response.status = status
             return response
 
         def success(result):
             response = {'jsonrpc': '2.0', 'id': id, 'result': result}
-            log.debug('Returning success message: {!r}', response)
+            log.debug('Returning success message: {!r}'.format(response))
             cherrypy.response.status = 200
             return response
 
@@ -223,7 +223,7 @@ def _make_jsonrpc_handler(services, debug=c.DEV_BOX, precall=lambda body: None):
         if not isinstance(request_body, dict):
             return error(400, ERR_INVALID_JSON, 'Invalid json input {!r}'.format(cherrypy.request.body))
 
-        log.debug('jsonrpc request body: {!r}', request_body)
+        log.debug('jsonrpc request body: {!r}'.format(request_body))
 
         id, params = request_body.get('id'), request_body.get('params', [])
         if 'method' not in request_body:
