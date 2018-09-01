@@ -81,5 +81,17 @@ class StripeTransaction(MagModel):
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     who = Column(UnicodeText)
     desc = Column(UnicodeText)
-    fk_id = Column(UUID)
-    fk_model = Column(UnicodeText)
+    attendees = relationship('StripeTransactionAttendee', backref='stripe_transaction')
+    groups = relationship('StripeTransactionGroup', backref='stripe_transaction')
+
+
+class StripeTransactionAttendee(MagModel):
+    txn_id = Column(UUID, ForeignKey('stripe_transaction.id'))
+    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+    share = Column(Integer)
+
+
+class StripeTransactionGroup(MagModel):
+    txn_id = Column(UUID, ForeignKey('stripe_transaction.id'))
+    group_id = Column(UUID, ForeignKey('group.id'))
+    share = Column(Integer)

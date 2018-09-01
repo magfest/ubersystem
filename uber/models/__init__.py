@@ -163,14 +163,6 @@ class MagModel:
                 log.exception(ex)
         return max(0, sum(values))
 
-    @property
-    def stripe_transactions(self):
-        """
-        Returns all logged Stripe transactions with this model's ID.
-        """
-        from uber.models.commerce import StripeTransaction
-        return self.session.query(StripeTransaction).filter_by(fk_id=self.id).all()
-
     @cached_classproperty
     def unrestricted(cls):
         """
@@ -674,7 +666,7 @@ class Session(SessionManager):
                 job.to_dict(fields)
                 for job in jobs if (job.required_roles or frozenset(job.hours) not in restricted_hours)]
 
-        def process_refund(self, txn):
+        def process_refund(self, stripe_log, model="Attendee"):
             """
             Attempts to refund a given Stripe transaction
             Returns:
@@ -683,17 +675,19 @@ class Session(SessionManager):
             """
             import stripe
             from pockets.autolog import log
-            from uber.models.commerce import StripeTransaction
+            from uber.models.commerce import StripeTransaction, \
+                StripeTransactionAttendee, StripeTransactionGroup
 
+            txn = stripe_log.stripe_transaction
             if txn.type != c.PAYMENT:
                 return 'This is not a payment and cannot be refunded.', None
             else:
                 log.debug(
                     'REFUND: attempting to refund stripeID {} {} cents for {}',
-                    txn.stripe_id, txn.amount, txn.desc)
+                    txn.stripe_id, stripe_log.share, txn.desc)
                 try:
                     response = stripe.Refund.create(
-                        charge=txn.stripe_id, reason='requested_by_customer')
+                        charge=txn.stripe_id, amount=stripe_log.share, reason='requested_by_customer')
                 except stripe.StripeError as e:
                     error_txt = 'Error while calling process_refund' \
                                 '(self, stripeID={!r})'.format(txn.stripe_id)
@@ -702,15 +696,28 @@ class Session(SessionManager):
                         subject='ERROR: MAGFest Stripe invalid request error')
                     return 'An unexpected problem occurred: ' + str(e), None
 
-                self.add(StripeTransaction(
+                refund_txn = StripeTransaction(
                     stripe_id=response.id or None,
                     amount=response.amount,
                     desc=txn.desc,
                     type=c.REFUND,
-                    who=AdminAccount.admin_name() or 'non-admin',
-                    fk_id=txn.fk_id,
-                    fk_model=txn.fk_model)
-                )
+                    who=AdminAccount.admin_name() or 'non-admin')
+
+                self.add(refund_txn)
+
+                if isinstance(model, Attendee):
+                    self.add(StripeTransactionAttendee(
+                        txn_id=refund_txn.id,
+                        attendee_id=model.id,
+                        share=stripe_log.share
+                    ))
+
+                elif isinstance(model, Group):
+                    self.add(StripeTransactionGroup(
+                        txn_id=refund_txn,
+                        group_id=model.id,
+                        share=stripe_log.share
+                    ))
 
                 return '', response
 

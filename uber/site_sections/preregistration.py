@@ -693,16 +693,16 @@ class Root:
 
         if attendee.amount_paid:
             amount_refunded = 0
-            if not all(txn.stripe_id
-                       and txn.type == c.PAYMENT
-                       for txn in attendee.stripe_transactions):
+            if not all(stripe_log.stripe_transaction.stripe_id
+                       and stripe_log.stripe_transaction.type == c.PAYMENT
+                       for stripe_log in attendee.stripe_txn_share_logs):
                 raise HTTPRedirect('confirm?id={}&message={}', id,
                                    failure_message)
-            for txn in attendee.stripe_transactions:
-                error, response = session.process_refund(txn)
+            for stripe_log in attendee.stripe_txn_share_logs:
+                error, response = session.process_refund(stripe_log, attendee)
                 if error:
                     raise HTTPRedirect('confirm?id={}&message={}', id,
-                                       failure_message)
+                                       error)
                 elif response:
                     amount_refunded += response.amount
 
