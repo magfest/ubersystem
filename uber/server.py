@@ -216,7 +216,8 @@ def _make_jsonrpc_handler(services, debug=c.DEV_BOX, precall=lambda body: None):
 
         def success(result):
             response = {'jsonrpc': '2.0', 'id': id, 'result': result}
-            log.debug('Returning success message: {}', repr(response).encode('utf-8'))
+            log.debug('Returning success message: {}', {
+                'jsonrpc': '2.0', 'id': id, 'result': len(result) if is_listy(result) else str(result).encode('utf-8')})
             cherrypy.response.status = 200
             return response
 
