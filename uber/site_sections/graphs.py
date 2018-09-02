@@ -88,23 +88,12 @@ class RegistrationDataOneYear:
         if len(self.registrations_per_day) != self.num_days_to_report:
             raise 'array validation error: array size should be the same as the report size'
 
-        # figure out where the last non-zero data point is in the array
-        last_useful_data_index = self.num_days_to_report - 1
-        for regs in reversed(self.registrations_per_day):
-            if regs != 0:
-                break  # found it, so we're done.
-            last_useful_data_index -= 1
-
         # compute the cumulative sum, leaving all numbers past the last data point at zero
         self.registrations_per_day_cumulative_sum = self.num_days_to_report * [0]
         total_so_far = 0
-        current_index = 0
-        for regs_this_day in self.registrations_per_day:
+        for i, regs_this_day in enumerate(self.registrations_per_day):
             total_so_far += regs_this_day
-            self.registrations_per_day_cumulative_sum[current_index] = total_so_far
-            if current_index == last_useful_data_index:
-                break
-            current_index += 1
+            self.registrations_per_day_cumulative_sum[i] = total_so_far
 
     def dump_data(self):
         return {
