@@ -20,7 +20,11 @@
             It does not include comp'd badges for staff, guests, bands. It does not include dealers.<br/>
         </p>
 
-        {# Yea.... I don't know how to fix the w/h here.  someone with better css/html5 do it.#}
+    <div id="attendanceGraphScroller">
+      <div id="attendanceGraphContainer">
+        {# Width and height are only used to set the aspect ratio. The graph maintains its own size. #}
         <canvas id="attendanceGraph" width="1000" height="800"></canvas>
+      </div>
+    </div>
 
 {% endblock %}

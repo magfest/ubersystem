@@ -152,6 +152,7 @@ function draw_attendance_chart(raw_data)
     pointDot: false,
     pointHitDetectionRadius: 1,
     scaleShowLabels: true,
+    responsive: true,
     multiTooltipTemplate: "<%= datasetLabel %>: <%= value %>",
     showXLabels: 20
   };
