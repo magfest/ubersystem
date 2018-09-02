@@ -25,3 +25,5 @@ node_modules/
 .eggs/
 .coverage
 uploaded_files/*
+uber/static/analytics/extra-attendance-data.json
+
