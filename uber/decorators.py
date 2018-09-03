@@ -3,6 +3,7 @@ import functools
 import inspect
 import json
 import os
+import re
 import threading
 import traceback
 import uuid
@@ -557,6 +558,16 @@ def renderable(func):
             message = str(e)
             uber.server.log_exception_with_verbose_context(msg=message)
             raise HTTPRedirect("../common/invalid?message={}", message)
+        except TypeError as e:
+            # Very restrictive pattern so we don't accidentally match legit errors
+            pattern = r"^{}\(\) missing 1 required positional argument: '\S*id'$".format(func.__name__)
+            if re.fullmatch(pattern, str(e)):
+                message = 'Looks like you tried to access a page without all the query parameters. '\
+                          'Please go back and try again.'
+                raise HTTPRedirect("../common/invalid?message={}", message)
+            else:
+                raise
+
         else:
             try:
                 func_name = func.__name__
