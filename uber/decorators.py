@@ -562,6 +562,7 @@ def renderable(func):
             # Very restrictive pattern so we don't accidentally match legit errors
             pattern = r"^{}\(\) missing 1 required positional argument: '\S*?id'$".format(func.__name__)
             if re.fullmatch(pattern, str(e)):
+                # NOTE: We are NOT logging the exception if the user entered an invalid URL
                 message = 'Looks like you tried to access a page without all the query parameters. '\
                           'Please go back and try again.'
                 raise HTTPRedirect("../common/invalid?message={}", message)
