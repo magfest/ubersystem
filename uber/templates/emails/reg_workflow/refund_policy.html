@@ -6,8 +6,8 @@
 {% if attendee.is_transferable %}
 If for any reason you can't make it, we allow and encourage you to resell your
 registration up to the exact price you paid for it. To transfer your
-registration to another person, send them
-<a href="{{ c.URL_BASE }}/preregistration/transfer_badge?id={{ attendee.id }}">this personalized link</a>.
+registration to another person, send 
+them <a href="{{ c.URL_BASE }}/preregistration/transfer_badge?id={{ attendee.id }}">this personalized link</a>.
 {% endif %}
 {% if c.REFUND_CUTOFF %}
 {% if c.BEFORE_REFUND_CUTOFF %}You may {% if attendee.is_transferable %}also {% endif %}
