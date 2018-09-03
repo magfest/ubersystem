@@ -560,7 +560,7 @@ def renderable(func):
             raise HTTPRedirect("../common/invalid?message={}", message)
         except TypeError as e:
             # Very restrictive pattern so we don't accidentally match legit errors
-            pattern = r"^{}\(\) missing 1 required positional argument: '\S*id'$".format(func.__name__)
+            pattern = r"^{}\(\) missing 1 required positional argument: '\S*?id'$".format(func.__name__)
             if re.fullmatch(pattern, str(e)):
                 message = 'Looks like you tried to access a page without all the query parameters. '\
                           'Please go back and try again.'
