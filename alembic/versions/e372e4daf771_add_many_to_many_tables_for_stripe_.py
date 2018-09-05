@@ -67,7 +67,9 @@ attendee_table = table(
     sa.Column('id', residue.UUID()),
     sa.Column('first_name', sa.Unicode()),
     sa.Column('last_name', sa.Unicode()),
-    sa.Column('amount_paid', sa.Integer())
+    sa.Column('paid', sa.Integer()),
+    sa.Column('amount_paid', sa.Integer()),
+    sa.Column('amount_extra', sa.Integer())
 )
 
 group_table = table(
@@ -124,15 +126,41 @@ def get_model_share(id, model):
         return None, "Error: could not get amount paid from tracking table for {} {}. ({})" \
             .format(model, id, e)
 
+def add_attendee_txn(txn, attendee, share=None):
+    if not share:
+        share, error = get_model_share(attendee.id, 'Attendee')
+        if error:
+            return error
+
+    op.execute(
+        attendee_txn_table.insert().values({
+            'id': str(uuid.uuid4()),
+            'txn_id': txn.id,
+            'attendee_id': attendee.id,
+            'share': share
+        })
+    )
+
+def add_group_txn(txn, group, share=None):
+    if not share:
+        share, error = get_model_share(group.id, 'Group')
+        if error:
+            return error
+
+    op.execute(
+        group_txn_table.insert().values({
+            'id': str(uuid.uuid4()),
+            'txn_id': txn.id,
+            'group_id': group.id,
+            'share': share
+        })
+    )
 
 def add_model_by_txn(txn, multi=False):
     # Adds a model according to the fk_model stored on a transaction, and returns its name
     connection = op.get_bind()
 
-    share, error = (get_model_share(txn.fk_id, txn.fk_model)) if multi else (int(txn.amount), None)
-
-    if error:
-        return '', error
+    share = txn.amount if not multi else None
 
     if txn.fk_model == "Attendee":
         [attendee] = connection.execute(
@@ -142,16 +170,11 @@ def add_model_by_txn(txn, multi=False):
         )
 
         if txn.amount <= (attendee.amount_paid * 100) or multi:
-            connection.execute(
-                attendee_txn_table.insert().values({
-                    'id': str(uuid.uuid4()),
-                    'txn_id': txn.id,
-                    'attendee_id': attendee.id,
-                    'share': share
-                })
-            )
-
-            return attendee.first_name + " " + attendee.last_name, None
+            error = add_attendee_txn(txn, attendee, share)
+            return (None, error) if error else (attendee.first_name + " " + attendee.last_name, None)
+        else:
+            return '', "The transaction for {} is more than their amount_paid."\
+                .format(attendee.first_name + " " + attendee.last_name)
 
     elif txn.fk_model == "Group":
         [group] = connection.execute(
@@ -160,16 +183,11 @@ def add_model_by_txn(txn, multi=False):
             )
         )
         if txn.amount <= (group.amount_paid * 100) or multi:
-            connection.execute(
-                group_txn_table.insert().values({
-                    'id': str(uuid.uuid4()),
-                    'txn_id': txn.id,
-                    'group_id': group.id,
-                    'share': share
-                })
-            )
-
-            return group.name, None
+            error = add_group_txn(txn, group, share)
+            return (None, error) if error else (group.name, None)
+        else:
+            return '', "The transaction for the group {} is more than its amount_paid." \
+            .format(group.name)
 
 def upgrade():
     op.create_table('stripe_transaction_group',
@@ -199,6 +217,9 @@ def upgrade():
 
     errors = []
 
+    group_names = [group.name for group in
+                   connection.execute(group_table.select())]
+
     for txn in txns:
         if ', ' in txn.desc:
             name_list = txn.desc.split(', ')
@@ -206,7 +227,18 @@ def upgrade():
             if error:
                 errors.append(error)
             else:
-                name_list.remove(saved_name)
+                if txn.fk_model == "Attendee":
+                    # We change attendees' name case in the DB, but not groups'
+                    # We want to remove upper or lowercase names first
+                    # but only if there's no groups with that name
+                    if saved_name.upper() in name_list and saved_name.upper() not in group_names:
+                        name_list.remove(saved_name.upper())
+                    elif saved_name.lower() in name_list and saved_name.lower() not in group_names:
+                        name_list.remove(saved_name.lower())
+                    else:
+                        name_list.remove(saved_name)
+                else:
+                    name_list.remove(saved_name)
 
             for name in name_list:
                 matching_groups = [txn for txn in connection.execute(
@@ -222,6 +254,10 @@ def upgrade():
                     attendee_table.select()
                 )
 
+                # This is a presave adjustment we make after the charge, but before saving an attendee
+                if name.isupper() or name.islower():
+                    name = name.title()
+
                 matching_attendees = [a for a in attendees if a.first_name + " " + a.last_name == name and a.id != txn.fk_id]
 
                 if not matching_attendees and not matching_groups:
@@ -229,38 +265,34 @@ def upgrade():
                     continue
 
                 if len(matching_attendees+matching_groups) != name_list.count(name):
+                    if "kicking in" in txn.desc:
+                        kickin_attendees = [a for a in matching_attendees if a.amount_extra > 0]
+                        if len(kickin_attendees == 1):
+                            [attendee] = kickin_attendees
+                            add_attendee_txn(txn, attendee, txn.amount)
+                            continue
+
+                    if len(matching_groups) == 1 and "extra badges" in txn.desc:
+                        [group] = matching_groups
+                        add_group_txn(txn, group, txn.amount)
+                        continue
+
+                    non_group_attendees = [a for a in matching_attendees if a.paid != c.PAID_BY_GROUP]
+                    if len(non_group_attendees) == 1:
+                        [attendee] = non_group_attendees
+                        add_attendee_txn(txn, attendee)
+                        continue
+
                     errors.append('Error: there are {} attendees/groups named "{}" in the DB, but {} in the transaction'
-                                  .format(len(matching_attendees.extend(matching_groups)), name, name_list.count(name)))
+                                  .format(len(matching_attendees+matching_groups), name, name_list.count(name)))
                     name_list = [n for n in name_list if n != name]
                     continue
 
                 for attendee in matching_attendees:
-                    share, error = get_model_share(attendee.id, 'Attendee')
-                    if error:
-                        errors.append(error)
-                    else:
-                        op.execute(
-                            attendee_txn_table.insert().values({
-                                'id': str(uuid.uuid4()),
-                                'txn_id': txn.id,
-                                'attendee_id': attendee.id,
-                                'share': share
-                            })
-                        )
+                    add_attendee_txn(txn, attendee)
 
                 for group in matching_groups:
-                    share, error = get_model_share(group.id, 'Group')
-                    if error:
-                        errors.append(error)
-                    else:
-                        op.execute(
-                            group_txn_table.insert().values({
-                                'id': str(uuid.uuid4()),
-                                'txn_id': txn.id,
-                                'group_id': group.id,
-                                'share': share
-                            })
-                        )
+                    add_group_txn(txn, group)
         else:
             name, error = add_model_by_txn(txn)
             if error:
@@ -315,7 +347,8 @@ def downgrade():
                 })
             )
 
-    op.alter_column('stripe_transaction', 'fk_id', server_default=None)"""
+    op.alter_column('stripe_transaction', 'fk_id', server_default=None)
+    """
 
     op.drop_table('stripe_transaction_attendee')
     op.drop_table('stripe_transaction_group')

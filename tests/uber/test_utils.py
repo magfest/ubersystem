@@ -111,8 +111,9 @@ class TestCharge:
         charge = Charge(targets=[Group()])
         assert charge.receipt_email is None
 
-    def test_charge_log_transaction(self):
+    def test_charge_log_transaction(self, monkeypatch):
         attendee = Attendee()
+        monkeypatch.setattr(Attendee, 'amount_unpaid', 10)
         charge = Charge(targets=[attendee], amount=1000, description="Test charge")
         charge.response = stripe.Charge(id=10)
         result = charge.stripe_transaction_from_charge()
@@ -121,8 +122,42 @@ class TestCharge:
         assert result.desc == "Test charge"
         assert result.type == c.PAYMENT
         assert result.who == 'non-admin'
-        assert result.fk_id == attendee.id
-        assert result.fk_model == attendee.__class__.__name__
+
+    def test_charge_log_transaction_attendee(self, monkeypatch):
+        attendee = Attendee()
+        monkeypatch.setattr(Attendee, 'amount_unpaid', 10)
+        charge = Charge(targets=[attendee],
+                        description="Test charge")
+        charge.response = stripe.Charge(id=10)
+        txn = charge.stripe_transaction_from_charge()
+        result = charge.stripe_transaction_from_model(attendee, txn)
+        assert result.attendee_id == attendee.id
+        assert result.txn_id == txn.id
+        assert result.share == 1000
+
+    def test_charge_log_transaction_group(self, monkeypatch):
+        group = Group()
+        monkeypatch.setattr(Group, 'amount_unpaid', 10)
+        charge = Charge(targets=[group],
+                        description="Test charge")
+        charge.response = stripe.Charge(id=10)
+        txn = charge.stripe_transaction_from_charge()
+        result = charge.stripe_transaction_from_model(group, txn)
+        assert result.group_id == group.id
+        assert result.txn_id == txn.id
+        assert result.share == 1000
+
+    def test_charge_log_transaction_no_unpaid(self, monkeypatch):
+        group = Group()
+        monkeypatch.setattr(Group, 'amount_unpaid', 0)
+        charge = Charge(targets=[group], amount=1000,
+                        description="Test charge")
+        charge.response = stripe.Charge(id=10)
+        txn = charge.stripe_transaction_from_charge()
+        result = charge.stripe_transaction_from_model(group, txn)
+        assert result.group_id == group.id
+        assert result.txn_id == txn.id
+        assert result.share == 1000
 
     def test_charge_log_transaction_no_model(self):
         stripe.Charge.create = Mock(return_value=1)

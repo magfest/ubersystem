@@ -951,18 +951,8 @@ class Charge:
             if self.models:
                 txn = self.stripe_transaction_from_charge()
                 for model in self.models:
-                    if model.__class__.__name__ == "Attendee":
-                        session.add(uber.models.commerce.StripeTransactionAttendee(
-                            txn_id=txn.id,
-                            attendee_id=model.id,
-                            share=model.amount_unpaid * 100
-                        ))
-                    elif model.__class__.__name__ == "Group":
-                        session.add(uber.models.commerce.StripeTransactionGroup(
-                            txn_id=txn.id,
-                            group_id=model.id,
-                            share=model.amount_unpaid * 100
-                        ))
+                    multi = len(self.models) > 1
+                    session.add(self.stripe_transaction_from_model(model, txn, multi))
                 session.add(txn)
 
     def stripe_transaction_from_charge(self, type=c.PAYMENT):
@@ -973,3 +963,17 @@ class Charge:
             type=type,
             who=uber.models.AdminAccount.admin_name() or 'non-admin'
         )
+
+    def stripe_transaction_from_model(self, model, txn, multi=False):
+        if model.__class__.__name__ == "Attendee":
+            return uber.models.commerce.StripeTransactionAttendee(
+                txn_id=txn.id,
+                attendee_id=model.id,
+                share=self.amount if not multi else (model.amount_unpaid * 100)
+            )
+        elif model.__class__.__name__ == "Group":
+            return uber.models.commerce.StripeTransactionGroup(
+                txn_id=txn.id,
+                group_id=model.id,
+                share=self.amount if not multi else (model.amount_unpaid * 100)
+            )
