@@ -702,7 +702,7 @@ class Root:
                 error, response = session.process_refund(stripe_log, attendee)
                 if error:
                     raise HTTPRedirect('confirm?id={}&message={}', id,
-                                       error)
+                                       failure_message)
                 elif response:
                     amount_refunded += response.amount
 

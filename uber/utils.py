@@ -952,7 +952,7 @@ class Charge:
                 txn = self.stripe_transaction_from_charge()
                 for model in self.models:
                     multi = len(self.models) > 1
-                    session.add(self.stripe_transaction_from_model(model, txn, multi))
+                    session.add(self.stripe_transaction_for_model(model, txn, multi))
                 session.add(txn)
 
     def stripe_transaction_from_charge(self, type=c.PAYMENT):
@@ -964,7 +964,7 @@ class Charge:
             who=uber.models.AdminAccount.admin_name() or 'non-admin'
         )
 
-    def stripe_transaction_from_model(self, model, txn, multi=False):
+    def stripe_transaction_for_model(self, model, txn, multi=False):
         if model.__class__.__name__ == "Attendee":
             return uber.models.commerce.StripeTransactionAttendee(
                 txn_id=txn.id,

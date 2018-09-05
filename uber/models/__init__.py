@@ -666,7 +666,7 @@ class Session(SessionManager):
                 job.to_dict(fields)
                 for job in jobs if (job.required_roles or frozenset(job.hours) not in restricted_hours)]
 
-        def process_refund(self, stripe_log, model="Attendee"):
+        def process_refund(self, stripe_log, model=Attendee):
             """
             Attempts to refund a given Stripe transaction
             Returns:

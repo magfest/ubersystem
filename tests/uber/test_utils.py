@@ -130,7 +130,7 @@ class TestCharge:
                         description="Test charge")
         charge.response = stripe.Charge(id=10)
         txn = charge.stripe_transaction_from_charge()
-        result = charge.stripe_transaction_from_model(attendee, txn)
+        result = charge.stripe_transaction_for_model(attendee, txn)
         assert result.attendee_id == attendee.id
         assert result.txn_id == txn.id
         assert result.share == 1000
@@ -142,7 +142,7 @@ class TestCharge:
                         description="Test charge")
         charge.response = stripe.Charge(id=10)
         txn = charge.stripe_transaction_from_charge()
-        result = charge.stripe_transaction_from_model(group, txn)
+        result = charge.stripe_transaction_for_model(group, txn)
         assert result.group_id == group.id
         assert result.txn_id == txn.id
         assert result.share == 1000
@@ -154,7 +154,7 @@ class TestCharge:
                         description="Test charge")
         charge.response = stripe.Charge(id=10)
         txn = charge.stripe_transaction_from_charge()
-        result = charge.stripe_transaction_from_model(group, txn)
+        result = charge.stripe_transaction_for_model(group, txn)
         assert result.group_id == group.id
         assert result.txn_id == txn.id
         assert result.share == 1000
