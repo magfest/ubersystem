@@ -163,31 +163,38 @@ def add_model_by_txn(txn, multi=False):
     share = txn.amount if not multi else None
 
     if txn.fk_model == "Attendee":
-        [attendee] = connection.execute(
+        attendees = [a for a in connection.execute(
             attendee_table.select().where(
                 attendee_table.c.id == txn.fk_id
             )
-        )
+        )]
 
-        if txn.amount <= (attendee.amount_paid * 100) or multi:
-            error = add_attendee_txn(txn, attendee, share)
-            return (None, error) if error else (attendee.first_name + " " + attendee.last_name, None)
-        else:
-            return '', "The transaction for {} is more than their amount_paid."\
-                .format(attendee.first_name + " " + attendee.last_name)
+        if len(attendees) == 1:
+            [attendee] = attendees
+            if txn.amount <= (attendee.amount_paid * 100) or multi:
+                error = add_attendee_txn(txn, attendee, share)
+                return (None, error) if error else (attendee.first_name + " " + attendee.last_name, None)
+            else:
+                return '', "The transaction for {} is more than their amount_paid."\
+                    .format(attendee.first_name + " " + attendee.last_name)
 
     elif txn.fk_model == "Group":
-        [group] = connection.execute(
+        groups = [g for g in connection.execute(
             group_table.select().where(
                 group_table.c.id == txn.fk_id
             )
-        )
-        if txn.amount <= (group.amount_paid * 100) or multi:
-            error = add_group_txn(txn, group, share)
-            return (None, error) if error else (group.name, None)
-        else:
-            return '', "The transaction for the group {} is more than its amount_paid." \
-            .format(group.name)
+        )]
+
+        if len(groups) == 1:
+            [group] = groups
+            if txn.amount <= (group.amount_paid * 100) or multi:
+                error = add_group_txn(txn, group, share)
+                return (None, error) if error else (group.name, None)
+            else:
+                return '', "The transaction for the group {} is more than its amount_paid." \
+                .format(group.name)
+
+    return None, '{} not found for ID {}'.format(txn.fk_model, txn.fk_id)
 
 def upgrade():
     op.create_table('stripe_transaction_group',
