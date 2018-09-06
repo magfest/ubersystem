@@ -75,6 +75,7 @@ attendee_table = table(
 group_table = table(
     'group',
     sa.Column('id', residue.UUID()),
+    sa.Column('leader_id', residue.UUID()),
     sa.Column('name', sa.Unicode()),
     sa.Column('amount_paid', sa.Integer())
 )
@@ -173,9 +174,9 @@ def add_model_by_txn(txn, multi=False):
             [attendee] = attendees
             if txn.amount <= (attendee.amount_paid * 100) or multi:
                 error = add_attendee_txn(txn, attendee, share)
-                return (None, error) if error else (attendee.first_name + " " + attendee.last_name, None)
+                return ('', '', error) if error else (attendee.first_name, attendee.last_name, None)
             else:
-                return '', "The transaction for {} is more than their amount_paid."\
+                return '', '', "The transaction for {} is more than their amount_paid."\
                     .format(attendee.first_name + " " + attendee.last_name)
 
     elif txn.fk_model == "Group":
@@ -189,12 +190,26 @@ def add_model_by_txn(txn, multi=False):
             [group] = groups
             if txn.amount <= (group.amount_paid * 100) or multi:
                 error = add_group_txn(txn, group, share)
-                return (None, error) if error else (group.name, None)
+                return ('', '', error) if error else (group.name, '', None)
             else:
-                return '', "The transaction for the group {} is more than its amount_paid." \
-                .format(group.name)
+                [group_leader] = connection.execute(
+                    attendee_table.select().where(
+                        attendee_table.c.id == group.leader_id
+                    )
+                )
+                if group_leader.amount_extra:
+                    txn_guess = (group.amount_paid * 100)+(group_leader.amount_extra * 100)
+                    if txn.amount <= txn_guess:
+                        error = add_group_txn(txn, group, share)
+                        if error:
+                            return '', '', error
+                        error = add_attendee_txn(txn, group_leader)
+                        return ('', '', error) if error else (group.name, '', None)
 
-    return None, '{} not found for ID {}'.format(txn.fk_model, txn.fk_id)
+                return '', '', "The transaction for the group {} is more than its amount_paid." \
+                    .format(group.name)
+
+    return '', '', '{} not found for ID {}'.format(txn.fk_model, txn.fk_id)
 
 def upgrade():
     op.create_table('stripe_transaction_group',
@@ -227,27 +242,63 @@ def upgrade():
     group_names = [group.name for group in
                    connection.execute(group_table.select())]
 
+    comma_attendees = [a.first_name + " " + a.last_name
+                       for a in connection.execute(
+            attendee_table.select()
+        ) if ',' in a.first_name or ',' in a.last_name]
+
+    comma_groups = [g.name for g in connection.execute(
+        group_table.select()
+    ) if ',' in g.name]
+
     for txn in txns:
         if ', ' in txn.desc:
-            name_list = txn.desc.split(', ')
-            saved_name, error = add_model_by_txn(txn, True)
+            desc = txn.desc
+            comma_names = []
+
+            for name in (comma_attendees + comma_groups):
+                if name in desc:
+                    desc = desc.replace(name, '', 1)
+                    comma_names.append(name)
+
+            name_list = desc.split(', ') + comma_names if comma_names else desc.split(', ')
+            first_name, last_name, error = add_model_by_txn(txn, True)
+            saved_name = first_name + " " + last_name if txn.fk_model == "Attendee" else first_name
+
             if error:
                 errors.append(error)
             else:
                 if txn.fk_model == "Attendee":
                     # We change attendees' name case in the DB, but not groups'
-                    # We want to remove upper or lowercase names first
+                    # We want to remove names without title casing first
                     # but only if there's no groups with that name
-                    if saved_name.upper() in name_list and saved_name.upper() not in group_names:
-                        name_list.remove(saved_name.upper())
-                    elif saved_name.lower() in name_list and saved_name.lower() not in group_names:
-                        name_list.remove(saved_name.lower())
-                    else:
-                        name_list.remove(saved_name)
+                    for name in name_list:
+                        if first_name.upper() in name:
+                            remove_name = first_name.upper()
+                        elif first_name.lower() in name:
+                            remove_name = first_name.lower()
+                        else:
+                            remove_name = first_name
+
+                        if last_name.upper() in name:
+                            remove_name = remove_name + " " + last_name.upper()
+                        elif last_name.lower() in name:
+                            remove_name = remove_name + " " + last_name.lower()
+                        else:
+                            remove_name = remove_name + " " + last_name
+
+                        if remove_name not in group_names:
+                            name_list.remove(remove_name)
+                            break
                 else:
                     name_list.remove(saved_name)
 
             for name in name_list:
+                if not name:
+                    # This happens for single attendee transactions
+                    # where the attendee used a ', ' in their name
+                    continue
+
                 matching_groups = [txn for txn in connection.execute(
                     group_table.select().where(and_(
                         group_table.c.id != txn.fk_id,
@@ -301,24 +352,22 @@ def upgrade():
                 for group in matching_groups:
                     add_group_txn(txn, group)
         else:
-            name, error = add_model_by_txn(txn)
+            first_name, last_name, error = add_model_by_txn(txn)
             if error:
                 errors.append(error)
 
     for error in errors:
-        print(error+"\n")
+        print(error)
 
-    # Note: we may need to remove this if-check if we determine there is data that just can't be migrated automatically
-    if not errors:
-        op.drop_column('stripe_transaction', 'fk_id')
-        op.drop_column('stripe_transaction', 'fk_model')
+    op.drop_column('stripe_transaction', 'fk_id')
+    op.drop_column('stripe_transaction', 'fk_model')
 
 
 def downgrade():
     """
-    Keep this commented out while you're testing your data set
+    Comment out everything but the drop_table commands while you're testing
     That way you can freely downgrade and upgrade without destroying data
-
+    """
     op.add_column('stripe_transaction', sa.Column('fk_model', sa.VARCHAR(), server_default=sa.text("''::character varying"), autoincrement=False, nullable=False))
     op.add_column('stripe_transaction', sa.Column('fk_id', postgresql.UUID(), server_default=str(uuid.uuid4()), autoincrement=False, nullable=False))
 
@@ -355,7 +404,6 @@ def downgrade():
             )
 
     op.alter_column('stripe_transaction', 'fk_id', server_default=None)
-    """
 
     op.drop_table('stripe_transaction_attendee')
     op.drop_table('stripe_transaction_group')
