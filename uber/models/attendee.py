@@ -767,6 +767,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                and self.paid not in [c.NEED_NOT_PAY, c.REFUNDED] \
                and not self.is_group_leader \
                and self.stripe_transactions \
+               and all(', ' not in txn.desc for txn in self.stripe_transactions) \
                and not self.checked_in \
                and c.SELF_SERVICE_REFUNDS_OPEN
 
