@@ -695,6 +695,7 @@ class Root:
             amount_refunded = 0
             if not all(txn.stripe_id
                        and txn.type == c.PAYMENT
+                       and ', ' not in txn.desc
                        for txn in attendee.stripe_transactions):
                 raise HTTPRedirect('confirm?id={}&message={}', id,
                                    failure_message)
