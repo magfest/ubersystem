@@ -36,7 +36,7 @@ class Root:
         if cherrypy.request.method == 'POST':
             if review.video_status == c.PENDING:
                 message = 'You must select a Video Status to tell us whether or not you were able to view the video'
-            elif review.video_status == c.MIVS_VIDEO_REVIEWED and review.video_score == c.PENDING:
+            elif review.video_status == c.VIDEO_REVIEWED and review.video_score == c.PENDING:
                 message = 'You must indicate whether or not you believe the game should pass to round 2'
             else:
                 if review.video_status in c.MIVS_PROBLEM_STATUSES\
