@@ -1,7 +1,7 @@
 import cherrypy
 
 from uber.config import c
-from uber.decorators import all_renderable, render
+from uber.decorators import all_renderable, render, site_mappable
 from uber.errors import HTTPRedirect
 from uber.tasks.email import send_email
 from uber.utils import check
@@ -9,6 +9,7 @@ from uber.utils import check
 
 @all_renderable(c.INDIE_JUDGE)
 class Root:
+    @site_mappable
     def index(self, session, message='', **params):
         judge = session.indie_judge(params, checkgroups=['genres', 'platforms']) if 'id' in params \
             else session.logged_in_judge()
