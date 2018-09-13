@@ -1,4 +1,4 @@
-some quick reference notes on how to manipulate postgres quickly.
+Some quick reference notes on common PostgreSQL tasks:
 ```
 # switch to the postgres user
 sudo bash
