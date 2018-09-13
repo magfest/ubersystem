@@ -24,7 +24,7 @@ profiling.on = True
 sudo supervisorctl restart uber_daemon
 
 # on a newer reggie deploy:
-sudo systemctl restart reggie
+sudo systemctl restart reggie-web
 ```
 
 3. On your development computer, change to the `tests/locust` directory
