@@ -70,7 +70,8 @@
           <td>{{ attendee.full_name }}</td>
           <td>
             <ul style="padding-left:15px">
-              <li>Membership for {{ c.EVENT_NAME }}</li>
+              {% if attendee.badge_type in c.BADGE_TYPE_PRICES %}
+              <li>{{ attendee.badge_type_label|replace(' ', '-') }}-level m{% else %}<li>M{% endif %}embership for {{ c.EVENT_NAME }}</li>
               {% if attendee.requested_hotel_info %}
                 <li>Requested hotel booking info</li>
               {% endif %}
