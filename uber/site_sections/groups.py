@@ -153,12 +153,14 @@ class Root:
                         leader = group.leader = group.attendees[0]
                         leader.first_name, leader.last_name, leader.email = first_name, last_name, email
                         leader.placeholder = True
+                        session.commit() # Get the most up-to-date status
                         if group.status == c.APPROVED:
                             if group.amount_unpaid:
                                 raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
                             else:
+                                status_msg = ", approved, and marked as paid" if group.cost else " and approved"
                                 raise HTTPRedirect(
-                                    'index?message={}', group.name + ' has been uploaded, approved, and marked as paid')
+                                    'index?message={}{}', group.name + ' has been uploaded', status_msg)
                         else:
                             raise HTTPRedirect(
                                 'index?message={}', group.name + ' is uploaded and ' + group.status_label)

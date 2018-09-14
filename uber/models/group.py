@@ -119,7 +119,8 @@ class Group(MagModel, TakesPaymentMixin):
             self.tables
             and self.tables != '0'
             and self.tables != '0.0'
-            and (not self.registered or self.amount_paid or self.cost))
+            and (not self.registered or self.amount_paid or self.cost
+                 or self.status != c.UNAPPROVED))
 
     @is_dealer.expression
     def is_dealer(cls):

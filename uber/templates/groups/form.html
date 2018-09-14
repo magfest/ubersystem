@@ -162,7 +162,7 @@
     </div>
 </div>
 
-{% if new_dealer or group.is_dealer %}
+{% if new_dealer or group.is_dealer or group.categories %}
     {% if group.leader %}
         <div class="form-group">
             <label class="col-sm-3 control-label">Phone Number</label>
