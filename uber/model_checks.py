@@ -497,7 +497,7 @@ def out_of_badge_type(attendee):
 def invalid_badge_name(attendee):
     if attendee.badge_printed_name and localized_now() <= c.get_printed_badge_deadline_by_type(attendee.badge_type) \
             and re.search(c.INVALID_BADGE_PRINTED_CHARS, attendee.badge_printed_name):
-        return 'Your printed badge name has invalid characters. Please use only printable ASCII characters.'
+        return 'Your printed badge name has invalid characters. Please use only alphanumeric characters and symbols.'
 
 
 @validation.Attendee
