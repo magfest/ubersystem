@@ -122,7 +122,7 @@ class Root:
             'id': id
         }
 
-    @cherrypy.expose(['post_form'])
+    @cherrypy.expose(['post_form', 'post_dealer'])
     @redirect_if_at_con_to_kiosk
     @check_if_can_reg
     def form(self, session, message='', edit_id=None, **params):
@@ -145,6 +145,9 @@ class Root:
             group_params[field_name] = params.get('group_{}'.format(field_name), '')
             if params.get('copy_address'):
                 params[field_name] = group_params[field_name]
+
+        if c.PAGE == 'post_dealer':
+            params['badge_type'] = c.PSEUDO_DEALER_BADGE
 
         if edit_id is not None:
             attendee, group = self._get_unsaved(
