@@ -2,18 +2,23 @@
 
 Congratulations!  Your game ({{ game.title }}) has made it past Round 1 judging for the MAGFest Indie Videogame Showcase (MIVS).
 
-Round 2, the final round, requires your team to submit your game in a playable form or a demo version of your game for the judges to play.  You may submit your demo by continuing your application at {{ c.URL_BASE }}/mivs_applications/continue_app?id={{ game.studio.id }}
+Round 2, the final round, requires your team to submit your game in a playable form or a demo version of your game for the judges to play.
 
-Rules for round 2 submissions:
-1) Deadlines to submit your game is before September 30th, 2017.
-2) After the deadline, updated builds will not be accepted
-3) Demos must have at least 15 minutes of game play.
-4) If a registration/unlock code is required; please provide {{ c.MIVS_CODES_REQUIRED }} codes for our judges or a single code which works for all judges.
+Rules for Round 2 submissions:
 
-Judging will start October 14th and last throughout the month.
+The deadline to submit your game is before October 7th, 2018.
+After the deadline, updated builds will not be accepted.
+Demos must have at least 15 minutes of game play.
+If a registration/unlock code is required; please provide at least 5 codes for our judges or a single code which will work for all judges.
+Judging will last until approximately November 4th.
 
-Results will be posted in the beginning of November; expecting the absolute latest date would be November 6th.
+Results will be posted November 5th, however we do value your patience as we make sure all games get the attention they deserve for judging.
 
-If you have questions, please e-mail indie@magfest.org but do so after first checking the MIVS FAQ (http://magfest.org/mivsfaq).  New information and any modifications will be sent out via e-mail, although we will keep the most up-to-date information on the MIVS FAQ.
-
+If you have any questions, please email mivs@mafest.org but do so after first checking the MIVS FAQ (http://magfest.org/mivsfaq).
 {{ c.MIVS_EMAIL_SIGNATURE }}
+
+
+
+
+
+
