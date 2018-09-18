@@ -9,12 +9,12 @@ Rules for Round 2 submissions:
 The deadline to submit your game is before October 7th, 2018.
 After the deadline, updated builds will not be accepted.
 Demos must have at least 15 minutes of game play.
-If a registration/unlock code is required; please provide at least 5 codes for our judges or a single code which will work for all judges.
+If a registration/unlock code is required, please provide at least 5 codes for our judges or a single code which will work for all judges.
 Judging will last until approximately November 4th.
 
 Results will be posted November 5th, however we do value your patience as we make sure all games get the attention they deserve for judging.
 
-If you have any questions, please email mivs@mafest.org but do so after first checking the MIVS FAQ (http://magfest.org/mivsfaq).
+If you have any questions, please email mivs@magfest.org but do so after first checking the MIVS FAQ (http://magfest.org/mivsfaq).
 {{ c.MIVS_EMAIL_SIGNATURE }}
 
 
