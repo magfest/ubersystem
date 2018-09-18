@@ -16,9 +16,3 @@ Results will be posted November 5th, however we do value your patience as we mak
 
 If you have any questions, please email mivs@magfest.org but do so after first checking the MIVS FAQ (http://magfest.org/mivsfaq).
 {{ c.MIVS_EMAIL_SIGNATURE }}
-
-
-
-
-
-
