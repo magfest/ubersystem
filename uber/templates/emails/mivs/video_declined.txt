@@ -1,9 +1,9 @@
-{{ game.studio.primary_contact.first_name }},
+Hi {{ game.studio.primary_contact.first_name }},
 
-We're sorry but your Round 1 game entry ({{ game.title }}) in the MAGFest Indie Videogame Showcase (MIVS) was not accepted into Round 2.
+We're sorry but your Round 1 game entry {{ game.title }} in the MAGFest Indie Videogame Showcase (MIVS) was not accepted into Round 2.
 
-But, while this means your studio is not eligible for a permanent spot in the MIVS area, it is still able to show at MIVS via our "Quickplay" section.  For a given window of time (e.g., 2 hours last year) indies were able to bring their games and show it off.  Pending availability, you're welcome to show in more than one window of time!
+But, while this means your studio is not eligible for a permanent spot in the MIVS area, it is still able to show at MIVS via our "Quickplay" section. For a given window of time (e.g., 2 hours last year) indies were able to bring their games and show it off. Pending availability, you're welcome to show in more than one window of time!
 
-Details on the "Quickplay" section will be on the MIVS section of http://magfest.org/ at the top of February.
+Details on the "Quickplay" section can be found at http://www.magfest.org/mivsquickplayfaq/
 
 {{ c.MIVS_EMAIL_SIGNATURE }}
