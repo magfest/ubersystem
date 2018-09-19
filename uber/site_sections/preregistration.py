@@ -450,6 +450,7 @@ class Root:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         return {
             'group':   group,
+            'upgraded_badges': len([a for a in group.attendees if a.badge_type in c.BADGE_TYPE_PRICES]),
             'charge':  charge,
             'message': message
         }
