@@ -185,6 +185,7 @@
     url_is_relative=False,
     suffix='',
     type='text',
+    length=0,
     id=False,
     label=False,
     placeholder='',
@@ -230,6 +231,7 @@
                   {% if id %} id="{{ id }}"{% endif %}
                   value="{{ '' if is_class else model[field] }}"
                   placeholder="{{ placeholder }}"
+                  {% if length %}maxlength="{{ length }}"{% endif %}
                   {% if is_required %} required="required"{% endif %}
                   {% if is_focused %} autofocus{% endif %}/>
         {%- endif -%}
