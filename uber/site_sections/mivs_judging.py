@@ -1,7 +1,7 @@
 import cherrypy
 
 from uber.config import c
-from uber.decorators import all_renderable, render
+from uber.decorators import all_renderable, render, site_mappable
 from uber.errors import HTTPRedirect
 from uber.tasks.email import send_email
 from uber.utils import check
@@ -9,6 +9,7 @@ from uber.utils import check
 
 @all_renderable(c.INDIE_JUDGE)
 class Root:
+    @site_mappable
     def index(self, session, message='', **params):
         judge = session.indie_judge(params, checkgroups=['genres', 'platforms']) if 'id' in params \
             else session.logged_in_judge()
@@ -36,12 +37,12 @@ class Root:
         if cherrypy.request.method == 'POST':
             if review.video_status == c.PENDING:
                 message = 'You must select a Video Status to tell us whether or not you were able to view the video'
-            elif review.video_status == c.MIVS_VIDEO_REVIEWED and review.video_score == c.PENDING:
+            elif review.video_status == c.VIDEO_REVIEWED and review.video_score == c.PENDING:
                 message = 'You must indicate whether or not you believe the game should pass to round 2'
             else:
                 if review.video_status in c.MIVS_PROBLEM_STATUSES\
                         and review.video_status != review.orig_value_of('video_status'):
-                    body = render('emails/admin_video_broken.txt', {'review': review}, encoding=None)
+                    body = render('emails/mivs/admin_video_broken.txt', {'review': review}, encoding=None)
                     send_email.delay(c.MIVS_EMAIL, c.MIVS_EMAIL, 'MIVS Video Submission Marked as Broken', body)
                 raise HTTPRedirect('index?message={}{}', review.game.title, ' video review has been uploaded')
 
@@ -63,7 +64,7 @@ class Root:
             else:
                 if review.game_status in c.MIVS_PROBLEM_STATUSES\
                         and review.game_status != review.orig_value_of('game_status'):
-                    body = render('emails/admin_game_broken.txt', {'review': review}, encoding=None)
+                    body = render('emails/mivs/admin_game_broken.txt', {'review': review}, encoding=None)
                     send_email.delay(c.MIVS_EMAIL, c.MIVS_EMAIL, 'MIVS Game Submission Marked as Broken', body)
                 raise HTTPRedirect('index?message={}{}', review.game.title, ' game review has been uploaded')
 

@@ -7,6 +7,7 @@ from pprint import pformat
 import cherrypy
 import jinja2
 from cherrypy import HTTPError
+from pockets import is_listy
 from pockets.autolog import log
 from sideboard.jsonrpc import json_handler, ERR_INVALID_RPC, ERR_MISSING_FUNC, ERR_INVALID_PARAMS, \
     ERR_FUNC_EXCEPTION, ERR_INVALID_JSON
@@ -209,21 +210,22 @@ def _make_jsonrpc_handler(services, debug=c.DEV_BOX, precall=lambda body: None):
 
         def error(status, code, message):
             response = {'jsonrpc': '2.0', 'id': id, 'error': {'code': code, 'message': message}}
-            log.debug('Returning error message: {!r}', response)
+            log.debug('Returning error message: {}', repr(response).encode('utf-8'))
             cherrypy.response.status = status
             return response
 
         def success(result):
             response = {'jsonrpc': '2.0', 'id': id, 'result': result}
-            log.debug('Returning success message: {!r}', response)
+            log.debug('Returning success message: {}', {
+                'jsonrpc': '2.0', 'id': id, 'result': len(result) if is_listy(result) else str(result).encode('utf-8')})
             cherrypy.response.status = 200
             return response
 
         request_body = cherrypy.request.json
         if not isinstance(request_body, dict):
-            return error(400, ERR_INVALID_JSON, 'Invalid json input {!r}'.format(cherrypy.request.body))
+            return error(400, ERR_INVALID_JSON, 'Invalid json input: {!r}'.format(request_body))
 
-        log.debug('jsonrpc request body: {!r}', request_body)
+        log.debug('jsonrpc request body: {}', repr(request_body).encode('utf-8'))
 
         id, params = request_body.get('id'), request_body.get('params', [])
         if 'method' not in request_body:

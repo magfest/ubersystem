@@ -467,8 +467,9 @@ class Root:
         }
 
     def register_group_member(self, session, group_id, message='', **params):
-        group = session.group(group_id)
-        attendee = session.attendee(params, restricted=True)
+        # Safe to ignore csrf tokens here, because an attacker would need to know the group id a priori
+        group = session.group(group_id, ignore_csrf=True)
+        attendee = session.attendee(params, restricted=True, ignore_csrf=True)
 
         message = check_pii_consent(params, attendee) or message
         if not message and 'first_name' in params:
@@ -693,6 +694,7 @@ class Root:
 
         if attendee.amount_paid:
             amount_refunded = 0
+
             if not all(stripe_log.stripe_transaction.stripe_id
                        and stripe_log.stripe_transaction.type == c.PAYMENT
                        for stripe_log in attendee.stripe_txn_share_logs):
@@ -735,7 +737,8 @@ class Root:
     @id_required(Attendee)
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
-        attendee = session.attendee(params, restricted=True)
+        # Safe to ignore csrf tokens here, because an attacker would need to know the attendee id a priori
+        attendee = session.attendee(params, restricted=True, ignore_csrf=True)
 
         if attendee.badge_status == c.REFUNDED_STATUS:
             raise HTTPRedirect('repurchase?id={}', attendee.id)

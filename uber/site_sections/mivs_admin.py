@@ -290,7 +290,7 @@ class Root:
         game = session.indie_game(game_id)
         for review in game.reviews:
             if review.has_video_issues:
-                body = render('emails/video_fixed.txt', {'review': review}, encoding=None)
+                body = render('emails/mivs/video_fixed.txt', {'review': review}, encoding=None)
                 send_email.delay(
                     c.MIVS_EMAIL,
                     review.judge.email,
@@ -299,7 +299,7 @@ class Root:
                     model=review.judge.to_dict('id'))
                 review.video_status = c.PENDING
             if review.has_game_issues:
-                body = render('emails/game_fixed.txt', {'review': review}, encoding=None)
+                body = render('emails/mivs/game_fixed.txt', {'review': review}, encoding=None)
                 send_email.delay(
                     c.MIVS_EMAIL,
                     review.judge.email,
