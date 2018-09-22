@@ -1,0 +1,26 @@
+Greetings {{ judge.attendee.first_name }}!
+
+If you are receiving this, congratulations! You have been selected to be a judge for the 2019 MAGFest Indie Videogame Showcase!
+
+If this is your first time judging for MIVS, welcome aboard! If you're a returning judging veteran, welcome back to another year!
+
+As a judge, you'll be responsible for judging a dozen or more games. From past experiences, we've learned to expect about 15 minutes or so per game to get a really good idea for how the games feels. 
+In the past, we've judge games based on one category. This year, we've expanded the judging scope to encompass additional valued input. You'll be giving the games a score from 1-10 based on three categories:
+<b>Show Readiness</b> - how ready the game appears to be when shown to the public. This means the degree of visual and audible asset completion as well any programming bugs.
+<b>Overall Design</b> - how well the judge feels that the game addresses its own central concept. (I.e. If it is a puzzle game, are the puzzles good? If it is a narrative-driven game, is the story compelling?)
+<b>Overall Enjoyment</b> - how enjoyable was the game? Did it keep you on your toes, make you laugh, push your reflexes to the limit?
+
+You'll also be given a general feedback space, so feel free to utilize that space to give the developers constructive feedback!
+
+Judging begins this year on October 15th and will run through to November 4th. While we have allotted quite a bit of time to judging, we know that sometimes things come up and you might not be able to complete all of your assigned games. If this happens, fear not! Just be sure to let one of the MIVS team know so that your games are sufficiently covered! As an added thanks for your efforts, you'll be receiving a complementary badge to MAGFest 2019! *Insert "Raise The Roof" GIF here* If you have already purchased your MAGFest badge, get in touch with us so that we can explore what options are available for you.
+
+This year, we also decided to do an audit of all judges for continued interest so that we can keep our database current. This will also give you a chance to update your system information/preferences if you do wish to continue being a judge!
+
+Follow this link to let us know if you would like to continue being a judge AND to update your judging/system preferences: <a href="{{ c.URL_BASE }}/mivs_judging" target="_mivs_judge">{{ c.URL_BASE }}/mivs_judging</a>
+
+We do ask that everyone that receives this please respond by October 8th. If we don’t hear from you by then, you may be removed from the judging pool!
+
+From all of us here on the MIVS team and all the independent developers, we thank you for your continued help in making MIVS incredible, year after year!
+
+Jon Atkinson
+-MIVS Judging
