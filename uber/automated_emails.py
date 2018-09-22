@@ -704,7 +704,7 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieJudge,
-        'Welcome to MIVS Juding 2019!',
+        'Welcome to MIVS Judging 2019!',
         'mivs/2018_JudgingAudit.txt',
         ident='mivs_2018_JudgingAudit')
 
