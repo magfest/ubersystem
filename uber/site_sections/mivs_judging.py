@@ -11,10 +11,19 @@ from uber.utils import check
 class Root:
     @site_mappable
     def index(self, session, message='', **params):
-        judge = session.indie_judge(params, checkgroups=['genres', 'platforms']) if 'id' in params \
-            else session.logged_in_judge()
+        if 'status' in params:
+            judge = session.indie_judge(params, bools=['no_game_submission'])
+        else:
+            judge = session.indie_judge(params, checkgroups=['genres', 'platforms']) if 'id' in params \
+                else session.logged_in_judge()
 
         if cherrypy.request.method == 'POST':
+            if 'status' in params:
+                if judge.status == c.CONFIRMED:
+                    message = 'Thanks for choosing to be a judge this year. Please take a moment to update your hardware and preferences.'
+
+                raise HTTPRedirect('index?message={}', message)
+
             message = check(judge)
             if not message:
                 raise HTTPRedirect('index?message={}', 'Preferences updated')

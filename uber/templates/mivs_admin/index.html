@@ -22,7 +22,7 @@
 {% for judge in judges %}
     <tr>
         <td><a href="edit_judge?id={{ judge.id }}">{{ judge.full_name }}</a></td>
-        <td><a href="assign_games?judge_id={{ judge.id }}">{{ judge.reviews|length }}</a></td>
+        <td><a href="assign_games?judge_id={{ judge.id }}">{{ judge.reviews|length }}{% if judge.no_game_submission == False %} (has a game submitted){% endif %}</a></td>
         <td>{{ judge.video_reviews|length }}</td>
         <td>{{ judge.game_reviews|length }}</td>
     </tr>

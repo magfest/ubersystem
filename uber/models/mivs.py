@@ -36,6 +36,8 @@ class ReviewMixin:
 
 class IndieJudge(MagModel, ReviewMixin):
     admin_id = Column(UUID, ForeignKey('admin_account.id'))
+    status = Column(Choice(c.MIVS_JUDGE_STATUS_OPTS), default=c.UNCONFIRMED)
+    no_game_submission = Column(Boolean, nullable=True)
     genres = Column(MultiChoice(c.MIVS_INDIE_JUDGE_GENRE_OPTS))
     platforms = Column(MultiChoice(c.MIVS_INDIE_PLATFORM_OPTS))
     platforms_text = Column(UnicodeText)
