@@ -707,6 +707,13 @@ if c.MIVS_ENABLED:
         'Welcome to MIVS Judging 2019!',
         'mivs/2018_JudgingAudit.txt',
         ident='mivs_2018_JudgingAudit')
+    
+    MIVSEmailFixture(
+        IndieJudge,
+        'Please accept or decline MIVS Judging for 2019',
+        'mivs/2018_JudgingAudit.txt',
+        lambda judge: judge.status == c.UNCONFIRMED,
+        ident='mivs_2018_JudgingAuditReminder')
 
     MIVSEmailFixture(
         IndieGame,
