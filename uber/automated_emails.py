@@ -713,18 +713,21 @@ if c.MIVS_ENABLED:
         IndieJudge,
         'MIVS Judging is about to begin!',
         'mivs/judge_intro.txt',
+        lambda judge: judge.status == c.CONFIRMED,
         ident='mivs_judge_intro')
 
     MIVSEmailFixture(
         IndieJudge,
         'MIVS Judging has begun!',
         'mivs/judging_begun.txt',
+        lambda judge: judge.status == c.CONFIRMED,
         ident='mivs_judging_has_begun')
 
     MIVSEmailFixture(
         IndieJudge,
         'MIVS Judging is almost over!',
         'mivs/judging_reminder.txt',
+        lambda judge: judge.status == c.CONFIRMED,
         when=days_before(7, c.SOFT_MIVS_JUDGING_DEADLINE),
         ident='mivs_judging_due_reminder')
 
@@ -732,7 +735,7 @@ if c.MIVS_ENABLED:
         IndieJudge,
         'Reminder: MIVS Judging due by {}'.format(c.MIVS_JUDGING_DEADLINE.strftime('%B %-d')),
         'mivs/final_judging_reminder.txt',
-        lambda judge: not judge.judging_complete,
+        lambda judge: not judge.judging_complete and judge.status == c.CONFIRMED,
         when=days_before(5, c.MIVS_JUDGING_DEADLINE),
         ident='mivs_judging_due_reminder_last_chance')
 
@@ -740,24 +743,28 @@ if c.MIVS_ENABLED:
         IndieJudge,
         'MIVS Judging and {EVENT_NAME} Staffing',
         'mivs/judge_staffers.txt',
+        lambda judge: judge.status == c.CONFIRMED,
         ident='mivs_judge_staffers')
 
     MIVSEmailFixture(
         IndieJudge,
         'MIVS Judge badge information',
         'mivs/judge_badge_info.txt',
+        lambda judge: judge.status == c.CONFIRMED,
         ident='mivs_judge_badge_info')
 
     MIVSEmailFixture(
         IndieJudge,
         'MIVS Judging about to begin',
         'mivs/judge_2016.txt',
+        lambda judge: judge.status == c.CONFIRMED,
         ident='mivs_selected_to_judge')
 
     MIVSEmailFixture(
         IndieJudge,
         'MIVS Judges: A Request for our MIVSY awards',
         'mivs/2018_mivsy_request.txt',
+        lambda judge: judge.status == c.CONFIRMED,
         ident='2018_mivsy_request')
 
     MIVSEmailFixture(
