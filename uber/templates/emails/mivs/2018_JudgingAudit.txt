@@ -18,7 +18,7 @@ This year, we also decided to do an audit of all judges for continued interest s
 
 Follow this link to let us know if you would like to continue being a judge AND to update your judging/system preferences: <a href="{{ c.URL_BASE }}/mivs_judging" target="_mivs_judge">{{ c.URL_BASE }}/mivs_judging</a>
 
-We do ask that everyone that receives this please respond by September 16th. If we don’t hear from you by then, you may be removed from the judging pool!
+We do ask that everyone that receives this please respond by October 8th. If we don’t hear from you by then, you may be removed from the judging pool!
 
 From all of us here on the MIVS team and all the independent developers, we thank you for your continued help in making MIVS incredible, year after year!
 
