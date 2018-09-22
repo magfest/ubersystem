@@ -21,7 +21,7 @@ class Root:
             if 'status' in params:
                 if judge.status == c.CONFIRMED:
                     message = 'Thanks for choosing to be a judge this year. ' \
-                    'Please take a moment to update your hardware and preferences.'
+                              'Please take a moment to update your hardware and preferences.'
 
                 raise HTTPRedirect('index?message={}', message)
 
