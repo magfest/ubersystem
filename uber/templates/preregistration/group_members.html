@@ -71,9 +71,24 @@
     {% if group.status == c.APPROVED %}
       <div class="alert alert-success">
         Congratulations, your dealer application has been <strong>approved</strong>!
-          {% if group.amount_unpaid %}
-              {{ stripe_form('process_group_payment',charge) }}
+        {% if group.cost %}
+        <br/><br/>Here is your group's cost breakdown:
+        <ul>
+          {% if group.auto_recalc %}
+          <li>${{ '%0.2f' % group.table_cost }} for {{ group.tables }} table{{ group.tables|pluralize }}</li>
+          <li>${{ '%0.2f' % group.badge_cost }} for {{ group.badges }} badge{{ group.badges|pluralize }}
+            {% if upgraded_badges %}(including {{ upgraded_badges }} upgraded badge{{ upgraded_badges|pluralize }}){% endif %}</li>
+          {% else %}
+          <li>${{ '%0.2f' % group.cost }} total cost</li>
           {% endif %}
+          <li>${{ '%0.2f' % group.amount_paid }} paid{% if group.amount_unpaid %} so far</li>
+          <li>${{ '%0.2f' % group.amount_unpaid }} unpaid</li>
+        </ul>
+              <br/>{{ stripe_form('process_group_payment',charge) }}
+        {% else %}
+        </li></ul>
+          {% endif %}
+        {% endif %}
         {% elif group.status == c.CANCELLED %}
       <div class="alert alert-info">
         You have <strong>cancelled</strong> your dealer application. If this was a mistake, please contact us at
@@ -139,7 +154,7 @@
                 {% endif %}
             </td>
             <td>
-                {% if attendee != group.leader and not attendee.amount_extra and attendee.is_transferable %}
+                {% if attendee.can_abandon_badge %}
                   <form method="post" action="unset_group_member">
                     {{ csrf_token() }}
                     <input type="hidden" name="id" value="{{ attendee.id }}" />

@@ -88,12 +88,45 @@
 {%- endmacro %}
 
 
+{% macro button_radio_opts(field_name, choices, suffix='', default='', is_readonly=False, is_required=False) -%}
+  <div data-toggle="buttons" class="btn-group btn-group-toggle">
+    {% for choice in choices -%}
+      {%- set value = choice[0] -%}
+      {%- set label = choice[1] -%}
+      {%- set desc = choice[2] -%}
+      {%- set has_value = value == default -%}
+      {%- if not is_readonly or has_value -%}
+        <label
+            class="btn btn-default{% if is_readonly %} disabled{% endif %}{% if has_value %} active{% endif %}"
+            {% if desc %}title="{{ desc }}"{% endif %}>
+            <input
+                type="radio"
+                name="{{ field_name }}{{ suffix }}"
+                value="{{ value }}"
+                {% if has_value %}checked{% elif is_readonly %}disabled{% endif %}
+                {% if is_required %} required{% endif %}/>
+            {{ label }}
+        </label>
+      {% endif %}
+    {% endfor %}
+  </div>
+{%- endmacro %}
+
+
 {% macro checkgroup(model, field_name, suffix='', defaults=False, is_readonly=False) -%}
   {%- set is_class = model is class -%}
   {%- set defaults = model[field_name] if not defaults and not is_class else '' -%}
   {%- set defaults = defaults.split(",") if defaults else [] -%}
   {%- set choices = model.get_field(field_name).type.choices -%}
   {{ checkgroup_opts(field_name, choices, suffix, defaults, is_readonly) }}
+{%- endmacro %}
+
+
+{% macro buttongroup(model, field_name, suffix='', default=False, is_readonly=False, is_required=False) -%}
+  {%- set is_class = model is class -%}
+  {%- set default = model[field_name] if not default and not is_class else '' -%}
+  {%- set choices = model.get_field(field_name).type.choices.items() -%}
+  {{ button_radio_opts(field_name, choices, suffix, default, is_readonly, is_required) }}
 {%- endmacro %}
 
 
@@ -152,6 +185,7 @@
     url_is_relative=False,
     suffix='',
     type='text',
+    length=0,
     id=False,
     label=False,
     placeholder='',
@@ -187,6 +221,8 @@
               placeholder="{{ placeholder }}"
               {% if is_required %} required="required"{% endif %}
               {% if is_focused %} autofocus{% endif %}>{{ '' if is_class else model[field] }}</textarea>
+        {%- elif type == 'radio_buttons' -%}
+          {{ buttongroup(model, field, suffix=suffix, is_readonly=is_readonly, is_required=is_required) }}
         {%- else -%}
           <input
                   class="form-control"
@@ -195,6 +231,7 @@
                   {% if id %} id="{{ id }}"{% endif %}
                   value="{{ '' if is_class else model[field] }}"
                   placeholder="{{ placeholder }}"
+                  {% if length %}maxlength="{{ length }}"{% endif %}
                   {% if is_required %} required="required"{% endif %}
                   {% if is_focused %} autofocus{% endif %}/>
         {%- endif -%}
