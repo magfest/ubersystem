@@ -604,8 +604,8 @@ if c.MIVS_ENABLED:
         'mivs/video_broken.txt',
         lambda game: game.video_broken,
         ident='mivs_video_broken')
-    
-     MIVSEmailFixture(
+
+    MIVSEmailFixture(
         IndieGame,
         'Round 2 Submission for MIVS are now open',
         'mivs/round_two_open.txt',
