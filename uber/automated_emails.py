@@ -607,6 +607,13 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieGame,
+        'Round 2 Submission for MIVS are now open',
+        'mivs/round_two_open.txt',
+        lambda game: game.status == c.JUDGING and not game.submitted,
+        ident='mivs_round_two_open')
+
+    MIVSEmailFixture(
+        IndieGame,
         'Reminder to submit your game to MIVS',
         'mivs/round_two_reminder.txt',
         lambda game: game.status == c.JUDGING and not game.submitted,
