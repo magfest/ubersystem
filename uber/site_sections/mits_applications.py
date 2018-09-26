@@ -171,7 +171,7 @@ class Root:
         raise HTTPRedirect('index?message={}', 'Game deleted')
 
     def schedule(self, session, message='', **params):
-        times = session.mits_times(params, applicant=True)
+        times = session.mits_times(params, applicant=True, checkgroups=['showcase_availability'])
         if cherrypy.request.method == 'POST':
             message = check(times)
             if not message:
@@ -181,9 +181,9 @@ class Root:
         return {
             'times': times,
             'message': message,
-            'grid': [
-                (val, desc, val in times.availability_ints, val in times.multiple_tables_ints)
-                for val, desc in c.MITS_SCHEDULE_OPTS
+            'list': [
+                (val, desc, val in times.showcase_availability_ints)
+                for val, desc in c.MITS_SHOWCASE_SCHEDULE_OPTS
             ]
         }
 

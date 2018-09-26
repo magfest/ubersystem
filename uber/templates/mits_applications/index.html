@@ -133,14 +133,17 @@ This is your application for the MAGFest Indie Tabletop Showcase for your produc
 
 
 {% if team.steps_completed >= 3 %}
-    <h3>Request Timeslots</h3>
+    <h3>MITS Showcase</h3>
 
-    <p>Tell us specifically when during the event you're available to present.</p>
+    <p>MITS has added a new showcase available to a subset of accepted presenters.
+      This is completely optional, and it's more competitive than just being accepted by MITS!</p>
 
-    <p><a href="schedule?id={{ team.schedule.id if team.schedule else 'None' }}">Manage Requested Schedule Times</a></p>
+    <p>You currently <strong>have{% if not team.wants_showcase %} not{% endif %}</strong> applied for the showcase.</p>
+
+    <p><a href="schedule?id={{ team.schedule.id if team.schedule else 'None' }}">Update Showcase Availability</a></p>
 {% endif %}
 
-{% if team.steps_completed >= 4 %}
+{% if team.steps_completed >= 3 %}
     <h3>Manage Hotel Room Requests</h3>
 
     <p>We have a limited number of rooms set aside for people who need hotel space and haven't secured it for themselves.</p>
@@ -150,7 +153,7 @@ This is your application for the MAGFest Indie Tabletop Showcase for your produc
     <p><a href="hotel_requests">Enter your hotel request information</a></p>
 {% endif %}
 
-{% if team.steps_completed == 5 %}
+{% if team.steps_completed == 4 %}
     <h3>Submit Your Application</h3>
     <p>
         Now that you've filled out all of your information above, the only remaining step is to formally submit this
