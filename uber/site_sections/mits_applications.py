@@ -30,6 +30,23 @@ class Root:
     def login_explanation(self, message=''):
         return {'message': message}
 
+    def cancel(self, session, id):
+        team = session.mits_team(id)
+
+        if team.status != c.ACCEPTED:
+            team.status = c.CANCELLED
+            raise HTTPRedirect('index?message={}', 'You have successfully cancelled your application.')
+        else:
+            raise HTTPRedirect(
+                'Your application has already been accepted. Please contact us at {}.".format(c.MITS_EMAIL)')
+
+    @csrf_protected
+    def uncancel(self, session, id):
+        team = session.mits_team(id)
+        team.status = c.PENDING
+
+        raise HTTPRedirect('index?message={}', 'Application re-enabled.')
+
     def view_picture(self, session, id):
         picture = session.mits_picture(id)
         return serve_file(picture.filepath, name=picture.filename, content_type=picture.content_type)
