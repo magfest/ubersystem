@@ -163,5 +163,10 @@ This is your application for the MAGFest Indie Tabletop Showcase for your produc
         </form>
     </p>
 {% endif %}
+    <div class="form-group">
+        <p class="text-center help-block">
+            <br/>If you have any questions, please email us at {{ c.MITS_EMAIL|email_to_link }}.
+        </p>
+    </div>
 
 {% endblock %}
