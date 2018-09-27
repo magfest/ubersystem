@@ -1,6 +1,7 @@
 import os
 from functools import wraps
 
+from PIL import Image
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sideboard.lib import on_startup
 from sqlalchemy.schema import ForeignKey
@@ -91,19 +92,21 @@ class MITSTeam(MagModel):
         return any(a.declined_hotel_space or a.requested_room_nights for a in self.applicants)
 
     @property
+    def wants_showcase(self):
+        return self.schedule.showcase_availability
+
+    @property
     def steps_completed(self):
         if not self.games:
             return 1
         elif not self.pictures:
             return 2
-        elif not self.schedule:
-            return 3
         elif not self.completed_hotel_form:
-            return 4
+            return 3
         elif not self.submitted:
-            return 5
+            return 4
         else:
-            return 6
+            return 5
 
     @property
     def completion_percentage(self):
@@ -161,6 +164,14 @@ class MITSPicture(MagModel):
     def filepath(self):
         return os.path.join(c.MITS_PICTURE_DIR, str(self.id))
 
+    @property
+    def is_header(self):
+        return Image.open(self.filepath).size == tuple(map(int, c.MITS_HEADER_SIZE))
+
+    @property
+    def is_thumbnail(self):
+        return Image.open(self.filepath).size == tuple(map(int, c.MITS_THUMBNAIL_SIZE))
+
 
 class MITSDocument(MagModel):
     team_id = Column(UUID, ForeignKey('mits_team.id'))
@@ -178,8 +189,8 @@ class MITSDocument(MagModel):
 
 class MITSTimes(MagModel):
     team_id = Column(ForeignKey('mits_team.id'))
+    showcase_availability = Column(MultiChoice(c.MITS_SHOWCASE_SCHEDULE_OPTS))
     availability = Column(MultiChoice(c.MITS_SCHEDULE_OPTS))
-    multiple_tables = Column(MultiChoice(c.MITS_SCHEDULE_OPTS))
 
 
 @on_startup

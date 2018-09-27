@@ -1,5 +1,5 @@
 import shutil
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import cherrypy
 from cherrypy.lib.static import serve_file
@@ -7,9 +7,11 @@ from pockets import listify
 from pytz import UTC
 
 from uber.config import c
-from uber.decorators import all_renderable, csrf_protected
+from uber.decorators import all_renderable, csrf_protected, render
 from uber.errors import HTTPRedirect
-from uber.utils import check
+from uber.models import Email, MITSTeam
+from uber.tasks.email import send_email
+from uber.utils import check, localized_now
 
 
 @all_renderable()
@@ -30,6 +32,23 @@ class Root:
     def login_explanation(self, message=''):
         return {'message': message}
 
+    def cancel(self, session, id):
+        team = session.mits_team(id)
+
+        if team.status != c.ACCEPTED:
+            team.status = c.CANCELLED
+            raise HTTPRedirect('index?message={}', 'You have successfully cancelled your application.')
+        else:
+            raise HTTPRedirect(
+                'Your application has already been accepted. Please contact us at {}.".format(c.MITS_EMAIL)')
+
+    @csrf_protected
+    def uncancel(self, session, id):
+        team = session.mits_team(id)
+        team.status = c.PENDING
+
+        raise HTTPRedirect('index?message={}', 'Application re-enabled.')
+
     def view_picture(self, session, id):
         picture = session.mits_picture(id)
         return serve_file(picture.filepath, name=picture.filename, content_type=picture.content_type)
@@ -38,6 +57,49 @@ class Root:
         doc = session.mits_document(id)
         cherrypy.response.headers['Content-Disposition'] = 'attachment; filename="{}"'.format(doc.filename)
         return serve_file(doc.filepath, name=doc.filename)
+
+    def check_if_applied(self, session, message='', **params):
+        if cherrypy.request.method == 'POST':
+            subject = c.EVENT_NAME_AND_YEAR + ' MITS Team Confirmation'
+
+            if 'email' not in params:
+                message = "Please enter an email address."
+
+            if not message:
+                last_email = (session.query(Email)
+                              .filter(Email.to.ilike(params['email']))
+                              .filter_by(subject=subject)
+                              .order_by(Email.when.desc()).first())
+                if not last_email or last_email.when < (
+                            localized_now() - timedelta(days=7)):
+                    can_send_email = True
+                else:
+                    can_send_email = False
+
+                mits_teams = session.query(MITSTeam).all()
+
+                match_counter = 0
+                for team in mits_teams:
+                    if params['email'] in team.email:
+                        match_counter += 1
+
+                        if can_send_email:
+                            send_email.delay(
+                                c.MITS_EMAIL,
+                                params['email'],
+                                subject,
+                                render('emails/mits/mits_check.txt',
+                                       {'team': team}, encoding=None),
+                                cc=team.email,
+                                model=team.to_dict('id'))
+
+                if match_counter:
+                    message = 'We found {} team{}.{}'\
+                        .format(match_counter, 's' if match_counter > 1 else '',
+                                ' Please check your email for a link to your application.'
+                                if can_send_email else ' Please check your spam or junk folder.')
+
+        return {'message': message}
 
     def team(self, session, message='', **params):
         params.pop('id', None)
@@ -171,7 +233,7 @@ class Root:
         raise HTTPRedirect('index?message={}', 'Game deleted')
 
     def schedule(self, session, message='', **params):
-        times = session.mits_times(params, applicant=True)
+        times = session.mits_times(params, applicant=True, checkgroups=['showcase_availability'])
         if cherrypy.request.method == 'POST':
             message = check(times)
             if not message:
@@ -181,9 +243,9 @@ class Root:
         return {
             'times': times,
             'message': message,
-            'grid': [
-                (val, desc, val in times.availability_ints, val in times.multiple_tables_ints)
-                for val, desc in c.MITS_SCHEDULE_OPTS
+            'list': [
+                (val, desc, val in times.showcase_availability_ints)
+                for val, desc in c.MITS_SHOWCASE_SCHEDULE_OPTS
             ]
         }
 

@@ -1,45 +1,41 @@
 {% extends "mits_base.html" %}
 {% block body %}
 
-<h2>When Can You Present?</h2>
+<h2>MITS Showcase</h2>
 
 <p>
-    For each timeslot listed below, please indicate whether or not you can present during that time, and whether you
-    will be bringing enough volunteers to run enough games to need multiple tables.
+    MITS has added a new showcase available to a subset of accepted presenters.
+    This is completely optional, and it's more competitive than just being accepted by MITS!
 </p>
 <p>
-    We cannot guarantee that you'll be given every timeslot you request or that you will get multiple tables in each
-    timeslot you request, but we will do our best based on the available space during each timeslot.
+    This is a time for promotion and selling, so if accepted then you should prepare for larger foot
+    traffic and have all your staff ready to explain your games, demo your games, talk about your games, etc.
 </p>
 <p>
-    As a reminder, {{ c.EVENT_NAME }} runs from {{ c.EPOCH|datetime("%A, %B %-d") }} through {{ c.ESCHATON|datetime("%A, %B %-d") }}.
+    The showcase is for more polished games which have either already been published or are ready for publication.
 </p>
+
+<p><strong>To apply for the showcase, simply select your availability from the times below.</strong></p>
 
 <form method="post" action="schedule" class="form-horizontal" role="form">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ times.db_id }}" />
 
     <table>
-    {% for val, desc, avail_checked, multi_checked in grid %}
+    {% for val, desc, avail_checked in list %}
         <tr>
             <td>{{ desc }}</td>
             <td>
                 <label class='checkbox-label'>
-                    <input type="checkbox" name="availability" value="{{ val }}" {% if avail_checked %}checked{% endif %} />
-                    Can present
-                </label>
-            </td>
-            <td>
-                <label class='checkbox-label'>
-                    <input type="checkbox" name="multiple_tables" value="{{ val }}" {% if multi_checked %}checked{% endif %} />
-                    Can use multiple tables
+                    <input type="checkbox" name="showcase_availability" value="{{ val }}" {% if avail_checked %}checked{% endif %} />
+                    Available
                 </label>
             </td>
         </tr>
     {% endfor %}
     <tr>
         <td></td>
-        <td><input type="submit" value="Upload Requested Schedule" /></td>
+        <td><button type="submit" class="btn btn-primary">Update Availability</button></td>
         <td></td>
     </tr>
     </table>

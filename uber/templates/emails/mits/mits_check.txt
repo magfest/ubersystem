@@ -1,0 +1,7 @@
+Thank you for double-checking your MITS application for {{ c.EVENT_NAME_AND_YEAR }}.
+
+Your MITS application is currently {{ team.status_label }}. You can view{% if team.can_save %} and save{% endif %} your application here: {{ c.URL_BASE }}/mits_applications/continue_app?id={{ team.id }}
+
+If you have any questions about your application, please contact us at {{ c.MITS_EMAIL|email_only }}. Thank you!
+
+{{ c.MITS_EMAIL_SIGNATURE }}

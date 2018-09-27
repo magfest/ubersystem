@@ -17,6 +17,7 @@
 {% else %}
     {% if team.is_new %}
         <h2>MAGFest Indie Tabletop Showcase Application</h2>
+        Have you already filled this out? If so, click <a href="../mits_applications/check_if_applied">here</a>. <br/><br/>
     {% else %}
         <h2>Edit Your Team Information</h2>
     {% endif %}
@@ -30,8 +31,7 @@
                 <input class="form-control focus" type="text" name="name" value="{{ team.name }}" />
             </div>
             <p class="help-block col-sm-9 col-sm-offset-3">
-                If you're with a company, put the name of your company. <br/>
-                If you're just some awesome nerd(s) with cool stuff to share, put whatever you want here!
+                This is what we'll use on guidebook, the website, and signs or schedules that are posted anywhere.
             </p>
         </div>
 
