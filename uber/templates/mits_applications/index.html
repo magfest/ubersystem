@@ -7,6 +7,18 @@ This is your application for the MAGFest Indie Tabletop Showcase for your produc
 <a href="team">{{ team.name }}</a>.  If you are not a member of {{ team.name }} then please
 <a href="logout">log out</a>.
 
+{% if team.status == c.CANCELLED %}
+  {% if c.HAS_MITS_ADMIN_ACCESS %}
+    <br/><br/>This application has been cancelled by its team "{{ team.name }}."
+    <form method="post" action="uncancel" class="form-horizontal">
+    <input type="hidden" name="id" value="{{ team.id }}" />
+    {{ csrf_token() }}
+    <button type="submit" class="btn btn-success">Re-enable This Application</button>
+    </form>
+  {% else %}
+    <br/><br/>You have chosen to cancel your MITS application. If this was a mistake or if you have any questions, please contact us at {{ c.MITS_EMAIL|email_to_link }}.
+  {% endif %}
+{% else %}
 {% if team.steps_completed < c.MITS_APPLICATION_STEPS %}
     <h3 style="color:red">You have completed {{ team.completion_percentage }}% of your application!</h3>
     You <b>must</b> complete the remaining steps below by {{ c.MITS_SUBMISSION_DEADLINE|datetime_local }} to be considered for the showcase.
@@ -163,5 +175,33 @@ This is your application for the MAGFest Indie Tabletop Showcase for your produc
         </form>
     </p>
 {% endif %}
+{% endif %}
+{% if team.status not in [c.ACCEPTED, c.CANCELLED] %}
+  <form method="post" action="cancel" class="form-horizontal">
+  <input type="hidden" name="id" value="{{ team.id }}" />
+
+  <button type="submit" id="cancel_app" class="btn btn-danger">Cancel My MITS Application</button>
+  </form>
+{% endif %}
+
+  <script type="text/javascript">
+      $('#cancel_app').on('click', function(event) {
+          event.preventDefault();
+          var formToSubmit = $(this).closest('form');
+
+          bootbox.confirm({
+              backdrop: true,
+              message: '<p>Are you sure you want to cancel your MITS application?</p>',
+              buttons: {
+                  confirm: { label: 'Yes, Cancel My Application', className: 'btn-danger' },
+                  cancel: { label: 'Nevermind', className: 'btn-default' }
+              },
+              callback: function (result) {
+          if (result) {
+              formToSubmit.submit();
+          }
+      }});
+      });
+  </script>
 
 {% endblock %}
