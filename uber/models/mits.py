@@ -1,6 +1,7 @@
 import os
 from functools import wraps
 
+from PIL import Image
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sideboard.lib import on_startup
 from sqlalchemy.schema import ForeignKey
@@ -162,6 +163,14 @@ class MITSPicture(MagModel):
     @property
     def filepath(self):
         return os.path.join(c.MITS_PICTURE_DIR, str(self.id))
+
+    @property
+    def is_header(self):
+        return Image.open(self.filepath).size == tuple(map(int, c.MITS_HEADER_SIZE))
+
+    @property
+    def is_thumbnail(self):
+        return Image.open(self.filepath).size == tuple(map(int, c.MITS_THUMBNAIL_SIZE))
 
 
 class MITSDocument(MagModel):

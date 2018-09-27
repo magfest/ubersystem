@@ -115,6 +115,10 @@ This is your application for the MAGFest Indie Tabletop Showcase for your produc
                     <input type="submit" value="Delete" />
                 </form>
             </td>
+            <td>
+              {% if picture.is_header %}<em>Header</em>{% endif %}
+              {% if picture.is_thumbnail %}<em>Thumbnail</em>{% endif %}
+            </td>
         </tr>
     {% endfor %}
     </table>
