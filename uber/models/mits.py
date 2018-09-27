@@ -91,19 +91,21 @@ class MITSTeam(MagModel):
         return any(a.declined_hotel_space or a.requested_room_nights for a in self.applicants)
 
     @property
+    def wants_showcase(self):
+        return self.schedule.showcase_availability
+
+    @property
     def steps_completed(self):
         if not self.games:
             return 1
         elif not self.pictures:
             return 2
-        elif not self.schedule:
-            return 3
         elif not self.completed_hotel_form:
-            return 4
+            return 3
         elif not self.submitted:
-            return 5
+            return 4
         else:
-            return 6
+            return 5
 
     @property
     def completion_percentage(self):
@@ -178,8 +180,8 @@ class MITSDocument(MagModel):
 
 class MITSTimes(MagModel):
     team_id = Column(ForeignKey('mits_team.id'))
+    showcase_availability = Column(MultiChoice(c.MITS_SHOWCASE_SCHEDULE_OPTS))
     availability = Column(MultiChoice(c.MITS_SCHEDULE_OPTS))
-    multiple_tables = Column(MultiChoice(c.MITS_SCHEDULE_OPTS))
 
 
 @on_startup
