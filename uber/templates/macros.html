@@ -422,7 +422,7 @@
 
           $('#region{{ suffix }}').val('{{ model[region_attr] }}');
           regionChange{{ suffix }}();
-          {% if model.status in [c.APPROVED, c.CANCELLED, c.DECLINED] and not admin_area %}
+          {% if model.is_dealer and model.status in [c.APPROVED, c.CANCELLED, c.DECLINED] and not admin_area %}
             $(function() {
                 if($("select[name='group_region']").is(":visible")) {
                   $("[name='group_region']").prop("disabled", false);
