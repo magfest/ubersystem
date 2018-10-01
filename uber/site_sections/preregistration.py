@@ -714,7 +714,7 @@ class Root:
                 else:
                     raise HTTPRedirect(page + 'message=' + message)
 
-        elif attendee.amount_unpaid and attendee.zip_code and not undoing_extra:
+        elif attendee.amount_unpaid and attendee.zip_code and not undoing_extra and cherrypy.request.method == 'POST':
             # Don't skip to payment until the form is filled out
             raise HTTPRedirect('attendee_donation_form?id={}&message={}', attendee.id, message)
 
@@ -747,6 +747,8 @@ class Root:
         attendee = session.attendee(id)
         if attendee.amount_unpaid <= 0:
             raise HTTPRedirect('confirm?id={}', id)
+        if 'attendee_donation_form' not in attendee.payment_page:
+            raise HTTPRedirect(attendee.payment_page)
 
         return {
             'message': message,
