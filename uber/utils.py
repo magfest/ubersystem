@@ -753,7 +753,7 @@ class ExcelWorksheetStreamWriter:
         assert self.worksheet
 
         col = 0
-        for index, item in enumerate(row_items):
+        for item in row_items:
             # work around our excel library thinking anything starting with an equal sign is a formula.
             # pick the right function to call to avoid this special case.
             if item and isinstance(item, str) and len(item) > 0 and item[0] == '=':
