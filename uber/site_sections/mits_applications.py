@@ -214,7 +214,7 @@ class Root:
         raise HTTPRedirect('index?message={}', 'Document deleted')
 
     def game(self, session, message='', **params):
-        game = session.mits_game(params, applicant=True)
+        game = session.mits_game(params, bools=['personally_own', 'unlicensed', 'professional'], applicant=True)
         if cherrypy.request.method == 'POST':
             message = check(game)
             if not message:
