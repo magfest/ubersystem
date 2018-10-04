@@ -171,7 +171,7 @@ class Root:
                 elif days_before(7, item.deadline)():
                     out.writecell('', {'bg_color': 'orange'})
                 elif item.deadline < datetime.now(UTC):
-                    out.writecell('', {'pattern': 1, 'bg_color': 'red'})
+                    out.writecell('', {'bg_color': 'red'})
                 else:
                     out.writecell('')
 
