@@ -177,7 +177,6 @@ class Root:
 
             out.writecell(', '.join([admin.email for admin in dept.checklist_admins]), last_cell=True)
 
-
     def item(self, session, slug):
         conf = DeptChecklistConf.instances[slug]
         departments = session.query(Department) \
