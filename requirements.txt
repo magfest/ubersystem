@@ -17,3 +17,4 @@ twilio==6.10.0
 cherrys==0.4
 redis==2.10.6
 ics==0.4
+fpdf==1.7.2
