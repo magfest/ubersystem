@@ -728,14 +728,14 @@ if c.MIVS_ENABLED:
         'Reminder to accept or decline being a MIVS Judge for 2019',
         'mivs/2018_JudgingAudit_Reminder.txt',
         lambda judge: judge.status == c.UNCONFIRMED,
-        ident='mivs_2018_JudgingAuditReminder')
+        ident='mivs_2018_JudgingAudit_Reminder')
     
     MIVSEmailFixture(
         IndieJudge,
         'Final Reminder to accept or decline being a MIVS Judge for 2019',
         'mivs/2018_JudgingAudit_Final_Reminder.txt',
         lambda judge: judge.status == c.UNCONFIRMED,
-        ident='mivs_2018_JudgingAuditFinalReminder')
+        ident='mivs_2018_JudgingAudit_Final_Reminder')
 
     MIVSEmailFixture(
         IndieGame,
