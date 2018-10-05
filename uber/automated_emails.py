@@ -619,7 +619,7 @@ if c.MIVS_ENABLED:
         lambda game: game.status == c.JUDGING and not game.submitted,
         ident='mivs_game_submission_reminder',
         when=days_before(7, c.MIVS_ROUND_TWO_DEADLINE))
-    
+
     MIVSEmailFixture(
         IndieGame,
         'Final Reminder to submit your game to MIVS',
@@ -722,14 +722,14 @@ if c.MIVS_ENABLED:
         'Welcome to MIVS Judging 2019!',
         'mivs/2018_JudgingAudit.txt',
         ident='mivs_2018_JudgingAudit')
-    
+
     MIVSEmailFixture(
         IndieJudge,
         'Reminder to accept or decline being a MIVS Judge for 2019',
         'mivs/2018_JudgingAudit_Reminder.txt',
         lambda judge: judge.status == c.UNCONFIRMED,
         ident='mivs_2018_JudgingAudit_Reminder')
-    
+
     MIVSEmailFixture(
         IndieJudge,
         'Final Reminder to accept or decline being a MIVS Judge for 2019',
