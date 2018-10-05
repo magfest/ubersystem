@@ -619,10 +619,18 @@ if c.MIVS_ENABLED:
         lambda game: game.status == c.JUDGING and not game.submitted,
         ident='mivs_game_submission_reminder',
         when=days_before(7, c.MIVS_ROUND_TWO_DEADLINE))
+    
+    MIVSEmailFixture(
+        IndieGame,
+        'Final Reminder to submit your game to MIVS',
+        'mivs/round_two_final_reminder.txt',
+        lambda game: game.status == c.JUDGING and not game.submitted,
+        ident='mivs_game_submission_final_reminder',
+        when=days_before(2, c.MIVS_ROUND_TWO_DEADLINE))
 
     MIVSEmailFixture(
         IndieGame,
-        'Your game has made it into MIVS Round Two',
+        'Your game has been accepted into MIVS Round Two',
         'mivs/video_accepted.txt',
         lambda game: game.status == c.JUDGING,
         ident='mivs_game_made_it_to_round_two')
