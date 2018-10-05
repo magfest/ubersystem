@@ -246,5 +246,7 @@ def add_applicant_restriction():
             return instance
         setattr(Session.SessionMixin, method_name, with_applicant)
 
-    for name in ['mits_applicant', 'mits_game', 'mits_times', 'mits_picture', 'mits_document', 'mits_panel_application']:
+    for name in [
+        'mits_applicant', 'mits_game', 'mits_times', 'mits_picture', 'mits_document', 'mits_panel_application'
+    ]:
         override_getter(name)

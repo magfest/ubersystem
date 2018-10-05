@@ -256,8 +256,6 @@ class Root:
                 if panel_app.participation_interest or panel_app.name or panel_app.description:
                     message = "Please tell us your availability for a panel."
 
-            #times.apply(availability, checkgroups=['availability'])
-
             if not message:
                 message = check(panel_app)
                 message = message or check(times)
