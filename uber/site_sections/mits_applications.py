@@ -107,6 +107,10 @@ class Root:
         applicant = session.mits_applicant(params, restricted=True)
 
         if cherrypy.request.method == 'POST':
+            if 'no_showcase' in params:
+                team.showcase_interest = False
+            if 'no_panel' in params:
+                team.panel_interest = False
             message = check(team)
             if not message and team.is_new:
                 applicant.team = team
@@ -232,9 +236,56 @@ class Root:
         session.delete(game)
         raise HTTPRedirect('index?message={}', 'Game deleted')
 
+    def panel(self, session, message='', **params):
+        times_params = {'id': params.pop('schedule_id', None)}
+        if cherrypy.request.method == 'POST':
+            times_params['availability'] = params.pop('availability', '')
+
+        panel_app = session.mits_panel_application(params, applicant=True, bools=['participation_interest'])
+        times = session.mits_times(times_params, applicant=True, checkgroups=['availability'])
+        team = session.logged_in_mits_team()
+
+        if cherrypy.request.method == 'POST':
+            if 'availability' in times_params:
+                team.panel_interest = True
+                if not panel_app.participation_interest and (not panel_app.name or not panel_app.description):
+                    message = "Please fill in both a panel name and description and/or " \
+                              "mark that you're interested in participating in a panel run by someone else."
+            else:
+                team.panel_interest = False
+                if panel_app.participation_interest or panel_app.name or panel_app.description:
+                    message = "Please tell us your availability for a panel."
+
+            #times.apply(availability, checkgroups=['availability'])
+
+            if not message:
+                message = check(panel_app)
+                message = message or check(times)
+
+            if not message:
+                session.add(panel_app)
+                session.add(times)
+                raise HTTPRedirect('index?message={}', 'Panel application saved')
+
+        return {
+            'times': times,
+            'panel_app': panel_app,
+            'message': message,
+            'list': [
+                (val, desc, val in times.availability_ints)
+                for val, desc in c.MITS_SCHEDULE_OPTS
+            ]
+        }
+
     def schedule(self, session, message='', **params):
         times = session.mits_times(params, applicant=True, checkgroups=['showcase_availability'])
+        team = session.logged_in_mits_team()
         if cherrypy.request.method == 'POST':
+            if 'showcase_availability' in params:
+                team.showcase_interest = True
+            else:
+                team.showcase_interest = False
+
             message = check(times)
             if not message:
                 session.add(times)

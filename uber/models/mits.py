@@ -17,7 +17,8 @@ __all__ = ['MITSTeam', 'MITSApplicant', 'MITSGame', 'MITSPicture', 'MITSDocument
 
 class MITSTeam(MagModel):
     name = Column(UnicodeText)
-    panel_interest = Column(Boolean, default=False)
+    panel_interest = Column(Boolean, nullable=True)
+    showcase_interest = Column(Boolean, nullable=True)
     want_to_sell = Column(Boolean, default=False)
     address = Column(UnicodeText)
     submitted = Column(UTCDateTime, nullable=True)
@@ -30,6 +31,7 @@ class MITSTeam(MagModel):
     pictures = relationship('MITSPicture', backref='team')
     documents = relationship('MITSDocument', backref='team')
     schedule = relationship('MITSTimes', uselist=False, backref='team')
+    panel_app = relationship('MITSPanelApplication', uselist=False, backref='team')
 
     duplicate_of = Column(UUID, nullable=True)
     deleted = Column(Boolean, default=False)
@@ -80,6 +82,14 @@ class MITSTeam(MagModel):
             or c.BEFORE_MITS_EDITING_DEADLINE)
 
     @property
+    def completed_panel_request(self):
+        return not self.panel_interest or self.schedule.availability
+
+    @property
+    def completed_showcase_request(self):
+        return not self.showcase_interest or self.schedule.showcase_availability
+
+    @property
     def completed_hotel_form(self):
         """
         This is "any" rather than "all" because teams are allowed to
@@ -92,21 +102,21 @@ class MITSTeam(MagModel):
         return any(a.declined_hotel_space or a.requested_room_nights for a in self.applicants)
 
     @property
-    def wants_showcase(self):
-        return self.schedule.showcase_availability
-
-    @property
     def steps_completed(self):
         if not self.games:
             return 1
         elif not self.pictures:
             return 2
-        elif not self.completed_hotel_form:
+        elif not self.completed_panel_request:
             return 3
-        elif not self.submitted:
+        elif not self.completed_showcase_request:
             return 4
-        else:
+        elif not self.completed_hotel_form:
             return 5
+        elif not self.submitted:
+            return 6
+        else:
+            return 7
 
     @property
     def completion_percentage(self):
@@ -193,6 +203,14 @@ class MITSTimes(MagModel):
     availability = Column(MultiChoice(c.MITS_SCHEDULE_OPTS))
 
 
+class MITSPanelApplication(MagModel):
+    team_id = Column(ForeignKey('mits_team.id'))
+    name = Column(UnicodeText)
+    description = Column(UnicodeText)
+    length = Column(Choice(c.PANEL_STRICT_LENGTH_OPTS), default=c.SIXTY_MIN)
+    participation_interest = Column(Boolean, default=False)
+
+
 @on_startup
 def add_applicant_restriction():
     """
@@ -228,5 +246,5 @@ def add_applicant_restriction():
             return instance
         setattr(Session.SessionMixin, method_name, with_applicant)
 
-    for name in ['mits_applicant', 'mits_game', 'mits_times', 'mits_picture', 'mits_document']:
+    for name in ['mits_applicant', 'mits_game', 'mits_times', 'mits_picture', 'mits_document', 'mits_panel_application']:
         override_getter(name)
