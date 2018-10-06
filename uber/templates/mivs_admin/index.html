@@ -79,7 +79,7 @@
                 0
             {% endif %}
         </td>
-        <td>{{ game.average_score }}</td>
+        <td>{{ game.average_score|round(1) }}</td>
     </tr>
 {% endfor %}
 </tbody>

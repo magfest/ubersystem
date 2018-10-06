@@ -64,7 +64,7 @@
         <td>{% if review.readiness_score %}{{ review.readiness_score }}{% endif %}</td>
         <td>{% if review.design_score %}{{ review.design_score }}{% endif %}</td>
         <td>{% if review.enjoyment_score %}{{ review.enjoyment_score }}{% endif %}</td>
-        <td>{% if review.game_score %}{{ review.game_score }}{% endif %}</td>
+        <td>{% if review.game_score %}{{ review.game_score|round(1) }}{% endif %}</td>
         <td>{{ review.game_review|linebreaksbr }}</td>
     <td><input type="checkbox" name="review_id" value="{{ review.id }}"
                {% if review.send_to_studio %} checked {% endif %}/></td>
