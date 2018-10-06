@@ -1,0 +1,61 @@
+{% extends "mits_base.html" %}
+{% block body %}
+
+<h2>Tabletop Panel Application</h2>
+
+<p>
+  MITS applicants may now apply to be in a panel. Please let us know if you'd like to apply for a panel and your availability below.
+  Please note that we expect to not have space/time for most panel applicants.
+</p>
+<p>
+  Your panel can certainly involve talking about your games and their design for information or educational purposes.
+  However, the purpose of these panels is to be of general interest to MAGFest attendees and not as a place to promote/sell your games.
+</p>
+<p>
+<strong>You may participate in a cooperative discussion panel without applying to run your own panel.</strong>
+</p>
+
+<form method="post" action="panel" class="form-horizontal" role="form">
+    {{ csrf_token() }}
+    <input type="hidden" name="id" value="{{ panel_app.db_id }}" />
+    <input type="hidden" name="schedule_id" value="{{ times.db_id }}" />
+
+    {{ macros.form_group(panel_app, 'name', label="Panel Name") }}
+    {{ macros.form_group(panel_app, 'description', type='textarea', label="Panel Description") }}
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Panel Length</label>
+      <div class="col-sm-6">
+        <select name="length" class="form-control">
+          {{ options(c.PANEL_STRICT_LENGTH_OPTS, panel_app.length) }}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-3">
+            {{ macros.checkbox(panel_app, 'participation_interest', label="I'm interested in participating in a cooperative discussion panel run by someone else.") }}
+        </div>
+    </div>
+
+    <table>
+    {% for val, desc, avail_checked in list %}
+        <tr>
+            <td>{{ desc }}</td>
+            <td>
+                <label class='checkbox-label'>
+                    <input type="checkbox" name="availability" value="{{ val }}" {% if avail_checked %}checked{% endif %} />
+                    Available
+                </label>
+            </td>
+        </tr>
+    {% endfor %}
+    <tr>
+        <td></td>
+        <td><button type="submit" class="btn btn-primary">Update Panel Application</button></td>
+        <td></td>
+    </tr>
+    </table>
+</form>
+
+{% endblock %}
