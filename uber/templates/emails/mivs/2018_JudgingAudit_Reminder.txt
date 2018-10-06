@@ -4,7 +4,7 @@ Hi Again from the MAGFest Indie Video Game Showcase! (MIVS)
 
 This is a reminder to fill out your judging preferences by October 15th if you still wish to be a judge for MIVS.
 
-If you're concerned about time commitments, you're welcome to join us for this year and just let us know ASAP if you're situation changes.
+If you're concerned about time commitments, you're welcome to join us for this year and just let us know ASAP if your situation changes.
 
 You can fill out your judging status and preferences at: {{ c.URL_BASE }}/mivs_judging
 
