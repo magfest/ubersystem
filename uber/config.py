@@ -874,6 +874,7 @@ c.ALL_TIME_OPTS = [
     for dt in (
         (c.EPOCH - timedelta(days=c.SETUP_SHIFT_DAYS) + timedelta(hours=i))
         for i in range(c.CON_TOTAL_LENGTH))]
+c.PANEL_STRICT_LENGTH_OPTS = [opt for opt in c.PANEL_LENGTH_OPTS if opt != c.OTHER]
 
 c.EVENT_YEAR = c.EPOCH.strftime('%Y')
 c.EVENT_NAME_AND_YEAR = c.EVENT_NAME + (' {}'.format(c.EVENT_YEAR) if c.EVENT_YEAR else '')
@@ -1047,7 +1048,7 @@ for num in range(c.ESCHATON.year - c.MIVS_START_YEAR):
 
 # The number of steps to the MITS application process.  Since changing this requires a code change
 # anyway (in order to add another step), this is hard-coded here rather than being a config option.
-c.MITS_APPLICATION_STEPS = 6
+c.MITS_APPLICATION_STEPS = 7
 
 # The options for the recommended minimum age for games, as filled out by the teams.
 c.MITS_AGE_OPTS = [(i, i) for i in range(4, 20, 2)]

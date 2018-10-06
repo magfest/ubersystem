@@ -723,6 +723,7 @@ class ExcelWorksheetStreamWriter:
         self.workbook = workbook
         self.worksheet = worksheet
         self.next_row = 0
+        self.next_col = 0
 
     def calculate_column_widths(self, rows):
         column_widths = defaultdict(int)
@@ -765,6 +766,15 @@ class ExcelWorksheetStreamWriter:
             col += 1
 
         self.next_row += 1
+
+    def writecell(self, data, format={}, last_cell=False):
+        self.worksheet.write(self.next_row, self.next_col, data, self.workbook.add_format(format))
+
+        if last_cell:
+            self.next_col = 0
+            self.next_row += 1
+        else:
+            self.next_col += 1
 
 
 class Charge:
