@@ -388,10 +388,12 @@ class IndieGameReview(MagModel):
         Choice(c.MIVS_GAME_REVIEW_STATUS_OPTS), default=c.PENDING)
     game_content_bad = Column(Boolean, default=False)
     video_score = Column(Choice(c.MIVS_VIDEO_REVIEW_OPTS), default=c.PENDING)
+    video_review = Column(UnicodeText)
 
     # 0 = not reviewed, 1-10 score (10 is best)
-    game_score = Column(Integer, default=0)
-    video_review = Column(UnicodeText)
+    readiness_score = Column(Integer, default=0)
+    design_score = Column(Integer, default=0)
+    enjoyment_score = Column(Integer, default=0)
     game_review = Column(UnicodeText)
     developer_response = Column(UnicodeText)
     staff_notes = Column(UnicodeText)
@@ -405,8 +407,12 @@ class IndieGameReview(MagModel):
     def no_score_if_broken(self):
         if self.has_video_issues:
             self.video_score = c.PENDING
-        if self.has_game_issues:
-            self.game_score = 0
+
+    @property
+    def game_score(self):
+        if self.has_game_issues or not (self.readiness_score and self.design_score and self.enjoyment_score):
+            return 0
+        return sum([self.readiness_score, self.design_score, self.enjoyment_score]) / float(3)
 
     @property
     def has_video_issues(self):

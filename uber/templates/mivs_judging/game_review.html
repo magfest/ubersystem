@@ -107,22 +107,46 @@ for reviewing the game:
         </div>
     </div>
 
-    <div class="form-group">
-        <label class="col-sm-3 control-label">Score</label>
-        <div class="col-sm-6">
-            <select name="game_score" class="form-control">
-                <option value="0">Rate this Game</option>
-                {{ int_options(1, 10, review.game_score) }}
-            </select>
-            <p class="help-block">
-                Please score the game on a scale of 1-10 where 1 is the lowest score and 10 is the highest score.
-                If you were not able to play due to some problem, you should leave this unscored
-            </p>
-        </div>
-        <div class="checkbox col-sm-6 col-sm-offset-3">
-            {{ macros.checkbox(review, 'game_content_bad', label="This game contains inappropriate content.") }}
-        </div>
+  <div class="text-center">
+    <h3>Scoring</h3>
+    <span class="popup">{{ macros.popup_link("../static_views/mivs_scoring.html", 'Scoring Explanation') }}</span>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Show Readiness</label>
+    <div class="col-sm-6">
+      <select name="readiness_score" class="form-control">
+        <option value="0">Unscored</option>
+        {{ int_options(1, 10, review.readiness_score) }}
+      </select>
     </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Overall Design</label>
+    <div class="col-sm-6">
+      <select name="design_score" class="form-control">
+        <option value="0">Unscored</option>
+        {{ int_options(1, 10, review.design_score) }}
+      </select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Overall Enjoyment</label>
+    <div class="col-sm-6">
+      <select name="enjoyment_score" class="form-control">
+        <option value="0">Unscored</option>
+        {{ int_options(1, 10, review.enjoyment_score) }}
+      </select>
+      <p class="help-block">
+      See 'Scoring Explanation' for breakdown of each category. If game was unplayable due to a problem, leave each category unscored.
+    </p>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <div class="checkbox col-sm-6 col-sm-offset-3">
+      {{ macros.checkbox(review, 'game_content_bad', label="This game contains inappropriate content.") }}
+    </div>
+  </div>
 
     <div class="form-group">
         <label class="col-sm-3 control-label optional-field">Notes</label>

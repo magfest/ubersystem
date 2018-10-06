@@ -47,7 +47,10 @@
         <th>Judge</th>
         <th>Game Status</th>
         <th>Inappropriate Content?</th>
-        <th>Score</th>
+        <th>Show Readiness</th>
+        <th>Overall Design</th>
+        <th>Overall Enjoyment</th>
+        <th>Overall Score</th>
         <th>Notes</th>
         <th>Send to Developer?</th>
     </tr>
@@ -58,6 +61,9 @@
         <td>{{ review.judge.full_name }}</td>
         <td>{{ review.game_status_label }}</td>
         <td>{{ review.game_content_bad|yesno }}</td>
+        <td>{% if review.readiness_score %}{{ review.readiness_score }}{% endif %}</td>
+        <td>{% if review.design_score %}{{ review.design_score }}{% endif %}</td>
+        <td>{% if review.enjoyment_score %}{{ review.enjoyment_score }}{% endif %}</td>
         <td>{% if review.game_score %}{{ review.game_score }}{% endif %}</td>
         <td>{{ review.game_review|linebreaksbr }}</td>
     <td><input type="checkbox" name="review_id" value="{{ review.id }}"
