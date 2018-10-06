@@ -622,7 +622,15 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieGame,
-        'Your game has made it into MIVS Round Two',
+        'Final Reminder to submit your game to MIVS',
+        'mivs/round_two_final_reminder.txt',
+        lambda game: game.status == c.JUDGING and not game.submitted,
+        ident='mivs_game_submission_final_reminder',
+        when=days_before(2, c.MIVS_ROUND_TWO_DEADLINE))
+
+    MIVSEmailFixture(
+        IndieGame,
+        'Your game has been accepted into MIVS Round Two',
         'mivs/video_accepted.txt',
         lambda game: game.status == c.JUDGING,
         ident='mivs_game_made_it_to_round_two')
@@ -717,10 +725,17 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieJudge,
-        'Please accept or decline MIVS Judging for 2019',
-        'mivs/2018_JudgingAudit.txt',
+        'Reminder to accept or decline being a MIVS Judge for 2019',
+        'mivs/2018_JudgingAudit_Reminder.txt',
         lambda judge: judge.status == c.UNCONFIRMED,
-        ident='mivs_2018_JudgingAuditReminder')
+        ident='mivs_2018_JudgingAudit_Reminder')
+
+    MIVSEmailFixture(
+        IndieJudge,
+        'Final Reminder to accept or decline being a MIVS Judge for 2019',
+        'mivs/2018_JudgingAudit_Final_Reminder.txt',
+        lambda judge: judge.status == c.UNCONFIRMED,
+        ident='mivs_2018_JudgingAudit_Final_Reminder')
 
     MIVSEmailFixture(
         IndieGame,
