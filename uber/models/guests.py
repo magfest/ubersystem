@@ -120,7 +120,7 @@ class GuestGroup(MagModel):
             item_status = getattr(self, list_item['name'] + '_status', None)
             if self.deadline_from_model(list_item['name']) and not item_status:
                 return False
-            elif 'Unclaimed' in item_status:
+            elif item_status and 'Unclaimed' in item_status:
                 return False
         return True
 
