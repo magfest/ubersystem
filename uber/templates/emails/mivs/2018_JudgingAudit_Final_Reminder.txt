@@ -1,6 +1,6 @@
 Ahoy {{ judge.attendee.first_name }},
 
-This is final reminder to fill out your judging preferences by October 15th if you still wish to be a judge for MIVS.
+This is final reminder to fill out your judging preferences by Today, October 10th if you still wish to be a judge for MIVS.
 
 If you're concerned about time commitments, you're welcome to join us for this year and just let us know ASAP if your situation changes.
 
