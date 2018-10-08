@@ -128,16 +128,15 @@ class Root:
                     ])
 
     @csv_file
-    def schedule_requests(self, out, session):
-        out.writerow([''] + [desc for val, desc in c.MITS_SCHEDULE_OPTS])
+    def showcase_requests(self, out, session):
+        out.writerow(['Team Name'] + [desc for val, desc in c.MITS_SHOWCASE_SCHEDULE_OPTS])
         for team in session.mits_teams().filter_by(status=c.ACCEPTED):
-            available = getattr(team.schedule, 'availability_ints', [])
-            multiple = getattr(team.schedule, 'multiple_tables_ints', [])
-            out.writerow([team.name] + [
-                'multiple' if val in multiple else
-                '1 table' if val in available else ''
-                for val, desc in c.MITS_SCHEDULE_OPTS
-            ])
+            if team.schedule.showcase_availability:
+                available = getattr(team.schedule, 'showcase_availability_ints', [])
+                out.writerow([team.name] + [
+                    'available' if val in available else ''
+                    for val, desc in c.MITS_SHOWCASE_SCHEDULE_OPTS
+                ])
 
     @csv_file
     def panel_requests(self, out, session):

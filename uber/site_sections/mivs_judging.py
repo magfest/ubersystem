@@ -11,10 +11,20 @@ from uber.utils import check
 class Root:
     @site_mappable
     def index(self, session, message='', **params):
-        judge = session.indie_judge(params, checkgroups=['genres', 'platforms']) if 'id' in params \
-            else session.logged_in_judge()
+        if 'status' in params:
+            judge = session.indie_judge(params, bools=['no_game_submission'])
+        else:
+            judge = session.indie_judge(params, checkgroups=['genres', 'platforms']) if 'id' in params \
+                else session.logged_in_judge()
 
         if cherrypy.request.method == 'POST':
+            if 'status' in params:
+                if judge.status == c.CONFIRMED:
+                    message = 'Thanks for choosing to be a judge this year. ' \
+                              'Please take a moment to update your hardware and preferences.'
+
+                raise HTTPRedirect('index?message={}', message)
+
             message = check(judge)
             if not message:
                 raise HTTPRedirect('index?message={}', 'Preferences updated')
@@ -58,9 +68,9 @@ class Root:
                 message = 'You must select a Game Status to tell us ' \
                     'whether or not you were able to download and run the game'
             elif review.game_status == c.PLAYABLE and not review.game_score:
-                message = 'You must indicate whether or not you believe the game should be accepted'
+                message = "You must indicate the game's readiness, design, and enjoyment"
             elif review.game_status != c.PLAYABLE and review.game_score:
-                message = 'If the game is not playable, please leave the score field blank'
+                message = 'If the game is not playable, please leave the score fields blank'
             else:
                 if review.game_status in c.MIVS_PROBLEM_STATUSES\
                         and review.game_status != review.orig_value_of('game_status'):

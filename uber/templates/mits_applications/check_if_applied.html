@@ -1,0 +1,29 @@
+{% extends "mits_base.html" %}
+{% block body %}
+
+  <h2>Check MITS Application</h2>
+  If you believe you've already filled out the MITS application, please enter the email address of anyone in the studio set to <em>receive emails</em>.
+  By default, this is the person who originally filled out the application.
+
+  <br/><br/>If you have applied for MITS, you will receive a confirmation email (usually within 5 minutes). If you do not receive this email, and it is not in your Spam or Junk folder, please contact us at {{ c.MITS_EMAIL|email_to_link }}.
+
+  <br/><br/>
+
+  <form method="post" action="check_if_applied" class="form-horizontal" role="form">
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Email Address</label>
+      <div class="col-sm-6">
+        <input class="form-control focus" type="text" name="email" />
+      </div>
+      <p class="help-block col-sm-9 col-sm-offset-3">
+        Please note that in order to avoid accidentally spamming people, we can only send a confirmation email once per week.
+      </p>
+    </div>
+    <div class="form-group">
+      <div class="col-sm-6 col-sm-offset-3">
+        <button type="submit" class="btn btn-primary">Check Application</button>
+      </div>
+    </div>
+  </form>
+
+{% endblock %}

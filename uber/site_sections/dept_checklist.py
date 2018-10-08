@@ -4,7 +4,7 @@ from pytz import UTC
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.decorators import all_renderable, csrf_protected, department_id_adapter, render
+from uber.decorators import all_renderable, csrf_protected, department_id_adapter, render, xlsx_file
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, DeptChecklistItem
 from uber.utils import check, check_csrf, days_before, DeptChecklistConf
@@ -148,6 +148,34 @@ class Root:
             'overview': overview,
             'checklist': checklist
         }
+
+    @xlsx_file
+    def overview_xlsx(self, out, session):
+        checklist = list(DeptChecklistConf.instances.values())
+        departments = session.query(Department).options(
+            subqueryload(Department.members_who_can_admin_checklist),
+            subqueryload(Department.dept_checklist_items)) \
+            .order_by(Department.name)
+
+        header_row = ['Department']
+        header_row.extend(item.name for item in checklist)
+        header_row.extend(['Emails'])
+        out.writerow(header_row)
+
+        for dept in departments:
+            out.writecell(dept.name)
+            for item in checklist:
+                checklist_item = dept.checklist_item_for_slug(item.slug)
+                if checklist_item:
+                    out.writecell('', {'bg_color': 'green'})
+                elif days_before(7, item.deadline)():
+                    out.writecell('', {'bg_color': 'orange'})
+                elif item.deadline < datetime.now(UTC):
+                    out.writecell('', {'bg_color': 'red'})
+                else:
+                    out.writecell('')
+
+            out.writecell(', '.join([admin.email for admin in dept.checklist_admins]), last_cell=True)
 
     def item(self, session, slug):
         conf = DeptChecklistConf.instances[slug]

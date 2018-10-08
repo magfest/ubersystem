@@ -17,6 +17,7 @@
 {% else %}
     {% if team.is_new %}
         <h2>MAGFest Indie Tabletop Showcase Application</h2>
+        Have you already filled this out? If so, click <a href="../mits_applications/check_if_applied">here</a>. <br/><br/>
     {% else %}
         <h2>Edit Your Team Information</h2>
     {% endif %}
@@ -30,8 +31,7 @@
                 <input class="form-control focus" type="text" name="name" value="{{ team.name }}" />
             </div>
             <p class="help-block col-sm-9 col-sm-offset-3">
-                If you're with a company, put the name of your company. <br/>
-                If you're just some awesome nerd(s) with cool stuff to share, put whatever you want here!
+                This is what we'll use on guidebook, the website, and signs or schedules that are posted anywhere.
             </p>
         </div>
 
@@ -50,13 +50,6 @@
             <p class="help-block col-sm-9 col-sm-offset-3">
                 Please enter your <strong>business</strong> address, i.e. the address you use for tax purposes.
             </p>
-        </div>
-
-        <div class="form-group">
-            <label class="col-sm-3 control-label">Interested in a panel?</label>
-            <div class="col-sm-6">
-                {{ macros.checkbox(team, 'panel_interest', label="Check this box if you're interested in hosting or participating in the presentation of a panel and we'll get in touch with you closer to the event to follow up about this possibility.") }}
-            </div>
         </div>
 
         {% if team.is_new %}
@@ -105,6 +98,12 @@
             <div class="col-sm-6 col-sm-offset-3">
                 <button type="submit" class="btn btn-primary">{% if team.is_new %}Register Your Team{% else %}Upload Changes{% endif %}</button>
             </div>
+        </div>
+
+        <div class="form-group">
+            <p class="text-center help-block">
+                If you have any questions, please email us at {{ c.MITS_EMAIL|email_to_link }}.
+            </p>
         </div>
     </form>
 {% endif %}

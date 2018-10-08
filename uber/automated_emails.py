@@ -607,6 +607,13 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieGame,
+        'Round 2 Submission for MIVS are now open',
+        'mivs/round_two_open.txt',
+        lambda game: game.status == c.JUDGING and not game.submitted,
+        ident='mivs_round_two_open')
+
+    MIVSEmailFixture(
+        IndieGame,
         'Reminder to submit your game to MIVS',
         'mivs/round_two_reminder.txt',
         lambda game: game.status == c.JUDGING and not game.submitted,
@@ -615,7 +622,15 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieGame,
-        'Your game has made it into MIVS Round Two',
+        'Final Reminder to submit your game to MIVS',
+        'mivs/round_two_final_reminder.txt',
+        lambda game: game.status == c.JUDGING and not game.submitted,
+        ident='mivs_game_submission_final_reminder',
+        when=days_before(2, c.MIVS_ROUND_TWO_DEADLINE))
+
+    MIVSEmailFixture(
+        IndieGame,
+        'Your game has been accepted into MIVS Round Two',
         'mivs/video_accepted.txt',
         lambda game: game.status == c.JUDGING,
         ident='mivs_game_made_it_to_round_two')
@@ -703,6 +718,26 @@ if c.MIVS_ENABLED:
         allow_post_con=True)
 
     MIVSEmailFixture(
+        IndieJudge,
+        'Welcome to MIVS Judging 2019!',
+        'mivs/2018_JudgingAudit.txt',
+        ident='mivs_2018_JudgingAudit')
+
+    MIVSEmailFixture(
+        IndieJudge,
+        'Reminder to accept or decline being a MIVS Judge for 2019',
+        'mivs/2018_JudgingAudit_Reminder.txt',
+        lambda judge: judge.status == c.UNCONFIRMED,
+        ident='mivs_2018_JudgingAudit_Reminder')
+
+    MIVSEmailFixture(
+        IndieJudge,
+        'Final Reminder to accept or decline being a MIVS Judge for 2019',
+        'mivs/2018_JudgingAudit_Final_Reminder.txt',
+        lambda judge: judge.status == c.UNCONFIRMED,
+        ident='mivs_2018_JudgingAudit_Final_Reminder')
+
+    MIVSEmailFixture(
         IndieGame,
         'MIVS judging is wrapping up',
         'mivs/round_two_closing.txt',
@@ -713,18 +748,21 @@ if c.MIVS_ENABLED:
         IndieJudge,
         'MIVS Judging is about to begin!',
         'mivs/judge_intro.txt',
+        lambda judge: judge.status == c.CONFIRMED,
         ident='mivs_judge_intro')
 
     MIVSEmailFixture(
         IndieJudge,
         'MIVS Judging has begun!',
         'mivs/judging_begun.txt',
+        lambda judge: judge.status == c.CONFIRMED,
         ident='mivs_judging_has_begun')
 
     MIVSEmailFixture(
         IndieJudge,
         'MIVS Judging is almost over!',
         'mivs/judging_reminder.txt',
+        lambda judge: judge.status == c.CONFIRMED,
         when=days_before(7, c.SOFT_MIVS_JUDGING_DEADLINE),
         ident='mivs_judging_due_reminder')
 
@@ -732,7 +770,7 @@ if c.MIVS_ENABLED:
         IndieJudge,
         'Reminder: MIVS Judging due by {}'.format(c.MIVS_JUDGING_DEADLINE.strftime('%B %-d')),
         'mivs/final_judging_reminder.txt',
-        lambda judge: not judge.judging_complete,
+        lambda judge: not judge.judging_complete and judge.status == c.CONFIRMED,
         when=days_before(5, c.MIVS_JUDGING_DEADLINE),
         ident='mivs_judging_due_reminder_last_chance')
 
@@ -740,24 +778,28 @@ if c.MIVS_ENABLED:
         IndieJudge,
         'MIVS Judging and {EVENT_NAME} Staffing',
         'mivs/judge_staffers.txt',
+        lambda judge: judge.status == c.CONFIRMED,
         ident='mivs_judge_staffers')
 
     MIVSEmailFixture(
         IndieJudge,
         'MIVS Judge badge information',
         'mivs/judge_badge_info.txt',
+        lambda judge: judge.status == c.CONFIRMED,
         ident='mivs_judge_badge_info')
 
     MIVSEmailFixture(
         IndieJudge,
         'MIVS Judging about to begin',
         'mivs/judge_2016.txt',
+        lambda judge: judge.status == c.CONFIRMED,
         ident='mivs_selected_to_judge')
 
     MIVSEmailFixture(
         IndieJudge,
         'MIVS Judges: A Request for our MIVSY awards',
         'mivs/2018_mivsy_request.txt',
+        lambda judge: judge.status == c.CONFIRMED,
         ident='2018_mivsy_request')
 
     MIVSEmailFixture(

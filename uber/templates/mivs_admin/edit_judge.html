@@ -8,6 +8,15 @@
     {{ csrf_token() }}
 
     <div class="form-group">
+        <label class="col-sm-3 control-label">Response Status</label>
+        <div class="col-sm-6">
+            <select name="status" class="form-control">
+              {{ options(c.MIVS_JUDGE_STATUS_OPTS, judge.status) }}
+            </select>
+        </div>
+    </div>
+
+    <div class="form-group">
         <label class="col-sm-3 control-label">Genres</label>
         <div class="col-sm-6">
             {{ macros.checkgroup(judge, 'genres') }}
@@ -22,6 +31,18 @@
         <div class="clearfix"></div>
         <div class="col-sm-6 col-sm-offset-3">
             <input id="platforms-other" class="form-control" type="text" name="platforms_text" value="{{ judge.platforms_text }}" placeholder="Other platform(s)"/>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Has MIVS Submission?</label>
+        <div class="col-sm-6">
+          <label class="control-label optional-field">
+            <input type="radio" name="no_game_submission" value="0" {% if not judge.no_game_submission %}checked{% endif %} /> Yes
+          </label>
+          <label class="control-label optional-field">
+            <input type="radio" name="no_game_submission" value="1" {% if judge.no_game_submission %}checked{% endif %} /> No
+          </label>
         </div>
     </div>
 

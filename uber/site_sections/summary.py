@@ -567,6 +567,19 @@ class Root:
 
     @csv_file
     @site_mappable
+    def requested_accessibility_services(self, out, session):
+        out.writerow(['Badge #', 'Full Name', 'Badge Type', 'Email', 'Comments'])
+        query = session.query(Attendee).filter_by(requested_accessibility_services=True)
+        for person in query.all():
+            out.writerow([
+                person.badge_num, person.full_name, person.badge_type_label,
+                person.email, person.comments
+            ])
+
+    requested_accessibility_services.restricted = [c.ACCESSIBILITY]
+
+    @csv_file
+    @site_mappable
     def attendee_birthday_calendar(
             self,
             out,

@@ -114,7 +114,9 @@ class Root:
     @check_if_can_reg
     def repurchase(self, session, id, **params):
         if 'csrf_token' in params:
-            new_attendee = Attendee(**session.attendee(id).to_dict(c.UNTRANSFERABLE_ATTRS))
+            old_attendee = session.attendee(id).to_dict(c.UNTRANSFERABLE_ATTRS)
+            del old_attendee['id']
+            new_attendee = Attendee(**old_attendee)
             Charge.unpaid_preregs[new_attendee.id] = to_sessionized(new_attendee, Group())
             Tracking.track(c.UNPAID_PREREG, new_attendee)
             raise HTTPRedirect("form?edit_id={}", new_attendee.id)
