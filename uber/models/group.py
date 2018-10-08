@@ -36,10 +36,14 @@ class Group(MagModel, TakesPaymentMixin):
     categories_text = Column(UnicodeText)
     description = Column(UnicodeText)
     special_needs = Column(UnicodeText)
+
     amount_paid = Column(Integer, default=0, index=True, admin_only=True)
     amount_refunded = Column(Integer, default=0, admin_only=True)
     cost = Column(Integer, default=0, admin_only=True)
     auto_recalc = Column(Boolean, default=True, admin_only=True)
+    stripe_txn_share_logs = relationship('StripeTransactionGroup',
+                                         backref='group')
+
     can_add = Column(Boolean, default=False, admin_only=True)
     admin_notes = Column(UnicodeText, admin_only=True)
     status = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)

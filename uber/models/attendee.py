@@ -235,6 +235,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     extra_donation = Column(Integer, default=0)
     payment_method = Column(Choice(c.PAYMENT_METHOD_OPTS), nullable=True)
     amount_refunded = Column(Integer, default=0, admin_only=True)
+    stripe_txn_share_logs = relationship('StripeTransactionAttendee', backref='attendee')
 
     badge_printed_name = Column(UnicodeText)
 
@@ -766,8 +767,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                and self.amount_paid > 0 \
                and self.paid not in [c.NEED_NOT_PAY, c.REFUNDED] \
                and not self.is_group_leader \
-               and self.stripe_transactions \
-               and all(', ' not in txn.desc for txn in self.stripe_transactions) \
+               and self.stripe_txn_share_logs \
                and not self.checked_in \
                and c.SELF_SERVICE_REFUNDS_OPEN
 

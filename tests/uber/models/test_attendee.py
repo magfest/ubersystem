@@ -8,7 +8,8 @@ from pytz import UTC
 from uber import config
 from uber.config import c
 from uber.models import Attendee, Department, DeptMembership, DeptMembershipRequest, DeptRole, FoodRestrictions, \
-    Group, Job, Session, Shift, StripeTransaction
+    Group, Job, Session, Shift
+from uber.models.commerce import StripeTransaction, StripeTransactionAttendee
 from uber.model_checks import extra_donation_valid, _invalid_phone_number
 
 
@@ -253,8 +254,9 @@ def test_self_service_refunds_if_on(monkeypatch, open, expected):
     monkeypatch.setattr(config.Config, 'SELF_SERVICE_REFUNDS_OPEN',
                         property(open))
     attendee = Attendee(paid=c.HAS_PAID, amount_paid=10)
-    monkeypatch.setattr(Attendee, 'stripe_transactions',
-                        [StripeTransaction(fk_id=attendee.id, amount=1000)])
+    txn = StripeTransaction(amount=1000)
+    attendee.stripe_txn_share_logs = [
+        StripeTransactionAttendee(attendee_id=attendee.id, txn_id=txn.id, share=1000)]
     assert attendee.can_self_service_refund_badge == expected
 
 
@@ -269,8 +271,9 @@ def test_self_service_refunds_payment_status(monkeypatch, paid, expected):
     monkeypatch.setattr(config.Config, 'SELF_SERVICE_REFUNDS_OPEN',
                         property(lambda s: True))
     attendee = Attendee(paid=paid, amount_paid=10)
-    monkeypatch.setattr(Attendee, 'stripe_transactions',
-                        [StripeTransaction(fk_id=attendee.id, amount=1000)])
+    txn = StripeTransaction(amount=1000)
+    attendee.stripe_txn_share_logs = [
+        StripeTransactionAttendee(attendee_id=attendee.id, txn_id=txn.id, share=1000)]
     assert attendee.can_self_service_refund_badge == expected
 
 
@@ -285,8 +288,9 @@ def test_self_service_refunds_misc(monkeypatch, amount_paid, checked_in, expecte
     monkeypatch.setattr(config.Config, 'SELF_SERVICE_REFUNDS_OPEN',
                         property(lambda s: True))
     attendee = Attendee(paid=c.HAS_PAID, amount_paid=amount_paid)
-    monkeypatch.setattr(Attendee, 'stripe_transactions',
-                        [StripeTransaction(fk_id=attendee.id, amount=1000)])
+    txn = StripeTransaction(amount=1000)
+    attendee.stripe_txn_share_logs = [
+        StripeTransactionAttendee(attendee_id=attendee.id, txn_id=txn.id, share=1000)]
     attendee.checked_in = checked_in
     assert attendee.can_self_service_refund_badge == expected
 
@@ -295,8 +299,7 @@ def test_self_service_refunds_no_stripe(monkeypatch):
     monkeypatch.setattr(config.Config, 'SELF_SERVICE_REFUNDS_OPEN',
                         property(lambda s: True))
     attendee = Attendee(paid=c.HAS_PAID, amount_paid=10)
-    monkeypatch.setattr(Attendee, 'stripe_transactions',
-                        [])
+    attendee.stripe_txn_share_logs = []
     assert not attendee.can_self_service_refund_badge
 
 
@@ -305,8 +308,9 @@ def test_self_service_refunds_group_leader(monkeypatch):
                         property(lambda s: True))
     attendee = Attendee(paid=c.HAS_PAID, amount_paid=10)
     attendee.group = Group(leader_id=attendee.id)
-    monkeypatch.setattr(Attendee, 'stripe_transactions',
-                        [StripeTransaction(fk_id=attendee.id, amount=1000)])
+    txn = StripeTransaction(amount=1000)
+    attendee.stripe_txn_share_logs = [
+        StripeTransactionAttendee(attendee_id=attendee.id, txn_id=txn.id, share=1000)]
     assert not attendee.can_self_service_refund_badge
 
 
