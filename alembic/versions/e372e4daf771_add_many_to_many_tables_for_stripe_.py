@@ -9,7 +9,7 @@ Create Date: 2018-08-31 20:42:18.905795
 
 # revision identifiers, used by Alembic.
 revision = 'e372e4daf771'
-down_revision = '735063d71b57'
+down_revision = 'b574c0577253'
 branch_labels = None
 depends_on = None
 
@@ -287,7 +287,7 @@ def upgrade():
                         else:
                             remove_name = remove_name + " " + last_name
 
-                        if remove_name not in group_names:
+                        if remove_name not in group_names and remove_name in name_list:
                             name_list.remove(remove_name)
                             break
                 else:
