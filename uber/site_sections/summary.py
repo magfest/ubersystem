@@ -555,12 +555,18 @@ class Root:
     @csv_file
     def volunteer_checklist_csv(self, out, session):
         checklists = volunteer_checklists(session)
-        out.writerow(['Volunteer', 'Email'] + [s for s in checklists['checklist_items'].keys()])
+        out.writerow(['First Name', 'Last Name', 'Email', 'Cellphone', 'Assigned Depts']
+                     + [s for s in checklists['checklist_items'].keys()])
         for attendee in checklists['attendees']:
             checklist_items = []
             for item in attendee.checklist_items.values():
                 checklist_items.append('Yes' if item['is_complete'] else 'No' if item['is_applicable'] else 'N/A')
-            out.writerow([attendee.full_name, attendee.email] + checklist_items)
+            out.writerow([attendee.first_name,
+                          attendee.last_name,
+                          attendee.email,
+                          attendee.cellphone,
+                          ', '.join(attendee.assigned_depts_labels)
+                          ] + checklist_items)
 
     def volunteer_checklists(self, session):
         return volunteer_checklists(session)

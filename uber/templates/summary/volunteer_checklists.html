@@ -20,7 +20,7 @@
 
 </style>
 
-<h1>Volunteer Checklists <small><a href="volunteer_checklist_csv">Download CSV</a></h1>
+  <h1>Volunteer Checklists <small><a href="volunteer_checklist_csv">Download CSV</a></small></h1>
 
 <div class="table-responsive">
   <table
@@ -30,7 +30,10 @@
       data-info="false">
     <thead>
       <tr>
-        <th>Volunteer</th>
+        <th>Volunteer First/Last Name</th>
+        <th>Email</th>
+        <th>Cellphone</th>
+        <th>Assigned Depts</th>
         {% for item_name in checklist_items.keys() %}
           <th data-searchable="false">{{ item_name }}</th>
         {% endfor %}
@@ -40,6 +43,9 @@
       {% for attendee in attendees %}
         <tr>
           <td>{{ attendee|form_link }}</td>
+          <td>{{ attendee.email|email_to_link }}</td>
+          <td>{{ attendee.cellphone }}</td>
+          <td>{{ attendee.assigned_depts_labels|join(', ') }}</td>
           {% for item_name, status in attendee.checklist_items.items() %}
             <td data-order="{{ (0 if status.is_complete else (2 if status.is_applicable else 1)) }}">
               <div title="{{ item_name }}">
