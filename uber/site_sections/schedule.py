@@ -271,7 +271,8 @@ class Root:
         assigned_panelists = sorted(event.assigned_panelists, reverse=True, key=lambda a: a.attendee.first_name)
 
         approved_panel_apps = session.query(PanelApplication).filter(
-            PanelApplication.status == c.ACCEPTED).order_by('applied')
+            PanelApplication.status == c.ACCEPTED,
+            PanelApplication.event_id == None).order_by('applied')
 
         return {
             'message': message,
