@@ -272,7 +272,7 @@ class Root:
 
         approved_panel_apps = session.query(PanelApplication).filter(
             PanelApplication.status == c.ACCEPTED,
-            PanelApplication.event_id == None).order_by('applied')
+            PanelApplication.event_id == None).order_by('applied')  # noqa: E711
 
         return {
             'message': message,
