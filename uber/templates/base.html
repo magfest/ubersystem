@@ -287,7 +287,7 @@
                         var header_name = $(table.column(colIdx).header()).text();
 
                         // Is there a filter set up for this?
-                        var filter_span = $('#' + header_name.toLowerCase() + '_filter');
+                        var filter_span = $('*[id="' + header_name.toLowerCase() + '_filter"]');
 
                         if($(filter_span).length) {
                         // Create the select list and search operation

@@ -1018,6 +1018,11 @@ class Attendee(MagModel, TakesPaymentMixin):
         return (' with ' if stuff else '') + readable_join(stuff)
 
     @property
+    def payment_page(self):
+        # Some plugins need to redirect attendees to custom payment pages under certain circumstances
+        return 'attendee_donation_form?id={}'.format(self.id)
+
+    @property
     def multiply_assigned(self):
         return len(self.dept_memberships) > 1
 

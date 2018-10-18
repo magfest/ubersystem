@@ -122,7 +122,7 @@ class Root:
             'id': id
         }
 
-    @cherrypy.expose(['post_form'])
+    @cherrypy.expose(['post_form', 'post_dealer'])
     @redirect_if_at_con_to_kiosk
     @check_if_can_reg
     def form(self, session, message='', edit_id=None, **params):
@@ -145,6 +145,9 @@ class Root:
             group_params[field_name] = params.get('group_{}'.format(field_name), '')
             if params.get('copy_address'):
                 params[field_name] = group_params[field_name]
+
+        if c.PAGE == 'post_dealer':
+            params['badge_type'] = c.PSEUDO_DEALER_BADGE
 
         if edit_id is not None:
             attendee, group = self._get_unsaved(
@@ -714,7 +717,7 @@ class Root:
                 else:
                     raise HTTPRedirect(page + 'message=' + message)
 
-        elif attendee.amount_unpaid and attendee.zip_code and not undoing_extra:
+        elif attendee.amount_unpaid and attendee.zip_code and not undoing_extra and cherrypy.request.method == 'POST':
             # Don't skip to payment until the form is filled out
             raise HTTPRedirect('attendee_donation_form?id={}&message={}', attendee.id, message)
 
@@ -747,6 +750,8 @@ class Root:
         attendee = session.attendee(id)
         if attendee.amount_unpaid <= 0:
             raise HTTPRedirect('confirm?id={}', id)
+        if 'attendee_donation_form' not in attendee.payment_page:
+            raise HTTPRedirect(attendee.payment_page)
 
         return {
             'message': message,
