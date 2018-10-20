@@ -1044,12 +1044,12 @@ GuestEmailFixture(
     'Reminder: Please complete your Guest Checklist for {EVENT_NAME}!',
     'guests/guest_checklist_reminder.html',
     lambda g: not g.checklist_completed,
-    when=days_before(7, c.GUEST_BIO_DEADLINE - timedelta(days=7)),
+    when=days_before(7, c.GUEST_INFO_DEADLINE),
     ident='guest_reminder_1')
 
 GuestEmailFixture(
     'Have you forgotten anything? Your {EVENT_NAME} Guest Checklist needs you!',
     'guests/guest_checklist_reminder.html',
     lambda g: not g.checklist_completed,
-    when=days_before(7, c.GUEST_BIO_DEADLINE),
+    when=days_after(7, c.GUEST_INFO_DEADLINE),
     ident='guest_reminder_2')
