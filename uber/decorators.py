@@ -28,6 +28,7 @@ from uber.config import c
 from uber.errors import CSRFException, HTTPRedirect
 from uber.jinja import JinjaEnv
 from uber.utils import check_csrf, report_critical_exception, ExcelWorksheetStreamWriter
+from uber.server import scrub_kwargs_for_junk
 
 
 def swallow_exceptions(func):
@@ -549,7 +550,8 @@ def renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
         try:
-            result = func(*args, **kwargs)
+            filtered_kwargs = scrub_kwargs_for_junk(kwargs)
+            result = func(*args, **filtered_kwargs)
         except CSRFException as e:
             message = "Your CSRF token is invalid. Please go back and try again."
             uber.server.log_exception_with_verbose_context(msg=str(e))
