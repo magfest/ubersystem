@@ -176,11 +176,19 @@ class MITSPicture(MagModel):
 
     @property
     def is_header(self):
-        return Image.open(self.filepath).size == tuple(map(int, c.MITS_HEADER_SIZE))
+        try:
+            return Image.open(self.filepath).size == tuple(map(int, c.MITS_HEADER_SIZE))
+        except OSError:
+            # This probably isn't an image, so it's not a header image
+            return
 
     @property
     def is_thumbnail(self):
-        return Image.open(self.filepath).size == tuple(map(int, c.MITS_THUMBNAIL_SIZE))
+        try:
+            return Image.open(self.filepath).size == tuple(map(int, c.MITS_THUMBNAIL_SIZE))
+        except OSError:
+            # This probably isn't an image, so it's not a thumbnail image
+            return
 
 
 class MITSDocument(MagModel):
