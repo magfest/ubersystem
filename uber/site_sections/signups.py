@@ -174,7 +174,7 @@ class Root:
                 elif not attendee.dept_memberships and not c.AT_THE_CON:
                     message = 'You have not been assigned to any departments; ' \
                         'an admin must assign you to a department before you can log in'
-            except Exception as ex:
+            except Exception:
                 message = 'No attendee matches that name and email address and zip code'
 
             if not message:

@@ -278,7 +278,7 @@ def sortBy(xs, attrName):
 
 @JinjaEnv.jinja_filter
 def idize(s):
-    return re.sub('\W+', '_', str(s)).strip('_')
+    return re.sub(r'\W+', '_', str(s)).strip('_')
 
 
 @JinjaEnv.jinja_filter

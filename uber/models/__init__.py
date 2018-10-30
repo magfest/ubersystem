@@ -732,7 +732,7 @@ class Session(SessionManager):
                 if isinstance(attendee.birthdate, six.string_types):
                     try:
                         birthdate = dateparser.parse(attendee.birthdate).date()
-                    except Exception as ex:
+                    except Exception:
                         log.debug('Error parsing attendee birthdate: {}'.format(attendee.birthdate))
                     else:
                         or_clauses.append(WatchList.birthdate == birthdate)
@@ -834,7 +834,7 @@ class Session(SessionManager):
             # PromoCode.id to the filter clause
             try:
                 promo_code_id = uuid.UUID(normalized_code).hex
-            except Exception as ex:
+            except Exception:
                 pass
             else:
                 clause = clause.or_(PromoCode.id == promo_code_id)
@@ -1281,7 +1281,7 @@ class Session(SessionManager):
         def logged_in_studio(self):
             try:
                 return self.indie_studio(cherrypy.session['studio_id'])
-            except Exception as ex:
+            except Exception:
                 raise HTTPRedirect('../mivs_applications/studio')
 
         def logged_in_judge(self):
@@ -1306,7 +1306,7 @@ class Session(SessionManager):
             self.delete(screenshot)
             try:
                 os.remove(screenshot.filepath)
-            except Exception as ex:
+            except Exception:
                 pass
             self.commit()
 
@@ -1332,7 +1332,7 @@ class Session(SessionManager):
                     team = self.mits_team(team.duplicate_of)
                     assert team.id not in duplicate_teams, 'circular reference in duplicate_of: {}'.format(
                         duplicate_teams)
-            except Exception as ex:
+            except Exception:
                 log.error('attempt to log into invalid team {}', team_id, exc_info=True)
                 raise HTTPRedirect('../mits_applications/login_explanation')
             else:
@@ -1343,7 +1343,7 @@ class Session(SessionManager):
             try:
                 team = self.mits_team(cherrypy.session['mits_team_id'])
                 assert not team.deleted or team.duplicate_of
-            except Exception as ex:
+            except Exception:
                 raise HTTPRedirect('../mits_applications/login_explanation')
             else:
                 if team.duplicate_of:
@@ -1369,7 +1369,7 @@ class Session(SessionManager):
         def delete_mits_file(self, model):
             try:
                 os.remove(model.filepath)
-            except Exception as ex:
+            except Exception:
                 log.error('Unexpected error deleting MITS file {}', model.filepath)
 
             # Regardless of whether removing the file from the
@@ -1455,7 +1455,7 @@ def initialize_db(modify_tables=False):
             Session.initialize_db(modify_tables=modify_tables, initialize=True)
         except KeyboardInterrupt:
             log.critical('DB initialize: Someone hit Ctrl+C while we were starting up')
-        except Exception as ex:
+        except Exception:
             num_tries_remaining -= 1
             if num_tries_remaining == 0:
                 log.error("DB initialize: couldn't connect to DB, we're giving up")
