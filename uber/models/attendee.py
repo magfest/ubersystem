@@ -477,7 +477,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                     c.EVENT_NAME + ' WatchList Notification',
                     render('emails/reg_workflow/attendee_watchlist.txt', {'attendee': self}, encoding=None),
                     model='n/a')
-            except Exception as ex:
+            except Exception:
                 log.error('unable to send banned email about {}', self, exc_info=True)
 
         elif self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name and (
@@ -1479,7 +1479,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def hotel_nights(self):
         try:
             return self.hotel_requests.nights
-        except Exception as ex:
+        except Exception:
             return []
 
     @property
