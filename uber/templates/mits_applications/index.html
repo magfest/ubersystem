@@ -156,9 +156,9 @@ This is your application for the MAGFest Indie Tabletop Showcase for your produc
       <form method="post" action="team" class="form-inline">
       <div class="btn-group">
     {% endif %}
-    <a href="panel?id={{ team.panel_app.db_id if team.panel_app else 'None' }}&schedule_id={{ team.schedule.id if team.schedule else 'None' }}"
-      {% if not team.panel_interest %} class="btn btn-success">Apply for a Panel
-      {% else %} class="btn btn-default">Update Panel Application{% endif %}
+    <a href="panel?id={{ team.panel_app.db_id if team.panel_app else 'None' }}&schedule_id={{ team.schedule.id if team.schedule else 'None' }}" class="btn
+      {% if team.panel_interest %}btn-default">Update Panel Application
+      {% else %}btn-success">Apply for a Panel{% endif %}
     </a>
 
     {% if team.panel_interest != False %}
@@ -186,9 +186,9 @@ This is your application for the MAGFest Indie Tabletop Showcase for your produc
       <div class="btn-group">
     {% endif %}
 
-    <a href="schedule?id={{ team.schedule.id if team.schedule else 'None' }}"
-      {% if not team.showcase_interest %} class="btn btn-success">Apply for the Showcase
-      {% else %} class="btn btn-default">Update Showcase Availability{% endif %}
+    <a href="schedule?id={{ team.schedule.id if team.schedule else 'None' }}" class="btn
+      {% if team.showcase_interest %}btn-default">Update Showcase Availability
+      {% else %}btn-success">Apply for the Showcase{% endif %}
     </a>
 
     {% if team.showcase_interest != False %}
@@ -213,9 +213,26 @@ This is your application for the MAGFest Indie Tabletop Showcase for your produc
     <p>Please let us know whether or not you would like to request room space.</p>
 
     <table><tr><td></td><td>
-      <a href="hotel_requests" class="btn
+    {% if not team.no_hotel_space %}
+      <form method="post" action="team" class="form-inline">
+      <div class="btn-group">
+    {% endif %}
+
+    <a href="hotel_requests" class="btn
       {% if team.completed_hotel_form %}btn-default">Update Hotel Request Information
-      {% else %}btn-success">Enter Hotel Request Information{% endif %}</a>
+      {% else %}btn-success">Enter Hotel Request Information{% endif %}
+    </a>
+
+    {% if not team.no_hotel_space %}
+      <input type="hidden" name="id" value="{{ team.id }}" />
+      <input type="hidden" name="no_hotel_space" value="1" />
+      {{ csrf_token() }}
+      <button type="submit" class="btn btn-warning">
+        {% if team.completed_hotel_form and not team.no_hotel_space %}Nevermind, {% endif %}No One Needs Hotel Space
+      </button>
+      </div>
+      </form>
+    {% endif %}
     </td></tr></table>
 {% endif %}
 

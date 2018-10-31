@@ -17,8 +17,8 @@ __all__ = ['MITSTeam', 'MITSApplicant', 'MITSGame', 'MITSPicture', 'MITSDocument
 
 class MITSTeam(MagModel):
     name = Column(UnicodeText)
-    panel_interest = Column(Boolean, nullable=True)
-    showcase_interest = Column(Boolean, nullable=True)
+    panel_interest = Column(Boolean, nullable=True, admin_only=True)
+    showcase_interest = Column(Boolean, nullable=True, admin_only=True)
     want_to_sell = Column(Boolean, default=False)
     address = Column(UnicodeText)
     submitted = Column(UTCDateTime, nullable=True)
@@ -83,11 +83,11 @@ class MITSTeam(MagModel):
 
     @property
     def completed_panel_request(self):
-        return not self.panel_interest or self.schedule.availability
+        return self.panel_interest is not None
 
     @property
     def completed_showcase_request(self):
-        return not self.showcase_interest or self.schedule.showcase_availability
+        return self.showcase_interest is not None
 
     @property
     def completed_hotel_form(self):
@@ -100,6 +100,10 @@ class MITSTeam(MagModel):
         remaining hotel info.
         """
         return any(a.declined_hotel_space or a.requested_room_nights for a in self.applicants)
+
+    @property
+    def no_hotel_space(self):
+        return all(a.declined_hotel_space for a in self.applicants)
 
     @property
     def steps_completed(self):

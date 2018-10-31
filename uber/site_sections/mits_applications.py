@@ -111,6 +111,9 @@ class Root:
                 team.showcase_interest = False
             if 'no_panel' in params:
                 team.panel_interest = False
+            if 'no_hotel_space' in params:
+                for applicant in team.applicants:
+                    applicant.declined_hotel_space = True
             message = check(team)
             if not message and team.is_new:
                 applicant.team = team
