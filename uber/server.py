@@ -35,21 +35,6 @@ def _add_email():
 cherrypy.tools.add_email_to_error_page = cherrypy.Tool('after_error_response', _add_email)
 
 
-def scrub_kwargs_for_junk(kwargs):
-    # we sometimes get passed junk parameters (from things like facebook/etc)
-    # scrub the ones that are known issues and remove them from the list.
-    #
-    # return: scrubbed list
-
-    blacklisted_items = ['fbclid']  # add more here as needed
-    filtered_kwargs = kwargs
-
-    for remove_if_foud in blacklisted_items:
-        filtered_kwargs.pop(remove_if_foud, None)
-
-    return filtered_kwargs
-
-
 def get_verbose_request_context():
     """
     Return a string with lots of information about the current cherrypy request such as
