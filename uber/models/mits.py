@@ -67,6 +67,10 @@ class MITSTeam(MagModel):
             if a.attendee_id and a.attendee.paid in [c.NEED_NOT_PAY, c.REFUNDED]])
 
     @property
+    def total_badge_count(self):
+        return len([a for a in self.applicants if a.attendee_id])
+
+    @property
     def can_add_badges(self):
         uncomped_badge_count = len([
             a for a in self.applicants

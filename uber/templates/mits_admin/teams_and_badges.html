@@ -1,0 +1,47 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}MITS Badges{% endblock %}}
+{% block content %}
+
+  <h2>MITS Teams and Badges</h2>
+  The following is a list of accepted MITS teams and their badges.
+
+  {% for team in accepted_teams %}
+    <h3>{{ team.name }}</h3>
+    Complementary badges: {{ team.comped_badge_count }}
+    <br/>Total badges: {{ team.total_badge_count }}
+    <br/>Can add badges: {{ team.can_add_badges|yesno }}
+    <table class="table table-striped">
+      <thead>
+      <tr>
+        <th>Full Name</th>
+        <th>Name on ID</th>
+        <th>Email</th>
+        <th>Badge Type</th>
+        <th>Badge #</th>
+        <th>Badge Ribbons</th>
+        <th>Comped?</th>
+      </tr>
+      </thead>
+      <tbody>
+      {% for applicant in team.applicants %}
+        {% if applicant.attendee %}
+        <tr id="{{ applicant.id }}">
+          <td>{{ applicant.attendee|form_link }}</td>
+          <td>{{ applicant.attendee.legal_name }}</td>
+          <td>{{ applicant.attendee.email|email_to_link }}</td>
+          <td>{{ applicant.attendee.badge_type_label }}</td>
+          <td>{{ applicant.attendee.badge_num }}</td>
+          <td>{{ applicant.attendee.ribbon_labels|join(", ") }}</td>
+          <td>{{ (applicant.attendee.paid in [c.NEED_NOT_PAY, c.REFUNDED])|yesno }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7"><em>No badges assigned!</em></td>
+        </tr>
+        {% endif %}
+      {% endfor %}
+      </tbody>
+    </table>
+  {% endfor %}
+
+{% endblock %}
