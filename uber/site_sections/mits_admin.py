@@ -7,7 +7,7 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, csv_file
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, MITSTeam
-from uber.utils import check_csrf
+from uber.utils import add_opt, check_csrf
 
 
 @all_renderable(c.MITS_ADMIN)
