@@ -545,9 +545,15 @@ def prettify_breadcrumb(str):
     return str.replace('_', ' ').title()
 
 
+def _remove_tracking_params(kwargs):
+    for param in c.TRACKING_PARAMS:
+        kwargs.pop(param, None)
+
+
 def renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
+        _remove_tracking_params(kwargs)
         try:
             result = func(*args, **kwargs)
         except CSRFException as e:
