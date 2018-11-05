@@ -183,8 +183,7 @@
                 </select>
             {% else %}
                 {{ group.status_label }} <br/>
-                {% if group.status != c.APPROVED %}
-                    <input type="checkbox" name="status" value="{{ c.APPROVED }}" /> Approved
+                    {% if group.status != c.APPROVED %}<input type="checkbox" name="status" value="{{ c.APPROVED }}" /> Approved{% endif %}
                     <a href="#" onClick="$('#setstatus').toggle(); return false;">Waitlist or Reject</a> <br/>
                     <div id="setstatus" style="display:none">
                         Enter an email message to be sent along with the notification: <br/>
@@ -195,7 +194,6 @@
                         <br/><button onClick="unapprove('declined', true); return false;">Reject and Convert Badges</button>
                         <p class="help-block">(Allows rejected dealers to register at the price they would have paid when they applied.)</p>
                     </div>
-                {% endif %}
             {% endif %}
         </div>
     </div>
