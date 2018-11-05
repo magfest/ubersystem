@@ -75,7 +75,10 @@
         var BADGE_TYPES = {
             row: '#badge-types',
             selector: '.badge-type-selector',
-            options: [{
+            options: [],
+        };
+        {% if not attendee or attendee.is_new or attendee.badge_type not in c.BADGE_TYPE_PRICES %}
+        BADGE_TYPES.options.push({
                 title: '{% if c.PAGE_PATH in ["/preregistration/form", "/preregistration/post_form", "/preregistration/dealer_registration", "/preregistration/post_dealer"] or undoing_extra %}Attending{% elif attendee %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
                 description: 'Allows access to the convention for its duration.',
                 extra: 0,
@@ -85,8 +88,8 @@
                 onClick: function () {
                     $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
                 }
-            }]
-        };
+        });
+        {% endif %}
         {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and c.SHIRT_AVAILABLE %}
             BADGE_TYPES.options.push({
                 title: 'Add a tshirt',
