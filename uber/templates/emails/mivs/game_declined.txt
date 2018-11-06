@@ -2,7 +2,7 @@
 
 Thank you for your game submission ({{ game.title }}) to the MAGFest Indie Videogame Showcase (MIVS).
 
-We regret to inform you that your team's scores did not qualify for booth space at MIVS.
+We regret to inform you that your game did not qualify for booth space at MIVS.
 
 If you'd still like to show your game in the MIVS area at MAGFest, you still have the opportunity with "QuickPlay"!
 
