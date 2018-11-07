@@ -7,8 +7,8 @@ import cherrypy
 import six
 from dateutil.relativedelta import relativedelta
 from pytz import UTC
-from sqlalchemy import and_, or_
-from sqlalchemy.sql.expression import extract
+from sqlalchemy import and_, or_, func
+from sqlalchemy.sql.expression import extract, literal
 from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
@@ -669,6 +669,23 @@ class Root:
             out.writerow([
                 subject, start_date, '', end_date, '', all_day, '', '', private
             ])
+
+    @csv_file
+    def checkins_by_hour(self, out, session):
+        out.writerow(["time_utc", "count"])
+        query_result = session.query(
+                func.date_trunc(literal('hour'), Attendee.checked_in),
+                func.count(func.date_trunc(literal('hour'), Attendee.checked_in))
+            ) \
+            .filter(Attendee.checked_in.isnot(None)) \
+            .group_by(func.date_trunc(literal('hour'), Attendee.checked_in)) \
+            .order_by(func.date_trunc(literal('hour'), Attendee.checked_in)) \
+            .all()
+
+        for result in query_result:
+            hour = result[0]
+            count = result[1]
+            out.writerow([hour, count])
 
     def all_attendees(self):
         raise HTTPRedirect('../export/valid_attendees')
