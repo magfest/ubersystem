@@ -407,7 +407,7 @@
           }
           var optionToSelect{{ suffix }} = $('#region{{ suffix }} option[value="{{ model[region_attr] }}"]');
           if (optionToSelect{{ suffix }}.length) {
-              optionToSelect{{ suffix }}.prop('selected', true)
+              optionToSelect{{ suffix }}.prop('selected', true);
           }
       };
 
@@ -433,13 +433,13 @@
           {% endif %}
       });
   </script>
-
+  <input type="hidden" class="address_suffixes" value="{{ suffix }}" />
   <div class="form-group address_details{{ suffix }}">
     <label for="country{{ suffix }}" class="col-sm-3 control-label{% if not is_required %} optional-field{% endif %}">{{ label_prefix }} Country</label>
     <div class="col-sm-6">
       {%- if is_readonly -%}
         <div class="form-control-static">
-            {{  model[country_attr]|linebreaksbr }}
+            {{ model[country_attr]|linebreaksbr }}
         </div>
       {%- else -%}
       <select name="{{ name_prefix }}country" id="country{{ suffix }}" class="form-control" placeholder="Country" autocorrect="off" autocomplete="country" {% if is_required %}required="required"{% endif %}>
@@ -453,7 +453,7 @@
     <div class="col-sm-6">
       {%- if is_readonly -%}
         <div class="form-control-static">
-            {{  model[address1_attr]|linebreaksbr }}
+            {{ model[address1_attr]|linebreaksbr }}
         </div>
       {%- else -%}
       <input type="text" name="{{ name_prefix }}address1" class="form-control" placeholder="Address Line 1" value="{{ model[address1_attr] }}" {% if is_required %}required="required"{% endif %}/>
@@ -465,7 +465,7 @@
     <div class="col-sm-6 col-sm-offset-3">
       {%- if is_readonly -%}
         <div class="form-control-static">
-            {{  model[address2_attr]|linebreaksbr }}
+            {{ model[address2_attr]|linebreaksbr }}
         </div>
       {%- else -%}
       <input type="text" name="{{ name_prefix }}address2" class="form-control" placeholder="Address Line 2" value="{{ model[address2_attr] }}" />
@@ -478,7 +478,7 @@
     <div class="col-sm-6">
       {%- if is_readonly -%}
         <div class="form-control-static">
-            {{  model[city_attr]|linebreaksbr }}
+            {{ model[city_attr]|linebreaksbr }}
         </div>
       {%- else -%}
       <input type="text" name="{{ name_prefix }}city" class="form-control" placeholder="City" value="{{ model[city_attr] }}" {% if is_required %}required="required"{% endif %}/>
@@ -490,7 +490,7 @@
     <div class="col-sm-6">
       {%- if is_readonly -%}
         <div class="form-control-static">
-            {{  model[region_attr]|linebreaksbr }}
+            {{ model[region_attr]|linebreaksbr }}
         </div>
       {%- else -%}
       <input type="hidden" name="{{ name_prefix }}region" value="{{ model[region_attr] }}" id="hidden_region{{ suffix }}" disabled />
