@@ -6,7 +6,7 @@ from pockets.autolog import log
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csv_file
 from uber.errors import HTTPRedirect
-from uber.models import Attendee
+from uber.models import Attendee, Person
 from uber.utils import check_csrf
 
 
@@ -99,10 +99,12 @@ class Root:
                 placeholder=True,
                 paid=c.NEED_NOT_PAY,
                 badge_type=c.ATTENDEE_BADGE,
-                first_name=applicant.first_name,
-                last_name=applicant.last_name,
-                email=applicant.email,
-                cellphone=applicant.cellphone
+                owner=Person(
+                    first_name=applicant.first_name,
+                    last_name=applicant.last_name,
+                    email=applicant.email,
+                    cellphone=applicant.cellphone
+                )
             )
             session.add(applicant.attendee)
             session.commit()

@@ -5,7 +5,7 @@ import pytest
 
 from uber.automated_emails import AutomatedEmailFixture
 from uber.jinja import JinjaEnv
-from uber.models import Attendee, AutomatedEmail, Session
+from uber.models import Attendee, AutomatedEmail, Person, Session
 
 
 __here__ = os.path.dirname(os.path.abspath(__file__))
@@ -43,7 +43,7 @@ def test_email_templates(plugins, expected, monkeypatch):
     AutomatedEmail.reconcile_fixtures()
 
     with Session() as session:
-        attendee = Attendee(first_name='Test', last_name='Email', email='test@example.com')
+        attendee = Attendee(owner=Person(first_name='Test', last_name='Email', email='test@example.com'))
         for i in range(1, 4):
             automated_email = session.query(AutomatedEmail).filter_by(ident='test_template_{}'.format(i)).one()
             for i in range(1, 4):

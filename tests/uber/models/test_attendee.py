@@ -8,7 +8,7 @@ from pytz import UTC
 from uber import config
 from uber.config import c
 from uber.models import Attendee, Department, DeptMembership, DeptMembershipRequest, DeptRole, FoodRestrictions, \
-    Group, Job, Session, Shift
+    Group, Job, Person, Session, Shift
 from uber.model_checks import extra_donation_valid, _invalid_phone_number
 
 
@@ -111,7 +111,7 @@ def test_is_unpaid():
 # at the moment I'm basically just testing an implementation detail
 def test_is_unassigned():
     assert Attendee().is_unassigned
-    assert not Attendee(first_name='x').is_unassigned
+    assert not Attendee(owner=Person(first_name='x')).is_unassigned
 
 
 def test_is_dealer():
@@ -184,25 +184,25 @@ def test_unassigned_name(monkeypatch):
 
 
 def test_full_name(monkeypatch):
-    assert 'x y' == Attendee(first_name='x', last_name='y').full_name
+    assert 'x y' == Attendee(owner=Person(first_name='x', last_name='y')).full_name
     monkeypatch.setattr(Attendee, 'unassigned_name', 'xxx')
-    assert 'xxx' == Attendee(first_name='x', last_name='y').full_name
+    assert 'xxx' == Attendee(owner=Person(first_name='x', last_name='y')).full_name
 
 
 def test_last_first(monkeypatch):
-    assert 'y, x' == Attendee(first_name='x', last_name='y').last_first
+    assert 'y, x' == Attendee(owner=Person(first_name='x', last_name='y')).last_first
     monkeypatch.setattr(Attendee, 'unassigned_name', 'xxx')
-    assert 'xxx' == Attendee(first_name='x', last_name='y').last_first
+    assert 'xxx' == Attendee(owner=Person(first_name='x', last_name='y')).last_first
 
 
 def test_legal_name_same_as_full_name():
-    same_legal_name = Attendee(first_name='First', last_name='Last', legal_name='First Last')
+    same_legal_name = Attendee(owner=Person(first_name='First', last_name='Last', legal_name='First Last'))
     same_legal_name._misc_adjustments()
     assert '' == same_legal_name.legal_name
 
 
 def test_legal_name_diff_from_full_name():
-    diff_legal_name = Attendee(first_name='first', last_name='last', legal_name='diff name')
+    diff_legal_name = Attendee(owner=Person(first_name='first', last_name='last', legal_name='diff name'))
     diff_legal_name._misc_adjustments()
     assert 'diff name' == diff_legal_name.legal_name
 
@@ -261,7 +261,7 @@ def test_has_role_somewhere(dept, trusted_role):
 def test_requested_any_dept():
     dept1 = Department(name='Dept1', description='Dept1')
     dept2 = Department(name='Dept2', description='Dept2')
-    volunteer = Attendee(paid=c.HAS_PAID, first_name='V', last_name='One')
+    volunteer = Attendee(paid=c.HAS_PAID, owner=Person(first_name='V', last_name='One'))
     volunteer.dept_membership_requests = [
         DeptMembershipRequest(attendee=volunteer)]
 
@@ -320,7 +320,7 @@ def test_must_contact():
         slots=1,
         department=dept2)
 
-    volunteer = Attendee(paid=c.HAS_PAID, first_name='V', last_name='One')
+    volunteer = Attendee(paid=c.HAS_PAID, owner=Person(first_name='V', last_name='One'))
 
     job1.shifts = [Shift(attendee=volunteer, job=job1)]
     job2.shifts = [Shift(attendee=volunteer, job=job2)]
@@ -466,11 +466,11 @@ class TestUnsetVolunteer:
         assert not a.checked_in
 
     def test_names(self):
-        a = Attendee(first_name='nac', last_name='mac Feegle')
+        a = Attendee(owner=Person(first_name='nac', last_name='mac Feegle'))
         a._misc_adjustments()
         assert a.full_name == 'Nac mac Feegle'
 
-        a = Attendee(first_name='NAC', last_name='mac feegle')
+        a = Attendee(owner=Person(first_name='NAC', last_name='mac feegle'))
         a._misc_adjustments()
         assert a.full_name == 'Nac Mac Feegle'
 
@@ -599,12 +599,12 @@ class TestBadgeAdjustments:
 
 class TestStatusAdjustments:
     def test_set_paid_to_complete(self):
-        a = Attendee(paid=c.HAS_PAID, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=False)
+        a = Attendee(paid=c.HAS_PAID, badge_status=c.NEW_STATUS, owner=Person(first_name='Paid'), placeholder=False)
         a._status_adjustments()
         assert a.badge_status == c.COMPLETED_STATUS
 
     def test_set_comped_to_complete(self):
-        a = Attendee(paid=c.NEED_NOT_PAY, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=False)
+        a = Attendee(paid=c.NEED_NOT_PAY, badge_status=c.NEW_STATUS, owner=Person(first_name='Paid'), placeholder=False)
         a._status_adjustments()
         assert a.badge_status == c.COMPLETED_STATUS
 
@@ -614,7 +614,9 @@ class TestStatusAdjustments:
         a = Attendee(
             paid=c.PAID_BY_GROUP,
             badge_status=c.NEW_STATUS,
-            first_name='Paid',
+            owner=Person(
+                first_name='Paid'
+            ),
             placeholder=False,
             group=g,
             group_id=g.id)
@@ -625,22 +627,22 @@ class TestStatusAdjustments:
     def test_unpaid_group_not_completed(self, monkeypatch):
         monkeypatch.setattr(Group, 'amount_unpaid', 100)
         g = Group()
-        a = Attendee(paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=False, group=g)
+        a = Attendee(paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS, owner=Person(first_name='Paid'), placeholder=False, group=g)
         a._status_adjustments()
         assert a.badge_status == c.NEW_STATUS
 
     def test_placeholder_not_completed(self):
-        a = Attendee(paid=c.NEED_NOT_PAY, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=True)
+        a = Attendee(paid=c.NEED_NOT_PAY, badge_status=c.NEW_STATUS, owner=Person(first_name='Paid'), placeholder=True)
         a._status_adjustments()
         assert a.badge_status == c.NEW_STATUS
 
     def test_unassigned_not_completed(self):
-        a = Attendee(paid=c.NEED_NOT_PAY, badge_status=c.NEW_STATUS, first_name='')
+        a = Attendee(paid=c.NEED_NOT_PAY, badge_status=c.NEW_STATUS)
         a._status_adjustments()
         assert a.badge_status == c.NEW_STATUS
 
     def test_banned_to_deferred(self, monkeypatch):
-        a = Attendee(paid=c.HAS_PAID, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=False)
+        a = Attendee(paid=c.HAS_PAID, badge_status=c.NEW_STATUS, owner=Person(first_name='Paid'), placeholder=False)
         monkeypatch.setattr(Attendee, 'banned', True)
         a._status_adjustments()
         assert a.badge_status == c.WATCHED_STATUS
@@ -652,42 +654,52 @@ class TestLookupAttendee:
         with Session() as session:
             attendee = Attendee(
                 placeholder=True,
-                first_name='Searchable',
-                last_name='Attendee',
-                email='searchable@example.com',
-                zip_code='12345'
+                owner=Person(
+                    first_name='Searchable',
+                    last_name='Attendee',
+                    email='searchable@example.com',
+                    zip_code='12345'
+                )
             )
             session.add(attendee)
             session.add(Attendee(
                 placeholder=True,
-                first_name='Two First',
-                last_name='Names',
-                email='searchable@example.com',
-                zip_code='12345'
+                owner=Person(
+                    first_name='Two First',
+                    last_name='Names',
+                    email='searchable@example.com',
+                    zip_code='12345'
+                )
             ))
             session.add(Attendee(
                 placeholder=True,
-                first_name='Two',
-                last_name='Last Names',
-                email='searchable@example.com',
-                zip_code='12345'
+                owner=Person(
+                    first_name='Two',
+                    last_name='Last Names',
+                    email='searchable@example.com',
+                    zip_code='12345'
+                )
             ))
 
             for status in [c.NEW_STATUS, c.INVALID_STATUS, c.REFUNDED_STATUS]:
                 session.add(Attendee(
                     placeholder=True,
-                    first_name='Duplicate',
-                    last_name=c.BADGE_STATUS[status],
-                    email='duplicate@example.com',
-                    zip_code='12345',
+                    owner=Person(
+                        first_name='Duplicate',
+                        last_name=c.BADGE_STATUS[status],
+                        email='duplicate@example.com',
+                        zip_code='12345'
+                    ),
                     badge_status=status
                 ))
                 session.add(Attendee(
                     placeholder=True,
-                    first_name='Duplicate',
-                    last_name=c.BADGE_STATUS[status],
-                    email='duplicate@example.com',
-                    zip_code='12345',
+                    owner=Person(
+                        first_name='Duplicate',
+                        last_name=c.BADGE_STATUS[status],
+                        email='duplicate@example.com',
+                        zip_code='12345'
+                    ),
                     badge_status=c.COMPLETED_STATUS
                 ))
 
@@ -789,25 +801,25 @@ class TestPhoneNumberValidations:
 
 class TestNormalizedEmail:
     def test_good_email(self):
-        attendee = Attendee(email='joe@gmail.com')
+        attendee = Attendee(owner=Person(email='joe@gmail.com'))
         assert attendee.normalized_email == 'joe@gmailcom'
 
     def test_dots(self):
-        attendee = Attendee(email='j.o.e@gmail.com')
+        attendee = Attendee(owner=Person(email='j.o.e@gmail.com'))
         assert attendee.normalized_email == 'joe@gmailcom'
 
     def test_capitalized_beginning(self):
-        attendee = Attendee(email='JOE@gmail.com')
+        attendee = Attendee(owner=Person(email='JOE@gmail.com'))
         assert attendee.normalized_email == 'joe@gmailcom'
 
     def test_capitalized_end(self):
-        attendee = Attendee(email='joe@GMAIL.COM')
+        attendee = Attendee(owner=Person(email='joe@GMAIL.COM'))
         assert attendee.normalized_email == 'joe@gmailcom'
 
     def test_alternating_caps(self):
-        attendee = Attendee(email='jOe@GmAiL.cOm')
+        attendee = Attendee(owner=Person(email='jOe@GmAiL.cOm'))
         assert attendee.normalized_email == 'joe@gmailcom'
 
     def test_empty_string(self):
-        attendee = Attendee(email='')
+        attendee = Attendee(owner=Person(email=''))
         assert attendee.normalized_email == ''

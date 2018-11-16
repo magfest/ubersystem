@@ -216,7 +216,7 @@ def group_leader_under_13(attendee):
 @prereg_validation.Attendee
 def total_cost_over_paid(attendee):
     if attendee.total_cost < attendee.amount_paid:
-        if (not attendee.orig_value_of('birthdate') or attendee.orig_value_of('birthdate') < attendee.birthdate) \
+        if (not attendee.owner.orig_value_of('birthdate') or attendee.owner.orig_value_of('birthdate') < attendee.owner.birthdate) \
                 and attendee.age_group_conf['val'] in [c.UNDER_6, c.UNDER_13]:
             return 'The date of birth you entered incurs a discount; ' \
                 'please email {} to change your badge and receive a refund'.format(c.REGDESK_EMAIL)
@@ -265,9 +265,9 @@ def promo_code_has_uses_remaining(attendee):
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def full_name(attendee):
-    if not attendee.first_name:
+    if not attendee.owner.first_name:
         return 'First Name is a required field'
-    elif not attendee.last_name:
+    elif not attendee.owner.last_name:
         return 'Last Name is a required field'
 
 
@@ -285,9 +285,9 @@ def allowed_to_volunteer(attendee):
 @ignore_unassigned_and_placeholders
 def age(attendee):
     if c.COLLECT_EXACT_BIRTHDATE:
-        if not attendee.birthdate:
+        if not attendee.owner.birthdate:
             return 'Please enter a date of birth.'
-        elif attendee.birthdate > date.today():
+        elif attendee.owner.birthdate > date.today():
             return 'You cannot be born in the future.'
     elif not attendee.age_group:
         return 'Please enter your age group'
@@ -303,9 +303,9 @@ def allowed_to_register(attendee):
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def email(attendee):
-    if len(attendee.email) > 255:
+    if len(attendee.owner.email) > 255:
         return 'Email addresses cannot be longer than 255 characters.'
-    elif not attendee.email and not c.AT_OR_POST_CON:
+    elif not attendee.owner.email and not c.AT_OR_POST_CON:
         return 'Please enter an email address.'
 
 
@@ -313,7 +313,7 @@ def email(attendee):
 def attendee_email_valid(attendee):
     if attendee.email:
         try:
-            validate_email(attendee.email)
+            validate_email(attendee.owner.email)
         except EmailNotValidError as e:
             message = str(e)
             return 'Enter a valid email address. ' + message
@@ -323,13 +323,13 @@ def attendee_email_valid(attendee):
 @ignore_unassigned_and_placeholders
 def address(attendee):
     if c.COLLECT_FULL_ADDRESS:
-        if not attendee.address1:
+        if not attendee.owner.address1:
             return 'Please enter a street address.'
-        if not attendee.city:
+        if not attendee.owner.city:
             return 'Please enter a city.'
-        if not attendee.region and attendee.country in ['United States', 'Canada']:
+        if not attendee.owner.region and attendee.owner.country in ['United States', 'Canada']:
             return 'Please enter a state, province, or region.'
-        if not attendee.country:
+        if not attendee.owner.country:
             return 'Please enter a country.'
 
 
@@ -337,16 +337,16 @@ def address(attendee):
 @ignore_unassigned_and_placeholders
 def zip_code(attendee):
     if not attendee.international and not c.AT_OR_POST_CON:
-        if _invalid_zip_code(attendee.zip_code):
+        if _invalid_zip_code(attendee.owner.zip_code):
             return 'Enter a valid zip code'
 
 
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def emergency_contact(attendee):
-    if not attendee.ec_name:
+    if not attendee.owner.ec_name:
         return 'Please tell us the name of your emergency contact.'
-    if not attendee.international and _invalid_phone_number(attendee.ec_phone):
+    if not attendee.international and _invalid_phone_number(attendee.owner.ec_phone):
         if c.COLLECT_FULL_ADDRESS:
             return 'Enter a 10-digit US phone number or include a ' \
                 'country code (e.g. +44) for your emergency contact number.'
@@ -357,25 +357,25 @@ def emergency_contact(attendee):
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def cellphone(attendee):
-    if attendee.cellphone and _invalid_phone_number(attendee.cellphone):
+    if attendee.owner.cellphone and _invalid_phone_number(attendee.cellphone):
         # phone number was inputted incorrectly
         return 'Your phone number was not a valid 10-digit US phone number. ' \
             'Please include a country code (e.g. +44) for international numbers.'
 
-    if not attendee.no_cellphone and attendee.staffing and not attendee.cellphone:
+    if not attendee.no_cellphone and attendee.staffing and not attendee.owner.cellphone:
         return "Phone number is required for volunteers (unless you don't own a cellphone)"
 
 
 @prereg_validation.Attendee
 def dealer_cellphone(attendee):
-    if attendee.badge_type == c.PSEUDO_DEALER_BADGE and not attendee.cellphone:
+    if attendee.badge_type == c.PSEUDO_DEALER_BADGE and not attendee.owner.cellphone:
         return 'Your phone number is required'
 
 
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def emergency_contact_not_cellphone(attendee):
-    if not attendee.international and attendee.cellphone and attendee.cellphone == attendee.ec_phone:
+    if not attendee.international and attendee.owner.cellphone and attendee.owner.cellphone == attendee.owner.ec_phone:
         return "Your phone number cannot be the same as your emergency contact number"
 
 
@@ -399,8 +399,8 @@ def group_leadership(attendee):
 
 @validation.Attendee
 def banned_volunteer(attendee):
-    if (c.VOLUNTEER_RIBBON in attendee.ribbon_ints or attendee.staffing) and attendee.full_name in c.BANNED_STAFFERS:
-        return "We've declined to invite {} back as a volunteer, ".format(attendee.full_name) + (
+    if (c.VOLUNTEER_RIBBON in attendee.ribbon_ints or attendee.staffing) and attendee.owner.full_name in c.BANNED_STAFFERS:
+        return "We've declined to invite {} back as a volunteer, ".format(attendee.owner.full_name) + (
                     'talk to Stops to override if necessary' if c.AT_THE_CON else
                     'Please contact us via {} if you believe this is in error'.format(c.CONTACT_URL))
 

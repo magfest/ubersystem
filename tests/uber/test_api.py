@@ -8,7 +8,7 @@ from cherrypy import HTTPError
 from tests.uber.conftest import csrf_token
 from uber.api import auth_by_token, auth_by_session, api_auth, all_api_auth
 from uber.config import c
-from uber.models import AdminAccount, Attendee, ApiToken, Session
+from uber.models import AdminAccount, Attendee, ApiToken, Person, Session
 from uber.utils import check
 
 
@@ -116,7 +116,7 @@ class TestCheckAdminAccount(object):
         session.commit()
         session.refresh(admin_account)
 
-        test_attendee = Attendee(email='test@example.com')
+        test_attendee = Attendee(owner=Person(email='test@example.com'))
         session.add(test_attendee)
         session.commit()
         test_admin_account = AdminAccount(
@@ -135,7 +135,7 @@ class TestCheckAdminAccount(object):
         session.commit()
         session.refresh(admin_account)
 
-        test_attendee = Attendee(email='test@example.com')
+        test_attendee = Attendee(owner=Person(email='test@example.com'))
         session.add(test_attendee)
 
         test_admin_account = AdminAccount(
@@ -159,7 +159,7 @@ class TestCheckAdminAccount(object):
         session.commit()
         session.refresh(admin_account)
 
-        test_attendee = Attendee(email='test@example.com')
+        test_attendee = Attendee(owner=Person(email='test@example.com'))
         session.add(test_attendee)
 
         test_admin_account = AdminAccount(

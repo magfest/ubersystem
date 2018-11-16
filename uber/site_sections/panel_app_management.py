@@ -10,7 +10,7 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file
 from uber.errors import HTTPRedirect
 from uber.models import AssignedPanelist, Attendee, AutomatedEmail, Event, EventFeedback, \
-    PanelApplicant, PanelApplication
+    PanelApplicant, PanelApplication, Person
 from uber.utils import add_opt, check
 
 
@@ -174,10 +174,12 @@ class Root:
                 paid=c.NEED_NOT_PAY,
                 ribbon=c.PANELIST_RIBBON,
                 badge_type=c.ATTENDEE_BADGE,
-                first_name=pa.first_name,
-                last_name=pa.last_name,
-                email=pa.email,
-                cellphone=pa.cellphone
+                owner=Person(
+                    first_name=pa.first_name,
+                    last_name=pa.last_name,
+                    email=pa.email,
+                    cellphone=pa.cellphone
+                )
             )
             session.add(attendee)
 

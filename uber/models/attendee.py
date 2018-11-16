@@ -9,10 +9,10 @@ from pockets import cached_property, classproperty, groupify, listify, is_listy,
 from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import and_, case, func, or_
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import backref, subqueryload
+from sqlalchemy.orm import backref, subqueryload, column_property
 from sqlalchemy.schema import ForeignKey, Index, UniqueConstraint
 from sqlalchemy.types import Boolean, Date, Integer
 
@@ -151,11 +151,190 @@ def _generate_hotel_pin():
     return '{:07d}'.format(random.randint(0, 9999999))
 
 
+class Person(MagModel):
+    first_name = Column(UnicodeText)
+    last_name = Column(UnicodeText)
+    legal_name = Column(UnicodeText)
+    full_name = column_property(first_name + " " + last_name)
+    last_first = column_property(last_name + " " + first_name)
+    email = Column(UnicodeText)
+    birthdate = Column(Date, nullable=True, default=None)
+    zip_code = Column(UnicodeText)
+    address1 = Column(UnicodeText)
+    address2 = Column(UnicodeText)
+    city = Column(UnicodeText)
+    region = Column(UnicodeText)
+    country = Column(UnicodeText)
+    ec_name = Column(UnicodeText)
+    ec_phone = Column(UnicodeText)
+    cellphone = Column(UnicodeText)
+
+    @presave_adjustment
+    def _misc_adjustments(self):
+        for attr in ['first_name', 'last_name']:
+            value = getattr(self, attr)
+            if value.isupper() or value.islower():
+                setattr(self, attr, value.title())
+
+        if self.legal_name and self.full_name == self.legal_name:
+            self.legal_name = ''
+
+    @hybrid_property
+    def normalized_email(self):
+        return self.normalize_email(self.email)
+
+    @normalized_email.expression
+    def normalized_email(cls):
+        return func.replace(func.lower(func.trim(cls.email)), '.', '')
+
+    @classmethod
+    def normalize_email(cls, email):
+        return email.strip().lower().replace('.', '')
+
+    @property
+    def legal_first_name(self):
+        """
+        Hotel exports need split legal names, but we don't collect split
+        legal names, so we're going to have to guess.
+
+        Returns one of the following:
+            The first part of the legal name, if the legal name ends with
+                the last name
+            The first part of the legal name before a space, if the legal
+                name has multiple parts
+            The legal name itself, if the legal name is one word -- this is
+                because attendees are more likely to use a different first
+                name than their legal name, so might just enter,
+                e.g. "Victoria" for their legal name
+            The first name, if there is no legal name
+        """
+        if self.legal_name:
+            legal_name = re.sub(r'\s+', ' ', self.legal_name.strip())
+            last_name = re.sub(r'\s+', ' ', self.last_name.strip())
+            low_legal_name = legal_name.lower()
+            low_last_name = last_name.lower()
+            if low_legal_name.endswith(low_last_name):
+                # Catches 95% of the cases.
+                return legal_name[:-len(last_name)].strip()
+            else:
+                norm_legal_name = re.sub(r'[,\.]', '', low_legal_name)
+                norm_last_name = re.sub(r'[,\.]', '', low_last_name)
+                # Before iterating through all the suffixes, check to make
+                # sure the last name is even part of the legal name.
+                start_index = norm_legal_name.rfind(norm_last_name)
+                if start_index >= 0:
+                    actual_suffix_index = start_index + len(norm_last_name)
+                    actual_suffix = norm_legal_name[
+                                    actual_suffix_index:].strip()
+
+                    for suffix in normalized_name_suffixes:
+                        actual_suffix = re.sub(suffix, '',
+                                               actual_suffix).strip()
+
+                        if not actual_suffix:
+                            index = low_legal_name.rfind(low_last_name)
+                            if index >= 0:
+                                return legal_name[:index].strip()
+                            # Should never get here, but if we do, we should
+                            # stop iterating because none of the remaining
+                            # suffixes will match.
+                            break
+
+                if ' ' in legal_name:
+                    return legal_name.split(' ', 1)[0]
+                return legal_name
+
+        return self.first_name
+
+    @property
+    def legal_last_name(self):
+        """
+        Hotel exports need split legal names, but we don't collect split
+        legal names, so we're going to have to guess.
+
+        Returns one of the following:
+            The second part of the legal name, if the legal name starts
+                with the legal first name
+            The second part of the legal name after a space, if the
+                legal name has multiple parts
+            The last name, if there is no legal name or if the legal name
+                is just one word
+        """
+        if self.legal_name:
+            legal_name = re.sub(r'\s+', ' ', self.legal_name.strip())
+            legal_first_name = re.sub(r'\s+', ' ',
+                                      self.legal_first_name.strip())
+
+            if legal_name.lower().startswith(legal_first_name.lower()):
+                return legal_name[len(legal_first_name):].strip()
+            elif ' ' in legal_name:
+                return legal_name.split(' ', 1)[1]
+        return self.last_name
+
+        # =========================
+        # attractions
+        # =========================
+
+    @property
+    def attraction_features(self):
+        return list({e.feature for e in self.attraction_events})
+
+    @property
+    def attractions(self):
+        return list({e.feature.attraction for e in self.attraction_events})
+
+    @property
+    def masked_email(self):
+        name, _, domain = self.email.partition('@')
+        sub_domain, _, tld = domain.rpartition('.')
+        return '{}@{}.{}'.format(mask_string(name),
+                                 mask_string(sub_domain), tld)
+
+    @property
+    def masked_cellphone(self):
+        cellphone = RE_NONDIGIT.sub(' ', self.cellphone).strip()
+        digits = cellphone.replace(' ', '')
+        return '*' * (len(cellphone) - 4) + digits[-4:]
+
+
 class Attendee(MagModel, TakesPaymentMixin):
-    watchlist_id = Column(UUID, ForeignKey('watch_list.id', ondelete='set null'), nullable=True, default=None)
-    group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
+    owner_id = Column(UUID, ForeignKey('person.id', ondelete='SET NULL'),
+                      nullable=True)
+    owner = relationship(Person, backref='attendees', lazy='joined',
+                         foreign_keys=owner_id,
+                         cascade='save-update,merge,refresh-expire,expunge')
+    group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'),
+                      nullable=True)
     group = relationship(
         Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
+    watchlist_id = Column(UUID,
+                          ForeignKey('watch_list.id', ondelete='set null'),
+                          nullable=True, default=None)
+    admin_account = relationship('AdminAccount',
+                                 backref=backref('attendee',
+                                                 load_on_pending=True),
+                                 uselist=False)
+
+    first_name = column_property(Person.first_name)
+    last_name = column_property(Person.last_name)
+    legal_name = column_property(Person.legal_name)
+    email = column_property(Person.email)
+    birthdate = column_property(Person.birthdate)
+    zip_code = column_property(Person.zip_code)
+    address1 = column_property(Person.address1)
+    address2 = column_property(Person.address2)
+    city = column_property(Person.city)
+    region = column_property(Person.region)
+    country = column_property(Person.country)
+    ec_name = column_property(Person.ec_name)
+    ec_phone = column_property(Person.ec_phone)
+    cellphone = column_property(Person.cellphone)
+
+    PERSON_FIELDS = [
+        'first_name', 'last_name', 'legal_name', 'email', 'birthdate',
+        'country', 'region', 'zip_code', 'address1', 'address2', 'city',
+        'ec_name', 'ec_phone', 'cellphone'
+    ]
 
     # NOTE: The cascade relationships for promo_code do NOT include
     # "save-update". During the preregistration workflow, before an Attendee
@@ -175,24 +354,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         cascade='merge,refresh-expire,expunge')
 
     placeholder = Column(Boolean, default=False, admin_only=True, index=True)
-    first_name = Column(UnicodeText)
-    last_name = Column(UnicodeText)
-    legal_name = Column(UnicodeText)
-    email = Column(UnicodeText)
-    birthdate = Column(Date, nullable=True, default=None)
     age_group = Column(Choice(c.AGE_GROUPS), default=c.AGE_UNKNOWN, nullable=True)
-
     international = Column(Boolean, default=False)
-    zip_code = Column(UnicodeText)
-    address1 = Column(UnicodeText)
-    address2 = Column(UnicodeText)
-    city = Column(UnicodeText)
-    region = Column(UnicodeText)
-    country = Column(UnicodeText)
     no_cellphone = Column(Boolean, default=False)
-    ec_name = Column(UnicodeText)
-    ec_phone = Column(UnicodeText)
-    cellphone = Column(UnicodeText)
 
     # Represents a request for hotel booking info during preregistration
     requested_hotel_info = Column(Boolean, default=False)
@@ -351,7 +515,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     # (which type? swag or staff? prob swag)
     no_shirt = relationship('NoShirt', backref=backref('attendee', load_on_pending=True), uselist=False)
 
-    admin_account = relationship('AdminAccount', backref=backref('attendee', load_on_pending=True), uselist=False)
     food_restrictions = relationship(
         'FoodRestrictions', backref=backref('attendee', load_on_pending=True), uselist=False)
 
@@ -413,6 +576,141 @@ class Attendee(MagModel, TakesPaymentMixin):
     __table_args__ = tuple(_attendee_table_args)
     _repr_attr_names = ['full_name']
 
+
+    # TODO: MOVE TO PERSON CLASS
+    @hybrid_property
+    def normalized_email(self):
+        return self.normalize_email(self.email)
+
+    @normalized_email.expression
+    def normalized_email(cls):
+        return func.replace(func.lower(func.trim(cls.email)), '.', '')
+
+    @classmethod
+    def normalize_email(cls, email):
+        return email.strip().lower().replace('.', '')
+
+    @property
+    def watchlist_guess(self):
+        try:
+            from uber.models import Session
+            with Session() as session:
+                watchentries = session.guess_attendee_watchentry(self)
+                return [w.to_dict() for w in watchentries]
+        except Exception as ex:
+            log.warning('Error guessing watchlist entry: {}', ex)
+            return None
+
+    @property
+    def banned(self):
+        return listify(self.watch_list or self.watchlist_guess)
+
+    @property
+    def legal_first_name(self):
+        """
+        Hotel exports need split legal names, but we don't collect split
+        legal names, so we're going to have to guess.
+
+        Returns one of the following:
+            The first part of the legal name, if the legal name ends with
+                the last name
+            The first part of the legal name before a space, if the legal
+                name has multiple parts
+            The legal name itself, if the legal name is one word -- this is
+                because attendees are more likely to use a different first
+                name than their legal name, so might just enter,
+                e.g. "Victoria" for their legal name
+            The first name, if there is no legal name
+        """
+        if self.legal_name:
+            legal_name = re.sub(r'\s+', ' ', self.legal_name.strip())
+            last_name = re.sub(r'\s+', ' ', self.last_name.strip())
+            low_legal_name = legal_name.lower()
+            low_last_name = last_name.lower()
+            if low_legal_name.endswith(low_last_name):
+                # Catches 95% of the cases.
+                return legal_name[:-len(last_name)].strip()
+            else:
+                norm_legal_name = re.sub(r'[,\.]', '', low_legal_name)
+                norm_last_name = re.sub(r'[,\.]', '', low_last_name)
+                # Before iterating through all the suffixes, check to make
+                # sure the last name is even part of the legal name.
+                start_index = norm_legal_name.rfind(norm_last_name)
+                if start_index >= 0:
+                    actual_suffix_index = start_index + len(norm_last_name)
+                    actual_suffix = norm_legal_name[
+                                    actual_suffix_index:].strip()
+
+                    for suffix in normalized_name_suffixes:
+                        actual_suffix = re.sub(suffix, '',
+                                               actual_suffix).strip()
+
+                        if not actual_suffix:
+                            index = low_legal_name.rfind(low_last_name)
+                            if index >= 0:
+                                return legal_name[:index].strip()
+                            # Should never get here, but if we do, we should
+                            # stop iterating because none of the remaining
+                            # suffixes will match.
+                            break
+
+                if ' ' in legal_name:
+                    return legal_name.split(' ', 1)[0]
+                return legal_name
+
+        return self.first_name
+
+    @property
+    def legal_last_name(self):
+        """
+        Hotel exports need split legal names, but we don't collect split
+        legal names, so we're going to have to guess.
+
+        Returns one of the following:
+            The second part of the legal name, if the legal name starts
+                with the legal first name
+            The second part of the legal name after a space, if the
+                legal name has multiple parts
+            The last name, if there is no legal name or if the legal name
+                is just one word
+        """
+        if self.legal_name:
+            legal_name = re.sub(r'\s+', ' ', self.legal_name.strip())
+            legal_first_name = re.sub(r'\s+', ' ',
+                                      self.legal_first_name.strip())
+
+            if legal_name.lower().startswith(legal_first_name.lower()):
+                return legal_name[len(legal_first_name):].strip()
+            elif ' ' in legal_name:
+                return legal_name.split(' ', 1)[1]
+        return self.last_name
+
+        # =========================
+        # attractions
+        # =========================
+
+    @property
+    def attraction_features(self):
+        return list({e.feature for e in self.attraction_events})
+
+    @property
+    def attractions(self):
+        return list({e.feature.attraction for e in self.attraction_events})
+
+    @property
+    def masked_email(self):
+        name, _, domain = self.email.partition('@')
+        sub_domain, _, tld = domain.rpartition('.')
+        return '{}@{}.{}'.format(mask_string(name),
+                                 mask_string(sub_domain), tld)
+
+    @property
+    def masked_cellphone(self):
+        cellphone = RE_NONDIGIT.sub(' ', self.cellphone).strip()
+        digits = cellphone.replace(' ', '')
+        return '*' * (len(cellphone) - 4) + digits[-4:]
+    # END TODO:
+
     @predelete_adjustment
     def _shift_badges(self):
         is_skipped = getattr(self, '_skip_badge_shift_on_delete', False)
@@ -423,9 +721,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     def _misc_adjustments(self):
         if not self.amount_extra:
             self.affiliate = ''
-
-        if self.birthdate == '':
-            self.birthdate = None
 
         if not self.extra_donation:
             self.extra_donation = 0
@@ -448,14 +743,6 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.birthdate:
             self.age_group = self.age_group_conf['val']
-
-        for attr in ['first_name', 'last_name']:
-            value = getattr(self, attr)
-            if value.isupper() or value.islower():
-                setattr(self, attr, value.title())
-
-        if self.legal_name and self.full_name == self.legal_name:
-            self.legal_name = ''
 
     @presave_adjustment
     def _status_adjustments(self):
@@ -636,10 +923,10 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def age_group_conf(self):
-        if self.birthdate:
+        if self.owner and self.owner.birthdate:
             day = c.EPOCH.date() if date.today() <= c.EPOCH.date() else localized_now().date()
 
-            attendee_age = get_age_from_birthday(self.birthdate, day)
+            attendee_age = get_age_from_birthday(self.owner.birthdate, day)
             for val, age_group in c.AGE_GROUP_CONFIGS.items():
                 if val != c.AGE_UNKNOWN and age_group['min_age'] <= attendee_age \
                         and attendee_age <= age_group['max_age']:
@@ -681,11 +968,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def is_unassigned(self):
-        return not self.first_name
+        return not self.owner
 
     @is_unassigned.expression
     def is_unassigned(cls):
-        return cls.first_name == ''
+        return cls.owner_id is None
 
     @hybrid_property
     def is_dealer(self):
@@ -773,13 +1060,14 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def full_name(self):
-        return self.unassigned_name or '{self.first_name} {self.last_name}'.format(self=self)
+        return self.unassigned_name or self.owner.full_name
 
     @full_name.expression
     def full_name(cls):
         return case(
-            [(or_(cls.first_name == None, cls.first_name == ''), 'zzz')],  # noqa: E711
-            else_=func.lower(cls.first_name + ' ' + cls.last_name))
+            [(or_(cls.owner_id == None), 'zzz')],  # noqa: E711
+            else_=select([Person.full_name]).where(
+                cls.owner_id == Person.id).as_scalar())
 
     @hybrid_property
     def last_first(self):
@@ -788,35 +1076,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     @last_first.expression
     def last_first(cls):
         return case(
-            [(or_(cls.first_name == None, cls.first_name == ''), 'zzz')],  # noqa: E711
-            else_=func.lower(cls.last_name + ', ' + cls.first_name))
-
-    @hybrid_property
-    def normalized_email(self):
-        return self.normalize_email(self.email)
-
-    @normalized_email.expression
-    def normalized_email(cls):
-        return func.replace(func.lower(func.trim(cls.email)), '.', '')
-
-    @classmethod
-    def normalize_email(cls, email):
-        return email.strip().lower().replace('.', '')
-
-    @property
-    def watchlist_guess(self):
-        try:
-            from uber.models import Session
-            with Session() as session:
-                watchentries = session.guess_attendee_watchentry(self)
-                return [w.to_dict() for w in watchentries]
-        except Exception as ex:
-            log.warning('Error guessing watchlist entry: {}', ex)
-            return None
-
-    @property
-    def banned(self):
-        return listify(self.watch_list or self.watchlist_guess)
+            [(or_(cls.owner_id == None), 'zzz')],  # noqa: E711
+            else_=select([Person.last_first]).where(
+                cls.owner_id == Person.id).as_scalar())
 
     @property
     def badge(self):
@@ -1482,83 +1744,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         else:
             return 'Hotel nights: ' + hr.nights_display
 
-    @property
-    def legal_first_name(self):
-        """
-        Hotel exports need split legal names, but we don't collect split
-        legal names, so we're going to have to guess.
-
-        Returns one of the following:
-            The first part of the legal name, if the legal name ends with
-                the last name
-            The first part of the legal name before a space, if the legal
-                name has multiple parts
-            The legal name itself, if the legal name is one word -- this is
-                because attendees are more likely to use a different first
-                name than their legal name, so might just enter,
-                e.g. "Victoria" for their legal name
-            The first name, if there is no legal name
-        """
-        if self.legal_name:
-            legal_name = re.sub(r'\s+', ' ', self.legal_name.strip())
-            last_name = re.sub(r'\s+', ' ', self.last_name.strip())
-            low_legal_name = legal_name.lower()
-            low_last_name = last_name.lower()
-            if low_legal_name.endswith(low_last_name):
-                # Catches 95% of the cases.
-                return legal_name[:-len(last_name)].strip()
-            else:
-                norm_legal_name = re.sub(r'[,\.]', '', low_legal_name)
-                norm_last_name = re.sub(r'[,\.]', '', low_last_name)
-                # Before iterating through all the suffixes, check to make
-                # sure the last name is even part of the legal name.
-                start_index = norm_legal_name.rfind(norm_last_name)
-                if start_index >= 0:
-                    actual_suffix_index = start_index + len(norm_last_name)
-                    actual_suffix = norm_legal_name[actual_suffix_index:].strip()
-
-                    for suffix in normalized_name_suffixes:
-                        actual_suffix = re.sub(suffix, '', actual_suffix).strip()
-
-                        if not actual_suffix:
-                            index = low_legal_name.rfind(low_last_name)
-                            if index >= 0:
-                                return legal_name[:index].strip()
-                            # Should never get here, but if we do, we should
-                            # stop iterating because none of the remaining
-                            # suffixes will match.
-                            break
-
-                if ' ' in legal_name:
-                    return legal_name.split(' ', 1)[0]
-                return legal_name
-
-        return self.first_name
-
-    @property
-    def legal_last_name(self):
-        """
-        Hotel exports need split legal names, but we don't collect split
-        legal names, so we're going to have to guess.
-
-        Returns one of the following:
-            The second part of the legal name, if the legal name starts
-                with the legal first name
-            The second part of the legal name after a space, if the
-                legal name has multiple parts
-            The last name, if there is no legal name or if the legal name
-                is just one word
-        """
-        if self.legal_name:
-            legal_name = re.sub(r'\s+', ' ', self.legal_name.strip())
-            legal_first_name = re.sub(r'\s+', ' ', self.legal_first_name.strip())
-
-            if legal_name.lower().startswith(legal_first_name.lower()):
-                return legal_name[len(legal_first_name):].strip()
-            elif ' ' in legal_name:
-                return legal_name.split(' ', 1)[1]
-        return self.last_name
-
     # =========================
     # attractions
     # =========================
@@ -1570,18 +1755,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def attractions(self):
         return list({e.feature.attraction for e in self.attraction_events})
-
-    @property
-    def masked_email(self):
-        name, _, domain = self.email.partition('@')
-        sub_domain, _, tld = domain.rpartition('.')
-        return '{}@{}.{}'.format(mask_string(name), mask_string(sub_domain), tld)
-
-    @property
-    def masked_cellphone(self):
-        cellphone = RE_NONDIGIT.sub(' ', self.cellphone).strip()
-        digits = cellphone.replace(' ', '')
-        return '*' * (len(cellphone) - 4) + digits[-4:]
 
     @property
     def masked_notification_pref(self):

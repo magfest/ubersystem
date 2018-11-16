@@ -6,7 +6,7 @@ import stripe
 from mock import Mock
 
 from uber.config import c
-from uber.models import Attendee, Group
+from uber.models import Attendee, Group, Person
 from uber.utils import add_opt, convert_to_absolute_url, Charge, get_age_from_birthday, localized_now, \
     remove_opt, normalize_newlines
 
@@ -92,19 +92,19 @@ class TestAddRemoveOpts:
 
 class TestCharge:
     def test_charge_one_email(self):
-        attendee = Attendee(email='test@example.com')
+        attendee = Attendee(owner=Person(email='test@example.com'))
         charge = Charge(targets=[attendee])
         assert charge.receipt_email == attendee.email
 
     def test_charge_group_leader_email(self):
-        attendee = Attendee(email='test@example.com')
+        attendee = Attendee(owner=Person(email='test@example.com'))
         group = Group(attendees=[attendee])
         charge = Charge(targets=[group])
         assert charge.receipt_email == attendee.email
 
     def test_charge_first_email(self):
-        attendee = Attendee(email='test@example.com')
-        charge = Charge(targets=[attendee, Attendee(email='test2@example.com'), Attendee(email='test3@example.com')])
+        attendee = Attendee(owner=Person(email='test@example.com'))
+        charge = Charge(targets=[attendee, Attendee(owner=Person(email='test2@example.com')), Attendee(owner=Person(email='test3@example.com'))])
         assert charge.receipt_email == attendee.email
 
     def test_charge_no_email(self):

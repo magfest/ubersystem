@@ -4,7 +4,7 @@ import pytest
 import pytz
 from mock import Mock
 
-from uber.models import Attendee, Group, PromoCode, Session
+from uber.models import Attendee, Group, Person, PromoCode, Session
 from uber.config import c
 from uber.utils import Charge, check
 
@@ -153,8 +153,10 @@ class TestAttendeePromoCodeModelChecks:
             paid=paid,
             promo_code=promo_code,
             placeholder=True,
-            first_name='First',
-            last_name='Last')
+            owner=Person(
+                first_name='First',
+                last_name='Last'
+            ))
         assert check(attendee, prereg=True) == "You can't apply a promo code after you've paid or if you're in a group."
 
     def test_promo_code_is_useful_overridden_price(self):
@@ -163,8 +165,10 @@ class TestAttendeePromoCodeModelChecks:
             overridden_price=10,
             promo_code=promo_code,
             placeholder=True,
-            first_name='First',
-            last_name='Last')
+            owner=Person(
+                first_name='First',
+                last_name='Last'
+            ))
         assert check(attendee, prereg=True) == \
             "You already have a special badge price, you can't use a promo code on top of that."
 
@@ -174,8 +178,10 @@ class TestAttendeePromoCodeModelChecks:
         attendee = Attendee(
             promo_code=promo_code,
             placeholder=True,
-            first_name='First',
-            last_name='Last')
+            owner=Person(
+                first_name='First',
+                last_name='Last'
+            ))
         assert check(attendee, prereg=True) == \
             "That promo code doesn't make your badge any cheaper. You may already have other discounts."
 
@@ -186,8 +192,10 @@ class TestAttendeePromoCodeModelChecks:
             badge_type=c.ONE_DAY_BADGE,
             promo_code=promo_code,
             placeholder=True,
-            first_name='First',
-            last_name='Last')
+            owner=Person(
+                first_name='First',
+                last_name='Last'
+            ))
         assert check(attendee, prereg=True) == \
             "You can't apply a promo code to a one day badge."
 
@@ -196,22 +204,26 @@ class TestAttendeePromoCodeModelChecks:
         attendee = Attendee(
             badge_type=c.PSEUDO_DEALER_BADGE,
             group=Group(),
-            cellphone='555-555-1234',
             promo_code=promo_code,
             placeholder=True,
-            first_name='First',
-            last_name='Last')
+            owner=Person(
+                first_name='First',
+                last_name='Last',
+                cellphone='555-555-1234'
+            ))
         assert check(attendee, prereg=True) == \
             "You can't apply a promo code to a dealer registration."
 
     def test_promo_code_does_not_help_minor(self, monkeypatch):
         promo_code = PromoCode(discount=1, expiration_date=next_week)
         attendee = Attendee(
-            birthdate=last_week,
             promo_code=promo_code,
             placeholder=True,
-            first_name='First',
-            last_name='Last')
+            owner=Person(
+                first_name='First',
+                last_name='Last',
+                birthdate=last_week
+            ))
         assert check(attendee, prereg=True) == \
             "You are already receiving an age based discount, you can't use a promo code on top of that."
 
@@ -221,8 +233,10 @@ class TestAttendeePromoCodeModelChecks:
         attendee = Attendee(
             promo_code=promo_code,
             placeholder=True,
-            first_name='First',
-            last_name='Last')
+            owner=Person(
+                first_name='First',
+                last_name='Last'
+            ))
         assert check(attendee, prereg=True) == 'That promo code is expired.'
 
     def test_promo_code_has_uses_remaining(self):
@@ -230,8 +244,10 @@ class TestAttendeePromoCodeModelChecks:
         sess = Attendee(
             promo_code=promo_code,
             placeholder=True,
-            first_name='First',
-            last_name='Last')
+            owner=Person(
+                first_name='First',
+                last_name='Last'
+            ))
         Charge.unpaid_preregs[sess.id] = Charge.to_sessionized(sess)
         sess.promo_code = None
         sess.promo_code_id = None
@@ -240,8 +256,10 @@ class TestAttendeePromoCodeModelChecks:
         attendee = Attendee(
             promo_code=promo_code,
             placeholder=True,
-            first_name='First',
-            last_name='Last')
+            owner=Person(
+                first_name='First',
+                last_name='Last'
+            ))
 
         assert check(attendee, prereg=True) == 'That promo code has been used too many times.'
 

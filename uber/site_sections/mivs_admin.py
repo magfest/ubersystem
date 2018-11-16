@@ -9,7 +9,7 @@ from sqlalchemy.orm import joinedload
 from uber.config import c
 from uber.decorators import all_renderable, csrf_protected, csv_file, multifile_zipfile, render, xlsx_file
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, Attendee, Group, IndieGame, IndieGameReview, IndieStudio
+from uber.models import AdminAccount, Attendee, Group, IndieGame, IndieGameReview, IndieStudio, Person
 from uber.tasks.email import send_email
 from uber.utils import check, genpasswd
 
@@ -142,7 +142,7 @@ class Root:
                         raise HTTPRedirect('index?message={}{}', attendee.full_name, ' has been granted judge access')
 
                 if not attendee:
-                    attendee = Attendee(first_name=first_name, last_name=last_name, email=email,
+                    attendee = Attendee(owner=Person(first_name=first_name, last_name=last_name, email=email),
                                         placeholder=True, badge_type=c.ATTENDEE_BADGE, paid=c.NEED_NOT_PAY)
                     session.add(attendee)
 

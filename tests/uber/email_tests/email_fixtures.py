@@ -14,7 +14,7 @@ from uber import decorators, utils
 from uber.amazon_ses import AmazonSES
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
-from uber.models import Attendee, AutomatedEmail, Session
+from uber.models import Attendee, AutomatedEmail, Person, Session
 from uber.utils import after, before
 
 
@@ -89,9 +89,10 @@ def create_test_attendees():
         for s in map(str, range(5)):
             attendee = Attendee(
                 id='00000000-0000-0000-0000-00000000000{}'.format(s),
-                first_name=s,
-                last_name=s,
-                email='{}@example.com'.format(s))
+                owner=Person(
+                    first_name=s,
+                    last_name=s,
+                    email='{}@example.com'.format(s)))
             session.add(attendee)
 
 

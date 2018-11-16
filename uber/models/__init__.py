@@ -492,7 +492,7 @@ from uber.models.guests import *  # noqa: F401,E402,F403
 
 # Explicitly import models used by the Session class to quiet flake8
 from uber.models.admin import AdminAccount, WatchList  # noqa: E402
-from uber.models.attendee import Attendee  # noqa: E402
+from uber.models.attendee import Attendee, Person  # noqa: E402
 from uber.models.department import Job, Shift, Department  # noqa: E402
 from uber.models.email import Email  # noqa: E402
 from uber.models.group import Group  # noqa: E402
@@ -1097,7 +1097,7 @@ class Session(SessionManager):
                         badge_type=new_badge_type,
                         ribbon=ribbon_to_use,
                         paid=paid,
-                        **extra_create_args))
+                        **extra_create_args))  # TODO: Person fix
             elif diff < 0:
                 if len(group.floating) < abs(diff):
                     return 'You cannot reduce the number of badges for a group to below the number of assigned badges'
@@ -1156,9 +1156,11 @@ class Session(SessionManager):
 
             attendee = Attendee(
                 placeholder=True,
-                first_name='Test',
-                last_name='Developer',
-                email='magfest@example.com',
+                owner=Person(
+                    first_name='Test',
+                    last_name='Developer',
+                    email='magfest@example.com'
+                ),
                 badge_type=c.ATTENDEE_BADGE,
             )
             self.add(attendee)

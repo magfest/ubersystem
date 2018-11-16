@@ -11,7 +11,7 @@ from uber.config import c
 from uber.decorators import all_renderable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Email, Group, Tracking
+from uber.models import Attendee, Email, Group, Person, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, localized_now, Charge
 
@@ -56,10 +56,10 @@ class Root:
         if id in Charge.unpaid_preregs:
             target = Charge.from_sessionized(Charge.unpaid_preregs[id])
             if isinstance(target, Attendee):
-                return target, Group()
+                return target, Group(), target.owner
             else:
                 [leader] = [a for a in target.attendees if not a.is_unassigned]
-                return leader, target
+                return leader, target, leader.owner
         else:
             raise HTTPRedirect('index') if if_not_found is None else if_not_found
 
@@ -114,7 +114,7 @@ class Root:
     @check_if_can_reg
     def repurchase(self, session, id, **params):
         if 'csrf_token' in params:
-            new_attendee = Attendee(**session.attendee(id).to_dict(c.UNTRANSFERABLE_ATTRS))
+            new_attendee = Attendee(**session.attendee(id).to_dict(c.UNTRANSFERABLE_ATTRS))  # TODO: Person fix
             Charge.unpaid_preregs[new_attendee.id] = to_sessionized(new_attendee, Group())
             Tracking.track(c.UNPAID_PREREG, new_attendee)
             raise HTTPRedirect("form?edit_id={}", new_attendee.id)
@@ -146,17 +146,24 @@ class Root:
             if params.get('copy_address'):
                 params[field_name] = group_params[field_name]
 
+        person_params = dict(params)
+        for field_name in Attendee.PERSON_FIELDS:
+            person_params[field_name] = params.pop(field_name, '')
+
         if edit_id is not None:
-            attendee, group = self._get_unsaved(
+            attendee, group, person = self._get_unsaved(
                 edit_id,
                 if_not_found=HTTPRedirect('form?message={}', 'That preregistration has already been finalized'))
 
             attendee.apply(params, restricted=True)
             group.apply(group_params, restricted=True)
+            person.apply(person_params, restricted=True)
             params.setdefault('badges', group.badges)
         else:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
             group = session.group(group_params, ignore_csrf=True, restricted=True)
+            person = session.person(person_params, ignore_csrf=True, restricted=True)
+            attendee.owner = person
 
         message = ''
         if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
@@ -184,7 +191,7 @@ class Root:
             return render('static_views/dealer_reg_closed.html') if c.AFTER_DEALER_REG_SHUTDOWN \
                 else render('static_views/dealer_reg_not_open.html')
 
-        if 'first_name' in params:
+        if 'first_name' in person_params:
             message = check(attendee, prereg=True)
             if not message and attendee.badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE]:
                 message = check(group, prereg=True)
@@ -284,7 +291,7 @@ class Root:
             else:
                 raise HTTPRedirect('form?edit_id={}', id)
 
-        attendee, group = self._get_unsaved(
+        attendee, group, person = self._get_unsaved(
             id, if_not_found=HTTPRedirect('form?message={}', 'Could not find the given preregistration'))
 
         is_group_leader = not attendee.is_unassigned and len(group.attendees) > 0
@@ -307,7 +314,7 @@ class Root:
         }
 
     def duplicate(self, session, id):
-        attendee, group = self._get_unsaved(id)
+        attendee, group, person = self._get_unsaved(id)
         orig = session.query(Attendee).filter_by(
             first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).first()
 
@@ -321,7 +328,7 @@ class Root:
         }
 
     def banned(self, id):
-        attendee, group = self._get_unsaved(id)
+        attendee, group, person = self._get_unsaved(id)
         return {
             'attendee': attendee,
             'id': id
@@ -644,7 +651,7 @@ class Root:
                         'badge_updated?id={}&message={}', attendee.id, 'Your registration has been transferred')
         else:
             for attr in c.UNTRANSFERABLE_ATTRS:
-                setattr(attendee, attr, getattr(Attendee(), attr))
+                setattr(attendee, attr, getattr(Attendee(), attr))  # TODO: Person fix
 
         return {
             'old':      old,

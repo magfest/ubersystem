@@ -299,7 +299,7 @@ class Root:
             del d['id']
             del d['all_years']
 
-            attendee = Attendee().apply(d, restricted=False)
+            attendee = Attendee().apply(d, restricted=False)  # TODO: Person fix
 
             for id, dept in assigned_depts.items():
                 attendee.dept_memberships.append(DeptMembership(

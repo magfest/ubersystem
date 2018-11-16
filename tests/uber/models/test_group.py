@@ -5,7 +5,7 @@ from mock import Mock
 from pytz import UTC
 
 from uber.config import c
-from uber.models import Attendee, Group, Session
+from uber.models import Attendee, Group, Person, Session
 from uber.utils import localized_now
 
 
@@ -104,17 +104,17 @@ def test_new_ribbon():
 def test_email():
     assert not Group().email
     assert not Group(attendees=[Attendee()]).email
-    assert 'a@b.c' == Group(attendees=[Attendee(email='a@b.c')]).email
-    assert not Group(attendees=[Attendee(email='a@b.c'), Attendee(email='d@e.f')]).email
+    assert 'a@b.c' == Group(attendees=[Attendee(owner=Person(email='a@b.c'))]).email
+    assert not Group(attendees=[Attendee(owner=Person(email='a@b.c')), Attendee(owner=Person(email='d@e.f'))]).email
 
     assert not Group(leader=Attendee()).email
-    assert 'a@b.c' == Group(leader=Attendee(email='a@b.c')).email
-    assert 'a@b.c' == Group(leader=Attendee(email='a@b.c'), attendees=[Attendee(email='d@e.f')]).email
+    assert 'a@b.c' == Group(leader=Attendee(owner=Person(email='a@b.c'))).email
+    assert 'a@b.c' == Group(leader=Attendee(owner=Person(email='a@b.c')), attendees=[Attendee(owner=Person(email='d@e.f'))]).email
     assert 'a@b.c' == Group(
-        leader=Attendee(email='a@b.c'), attendees=[Attendee(email='d@e.f'), Attendee(email='g@h.i')]).email
+        leader=Attendee(email='a@b.c'), attendees=[Attendee(owner=Person(email='d@e.f')), Attendee(owner=Person(email='g@h.i'))]).email
 
-    assert 'd@e.f' == Group(leader=Attendee(), attendees=[Attendee(email='d@e.f')]).email
-    assert not Group(leader=Attendee(), attendees=[Attendee(email='d@e.f'), Attendee(email='g@h.i')]).email
+    assert 'd@e.f' == Group(leader=Attendee(), attendees=[Attendee(owner=Person(email='d@e.f'))]).email
+    assert not Group(leader=Attendee(), attendees=[Attendee(owner=Person(email='d@e.f')), Attendee(owner=Person(email='g@h.i'))]).email
 
 
 def test_badges():
@@ -125,9 +125,9 @@ def test_badges():
 
 def test_unregistered_badges():
     assert 0 == Group().unregistered_badges
-    assert 0 == Group(attendees=[Attendee(first_name='x')]).unregistered_badges
+    assert 0 == Group(attendees=[Attendee(owner=Person(first_name='x'))]).unregistered_badges
     assert 1 == Group(attendees=[Attendee()]).unregistered_badges
-    assert 2 == Group(attendees=[Attendee(), Attendee(first_name='x'), Attendee()]).unregistered_badges
+    assert 2 == Group(attendees=[Attendee(), Attendee(owner=Person(first_name='x')), Attendee()]).unregistered_badges
 
 
 def test_badges_purchased():
@@ -171,14 +171,14 @@ def test_assign_extra_create_arguments(session):
 def test_assign_removing_too_many_badges(session):
     assert not session.assign_badges(Group(attendees=[Attendee(paid=c.PAID_BY_GROUP)]), 0)
     assert 'You cannot' in session.assign_badges(Group(attendees=[Attendee(paid=c.HAS_PAID)]), 0)
-    assert 'You cannot' in session.assign_badges(Group(attendees=[Attendee(first_name='x')]), 0)
+    assert 'You cannot' in session.assign_badges(Group(attendees=[Attendee(owner=Person(first_name='x'))]), 0)
 
 
 def test_assign_removing_badges(monkeypatch, session):
     monkeypatch.setattr(Attendee, 'registered', datetime.now(UTC))
     attendees = [
         Attendee(paid=c.PAID_BY_GROUP),
-        Attendee(first_name='x'),
+        Attendee(owner=Person(first_name='x')),
         Attendee(paid=c.HAS_PAID),
         Attendee(paid=c.PAID_BY_GROUP)]
     group = Group(attendees=attendees)
@@ -221,7 +221,7 @@ def test_existing_extra(monkeypatch):
 def test_group_badge_status_cascade():
     g = Group(cost=0, auto_recalc=False)
     taken = Attendee(
-        group_id=g.id, paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS, first_name='Liam', last_name='Neeson')
+        group_id=g.id, paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS, owner=Person(first_name='Liam', last_name='Neeson'))
     floating = Attendee(group_id=g.id, paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS)
     g.attendees = [taken, floating]
     g.presave_adjustments()

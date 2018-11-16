@@ -1,7 +1,7 @@
 import pytest
 
 from uber.config import c
-from uber.models import Attendee, HotelRequests
+from uber.models import Attendee, HotelRequests, Person
 from uber.utils import localized_now
 
 
@@ -36,7 +36,7 @@ def test_hotel_shifts_required_preshifts(monkeypatch):
     ('Buster', 'Bluth', 'Byron James Bluth,III,Esq.', 'Bluth,III,Esq.'),
 ])
 def test_legal_last_name(first, last, legal, expected):
-    assert expected == Attendee(first_name=first, last_name=last, legal_name=legal).legal_last_name
+    assert expected == Attendee(owner=Person(first_name=first, last_name=last, legal_name=legal)).legal_last_name
 
 
 @pytest.mark.parametrize('first,last,legal,expected', [
@@ -53,7 +53,7 @@ def test_legal_last_name(first, last, legal, expected):
     ('Buster', 'Bluth', 'Byron James Bluth,III,Esq.', 'Byron James'),
 ])
 def test_legal_first_name(first, last, legal, expected):
-    assert expected == Attendee(first_name=first, last_name=last, legal_name=legal).legal_first_name
+    assert expected == Attendee(owner=Person(first_name=first, last_name=last, legal_name=legal)).legal_first_name
 
 
 class TestHotelRequests:

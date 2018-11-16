@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 import pytest
 import pytz
 
-from uber.models import Attendee, Department, Group, Session
+from uber.models import Attendee, Department, Group, Person, Session
 from uber.config import c
 from uber.utils import localized_now
 
@@ -25,14 +25,16 @@ def match_to_group_preconditions():
     with Session() as session:
         console = Department(name='Console_01', description='Console_01')
         leader = Attendee(
-            first_name='Fearless',
-            last_name='Leader',
-            email='fearless@example.com',
-            zip_code='21211',
-            ec_name='Nana Fearless',
-            ec_phone='555-555-1234',
-            cellphone='555-555-2345',
-            birthdate=date(1964, 12, 30),
+            owner=Person(
+                first_name='Fearless',
+                last_name='Leader',
+                email='fearless@example.com',
+                zip_code='21211',
+                ec_name='Nana Fearless',
+                ec_phone='555-555-1234',
+                cellphone='555-555-2345',
+                birthdate=date(1964, 12, 30)
+            ),
             registered=localized_now(),
             paid=c.PAID_BY_GROUP,
             badge_type=c.STAFF_BADGE,
@@ -69,14 +71,16 @@ def test_match_to_group(match_to_group_preconditions):
     with Session() as session:
         console = session.query(Department).filter_by(name='Console_01').one()
         late_comer = Attendee(
-            first_name='Late',
-            last_name='Comer',
-            email='late@example.com',
-            zip_code='21211',
-            ec_name='Nana Fearless',
-            ec_phone='555-555-1234',
-            cellphone='555-555-2345',
-            birthdate=date(1964, 12, 30),
+            owner=Person(
+                first_name='Late',
+                last_name='Comer',
+                email='late@example.com',
+                zip_code='21211',
+                ec_name='Nana Fearless',
+                ec_phone='555-555-1234',
+                cellphone='555-555-2345',
+                birthdate=date(1964, 12, 30)
+            ),
             registered=localized_now(),
             paid=c.NEED_NOT_PAY,
             badge_type=c.STAFF_BADGE,

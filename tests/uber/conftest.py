@@ -9,7 +9,7 @@ from sideboard.lib import threadlocal
 from sideboard.tests import patch_session
 
 from uber.config import c
-from uber.models import Attendee, Department, DeptMembership, DeptRole, Job, PromoCode, Session, WatchList, \
+from uber.models import Attendee, Department, DeptMembership, DeptRole, Job, Person, PromoCode, Session, WatchList, \
     initialize_db, register_session_listeners
 from uber.utils import localized_now
 
@@ -90,15 +90,19 @@ def init_db(request):
     with Session() as session:
         session.add(Attendee(
             placeholder=True,
-            first_name='Regular',
-            last_name='Volunteer',
+            owner=Person(
+                first_name='Regular',
+                last_name='Volunteer'
+            ),
             ribbon=c.VOLUNTEER_RIBBON,
             staffing=True
         ))
         session.add(Attendee(
             placeholder=True,
-            first_name='Regular',
-            last_name='Attendee'
+            owner=Person(
+                first_name='Regular',
+                last_name='Attendee'
+            )
         ))
 
         d_arcade_trusted_dept_role = DeptRole(name='Trusted', description='Trusted in Arcade')
@@ -135,8 +139,10 @@ def init_db(request):
 
             session.add(Attendee(
                 placeholder=True,
-                first_name=name,
-                last_name=name,
+                owner=Person(
+                    first_name=name,
+                    last_name=name
+                ),
                 paid=c.NEED_NOT_PAY,
                 badge_type=c.STAFF_BADGE,
                 dept_memberships=dept_memberships
@@ -144,8 +150,10 @@ def init_db(request):
 
             session.add(Attendee(
                 placeholder=True,
-                first_name=name,
-                last_name=name,
+                owner=Person(
+                    first_name=name,
+                    last_name=name
+                ),
                 paid=c.NEED_NOT_PAY,
                 badge_type=c.SUPPORTER_BADGE
             ))

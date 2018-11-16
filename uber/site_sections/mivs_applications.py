@@ -7,7 +7,7 @@ from cherrypy.lib.static import serve_file
 from uber.config import c
 from uber.decorators import all_renderable, csrf_protected
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Group, IndieDeveloper, IndieStudio
+from uber.models import Attendee, Group, IndieDeveloper, IndieStudio, Person
 from uber.utils import check, check_csrf
 
 
@@ -246,10 +246,12 @@ class Root:
                             placeholder=True,
                             badge_type=c.ATTENDEE_BADGE,
                             paid=c.NEED_NOT_PAY if dev.comped else c.PAID_BY_GROUP,
-                            first_name=dev.first_name,
-                            last_name=dev.last_name,
-                            cellphone=dev.cellphone,
-                            email=dev.email
+                            owner=Person(
+                                first_name=dev.first_name,
+                                last_name=dev.last_name,
+                                cellphone=dev.cellphone,
+                                email=dev.email
+                            )
                         )
                         group.attendees.append(attendee)
                         session.commit()

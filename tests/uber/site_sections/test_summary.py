@@ -4,7 +4,7 @@ import pytest
 from pytz import UTC
 
 from uber.config import c
-from uber.models import Attendee, Session
+from uber.models import Attendee, Person, Session
 from uber.site_sections import summary
 
 
@@ -33,11 +33,13 @@ def birthdays():
     for d in dates:
         attendees.append(Attendee(
             placeholder=True,
-            first_name='Born on',
-            last_name=d.strftime('%B %-d, %Y'),
+            owner=Person(
+                first_name='Born on',
+                last_name=d.strftime('%B %-d, %Y'),
+                birthdate=d
+            ),
             ribbon=c.VOLUNTEER_RIBBON,
-            staffing=True,
-            birthdate=d))
+            staffing=True))
 
     ids = []
     with Session() as session:

@@ -5,7 +5,7 @@ Tests for uber.models.email model classes.
 import pytest
 
 from uber.config import c
-from uber.models import Attendee, AutomatedEmail, Email, Group, Session
+from uber.models import Attendee, AutomatedEmail, Email, Group, Person, Session
 
 from tests.uber.email_tests.email_fixtures import ACTIVE_WHEN, ACTIVE_WHEN_LABELS, NOW, TOMORROW, YESTERDAY
 from tests.uber.email_tests.email_fixtures import *  # noqa: F401,F403
@@ -13,12 +13,12 @@ from tests.uber.email_tests.email_fixtures import *  # noqa: F401,F403
 
 @pytest.fixture
 def set_email_fk_group(monkeypatch):
-    monkeypatch.setattr(Email, 'fk', Group(leader=Attendee(email='testleader@example.com')))
+    monkeypatch.setattr(Email, 'fk', Group(leader=Attendee(owner=Person(email='testleader@example.com'))))
 
 
 @pytest.fixture
 def set_email_fk_attendee(monkeypatch):
-    monkeypatch.setattr(Email, 'fk', Attendee(email='testattendee@example.com'))
+    monkeypatch.setattr(Email, 'fk', Attendee(owner=Person(email='testattendee@example.com')))
 
 
 class TestAutomatedEmail(object):
@@ -182,14 +182,14 @@ class TestAutomatedEmail(object):
     def test_render(self, automated_email_fixture):
         with Session() as session:
             email = session.query(AutomatedEmail).one()
-            assert email.render_body(Attendee(first_name='A', last_name='Z')) == 'A Z\nCoolCon9000\nEXTRA DATA'
-            assert email.render_subject(Attendee(first_name='A', last_name='Z')) == 'CoolCon9000 2016 Jan 2016 A Z'
+            assert email.render_body(Attendee(owner=Person(first_name='A', last_name='Z'))) == 'A Z\nCoolCon9000\nEXTRA DATA'
+            assert email.render_subject(Attendee(owner=Person(first_name='A', last_name='Z'))) == 'CoolCon9000 2016 Jan 2016 A Z'
 
     def test_would_send_if_approved(self, automated_email_fixture):
         with Session() as session:
             email = session.query(AutomatedEmail).one()
 
-            attendee = Attendee(first_name='A', last_name='Z', email='')
+            attendee = Attendee(owner=Person(first_name='A', last_name='Z', email=''))
             assert not email.would_send_if_approved(attendee)
 
             attendee.email = 'az@example.com'
@@ -225,7 +225,7 @@ class TestEmail(object):
 
     def test_fk_from_database(self):
         with Session() as session:
-            a = Attendee(first_name='Regular', last_name='Attendee')
+            a = Attendee(owner=Person(first_name='Regular', last_name='Attendee'))
             e = Email(fk_id=a.id, model='Attendee')
             session.add(a)
             session.add(e)

@@ -6,7 +6,7 @@ import pytz
 from tests.uber.conftest import admin_attendee, assert_unique, POST
 from uber.config import c
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Department, Group, Session
+from uber.models import Attendee, Department, Group, Person, Session
 from uber.site_sections import preregistration
 from uber.utils import localized_now
 
@@ -29,14 +29,16 @@ def duplicate_badge_num_preconditions():
     leader_id = None
     with Session() as session:
         leader = Attendee(
-            first_name='Fearless',
-            last_name='Leader',
-            email='fearless@example.com',
-            zip_code='21211',
-            ec_name='Nana Fearless',
-            ec_phone='555-555-1234',
-            cellphone='555-555-2345',
-            birthdate=date(1964, 12, 30),
+            owner=Person(
+                first_name='Fearless',
+                last_name='Leader',
+                email='fearless@example.com',
+                zip_code='21211',
+                ec_name='Nana Fearless',
+                ec_phone='555-555-1234',
+                cellphone='555-555-2345',
+                birthdate=date(1964, 12, 30)
+            ),
             registered=localized_now(),
             paid=c.PAID_BY_GROUP,
             ribbon='',

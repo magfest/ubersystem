@@ -5,7 +5,7 @@ from pytz import UTC
 
 from uber.badge_funcs import needs_badge_num, reset_badge_if_unchanged
 from uber.config import c
-from uber.models import Attendee, Session
+from uber.models import Attendee, Person, Session
 from uber.decorators import presave_adjustment
 from uber.utils import check
 
@@ -206,13 +206,13 @@ class TestAutoBadgeNum:
         session.add(Attendee(
             badge_type=c.ATTENDEE_BADGE,
             checked_in=datetime.now(UTC),
-            first_name="3002",
+            owner=Person(first_name="3002"),
             paid=c.HAS_PAID,
             badge_num=3003))
         session.add(Attendee(
             badge_type=c.ATTENDEE_BADGE,
             checked_in=datetime.now(UTC),
-            first_name="3000",
+            owner=Person(first_name="3000"),
             paid=c.HAS_PAID,
             badge_num=3001))
         session.commit()
@@ -222,13 +222,13 @@ class TestAutoBadgeNum:
         session.add(Attendee(
             badge_type=c.ATTENDEE_BADGE,
             checked_in=datetime.now(UTC),
-            first_name="3002",
+            owner=Person(first_name="3002"),
             paid=c.HAS_PAID,
             badge_num=3001))
         session.add(Attendee(
             badge_type=c.ATTENDEE_BADGE,
             checked_in=datetime.now(UTC),
-            first_name="3000",
+            owner=Person(first_name="3000"),
             paid=c.HAS_PAID,
             badge_num=3001))
 
@@ -257,7 +257,7 @@ class TestAutoBadgeNum:
         session.add(Attendee(
             badge_type=c.ATTENDEE_BADGE,
             checked_in=datetime.now(UTC),
-            first_name="3002",
+            owner=Person(first_name="3002"),
             paid=c.HAS_PAID,
             badge_num=3002))
         session.commit()
@@ -429,7 +429,7 @@ class TestShiftOnChange:
 
     def test_shift_on_add(self, session):
         assert 'Badge updated' == session.update_badge(Attendee(
-            first_name='NewStaff', paid=c.NEED_NOT_PAY, badge_type=c.STAFF_BADGE, badge_num=2), None, None)
+            owner=Person(first_name='NewStaff'), paid=c.NEED_NOT_PAY, badge_type=c.STAFF_BADGE, badge_num=2), None, None)
         assert session.staff_two.badge_num == 3
         assert [1, 3, 4, 5, 6] == self.staff_badges(session)
 
@@ -465,7 +465,7 @@ class TestShiftOnChange:
         session.staff_five.badge_num = 10
         session.commit()
         session.update_badge(Attendee(
-            first_name='NewStaff', paid=c.NEED_NOT_PAY, badge_type=c.STAFF_BADGE, badge_num=5), None, None)
+            owner=Person(first_name='NewStaff'), paid=c.NEED_NOT_PAY, badge_type=c.STAFF_BADGE, badge_num=5), None, None)
         session.commit()
         assert [1, 2, 3, 4, 10] == self.staff_badges(session)
 

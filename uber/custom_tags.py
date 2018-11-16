@@ -572,9 +572,18 @@ def stripe_form(action, charge):
     payment_id = uuid4().hex
     cherrypy.session[payment_id] = charge.to_dict()
 
+    from uber.models import Attendee, Group
+
     email = None
-    if charge.models and charge.models[0].email:
-        email = charge.models[0].email[:255]
+    if charge.models:
+        model = charge.models[0]
+        if model.email:
+            email = model.email[:255]
+        elif isinstance(model, Attendee):
+            email = model.owner.email[:255]
+        #elif isinstance(model, Group):
+        #    [attendee_with_email] = [a for a in model.attendees if getattr(a, 'owner')]
+        #    email = attendee_with_email.owner.email[:255]
 
     if not charge.models:
         if c.AT_THE_CON:

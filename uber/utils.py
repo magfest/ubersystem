@@ -810,6 +810,7 @@ class Charge:
             return m.to_dict(
                 Attendee.to_dict_default_attrs
                 + ['promo_code']
+                + ['owner']
                 + list(Attendee._extra_apply_attrs_restricted))
         elif isinstance(m, Group):
             return m.to_dict(
@@ -845,6 +846,10 @@ class Charge:
 
         if d.get('promo_code'):
             d = dict(d, promo_code=uber.models.PromoCode(**d['promo_code']))
+
+        if d.get('owner'):
+            d = dict(d, owner=uber.models.Person(**d['owner']))
+
         return uber.models.Attendee(**d)
 
     @classmethod
@@ -889,7 +894,15 @@ class Charge:
 
     @cached_property
     def names(self):
-        return ', '.join(getattr(m, 'name', getattr(m, 'full_name', None)) for m in self.models)
+        names = []
+        for m in self.models:
+            if isinstance(m, uber.models.Attendee):
+                owner = getattr(m, 'owner', None)
+                names.append(getattr(owner, 'first_name', None) + " " + getattr(owner, 'last_name', None))
+            else:
+                names.append(getattr(m, 'name', None))
+
+        return ', '.join(names)
 
     @cached_property
     def targets(self):

@@ -94,7 +94,7 @@ def import_attendees(session):
         secret_id = a.pop('secret_id')
         a['assigned_depts_ids'] = all_dept_ids_from_existing_locations(a.pop('assigned_depts', ''))
         a['requested_depts_ids'] = all_dept_ids_from_existing_locations(a.pop('requested_depts', ''))
-        attendees[secret_id] = Attendee(**a)
+        attendees[secret_id] = Attendee(**a)  # TODO: Person fix
         session.add(attendees[secret_id])
 
     for f in dump['food']:

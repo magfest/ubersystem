@@ -132,12 +132,12 @@
 {% if c.PAGE == 'confirm' and not attendee.placeholder %}
     <div class="form-group">
         <label for="full_name" class="col-sm-3 control-label">Name</label>
-        <div class="col-sm-6 form-control-static">{{ attendee.full_name }}</div>
+        <div class="col-sm-6 form-control-static">{{ attendee.owner.full_name }}</div>
     </div>
     {% if attendee.legal_name %}
         <div class="form-group">
             <label for="legal_name" class="col-sm-3 control-label">Name as appears on Legal Photo ID</label>
-            <div class="col-sm-6 form-control-static">{{ attendee.legal_name }}</div>
+            <div class="col-sm-6 form-control-static">{{ attendee.owner.legal_name }}</div>
         </div>
     {% endif %}
     <div class="form-group">
@@ -148,17 +148,17 @@
     <div class="form-group">
         <label for="first_name" class="col-sm-3 control-label">Name</label>
         <div class="col-sm-3">
-            <input type="text" name="first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name" autocomplete="fname">
+            <input type="text" name="first_name" id="first_name" value="{{ attendee.owner.first_name }}" class="form-control" placeholder="First Name" autocomplete="fname">
         </div>
         <div class="col-sm-3">
-            <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name" autocomplete="lname">
+            <input type="text" name="last_name" id="last_name" value="{{ attendee.owner.last_name }}" class="form-control" placeholder="Last Name" autocomplete="lname">
         </div>
     </div>
 
     <div class="form-group">
         <div class="col-sm-9 col-sm-offset-3">
           <label for="same_legal_name" class="checkbox-label">
-            <input type="checkbox" name="same_legal_name" id="same_legal_name" value="1" {% if attendee.first_name != '' and attendee.legal_name == '' %}checked="checked"{% endif %} />
+            <input type="checkbox" name="same_legal_name" id="same_legal_name" value="1" {% if attendee.owner.first_name != '' and attendee.owner.legal_name == '' %}checked="checked"{% endif %} />
             The above name is exactly what appears on my Legal Photo ID
           </label>
         </div>
@@ -167,7 +167,7 @@
     <div class="form-group">
         <label for="legal_name" class="col-sm-3 control-label">Name as appears on <span class="text-nowrap">Legal Photo ID</span></label>
         <div class="col-sm-6">
-            <input type="text" name="legal_name" value="{{ attendee.legal_name }}" class="form-control" placeholder="Name exactly as it appears on Photo ID" autocomplete="name" />
+            <input type="text" name="legal_name" value="{{ attendee.owner.legal_name }}" class="form-control" placeholder="Name exactly as it appears on Photo ID" autocomplete="name" />
             <p class="help-block">
               <span class="popup">{{ macros.popup_link("../static_views/legal_name.html", 'What does "Legal Photo ID" mean?') }}</span>
             </p>
@@ -396,8 +396,8 @@
     {% if c.COLLECT_EXACT_BIRTHDATE %}
         <label for="birthdate" class="col-sm-3 control-label">Date of Birth</label>
         <div class="col-sm-6">
-          <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate|datetime("%Y-%m-%d") }}"/>
-          {% if c.PAGE_PATH == '/registration/form' and attendee.birthdate %}
+          <input type='text' class="form-control date" name="birthdate" value="{{ attendee.owner.birthdate|datetime("%Y-%m-%d") }}"/>
+          {% if c.PAGE_PATH == '/registration/form' and attendee.owner.birthdate %}
               ({{ attendee.age_group_conf.desc }})
           {% endif %}
         </div>
@@ -423,7 +423,7 @@
 <div class="form-group">
     <label for="email" class="col-sm-3 control-label">Email Address</label>
     <div class="col-sm-6">
-        <input type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="Email Address">
+        <input type="email" name="email" id="email" value="{{ attendee.owner.email }}" class="form-control" placeholder="Email Address">
     </div>
 </div>
 
@@ -431,7 +431,7 @@
   <div class="form-group">
       <label for="confirm_email" class="col-sm-3 control-label">Confirm Email</label>
       <div class="col-sm-6">
-          <input type="email" name="confirm_email" id="confirm_email" value="{{ attendee.email }}" class="form-control" placeholder="Confirm your email address">
+          <input type="email" name="confirm_email" id="confirm_email" value="{{ attendee.owner.email }}" class="form-control" placeholder="Confirm your email address">
       </div>
   </div>
 {% endif %}
@@ -452,7 +452,7 @@
         </div>
     {% endif %}
 
-    {{ macros.address_form(attendee, update_international=True) }}
+    {{ macros.address_form(attendee.owner, update_international=True) }}
 
     <div class="checkbox col-sm-6 col-sm-offset-3">
         {{ macros.checkbox(attendee, 'international', label="I'm coming from outside the US.") }}
@@ -461,7 +461,7 @@
     <div class="form-group">
         <label for="zip_code" class="col-sm-3 control-label {% if c.AT_OR_POST_CON %}optional-field{% endif %}">ZIP/Postal Code</label>
         <div class="col-sm-6">
-            <input type="text" name="zip_code" class="form-control" value="{{ attendee.zip_code }}"{% if not c.AT_OR_POST_CON %} {% endif %}/>
+            <input type="text" name="zip_code" class="form-control" value="{{ attendee.owner.zip_code }}"{% if not c.AT_OR_POST_CON %} {% endif %}/>
         </div>
         <div class="checkbox col-sm-6 col-sm-offset-3">
             {{ macros.checkbox(attendee, 'international', label="I'm coming from outside the US.") }}
@@ -472,20 +472,20 @@
 <div class="form-group">
     <label for="ec_name" class="col-sm-3 control-label">Emergency Contact</label>
     <div class="col-sm-6">
-        <input type="text" name="ec_name" value="{{ attendee.ec_name }}" class="form-control" placeholder="Who we should contact if something happens to you">
+        <input type="text" name="ec_name" value="{{ attendee.owner.ec_name }}" class="form-control" placeholder="Who we should contact if something happens to you">
     </div>
 </div>
 <div class="form-group">
     <label for="ec_phone" class="col-sm-3 control-label">Emergency Phone</label>
     <div class="col-sm-6">
-        <input type="text" name="ec_phone" value="{{ attendee.ec_phone }}" class="form-control" placeholder="A valid phone number for your emergency contact">
+        <input type="text" name="ec_phone" value="{{ attendee.owner.ec_phone }}" class="form-control" placeholder="A valid phone number for your emergency contact">
     </div>
 </div>
 
 <div class="form-group">
     <label for="cellphone" class="col-sm-3 control-label">Your Phone Number</label>
     <div class="col-sm-6">
-        <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" {% if attendee.is_dealer %}required{% endif %} placeholder="A phone number we can use to contact you during the event">
+        <input type="text" name="cellphone" id="cellphone" value="{{ attendee.owner.cellphone }}" class="form-control" {% if attendee.is_dealer %}required{% endif %} placeholder="A phone number we can use to contact you during the event">
     </div>
     {% if not attendee.is_dealer or c.PAGE_PATH == '/registration/form' %}
         <div class="checkbox col-sm-6 col-sm-offset-3">
