@@ -50,7 +50,7 @@ In the next week or two, you'll be invited to a google group for this year's MIV
 
 Updated Game Information
 ==========
-Please make sure the information on your game is up to date.  You can edit it at { c.URL_BASE }}/mivs_applications/continue_app?id={{ game.studio.id }}
+Please make sure the information on your game is up to date.  You can edit it at {{ c.URL_BASE }}/mivs_applications/continue_app?id={{ game.studio.id }}
 
 
 Presenter's FAQ
