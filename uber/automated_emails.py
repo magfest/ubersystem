@@ -714,7 +714,6 @@ if c.MIVS_ENABLED:
         'mivs/reviews_summary.html',
         lambda game: game.status in c.FINAL_MIVS_GAME_STATUSES and game.reviews_to_email,
         ident='mivs_reviews_summary',
-        when=after(c.EPOCH),
         allow_post_con=True)
 
     MIVSEmailFixture(
@@ -824,6 +823,13 @@ if c.MIVS_ENABLED:
         ident='2018_mivs_post_event_feedback',
         when=after(c.EPOCH),
         allow_post_con=True)
+    
+    MIVSEmailFixture(
+        IndieGame,
+        'MIVS {EVENT_YEAR} - November Updates',
+        'mivs/2019_november_updates.txt',
+        lambda game: game.confirmed,
+        ident='2019_mivs_november_updates')
 
 
 # =============================
