@@ -830,6 +830,13 @@ if c.MIVS_ENABLED:
         'mivs/2019_november_updates.txt',
         lambda game: game.confirmed,
         ident='2019_mivs_november_updates')
+    
+    MIVSEmailFixture(
+        IndieGame,
+        'MIVS {EVENT_YEAR} - Important Hotel Information',
+        'mivs/accepted/2019_hotel.txt',
+        lambda game: game.confirmed,
+        ident='2019_mivs_accepted_hotel')
 
 
 # =============================
