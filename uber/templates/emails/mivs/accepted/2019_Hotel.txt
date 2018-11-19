@@ -1,0 +1,14 @@
+Ahoy {{ game.studio.primary_contact.first_name }},
+
+We're here with important information about Hotels.
+
+MIVS Hotel Signups
+=====
+
+Each team showcasing at MIVS has the ability to purchase one room at the Gaylord. If you're interested in doing this, your primary contact (The one who received this email) will need to fill out the following google form by November 23rd, 11:59pm. (EST) 
+
+https://goo.gl/forms/vNTc8DXH06g8gVns1
+
+
+Forever your Fan,
+-MIVS Staff
