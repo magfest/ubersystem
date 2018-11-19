@@ -10,10 +10,19 @@ You have until {{ game.studio.confirm_deadline|datetime_local }} to confirm (or 
 
 We'd much rather you explicitly decline than to just fade, as being prompt helps us to move indies who are on the waitlist into the showcase.
 
+If you plan to accept, you must be available and have your space manned for "Core Hours"
+Core Hours for MIVS are:
+
+Thursday : 1pm - 7pm
+Friday : 12pm - 7pm
+Saturday : 12pm - 7pm
+Sunday: 12pm - 2pm
+
 More details will be sent out to all those who confirm including:
-- Opportunity to buy a hotel room in the Gaylord
 - What's included in a MIVS "booth" space
 - much, much, more....
+
+Please Note that coming off the waitlist, we cannot guarantee you the ability to purchase a Hotel room and it becomes significantly less likely if you receive this or accept after Nov 25th. Please email mivs@magfest.org if you need more information. 
 
 Again, we understand that things may come up which may prevent your team from meeting the above requirements.  If this is the case, please let us know ASAP as this will allow one of our many wait-listed entries to participate.
 
