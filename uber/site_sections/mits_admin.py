@@ -6,8 +6,8 @@ from pockets.autolog import log
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csv_file
 from uber.errors import HTTPRedirect
-from uber.models import Attendee
-from uber.utils import check_csrf
+from uber.models import Attendee, MITSTeam
+from uber.utils import add_opt, check_csrf
 
 
 @all_renderable(c.MITS_ADMIN)
@@ -76,11 +76,18 @@ class Root:
 
         return {'applicants': applicants}
 
+    def teams_and_badges(self, session):
+        return {
+            'accepted_teams': session.query(MITSTeam).filter(MITSTeam.status == c.ACCEPTED),
+        }
+
     @ajax
     def link_badge(self, session, applicant_id, attendee_id):
+        attendee = session.attendee(attendee_id)
         try:
             applicant = session.mits_applicant(applicant_id)
-            applicant.attendee_id = attendee_id
+            applicant.attendee = attendee
+            add_opt(attendee.ribbon_ints, c.MIVS)
             session.commit()
         except Exception:
             log.error('unexpected error linking applicant to a badge', exc_info=True)
@@ -99,6 +106,7 @@ class Root:
                 placeholder=True,
                 paid=c.NEED_NOT_PAY,
                 badge_type=c.ATTENDEE_BADGE,
+                ribbon=c.MIVS,
                 first_name=applicant.first_name,
                 last_name=applicant.last_name,
                 email=applicant.email,

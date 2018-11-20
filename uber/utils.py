@@ -959,7 +959,11 @@ class Charge:
             return 'An unexpected problem occurred while processing your card: ' + str(e)
         else:
             if self.models:
-                session.add(self.stripe_transaction_from_charge())
+                txn = self.stripe_transaction_from_charge()
+                for model in self.models:
+                    multi = len(self.models) > 1
+                    session.add(self.stripe_transaction_for_model(model, txn, multi))
+                session.add(txn)
 
     def stripe_transaction_from_charge(self, type=c.PAYMENT):
         return uber.models.StripeTransaction(
@@ -967,7 +971,19 @@ class Charge:
             amount=self.amount,
             desc=self.description,
             type=type,
-            who=uber.models.AdminAccount.admin_name() or 'non-admin',
-            fk_id=self.models[0].id,
-            fk_model=self.models[0].__class__.__name__
+            who=uber.models.AdminAccount.admin_name() or 'non-admin'
         )
+
+    def stripe_transaction_for_model(self, model, txn, multi=False):
+        if model.__class__.__name__ == "Attendee":
+            return uber.models.commerce.StripeTransactionAttendee(
+                txn_id=txn.id,
+                attendee_id=model.id,
+                share=self.amount if not multi else (model.amount_unpaid * 100)
+            )
+        elif model.__class__.__name__ == "Group":
+            return uber.models.commerce.StripeTransactionGroup(
+                txn_id=txn.id,
+                group_id=model.id,
+                share=self.amount if not multi else (model.amount_unpaid * 100)
+            )

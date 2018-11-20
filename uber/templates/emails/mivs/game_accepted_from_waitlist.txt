@@ -1,6 +1,6 @@
 {{ game.studio.primary_contact.first_name }},
 
-Congratulations!  Your game submission ({{ game.title }}) for the {{ c.ESCHATON.year }} MAGFest Indie Videogame Showcase (MIVS) is one of the 65 that have been accepted into the showcase.
+Congratulations!  Your game submission ({{ game.title }}) for the {{ c.ESCHATON.year }} MAGFest Indie Videogame Showcase (MIVS) is one of the games that have been accepted into the showcase.
 
 *** YOU NEED TO CONFIRM YOUR ACCEPTANCE! ***
 
@@ -29,3 +29,4 @@ Again, we understand that things may come up which may prevent your team from me
 Telling us you aren't able to meet the requirements leaves your team on good terms with the MIVS staff; failing to show or not meeting the requirements will be taken into consideration for future events.
 
 {{ c.MIVS_EMAIL_SIGNATURE }}
+

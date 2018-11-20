@@ -7,8 +7,8 @@ import cherrypy
 import six
 from dateutil.relativedelta import relativedelta
 from pytz import UTC
-from sqlalchemy import and_, or_
-from sqlalchemy.sql.expression import extract
+from sqlalchemy import and_, or_, func
+from sqlalchemy.sql.expression import extract, literal
 from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
@@ -555,12 +555,18 @@ class Root:
     @csv_file
     def volunteer_checklist_csv(self, out, session):
         checklists = volunteer_checklists(session)
-        out.writerow(['Volunteer', 'Email'] + [s for s in checklists['checklist_items'].keys()])
+        out.writerow(['First Name', 'Last Name', 'Email', 'Cellphone', 'Assigned Depts']
+                     + [s for s in checklists['checklist_items'].keys()])
         for attendee in checklists['attendees']:
             checklist_items = []
             for item in attendee.checklist_items.values():
                 checklist_items.append('Yes' if item['is_complete'] else 'No' if item['is_applicable'] else 'N/A')
-            out.writerow([attendee.full_name, attendee.email] + checklist_items)
+            out.writerow([attendee.first_name,
+                          attendee.last_name,
+                          attendee.email,
+                          attendee.cellphone,
+                          ', '.join(attendee.assigned_depts_labels)
+                          ] + checklist_items)
 
     def volunteer_checklists(self, session):
         return volunteer_checklists(session)
@@ -663,6 +669,23 @@ class Root:
             out.writerow([
                 subject, start_date, '', end_date, '', all_day, '', '', private
             ])
+
+    @csv_file
+    def checkins_by_hour(self, out, session):
+        out.writerow(["time_utc", "count"])
+        query_result = session.query(
+                func.date_trunc(literal('hour'), Attendee.checked_in),
+                func.count(func.date_trunc(literal('hour'), Attendee.checked_in))
+            ) \
+            .filter(Attendee.checked_in.isnot(None)) \
+            .group_by(func.date_trunc(literal('hour'), Attendee.checked_in)) \
+            .order_by(func.date_trunc(literal('hour'), Attendee.checked_in)) \
+            .all()
+
+        for result in query_result:
+            hour = result[0]
+            count = result[1]
+            out.writerow([hour, count])
 
     def all_attendees(self):
         raise HTTPRedirect('../export/valid_attendees')

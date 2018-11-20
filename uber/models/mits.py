@@ -17,8 +17,8 @@ __all__ = ['MITSTeam', 'MITSApplicant', 'MITSGame', 'MITSPicture', 'MITSDocument
 
 class MITSTeam(MagModel):
     name = Column(UnicodeText)
-    panel_interest = Column(Boolean, nullable=True)
-    showcase_interest = Column(Boolean, nullable=True)
+    panel_interest = Column(Boolean, nullable=True, admin_only=True)
+    showcase_interest = Column(Boolean, nullable=True, admin_only=True)
     want_to_sell = Column(Boolean, default=False)
     address = Column(UnicodeText)
     submitted = Column(UTCDateTime, nullable=True)
@@ -67,6 +67,10 @@ class MITSTeam(MagModel):
             if a.attendee_id and a.attendee.paid in [c.NEED_NOT_PAY, c.REFUNDED]])
 
     @property
+    def total_badge_count(self):
+        return len([a for a in self.applicants if a.attendee_id])
+
+    @property
     def can_add_badges(self):
         uncomped_badge_count = len([
             a for a in self.applicants
@@ -83,11 +87,11 @@ class MITSTeam(MagModel):
 
     @property
     def completed_panel_request(self):
-        return not self.panel_interest or self.schedule.availability
+        return self.panel_interest is not None
 
     @property
     def completed_showcase_request(self):
-        return not self.showcase_interest or self.schedule.showcase_availability
+        return self.showcase_interest is not None
 
     @property
     def completed_hotel_form(self):
@@ -100,6 +104,10 @@ class MITSTeam(MagModel):
         remaining hotel info.
         """
         return any(a.declined_hotel_space or a.requested_room_nights for a in self.applicants)
+
+    @property
+    def no_hotel_space(self):
+        return all(a.declined_hotel_space for a in self.applicants)
 
     @property
     def steps_completed(self):
@@ -176,11 +184,19 @@ class MITSPicture(MagModel):
 
     @property
     def is_header(self):
-        return Image.open(self.filepath).size == tuple(map(int, c.MITS_HEADER_SIZE))
+        try:
+            return Image.open(self.filepath).size == tuple(map(int, c.MITS_HEADER_SIZE))
+        except OSError:
+            # This probably isn't an image, so it's not a header image
+            return
 
     @property
     def is_thumbnail(self):
-        return Image.open(self.filepath).size == tuple(map(int, c.MITS_THUMBNAIL_SIZE))
+        try:
+            return Image.open(self.filepath).size == tuple(map(int, c.MITS_THUMBNAIL_SIZE))
+        except OSError:
+            # This probably isn't an image, so it's not a thumbnail image
+            return
 
 
 class MITSDocument(MagModel):

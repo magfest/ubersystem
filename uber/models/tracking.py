@@ -116,13 +116,13 @@ class Tracking(MagModel):
                 """
                 try:
                     old_val_repr = cls.repr(column, old_val)
-                except Exception as e:
+                except Exception:
                     log.error('Tracking repr({}) failed on old value'.format(attr), exc_info=True)
                     old_val_repr = '<ERROR>'
 
                 try:
                     new_val_repr = cls.repr(column, new_val)
-                except Exception as e:
+                except Exception:
                     log.error('Tracking repr({}) failed on new value'.format(attr), exc_info=True)
                     new_val_repr = '<ERROR>'
 

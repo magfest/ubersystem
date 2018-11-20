@@ -17,7 +17,7 @@ environment at the `installdeps` step. Each subsequent run should start quickly.
 directory as the `tox.ini` file -- this should always be the root folder of
 the plugin. E.g.:
     ```
-    cd sideboard/plugins/my_plugin
+    cd reggie-formula/reggie_install/plugins/my_plugin
     ```
 
 3. Run your tests! To run all tests and flake8 validation from the command line:

@@ -1,6 +1,10 @@
 {% extends "./preregistration/preregbase.html" %}
 {% block title %}Confirm Your Details{% endblock %}
-{% block backlink %}{% endblock %}
+{% block backlink %}
+    {% if c.HAS_PEOPLE_ACCESS %}
+        <a href="../registration/form?id={{ attendee.id }}" style="float:right">Return to Attendee Admin Form</a>
+    {% endif %}
+{% endblock %}
 {% block content %}
 
 <script type="text/javascript">

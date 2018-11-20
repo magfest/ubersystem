@@ -174,7 +174,7 @@ class Root:
         }
 
     def edit_judge(self, session, message='', **params):
-        judge = session.indie_judge(params, checkgroups=['genres', 'platforms'])
+        judge = session.indie_judge(params, checkgroups=['genres', 'platforms'], bools=['no_game_submission'])
         if cherrypy.request.method == 'POST':
             message = check(judge)
             if not message:
