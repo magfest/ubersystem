@@ -846,6 +846,12 @@ c.DISCOUNTABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
 c.TRANSFERABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.TRANSFERABLE_BADGE_TYPES]
 
+c.MIVS_CHECKLIST = _config['mivs_checklist']
+for key, val in c.MIVS_CHECKLIST.items():
+    val['deadline'] = c.EVENT_TIMEZONE.localize(datetime.strptime(val['deadline'] + ' 23:59', '%Y-%m-%d %H:%M'))
+    if val['start']:
+        val['start'] = c.EVENT_TIMEZONE.localize(datetime.strptime(val['start'] + ' 23:59', '%Y-%m-%d %H:%M'))
+
 c.DEPT_HEAD_CHECKLIST = _config['dept_head_checklist']
 
 c.CON_LENGTH = int((c.ESCHATON - c.EPOCH).total_seconds() // 3600)

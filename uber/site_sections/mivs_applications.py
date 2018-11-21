@@ -7,7 +7,7 @@ from cherrypy.lib.static import serve_file
 from uber.config import c
 from uber.decorators import all_renderable, csrf_protected
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Group, IndieDeveloper, IndieStudio
+from uber.models import Attendee, Group, GuestGroup, IndieDeveloper, IndieStudio
 from uber.utils import check, check_csrf
 
 
@@ -258,6 +258,8 @@ class Root:
                 for i in range(badges_remaining):
                     group.attendees.append(Attendee(badge_type=c.ATTENDEE_BADGE, paid=c.NEED_NOT_PAY))
                 group.cost = group.default_cost
+                group.guest = GuestGroup()
+                group.guest.group_type = c.MIVS
                 raise HTTPRedirect('index?message={}', 'Your studio has been registered')
 
         return {

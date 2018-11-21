@@ -1,6 +1,6 @@
 {% extends "guestbase.html" %}
 {% block body %}
-{% set snippet=True %}
+  {% set snippet=True %}
   <style type="text/css">
     td img {
       width: 20px;
@@ -11,21 +11,43 @@
   </style>
 
   <h2>{% if guest.group_type == c.GUEST %}Guests & Events Checklist for {{ guest.group.name }}
-  {% else %}{{ guest.group_type_label }} Checklist for {{ guest.group.name }}{% endif %}</h2>
+    {% else %}{{ guest.group_type_label }} Checklist for {{ guest.group.name }}{% endif %}</h2>
 
   {% if guest.group_type == c.GUEST %}This checklist will help make sure {{ c.EVENT_NAME }} has all the group, panel, activity, and
-  support information we need from you before the event.
+    support information we need from you before the event.
   {% else %}Here is a list of things which {{ c.EVENT_NAME }} needs from you before the event.{% endif %}
   <br/><br/>
 
   <table style="width:auto">
-    {% for item in sorted_checklist -%}
+    {% if guest.group_type == c.MIVS %}
+      {% for key, val in c.MIVS_CHECKLIST.items() %}
+        <h3>{{ val['name'] }}</h3>
+        <p>{{ val['description'] }}</p>
+        <p>
+          {% if not val['start'] or now_localized() >= val['start'] %}
+            <strong>Deadline</strong>: {{ guest.group.studio.checklist_deadline(key)|datetime_local if guest.group.studio }}</p>
+            <p>
+            {% if not guest.group.studio[key + "_status"] %}
+              <a href="mivs_{{ key }}?guest_id={{ guest.id }}">Complete this checklist step</a>.
+            {% elif val['editable'] and now_localized() <= guest.group.studio.checklist_deadline(key) %}
+              You've <strong>already completed</strong> this step but you can still <a href="mivs_{{ key }}?guest_id={{ guest.id }}">edit your response</a> until the deadline.
+            {% else %}
+              You've <strong>already completed</strong> this step.
+            {% endif %}
+          {% else %}
+            This step is not available yet. We will email you when it becomes available, so keep an eye on your inbox.
+          {% endif %}
+          </p>
+      {% endfor %}
+    {% else %}
+      {% for item in sorted_checklist -%}
         {# Try to include the checklist template with a prefix matching the group's type, e.g. band_info_deadline.html #}
         {%- include [
           item['deadline_template'][0] ~ guest.group_type_label|lower ~ '_' ~ item['deadline_template'][1],
           item['deadline_template'][0] ~ item['deadline_template'][1]
         ] -%}
-    {%- endfor %}
+      {%- endfor %}
+    {% endif %}
     {% include "guests/guestextra.html" %}
   </table>
 

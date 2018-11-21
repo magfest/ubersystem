@@ -9,7 +9,7 @@ from uber.models import Event, Group, GuestGroup, GuestMerch
 from uber.utils import check, convert_to_absolute_url
 
 
-@all_renderable(c.BANDS)
+@all_renderable(c.BANDS, c.INDIE_ADMIN)
 class Root:
 
     def _required_message(self, params, fields):

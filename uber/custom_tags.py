@@ -94,6 +94,11 @@ def now():
 
 
 @JinjaEnv.jinja_export
+def now_localized():
+    return localized_now()
+
+
+@JinjaEnv.jinja_export
 def event_dates():
     if c.EPOCH.date() == c.ESCHATON.date():
         return c.EPOCH.strftime('%B %-d')
