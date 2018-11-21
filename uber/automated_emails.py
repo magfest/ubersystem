@@ -877,7 +877,6 @@ if c.MIVS_ENABLED:
             lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
                            for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
             when=days_before(2, deadline),
-            needs_approval=False,
             ident='mivs_checklist_due_2_days_from_{}'.format(deadline.strftime('%m_%d')),
         )
 
@@ -887,7 +886,6 @@ if c.MIVS_ENABLED:
             lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
                            for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
             when=days_before(1, deadline),
-            needs_approval=False,
             ident='mivs_checklist_due_1_day_from_{}'.format(deadline.strftime('%m_%d')),
         )
 
@@ -897,7 +895,6 @@ if c.MIVS_ENABLED:
             lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
                            for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
             when=days_after(1, deadline),
-            needs_approval=False,
             ident='mivs_checklist_overdue_{}'.format(deadline.strftime('%m_%d')),
         )
 
