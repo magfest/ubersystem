@@ -106,6 +106,7 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='Groups', href='../groups/'),
         MenuItem(name='Bands', href='../guest_admin/?filter=only-bands', access=c.BANDS),
         MenuItem(name='Guests', href='../guest_admin/?filter=only-guests', access=c.BANDS),
+        MenuItem(name='MIVS', href='../guest_admin/?filter=only-mivss', access=c.INDIE_ADMIN),
         MenuItem(name='Watchlist', href='../registration/watchlist_entries', access=c.WATCHLIST),
     ]),
 
