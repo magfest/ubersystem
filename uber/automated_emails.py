@@ -847,7 +847,7 @@ if c.MIVS_ENABLED:
     MIVSEmailFixture(
         IndieGame,
         'MIVS {EVENT_YEAR} - Important Hotel Information',
-        'mivs/accepted/2019_hotel.txt',
+        'mivs/accepted/2019_Hotel.txt',
         lambda game: game.confirmed,
         ident='2019_mivs_accepted_hotel')
 
