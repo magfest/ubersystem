@@ -7,11 +7,12 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
+from uber.custom_tags import humanize_timedelta
 from uber.decorators import all_renderable, csrf_protected, csv_file, multifile_zipfile, render, xlsx_file
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, Group, IndieGame, IndieGameReview, IndieStudio
 from uber.tasks.email import send_email
-from uber.utils import check, genpasswd
+from uber.utils import check, genpasswd, localized_now
 
 
 @all_renderable(c.INDIE_ADMIN)
@@ -85,6 +86,28 @@ class Root:
                 '\n'.join(c.URL_BASE + screenshot.url.lstrip('.') for screenshot in game.screenshots),
                 str(game.average_score)
             ] + [str(score) for score in game.scores])
+
+    @csv_file
+    def checklist_completion(self, out, session):
+        header_row = ['Studio']
+        for key, val in c.MIVS_CHECKLIST.items():
+            header_row.append(val['name'])
+            header_row.append('Past Due?')
+        out.writerow(header_row)
+
+        rows = []
+        for studio in session.query(IndieStudio).join(IndieStudio.group).join(Group.guest):
+            row = [studio.name]
+            for key, val in c.MIVS_CHECKLIST.items():
+                row.extend([
+                    'Not Completed' if getattr(studio, key + "_status", None) is None
+                    else getattr(studio, key + "_status"),
+                    'No' if localized_now() <= studio.checklist_deadline(key)
+                    else humanize_timedelta(studio.past_checklist_deadline(key), granularity='hours'),
+                ])
+            rows.extend(row)
+
+        out.writerow(rows)
 
     @xlsx_file
     def accepted_games_xlsx(self, out, session):

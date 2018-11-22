@@ -1,0 +1,10 @@
+Ahoy {{ guest.group.studio.primary_contact.first_name }},
+
+We've put together a new webpage that contains a checklist of items for you to complete that will help you better prepare for MAGFest. As we get closer to MAGFest, new checklist items may show up. You will be receiving emails from us about checklist items that need to be completed and reminders for ones that still need your attention. You can get to your checklist using this link: {{ c.URL_BASE }}/guests/index?id={{ guest.id }}
+
+We hope that this will help you manage the logistics so you can put on a great show for the MAGFest Attendees.
+
+If you have any questions, please email mivs@magfest.org
+
+Forever Your Fan,
+-The MIVS Team

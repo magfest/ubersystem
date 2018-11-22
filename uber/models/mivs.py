@@ -81,6 +81,16 @@ class IndieStudio(MagModel):
     staff_notes = Column(UnicodeText, admin_only=True)
     registered = Column(UTCDateTime, server_default=utcnow())
 
+    accepted_core_hours = Column(Boolean, default=False)
+    discussion_emails = Column(UnicodeText)
+    completed_discussion = Column(Boolean, default=False)
+    read_handbook = Column(Boolean, default=False)
+    training_password = Column(UnicodeText)
+    selling_at_event = Column(Boolean, nullable=True)
+    needs_hotel_space = Column(Boolean, nullable=True)
+    name_for_hotel = Column(UnicodeText)
+    email_for_hotel = Column(UnicodeText)
+
     games = relationship(
         'IndieGame', backref='studio', order_by='IndieGame.title')
     developers = relationship(
@@ -100,6 +110,56 @@ class IndieStudio(MagModel):
     @property
     def after_confirm_deadline(self):
         return self.confirm_deadline < localized_now()
+
+    @property
+    def discussion_emails_list(self):
+        return self.discussion_emails.split(',')
+
+    @property
+    def core_hours_status(self):
+        return "Accepted" if self.accepted_core_hours else None
+
+    @property
+    def discussion_status(self):
+        return "Completed" if self.completed_discussion else None
+
+    @property
+    def handbook_status(self):
+        return "Read" if self.read_handbook else None
+
+    @property
+    def training_status(self):
+        if self.training_password:
+            return "Completed" if self.training_password == c.MIVS_TRAINING_PASSWORD else "Entered the wrong phrase!"
+
+    @property
+    def selling_at_event_status(self):
+        if self.selling_at_event is not None:
+            return "Expressed interest in selling" if self.selling_at_event else "Opted out"
+
+    @property
+    def hotel_space_status(self):
+        if self.needs_hotel_space is not None:
+            return "Requested hotel space for {} with email {}".format(self.name_for_hotel, self.email_for_hotel)\
+                if self.needs_hotel_space else "Opted out"
+
+    def checklist_deadline(self, slug):
+        default_deadline = c.MIVS_CHECKLIST[slug]['deadline']
+        if self.group and self.group.registered >= default_deadline and slug != 'hotel_space':
+            return self.group.registered + timedelta(days=3)
+        return default_deadline
+
+    def past_checklist_deadline(self, slug):
+        """
+
+        Args:
+            slug: A standardized name, which should match the checklist's section name in config.
+            E.g., the properties above ending in _status
+
+        Returns: A timedelta object representing how far from the deadline this team is for a particular checklist item
+
+        """
+        return localized_now() - self.checklist_deadline(slug)
 
     @property
     def website_href(self):

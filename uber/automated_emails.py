@@ -568,6 +568,19 @@ class MIVSEmailFixture(AutomatedEmailFixture):
         AutomatedEmailFixture.__init__(self, *args, sender=c.MIVS_EMAIL, **kwargs)
 
 
+class MIVSGuestEmailFixture(AutomatedEmailFixture):
+    def __init__(self, subject, template, filter, ident, **kwargs):
+        AutomatedEmailFixture.__init__(
+            self,
+            GuestGroup,
+            subject,
+            template,
+            lambda mg: mg.group_type == c.MIVS and mg.group.studio and filter(mg),
+            ident,
+            sender=c.MIVS_EMAIL,
+            **kwargs)
+
+
 if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
@@ -837,6 +850,53 @@ if c.MIVS_ENABLED:
         'mivs/accepted/2019_Hotel.txt',
         lambda game: game.confirmed,
         ident='2019_mivs_accepted_hotel')
+
+    MIVSGuestEmailFixture(
+        '{EVENT_NAME} MIVS Checklist',
+        'mivs/mivs_checklist_open.txt',
+        lambda mg: True,
+        ident='mivs_checklist_open'
+    )
+
+    for key, val in c.MIVS_CHECKLIST.items():
+        if val['start']:
+            MIVSGuestEmailFixture(
+                'New MIVS Checklist Item Available: {}'.format(val['name']),
+                'mivs/mivs_checklist_new_item.txt',
+                lambda mg: val['start'] > mg.created.when,
+                when=after(val['start']),
+                ident='mivs_checklist_new_item_{}'.format(key),
+            )
+
+    deadline_groups = set([val['deadline'] for key, val in c.MIVS_CHECKLIST.items()])
+
+    for deadline in deadline_groups:
+        MIVSGuestEmailFixture(
+            'An item on your {EVENT_NAME} MIVS Checklist is due soon',
+            'mivs/mivs_checklist_reminder.txt',
+            lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
+                           for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
+            when=days_before(2, deadline),
+            ident='mivs_checklist_due_2_days_from_{}'.format(deadline.strftime('%m_%d')),
+        )
+
+        MIVSGuestEmailFixture(
+            'An item on your {EVENT_NAME} MIVS Checklist is due tomorrow',
+            'mivs/mivs_checklist_reminder.txt',
+            lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
+                           for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
+            when=days_before(1, deadline),
+            ident='mivs_checklist_due_1_day_from_{}'.format(deadline.strftime('%m_%d')),
+        )
+
+        MIVSGuestEmailFixture(
+            'An item on your {EVENT_NAME} MIVS Checklist is overdue',
+            'mivs/mivs_checklist_reminder.txt',
+            lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
+                           for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
+            when=days_after(1, deadline),
+            ident='mivs_checklist_overdue_{}'.format(deadline.strftime('%m_%d')),
+        )
 
 
 # =============================
