@@ -293,6 +293,9 @@ def age(attendee):
     if c.COLLECT_EXACT_BIRTHDATE:
         if not attendee.birthdate:
             return 'Please enter a date of birth.'
+        elif not isinstance(attendee.birthdate, date):
+            attendee.birthdate = ''
+            return 'Please use the format YYYY-MM-DD for your date of birth.'
         elif attendee.birthdate > date.today():
             return 'You cannot be born in the future.'
     elif not attendee.age_group:

@@ -103,18 +103,18 @@
         <thead>
           <tr>
             {% block tableheadings %}
-            <th> <a href="index?order={{ order.group_id }}">Group Name</a> </th>
-            <th> <a href="index?order={{ order.last_first }}">Full Name</a> </th>
-            <th> <a href="index?order={{ order.legal_name }}">Name on ID</a> </th>
-            {% if c.PREASSIGNED_BADGE_TYPES %}<th> <a href="index?order={{ order.badge_printed_name }}">Badge Name</a> </th>{% endif %}
-            <th> <a href="index?order={{ order.badge_type }}">Membership Type</a></th>
-            {% if c.NUMBERED_BADGES %}<th> <a href="index?order={{ order.badge_num }}">Badge #</a> </th> {% endif %}
-            <th> <a href="index?order={{ order.ribbon }}">Badge Ribbons</a></th>
-            <th> <a href="index?order={{ order.amount_extra }}">Upgrade</a></th>
-            <th> <a href="index?order={{ order.paid }}">Paid</a> </th>
+            <th> <a href="index?order={{ order.group_id }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Group Name</a> </th>
+            <th> <a href="index?order={{ order.last_first }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Full Name</a> </th>
+            <th> <a href="index?order={{ order.legal_name }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Name on ID</a> </th>
+            {% if c.PREASSIGNED_BADGE_TYPES %}<th> <a href="index?order={{ order.badge_printed_name }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Badge Name</a> </th>{% endif %}
+            <th> <a href="index?order={{ order.badge_type }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Membership Type</a></th>
+            {% if c.NUMBERED_BADGES %}<th> <a href="index?order={{ order.badge_num }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Badge #</a> </th> {% endif %}
+            <th> <a href="index?order={{ order.ribbon }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Badge Ribbons</a></th>
+            <th> <a href="index?order={{ order.amount_extra }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Upgrade</a></th>
+            <th> <a href="index?order={{ order.paid }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Paid</a> </th>
             <th>Age</th>
             {% if c.AT_THE_CON %}
-                <th> <a href="index?order={{ order.checked_in }}"><nobr>Checked In</nobr></a> </th>
+                <th> <a href="index?order={{ order.checked_in }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}"><nobr>Checked In</nobr></a> </th>
             {% endif %}
             {% endblock tableheadings %}
           </tr>
