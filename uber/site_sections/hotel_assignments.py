@@ -202,7 +202,8 @@ class Root:
             'First Name 3',
             'Last Name 4',
             'First Name 4',
-            'comments'
+            'Comments',
+            'Emails',
         ])
         for room in session.query(Room).order_by(Room.created).all():
             if room.assignments:
@@ -232,7 +233,8 @@ class Root:
                     '',                     # Credit Card Number
                     ''                      # Credit Card Expiration
                 ] + sum(roommates, []) + [  # Last Name, First Name 2-4
-                    room.notes              # comments
+                    room.notes,             # Comments
+                    ','.join(room.email),   # Emails
                 ])
 
     @csv_file
@@ -255,6 +257,7 @@ class Root:
             'Guest3ArrivalDate', 'Guest3ArrivalTime', 'Guest3ArrivalAirline', 'Guest3ArrivalFlightNumber', 'Guest3DepartureDate', 'Guest3DepartureTime', 'Guest3DepartureAirline', 'Guest3DepartureFlightNumber', 'Guest3OtherTravelDetails', 'Guest3Transportation',  # noqa: E501
             'Guest4ArrivalDate', 'Guest4ArrivalTime', 'Guest4ArrivalAirline', 'Guest4ArrivalFlightNumber', 'Guest4DepartureDate', 'Guest4DepartureTime', 'Guest4DepartureAirline', 'Guest4DepartureFlightNumber', 'Guest4OtherTravelDetails', 'Guest4Transportation',  # noqa: E501
             'Guest5ArrivalDate', 'Guest5ArrivalTime', 'Guest5ArrivalAirline', 'Guest5ArrivalFlightNumber', 'Guest5DepartureDate', 'Guest5DepartureTime', 'Guest5DepartureAirline', 'Guest5DepartureFlightNumber', 'Guest5OtherTravelDetails', 'Guest5Transportation',  # noqa: E501
+            'Emails',
         ]
 
         blank = OrderedDict([(field, '') for field in fields])
@@ -267,7 +270,8 @@ class Root:
                     'CustomField1': room.notes,
                     'NumberofGuests': min(4, len(room.assignments)),
                     'CheckInDate': room.check_in_date.strftime('%m/%d/%Y'),
-                    'CheckOutDate': room.check_out_date.strftime('%m/%d/%Y')
+                    'CheckOutDate': room.check_out_date.strftime('%m/%d/%Y'),
+                    'Emails': ','.join(room.email),
                 })
                 for i, attendee in enumerate([ra.attendee for ra in room.assignments[:4]]):
                     prefix = 'Guest{}'.format(i + 1)
