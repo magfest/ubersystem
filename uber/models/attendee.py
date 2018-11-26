@@ -759,7 +759,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def can_abandon_badge(self):
-        return not self.amount_paid and not self.paid == c.NEED_NOT_PAY and not self.is_group_leader
+        return not self.amount_paid and (
+            not self.paid == c.NEED_NOT_PAY or self.badge_type == c.STAFF_BADGE
+        ) and not self.is_group_leader and not self.checked_in
 
     @property
     def can_self_service_refund_badge(self):

@@ -728,9 +728,11 @@ class Root:
 
             session.delete_from_group(attendee, attendee.group)
             raise HTTPRedirect('not_found?id={}&message={}', attendee.id, success_message)
-        # otherwise, we will mark attendee as invalid
+        # otherwise, we will mark attendee as invalid and remove them from shifts if necessary
         else:
             attendee.badge_status = new_status
+            for shift in attendee.shifts:
+                session.delete(shift)
             raise HTTPRedirect('{}?id={}&message={}', page_redirect, attendee.id, success_message)
 
     def badge_updated(self, session, id, message=''):
