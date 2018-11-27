@@ -1,1 +1,14 @@
-This space intentionally left blank.
+Ahoy {{ guest.group.studio.primary_contact.first_name }},
+
+This is a reminder that you have You have a checklist item that is due soon.  
+
+You can Finish your checklist items at: {{ c.URL_BASE }}/guests/index?id={{ guest.id }}
+
+If you don't finish your item, you may get a friendly personal reminder* from MIVS.  Some items, such as Hotels or Selling, have hard dates and need to be completed by their due date. 
+
+If you have any questions, please email mivs@magfest.org
+
+Forever Your Fan,
+-The MIVS Team
+
+* Sending friendly reminders takes time away from our volunteers. You don't want that on your conscious, do you?
