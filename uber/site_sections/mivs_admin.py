@@ -105,9 +105,7 @@ class Root:
                     'No' if localized_now() <= studio.checklist_deadline(key)
                     else humanize_timedelta(studio.past_checklist_deadline(key), granularity='hours'),
                 ])
-            rows.extend(row)
-
-        out.writerow(rows)
+            out.writerow(row)
 
     @xlsx_file
     def accepted_games_xlsx(self, out, session):
