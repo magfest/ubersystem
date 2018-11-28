@@ -95,7 +95,6 @@ class Root:
             header_row.append('Past Due?')
         out.writerow(header_row)
 
-        rows = []
         for studio in session.query(IndieStudio).join(IndieStudio.group).join(Group.guest):
             row = [studio.name]
             for key, val in c.MIVS_CHECKLIST.items():
@@ -105,9 +104,7 @@ class Root:
                     'No' if localized_now() <= studio.checklist_deadline(key)
                     else humanize_timedelta(studio.past_checklist_deadline(key), granularity='hours'),
                 ])
-            rows.extend(row)
-
-        out.writerow(rows)
+            out.writerow(row)
 
     @xlsx_file
     def accepted_games_xlsx(self, out, session):
