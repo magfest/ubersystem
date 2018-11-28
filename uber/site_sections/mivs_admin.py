@@ -95,7 +95,6 @@ class Root:
             header_row.append('Past Due?')
         out.writerow(header_row)
 
-        rows = []
         for studio in session.query(IndieStudio).join(IndieStudio.group).join(Group.guest):
             row = [studio.name]
             for key, val in c.MIVS_CHECKLIST.items():
