@@ -213,6 +213,7 @@
         {% block tableheadings %}
         <th align="left">Registered</th>
         <th align="left">Name</th>
+        <th align="left">Badge Name</th>
         <th>Badge Type</th>
         <th>Age</th>
         <th>Cost</th>
@@ -234,6 +235,9 @@
             {% if attendee.banned %}
                 <div style="color:red">There is a problem with this registration. Please contact your department head.</div>
             {% endif %}
+        </td>
+        <td>
+            <input type="text" class="form-control" form="new_checkin_{{ attendee.id }}" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" />
         </td>
         <td>{{ attendee.badge_type_label }}</td>
         <td>
