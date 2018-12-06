@@ -106,6 +106,16 @@ class Root:
                 ])
             out.writerow(row)
 
+    @csv_file
+    def discussion_group_emails(self, out, session):
+        emails = []
+        for studio in session.query(IndieStudio).join(IndieStudio.group).join(Group.guest):
+            emails.append(studio.group.guest.email)
+            if studio.discussion_emails:
+                emails.extend(studio.discussion_emails_list)
+
+        out.writerow(emails)
+
     @xlsx_file
     def accepted_games_xlsx(self, out, session):
         rows = []
