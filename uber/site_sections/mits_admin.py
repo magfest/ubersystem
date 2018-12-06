@@ -139,7 +139,7 @@ class Root:
     def showcase_requests(self, out, session):
         out.writerow(['Team Name'] + [desc for val, desc in c.MITS_SHOWCASE_SCHEDULE_OPTS])
         for team in session.mits_teams().filter_by(status=c.ACCEPTED):
-            if team.schedule.showcase_availability:
+            if team.schedule and team.schedule.showcase_availability:
                 available = getattr(team.schedule, 'showcase_availability_ints', [])
                 out.writerow([team.name] + [
                     'available' if val in available else ''
