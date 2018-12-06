@@ -113,7 +113,7 @@ class IndieStudio(MagModel):
 
     @property
     def discussion_emails_list(self):
-        return self.discussion_emails.split(',')
+        return list(filter(None, self.discussion_emails.split(',')))
 
     @property
     def core_hours_status(self):
