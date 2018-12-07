@@ -876,7 +876,7 @@ if c.MIVS_ENABLED:
             'mivs/mivs_checklist_reminder.txt',
             lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
                            for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
-            when=days_before(2, deadline),
+            when=days_before(2, deadline, 1),
             ident='mivs_checklist_due_2_days_from_{}'.format(deadline.strftime('%m_%d')),
         )
 
@@ -885,7 +885,7 @@ if c.MIVS_ENABLED:
             'mivs/mivs_checklist_reminder.txt',
             lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
                            for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
-            when=days_before(1, deadline),
+            when=days_before(1, deadline, 0),
             ident='mivs_checklist_due_1_day_from_{}'.format(deadline.strftime('%m_%d')),
         )
 
