@@ -139,7 +139,9 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def email(self):
-        if self.leader and self.leader.email:
+        if self.studio and self.studio.email:
+            return self.studio.email
+        elif self.leader and self.leader.email:
             return self.leader.email
         elif self.leader_id:  # unattached groups
             [leader] = [a for a in self.attendees if a.id == self.leader_id]
