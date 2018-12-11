@@ -178,6 +178,39 @@ class Root:
                 writerow(a, a.hotel_requests)
 
     @csv_file
+    def hotel_email_info(self, out, session):
+        fields = [
+            'CheckIn Date', 'CheckOut Date', 'Number of Guests', 'Room Notes',
+            'Guest1 First Name', 'Guest1 Last Name', 'Guest1 Legal Name',
+            'Guest2 First Name', 'Guest2 Last Name', 'Guest2 Legal Name',
+            'Guest3 First Name', 'Guest3 Last Name', 'Guest3 Legal Name',
+            'Guest4 First Name', 'Guest4 Last Name', 'Guest4 Legal Name',
+            'Guest5 First Name', 'Guest5 Last Name', 'Guest5 Legal Name',
+            'Emails',
+        ]
+
+        blank = OrderedDict([(field, '') for field in fields])
+        out.writerow(fields)
+        for room in session.query(Room).order_by(Room.created).all():
+            if room.assignments:
+                row = blank.copy()
+                row.update({
+                    'Room Notes': room.notes,
+                    'Number of Guests': min(4, len(room.assignments)),
+                    'CheckIn Date': room.check_in_date.strftime('%m/%d/%Y'),
+                    'CheckOut Date': room.check_out_date.strftime('%m/%d/%Y'),
+                    'Emails': ','.join(room.email),
+                })
+                for i, attendee in enumerate([ra.attendee for ra in room.assignments[:4]]):
+                    prefix = 'Guest{}'.format(i + 1)
+                    row.update({
+                        prefix + ' First Name': attendee.first_name,
+                        prefix + ' Last Name': attendee.last_name,
+                        prefix + ' Legal Name': attendee.legal_name,
+                    })
+                out.writerow(list(row.values()))
+
+    @csv_file
     def mark_center(self, out, session):
         """spreadsheet in the format requested by the Hilton Mark Center"""
         out.writerow([
