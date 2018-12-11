@@ -3,6 +3,7 @@ from datetime import timedelta
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from uber.config import c
 from uber.models import MagModel
@@ -113,6 +114,10 @@ class PanelApplication(MagModel):
     @property
     def unmatched_applicants(self):
         return [a for a in self.applicants if not a.attendee_id]
+
+    @hybrid_property
+    def has_been_accepted(self):
+        return self.status == c.ACCEPTED
 
     @property
     def guidebook_name(self):

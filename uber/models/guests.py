@@ -163,10 +163,6 @@ class GuestGroup(MagModel):
         return self.bio.desc if self.bio else ''
 
     @property
-    def guidebook_location(self):
-        return ''
-
-    @property
     def guidebook_image(self):
         return self.bio.pic_filename if self.bio else ''
 

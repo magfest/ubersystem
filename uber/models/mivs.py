@@ -10,6 +10,7 @@ from sideboard.lib import on_startup
 from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey, UniqueConstraint
 from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from uber.config import c
 from uber.decorators import presave_adjustment
@@ -423,7 +424,7 @@ class IndieGame(MagModel, ReviewMixin):
             and self.studio \
             and self.studio.group_id
 
-    @property
+    @hybrid_property
     def has_been_accepted(self):
         return self.status == c.ACCEPTED
 
@@ -449,7 +450,8 @@ class IndieGame(MagModel, ReviewMixin):
 
     @property
     def guidebook_thumbnail(self):
-        return self.best_screenshot_download_filenames()[1]
+        return self.best_screenshot_download_filenames()[1] \
+            if len(self.best_screenshot_download_filenames()) > 1 else self.best_screenshot_download_filenames()[0]
 
 
 class IndieGameImage(MagModel):

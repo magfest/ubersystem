@@ -3,9 +3,11 @@ from functools import wraps
 
 from PIL import Image
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from sqlalchemy import and_
 from sideboard.lib import on_startup
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from uber.config import c
 from uber.models import MagModel
@@ -166,9 +168,13 @@ class MITSGame(MagModel):
     unlicensed = Column(Boolean, default=False)
     professional = Column(Boolean, default=False)
 
-    @property
+    @hybrid_property
     def has_been_accepted(self):
         return self.team.status == c.ACCEPTED
+
+    @has_been_accepted.expression
+    def has_been_accepted(cls):
+        return and_(MITSTeam.id == cls.team_id, MITSTeam.status == c.ACCEPTED)
 
     @property
     def guidebook_name(self):
@@ -188,17 +194,21 @@ class MITSGame(MagModel):
 
     @property
     def guidebook_image(self):
+        if not self.team.pictures:
+            return ''
         for image in self.team.pictures:
             if image.is_header:
-                return image
-        return self.team.pictures[0]
+                return image.filename
+        return self.team.pictures[0].filename
 
     @property
     def guidebook_thumbnail(self):
+        if not self.team.pictures:
+            return ''
         for image in self.team.pictures:
             if image.is_thumbnail:
-                return image
-        return self.team.pictures[1] if len(self.team.pictures) > 1 else self.team.pictures[0]
+                return image.filename
+        return self.team.pictures[1].filename if len(self.team.pictures) > 1 else self.team.pictures[0].filename
 
 
 class MITSPicture(MagModel):
