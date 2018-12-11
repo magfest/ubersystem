@@ -698,7 +698,7 @@ class Root:
             'tables': c.GUIDEBOOK_MODELS,
         }
 
-    @csv_file
+    @xlsx_file
     def export_guidebook(self, out, session, selected_model=''):
         from uber.decorators import _set_response_filename
 
@@ -716,7 +716,7 @@ class Root:
         else:
             model_list = model_query.all()
 
-        _set_response_filename('{}_guidebook_{}.csv'.format(
+        _set_response_filename('{}_guidebook_{}.xlsx'.format(
             filename_safe(dict(c.GUIDEBOOK_MODELS)[selected_model]).lower(),
             localized_now().strftime('%Y%m%d'),
 
@@ -727,5 +727,5 @@ class Root:
         for model in model_list:
             row = []
             for key, val in c.GUIDEBOOK_PROPERTIES:
-                row.append(getattr(model, key, ''))
+                row.append(getattr(model, key, '').replace('\n', '<br/>'))
             out.writerow(row)
