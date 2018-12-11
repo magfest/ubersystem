@@ -423,6 +423,34 @@ class IndieGame(MagModel, ReviewMixin):
             and self.studio \
             and self.studio.group_id
 
+    @property
+    def has_been_accepted(self):
+        return self.status == c.ACCEPTED
+
+    @property
+    def guidebook_name(self):
+        return self.studio.name
+
+    @property
+    def guidebook_subtitle(self):
+        return self.title
+
+    @property
+    def guidebook_desc(self):
+        return self.description
+
+    @property
+    def guidebook_location(self):
+        return ''
+
+    @property
+    def guidebook_image(self):
+        return self.best_screenshot_download_filenames()[0]
+
+    @property
+    def guidebook_thumbnail(self):
+        return self.best_screenshot_download_filenames()[1]
+
 
 class IndieGameImage(MagModel):
     game_id = Column(UUID, ForeignKey('indie_game.id'))

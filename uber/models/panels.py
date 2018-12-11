@@ -114,6 +114,23 @@ class PanelApplication(MagModel):
     def unmatched_applicants(self):
         return [a for a in self.applicants if not a.attendee_id]
 
+    @property
+    def guidebook_name(self):
+        return self.name
+
+    @property
+    def guidebook_subtitle(self):
+        return 'Panel'
+
+    @property
+    def guidebook_desc(self):
+        panelists_creds = '<br/><br/>'.join(a.other_credentials for a in self.applicants if a.other_credentials)
+        return self.description + '<br/><br/>' + panelists_creds
+
+    @property
+    def guidebook_location(self):
+        return self.event.location_label if self.event else ''
+
 
 class PanelApplicant(SocialMediaMixin, MagModel):
     app_id = Column(UUID, ForeignKey('panel_application.id', ondelete='cascade'))

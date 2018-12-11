@@ -14,8 +14,9 @@ from sqlalchemy.orm import joinedload, subqueryload
 from uber.config import c
 from uber.decorators import all_renderable, csv_file, multifile_zipfile, render, site_mappable, xlsx_file
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Department, FoodRestrictions, Group
+from uber.models import Attendee, Department, FoodRestrictions, Group, GuestGroup, Session
 from uber.reports import PersonalizedBadgeReport, PrintedBadgeReport
+from uber.utils import filename_safe
 
 
 def generate_staff_badges(start_badge, end_badge, out, session):
@@ -690,3 +691,39 @@ class Root:
     def all_attendees(self):
         raise HTTPRedirect('../export/valid_attendees')
     all_attendees.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
+
+    def guidebook_exports(self, session, message=''):
+        return {
+            'message': message,
+            'tables': c.GUIDEBOOK_MODELS,
+        }
+
+    @csv_file
+    def export_guidebook(self, out, session, selected_model=''):
+        from uber.decorators import _set_response_filename
+
+        if 'Group' in selected_model:
+            model = selected_model.split('_')[0]
+            model_list = session.query(Session.resolve_model(model))
+
+            if '_band' in selected_model:
+                model_list = model_list.filter_by(group_type=c.BAND).all()
+            elif '_guest' in selected_model:
+                model_list = model_list.filter_by(group_type=c.GUEST).all()
+            elif '_dealer' in selected_model:
+                model_list = model_list.filter_by(is_dealer=True).all()
+        else:
+            model_list = session.query(Session.resolve_model(selected_model)).all()
+
+        if 'Game' in selected_model:
+            model_list = [model for model in model_list if getattr(model, 'has_been_accepted', None)]
+
+        _set_response_filename('{}_guidebook.csv'.format(filename_safe(selected_model)))
+
+        out.writerow([val for key, val in c.GUIDEBOOK_PROPERTIES])
+
+        for model in model_list:
+            row = []
+            for key, val in c.GUIDEBOOK_PROPERTIES:
+                row.append(getattr(model, key, ''))
+            out.writerow(row)

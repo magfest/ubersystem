@@ -965,6 +965,29 @@ stripe.api_key = c.STRIPE_SECRET_KEY
 c.JAVASCRIPT_INCLUDES = []
 
 
+# A list of models that have properties defined for exporting for Guidebook
+c.GUIDEBOOK_MODELS = [
+    ('GuestGroup_guest', 'Guests'),
+    ('GuestGroup_band', 'Bands'),
+    ('MITSGame', 'MITS'),
+    ('IndieGame', 'MIVS'),
+    ('PanelApplication', 'Panels'),
+    ('Group_dealer', 'Marketplace'),
+]
+
+
+# A list of properties that we will check for when export for Guidebook
+# and the column headings Guidebook expects for them
+c.GUIDEBOOK_PROPERTIES = [
+    ('guidebook_name', 'Name'),
+    ('guidebook_subtitle', 'Sub-Title (i.e. Location, Table/Booth, or Title/Sponsorship Level)'),
+    ('guidebook_desc', 'Description (Optional)'),
+    ('guidebook_location', 'Location/Room'),
+    ('guidebook_image', 'Image (Optional)'),
+    ('guidebook_thumbnail', 'Thumbnail (Optional)'),
+]
+
+
 # =============================
 # hotel
 # =============================

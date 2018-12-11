@@ -166,6 +166,40 @@ class MITSGame(MagModel):
     unlicensed = Column(Boolean, default=False)
     professional = Column(Boolean, default=False)
 
+    @property
+    def has_been_accepted(self):
+        return self.team.status == c.ACCEPTED
+
+    @property
+    def guidebook_name(self):
+        return self.team.name
+
+    @property
+    def guidebook_subtitle(self):
+        return self.name
+
+    @property
+    def guidebook_desc(self):
+        return self.description
+
+    @property
+    def guidebook_location(self):
+        return ''
+
+    @property
+    def guidebook_image(self):
+        for image in self.team.pictures:
+            if image.is_header:
+                return image
+        return self.team.pictures[0]
+
+    @property
+    def guidebook_thumbnail(self):
+        for image in self.team.pictures:
+            if image.is_thumbnail:
+                return image
+        return self.team.pictures[1] if len(self.team.pictures) > 1 else self.team.pictures[0]
+
 
 class MITSPicture(MagModel):
     team_id = Column(UUID, ForeignKey('mits_team.id'))
