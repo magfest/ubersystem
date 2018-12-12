@@ -249,6 +249,16 @@ This is your application for the MAGFest Indie Tabletop Showcase for your produc
         </form>
     </p>
 {% endif %}
+{% if team.status == c.ACCEPTED %}
+  <h3>Sign MITS Waiver</h3>
+
+    <p>We require accepted MITS teams to sign a waiver to confirm our policies.
+      {% if team.waiver_signed %}<br/><strong>{{ team.waiver_signature }}</strong> signed this waiver at {{ team.waiver_signed|datetime_local }}.
+      {% else %}You have <strong>not</strong> signed this waiver.{% endif %}</p>
+
+  <a target="_waiver" href="waiver" class="btn btn-primary">Review{% if not team.waiver_signature %} and Sign{% endif %} the Waiver</a>
+
+{% endif %}
 {% if team.status not in [c.ACCEPTED, c.CANCELLED] %}
   <form method="post" action="cancel" class="form-horizontal">
   <input type="hidden" name="id" value="{{ team.id }}" />

@@ -952,6 +952,19 @@ if c.MITS_ENABLED:
         lambda team: team.accepted and team.panel_interest,
         ident='mits_initial_panel_info')
 
+    MITSEmailFixture(
+        'Please sign the MITS waiver for {EVENT_NAME}',
+        'mits/mits_waiver.txt',
+        lambda team: team.accepted and not team.waiver_signed,
+        ident='mits_waiver')
+
+    MITSEmailFixture(
+        'Reminder to sign the MITS waiver for {EVENT_NAME}',
+        'mits/mits_waiver.txt',
+        lambda team: team.accepted and not team.waiver_signed,
+        when=days_before(10, c.EPOCH),
+        ident='mits_waiver_reminder')
+
     # TODO: emails we still need to configure include but are not limited to:
     # -> when teams have been accepted
     # -> when teams have been declined

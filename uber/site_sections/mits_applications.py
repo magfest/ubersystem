@@ -324,6 +324,32 @@ class Root:
             'message': message
         }
 
+    def waiver(self, session, message='', **params):
+        if 'id' in params and params['id']:
+            team = session.mits_team(params['id'])
+        else:
+            team = session.logged_in_mits_team()
+
+        if cherrypy.request.method == 'POST':
+            if not params['waiver_signature']:
+                message = "Please enter your full name to sign the waiver."
+
+            else:
+                for applicant in team.applicants:
+                    if applicant.attendee.full_name == params['waiver_signature']:
+                        team.waiver_signature = params['waiver_signature']
+                        team.waiver_signed = localized_now()
+                        break
+                else:
+                    message = "The name you entered did not match any of this team's members."
+
+            if not message:
+                raise HTTPRedirect('index?message={}', 'Thank you for signing the waiver!')
+        return {
+            'team': team,
+            'message': message,
+        }
+
     def submit_for_judging(self, session):
         """
         Sometimes we mark partially completed applications as accepted, either

@@ -22,6 +22,8 @@ class MITSTeam(MagModel):
     want_to_sell = Column(Boolean, default=False)
     address = Column(UnicodeText)
     submitted = Column(UTCDateTime, nullable=True)
+    waiver_signature = Column(UnicodeText)
+    waiver_signed = Column(UTCDateTime, nullable=True)
 
     applied = Column(UTCDateTime, server_default=utcnow())
     status = Column(Choice(c.MITS_APP_STATUS), default=c.PENDING, admin_only=True)
