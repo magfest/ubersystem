@@ -210,6 +210,29 @@ class MITSGame(MagModel):
                 return image.filename
         return self.team.pictures[1].filename if len(self.team.pictures) > 1 else self.team.pictures[0].filename
 
+    @property
+    def guidebook_images(self):
+        if not self.team.pictures:
+            return ['', '']
+
+        header = None
+        thumbnail = None
+        for image in self.team.pictures:
+            if image.is_header and not header:
+                header = image
+            if image.is_thumbnail and not thumbnail:
+                thumbnail = image
+
+        if not header:
+            header = self.team.pictures[0]
+        if not thumbnail:
+            thumbnail = self.team.pictures[1] if len(self.team.pictures) > 1 else self.team.pictures[0]
+
+        if header == thumbnail:
+            return [header.filename], [header]
+        else:
+            return [header.filename, thumbnail.filename], [header, thumbnail]
+
 
 class MITSPicture(MagModel):
     team_id = Column(UUID, ForeignKey('mits_team.id'))

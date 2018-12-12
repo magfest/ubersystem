@@ -170,6 +170,13 @@ class GuestGroup(MagModel):
     def guidebook_thumbnail(self):
         return self.bio.pic_filename if self.bio else ''
 
+    @property
+    def guidebook_images(self):
+        if not self.bio:
+            return ['', '']
+
+        return [self.bio.pic_filename], [self.bio]
+
 
 class GuestInfo(MagModel):
     guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)

@@ -453,6 +453,16 @@ class IndieGame(MagModel, ReviewMixin):
         return self.best_screenshot_download_filenames()[1] \
             if len(self.best_screenshot_download_filenames()) > 1 else self.best_screenshot_download_filenames()[0]
 
+    @property
+    def guidebook_images(self):
+        image_filenames = [self.best_screenshot_download_filenames()[0]]
+        images = [self.best_screenshot_downloads()[0]]
+        if self.guidebook_image != self.guidebook_thumbnail:
+            image_filenames.append(self.guidebook_thumbnail)
+            images.append(self.best_screenshot_downloads()[1])
+
+        return image_filenames, images
+
 
 class IndieGameImage(MagModel):
     game_id = Column(UUID, ForeignKey('indie_game.id'))

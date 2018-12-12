@@ -6,11 +6,12 @@
 
 <br/>
 
-<form action="export_guidebook" method="post" enctype="multipart/form-data">
-    <select name="selected_model">
+<form method="post" enctype="multipart/form-data" class="form form-inline">
+    <select name="selected_model" class="form-control">
         {{ options(tables) }}
-    </select><br />
-    <input type="submit" value="Download" />
+    </select>
+  <button type="submit" class="btn btn-primary" onClick="form.action='export_guidebook_xlsx';">Download Data Xlsx</button>
+  <button type="submit" class="btn btn-success" onClick="form.action='export_guidebook_zip';">Download Images Zip</button>
 </form>
 
 
