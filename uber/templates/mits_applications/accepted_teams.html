@@ -1,0 +1,24 @@
+{% extends "mits_base.html" %}
+{% block body %}
+
+  <h2>MAGFest Indie Tabletop Showcase Teams</h2>
+
+  {% for team in teams %}
+    {% if team.status == c.ACCEPTED %}
+      <h3>{{ team.name }}</h3>
+      <table class="table table-bordered">
+      <tr><th>Game Name</th><th colwidth="{{ team.pictures|length }}">Game Description</th></tr>
+        {% for game in team.games %}
+          <tr><td>{{ game.name }}</td><td colwidth="{{ team.pictures|length }}">{{ game.description }}</td></tr>
+        {% endfor %}
+        <tr>
+          {% for picture in team.pictures %}
+            <td></td>
+            <td>{% if not picture.is_thumbnail %}<a href="{{ picture.url }}" target="_image">{% endif %}
+              <img src="{{ picture.url }}" alt="{{ picture.filename }}" style="max-width: 240px; max-height: 240px;"/>
+              {% if not picture.is_thumbnail %}</a>{% endif %}</td>
+          {% endfor %}
+        </tr></table>
+    {% endif %}
+  {% endfor %}
+{% endblock %}
