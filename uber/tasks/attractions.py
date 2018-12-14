@@ -160,10 +160,10 @@ def attractions_send_notifications():
                         from_ = c.ATTRACTIONS_EMAIL
                         to_ = attendee.email
                         if is_first_signup:
-                            template = 'emails/attractions_welcome.html'
+                            template = 'emails/panels/attractions_welcome.html'
                             subject = 'Welcome to {} Attractions'.format(c.EVENT_NAME)
                         else:
-                            template = 'emails/attractions_notification.html'
+                            template = 'emails/panels/attractions_notification.html'
                             subject = 'Checkin for {} is at {}'.format(event.name, event.checkin_start_time_label)
 
                         body = render(template, {
