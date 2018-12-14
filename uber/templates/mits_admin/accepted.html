@@ -1,0 +1,45 @@
+{% extends "mits_base.html" %}
+{% block body %}
+
+<h2>
+    Accepted MITS Applications
+    <a href="create_new_application" class="btn btn-primary pull-right">Create Application</a>
+</h2>
+
+<table class="table datatable" data-page-length="-1">
+<thead>
+    <tr>
+        <th>Team Name</th>
+        <th>Primary Contact</th>
+        <th>Applied</th>
+        <th>Completed</th>
+        <th>Waiver Signed</th>
+    </tr>
+</thead>
+<tbody>
+{% for team in accepted_teams %}
+    <tr>
+        <td><a href="team?id={{ team.id }}">{{ team.name }}</a></td>
+        <td>
+          {% if team.primary_contacts and team.primary_contacts[0].attendee %}
+          {{ team.primary_contacts[0].attendee|form_link }}
+          {% elif team.primary_contacts %}
+          {{ team.primary_contacts[0].full_name }} [<a href="badges" target="_badges">Assign Badges</a>]
+          {% endif %}
+        </td>
+        <td>{{ team.applied_local|datetime("%Y-%m-%d") }}</td>
+        <td>{{ team.completion_percentage }}%</td>
+        <td>
+            {% if team.waiver_signed %}
+              Signed by <strong>{{ team.waiver_signature }}</strong>
+              <br/>{{ team.waiver_signed|datetime_local }}
+            {% else %}
+              <a target="_waiver" href="../mits_applications/waiver?id={{ team.id }}"><strong>Not Signed</strong></a>
+            {% endif %}
+        </td>
+    </tr>
+{% endfor %}
+</tbody>
+</table>
+
+{% endblock %}

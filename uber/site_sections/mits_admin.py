@@ -18,6 +18,12 @@ class Root:
             'teams': session.mits_teams()
         }
 
+    def accepted(self, session, message=''):
+        return {
+            'message': message,
+            'accepted_teams': session.query(MITSTeam).filter(MITSTeam.status == c.ACCEPTED),
+        }
+
     def create_new_application(self):
         cherrypy.session.pop('mits_team_id', None)
         raise HTTPRedirect('../mits_applications/team')
