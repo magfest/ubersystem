@@ -338,6 +338,37 @@ class Root:
             'message': message,
         }
 
+    def mivs_handbook(self, session, guest_id, message='', **params):
+        guest = session.guest_group(guest_id)
+        if cherrypy.request.method == 'POST':
+            if guest.group.studio:
+                guest.group.studio.read_handbook = True
+                session.add(guest)
+                raise HTTPRedirect('index?id={}&message={}', guest.id, 'You have confirmed that you read the handbook.')
+            else:
+                message = "Something is wrong with your group -- please contact us at {}.".format(c.MIVS_EMAIL)
+        return {
+            'guest': guest,
+            'message': message,
+        }
+
+    def mivs_training(self, session, guest_id, message='', **params):
+        guest = session.guest_group(guest_id)
+        if cherrypy.request.method == 'POST':
+            if guest.group.studio:
+                if 'training_password' in params and params['training_password']:
+                    guest.group.studio.training_password = params['training_password']
+                    session.add(guest)
+                    raise HTTPRedirect('index?id={}&message={}', guest.id, 'Secret phrase submitted.')
+                else:
+                    message = "Please enter the secret phrase!"
+            else:
+                message = "Something is wrong with your group -- please contact us at {}.".format(c.MIVS_EMAIL)
+        return {
+            'guest': guest,
+            'message': message,
+        }
+
     def mivs_hotel_space(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':

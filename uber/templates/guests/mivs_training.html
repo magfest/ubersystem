@@ -1,0 +1,18 @@
+{% extends "guestbase.html" %}
+
+{% block body %}
+  <h3>MIVS Training</h3>
+  <p>MIVS Training is a google form to help you learn about being an Indie at MAGFest. Once you have completed the form, a secret phrase will be shown that you must put in below to complete this checklist item.</p>
+
+  <a>You can reference the <a href="https://docs.google.com/document/d/14DX4wMIBWiAKmqcgV4GwoQo2FAwinYfoEWizrVeSTtQ/edit?usp=sharing" target="_handbook">(The MIVS Indie Handbook)</a> during Training.</p>
+
+  <form class="form form-horizontal" method="post" action="mivs_training">
+  <input type="hidden" name="guest_id" value="{{ guest.id }}"/>
+    {{ macros.form_group(guest.group.studio, 'training_password', label="Secret Phrase", help="What was the secret phrase shown after you finishing MIVS Training?" }}
+    <div class="form-group">
+      <div class="col-sm-6 col-sm-offset-3">
+        <button type="submit" class="btn btn-primary">Submit Secret Phrase</button>
+      </div>
+    </div>
+  </form>
+{% endblock body %}
