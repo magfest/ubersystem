@@ -1,0 +1,16 @@
+{% extends "guestbase.html" %}
+
+{% block body %}
+
+  <h3>MIVS Handbook</h3>
+
+  <p>The MIVS Indie Handbook is here to give you information about being a MIVS Participant. Please read through the entire Handbook so that you know what is expected of you and your team at MAGFest.</p>
+
+  <p><a href="https://docs.google.com/document/d/14DX4wMIBWiAKmqcgV4GwoQo2FAwinYfoEWizrVeSTtQ/edit?usp=sharing" target="_handbook">(The MIVS Indie Handbook)</a></p>
+
+  <form class="form form-horizontal" method="post" action="mivs_handbook">
+    <input type="hidden" name="guest_id" value="{{ guest.id }}"/>
+    <strong>I have read the Indie Handbook and will abide by the outlined policies.</strong>
+    <br/><button type="submit" class="btn btn-primary">Confirm</button>
+  </form>
+{% endblock body %}
