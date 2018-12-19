@@ -367,3 +367,8 @@ class Root:
         else:
             team.submitted = datetime.now(UTC)
             raise HTTPRedirect('index?message={}', 'Your application has been submitted')
+
+    def accepted_teams(self, session):
+        return {
+            'teams': session.mits_teams()
+        }
