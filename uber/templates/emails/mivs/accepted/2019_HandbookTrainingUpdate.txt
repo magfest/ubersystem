@@ -1,0 +1,18 @@
+Ahoy {{ game.studio.primary_contact.first_name }},
+
+Many of you noticed there was an e-mail sent out with a lot of broken links in it. Firstly, we apologize for the error. There's a lot going on with the new system and some stuff got lost.
+
+There are two new checklist items for you to complete:
+
+1) The Indie Handbook
+
+2) The MIVS Training Form
+
+You can reach your checklist at {{ c.URL_BASE }}/guests/index?id={{ guest.id }}
+
+You will need to complete these and all your other checklist items by Dec 30th, 2018.  
+
+We apologize for the duplicate and error information, these links are to help you plan for the show and for us to verify that you're all good to go. Please let us know if you have any additional questions.
+
+Forever your fan,
+MIVS Staff
