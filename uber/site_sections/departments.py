@@ -1,5 +1,6 @@
 import cherrypy
 from sqlalchemy.orm import subqueryload
+from datetime import timedelta
 
 from uber.config import c
 from uber.custom_tags import pluralize, yesno
@@ -191,6 +192,38 @@ class Root:
                 row.append(yesno(attendee in department.unassigned_explicitly_requesting_attendees, 'Yes,No'))
 
             out.writerow(row)
+
+    @csv_file
+    def overworked_attendees(self, out, session):
+        def single_sequence(attendee, start_hour, hour_map):
+            hour_limit = 1000
+            consecutive_hours = 0
+            current_hour = start_hour
+            while current_hour in hour_map:
+                max_consecutive_hours = hour_map[current_hour].max_consecutive_hours
+                if max_consecutive_hours > 0:
+                    hour_limit = min(hour_limit, max_consecutive_hours)
+                consecutive_hours += 1
+                current_hour = current_hour + timedelta(hours=1)
+
+            if consecutive_hours >= hour_limit:
+                # reiterate over to gather department names
+                current_hour = start_hour
+                departments_overworked = set()
+                while current_hour in hour_map:
+                    max_consecutive_hours = hour_map[current_hour].max_consecutive_hours
+                    if max_consecutive_hours > 0 and max_consecutive_hours <= consecutive_hours:
+                        departments_overworked.add(hour_map[current_hour].department_name)
+                    current_hour = current_hour + timedelta(hours=1)
+                out.writerow([attendee.full_name, start_hour] + list(departments_overworked))
+
+        out.writerow(["Attendee name", "Start of overworked shift sequence", "Departments overworked in"])
+        for attendee in session.query(Attendee).all():
+            hour_map = attendee.hour_map
+            for start_hour in hour_map:
+                # only look at start-of-sequence hours
+                if start_hour - timedelta(hours=1) not in hour_map:
+                    single_sequence(attendee, start_hour, hour_map)
 
     @department_id_adapter
     def role(self, session, department_id=None, message='', **params):
