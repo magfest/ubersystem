@@ -723,6 +723,13 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieGame,
+        'MIVS {EVENT_YEAR}: Indie Handbook and MIVS Training',
+        'mivs/accepted/2019_HandbookTrainingUpdate.txt',
+        lambda game: game.confirmed,
+        ident='2019_Handbook_Training_Update')
+
+    MIVSEmailFixture(
+        IndieGame,
         'Summary of judging feedback for your game',
         'mivs/reviews_summary.html',
         lambda game: game.status in c.FINAL_MIVS_GAME_STATUSES and game.reviews_to_email,
