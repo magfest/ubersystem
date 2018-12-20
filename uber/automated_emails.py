@@ -721,11 +721,11 @@ if c.MIVS_ENABLED:
         lambda game: game.confirmed,
         ident='2018_email_blast')
 
-    MIVSEmailFixture(
+    MIVSGuestEmailFixture(
         IndieGame,
         'MIVS {EVENT_YEAR}: Indie Handbook and MIVS Training',
         'mivs/accepted/2019_HandbookTrainingUpdate.txt',
-        lambda game: game.confirmed,
+        lambda mg: True,
         ident='2019_Handbook_Training_Update')
 
     MIVSEmailFixture(
