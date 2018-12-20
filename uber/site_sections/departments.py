@@ -196,29 +196,30 @@ class Root:
     @csv_file
     def overworked_attendees(self, out, session):
         def single_sequence(attendee, start_hour, hour_map):
-            hour_limit = 1000
-            consecutive_hours = 0
+            all_depts_limit = 1000
+            hours_worked = 0
             current_hour = start_hour
             while current_hour in hour_map:
-                max_consecutive_hours = hour_map[current_hour].max_consecutive_hours
-                if max_consecutive_hours > 0:
-                    hour_limit = min(hour_limit, max_consecutive_hours)
-                consecutive_hours += 1
+                dept_limit = hour_map[current_hour].max_consecutive_hours
+                if dept_limit > 0:
+                    all_depts_limit = min(all_depts_limit, dept_limit)
+                hours_worked += 1
                 current_hour = current_hour + timedelta(hours=1)
 
-            if consecutive_hours >= hour_limit:
+            if hours_worked > all_depts_limit:
                 # reiterate over to gather department names
                 current_hour = start_hour
                 departments_overworked = set()
                 while current_hour in hour_map:
-                    max_consecutive_hours = hour_map[current_hour].max_consecutive_hours
-                    if max_consecutive_hours > 0 and max_consecutive_hours <= consecutive_hours:
+                    dept_limit = hour_map[current_hour].max_consecutive_hours
+                    if dept_limit > 0 and hours_worked > dept_limit:
                         departments_overworked.add(hour_map[current_hour].department_name)
                     current_hour = current_hour + timedelta(hours=1)
-                out.writerow([attendee.full_name, start_hour] + list(departments_overworked))
+                out.writerow([attendee.full_name, start_hour, hours_worked] + list(departments_overworked))
 
-        out.writerow(["Attendee name", "Start of overworked shift sequence", "Departments overworked in"])
-        for attendee in session.query(Attendee).all():
+        out.writerow(["Attendee name", "Start of overworked shift sequence",
+                      "Length of shift sequence", "Departments overworked in"])
+        for attendee in session.query(Attendee).filter(Attendee.staffing == True).all():  # noqa: E712
             hour_map = attendee.hour_map
             for start_hour in hour_map:
                 # only look at start-of-sequence hours
