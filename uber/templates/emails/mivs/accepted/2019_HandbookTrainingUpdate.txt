@@ -1,6 +1,6 @@
-Ahoy {{ game.studio.primary_contact.first_name }},
+Ahoy {{ guest.group.studio.primary_contact_first_names }},
 
-Many of you noticed there was an e-mail sent out with a lot of broken links in it. Firstly, we apologize for the error. There's a lot going on with the new system and some stuff got lost.
+Many of you noticed there was an e-mail sent out that, in some email clients, had a lot of broken links in it. Firstly, we apologize for the error. There's a lot going on with the new system and some stuff got lost.
 
 There are two new checklist items for you to complete:
 

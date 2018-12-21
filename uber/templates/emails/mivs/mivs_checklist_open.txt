@@ -1,4 +1,4 @@
-Ahoy {{ guest.group.studio.primary_contact.first_name }},
+Ahoy {{ guest.group.studio.primary_contact_first_names }},
 
 We've put together a new webpage that contains a checklist of items for you to complete that will help you better prepare for MAGFest. As we get closer to MAGFest, new checklist items may show up. You will be receiving emails from us about checklist items that need to be completed and reminders for ones that still need your attention. You can get to your checklist using this link: {{ c.URL_BASE }}/guests/index?id={{ guest.id }}
 

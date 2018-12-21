@@ -1,4 +1,4 @@
-{{ game.studio.primary_contact.first_name }},
+{{ game.studio.primary_contact_first_names }},
 
 Congratulations!  Your game ({{ game.title }}) has made it past Round 1 judging for the MAGFest Indie Videogame Showcase (MIVS).
 

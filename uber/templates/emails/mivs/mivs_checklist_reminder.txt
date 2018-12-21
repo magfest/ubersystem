@@ -1,4 +1,4 @@
-Ahoy {{ guest.group.studio.primary_contact.first_name }},
+Ahoy {{ guest.group.studio.primary_contact_first_names }},
 
 {% set two_days, one_day, overdue = guest.group.studio.checklist_items_due_soon_grouped %}
 {% if two_days %}

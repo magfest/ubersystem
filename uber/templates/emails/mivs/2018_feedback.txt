@@ -1,4 +1,4 @@
-Ahoy {{ game.studio.primary_contact.first_name }},
+Ahoy {{ game.studio.primary_contact_first_names }},
 
 We hope you enjoyed attending MAGFest 2018! One thing you can do to make MIVS Better for next year is give us feedback by filling out this google form:
 

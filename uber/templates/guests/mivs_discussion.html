@@ -9,9 +9,9 @@
   <form class="form form-horizontal" method="post" action="mivs_discussion">
   <input type="hidden" name="guest_id" value="{{ guest.id }}"/>
     <div class="form-group">
-      <label class="col-sm-3 control-label">Primary Contact Email</label>
+      <label class="col-sm-3 control-label">Primary Contact Emails</label>
       <div class="col-sm-6 form-control-static">
-        {{ guest.group.studio.primary_contact.email }}
+        {{ guest.email|join(', ') }}
       </div>
     </div>
     <div class="form-group">

@@ -86,8 +86,8 @@ class IndieStudio(MagModel):
     completed_discussion = Column(Boolean, default=False)
     read_handbook = Column(Boolean, default=False)
     training_password = Column(UnicodeText)
-    selling_at_event = Column(Boolean, nullable=True)
-    needs_hotel_space = Column(Boolean, nullable=True)
+    selling_at_event = Column(Boolean, nullable=True, admin_only=True)  # "Admin only" preserves null default
+    needs_hotel_space = Column(Boolean, nullable=True, admin_only=True)  # "Admin only" preserves null default
     name_for_hotel = Column(UnicodeText)
     email_for_hotel = Column(UnicodeText)
 
@@ -99,6 +99,19 @@ class IndieStudio(MagModel):
         order_by='IndieDeveloper.last_name')
 
     email_model_name = 'studio'
+
+    @property
+    def primary_contact_first_names(self):
+        if len(self.primary_contacts) == 1:
+            return self.primary_contacts[0].first_name
+
+        string = self.primary_contacts[0].first_name
+        for dev in self.primary_contacts[1:-1]:
+            string += ", " + dev.first_name
+        if len(self.primary_contacts) > 2:
+            string += ","
+        string += " and " + self.primary_contacts[-1].first_name
+        return string
 
     @property
     def confirm_deadline(self):
@@ -130,7 +143,8 @@ class IndieStudio(MagModel):
     @property
     def training_status(self):
         if self.training_password:
-            return "Completed" if self.training_password == c.MIVS_TRAINING_PASSWORD else "Entered the wrong phrase!"
+            return "Completed" if self.training_password.lower() == c.MIVS_TRAINING_PASSWORD.lower()\
+                else "Entered the wrong phrase!"
 
     @property
     def selling_at_event_status(self):
@@ -182,11 +196,11 @@ class IndieStudio(MagModel):
 
     @property
     def email(self):
-        return [dev.email for dev in self.developers if dev.primary_contact]
+        return [dev.email_to_address for dev in self.developers if dev.primary_contact]
 
     @property
-    def primary_contact(self):
-        return [dev for dev in self.developers if dev.primary_contact][0]
+    def primary_contacts(self):
+        return [dev for dev in self.developers if dev.primary_contact]
 
     @property
     def submitted_games(self):
@@ -213,6 +227,20 @@ class IndieDeveloper(MagModel):
     last_name = Column(UnicodeText)
     email = Column(UnicodeText)
     cellphone = Column(UnicodeText)
+
+    @property
+    def email_to_address(self):
+        # Note: this doesn't actually do what we want right now
+        # because the IndieDeveloper and attendee are not properly linked
+        if self.matching_attendee:
+            return self.matching_attendee.email
+        return self.email
+
+    @property
+    def cellphone_num(self):
+        if self.matching_attendee:
+            return self.matching_attendee.cellphone
+        return self.cellphone
 
     @property
     def full_name(self):

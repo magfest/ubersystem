@@ -1,4 +1,4 @@
-Hi {{ game.studio.primary_contact.first_name }},
+Hi {{ game.studio.primary_contact_first_names }},
 
 We're sorry but your Round 1 game entry {{ game.title }} in the MAGFest Indie Videogame Showcase (MIVS) was not accepted into Round 2.
 

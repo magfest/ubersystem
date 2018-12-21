@@ -45,7 +45,7 @@ class Root:
     @csv_file
     def everything(self, out, session):
         out.writerow([
-            'Game', 'Studio', 'Studio URL', 'Primary Contact Name', 'Primary Contact Email',
+            'Game', 'Studio', 'Studio URL', 'Primary Contact Names', 'Primary Contact Emails',
             'Game Website', 'Twitter', 'Facebook', 'Other Social Media',
             'Genres', 'Brief Description', 'Long Description', 'How to Play',
             'Link to Video for Judging', 'Link to Promo Video', 'Link to Game', 'Game Link Password',
@@ -59,8 +59,8 @@ class Root:
                 game.title,
                 game.studio.name,
                 '{}/mivs_applications/continue_app?id={}'.format(c.PATH, game.studio.id),
-                game.studio.primary_contact.full_name,
-                game.studio.primary_contact.email,
+                game.studio.primary_contact_first_names,
+                game.studio.email,
                 game.link_to_webpage,
                 game.twitter,
                 game.facebook,
@@ -110,7 +110,7 @@ class Root:
     def discussion_group_emails(self, out, session):
         emails = []
         for studio in session.query(IndieStudio).join(IndieStudio.group).join(Group.guest):
-            emails.append(studio.group.guest.email)
+            emails.extend(studio.group.guest.email)
             if studio.discussion_emails:
                 emails.extend(studio.discussion_emails_list)
 

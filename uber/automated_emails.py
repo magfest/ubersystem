@@ -722,7 +722,6 @@ if c.MIVS_ENABLED:
         ident='2018_email_blast')
 
     MIVSGuestEmailFixture(
-        IndieGame,
         'MIVS {EVENT_YEAR}: Indie Handbook and MIVS Training',
         'mivs/accepted/2019_HandbookTrainingUpdate.txt',
         lambda mg: True,
