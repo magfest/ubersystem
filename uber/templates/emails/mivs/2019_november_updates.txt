@@ -1,4 +1,4 @@
-Ahoy {{ game.studio.primary_contact.first_name }},
+Ahoy {{ game.studio.primary_contact_first_names }},
 
 We're looking forward to seeing your game, {{ game.title }} at the MAGFest Indie Game Showcase in just a couple weeks.
 

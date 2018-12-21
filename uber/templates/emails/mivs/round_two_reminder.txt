@@ -1,4 +1,4 @@
-Ahoy {{ game.studio.primary_contact.first_name }},
+Ahoy {{ game.studio.primary_contact_first_names }},
 
 Thanks again for wanting to submit your game ({{ game.title }}) to the MAGFest Indie Videogame Showcase! (MIVS)
 

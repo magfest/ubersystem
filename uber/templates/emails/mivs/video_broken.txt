@@ -1,4 +1,4 @@
-{{ game.studio.primary_contact.first_name }},
+{{ game.studio.primary_contact_first_names }},
 
 One of the judges for the MAGFest Indie Videogame Showcase (MIVS) has tried to review your video for Round 1, but could not watch it due to a broken link! Please check your link and correct the problem within 24 hours. Bad video links that are not fixed in time will be declined.
 

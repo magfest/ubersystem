@@ -1,4 +1,4 @@
-Hi {{ studio.primary_contact.first_name }},
+Hi {{ studio.primary_contact_first_names }},
 
 According to our records, you've registered your studio ({{ studio.name }}) for the {{ c.EVENT_YEAR }} MAGFest Indie Video Game Showcase (MIVS) but have not yet submitted a video.
 

@@ -111,6 +111,15 @@ class MagModel:
         self._invoke_adjustment_callbacks('predelete_adjustment')
 
     @property
+    def email_to_address(self):
+        """
+        The email address that our automated emails use when emailing this model.
+        In some rare cases, a model should have a column named `email` but not always use that in
+        automated emails -- override this instead.
+        """
+        return self.email
+
+    @property
     def addons(self):
         """
         This exists only to be overridden by other events; it should return a
