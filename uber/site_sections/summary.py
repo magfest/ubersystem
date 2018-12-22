@@ -672,14 +672,21 @@ class Root:
 
     @csv_file
     def checkins_by_hour(self, out, session):
+        def date_trunc_hour(*args, **kwargs):
+            # sqlite doesn't support date_trunc
+            if c.SQLALCHEMY_URL.startswith('sqlite'):
+                return func.strftime(literal('%Y-%m-%d %H:00'), *args, **kwargs)
+            else:
+                return func.date_trunc(literal('hour'), *args, **kwargs)
+
         out.writerow(["time_utc", "count"])
         query_result = session.query(
-                func.date_trunc(literal('hour'), Attendee.checked_in),
-                func.count(func.date_trunc(literal('hour'), Attendee.checked_in))
+                date_trunc_hour(Attendee.checked_in),
+                func.count(date_trunc_hour(Attendee.checked_in))
             ) \
             .filter(Attendee.checked_in.isnot(None)) \
-            .group_by(func.date_trunc(literal('hour'), Attendee.checked_in)) \
-            .order_by(func.date_trunc(literal('hour'), Attendee.checked_in)) \
+            .group_by(date_trunc_hour(Attendee.checked_in)) \
+            .order_by(date_trunc_hour(Attendee.checked_in)) \
             .all()
 
         for result in query_result:
