@@ -146,6 +146,14 @@ class MITSApplicant(MagModel):
     declined_hotel_space = Column(Boolean, default=False)
     requested_room_nights = Column(MultiChoice(c.MITS_ROOM_NIGHT_OPTS), default='')
 
+    email_model_name = 'applicant'
+
+    @property
+    def email_to_address(self):
+        if self.attendee:
+            return self.attendee.email
+        return self.email
+
     @property
     def full_name(self):
         return self.first_name + ' ' + self.last_name

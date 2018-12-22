@@ -1,0 +1,8 @@
+{{ applicant.team.salutation }},
+
+If you're receiving this email, it means you are from a team that has been accepted for MITS. You can reserve parking space at MAGFest by using the link below. Parking can be hard to find in the area, so it may be beneficial to book it ahead of time. Please email MITS@magfest.org if you have any questions.
+
+https://nationalharbor.clickandpark.com/
+
+Thanks,
+{{ c.MITS_EMAIL_SIGNATURE }}
