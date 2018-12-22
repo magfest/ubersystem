@@ -971,7 +971,7 @@ c.GUIDEBOOK_MODELS = [
     ('GuestGroup_band', 'Bands'),
     ('MITSGame', 'MITS'),
     ('IndieGame', 'MIVS'),
-    ('PanelApplication', 'Panels'),
+    ('Event_panels', 'Panels'),
     ('Group_dealer', 'Marketplace'),
 ]
 

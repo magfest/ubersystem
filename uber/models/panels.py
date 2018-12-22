@@ -48,6 +48,33 @@ class Event(MagModel):
     def end_time(self):
         return self.start_time + timedelta(minutes=self.minutes)
 
+    @property
+    def guidebook_name(self):
+        return self.name
+
+    @property
+    def guidebook_subtitle(self):
+        # Note: not everything on this list is actually exported
+        if self.location in c.PANEL_ROOMS:
+            return 'Panel'
+        if self.location in c.MUSIC_ROOMS:
+            return 'Music'
+        if self.location in c.TABLETOP_LOCATIONS:
+            return 'Tabletop Event'
+        if "Autograph" in self.location_label:
+            return 'Autograph Session'
+
+    @property
+    def guidebook_desc(self):
+        panelists_creds = '<br/><br/>' + '<br/><br/>'.join(
+            a.other_credentials for a in self.applications[0].applicants if a.other_credentials
+        ) if self.applications else ''
+        return self.description + panelists_creds
+
+    @property
+    def guidebook_location(self):
+        return self.event.location_label
+
 
 class AssignedPanelist(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='cascade'))
@@ -118,23 +145,6 @@ class PanelApplication(MagModel):
     @hybrid_property
     def has_been_accepted(self):
         return self.status == c.ACCEPTED
-
-    @property
-    def guidebook_name(self):
-        return self.name
-
-    @property
-    def guidebook_subtitle(self):
-        return 'Panel'
-
-    @property
-    def guidebook_desc(self):
-        panelists_creds = '<br/><br/>'.join(a.other_credentials for a in self.applicants if a.other_credentials)
-        return self.description + '<br/><br/>' + panelists_creds
-
-    @property
-    def guidebook_location(self):
-        return self.event.location_label if self.event else ''
 
 
 class PanelApplicant(SocialMediaMixin, MagModel):

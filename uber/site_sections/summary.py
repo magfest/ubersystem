@@ -15,7 +15,7 @@ from uber.config import c
 from uber.decorators import all_renderable, csv_file, multifile_zipfile, render, site_mappable, xlsx_file, \
     _set_response_filename
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Department, FoodRestrictions, Group, Session
+from uber.models import Attendee, Department, Event, FoodRestrictions, Group, Session
 from uber.reports import PersonalizedBadgeReport, PrintedBadgeReport
 from uber.utils import filename_safe, localized_now
 
@@ -81,7 +81,9 @@ def _get_guidebook_models(session, selected_model=''):
         return model_query.filter_by(group_type=c.GUEST)
     elif '_dealer' in selected_model:
         return model_query.filter_by(is_dealer=True)
-    elif 'Game' in selected_model or 'Panel' in selected_model:
+    elif '_panels' in selected_model:
+        return model_query.filter(Event.location.in_(c.PANEL_ROOMS))
+    elif 'Game' in selected_model:
         return model_query.filter_by(has_been_accepted=True)
     else:
         return model_query
