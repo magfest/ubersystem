@@ -988,6 +988,14 @@ if c.MITS_ENABLED:
         sender=c.MITS_EMAIL,
         ident='mits_parking')
 
+    AutomatedEmailFixture(
+        MITSApplicant,
+        'Automated MITS FAQ Email',
+        'mits/mits_faq.html',
+        lambda ma: ma.attendee and ma.team and ma.team.accepted,
+        sender=c.MITS_EMAIL,
+        ident='mits_faq')
+
     # TODO: emails we still need to configure include but are not limited to:
     # -> when teams have been accepted
     # -> when teams have been declined
