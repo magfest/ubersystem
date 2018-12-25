@@ -1,0 +1,16 @@
+{{ team.salutation }},
+
+In our form your team has marked 'yes' for selling in MITS. In order to do so, you must fill out this form before MAGFest.  [https://goo.gl/forms/3HXhuiIK2TVxAeIS2]
+
+If you have changed your mind and no longer wish to sell, you may ignore this email and this form.
+
+This is separate from Marketplace or any other department you may be selling in.
+
+Also, you may only sell your game or games or merch related to you team or game, and you may not under any circumstances sell food or beverages.
+
+Anything you would like to give away, you may give away anything that you can legally, including food, but you may not give out energy drinks or alcoholic beverages.
+
+Please email MITS@Magfest.org if you have any questions.
+
+Thanks!
+{{ c.MITS_EMAIL_SIGNATURE }}

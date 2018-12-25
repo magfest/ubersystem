@@ -21,7 +21,7 @@ from sqlalchemy.orm import joinedload, subqueryload
 from uber.config import c
 from uber import decorators
 from uber.models import AdminAccount, Attendee, AutomatedEmail, Department, Group, GuestGroup, IndieGame, IndieJudge, \
-    IndieStudio, MITSTeam, PanelApplication, PanelApplicant, Room, RoomAssignment, Shift
+    IndieStudio, MITSTeam, MITSApplicant, PanelApplication, PanelApplicant, Room, RoomAssignment, Shift
 from uber.utils import after, before, days_after, days_before, localized_now, DeptChecklistConf
 
 
@@ -58,6 +58,9 @@ class AutomatedEmailFixture:
         IndieJudge: lambda session: session.query(IndieJudge).options(
             joinedload(IndieJudge.admin_account).joinedload(AdminAccount.attendee)),
         MITSTeam: lambda session: session.mits_teams(),
+        MITSApplicant: lambda session: session.query(MITSApplicant).options(
+            subqueryload(MITSApplicant.attendee),
+            subqueryload(MITSApplicant.team)),
         PanelApplication: lambda session: session.query(PanelApplication).options(
             subqueryload(PanelApplication.applicants).subqueryload(PanelApplicant.attendee)
             ).order_by(PanelApplication.id),
@@ -970,6 +973,28 @@ if c.MITS_ENABLED:
         lambda team: team.accepted and not team.waiver_signed,
         when=days_before(10, c.EPOCH),
         ident='mits_waiver_reminder')
+
+    MITSEmailFixture(
+        'Tax Form for selling in MITS',
+        'mits/mits_tax_form.txt',
+        lambda team: team.accepted and team.want_to_sell,
+        ident='mits_tax_form')
+
+    AutomatedEmailFixture(
+        MITSApplicant,
+        '{EVENT_NAME} parking information',
+        'mits/mits_parking.txt',
+        lambda ma: ma.attendee and ma.team and ma.team.accepted,
+        sender=c.MITS_EMAIL,
+        ident='mits_parking')
+
+    AutomatedEmailFixture(
+        MITSApplicant,
+        'Automated MITS FAQ Email',
+        'mits/mits_faq.html',
+        lambda ma: ma.attendee and ma.team and ma.team.accepted,
+        sender=c.MITS_EMAIL,
+        ident='mits_faq')
 
     # TODO: emails we still need to configure include but are not limited to:
     # -> when teams have been accepted
