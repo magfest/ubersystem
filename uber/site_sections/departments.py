@@ -215,7 +215,10 @@ class Root:
                     if dept_limit > 0 and hours_worked > dept_limit:
                         departments_overworked.add(hour_map[current_hour].department_name)
                     current_hour = current_hour + timedelta(hours=1)
-                out.writerow([attendee.full_name, start_hour, hours_worked] + list(departments_overworked))
+                out.writerow([attendee.full_name,
+                              start_hour.astimezone(c.EVENT_TIMEZONE),
+                              hours_worked] +
+                             list(departments_overworked))
 
         out.writerow(["Attendee name", "Start of overworked shift sequence",
                       "Length of shift sequence", "Departments overworked in"])
