@@ -241,10 +241,10 @@ def multifile_zipfile(func):
     func.site_mappable = True
 
     @wraps(func)
-    def zipfile_out(self, session):
+    def zipfile_out(self, session, **kwargs):
         zipfile_writer = BytesIO()
         with zipfile.ZipFile(zipfile_writer, mode='w') as zip_file:
-            func(self, zip_file, session)
+            func(self, zip_file, session, **kwargs)
 
         # must do this after creating the zip file as other decorators may have changed this
         # for example, if a .zip file is created from several .csv files, they may each set content-type.

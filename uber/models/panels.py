@@ -3,6 +3,7 @@ from datetime import timedelta
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from uber.config import c
 from uber.models import MagModel
@@ -46,6 +47,33 @@ class Event(MagModel):
     @property
     def end_time(self):
         return self.start_time + timedelta(minutes=self.minutes)
+
+    @property
+    def guidebook_name(self):
+        return self.name
+
+    @property
+    def guidebook_subtitle(self):
+        # Note: not everything on this list is actually exported
+        if self.location in c.PANEL_ROOMS:
+            return 'Panel'
+        if self.location in c.MUSIC_ROOMS:
+            return 'Music'
+        if self.location in c.TABLETOP_LOCATIONS:
+            return 'Tabletop Event'
+        if "Autograph" in self.location_label:
+            return 'Autograph Session'
+
+    @property
+    def guidebook_desc(self):
+        panelists_creds = '<br/><br/>' + '<br/><br/>'.join(
+            a.other_credentials for a in self.applications[0].applicants if a.other_credentials
+        ) if self.applications else ''
+        return self.description + panelists_creds
+
+    @property
+    def guidebook_location(self):
+        return self.event.location_label
 
 
 class AssignedPanelist(MagModel):
@@ -113,6 +141,10 @@ class PanelApplication(MagModel):
     @property
     def unmatched_applicants(self):
         return [a for a in self.applicants if not a.attendee_id]
+
+    @hybrid_property
+    def has_been_accepted(self):
+        return self.status == c.ACCEPTED
 
 
 class PanelApplicant(SocialMediaMixin, MagModel):
