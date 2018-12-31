@@ -9,7 +9,8 @@ from sqlalchemy.orm import subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, render, unrestricted
+from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
+                             department_id_adapter, render, site_mappable, unrestricted)
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, PasswordReset
 from uber.tasks.email import send_email
@@ -83,6 +84,7 @@ class Root:
         session.delete(session.admin_account(id))
         raise HTTPRedirect('index?message={}', 'Account deleted')
 
+    @site_mappable
     @department_id_adapter
     def bulk(self, session, department_id=None, **params):
         department_id = None if department_id == 'All' else department_id
