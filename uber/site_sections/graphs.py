@@ -36,11 +36,18 @@ class RegistrationDataOneYear:
         # TODO: we're hacking the timezone info out of ESCHATON (final day of event). probably not the right thing to do
         self.end_date = c.DATES['ESCHATON'].replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
 
+        def date_trunc_day(*args, **kwargs):
+            # sqlite doesn't support date_trunc
+            if c.SQLALCHEMY_URL.startswith('sqlite'):
+                return func.date(*args, **kwargs)
+            else:
+                return func.date_trunc(literal('day'), *args, **kwargs)
+
         # return registrations where people actually paid money
         # exclude: dealers
         reg_per_day = session.query(
-                func.date_trunc(literal('day'), Attendee.registered),
-                func.count(func.date_trunc(literal('day'), Attendee.registered))
+                date_trunc_day(Attendee.registered),
+                func.count(date_trunc_day(Attendee.registered))
             ) \
             .outerjoin(Attendee.group) \
             .filter(
@@ -53,8 +60,8 @@ class RegistrationDataOneYear:
                     (Attendee.paid == c.HAS_PAID)         # if they're an attendee, make sure they're fully paid
                 )
             ) \
-            .group_by(func.date_trunc(literal('day'), Attendee.registered)) \
-            .order_by(func.date_trunc(literal('day'), Attendee.registered)) \
+            .group_by(date_trunc_day(Attendee.registered)) \
+            .order_by(date_trunc_day(Attendee.registered)) \
             .all()  # noqa: E711
 
         # now, convert the query's data into the format we need.

@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Guidebook Export{% endblock %}
+{% block content %}
+
+<h2> Guidebook Table Export </h2>
+
+<br/>
+
+<form method="post" enctype="multipart/form-data" class="form form-inline">
+    <select name="selected_model" class="form-control">
+        {{ options(tables) }}
+    </select>
+  <button type="submit" class="btn btn-primary" onClick="form.action='export_guidebook_xlsx';">Download Data Xlsx</button>
+  <button type="submit" class="btn btn-success" onClick="form.action='export_guidebook_zip';">Download Images Zip</button>
+</form>
+
+
+{% endblock %}

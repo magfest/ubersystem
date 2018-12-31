@@ -1,4 +1,4 @@
-Ahoy {{ game.studio.primary_contact.first_name }},
+Ahoy {{ game.studio.primary_contact_first_names }},
 
 Round 2 Submissions for MAGFest Indie Videogame Showcase are now open and you may submit your game {{ game.title }}. 
 

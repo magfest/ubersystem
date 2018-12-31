@@ -325,8 +325,8 @@ class Root:
         }
 
     def waiver(self, session, message='', **params):
-        if 'id' in params and params['id']:
-            team = session.mits_team(params['id'])
+        if params.get('id'):
+            session.log_in_as_mits_team(params['id'], redirect_to='waiver')
         else:
             team = session.logged_in_mits_team()
 
@@ -336,7 +336,7 @@ class Root:
 
             else:
                 for applicant in team.applicants:
-                    if applicant.attendee.full_name == params['waiver_signature']:
+                    if getattr(applicant.attendee, 'full_name', applicant.full_name) == params['waiver_signature']:
                         team.waiver_signature = params['waiver_signature']
                         team.waiver_signed = localized_now()
                         break
@@ -367,3 +367,8 @@ class Root:
         else:
             team.submitted = datetime.now(UTC)
             raise HTTPRedirect('index?message={}', 'Your application has been submitted')
+
+    def accepted_teams(self, session):
+        return {
+            'teams': session.mits_teams()
+        }

@@ -1,4 +1,4 @@
-Ahoy {{ game.studio.primary_contact.first_name }},
+Ahoy {{ game.studio.primary_contact_first_names }},
 
 Since opening round 2, we've encountered two technical problems
 

@@ -1,4 +1,4 @@
-Ahoy {{ game.studio.primary_contact.first_name }},
+Ahoy {{ game.studio.primary_contact_first_names }},
 
 We wanted to give you some upcoming info for this year's MIVS:
 

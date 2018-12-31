@@ -150,6 +150,33 @@ class GuestGroup(MagModel):
             return getattr(subclass, 'status', getattr(subclass, 'id'))
         return ''
 
+    @property
+    def guidebook_name(self):
+        return self.group.name if self.group else ''
+
+    @property
+    def guidebook_subtitle(self):
+        return self.group_type_label
+
+    @property
+    def guidebook_desc(self):
+        return self.bio.desc if self.bio else ''
+
+    @property
+    def guidebook_image(self):
+        return self.bio.pic_filename if self.bio else ''
+
+    @property
+    def guidebook_thumbnail(self):
+        return self.bio.pic_filename if self.bio else ''
+
+    @property
+    def guidebook_images(self):
+        if not self.bio:
+            return ['', '']
+
+        return [self.bio.pic_filename], [self.bio]
+
 
 class GuestInfo(MagModel):
     guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
