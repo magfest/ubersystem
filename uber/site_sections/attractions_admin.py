@@ -189,11 +189,13 @@ class Root:
         from uber.decorators import _set_response_filename
         feature = session.query(AttractionFeature).get(id)
         _set_response_filename('{}.csv'.format(filename_safe(feature.name)))
-        out.writerow(['Name', 'Signup Time', 'Checkin Time'])
+        out.writerow(['Name', 'Badge Name', 'Badge Num', 'Signup Time', 'Checkin Time'])
         for event in feature.events:
             for signup in event.signups:
                 out.writerow([
                     signup.attendee.full_name,
+                    signup.attendee.badge_printed_name,
+                    signup.attendee.badge_num,
                     signup.signup_time_label,
                     signup.checkin_time_label
                 ])
