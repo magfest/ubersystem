@@ -1,0 +1,54 @@
+<html>
+<head></head>
+<body>
+
+{{ attendee.first_name }},
+<br><br>
+
+{% if attendee.badge_type == c.STAFF_BADGE %}
+    Thanks again for Staffing at this year's {{ c.EVENT_NAME }}!
+{% elif c.VOLUNTEER_RIBBON in attendee.ribbon_ints %}
+    Thanks again for Volunteering at this year's {{ c.EVENT_NAME }}!
+{% endif %}
+We couldn't have done it without the help of every single one of our volunteers. Now that the event is over, we'd like to send you what we have on file for your worked shifts, just in case somebody missed something.
+
+<br/><br/>We have you down as having worked {{ attendee.unweighted_worked_hours }} actual hours, for a weighed total of {{ attendee.worked_hours }} hours. If that number doesn't sound right, check the schedule below. It shows which shifts were marked as worked, and which ones weren't. If any of them are in error, please let us know so we can work to rectify them!
+
+<br/><br/>Remember, if you don't have at least 18 weighed hours, you won't be eligible for a staff badge or hotel space for {{ c.EVENT_NAME }} {{ c.EPOCH|datetime_local("%Y")|int + 1 }}. If you don't have {{ c.HOTEL_REQ_HOURS }} weighed hours and claimed hotel space this year, we will also be reviewing your eligibility for next event.
+
+<br/>
+    <table width="95%" align="center">
+{% if attendee.shifts %}
+    <tr style="font-weight:bold">
+        <td>Job</td>
+        <td>Dept</td>
+        <td>Hours</td>
+        <td>Weight</td>
+        <td>Worked</td>
+    </tr>
+    {% for shift in attendee.shifts|sortBy('job.start_time') %}
+        <tr>
+            <td>{{ shift.job.name }}</td>
+            <td>{{ shift.job.department_name }}</td>
+            <td>{{ shift.job.duration }}</td>
+            <td>(x{{ shift.job.weight }})</td>
+            <td>{% if shift.worked == c.SHIFT_UNMARKED %}Not specified
+            {% elif shift.worked == c.SHIFT_WORKED %}Yes
+            {% elif shift.worked == c.SHIFT_UNWORKED %}No{% endif %}</td>
+        </tr>
+    {% endfor %}
+  {% if attendee.nonshift_hours %}
+    {% if attendee.shifts %}
+      <tr><td colspan="5"></td></tr>
+    {% endif %}
+    <tr>
+    <td colspan="5" align="right">{{ attendee.nonshift_hours }} Non-Shift Hours</td>
+    </tr>
+  {% endif %}
+{% endif %}
+</table>
+
+<br> {{ c.STOPS_EMAIL_SIGNATURE|linebreaksbr }}
+
+</body>
+</html>
