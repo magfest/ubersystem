@@ -248,6 +248,13 @@ class Root:
             } for dept in departments]
         }
 
+    def volunteer_hours_overview(self, session, message=''):
+        attendees = session.staffers()
+        return {
+            'volunteers': attendees,
+            'message': message,
+        }
+
     @csv_file
     def dept_head_contact_info(self, out, session):
         out.writerow(["Full Name", "Email", "Phone", "Department(s)"])
