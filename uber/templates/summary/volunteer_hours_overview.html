@@ -14,7 +14,7 @@
 
               var min_worked = parseFloat( $('#min_worked').val());
               var max_worked = parseFloat( $('#max_worked').val());
-              var worked = parseFloat( data[3] ) || 0;
+              var worked = parseFloat( data[4] ) || 0;
 
               var show_hotel = ($('#show_all').is(':visible'));
               var hotel_requested = (data[6] == "yes");
@@ -82,11 +82,11 @@
 
     <div class="pull-left"><h4>Filter by Weighted Hours</h4>
       <p class="form-inline">Min: <input type="text" class="form-control" id="min_hours" name="min_hours">
-        Max: <input type="text" class="form-control" id="min_hours" name="min_hours"></p></div>
+        Max: <input type="text" class="form-control" id="max_hours" name="max_hours"></p></div>
 
     <div class="pull-right"><h4>Filter by Hours Worked</h4>
       <p class="form-inline">Min: <input type="text" class="form-control" id="min_worked" name="min_worked">
-        Max: <input type="text" class="form-control" id="min_worked" name="min_worked"></p></div></div>
+        Max: <input type="text" class="form-control" id="max_worked" name="max_worked"></p></div></div>
   <div class="table-responsive">
     <table id="volunteer_hours"
            class="table table-hover"
