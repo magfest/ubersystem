@@ -183,6 +183,24 @@ class Root:
     def index(self):
         raise HTTPRedirect('common/')
 
+    def uber(self, *path, **params):
+        """
+        Some old browsers bookmark all urls as starting with /uber but Nginx
+        automatically prepends this.  For backwards-compatibility, if someone
+        comes to a url that starts with /uber then we redirect them to the
+        same URL with that bit stripped out.
+
+        For example, old laptops which have
+            https://onsite.uber.magfest.org/uber/registration/register
+        bookmarked as their homepage will automatically get redirected to
+            https://onsite.uber.magfest.org/registration/register
+        and so forth.
+        """
+        path = cherrypy.request.path_info[len('/uber'):]
+        if cherrypy.request.query_string:
+            path += '?' + cherrypy.request.query_string
+        raise HTTPRedirect(path)
+
     static_views = StaticViews()
     angular = AngularJavascript()
 
