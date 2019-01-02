@@ -295,11 +295,17 @@
 
                 <p class="help-block col-sm-offset-3 col-sm-9">
                     Each level includes all lower levels. <br/>
-                    Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime_local }}.
+                    Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime_local }}.<br/>
+                    Shirt level up to Supporter level {% if c.BEFORE_SHIRT_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SHIRT_DEADLINE|datetime_local }}.
                 </p>
             </div>
         {% endif %}
     {% endif %}
+  {% if (not c.PREREG_DONATION_OPTS or c.PREREG_DONATION_OPTS|length <= 1) and c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form', '/preregistration/register_group_member'] %}
+    <div class="extra-row form-group">
+    <span class="col-sm-offset-3 col-sm-6"><strong>Kick-in tiers are no longer available</strong>. Please visit our merchandise booth on-site for t-shirts and other swag.</span>
+    </div>
+  {% endif %}
 
 {%- set readonly_badge_name = c.after_printed_badge_deadline_by_type(attendee.badge_type) -%}
 <div class="badge-row extra-row form-group" style="display:none">
@@ -350,6 +356,7 @@
             </div>
             {% if c.PAGE_PATH != '/registration/form' %}
                 <p class="help-block col-sm-9 col-sm-offset-3">
+                <strong>This donation <em>is not a kick-in</em> and does not come with merchandise.</strong><br/>
                     {{ c.ORGANIZATION_NAME }} is a 501(c)(3) charitable organization, and additional donations may be tax deductible.
                     Your employer may also have a charitable donation matching program. E-mail contact@magfest.org for details.
                 </p>
