@@ -247,8 +247,8 @@
         {{ attractions_macros.badge_num_form('All we need is your badge number!') }}
       </div>
       <div class="modal-footer">
-        {# Signups with a badge number during AT_THE_CON is a hard requirement for Autographs #}
-        {% if not c.AT_THE_CON %}
+        {# Signups with a badge number during the event is a hard requirement for Autographs #}
+        {% if c.BEFORE_EPOCH %}
           <button class="btn btn-default btn-lg btn-xl modal-form-switch">I don't have my badge</button>
         {% endif %}
         <button class="btn btn-default btn-lg btn-xl" data-dismiss="modal">Nevermind</button>
