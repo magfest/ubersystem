@@ -16,8 +16,8 @@ from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
 from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
-from uber.models import AdminAccount, ApiToken, Attendee, Department, DeptMembership, DeptMembershipRequest, Job, \
-    Session, Shift, GuestGroup
+from uber.models import AdminAccount, ApiToken, Attendee, Department, DeptMembership, DeptMembershipRequest, \
+    IndieStudio, Job, Session, Shift, GuestGroup
 from uber.server import register_jsonrpc
 from uber.utils import check_csrf, normalize_newlines
 
@@ -199,6 +199,50 @@ class GuestLookup:
 
 
 @all_api_auth(c.API_READ)
+class MivsLookup:
+    fields = {
+        'name': True,
+        'address': True,
+        'website': True,
+        'twitter': True,
+        'facebook': True,
+        'status_label': True,
+        'staff_notes': True,
+        'group': {
+            'name': True,
+        },
+        'developers': {
+            'full_name': True,
+            'first_name': True,
+            'last_name': True,
+            'email': True,
+            'cellphone': True,
+        },
+    }
+
+    def statuses(self):
+        return c.MIVS_STUDIO_STATUS_VARS
+
+    def list(self, status=False):
+        """
+        Returns a list of MIVS studios and their developers.
+
+        Optionally, 'status' may be passed to limit the results to MIVS
+        studios with a specific status. Use 'confirmed' to get MIVS teams
+        who are attending the event.
+
+        For a full list of statuses, call the "mivs.statuses" method.
+
+        """
+        with Session() as session:
+            if status and status.upper() in c.MIVS_STUDIO_STATUS_VARS:
+                query = session.query(IndieStudio).filter_by(status=getattr(c, status.upper()))
+            else:
+                query = session.query(IndieStudio)
+            return [mivs.to_dict(self.fields) for mivs in query]
+
+
+@all_api_auth(c.API_READ)
 class AttendeeLookup:
     fields = {
         'full_name': True,
@@ -240,7 +284,10 @@ class AttendeeLookup:
                 'type_label', 'department_name', 'name', 'description',
                 'start_time', 'end_time', 'extra15'
             ]
-        }
+        },
+        'group': {
+            'name': True,
+        },
     })
 
     def lookup(self, badge_num, full=False):
@@ -712,3 +759,4 @@ if c.API_ENABLED:
     register_jsonrpc(ConfigLookup(), 'config')
     register_jsonrpc(BarcodeLookup(), 'barcode')
     register_jsonrpc(GuestLookup(), 'guest')
+    register_jsonrpc(MivsLookup(), 'mivs')
