@@ -22,7 +22,7 @@ class TabletopGame(MagModel):
     name = Column(UnicodeText)
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
     returned = Column(Boolean, default=False)
-    checkouts = relationship('TabletopCheckout', backref='game')
+    checkouts = relationship('TabletopCheckout', order_by='TabletopCheckout.checked_out', backref='game')
 
     _repr_attr_names = ['name']
 

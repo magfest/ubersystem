@@ -14,6 +14,11 @@ class Root:
             'attendees': _attendees(session)
         }
 
+    def checkout_history(self, session, id):
+        return {
+            'game': session.tabletop_game(id),
+        }
+
     @ajax_gettable
     def badged_attendees(self, session):
         return _attendees(session)
