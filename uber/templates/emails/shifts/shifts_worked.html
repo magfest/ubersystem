@@ -32,7 +32,7 @@ We couldn't have done it without the help of every single one of our volunteers.
             <td>{{ shift.job.department_name }}</td>
             <td>{{ shift.job.duration }}</td>
             <td>(x{{ shift.job.weight }})</td>
-            <td>{% if shift.worked == c.SHIFT_UNMARKED %}Not specified
+            <td>{% if shift.worked == c.SHIFT_UNMARKED %}Unconfirmed by manager
             {% elif shift.worked == c.SHIFT_WORKED %}Yes
             {% elif shift.worked == c.SHIFT_UNWORKED %}No{% endif %}</td>
         </tr>
