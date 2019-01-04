@@ -1073,8 +1073,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         from uber.models.department import Job
 
         job_filters = [Job.is_unfilled]
-        if c.AT_THE_CON:
-            return job_filters
 
         member_dept_ids = set(d.department_id for d in self.dept_memberships)
         requested_dept_ids = set(d.department_id for d in self.dept_membership_requests).difference(member_dept_ids)
