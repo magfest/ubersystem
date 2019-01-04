@@ -698,9 +698,6 @@ class Root:
                     attendee.paid = c.NEED_NOT_PAY
                 elif attendee.payment_method == c.STRIPE:
                     raise HTTPRedirect('pay?id={}', attendee.id)
-                elif attendee.payment_method == c.GROUP:
-                    message = 'Please proceed to the preregistration line to pick up your badge.'
-                    attendee.paid = c.PAID_BY_GROUP
                 elif attendee.payment_method == c.CASH:
                     message = message.format('cash', '${}'.format(attendee.total_cost))
                 elif attendee.payment_method == c.MANUAL:
