@@ -84,7 +84,7 @@ def check_if_can_reg(func):
                 return render('static_views/dealer_reg_closed.html')
             else:
                 return render('static_views/dealer_reg_not_open.html')
-        elif c.ATTENDEE_BADGES_SOLD >= c.MAX_BADGE_SALES:
+        elif c.REMAINING_BADGES <= 0:
             # ===============================================================
             # TODO: MAKE THIS COMPARE THE SPECIFIC BADGE TYPE AGAINST OUR
             # STOCKS OF THAT TYPE. LUMPING ALL THE BADGE TYPES TOGETHER

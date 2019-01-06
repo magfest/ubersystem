@@ -606,7 +606,7 @@ class Config(_Overridable):
     @property
     @dynamic
     def REMAINING_BADGES(self):
-        return max(0, self.MAX_BADGE_SALES - self.BADGES_SOLD)
+        return max(0, self.ATTENDEE_BADGES_SOLD - self.MAX_BADGE_SALES)
 
     @request_cached_property
     @dynamic
