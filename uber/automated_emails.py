@@ -430,6 +430,13 @@ StopsEmailFixture(
     when=days_before(1, c.FINAL_EMAIL_DEADLINE),
     ident='volunteer_shift_schedule')
 
+StopsEmailFixture(
+    'Please review your worked shifts for {EVENT_NAME}!',
+    'shifts/shifts_worked.html',
+    lambda a: a.weighted_hours or a.nonshift_hours,
+    when=days_after(1, c.ESCHATON),
+    ident='volunteer_shifts_worked')
+
 if c.VOLUNTEER_AGREEMENT_ENABLED:
     StopsEmailFixture(
         'Reminder: Please agree to terms of {EVENT_NAME} ({EVENT_DATE}) volunteer agreement',
