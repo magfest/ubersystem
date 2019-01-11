@@ -994,6 +994,12 @@ if c.MITS_ENABLED:
         lambda team: team.accepted and team.want_to_sell,
         ident='mits_tax_form')
 
+    MITSEmailFixture(
+        'MITS 2019 Developer Perspective Feedback',
+        'mits/mits_feedback.txt',
+        lambda team: team.accepted,
+        ident='mits_feedback')
+
     AutomatedEmailFixture(
         MITSApplicant,
         '{EVENT_NAME} parking information',
