@@ -991,7 +991,8 @@ if c.MITS_ENABLED:
         'MITS 2019 Developer Perspective Feedback',
         'mits/mits_feedback.txt',
         lambda team: team.accepted,
-        ident='mits_feedback')
+        ident='mits_feedback',
+        allow_post_con=True)
 
     AutomatedEmailFixture(
         MITSApplicant,
