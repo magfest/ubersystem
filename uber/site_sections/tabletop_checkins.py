@@ -28,6 +28,7 @@ class Root:
             'Game Name',
             '# Checkouts',
         ])
+
         tt_games_and_counts = session.query(
             TabletopGame, label('checkout_count', func.count(TabletopCheckout.id)),
         ).outerjoin(TabletopGame.checkouts).group_by(TabletopGame.id).all()
