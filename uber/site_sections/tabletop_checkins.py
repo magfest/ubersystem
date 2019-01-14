@@ -28,17 +28,18 @@ class Root:
             'Game Name',
             '# Checkouts',
         ])
-        tt_games = session.query(
-            TabletopGame.code, TabletopGame.name, label('checkouts', func.count(TabletopCheckout.id)),
+        tt_games_and_counts = session.query(
+            TabletopGame, label('checkout_count', func.count(TabletopCheckout.id)),
         ).outerjoin(TabletopGame.checkouts).group_by(TabletopGame.id).all()
 
         all_checkouts_count = 0
-        for game in tt_games:
-            all_checkouts_count += game.checkouts
+        for result in tt_games_and_counts:
+            game = result[0]
+            all_checkouts_count += result.checkout_count
             out.writerow([
                 game.code,
                 game.name,
-                game.checkouts,
+                result.checkout_count,
             ])
         out.writerow([
             'N/A',

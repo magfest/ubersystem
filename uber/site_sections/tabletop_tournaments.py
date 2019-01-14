@@ -21,14 +21,15 @@ class Root:
             '# of Entrants',
             'Badge #'
         ])
-        tournaments = session.query(
+        tournaments_and_counts = session.query(
             TabletopTournament, label('num_entrants', func.count(TabletopEntrant.id))
         ).join(TabletopTournament.entrants).group_by(TabletopTournament.id)
-        for tournament in tournaments:
+        for result in tournaments_and_counts:
+            tournament = result[0]
             for entrant in tournament.entrants:
                 out.writerow([
                     '{} ({})'.format(tournament.name, tournament.event.start_time_local.strftime('%-I:%M %p %A')),
-                    tournament.num_entrants,
+                    result.num_entrants,
                     entrant.attendee.badge_num if entrant.attendee else 'N/A',
                 ])
 
