@@ -435,7 +435,8 @@ StopsEmailFixture(
     'shifts/shifts_worked.html',
     lambda a: a.weighted_hours or a.nonshift_hours,
     when=days_after(1, c.ESCHATON),
-    ident='volunteer_shifts_worked')
+    ident='volunteer_shifts_worked',
+    allow_post_con=True)
 
 if c.VOLUNTEER_AGREEMENT_ENABLED:
     StopsEmailFixture(
