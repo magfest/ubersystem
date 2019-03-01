@@ -6,20 +6,20 @@ from collections import OrderedDict
 
 import six
 from dateutil import parser as dateparser
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime
+from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import func, select, CheckConstraint
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.schema import Index
+from sqlalchemy.schema import Index, ForeignKey
 from sqlalchemy.types import Integer
 
 from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import DefaultColumn as Column, Choice
+from uber.models.types import default_relationship as relationship, DefaultColumn as Column, Choice
 from uber.utils import localized_now
 
 
-__all__ = ['PromoCodeWord', 'PromoCode']
+__all__ = ['PromoCodeWord', 'PromoCodeGroup', 'PromoCode']
 
 
 class PromoCodeWord(MagModel):
@@ -130,6 +130,14 @@ c.PROMO_CODE_WORD_PART_OF_SPEECH_OPTS = PromoCodeWord._PART_OF_SPEECH_OPTS
 c.PROMO_CODE_WORD_PARTS_OF_SPEECH = PromoCodeWord._PARTS_OF_SPEECH
 
 
+class PromoCodeGroup(MagModel):
+    name = Column(UnicodeText)
+    code = Column(UnicodeText, admin_only=True)
+    buyer_id = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_buyer'), nullable=True)
+    buyer = relationship('Attendee', foreign_keys=buyer_id, post_update=True, cascade='all')
+    badges = Column(Integer)  # Tracking during the prereg process
+
+
 class PromoCode(MagModel):
     """
     Promo codes used by attendees to purchase badges at discounted prices.
@@ -161,6 +169,10 @@ class PromoCode(MagModel):
                 20 and the badge price is normally $50, then the discounted
                 badge price would $40 ($50 reduced by 20%). If `discount` is
                 100, then the price would be 100% off, i.e. a free badge.
+
+        group (relationship): An optional relationship to a PromoCodeGroup
+            object, which groups sets of promo codes to make attendee-facing
+            "groups"
 
         expiration_date (datetime): The date & time upon which this promo code
             expires. An expired promo code may no longer be used to receive
@@ -226,6 +238,12 @@ class PromoCode(MagModel):
     discount_type = Column(Choice(_DISCOUNT_TYPE_OPTS), default=_FIXED_DISCOUNT)
     expiration_date = Column(UTCDateTime, default=c.ESCHATON)
     uses_allowed = Column(Integer, nullable=True, default=None)
+
+    group_id = Column(UUID, ForeignKey('promo_code_group.id', ondelete='SET NULL'), nullable=True)
+    group = relationship(
+        PromoCodeGroup, backref='promo_codes',
+        foreign_keys=group_id,
+        cascade='save-update,merge,refresh-expire,expunge')
 
     __table_args__ = (
         Index(

@@ -625,6 +625,24 @@ class Attendee(MagModel, TakesPaymentMixin):
             return c.get_attendee_price(registered)
 
     @property
+    def name(self):
+        """A name for a promo code group, used during prereg."""
+        return get(self, _name)
+
+    @name.setter
+    def name(self, value):
+        self._name = value
+
+    @property
+    def badges(self):
+        """The number of badges an attendee is buying during prereg."""
+        return get(self, _badges)
+
+    @badges.setter
+    def badges(self, value):
+        self._badges = value
+
+    @property
     def promo_code_code(self):
         """
         Convenience property for accessing `promo_code.code` if available.

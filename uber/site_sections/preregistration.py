@@ -16,13 +16,6 @@ from uber.tasks.email import send_email
 from uber.utils import add_opt, check, check_pii_consent, localized_now, Charge
 
 
-def to_sessionized(attendee, group):
-    if group.badges:
-        return Charge.to_sessionized(group)
-    else:
-        return Charge.to_sessionized(attendee)
-
-
 def check_post_con(klass):
     def wrapper(func):
         @wraps(func)
@@ -54,12 +47,7 @@ class Root:
                        by default we will redirect to the index page
         """
         if id in Charge.unpaid_preregs:
-            target = Charge.from_sessionized(Charge.unpaid_preregs[id])
-            if isinstance(target, Attendee):
-                return target, Group()
-            else:
-                [leader] = [a for a in target.attendees if not a.is_unassigned]
-                return leader, target
+            return Charge.from_sessionized(Charge.unpaid_preregs[id])
         else:
             raise HTTPRedirect('index') if if_not_found is None else if_not_found
 
@@ -117,7 +105,7 @@ class Root:
             old_attendee = session.attendee(id).to_dict(c.UNTRANSFERABLE_ATTRS)
             del old_attendee['id']
             new_attendee = Attendee(**old_attendee)
-            Charge.unpaid_preregs[new_attendee.id] = to_sessionized(new_attendee, Group())
+            Charge.unpaid_preregs[new_attendee.id] = Charge.to_sessionized(new_attendee)
             Tracking.track(c.UNPAID_PREREG, new_attendee)
             raise HTTPRedirect("form?edit_id={}", new_attendee.id)
         return {
@@ -135,36 +123,37 @@ class Root:
         valid session cookie. Thus, this page is also exposed as "post_form".
         """
         params['id'] = 'None'   # security!
-
-        # Both the Attendee class and Group class have identically named
-        # address fields. In order to distinguish the two sets of address
-        # fields in the params, the Group fields are prefixed with "group_"
-        # when the form is submitted. To prevent instantiating the Group object
-        # with the Attendee's address fields, we must clone the params and
-        # rename all the "group_" fields.
-        group_params = dict(params)
-        for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city']:
-            group_params[field_name] = params.get('group_{}'.format(field_name), '')
-            if params.get('copy_address'):
-                params[field_name] = group_params[field_name]
+        group = Group()
+        print("START OF FORM\nName is: {} \n Badges is: {}".format(params.get('name'), params.get('badges')))
 
         if edit_id is not None:
-            attendee, group = self._get_unsaved(
+            attendee = self._get_unsaved(
                 edit_id,
                 if_not_found=HTTPRedirect('form?message={}', 'That preregistration has already been finalized'))
             attendee.apply(params, restricted=True)
-            group.apply(group_params, restricted=True)
-            if attendee.badge_type not in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE]:
-                # Disassociate the attendee from the group, just in case the unpaid badge
-                # was edited and switched from a group badge back to a single badge.
-                group.attendees = []
-                attendee.group_id = None
-                if attendee.paid == c.PAID_BY_GROUP:
-                    attendee.paid = c.NOT_PAID
-            params.setdefault('badges', group.badges)
+            params.setdefault('badges', attendee.badges)
+            params.setdefault('name', attendee.name)
         else:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
-            group = session.group(group_params, ignore_csrf=True, restricted=True)
+
+            if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
+                if not c.DEALER_REG_OPEN:
+                    return render('static_views/dealer_reg_closed.html') if c.AFTER_DEALER_REG_START \
+                        else render('static_views/dealer_reg_not_open.html')
+
+                # Both the Attendee class and Group class have identically named
+                # address fields. In order to distinguish the two sets of address
+                # fields in the params, the Group fields are prefixed with "group_"
+                # when the form is submitted. To prevent instantiating the Group object
+                # with the Attendee's address fields, we must clone the params and
+                # rename all the "group_" fields.
+                group_params = dict(params)
+                for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city']:
+                    group_params[field_name] = params.get('group_{}'.format(field_name), '')
+                    if params.get('copy_address'):
+                        params[field_name] = group_params[field_name]
+
+                group = session.group(group_params, ignore_csrf=True, restricted=True)
 
         if not attendee.badge_type:
             attendee.badge_type = c.ATTENDEE_BADGE
@@ -188,29 +177,20 @@ class Root:
                 'promo_code': params.get('promo_code', ''),
             }
 
-        if attendee.is_dealer and not c.DEALER_REG_OPEN:
-            return render('static_views/dealer_reg_closed.html') if c.AFTER_DEALER_REG_START \
-                else render('static_views/dealer_reg_not_open.html')
-
         if 'first_name' in params:
             message = check(attendee, prereg=True)
-            if not message and attendee.badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE]:
+            if not message and attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                 message = check(group, prereg=True)
 
             if not message:
-                if attendee.badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE]:
+                if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                     attendee.paid = c.PAID_BY_GROUP
                     group.attendees = [attendee]
                     session.assign_badges(group, params['badges'])
-                    if attendee.badge_type == c.PSEUDO_GROUP_BADGE:
-                        attendee.badge_type = c.ATTENDEE_BADGE
-                        group.tables = 0
-                    elif attendee.badge_type == c.PSEUDO_DEALER_BADGE:
-                        group.status = c.WAITLISTED if c.DEALER_REG_SOFT_CLOSED else c.UNAPPROVED
-                        attendee.ribbon = add_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
-                        attendee.badge_type = c.ATTENDEE_BADGE
+                    group.status = c.WAITLISTED if c.DEALER_REG_SOFT_CLOSED else c.UNAPPROVED
+                    attendee.ribbon = add_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
+                    attendee.badge_type = c.ATTENDEE_BADGE
 
-                if attendee.is_dealer:
                     session.add_all([attendee, group])
                     session.commit()
                     try:
@@ -231,18 +211,17 @@ class Root:
                         log.error('unable to send marketplace application confirmation email', exc_info=True)
                     raise HTTPRedirect('dealer_confirmation?id={}', group.id)
                 else:
-                    target = group if group.badges else attendee
                     track_type = c.UNPAID_PREREG
-                    for target_id in [attendee.id, group.id]:
-                        if target_id in Charge.unpaid_preregs:
-                            track_type = c.EDITED_PREREG
-                            # Clear out any previously cached targets, in case the unpaid badge
-                            # has been edited and changed from a single to a group or vice versa.
-                            del Charge.unpaid_preregs[target_id]
-                    Charge.unpaid_preregs[target.id] = to_sessionized(attendee, group)
+                    if attendee.id in Charge.unpaid_preregs:
+                        track_type = c.EDITED_PREREG
+                        # Clear out any previously cached targets, in case the unpaid badge
+                        # has been edited and changed from a single to a group or vice versa.
+                        del Charge.unpaid_preregs[attendee.id]
+                        print("BEFORE SESSIONIZING\nName is: {} \n Badges is: {}".format(params.get('name'), params.get('badges')))
+                    Charge.unpaid_preregs[attendee.id] = Charge.to_sessionized(attendee,
+                                                                               params.get('name'),
+                                                                               params.get('badges'))
                     Tracking.track(track_type, attendee)
-                    if group.badges:
-                        Tracking.track(track_type, group)
 
                 if session.attendees_with_badges().filter_by(
                         first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():

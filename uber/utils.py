@@ -825,53 +825,47 @@ class Charge:
         return promo_code_count
 
     @classmethod
-    def to_sessionized(cls, m):
-        from uber.models import Attendee, Group
+    def to_sessionized(cls, m, name='', badges=0):
+        from uber.models import Attendee
         if is_listy(m):
             return [cls.to_sessionized(t) for t in m]
         elif isinstance(m, dict):
             return m
         elif isinstance(m, Attendee):
-            return m.to_dict(
+            print("TO_SESSIONIZED START\nName is: {} \n Badges is: {}".format(name, badges))
+            d = m.to_dict(
                 Attendee.to_dict_default_attrs
                 + ['promo_code']
                 + list(Attendee._extra_apply_attrs_restricted))
-        elif isinstance(m, Group):
-            return m.to_dict(
-                Group.to_dict_default_attrs
-                + ['attendees']
-                + list(Group._extra_apply_attrs_restricted))
+            d['name'] = name
+            d['badges'] = badges
+            print("TO_SESSIONIZED RETURNING\nName is: {} \n Badges is: {}".format(d['name'], d['badges']))
+            return d
         else:
-            raise AssertionError('{} is not an attendee or group'.format(m))
+            raise AssertionError('{} is not an attendee or dict'.format(m))
 
     @classmethod
     def from_sessionized(cls, d):
         if is_listy(d):
             return [cls.from_sessionized(t) for t in d]
         elif isinstance(d, dict):
-            assert d['_model'] in {'Attendee', 'Group'}
-            if d['_model'] == 'Group':
-                return cls.from_sessionized_group(d)
-            else:
-                return cls.from_sessionized_attendee(d)
+            assert d['_model'] == 'Attendee'
+            print("FROM_SESSIONIZED START\nName is: {} \n Badges is: {}".format(d.get('name'), d.get('badges')))
+            if d.get('promo_code'):
+                d = dict(d, promo_code=uber.models.PromoCode(_defer_defaults_=True, **d['promo_code']))
+
+            # These aren't valid properties on the model, so they're removed and re-added
+            name = d.pop('name', '')
+            badges = d.pop('badges', 0)
+            print("FROM_SESSIONIZED POP\nName is: {} \n Badges is: {}".format(name, badges))
+            d = uber.models.Attendee(_defer_defaults_=True, **d)
+            d.name = name
+            d.badges = badges
+            print("FROM_SESSIONIZED RETURN\nName is: {} \n Badges is: {}".format(d.name, d.badges))
+
+            return d
         else:
             return d
-
-    @classmethod
-    def from_sessionized_group(cls, d):
-        d = dict(d, attendees=[cls.from_sessionized_attendee(a) for a in d.get('attendees', [])])
-        return uber.models.Group(_defer_defaults_=True, **d)
-
-    @classmethod
-    def from_sessionized_attendee(cls, d):
-        # Fix for attendees that were sessionized while no-longer-existing attributes existed
-        for attr in ['age_discountable_badge_types', 'requested_any_dept']:
-            if attr in d:
-                del d[attr]
-
-        if d.get('promo_code'):
-            d = dict(d, promo_code=uber.models.PromoCode(_defer_defaults_=True, **d['promo_code']))
-        return uber.models.Attendee(_defer_defaults_=True, **d)
 
     @classmethod
     def get(cls, payment_id):
@@ -913,7 +907,7 @@ class Charge:
     def receipt_email(self):
         return self.models[0].email if self.models and self.models[0].email else self._receipt_email
 
-    @cached_property
+    @property
     def names(self):
         return ', '.join(getattr(m, 'name', getattr(m, 'full_name', None)) for m in self.models)
 

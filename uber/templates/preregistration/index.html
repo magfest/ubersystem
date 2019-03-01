@@ -67,7 +67,7 @@
     <tbody>
       {% for attendee in charge.attendees %}
         <tr>
-          <td>{{ attendee.full_name }}</td>
+          <td>{{ attendee.full_name }} {{ attendee.name }} {{ attendee.badges }}</td>
           <td>
             <ul style="padding-left:15px">
               <li>Membership for {{ c.EVENT_NAME }}</li>
