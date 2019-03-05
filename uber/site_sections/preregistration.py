@@ -365,15 +365,9 @@ class Root:
             log.info("PAYMENT: marked attendee id={} ({}) as paid", attendee.id, attendee_name)
             session.add(attendee)
 
-        for group in charge.groups:
-            group.amount_paid = group.default_cost
-            log.info("PAYMENT: marked group id={} ({}) as paid", group.id, group.name)
-
-            for attendee in group.attendees:
-                attendee.amount_paid = attendee.total_cost - attendee.badge_cost
-                attendee_name = 'UNASSIGNED PLACEHOLDER' if attendee.is_unassigned else attendee.full_name
-                log.info("PAYMENT: marked group member id={} ({}) as paid", attendee.id, attendee_name)
-            session.add(group)
+            if attendee.badges:
+                pc_group = session.create_promo_code_group(attendee, attendee.name, int(attendee.badges) - 1)
+                session.add(pc_group)
 
         session.commit()  # paranoia: really make sure we lock in marking taking payments in the database
 

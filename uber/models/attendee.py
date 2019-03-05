@@ -625,24 +625,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             return c.get_attendee_price(registered)
 
     @property
-    def name(self):
-        """A name for a promo code group, used during prereg."""
-        return get(self, _name)
-
-    @name.setter
-    def name(self, value):
-        self._name = value
-
-    @property
-    def badges(self):
-        """The number of badges an attendee is buying during prereg."""
-        return get(self, _badges)
-
-    @badges.setter
-    def badges(self, value):
-        self._badges = value
-
-    @property
     def promo_code_code(self):
         """
         Convenience property for accessing `promo_code.code` if available.
@@ -690,12 +672,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.extra_donation or 0
 
     @property
+    def amount_extra_unpaid(self):
+        return self.total_cost - self.badge_cost
+
+    @property
     def amount_unpaid(self):
-        if self.paid == c.PAID_BY_GROUP:
-            personal_cost = max(0, self.total_cost - self.badge_cost)
-        else:
-            personal_cost = self.total_cost
-        return max(0, personal_cost - self.amount_paid)
+        return max(0, self.total_cost - self.amount_paid)
 
     @property
     def paid_for_badge(self):

@@ -133,10 +133,25 @@ c.PROMO_CODE_WORD_PARTS_OF_SPEECH = PromoCodeWord._PARTS_OF_SPEECH
 class PromoCodeGroup(MagModel):
     name = Column(UnicodeText)
     code = Column(UnicodeText, admin_only=True)
-    buyer_id = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_buyer'), nullable=True)
-    buyer = relationship('Attendee', foreign_keys=buyer_id, post_update=True, cascade='all')
-    badges = Column(Integer)  # Tracking during the prereg process
+    buyer_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
+    buyer = relationship(
+        'Attendee', backref='promo_code_group',
+        foreign_keys=buyer_id,
+        cascade='save-update,merge,refresh-expire,expunge')
 
+    @presave_adjustment
+    def group_code(self):
+        """
+        Promo Code Groups can be used one of two ways: Each promo
+        code's unique code can be used to claim a specific badge,
+        or the groups' code can be used by multiple people to
+        claim random badges in the group.
+
+        We don't want this to clash with any promo codes' existing
+        codes, so we use that class' generator method.
+        """
+        if not self.code:
+            self.code = PromoCode.generate_random_code()
 
 class PromoCode(MagModel):
     """

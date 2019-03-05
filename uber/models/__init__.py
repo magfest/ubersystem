@@ -850,6 +850,16 @@ class Session(SessionManager):
 
             return self.query(PromoCode).filter(clause).order_by(PromoCode.normalized_code.desc()).first()
 
+        def create_promo_code_group(self, attendee, name, badges):
+            pc_group = PromoCodeGroup(name=name, buyer=attendee)
+            for _ in range(badges):
+                pc_group.promo_codes.append(PromoCode(
+                        discount=0,
+                        discount_type=PromoCode._FIXED_PRICE,
+                        uses_allowed=1))
+
+            return pc_group
+
         def get_next_badge_num(self, badge_type):
             """
             Returns the next badge available for a given badge type. This is

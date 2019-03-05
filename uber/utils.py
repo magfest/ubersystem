@@ -858,12 +858,12 @@ class Charge:
             name = d.pop('name', '')
             badges = d.pop('badges', 0)
             print("FROM_SESSIONIZED POP\nName is: {} \n Badges is: {}".format(name, badges))
-            d = uber.models.Attendee(_defer_defaults_=True, **d)
-            d.name = name
-            d.badges = badges
-            print("FROM_SESSIONIZED RETURN\nName is: {} \n Badges is: {}".format(d.name, d.badges))
+            a = uber.models.Attendee(_defer_defaults_=True, **d)
+            a.name = d['name'] = name
+            a.badges = d['badges'] = badges
+            print("FROM_SESSIONIZED RETURN\nName is: {} \n Badges is: {}".format(a.name, a.badges))
 
-            return d
+            return a
         else:
             return d
 
@@ -889,7 +889,15 @@ class Charge:
 
     @cached_property
     def total_cost(self):
-        return 100 * sum(m.amount_unpaid for m in self.models)
+        costs = []
+
+        for m in self.models:
+            if getattr(m, 'badges'):
+                costs.append(c.get_group_price() * int(m.badges))
+                costs.append(m.amount_extra_unpaid)
+            else:
+                costs.append(m.amount_unpaid)
+        return 100 * sum(costs)
 
     @cached_property
     def dollar_amount(self):
@@ -909,7 +917,15 @@ class Charge:
 
     @property
     def names(self):
-        return ', '.join(getattr(m, 'name', getattr(m, 'full_name', None)) for m in self.models)
+        names = []
+
+        for m in self.models:
+            if getattr(m, 'badges') and getattr(m, 'name'):
+                names.append("{} ({} group badges)".format(m.name, m.badges))
+            else:
+                names.append(getattr(m, 'name', getattr(m, 'full_name', None)))
+
+        return ', '.join(names)
 
     @cached_property
     def targets(self):
