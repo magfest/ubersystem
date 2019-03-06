@@ -153,6 +153,19 @@ class PromoCodeGroup(MagModel):
         if not self.code:
             self.code = PromoCode.generate_random_code()
 
+    @hybrid_property
+    def normalized_code(self):
+        return self.normalize_code(self.code)
+
+    @normalized_code.expression
+    def normalized_code(cls):
+        return func.replace(func.replace(func.lower(cls.code), '-', ''), ' ', '')
+
+    @property
+    def valid_codes(self):
+        return [code for code in self.promo_codes if code.is_valid]
+
+
 class PromoCode(MagModel):
     """
     Promo codes used by attendees to purchase badges at discounted prices.

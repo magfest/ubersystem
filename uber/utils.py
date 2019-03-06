@@ -832,14 +832,12 @@ class Charge:
         elif isinstance(m, dict):
             return m
         elif isinstance(m, Attendee):
-            print("TO_SESSIONIZED START\nName is: {} \n Badges is: {}".format(name, badges))
             d = m.to_dict(
                 Attendee.to_dict_default_attrs
                 + ['promo_code']
                 + list(Attendee._extra_apply_attrs_restricted))
             d['name'] = name
             d['badges'] = badges
-            print("TO_SESSIONIZED RETURNING\nName is: {} \n Badges is: {}".format(d['name'], d['badges']))
             return d
         else:
             raise AssertionError('{} is not an attendee or dict'.format(m))
@@ -850,18 +848,15 @@ class Charge:
             return [cls.from_sessionized(t) for t in d]
         elif isinstance(d, dict):
             assert d['_model'] == 'Attendee'
-            print("FROM_SESSIONIZED START\nName is: {} \n Badges is: {}".format(d.get('name'), d.get('badges')))
             if d.get('promo_code'):
                 d = dict(d, promo_code=uber.models.PromoCode(_defer_defaults_=True, **d['promo_code']))
 
             # These aren't valid properties on the model, so they're removed and re-added
             name = d.pop('name', '')
             badges = d.pop('badges', 0)
-            print("FROM_SESSIONIZED POP\nName is: {} \n Badges is: {}".format(name, badges))
             a = uber.models.Attendee(_defer_defaults_=True, **d)
             a.name = d['name'] = name
             a.badges = d['badges'] = badges
-            print("FROM_SESSIONIZED RETURN\nName is: {} \n Badges is: {}".format(a.name, a.badges))
 
             return a
         else:

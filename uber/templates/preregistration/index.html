@@ -67,7 +67,7 @@
     <tbody>
       {% for attendee in charge.attendees %}
         <tr>
-          <td>{{ attendee.full_name }}{% if attendee.name %} ({{ attendee.name }}){% endif %}</td>
+          <td>{{ attendee.full_name }}{% if attendee.badges %} ({{ attendee.name }}){% endif %}</td>
           <td>
             <ul style="padding-left:15px">
               <li>Membership for {{ c.EVENT_NAME }}{% if attendee.badges %} for {{ attendee.badges }} people{% endif %}</li>
@@ -83,7 +83,11 @@
                 <li>{{ swag }}</li>
               {% endfor %}
               {% if attendee.promo_code %}
+                {% if attendee.promo_code.group_id %}
+                  <li>Claiming a badge in group "{{ attendee.group_name }}"</li>
+                {% else %}
                 <li>{{ attendee.promo_code.discount_str }} with promo code "{{ attendee.promo_code.code }}"</li>
+                {% endif %}
               {% endif %}
             </ul>
           </td>

@@ -11,7 +11,7 @@ from uber.config import c
 from uber.decorators import all_renderable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Email, Group, Tracking
+from uber.models import Attendee, Email, Group, PromoCode, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, check_pii_consent, localized_now, Charge
 
@@ -86,13 +86,18 @@ class Root:
         return {'message': message}
 
     @check_if_can_reg
-    def index(self, message=''):
+    def index(self, session, message=''):
         if not Charge.unpaid_preregs:
             raise HTTPRedirect('form?message={}', message) if message else HTTPRedirect('form')
         else:
+            charge = Charge(listify(Charge.unpaid_preregs.values()))
+            for attendee in charge.attendees:
+                if attendee.promo_code:
+                    attendee.group_name = session.query(PromoCode).filter_by(
+                        code=attendee.promo_code.code).first().group.name
             return {
                 'message': message,
-                'charge': Charge(listify(Charge.unpaid_preregs.values()))
+                'charge': charge
             }
 
     @check_if_can_reg
@@ -124,15 +129,12 @@ class Root:
         """
         params['id'] = 'None'   # security!
         group = Group()
-        print("START OF FORM\nName is: {} \n Badges is: {}".format(params.get('name'), params.get('badges')))
 
         if edit_id is not None:
             attendee = self._get_unsaved(
                 edit_id,
                 if_not_found=HTTPRedirect('form?message={}', 'That preregistration has already been finalized'))
             attendee.apply(params, restricted=True)
-            params.setdefault('badges', attendee.badges)
-            params.setdefault('name', attendee.name)
         else:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
 
@@ -163,6 +165,8 @@ class Root:
             message = 'Invalid badge type!'
         if not message and c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
             message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
+            print("Promo code group ID is: {}\nPromo code group is: {}".format(attendee.promo_code.group_id,
+                                                                               attendee.promo_code.group))
 
         if message:
             return {
@@ -170,7 +174,6 @@ class Root:
                 'attendee':   attendee,
                 'group':      group,
                 'edit_id':    edit_id,
-                'badges':     params.get('badges'),
                 'affiliates': session.affiliates(),
                 'cart_not_empty': Charge.unpaid_preregs,
                 'copy_address': params.get('copy_address'),
@@ -181,6 +184,12 @@ class Root:
             message = check(attendee, prereg=True)
             if not message and attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                 message = check(group, prereg=True)
+
+            if attendee.badge_type == c.PSEUDO_GROUP_BADGE:
+                message = "Please enter a group name" if not params.get('name') else ''
+            else:
+                params['badges'] = 0
+                params['name'] = ''
 
             if not message:
                 if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
@@ -217,7 +226,7 @@ class Root:
                         # Clear out any previously cached targets, in case the unpaid badge
                         # has been edited and changed from a single to a group or vice versa.
                         del Charge.unpaid_preregs[attendee.id]
-                        print("BEFORE SESSIONIZING\nName is: {} \n Badges is: {}".format(params.get('name'), params.get('badges')))
+
                     Charge.unpaid_preregs[attendee.id] = Charge.to_sessionized(attendee,
                                                                                params.get('name'),
                                                                                params.get('badges'))
@@ -252,12 +261,16 @@ class Root:
                 message = 'Dealer registration is closed, but you can ' \
                     'fill out this form to add yourself to our waitlist'
 
+        promo_code_group = None
+        if attendee.promo_code:
+            promo_code_group = session.query(PromoCode).filter_by(code=attendee.promo_code).first().group
+
         return {
             'message':    message,
             'attendee':   attendee,
             'group':      group,
+            'promo_code_group': promo_code_group,
             'edit_id':    edit_id,
-            'badges':     params.get('badges'),
             'affiliates': session.affiliates(),
             'cart_not_empty': Charge.unpaid_preregs,
             'copy_address': params.get('copy_address'),
