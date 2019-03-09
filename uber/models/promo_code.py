@@ -15,7 +15,7 @@ from sqlalchemy.types import Integer
 from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, DefaultColumn as Column, Choice
+from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column, Choice
 from uber.utils import localized_now
 
 
@@ -133,9 +133,10 @@ c.PROMO_CODE_WORD_PARTS_OF_SPEECH = PromoCodeWord._PARTS_OF_SPEECH
 class PromoCodeGroup(MagModel):
     name = Column(UnicodeText)
     code = Column(UnicodeText, admin_only=True)
+    registered = Column(UTCDateTime, server_default=utcnow())
     buyer_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
     buyer = relationship(
-        'Attendee', backref='promo_code_group',
+        'Attendee', backref='promo_code_groups',
         foreign_keys=buyer_id,
         cascade='save-update,merge,refresh-expire,expunge')
 
@@ -162,8 +163,32 @@ class PromoCodeGroup(MagModel):
         return func.replace(func.replace(func.lower(cls.code), '-', ''), ' ', '')
 
     @property
+    def total_cost(self):
+        return sum(code.cost for code in self.promo_codes if code.cost)
+
+    @property
     def valid_codes(self):
         return [code for code in self.promo_codes if code.is_valid]
+
+    @property
+    def sorted_promo_codes(self):
+        return list(sorted(self.promo_codes, key=lambda pc: (not pc.used_by,
+                                                             pc.used_by[0].full_name if pc.used_by else pc.code)))
+
+    @property
+    def hours_since_registered(self):
+        if not self.registered:
+            return 0
+        delta = datetime.now(UTC) - self.registered
+        return max(0, delta.total_seconds()) / 60.0 / 60.0
+
+    @property
+    def hours_remaining_in_grace_period(self):
+        return max(0, c.GROUP_UPDATE_GRACE_PERIOD - self.hours_since_registered)
+
+    @property
+    def is_in_grace_period(self):
+        return self.hours_remaining_in_grace_period > 0
 
 
 class PromoCode(MagModel):
@@ -201,6 +226,9 @@ class PromoCode(MagModel):
         group (relationship): An optional relationship to a PromoCodeGroup
             object, which groups sets of promo codes to make attendee-facing
             "groups"
+
+        cost (int): The cost of this promo code if and when it was bought
+          as part of a PromoCodeGroup.
 
         expiration_date (datetime): The date & time upon which this promo code
             expires. An expired promo code may no longer be used to receive
@@ -266,6 +294,7 @@ class PromoCode(MagModel):
     discount_type = Column(Choice(_DISCOUNT_TYPE_OPTS), default=_FIXED_DISCOUNT)
     expiration_date = Column(UTCDateTime, default=c.ESCHATON)
     uses_allowed = Column(Integer, nullable=True, default=None)
+    cost = Column(Integer, nullable=True, default=None)
 
     group_id = Column(UUID, ForeignKey('promo_code_group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(

@@ -30,9 +30,18 @@
       <span class="glyphicon glyphicon-user"></span> {{ attendee.full_name }}'s Info
     </a>
   </li>
+{% if c.ATTRACTIONS_ENABLED %}
   <li role="presentation"{% if 'manage' in c.PAGE_PATH %} class="active"{% endif %}>
     <a href="../attractions/manage?id={{ attendee.id }}">
       <span class="bling-icon"></span> Attraction Signups
     </a>
   </li>
+{% endif %}
+{% for group in attendee.promo_code_groups %}
+  <li role="presentation"{% if 'group_promo_codes' in c.PAGE_PATH %} class="active"{% endif %}>
+    <a href="../preregistration/group_promo_codes?id={{ group.id }}">
+      <span class="glyphicon glyphicon-tags"></span> Manage {{ group.name }}
+    </a>
+  </li>
+{% endfor %}
 </ul>

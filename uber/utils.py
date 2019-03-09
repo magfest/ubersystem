@@ -826,7 +826,7 @@ class Charge:
 
     @classmethod
     def to_sessionized(cls, m, name='', badges=0):
-        from uber.models import Attendee
+        from uber.models import Attendee, Group
         if is_listy(m):
             return [cls.to_sessionized(t) for t in m]
         elif isinstance(m, dict):
@@ -839,6 +839,11 @@ class Charge:
             d['name'] = name
             d['badges'] = badges
             return d
+        elif isinstance(m, Group):
+            return m.to_dict(
+                Group.to_dict_default_attrs
+                + ['attendees']
+                + list(Group._extra_apply_attrs_restricted))
         else:
             raise AssertionError('{} is not an attendee or dict'.format(m))
 
@@ -847,20 +852,32 @@ class Charge:
         if is_listy(d):
             return [cls.from_sessionized(t) for t in d]
         elif isinstance(d, dict):
-            assert d['_model'] == 'Attendee'
-            if d.get('promo_code'):
-                d = dict(d, promo_code=uber.models.PromoCode(_defer_defaults_=True, **d['promo_code']))
-
-            # These aren't valid properties on the model, so they're removed and re-added
-            name = d.pop('name', '')
-            badges = d.pop('badges', 0)
-            a = uber.models.Attendee(_defer_defaults_=True, **d)
-            a.name = d['name'] = name
-            a.badges = d['badges'] = badges
-
-            return a
+            assert d['_model'] in {'Attendee', 'Group'}
+            if d['_model'] == 'Group':
+                return cls.from_sessionized_group(d)
+            else:
+                return cls.from_sessionized_attendee(d)
         else:
             return d
+
+    @classmethod
+    def from_sessionized_group(cls, d):
+        d = dict(d, attendees=[cls.from_sessionized_attendee(a) for a in d.get('attendees', [])])
+        return uber.models.Group(_defer_defaults_=True, **d)
+
+    @classmethod
+    def from_sessionized_attendee(cls, d):
+        if d.get('promo_code'):
+            d = dict(d, promo_code=uber.models.PromoCode(_defer_defaults_=True, **d['promo_code']))
+
+        # These aren't valid properties on the model, so they're removed and re-added
+        name = d.pop('name', '')
+        badges = d.pop('badges', 0)
+        a = uber.models.Attendee(_defer_defaults_=True, **d)
+        a.name = d['name'] = name
+        a.badges = d['badges'] = badges
+
+        return a
 
     @classmethod
     def get(cls, payment_id):
@@ -887,7 +904,7 @@ class Charge:
         costs = []
 
         for m in self.models:
-            if getattr(m, 'badges'):
+            if isinstance(m, uber.models.Attendee) and getattr(m, 'badges', None):
                 costs.append(c.get_group_price() * int(m.badges))
                 costs.append(m.amount_extra_unpaid)
             else:
@@ -916,7 +933,7 @@ class Charge:
 
         for m in self.models:
             if getattr(m, 'badges') and getattr(m, 'name'):
-                names.append("{} ({} group badges)".format(m.name, m.badges))
+                names.append("{} plus {} badges ({})".format(getattr(m, 'full_name', None), int(m.badges) - 1, m.name))
             else:
                 names.append(getattr(m, 'name', getattr(m, 'full_name', None)))
 

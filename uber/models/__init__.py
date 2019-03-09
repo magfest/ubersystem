@@ -877,11 +877,12 @@ class Session(SessionManager):
         def create_promo_code_group(self, attendee, name, badges):
             pc_group = PromoCodeGroup(name=name, buyer=attendee)
             for _ in range(badges):
-                pc_group.promo_codes.append(PromoCode(
+                self.add(PromoCode(
                     discount=0,
                     discount_type=PromoCode._FIXED_PRICE,
                     uses_allowed=1,
-                    group=pc_group))
+                    group=pc_group,
+                    cost=c.get_group_price()))
 
             return pc_group
 

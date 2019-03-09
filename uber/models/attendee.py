@@ -598,7 +598,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             return c.DEALER_BADGE_PRICE
         elif self.badge_type in c.DISCOUNTABLE_BADGE_TYPES and self.age_discount != 0:
             return max(0, base_badge_price + self.age_discount)
-        elif self.badge_type in c.DISCOUNTABLE_BADGE_TYPES and self.group and self.paid == c.PAID_BY_GROUP:
+        elif self.badge_type in c.DISCOUNTABLE_BADGE_TYPES and self.promo_code_groups:
             return base_badge_price - c.GROUP_DISCOUNT
         elif self.base_badge_price:
             cost = base_badge_price
@@ -670,6 +670,13 @@ class Attendee(MagModel, TakesPaymentMixin):
     @cost_property
     def donation_cost(self):
         return self.extra_donation or 0
+
+    @cost_property
+    def promo_group_cost(self):
+        costs = []
+        for group in self.promo_code_groups:
+            costs.append(group.total_cost)
+        return sum(costs)
 
     @property
     def amount_extra_unpaid(self):

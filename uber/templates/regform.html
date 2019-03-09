@@ -130,7 +130,7 @@
 </div>
 
 {% if c.PAGE == 'confirm' and not attendee.placeholder %}
-    <div class="form-group">
+    <div class="form-group">{{ attendee.total_cost }}
         <label for="full_name" class="col-sm-3 control-label">Name</label>
         <div class="col-sm-6 form-control-static">{{ attendee.full_name }}</div>
     </div>
@@ -614,7 +614,7 @@
 <div class="form-group">
   <div class="checkbox col-sm-9 col-sm-offset-3">
     <label for="pii_consent" class="checkbox-label">
-    <input type="checkbox" name="pii_consent" id="pii_consent" value="1" required />
+    <input type="checkbox" name="pii_consent" id="pii_consent" value="1" required {% if pii_consent %}checked{% endif %} />
     <strong>Yes</strong>, you may store the personal information above in order to contact me about my registration.
     </label>
   </div>

@@ -3,6 +3,7 @@ from datetime import timedelta
 from functools import wraps
 
 import cherrypy
+from email_validator import validate_email, EmailNotValidError
 from pockets import listify
 from pockets.autolog import log
 from sqlalchemy import func
@@ -11,7 +12,7 @@ from uber.config import c
 from uber.decorators import all_renderable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Email, Group, PromoCode, Tracking
+from uber.models import Attendee, Email, Group, PromoCode, PromoCodeGroup, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, check_pii_consent, localized_now, Charge
 
@@ -135,6 +136,7 @@ class Root:
                 edit_id,
                 if_not_found=HTTPRedirect('form?message={}', 'That preregistration has already been finalized'))
             attendee.apply(params, restricted=True)
+            params.setdefault('pii_consent', True)
         else:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
 
@@ -163,10 +165,8 @@ class Root:
         message = check_pii_consent(params, attendee) or message
         if not message and attendee.badge_type not in c.PREREG_BADGE_TYPES:
             message = 'Invalid badge type!'
-        if not message and c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
+        if not message and c.BADGE_PROMO_CODES_ENABLED and params.get('promo_code'):
             message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
-            print("Promo code group ID is: {}\nPromo code group is: {}".format(attendee.promo_code.group_id,
-                                                                               attendee.promo_code.group))
 
         if message:
             return {
@@ -178,6 +178,7 @@ class Root:
                 'cart_not_empty': Charge.unpaid_preregs,
                 'copy_address': params.get('copy_address'),
                 'promo_code': params.get('promo_code', ''),
+                'pii_consent': params.get('pii_consent'),
             }
 
         if 'first_name' in params:
@@ -275,6 +276,7 @@ class Root:
             'cart_not_empty': Charge.unpaid_preregs,
             'copy_address': params.get('copy_address'),
             'promo_code': params.get('promo_code', ''),
+            'pii_consent': params.get('pii_consent'),
         }
 
     @redirect_if_at_con_to_kiosk
@@ -373,7 +375,6 @@ class Root:
 
         for attendee in charge.attendees:
             attendee.paid = c.HAS_PAID
-            attendee.amount_paid = attendee.total_cost
             attendee_name = 'PLACEHOLDER' if attendee.is_unassigned else attendee.full_name
             log.info("PAYMENT: marked attendee id={} ({}) as paid", attendee.id, attendee_name)
             session.add(attendee)
@@ -381,6 +382,8 @@ class Root:
             if attendee.badges:
                 pc_group = session.create_promo_code_group(attendee, attendee.name, int(attendee.badges) - 1)
                 session.add(pc_group)
+                session.commit()
+            attendee.amount_paid = attendee.total_cost
 
         session.commit()  # paranoia: really make sure we lock in marking taking payments in the database
 
@@ -413,6 +416,41 @@ class Root:
     @id_required(Group)
     def dealer_confirmation(self, session, id):
         return {'group': session.group(id)}
+
+    @id_required(PromoCodeGroup)
+    def group_promo_codes(self, session, id, message='', **params):
+        group = session.promo_code_group(id)
+        return {
+            'group': group,
+            'message': message,
+        }
+
+    def email_promo_code(self, session, group_id, message='', **params):
+        if cherrypy.request.method == 'POST':
+            code = session.lookup_promo_or_group_code(params.get('code'))
+            if not code:
+                message = "This code is invalid. If it has not been claimed, please contact us at {}".format(
+                    c.REGDESK_EMAIL)
+            elif not params.get('email'):
+                message = "Please enter an email address"
+            else:
+                try:
+                    validate_email(params.get('email'))
+                except EmailNotValidError as e:
+                    message = str(e)
+                    message = 'Enter a valid email address. ' + message
+
+            if not message:
+                send_email.delay(
+                    c.REGDESK_EMAIL,
+                    params.get('email'),
+                    'Claim a {} badge in "{}"'.format(c.EVENT_NAME, code.group.name),
+                    render('emails/reg_workflow/promo_code_invite.txt', {'code': code}, encoding=None),
+                    model=code.to_dict('id'))
+                raise HTTPRedirect('group_promo_codes?id={}&message={}'.format(group_id, "Email sent!"))
+            else:
+                raise HTTPRedirect('group_promo_codes?id={}&message={}'.format(group_id, message))
+
 
     @id_required(Group)
     @log_pageview
