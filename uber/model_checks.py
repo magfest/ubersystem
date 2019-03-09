@@ -74,7 +74,7 @@ ApiToken.required = [('name', 'Name'), ('description', 'Intended Usage'), ('acce
 def admin_has_required_api_access(api_token):
     admin_account_id = cherrypy.session['account_id']
     if api_token.is_new and admin_account_id != api_token.admin_account_id:
-            return 'You may not create an API token for another user'
+        return 'You may not create an API token for another user'
 
     with Session() as session:
         admin_account = session.current_admin_account()
