@@ -419,6 +419,13 @@ class Attendee(MagModel, TakesPaymentMixin):
     __table_args__ = tuple(_attendee_table_args)
     _repr_attr_names = ['full_name']
 
+
+    # Kludgey fix for SQLAlchemy breaking our stuff
+    def to_dict(self, *args, **kwargs):
+        d = super().to_dict(*args, **kwargs)
+        d.pop('attraction_event_signups', None)
+        return d
+
     @predelete_adjustment
     def _shift_badges(self):
         is_skipped = getattr(self, '_skip_badge_shift_on_delete', False)
@@ -465,6 +472,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.legal_name and self.full_name == self.legal_name:
             self.legal_name = ''
+
+        if self.promo_code and self.promo_code_groups:
+            self.promo_code = None
 
     @presave_adjustment
     def _status_adjustments(self):

@@ -6,15 +6,15 @@
 {% include 'prereg_masthead.html' %}
 <div class="panel panel-default">
   <div class="panel-body">
-    <h2>You are already registered</h2>
+    <h2>You may already be registered</h2>
 
     We already have a {{ attendee.full_name }} with email address {{ attendee.email }} in our database with a
     {% if attendee.paid == c.PAID_BY_GROUP and attendee.group.status == c.WAITLISTED %}
         waitlisted
-    {% elif attendee.paid == c.HAS_PAID or attendee.paid == c.PAID_BY_GROUP %}
+    {% elif attendee.paid == c.HAS_PAID or attendee.paid == c.PAID_BY_GROUP or attendee.promo_code and attendee.promo_code.group %}
         paid
     {% elif attendee.paid == c.NEED_NOT_PAY %}
-        complementary
+        complimentary
     {% elif attendee.paid == c.NOT_PAID %}
         unpaid
     {% else %}
@@ -24,9 +24,9 @@
     {% if attendee.ribbon %}
         ({{ attendee.ribbon_labels|join(", ") }})
     {% endif %}
-    badge{% if attendee.group %}
-        (with the group {{ attendee.group.name }})
-    {% endif %}.
+    badge{% if attendee.group or attendee.promo_code and attendee.promo_code.group %}
+    {% set group = attendee.group or attendee.promo_code.group %}
+        (with the group {{ group.name }}){% endif %}.
 
     If you have any questions then please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a>.
 
@@ -54,7 +54,7 @@
     <table style="width:auto" align="center">
     <tr>
         {%- set next_page = 'hotel?id=' + id if c.PREREG_REQUEST_HOTEL_INFO_OPEN else 'index' -%}
-        <td><a href="{{ next_page }}">I'm someone else, let me pay!</a></td>
+        <td><a href="{{ next_page }}">I'm someone else, let me register!</a></td>
         <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
         <td><a href="delete?id={% if duplicate.group %}{{ duplicate.group.id }}{% else %}{{ duplicate.id }}{% endif %}&message=Duplicate badge canceled">Well never mind then!</a></td>
     </tr>

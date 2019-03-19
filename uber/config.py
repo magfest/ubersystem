@@ -224,7 +224,7 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def BADGES_SOLD(self):
-        from uber.models import Session, Attendee, Group
+        from uber.models import Session, Attendee, Group, PromoCode, PromoCodeGroup
         if self.BADGES_SOLD_ESTIMATE_ENABLED:
             with Session() as session:
                 attendee_count = int(session.execute(
@@ -245,7 +245,9 @@ class Config(_Overridable):
                     Attendee.paid == self.PAID_BY_GROUP,
                     Group.amount_paid > 0).count()
 
-                return individuals + group_badges
+                promo_code_badges = session.query(PromoCode).join(PromoCodeGroup).count()
+
+                return individuals + group_badges + promo_code_badges
 
     @request_cached_property
     @dynamic

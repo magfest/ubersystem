@@ -38,7 +38,7 @@
               {{ attendee.email|email_to_link }}
             </td>
           {% else %}
-            <td colspan="3" class="email_code">
+            <td class="email_code">
               <form class="form-inline" method="post" action="email_promo_code">
                 <a href="#" id="code_link_{{ code.code }}" onclick="toggleEmailForm('{{ code.code }}')">Send this code to someone</a>
                 <span id="code_form_{{ code.code }}" hidden>
@@ -50,6 +50,9 @@
                 </span>
               </form>
             </td>
+            <td>
+            {% if emailed_codes[code.code] %}(Last sent to: {{ emailed_codes[code.code] }}){% endif %}
+            </td>
           {% endif %}
         </tr>
       {% endfor %}
@@ -57,27 +60,23 @@
 
     <br/>
 
-    {% if c.PRE_CON and False %}
+    {% if c.PRE_CON %}
       <div id="add" style="display:none">
-        <form class="form-inline" method="get" action="add_group_members">
+        <form class="form-inline" method="get" action="add_promo_codes">
           <input type="hidden" name="id" value="{{ group.id }}" />
           <p>
-            {%- set min_badges = c.MIN_GROUP_ADDITION -%}
-            Enter the number of extra codes to purchase.
-            {% if min_badges > 1 -%}
+            Enter the number of extra codes to purchase for <strong>${{ c.GROUP_PRICE }}</strong> per code.&nbsp;
               {%- set hours_remaining = group.hours_remaining_in_grace_period -%}
               {%- if hours_remaining > 0 -%}
-                {%- set min_badges = 1 -%}
                 You have {{ humanize_timedelta(hours=hours_remaining, granularity='minutes') }}
-                remaining to add individual code. After that you'll have to add at
+                remaining to add individual codes. After that you'll have to add at
                 least {{ c.MIN_GROUP_ADDITION }} codes at a time.
               {%- else -%}
-                You can't add fewer than {{ c.MIN_GROUP_ADDITION }} codes to an existing group.
+                You can't add fewer than {{ group.min_badges_addable }} codes to an existing group.
               {%- endif -%}
-            {%- endif -%}
           </p>
           <select class="form-control" name="count">
-            {{ int_options(min_badges, 10) }}
+            {{ int_options(group.min_badges_addable, 10) }}
           </select>
           <input class="btn btn-primary" type="submit" value="Add Promo Codes">
         </form>
@@ -85,8 +84,8 @@
 
       <script type="text/javascript">
           $(function() {
-              {% if attendee.amount_unpaid %}
-              $('<div class="disabled" title="Please pay for your current registration and extra before buying more codes">' +
+            {% if attendee.amount_unpaid %}
+              $('<div class="disabled" title="Please pay for your current registration and extras before buying more codes">' +
                   '<button disabled class="btn btn-primary">Click here to add more promo codes</button>' +
                   '</div>').insertAfter($("#add"));
             {% else %}

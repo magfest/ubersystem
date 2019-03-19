@@ -876,6 +876,12 @@ class Session(SessionManager):
 
         def create_promo_code_group(self, attendee, name, badges):
             pc_group = PromoCodeGroup(name=name, buyer=attendee)
+
+            self.add_codes_to_pc_group(pc_group)
+
+            return pc_group
+
+        def add_codes_to_pc_group(self, pc_group, badges):
             for _ in range(badges):
                 self.add(PromoCode(
                     discount=0,
@@ -883,8 +889,6 @@ class Session(SessionManager):
                     uses_allowed=1,
                     group=pc_group,
                     cost=c.get_group_price()))
-
-            return pc_group
 
         def get_next_badge_num(self, badge_type):
             """

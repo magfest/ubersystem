@@ -3,8 +3,10 @@ import re
 import string
 import textwrap
 from collections import OrderedDict
+from datetime import datetime
 
 import six
+from pytz import UTC
 from dateutil import parser as dateparser
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import func, select, CheckConstraint
@@ -189,6 +191,10 @@ class PromoCodeGroup(MagModel):
     @property
     def is_in_grace_period(self):
         return self.hours_remaining_in_grace_period > 0
+
+    @property
+    def min_badges_addable(self):
+        return 1 if self.hours_remaining_in_grace_period > 0 else c.MIN_GROUP_ADDITION
 
 
 class PromoCode(MagModel):

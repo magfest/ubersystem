@@ -162,11 +162,12 @@ class Root:
         if not attendee.badge_type:
             attendee.badge_type = c.ATTENDEE_BADGE
 
-        message = check_pii_consent(params, attendee) or message
-        if not message and attendee.badge_type not in c.PREREG_BADGE_TYPES:
-            message = 'Invalid badge type!'
-        if not message and c.BADGE_PROMO_CODES_ENABLED and params.get('promo_code'):
-            message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
+        if cherrypy.request.method == 'POST' or edit_id is not None:
+            message = check_pii_consent(params, attendee) or message
+            if not message and attendee.badge_type not in c.PREREG_BADGE_TYPES:
+                message = 'Invalid badge type!'
+            if not message and c.BADGE_PROMO_CODES_ENABLED and params.get('promo_code'):
+                message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
 
         if message:
             return {
@@ -264,7 +265,7 @@ class Root:
 
         promo_code_group = None
         if attendee.promo_code:
-            promo_code_group = session.query(PromoCode).filter_by(code=attendee.promo_code).first().group
+            promo_code_group = session.query(PromoCode).filter_by(code=attendee.promo_code.code).first().group
 
         return {
             'message':    message,
@@ -292,7 +293,7 @@ class Root:
             else:
                 raise HTTPRedirect('form?edit_id={}', id)
 
-        attendee, group = self._get_unsaved(
+        attendee = self._get_unsaved(
             id, if_not_found=HTTPRedirect('form?message={}', 'Could not find the given preregistration'))
 
         is_group_leader = not attendee.is_unassigned and len(group.attendees) > 0
@@ -315,7 +316,7 @@ class Root:
         }
 
     def duplicate(self, session, id):
-        attendee, group = self._get_unsaved(id)
+        attendee = self._get_unsaved(id)
         orig = session.query(Attendee).filter_by(
             first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).first()
 
@@ -329,7 +330,7 @@ class Root:
         }
 
     def banned(self, id):
-        attendee, group = self._get_unsaved(id)
+        attendee = self._get_unsaved(id)
         return {
             'attendee': attendee,
             'id': id
@@ -420,9 +421,19 @@ class Root:
     @id_required(PromoCodeGroup)
     def group_promo_codes(self, session, id, message='', **params):
         group = session.promo_code_group(id)
+
+        sent_code_emails = session.query(Email).filter_by(subject='Claim a {} badge in "{}"'.format(
+            c.EVENT_NAME, group.name)).order_by(Email.when)
+
+        emailed_codes = {}
+
+        for code in group.sorted_promo_codes:
+            emailed_codes.update({code.code: email.to for email in sent_code_emails if code.code in email.body})
+
         return {
             'group': group,
             'message': message,
+            'emailed_codes': emailed_codes,
         }
 
     def email_promo_code(self, session, group_id, message='', **params):
@@ -451,6 +462,47 @@ class Root:
             else:
                 raise HTTPRedirect('group_promo_codes?id={}&message={}'.format(group_id, message))
 
+    def add_promo_codes(self, session, id, count):
+        group = session.promo_code_group(id)
+        if int(count) < group.min_badges_addable and not group.is_in_grace_period:
+            raise HTTPRedirect(
+                'group_promo_codes?id={}&message={}',
+                group.id,
+                'You must add at least {} codes'.format(group.min_badges_addable))
+
+        charge = Charge(
+            group.buyer,
+            amount=100 * int(count) * c.get_group_price(),
+            description='{} extra badge{} for {}'.format(count, 's' if int(count) > 1 else '', group.name))
+
+        return {
+            'count': count,
+            'group': group,
+            'charge': charge
+        }
+
+    @credit_card
+    def pay_for_extra_codes(self, session, payment_id, stripeToken):
+        charge = Charge.get(payment_id)
+        [attendee] = charge.attendees
+        group = session.attendee(attendee.id).promo_code_groups[0]
+        badges_to_add = charge.dollar_amount // c.GROUP_PRICE
+        if charge.dollar_amount % c.GROUP_PRICE:
+            message = 'Our preregistration price has gone up since you tried to add more codes; please try again'
+        else:
+            message = charge.charge_cc(session, stripeToken)
+
+        if message:
+            raise HTTPRedirect('group_promo_codes?id={}&message={}', group.id, message)
+        else:
+            session.add_codes_to_pc_group(group, badges_to_add)
+            attendee.amount_paid += charge.dollar_amount
+            session.merge(attendee)
+
+            raise HTTPRedirect(
+                'group_promo_codes?id={}&message={}',
+                group.id,
+                'You payment has been accepted and the codes have been added to your group')
 
     @id_required(Group)
     @log_pageview

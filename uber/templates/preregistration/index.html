@@ -82,7 +82,7 @@
               {% for swag in attendee.donation_swag|list + attendee.addons|list %}
                 <li>{{ swag }}</li>
               {% endfor %}
-              {% if attendee.promo_code %}
+              {% if attendee.promo_code and not attendee.badges %}
                 {% if attendee.promo_code.group_id %}
                   <li>Claiming a badge in group "{{ attendee.group_name }}"</li>
                 {% else %}
