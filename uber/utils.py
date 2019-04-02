@@ -845,7 +845,7 @@ class Charge:
                 + ['attendees']
                 + list(Group._extra_apply_attrs_restricted))
         else:
-            raise AssertionError('{} is not an attendee or dict'.format(m))
+            raise AssertionError('{} is not an attendee or group'.format(m))
 
     @classmethod
     def from_sessionized(cls, d):
@@ -927,7 +927,7 @@ class Charge:
     def receipt_email(self):
         return self.models[0].email if self.models and self.models[0].email else self._receipt_email
 
-    @property
+    @cached_property
     def names(self):
         names = []
 

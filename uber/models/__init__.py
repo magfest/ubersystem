@@ -507,7 +507,7 @@ from uber.models.group import Group  # noqa: E402
 from uber.models.mits import MITSApplicant, MITSTeam  # noqa: E402
 from uber.models.mivs import IndieJudge, IndieGame, IndieStudio  # noqa: E402
 from uber.models.panels import PanelApplication, PanelApplicant  # noqa: E402
-from uber.models.promo_code import PromoCode  # noqa: E402
+from uber.models.promo_code import PromoCode, PromoCodeGroup  # noqa: E402
 from uber.models.tabletop import TabletopEntrant, TabletopTournament  # noqa: E402
 from uber.models.tracking import Tracking  # noqa: E402
 
@@ -840,7 +840,6 @@ class Session(SessionManager):
 
             return group.valid_codes[0]
 
-
         def lookup_promo_or_group_code(self, code, model=PromoCode):
             """
             Convenience method for finding a promo code by id or code.
@@ -877,7 +876,7 @@ class Session(SessionManager):
         def create_promo_code_group(self, attendee, name, badges):
             pc_group = PromoCodeGroup(name=name, buyer=attendee)
 
-            self.add_codes_to_pc_group(pc_group)
+            self.add_codes_to_pc_group(pc_group, badges)
 
             return pc_group
 

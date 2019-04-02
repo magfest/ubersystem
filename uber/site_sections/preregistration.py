@@ -296,16 +296,14 @@ class Root:
         attendee = self._get_unsaved(
             id, if_not_found=HTTPRedirect('form?message={}', 'Could not find the given preregistration'))
 
-        is_group_leader = not attendee.is_unassigned and len(group.attendees) > 0
+        is_group_leader = not attendee.is_unassigned and attendee.promo_code_groups > 0
 
         if cherrypy.request.method == 'POST':
             attendee.requested_hotel_info = requested_hotel_info
-            target = group if group.badges else attendee
+            target = attendee
             track_type = c.EDITED_PREREG if target.id in Charge.unpaid_preregs else c.UNPAID_PREREG
-            Charge.unpaid_preregs[target.id] = to_sessionized(attendee, group)
+            Charge.unpaid_preregs[target.id] = Charge.to_sessionized(attendee)
             Tracking.track(track_type, attendee)
-            if group.badges:
-                Tracking.track(track_type, group)
             raise HTTPRedirect('index')
         return {
             'message': message,
@@ -422,8 +420,8 @@ class Root:
     def group_promo_codes(self, session, id, message='', **params):
         group = session.promo_code_group(id)
 
-        sent_code_emails = session.query(Email).filter_by(subject='Claim a {} badge in "{}"'.format(
-            c.EVENT_NAME, group.name)).order_by(Email.when)
+        sent_code_emails = session.query(Email).filter_by(subject='Claim a "{}" group badge for {}'.format(
+            group.name, c.EVENT_NAME)).order_by(Email.when)
 
         emailed_codes = {}
 

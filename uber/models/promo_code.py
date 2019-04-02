@@ -142,6 +142,8 @@ class PromoCodeGroup(MagModel):
         foreign_keys=buyer_id,
         cascade='save-update,merge,refresh-expire,expunge')
 
+    email_model_name = 'group'
+
     @presave_adjustment
     def group_code(self):
         """
@@ -163,6 +165,10 @@ class PromoCodeGroup(MagModel):
     @normalized_code.expression
     def normalized_code(cls):
         return func.replace(func.replace(func.lower(cls.code), '-', ''), ' ', '')
+
+    @property
+    def email(self):
+        return self.buyer.email if self.buyer else None
 
     @property
     def total_cost(self):

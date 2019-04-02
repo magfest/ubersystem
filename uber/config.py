@@ -777,7 +777,7 @@ def _is_intstr(s):
 # Under certain conditions, we want to completely remove certain payment options from the system.
 # However, doing so cleanly also risks an exception being raised if these options are referenced elsewhere in the code
 # (i.e., c.STRIPE). So we create an enum val to allow code to check for these variables without exceptions.
-if not c.KIOSK_CC_ENABLED:
+if not c.KIOSK_CC_ENABLED and 'stripe' in _config['enums']['door_payment_method']:
     del _config['enums']['door_payment_method']['stripe']
     c.create_enum_val('stripe')
 
@@ -904,7 +904,7 @@ if c.ONE_DAYS_ENABLED and c.PRESELL_ONE_DAYS:
         c.BADGES[_val] = _name
         c.BADGE_OPTS.append((_val, _name))
         c.BADGE_VARS.append(_name.upper())
-        c.BADGE_RANGES[_val] = c.BADGE_RANGES[c.ONE_DAY_BADGE]
+        c.BADGE_RANGES[_val] = c.BADGES[c.ONE_DAY_BADGE]
         c.TRANSFERABLE_BADGE_TYPES.append(_val)
         _day += timedelta(days=1)
 
