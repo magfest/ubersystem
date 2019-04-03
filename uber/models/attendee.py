@@ -1576,8 +1576,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             The last name, if there is no legal name or if the legal name
                 is just one word
         """
-        if self.legal_name:
-            legal_name = re.sub(r'\s+', ' ', self.legal_name.strip())
+        legal_name = re.sub(r'\s+', ' ', self.legal_name.strip())
+        if legal_name and ' ' in legal_name:
             legal_first_name = re.sub(r'\s+', ' ', self.legal_first_name.strip())
 
             if legal_name.lower().startswith(legal_first_name.lower()):
