@@ -21,7 +21,7 @@ from sqlalchemy.orm import joinedload, subqueryload
 from uber.config import c
 from uber import decorators
 from uber.models import AdminAccount, Attendee, AutomatedEmail, Department, Group, GuestGroup, IndieGame, IndieJudge, \
-    IndieStudio, MITSTeam, MITSApplicant, PanelApplication, PanelApplicant, Room, RoomAssignment, Shift
+    IndieStudio, MITSTeam, MITSApplicant, PanelApplication, PanelApplicant, PromoCodeGroup, Room, RoomAssignment, Shift
 from uber.utils import after, before, days_after, days_before, localized_now, DeptChecklistConf
 
 
@@ -48,6 +48,8 @@ class AutomatedEmailFixture:
             subqueryload(Attendee.assigned_panelists)),
         Group: lambda session: session.query(Group).options(
             subqueryload(Group.attendees)).order_by(Group.id),
+        PromoCodeGroup: lambda session: session.query(PromoCodeGroup).options(
+            subqueryload(PromoCodeGroup.buyer)).order_by(PromoCodeGroup.id),
         Room: lambda session: session.query(Room).options(
             subqueryload(Room.assignments).subqueryload(RoomAssignment.attendee)),
         IndieStudio: lambda session: session.query(IndieStudio).options(
@@ -130,7 +132,7 @@ AutomatedEmailFixture(
     Attendee,
     '{EVENT_NAME} payment received',
     'reg_workflow/attendee_confirmation.html',
-    lambda a: a.paid == c.HAS_PAID,
+    lambda a: a.paid == c.HAS_PAID and not a.promo_code_groups,
     # query=Attendee.paid == c.HAS_PAID,
     needs_approval=False,
     allow_at_the_con=True,
@@ -147,6 +149,15 @@ AutomatedEmailFixture(
     needs_approval=False,
     allow_at_the_con=True,
     ident='attendee_badge_confirmed')
+
+AutomatedEmailFixture(
+    PromoCodeGroup,
+    '{EVENT_NAME} group registration successful',
+    'reg_workflow/promo_code_group_confirmation.html',
+    lambda g: g.buyer and g.buyer.amount_paid > 0,
+    needs_approval=False,
+    allow_at_the_con=True,
+    ident='pc_group_payment_received')
 
 AutomatedEmailFixture(
     Group,

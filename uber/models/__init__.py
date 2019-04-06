@@ -507,7 +507,7 @@ from uber.models.group import Group  # noqa: E402
 from uber.models.mits import MITSApplicant, MITSTeam  # noqa: E402
 from uber.models.mivs import IndieJudge, IndieGame, IndieStudio  # noqa: E402
 from uber.models.panels import PanelApplication, PanelApplicant  # noqa: E402
-from uber.models.promo_code import PromoCode  # noqa: E402
+from uber.models.promo_code import PromoCode, PromoCodeGroup  # noqa: E402
 from uber.models.tabletop import TabletopEntrant, TabletopTournament  # noqa: E402
 from uber.models.tracking import Tracking  # noqa: E402
 
@@ -821,13 +821,36 @@ class Session(SessionManager):
         def lookup_promo_code(self, code):
             """
             Convenience method for finding a promo code by id or code.
+            Accounts for PromoCodeGroups.
 
             Arguments:
                 code (str): The id or code to search for.
 
             Returns:
-                PromoCode: Either the matching PromoCode object, or None
-                    if not found.
+                PromoCode: A PromoCode object, either matching
+                the given code or found in the matching PromoCodeGroup.
+            """
+            promo_code = self.lookup_promo_or_group_code(code, PromoCode)
+            if promo_code:
+                return promo_code
+
+            group = self.lookup_promo_or_group_code(code, PromoCodeGroup)
+            if not group:
+                return None
+
+            return group.valid_codes[0]
+
+        def lookup_promo_or_group_code(self, code, model=PromoCode):
+            """
+            Convenience method for finding a promo code by id or code.
+
+            Arguments:
+                model: Either PromoCode or PromoCodeGroup
+                code (str): The id or code to search for.
+
+            Returns:
+                Either the matching object of the given model,
+                 or None if not found.
             """
             if isinstance(code, uuid.UUID):
                 code = code.hex
@@ -837,7 +860,7 @@ class Session(SessionManager):
                 return None
 
             unambiguous_code = PromoCode.disambiguate_code(code)
-            clause = or_(PromoCode.normalized_code == normalized_code, PromoCode.normalized_code == unambiguous_code)
+            clause = or_(model.normalized_code == normalized_code, model.normalized_code == unambiguous_code)
 
             # Make sure that code is a valid UUID before adding
             # PromoCode.id to the filter clause
@@ -846,9 +869,25 @@ class Session(SessionManager):
             except Exception:
                 pass
             else:
-                clause = clause.or_(PromoCode.id == promo_code_id)
+                clause = clause.or_(model.id == promo_code_id)
 
-            return self.query(PromoCode).filter(clause).order_by(PromoCode.normalized_code.desc()).first()
+            return self.query(model).filter(clause).order_by(model.normalized_code.desc()).first()
+
+        def create_promo_code_group(self, attendee, name, badges):
+            pc_group = PromoCodeGroup(name=name, buyer=attendee)
+
+            self.add_codes_to_pc_group(pc_group, badges)
+
+            return pc_group
+
+        def add_codes_to_pc_group(self, pc_group, badges):
+            for _ in range(badges):
+                self.add(PromoCode(
+                    discount=0,
+                    discount_type=PromoCode._FIXED_PRICE,
+                    uses_allowed=1,
+                    group=pc_group,
+                    cost=c.get_group_price()))
 
         def get_next_badge_num(self, badge_type):
             """

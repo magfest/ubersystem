@@ -67,10 +67,10 @@
     <tbody>
       {% for attendee in charge.attendees %}
         <tr>
-          <td>{{ attendee.full_name }}</td>
+          <td>{{ attendee.full_name }}{% if attendee.badges %} ({{ attendee.name }}){% endif %}</td>
           <td>
             <ul style="padding-left:15px">
-              <li>Membership for {{ c.EVENT_NAME }}</li>
+              <li>Membership for {{ c.EVENT_NAME }}{% if attendee.badges %} for {{ attendee.badges }} people{% endif %}</li>
               {% if attendee.requested_hotel_info %}
                 <li>Requested hotel booking info</li>
               {% endif %}
@@ -82,12 +82,22 @@
               {% for swag in attendee.donation_swag|list + attendee.addons|list %}
                 <li>{{ swag }}</li>
               {% endfor %}
-              {% if attendee.promo_code %}
+              {% if attendee.promo_code and not attendee.badges %}
+                {% if attendee.promo_code.group_id %}
+                  <li>Claiming a badge in group "{{ attendee.group_name }}"</li>
+                {% else %}
                 <li>{{ attendee.promo_code.discount_str }} with promo code "{{ attendee.promo_code.code }}"</li>
+                {% endif %}
               {% endif %}
             </ul>
           </td>
-          <td>${{ attendee.total_cost|round(2) }}</td>
+          <td>
+            {% if attendee.badges %}
+              ${{ attendee.amount_extra_unpaid + (attendee.badges|int * c.GROUP_PRICE) }}
+            {% else %}
+              ${{ attendee.total_cost|round(2) }}
+            {% endif %}
+          </td>
           <td>
             <a href="form?edit_id={{ attendee.id }}">Edit</a> / <a href="delete?id={{ attendee.id }}">Delete</a>
           </td>

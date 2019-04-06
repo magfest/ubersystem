@@ -419,6 +419,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     __table_args__ = tuple(_attendee_table_args)
     _repr_attr_names = ['full_name']
 
+    def to_dict(self, *args, **kwargs):
+        # Kludgey fix for SQLAlchemy breaking our stuff
+        d = super().to_dict(*args, **kwargs)
+        d.pop('attraction_event_signups', None)
+        return d
+
     @predelete_adjustment
     def _shift_badges(self):
         is_skipped = getattr(self, '_skip_badge_shift_on_delete', False)
@@ -465,6 +471,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.legal_name and self.full_name == self.legal_name:
             self.legal_name = ''
+
+        if self.promo_code and self.promo_code_groups:
+            self.promo_code = None
 
     @presave_adjustment
     def _status_adjustments(self):
@@ -598,7 +607,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             return c.DEALER_BADGE_PRICE
         elif self.badge_type in c.DISCOUNTABLE_BADGE_TYPES and self.age_discount != 0:
             return max(0, base_badge_price + self.age_discount)
-        elif self.badge_type in c.DISCOUNTABLE_BADGE_TYPES and self.group and self.paid == c.PAID_BY_GROUP:
+        elif self.badge_type in c.DISCOUNTABLE_BADGE_TYPES and (
+                self.promo_code_groups or self.group and self.paid == c.PAID_BY_GROUP):
             return base_badge_price - c.GROUP_DISCOUNT
         elif self.base_badge_price:
             cost = base_badge_price
@@ -670,6 +680,14 @@ class Attendee(MagModel, TakesPaymentMixin):
     @cost_property
     def donation_cost(self):
         return self.extra_donation or 0
+
+    @cost_property
+    def promo_group_cost(self):
+        return sum(group.total_cost for group in self.promo_code_groups)
+
+    @property
+    def amount_extra_unpaid(self):
+        return self.total_cost - self.badge_cost
 
     @property
     def amount_unpaid(self):

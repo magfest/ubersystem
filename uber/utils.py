@@ -825,17 +825,20 @@ class Charge:
         return promo_code_count
 
     @classmethod
-    def to_sessionized(cls, m):
+    def to_sessionized(cls, m, name='', badges=0):
         from uber.models import Attendee, Group
         if is_listy(m):
             return [cls.to_sessionized(t) for t in m]
         elif isinstance(m, dict):
             return m
         elif isinstance(m, Attendee):
-            return m.to_dict(
+            d = m.to_dict(
                 Attendee.to_dict_default_attrs
                 + ['promo_code']
                 + list(Attendee._extra_apply_attrs_restricted))
+            d['name'] = name
+            d['badges'] = badges
+            return d
         elif isinstance(m, Group):
             return m.to_dict(
                 Group.to_dict_default_attrs
@@ -864,14 +867,17 @@ class Charge:
 
     @classmethod
     def from_sessionized_attendee(cls, d):
-        # Fix for attendees that were sessionized while no-longer-existing attributes existed
-        for attr in ['age_discountable_badge_types', 'requested_any_dept']:
-            if attr in d:
-                del d[attr]
-
         if d.get('promo_code'):
             d = dict(d, promo_code=uber.models.PromoCode(_defer_defaults_=True, **d['promo_code']))
-        return uber.models.Attendee(_defer_defaults_=True, **d)
+
+        # These aren't valid properties on the model, so they're removed and re-added
+        name = d.pop('name', '')
+        badges = d.pop('badges', 0)
+        a = uber.models.Attendee(_defer_defaults_=True, **d)
+        a.name = d['name'] = name
+        a.badges = d['badges'] = badges
+
+        return a
 
     @classmethod
     def get(cls, payment_id):
@@ -895,7 +901,15 @@ class Charge:
 
     @cached_property
     def total_cost(self):
-        return 100 * sum(m.amount_unpaid for m in self.models)
+        costs = []
+
+        for m in self.models:
+            if isinstance(m, uber.models.Attendee) and getattr(m, 'badges', None):
+                costs.append(c.get_group_price() * int(m.badges))
+                costs.append(m.amount_extra_unpaid)
+            else:
+                costs.append(m.amount_unpaid)
+        return 100 * sum(costs)
 
     @cached_property
     def dollar_amount(self):
@@ -915,7 +929,15 @@ class Charge:
 
     @cached_property
     def names(self):
-        return ', '.join(getattr(m, 'name', getattr(m, 'full_name', None)) for m in self.models)
+        names = []
+
+        for m in self.models:
+            if getattr(m, 'badges') and getattr(m, 'name'):
+                names.append("{} plus {} badges ({})".format(getattr(m, 'full_name', None), int(m.badges) - 1, m.name))
+            else:
+                names.append(getattr(m, 'name', getattr(m, 'full_name', None)))
+
+        return ', '.join(names)
 
     @cached_property
     def targets(self):

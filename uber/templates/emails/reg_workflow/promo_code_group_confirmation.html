@@ -1,0 +1,38 @@
+<html>
+<head></head>
+<body>
+
+You have successfully registered group "{{ group.name }}" for {{ c.EVENT_NAME }} this coming {{ event_dates() }} and your payment of ${{ group.buyer.amount_paid }} has been received. Your group has {{ group.promo_codes|length|int + 1 }} badges, including your own.
+
+<br/><br/>
+Group badges are allocated using promo codes: your group members will simply enter a promo code <a href="{{ c.URL_BASE }}/preregistration/">while preregistering</a> to claim a badge in your group.
+You can either allocate specific promo codes for each group member using your <a href="{{ c.URL_BASE }}/preregistration/group_promo_codes?id={{ group.id }}">group management page</a> or distribute your group's universal promo code ("{{ group.code }}"), which will let people claim badges in your group until it has no more available badges.
+
+<br/><br/>
+You may edit your own registration <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ group.buyer.id }}">here</a>.
+
+{% if group.buyer.requested_hotel_info and c.PREREG_REQUEST_HOTEL_INFO_OPEN %}
+    <br/> <br/>
+    {% include "preregistration/hotel_disclaimer.html" %}
+{% endif %}
+
+{% if c.CONSENT_FORM_URL and group.buyer.age_group_conf['consent_form'] %}
+    <br/> <br/>
+    Because you are under 18, you must bring a signed and notarized parental permission
+    to be granted admission to {{ c.EVENT_NAME }}.  You may download the consent form
+    <a href="{{ c.CONSENT_FORM_URL }}">by clicking here</a>.
+    <br/> <br/>
+    You may <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ group.buyer.id }}">click here</a>
+    to edit your info if you are over 18.
+{% endif %}
+
+<br/> <br/>
+Badges are not mailed out before the event, so badges for your group will be available for pickup at the
+registration desk when you arrive at {{ c.EVENT_NAME }}. Inform your group to bring a photo ID to the registration
+desk, where they'll be provided with their badge. If anyone in your group orders bonus items such as a
+ribbon, t-shirt, or supporter package, they can pick those up at our merchandise booth. The location and
+hours of the registration desk and merchandise booth will be e-mailed prior to the event.
+<br/> <br/>
+
+</body>
+</html>

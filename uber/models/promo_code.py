@@ -3,23 +3,25 @@ import re
 import string
 import textwrap
 from collections import OrderedDict
+from datetime import datetime
 
 import six
+from pytz import UTC
 from dateutil import parser as dateparser
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime
+from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import func, select, CheckConstraint
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.schema import Index
+from sqlalchemy.schema import Index, ForeignKey
 from sqlalchemy.types import Integer
 
 from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import DefaultColumn as Column, Choice
+from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column, Choice
 from uber.utils import localized_now
 
 
-__all__ = ['PromoCodeWord', 'PromoCode']
+__all__ = ['PromoCodeWord', 'PromoCodeGroup', 'PromoCode']
 
 
 class PromoCodeWord(MagModel):
@@ -130,6 +132,77 @@ c.PROMO_CODE_WORD_PART_OF_SPEECH_OPTS = PromoCodeWord._PART_OF_SPEECH_OPTS
 c.PROMO_CODE_WORD_PARTS_OF_SPEECH = PromoCodeWord._PARTS_OF_SPEECH
 
 
+class PromoCodeGroup(MagModel):
+    name = Column(UnicodeText)
+    code = Column(UnicodeText, admin_only=True)
+    registered = Column(UTCDateTime, server_default=utcnow())
+    buyer_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
+    buyer = relationship(
+        'Attendee', backref='promo_code_groups',
+        foreign_keys=buyer_id,
+        cascade='save-update,merge,refresh-expire,expunge')
+
+    email_model_name = 'group'
+
+    @presave_adjustment
+    def group_code(self):
+        """
+        Promo Code Groups can be used one of two ways: Each promo
+        code's unique code can be used to claim a specific badge,
+        or the groups' code can be used by multiple people to
+        claim random badges in the group.
+
+        We don't want this to clash with any promo codes' existing
+        codes, so we use that class' generator method.
+        """
+        if not self.code:
+            self.code = PromoCode.generate_random_code()
+
+    @hybrid_property
+    def normalized_code(self):
+        return self.normalize_code(self.code)
+
+    @normalized_code.expression
+    def normalized_code(cls):
+        return func.replace(func.replace(func.lower(cls.code), '-', ''), ' ', '')
+
+    @property
+    def email(self):
+        return self.buyer.email if self.buyer else None
+
+    @property
+    def total_cost(self):
+        return sum(code.cost for code in self.promo_codes if code.cost)
+
+    @property
+    def valid_codes(self):
+        return [code for code in self.promo_codes if code.is_valid]
+
+    @property
+    def sorted_promo_codes(self):
+        return list(sorted(self.promo_codes, key=lambda pc: (not pc.used_by,
+                                                             pc.used_by[0].full_name if pc.used_by else pc.code)))
+
+    @property
+    def hours_since_registered(self):
+        if not self.registered:
+            return 0
+        delta = datetime.now(UTC) - self.registered
+        return max(0, delta.total_seconds()) / 60.0 / 60.0
+
+    @property
+    def hours_remaining_in_grace_period(self):
+        return max(0, c.GROUP_UPDATE_GRACE_PERIOD - self.hours_since_registered)
+
+    @property
+    def is_in_grace_period(self):
+        return self.hours_remaining_in_grace_period > 0
+
+    @property
+    def min_badges_addable(self):
+        return 1 if self.hours_remaining_in_grace_period > 0 else c.MIN_GROUP_ADDITION
+
+
 class PromoCode(MagModel):
     """
     Promo codes used by attendees to purchase badges at discounted prices.
@@ -161,6 +234,13 @@ class PromoCode(MagModel):
                 20 and the badge price is normally $50, then the discounted
                 badge price would $40 ($50 reduced by 20%). If `discount` is
                 100, then the price would be 100% off, i.e. a free badge.
+
+        group (relationship): An optional relationship to a PromoCodeGroup
+            object, which groups sets of promo codes to make attendee-facing
+            "groups"
+
+        cost (int): The cost of this promo code if and when it was bought
+          as part of a PromoCodeGroup.
 
         expiration_date (datetime): The date & time upon which this promo code
             expires. An expired promo code may no longer be used to receive
@@ -226,6 +306,13 @@ class PromoCode(MagModel):
     discount_type = Column(Choice(_DISCOUNT_TYPE_OPTS), default=_FIXED_DISCOUNT)
     expiration_date = Column(UTCDateTime, default=c.ESCHATON)
     uses_allowed = Column(Integer, nullable=True, default=None)
+    cost = Column(Integer, nullable=True, default=None)
+
+    group_id = Column(UUID, ForeignKey('promo_code_group.id', ondelete='SET NULL'), nullable=True)
+    group = relationship(
+        PromoCodeGroup, backref='promo_codes',
+        foreign_keys=group_id,
+        cascade='save-update,merge,refresh-expire,expunge')
 
     __table_args__ = (
         Index(
