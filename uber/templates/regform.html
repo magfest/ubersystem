@@ -605,12 +605,6 @@
     </div>
 </div>
 
-{% if (c.PAGE_PATH != '/registration/form' or not attendee.is_new) and c.PAGE_PATH != '/registration/register' %}
-    <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
-{% endif %}
-
-{% include "regextra.html" %}
-
 {% if not admin_area and attendee.needs_pii_consent %}
 <div class="form-group">
   <div class="checkbox col-sm-9 col-sm-offset-3">
@@ -621,6 +615,12 @@
   </div>
 </div>
 {% endif %}
+
+{% if (c.PAGE_PATH != '/registration/form' or not attendee.is_new) and c.PAGE_PATH != '/registration/register' %}
+    <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
+{% endif %}
+
+{% include "regextra.html" %}
 
 <script type="text/javascript">
     {% if not attendee.is_new and not attendee.amount_unpaid %}
