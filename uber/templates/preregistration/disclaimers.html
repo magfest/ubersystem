@@ -34,7 +34,7 @@
       accompanied by an adult with a paid badge.
     </li>
   {% endif %}
-  {% if c.DEALER_REG_START %}
+  {% if c.DEALER_REG_START and attendee.is_dealer %}
     <li>
       Submitting this form to vend does not guarantee you will be selected for the Marketplace - it is only the application.
     </li>
