@@ -912,7 +912,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def volunteer_event_shirt_earned(self):
-        return self.volunteer_event_shirt_eligible and (not self.takes_shifts or self.worked_hours >= 6)
+        return self.volunteer_event_shirt_eligible and (not self.takes_shifts or self.worked_hours >= c.HOURS_FOR_SHIRT)
 
     @property
     def replacement_staff_shirts(self):
@@ -1012,7 +1012,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.volunteer_event_shirt_eligible and not self.volunteer_event_shirt_earned:
             merch[-1] += (
-                ' (this volunteer must work at least 6 hours or they will be reported for picking up their shirt)')
+                ' (this volunteer must work at least {} hours or they will be reported for picking up their shirt)'
+                    .format(c.HOURS_FOR_SHIRT))
 
         if not c.SEPARATE_STAFF_MERCH:
             merch.extend(self.staff_merch_items)
