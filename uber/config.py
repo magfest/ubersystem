@@ -347,8 +347,10 @@ class Config(_Overridable):
 
     @property
     def PREREG_DONATION_OPTS(self):
-        if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
+        if self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
             return self.DONATION_TIER_OPTS
+        if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
+            return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SEASON_LEVEL]
         elif self.BEFORE_SHIRT_DEADLINE and self.SHIRT_AVAILABLE:
             return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SUPPORTER_LEVEL]
         else:
@@ -357,8 +359,11 @@ class Config(_Overridable):
     @property
     def PREREG_DONATION_DESCRIPTIONS(self):
         # include only the items that are actually available for purchase
-        if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
+        if self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
             donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
+        elif self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
+            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
+                             if tier[1]['price'] < self.SEASON_LEVEL]
         elif self.BEFORE_SHIRT_DEADLINE and self.SHIRT_AVAILABLE:
             donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
                              if tier[1]['price'] < self.SUPPORTER_LEVEL]
@@ -594,6 +599,11 @@ class Config(_Overridable):
                 Attendee.amount_extra >= kickin_level,
                 Attendee.amount_paid >= kickin_level).count()
             return individual_supporters + group_supporters
+
+    @request_cached_property
+    @dynamic
+    def SEASON_COUNT(self):
+        return self.get_kickin_count(self.SEASON_LEVEL)
 
     @request_cached_property
     @dynamic
