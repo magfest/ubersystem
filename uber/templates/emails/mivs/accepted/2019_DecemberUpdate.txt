@@ -33,7 +33,7 @@ MAGFest Versus
 MAGFest Versus is a gameshow like no other!  Featuring Games from MIVS, MAGFest Versus will be happening on Friday night at 8pm and a celebrity version on Saturday night at 8 - Both will be in Panels 3.
 
 
-If you have any questions, please email mivs@magfest.org - We look forward to meeting you in person soon. 
+If you have any questions, please email {{ c.MIVS_EMAIL|email_only }} - We look forward to meeting you in person soon.
 
 Forever your Fan,
 The MIVS Team    

@@ -10,6 +10,6 @@ Due to the inconvenience, we're pushing back our end date for round 2 submission
 
 For reference, the edit link for your game is {{ c.URL_BASE }}/mivs_applications/continue_app?id={{ game.studio.id }}
 
-If you have further questions, you can reach out to us at mivs@magfest.org
+If you have further questions, you can reach out to us at {{ c.MIVS_EMAIL|email_only }}
 
 {{ c.MIVS_EMAIL_SIGNATURE }}

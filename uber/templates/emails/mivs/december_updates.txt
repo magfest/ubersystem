@@ -46,7 +46,7 @@ As you are showing a game in MIVS, you have the option of self-paying for one ho
 
 https://goo.gl/forms/p7BR5fieFV3l0wNi1
 
-This service is being made available to you for being part of MIVS.  If you are unable to use this room after signing up for it, you *must* email mivs@magfest.org know so we may reallocate the room.  Your arrival is being secured by MAGFest, if you don't let us know about changes, MAGFest may be charged and the brute squad called. You are not able to transfer your reservation to someone else unless authorized by MAGFest.  If you have any questions, please ask email mivs@magfest.org or hotel@magfest.org. 
+This service is being made available to you for being part of MIVS.  If you are unable to use this room after signing up for it, you *must* email {{ c.MIVS_EMAIL|email_only }} know so we may reallocate the room.  Your arrival is being secured by MAGFest, if you don't let us know about changes, MAGFest may be charged and the brute squad called. You are not able to transfer your reservation to someone else unless authorized by MAGFest.  If you have any questions, please ask email {{ c.MIVS_EMAIL|email_only }} or hotel@magfest.org.
 
 
 Thanks again and we're looking forward to seeing you in January,

@@ -22,7 +22,7 @@ More details will be sent out to all those who confirm including:
 - What's included in a MIVS "booth" space
 - much, much, more....
 
-Please Note that coming off the waitlist, we cannot guarantee you the ability to purchase a Hotel room and it becomes significantly less likely if you receive this or accept after Nov 25th. Please email mivs@magfest.org if you need more information. 
+Please Note that coming off the waitlist, we cannot guarantee you the ability to purchase a Hotel room and it becomes significantly less likely if you receive this or accept after Nov 25th. Please email {{ c.MIVS_EMAIL|email_only }} if you need more information.
 
 Again, we understand that things may come up which may prevent your team from meeting the above requirements.  If this is the case, please let us know ASAP as this will allow one of our many wait-listed entries to participate.
 

@@ -22,7 +22,7 @@ The following items are overdue:
 
 If you don't finish these items, you may get a friendly personal reminder* from MIVS.  Some items, such as Hotels or Selling, have hard dates and need to be completed by their due date.
 
-If you have any questions, please email mivs@magfest.org
+If you have any questions, please email {{ c.MIVS_EMAIL|email_only }}
 
 Forever Your Fan,
 -The MIVS Team

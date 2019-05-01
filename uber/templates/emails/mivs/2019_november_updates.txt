@@ -16,14 +16,14 @@ Here's some info for you:
 About MIVS
 ==========
 Our unofficial origin story is:
-"It was the dawn of the 3rd age of MAGFest. It began in the year 2012, with the founding of the last of the indie Showcases, located deep in the Gaylord. It was a port of call for creatives, artists, press, and attendees from a hundred cities. Could be a dangerous place – but we accepted the risk, because MIVS was our last, best hope to get on steam. This is the story of the last of the MAGFest departments. The year is 2018. The mailing list is mivs@magfest.org"
+"It was the dawn of the 3rd age of MAGFest. It began in the year 2012, with the founding of the last of the indie Showcases, located deep in the Gaylord. It was a port of call for creatives, artists, press, and attendees from a hundred cities. Could be a dangerous place – but we accepted the risk, because MIVS was our last, best hope to get on steam. This is the story of the last of the MAGFest departments. The year is 2018. The mailing list is {{ c.MIVS_EMAIL|email_only }}"
 
 But really, MIVS Started in 2012, and is composed of an an all volunteer team. Everyone you interact with is donating their time to putting on a great show. Some MIVS volunteers work in the game industry while others are in unrelated fields.  At MAGFest, there will OPs table where you're welcome to say hi to the people you've been interacting with, or meet those who like to stay behind the scenes.
 
 
 Dropping Out
 ============
-We understand that plans change or emergencies happen that may cause you to not be able to make it to MAGFest.  This is perfectly fine, so long as we know about it.  If you have to drop out, please email mivs@magfest.org ASAP.  Doing so will keep you on good terms with MIVS, and will allow someone on the waitlist a spot.  Just not showing up, besides being rude, may cause us to have a conversation with you should you submit to MIVS in the future. 
+We understand that plans change or emergencies happen that may cause you to not be able to make it to MAGFest.  This is perfectly fine, so long as we know about it.  If you have to drop out, please email {{ c.MIVS_EMAIL|email_only }} ASAP.  Doing so will keep you on good terms with MIVS, and will allow someone on the waitlist a spot.  Just not showing up, besides being rude, may cause us to have a conversation with you should you submit to MIVS in the future.
 
 
 Core Hours
@@ -59,7 +59,7 @@ If you're interested in what to expect at MAGFest, please check out our Presente
 http://super-archive.magfest.org/mivspresenterfaq
 
 
-If you have any questions, Please direct them to mivs@magfest.org
+If you have any questions, Please direct them to {{ c.MIVS_EMAIL|email_only }}
 
 Forever your fan,
 The MIVS Team

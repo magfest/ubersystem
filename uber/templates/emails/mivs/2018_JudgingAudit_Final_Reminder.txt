@@ -6,7 +6,7 @@ If you're concerned about time commitments, you're welcome to join us for this y
 
 You can fill out your judging status and preferences at: {{ c.URL_BASE }}/mivs_judging
 
-If you have any questions, please email us at mivs@magfest.org
+If you have any questions, please email us at {{ c.MIVS_EMAIL|email_only }}
 
 We want to thank you again for donating your time to being a judge for MIVS and hope you will join us this year. 
 {{ c.MIVS_EMAIL_SIGNATURE }}
