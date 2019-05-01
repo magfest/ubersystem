@@ -26,7 +26,7 @@ __all__ = [
 
 class GuestGroup(MagModel):
     group_id = Column(UUID, ForeignKey('group.id'))
-    event_id = Column(UUID, ForeignKey('event.id'), nullable=True)
+    event_id = Column(UUID, ForeignKey('event.id', ondelete='SET NULL'), nullable=True)
     group_type = Column(Choice(c.GROUP_TYPE_OPTS), default=c.BAND)
     num_hotel_rooms = Column(Integer, default=1, admin_only=True)
     payment = Column(Integer, default=0, admin_only=True)

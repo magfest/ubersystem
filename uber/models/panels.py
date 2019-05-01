@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -25,7 +26,8 @@ class Event(MagModel):
     applications = relationship('PanelApplication', backref='event')
     panel_feedback = relationship('EventFeedback', backref='event')
     tournaments = relationship('TabletopTournament', backref='event', uselist=False)
-    guest = relationship('GuestGroup', backref='event')
+    guest = relationship('GuestGroup', backref=backref('event', cascade="save-update,merge"),
+                         cascade='save-update,merge')
 
     @property
     def half_hours(self):
