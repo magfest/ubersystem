@@ -334,6 +334,8 @@ class PromoCode(MagModel):
                 dt = dateparser.parse(dt)
             else:
                 dt = c.ESCHATON
+        if dt.tzinfo:
+            dt = dt.astimezone(c.EVENT_TIMEZONE)
         return c.EVENT_TIMEZONE.localize(dt.replace(hour=23, minute=59, second=59, tzinfo=None))
 
     @property
