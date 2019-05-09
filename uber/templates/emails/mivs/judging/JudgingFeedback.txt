@@ -2,7 +2,7 @@ Ahoy {{ judge.attendee.first_name }},
 
 We wanted to thank you for being a judge for this year's MAGFest Indie Video Game Showcase.  One way you can help us make the judging process better in the future is to fill out the following survey:
 
-
+https://forms.gle/219Pp3vXfpeWfjHu8
 
 It should only take a few minutes and will help us make a better program next year for you.
 
