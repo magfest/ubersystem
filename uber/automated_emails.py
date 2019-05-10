@@ -827,13 +827,20 @@ if c.MIVS_ENABLED:
         'mivs/judge_badge_info.txt',
         lambda judge: judge.status == c.CONFIRMED,
         ident='mivs_judge_badge_info')
+    
+    MIVSEmailFixture(
+        IndieJudge,
+        'MIVS Judging is about to begin!',
+        'mivs/judging.txt',
+        lambda judge: judge.status == c.CONFIRMED,
+        ident='mivs_judge_intro')
 
     MIVSEmailFixture(
         IndieJudge,
-        'MIVS Judging about to begin',
-        'mivs/judge_2016.txt',
+        'Thank you for Judging, Help us with feedback',
+        'mivs/judging/JudgingFeedback.txt',
         lambda judge: judge.status == c.CONFIRMED,
-        ident='mivs_selected_to_judge')
+        ident='mivs_judge_feedback')
 
     MIVSEmailFixture(
         IndieJudge,
