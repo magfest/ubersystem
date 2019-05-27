@@ -210,7 +210,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def dealer_max_badges(self):
-        return math.ceil(self.tables) + 1
+        return c.MAX_DEALERS or math.ceil(self.tables) + 1
 
     @property
     def dealer_badges_remaining(self):
@@ -233,6 +233,8 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def min_badges_addable(self):
+        if self.is_dealer and not self.dealer_badges_remaining:
+            return 0
         if self.can_add:
             return 1
         elif self.is_dealer:
