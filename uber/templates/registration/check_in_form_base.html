@@ -98,6 +98,12 @@
             <td>{{ attendee.regdesk_info }}</td>
         </tr>
     {% endif %}
+    {% if attendee.amount_extra and c.MERCH_AT_CHECKIN %}
+      <tr>
+        <td><strong>Picked Up Merch?</strong></td>
+        <td><label style="font-weight:normal;"><input type="checkbox" name="got_merch" value="1" /> Yes, this attendee has received their merch</label></td>
+      </tr>
+    {% endif %}
     {% endblock checkin_fields %}
 </table>
 </form>
