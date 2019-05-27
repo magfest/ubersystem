@@ -1,4 +1,26 @@
 {% set attendee_or_group = attendee if attendee else group %}
+
+{% if not c.MAX_DEALERS %}
+  <script type="text/javascript">
+  updateBadgeMax = function() {
+      var new_badge_max = Math.ceil(parseFloat($("select[name=tables]").val())) + 1;
+      var curr_badge_max = parseInt($('select[name=badges] option:last').val());
+      if (curr_badge_max > new_badge_max) {
+          $("select[name=badges] option").slice(new_badge_max, curr_badge_max).remove();
+      } else {
+          for (i = curr_badge_max+1; i < new_badge_max+1; i++) {
+              $("select[name=badges]").append('<option value="'+i+'">'+i+'</option>');
+          }
+      }
+  };
+  $(function() {
+      $("select[name=tables]").on('change', updateBadgeMax);
+      updateBadgeMax();
+  });
+
+  </script>
+{% endif %}
+
 {% if not attendee_or_group.is_dealer %}
     <div class="form-group" id="badge-types">
         <label class="col-sm-3 control-label">Badge Level</label>
