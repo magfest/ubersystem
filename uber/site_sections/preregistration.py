@@ -668,8 +668,9 @@ class Root:
     def pay_for_extra_members(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
         [group] = charge.groups
-        badges_to_add = charge.dollar_amount // c.DEALER_BADGE_PRICE
-        if charge.dollar_amount % c.DEALER_BADGE_PRICE:
+        group_badge_price = c.DEALER_BADGE_PRICE if group.tables else c.GROUP_PRICE
+        badges_to_add = charge.dollar_amount // group_badge_price
+        if charge.dollar_amount % group_badge_price:
             message = 'Our preregistration price has gone up since you tried to add the badges; please try again'
         else:
             message = charge.charge_cc(session, stripeToken)
