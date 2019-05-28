@@ -1128,8 +1128,7 @@ class Session(SessionManager):
                     last, first = first.strip(','), last
                 name_cond = attendees.icontains_condition(first_name=first, last_name=last)
                 legal_name_cond = attendees.icontains_condition(legal_name="{}%{}".format(first, last))
-                if attendees.filter(or_(name_cond, legal_name_cond)).first():
-                    return attendees.filter(or_(name_cond, legal_name_cond))
+                return attendees.filter(or_(name_cond, legal_name_cond))
 
             elif len(terms) == 1 and terms[0].endswith(','):
                 last = terms[0].rstrip(',')
@@ -1165,7 +1164,7 @@ class Session(SessionManager):
             checks = [Group.name.ilike('%' + text + '%')]
             check_attrs = [
                 'first_name', 'last_name', 'legal_name', 'badge_printed_name',
-                'email', 'comments', 'admin_notes', 'for_review', 'promo_code_group_name']
+                'email', 'comments', 'admin_notes', 'for_review']
 
             for attr in check_attrs:
                 checks.append(getattr(Attendee, attr).ilike('%' + text + '%'))

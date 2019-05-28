@@ -242,20 +242,6 @@
     </div>
 </div>
 
-{% if attendee.promo_code_groups or attendee.promo_code and attendee.promo_code.group %}
-<div class="form-group">
-    <label class="col-sm-3 control-label">Promo Code Group</label>
-    <div class="col-sm-6 form-control-static">
-      {% for group in attendee.promo_code_groups %}
-        This attendee is the buyer/group leader for <strong><a href="../groups/promo_code_group_form?id={{ group.id }}" target="_blank">{{ group.name }}</a></strong>.
-      {% endfor %}
-      {% if attendee.promo_code and attendee.promo_code.group %}
-        This attendee used promo code <strong>{{ attendee.promo_code.code }}</strong> to claim a ${{ attendee.promo_code.cost }} badge in promo code group <strong><a href="../groups/promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a></strong>.
-      {% endif %}
-    </div>
-</div>
-{% endif %}
-
 {% if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or attendee.amount_extra >= c.SUPPORTER_LEVEL %}
     <div class="form-group">
         <label for="badge_printed_name" class="col-sm-3 control-label">Name Printed on Badge</label>

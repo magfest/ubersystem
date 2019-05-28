@@ -9,7 +9,7 @@ from pockets import cached_property, classproperty, groupify, listify, is_listy,
 from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import and_, case, func, or_
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, subqueryload
@@ -826,26 +826,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         return case(
             [(or_(cls.first_name == None, cls.first_name == ''), 'zzz')],  # noqa: E711
             else_=func.lower(cls.first_name + ' ' + cls.last_name))
-
-    @hybrid_property
-    def promo_code_group_name(self):
-        if self.promo_code and self.promo_code.group:
-            return self.promo_code.group.name
-        elif self.promo_code_groups:
-            return self.promo_code_groups[0].name
-        return ''
-
-    @promo_code_group_name.expression
-    def promo_code_group_name(cls):
-        from uber.models.promo_code import PromoCode, PromoCodeGroup
-        return case([
-            (cls.promo_code != None,
-             select([PromoCodeGroup.name]).where(PromoCodeGroup.id==PromoCode.group_id)
-             .where(PromoCode.id==cls.promo_code_id).label('promo_code_group_name')),
-            (cls.promo_code_groups != None,
-             select([PromoCodeGroup.name]).where(PromoCodeGroup.buyer_id == cls.id)
-             .label('promo_code_group_name'))
-        ])
 
     @hybrid_property
     def last_first(self):
