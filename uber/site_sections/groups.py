@@ -137,8 +137,7 @@ class Root:
         }
 
     def promo_code_groups(self, session, message=''):
-        groups = sorted(session.query(PromoCodeGroup).options(joinedload('buyer')).all(),
-                        key=lambda g: g.name)
+        groups = session.query(PromoCodeGroup).options(joinedload('buyer')).order_by(PromoCodeGroup.name).all()
         return {
             'groups': groups,
             'message': message,
