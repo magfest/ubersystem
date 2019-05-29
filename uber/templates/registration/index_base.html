@@ -104,6 +104,7 @@
           <tr>
             {% block tableheadings %}
             <th> <a href="index?order={{ order.group_id }}">Group Name</a> </th>
+            <th> Promo Code Group </th>
             <th> <a href="index?order={{ order.last_first }}">Full Name</a> </th>
             <th> <a href="index?order={{ order.legal_name }}">Name on ID</a> </th>
             {% if c.PREASSIGNED_BADGE_TYPES %}<th> <a href="index?order={{ order.badge_printed_name }}">Badge Name</a> </th>{% endif %}
@@ -128,6 +129,14 @@
                     <a href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
                     {% endif %}
                 </td>
+                  <td id="promo_code_group_{{ attendee.id }}">
+                  {% for group in attendee.promo_code_groups %}
+                    <a href="../groups/promo_code_group_form?id={{ group.id }}" target="_blank">{{ group.name }}</a>
+                  {% endfor %}
+                  {% if attendee.promo_code and attendee.promo_code.group %}
+                    <a href="../groups/promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a>
+                  {% endif %}
+                  </td>
                 <td id="name_{{ attendee.id }}" style="text-align:left">
                     <a href="form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
                 </td>
