@@ -692,17 +692,15 @@ class Root:
             if not error_message:
                 session.add(attendee)
                 session.commit()
-                message = 'Thanks!  Please queue in the {} line and have your photo ID and {} ready.'
                 if c.AFTER_BADGE_PRICE_WAIVED:
-                    message = "Since it's so close to the end of the event, your badge is free! " \
-                        "Please proceed to the preregistration line to pick it up."
+                    message = c.AT_DOOR_WAIVED_MSG
                     attendee.paid = c.NEED_NOT_PAY
                 elif attendee.payment_method == c.STRIPE:
                     raise HTTPRedirect('pay?id={}', attendee.id)
                 elif attendee.payment_method == c.CASH:
-                    message = message.format('cash', '${}'.format(attendee.total_cost))
+                    message = c.AT_DOOR_CASH_MSG.format('${}'.format(attendee.total_cost))
                 elif attendee.payment_method == c.MANUAL:
-                    message = message.format('credit card', 'credit card')
+                    message = c.AT_DOOR_MANUAL_MSG
                 raise HTTPRedirect('register?message={}', message)
 
         return {
@@ -718,9 +716,7 @@ class Root:
         attendee = session.attendee(id)
         if attendee.paid != c.NOT_PAID:
             raise HTTPRedirect(
-                'register?message={}',
-                'You are already paid (or registered for a free badge) '
-                'and should proceed to the preregistration desk to pick up your badge')
+                'register?message={}', c.AT_DOOR_NOPAY_MSG)
         else:
             return {
                 'message': message,
@@ -745,8 +741,7 @@ class Root:
             attendee.amount_paid = attendee.total_cost
             session.add(attendee)
             raise HTTPRedirect(
-                'register?message={}',
-                'Your payment has been accepted, please proceed to the Preregistration desk to pick up your badge')
+                'register?message={}', c.AT_DOOR_PREPAID_MSG)
 
     def comments(self, session, order='last_name'):
         return {
@@ -848,7 +843,7 @@ class Root:
         raise HTTPRedirect('new?message={}&checked_in={}', message, checked_in)
 
     @unrestricted
-    def arbitrary_charge_form(self, message='', amount=None, description=''):
+    def arbitrary_charge_form(self, message='', amount=None, description='', sale_id=None):
         charge = None
         if amount is not None:
             if not amount.isdigit() or not (1 <= int(amount) <= 999):
@@ -862,7 +857,8 @@ class Root:
             'charge': charge,
             'message': message,
             'amount': amount,
-            'description': description
+            'description': description,
+            'sale_id': sale_id
         }
 
     @unrestricted
@@ -878,7 +874,7 @@ class Root:
                 what=charge.description,
                 reg_station=cherrypy.session.get('reg_station')
             ))
-            raise HTTPRedirect('arbitrary_charge_form?message={}', 'Charge successfully processed')
+            raise HTTPRedirect('new?message={}', 'Charge successfully processed')
 
     def reg_take_report(self, session, **params):
         if params:

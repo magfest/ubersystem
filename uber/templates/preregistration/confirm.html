@@ -27,7 +27,7 @@
 {% include 'prereg_masthead.html' %}
 <div class="panel panel-default">
   <div class="panel-body">
-    {% if c.ATTRACTIONS_ENABLED or attendee.promo_code_groups %}
+    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups %}
       {% include 'confirm_tabs.html' with context %}
     {% endif %}
     {% block panel_top %}{% endblock %}
@@ -40,7 +40,7 @@
 
       {% block form_top %}{% endblock %}
 
-      {% if attendee.amount_unpaid and c.HTTP_METHOD == 'GET' %}
+      {% if attendee.amount_unpaid and c.HTTP_METHOD == 'GET' and 'attendee_donation_form' in attendee.payment_page %}
         <br/>
         <div class="form-group">
           <div class="col-sm-9 col-sm-offset-3 warning">

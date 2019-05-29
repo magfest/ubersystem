@@ -4,16 +4,16 @@
 
 {{ attendee.first_name }},
 
-<br/><br/>
-I am sorry to inform you that all Marketplace spaces have been filled, and unfortunately your group {{ group.name }}
-did not make it into {{ c.EVENT_NAME }} Marketplace this year, which is why your application is now being declined.
-Please try again next year! Dealer Registration opens up at about the same time each year, usually about a week before
-general attendee pre-registration begins. Please follow the MAGFest social media pages to find out when Dealer
-Registration will open next year as we make announcements there before it opens.
-{% if c.PRICE_BUMPS and attendee.badge_cost < c.BADGE_PRICE %}As a courtesy, the badges in your group have been
-converted to attendee badges at the lowest price you could have attained when you applied.{% else %}
-The badges in your group have been converted to attendee badges.{% endif %}
- You can confirm or decline <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">your attendee registration here</a>.
- Again, I am very sorry that you did not make it into the Marketplace this year.
-<br/><br/>
-{{ c.MARKETPLACE_EMAIL_SIGNATURE }}
+<br/><br/>Although your group ({{ group.name}}) {{ 'cancelled their dealer application' if group.status == c.CANCELLED else 'was not taken off the waitlist' }}, we think you may still want to come and enjoy all that {{ c.EVENT_NAME }} has to offer!
+Therefore, we have reserved a badge for you{% if c.PRICE_BUMPS and attendee.badge_cost < c.BADGE_PRICE %} at the price of registration when you first applied{% endif %}.
+Badges went to anyone in your group who had a valid email on the badge, and any unassigned badges were dropped.
+
+<br/><br/>Please note: You are choosing to accept or decline an ATTENDEE badge at the price it would have been had you bought it instead of applying to be a dealer.
+  <strong>You were not accepted as a dealer, and will not have space in the Marketplace.</strong>
+
+<br/><br/>Please go ahead and confirm or decline <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">your registration</a>. We hope to see you this year!
+
+{% include "emails/reg_workflow/reg_notes.html" %}
+
+</body>
+</html>

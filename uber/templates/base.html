@@ -295,14 +295,48 @@
                 });
             };
 
-            $('.datatable').dataTable({
-                aLengthMenu: [
-                    [25, 50, 100, 200, -1],
-                    [25, 50, 100, 200, 'All']
-                ],
-                stateSave: true,
-                drawCallback: createDateTextEntries
-            });
+                $('.datatable').each(function() {
+                    var table = $(this).DataTable({
+                        aLengthMenu: [
+                            [25, 50, 100, 200, -1],
+                            [25, 50, 100, 200, 'All']
+                        ],
+                        stateSave: true,
+                        drawCallback: createDateTextEntries
+                    });
+
+                    table.columns().flatten().each( function ( colIdx ) {
+                        var header_name = $(table.column(colIdx).header()).text();
+
+                        // Is there a filter set up for this?
+                        var filter_span = $('*[id="' + header_name.toLowerCase() + '_filter"]');
+
+                        if($(filter_span).length) {
+                        // Create the select list and search operation
+                        var select = $('<select><option label="(No Filter)"></option> </select>')
+                            .appendTo(
+                                filter_span
+                            )
+                            .on( 'change', function () {
+                                table
+                                    .column( colIdx )
+                                    .search( $(this).val() )
+                                    .draw();
+                            } );
+
+                        // Get the search data for the first column and add to the select list
+                        table
+                            .column( colIdx )
+                            .cache( 'search' )
+                            .sort()
+                            .unique()
+                            .each( function ( d ) {
+                                select.append( $('<option value="'+d+'">'+d+'</option>') );
+                            } );
+                        }
+                    } );
+                });
+
             createDateTextEntries();
 
             $('.geolocator').geocomplete({
@@ -340,7 +374,7 @@
     {% block head_additional %}{% endblock %}
 </head>
 <body>
-    {% if c.PRE_CON %}
+    {% if c.PRE_CON and c.SLOW_LOAD_CHECK %}
         <div class="loader"><a class="loader_link" href="../static_views/slow_load.html" target="_blank"></a></div>
     {% endif %}
     {% block top_of_body_additional %}

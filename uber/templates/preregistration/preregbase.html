@@ -75,13 +75,21 @@
         var BADGE_TYPES = {
             row: '#badge-types',
             selector: '.badge-type-selector',
-            options: [{
-                title: '{% if c.PAGE_PATH in ["/preregistration/form", "/preregistration/post_form", "/preregistration/dealer_registration"] or undoing_extra %}Attending{% elif attendee %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
+            options: [],
+        };
+        {% if not attendee or attendee.is_new or attendee.badge_type not in c.BADGE_TYPE_PRICES %}
+        BADGE_TYPES.options.push({
+                title: '{% if c.PAGE_PATH in ["/preregistration/form", "/preregistration/post_form", "/preregistration/dealer_registration", "/preregistration/post_dealer"] or undoing_extra %}Attending{% elif attendee %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
                 description: 'Allows access to the convention for its duration.',
                 extra: 0,
-                price: {{ badge_cost if badge_cost is defined else c.BADGE_PRICE }}
-            }]
-        };
+                badge_type: '{{ c.ATTENDEE_BADGE }}',
+
+                price: {{ badge_cost if badge_cost is defined else c.BADGE_PRICE }},
+                onClick: function () {
+                    $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
+                }
+        });
+        {% endif %}
         {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and c.SHIRT_AVAILABLE %}
             BADGE_TYPES.options.push({
                 title: 'Add a tshirt',
@@ -108,7 +116,9 @@
         {% endif %}
 
         {% for badge_type in c.BADGE_TYPE_PRICES %}
+
             {% if badge_type != c.ATTENDEE_BADGE %}
+        {% if (badge_type != c.SPONSOR_BADGE or c.SPONSOR_BADGE_AVAILABLE) and (badge_type != c.SHINY_BADGE or c.SHINY_BADGE_AVAILABLE) %}
             BADGE_TYPES.options.push({
                 title: '{{ c.BADGES[badge_type] }}',
                 description: 'Donate extra to get an upgraded badge with perks.',
@@ -119,6 +129,7 @@
                     $('input[name="badge_type"]').val('{{ badge_type }}');
                 }
             });
+        {% endif %}
             {% endif %}
         {% endfor %}
 
@@ -236,9 +247,11 @@
                     });
                     $row.append('<div class="clearfix"></div>');
                 });
-                if (window.REG_TYPES && $(REG_TYPES.row).size()) {
+                {% if attendee and attendee.badge_type in [c.ATTENDEE_BADGE, c.PSEUDO_GROUP_BADGE, c.PSEUDO_DEALER_BADGE] %}
+                if (window.REG_TYPES && $(REG_TYPES.row).size() ) {
                     setBadge(REG_TYPES, $.field('name') && $.val('name') ? 1 : 0);  // default to attendee or group
                 }
+                {% endif %}
                 makeBadgeMatchExtra();
                 if ($.field('amount_extra')) {
                     {% if not c.PREREG_DONATION_DESCRIPTIONS %}

@@ -39,12 +39,13 @@ def _is_dealer_convertible(attendee):
     #     and c.DEALER_RIBBON in attendee.ribbon_ints
 
 
-def _decline_and_convert_dealer_group(session, group, delete_when_able=False):
+def _decline_and_convert_dealer_group(session, group, status=c.DECLINED):
     """
     Deletes the waitlisted dealer group and converts all of the group members
     to the appropriate badge type. Unassigned, unpaid badges will be deleted.
     """
     admin_note = 'Converted badge from waitlisted dealer group "{}".'.format(group.name)
+    group.status = status
 
     if not group.is_unpaid:
         group.tables = 0
@@ -57,25 +58,27 @@ def _decline_and_convert_dealer_group(session, group, delete_when_able=False):
     emails_failed = 0
     emails_sent = 0
     badges_converted = 0
-    badges_deleted = 0
 
-    group.leader = None
     for attendee in list(group.attendees):
-        if (delete_when_able or attendee.is_unassigned) and _is_attendee_disentangled(attendee):
-            session.delete(attendee)
-            badges_deleted += 1
+        if _is_dealer_convertible(attendee):
+            attendee.badge_status = c.INVALID_STATUS
 
-        else:
-            if _is_dealer_convertible(attendee):
-                attendee.badge_status = c.NEW_STATUS
+            if not attendee.is_unassigned:
+                new_attendee = Attendee()
+                for attr in c.UNTRANSFERABLE_ATTRS:
+                    setattr(new_attendee, attr, getattr(attendee, attr))
+                new_attendee.overridden_price = attendee.overridden_price
+                new_attendee.base_badge_price = attendee.base_badge_price
+                new_attendee.append_admin_note(admin_note)
+                session.add(new_attendee)
 
                 try:
                     send_email.delay(
-                        c.REGDESK_EMAIL,
-                        attendee.email,
+                        c.MARKETPLACE_EMAIL,
+                        new_attendee.email,
                         'Do you still want to come to {}?'.format(c.EVENT_NAME),
                         render('emails/dealers/badge_converted.html', {
-                            'attendee': attendee,
+                            'attendee': new_attendee,
                             'group': group}, encoding=None),
                         format='html',
                         model=attendee.to_dict('id'))
@@ -83,22 +86,18 @@ def _decline_and_convert_dealer_group(session, group, delete_when_able=False):
                 except Exception:
                     emails_failed += 1
 
-            badges_converted += 1
-
+                badges_converted += 1
+        else:
             if attendee.paid not in [c.HAS_PAID, c.NEED_NOT_PAY]:
                 attendee.paid = c.NOT_PAID
 
             attendee.append_admin_note(admin_note)
             attendee.ribbon = remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
-            group.attendees.remove(attendee)
-
-    session.delete(group)
 
     for count, template in [
             (badges_converted, '{} badge{} converted'),
             (emails_sent, '{} email{} sent'),
-            (emails_failed, '{} email{} failed to send'),
-            (badges_deleted, '{} badge{} deleted')]:
+            (emails_failed, '{} email{} failed to send')]:
 
         if count > 0:
             message.append(template.format(count, pluralize(count)))
@@ -111,7 +110,7 @@ class Root:
     def index(self, session, message='', order='name', show='all'):
         which = {
             'all':    [],
-            'tables': [Group.tables > 0],
+            'tables': [Group.tables > 0, Group.status != c.DECLINED],
             'groups': [Group.tables == 0]
         }[show]
         # TODO: think about using a SQLAlchemy column property for .badges and then just use .order()
@@ -126,9 +125,9 @@ class Root:
             'order':             Order(order),
             'total_groups':      len(groups),
             'total_badges':      sum(g.badges for g in groups),
-            'tabled_badges':     sum(g.badges for g in groups if g.tables),
+            'tabled_badges':     sum(g.badges for g in groups if g.tables and g.status != c.DECLINED),
             'untabled_badges':   sum(g.badges for g in groups if not g.tables),
-            'tabled_groups':     len([g for g in groups if g.tables]),
+            'tabled_groups':     len([g for g in groups if g.tables and g.status != c.DECLINED]),
             'untabled_groups':   len([g for g in groups if not g.tables]),
             'tables':            sum(g.tables for g in groups),
             'unapproved_tables': sum(g.tables for g in groups if g.status == c.UNAPPROVED),
@@ -173,12 +172,14 @@ class Root:
                         leader = group.leader = group.attendees[0]
                         leader.first_name, leader.last_name, leader.email = first_name, last_name, email
                         leader.placeholder = True
+                        session.commit() # Get the most up-to-date status
                         if group.status == c.APPROVED:
                             if group.amount_unpaid:
                                 raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
                             else:
+                                status_msg = ", approved, and marked as paid" if group.cost else " and approved"
                                 raise HTTPRedirect(
-                                    'index?message={}', group.name + ' has been uploaded, approved, and marked as paid')
+                                    'index?message={}{}', group.name + ' has been uploaded', status_msg)
                         else:
                             raise HTTPRedirect(
                                 'index?message={}', group.name + ' is uploaded and ' + group.status_label)
@@ -224,14 +225,14 @@ class Root:
             message = ''
             if decline_and_convert:
                 for group in groups:
-                    _decline_and_convert_dealer_group(session, group, False)
+                    _decline_and_convert_dealer_group(session, group)
                 message = 'All waitlisted dealers have been declined and converted to regular attendee badges'
             raise HTTPRedirect('index?order=name&show=tables&message={}', message)
 
         return {'groups': query.all()}
 
     @ajax
-    def unapprove(self, session, id, action, email, convert=None, message=''):
+    def unapprove(self, session, id, action, email, message=''):
         assert action in ['waitlisted', 'declined']
         group = session.group(id)
         subject = 'Your {} Dealer registration has been {}'.format(c.EVENT_NAME, action)
@@ -246,10 +247,17 @@ class Root:
         if action == 'waitlisted':
             group.status = c.WAITLISTED
         else:
-            message = _decline_and_convert_dealer_group(session, group, not convert)
+            message = _decline_and_convert_dealer_group(session, group)
         session.commit()
         return {'success': True,
                 'message': message}
+
+    def cancel_dealer(self, session, id):
+        group = session.group(id)
+        _decline_and_convert_dealer_group(session, group, c.CANCELLED)
+        message = "Sorry you couldn't make it! Group members have been emailed confirmations for individual badges."
+
+        raise HTTPRedirect('../preregistration/group_members?id={}&message={}', group.id, message)
 
     @csrf_protected
     def delete(self, session, id, confirmed=None):

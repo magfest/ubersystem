@@ -71,7 +71,8 @@ def redirect_if_at_con_to_kiosk(func):
 def check_if_can_reg(func):
     @wraps(func)
     def with_check(*args, **kwargs):
-        is_dealer_get = c.HTTP_METHOD == 'GET' and c.PAGE_PATH == '/preregistration/dealer_registration'
+        is_dealer_get = c.HTTP_METHOD == 'GET' \
+                        and c.PAGE_PATH in ['/preregistration/dealer_registration', '/preregistration/post_dealer']
         is_dealer_post = c.HTTP_METHOD == 'POST' and \
             int(kwargs.get('badge_type', 0)) == c.PSEUDO_DEALER_BADGE and \
             int(kwargs.get('tables', 0)) > 0

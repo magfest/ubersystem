@@ -2,7 +2,7 @@
 
 {#- Setting some variables to keep the size of conditional clauses smaller. -#}
 {%- set is_prereg_form = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}
-{%- set is_prereg_dealer = c.PAGE_PATH in ['/preregistration/dealer_registration'] or attendee and attendee.badge_type == c.PSEUDO_DEALER_BADGE -%}
+{%- set is_prereg_dealer = c.PAGE_PATH in ['/preregistration/dealer_registration', 'preregistration/post_dealer'] or attendee and attendee.badge_type == c.PSEUDO_DEALER_BADGE -%}
 {%- set is_prereg_confirm_email_enabled = (is_prereg_form or is_prereg_dealer) and c.PREREG_CONFIRM_EMAIL_ENABLED -%}
 {%- set is_after_request_hotel = c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE -%}
 {%- set is_after_hotel_email = c.AFTER_PREREG_HOTEL_INFO_EMAIL_DATE -%}
@@ -616,7 +616,7 @@
 </div>
 {% endif %}
 
-{% if (c.PAGE_PATH != '/registration/form' or not attendee.is_new) and c.PAGE_PATH != '/registration/register' %}
+{% if '/registration/' not in c.PAGE_PATH or not attendee.is_new %}
     <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
 {% endif %}
 
@@ -629,7 +629,7 @@
             while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].extra < {{ attendee.amount_extra }}) {
                 BADGE_TYPES.options.splice(0, 1);
             }
-            while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].price && BADGE_TYPES.options[0].price < {{ c.BADGE_TYPE_PRICES[attendee.badge_type]|default(c.BADGE_PRICE, boolean=True) }}) {
+            while (_(BADGE_TYPES.options).size() && BADGE_TYPES.options[0].price && BADGE_TYPES.options[0].price < {{ attendee.base_badge_price|default(c.BADGE_TYPE_PRICES[attendee.badge_type]|default(c.BADGE_PRICE, boolean=True)) }}) {
                 BADGE_TYPES.options.splice(0, 1);
             }
         }
