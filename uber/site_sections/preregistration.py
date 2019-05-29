@@ -93,9 +93,10 @@ class Root:
         else:
             charge = Charge(listify(Charge.unpaid_preregs.values()))
             for attendee in charge.attendees:
-                if attendee.promo_code and attendee.promo_code.group:
-                    attendee.group_name = session.query(PromoCode).filter_by(
-                        code=attendee.promo_code.code).first().group.name
+                if attendee.promo_code:
+                    real_code = session.query(PromoCode).filter_by(code=attendee.promo_code.code).first()
+                    if real_code and real_code.group:
+                        attendee.group_name = real_code.group.name
             return {
                 'message': message,
                 'charge': charge
