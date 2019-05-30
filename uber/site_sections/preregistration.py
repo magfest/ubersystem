@@ -158,6 +158,8 @@ class Root:
                     if params.get('copy_address'):
                         params[field_name] = group_params[field_name]
 
+                group = session.group(group_params, ignore_csrf=True, restricted=True)
+
         if c.PAGE == 'post_dealer':
             attendee.badge_type = c.PSEUDO_DEALER_BADGE
         elif not attendee.badge_type:

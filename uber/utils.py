@@ -932,7 +932,7 @@ class Charge:
         names = []
 
         for m in self.models:
-            if getattr(m, 'badges') and getattr(m, 'name'):
+            if getattr(m, 'badges', None) and getattr(m, 'name'):
                 names.append("{} plus {} badges ({})".format(getattr(m, 'full_name', None), int(m.badges) - 1, m.name))
             else:
                 names.append(getattr(m, 'name', getattr(m, 'full_name', None)))

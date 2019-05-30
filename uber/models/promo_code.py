@@ -340,9 +340,7 @@ class PromoCode(MagModel):
 
     @property
     def discount_str(self):
-        if self.discount_type == self._FIXED_DISCOUNT and self.discount == 0:
-            return 'No discount'
-        elif not self.discount:
+        if not self.discount:
             return 'Free badge'
 
         if self.discount_type == self._FIXED_DISCOUNT:
@@ -433,7 +431,7 @@ class PromoCode(MagModel):
             self.uses_allowed = None
 
         # If 'discount' is empty, then this is a full discount, free badge
-        if self.discount == '':
+        if not self.discount:
             self.discount = None
 
         self.code = self.code.strip() if self.code else ''

@@ -874,7 +874,7 @@ class Root:
                 what=charge.description,
                 reg_station=cherrypy.session.get('reg_station')
             ))
-            raise HTTPRedirect('new?message={}', 'Charge successfully processed')
+            raise HTTPRedirect('{}?message={}', return_to, 'Charge successfully processed')
 
     def reg_take_report(self, session, **params):
         if params:

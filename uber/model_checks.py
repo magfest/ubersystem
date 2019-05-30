@@ -169,9 +169,9 @@ def group_money(group):
 
 
 @prereg_validation.Group
-def no_edit_post_approval(group):
-    if group.status == c.APPROVED:
-        return "You cannot change your dealer application after approval."
+def edit_only_correct_statuses(group):
+    if group.status not in [c.WAITLISTED, c.UNAPPROVED]:
+        return "You cannot change your dealer application after it has been {}.".format(group.status_label)
 
 
 def _invalid_phone_number(s):
