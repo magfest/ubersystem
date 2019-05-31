@@ -190,7 +190,7 @@ class Root:
             if not message and attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                 message = check(group, prereg=True)
 
-            if attendee.badge_type == c.PSEUDO_GROUP_BADGE:
+            if attendee.badge_type in [c.PSEUDO_GROUP_BADGE, c.PSEUDO_DEALER_BADGE]:
                 message = "Please enter a group name" if not params.get('name') else ''
             else:
                 params['badges'] = 0
