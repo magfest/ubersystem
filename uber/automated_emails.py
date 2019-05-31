@@ -269,7 +269,7 @@ if c.DEALER_REG_START:
         #     Group.status == c.APPROVED,
         #     Group.approved < (func.now() - timedelta(days=30)),
         #     Group.is_unpaid == True),
-        needs_approval=False,
+        needs_approval=True,
         ident='dealer_reg_payment_reminder')
 
     MarketplaceEmailFixture(
@@ -278,7 +278,7 @@ if c.DEALER_REG_START:
         lambda g: g.status == c.APPROVED and g.is_unpaid,
         # query=and_(Group.status == c.APPROVED, Group.is_unpaid == True),
         when=days_before(7, c.DEALER_PAYMENT_DUE, 2),
-        needs_approval=False,
+        needs_approval=True,
         ident='dealer_reg_payment_reminder_due_soon')
 
     MarketplaceEmailFixture(
@@ -287,7 +287,7 @@ if c.DEALER_REG_START:
         lambda g: g.status == c.APPROVED and g.is_unpaid,
         # query=and_(Group.status == c.APPROVED, Group.is_unpaid == True),
         when=days_before(2, c.DEALER_PAYMENT_DUE),
-        needs_approval=False,
+        needs_approval=True,
         ident='dealer_reg_payment_reminder_last_chance')
 
     MarketplaceEmailFixture(

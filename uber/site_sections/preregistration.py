@@ -12,7 +12,7 @@ from uber.config import c
 from uber.decorators import all_renderable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Email, Group, PromoCode, PromoCodeGroup, Tracking
+from uber.models import Attendee, Attraction, Email, Group, PromoCode, PromoCodeGroup, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, check_pii_consent, localized_now, Charge
 
@@ -119,7 +119,7 @@ class Root:
             'id': id
         }
 
-    @cherrypy.expose(['post_form'])
+    @cherrypy.expose(['post_form', 'post_dealer'])
     @redirect_if_at_con_to_kiosk
     @check_if_can_reg
     def form(self, session, message='', edit_id=None, **params):
@@ -160,7 +160,9 @@ class Root:
 
                 group = session.group(group_params, ignore_csrf=True, restricted=True)
 
-        if not attendee.badge_type:
+        if c.PAGE == 'post_dealer':
+            attendee.badge_type = c.PSEUDO_DEALER_BADGE
+        elif not attendee.badge_type:
             attendee.badge_type = c.ATTENDEE_BADGE
 
         if cherrypy.request.method == 'POST' or edit_id is not None:
@@ -508,7 +510,7 @@ class Root:
     def group_members(self, session, id, message='', **params):
         group = session.group(id)
         charge = Charge(group)
-        if group.status != c.APPROVED and 'name' in params:
+        if cherrypy.request.method == 'POST':
             # Both the Attendee class and Group class have identically named
             # address fields. In order to distinguish the two sets of address
             # fields in the params, the Group fields are prefixed with "group_"
@@ -539,6 +541,7 @@ class Root:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         return {
             'group':   group,
+            'upgraded_badges': len([a for a in group.attendees if a.badge_type in c.BADGE_TYPE_PRICES]),
             'charge':  charge,
             'message': message
         }
@@ -840,7 +843,7 @@ class Root:
                 else:
                     raise HTTPRedirect(page + 'message=' + message)
 
-        elif attendee.amount_unpaid and attendee.zip_code and not undoing_extra:
+        elif attendee.amount_unpaid and attendee.zip_code and not undoing_extra and cherrypy.request.method == 'POST':
             # Don't skip to payment until the form is filled out
             raise HTTPRedirect('attendee_donation_form?id={}&message={}', attendee.id, message)
 
@@ -856,6 +859,7 @@ class Root:
             'attendee':      attendee,
             'message':       message,
             'affiliates':    session.affiliates(),
+            'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
             'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
         }
 
@@ -871,6 +875,8 @@ class Root:
         attendee = session.attendee(id)
         if attendee.amount_unpaid <= 0:
             raise HTTPRedirect('confirm?id={}', id)
+        if 'attendee_donation_form' not in attendee.payment_page:
+            raise HTTPRedirect(attendee.payment_page)
 
         return {
             'message': message,

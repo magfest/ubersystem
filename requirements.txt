@@ -19,3 +19,4 @@ cherrys==0.4
 redis==2.10.6
 ics==0.4
 pillow==5.2.0
+fpdf==1.7.2

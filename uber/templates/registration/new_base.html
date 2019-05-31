@@ -44,7 +44,7 @@
                 badge_num:      $('#badge_num').val() || undefined,
                 payment_method: $('#payment_method').val(),
                 mpoints:        0,
-                csrf_token:     csrf_token
+                csrf_token:     csrf_token,
             }, function(json) {
                 toastr.remove();
                 if (!json.success) {
@@ -52,16 +52,12 @@
                 } else {
                     $('#badge_num').val('');
                     toastr.info(json.message);
-                    $('.toast-message').append(' &nbsp; <a href="#" onClick="undoSale(\'' + json.id + '\') ; return false">Undo</a>');
+                    window.location.replace('arbitrary_charge_form?amount=' + $('#store_cash').val() +
+                        '&description=' + json.message + '&sale_id=' + json.id);
                 }
             }, 'json');
     };
-    var undoSale = function(id) {
-        $.post('undo_sale', {id: id, csrf_token: csrf_token}, function(message) {
-            toastr.remove();
-            toastr.info(message);
-        });
-    };
+
     var showOrHideWhatText = function(page_loading) {
         $('#store_mpoints').val('0');
         if( $('#what_select').val() == '' ) {
@@ -176,6 +172,7 @@
         <a href="new?show_all=true">Click Here</a> to see all at-the-door registrations instead of only recent ones
     {% endif %}
     <br/> <a href="index{% if c.AT_THE_CON %}?invalid=True{% endif %}">Click Here</a> to view the preregistered and checked in attendee list
+    <br/> <a href="arbitrary_charge_form">Click Here</a> to create arbitrary credit card charges or run a purchase
 </div>
 
 <div style="text-align:center; font-weight:bold; {% if c.REMAINING_BADGES < 50 %} font-size:18pt; {% endif %}">
@@ -216,6 +213,7 @@
         {% block tableheadings %}
         <th align="left">Registered</th>
         <th align="left">Name</th>
+        <th align="left">Badge Name</th>
         <th>Badge Type</th>
         <th>Age</th>
         <th>Cost</th>
@@ -237,6 +235,9 @@
             {% if attendee.banned %}
                 <div style="color:red">There is a problem with this registration. Please contact your department head.</div>
             {% endif %}
+        </td>
+        <td>
+            <input type="text" class="form-control" form="new_checkin_{{ attendee.id }}" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" />
         </td>
         <td>
             {{ attendee.badge_type_label }}
@@ -286,8 +287,12 @@
         {% else %}
             {% if c.NUMBERED_BADGES %}
                 <td>
-                  <input type="text" name="badge_num" form="new_checkin_{{ attendee.id }}" size="10"
+                {% if attendee.badge_num %}
+                    #{{ attendee.badge_num }}
+                {% else %}
+                    <input type="text" name="badge_num" form="new_checkin_{{ attendee.id }}" size="10"
                          {% if attendee.paid == c.NOT_PAID %}disabled{% endif %} />
+                {% endif %}
                 </td>
             {% endif %}
             <td>

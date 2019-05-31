@@ -168,6 +168,12 @@ def group_money(group):
         return "What you entered for Amount Refunded ({}) wasn't even a number".format(group.amount_refunded)
 
 
+@prereg_validation.Group
+def edit_only_correct_statuses(group):
+    if group.status not in [c.WAITLISTED, c.UNAPPROVED]:
+        return "You cannot change your dealer application after it has been {}.".format(group.status_label)
+
+
 def _invalid_phone_number(s):
     try:
         # parse input as a US number, unless a leading + is provided,
@@ -287,6 +293,9 @@ def age(attendee):
     if c.COLLECT_EXACT_BIRTHDATE:
         if not attendee.birthdate:
             return 'Please enter a date of birth.'
+        elif not isinstance(attendee.birthdate, date):
+            attendee.birthdate = ''
+            return 'Please use the format YYYY-MM-DD for your date of birth.'
         elif attendee.birthdate > date.today():
             return 'You cannot be born in the future.'
     elif not attendee.age_group:
@@ -336,7 +345,7 @@ def address(attendee):
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def zip_code(attendee):
-    if not attendee.international and not c.AT_OR_POST_CON:
+    if not attendee.international and not c.AT_OR_POST_CON and attendee.country == 'United States':
         if _invalid_zip_code(attendee.zip_code):
             return 'Enter a valid zip code'
 
@@ -491,7 +500,7 @@ def out_of_badge_type(attendee):
 def invalid_badge_name(attendee):
     if attendee.badge_printed_name and localized_now() <= c.get_printed_badge_deadline_by_type(attendee.badge_type) \
             and re.search(c.INVALID_BADGE_PRINTED_CHARS, attendee.badge_printed_name):
-        return 'Your printed badge name has invalid characters. Please use only printable ASCII characters.'
+        return 'Your printed badge name has invalid characters. Please use only alphanumeric characters and symbols.'
 
 
 @validation.Attendee

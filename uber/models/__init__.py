@@ -167,10 +167,18 @@ class MagModel:
             try:
                 value = getattr(self, name, 'ATTRIBUTE NOT FOUND')
                 values.append(int(value))
-            except Exception as ex:
+            except Exception:
                 log.error('Error calculating cost property {}: "{}"'.format(name, value))
                 log.exception(ex)
         return max(0, sum(values))
+
+    @property
+    def stripe_transactions(self):
+        """
+        Returns all logged Stripe transactions with this model's ID.
+        """
+        from uber.models.commerce import StripeTransaction
+        return self.session.query(StripeTransaction).filter_by(fk_id=self.id).all()
 
     @cached_classproperty
     def unrestricted(cls):
@@ -513,7 +521,6 @@ from uber.models.tracking import Tracking  # noqa: E402
 
 
 class Session(SessionManager):
-
     # This looks strange, but `sqlalchemy.create_engine` will throw an error
     # if it's passed arguments that aren't supported by the given DB engine.
     # For example, SQLite doesn't support either `pool_size` or `max_overflow`,
@@ -1128,8 +1135,10 @@ class Session(SessionManager):
                     last, first = first.strip(','), last
                 name_cond = attendees.icontains_condition(first_name=first, last_name=last)
                 legal_name_cond = attendees.icontains_condition(legal_name="{}%{}".format(first, last))
-                if attendees.filter(or_(name_cond, legal_name_cond)).first():
-                    return attendees.filter(or_(name_cond, legal_name_cond))
+                first_name_cond = attendees.icontains_condition(first_name=terms)
+                last_name_cond = attendees.icontains_condition(last_name=terms)
+                if attendees.filter(or_(name_cond, legal_name_cond, first_name_cond, last_name_cond)).first():
+                    return attendees.filter(or_(name_cond, legal_name_cond, first_name_cond, last_name_cond))
 
             elif len(terms) == 1 and terms[0].endswith(','):
                 last = terms[0].rstrip(',')
@@ -1487,7 +1496,7 @@ def initialize_db(modify_tables=False):
     Initialize the session on startup.
 
     We want to do this only after all other plugins have had a chance to
-    initialize and add their 'mixin' data (i.e. extra colums) into the models.
+    initialize and add their 'mixin' data (i.e. extra columns) into the models.
 
     Also, it's possible that the DB is still initializing and isn't ready to
     accept connections, so, if this fails, keep trying until we're able to

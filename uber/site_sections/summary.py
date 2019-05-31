@@ -266,6 +266,7 @@ class Root:
     def dealer_table_info(self, out, session):
         out.writerow([
             'Business Name',
+            'Dealer Name',
             'Description',
             'URL',
             'Point of Contact',
@@ -285,8 +286,10 @@ class Root:
         dealer_groups = session.query(Group).filter(Group.tables > 0).all()
         for group in dealer_groups:
             if group.approved and group.is_dealer:
+                full_name = group.leader.full_name if group.leader else ''
                 out.writerow([
                     group.name,
+                    full_name,
                     group.description,
                     group.website,
                     group.leader.legal_name or group.leader.full_name,

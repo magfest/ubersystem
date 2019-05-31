@@ -452,6 +452,7 @@ class Config(_Overridable):
             if badge_type not in opts:
                 opts.append(
                     (badge_type, '{} (${})'.format(self.BADGES[badge_type], self.BADGE_TYPE_PRICES[badge_type])))
+            opts.append((self.ATTENDEE_BADGE, 'Standard (${})'.format(self.BADGE_PRICE)))
         if self.ONE_DAYS_ENABLED:
             if self.PRESELL_ONE_DAYS:
                 day = max(uber.utils.localized_now(), self.EPOCH)
@@ -909,7 +910,10 @@ if c.ONE_DAYS_ENABLED and c.PRESELL_ONE_DAYS:
         c.BADGE_OPTS.append((_val, _name))
         c.BADGE_VARS.append(_name.upper())
         c.BADGE_RANGES[_val] = c.BADGES[c.ONE_DAY_BADGE]
-        c.TRANSFERABLE_BADGE_TYPES.append(_val)
+        if c.ONE_DAY_BADGE in c.TRANSFERABLE_BADGE_TYPES:
+            c.TRANSFERABLE_BADGE_TYPES.append(_val)
+        if c.ONE_DAY_BADGE in c.PREASSIGNED_BADGE_TYPES:
+            c.PREASSIGNED_BADGE_TYPES.append(_val)
         _day += timedelta(days=1)
 
 c.MAX_BADGE = max(xs[1] for xs in c.BADGE_RANGES.values())
@@ -922,8 +926,8 @@ c.JOB_PAGE_OPTS = (
     ('staffers', 'Staffer Summary')
 )
 c.WEIGHT_OPTS = (
-    ('1.0', 'x1.0'),
     ('0.5', 'x0.5'),
+    ('1.0', 'x1.0'),
     ('1.5', 'x1.5'),
     ('2.0', 'x2.0'),
     ('2.5', 'x2.5'),
