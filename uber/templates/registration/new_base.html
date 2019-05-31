@@ -213,7 +213,7 @@
         {% block tableheadings %}
         <th align="left">Registered</th>
         <th align="left">Name</th>
-        <th align="left">Badge Name</th>
+        {% if c.ATTENDEE_BADGE in c.PREASSIGNED_BADGE_TYPES %}<th align="left">Badge Name</th>{% endif %}
         <th>Badge Type</th>
         <th>Age</th>
         <th>Cost</th>
@@ -236,9 +236,11 @@
                 <div style="color:red">There is a problem with this registration. Please contact your department head.</div>
             {% endif %}
         </td>
+        {% if c.ATTENDEE_BADGE in c.PREASSIGNED_BADGE_TYPES %}
         <td>
             <input type="text" class="form-control" form="new_checkin_{{ attendee.id }}" name="badge_printed_name" value="{{ attendee.badge_printed_name }}" />
         </td>
+        {% endif %}
         <td>
             {{ attendee.badge_type_label }}
             {% if attendee.ribbon %}
