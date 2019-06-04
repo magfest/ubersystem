@@ -1,4 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
+{% import "regform.html" as attendee_fields with context %}
 {% block title %}Attendee Form - {{ attendee.full_name }}{% endblock %}
 {% block content %}
 
@@ -194,32 +195,7 @@
     {% endif %}
 
 
-<div class="form-group">
-    <label class="col-sm-3 control-label">Badge</label>
-    <div class="col-sm-6">
-        {% if not attendee.is_new %}
-            {{ attendee.badge }}
-            {% if attendee.group %}(<a href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>){% endif %}
-            &nbsp;&nbsp; [<a href="change_badge?id={{ attendee.id }}">Change</a>]
-        {% else %}
-            <select name="badge_type" onChange="boldOrRegular(); setBadgeMessage(); setAmountPaid();">
-                {{ options(c.BADGE_OPTS,attendee.badge_type) }}
-            </select>
-            {% if c.AT_THE_CON and c.NUMBERED_BADGES %}
-                #<input class="focus" type="text" style="width:4em" name="badge_num" value="{{ attendee.badge_num|default('', boolean=True) }}" />
-            {% else %}
-                <span id="badge_message" style="font-style:italic"></span>
-            {% endif %}
-        {% endif %}
-        &nbsp;&nbsp;
-        {% if c.AT_THE_CON and not attendee.badge_num and c.NUMBERED_BADGES %}
-            <br/> <input type="checkbox" name="omit_badge" value="yes" {% if omit_badge %}checked{% endif %} /> Omit badge number
-        {% elif c.AT_THE_CON and not attendee.checked_in and not c.NUMBERED_BADGES %}
-            <br/> <input type="checkbox" name="check_in" value="yes" {% if check_in %}checked{% endif %} /> Check in this attendee
-        {% endif %}
-        &nbsp;&nbsp; [<a href="../preregistration/confirm?id={{ attendee.id }}">Confirm{% if attendee.is_transferable %}/Transfer{% endif %}</a>]
-    </div>
-</div>
+{{ attendee_fields.badge_type }}
 
 <div class="form-group">
     <label class="col-sm-3 control-label">Ribbons</label>
@@ -285,7 +261,20 @@
 
 {% block pre_regform %}{% endblock %}
 
-{% include "regform.html" %}
+
+{{ attendee_fields.name }}
+{{ attendee_fields.age }}
+{{ attendee_fields.email }}
+{{ attendee_fields.emergency_contact }}
+{{ attendee_fields.cellphone }}
+{{ attendee_fields.address }}
+{{ attendee_fields.amount_extra }}
+{{ attendee_fields.extra_donation }}
+{{ attendee_fields.promo_code }}
+{{ attendee_fields.interests }}
+{{ attendee_fields.found_how }}
+{{ attendee_fields.comments }}
+{{ attendee_fields.can_spam }}
 
 {% block post_regform %}{% endblock %}
 
@@ -382,10 +371,7 @@
             <br/> ({{ attendee.worked_hours }} out of {{ attendee.weighted_hours }} hours worked)
         {% endif %}
         <nobr>
-            Kicked In Extra:
-            <select name="amount_extra">
-                {{ options(c.DONATION_TIER_OPTS,attendee.amount_extra) }}
-            </select>
+            {{ attendee_amount_extra }}
         </nobr>
     </div>
 </div>

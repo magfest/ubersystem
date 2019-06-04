@@ -9,6 +9,15 @@
 {%- endmacro %}
 
 
+{% macro read_only_if(condition, val) %}
+{% if not condition %}
+  {{ caller() }}
+{% else %}
+  <div class="col-sm-6 form-control-static">{{ val }}</div>
+{% endif %}
+{%- endmacro %}
+
+
 {% macro stripe_button(label) -%}
   <button class="btn btn-primary stripe-button-el">
     <span class="display: block; min-height: 30px;">{{label}}</span>
