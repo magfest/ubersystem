@@ -20,10 +20,17 @@ this coming {{ event_dates() }}. Below is a copy of your application. You may
 </ul>
 
 {% if c.DEALER_REG_SOFT_CLOSED %}
-    Because our marketplace is currently full, your submission has been automatically placed on our waitlist.  We'll let you know if your application is later approved.
+Because our marketplace is currently full, your submission has been automatically placed on our waitlist.  We'll let you know whether or not
+your application is later approved.
 {% else %}
-    We will review your request and provide you with a payment link once your application has been approved.
+We will review your request and provide you with a payment link if your application is approved; otherwise,
+you will receive a waitlist or declined email.
 {% endif %}
+
+<br/><br/>Vendor applications automatically reserve the ability to purchase badges for you and the number of assistants on the
+application at the pre-registration price of ${{ c.BADGE_PRICE }}, if the application is not approved. PLEASE DO NOT BUY A BADGE
+IF YOU APPLIED FOR A MARKETPLACE SPOT. Your ability to purchase the badges will happen after the waitlist is exhausted if you are
+not approved to vend.
 
 {% if group.requested_hotel_info and c.PREREG_REQUEST_HOTEL_INFO_OPEN -%}
     <br/> <br/>

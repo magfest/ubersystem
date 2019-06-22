@@ -161,6 +161,7 @@ class Department(MagModel):
     parent_id = Column(UUID, ForeignKey('department.id'), nullable=True)
     is_setup_approval_exempt = Column(Boolean, default=False)
     is_teardown_approval_exempt = Column(Boolean, default=False)
+    max_consecutive_hours = Column(Integer, default=0)
 
     jobs = relationship('Job', backref='department')
 
@@ -375,6 +376,15 @@ class Job(MagModel):
         return select([Department.name]).where(Department.id == cls.department_id).label('department_name')
 
     @hybrid_property
+    def max_consecutive_hours(self):
+        return self.department.max_consecutive_hours
+
+    @max_consecutive_hours.expression
+    def max_consecutive_hours(cls):
+        return select([Department.max_consecutive_hours]) \
+            .where(Department.id == cls.department_id).label('max_consecutive_hours')
+
+    @hybrid_property
     def restricted(self):
         return bool(self.required_roles)
 
@@ -407,6 +417,44 @@ class Job(MagModel):
     def end_time(self):
         return self.start_time + timedelta(hours=self.duration)
 
+    def working_limit_ok(self, attendee):
+        """
+        Prevent signing up for too many shifts in a row. `hours_worked` is the
+        number of hours that the attendee is working immediately before plus
+        immediately after this job, plus this job's hours. `working_hour_limit`
+        is the *min* of Department.max_consecutive_hours for all the jobs we've
+        seen (including self). This means that if dept A has a limit of 3 hours,
+        and dept B has a limit of 2 hours, (for one-hour shifts), if we try to
+        sign up for the shift order of [A, A, B], B's limits will kick in and
+        block the signup.
+        """
+
+        attendee_hour_map = attendee.hour_map
+        hours_worked = self.duration
+        working_hour_limit = self.max_consecutive_hours
+        if working_hour_limit == 0:
+            working_hour_limit = 1000  # just default to something large
+
+        # count the number of filled hours before this shift
+        current_shift_hour = self.start_time - timedelta(hours=1)
+        while current_shift_hour in attendee_hour_map:
+            hours_worked += 1
+            this_job_hour_limit = attendee_hour_map[current_shift_hour].max_consecutive_hours
+            if this_job_hour_limit > 0:
+                working_hour_limit = min(working_hour_limit, this_job_hour_limit)
+            current_shift_hour = current_shift_hour - timedelta(hours=1)
+
+        # count the number of filled hours after this shift
+        current_shift_hour = self.start_time + timedelta(hours=self.duration)
+        while current_shift_hour in attendee_hour_map:
+            hours_worked += 1
+            this_job_hour_limit = attendee_hour_map[current_shift_hour].max_consecutive_hours
+            if this_job_hour_limit > 0:
+                working_hour_limit = min(working_hour_limit, this_job_hour_limit)
+            current_shift_hour = current_shift_hour + timedelta(hours=1)
+
+        return hours_worked <= working_hour_limit
+
     def no_overlap(self, attendee):
         before = self.start_time - timedelta(hours=1)
         after = self.start_time + timedelta(hours=self.duration)
@@ -418,7 +466,7 @@ class Job(MagModel):
             after not in attendee.hour_map
             or not self.extra15
             or self.department_id == attendee.hour_map[after].department_id
-        )
+        ) and self.working_limit_ok(attendee)
 
     @hybrid_property
     def slots_taken(self):

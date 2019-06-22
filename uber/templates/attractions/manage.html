@@ -376,11 +376,11 @@
   </div>
 </div>
 
-<div class="masthead"></div>
+{% include 'prereg_masthead.html' %}
 <div class="panel panel-default">
   <div class="panel-body">
     {% block body %}
-      {% include 'attractions_tabs.html' with context %}
+      {% include 'confirm_tabs.html' with context %}
       <div id="container">
         <h2>Notifications</h2>
         <div id="notifications" class="row form-horizontal">

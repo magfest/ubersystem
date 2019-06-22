@@ -3,6 +3,7 @@ import functools
 import inspect
 import json
 import os
+import re
 import threading
 import traceback
 import uuid
@@ -75,10 +76,15 @@ def check_if_can_reg(func):
         is_dealer_post = c.HTTP_METHOD == 'POST' and \
             int(kwargs.get('badge_type', 0)) == c.PSEUDO_DEALER_BADGE and \
             int(kwargs.get('tables', 0)) > 0
-        is_dealer_reg = c.DEALER_REG_OPEN and (is_dealer_get or is_dealer_post)
+        is_dealer_reg = is_dealer_get or is_dealer_post
 
         if c.DEV_BOX:
             pass  # Don't redirect to any of the pages below.
+        elif is_dealer_reg and not c.DEALER_REG_OPEN:
+            if c.AFTER_DEALER_REG_START:
+                return render('static_views/dealer_reg_closed.html')
+            else:
+                return render('static_views/dealer_reg_not_open.html')
         elif c.ATTENDEE_BADGES_SOLD >= c.MAX_BADGE_SALES:
             # ===============================================================
             # TODO: MAKE THIS COMPARE THE SPECIFIC BADGE TYPE AGAINST OUR
@@ -236,10 +242,10 @@ def multifile_zipfile(func):
     func.site_mappable = True
 
     @wraps(func)
-    def zipfile_out(self, session):
+    def zipfile_out(self, session, **kwargs):
         zipfile_writer = BytesIO()
         with zipfile.ZipFile(zipfile_writer, mode='w') as zip_file:
-            func(self, zip_file, session)
+            func(self, zip_file, session, **kwargs)
 
         # must do this after creating the zip file as other decorators may have changed this
         # for example, if a .zip file is created from several .csv files, they may each set content-type.
@@ -364,8 +370,8 @@ def credit_card(func):
         except Exception:
             error_text = \
                 'Got an error while calling charge' \
-                '(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}\n' \
-                '\n IMPORTANT: This could have resulted in an attendee paying and not being' \
+                '(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}\n\n' \
+                'IMPORTANT: This could have resulted in an attendee paying and not being ' \
                 'marked as paid in the database. Definitely double check this.'\
                 .format(payment_id, stripeToken, ignored, traceback.format_exc())
 
@@ -540,19 +546,36 @@ def prettify_breadcrumb(str):
     return str.replace('_', ' ').title()
 
 
+def _remove_tracking_params(kwargs):
+    for param in c.TRACKING_PARAMS:
+        kwargs.pop(param, None)
+
+
 def renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
+        _remove_tracking_params(kwargs)
         try:
             result = func(*args, **kwargs)
         except CSRFException as e:
             message = "Your CSRF token is invalid. Please go back and try again."
-            uber.server.log_exception_with_verbose_context(str(e))
+            uber.server.log_exception_with_verbose_context(msg=str(e))
             raise HTTPRedirect("../common/invalid?message={}", message)
         except (AssertionError, ValueError) as e:
             message = str(e)
-            uber.server.log_exception_with_verbose_context(message)
+            uber.server.log_exception_with_verbose_context(msg=message)
             raise HTTPRedirect("../common/invalid?message={}", message)
+        except TypeError as e:
+            # Very restrictive pattern so we don't accidentally match legit errors
+            pattern = r"^{}\(\) missing 1 required positional argument: '\S*?id'$".format(func.__name__)
+            if re.fullmatch(pattern, str(e)):
+                # NOTE: We are NOT logging the exception if the user entered an invalid URL
+                message = 'Looks like you tried to access a page without all the query parameters. '\
+                          'Please go back and try again.'
+                raise HTTPRedirect("../common/invalid?message={}", message)
+            else:
+                raise
+
         else:
             try:
                 func_name = func.__name__

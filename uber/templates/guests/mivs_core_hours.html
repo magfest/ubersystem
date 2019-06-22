@@ -1,0 +1,21 @@
+{% extends "guestbase.html" %}
+
+{% block body %}
+
+  <h3>Accept Core Hours</h3>
+  Core Hours are:
+  <ul>
+    <li>Thursday : 1pm - 7pm</li>
+    <li>Friday : 12pm - 7pm</li>
+    <li>Saturday : 12pm - 7pm</li>
+    <li>Sunday: 12pm - 2pm</li>
+  </ul>
+
+  <p>In exchange for your space and two free badges, MIVS expects your studio to have your booth area up-and-running during core hours. You also must have at least one representative from your studio present, in your booth, during core hours. Exceptions are made for booths manned with just one person, such as short bathroom breaks or super-quick food runs, but we request you alert a volunteer before leaving the EXPO hall and in general we recommend against having only one representative for your studio manning your booth, because it can be quite a burden. We take core hours seriously, because it's YOU the attendees paid to see; not empty booths.</p>
+
+  <form class="form form-horizontal" method="post" action="mivs_core_hours">
+    <input type="hidden" name="guest_id" value="{{ guest.id }}"/>
+    <strong>I accept. I will have someone at my booth during core hours.</strong>
+    <br/><button type="submit" class="btn btn-primary">Accept Core Hours</button>
+  </form>
+{% endblock body %}

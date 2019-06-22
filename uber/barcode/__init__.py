@@ -123,9 +123,7 @@ def get_badge_num_from_barcode(barcode_num, salt=None, key=None, event_id=None, 
     result['badge_num'] = struct.unpack('>I', badge_bytes)[0] - salt
 
     if verify_event_id_matches and result['event_id'] != event_id:
-        raise ValueError(
-            "error: event_id of decrypted barcode doesn't match our event ID."
-            "expected: " + str(event_id) + " got: " + str(result['event_id']))
+        raise ValueError('unrecognized event id: {}'.format(result['event_id']))
 
     return result
 
@@ -157,7 +155,7 @@ def verify_barcode_is_valid_code128_charset(str):
 
 def assert_is_valid_rams_barcode(barcode):
     if not verify_is_valid_rams_barcode(barcode):
-        raise ValueError("barcode validation error: invalid format for RAMS barcode: '{}'".format(barcode))
+        raise ValueError("barcode validation error: invalid format for barcode: {}".format(barcode))
 
 
 def _barcode_raw_encrypt(value, key):
@@ -230,7 +228,7 @@ def _barcode_raw_decrypt(value, key):
         uber.barcode.skip32.skip32(key, decrytped, _encrypt)
     except Exception as e:
         raise ValueError(
-            "Failed to decrypt barcode. check secret_key, event_id, and whether this barcode is from this event") from e
+            "Failed to decrypt barcode: check secret_key, event_id, and whether this barcode is from this event") from e
 
     if len(decrytped) != 4:
         raise ValueError("Invalid barcode decryption: output result was not exactly 4 bytes")

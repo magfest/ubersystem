@@ -1,0 +1,42 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Promo Code Groups{% endblock %}
+{% block content %}
+  <h1>Promo Code Groups <a class="btn btn-primary" href="add_group">Add a Group</a></h1>
+
+  <div class="table-responsive">
+    <table id="group-table" class="table table-striped datatable" data-info="false" data-page-length="-1">
+      <thead>
+      <tr>
+        <th>Group Name</th>
+        <th>Group Buyer</th>
+        <th>Group Promo Code</th>
+        <th>Promo Codes (Total)</th>
+        <th>Used Promo Codes</th>
+        <th>Total Cost</th>
+        <th>Amount Owed*</th>
+      </tr>
+      </thead>
+      <tbody>
+      {% for group in groups -%}
+        <tr id="{{ group.id }}">
+          <td data-order="{{ group.name }}">
+            <a href="../groups/promo_code_group_form?id={{ group.id }}">{{ group.name }}</a>
+          </td>
+          <td data-order="{{ group.buyer.full_name }}">
+            {{ group.buyer|form_link }}
+          </td>
+          <td>{{ group.code }}</td>
+          <td>{{ group.promo_codes|length }}</td>
+          <td>{{ group.promo_codes|length - group.valid_codes|length }}</td>
+          <td>{{ group.total_cost }}</td>
+          <td>{{ group.buyer.amount_unpaid }}</td>
+        </tr>
+      {% endfor -%}
+      </tbody>
+      <tfoot>
+      <tr><td colspan="7"><span class="help-block">*This is the group buyer's total amount unpaid and may include items besides the promo code group.</span></td></tr>
+      </tfoot>
+    </table>
+  </div>
+
+{% endblock %}

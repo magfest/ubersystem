@@ -10,6 +10,7 @@ from sideboard.lib import on_startup
 from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey, UniqueConstraint
 from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from uber.config import c
 from uber.decorators import presave_adjustment
@@ -36,6 +37,8 @@ class ReviewMixin:
 
 class IndieJudge(MagModel, ReviewMixin):
     admin_id = Column(UUID, ForeignKey('admin_account.id'))
+    status = Column(Choice(c.MIVS_JUDGE_STATUS_OPTS), default=c.UNCONFIRMED)
+    no_game_submission = Column(Boolean, nullable=True)
     genres = Column(MultiChoice(c.MIVS_INDIE_JUDGE_GENRE_OPTS))
     platforms = Column(MultiChoice(c.MIVS_INDIE_PLATFORM_OPTS))
     platforms_text = Column(UnicodeText)
@@ -79,6 +82,16 @@ class IndieStudio(MagModel):
     staff_notes = Column(UnicodeText, admin_only=True)
     registered = Column(UTCDateTime, server_default=utcnow())
 
+    accepted_core_hours = Column(Boolean, default=False)
+    discussion_emails = Column(UnicodeText)
+    completed_discussion = Column(Boolean, default=False)
+    read_handbook = Column(Boolean, default=False)
+    training_password = Column(UnicodeText)
+    selling_at_event = Column(Boolean, nullable=True, admin_only=True)  # "Admin only" preserves null default
+    needs_hotel_space = Column(Boolean, nullable=True, admin_only=True)  # "Admin only" preserves null default
+    name_for_hotel = Column(UnicodeText)
+    email_for_hotel = Column(UnicodeText)
+
     games = relationship(
         'IndieGame', backref='studio', order_by='IndieGame.title')
     developers = relationship(
@@ -87,6 +100,19 @@ class IndieStudio(MagModel):
         order_by='IndieDeveloper.last_name')
 
     email_model_name = 'studio'
+
+    @property
+    def primary_contact_first_names(self):
+        if len(self.primary_contacts) == 1:
+            return self.primary_contacts[0].first_name
+
+        string = self.primary_contacts[0].first_name
+        for dev in self.primary_contacts[1:-1]:
+            string += ", " + dev.first_name
+        if len(self.primary_contacts) > 2:
+            string += ","
+        string += " and " + self.primary_contacts[-1].first_name
+        return string
 
     @property
     def confirm_deadline(self):
@@ -100,16 +126,82 @@ class IndieStudio(MagModel):
         return self.confirm_deadline < localized_now()
 
     @property
+    def discussion_emails_list(self):
+        return list(filter(None, self.discussion_emails.split(',')))
+
+    @property
+    def core_hours_status(self):
+        return "Accepted" if self.accepted_core_hours else None
+
+    @property
+    def discussion_status(self):
+        return "Completed" if self.completed_discussion else None
+
+    @property
+    def handbook_status(self):
+        return "Read" if self.read_handbook else None
+
+    @property
+    def training_status(self):
+        if self.training_password:
+            return "Completed" if self.training_password.lower() == c.MIVS_TRAINING_PASSWORD.lower()\
+                else "Entered the wrong phrase!"
+
+    @property
+    def selling_at_event_status(self):
+        if self.selling_at_event is not None:
+            return "Expressed interest in selling" if self.selling_at_event else "Opted out"
+
+    @property
+    def hotel_space_status(self):
+        if self.needs_hotel_space is not None:
+            return "Requested hotel space for {} with email {}".format(self.name_for_hotel, self.email_for_hotel)\
+                if self.needs_hotel_space else "Opted out"
+
+    def checklist_deadline(self, slug):
+        default_deadline = c.MIVS_CHECKLIST[slug]['deadline']
+        if self.group and self.group.registered >= default_deadline and slug != 'hotel_space':
+            return self.group.registered + timedelta(days=3)
+        return default_deadline
+
+    def past_checklist_deadline(self, slug):
+        """
+
+        Args:
+            slug: A standardized name, which should match the checklist's section name in config.
+            E.g., the properties above ending in _status
+
+        Returns: A timedelta object representing how far from the deadline this team is for a particular checklist item
+
+        """
+        return localized_now() - self.checklist_deadline(slug)
+
+    @property
+    def checklist_items_due_soon_grouped(self):
+        two_days = []
+        one_day = []
+        overdue = []
+        for key, val in c.MIVS_CHECKLIST.items():
+            if localized_now() >= self.checklist_deadline(key):
+                overdue.append([val['name'], "mivs_" + key])
+            elif (localized_now() - timedelta(days=1)) >= self.checklist_deadline(key):
+                one_day.append([val['name'], "mivs_" + key])
+            elif (localized_now() - timedelta(days=2)) >= self.checklist_deadline(key):
+                two_days.append([val['name'], "mivs_" + key])
+
+        return two_days, one_day, overdue
+
+    @property
     def website_href(self):
         return make_url(self.website)
 
     @property
     def email(self):
-        return [dev.email for dev in self.developers if dev.primary_contact]
+        return [dev.email_to_address for dev in self.developers if dev.primary_contact]
 
     @property
-    def primary_contact(self):
-        return [dev for dev in self.developers if dev.primary_contact][0]
+    def primary_contacts(self):
+        return [dev for dev in self.developers if dev.primary_contact]
 
     @property
     def submitted_games(self):
@@ -136,6 +228,20 @@ class IndieDeveloper(MagModel):
     last_name = Column(UnicodeText)
     email = Column(UnicodeText)
     cellphone = Column(UnicodeText)
+
+    @property
+    def email_to_address(self):
+        # Note: this doesn't actually do what we want right now
+        # because the IndieDeveloper and attendee are not properly linked
+        if self.matching_attendee:
+            return self.matching_attendee.email
+        return self.email
+
+    @property
+    def cellphone_num(self):
+        if self.matching_attendee:
+            return self.matching_attendee.cellphone
+        return self.cellphone
 
     @property
     def full_name(self):
@@ -346,6 +452,45 @@ class IndieGame(MagModel, ReviewMixin):
             and self.studio \
             and self.studio.group_id
 
+    @hybrid_property
+    def has_been_accepted(self):
+        return self.status == c.ACCEPTED
+
+    @property
+    def guidebook_name(self):
+        return self.studio.name
+
+    @property
+    def guidebook_subtitle(self):
+        return self.title
+
+    @property
+    def guidebook_desc(self):
+        return self.description
+
+    @property
+    def guidebook_location(self):
+        return ''
+
+    @property
+    def guidebook_image(self):
+        return self.best_screenshot_download_filenames()[0]
+
+    @property
+    def guidebook_thumbnail(self):
+        return self.best_screenshot_download_filenames()[1] \
+            if len(self.best_screenshot_download_filenames()) > 1 else self.best_screenshot_download_filenames()[0]
+
+    @property
+    def guidebook_images(self):
+        image_filenames = [self.best_screenshot_download_filenames()[0]]
+        images = [self.best_screenshot_downloads()[0]]
+        if self.guidebook_image != self.guidebook_thumbnail:
+            image_filenames.append(self.guidebook_thumbnail)
+            images.append(self.best_screenshot_downloads()[1])
+
+        return image_filenames, images
+
 
 class IndieGameImage(MagModel):
     game_id = Column(UUID, ForeignKey('indie_game.id'))
@@ -386,10 +531,12 @@ class IndieGameReview(MagModel):
         Choice(c.MIVS_GAME_REVIEW_STATUS_OPTS), default=c.PENDING)
     game_content_bad = Column(Boolean, default=False)
     video_score = Column(Choice(c.MIVS_VIDEO_REVIEW_OPTS), default=c.PENDING)
+    video_review = Column(UnicodeText)
 
     # 0 = not reviewed, 1-10 score (10 is best)
-    game_score = Column(Integer, default=0)
-    video_review = Column(UnicodeText)
+    readiness_score = Column(Integer, default=0)
+    design_score = Column(Integer, default=0)
+    enjoyment_score = Column(Integer, default=0)
     game_review = Column(UnicodeText)
     developer_response = Column(UnicodeText)
     staff_notes = Column(UnicodeText)
@@ -403,8 +550,12 @@ class IndieGameReview(MagModel):
     def no_score_if_broken(self):
         if self.has_video_issues:
             self.video_score = c.PENDING
-        if self.has_game_issues:
-            self.game_score = 0
+
+    @property
+    def game_score(self):
+        if self.has_game_issues or not (self.readiness_score and self.design_score and self.enjoyment_score):
+            return 0
+        return sum([self.readiness_score, self.design_score, self.enjoyment_score]) / float(3)
 
     @property
     def has_video_issues(self):

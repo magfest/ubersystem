@@ -152,7 +152,8 @@ class TestRegisterGroupMember(object):
             comments='What is even happening?',
             interests=[str(c.ARCADE), str(c.CONSOLE)],
             badge_printed_name='',
-            id='None')
+            id='None',
+            pii_consent='1')
 
         with Session() as session:
             group = session.query(Group).get(duplicate_badge_num_preconditions)

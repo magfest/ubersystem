@@ -9,6 +9,7 @@ from uber import config
 from uber.config import c
 from uber.models import Attendee, Department, DeptMembership, DeptMembershipRequest, DeptRole, FoodRestrictions, \
     Group, Job, Session, Shift
+from uber.models.commerce import StripeTransaction, StripeTransactionAttendee
 from uber.model_checks import extra_donation_valid, _invalid_phone_number
 
 
@@ -77,6 +78,10 @@ class TestCosts:
         assert 5 == Attendee(amount_extra=5).total_cost
         assert 10 == Attendee(overridden_price=10).total_cost
         assert 15 == Attendee(overridden_price=10, amount_extra=5).total_cost
+
+    def test_age_discount_doesnt_stack(self, monkeypatch):
+        monkeypatch.setattr(Attendee, 'age_group_conf', {'discount': 5})
+        assert 10 == Attendee(badge_type=c.ONE_DAY_BADGE).badge_cost
 
 
 class TestHalfPriceAgeDiscountCosts:
@@ -239,6 +244,74 @@ def test_is_not_transferable_trusted(monkeypatch, dept, trusted_role):
         session.add_all([attendee, dept, trusted_role, dept_membership])
         session.flush()
         assert not attendee.is_transferable
+
+
+@pytest.mark.parametrize('open,expected', [
+    (lambda s: False, False),
+    (lambda s: True, True),
+])
+def test_self_service_refunds_if_on(monkeypatch, open, expected):
+    monkeypatch.setattr(config.Config, 'SELF_SERVICE_REFUNDS_OPEN',
+                        property(open))
+    attendee = Attendee(paid=c.HAS_PAID, amount_paid=10)
+    txn = StripeTransaction(amount=1000)
+    attendee.stripe_txn_share_logs = [
+        StripeTransactionAttendee(attendee_id=attendee.id, txn_id=txn.id, share=1000)]
+    assert attendee.can_self_service_refund_badge == expected
+
+
+@pytest.mark.parametrize('paid,expected', [
+    (c.NEED_NOT_PAY, False),
+    (c.REFUNDED, False),
+    (c.NOT_PAID, True),
+    (c.PAID_BY_GROUP, True),
+    (c.HAS_PAID, True)
+])
+def test_self_service_refunds_payment_status(monkeypatch, paid, expected):
+    monkeypatch.setattr(config.Config, 'SELF_SERVICE_REFUNDS_OPEN',
+                        property(lambda s: True))
+    attendee = Attendee(paid=paid, amount_paid=10)
+    txn = StripeTransaction(amount=1000)
+    attendee.stripe_txn_share_logs = [
+        StripeTransactionAttendee(attendee_id=attendee.id, txn_id=txn.id, share=1000)]
+    assert attendee.can_self_service_refund_badge == expected
+
+
+@pytest.mark.parametrize('amount_paid,checked_in,expected', [
+    (0, False, False),
+    (-10, False, False),
+    (None, False, None),
+    (10, True, False),
+    (10, False, True),
+])
+def test_self_service_refunds_misc(monkeypatch, amount_paid, checked_in, expected):
+    monkeypatch.setattr(config.Config, 'SELF_SERVICE_REFUNDS_OPEN',
+                        property(lambda s: True))
+    attendee = Attendee(paid=c.HAS_PAID, amount_paid=amount_paid)
+    txn = StripeTransaction(amount=1000)
+    attendee.stripe_txn_share_logs = [
+        StripeTransactionAttendee(attendee_id=attendee.id, txn_id=txn.id, share=1000)]
+    attendee.checked_in = checked_in
+    assert attendee.can_self_service_refund_badge == expected
+
+
+def test_self_service_refunds_no_stripe(monkeypatch):
+    monkeypatch.setattr(config.Config, 'SELF_SERVICE_REFUNDS_OPEN',
+                        property(lambda s: True))
+    attendee = Attendee(paid=c.HAS_PAID, amount_paid=10)
+    attendee.stripe_txn_share_logs = []
+    assert not attendee.can_self_service_refund_badge
+
+
+def test_self_service_refunds_group_leader(monkeypatch):
+    monkeypatch.setattr(config.Config, 'SELF_SERVICE_REFUNDS_OPEN',
+                        property(lambda s: True))
+    attendee = Attendee(paid=c.HAS_PAID, amount_paid=10)
+    attendee.group = Group(leader_id=attendee.id)
+    txn = StripeTransaction(amount=1000)
+    attendee.stripe_txn_share_logs = [
+        StripeTransactionAttendee(attendee_id=attendee.id, txn_id=txn.id, share=1000)]
+    assert not attendee.can_self_service_refund_badge
 
 
 def test_has_role_somewhere(dept, trusted_role):

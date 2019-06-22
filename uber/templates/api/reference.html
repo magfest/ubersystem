@@ -141,7 +141,7 @@
             $output = $form.parent().find('.output');
 
         var print = function(text) {
-          $output.append(text + '\n');
+          $output.append(_.escape(text) + '\n');
         };
 
         var handleError = function(message) {
@@ -176,7 +176,8 @@
               }
             },
             error: function (xhr, textStatus, errorThrown) {
-              handleError('Error ' + xhr.status + ': ' + xhr.statusText);
+              print('Error ' + xhr.status + ': ' + xhr.statusText);
+              handleError(xhr.responseJSON || xhr.responseText);
             },
             beforeSend: function(xhr, settings) {
               print(this.type + ' ' + this.url);
@@ -205,9 +206,10 @@
   <div class="row">
     <div class="col-sm-6 prose-column">
       <p>
-        The API is based around JSON RPC. API calls should be made using HTTP
-        POST requests. The request body should be a JSON formatted string
-        including the following properties:
+        The API is based on JSON-RPC, and conforms to the
+        <a href="https://www.jsonrpc.org/specification">JSON-RPC spec</a>.
+        API calls should be made using HTTP POST requests. The request body
+        should be a JSON formatted string including the following properties:
       </p>
       <dl>
         <div>
@@ -253,6 +255,19 @@
       "id": "{{ admin_account.attendee.id }}"
     }
   ]
+}
+</pre>
+      </div>
+      <div class="example">
+        <label>Example Error Body</label>
+        <pre>
+{
+  "id": null,
+  "jsonrpc": "2.0",
+  "error": {
+    "code": -32603,
+    "message": "Unexpected error"
+  }
 }
 </pre>
       </div>
@@ -302,6 +317,21 @@
         <label>Using Curl</label>
         <pre class="code">curl -v -k -d '{"method": "config.info"}' -H "X-Auth-Token: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" -w "\n" {{ c.URL_BASE }}/jsonrpc/</pre>
       </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-sm-6 prose-column">
+      <h3>Note on 404 Not Found</h3>
+      <p>
+        Methods that are expected to return a single specific object, like
+        <code>attendee.lookup</code>, will raise a <em>404 Not Found</em>
+        if the object is not found.
+      </p>
+      <p>
+        Methods that are expected to return many objects, like
+        <code>attendee.search</code>, will return <em>200 OK</em>
+        with an empty array if no matching objects are found.
+      </p>
     </div>
   </div>
   {%-

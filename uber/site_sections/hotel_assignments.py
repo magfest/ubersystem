@@ -2,6 +2,7 @@ from collections import defaultdict, OrderedDict
 from datetime import timedelta
 
 import cherrypy
+from sqlalchemy import or_
 from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
@@ -64,6 +65,7 @@ class Root:
     @ajax
     def edit_room(self, session, **params):
         params['nights'] = list(filter(bool, [params.pop(night, None) for night in c.NIGHT_NAMES]))
+        params['locked_in'] = str(params.get('locked_in', 'false')).lower() == 'true'
         session.room(params)
         session.commit()
         return _hotel_dump(session)
@@ -176,6 +178,39 @@ class Root:
                 writerow(a, a.hotel_requests)
 
     @csv_file
+    def hotel_email_info(self, out, session):
+        fields = [
+            'CheckIn Date', 'CheckOut Date', 'Number of Guests', 'Room Notes',
+            'Guest1 First Name', 'Guest1 Last Name', 'Guest1 Legal Name',
+            'Guest2 First Name', 'Guest2 Last Name', 'Guest2 Legal Name',
+            'Guest3 First Name', 'Guest3 Last Name', 'Guest3 Legal Name',
+            'Guest4 First Name', 'Guest4 Last Name', 'Guest4 Legal Name',
+            'Guest5 First Name', 'Guest5 Last Name', 'Guest5 Legal Name',
+            'Emails',
+        ]
+
+        blank = OrderedDict([(field, '') for field in fields])
+        out.writerow(fields)
+        for room in session.query(Room).order_by(Room.created).all():
+            if room.assignments:
+                row = blank.copy()
+                row.update({
+                    'Room Notes': room.notes,
+                    'Number of Guests': min(4, len(room.assignments)),
+                    'CheckIn Date': room.check_in_date.strftime('%m/%d/%Y'),
+                    'CheckOut Date': room.check_out_date.strftime('%m/%d/%Y'),
+                    'Emails': ','.join(room.email),
+                })
+                for i, attendee in enumerate([ra.attendee for ra in room.assignments[:4]]):
+                    prefix = 'Guest{}'.format(i + 1)
+                    row.update({
+                        prefix + ' First Name': attendee.first_name,
+                        prefix + ' Last Name': attendee.last_name,
+                        prefix + ' Legal Name': attendee.legal_name,
+                    })
+                out.writerow(list(row.values()))
+
+    @csv_file
     def mark_center(self, out, session):
         """spreadsheet in the format requested by the Hilton Mark Center"""
         out.writerow([
@@ -200,7 +235,8 @@ class Root:
             'First Name 3',
             'Last Name 4',
             'First Name 4',
-            'comments'
+            'Comments',
+            'Emails',
         ])
         for room in session.query(Room).order_by(Room.created).all():
             if room.assignments:
@@ -230,62 +266,78 @@ class Root:
                     '',                     # Credit Card Number
                     ''                      # Credit Card Expiration
                 ] + sum(roommates, []) + [  # Last Name, First Name 2-4
-                    room.notes              # comments
+                    room.notes,             # Comments
+                    ','.join(room.email),   # Emails
                 ])
 
     @csv_file
     def gaylord(self, out, session):
         fields = [
-            'AttendeeType', 'RecordID',
-            'CheckInDate', 'CheckOutDate', 'NumberofGuests',
-            'HotelName', 'RoomType',
-            'Guest1CheckInDate', 'Guest1CheckOutDate', 'Guest1Title', 'Guest1FirstName', 'Guest1MiddleName', 'Guest1LastName', 'Guest1Suffix', 'Guest1Surname', 'Guest1GivenName', 'Guest1Locale', 'Guest1CompanyName', 'Guest1Position', 'Guest1Address1', 'Guest1Address2', 'Guest1City', 'Guest1State', 'Guest1PostalCode', 'Guest1Country', 'Guest1Phone ', 'Guest1Fax', 'Guest1Email',  # noqa: E501
-            'SpecialRequest', 'AccessibleRoom', 'SmokingPreference', 'SendAcknowledgement', 'GuaranteeType', 'BillingCardNumber', 'BillingCardExpiration', 'BillingCardType', 'BillingName', 'BillingAddress1', 'BillingAddress2', 'BillingCity', 'BillingState', 'BillingPostalCode', 'BillingCountry', 'BillingPhone', 'BillingOtherNotes', 'BillingOtherAmount', 'BillingOtherReceived', 'BillingOtherCheckNumber',  # noqa: E501
-            'Guest2CheckInDate', 'Guest2CheckOutDate', 'Guest2Title', 'Guest2FirstName', 'Guest2MiddleName', 'Guest2LastName', 'Guest2Suffix', 'Guest2Surname', 'Guest2GivenName', 'Guest2Position', 'Guest2Email', 'Guest2BillingName', 'Guest2BillingCardNumber', 'Guest2BillingCardExpiration', 'Guest2BillingCardType',  # noqa: E501
-            'Guest3CheckInDate', 'Guest3CheckOutDate', 'Guest3Title', 'Guest3FirstName', 'Guest3MiddleName', 'Guest3LastName', 'Guest3Suffix', 'Guest3Surname', 'Guest3GivenName', 'Guest3Position', 'Guest3Email', 'Guest3BillingName', 'Guest3BillingCardNumber', 'Guest3BillingCardExpiration', 'Guest3BillingCardType',  # noqa: E501
-            'Guest4CheckInDate', 'Guest4CheckOutDate', 'Guest4Title', 'Guest4FirstName', 'Guest4MiddleName', 'Guest4LastName', 'Guest4Suffix', 'Guest4Surname', 'Guest4GivenName', 'Guest4Position', 'Guest4Email', 'Guest4BillingName', 'Guest4BillingCardNumber', 'Guest4BillingCardExpiration', 'Guest4BillingCardType',  # noqa: E501
-            'Guest5CheckInDate', 'Guest5CheckOutDate', 'Guest5Title', 'Guest5FirstName', 'Guest5MiddleName', 'Guest5LastName', 'Guest5Suffix', 'Guest5Surname', 'Guest5GivenName', 'Guest5Position', 'Guest5Email', 'Guest5BillingName', 'Guest5BillingCardNumber', 'Guest5BillingCardExpiration', 'Guest5BillingCardType',  # noqa: E501
-            'AcknowledgementNumber', 'ReservationTotalCharge', 'Ext RefrenceID',
-            'CustomField1', 'CustomField2', 'CustomField3', 'CustomField4', 'CustomField5', 'CustomField6', 'CustomField7', 'CustomField8', 'CustomField9', 'CustomField10', 'CustomField11', 'CustomField12', 'CustomField13', 'CustomField14', 'CustomField15',  # noqa: E501
-            'SplitFolio',
-            'Guest1ArrivalDate', 'Guest1ArrivalTime', 'Guest1ArrivalAirline', 'Guest1ArrivalFlightNumber', 'Guest1DepartureDate', 'Guest1DepartureTime', 'Guest1DepartureAirline', 'Guest1DepartureFlightNumber', 'Guest1OtherTravelDetails', 'Guest1Transportation',  # noqa: E501
-            'Guest2ArrivalDate', 'Guest2ArrivalTime', 'Guest2ArrivalAirline', 'Guest2ArrivalFlightNumber', 'Guest2DepartureDate', 'Guest2DepartureTime', 'Guest2DepartureAirline', 'Guest2DepartureFlightNumber', 'Guest2OtherTravelDetails', 'Guest2Transportation',  # noqa: E501
-            'Guest3ArrivalDate', 'Guest3ArrivalTime', 'Guest3ArrivalAirline', 'Guest3ArrivalFlightNumber', 'Guest3DepartureDate', 'Guest3DepartureTime', 'Guest3DepartureAirline', 'Guest3DepartureFlightNumber', 'Guest3OtherTravelDetails', 'Guest3Transportation',  # noqa: E501
-            'Guest4ArrivalDate', 'Guest4ArrivalTime', 'Guest4ArrivalAirline', 'Guest4ArrivalFlightNumber', 'Guest4DepartureDate', 'Guest4DepartureTime', 'Guest4DepartureAirline', 'Guest4DepartureFlightNumber', 'Guest4OtherTravelDetails', 'Guest4Transportation',  # noqa: E501
-            'Guest5ArrivalDate', 'Guest5ArrivalTime', 'Guest5ArrivalAirline', 'Guest5ArrivalFlightNumber', 'Guest5DepartureDate', 'Guest5DepartureTime', 'Guest5DepartureAirline', 'Guest5DepartureFlightNumber', 'Guest5OtherTravelDetails', 'Guest5Transportation',  # noqa: E501
+            'First Name', 'Last Name', 'Guest Email Address for confirmation purposes', 'Special Requests',
+            'Arrival', 'Departure', 'City', 'State', 'Zip', 'GUEST COUNTRY', 'Telephone',
+            'Payment Type', 'Card #', 'Exp.',
+            'BILLING ADDRESS', 'BILLING CITY', 'BILLING STATE', 'BILLING ZIP CODE', 'BILLING COUNTRY',
+            'Additional Guest First Name-2', 'Additional Guest Last Name-2',
+            'Additional Guest First Name-3', 'Additional Guest Last Name3',  # No, this is not a typo
+            'Additional Guest First Name-4', 'Additional Guest Last Name-4',
+            'Notes', 'Emails',
         ]
 
         blank = OrderedDict([(field, '') for field in fields])
-        blank['RoomType'] = 'Q2'
         out.writerow(fields)
         for room in session.query(Room).order_by(Room.created).all():
             if room.assignments:
                 row = blank.copy()
                 row.update({
-                    'CustomField1': room.notes,
-                    'NumberofGuests': min(4, len(room.assignments)),
-                    'CheckInDate': room.check_in_date.strftime('%m/%d/%Y'),
-                    'CheckOutDate': room.check_out_date.strftime('%m/%d/%Y')
+                    'Notes': room.notes,
+                    'Arrival': room.check_in_date.strftime('%m/%d/%Y'),
+                    'Departure': room.check_out_date.strftime('%m/%d/%Y'),
+                    'Emails': ','.join(room.email),
                 })
-                for i, attendee in enumerate([ra.attendee for ra in room.assignments[:4]]):
-                    prefix = 'Guest{}'.format(i + 1)
+                for i, attendee in enumerate([ra.attendee for ra in room.assignments[0:4]]):
+                    if i == 0:
+                        prefix, suffix = '', ''
+                        row.update({'Guest Email Address for confirmation purposes': attendee.email})
+                    else:
+                        prefix = 'Additional Guest'
+                        suffix = '-{}'.format(i+1) if i != 2 else str(i+1)
                     row.update({
-                        prefix + 'FirstName': attendee.legal_first_name,
-                        prefix + 'LastName': attendee.legal_last_name
+                        prefix + 'First Name' + suffix: attendee.legal_first_name,
+                        prefix + 'Last Name' + suffix: attendee.legal_last_name
                     })
                 out.writerow(list(row.values()))
 
     @csv_file
     def requested_hotel_info(self, out, session):
-        hotel_query = session.query(Attendee).filter(
-            Attendee.badge_status != c.INVALID_STATUS,
-            Attendee.requested_hotel_info == True,
-            Attendee.first_name != '')  # noqa: E712
+        eligibility_filters = []
+        if c.PREREG_REQUEST_HOTEL_INFO_DURATION > 0:
+            eligibility_filters.append(Attendee.requested_hotel_info == True)  # noqa: E711
+        if c.PREREG_HOTEL_ELIGIBILITY_CUTOFF:
+            eligibility_filters.append(Attendee.registered <= c.PREREG_HOTEL_ELIGIBILITY_CUTOFF)
 
-        attendees_without_hotel_pin = hotel_query.filter(Attendee.hotel_pin == None).all()  # noqa: E711
+        hotel_query = session.query(Attendee).filter(*eligibility_filters).filter(
+            Attendee.badge_status.notin_([c.INVALID_STATUS, c.REFUNDED_STATUS]),
+            Attendee.email != '',
+        )  # noqa: E712
+
+        attendees_without_hotel_pin = hotel_query.filter(*eligibility_filters).filter(or_(
+            Attendee.hotel_pin == None,
+            Attendee.hotel_pin == '',
+        )).all()  # noqa: E711
+
         if attendees_without_hotel_pin:
+            hotel_pin_rows = session.query(Attendee.hotel_pin).filter(*eligibility_filters).filter(
+                Attendee.hotel_pin != None,
+                Attendee.hotel_pin != '',
+            ).all()  # noqa: E711
+
+            hotel_pins = set(map(lambda r: r[0], hotel_pin_rows))
             for a in attendees_without_hotel_pin:
-                a.hotel_pin = _generate_hotel_pin()
+                new_hotel_pin = _generate_hotel_pin()
+                while new_hotel_pin in hotel_pins:
+                    new_hotel_pin = _generate_hotel_pin()
+                hotel_pins.add(new_hotel_pin)
+                a.hotel_pin = new_hotel_pin
             session.commit()
 
         out.writerow(['First Name', 'Last Name', 'E-mail Address', 'Password'])

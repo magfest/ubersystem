@@ -214,3 +214,7 @@ ul.ui-autocomplete {
     overflow-x: hidden;
     overflow-y: auto;
 }
+
+.tooltip-wrapper {
+ display: inline-block;
+}

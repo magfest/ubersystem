@@ -3,8 +3,23 @@
 {% block content %}
 
 <style>
-  h2 {margin-bottom: 0;}
+  h2 {
+    margin-bottom: 0;
+  }
+
+  table.table > tbody > tr.danger > td {
+    border-top: 1px solid #f28e8e;
+  }
+
+  .pending .subject {
+    color: #e00000;
+  }
+
+  .pending .subject span {
+    font-weight: bold;
+  }
 </style>
+
 
 {% macro email_table(emails) %}
   <table class="table table-striped datatable"
@@ -24,8 +39,17 @@
     </thead>
     <tbody>
       {% for email in emails %}
-        <tr>
-          <td>{{ email.subject }}</td>
+        {% set is_pending = email.unapproved_count > 0 and not email.approved %}
+        <tr class="{% if is_pending %}pending{% endif %}">
+          <td class="subject">
+            <span>{{ email.subject }}</span>
+            {% if is_pending %}
+              <br>
+              {{ email.unapproved_count }}
+              pending email{{ email.unapproved_count|pluralize }}
+              require{{ email.unapproved_count|pluralize('s', '') }} approval
+            {% endif %}
+          </td>
           <td>{{ email.sender }}</td>
           <td>{{ email.sent_email_count }}</td>
           <td>{{ email.unapproved_count }}</td>
@@ -38,14 +62,14 @@
                     <form method="post" action="approve">
                     {{ csrf_token() }}
                     <input type="hidden" name="ident" value="{{ email.ident }}" />
-                    <input type="submit" value="Approve" />
+                    <input type="submit" value="Approve" class="btn btn-sm btn-success"/>
                     </form>
                 {% else %}
                     Approved
                     <form method="post" action="unapprove">
                     {{ csrf_token() }}
                     <input type="hidden" name="ident" value="{{ email.ident }}" />
-                    <input type="submit" value="Undo Approval" />
+                    <input type="submit" value="Undo Approval" class="btn btn-sm btn-warning"/>
                     </form>
                 {% endif %}
             {% endif %}
@@ -57,23 +81,18 @@
 </table>
 {% endmacro %}
 
-{% if not pending_emails and not automated_emails %}
-  <h2>Automated Emails</h2>
-  <br>
+<h2>Automated Emails</h2>
+<br>
+{% if not automated_emails %}
   <p class="text-info">
     There are currently no automated emails. The system is probably updating,
     and should be finished in at most 5 minutes.
   </p>
 {% else %}
-  {% if pending_emails %}
-    <h2>Automated Emails - Pending Approval</h2>
-    {{ email_table(pending_emails) }}
-    <br><br>
-  {% endif %}
-  {% if automated_emails %}
-    <h2>Automated Emails</h2>
-    {{ email_table(automated_emails) }}
-  {% endif %}
+  {% for sender, emails in automated_emails.items() %}
+    <h3>{{ sender }}</h3>
+    {{ email_table(emails) }}
+  {% endfor %}
 {% endif %}
 
 {% endblock %}

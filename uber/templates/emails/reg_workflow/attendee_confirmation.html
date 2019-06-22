@@ -62,13 +62,8 @@ Badges are not mailed out before the event, so your badge will be available for 
 
 {% include "emails/reg_workflow/reg_notes.html" %}
 
-{% if attendee.is_transferable %}
-    <br/> <br/>
-    {{ c.EVENT_NAME }} has a no-refund policy for all registrations.  If for any reason you can't make it, we allow and encourage
-    you to resell your registration for the exact price you paid for it.  To transfer your registration to another person,
-    send them <a href="{{ c.URL_BASE }}/preregistration/transfer_badge?id={{ attendee.id }}">this personalized link</a>,
-    which will work until {{ c.UBER_TAKEDOWN|datetime_local }}.
-{% endif %}
+<br/><br/>
+{% include "emails/reg_workflow/refund_policy.html" %}
 
 </body>
 </html>

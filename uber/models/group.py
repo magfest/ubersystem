@@ -36,10 +36,14 @@ class Group(MagModel, TakesPaymentMixin):
     categories_text = Column(UnicodeText)
     description = Column(UnicodeText)
     special_needs = Column(UnicodeText)
+
     amount_paid = Column(Integer, default=0, index=True, admin_only=True)
     amount_refunded = Column(Integer, default=0, admin_only=True)
     cost = Column(Integer, default=0, admin_only=True)
     auto_recalc = Column(Boolean, default=True, admin_only=True)
+    stripe_txn_share_logs = relationship('StripeTransactionGroup',
+                                         backref='group')
+
     can_add = Column(Boolean, default=False, admin_only=True)
     admin_notes = Column(UnicodeText, admin_only=True)
     status = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
@@ -119,8 +123,7 @@ class Group(MagModel, TakesPaymentMixin):
             self.tables
             and self.tables != '0'
             and self.tables != '0.0'
-            and (not self.registered or self.amount_paid or self.cost
-                 or self.status != c.UNAPPROVED))
+            and (not self.registered or self.amount_paid or self.cost))
 
     @is_dealer.expression
     def is_dealer(cls):
@@ -136,7 +139,9 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def email(self):
-        if self.leader and self.leader.email:
+        if self.studio and self.studio.email:
+            return self.studio.email
+        elif self.leader and self.leader.email:
             return self.leader.email
         elif self.leader_id:  # unattached groups
             [leader] = [a for a in self.attendees if a.id == self.leader_id]
@@ -205,7 +210,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def dealer_max_badges(self):
-        return math.ceil(self.tables) + 1
+        return c.MAX_DEALERS or math.ceil(self.tables) + 1
 
     @property
     def dealer_badges_remaining(self):
@@ -228,6 +233,8 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def min_badges_addable(self):
+        if self.is_dealer and not self.dealer_badges_remaining:
+            return 0
         if self.can_add:
             return 1
         elif self.is_dealer:
@@ -265,3 +272,20 @@ class Group(MagModel, TakesPaymentMixin):
 
         physical_address = [address1, address2, city_region_zip, country]
         return '\n'.join([s for s in physical_address if s])
+
+    @property
+    def guidebook_name(self):
+        return self.name
+
+    @property
+    def guidebook_subtitle(self):
+        category_labels = [cat for cat in self.categories_labels if 'Other' not in cat] + [self.categories_text]
+        return ', '.join(category_labels[:5])
+
+    @property
+    def guidebook_desc(self):
+        return self.description
+
+    @property
+    def guidebook_location(self):
+        return ''

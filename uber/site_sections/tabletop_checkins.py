@@ -1,7 +1,9 @@
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload, subqueryload
+from sqlalchemy.sql import label
 
 from uber.config import c
-from uber.decorators import ajax, ajax_gettable, all_renderable
+from uber.decorators import ajax, ajax_gettable, all_renderable, csv_file
 from uber.models import Attendee, TabletopCheckout, TabletopGame
 from uber.utils import localized_now
 
@@ -13,6 +15,38 @@ class Root:
             'games': _games(session),
             'attendees': _attendees(session)
         }
+
+    def checkout_history(self, session, id):
+        return {
+            'game': session.tabletop_game(id),
+        }
+
+    @csv_file
+    def checkout_counts(self, out, session):
+        out.writerow([
+            'Game Code',
+            'Game Name',
+            '# Checkouts',
+        ])
+
+        tt_games_and_counts = session.query(
+            TabletopGame, label('checkout_count', func.count(TabletopCheckout.id)),
+        ).outerjoin(TabletopGame.checkouts).group_by(TabletopGame.id).all()
+
+        all_checkouts_count = 0
+        for result in tt_games_and_counts:
+            game = result[0]
+            all_checkouts_count += result.checkout_count
+            out.writerow([
+                game.code,
+                game.name,
+                result.checkout_count,
+            ])
+        out.writerow([
+            'N/A',
+            'All Games',
+            all_checkouts_count,
+        ])
 
     @ajax_gettable
     def badged_attendees(self, session):

@@ -64,7 +64,7 @@
     {% endif %}
 </script>
 
-<div class="masthead"></div>
+{% include 'prereg_masthead.html' %}
 <div class="panel panel-default">
   <div class="panel-body">
     {% if group.is_dealer %}
@@ -139,7 +139,9 @@
         <td><ul style="margin: 5px 0; padding-right: 0"><li></li></ul></td>
         {% if attendee.first_name %}
             <td style="padding-right: 10px">
-                <a href="confirm?id={{ attendee.id }}">{{ attendee.full_name }}</a>
+                {% if attendee.is_group_leader %}
+                  <a href="confirm?id={{ attendee.id }}">{{ attendee.full_name }}</a>
+                {% else %}{{ attendee.full_name }}{% endif %}
             </td>
             <td style="padding-right: 10px">
                 {{ attendee.email|email_to_link }}
@@ -178,7 +180,11 @@
 {% endfor %}
 </table>
 
-<br/>
+<br/>{% if group.is_dealer and group.min_badges_addable %}
+    You may purchase up to <strong>{{ group.dealer_badges_remaining }}</strong> additional badges.<br/><br/>
+  {% elif group.is_dealer %}
+    Please contact us at <strong>{{ c.MARKETPLACE_EMAIL|email_only|email_to_link }}</strong> if you wish to purchase additional badges.
+  {% endif %}
 
 {% if c.PRE_CON and group.min_badges_addable %}
     <div id="add" style="display:none">

@@ -6,9 +6,9 @@ panels, events, and plans. If you’ve already filled in all your info, thank yo
 <br/><br/>You can get to your checklist from this link:
 <a href="{{ c.URL_BASE }}/guests/index?id={{ guest.id }}" target="_blank">{{ c.URL_BASE }}/guests/index?id={{ guest.id }}</a>
 
-<br/><br/>Please remember that <strong>the deadline to complete the checklist is {{ c.GUEST_INFO_DEADLINE|datetime_local }}</strong>.
+{% if c.BEFORE_GUEST_INFO_DEADLINE %}<br/><br/>Please remember that <strong>the deadline to complete the checklist is {{ c.GUEST_INFO_DEADLINE|datetime_local }}</strong>.{% endif %}
 
 <br/><br/>If you have any questions or run into any snags, hit us up at guests@magfest.org.
 
 <br/><br/>Thanks a bunch!
-<br/>-The Guests/Events Crew
+<br/>-The Guests/MAGMoves Crew

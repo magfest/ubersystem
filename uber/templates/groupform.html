@@ -1,4 +1,26 @@
 {% set attendee_or_group = attendee if attendee else group %}
+
+{% if not c.MAX_DEALERS %}
+  <script type="text/javascript">
+  updateBadgeMax = function() {
+      var new_badge_max = Math.ceil(parseFloat($("select[name=tables]").val())) + 1;
+      var curr_badge_max = parseInt($('select[name=badges] option:last').val());
+      if (curr_badge_max > new_badge_max) {
+          $("select[name=badges] option").slice(new_badge_max, curr_badge_max).remove();
+      } else {
+          for (i = curr_badge_max+1; i < new_badge_max+1; i++) {
+              $("select[name=badges]").append('<option value="'+i+'">'+i+'</option>');
+          }
+      }
+  };
+  $(function() {
+      $("select[name=tables]").on('change', updateBadgeMax);
+      updateBadgeMax();
+  });
+
+  </script>
+{% endif %}
+
 {% if not attendee_or_group.is_dealer %}
     <div class="form-group" id="badge-types">
         <label class="col-sm-3 control-label">Badge Level</label>
@@ -8,7 +30,7 @@
         <div class="form-group">
             <label for="name" class="col-sm-3 control-label">Group Name</label>
             <div class="col-sm-6">
-                <input type="text" name="name" class="form-control" value="{{ group.name }}" />
+                <input type="text" name="name" class="form-control" value="{{ attendee_or_group.name }}" />
             </div>
         </div>
     </div>
@@ -18,7 +40,7 @@
             <div class="form-group">
                 <label for="name" class="col-sm-3 control-label">Badges</label>
                 <div class="col-sm-6">
-                    <select name="badges" class="form-control">{{ int_options(c.MIN_GROUP_SIZE, c.MAX_GROUP_SIZE, badges) }}</select>
+                    <select name="badges" class="form-control">{{ int_options(c.MIN_GROUP_SIZE, c.MAX_GROUP_SIZE, attendee_or_group.badges) }}</select>
                 </div>
                 (${{ c.GROUP_PRICE }} each)
                 {% if c.MIN_GROUP_ADDITION > 1 %}
@@ -97,7 +119,7 @@
         <div class="col-sm-6">
             <textarea class="form-control" name="wares" rows="4">{{ group.wares }}</textarea>
         </div>
-        <p class="help-block col-sm-9 col-sm-offset-3">Please be detailed; include a link to view your wares if possible.</p>
+        <p class="help-block col-sm-9 col-sm-offset-3">Please be detailed; include a link to view your wares. You must include links to what you sell or a portfolio otherwise you will be automatically waitlisted.</p>
     </div>
 
     <div class="form-group">
@@ -121,7 +143,7 @@
         <div class="col-sm-6">
             <input class="form-control" type="text" name="website" value="{{ group.website }}" size="40" />
         </div>
-        <p class="help-block col-sm-9 col-sm-offset-3">The one you want us to link on our website, or n/a</p>
+        <p class="help-block col-sm-9 col-sm-offset-3">The one you want us to link on our website, or where we can view your work to judge your application.</p>
     </div>
 
     <div class="form-group">

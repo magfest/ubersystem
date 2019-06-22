@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Attendance Graphs{% endblock %}
+{% block title %}Badges Sold Graph{% endblock %}
 {% block head_javascript %}
     {{ super() }}
     <script type="text/javascript" src="../static/analytics/lib/Chart.js"></script>
@@ -14,13 +14,17 @@
 {% endblock %}
 {% block content %}
 
-        <h1>Attendance per day:</h1>
+        <h1>Badges sold per day:</h1>
         <p>
-            This graph only includes attendees that have paid in full and are not dealers.  <br/>
-            It does not include comp'd badges for staff, guests, bands. It does not include dealers.<br/>
+            This graph only includes attendees that have paid in full and are not dealers.
+            It does not include comp'd badges for staff, guests, bands. It does not include dealers.
         </p>
 
-        {# Yea.... I don't know how to fix the w/h here.  someone with better css/html5 do it.#}
+    <div id="attendanceGraphScroller">
+      <div id="attendanceGraphContainer">
+        {# Width and height are only used to set the aspect ratio. The graph maintains its own size. #}
         <canvas id="attendanceGraph" width="1000" height="800"></canvas>
+      </div>
+    </div>
 
 {% endblock %}

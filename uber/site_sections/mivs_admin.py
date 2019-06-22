@@ -7,11 +7,12 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
+from uber.custom_tags import humanize_timedelta
 from uber.decorators import all_renderable, csrf_protected, csv_file, multifile_zipfile, render, xlsx_file
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, Group, IndieGame, IndieGameReview, IndieStudio
 from uber.tasks.email import send_email
-from uber.utils import check, genpasswd
+from uber.utils import check, genpasswd, localized_now
 
 
 @all_renderable(c.INDIE_ADMIN)
@@ -44,7 +45,7 @@ class Root:
     @csv_file
     def everything(self, out, session):
         out.writerow([
-            'Game', 'Studio', 'Studio URL', 'Primary Contact Name', 'Primary Contact Email',
+            'Game', 'Studio', 'Studio URL', 'Primary Contact Names', 'Primary Contact Emails',
             'Game Website', 'Twitter', 'Facebook', 'Other Social Media',
             'Genres', 'Brief Description', 'Long Description', 'How to Play',
             'Link to Video for Judging', 'Link to Promo Video', 'Link to Game', 'Game Link Password',
@@ -58,8 +59,8 @@ class Root:
                 game.title,
                 game.studio.name,
                 '{}/mivs_applications/continue_app?id={}'.format(c.PATH, game.studio.id),
-                game.studio.primary_contact.full_name,
-                game.studio.primary_contact.email,
+                game.studio.primary_contact_first_names,
+                game.studio.email,
                 game.link_to_webpage,
                 game.twitter,
                 game.facebook,
@@ -85,6 +86,35 @@ class Root:
                 '\n'.join(c.URL_BASE + screenshot.url.lstrip('.') for screenshot in game.screenshots),
                 str(game.average_score)
             ] + [str(score) for score in game.scores])
+
+    @csv_file
+    def checklist_completion(self, out, session):
+        header_row = ['Studio']
+        for key, val in c.MIVS_CHECKLIST.items():
+            header_row.append(val['name'])
+            header_row.append('Past Due?')
+        out.writerow(header_row)
+
+        for studio in session.query(IndieStudio).join(IndieStudio.group).join(Group.guest):
+            row = [studio.name]
+            for key, val in c.MIVS_CHECKLIST.items():
+                row.extend([
+                    'Not Completed' if getattr(studio, key + "_status", None) is None
+                    else getattr(studio, key + "_status"),
+                    'No' if localized_now() <= studio.checklist_deadline(key)
+                    else humanize_timedelta(studio.past_checklist_deadline(key), granularity='hours'),
+                ])
+            out.writerow(row)
+
+    @csv_file
+    def discussion_group_emails(self, out, session):
+        emails = []
+        for studio in session.query(IndieStudio).join(IndieStudio.group).join(Group.guest):
+            emails.extend(studio.group.guest.email)
+            if studio.discussion_emails:
+                emails.extend(studio.discussion_emails_list)
+
+        out.writerow(emails)
 
     @xlsx_file
     def accepted_games_xlsx(self, out, session):
@@ -174,7 +204,7 @@ class Root:
         }
 
     def edit_judge(self, session, message='', **params):
-        judge = session.indie_judge(params, checkgroups=['genres', 'platforms'])
+        judge = session.indie_judge(params, checkgroups=['genres', 'platforms'], bools=['no_game_submission'])
         if cherrypy.request.method == 'POST':
             message = check(judge)
             if not message:
@@ -290,7 +320,7 @@ class Root:
         game = session.indie_game(game_id)
         for review in game.reviews:
             if review.has_video_issues:
-                body = render('emails/video_fixed.txt', {'review': review}, encoding=None)
+                body = render('emails/mivs/video_fixed.txt', {'review': review}, encoding=None)
                 send_email.delay(
                     c.MIVS_EMAIL,
                     review.judge.email,
@@ -299,7 +329,7 @@ class Root:
                     model=review.judge.to_dict('id'))
                 review.video_status = c.PENDING
             if review.has_game_issues:
-                body = render('emails/game_fixed.txt', {'review': review}, encoding=None)
+                body = render('emails/mivs/game_fixed.txt', {'review': review}, encoding=None)
                 send_email.delay(
                     c.MIVS_EMAIL,
                     review.judge.email,

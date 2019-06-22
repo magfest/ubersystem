@@ -32,6 +32,7 @@
             <th>Solicits Volunteers</th>
             <th>Setup Approval Exempt</th>
             <th>Teardown Approval Exempt</th>
+            <th>Max Consecutive Hours</th>
             <th>Members</th>
           </tr>
         </thead>
@@ -44,6 +45,7 @@
               <td>{{ department.solicits_volunteers|yesno("Yes,No") }}</td>
               <td>{{ department.is_setup_approval_exempt|yesno("Yes,No") }}</td>
               <td>{{ department.is_teardown_approval_exempt|yesno("Yes,No") }}</td>
+              <td>{{ department.max_consecutive_hours }}</td>
               <td>{{ department.member_count }}</td>
             </tr>
           {%- endfor -%}

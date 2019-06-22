@@ -106,7 +106,7 @@
                 price: {{ c.BADGE_PRICE }}
             });
         {% endif %}
-        {% if c.SEASON_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
+        {% if c.SEASON_LEVEL in c.PREREG_DONATION_TIERS and c.SEASON_AVAILABLE %}
             BADGE_TYPES.options.push({
                 title: 'Super Supporter',
                 description: 'Donate even more and get exclusive swag!',
@@ -116,7 +116,9 @@
         {% endif %}
 
         {% for badge_type in c.BADGE_TYPE_PRICES %}
+
             {% if badge_type != c.ATTENDEE_BADGE %}
+        {% if (badge_type != c.SPONSOR_BADGE or c.SPONSOR_BADGE_AVAILABLE) and (badge_type != c.SHINY_BADGE or c.SHINY_BADGE_AVAILABLE) %}
             BADGE_TYPES.options.push({
                 title: '{{ c.BADGES[badge_type] }}',
                 description: 'Donate extra to get an upgraded badge with perks.',
@@ -127,6 +129,7 @@
                     $('input[name="badge_type"]').val('{{ badge_type }}');
                 }
             });
+        {% endif %}
             {% endif %}
         {% endfor %}
 

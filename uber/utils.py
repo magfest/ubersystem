@@ -124,7 +124,8 @@ def normalize_newlines(text):
 def convert_to_absolute_url(relative_uber_page_url):
     """
     In ubersystem, we always use relative url's of the form
-    "../{some_site_section}/{somepage}". We use relative URLs so that no
+    "../{some_site_section}/{somepage}" or
+    "/{c.PATH}/{some_site_section}/{somepage}". We use relative URLs so that no
     matter what proxy server we are behind on the web, it always works.
 
     We normally avoid using absolute URLs at all costs, but sometimes
@@ -140,10 +141,16 @@ def convert_to_absolute_url(relative_uber_page_url):
     if not relative_uber_page_url:
         return ''
 
-    if relative_uber_page_url[:3] != '../':
-        raise ValueError("relative url MUST start with '../'")
+    if relative_uber_page_url.startswith('../'):
+        return urljoin(c.URL_BASE + '/', relative_uber_page_url[3:])
 
-    return urljoin(c.URL_BASE + "/", relative_uber_page_url[3:])
+    if relative_uber_page_url.startswith(c.PATH):
+        return urljoin(c.URL_ROOT, relative_uber_page_url)
+
+    if relative_uber_page_url.startswith(c.URL_BASE):
+        return relative_uber_page_url
+
+    raise ValueError("relative url MUST start with '../' or '{}'".format(c.PATH))
 
 
 def make_url(s):
@@ -470,6 +477,21 @@ def check_all(models, *, prereg=False):
             return message
 
 
+def check_pii_consent(params, attendee=None):
+    """
+    Checks that the "pii_consent" field was passed up in the POST params if consent is needed.
+
+    Returns:
+        Empty string if "pii_consent" was given or not needed, or an error message otherwise.
+    """
+    if cherrypy.request.method == 'POST':
+        has_pii_consent = params.get('pii_consent') == '1'
+        needs_pii_consent = not attendee or attendee.needs_pii_consent
+        if needs_pii_consent and not has_pii_consent:
+            return 'You must agree to allow us to store your personal information in order to register.'
+    return ''
+
+
 def check_csrf(csrf_token=None):
     """
     Accepts a csrf token (and checks the request headers if None is provided)
@@ -582,7 +604,7 @@ def report_critical_exception(msg, subject="Critical Error"):
     from uber.tasks.email import send_email
 
     # Log with lots of cherrypy context in here
-    uber.server.log_exception_with_verbose_context(msg)
+    uber.server.log_exception_with_verbose_context(msg=msg)
 
     # Also attempt to email the admins
     send_email.delay(c.ADMIN_EMAIL, [c.ADMIN_EMAIL], subject, msg + '\n{}'.format(traceback.format_exc()))
@@ -599,7 +621,7 @@ def static_overrides(dirname):
     are the theme image files, but theoretically a plugin can override anything
     it wants by calling this method and passing its static directory.
     """
-    appconf = cherrypy.tree.apps[c.PATH].config
+    appconf = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].config
     basedir = os.path.abspath(dirname).rstrip('/')
     for dpath, dirs, files in os.walk(basedir):
         relpath = dpath[len(basedir):]
@@ -701,6 +723,7 @@ class ExcelWorksheetStreamWriter:
         self.workbook = workbook
         self.worksheet = worksheet
         self.next_row = 0
+        self.next_col = 0
 
     def calculate_column_widths(self, rows):
         column_widths = defaultdict(int)
@@ -743,6 +766,15 @@ class ExcelWorksheetStreamWriter:
             col += 1
 
         self.next_row += 1
+
+    def writecell(self, data, format={}, last_cell=False):
+        self.worksheet.write(self.next_row, self.next_col, data, self.workbook.add_format(format))
+
+        if last_cell:
+            self.next_col = 0
+            self.next_row += 1
+        else:
+            self.next_col += 1
 
 
 class Charge:
@@ -793,17 +825,20 @@ class Charge:
         return promo_code_count
 
     @classmethod
-    def to_sessionized(cls, m):
+    def to_sessionized(cls, m, name='', badges=0):
         from uber.models import Attendee, Group
         if is_listy(m):
             return [cls.to_sessionized(t) for t in m]
         elif isinstance(m, dict):
             return m
         elif isinstance(m, Attendee):
-            return m.to_dict(
+            d = m.to_dict(
                 Attendee.to_dict_default_attrs
                 + ['promo_code']
                 + list(Attendee._extra_apply_attrs_restricted))
+            d['name'] = name
+            d['badges'] = badges
+            return d
         elif isinstance(m, Group):
             return m.to_dict(
                 Group.to_dict_default_attrs
@@ -828,17 +863,21 @@ class Charge:
     @classmethod
     def from_sessionized_group(cls, d):
         d = dict(d, attendees=[cls.from_sessionized_attendee(a) for a in d.get('attendees', [])])
-        return uber.models.Group(**d)
+        return uber.models.Group(_defer_defaults_=True, **d)
 
     @classmethod
     def from_sessionized_attendee(cls, d):
-        # Fix for attendees that were sessionized while the "requested_any_dept" column existed
-        if 'requested_any_dept' in d:
-            del d['requested_any_dept']
-
         if d.get('promo_code'):
-            d = dict(d, promo_code=uber.models.PromoCode(**d['promo_code']))
-        return uber.models.Attendee(**d)
+            d = dict(d, promo_code=uber.models.PromoCode(_defer_defaults_=True, **d['promo_code']))
+
+        # These aren't valid properties on the model, so they're removed and re-added
+        name = d.pop('name', '')
+        badges = d.pop('badges', 0)
+        a = uber.models.Attendee(_defer_defaults_=True, **d)
+        a.name = d['name'] = name
+        a.badges = d['badges'] = badges
+
+        return a
 
     @classmethod
     def get(cls, payment_id):
@@ -862,7 +901,15 @@ class Charge:
 
     @cached_property
     def total_cost(self):
-        return 100 * sum(m.amount_unpaid for m in self.models)
+        costs = []
+
+        for m in self.models:
+            if isinstance(m, uber.models.Attendee) and getattr(m, 'badges', None):
+                costs.append(c.get_group_price() * int(m.badges))
+                costs.append(m.amount_extra_unpaid)
+            else:
+                costs.append(m.amount_unpaid)
+        return 100 * sum(costs)
 
     @cached_property
     def dollar_amount(self):
@@ -882,7 +929,15 @@ class Charge:
 
     @cached_property
     def names(self):
-        return ', '.join(getattr(m, 'name', getattr(m, 'full_name', None)) for m in self.models)
+        names = []
+
+        for m in self.models:
+            if getattr(m, 'badges', None) and getattr(m, 'name'):
+                names.append("{} plus {} badges ({})".format(getattr(m, 'full_name', None), int(m.badges) - 1, m.name))
+            else:
+                names.append(getattr(m, 'name', getattr(m, 'full_name', None)))
+
+        return ', '.join(names)
 
     @cached_property
     def targets(self):
@@ -926,7 +981,11 @@ class Charge:
             return 'An unexpected problem occurred while processing your card: ' + str(e)
         else:
             if self.models:
-                session.add(self.stripe_transaction_from_charge())
+                txn = self.stripe_transaction_from_charge()
+                for model in self.models:
+                    multi = len(self.models) > 1
+                    session.add(self.stripe_transaction_for_model(model, txn, multi))
+                session.add(txn)
 
     def stripe_transaction_from_charge(self, type=c.PAYMENT):
         return uber.models.StripeTransaction(
@@ -934,7 +993,19 @@ class Charge:
             amount=self.amount,
             desc=self.description,
             type=type,
-            who=uber.models.AdminAccount.admin_name() or 'non-admin',
-            fk_id=self.models[0].id,
-            fk_model=self.models[0].__class__.__name__
+            who=uber.models.AdminAccount.admin_name() or 'non-admin'
         )
+
+    def stripe_transaction_for_model(self, model, txn, multi=False):
+        if model.__class__.__name__ == "Attendee":
+            return uber.models.commerce.StripeTransactionAttendee(
+                txn_id=txn.id,
+                attendee_id=model.id,
+                share=self.amount if not multi else (model.amount_unpaid * 100)
+            )
+        elif model.__class__.__name__ == "Group":
+            return uber.models.commerce.StripeTransactionGroup(
+                txn_id=txn.id,
+                group_id=model.id,
+                share=self.amount if not multi else (model.amount_unpaid * 100)
+            )

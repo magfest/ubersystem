@@ -1,6 +1,6 @@
-{{ game.studio.primary_contact.first_name }},
+{{ game.studio.primary_contact_first_names }},
 
-Congratulations!  Your game submission ({{ game.title }}) for the {{ c.ESCHATON.year }} MAGFest Indie Videogame Showcase (MIVS) is one of the 65 that have been accepted into the showcase.
+Congratulations!  Your game submission ({{ game.title }}) for the {{ c.ESCHATON.year }} MAGFest Indie Videogame Showcase (MIVS) is one of the games that have been accepted into the showcase.
 
 *** YOU NEED TO CONFIRM YOUR ACCEPTANCE! ***
 

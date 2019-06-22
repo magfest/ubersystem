@@ -1,0 +1,30 @@
+Ahoy {{ guest.group.studio.primary_contact_first_names }},
+
+{% set two_days, one_day, overdue = guest.group.studio.checklist_items_due_soon_grouped %}
+{% if two_days %}
+The following items are due two days from now:
+{% for name, url in two_days %}
+-{{ name }}: {{ c.URL_BASE }}/guests/{{ url }}?guest_id={{ guest.id }}
+{% endfor %}
+{% endif %}
+{% if one_day %}
+The following items are due tomorrow:
+{% for name, url in one_day %}
+-{{ name }}: {{ c.URL_BASE }}/guests/{{ url }}?guest_id={{ guest.id }}
+{% endfor %}
+{% endif %}
+{% if overdue %}
+The following items are overdue:
+{% for name, url in overdue %}
+-{{ name }}: {{ c.URL_BASE }}/guests/{{ url }}?guest_id={{ guest.id }}
+{% endfor %}
+{% endif %}
+
+If you don't finish these items, you may get a friendly personal reminder* from MIVS.  Some items, such as Hotels or Selling, have hard dates and need to be completed by their due date.
+
+If you have any questions, please email {{ c.MIVS_EMAIL|email_only }}
+
+Forever Your Fan,
+-The MIVS Team
+
+* Sending friendly reminders takes time away from our volunteers. You don't want that on your conscious, do you?

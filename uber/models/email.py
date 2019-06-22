@@ -37,9 +37,14 @@ class BaseEmailMixin(object):
     _repr_attr_names = ['subject']
 
     @property
+    def body_with_body_tag_stripped(self):
+        body = re.split(r'<\s*body[^>]*>', self.body)[-1]
+        return re.split(r'<\s*\/\s*body\s*>', body)[0]
+
+    @property
     def body_as_html(self):
         if self.is_html:
-            return re.split('<body[^>]*>', self.body)[-1].split('</body>')[0]
+            return self.body_with_body_tag_stripped
         else:
             return normalize_newlines(self.body).replace('\n', '<br>')
 
@@ -221,7 +226,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
             send_func = send_email.delay if delay else send_email
             send_func(
                 self.sender,
-                model_instance.email,
+                model_instance.email_to_address,
                 self.render_template(self.subject, data),
                 self.render_template(self.body, data),
                 self.format,
@@ -232,13 +237,13 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
                 automated_email=self.to_dict('id'))
             return True
         except Exception:
-            log.error('Error sending {!r} email to {}', self.subject, model_instance.email, exc_info=True)
+            log.error('Error sending {!r} email to {}', self.subject, model_instance.email_to_address, exc_info=True)
             if raise_errors:
                 raise
         return False
 
     def would_send_if_approved(self, model_instance):
-        return model_instance and getattr(model_instance, 'email', False) and self.filter(model_instance)
+        return model_instance and getattr(model_instance, 'email_to_address', False) and self.filter(model_instance)
 
 
 class Email(MagModel, BaseEmailMixin):
@@ -257,9 +262,15 @@ class Email(MagModel, BaseEmailMixin):
     @property
     def fk_email(self):
         if self.fk:
-            return self.fk.leader.email if (self.model == 'Group') else self.fk.email
+            return self.fk.leader.email_to_address if (self.model == 'Group') else self.fk.email_to_address
         return self.to
 
     @property
     def format(self):
         return 'html' if self.is_html else 'text'
+
+    @property
+    def is_html(self):
+        return self.automated_email.is_html \
+            if self.automated_email_id and self.automated_email \
+            else super(Email, self).is_html

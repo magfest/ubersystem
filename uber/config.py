@@ -56,6 +56,9 @@ class _Overridable:
         if 'dates' in plugin_config:
             self.make_dates(plugin_config['dates'])
 
+        if 'data_dirs' in plugin_config:
+            self.make_data_dirs(plugin_config['data_dirs'])
+
     def make_dates(self, config_section):
         """
         Plugins can define a [dates] section in their config to create their
@@ -72,6 +75,17 @@ class _Overridable:
             setattr(self, _opt.upper(), _dt)
             if _dt:
                 self.DATES[_opt.upper()] = _dt
+
+    def make_data_dirs(self, config_section):
+        """
+        Plugins can define a [data_dirs] section in their config to create their
+        own data directories on the global c object. Data directories are
+        automatically created on server startup.  This method is called automatically
+        by c.include_plugin_config() if a "[data_dirs]" section exists.
+        """
+        for _opt, _val in config_section.items():
+            setattr(self, _opt.upper(), _val)
+            self.DATA_DIRS[_opt.upper()] = _val
 
     def make_enums(self, config_section):
         """
@@ -138,15 +152,14 @@ class Config(_Overridable):
     def get_attendee_price(self, dt=None):
         price = self.INITIAL_ATTENDEE
         if self.PRICE_BUMPS_ENABLED:
-
+            localized_now = uber.utils.localized_now()
             for day, bumped_price in sorted(self.PRICE_BUMPS.items()):
-                if (dt or uber.utils.localized_now()) >= day:
+                if (dt or localized_now) >= day:
                     price = bumped_price
 
             # Only check bucket-based pricing if we're not checking an existing badge AND
-            # we don't have hardcore_optimizations_enabled config on AND we're not on-site
-            # (because on-site pricing doesn't involve checking badges sold).
-            if not dt and not self.HARDCORE_OPTIMIZATIONS_ENABLED and uber.utils.localized_now() < c.EPOCH:
+            # we're not on-site (because on-site pricing doesn't involve checking badges sold)
+            if not dt and localized_now < c.EPOCH:
                 badges_sold = self.BADGES_SOLD
 
                 for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
@@ -187,7 +200,11 @@ class Config(_Overridable):
     @dynamic
     def DEALER_REG_SOFT_CLOSED(self):
         return self.AFTER_DEALER_REG_DEADLINE or self.DEALER_APPS >= self.MAX_DEALER_APPS \
-            if self.MAX_DEALER_APPS and not self.HARDCORE_OPTIMIZATIONS_ENABLED else self.AFTER_DEALER_REG_DEADLINE
+            if self.MAX_DEALER_APPS else self.AFTER_DEALER_REG_DEADLINE
+
+    @property
+    def SELF_SERVICE_REFUNDS_OPEN(self):
+        return self.BEFORE_REFUND_CUTOFF and (self.AFTER_REFUND_START or not self.REFUND_START)
 
     @request_cached_property
     @dynamic
@@ -207,19 +224,30 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def BADGES_SOLD(self):
-        from uber.models import Session, Attendee, Group
-        with Session() as session:
-            attendees = session.query(Attendee)
-            individuals = attendees.filter(or_(
-                Attendee.paid == self.HAS_PAID,
-                Attendee.paid == self.REFUNDED)
-            ).filter(Attendee.badge_status == self.COMPLETED_STATUS).count()
+        from uber.models import Session, Attendee, Group, PromoCode, PromoCodeGroup
+        if self.BADGES_SOLD_ESTIMATE_ENABLED:
+            with Session() as session:
+                attendee_count = int(session.execute(
+                    "SELECT reltuples AS count FROM pg_class WHERE relname = 'attendee'").scalar())
 
-            group_badges = attendees.join(Attendee.group).filter(
-                Attendee.paid == self.PAID_BY_GROUP,
-                Group.amount_paid > 0).count()
+                # This will be efficient because we've indexed attendee(badge_type, badge_status)
+                staff_count = self.get_badge_count_by_type(c.STAFF_BADGE)
+                return max(0, attendee_count - staff_count)
+        else:
+            with Session() as session:
+                attendees = session.query(Attendee)
+                individuals = attendees.filter(or_(
+                    Attendee.paid == self.HAS_PAID,
+                    Attendee.paid == self.REFUNDED)
+                ).filter(Attendee.badge_status == self.COMPLETED_STATUS).count()
 
-            return individuals + group_badges
+                group_badges = attendees.join(Attendee.group).filter(
+                    Attendee.paid == self.PAID_BY_GROUP,
+                    Group.amount_paid > 0).count()
+
+                promo_code_badges = session.query(PromoCode).join(PromoCodeGroup).count()
+
+                return individuals + group_badges + promo_code_badges
 
     @request_cached_property
     @dynamic
@@ -227,9 +255,6 @@ class Config(_Overridable):
         """
         Returns a string representing a rough estimate of how many badges are left at the current badge price tier.
         """
-        if c.HARDCORE_OPTIMIZATIONS_ENABLED:
-            return None
-
         is_badge_price_ordered = c.BADGE_PRICE in c.ORDERED_PRICE_LIMITS
         current_price_tier = c.ORDERED_PRICE_LIMITS.index(c.BADGE_PRICE) if is_badge_price_ordered else -1
 
@@ -322,8 +347,10 @@ class Config(_Overridable):
 
     @property
     def PREREG_DONATION_OPTS(self):
-        if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
+        if self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
             return self.DONATION_TIER_OPTS
+        if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
+            return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SEASON_LEVEL]
         elif self.BEFORE_SHIRT_DEADLINE and self.SHIRT_AVAILABLE:
             return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SUPPORTER_LEVEL]
         else:
@@ -332,8 +359,11 @@ class Config(_Overridable):
     @property
     def PREREG_DONATION_DESCRIPTIONS(self):
         # include only the items that are actually available for purchase
-        if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
+        if self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
             donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
+        elif self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
+            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
+                             if tier[1]['price'] < self.SEASON_LEVEL]
         elif self.BEFORE_SHIRT_DEADLINE and self.SHIRT_AVAILABLE:
             donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
                              if tier[1]['price'] < self.SUPPORTER_LEVEL]
@@ -573,6 +603,11 @@ class Config(_Overridable):
 
     @request_cached_property
     @dynamic
+    def SEASON_COUNT(self):
+        return self.get_kickin_count(self.SEASON_LEVEL)
+
+    @request_cached_property
+    @dynamic
     def SUPPORTER_COUNT(self):
         return self.get_kickin_count(self.SUPPORTER_LEVEL)
 
@@ -608,7 +643,8 @@ class Config(_Overridable):
     @property
     @dynamic
     def CAN_SUBMIT_MIVS_ROUND_TWO(self):
-        return not really_past_mivs_deadline(c.MIVS_ROUND_TWO_DEADLINE) or c.HAS_INDIE_ADMIN_ACCESS
+        return c.AFTER_MIVS_ROUND_TWO_START and (
+            not really_past_mivs_deadline(c.MIVS_ROUND_TWO_DEADLINE) or c.HAS_INDIE_ADMIN_ACCESS)
 
     # =========================
     # panels
@@ -719,6 +755,9 @@ c.DATE_FORMAT = '%Y-%m-%d'
 c.EVENT_TIMEZONE = pytz.timezone(c.EVENT_TIMEZONE)
 c.make_dates(_config['dates'])
 
+c.DATA_DIRS = {}
+c.make_data_dirs(_config['data_dirs'])
+
 if "sqlite" in _config['secret']['sqlalchemy_url']:
     # SQLite does not suport pool_size and max_overflow,
     # so disable them if sqlite is used.
@@ -749,21 +788,15 @@ def _is_intstr(s):
 # Under certain conditions, we want to completely remove certain payment options from the system.
 # However, doing so cleanly also risks an exception being raised if these options are referenced elsewhere in the code
 # (i.e., c.STRIPE). So we create an enum val to allow code to check for these variables without exceptions.
-if not c.KIOSK_CC_ENABLED:
+if not c.KIOSK_CC_ENABLED and 'stripe' in _config['enums']['door_payment_method']:
     del _config['enums']['door_payment_method']['stripe']
     c.create_enum_val('stripe')
 
 if c.ONLY_PREPAY_AT_DOOR:
     del _config['enums']['door_payment_method']['cash']
     del _config['enums']['door_payment_method']['manual']
-    del _config['enums']['door_payment_method']['group']
     c.create_enum_val('cash')
     c.create_enum_val('manual')
-    c.create_enum_val('group')
-
-if not c.GROUPS_ENABLED:
-    del _config['enums']['door_payment_method']['group']
-    c.create_enum_val('group')
 
 c.make_enums(_config['enums'])
 
@@ -816,8 +849,15 @@ c.PREREG_TABLE_OPTS = list(range(1, c.MAX_TABLES + 1))
 c.ADMIN_TABLE_OPTS = [decimal.Decimal(x) for x in range(0, 9)]
 
 c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
+c.DISCOUNTABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.DISCOUNTABLE_BADGE_TYPES]
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
 c.TRANSFERABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.TRANSFERABLE_BADGE_TYPES]
+
+c.MIVS_CHECKLIST = _config['mivs_checklist']
+for key, val in c.MIVS_CHECKLIST.items():
+    val['deadline'] = c.EVENT_TIMEZONE.localize(datetime.strptime(val['deadline'] + ' 23:59', '%Y-%m-%d %H:%M'))
+    if val['start']:
+        val['start'] = c.EVENT_TIMEZONE.localize(datetime.strptime(val['start'] + ' 23:59', '%Y-%m-%d %H:%M'))
 
 c.DEPT_HEAD_CHECKLIST = _config['dept_head_checklist']
 
@@ -847,6 +887,7 @@ c.ALL_TIME_OPTS = [
     for dt in (
         (c.EPOCH - timedelta(days=c.SETUP_SHIFT_DAYS) + timedelta(hours=i))
         for i in range(c.CON_TOTAL_LENGTH))]
+c.PANEL_STRICT_LENGTH_OPTS = [opt for opt in c.PANEL_LENGTH_OPTS if opt != c.OTHER]
 
 c.EVENT_YEAR = c.EPOCH.strftime('%Y')
 c.EVENT_NAME_AND_YEAR = c.EVENT_NAME + (' {}'.format(c.EVENT_YEAR) if c.EVENT_YEAR else '')
@@ -868,7 +909,7 @@ if c.ONE_DAYS_ENABLED and c.PRESELL_ONE_DAYS:
         c.BADGES[_val] = _name
         c.BADGE_OPTS.append((_val, _name))
         c.BADGE_VARS.append(_name.upper())
-        c.BADGE_RANGES[_val] = c.BADGE_RANGES[c.ONE_DAY_BADGE]
+        c.BADGE_RANGES[_val] = c.BADGES[c.ONE_DAY_BADGE]
         if c.ONE_DAY_BADGE in c.TRANSFERABLE_BADGE_TYPES:
             c.TRANSFERABLE_BADGE_TYPES.append(_val)
         if c.ONE_DAY_BADGE in c.PREASSIGNED_BADGE_TYPES:
@@ -885,6 +926,7 @@ c.JOB_PAGE_OPTS = (
     ('staffers', 'Staffer Summary')
 )
 c.WEIGHT_OPTS = (
+    ('0.5', 'x0.5'),
     ('1.0', 'x1.0'),
     ('1.5', 'x1.5'),
     ('2.0', 'x2.0'),
@@ -892,7 +934,7 @@ c.WEIGHT_OPTS = (
 )
 c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'visibility', 'required_roles_ids', 'extra15']
 
-c.PREREG_SHIRT_OPTS = c.SHIRT_OPTS[1:]
+c.PREREG_SHIRT_OPTS = sorted(c.SHIRT_OPTS)[1:]
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + list(c.PREREG_SHIRT_OPTS)
 c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
 
@@ -931,6 +973,29 @@ stripe.api_key = c.STRIPE_SECRET_KEY
 # appends '../static/foo.js' to this list, that adds <script src="../static/foo.js"></script> to
 # all of the pages on the site except for preregistration pages (for performance)
 c.JAVASCRIPT_INCLUDES = []
+
+
+# A list of models that have properties defined for exporting for Guidebook
+c.GUIDEBOOK_MODELS = [
+    ('GuestGroup_guest', 'Guests'),
+    ('GuestGroup_band', 'Bands'),
+    ('MITSGame', 'MITS'),
+    ('IndieGame', 'MIVS'),
+    ('Event_panels', 'Panels'),
+    ('Group_dealer', 'Marketplace'),
+]
+
+
+# A list of properties that we will check for when export for Guidebook
+# and the column headings Guidebook expects for them
+c.GUIDEBOOK_PROPERTIES = [
+    ('guidebook_name', 'Name'),
+    ('guidebook_subtitle', 'Sub-Title (i.e. Location, Table/Booth, or Title/Sponsorship Level)'),
+    ('guidebook_desc', 'Description (Optional)'),
+    ('guidebook_location', 'Location/Room'),
+    ('guidebook_image', 'Image (Optional)'),
+    ('guidebook_thumbnail', 'Thumbnail (Optional)'),
+]
 
 
 # =============================
@@ -1022,7 +1087,7 @@ for num in range(c.ESCHATON.year - c.MIVS_START_YEAR):
 
 # The number of steps to the MITS application process.  Since changing this requires a code change
 # anyway (in order to add another step), this is hard-coded here rather than being a config option.
-c.MITS_APPLICATION_STEPS = 6
+c.MITS_APPLICATION_STEPS = 7
 
 # The options for the recommended minimum age for games, as filled out by the teams.
 c.MITS_AGE_OPTS = [(i, i) for i in range(4, 20, 2)]
@@ -1102,6 +1167,7 @@ c.ROCK_ISLAND_GROUPS = [getattr(c, group.upper()) for group in c.ROCK_ISLAND_GRO
 # A list of checklist items for display on the guest group admin page
 c.GUEST_CHECKLIST_ITEMS = [
     {'name': 'panel', 'header': 'Panel'},
+    {'name': 'mc', 'header': 'MC'},
     {'name': 'bio', 'header': 'Bio Provided'},
     {'name': 'info', 'header': 'Agreement Completed'},
     {'name': 'taxes', 'header': 'W9 Uploaded', 'is_link': True},

@@ -4,10 +4,6 @@
 {% block content %}
 
   <style type="text/css">
-    .reference {
-      font-size: 1.25em;
-    }
-
     #btn_show_revoked {
       margin-top: 10px;
     }
@@ -94,12 +90,12 @@
     </button>
   </h1>
 
-  <p class="reference">
+  <h3>
     <a href="reference">
       <span class="glyphicon glyphicon-question-sign"></span>
       Need help with the API?
     </a>
-  </p>
+  </h3>
 
   <h3>
     {% if admin_account.is_admin %}All{% else %}Your{% endif %} Tokens

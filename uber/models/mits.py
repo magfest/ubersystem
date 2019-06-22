@@ -1,10 +1,13 @@
 import os
 from functools import wraps
 
+from PIL import Image
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from sqlalchemy import and_
 from sideboard.lib import on_startup
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from uber.config import c
 from uber.models import MagModel
@@ -16,10 +19,13 @@ __all__ = ['MITSTeam', 'MITSApplicant', 'MITSGame', 'MITSPicture', 'MITSDocument
 
 class MITSTeam(MagModel):
     name = Column(UnicodeText)
-    panel_interest = Column(Boolean, default=False)
+    panel_interest = Column(Boolean, nullable=True, admin_only=True)
+    showcase_interest = Column(Boolean, nullable=True, admin_only=True)
     want_to_sell = Column(Boolean, default=False)
     address = Column(UnicodeText)
     submitted = Column(UTCDateTime, nullable=True)
+    waiver_signature = Column(UnicodeText)
+    waiver_signed = Column(UTCDateTime, nullable=True)
 
     applied = Column(UTCDateTime, server_default=utcnow())
     status = Column(Choice(c.MITS_APP_STATUS), default=c.PENDING, admin_only=True)
@@ -29,6 +35,7 @@ class MITSTeam(MagModel):
     pictures = relationship('MITSPicture', backref='team')
     documents = relationship('MITSDocument', backref='team')
     schedule = relationship('MITSTimes', uselist=False, backref='team')
+    panel_app = relationship('MITSPanelApplication', uselist=False, backref='team')
 
     duplicate_of = Column(UUID, nullable=True)
     deleted = Column(Boolean, default=False)
@@ -64,6 +71,10 @@ class MITSTeam(MagModel):
             if a.attendee_id and a.attendee.paid in [c.NEED_NOT_PAY, c.REFUNDED]])
 
     @property
+    def total_badge_count(self):
+        return len([a for a in self.applicants if a.attendee_id])
+
+    @property
     def can_add_badges(self):
         uncomped_badge_count = len([
             a for a in self.applicants
@@ -79,6 +90,14 @@ class MITSTeam(MagModel):
             or c.BEFORE_MITS_EDITING_DEADLINE)
 
     @property
+    def completed_panel_request(self):
+        return self.panel_interest is not None
+
+    @property
+    def completed_showcase_request(self):
+        return self.showcase_interest is not None
+
+    @property
     def completed_hotel_form(self):
         """
         This is "any" rather than "all" because teams are allowed to
@@ -91,19 +110,25 @@ class MITSTeam(MagModel):
         return any(a.declined_hotel_space or a.requested_room_nights for a in self.applicants)
 
     @property
+    def no_hotel_space(self):
+        return all(a.declined_hotel_space for a in self.applicants)
+
+    @property
     def steps_completed(self):
         if not self.games:
             return 1
         elif not self.pictures:
             return 2
-        elif not self.schedule:
+        elif not self.completed_panel_request:
             return 3
-        elif not self.completed_hotel_form:
+        elif not self.completed_showcase_request:
             return 4
-        elif not self.submitted:
+        elif not self.completed_hotel_form:
             return 5
-        else:
+        elif not self.submitted:
             return 6
+        else:
+            return 7
 
     @property
     def completion_percentage(self):
@@ -122,6 +147,14 @@ class MITSApplicant(MagModel):
 
     declined_hotel_space = Column(Boolean, default=False)
     requested_room_nights = Column(MultiChoice(c.MITS_ROOM_NIGHT_OPTS), default='')
+
+    email_model_name = 'applicant'
+
+    @property
+    def email_to_address(self):
+        if self.attendee:
+            return self.attendee.email
+        return self.email
 
     @property
     def full_name(self):
@@ -145,6 +178,71 @@ class MITSGame(MagModel):
     unlicensed = Column(Boolean, default=False)
     professional = Column(Boolean, default=False)
 
+    @hybrid_property
+    def has_been_accepted(self):
+        return self.team.status == c.ACCEPTED
+
+    @has_been_accepted.expression
+    def has_been_accepted(cls):
+        return and_(MITSTeam.id == cls.team_id, MITSTeam.status == c.ACCEPTED)
+
+    @property
+    def guidebook_name(self):
+        return self.team.name
+
+    @property
+    def guidebook_subtitle(self):
+        return self.name
+
+    @property
+    def guidebook_desc(self):
+        return self.description
+
+    @property
+    def guidebook_location(self):
+        return ''
+
+    @property
+    def guidebook_image(self):
+        if not self.team.pictures:
+            return ''
+        for image in self.team.pictures:
+            if image.is_header:
+                return image.filename
+        return self.team.pictures[0].filename
+
+    @property
+    def guidebook_thumbnail(self):
+        if not self.team.pictures:
+            return ''
+        for image in self.team.pictures:
+            if image.is_thumbnail:
+                return image.filename
+        return self.team.pictures[1].filename if len(self.team.pictures) > 1 else self.team.pictures[0].filename
+
+    @property
+    def guidebook_images(self):
+        if not self.team.pictures:
+            return ['', '']
+
+        header = None
+        thumbnail = None
+        for image in self.team.pictures:
+            if image.is_header and not header:
+                header = image
+            if image.is_thumbnail and not thumbnail:
+                thumbnail = image
+
+        if not header:
+            header = self.team.pictures[0]
+        if not thumbnail:
+            thumbnail = self.team.pictures[1] if len(self.team.pictures) > 1 else self.team.pictures[0]
+
+        if header == thumbnail:
+            return [header.filename], [header]
+        else:
+            return [header.filename, thumbnail.filename], [header, thumbnail]
+
 
 class MITSPicture(MagModel):
     team_id = Column(UUID, ForeignKey('mits_team.id'))
@@ -160,6 +258,22 @@ class MITSPicture(MagModel):
     @property
     def filepath(self):
         return os.path.join(c.MITS_PICTURE_DIR, str(self.id))
+
+    @property
+    def is_header(self):
+        try:
+            return Image.open(self.filepath).size == tuple(map(int, c.MITS_HEADER_SIZE))
+        except OSError:
+            # This probably isn't an image, so it's not a header image
+            return
+
+    @property
+    def is_thumbnail(self):
+        try:
+            return Image.open(self.filepath).size == tuple(map(int, c.MITS_THUMBNAIL_SIZE))
+        except OSError:
+            # This probably isn't an image, so it's not a thumbnail image
+            return
 
 
 class MITSDocument(MagModel):
@@ -178,8 +292,16 @@ class MITSDocument(MagModel):
 
 class MITSTimes(MagModel):
     team_id = Column(ForeignKey('mits_team.id'))
+    showcase_availability = Column(MultiChoice(c.MITS_SHOWCASE_SCHEDULE_OPTS))
     availability = Column(MultiChoice(c.MITS_SCHEDULE_OPTS))
-    multiple_tables = Column(MultiChoice(c.MITS_SCHEDULE_OPTS))
+
+
+class MITSPanelApplication(MagModel):
+    team_id = Column(ForeignKey('mits_team.id'))
+    name = Column(UnicodeText)
+    description = Column(UnicodeText)
+    length = Column(Choice(c.PANEL_STRICT_LENGTH_OPTS), default=c.SIXTY_MIN)
+    participation_interest = Column(Boolean, default=False)
 
 
 @on_startup
@@ -217,5 +339,7 @@ def add_applicant_restriction():
             return instance
         setattr(Session.SessionMixin, method_name, with_applicant)
 
-    for name in ['mits_applicant', 'mits_game', 'mits_times', 'mits_picture', 'mits_document']:
+    for name in [
+        'mits_applicant', 'mits_game', 'mits_times', 'mits_picture', 'mits_document', 'mits_panel_application'
+    ]:
         override_getter(name)

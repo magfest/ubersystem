@@ -1,6 +1,6 @@
 {{ guest.group.name }},
 
-For tax reasons, {{ c.EVENT_NAME }} requires a completed W9 from all of its performers.  You can download a blank form, fill it out, and upload the completed form at {{ c.URL_BASE }}/guests/taxes?guest_id={{ guest.id }}
+Because your act is being compensated, {{ c.EVENT_NAME }} requires a completed W9 form for tax purposes. You can download a blank form, fill it out, and upload the completed form at {{ c.URL_BASE }}/guests/taxes?guest_id={{ guest.id }}
 
 Please upload your completed W9 no later than {{ c.BAND_TAXES_DEADLINE }}.
 

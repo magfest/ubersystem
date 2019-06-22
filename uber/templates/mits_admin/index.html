@@ -20,7 +20,7 @@
 {% for team in teams %}
     <tr>
         <td><a href="team?id={{ team.id }}">{{ team.name }}</a></td>
-        <td>{{ team.primary_contacts[0].full_name }}</td>
+        <td>{{ team.primary_contacts[0].full_name if team.primary_contacts }}</td>
         <td>{{ team.applied_local|datetime("%Y-%m-%d") }}</td>
         <td>{{ team.completion_percentage }}%</td>
         <td>

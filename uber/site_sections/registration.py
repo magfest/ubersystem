@@ -18,7 +18,8 @@ from uber.decorators import ajax, all_renderable, check_for_encrypted_badge_num,
 from uber.errors import HTTPRedirect
 from uber.models import ArbitraryCharge, Attendee, Department, Email, Group, Job, MerchDiscount, MerchPickup, \
     MPointsForCash, NoShirt, OldMPointExchange, PageViewTracking, Sale, Session, Shift, Tracking, WatchList
-from uber.utils import add_opt, check, check_csrf, Charge, get_page, hour_day_format, localized_now, Order
+from uber.utils import add_opt, check, check_csrf, check_pii_consent, Charge, get_page, hour_day_format, \
+    localized_now, Order
 
 
 def pre_checkin_check(attendee, group):
@@ -125,8 +126,7 @@ class Root:
 
             message = ''
             if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
-                message = session.add_promo_code_to_attendee(
-                    attendee, params.get('promo_code'))
+                message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
 
             if not message:
                 message = check(attendee)
@@ -430,7 +430,8 @@ class Root:
     @check_for_encrypted_badge_num
     @ajax
     def check_in(self, session, message='', group_id='', **params):
-        attendee = session.attendee(params, allow_invalid=True)
+        bools = ['got_merch'] if c.MERCH_AT_CHECKIN else []
+        attendee = session.attendee(params, allow_invalid=True, bools=bools)
         group = attendee.group or (session.group(group_id) if group_id else None)
 
         pre_badge = attendee.badge_num
@@ -672,20 +673,23 @@ class Root:
     @unrestricted
     @check_atd
     @check_if_can_reg
-    def register(self, session, message='', **params):
+    def register(self, session, message='', error_message='', **params):
         params['id'] = 'None'
         attendee = session.attendee(params, restricted=True, ignore_csrf=True)
-        if 'first_name' in params:
+        error_message = check_pii_consent(params, attendee) or error_message
+        if not error_message and 'first_name' in params:
             if not attendee.payment_method and (not c.BADGE_PRICE_WAIVED or c.BEFORE_BADGE_PRICE_WAIVED):
-                message = 'Please select a payment type'
+                error_message = 'Please select a payment type'
             elif attendee.payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
-                message = 'Email address is required to pay with a credit card at our registration desk'
+                error_message = 'Email address is required to pay with a credit card at our registration desk'
             elif attendee.badge_type not in [badge for badge, desc in c.AT_THE_DOOR_BADGE_OPTS]:
-                message = 'No hacking allowed!'
+                error_message = 'No hacking allowed!'
             else:
-                message = check(attendee)
+                error_message = check(attendee)
 
-            if not message:
+            if not error_message and c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
+                error_message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
+            if not error_message:
                 session.add(attendee)
                 session.commit()
                 if c.AFTER_BADGE_PRICE_WAIVED:
@@ -693,9 +697,6 @@ class Root:
                     attendee.paid = c.NEED_NOT_PAY
                 elif attendee.payment_method == c.STRIPE:
                     raise HTTPRedirect('pay?id={}', attendee.id)
-                elif attendee.payment_method == c.GROUP:
-                    message = 'Please proceed to the preregistration line to pick up your badge.'
-                    attendee.paid = c.PAID_BY_GROUP
                 elif attendee.payment_method == c.CASH:
                     message = c.AT_DOOR_CASH_MSG.format('${}'.format(attendee.total_cost))
                 elif attendee.payment_method == c.MANUAL:
@@ -704,7 +705,9 @@ class Root:
 
         return {
             'message':  message,
-            'attendee': attendee
+            'error_message':  error_message,
+            'attendee': attendee,
+            'promo_code': params.get('promo_code', ''),
         }
 
     @unrestricted
@@ -871,7 +874,7 @@ class Root:
                 what=charge.description,
                 reg_station=cherrypy.session.get('reg_station')
             ))
-            raise HTTPRedirect('new?message={}', 'Charge successfully processed')
+            raise HTTPRedirect('{}?message={}', return_to, 'Charge successfully processed')
 
     def reg_take_report(self, session, **params):
         if params:

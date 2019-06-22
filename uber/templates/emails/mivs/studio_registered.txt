@@ -1,4 +1,4 @@
-{{ studio.primary_contact.first_name }},
+{{ studio.primary_contact_first_names }},
 
 Thanks for registering your studio ({{ studio.name }}) with the MAGFest Indie Videogame Showcase (MIVS).
 

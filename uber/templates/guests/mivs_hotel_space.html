@@ -1,0 +1,66 @@
+{% extends "guestbase.html" %}
+
+{% block body %}
+  <h3>Hotel Signups</h3>
+  <p>We're happy to allow you to purchase 1 hotel room for the Gaylord and this service is made available to you for being part of MIVS. We don't have any extra rooms other than the 1 provided for you. This room is for your use and you are not allowed to transfer your reservation to someone else unless authorized by MAGFest. Dropping out of MIVS may cause your room to be canceled.</p>
+
+  <p>Please email any hotel questions about to {{ 'hotel@magfest.org'|email_to_link }}.</p>
+
+  <form class="form form-horizontal" method="post" action="mivs_hotel_space">
+    <input type="hidden" name="guest_id" value="{{ guest.id }}"/>
+    <div class="form-group">
+      <label for="needs_hotel_space" class="col-sm-3 control-label optional-field">Need Hotel Space?</label>
+      <div class="col-sm-6">
+        <select name="needs_hotel_space" id="needs_hotel_space" class="form-control">
+          <option value="">Please select an option</option>
+          <option value="1"{% if guest.group.studio.needs_hotel_space %} selected{% endif %}>Yes</option>
+          <option value="0"{% if guest.group.studio.needs_hotel_space == False %} selected{% endif %}>No</option>
+        </select>
+      </div>
+    </div>
+    <div id="hotel_link">
+      <div class="form-group">
+        <div class="col-sm-9 col-sm-offset-3">
+          We will need the First & Last Name, and Email address of the person who will be registering for the hotel room. Please make sure this is the same information that you use in with the hotel link below.
+        </div>
+      </div>
+      {{ macros.form_group(guest.group.studio, 'name_for_hotel', placeholder="First Last") }}
+      {{ macros.form_group(guest.group.studio, 'email_for_hotel', placeholder="email@example.com") }}
+      <div class="form-group">
+        <div class="col-sm-9 col-sm-offset-3">
+          Please <strong><a href="https://registration.experientevent.com/Showmfs191/flow/mivs" target="_hotel">fill out the hotel form here</a></strong>.
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="col-sm-9 col-sm-offset-3">
+        <label for="confirm_checkbox">
+          <input type="checkbox" name="confirm_checkbox" id="confirm_checkbox" value="1"{% if confirm_checkbox %} checked{% endif %}>
+          <span id="confirm_text"></span>
+        </label>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="col-sm-6 col-sm-offset-3">
+        <button type="submit" class="btn btn-primary">Confirm Hotel Needs</button>
+      </div>
+    </div>
+  </form>
+
+  <script type="text/javascript">
+      var showOrHideConfirm = function() {
+          if ($('#needs_hotel_space').val() == '1') {
+              $('#confirm_text').text('I have filled out the given link, and taken care of my hotel accommodations for MAGFest.')
+          } else {
+              $('#confirm_text').text('I have taken care of my own hotel accommodations for MAGFest.')
+          }
+
+          setVisible($.field('confirm_checkbox').parents('.form-group'), $('#needs_hotel_space').val());
+          setVisible($('#hotel_link'), $('#needs_hotel_space').val() == '1');
+      };
+      $().ready(function() {
+          showOrHideConfirm();
+          $('#needs_hotel_space').change(showOrHideConfirm);
+      });
+  </script>
+{% endblock body %}
