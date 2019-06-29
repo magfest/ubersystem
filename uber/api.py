@@ -266,6 +266,7 @@ class AttendeeLookup:
         'staffing': True,
         'is_dept_head': True,
         'ribbon_labels': True,
+        'public_id': True,
     }
 
     fields_full = dict(fields, **{
