@@ -247,7 +247,7 @@ def form_link(model):
 
     if site_section:
         return safe_string('<a href="../{}/form?id={}">{}</a>'.format(site_section, model.id, jinja2.escape(name)))
-    return name
+    return model
 
 
 @JinjaEnv.jinja_filter

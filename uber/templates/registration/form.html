@@ -1,136 +1,24 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% import "regform.html" as attendee_fields with context %}
+{% set page_ro = True %}
+{% import "fields/attendee.html" as attendee_fields with context %}
 {% block title %}Attendee Form - {{ attendee.full_name }}{% endblock %}
 {% block content %}
 
 {% include "registration/menu.html" %}
 
-{% if c.COLLECT_FULL_ADDRESS %}
-    <script type="text/javascript">{% include "region_opts.html" %}</script>
-{% endif %}
-
-<script type="text/javascript">
-    var isPreassignedBadgeType = function (badge_type) {
-        return $.inArray(parseInt(badge_type), [{{ c.PREASSIGNED_BADGE_TYPES }}]) >= 0;
-    };
-
-    var setGroupLink = function () {
-        var group = $.val('group_opt');
-        if (group === '') {
-            $('#group_link').hide();
-        } else {
-            $('#group_link').attr("href", '../groups/form?id=' + group).show();
-        }
-    };
-
-    var unassigned = {{ unassigned|jsonize }};
-    var groupWarning = function() {
-        var groupID = $.val("group_opt");
-        if (groupID && {{ attendee.is_new|jsonize }} && unassigned[groupID] > 0) {
-            $("#unassigned").show("slow");
-        } else {
-            $("#unassigned").hide("fast");
-        }
-    };
-
-    var setAmountPaid = function (focus) {
-        {% if attendee.is_new %}
-            var amount = {{ c.BADGE_PRICE }};
-            if ($.val('badge_type') === {{ c.ONE_DAY_BADGE }}) {
-                amount = {{ c.ONEDAY_BADGE_PRICE }};
-            }
-            if( $.val('paid') === {{ c.HAS_PAID }} ) {
-                $.field('amount_paid').val(amount);
-            } else if ($.val('paid') === {{ c.NOT_PAID }}) {
-                $.field('amount_paid').val(0);
-            }
-        {% endif %}
-        if (focus) {
-            $.focus('amount_paid');
-        }
-    };
-
-    var showOrHideAmounts = function (focus) {
-        var paid = $.val('paid'), extra = $.val('amount_extra');
-        setVisible('#amount_paid', paid !== {{ c.NEED_NOT_PAY }} && paid !== {{ c.PAID_BY_GROUP }} || extra > 0);
-        setVisible('#payment_method', paid !== {{ c.NEED_NOT_PAY }} && paid !== {{ c.PAID_BY_GROUP }} || extra > 0);
-        setVisible('#amount_refunded', paid === {{ c.REFUNDED }});
-        setAmountPaid(focus);
-    };
-
-    var boldOrRegular = function () {
-        if( $.field('placeholder').is(':checked') ) {
-            $('.maybe_bold').css('font-weight', 'normal');
-            $('.full_name').css('font-weight', 'bold');
-        } else {
-            var form = document.forms[0];
-            if( form.group_opt.selectedIndex > 0 )
-                $('.maybe_bold').css('font-weight', 'normal');
-            else {
-                $('.maybe_bold').css('font-weight', 'bold');
-                {% if c.AT_THE_CON %}
-                    $('#email,#zip_code').css('font-weight', 'normal');
-                {% endif %}
-            }
-        }
-    };
-
-    var setPreassigned = function () {
-        if( $.field("placeholder").is(":checked") ) {
-            $.field("paid").val("{{ c.NEED_NOT_PAY }}");
-        }
-        showOrHideAmounts();
-    };
-
-    var setLegalNameRequired = function() {
-        if ($("#same_legal_name").length) {
-            $.field('legal_name').attr('required', function() {
-                return !($.field('placeholder').is(':checked') || $("#same_legal_name").prop('checked'))
-            });
-        }
-    };
-
-    var setBadgeMessage = function () {
-        if ($.field("badge_type") && isPreassignedBadgeType($.val("badge_type"))) {
-            $("#badge_message").text("(next available badge number)");
-        } else {
-            $("#badge_message").text("");
-        }
-    };
-
-    var toggleStaffingAdminRows = function () {
-        setVisible('.staffing-checked', $.field('staffing').prop('checked'));
-    };
-
-    $(function(){
-        $.field("placeholder").click(boldOrRegular).click(setPreassigned).change(setLegalNameRequired);
-        setBadgeMessage();
-        boldOrRegular();
-        setLegalNameRequired();
-        setGroupLink();
-        showOrHideAmounts();
-        toggleStaffingAdminRows();
-        $.field('staffing').on('click', toggleStaffingAdminRows);
-        {% if c.AT_THE_CON and attendee.is_new %}
-            $.field("paid").val({{ c.HAS_PAID }});
-            $.field("amount_paid").val({{ c.BADGE_PRICE }});
-        {% endif %}
-    });
-</script>
-
 <div class="panel panel-default">
 <div class="panel-body">
 <form method="post" action="form" class="form-horizontal">
 {{ csrf_token() }}
+{# Deprecated form included for backwards compatibility with old plugins #}
+  {% include "regform.html" %}
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
 
-{% if not attendee.is_new %}
-    Created by {{ attendee.created.who }} on {{ attendee.created.when|full_datetime_local }}
-{% endif %}
-{% if attendee.last_updated %}
-    Last Updated by {{ attendee.last_updated.who }} on {{ attendee.last_updated.when|full_datetime_local }}
-{% endif %}
+{{ attendee_fields.created }}
+{{ attendee_fields.signed_up }}
+{{ attendee_fields.last_updated }}
+{{ attendee_fields.checked_in }}
 
 {% if attendee.regdesk_info %}
     <div class="form-group">
@@ -144,131 +32,28 @@
     </div>
 {% endif %}
 
-    <div class="form-group">
-        <label for="first_name" class="col-sm-3 control-label">Placeholder</label>
-        <div class="checkbox col-sm-9">
-            <label for='placeholder'>
-            {{ macros.checkbox(attendee, 'placeholder') }} This attendee needs to
-            {% if attendee.is_new %}
-                register themself
-                </label>
-            {% else %}
-                </label>
-                <a href="../preregistration/confirm?id={{ attendee.id }}">register themself</a>
-            {% endif %}
-        </div>
-    </div>
-
-    <div class="form-group">
-        <label for="badge_status" class="col-sm-3 control-label">Status</label>
-        <div class="col-sm-6">
-          <select name="badge_status"{% if c.AT_THE_CON and not admin_can_change_status %} disabled="true"{% endif %}>
-            {{ options(c.BADGE_STATUS_OPTS,attendee.badge_status) }}
-            </select>
-          {% if c.AT_THE_CON and not admin_can_change_status %}
-            <input type="hidden" name="badge_status" value="{{ attendee.badge_status }}"/>
-            Altering the badge status is disabled during the event. The system will update it automatically.{% endif %}
-        </div>
-    </div>
-
-    {% if c.HAS_ACCOUNTS_ACCESS %}
-        <div class="form-group">
-            <label for="admin_status" class="col-sm-3 control-label">Admin</label>
-            <div class="col-sm-6">
-                {% if attendee.admin_account %}
-                    <p name="admin_status">True</p>
-                {% else %}
-                    <p name="admin_status">False</p>
-                {% endif %}
-            </div>
-        </div>
-
-        {% if attendee.admin_account %}
-            <div class="form-group">
-                <label for="admin_options" class="col-sm-3 control-label">Permissions</label>
-                <div class="col-sm-9">
-                    {{ attendee.admin_account.access_labels|join(' / ') }}
-                </div>
-            </div>
-
-        {% endif %}
-    {% endif %}
-
-
+{{ attendee_fields.is_placeholder }}
+{{ attendee_fields.badge_status }}
+{% if c.HAS_ACCOUNTS_ACCESS %}
+  {{ attendee_fields.admin_access }}
+{% endif %}
 {{ attendee_fields.badge_type }}
-
-<div class="form-group">
-    <label class="col-sm-3 control-label">Ribbons</label>
-    <div class="col-sm-9">
-        {{ macros.checkgroup(attendee, 'ribbon') }}
-    </div>
-</div>
-
-<div class="form-group">
-    <label for="group_opt" class="col-sm-3 control-label">Group</label>
-    <div class="col-sm-6">
-        <select name="group_opt" onChange="boldOrRegular() ; setGroupLink() ; groupWarning()">
-            <option value="">Choose a group, if applicable</option>
-            {{ options(group_opts,attendee.group.id) }}
-        </select>
-        &nbsp; <a id="group_link" href="" target="_blank">View this Group's Page</a>
-        <div id="unassigned" style="display:none ; color:red">
-            Warning: This group has at least one unassigned badge.  Are you sure you want this to be a new attendee and not just fill in the data for one of this group's badges?
-        </div>
-    </div>
-</div>
-
-{% if attendee.promo_code_groups or attendee.promo_code and attendee.promo_code.group %}
-<div class="form-group">
-    <label class="col-sm-3 control-label">Promo Code Group</label>
-    <div class="col-sm-6 form-control-static">
-      {% for group in attendee.promo_code_groups %}
-        This attendee is the buyer/group leader for <strong><a href="../groups/promo_code_group_form?id={{ group.id }}" target="_blank">{{ group.name }}</a></strong>.
-      {% endfor %}
-      {% if attendee.promo_code and attendee.promo_code.group %}
-        This attendee used promo code <strong>{{ attendee.promo_code.code }}</strong> to claim a ${{ attendee.promo_code.cost }} badge in promo code group <strong><a href="../groups/promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a></strong>.
-      {% endif %}
-    </div>
-</div>
-{% endif %}
-
-{% if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or attendee.amount_extra >= c.SUPPORTER_LEVEL %}
-    <div class="form-group">
-        <label for="badge_printed_name" class="col-sm-3 control-label">Name Printed on Badge</label>
-        <div class="col-sm-6">
-            <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" />
-        </div>
-    </div>
-{% endif %}
-
-{% if attendee.panel_applicants -%}
-  <div class="form-group">
-    <label class="col-sm-3 control-label">Panels</label>
-    <div class="col-sm-9">
-      <div class="form-control-static">
-        Panel applications this attendee is associated with:
-        <ul>
-          {% for applicant in attendee.panel_applicants -%}
-            <li>
-              <a href="../panel_app_management/app?id={{ applicant.application.id }}">{{ applicant.application.name }}</a>
-            </li>
-          {%- endfor %}
-        </ul>
-      </div>
-    </div>
-  </div>
-{%- endif %}
+{{ attendee_fields.ribbons }}
+{{ attendee_fields.group_link }}
+{{ attendee_fields.promo_code_group_link }}
+{{ attendee_fields.panel_app_link }}
 
 {% block pre_regform %}{% endblock %}
 
-
 {{ attendee_fields.name }}
+{{ attendee_fields.badge_printed_name }}
 {{ attendee_fields.age }}
 {{ attendee_fields.email }}
 {{ attendee_fields.emergency_contact }}
 {{ attendee_fields.cellphone }}
 {{ attendee_fields.address }}
 {{ attendee_fields.amount_extra }}
+{{ attendee_fields.shirt_size }}
 {{ attendee_fields.extra_donation }}
 {{ attendee_fields.promo_code }}
 {{ attendee_fields.interests }}
@@ -278,154 +63,22 @@
 
 {% block post_regform %}{% endblock %}
 
-<div class="form-group staffing staffing-checked">
-    <label class="col-sm-3 control-label">Assigned Depts</label>
-    <div class="col-sm-9">
-      <div class="form-control-static">
-        {{ macros.checkgroup_opts(
-            'assigned_depts_ids',
-            c.DEPARTMENT_OPTS_WITH_DESC,
-            defaults=attendee.assigned_depts_ids,
-            include_empty_hidden=True) }}
-      </div>
-    </div>
-</div>
+{{ attendee_fields.staffing }}
+{{ attendee_fields.job_interests }}
+{{ attendee_fields.assigned_depts }}
+{{ attendee_fields.setup_teardown }}
 
-<div class="form-group staffing staffing-checked">
-    <label class="col-sm-3 control-label">Approved for Setup/Teardown</label>
-    <div class="checkbox col-sm-9">
-        {{ macros.checkbox(attendee, 'can_work_setup', label='Approved for setup') }} <br/>
-        {{ macros.checkbox(attendee, 'can_work_teardown', label='Approved for teardown') }}
-    </div>
-</div>
+{{ attendee_fields.got_merch }}
 
-{% if not attendee.is_new %}
-    {% if c.AT_THE_CON %}
-        <div class="form-group">
-            <label class="col-sm-3 control-label">Received Merch</label>
-            <div class="checkbox col-sm-6">
-                {{ macros.checkbox(attendee, 'got_merch', label='Yes') }}
-            </div>
-        </div>
-      <div class="form-group">
-        <label class="col-sm-3 control-label">Received Staff Merch</label>
-        <div class="checkbox col-sm-6">
-          {{ macros.checkbox(attendee, 'got_staff_merch', label='Yes') }}
-        </div>
-      </div>
-    {% else %}
-        <input type="hidden" name="got_merch" value="{{ '1' if attendee.got_merch else '0' }}" />
-      <input type="hidden" name="got_staff_merch" value="{{ '1' if attendee.got_staff_merch else '0' }}"/>
-    {% endif %}
-    <div class="form-group">
-        <label class="col-sm-3 control-label">Signed Up</label>
-        <div class="col-sm-9">
-            <i>{{ attendee.registered_local|datetime("%B %-d, %Y, %-I:%M %p") }}</i>
-        </div>
-    </div>
-    <div class="form-group">
-        <label class="col-sm-3 control-label">Checked In</label>
-        <div class="col-sm-9">
-            {% if attendee.checked_in %}
-                Checked in at {{ attendee.checked_in_local|datetime("%B %-d, %Y, %-I:%M %p") }}
-            {% else %}
-                Has not checked in yet
-            {% endif %}
-        </div>
-    </div>
-{% endif %}
+{{ attendee_fields.overridden_price }}
+{{ attendee_fields.payment_method }}
+{{ attendee_fields.paid }}
 
-<!-- TODO: integrate this with extra stuff -->
-<div class="form-group">
-    <label class="col-sm-3 control-label">Badge Price</label>
-    <div class="checkbox col-sm-9">
-        $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost|round(2) }}" />
-        <label>
-          <input type="checkbox" name="no_override" {% if attendee.overridden_price == None %} checked {% endif %}>
-          Let the system determine base badge price. (uncheck to override badge price)
-        </label>
-    </div>
-</div>
-
-
-<div class="form-group">
-    <label class="col-sm-3 control-label">Paid</label>
-    <div class="col-sm-6">
-        <select name="paid" onChange="showOrHideAmounts(true)">
-            {{ options(c.PAYMENT_OPTS,attendee.paid) }}
-        </select>
-        &nbsp;&nbsp;&nbsp;
-        <select id="payment_method" name="payment_method">
-            <option value="">Payment Method</option>
-            {{ options(c.NEW_REG_PAYMENT_METHOD_OPTS,attendee.payment_method) }}
-        </select>
-        &nbsp;&nbsp;&nbsp;
-        <span id="amount_paid">
-            Paid: $<input type="text" style="width:4em" name="amount_paid" value="{{ attendee.amount_paid }}" />
-        </span>
-        &nbsp;&nbsp;&nbsp;
-        <span id="amount_refunded">
-            Refunded: $<input type="text" style="width:4em" name="amount_refunded" value="{{ attendee.amount_refunded }}" />
-        </span>
-        {% if c.AT_THE_CON and attendee.staffing %}
-            <br/> ({{ attendee.worked_hours }} out of {{ attendee.weighted_hours }} hours worked)
-        {% endif %}
-        <nobr>
-            {{ attendee_amount_extra }}
-        </nobr>
-    </div>
-</div>
-
-<div class="form-group">
-    <label class="col-sm-3 control-label">Merch Owed</label>
-    <div class="col-sm-9">
-      <p class="form-control-static">{{ attendee.merch }}</p>
-      {% if attendee.got_merch %} (Merch has been picked up) {% endif %}
-      {% if c.SEPARATE_STAFF_MERCH %}
-        <p class="form-control-static">{{ attendee.staff_merch }}</p>
-        {% if attendee.got_staff_merch %} (Staff merch has been picked up) {% endif %}
-      {% endif %}
-    </div>
-</div>
-
-{% if attendee.gets_any_kind_of_shirt %}
-    <div class="form-group">
-        <label for="shirt" class="col-sm-3 control-label">Shirt Size</label>
-        <div class="col-sm-6">
-            <select name="shirt" class="form-control">
-                {{ options(c.SHIRT_OPTS,attendee.shirt) }}
-            </select>
-        </div>
-    </div>
-{% endif %}
-
-<div class="form-group">
-    <label class="col-sm-3 control-label">Extra Merch</label>
-    <div class="col-sm-6">
-        <input type="text" name="extra_merch" value="{{ attendee.extra_merch }}" style="width:80%" />
-    </div>
-</div>
-
-<div class="form-group">
-    <label class="col-sm-3 control-label">Special Regdesk Instructions</label>
-    <div class="col-sm-6">
-        <input type="text" name="regdesk_info" value="{{ attendee.regdesk_info }}" style="width:80%" />
-    </div>
-</div>
-
-<div class="form-group">
-    <label class="col-sm-3 control-label">Notes for Later Review</label>
-    <div class="col-sm-6">
-        <textarea name="for_review" rows="3" style="width:66%">{{ attendee.for_review }}</textarea>
-    </div>
-</div>
-
-<div class="form-group">
-    <label class="col-sm-3 control-label">Admin Notes</label>
-    <div class="col-sm-6">
-        <textarea name="admin_notes" rows="3" style="width:66%">{{ attendee.admin_notes }}</textarea>
-    </div>
-</div>
+{{ attendee_fields.merch }}
+{{ attendee_fields.staff_merch }}
+{{ attendee_fields.regdesk_info }}
+{{ attendee_fields.for_review }}
+{{ attendee_fields.admin_notes }}
 
 <div class="form-group">
     <div class="col-sm-9 col-sm-offset-3">
@@ -442,7 +95,7 @@
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ attendee.id }}" />
             {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}" />{% endif %}
-            <br/><input type="submit" value="{% if attendee.group and attendee.is_unassigned %}Delete this group badge{% elif attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}"
+            <br/><input type="submit" class="btn btn-danger" value="{% if attendee.group and attendee.is_unassigned %}Delete this group badge{% elif attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}"
                         {% if attendee.paid == c.HAS_PAID %} style="background-color:#BCBCBC" title="Cannot delete a paid badge." disabled {% endif %}/>
         </form>
     </div>

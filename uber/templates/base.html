@@ -1,5 +1,4 @@
 {% import 'macros.html' as macros with context %}
-{%- set can_edit = False -%}
 <!DOCTYPE HTML>
 <html>
 <head>
@@ -92,15 +91,13 @@
       <script type="text/javascript">
       $(function() {
           $('.form-control-static').each(function(index) {
-            if($( this ).text() == '') {
+            if($( this ).text().trim() == '') {
                 $(this).parents('.form-group').hide();
             }
           })
       });
       </script>
     {% endblock %}
-
-
 
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
