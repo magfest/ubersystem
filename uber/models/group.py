@@ -234,7 +234,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def min_badges_addable(self):
-        if self.is_dealer and not self.dealer_badges_remaining:
+        if self.is_dealer and not self.dealer_badges_remaining or self.amount_unpaid:
             return 0
         if self.can_add:
             return 1
