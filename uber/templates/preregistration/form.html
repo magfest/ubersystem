@@ -1,8 +1,17 @@
 {% extends "base.html" %}
+{%- set is_prereg_attendee = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}
+{%- set is_prereg_dealer = c.PAGE_PATH in ['/preregistration/dealer_registration', 'preregistration/post_dealer'] or attendee and attendee.badge_type == c.PSEUDO_DEALER_BADGE -%}
 {% import "fields/attendee.html" as attendee_fields with context %}
+{% import "fields/group.html" as group_fields with context %}
 {% block title %}Preregistration{% endblock %}
 {% block content %}
-
+  {% if is_prereg_attendee %}
+    <script type="text/javascript">
+        $(function () {
+            $('.group_fields').addClass('hide');
+        });
+    </script>
+  {% endif %}
 {% include 'prereg_masthead.html' %}
 <div class="panel panel-default">
   <div class="panel-body">
@@ -20,6 +29,18 @@
   {% include "groupform.html" %}
   {% include "regform.html" %}
 
+  {{ group_fields.name }}
+  {{ group_fields.badges }}
+  {% if is_prereg_dealer %}
+    {{ group_fields.tables }}
+    {{ group_fields.categories }}
+    {{ group_fields.wares }}
+    {{ group_fields.description }}
+    {{ group_fields.special_needs }}
+    {{ group_fields.website }}
+    {{ group_fields.address }}
+  {% endif %}
+  {{ group_fields.explanation }}
   {{ attendee_fields.group_fields }}
   {{ attendee_fields.badge_buttons }}
   {{ attendee_fields.badge_type }}
