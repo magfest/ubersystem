@@ -4,7 +4,7 @@
   <script type="text/javascript">
   updateBadgeMax = function() {
       var new_badge_max = Math.ceil(parseFloat($("select[name=tables]").val())) + 1;
-      var curr_badge_max = parseInt($('select[name=badges] option:last').val());
+      var curr_badge_max = parseInt($('select[name=badges] option:last').val()) || 0;
       if (curr_badge_max > new_badge_max) {
           $("select[name=badges] option").slice(new_badge_max, curr_badge_max).remove();
       } else {
