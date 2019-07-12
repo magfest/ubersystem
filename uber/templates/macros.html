@@ -89,7 +89,7 @@
 
 
 {% macro button_radio_opts(field_name, choices, suffix='', default='', is_readonly=False, is_required=False) -%}
-  <div data-toggle="buttons" class="btn-group btn-group-toggle">
+  <div data-toggle="buttons" class="btn-group btn-group-toggle form-control-static">
     {% for choice in choices -%}
       {%- set value = choice[0] -%}
       {%- set label = choice[1] -%}
