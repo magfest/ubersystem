@@ -6,8 +6,8 @@ from pockets.autolog import log
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csv_file
 from uber.errors import HTTPRedirect
-from uber.models import Attendee
-from uber.utils import check_csrf
+from uber.models import Attendee, MITSTeam
+from uber.utils import add_opt, check_csrf
 
 
 @all_renderable(c.MITS_ADMIN)
@@ -16,6 +16,12 @@ class Root:
         return {
             'message': message,
             'teams': session.mits_teams()
+        }
+
+    def accepted(self, session, message=''):
+        return {
+            'message': message,
+            'accepted_teams': session.query(MITSTeam).filter(MITSTeam.status == c.ACCEPTED),
         }
 
     def create_new_application(self):
@@ -76,11 +82,18 @@ class Root:
 
         return {'applicants': applicants}
 
+    def teams_and_badges(self, session):
+        return {
+            'accepted_teams': session.query(MITSTeam).filter(MITSTeam.status == c.ACCEPTED),
+        }
+
     @ajax
     def link_badge(self, session, applicant_id, attendee_id):
+        attendee = session.attendee(attendee_id)
         try:
             applicant = session.mits_applicant(applicant_id)
-            applicant.attendee_id = attendee_id
+            applicant.attendee = attendee
+            add_opt(attendee.ribbon_ints, c.MIVS)
             session.commit()
         except Exception:
             log.error('unexpected error linking applicant to a badge', exc_info=True)
@@ -99,6 +112,7 @@ class Root:
                 placeholder=True,
                 paid=c.NEED_NOT_PAY,
                 badge_type=c.ATTENDEE_BADGE,
+                ribbon=c.MIVS,
                 first_name=applicant.first_name,
                 last_name=applicant.last_name,
                 email=applicant.email,
@@ -128,16 +142,15 @@ class Root:
                     ])
 
     @csv_file
-    def schedule_requests(self, out, session):
-        out.writerow([''] + [desc for val, desc in c.MITS_SCHEDULE_OPTS])
+    def showcase_requests(self, out, session):
+        out.writerow(['Team Name'] + [desc for val, desc in c.MITS_SHOWCASE_SCHEDULE_OPTS])
         for team in session.mits_teams().filter_by(status=c.ACCEPTED):
-            available = getattr(team.schedule, 'availability_ints', [])
-            multiple = getattr(team.schedule, 'multiple_tables_ints', [])
-            out.writerow([team.name] + [
-                'multiple' if val in multiple else
-                '1 table' if val in available else ''
-                for val, desc in c.MITS_SCHEDULE_OPTS
-            ])
+            if team.schedule and team.schedule.showcase_availability:
+                available = getattr(team.schedule, 'showcase_availability_ints', [])
+                out.writerow([team.name] + [
+                    'available' if val in available else ''
+                    for val, desc in c.MITS_SHOWCASE_SCHEDULE_OPTS
+                ])
 
     @csv_file
     def panel_requests(self, out, session):

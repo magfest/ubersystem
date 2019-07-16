@@ -5,8 +5,10 @@ from threading import current_thread
 from urllib.parse import parse_qsl
 
 import cherrypy
-from pockets.autolog import log
 from pytz import UTC
+from sqlalchemy.ext import associationproxy
+
+from pockets.autolog import log
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sideboard.lib import serializer
 
@@ -16,8 +18,9 @@ from uber.models.admin import AdminAccount
 from uber.models.email import Email
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
 
-
 __all__ = ['PageViewTracking', 'Tracking']
+
+serializer.register(associationproxy._AssociationList, list)
 
 
 class PageViewTracking(MagModel):
@@ -116,13 +119,13 @@ class Tracking(MagModel):
                 """
                 try:
                     old_val_repr = cls.repr(column, old_val)
-                except Exception as e:
+                except Exception:
                     log.error('Tracking repr({}) failed on old value'.format(attr), exc_info=True)
                     old_val_repr = '<ERROR>'
 
                 try:
                     new_val_repr = cls.repr(column, new_val)
-                except Exception as e:
+                except Exception:
                     log.error('Tracking repr({}) failed on new value'.format(attr), exc_info=True)
                     new_val_repr = '<ERROR>'
 

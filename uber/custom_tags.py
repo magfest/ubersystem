@@ -89,6 +89,16 @@ def full_datetime_local(dt):
 
 
 @JinjaEnv.jinja_export
+def now():
+    return datetime.utcnow()
+
+
+@JinjaEnv.jinja_export
+def now_localized():
+    return localized_now()
+
+
+@JinjaEnv.jinja_export
 def event_dates():
     if c.EPOCH.date() == c.ESCHATON.date():
         return c.EPOCH.strftime('%B %-d')
@@ -273,7 +283,7 @@ def sortBy(xs, attrName):
 
 @JinjaEnv.jinja_filter
 def idize(s):
-    return re.sub('\W+', '_', str(s)).strip('_')
+    return re.sub(r'\W+', '_', str(s)).strip('_')
 
 
 @JinjaEnv.jinja_filter
@@ -619,14 +629,6 @@ def single_day_prices():
 
 @JinjaEnv.jinja_export
 def price_notice(label, takedown, amount_extra=0, discount=0):
-    if c.HARDCORE_OPTIMIZATIONS_ENABLED:
-        # CPU optimizaiton: the calculations done in this function are somewhat expensive and even with caching,
-        # still do some expensive DB queries.  if hardcore optimizations mode is enabled, we display a
-        # simpler message.  This is intended to be enabled during the heaviest loads at the beginning of an event
-        # in order to reduce server load so the system stays up.  After the rush, it should be safe to turn this
-        # back off
-        return ''
-
     if not takedown:
         takedown = c.ESCHATON
 

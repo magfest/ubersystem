@@ -1,0 +1,89 @@
+{% extends "mits_base.html" %}
+{% block body %}
+
+  <h2>MITS Waiver</h2>
+
+  <p>Hello and Welcome to {{ c.EVENT_NAME_AND_YEAR }}!</p>
+  <p>We wanted to take a moment and welcome all developers who will be promoting their games this year at the MAGFest Indie Tabletop Showcase,
+    and to provide you with our short developer seller’s contract. This sheet is to establish the rules.
+    Please read our {% if c.CODE_OF_CONDUCT_URL %} <a href="{{ c.CODE_OF_CONDUCT_URL }}">full code of conduct here</a>.
+    {% else %}full code of conduct, which is available at registration, or we can provide you with a copy if you ask.{% endif %}</p>
+
+  <p>Rules/Information:</p>
+  <ul>
+    <li><strong>Indemnifying Waiver</strong>: I agree to indemnify, defend, and hold harmless MAGFest INC, the Gaylord National Resort and
+      Convention Center, and their respective employees and agents against any claims or expenses arising out of the use of the exhibition
+      premises, and I understand that neither MAGFest INC nor the Gaylord National Resort and Convention Center maintains insurance covering
+      my property and it is my sole responsibility to obtain any such insurance.</li>
+    <li>Be kind to your neighbors and respectful of space. Sometimes space can get a little tight, so be courteous to one another.</li>
+    <li>Your displays and products cannot block the aisles or walkways. This is a big deal as we must comply with fire code. Please consult
+      us before moving any tables. Your tables or belongings may be moved by us at any time if they violate fire code.</li>
+    <li>You can set up and leave anytime the room is open. —there are no set demo hours. As a note: most of our crowd are not morning people
+      and tend to be around between late morning and late at night. Your best hours will probably be afternoon and evening, but it is up to
+      you how long you want to be there. Also, we encourage you to check out our other events when you are not demoing or selling. Your badge
+      will get you entry into any and all events. Please be ready to leave the room at 4AM each night, except on Sunday, when the room will
+      close for good at 6pm.</li>
+    <li>You may only sell your game and related merch, and nothing else, and only if you clicked 'yes' to the 'would like to sell' questions
+      in the form AND filled out the tax form before January 3rd.</li>
+    <li>No selling out of a hotel room, away from the demo area or away from your table; i.e. no peddling.</li>
+    <li>There is no security provided for tables in the demo area. Have a lockdown plan for when you leave or take your stuff with you.
+      MAGFest is not responsible for lost or stolen property. You’re welcome to leave your things locked up in the room overnight but we
+      are not guarding the room, only locking it.</li>
+    <li>If you would like to lend or donate any games to our Tabletop library, that would give more people a chance to play it. Please include
+      detailed instructions as you won’t be able to walk through people who borrow the game from us.</li>
+    <li>We have <strong>M-Points</strong> at MAGFest—it’s our own type of “MAG Money.” Basically, we will be rewarding attendees with it
+      during the event, and it works as a voucher. The denominations are as follows: 1, 5, 10, and 20. It will be up to you as to whether or
+      not you want to participate in using them at your table. What will happen is an attendee will come to your table and purchase something,
+      and give you the M-Point as the equivalent of cash (so a 5 M-Point for $5). You can exchange the M-Points you’ve collected for their cash
+      value with a marketplace manager at the marketplace HQ table in the marketplace, I plan to be in the room from 1-7 each day and you will
+      have my phone number, if you need any help with this process. It is completely voluntary as to whether or not you participate in the usage
+      of M-Points. Also, you can choose to accept them one of two ways: 1.) You can give change for them if one is spent at your table
+      (someone buys $2.98 worth of stuff, and gives you a 5 M-Point and you give them back $2.02 in cash) or 2.) You tell them they have
+      to spend at least the value of the M-Point or otherwise they forfeit their change (i.e. they have to spend at least $5 if they want
+      to use their 5 M-Point or lose the change if they only spend say $2.98). The attendee must surrender the M-Point at time of purchase.</li>
+    <li>Do not try to solve a dispute with an attendee or other team at any time, get us to do this for you. You are not on-duty MAGFest staff
+      while presenting.</li>
+    <li>You are required to sign your vendor contract before you set up sell at your table. If you sell at your table before signing your
+      contract, then you will be fined <strong>$75.00</strong>, which must be paid before you sell anything else. We’re sorry to be so harsh,
+      but this is a serious matter for MAGFest as we need to follow both hotel guidelines and Maryland law.</li>
+    <li>If you do not adhere to the rules set out in this contract, we reserve the right to revoke your ability to demo or sell at MAGFest
+      at any time for any reason.</li>
+  </ul>
+
+  <p>Most of the time one of my assistants or Josh or I will around the demo space for you to be able to contact me, however, in case none of
+    us is in the area, and you need to get in touch with me or Josh, my assistant department head, you can text my personal cell at
+    (804) 398-2549 and Josh’s at (571) 419-4469. He is the on-duty head of department from 10am to 6pm and I am the on duty head from 6pm to 4am.
+    Call only if it is very urgent, as there are many teams and most of those has 2 or 3 people. If we accepted calls for every problem we
+    would never be able to solve any problem. As a warning, sometimes we have bad signal in the hotel, but most of the time it should be okay.
+    I am looking forward to an awesome event this year and to give your teams this opportunity!</p>
+
+  <p>~Janus
+  <br/>(David Boyd)</p>
+
+  {% if team.waiver_signed %}
+  <strong>{{ team.waiver_signature }}</strong> signed this waiver at {{ team.waiver_signed|datetime_local }}.
+  <br/><a href="index" class="btn btn-default">Go Back to Application</a>
+  {% else %}
+  <form method="post" action="waiver" class="form-horizontal" role="form">
+    {{ csrf_token() }}
+
+    <p><strong>Your signature here acknowledges that you have received, read, and agree to abide by the Indie Developer rules and guidelines
+      set forth for {{ c.EVENT_NAME_AND_YEAR }}.</strong></p>
+
+    <p>In addition you are signing and agreeing to the <strong>Indemnifying Waiver</strong>:
+    <br/>"I agree to indemnify, defend, and hold harmless MAGFest INC, the Gaylord National Resort and Convention Center, and their respective
+    employees and agents against any claims or expenses arising out of the use of the exhibition premises, and I understand that neither MAGFest
+    INC nor the Gaylord National Resort and Convention Center maintains insurance covering my property and it is my sole responsibility to obtain
+      any such insurance."</p>
+
+    {{ macros.form_group(team, 'waiver_signature', label="Electronic Signature", help="Enter your full name to sign the waiver.") }}
+
+    <div class="form-group">
+      <div class="col-sm-6 col-sm-offset-3">
+        <button type="submit" class="btn btn-primary">Electronically Sign Waiver</button>
+      </div>
+    </div>
+  </form>
+  {% endif %}
+
+{% endblock %}

@@ -1,13 +1,18 @@
 import json
 import mimetypes
 import os
+import traceback
 from pprint import pformat
 
 import cherrypy
 import jinja2
+from cherrypy import HTTPError
+from pockets import is_listy
 from pockets.autolog import log
-from sideboard.jsonrpc import _make_jsonrpc_handler
+from sideboard.jsonrpc import json_handler, ERR_INVALID_RPC, ERR_MISSING_FUNC, ERR_INVALID_PARAMS, \
+    ERR_FUNC_EXCEPTION, ERR_INVALID_JSON
 from sideboard.server import jsonrpc_reset
+from sideboard.websockets import trigger_delayed_notifications
 
 from uber.config import c, Config
 from uber.decorators import all_renderable, render
@@ -50,7 +55,9 @@ def get_verbose_request_context():
     p = ["  %s: %s" % (k, str(v)[:max_reporting_length]) for k, v in cherrypy.request.params.items()]
     post_txt = 'Request Params:\n' + '\n'.join(p)
 
-    session_txt = 'Session Params:\n' + pformat(cherrypy.session.items(), width=40)
+    session_txt = ''
+    if hasattr(cherrypy, 'session'):
+        session_txt = 'Session Params:\n' + pformat(cherrypy.session.items(), width=40)
 
     h = ["  %s: %s" % (k, v) for k, v in cherrypy.request.header_list]
     headers_txt = 'Request Headers:\n' + '\n'.join(h)
@@ -67,6 +74,8 @@ def log_exception_with_verbose_context(debug=False, msg=''):
     """
     Write the request headers, session params, page location, and the last error's traceback to the cherrypy error log.
     Do this all one line so all the information can be collected by external log collectors and easily displayed.
+
+    Debug param is there to play nice with the cherrypy logger
     """
     log_with_verbose_context('\n'.join([msg, 'Exception encountered']), exc_info=True)
 
@@ -174,6 +183,24 @@ class Root:
     def index(self):
         raise HTTPRedirect('common/')
 
+    def uber(self, *path, **params):
+        """
+        Some old browsers bookmark all urls as starting with /uber but Nginx
+        automatically prepends this.  For backwards-compatibility, if someone
+        comes to a url that starts with /uber then we redirect them to the
+        same URL with that bit stripped out.
+
+        For example, old laptops which have
+            https://onsite.uber.magfest.org/uber/registration/register
+        bookmarked as their homepage will automatically get redirected to
+            https://onsite.uber.magfest.org/registration/register
+        and so forth.
+        """
+        path = cherrypy.request.path_info[len('/uber'):]
+        if cherrypy.request.query_string:
+            path += '?' + cherrypy.request.query_string
+        raise HTTPRedirect(path)
+
     static_views = StaticViews()
     angular = AngularJavascript()
 
@@ -187,8 +214,73 @@ def error_page_404(status, message, traceback, version):
 
 c.APPCONF['/']['error_page.404'] = error_page_404
 
-cherrypy.tree.mount(Root(), c.PATH, c.APPCONF)
+cherrypy.tree.mount(Root(), c.CHERRYPY_MOUNT_PATH, c.APPCONF)
 static_overrides(os.path.join(c.MODULE_ROOT, 'static'))
+
+
+def _make_jsonrpc_handler(services, debug=c.DEV_BOX, precall=lambda body: None):
+
+    @cherrypy.expose
+    @cherrypy.tools.force_json_in()
+    @cherrypy.tools.json_out(handler=json_handler)
+    def _jsonrpc_handler(self=None):
+        id = None
+
+        def error(status, code, message):
+            response = {'jsonrpc': '2.0', 'id': id, 'error': {'code': code, 'message': message}}
+            log.debug('Returning error message: {}', repr(response).encode('utf-8'))
+            cherrypy.response.status = status
+            return response
+
+        def success(result):
+            response = {'jsonrpc': '2.0', 'id': id, 'result': result}
+            log.debug('Returning success message: {}', {
+                'jsonrpc': '2.0', 'id': id, 'result': len(result) if is_listy(result) else str(result).encode('utf-8')})
+            cherrypy.response.status = 200
+            return response
+
+        request_body = cherrypy.request.json
+        if not isinstance(request_body, dict):
+            return error(400, ERR_INVALID_JSON, 'Invalid json input: {!r}'.format(request_body))
+
+        log.debug('jsonrpc request body: {}', repr(request_body).encode('utf-8'))
+
+        id, params = request_body.get('id'), request_body.get('params', [])
+        if 'method' not in request_body:
+            return error(400, ERR_INVALID_RPC, '"method" field required for jsonrpc request')
+
+        method = request_body['method']
+        if method.count('.') != 1:
+            return error(404, ERR_MISSING_FUNC, 'Invalid method ' + method)
+
+        module, function = method.split('.')
+        if module not in services:
+            return error(404, ERR_MISSING_FUNC, 'No module ' + module)
+
+        service = services[module]
+        if not hasattr(service, function):
+            return error(404, ERR_MISSING_FUNC, 'No function ' + method)
+
+        if not isinstance(params, (list, dict)):
+            return error(400, ERR_INVALID_PARAMS, 'Invalid parameter list: {!r}'.format(params))
+
+        args, kwargs = (params, {}) if isinstance(params, list) else ([], params)
+
+        precall(request_body)
+        try:
+            return success(getattr(service, function)(*args, **kwargs))
+        except HTTPError as http_error:
+            return error(http_error.code, ERR_FUNC_EXCEPTION, http_error._message)
+        except Exception as e:
+            log.error('Unexpected error', exc_info=True)
+            message = 'Unexpected error: {}'.format(e)
+            if debug:
+                message += '\n' + traceback.format_exc()
+            return error(500, ERR_FUNC_EXCEPTION, message)
+        finally:
+            trigger_delayed_notifications()
+
+    return _jsonrpc_handler
 
 
 jsonrpc_services = {}
@@ -200,5 +292,5 @@ def register_jsonrpc(service, name=None):
     jsonrpc_services[name] = service
 
 
-jsonrpc_handler = _make_jsonrpc_handler(jsonrpc_services, precall=jsonrpc_reset)
-cherrypy.tree.mount(jsonrpc_handler, os.path.join(c.PATH, 'jsonrpc'), c.APPCONF)
+jsonrpc_app = _make_jsonrpc_handler(jsonrpc_services, precall=jsonrpc_reset)
+cherrypy.tree.mount(jsonrpc_app, os.path.join(c.CHERRYPY_MOUNT_PATH, 'jsonrpc'), c.APPCONF)

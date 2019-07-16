@@ -6,6 +6,6 @@ For helping us judge the entries to be shown for this year, we are happy to give
 
 You can expect judging to start this week, as we assign out games to you. Judging will last until {{ c.MIVS_JUDGING_DEADLINE|datetime_local }}. Be on the lookout for another email from us very soon that will contain more detailed instructions. 
 
-If you have any questions, feel free to drop us a line at mivs@magfest.org
+If you have any questions, feel free to drop us a line at {{ c.MIVS_EMAIL|email_only }}
 
 {{ c.MIVS_EMAIL_SIGNATURE }}

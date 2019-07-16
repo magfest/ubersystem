@@ -5,12 +5,12 @@
   <h1 style='color:red'>{{ c.EVENT_NAME_AND_YEAR }} pre-registration is not yet open.</h1>
   <p>
   {%- if not c.HIDE_PREREG_OPEN_DATE -%}
-    Please check back on {{ c.PREREG_OPEN|datetime("%B %d") }}!<br/>
+    Please check back on {{ c.PREREG_OPEN|datetime_local }}!<br/>
   {%- else -%}
     Please check back soon!
   {%- endif -%}
   </p>
-  {%- if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.BEFORE_DEALER_REG_SHUTDOWN -%}
+  {%- if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN -%}
   <p>
     <strong>Dealers:</strong>
     {% if c.BEFORE_DEALER_REG_START %}

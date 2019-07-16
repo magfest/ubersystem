@@ -1,4 +1,5 @@
 import cherrypy
+from datetime import timedelta
 
 from uber.config import c
 from uber.custom_tags import safe_string
@@ -61,6 +62,23 @@ class Root:
         }
 
     @check_shutdown
+    def volunteer_agreement(self, session, message='', agreed_to_terms=None, csrf_token=None):
+        attendee = session.logged_in_volunteer()
+        if csrf_token is not None:
+            check_csrf(csrf_token)
+            if agreed_to_terms:
+                attendee.agreed_to_volunteer_agreement = True
+                raise HTTPRedirect('index?message={}', 'Agreement received')
+
+            message = "You must agree to the terms of the agreement"
+
+        return {
+            'message': message,
+            'attendee': attendee,
+            'agreement_end_date': c.ESCHATON.date() + timedelta(days=31),
+        }
+
+    @check_shutdown
     @unrestricted
     def volunteer(self, session, id, csrf_token=None, requested_depts_ids=None, message=''):
         attendee = session.attendee(id)
@@ -104,6 +122,7 @@ class Root:
             cal_length = con_days + 2  # There's no specific config for # of shift signup days
         else:
             cal_length = con_days
+
         return {
             'jobs': joblist,
             'has_public_jobs': has_public_jobs,
@@ -155,7 +174,7 @@ class Root:
                 elif not attendee.dept_memberships and not c.AT_THE_CON:
                     message = 'You have not been assigned to any departments; ' \
                         'an admin must assign you to a department before you can log in'
-            except Exception as ex:
+            except Exception:
                 message = 'No attendee matches that name and email address and zip code'
 
             if not message:

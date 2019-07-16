@@ -20,7 +20,7 @@
   <div id="show-opts" class="btn-group" style="margin-bottom: 10px" data-toggle="buttons"></div>
 
   <div class="table-responsive">
-    <table id="group-table" class="datatable table table-striped" data-page-length="-1">
+    <table id="group-table" class="datatable table table-striped" data-info="false" data-page-length="-1">
       <thead>
       <tr>
         <th>Group</th>
@@ -48,14 +48,14 @@
 
               {% if item.is_link -%}
                 <td>
-                  {%- if item_display.startswith('../') or item_display.startswith(c.PATH) or item_display.startswith('http') -%}
+                  {%- if item_display.startswith('../') or item_display.startswith('/') or item_display.startswith('http') -%}
                     {{ item_display|url_to_link("Yes", "_blank") }}
                   {%- else -%}
                     {{ item_display }}
                   {%- endif -%}
                 </td>
               {% else -%}
-                <td>{{ item_display -}}</td>
+                <td>{% if item_display is not none %}{{ item_display }}{% endif %}</td>
               {% endif -%}
             {% endif -%}
           {% endfor -%}

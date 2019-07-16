@@ -1,6 +1,48 @@
 {% extends "mivs_base.html" %}
 {% block body %}
 
+{% if judge.status == c.UNCONFIRMED %}
+<h2>Confirm MIVS Judging</h2>
+  Would you like to be a judge for MIVS this year?
+
+  <form method="post" action="index" role="form" class="form-horizontal">
+  {{ csrf_token() }}
+    <input type="hidden" name="id" value="{{ judge.id }}" />
+    <div class="form-group">
+      <div class="col-sm-6">
+        <div class="radio">
+          <label>
+            <input type="radio" name="status" value="{{ c.CONFIRMED }}" required checked /> Yes!
+          </label>
+        </div>
+        <div class="radio">
+          <label>
+            <input type="radio" name="status" value="{{ c.NEXT_YEAR }}" required /> No, not this year. (We'll contact you again next year)
+          </label>
+        </div>
+        <div class="radio">
+          <label>
+            <input type="radio" name="status" value="{{ c.CANCELLED }}" required /> No, please remove me from the list.
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="checkbox col-sm-6">
+          {{ macros.checkbox(judge, 'no_game_submission', label='I have not submitted a game to MIVS this year.') }}
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="col-sm-6">
+        <button type="submit" class="btn btn-primary">Submit</button>
+      </div>
+    </div>
+  </form>
+{% elif judge.status == c.NEXT_YEAR %}
+  Sorry you won't be able to judge this year. We'll be in touch next year and hope you can join us then.
+{% elif judge.status == c.CANCELLED %}
+  Thank you for updating your preference, we'll be removing you from the judging list going forward. Thanks for all the work you've put into judging for MIVS in the past. If you change your mind, email {{ '{{ c.MIVS_EMAIL|email_only }}'|email_to_link }}.
+{% else %}
 <h2>Your Preferences</h2>
   In order to help us match you with the right kinds of games, please tell us what genres you prefer to play and what
   platforms you own.
@@ -21,6 +63,7 @@
       </div>
       <div class="clearfix"></div>
       <div class="col-sm-6 col-sm-offset-3">
+        If you selected PC as a platform, please include your PC specs below.
         <input id="platforms-other" class="form-control" type="text" name="platforms_text" value="{{ judge.platforms_text }}" placeholder="Other platform(s)"/>
       </div>
     </div>
@@ -45,6 +88,7 @@ and {{ judge.game_reviews|length }} have had the actual game reviewed.
         {% if c.AFTER_MIVS_ROUND_TWO_START %}
             <th>Game Review Status</th>
             <th>Your Score</th>
+            <th>Score Breakdown</th>
         {% else %}
             <th>Video Review Status</th>
         {% endif %}
@@ -58,7 +102,15 @@ and {{ judge.game_reviews|length }} have had the actual game reviewed.
             <td><a href="studio?id={{ review.game.studio.id }}">{{ review.game.studio.name }}</a></td>
             {% if c.AFTER_MIVS_ROUND_TWO_START %}
                 <td><a href="game_review?id={{ review.id }}">{{ review.game_status_label }}</a></td>
-                <td>{{ review.game_score|default("not reviewed yet") }}</td>
+                {% if not review.game_score %}<td>N/A</td>
+                <td>N/A</td>
+                {% else %}<td>{{ review.game_score|round(1) }}</td>
+                <td>
+                  <em>Show Readiness</em>: {{ review.readiness_score }} <br/>
+                  <em>Overall Design</em>: {{ review.design_score }} <br/>
+                  <em>Overall Enjoyment</em>: {{ review.enjoyment_score }}
+                </td>
+                {% endif %}
             {% else %}
                 <td><a href="video_review?id={{ review.id }}">{{ review.video_status_label }}</a></td>
             {% endif %}
@@ -67,5 +119,5 @@ and {{ judge.game_reviews|length }} have had the actual game reviewed.
 {% endfor %}
 </tbody>
 </table>
-
+{% endif %}
 {% endblock %}

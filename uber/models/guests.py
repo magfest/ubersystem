@@ -11,6 +11,7 @@ from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
 
 from uber.config import c
+from uber.custom_tags import yesno
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column, MultiChoice
@@ -25,7 +26,7 @@ __all__ = [
 
 class GuestGroup(MagModel):
     group_id = Column(UUID, ForeignKey('group.id'))
-    event_id = Column(UUID, ForeignKey('event.id'), nullable=True)
+    event_id = Column(UUID, ForeignKey('event.id', ondelete='SET NULL'), nullable=True)
     group_type = Column(Choice(c.GROUP_TYPE_OPTS), default=c.BAND)
     num_hotel_rooms = Column(Integer, default=1, admin_only=True)
     payment = Column(Integer, default=0, admin_only=True)
@@ -33,6 +34,7 @@ class GuestGroup(MagModel):
     estimated_loadin_minutes = Column(Integer, default=c.DEFAULT_LOADIN_MINUTES, admin_only=True)
     estimated_performance_minutes = Column(Integer, default=c.DEFAULT_PERFORMANCE_MINUTES, admin_only=True)
 
+    wants_mc = Column(Boolean, nullable=True)
     info = relationship('GuestInfo', backref=backref('guest', load_on_pending=True), uselist=False)
     bio = relationship('GuestBio', backref=backref('guest', load_on_pending=True), uselist=False)
     taxes = relationship('GuestTaxes', backref=backref('guest', load_on_pending=True), uselist=False)
@@ -109,12 +111,16 @@ class GuestGroup(MagModel):
             if self.group.leader.panel_applications else self.status('panel')
 
     @property
+    def mc_status(self):
+        return None if self.wants_mc is None else yesno(self.wants_mc, 'Yes,No')
+
+    @property
     def checklist_completed(self):
         for list_item in c.GUEST_CHECKLIST_ITEMS:
             item_status = getattr(self, list_item['name'] + '_status', None)
             if self.deadline_from_model(list_item['name']) and not item_status:
                 return False
-            elif 'Unclaimed' in item_status:
+            elif item_status and 'Unclaimed' in item_status:
                 return False
         return True
 
@@ -143,6 +149,33 @@ class GuestGroup(MagModel):
         if subclass:
             return getattr(subclass, 'status', getattr(subclass, 'id'))
         return ''
+
+    @property
+    def guidebook_name(self):
+        return self.group.name if self.group else ''
+
+    @property
+    def guidebook_subtitle(self):
+        return self.group_type_label
+
+    @property
+    def guidebook_desc(self):
+        return self.bio.desc if self.bio else ''
+
+    @property
+    def guidebook_image(self):
+        return self.bio.pic_filename if self.bio else ''
+
+    @property
+    def guidebook_thumbnail(self):
+        return self.bio.pic_filename if self.bio else ''
+
+    @property
+    def guidebook_images(self):
+        if not self.bio:
+            return ['', '']
+
+        return [self.bio.pic_filename], [self.bio]
 
 
 class GuestInfo(MagModel):

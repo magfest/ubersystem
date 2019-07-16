@@ -1,4 +1,4 @@
-Ahoy {{ game.studio.primary_contact.first_name }},
+Ahoy {{ game.studio.primary_contact_first_names }},
 
 We're looking forward to seeing you and your games at MAGFest 2018. We wanted to send you information about two items that require your timely attention.
 

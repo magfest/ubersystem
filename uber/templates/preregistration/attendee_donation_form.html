@@ -2,7 +2,7 @@
 {% block title %}Additional Donation{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
-<div class="masthead"></div>
+{% include 'prereg_masthead.html' %}
 <div class="panel panel-default">
   <div class="panel-body">
     {% if attendee.paid == c.NOT_PAID %}
@@ -17,18 +17,15 @@
             <td style="width:100px ; text-align:center">or</td>
             <td><a href="undo_attendee_donation?id={{ attendee.id }}">{{ macros.stripe_button("Undo Extra Money") }}</a></td>
           {% endif %}
-          {% if attendee.can_abandon_badge %}
+          {% if attendee.can_abandon_badge or attendee.can_self_service_refund_badge %}
             <td style="width:100px ; text-align:center">or</td>
             <td>
-              <button type="submit" form="abandon_badge" class="btn btn-danger"
-                      onClick="return confirm('Are you sure you want to delete your badge? This can\'t be undone!');">
-                I'm not coming
-              </button>
+              {% include '/preregistration/badge_refund.html' %}
             </td>
           {% endif %}
         </tr>
       </table>
-      {% if attendee.can_abandon_badge %}
+      {% if attendee.can_abandon_badge or attendee.can_self_service_refund_badge %}
         <form method="post" action="abandon_badge" id="abandon_badge">
           <input type="hidden" name="id" value="{{ attendee.id }}"/>
         </form>

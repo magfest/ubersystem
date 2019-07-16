@@ -1,9 +1,11 @@
 from pockets.autolog import log
 
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload, subqueryload
+from sqlalchemy.sql import label
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable
+from uber.decorators import ajax, all_renderable, csv_file
 from uber.models import Attendee, Event, TabletopEntrant, TabletopTournament
 
 
@@ -11,6 +13,25 @@ from uber.models import Attendee, Event, TabletopEntrant, TabletopTournament
 class Root:
     def index(self, session):
         return {'state': _state(session)}
+
+    @csv_file
+    def tournament_counts(self, out, session):
+        out.writerow([
+            'Tournament Name/Time',
+            '# of Entrants',
+            'Badge #'
+        ])
+        tournaments_and_counts = session.query(
+            TabletopTournament, label('num_entrants', func.count(TabletopEntrant.id))
+        ).join(TabletopTournament.entrants).group_by(TabletopTournament.id)
+        for result in tournaments_and_counts:
+            tournament = result[0]
+            for entrant in tournament.entrants:
+                out.writerow([
+                    '{} ({})'.format(tournament.name, tournament.event.start_time_local.strftime('%-I:%M %p %A')),
+                    result.num_entrants,
+                    entrant.attendee.badge_num if entrant.attendee else 'N/A',
+                ])
 
     @ajax
     def refresh(self, session):

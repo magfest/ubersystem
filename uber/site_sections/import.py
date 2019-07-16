@@ -10,10 +10,10 @@ from pockets import groupify, listify
 from pockets.autolog import log
 from pytz import UTC
 from rpctools.jsonrpc import ServerProxy
-from sqlalchemy import or_
+from sqlalchemy import and_, or_, func
 from sqlalchemy.types import Date, Boolean, Integer
 
-from uber.config import c
+from uber.config import c, _config
 from uber.custom_tags import pluralize
 from uber.decorators import all_renderable, ajax_gettable, renderable_override
 from uber.errors import HTTPRedirect
@@ -24,14 +24,30 @@ from uber.models import Attendee, Choice, Department, DeptMembership, DeptMember
 def _server_to_url(server):
     if not server:
         return ''
-    host = urllib.parse.unquote(server).replace('http://', '').replace('https://', '').split('/')[0]
-    return 'https://{}{}'.format(host, c.PATH)
+    host, _, path = urllib.parse.unquote(server).replace('http://', '').replace('https://', '').partition('/')
+    if path.startswith('reggie'):
+        return 'https://{}/reggie'.format(host)
+    elif path.startswith('uber'):
+        return 'https://{}/uber'.format(host)
+    elif c.PATH == '/uber':
+        return 'https://{}{}'.format(host, c.PATH)
+    return 'https://{}'.format(host)
 
 
 def _server_to_host(server):
     if not server:
         return ''
     return urllib.parse.unquote(server).replace('http://', '').replace('https://', '').split('/')[0]
+
+
+def _format_import_params(target_server, api_token):
+    target_url = _server_to_url(target_server)
+    target_host = _server_to_host(target_server)
+    remote_api_token = api_token.strip()
+    if not remote_api_token:
+        remote_api_tokens = _config.get('secret', {}).get('remote_api_tokens', {})
+        remote_api_token = remote_api_tokens.get(target_host, remote_api_tokens.get('default', ''))
+    return (target_url, target_host, remote_api_token.strip())
 
 
 @all_renderable(c.ADMIN)
@@ -117,30 +133,49 @@ class Root:
         return self.index(message, all_instances)
 
     @renderable_override(c.ACCOUNTS)
-    def staff(self, session, target_server='', api_token='', query='', message=''):
-        target_url = _server_to_url(target_server)
+    def attendees(self, session, target_server='', api_token='', query='', message=''):
+        target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
+
+        results = {}
         if cherrypy.request.method == 'POST':
-            try:
-                uri = '{}/jsonrpc/'.format(target_url)
-                service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': api_token.strip()})
-                results = service.attendee.export(query=query)
-            except Exception as ex:
-                message = str(ex)
-                results = {}
-        else:
-            results = {}
+            if not remote_api_token:
+                message = 'No API token given and could not find a token for: {}'.format(target_host)
+            elif not target_url:
+                message = 'Unrecognized hostname: {}'.format(target_server)
+
+            if not message:
+                try:
+                    uri = '{}/jsonrpc/'.format(target_url)
+                    service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
+                    results = service.attendee.export(query=query)
+                except Exception as ex:
+                    message = str(ex)
 
         attendees = results.get('attendees', [])
         for attendee in attendees:
             attendee['href'] = '{}/registration/form?id={}'.format(target_url, attendee['id'])
 
         if attendees:
-            attendees_by_email = groupify(attendees, lambda a: Attendee.normalize_email(a['email']))
-            emails = list(attendees_by_email.keys())
-            existing_attendees = session.query(Attendee).filter(Attendee.normalized_email.in_(emails)).all()
+            attendees_by_name_email = groupify(attendees, lambda a: (
+                a['first_name'].lower(),
+                a['last_name'].lower(),
+                Attendee.normalize_email(a['email']),
+            ))
+
+            filters = [
+                and_(
+                    func.lower(Attendee.first_name) == first,
+                    func.lower(Attendee.last_name) == last,
+                    Attendee.normalized_email == email,
+                )
+                for first, last, email in attendees_by_name_email.keys()
+            ]
+
+            existing_attendees = session.query(Attendee).filter(or_(*filters)).all()
             for attendee in existing_attendees:
-                attendees_by_email.pop(attendee.normalized_email, {})
-            attendees = list(chain(*attendees_by_email.values()))
+                existing_key = (attendee.first_name.lower(), attendee.last_name.lower(), attendee.normalized_email)
+                attendees_by_name_email.pop(existing_key, {})
+            attendees = list(chain(*attendees_by_name_email.values()))
         else:
             existing_attendees = []
 
@@ -149,11 +184,120 @@ class Root:
             'api_token': api_token,
             'query': query,
             'message': message,
+            'unknown_ids': results.get('unknown_ids', []),
             'unknown_emails': results.get('unknown_emails', []),
             'unknown_names': results.get('unknown_names', []),
+            'unknown_names_and_emails': results.get('unknown_names_and_emails', []),
             'attendees': attendees,
             'existing_attendees': existing_attendees,
         }
+
+    @renderable_override(c.ACCOUNTS)
+    def confirm_attendees(self, session, badge_type, admin_notes, target_server, api_token, query, attendee_ids):
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('attendees?target_server={}&api_token={}&query={}', target_server, api_token, query)
+
+        target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
+        results = {}
+        try:
+            uri = '{}/jsonrpc/'.format(target_url)
+            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
+            results = service.attendee.export(query=','.join(listify(attendee_ids)), full=True)
+        except Exception as ex:
+            raise HTTPRedirect(
+                'attendees?target_server={}&api_token={}&query={}&message={}',
+                target_server, remote_api_token, query, str(ex))
+
+        depts = {}
+
+        def _guess_dept(id_name):
+            id, name = id_name
+            if id in depts:
+                return (id, depts[id])
+
+            dept = session.query(Department).filter(or_(
+                Department.id == id,
+                Department.normalized_name == Department.normalize_name(name))).first()
+
+            if dept:
+                depts[id] = dept
+                return (id, dept)
+            return None
+
+        badge_type = int(badge_type)
+        badge_label = c.BADGES[badge_type].lower()
+
+        attendees = results.get('attendees', [])
+        for d in attendees:
+            import_from_url = '{}/registration/form?id={}\n\n'.format(target_url, d['id'])
+            new_admin_notes = '{}\n\n'.format(admin_notes) if admin_notes else ''
+            old_admin_notes = 'Old Admin Notes:\n{}\n'.format(d['admin_notes']) if d['admin_notes'] else ''
+
+            d.update({
+                'badge_type': badge_type,
+                'badge_status': c.NEW_STATUS,
+                'paid': c.NEED_NOT_PAY,
+                'placeholder': True,
+                'requested_hotel_info': True,
+                'admin_notes': 'Imported {} from {}{}{}'.format(
+                    badge_label, import_from_url, new_admin_notes, old_admin_notes),
+                'past_years': d['all_years'],
+            })
+            del d['id']
+            del d['all_years']
+
+            if badge_type != c.STAFF_BADGE:
+                attendee = Attendee().apply(d, restricted=False)
+
+            else:
+                assigned_depts = {d[0]: d[1] for d in map(_guess_dept, d.pop('assigned_depts', {}).items()) if d}
+                checklist_admin_depts = d.pop('checklist_admin_depts', {})
+                dept_head_depts = d.pop('dept_head_depts', {})
+                poc_depts = d.pop('poc_depts', {})
+                requested_depts = d.pop('requested_depts', {})
+
+                d.update({
+                    'staffing': True,
+                    'ribbon': str(c.DEPT_HEAD_RIBBON) if dept_head_depts else '',
+                })
+
+                attendee = Attendee().apply(d, restricted=False)
+
+                for id, dept in assigned_depts.items():
+                    attendee.dept_memberships.append(DeptMembership(
+                        department=dept,
+                        attendee=attendee,
+                        is_checklist_admin=bool(id in checklist_admin_depts),
+                        is_dept_head=bool(id in dept_head_depts),
+                        is_poc=bool(id in poc_depts),
+                    ))
+
+                requested_anywhere = requested_depts.pop('All', False)
+                requested_depts = {d[0]: d[1] for d in map(_guess_dept, requested_depts.items()) if d}
+
+                if requested_anywhere:
+                    attendee.dept_membership_requests.append(DeptMembershipRequest(attendee=attendee))
+                for id, dept in requested_depts.items():
+                    attendee.dept_membership_requests.append(DeptMembershipRequest(
+                        department=dept,
+                        attendee=attendee,
+                    ))
+
+            session.add(attendee)
+
+        attendee_count = len(attendees)
+        raise HTTPRedirect(
+            'attendees?target_server={}&api_token={}&query={}&message={}',
+            target_server,
+            api_token,
+            query,
+            '{count} attendee{s} imported with {a}{badge_label} badge{s}'.format(
+                count=attendee_count,
+                s=pluralize(attendee_count),
+                a=pluralize(attendee_count, singular='an ' if badge_label.startswith('a') else 'a ', plural=''),
+                badge_label=badge_label,
+            )
+        )
 
     @renderable_override(c.ACCOUNTS)
     def shifts(
@@ -166,19 +310,25 @@ class Root:
             message='',
             **kwargs):
 
-        target_url = _server_to_url(target_server)
+        target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
         uri = '{}/jsonrpc/'.format(target_url)
 
+        message = ''
         service = None
-        if target_url and api_token:
-            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': api_token.strip()})
+        if target_server or api_token:
+            if not remote_api_token:
+                message = 'No API token given and could not find a token for: {}'.format(target_host)
+            elif not target_url:
+                message = 'Unrecognized hostname: {}'.format(target_server)
+
+            if not message:
+                service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
 
         department = {}
         from_departments = []
-        if service:
+        if not message and service:
             from_departments = [(id, name) for id, name in sorted(service.dept.list().items(), key=lambda d: d[1])]
             if cherrypy.request.method == 'POST':
-                from_host = _server_to_host(uri)
                 from_department = service.dept.jobs(department_id=from_department_id)
                 to_department = session.query(Department).get(to_department_id)
                 from_config = service.config.info()
@@ -195,7 +345,7 @@ class Root:
                     if not to_dept_role:
                         to_dept_role = DeptRole(
                             name=from_dept_role['name'],
-                            description='{}\n\nImported from {}'.format(from_dept_role['description'], from_host),
+                            description=from_dept_role['description'],
                             department_id=to_department.id)
                         to_department.dept_roles.append(to_dept_role)
                     dept_role_map[from_dept_role['id']] = to_dept_role
@@ -203,7 +353,7 @@ class Root:
                 for from_job in from_department['jobs']:
                     to_job = Job(
                         name=from_job['name'],
-                        description='{}\n\nImported from {}'.format(from_job['description'], from_host),
+                        description=from_job['description'],
                         duration=from_job['duration'],
                         type=from_job['type'],
                         extra15=from_job['extra15'],
@@ -232,10 +382,17 @@ class Root:
     @renderable_override(c.ACCOUNTS)
     @ajax_gettable
     def lookup_departments(self, session, target_server='', api_token='', **kwargs):
-        target_url = _server_to_url(target_server)
+        target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
         uri = '{}/jsonrpc/'.format(target_url)
+
+        if not remote_api_token:
+            return {
+                'error': 'No API token given and could not find a token for: ' + target_host,
+                'target_url': uri,
+            }
+
         try:
-            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': api_token.strip()})
+            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
             return {
                 'departments': [(id, name) for id, name in sorted(service.dept.list().items(), key=lambda d: d[1])],
                 'target_url': uri,
@@ -245,89 +402,3 @@ class Root:
                 'error': str(ex),
                 'target_url': uri,
             }
-
-    @renderable_override(c.ACCOUNTS)
-    def confirm_staff(self, session, target_server, api_token, query, attendee_ids):
-        if cherrypy.request.method != 'POST':
-            raise HTTPRedirect('staff?target_server={}&api_token={}&query={}', target_server, api_token, query)
-
-        target_url = _server_to_url(target_server)
-        results = {}
-        try:
-            uri = '{}/jsonrpc/'.format(target_url)
-            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': api_token.strip()})
-            results = service.attendee.export(query=','.join(listify(attendee_ids)), full=True)
-        except Exception as ex:
-            raise HTTPRedirect(
-                'staff?target_server={}&api_token={}&query={}&message={}', target_server, api_token, query, str(ex))
-
-        depts = {}
-
-        def _guess_dept(id_name):
-            id, name = id_name
-            if id in depts:
-                return (id, depts[id])
-
-            dept = session.query(Department).filter(or_(
-                Department.id == id,
-                Department.normalized_name == Department.normalize_name(name))).first()
-
-            if dept:
-                depts[id] = dept
-                return (id, dept)
-            return None
-
-        attendees = results.get('attendees', [])
-        for d in attendees:
-            import_from_url = '{}/registration/form?id={}'.format(target_url, d['id'])
-            old_admin_notes = '\n\nOld Admin Notes:\n{}'.format(d['admin_notes']) if d['admin_notes'] else ''
-            assigned_depts = {d[0]: d[1] for d in map(_guess_dept, d.pop('assigned_depts', {}).items()) if d}
-            checklist_admin_depts = d.pop('checklist_admin_depts', {})
-            dept_head_depts = d.pop('dept_head_depts', {})
-            poc_depts = d.pop('poc_depts', {})
-            requested_depts = d.pop('requested_depts', {})
-
-            d.update({
-                'badge_type': c.STAFF_BADGE,
-                'paid': c.NEED_NOT_PAY,
-                'placeholder': True,
-                'staffing': True,
-                'requested_hotel_info': True,
-                'admin_notes': 'Imported staff from {}{}'.format(import_from_url, old_admin_notes),
-                'ribbon': str(c.DEPT_HEAD_RIBBON) if dept_head_depts else '',
-                'past_years': d['all_years'],
-            })
-            del d['id']
-            del d['all_years']
-
-            attendee = Attendee().apply(d, restricted=False)
-
-            for id, dept in assigned_depts.items():
-                attendee.dept_memberships.append(DeptMembership(
-                    department=dept,
-                    attendee=attendee,
-                    is_checklist_admin=bool(id in checklist_admin_depts),
-                    is_dept_head=bool(id in dept_head_depts),
-                    is_poc=bool(id in poc_depts),
-                ))
-
-            requested_anywhere = requested_depts.pop('All', False)
-            requested_depts = {d[0]: d[1] for d in map(_guess_dept, requested_depts.items()) if d}
-
-            if requested_anywhere:
-                attendee.dept_membership_requests.append(DeptMembershipRequest(attendee=attendee))
-            for id, dept in requested_depts.items():
-                attendee.dept_membership_requests.append(DeptMembershipRequest(
-                    department=dept,
-                    attendee=attendee,
-                ))
-
-            session.add(attendee)
-
-        attendee_count = len(attendees)
-        raise HTTPRedirect(
-            'staff?target_server={}&api_token={}&query={}&message={}',
-            target_server,
-            api_token,
-            query,
-            '{} attendee{} imported'.format(attendee_count, pluralize(attendee_count)))

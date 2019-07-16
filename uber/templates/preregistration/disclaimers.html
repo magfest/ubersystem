@@ -1,7 +1,5 @@
 
-<hr/>
-
-<div style="font-weight:bold ; color:red ; margin-bottom:5px">Disclaimers:</div>
+<h4 class="text-danger">Disclaimers</h4>
 <ul>
   <li>
     Please review our badge polices and other
@@ -13,11 +11,11 @@
     have to pay full price at the door.
   </li>
   <li>
-    Your registration is <a href="http://super.magfest.org/faq#-KAbbdlWaUSQd_sAxmw2">non-refundable</a>
-    but may be <a href="http://super.magfest.org/faq#-KAbbiQUjpv0Zb11fwvw">sold/transferred</a>.
+    {{ c.EVENT_NAME }} has a <a href="https://super.magfest.org/faq/#badge-refunds">limited refund policy</a>
+    but you may <a href="https://super.magfest.org/faq/#sell-or-transfer">sell/transfer your badge</a>.
   </li>
   <li>
-    MAGFest has a <a href="http://super.magfest.org/faq#-KAbb-J7_81rRy5jTDR1">one badge per person policy</a>.
+    MAGFest has a <a href="https://super.magfest.org/faq/#multiple-badges">one badge per person policy</a>.
     If you purchase multiple badges (for your family, as a gift), please
     ensure that each badge is purchased in the name of the individual who the
     badge is intended for. You may use the same email address for multiple
@@ -36,10 +34,9 @@
       accompanied by an adult with a paid badge.
     </li>
   {% endif %}
-  {% if c.DEALER_REG_START %}
+  {% if c.DEALER_REG_START and attendee and attendee.is_dealer %}
     <li>
-      Submitting this form as a Dealer does not guarantee you will be selected
-      for the Dealers Room - it is only the application.
+      Submitting this form to vend does not guarantee you will be selected for the Marketplace - it is only the application.
     </li>
   {% endif %}
 </ul>

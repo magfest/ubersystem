@@ -15,7 +15,7 @@
     {% if c.BEFORE_ROOM_DEADLINE %}
         <li>
             {{ macros.checklist_image(attendee.hotel_requests) }}
-            {% if not attendee.placeholder and attendee.food_restrictions_filled_out and attendee.shirt_info_marked and not attendee.hotel_requests %}
+            {% if not attendee.placeholder and attendee.food_restrictions_filled_out and not attendee.hotel_requests %}
                 <a href="../hotel_requests">Tell us</a>
             {% else %}
                 Tell us

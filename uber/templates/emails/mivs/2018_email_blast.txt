@@ -1,4 +1,4 @@
-Ahoy {{ game.studio.primary_contact.first_name }},
+Ahoy {{ game.studio.primary_contact_first_names }},
 
 We wanted to give you some upcoming info for this year's MIVS:
 
@@ -15,7 +15,7 @@ https://docs.google.com/forms/d/e/1FAIpQLSdOc5Ox6E9wDFGxqORoWkf7tSxnqh9ho4e9OdUd
 
 
 2) Badge refunds
-As being part of MIVS, you're given two free badges to MAGFest.  If you already paid for a badge, we're now ready to handle refunds.  Please email mivs@magfest.org with your refund request.  
+As being part of MIVS, you're given two free badges to MAGFest.  If you already paid for a badge, we're now ready to handle refunds.  Please email {{ c.MIVS_EMAIL|email_only }} with your refund request.
 
 
 
@@ -40,7 +40,7 @@ If you'd like to submit your game for consideration for Versus, please note the 
 * Must be compatible with xbox 360 controller
 * Must identify player
 
-To submit, you will need to provide the following to us in an email to mivs@magfest.org
+To submit, you will need to provide the following to us in an email to {{ c.MIVS_EMAIL|email_only }}
 * 20 second video of the most exciting gameplay (Only gameplay no text or logos)
 * 60 second video tutorial of how to play the game
 * A script (for the host to read) that accompanies the video
@@ -49,7 +49,7 @@ To submit, you will need to provide the following to us in an email to mivs@magf
 * 60 word or less description of your game
 
 Critical Dates for this:
-December 3rd:  Deadline for Indies to submit for versus (via E-mail to MIVS@magfest.org)
+December 3rd:  Deadline for Indies to submit for versus (via E-mail to {{ c.MIVS_EMAIL|email_only }})
 December 10th:  Decisions made on games eligible for versus
 December 17th:  Games selected must submit build to MAGfest Versus.
 

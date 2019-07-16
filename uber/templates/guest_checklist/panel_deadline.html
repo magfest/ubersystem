@@ -1,101 +1,27 @@
-{% if snippet %}
   <tr>
     <td width="25">{{ macros.checklist_image(guest.panel_status) }}</td>
     <td><b><a href="panel?guest_id={{ guest.id }}">
-      {% block deadline_headline %}Want a Panel?{% endblock %}</a></b></td>
+      {% block deadline_headline %}Add a Panel{% endblock %}</a></b></td>
     <td><i>Deadline:</i> {{ guest.deadline_from_model('panel')|datetime_local }}</td>
   </tr>
   <tr>
     <td colspan="3">
       {% block deadline_text %}
-        {% if not guest.panel_status %}
-          Please use the above link to let us know whether or not you are interested in also running a panel.
-          We cannot accommodate all requests, but we definitely want to hear your ideas!
-        {% elif guest.panel.wants_panel %}
-          You have already submitted your panel suggestion, but you may edit it using the link above.
+        {% if not guest.group.leader.panel_applications %}
+          What panels and/or events are you putting on at {{ c.EVENT_NAME }}? Please use the above link to submit each panel.
         {% else %}
-          You have already let us know that you're not interested in running a panel.  If you change your mind
-          before the deadline, you can use the above link to share your panel idea.
+          You have already submitted {{ guest.group.leader.panel_applications|length }} panel
+          idea{{ guest.group.leader.panel_applications|length|pluralize }}.
+          {% if c.APP_LIMIT %}
+            You may submit up to {{ c.APP_LIMIT }} panels for review.
+          {% endif %}
         {% endif %}
+        <script type="text/javascript">
+            $(function() {
+                $('a[href^="panel"]').prop("href", "../panel_applications/guest?poc_id={{ guest.group.leader.id }}&return_to=../guests/index?id={{ guest.id }}");
+            });
+        </script>
       {% endblock %}
       <br/></br>
     </td>
   </tr>
-{% else %}
-  <script>
-      var showOrHidePanel = function () {
-          setVisible('.panel-info', $.val('wants_panel') === {{ c.PANEL }});
-      };
-      $(function () {
-          showOrHidePanel();
-          $.field('wants_panel').on('click', showOrHidePanel);
-      });
-  </script>
-
-  <h2>{% block form_title %}Want a Panel?{% endblock %}</h2>
-
-  {% block form_desc %}
-    Many of our musical guests are also interested in offering an panel.  While we cannot guarantee that we'll have room in
-    our schedule to accommodate all requests, we definitely want to hear your ideas.
-  {% endblock %}
-
-  <br/> <br/>
-
-  <form method="post" action="panel" class="form-horizontal" role="form">
-    <input type="hidden" name="guest_id" value="{{ guest.id }}" />
-    <input type="hidden" name="id" value="{{ guest_panel.db_id }}" />
-    {{ csrf_token() }}
-
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Want a Panel?</label>
-      <div class="col-sm-6" style="padding-top:7px">
-        <select name="wants_panel">
-          <option value="">Do you want a panel?</option>
-          {{ options(c.GUEST_PANEL_OPTS,guest_panel.wants_panel) }}
-        </select>
-      </div>
-    </div>
-
-    <div class="form-group panel-info">
-      <label class="col-sm-3 control-label">Panel Name</label>
-      <div class="col-sm-6">
-        <input type="text" class="form-control" name="name" value="{{ guest_panel.name }}" />
-      </div>
-    </div>
-
-    <div class="form-group panel-info">
-      <label class="col-sm-3 control-label">Panel Length</label>
-      <div class="col-sm-6">
-        <input type="text" class="form-control" name="length" value="{{ guest_panel.length }}" />
-        <p class="help-text">
-          An hour is typical, including time for Q&A.
-        </p>
-      </div>
-    </div>
-
-    <div class="form-group panel-info">
-      <label class="col-sm-3 control-label">Panel Description</label>
-      <div class="col-sm-6">
-        <textarea class="form-control" rows="3" name="desc">{{ guest_panel.desc }}</textarea>
-      </div>
-    </div>
-
-    {{ macros.form_checkgroup(
-        guest_panel,
-        'tech_needs',
-        other_field='other_tech_needs',
-        other_placeholder='Additional technical needs',
-        form_class='panel-info',
-        label='Technical Needs',
-        desc='Check the following technical needs that apply. Panel rooms will by default have VGA compatible projector with 3.5mm (1/8") audio, and a local PA with enough microphones setup.',
-        is_required=True) }}
-
-    {% block form_extra %}{% endblock %}
-
-    <div class="form-group">
-      <div class="col-sm-6 col-sm-offset-3">
-        <button class="btn btn-primary">Submit Panel Preferences</button>
-      </div>
-    </div>
-  </form>
-{% endif %}

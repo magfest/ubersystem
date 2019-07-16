@@ -122,9 +122,9 @@
     <p class="col-sm-10 col-sm-offset-1">
         <br>
         {% if attendee.is_dealer %}
-            Please enter your <strong>personal</strong> information below.  Information for any additional vendors at your table can be filled out once your application is approved.
+            Please enter your <strong>personal</strong> information below.  Information for any additional helpers at your table can be filled out once your application is approved.
         {% else %}
-            Please enter the information for the group leader below (additional group member information will be entered after purchase is complete):
+            Please enter the information for the group buyer below -- you will receive an email with promo codes for the remaining badges after purchase:
         {% endif %}
     </p>
 </div>
@@ -263,7 +263,12 @@
                                   <h4>{{ tier.name }}</h4>
                                   {% if tier.price %}
                                     <span>
-                                      <img src="{{ tier.icon }}" alt=""> + ${{ tier.price }}
+                                      <img
+                                          class="tier-icon tier-icon-{{ tier.icon|basename|replace('_', '-')|replace('.png', '') }}"
+                                          src="{{ tier.icon }}"
+                                          width="50px"
+                                          alt="">
+                                      + ${{ tier.price }}
                                     </span>
                                   {% endif %}
                                 </div>
@@ -291,11 +296,17 @@
 
                 <p class="help-block col-sm-offset-3 col-sm-9">
                     Each level includes all lower levels. <br/>
-                    Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime_local }}.
+                    {% if c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime_local }}.<br/>{% endif %}
+                    {% if c.SHIRT_DEADLINE %} {% if c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Shirt level up to Supporter level{% else %}Shirt level and higher{% endif %} {% if c.BEFORE_SHIRT_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SHIRT_DEADLINE|datetime_local }}.{% endif %}
                 </p>
             </div>
         {% endif %}
     {% endif %}
+  {% if (not c.PREREG_DONATION_OPTS or c.PREREG_DONATION_OPTS|length <= 1) and c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form', '/preregistration/register_group_member'] %}
+    <div class="extra-row form-group">
+    <span class="col-sm-offset-3 col-sm-6"><strong>Kick-in tiers are no longer available</strong>. Please visit our merchandise booth on-site for t-shirts and other swag.</span>
+    </div>
+  {% endif %}
 
 {%- set readonly_badge_name = c.after_printed_badge_deadline_by_type(attendee.badge_type) -%}
 <div class="badge-row extra-row form-group" style="display:none">
@@ -346,6 +357,7 @@
             </div>
             {% if c.PAGE_PATH != '/registration/form' %}
                 <p class="help-block col-sm-9 col-sm-offset-3">
+                <strong>This donation <em>is not a kick-in</em> and does not come with merchandise.</strong><br/>
                     {{ c.ORGANIZATION_NAME }} is a 501(c)(3) charitable organization, and additional donations may be tax deductible.
                     Your employer may also have a charitable donation matching program. E-mail contact@magfest.org for details.
                 </p>
@@ -517,7 +529,7 @@
     </div>
 </div>
 
-{% if c.HOTELS_ENABLED and (admin_area or (not is_prereg_form and not is_after_request_hotel)) %}
+{% if c.HOTELS_ENABLED and c.PREREG_REQUEST_HOTEL_INFO_DURATION > 0 and (admin_area or (not is_prereg_form and not is_after_request_hotel)) %}
   {#-
     In both the admin area and non-preregistration forms, we will display a
     "Request Hotel Info" label and a checkbox.
@@ -562,25 +574,45 @@
   <input type="hidden" name="requested_hotel_info" id="requested_hotel_info" value="{{ '1' if attendee.requested_hotel_info or attendee.is_placeholder else '0' }}" />
 {% endif %}
 
-<div class="form-group">
-    <label for="email_option" class="col-sm-3 control-label optional-field">Keep Me Updated</label>
-    <div class="checkbox col-sm-9">
-        {{ macros.checkbox(attendee, 'can_spam', label='Send me emails relating to ') }} {{ organization_with_event_name() }} in future years.<br/>
-        <span class="popup">{{ macros.popup_link("../static_views/privacy.html", "View Our Privacy Policy") }}</span>
-    </div>
-</div>
-
 {% if c.BADGE_PROMO_CODES_ENABLED and not group_id and (attendee.is_unpaid or attendee.promo_code_code) %}
 <div class="non_group_fields form-group">
     <label for="promo_code" class="col-sm-3 control-label optional-field">Promo Code</label>
     <div class="col-sm-6">
         {% if attendee.is_unpaid %}
-        <input type="textarea" name="promo_code" value="{{ attendee.promo_code_code }}" class="form-control" placeholder="Promo Code">
+        <input type="textarea" name="promo_code" value="{{ attendee.promo_code_code or promo_code }}" class="form-control" placeholder="Promo Code">
         {% else %}
         <input type="hidden" name="promo_code" value="{{ attendee.promo_code_code }}">
         <p class="form-control-static">{{ attendee.promo_code_code }}</p>
         {% endif %}
     </div>
+</div>
+{% endif %}
+
+{% if c.ACCESSIBILITY_SERVICES_ENABLED %}
+<div class="form-group">
+    <label for="email_option" class="col-sm-3 control-label optional-field">Accessibility Services</label>
+    <div class="checkbox col-sm-9">
+      {{ macros.checkbox(attendee, 'requested_accessibility_services', label='I would like to be contacted by the ' ~ c.EVENT_NAME ~ ' Accessibility Services department prior to the event.') }}
+    </div>
+</div>
+{% endif %}
+
+<div class="form-group">
+    <label for="email_option" class="col-sm-3 control-label optional-field">Keep Me Updated</label>
+    <div class="checkbox col-sm-9">
+        {{ macros.checkbox(attendee, 'can_spam', label='Send me emails relating to ' ~ organization_with_event_name() ~ ' in future years.') }}<br/>
+        <span class="popup">{{ macros.popup_link("../static_views/privacy.html", "View Our Privacy Policy") }}</span>
+    </div>
+</div>
+
+{% if not admin_area and attendee.needs_pii_consent %}
+<div class="form-group">
+  <div class="checkbox col-sm-9 col-sm-offset-3">
+    <label for="pii_consent" class="checkbox-label">
+    <input type="checkbox" name="pii_consent" id="pii_consent" value="1" required {% if pii_consent %}checked{% endif %} />
+    <strong>Yes</strong>, you may store the personal information above in order to contact me about my registration.
+    </label>
+  </div>
 </div>
 {% endif %}
 

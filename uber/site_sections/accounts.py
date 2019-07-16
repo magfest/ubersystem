@@ -9,7 +9,8 @@ from sqlalchemy.orm import subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, render, unrestricted
+from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
+                             department_id_adapter, render, site_mappable, unrestricted)
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, PasswordReset
 from uber.tasks.email import send_email
@@ -40,7 +41,7 @@ class Root:
             'message':  message,
             'accounts': (session.query(AdminAccount)
                          .join(Attendee)
-                         .options(subqueryload(AdminAccount.attendee))
+                         .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts))
                          .order_by(Attendee.last_first).all()),
             'all_attendees': sorted(attendees, key=lambda tup: tup[1])
         }
@@ -83,6 +84,7 @@ class Root:
         session.delete(session.admin_account(id))
         raise HTTPRedirect('index?message={}', 'Account deleted')
 
+    @site_mappable
     @department_id_adapter
     def bulk(self, session, department_id=None, **params):
         department_id = None if department_id == 'All' else department_id
@@ -247,7 +249,7 @@ class Root:
 
     @unrestricted
     def sitemap(self):
-        site_sections = cherrypy.tree.apps[c.PATH].root
+        site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
         modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
         pages = defaultdict(list)
         access_set = AdminAccount.access_set()

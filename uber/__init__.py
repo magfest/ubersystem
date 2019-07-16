@@ -1,4 +1,7 @@
+import os
 from decimal import Decimal
+
+from pockets.autolog import log
 
 from uber._version import __version__  # noqa: F401
 
@@ -28,3 +31,13 @@ import sideboard  # noqa: E402
 
 # NOTE: this will decrease the precision of some serialized decimal.Decimals
 sideboard.lib.serializer.register(Decimal, lambda n: float(n))
+
+
+@sideboard.lib.on_startup
+def create_data_dirs():
+    from uber.config import c
+
+    for directory in c.DATA_DIRS.values():
+        if not os.path.exists(directory):
+            log.info('Creating directory {}'.format(directory))
+            os.makedirs(directory, mode=0o744)

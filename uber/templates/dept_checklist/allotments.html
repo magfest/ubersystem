@@ -12,6 +12,9 @@
     var showOrHideMPoints = function () {
         setVisible('#mpoints', $.field('needs_mpoints').prop('checked'));
     };
+    var showOrHideComments = function() {
+        $('#comments').toggle();
+    }
 </script>
 <style type="text/css">
     table.padded td, table.padded th {
@@ -23,6 +26,11 @@
 </style>
 
 <h2>Treasury Information for {{ department.name }}</h2>
+
+{% if department.checklist_item_for_slug('allotments') %}
+This form has already been filled out for this department. <a href="#" onclick="showOrHideComments()">View the current treasury information</a> for this department or fill out the form again below.
+  <div id="comments" style="padding-left: 30px; display:none;">{{ department.checklist_item_for_slug('allotments').comments|linebreaksbr }}</div>
+{% endif %}
 
 <form method="post" action="allotments">
 {{ csrf_token() }}
@@ -60,7 +68,7 @@
         <tr>
             <td>Friday:</td>
             <td class="centered"><input type="text" size="10" name="fri_start_time" /></td>
-            <td class="centered"><input type="text" size="10" name="fri_clost_time" /></td>
+            <td class="centered"><input type="text" size="10" name="fri_close_time" /></td>
         </tr>
         <tr>
             <td>Saturday:</td>

@@ -186,7 +186,7 @@ class Choice(TypeDecorator):
         if value is not None:
             try:
                 assert self.allow_unspecified or int(value) in self.choices
-            except Exception as ex:
+            except Exception:
                 raise ValueError('{!r} not a valid option out of {}'.format(
                     value, self.choices))
             else:

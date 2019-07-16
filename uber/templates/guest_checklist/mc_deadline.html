@@ -1,0 +1,56 @@
+{% if snippet %}
+  <tr>
+    <td width="25">{{ macros.checklist_image(guest.mc_status) }}</td>
+    <td><b><a href="mc?guest_id={{ guest.id }}">
+      {% block deadline_headline %}Want an MC?{% endblock %}</a></b></td>
+    <td><i>Deadline:</i> {{ guest.deadline_from_model('mc')|datetime_local }}</td>
+  </tr>
+  <tr>
+    <td colspan="3">
+      {% block deadline_text %}
+        {% if guest.wants_mc is none %}
+          Please use the above link to let us know if you'd like one of our
+          Official {{ c.EVENT_NAME }} Guests™ to introduce your band to the crowd before
+          your set, or do you not need no stinkin’ MC?
+        {% else %}
+          You have already told us you <strong>{{ guest.wants_mc|yesno("DO,DON'T") }}</strong> want an MC.
+          You can use the link above to change your answer before the deadline.
+        {% endif %}
+      {% endblock %}
+      <br/></br>
+    </td>
+  </tr>
+{% else %}
+
+  <h2>{% block form_title %}Want an MC?{% endblock %}</h2>
+
+  {% block form_desc %}
+    Would you like one of our Official {{ c.EVENT_NAME }} Guests™ to introduce your band
+    to the crowd before your set, or do you not need no stinkin’ MC? Let us know!
+  {% endblock %}
+  {% block prior_event_mcs %}
+    <br/> <br/>
+    Previous example MCs: Wes Johnson, Alexander Brandon, Mustin, etc.
+  {% endblock %}
+
+  <br/> <br/>
+
+  <form method="post" action="mc" class="form-horizontal" role="form">
+    <input type="hidden" name="guest_id" value="{{ guest.id }}" />
+    {{ csrf_token() }}
+
+
+    <div class="form-group mc-info">
+      <label class="col-sm-3 control-label">Want an MC?</label>
+      <div class="checkbox col-sm-9">
+        {{ macros.checkbox(guest, 'wants_mc', label="Yes, I want an MC!") }}
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="col-sm-6 col-sm-offset-3">
+        <button class="btn btn-primary">Submit MC Preferences</button>
+      </div>
+    </div>
+  </form>
+{% endif %}

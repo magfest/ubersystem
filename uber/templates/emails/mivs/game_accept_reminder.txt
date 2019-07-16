@@ -1,4 +1,4 @@
-{{ game.studio.primary_contact.first_name }},
+{{ game.studio.primary_contact_first_names }},
 
 Congratulations again for your game submission ({{ game.title }}) being accepted into the {{ c.ESCHATON.year }} MAGFest Indie Videogame Showcase (MIVS).
 

@@ -9,11 +9,11 @@ from pockets import cached_property, classproperty, groupify, listify, is_listy,
 from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import and_, case, func, or_
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, subqueryload
-from sqlalchemy.schema import ForeignKey, Index, UniqueConstraint
+from sqlalchemy.schema import Column as SQLAlchemyColumn, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.types import Boolean, Date, Integer
 
 import uber
@@ -196,6 +196,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     # Represents a request for hotel booking info during preregistration
     requested_hotel_info = Column(Boolean, default=False)
+    requested_accessibility_services = Column(Boolean, default=False)
 
     interests = Column(MultiChoice(c.INTEREST_OPTS))
     found_how = Column(UnicodeText)
@@ -234,6 +235,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     extra_donation = Column(Integer, default=0)
     payment_method = Column(Choice(c.PAYMENT_METHOD_OPTS), nullable=True)
     amount_refunded = Column(Integer, default=0, admin_only=True)
+    stripe_txn_share_logs = relationship('StripeTransactionAttendee', backref='attendee')
 
     badge_printed_name = Column(UnicodeText)
 
@@ -342,6 +344,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         viewonly=True)
 
     staffing = Column(Boolean, default=False)
+    agreed_to_volunteer_agreement = Column(Boolean, default=False)
     nonshift_hours = Column(Integer, default=0, admin_only=True)
     past_years = Column(UnicodeText, admin_only=True)
     can_work_setup = Column(Boolean, default=False, admin_only=True)
@@ -364,8 +367,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     hotel_requests = relationship('HotelRequests', backref=backref('attendee', load_on_pending=True), uselist=False)
     room_assignments = relationship('RoomAssignment', backref=backref('attendee', load_on_pending=True))
 
-    # The PIN/password used by third party hotel reservervation systems
-    hotel_pin = Column(UnicodeText, nullable=True, default=_generate_hotel_pin)
+    # The PIN/password used by third party hotel reservation systems
+    hotel_pin = SQLAlchemyColumn(UnicodeText, nullable=True, unique=True)
 
     # =========================
     # mits
@@ -406,12 +409,21 @@ class Attendee(MagModel, TakesPaymentMixin):
     checkouts = relationship('TabletopCheckout', backref='attendee')
     entrants = relationship('TabletopEntrant', backref='attendee')
 
-    _attendee_table_args = [Index('ix_attendee_paid_group_id', paid, group_id)]
+    _attendee_table_args = [
+        Index('ix_attendee_paid_group_id', paid, group_id),
+        Index('ix_attendee_badge_status_badge_type', badge_status, badge_type),
+    ]
     if not c.SQLALCHEMY_URL.startswith('sqlite'):
         _attendee_table_args.append(UniqueConstraint('badge_num', deferrable=True, initially='DEFERRED'))
 
     __table_args__ = tuple(_attendee_table_args)
     _repr_attr_names = ['full_name']
+
+    def to_dict(self, *args, **kwargs):
+        # Kludgey fix for SQLAlchemy breaking our stuff
+        d = super().to_dict(*args, **kwargs)
+        d.pop('attraction_event_signups', None)
+        return d
 
     @predelete_adjustment
     def _shift_badges(self):
@@ -421,6 +433,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def _misc_adjustments(self):
+        if not self.hotel_pin or not self.hotel_pin.strip():
+            self.hotel_pin = None
+
         if not self.amount_extra:
             self.affiliate = ''
 
@@ -457,6 +472,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.legal_name and self.full_name == self.legal_name:
             self.legal_name = ''
 
+        if self.promo_code and self.promo_code_groups:
+            self.promo_code = None
+
     @presave_adjustment
     def _status_adjustments(self):
         if self.badge_status == c.NEW_STATUS and self.banned:
@@ -468,7 +486,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                     c.EVENT_NAME + ' WatchList Notification',
                     render('emails/reg_workflow/attendee_watchlist.txt', {'attendee': self}, encoding=None),
                     model='n/a')
-            except Exception as ex:
+            except Exception:
                 log.error('unable to send banned email about {}', self, exc_info=True)
 
         elif self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name and (
@@ -578,12 +596,22 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.calculate_badge_cost(use_promo_code=False)
 
     def calculate_badge_cost(self, use_promo_code=True):
+        registered = self.registered_local if self.registered else None
+        base_badge_price = self.base_badge_price or c.get_attendee_price(registered)
+
         if self.paid == c.NEED_NOT_PAY:
             return 0
         elif self.overridden_price is not None:
             return self.overridden_price
+        elif self.is_dealer:
+            return c.DEALER_BADGE_PRICE
+        elif self.badge_type in c.DISCOUNTABLE_BADGE_TYPES and self.age_discount != 0:
+            return max(0, base_badge_price + self.age_discount)
+        elif self.badge_type in c.DISCOUNTABLE_BADGE_TYPES and (
+                self.promo_code_groups or self.group and self.paid == c.PAID_BY_GROUP):
+            return base_badge_price - c.GROUP_DISCOUNT
         elif self.base_badge_price:
-            cost = self.base_badge_price
+            cost = base_badge_price
         else:
             cost = self.new_badge_cost
 
@@ -597,18 +625,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         # What this badge would cost if it were new, i.e., not taking into
         # account special overrides
         registered = self.registered_local if self.registered else None
-        if self.is_dealer:
-            return c.DEALER_BADGE_PRICE
-        elif self.badge_type == c.ONE_DAY_BADGE:
+        if self.badge_type == c.ONE_DAY_BADGE:
             return c.get_oneday_price(registered)
         elif self.is_presold_oneday:
             return c.get_presold_oneday_price(self.badge_type)
         elif self.badge_type in c.BADGE_TYPE_PRICES:
             return int(c.BADGE_TYPE_PRICES[self.badge_type])
-        elif self.age_discount != 0:
-            return max(0, c.get_attendee_price(registered) + self.age_discount)
-        elif self.group and self.paid == c.PAID_BY_GROUP:
-            return c.get_attendee_price(registered) - c.GROUP_DISCOUNT
         else:
             return c.get_attendee_price(registered)
 
@@ -658,6 +680,14 @@ class Attendee(MagModel, TakesPaymentMixin):
     @cost_property
     def donation_cost(self):
         return self.extra_donation or 0
+
+    @cost_property
+    def promo_group_cost(self):
+        return sum(group.total_cost for group in self.promo_code_groups)
+
+    @property
+    def amount_extra_unpaid(self):
+        return self.total_cost - self.badge_cost
 
     @property
     def amount_unpaid(self):
@@ -747,7 +777,23 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def can_abandon_badge(self):
-        return not self.amount_paid and not self.paid == c.NEED_NOT_PAY and not self.is_group_leader
+        return not self.amount_paid and (
+            not self.paid == c.NEED_NOT_PAY or self.badge_type == c.STAFF_BADGE
+        ) and not self.is_group_leader and not self.checked_in
+
+    @property
+    def can_self_service_refund_badge(self):
+        return self.amount_paid \
+               and self.amount_paid > 0 \
+               and self.paid not in [c.NEED_NOT_PAY, c.REFUNDED] \
+               and not self.is_group_leader \
+               and self.stripe_txn_share_logs \
+               and not self.checked_in \
+               and c.SELF_SERVICE_REFUNDS_OPEN
+
+    @property
+    def needs_pii_consent(self):
+        return self.is_new or self.placeholder or not self.first_name
 
     @property
     def shirt_size_marked(self):
@@ -780,6 +826,26 @@ class Attendee(MagModel, TakesPaymentMixin):
         return case(
             [(or_(cls.first_name == None, cls.first_name == ''), 'zzz')],  # noqa: E711
             else_=func.lower(cls.first_name + ' ' + cls.last_name))
+
+    @hybrid_property
+    def promo_code_group_name(self):
+        if self.promo_code and self.promo_code.group:
+            return self.promo_code.group.name
+        elif self.promo_code_groups:
+            return self.promo_code_groups[0].name
+        return ''
+
+    @promo_code_group_name.expression
+    def promo_code_group_name(cls):
+        from uber.models.promo_code import PromoCode, PromoCodeGroup
+        return case([
+            (cls.promo_code != None,
+             select([PromoCodeGroup.name]).where(PromoCodeGroup.id==PromoCode.group_id)
+             .where(PromoCode.id==cls.promo_code_id).label('promo_code_group_name')),
+            (cls.promo_code_groups != None,
+             select([PromoCodeGroup.name]).where(PromoCodeGroup.buyer_id == cls.id)
+             .label('promo_code_group_name'))
+        ])
 
     @hybrid_property
     def last_first(self):
@@ -866,7 +932,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def volunteer_event_shirt_earned(self):
-        return self.volunteer_event_shirt_eligible and (not self.takes_shifts or self.worked_hours >= 6)
+        return self.volunteer_event_shirt_eligible and (not self.takes_shifts or self.worked_hours >= c.HOURS_FOR_SHIRT)
 
     @property
     def replacement_staff_shirts(self):
@@ -966,7 +1032,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.volunteer_event_shirt_eligible and not self.volunteer_event_shirt_earned:
             merch[-1] += (
-                ' (this volunteer must work at least 6 hours or they will be reported for picking up their shirt)')
+                ' (this volunteer must work at least {} hours or they will be reported for picking up their shirt)'
+                    .format(c.HOURS_FOR_SHIRT))
 
         if not c.SEPARATE_STAFF_MERCH:
             merch.extend(self.staff_merch_items)
@@ -1050,8 +1117,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         from uber.models.department import Job
 
         job_filters = [Job.is_unfilled]
-        if c.AT_THE_CON:
-            return job_filters
 
         member_dept_ids = set(d.department_id for d in self.dept_memberships)
         requested_dept_ids = set(d.department_id for d in self.dept_membership_requests).difference(member_dept_ids)
@@ -1061,15 +1126,16 @@ class Attendee(MagModel, TakesPaymentMixin):
         no_max = max_depts < 1
 
         requested_filter = None
-        if requested_dept_ids and (len(member_dept_ids) < max_depts or no_max):
-            depts_where_working = set(j.department_id for j in self.jobs)
-            if len(depts_where_working) >= max_depts and not no_max:
-                requested_dept_ids = depts_where_working.difference(member_dept_ids)
-
+        if requested_dept_ids:
             requested_any_dept = None in requested_dept_ids
+
             if requested_any_dept:
                 requested_filter = Job.visibility > Job._ONLY_MEMBERS
             elif requested_dept_ids:
+                depts_where_working = set(j.department_id for j in self.jobs)
+                if len(depts_where_working) >= max_depts and not no_max:
+                    requested_dept_ids = depts_where_working.difference(member_dept_ids)
+
                 requested_filter = and_(Job.visibility > Job._ONLY_MEMBERS, Job.department_id.in_(requested_dept_ids))
 
         if member_filter is not None and requested_filter is not None:
@@ -1458,7 +1524,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def hotel_nights(self):
         try:
             return self.hotel_requests.nights
-        except Exception as ex:
+        except Exception:
             return []
 
     @property
@@ -1554,8 +1620,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             The last name, if there is no legal name or if the legal name
                 is just one word
         """
-        if self.legal_name:
-            legal_name = re.sub(r'\s+', ' ', self.legal_name.strip())
+        legal_name = re.sub(r'\s+', ' ', self.legal_name.strip())
+        if legal_name and ' ' in legal_name:
             legal_first_name = re.sub(r'\s+', ' ', self.legal_first_name.strip())
 
             if legal_name.lower().startswith(legal_first_name.lower()):
@@ -1638,8 +1704,6 @@ class FoodRestrictions(MagModel):
             restriction = getattr(c, name.upper())
             if restriction not in c.FOOD_RESTRICTIONS:
                 return MagModel.__getattr__(self, name)
-            elif restriction == c.VEGAN and c.VEGAN in self.standard_ints:
-                return False
             elif restriction == c.PORK and c.VEGAN in self.standard_ints:
                 return True
             else:

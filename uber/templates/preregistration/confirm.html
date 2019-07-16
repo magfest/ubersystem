@@ -1,6 +1,10 @@
 {% extends "./preregistration/preregbase.html" %}
 {% block title %}Confirm Your Details{% endblock %}
-{% block backlink %}{% endblock %}
+{% block backlink %}
+    {% if c.HAS_PEOPLE_ACCESS %}
+        <a href="../registration/form?id={{ attendee.id }}" style="float:right">Return to Attendee Admin Form</a>
+    {% endif %}
+{% endblock %}
 {% block content %}
 
 <script type="text/javascript">
@@ -20,11 +24,11 @@
     });
 </script>
 
-<div class="masthead"></div>
+{% include 'prereg_masthead.html' %}
 <div class="panel panel-default">
   <div class="panel-body">
-    {% if c.ATTRACTIONS_ENABLED and attractions %}
-      {% include 'attractions_tabs.html' with context %}
+    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups %}
+      {% include 'confirm_tabs.html' with context %}
     {% endif %}
     {% block panel_top %}{% endblock %}
 
@@ -62,9 +66,7 @@
           {% if attendee.is_transferable %}
             <button type="button" class="btn btn-primary" onClick='location.href="transfer_badge?id={{ attendee.id }}"'>Transfer my Badge</button>
           {% endif %}
-          {% if attendee.can_abandon_badge %}
-            <button type="submit" form="abandon_badge" class="btn btn-danger" onClick="return confirm('Are you sure you want to delete your badge? This can\'t be undone!');">I'm not coming</button>
-          {% endif %}
+          {% include '/preregistration/badge_refund.html' %}
         </div>
       </div>
 
@@ -83,7 +85,7 @@
       {% endif %}
     </form>
 
-    {% if attendee.can_abandon_badge %}
+    {% if attendee.can_abandon_badge or attendee.can_self_service_refund_badge %}
       <form method="post" action="abandon_badge" id="abandon_badge">
         <input type="hidden" name="id" value="{{ attendee.id }}"/>
       </form>

@@ -3,7 +3,7 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<div class="masthead"></div>
+{% include 'prereg_masthead.html' %}
 <div class="panel panel-default">
   <div class="panel-body">
     {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_OPEN) }}
@@ -17,7 +17,7 @@
     </p>
     {% if is_group_leader %}
       <p>
-        As a group leader, make sure your group members claim their badges so
+        As a group leader, make sure your group members preregister so
         they can opt in to receive the email.
       </p>
     {% endif %}

@@ -30,7 +30,7 @@ from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
-from uber.utils import check_csrf, normalize_phone, DeptChecklistConf
+from uber.utils import check_csrf, normalize_phone, DeptChecklistConf, report_critical_exception
 
 
 def _make_getter(model):
@@ -111,6 +111,15 @@ class MagModel:
         self._invoke_adjustment_callbacks('predelete_adjustment')
 
     @property
+    def email_to_address(self):
+        """
+        The email address that our automated emails use when emailing this model.
+        In some rare cases, a model should have a column named `email` but not always use that in
+        automated emails -- override this instead.
+        """
+        return self.email
+
+    @property
     def addons(self):
         """
         This exists only to be overridden by other events; it should return a
@@ -154,10 +163,11 @@ class MagModel:
         """
         values = []
         for name in self.cost_property_names:
+            value = 'ATTRIBUTE NOT FOUND'
             try:
                 value = getattr(self, name, 'ATTRIBUTE NOT FOUND')
                 values.append(int(value))
-            except Exception as ex:
+            except Exception:
                 log.error('Error calculating cost property {}: "{}"'.format(name, value))
                 log.exception(ex)
         return max(0, sum(values))
@@ -376,47 +386,53 @@ class MagModel:
         checkgroups = self.regform_checkgroups if restricted else checkgroups
         for column in self.__table__.columns:
             if (not restricted or column.name in self.unrestricted) and column.name in params and column.name != 'id':
-                if column.type is JSON or isinstance(column.type, JSON):
-                    value = params[column.name]
-                elif isinstance(params[column.name], list):
-                    value = ','.join(map(str, params[column.name]))
-                elif isinstance(params[column.name], bool):
-                    value = params[column.name]
-                elif params[column.name] is None:
-                    value = None
-                else:
-                    value = str(params[column.name]).strip()
+                value = params[column.name]
+                if isinstance(value, six.string_types):
+                    value = value.strip()
 
                 try:
                     if value is None:
                         pass  # Totally fine for value to be None
+
                     elif isinstance(column.type, Float):
                         if value == '':
                             value = None
                         else:
                             value = float(value)
+
                     elif isinstance(column.type, Numeric):
                         if value == '':
                             value = None
                         elif value.endswith('.0'):
                             value = int(value[:-2])
+
+                    elif isinstance(column.type, (MultiChoice)):
+                        if isinstance(value, list):
+                            value = ','.join(map(lambda x: str(x).strip(), value))
+                        else:
+                            value = str(value).strip()
+
                     elif isinstance(column.type, (Choice, Integer)):
                         if value == '':
                             value = None
                         else:
                             value = int(float(value))
+
                     elif isinstance(column.type, UTCDateTime):
                         try:
                             value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
                         except ValueError:
                             value = dateparser.parse(value)
-                        value = c.EVENT_TIMEZONE.localize(value)
+                        if not value.tzinfo:
+                            value = c.EVENT_TIMEZONE.localize(value)
+
                     elif isinstance(column.type, Date):
                         try:
                             value = datetime.strptime(value, c.DATE_FORMAT)
                         except ValueError:
                             value = dateparser.parse(value)
                         value = value.date()
+
                 except Exception as error:
                     log.debug(
                         'Ignoring error coercing value for column {}.{}: {}', self.__tablename__, column.name, error)
@@ -499,7 +515,7 @@ from uber.models.group import Group  # noqa: E402
 from uber.models.mits import MITSApplicant, MITSTeam  # noqa: E402
 from uber.models.mivs import IndieJudge, IndieGame, IndieStudio  # noqa: E402
 from uber.models.panels import PanelApplication, PanelApplicant  # noqa: E402
-from uber.models.promo_code import PromoCode  # noqa: E402
+from uber.models.promo_code import PromoCode, PromoCodeGroup  # noqa: E402
 from uber.models.tabletop import TabletopEntrant, TabletopTournament  # noqa: E402
 from uber.models.tracking import Tracking  # noqa: E402
 
@@ -656,7 +672,7 @@ class Session(SessionManager):
                 'name', 'department_id', 'department_name', 'description',
                 'weight', 'start_time_local', 'end_time_local', 'duration',
                 'weighted_hours', 'restricted', 'extra15', 'taken',
-                'visibility', 'is_public']
+                'visibility', 'is_public', 'is_setup', 'is_teardown']
             jobs = self.logged_in_volunteer().possible_and_current
             restricted_hours = set()
             for job in jobs:
@@ -665,6 +681,61 @@ class Session(SessionManager):
             return [
                 job.to_dict(fields)
                 for job in jobs if (job.required_roles or frozenset(job.hours) not in restricted_hours)]
+
+        def process_refund(self, stripe_log, model=Attendee):
+            """
+            Attempts to refund a given Stripe transaction
+            Returns:
+                error: an error message
+                response: a Stripe Refund() object, or None
+            """
+            import stripe
+            from pockets.autolog import log
+            from uber.models.commerce import StripeTransaction, \
+                StripeTransactionAttendee, StripeTransactionGroup
+
+            txn = stripe_log.stripe_transaction
+            if txn.type != c.PAYMENT:
+                return 'This is not a payment and cannot be refunded.', None
+            else:
+                log.debug(
+                    'REFUND: attempting to refund stripeID {} {} cents for {}',
+                    txn.stripe_id, stripe_log.share, txn.desc)
+                try:
+                    response = stripe.Refund.create(
+                        charge=txn.stripe_id, amount=stripe_log.share, reason='requested_by_customer')
+                except stripe.StripeError as e:
+                    error_txt = 'Error while calling process_refund' \
+                                '(self, stripeID={!r})'.format(txn.stripe_id)
+                    report_critical_exception(
+                        msg=error_txt,
+                        subject='ERROR: MAGFest Stripe invalid request error')
+                    return 'An unexpected problem occurred: ' + str(e), None
+
+                refund_txn = StripeTransaction(
+                    stripe_id=response.id or None,
+                    amount=response.amount,
+                    desc=txn.desc,
+                    type=c.REFUND,
+                    who=AdminAccount.admin_name() or 'non-admin')
+
+                self.add(refund_txn)
+
+                if isinstance(model, Attendee):
+                    self.add(StripeTransactionAttendee(
+                        txn_id=refund_txn.id,
+                        attendee_id=model.id,
+                        share=stripe_log.share
+                    ))
+
+                elif isinstance(model, Group):
+                    self.add(StripeTransactionGroup(
+                        txn_id=refund_txn,
+                        group_id=model.id,
+                        share=stripe_log.share
+                    ))
+
+                return '', response
 
         def guess_attendee_watchentry(self, attendee, active=True):
             or_clauses = [
@@ -677,7 +748,7 @@ class Session(SessionManager):
                 if isinstance(attendee.birthdate, six.string_types):
                     try:
                         birthdate = dateparser.parse(attendee.birthdate).date()
-                    except Exception as ex:
+                    except Exception:
                         log.debug('Error parsing attendee birthdate: {}'.format(attendee.birthdate))
                     else:
                         or_clauses.append(WatchList.birthdate == birthdate)
@@ -757,13 +828,36 @@ class Session(SessionManager):
         def lookup_promo_code(self, code):
             """
             Convenience method for finding a promo code by id or code.
+            Accounts for PromoCodeGroups.
 
             Arguments:
                 code (str): The id or code to search for.
 
             Returns:
-                PromoCode: Either the matching PromoCode object, or None
-                    if not found.
+                PromoCode: A PromoCode object, either matching
+                the given code or found in the matching PromoCodeGroup.
+            """
+            promo_code = self.lookup_promo_or_group_code(code, PromoCode)
+            if promo_code:
+                return promo_code
+
+            group = self.lookup_promo_or_group_code(code, PromoCodeGroup)
+            if not group:
+                return None
+
+            return group.valid_codes[0]
+
+        def lookup_promo_or_group_code(self, code, model=PromoCode):
+            """
+            Convenience method for finding a promo code by id or code.
+
+            Arguments:
+                model: Either PromoCode or PromoCodeGroup
+                code (str): The id or code to search for.
+
+            Returns:
+                Either the matching object of the given model,
+                 or None if not found.
             """
             if isinstance(code, uuid.UUID):
                 code = code.hex
@@ -773,18 +867,34 @@ class Session(SessionManager):
                 return None
 
             unambiguous_code = PromoCode.disambiguate_code(code)
-            clause = or_(PromoCode.normalized_code == normalized_code, PromoCode.normalized_code == unambiguous_code)
+            clause = or_(model.normalized_code == normalized_code, model.normalized_code == unambiguous_code)
 
             # Make sure that code is a valid UUID before adding
             # PromoCode.id to the filter clause
             try:
                 promo_code_id = uuid.UUID(normalized_code).hex
-            except Exception as ex:
+            except Exception:
                 pass
             else:
-                clause = clause.or_(PromoCode.id == promo_code_id)
+                clause = clause.or_(model.id == promo_code_id)
 
-            return self.query(PromoCode).filter(clause).order_by(PromoCode.normalized_code.desc()).first()
+            return self.query(model).filter(clause).order_by(model.normalized_code.desc()).first()
+
+        def create_promo_code_group(self, attendee, name, badges):
+            pc_group = PromoCodeGroup(name=name, buyer=attendee)
+
+            self.add_codes_to_pc_group(pc_group, badges)
+
+            return pc_group
+
+        def add_codes_to_pc_group(self, pc_group, badges):
+            for _ in range(badges):
+                self.add(PromoCode(
+                    discount=0,
+                    discount_type=PromoCode._FIXED_PRICE,
+                    uses_allowed=1,
+                    group=pc_group,
+                    cost=c.get_group_price()))
 
         def get_next_badge_num(self, badge_type):
             """
@@ -1027,7 +1137,8 @@ class Session(SessionManager):
                 legal_name_cond = attendees.icontains_condition(legal_name="{}%{}".format(first, last))
                 first_name_cond = attendees.icontains_condition(first_name=terms)
                 last_name_cond = attendees.icontains_condition(last_name=terms)
-                return attendees.filter(or_(name_cond, legal_name_cond, first_name_cond, last_name_cond))
+                if attendees.filter(or_(name_cond, legal_name_cond, first_name_cond, last_name_cond)).first():
+                    return attendees.filter(or_(name_cond, legal_name_cond, first_name_cond, last_name_cond))
 
             elif len(terms) == 1 and terms[0].endswith(','):
                 last = terms[0].rstrip(',')
@@ -1063,7 +1174,7 @@ class Session(SessionManager):
             checks = [Group.name.ilike('%' + text + '%')]
             check_attrs = [
                 'first_name', 'last_name', 'legal_name', 'badge_printed_name',
-                'email', 'comments', 'admin_notes', 'for_review']
+                'email', 'comments', 'admin_notes', 'for_review', 'promo_code_group_name']
 
             for attr in check_attrs:
                 checks.append(getattr(Attendee, attr).ilike('%' + text + '%'))
@@ -1228,7 +1339,7 @@ class Session(SessionManager):
         def logged_in_studio(self):
             try:
                 return self.indie_studio(cherrypy.session['studio_id'])
-            except Exception as ex:
+            except Exception:
                 raise HTTPRedirect('../mivs_applications/studio')
 
         def logged_in_judge(self):
@@ -1253,7 +1364,7 @@ class Session(SessionManager):
             self.delete(screenshot)
             try:
                 os.remove(screenshot.filepath)
-            except Exception as ex:
+            except Exception:
                 pass
             self.commit()
 
@@ -1279,7 +1390,7 @@ class Session(SessionManager):
                     team = self.mits_team(team.duplicate_of)
                     assert team.id not in duplicate_teams, 'circular reference in duplicate_of: {}'.format(
                         duplicate_teams)
-            except Exception as ex:
+            except Exception:
                 log.error('attempt to log into invalid team {}', team_id, exc_info=True)
                 raise HTTPRedirect('../mits_applications/login_explanation')
             else:
@@ -1290,7 +1401,7 @@ class Session(SessionManager):
             try:
                 team = self.mits_team(cherrypy.session['mits_team_id'])
                 assert not team.deleted or team.duplicate_of
-            except Exception as ex:
+            except Exception:
                 raise HTTPRedirect('../mits_applications/login_explanation')
             else:
                 if team.duplicate_of:
@@ -1316,7 +1427,7 @@ class Session(SessionManager):
         def delete_mits_file(self, model):
             try:
                 os.remove(model.filepath)
-            except Exception as ex:
+            except Exception:
                 log.error('Unexpected error deleting MITS file {}', model.filepath)
 
             # Regardless of whether removing the file from the
@@ -1402,7 +1513,7 @@ def initialize_db(modify_tables=False):
             Session.initialize_db(modify_tables=modify_tables, initialize=True)
         except KeyboardInterrupt:
             log.critical('DB initialize: Someone hit Ctrl+C while we were starting up')
-        except Exception as ex:
+        except Exception:
             num_tries_remaining -= 1
             if num_tries_remaining == 0:
                 log.error("DB initialize: couldn't connect to DB, we're giving up")

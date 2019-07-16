@@ -81,7 +81,7 @@
       {% endfor %}
     </select>
     {% for app in event.applications %}
-      <br/> (<a href="../panel_app_management/app?id={{ app.id }}">view application</a>)
+      <br/> (<a href="../panel_app_management/app?id={{ app.id }}">view application for {{ app.name }}</a>)
     {% endfor %}
   </td>
 </tr>

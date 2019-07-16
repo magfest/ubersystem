@@ -1,0 +1,3 @@
+{{ code.group.buyer.full_name }} has invited you to claim a badge for {{ c.EVENT_NAME_AND_YEAR }} in their group "{{ code.group.name }}".
+
+To claim this badge, simply copy and paste "{{ code.code }}" into the "Promo Code" box when registering for {{ c.EVENT_NAME_AND_YEAR }} or register using the following link: {{ c.URL_BASE }}/preregistration/form?promo_code={{ code.code }}

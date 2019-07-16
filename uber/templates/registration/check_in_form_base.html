@@ -51,9 +51,20 @@
     </tr>
     <tr>
         <td>Emergency Contact:</td>
-        <td>{{ attendee.ec_name }}</td>
-        <td>{{ attendee.ec_phone }}</td>
+        <td>{{ attendee.ec_name }} <span class="pull-right">{{ attendee.ec_phone }}</span></td>
     </tr>
+    {% if c.VOLUNTEER_AGREEMENT_ENABLED and (attendee.staffing or c.VOLUNTEER in attendee.ribbon_ints) %}
+        <tr>
+            <td>Volunteer Agreement:</td>
+            <td>
+              {%- if attendee.agreed_to_volunteer_agreement -%}
+                Completed
+              {%- else -%}
+                <b class="text-danger">Not Completed</b>
+              {%- endif -%}
+            </td>
+        </tr>
+    {% endif %}
     <tr>
         <td>Badge Type:</td>
         <td>{{ attendee.badge_type_label }}
@@ -86,6 +97,12 @@
             <td><span class="label label-danger">Special Instructions:</span></td>
             <td>{{ attendee.regdesk_info }}</td>
         </tr>
+    {% endif %}
+    {% if attendee.amount_extra and c.MERCH_AT_CHECKIN %}
+      <tr>
+        <td><strong>Picked Up Merch?</strong></td>
+        <td><label style="font-weight:normal;"><input type="checkbox" name="got_merch" value="1" /> Yes, this attendee has received their merch</label></td>
+      </tr>
     {% endif %}
     {% endblock checkin_fields %}
 </table>

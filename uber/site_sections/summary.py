@@ -1,3 +1,5 @@
+import os
+import re
 from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
 
@@ -5,15 +7,17 @@ import cherrypy
 import six
 from dateutil.relativedelta import relativedelta
 from pytz import UTC
-from sqlalchemy import and_, or_
-from sqlalchemy.sql.expression import extract
+from sqlalchemy import and_, or_, func
+from sqlalchemy.sql.expression import extract, literal
 from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
-from uber.decorators import all_renderable, csv_file, multifile_zipfile, render, site_mappable, xlsx_file
+from uber.decorators import all_renderable, csv_file, multifile_zipfile, render, site_mappable, xlsx_file, \
+    _set_response_filename
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Department, FoodRestrictions, Group
+from uber.models import Attendee, Department, Event, FoodRestrictions, Group, Session
 from uber.reports import PersonalizedBadgeReport, PrintedBadgeReport
+from uber.utils import filename_safe, localized_now
 
 
 def generate_staff_badges(start_badge, end_badge, out, session):
@@ -26,6 +30,63 @@ def generate_staff_badges(start_badge, end_badge, out, session):
         badge_type=c.STAFF_BADGE,
         range=badge_range,
         badge_type_name='Staff').run(out, session)
+
+
+def volunteer_checklists(session):
+    attendees = session.query(Attendee) \
+        .filter(
+            Attendee.staffing == True,
+            Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])) \
+        .order_by(Attendee.full_name, Attendee.id).all()  # noqa: E712
+
+    checklist_items = OrderedDict()
+    for item_template in c.VOLUNTEER_CHECKLIST:
+        item_name = os.path.splitext(os.path.basename(item_template))[0]
+        if item_name.endswith('_item'):
+            item_name = item_name[:-5]
+        item_name = item_name.replace('_', ' ').title()
+        checklist_items[item_name] = item_template
+
+    re_checkbox = re.compile(r'<img src="\.\./static/images/checkbox_.*?/>')
+    for attendee in attendees:
+        attendee.checklist_items = OrderedDict()
+        for item_name, item_template in checklist_items.items():
+            html = render(item_template, {'attendee': attendee}, encoding=None)
+            match = re_checkbox.search(html)
+            is_complete = False
+            is_applicable = False
+            if match:
+                is_applicable = True
+                checkbox_html = match.group(0)
+                if 'checkbox_checked' in checkbox_html:
+                    is_complete = True
+            attendee.checklist_items[item_name] = {
+                'is_applicable': is_applicable,
+                'is_complete': is_complete,
+            }
+
+    return {
+        'checklist_items': checklist_items,
+        'attendees': attendees,
+    }
+
+
+def _get_guidebook_models(session, selected_model=''):
+    model = selected_model.split('_')[0] if '_' in selected_model else selected_model
+    model_query = session.query(Session.resolve_model(model))
+
+    if '_band' in selected_model:
+        return model_query.filter_by(group_type=c.BAND)
+    elif '_guest' in selected_model:
+        return model_query.filter_by(group_type=c.GUEST)
+    elif '_dealer' in selected_model:
+        return model_query.filter_by(is_dealer=True)
+    elif '_panels' in selected_model:
+        return model_query.filter(Event.location.in_(c.PANEL_ROOMS))
+    elif 'Game' in selected_model:
+        return model_query.filter_by(has_been_accepted=True)
+    else:
+        return model_query
 
 
 @all_renderable(c.STATS)
@@ -185,6 +246,13 @@ class Root:
                 'total_hours': sum(j.weighted_hours * j.slots for j in jobs_by_dept[dept.id]),
                 'taken_hours': sum(j.weighted_hours * len(j.shifts) for j in jobs_by_dept[dept.id])
             } for dept in departments]
+        }
+
+    def volunteer_hours_overview(self, session, message=''):
+        attendees = session.staffers()
+        return {
+            'volunteers': attendees,
+            'message': message,
         }
 
     @csv_file
@@ -515,6 +583,38 @@ class Root:
         }
 
     @csv_file
+    def volunteer_checklist_csv(self, out, session):
+        checklists = volunteer_checklists(session)
+        out.writerow(['First Name', 'Last Name', 'Email', 'Cellphone', 'Assigned Depts']
+                     + [s for s in checklists['checklist_items'].keys()])
+        for attendee in checklists['attendees']:
+            checklist_items = []
+            for item in attendee.checklist_items.values():
+                checklist_items.append('Yes' if item['is_complete'] else 'No' if item['is_applicable'] else 'N/A')
+            out.writerow([attendee.first_name,
+                          attendee.last_name,
+                          attendee.email,
+                          attendee.cellphone,
+                          ', '.join(attendee.assigned_depts_labels)
+                          ] + checklist_items)
+
+    def volunteer_checklists(self, session):
+        return volunteer_checklists(session)
+
+    @csv_file
+    @site_mappable
+    def requested_accessibility_services(self, out, session):
+        out.writerow(['Badge #', 'Full Name', 'Badge Type', 'Email', 'Comments'])
+        query = session.query(Attendee).filter_by(requested_accessibility_services=True)
+        for person in query.all():
+            out.writerow([
+                person.badge_num, person.full_name, person.badge_type_label,
+                person.email, person.comments
+            ])
+
+    requested_accessibility_services.restricted = [c.ACCESSIBILITY]
+
+    @csv_file
     @site_mappable
     def attendee_birthday_calendar(
             self,
@@ -600,6 +700,65 @@ class Root:
                 subject, start_date, '', end_date, '', all_day, '', '', private
             ])
 
+    @csv_file
+    def checkins_by_hour(self, out, session):
+        def date_trunc_hour(*args, **kwargs):
+            # sqlite doesn't support date_trunc
+            if c.SQLALCHEMY_URL.startswith('sqlite'):
+                return func.strftime(literal('%Y-%m-%d %H:00'), *args, **kwargs)
+            else:
+                return func.date_trunc(literal('hour'), *args, **kwargs)
+
+        out.writerow(["time_utc", "count"])
+        query_result = session.query(
+                date_trunc_hour(Attendee.checked_in),
+                func.count(date_trunc_hour(Attendee.checked_in))
+            ) \
+            .filter(Attendee.checked_in.isnot(None)) \
+            .group_by(date_trunc_hour(Attendee.checked_in)) \
+            .order_by(date_trunc_hour(Attendee.checked_in)) \
+            .all()
+
+        for result in query_result:
+            hour = result[0]
+            count = result[1]
+            out.writerow([hour, count])
+
     def all_attendees(self):
         raise HTTPRedirect('../export/valid_attendees')
     all_attendees.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
+
+    def guidebook_exports(self, session, message=''):
+        return {
+            'message': message,
+            'tables': c.GUIDEBOOK_MODELS,
+        }
+
+    @xlsx_file
+    def export_guidebook_xlsx(self, out, session, selected_model=''):
+        model_list = _get_guidebook_models(session, selected_model).all()
+
+        _set_response_filename('{}_guidebook_{}.xlsx'.format(
+            filename_safe(dict(c.GUIDEBOOK_MODELS)[selected_model]).lower(),
+            localized_now().strftime('%Y%m%d'),
+
+        ))
+
+        out.writerow([val for key, val in c.GUIDEBOOK_PROPERTIES])
+
+        for model in model_list:
+            row = []
+            for key, val in c.GUIDEBOOK_PROPERTIES:
+                row.append(getattr(model, key, '').replace('\n', '<br/>'))
+            out.writerow(row)
+
+    @multifile_zipfile
+    def export_guidebook_zip(self, zip_file, session, selected_model=''):
+        model_list = _get_guidebook_models(session, selected_model).all()
+
+        for model in model_list:
+            filenames, files = getattr(model, 'guidebook_images', ['', ''])
+
+            for filename, file in zip(filenames, files):
+                if filename:
+                    zip_file.write(getattr(file, 'filepath', file.pic_fpath), filename)

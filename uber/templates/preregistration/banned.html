@@ -3,22 +3,22 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<div class="masthead"></div>
+{% include 'prereg_masthead.html' %}
 <div class="panel panel-default">
   <div class="panel-body">
     <h2> You may be banned from {{ c.EVENT_NAME }}! </h2>
 
     <p>
-      Our list of banned people includes someone named <b>{{ attendee.full_name }}</b>.  Every banned attendee has
+      Our list of banned people includes someone named <b>{{ attendee.full_name }}</b>. Every banned attendee has
       been told they are banned, so if this is not a mistake then you should definitely know it.  However, if you
       just happen to have the same name as someone who has been banned, then go ahead and continue.  If we see someone
-      on our banned list complete their registration then we'll contact you to validate that you're someone else.
+      on our banned list complete their registration then we'll contact you to verify that you're someone else.
     </p>
 
     <table style="width:auto" align="center">
       <tr>
         {%- set next_page = 'hotel?id=' + id if c.PREREG_REQUEST_HOTEL_INFO_OPEN else 'index' -%}
-        <td><a href="{{ next_page }}">I'm someone else, let me pay!</a></td>
+        <td><a href="{{ next_page }}">I'm someone else, let me register!</a></td>
         <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
         <td><a href="delete?id={{ attendee.id }}">Well never mind then!</a></td>
       </tr>

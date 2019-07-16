@@ -106,7 +106,7 @@
                 price: {{ c.BADGE_PRICE }}
             });
         {% endif %}
-        {% if c.SEASON_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
+        {% if c.SEASON_LEVEL in c.PREREG_DONATION_TIERS and c.SEASON_AVAILABLE %}
             BADGE_TYPES.options.push({
                 title: 'Super Supporter',
                 description: 'Donate even more and get exclusive swag!',
