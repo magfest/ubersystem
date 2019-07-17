@@ -464,7 +464,7 @@
         </div>
     {% endif %}
 
-    {{ macros.address_form(attendee, update_international=True) }}
+    {{ macros.address_form(attendee, update_international=True, is_required=True) }}
 
     <div class="checkbox col-sm-6 col-sm-offset-3">
         {{ macros.checkbox(attendee, 'international', label="I'm coming from outside the US.") }}
