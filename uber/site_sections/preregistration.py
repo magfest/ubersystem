@@ -157,6 +157,7 @@ class Root:
                     group_params[field_name] = params.get('group_{}'.format(field_name), '')
                     if params.get('copy_address'):
                         params[field_name] = group_params[field_name]
+                        attendee.apply(params)
 
                 group = session.group(group_params, ignore_csrf=True, restricted=True)
 
@@ -186,12 +187,13 @@ class Root:
             }
 
         if 'first_name' in params:
-            message = check(attendee, prereg=True)
-            if not message and attendee.badge_type == c.PSEUDO_DEALER_BADGE:
+            if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                 message = check(group, prereg=True)
 
+            message = message or check(attendee, prereg=True)
+
             if attendee.badge_type in [c.PSEUDO_GROUP_BADGE, c.PSEUDO_DEALER_BADGE]:
-                message = "Please enter a group name" if not params.get('name') else ''
+                message = "Please enter a group name" if not params.get('name') else message
             else:
                 params['badges'] = 0
                 params['name'] = ''
