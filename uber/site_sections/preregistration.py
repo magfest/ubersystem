@@ -275,6 +275,7 @@ class Root:
         return {
             'message':    message,
             'attendee':   attendee,
+            'badges': params['badges'] if 'badges' in params else 0,
             'group':      group,
             'promo_code_group': promo_code_group,
             'edit_id':    edit_id,
