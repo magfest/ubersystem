@@ -919,12 +919,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def num_free_event_shirts(self):
         """
-        Volunteers get one free event shirt by default; otherwise, we use whatever the attendee
-        has selected for their comped shirts while completing the volunteer checklist.
+        If someone is staff-shirt-eligible, we use the number of event shirts they have selected (if any)
+        Volunteers also get a free event shirt.
         Returns: Integer representing the number of free event shirts this attendee should get.
 
         """
-        return 1 if c.VOLUNTEER_RIBBON in self.ribbon_ints else self.num_event_shirts
+        return self.num_event_shirts if self.gets_staff_shirt else c.VOLUNTEER_RIBBON in self.ribbon_ints
 
     @property
     def volunteer_event_shirt_eligible(self):
