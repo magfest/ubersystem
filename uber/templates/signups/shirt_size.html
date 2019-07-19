@@ -8,9 +8,9 @@
 
 <h2> Tell Us Your Shirt Size </h2>
 
-<p>One of the perks of volunteering is a tshirt for anyone who takes at least 6 weighted hours worth of shifts.</p>
+<p>One of the perks of volunteering is a tshirt for anyone who takes at least {{ c.HOURS_FOR_SHIRT }} weighted hours worth of shifts.</p>
 
-{% if attendee.gets_staff_shirt and c.SHIRTS_PER_STAFFER > 1 %}
+{% if c.gets_staff_shirt and c.STAFF_EVENT_SHIRT_OPTS %}
     <h3>Staff Shirt Policy</h3>
     <p>
         Event staff are given a themed staff t-shirt that serves as a uniform for the event, and is theirs to keep forever.
@@ -43,8 +43,8 @@
         {% if c.AFTER_SHIRT_DEADLINE %}
             <b>Because we are past the deadline, your choice has been locked in.</b>
         {% endif %}
-        <br/> <input type="radio" name="second_shirt" value="{{ c.TWO_STAFF_SHIRTS }}" {% if attendee.second_shirt == c.TWO_STAFF_SHIRTS %}checked{% endif %} {% if c.AFTER_SHIRT_DEADLINE %}disabled{% endif %} /> I'd like {{ c.SHIRTS_PER_STAFFER }} staff shirts, to help keep them fresh through the event.
-        <br/> <input type="radio" name="second_shirt" value="{{ c.STAFF_AND_EVENT_SHIRT }}" {% if attendee.second_shirt != c.TWO_STAFF_SHIRTS %}checked{% endif %} {% if c.AFTER_SHIRT_DEADLINE %}disabled{% endif %} /> I'd like {{ c.SHIRTS_PER_STAFFER - 1 }} staff shirt{{ (c.SHIRTS_PER_STAFFER - 1)|pluralize }}, and 1 standard event-themed swag shirt. <i>I can keep a staff shirt fresh through the event.</i>
+        <br/> <input type="radio" name="num_event_shirts" value="0" {% if attendee.num_event_shirts == 0 %}checked{% endif %} {% if c.AFTER_SHIRT_DEADLINE %}disabled{% endif %} /> I'd like {{ c.SHIRTS_PER_STAFFER }} staff shirts, to help keep them fresh through the event.
+        <br/> <input type="radio" name="num_event_shirts" value="1" {% if attendee.num_event_shirts == 1 %}checked{% endif %} {% if c.AFTER_SHIRT_DEADLINE %}disabled{% endif %} /> I'd like {{ c.SHIRTS_PER_STAFFER - 1 }} staff shirt{{ (c.SHIRTS_PER_STAFFER - 1)|pluralize }}, and 1 standard event-themed swag shirt. <i>I can keep a staff shirt fresh through the event.</i>
     </p>
 {% endif %}
 <p>
