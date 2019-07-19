@@ -53,7 +53,7 @@
 <div class="panel panel-default">
 <div class="panel-body">
 
-<h2> Group Info </h2>
+  <h2> Group Info {% if not group.is_new %} [<a href="../preregistration/group_members?id={{ group.id }}">Assign Badges</a>{% if group.guest and c.HAS_BANDS_ACCESS %} | <a href="../guests/index?id={{ group.guest.id }}">{{ group.guest.group_type_label }} Checklist</a>{% endif %}]{% endif %} </h2>
 
 <div style="text-align:center">
     <a href="index">Return to group list</a>
