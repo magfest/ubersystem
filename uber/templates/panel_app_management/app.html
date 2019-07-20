@@ -183,6 +183,15 @@
             is_admin=True) }}
     {% endif %}
 
+    {% if app.presentation == c.MUSIC %}
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Loud Environment Requested</label>
+        <div class="col-sm-6 form-control-static">
+          {{ app.is_loud|yesno }}
+        </div>
+      </div>
+    {% endif %}
+
     {% if app.extra_info %}
         <div class="form-group">
             <label class="col-sm-3 control-label">Extra Info for Internal Use</label>

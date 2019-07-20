@@ -15,6 +15,7 @@
 
   {% if not is_readonly or (not is_class and (panelist.has_credentials or panelist.has_social_media)) -%}
     <h3>Personal Information</h3>
+    <span class="help-block">Any information you provide will be used during the vetting process.</span>
   {%- endif %}
   <input type="hidden" name="app_id{{ suffix }}" value="{{ app.id }}"/>
   <input type="hidden" name="id{{ suffix }}" value="{{ 'None' if is_class else panelist.id }}"/>
@@ -50,6 +51,18 @@
       is_required=require_cellphone,
       is_readonly=is_readonly,
       is_admin=is_admin) }}
+  {% if not is_readonly or (not is_class and (panelist.pronouns or panelist.other_pronouns)) %}
+      {{ macros.form_checkgroup(
+        panelist,
+        'pronouns',
+        other_field='other_pronouns',
+        other_placeholder='e.g., Xe/Xir',
+        suffix=suffix,
+        label='Preferred Pronouns',
+        help="Ask for pronoun ribbons at the Registration desk!",
+        is_readonly=is_readonly,
+        is_admin=is_admin) }}
+  {% endif %}
   {% if not is_readonly or (not is_class and (panelist.communication_pref or panelist.other_communication_pref)) -%}
     {{ macros.form_checkgroup(
         panelist,
@@ -105,7 +118,7 @@
           panelist,
           name,
           url_field=name + '_url',
-          type='text',
+          type='textarea' if panelist._social_media_fields|length == 1 else 'text',
           suffix=suffix,
           label=label,
           placeholder=panelist.get_placeholder(name),

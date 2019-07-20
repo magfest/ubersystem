@@ -29,7 +29,9 @@ class Root:
         }
 
     def form(self, session, message='', **params):
-        app = session.panel_application(params, checkgroups=PanelApplication.all_checkgroups)
+        app = session.panel_application(params,
+                                        checkgroups=PanelApplication.all_checkgroups,
+                                        bools=PanelApplication.all_bools)
         if cherrypy.request.method == 'POST':
             message = check(app)
             if not message:
