@@ -4,7 +4,7 @@
   <script type="text/javascript">
   updateBadgeMax = function() {
       var new_badge_max = Math.ceil(parseFloat($("select[name=tables]").val())) + 1;
-      var curr_badge_max = parseInt($('select[name=badges] option:last').val());
+      var curr_badge_max = parseInt($('select[name=badges] option:last').val()) || 0;
       if (curr_badge_max > new_badge_max) {
           $("select[name=badges] option").slice(new_badge_max, curr_badge_max).remove();
       } else {
@@ -16,6 +16,8 @@
   $(function() {
       $("select[name=tables]").on('change', updateBadgeMax);
       updateBadgeMax();
+      var selectedBadge = Math.min({{ badges }}, $('select[name=badges] option:last').val());
+      $('select[name=badges] option[value="' + selectedBadge + '"]').prop('selected', true)
   });
 
   </script>
@@ -153,7 +155,7 @@
         </p>
     </div>
 
-    {{ macros.address_form(group, name_prefix="group_") }}
+    {{ macros.address_form(group, name_prefix="group_", is_required=True) }}
 {% endif %}
 
 {% include "groupextra.html" %}

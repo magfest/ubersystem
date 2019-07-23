@@ -909,7 +909,7 @@ if c.ONE_DAYS_ENABLED and c.PRESELL_ONE_DAYS:
         c.BADGES[_val] = _name
         c.BADGE_OPTS.append((_val, _name))
         c.BADGE_VARS.append(_name.upper())
-        c.BADGE_RANGES[_val] = c.BADGES[c.ONE_DAY_BADGE]
+        c.BADGE_RANGES[_val] = c.BADGE_RANGES[c.ONE_DAY_BADGE]
         if c.ONE_DAY_BADGE in c.TRANSFERABLE_BADGE_TYPES:
             c.TRANSFERABLE_BADGE_TYPES.append(_val)
         if c.ONE_DAY_BADGE in c.PREASSIGNED_BADGE_TYPES:
