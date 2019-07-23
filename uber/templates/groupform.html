@@ -16,6 +16,8 @@
   $(function() {
       $("select[name=tables]").on('change', updateBadgeMax);
       updateBadgeMax();
+      var selectedBadge = Math.min({{ badges }}, $('select[name=badges] option:last').val());
+      $('select[name=badges] option[value="' + selectedBadge + '"]').prop('selected', true)
   });
 
   </script>
@@ -153,7 +155,7 @@
         </p>
     </div>
 
-    {{ macros.address_form(group, name_prefix="group_") }}
+    {{ macros.address_form(group, name_prefix="group_", is_required=True) }}
 {% endif %}
 
 {% include "groupextra.html" %}
