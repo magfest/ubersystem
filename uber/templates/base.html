@@ -88,6 +88,15 @@
             });
         </script>
         {% endif %}
+      <script type="text/javascript">
+      $(function() {
+          $('.form-control-static').each(function(index) {
+            if($( this ).text().trim() == '') {
+                $(this).parents('.form-group').hide();
+            }
+          })
+      });
+      </script>
     {% endblock %}
 
     <meta charset="utf-8">
