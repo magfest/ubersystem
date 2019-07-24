@@ -153,11 +153,13 @@
 {% endfor %}
 </table>
 
-<br/>{% if group.is_dealer and group.min_badges_addable %}
-    You may purchase up to <strong>{{ group.dealer_badges_remaining }}</strong> additional badges.<br/><br/>
-  {% elif group.is_dealer %}
-    Please contact us at <strong>{{ c.MARKETPLACE_EMAIL|email_only|email_to_link }}</strong> if you wish to purchase additional badges.
-  {% endif %}
+        <br/>{% if group.is_dealer and group.min_badges_addable %}
+        You may purchase up to <strong>{{ group.dealer_badges_remaining }}</strong> additional badges.<br/><br/>
+        {% elif group.is_dealer and group.amount_unpaid %}
+        You may purchase up to <strong>{{ group.dealer_badges_remaining }}</strong> additional badges after you are approved and paid.<br/><br/>
+        {% elif group.is_dealer %}
+        Please contact us at <strong>{{ c.MARKETPLACE_EMAIL|email_only|email_to_link }}</strong> if you wish to purchase additional badges.
+        {% endif %}
 
 {% if c.PRE_CON and group.min_badges_addable %}
     <div id="add" style="display:none">

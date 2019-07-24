@@ -22,7 +22,7 @@ def donation_tier_fixture(monkeypatch):
     monkeypatch.setattr(c, 'SUPPORTER_LEVEL', supporter_level)
 
     monkeypatch.setattr(c, 'SHIRTS_PER_STAFFER', 3)
-    monkeypatch.setattr(c, 'STAFF_ELIGIBLE_FOR_SWAG_SHIRT', False)
+    monkeypatch.setattr(c, 'STAFF_EVENT_SHIRT_OPTS', '[]')
 
 
 class TestMerchAttrs:
@@ -38,7 +38,7 @@ class TestMerchAttrs:
         assert not Attendee(ribbon=c.VOLUNTEER_RIBBON, badge_type=c.STAFF_BADGE).volunteer_event_shirt_eligible
 
     def test_staff_event_shirt_eligible(self, monkeypatch):
-        monkeypatch.setattr(c, 'STAFF_ELIGIBLE_FOR_SWAG_SHIRT', True)
+        monkeypatch.setattr(c, 'STAFF_EVENT_SHIRT_OPTS', 1)
         assert Attendee(badge_type=c.STAFF_BADGE).volunteer_event_shirt_eligible
         assert Attendee(badge_type=c.STAFF_BADGE, ribbon=c.VOLUNTEER_RIBBON).volunteer_event_shirt_eligible
 
@@ -56,17 +56,6 @@ class TestMerchAttrs:
             monkeypatch.setattr(Attendee, 'volunteer_event_shirt_eligible', eligible)
             assert expected == Attendee(nonshift_hours=worked_hours).volunteer_event_shirt_earned
 
-    def test_replacement_staff_shirts(self, monkeypatch):
-        for staff_shirt, second_shirt, expected in [
-                (False, c.TWO_STAFF_SHIRTS,      0),
-                (False, c.UNKNOWN,               0),
-                (False, c.STAFF_AND_EVENT_SHIRT, 0),
-                (True, c.TWO_STAFF_SHIRTS,       0),
-                (True, c.UNKNOWN,                1),
-                (True, c.STAFF_AND_EVENT_SHIRT,  1)]:
-            monkeypatch.setattr(Attendee, 'gets_staff_shirt', staff_shirt)
-            assert expected == Attendee(second_shirt=second_shirt).replacement_staff_shirts
-
     def test_num_event_shirts_owed(self, monkeypatch):
         for paid, volunteer, replacement, owed in [
                 (False, False, 0, 0),
@@ -79,21 +68,18 @@ class TestMerchAttrs:
                 (True, True, 1, 3)]:
             monkeypatch.setattr(Attendee, 'paid_for_a_shirt', paid)
             monkeypatch.setattr(Attendee, 'volunteer_event_shirt_eligible', volunteer)
-            monkeypatch.setattr(Attendee, 'replacement_staff_shirts', replacement)
+            monkeypatch.setattr(Attendee, 'num_event_shirts', replacement)
             assert owed == Attendee().num_event_shirts_owed
 
     def test_num_staff_shirts_owed(self, monkeypatch):
-        for gets_shirt, replacement_shirts, expected in [
+        for gets_shirt, replacement, expected in [
                 (False, 0, 0),
                 (False, 1, 0),
                 (True, 0, 3),
                 (True, 1, 2),
-
-                # replacement_staff_shirts as currently programmed will only ever be 0 or 1 but
-                # we're testing with a higher value just to ensure this will work if that changes
                 (True, 2, 1)]:
             monkeypatch.setattr(Attendee, 'gets_staff_shirt', gets_shirt)
-            monkeypatch.setattr(Attendee, 'replacement_staff_shirts', replacement_shirts)
+            monkeypatch.setattr(Attendee, 'num_event_shirts', replacement)
             assert expected == Attendee().num_staff_shirts_owed
 
     def test_gets_staff_shirt(self):

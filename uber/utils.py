@@ -932,10 +932,11 @@ class Charge:
         names = []
 
         for m in self.models:
-            if getattr(m, 'badges', None) and getattr(m, 'name'):
+            if getattr(m, 'badges', None) and getattr(m, 'name') and isinstance(m, uber.models.Attendee):
                 names.append("{} plus {} badges ({})".format(getattr(m, 'full_name', None), int(m.badges) - 1, m.name))
             else:
-                names.append(getattr(m, 'name', getattr(m, 'full_name', None)))
+                group_name = getattr(m, 'name', None)
+                names.append(group_name or getattr(m, 'full_name', None))
 
         return ', '.join(names)
 
