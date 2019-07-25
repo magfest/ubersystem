@@ -1,7 +1,7 @@
 {% import 'macros.html' as macros with context %}
 
 {#- Setting some variables to keep the size of conditional clauses smaller. -#}
-{%- set is_prereg_confirm_email_enabled = (is_prereg_attendee or is_prereg_dealer) and c.PREREG_CONFIRM_EMAIL_ENABLED -%}
+{%- set is_prereg_confirm_email_enabled = attendee.is_new and c.PREREG_CONFIRM_EMAIL_ENABLED -%}
 {%- set is_after_request_hotel = c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE -%}
 {%- set is_after_hotel_email = c.AFTER_PREREG_HOTEL_INFO_EMAIL_DATE -%}
 
@@ -135,9 +135,11 @@
             badge_type: '{{ c.ATTENDEE_BADGE }}',
 
             price: {{ badge_cost if badge_cost is defined else c.BADGE_PRICE }},
+            {% if c.BADGE_TYPE_PRICES and (attendee.is_new or attendee.badge_type == c.ATTENDEE_BADGE) %}
             onClick: function () {
                 $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
             }
+            {% endif %}
         });
     {% endif %}
     {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and c.SHIRT_AVAILABLE %}
@@ -868,7 +870,7 @@
   {% call macros.read_only_if(read_only, attendee.birthdate, post_text=post_text) %}
     <div class="col-sm-6">
       <input type='text' class="form-control date" name="birthdate" value="{{ attendee.birthdate|datetime("%Y-%m-%d") }}"/>
-    <span class="form-control-static">{{ post_text }}</span>
+    {% if post_text %}<span class="form-control-static">{{ post_text }}</span>{% endif %}
     </div>
   {% endcall %}
 
@@ -1175,14 +1177,14 @@
 {% endset %}
 
 
-{% set pii_consent %}
+{% set pii_consent_checkbox %}
 {% set read_only = pii_consent_ro or page_ro %}
 <div class="form-group">
 {% call macros.read_only_if(read_only, attendee.pii_consent|yesno) %}
   <div class="checkbox col-sm-9 col-sm-offset-3">
     <label for="pii_consent" class="checkbox-label">
       <input type="checkbox" name="pii_consent" id="pii_consent" value="1" required {% if pii_consent %}checked{% endif %} />
-      <strong>Yes</strong>, you may store the personal information above in order to contact me about my registration.
+      <strong>Yes</strong>, I understand that {{ c.ORGANIZATION_NAME }} will store the personal information I provided above for the purpose of contacting me about my registration.
     </label>
   </div>
 {% endcall %}

@@ -8,8 +8,6 @@
 <div class="panel panel-default">
   <div class="panel-body">
     <form method="post" action="register_group_member" class="form-horizontal">
-      {# Deprecated form included for backwards compatibility with old plugins #}
-      {% include "regform.html" %}
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ attendee.db_id }}" />
       <input type="hidden" name="group_id" value="{{ group_id }}" />
@@ -36,7 +34,9 @@
       {{ attendee_fields.can_spam }}
       {{ attendee_fields.promo_code }}
       {{ attendee_fields.accessibility_interest }}
-      {{ attendee_fields.pii_consent }}
+      {{ attendee_fields.pii_consent_checkbox }}
+      {# Deprecated form included for backwards compatibility with old plugins #}
+      {% include "regform.html" %}
 
       <div class="form-group">
         <div class="col-sm-6 col-sm-offset-3">
