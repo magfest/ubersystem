@@ -25,10 +25,6 @@
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}
 
-  {# Deprecated forms included for backwards compatibility with old plugins #}
-  {% include "groupform.html" %}
-  {% include "regform.html" %}
-
   {{ group_fields.name }}
   {{ group_fields.badges }}
   {% if is_prereg_dealer %}
@@ -61,7 +57,11 @@
   {{ attendee_fields.found_how }}
   {{ attendee_fields.comments }}
   {{ attendee_fields.can_spam }}
-  {{ attendee_fields.pii_consent }}
+  {{ attendee_fields.pii_consent_checkbox }}
+
+  {# Deprecated forms included for backwards compatibility with old plugins #}
+  {% include "groupform.html" %}
+  {% include "regform.html" %}
 
 <div class="form-group">
     <div class="col-sm-9 col-sm-offset-3">
