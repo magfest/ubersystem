@@ -362,7 +362,7 @@
     <div class="col-sm-6 {% if not attendee.is_new %}form-control-static">
       {{ attendee.badge }}
       &nbsp;&nbsp; {% if not read_only %}[<a href="change_badge?id={{ attendee.id }}">Change</a>]{% endif %}
-    {% else %}>
+    {% else %}">
       <select name="badge_type" class="form-control" onChange="boldOrRegular(); setBadgeMessage(); setAmountPaid();">
         {{ options(c.BADGE_OPTS,attendee.badge_type) }}
       </select>
@@ -372,13 +372,12 @@
         <span id="badge_message" style="font-style:italic"></span>
       {% endif %}
     {% endif %}
-    &nbsp;&nbsp;
     {% if c.AT_THE_CON and not attendee.badge_num and c.NUMBERED_BADGES %}
-      <br/> <input type="checkbox" name="omit_badge" value="yes" {% if omit_badge %}checked{% endif %} /> Omit badge number
+      &nbsp;&nbsp;<br/> <input type="checkbox" name="omit_badge" value="yes" {% if omit_badge %}checked{% endif %} /> Omit badge number
     {% elif c.AT_THE_CON and not attendee.checked_in and not c.NUMBERED_BADGES %}
-      <br/> <input type="checkbox" name="check_in" value="yes" {% if check_in %}checked{% endif %} /> Check in this attendee
+      &nbsp;&nbsp;<br/> <input type="checkbox" name="check_in" value="yes" {% if check_in %}checked{% endif %} /> Check in this attendee
     {% endif %}
-    &nbsp;&nbsp; [<a href="../preregistration/confirm?id={{ attendee.id }}">Confirm{% if attendee.is_transferable %}/Transfer{% endif %}</a>]
+    {% if not attendee.is_new %}&nbsp;&nbsp; [<a href="../preregistration/confirm?id={{ attendee.id }}">Confirm{% if attendee.is_transferable %}/Transfer{% endif %}</a>]{% endif %}
     </div>
   </div>
 {% else %}
