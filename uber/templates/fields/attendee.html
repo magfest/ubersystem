@@ -1157,7 +1157,7 @@
 {% if c.ACCESSIBILITY_SERVICES_ENABLED %}
   <div class="form-group">
     <label for="requested_accessibility_services_option" class="col-sm-3 control-label optional-field">Accessibility Services</label>
-    {% if c.HAS_ACCESSIBILITY_ACCESS %}
+    {% if c.HAS_ACCESSIBILITY_ACCESS or not admin_area %}
       <div class="checkbox col-sm-9">
         {{ macros.checkbox(attendee, 'requested_accessibility_services', label='I would like to be contacted by the ' ~ c.EVENT_NAME ~ ' Accessibility Services department prior to the event.', is_readonly=read_only) }}
       </div>
