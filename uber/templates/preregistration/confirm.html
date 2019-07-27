@@ -64,6 +64,7 @@
       {{ attendee_fields.extra_donation }}
       {{ attendee_fields.staffing }}
       {{ attendee_fields.job_interests }}
+      {{ attendee_fields.agreed_to_volunteer_agreement }}
       {{ attendee_fields.age }}
       {{ attendee_fields.email }}
       {{ attendee_fields.address }}
@@ -75,6 +76,8 @@
       {{ attendee_fields.comments }}
       {{ attendee_fields.can_spam }}
       {{ attendee_fields.requested_accessibility_services }}
+      {{ attendee_fields.requested_hotel_info }}
+      {{ attendee_fields.attractions_opt_out }}
       {% if attendee.placeholder %}{{ attendee_fields.pii_consent_checkbox }}{% endif %}
 
       {# Deprecated form included for backwards compatibility with old plugins #}
