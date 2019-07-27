@@ -1,7 +1,7 @@
 """Add MIVS Judge status and game submission tracker
 
 Revision ID: 6c5cf22429e2
-Revises: 73b22ccbe472
+Revises: 5c14f5a350dd
 Create Date: 2018-09-21 22:25:24.475167
 
 """

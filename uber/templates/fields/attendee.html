@@ -1085,7 +1085,8 @@
 {% endset %}
 
 
-{% set hotel_request %}
+{% set requested_hotel_info %}
+{% set read_only = requested_hotel_info_ro or page_ro %}
 {% if c.HOTELS_ENABLED and c.PREREG_REQUEST_HOTEL_INFO_DURATION > 0 and (admin_area or (not is_prereg_attendee and not is_after_request_hotel)) %}
   {#-
     In both the admin area and non-preregistration forms, we will display a
@@ -1151,14 +1152,20 @@
 {% endset %}
 
 
-{% set accessibility_interest %}
-{% set read_only = accessibility_interest_ro or page_ro %}
+{% set requested_accessibility_services %}
+{% set read_only = requested_accessibility_services_ro or page_ro %}
 {% if c.ACCESSIBILITY_SERVICES_ENABLED %}
   <div class="form-group">
-    <label for="email_option" class="col-sm-3 control-label optional-field">Accessibility Services</label>
-    <div class="checkbox col-sm-9">
-      {{ macros.checkbox(attendee, 'requested_accessibility_services', label='I would like to be contacted by the ' ~ c.EVENT_NAME ~ ' Accessibility Services department prior to the event.', is_readonly=read_only) }}
-    </div>
+    <label for="requested_accessibility_services_option" class="col-sm-3 control-label optional-field">Accessibility Services</label>
+    {% if c.HAS_ACCESSIBILITY_ACCESS %}
+      <div class="checkbox col-sm-9">
+        {{ macros.checkbox(attendee, 'requested_accessibility_services', label='I would like to be contacted by the ' ~ c.EVENT_NAME ~ ' Accessibility Services department prior to the event.', is_readonly=read_only) }}
+      </div>
+    {% else %}
+      <div class="form-control-static">
+        <input type="hidden" name="requested_accessibility_services" value="{{ attendee.requested_accessibility_services|yesno("1,0") }}" />
+      </div>
+    {% endif %}
   </div>
 {% endif %}
 {% endset %}
@@ -1524,6 +1531,7 @@ $(function(){
     {{ macros.checkbox(attendee, 'got_merch', label='Yes', is_readonly=read_only) }}
   </div>
 </div>
+
 {% endset %}
 
 
@@ -1582,3 +1590,43 @@ $(function(){
 {% endcall %}
 </div>
 {% endset %}
+
+{% set agreed_to_volunteer_agreement %}
+{# Always read-only #}
+<div class="form-group staffing staffing-checked">
+  <label class="col-sm-3 control-label">Agreed to Volunteer Agreement</label>
+  <div class="col-sm-9">
+    <div class="form-control-static">
+      {% if c.VOLUNTEER_AGREEMENT_ENABLED %}{{ attendee.agreed_to_volunteer_agreement|yesno("Yes,No") }}{% endif %}
+      <input type="hidden" name="agreed_to_volunteer_agreement" value="{{ attendee.agreed_to_volunteer_agreement|yesno("1,0") }}" />
+    </div>
+  </div>
+</div>
+{% endset %}
+
+{% set hotel_eligible %}
+{# Always read-only #}
+<div class="form-group staffing staffing-checked">
+  <label class="col-sm-3 control-label">Hotel Eligible</label>
+  <div class="col-sm-9">
+    <div class="form-control-static">
+      {% if c.HAS_STAFF_ROOMS_ACCESS %}{{ attendee.agreed_to_volunteer_agreement|yesno("Yes,No") }}{% endif %}
+      <input type="hidden" name="hotel_eligible" value="{{ attendee.hotel_eligible|yesno("1,0") }}" />
+    </div>
+  </div>
+</div>
+{% endset %}
+
+{% set attractions_opt_out %}
+{# Always read-only #}
+<div class="form-group">
+  <label class="col-sm-3 control-label">Attraction Sign-Ups</label>
+  <div class="col-sm-9">
+    <div class="form-control-static">
+      {% if c.ATTRACTIONS_ENABLED %}{{ attendee.attractions_opt_out|yesno("Disabled,Enabled") }}{% endif %}
+      <input type="hidden" name="attractions_opt_out" value="{{ attendee.attractions_opt_out|yesno("1,0") }}" />
+    </div>
+  </div>
+</div>
+{% endset %}
+

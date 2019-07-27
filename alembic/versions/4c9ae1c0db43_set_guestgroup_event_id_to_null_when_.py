@@ -1,7 +1,7 @@
 """Set GuestGroup event ID to null when their Event is deleted
 
 Revision ID: 4c9ae1c0db43
-Revises: 73b22ccbe472
+Revises: 61734fcb2e72
 Create Date: 2019-04-29 16:27:19.146652
 
 """
