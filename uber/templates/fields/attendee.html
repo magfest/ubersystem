@@ -1597,7 +1597,7 @@ $(function(){
   <label class="col-sm-3 control-label">Agreed to Volunteer Agreement</label>
   <div class="col-sm-9">
     <div class="form-control-static">
-      {% if c.VOLUNTEER_AGREEMENT_ENABLED %}{{ attendee.agreed_to_volunteer_agreement|yesno("Yes,No") }}{% endif %}
+      {% if c.VOLUNTEER_AGREEMENT_ENABLED and admin_area %}{{ attendee.agreed_to_volunteer_agreement|yesno("Yes,No") }}{% endif %}
       <input type="hidden" name="agreed_to_volunteer_agreement" value="{{ attendee.agreed_to_volunteer_agreement|yesno("1,0") }}" />
     </div>
   </div>
@@ -1623,7 +1623,7 @@ $(function(){
   <label class="col-sm-3 control-label">Attraction Sign-Ups</label>
   <div class="col-sm-9">
     <div class="form-control-static">
-      {% if c.ATTRACTIONS_ENABLED %}{{ attendee.attractions_opt_out|yesno("Disabled,Enabled") }}{% endif %}
+      {% if c.ATTRACTIONS_ENABLED and admin_area %}{{ attendee.attractions_opt_out|yesno("Disabled,Enabled") }}{% endif %}
       <input type="hidden" name="attractions_opt_out" value="{{ attendee.attractions_opt_out|yesno("1,0") }}" />
     </div>
   </div>
