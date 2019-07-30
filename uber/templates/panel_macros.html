@@ -58,8 +58,8 @@
         other_field='other_pronouns',
         other_placeholder='e.g., Xe/Xir',
         suffix=suffix,
-        label='Preferred Pronouns',
-        help="Ask for pronoun ribbons at the Registration desk!",
+        label='Pronouns',
+        help="We will have both pre-printed and blank pronoun ribbons at the registration desk.",
         is_readonly=is_readonly,
         is_admin=is_admin) }}
   {% endif %}
@@ -117,8 +117,8 @@
       {{ macros.form_group(
           panelist,
           name,
-          url_field=name + '_url',
-          type='textarea' if panelist._social_media_fields|length == 1 else 'text',
+          url_field=name + '_url' if panelist._social_media_urls[name] else '',
+          type='textarea' if panelist._social_media_fields.items()|length == 1 else 'text',
           suffix=suffix,
           label=label,
           placeholder=panelist.get_placeholder(name),
