@@ -11,6 +11,7 @@ from dateutil import parser as dateparser
 from pockets import unwrap
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import subqueryload
+from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
 from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
@@ -338,13 +339,14 @@ class AttendeeLookup:
                                                                email=email,
                                                                zip_code=zip_code)
             fields, attendee_query = _attendee_fields_and_query(False, attendee_query)
-            if attendee_query.len() > 1:
+            try:
+                attendee = attendee_query.one()
+            except MultipleResultsFound:
                 raise HTTPError(404, 'found more than one attendee with matching information?')
-            attendee = attendee_query.first() #not sure if this line is needed... can't test Uber code
-            if attendee:
-                return attendee.to_dict(fields)
-            else:
+            except NoResultFound:
                 raise HTTPError(404, 'No attendee found with matching information')
+
+            return attendee.to_dict(fields)
 
 
     def export(self, query, full=False):
