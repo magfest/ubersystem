@@ -290,14 +290,6 @@ if c.DEALER_REG_START:
         needs_approval=True,
         ident='dealer_reg_payment_reminder_last_chance')
 
-    MarketplaceEmailFixture(
-        '{EVENT_NAME} Dealer waitlist has been exhausted',
-        'dealers/waitlist_closing.txt',
-        lambda g: g.status == c.WAITLISTED,
-        # query=Group.status == c.WAITLISTED,
-        when=after(c.DEALER_WAITLIST_CLOSED),
-        ident='uber_marketplace_waitlist_exhausted')
-
 
 # Placeholder badge emails; when an admin creates a "placeholder" badge, we send one of three different emails depending
 # on whether the placeholder is a regular attendee, a guest/panelist, or a volunteer/staffer.  We also send a final

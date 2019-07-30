@@ -909,7 +909,7 @@ if c.ONE_DAYS_ENABLED and c.PRESELL_ONE_DAYS:
         c.BADGES[_val] = _name
         c.BADGE_OPTS.append((_val, _name))
         c.BADGE_VARS.append(_name.upper())
-        c.BADGE_RANGES[_val] = c.BADGES[c.ONE_DAY_BADGE]
+        c.BADGE_RANGES[_val] = c.BADGE_RANGES[c.ONE_DAY_BADGE]
         if c.ONE_DAY_BADGE in c.TRANSFERABLE_BADGE_TYPES:
             c.TRANSFERABLE_BADGE_TYPES.append(_val)
         if c.ONE_DAY_BADGE in c.PREASSIGNED_BADGE_TYPES:
@@ -1110,6 +1110,8 @@ c.EVENT_DURATION_OPTS = [(i, '%.1f hour%s' % (i/2, 's' if i != 2 else '')) for i
 c.ORDERED_EVENT_LOCS = [loc for loc, desc in c.EVENT_LOCATION_OPTS]
 c.EVENT_BOOKED = {'colspan': 0}
 c.EVENT_OPEN = {'colspan': 1}
+
+c.PRESENTATION_OPTS.sort(key=lambda tup: 'zzz' if tup[0] == c.OTHER else tup[1])
 
 
 def _make_room_trie(rooms):

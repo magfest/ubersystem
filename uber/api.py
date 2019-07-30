@@ -266,6 +266,7 @@ class AttendeeLookup:
         'staffing': True,
         'is_dept_head': True,
         'ribbon_labels': True,
+        'public_id': True,
     }
 
     fields_full = dict(fields, **{
@@ -325,6 +326,26 @@ class AttendeeLookup:
             attendee_query = session.search(query)
             fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
             return [a.to_dict(fields) for a in attendee_query.limit(100)]
+
+    def login(self, first_name, last_name, email, zip_code):
+        """
+        Does a lookup similar to the volunteer checklist pages login screen.
+        """
+        #this code largely copied from above with different fields
+        with Session() as session:
+            attendee_query = session.query(Attendee).filter_by(first_name=first_name,
+                                                               last_name=last_name,
+                                                               email=email,
+                                                               zip_code=zip_code)
+            fields, attendee_query = _attendee_fields_and_query(False, attendee_query)
+            if attendee_query.len() > 1:
+                raise HTTPError(404, 'found more than one attendee with matching information?')
+            attendee = attendee_query.first() #not sure if this line is needed... can't test Uber code
+            if attendee:
+                return attendee.to_dict(fields)
+            else:
+                raise HTTPError(404, 'No attendee found with matching information')
+
 
     def export(self, query, full=False):
         """

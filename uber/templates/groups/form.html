@@ -1,4 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
+{% import "fields/group.html" as group_fields with context %}
 {% block title %}Group Form{% endblock %}
 {% block content %}
 
@@ -53,7 +54,7 @@
 <div class="panel panel-default">
 <div class="panel-body">
 
-<h2> Group Info </h2>
+  <h2> Group Info {% if not group.is_new %} [<a href="../preregistration/group_members?id={{ group.id }}">Assign Badges</a>{% if group.guest and c.HAS_BANDS_ACCESS %} | <a href="../guests/index?id={{ group.guest.id }}">{{ group.guest.group_type_label }} Checklist</a>{% endif %}]{% endif %} </h2>
 
 <div style="text-align:center">
     <a href="index">Return to group list</a>
@@ -64,20 +65,17 @@
 <input type="hidden" name="id" value="{{ group.db_id }}" />
 <input type="hidden" name="new_dealer" value="{{ new_dealer }}" />
 
-<div class="form-group">
-    <label class="col-sm-3 control-label">Name of Group</label>
-    <div class="col-sm-6">
-        <input class="focus form-control" type="text" name="name" value="{{ group.name }}" />
-    </div>
-</div>
+{{ group_fields.name }}
 
 <!-- we need to register a placeholder group leader for new dealers -->
 {% if new_dealer %}
     <div class="form-group">
-        <label class="col-sm-3 control-label">Owner's First and Last Name</label>
-        <div class="col-sm-6">
-            <input type="text" name="first_name" value="{{ first_name }}" style="width:10em" />
-            <input type="text" name="last_name" value="{{ last_name }}" style="width:15em" />
+        <label class="col-sm-3 control-label">Owner's Name</label>
+        <div class="col-sm-3">
+            <input type="text" name="first_name" value="{{ first_name }}" class="form-control" placeholder="First Name" />
+        </div>
+        <div class="col-sm-3">
+            <input type="text" name="last_name" value="{{ last_name }}" class="form-control" placeholder="Last Name" />
         </div>
     </div>
 
@@ -89,41 +87,26 @@
     </div>
 {% endif %}
 
-<div class="form-group">
-    <label class="col-sm-3 control-label">Tables</label>
-    <div class="col-sm-6">
-        <select name="tables">
-            {{ options(c.ADMIN_TABLE_OPTS,group.tables) }}
-        </select>
-    </div>
-</div>
+{{ group_fields.tables }}
+{{ group_fields.badges }}
 
-<div class="form-group">
-    <label class="col-sm-3 control-label">Badges</label>
-    <div class="col-sm-6">
-        <select name="badges">
-            {{ int_options(0, c.MAX_GROUP_SIZE, group.badges) }}
-        </select>
-        {% if not group.is_new %}
-            [{{ group.badges_purchased }} badge(s) purchased]
-        {% endif %}
-    </div>
-</div>
-
+{% if not page_ro %}
 <div class="form-group">
     <label class="col-sm-3 control-label">Badge Type</label>
-    <div class="col-sm-9">
-        <select name="badge_type">
+    <div class="col-sm-6">
+        <select name="badge_type" class="form-control">
             {{ options(c.BADGE_OPTS,group.leader.badge_type) }}
         </select>
-        Does not change existing badges in this group, only affects newly added badges.
     </div>
+  <p class="col-sm-9 col-sm-offset-3 help-block">
+        Does not change existing badges in this group, only affects newly added badges.
+    </p>
 </div>
 
 {% if not new_dealer and not group.is_dealer %}
 <div class="form-group">
-    <label class="col-sm-3 control-label">Ribbon Type</label>
-    <div class="col-sm-9">
+    <label class="col-sm-3 control-label" class="form-control">Ribbon Type</label>
+    <div class="col-sm-6 checkbox">
         {{ macros.checkgroup(Attendee, 'ribbon', defaults=group.new_ribbon) }}
     </div>
     <div class="clearfix"></div>
@@ -132,35 +115,12 @@
     </p>
 </div>
 {% endif %}
+{% endif %}
 
-<div class="form-group">
-    <label class="col-sm-3 control-label">Amount Paid</label>
-    <div class="col-sm-6">
-        $<input type="text" style="width:4em" name="amount_paid" value="{{ group.amount_paid }}" />
-    </div>
-</div>
-
-<div class="form-group">
-    <label class="col-sm-3 control-label">Total Group Price</label>
-    <div class="checkbox col-sm-9">
-        $<input type="text" style="width:4em" name="cost" value="{{ group.cost }}" />
-        {{ macros.checkbox(group, 'auto_recalc', label='Automatically recalculate this number') }}
-    </div>
-</div>
-
-<div class="form-group">
-    <label class="col-sm-3 control-label">Amount Refunded</label>
-    <div class="col-sm-6">
-        $<input type="text" style="width:4em" name="amount_refunded" value="{{ group.amount_refunded }}" />
-    </div>
-</div>
-
-    <div class="form-group">
-    <label class="col-sm-3 control-label">Can Add Badges</label>
-    <div class="checkbox col-sm-9">
-        {{ macros.checkbox(group, 'can_add', label='Allow this group to add badges') }}
-    </div>
-</div>
+{{ group_fields.amount_paid }}
+{{ group_fields.cost }}
+{{ group_fields.amount_refunded }}
+{{ group_fields.can_add }}
 
 {% if new_dealer or group.is_dealer or group.categories %}
     {% if group.leader %}
@@ -172,103 +132,41 @@
         </div>
     {% endif %}
 
-    <div class="form-group">
-        <label class="col-sm-3 control-label">Status</label>
-        <div id="status" class="col-sm-6">
-                <select name="status">
-                    {{ options(c.DEALER_STATUS_OPTS,group.status) }}
-                </select>
-                {% if not new_dealer %}<br/>
-                <a href="#" onClick="$('#setstatus').toggle(); return false;">Waitlist or Decline (with Email)</a> <br/>
-                <div id="setstatus" style="display:none">
-                    Enter an email message to be sent along with the notification: <br/>
-                    (The email subject will be "Your {{ c.EVENT_NAME }} Dealer registration has been [waitlisted | declined]")
-                    <textarea name="email" rows="5" cols="50"></textarea> <br/>
-                    <button onClick="unapprove('waitlisted'); return false;">Waitlist</button>
-                    <br/><button onClick="unapprove('declined'); return false;">Reject and Convert Badges</button>
-                    <p class="help-block">(Allows rejected dealers to register at the price they would have paid when they applied.)</p>
-                </div>
-                {% endif %}
-        </div>
-    </div>
-
-    <div class="form-group">
-        <label class="col-sm-3 control-label">What kinds of things do they sell?</label>
-        <div class="col-sm-9">
-            {{ macros.checkgroup(group, 'categories') }}
-        </div>
-        <div class="clearfix"></div>
-        <div class="col-sm-6 col-sm-offset-3">
-            <input id="category-other" class="form-control" type="text" name="categories_text" value="{{ group.categories_text }}" placeholder="Other (Please Specify)"/>
-        </div>
-    </div>
-
-    <div class="form-group">
-        <label class="col-sm-3 control-label">What do they sell?</label>
-        <div class="col-sm-6">
-            <textarea rows="3" name="wares" class="form-control">{{ group.wares }}</textarea>
-        </div>
-    </div>
-
-    <div class="form-group">
-        <label class="col-sm-3 control-label">Website URL</label>
-        <div class="col-sm-6">
-            <input type="text" name="website" value="{{ group.website }}" class="form-control"/>
-        </div>
-        <div class="col-sm-9 col-sm-offset-3">
-            {{ group.website|url_to_link(is_relative=False) }}
-        </div>
-    </div>
-
-    <div class="form-group">
-        <label class="col-sm-3 control-label">Description</label>
-        <div class="col-sm-6">
-            <textarea rows="3" name="description" class="form-control">{{ group.description }}</textarea>
-        </div>
-    </div>
-
-    <div class="form-group">
-        <label class="col-sm-3 control-label">Special Requests</label>
-        <div class="col-sm-6">
-            <textarea rows="3" name="special_needs" class="form-control">{{ group.special_needs }}</textarea>
-        </div>
-    </div>
-
-    <script type="text/javascript">{% include "region_opts.html" %}</script>
-    {{ macros.address_form(group) }}
+  {{ group_fields.status }}
+  {{ group_fields.categories }}
+  {{ group_fields.wares }}
+  {{ group_fields.description }}
+  {{ group_fields.special_needs }}
+  {{ group_fields.website }}
+  {{ group_fields.address }}
 {% endif %}
 
 {% include "groupextra.html" %}
 
-<div class="form-group">
-    <label class="col-sm-3 control-label">Admin Notes</label>
-    <div class="col-sm-6">
-        <textarea name="admin_notes" rows="3" class="form-control">{{ group.admin_notes }}</textarea>
-    </div>
-</div>
+{{ group_fields.admin_notes }}
 
-<div class="form-group">
+{% if not page_ro %}
+  <div class="form-group">
     <div class="col-sm-6 col-sm-offset-3">
-        <button type="submit" class="btn btn-primary" value="Upload">Save</button>
+      <button type="submit" class="btn btn-primary" value="Upload">Save</button>
+      {% if not group.is_new %}<button type="submit" form="delete" class="btn btn-danger">Delete Group</button>{% endif %}
     </div>
-</div>
-
+  </div>
 </form>
+
+  {% if not group.is_new %}
+    <form method="post" action="delete" id="delete">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ group.id }}" />
+    </form>
+  {% endif %}
+{% endif %}
 
 <div style="text-align:center">
     <a href="index">Return to group list</a>
 </div>
 
-{% if not group.is_new %}
-    <br/>
-    <div style="margin-left:25%">
-        <form method="post" action="delete" />
-            {{ csrf_token() }}
-            <input type="hidden" name="id" value="{{ group.id }}" />
-            <input type="submit" value="Delete Group" />
-        </form>
-    </div>
-{% endif %}
+
 {% if not group.is_new %} <a style="font-size:10pt" href="../preregistration/group_members?id={{ group.id }}">Link for group leader</a> {% endif %}
 {% if not group.is_new and group.sorted_attendees %}
     <hr/>

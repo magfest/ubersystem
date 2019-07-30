@@ -9,6 +9,23 @@
 {%- endmacro %}
 
 
+{% macro read_only_if(condition, val, pre_text='', post_text='') %}
+{% if not condition %}
+  {{ caller() }}
+{% else %}
+  <div class="col-sm-6 form-control-static">
+  {{ pre_text }}
+  {% if val is iterable and val is not string %}
+    {{ val|join(', ') }}
+  {% else %}
+    {{ val|form_link }}
+  {% endif %}
+  {{ post_text }}
+  </div>
+{% endif %}
+{%- endmacro %}
+
+
 {% macro stripe_button(label) -%}
   <button class="btn btn-primary stripe-button-el">
     <span class="display: block; min-height: 30px;">{{label}}</span>
@@ -89,7 +106,7 @@
 
 
 {% macro button_radio_opts(field_name, choices, suffix='', default='', is_readonly=False, is_required=False) -%}
-  <div data-toggle="buttons" class="btn-group btn-group-toggle">
+  <div data-toggle="buttons" class="btn-group btn-group-toggle form-control-static">
     {% for choice in choices -%}
       {%- set value = choice[0] -%}
       {%- set label = choice[1] -%}

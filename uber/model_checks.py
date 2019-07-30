@@ -355,6 +355,8 @@ def zip_code(attendee):
 def emergency_contact(attendee):
     if not attendee.ec_name:
         return 'Please tell us the name of your emergency contact.'
+    if not attendee.ec_phone:
+        return 'Please give us an emergency contact phone number.'
     if not attendee.international and _invalid_phone_number(attendee.ec_phone):
         if c.COLLECT_FULL_ADDRESS:
             return 'Enter a 10-digit US phone number or include a ' \

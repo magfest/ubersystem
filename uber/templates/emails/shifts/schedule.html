@@ -11,7 +11,7 @@
     Thanks again for Volunteering at {{ c.EVENT_NAME }}!
 {% endif %}
 
-{% if attendee.badge_type == c.STAFF_BADGE and (c.SHIRTS_PER_STAFFER > 0 or c.STAFF_ELIGIBLE_FOR_SWAG_SHIRT) %}
+{% if attendee.badge_type == c.STAFF_BADGE and c.SHIRTS_PER_STAFFER > 0 %}
     <br><br>
     Please remember to also pick up your
     {% if c.SHIRTS_PER_STAFFER > 1 %}
@@ -37,10 +37,11 @@
         everyone else.
     {% endif %}
 
-    {% if c.SHIRTS_PER_STAFFER > 0 and c.STAFF_ELIGIBLE_FOR_SWAG_SHIRT %}
+    {% if c.SHIRTS_PER_STAFFER > 0 and c.STAFF_EVENT_SHIRT_OPTS %}
         <br><br>
-        You also qualify for a {{ c.EVENT_NAME }} swag shirt. This is the same
-        shirt that attendees can buy and is provided as a perk for staffing.
+        You may choose to receive a {{ c.EVENT_NAME }} swag shirt instead of
+        {% if c.SHIRTS_PER_STAFFER > 1 %}one of {% end %}your staff shirt{{ c.SHIRTS_PER_STAFFER|pluralize }}.
+        This is the same shirt that attendees can buy and is provided as a perk for staffing.
     {% endif %}
 {% endif %}
 

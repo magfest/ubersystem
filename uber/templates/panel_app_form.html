@@ -22,14 +22,19 @@
     var showOrHideModHelp = function() {
         setVisible($('#mod_help'), $.val('presentation') === {{ c.GROUP_DISCUSSION }})
     };
+    var showOrHideLoud = function() {
+        setVisible($('#audio_needs'), $.val('presentation') === {{ c.MUSIC }})
+    };
 
     $(function () {
         showOrHideOtherPresentation();
         showOrHideOtherLength();
         showOrHideLengthReason();
         showOrHideModHelp();
+        showOrHideLoud();
         $.field('presentation').on('change', showOrHideOtherPresentation);
         $.field('presentation').on('change', showOrHideModHelp);
+        $.field('presentation').on('change', showOrHideLoud);
         $.field('length').on('change', showOrHideOtherLength);
         $.field('length').on('change', showOrHideLengthReason);
     });
@@ -166,9 +171,17 @@
   <div class="clearfix"></div>
   <p class="help-block col-sm-9 col-sm-offset-3">
     By default, each panel room will have a table with four microphones,
-    power for a laptop, and connections for 1/8" audio and HDMI video. If
-    you need anything beyond this please describe it above. Our techops
-    department (techops@magfest.org) will reach out to you directly for
-    details.
+    power for a laptop, and connections for 1/8" audio and HDMI video. VGA support
+    will <strong>not</strong> be available. If you need anything beyond this
+    please describe it above. Our techops department
+    ({{ "techops@magfest.org"|email_to_link }}) will reach out to you directly
+    for details.
   </p>
+</div>
+
+<div class="form-group" id="audio_needs">
+  <label class="col-sm-3 control-label optional-field">Will you need a loud environment?</label>
+  <div class="col-sm-9 checkbox">
+  {{ macros.checkbox(app, 'is_loud', id="audio_needs", label="Yes, I require an environment to have a large volume presentation.", label_class="optional_field") }}
+    </div>
 </div>
