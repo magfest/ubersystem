@@ -78,7 +78,7 @@
 {% endset %}
 
 
-{% set badges %}
+{% set badges_dropdown %}
 {% set read_only = badges_ro or page_ro %}
 {% if not c.MAX_DEALERS %}
   <script type="text/javascript">
@@ -97,7 +97,7 @@
       $("select[name=tables]").on('change', updateBadgeMax);
       updateBadgeMax();
       var selectedBadge = Math.min({{ badges }}, $('select[name=badges] option:last').val());
-      $('select[name=badges] option[value="' + selectedBadge + '"]').prop('selected', true)
+      $('select[name=badges] option[value="' + selectedBadge + '"]').prop('selected', true);
   });
 
   </script>
@@ -113,12 +113,15 @@
 {% endif %}
 {% endset %}
 
+{% set min_badges = 1 if attendee_or_group.is_dealer else c.MIN_GROUP_SIZE %}
+{% set max_badges = c.MAX_DEALERS if attendee_or_group.is_dealer else c.MAX_GROUP_SIZE %}
+
 <div class="group_fields">
   <div class="form-group">
     <label for="badges" class="col-sm-3 control-label">Badges</label>
     {% call macros.read_only_if(read_only, attendee_or_group.badges, post_text=post_text) %}
       <div class="col-sm-6">
-        <select name="badges" class="form-control">{{ int_options(0 if admin_area else c.MIN_GROUP_SIZE, c.MAX_GROUP_SIZE, attendee_or_group.badges) }}</select>
+        <select name="badges" class="form-control">{{ int_options(0 if admin_area else min_badges, max_badges, attendee_or_group.badges) }}</select>
         <span class="form-control-static">{{ post_text }}</span>
       </div>
     {% endcall %}
