@@ -160,7 +160,6 @@
   {% endcall %}
   {% if not admin_area and not read_only %}
     <div class="col-sm-offset-3 col-sm-9" id="table_prices">{{ table_prices() }}</div>
-    <p class="col-sm-9 col-sm-offset-3 help-block" id="moretables"><i>You may contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a> to request more than {{ c.MAX_TABLES }} tables.</i></p>
   {% endif %}
 </div>
 {% endset %}
