@@ -1,86 +1,47 @@
-{% extends "./preregistration/preregbase.html" %}
+{% extends "base.html" %}
+{% import "fields/attendee.html" as attendee_fields with context %}
 {% block title %}At the Door Registration{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<script>
-    window.setTimeout(toastr.clear, 10000);
+  {% include 'prereg_masthead.html' %}
+  <div class="panel panel-default">
+    <div class="panel-body">
+      <form method="post" action="register" autocomplete="off" class="form-horizontal">
+        {{ csrf_token() }}
 
-    var maybeBold = function() {
-        var $emailLabel = $('#email').parents('.form-group').find('label');
-        if (!$.field('payment_method') || _(['', {{ c.STRIPE }}, {{ c.MANUAL }}]).contains($.val('payment_method'))) {
-            $emailLabel.removeClass('optional-field');
-        } else {
-            $emailLabel.addClass('optional-field');
-        }
-    };
-    var maybeWarn = function () {
-        var types = {{ c.PRESOLD_ONEDAY_BADGE_TYPES|jsonize }};
-        var badgeType = $.val('badge_type');
-        if (badgeType in types && types[badgeType] !== moment().format('dddd')) {
-            $('#day-warning').text('This badge can ONLY be picked up on ' + types[badgeType] + '.  You cannot pick it up today or any other day than ' + types[badgeType] + '.');
-        } else {
-            $('#day-warning').empty();
-        }
-    };
-    $(function () {
-        {% if c.AT_THE_DOOR_BADGE_OPTS %}
-            maybeBold();
-            $('#bold-field-message').detach().prependTo('.form-horizontal');
-            $.field('badge_type').on('change', maybeWarn);
-            maybeWarn();
-            {% for type in c.PRESOLD_ONEDAY_BADGE_TYPES %}
-                if ("{{ c.PRESOLD_ONEDAY_BADGE_TYPES[type] }}" !== moment().format('dddd')) {
-                    $.field('badge_type').find("option[value='{{ type }}']").remove();
-                }
-            {% endfor %}
-        {% else %}
-            $('.panel').empty().append('<h1>All badges are sold out!</h1>');
-        {% endif %}
-    });
-</script>
+        {{ attendee_fields.prereg_intro }}
+        {{ attendee_fields.payment_method }}
+        {{ attendee_fields.badge_type }}
+        {{ attendee_fields.name }}
+        {{ attendee_fields.extra_donation }}
+        {{ attendee_fields.staffing }}
+        {{ attendee_fields.job_interests }}
+        {{ attendee_fields.age }}
+        {{ attendee_fields.email }}
+        {{ attendee_fields.address }}
+        {{ attendee_fields.emergency_contact }}
+        {{ attendee_fields.cellphone }}
+        {{ attendee_fields.promo_code }}
+        {{ attendee_fields.interests }}
+        {{ attendee_fields.found_how }}
+        {{ attendee_fields.comments }}
+        {{ attendee_fields.requested_accessibility_services }}
+        {{ attendee_fields.can_spam }}
+        {{ attendee_fields.pii_consent_checkbox }}
 
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
-    <form method="post" action="register" autocomplete="off" class="form-horizontal">
-      {{ csrf_token() }}
+        {# Deprecated forms included for backwards compatibility with old plugins #}
+        {% include "regform.html" %}
 
-      <div class="form-group">
-        <label class="col-sm-3 control-label">Payment Method</label>
-        <div class="col-sm-6">
-          {% if c.AFTER_BADGE_PRICE_WAIVED %}
-            <div style="margin-top:10px">All badge types are now free - enjoy {{ c.EVENT_NAME }}!</div>
-          {% else %}
-            <select name="payment_method" class="form-control" onChange="maybeBold()">
-              <option value="">Select a payment option</option>
-              {{ options(c.DOOR_PAYMENT_METHOD_OPTS,attendee.payment_method) }}
-            </select>
-          {% endif %}
+        <div class="form-group">
+          <div class="col-sm-6 col-sm-offset-3">
+            <button type="submit" class="btn btn-primary">Register</button>
+          </div>
         </div>
-      </div>
 
-      <div class="form-group">
-        <label class="col-sm-3 control-label">Badge Type</label>
-        <div class="col-sm-6">
-          <select name="badge_type" class="form-control">
-            {{ options(c.AT_THE_DOOR_BADGE_OPTS,attendee.badge_type) }}
-          </select>
-          <p id="day-warning" class="help-block"></p>
-        </div>
-      </div>
-
-      {% include "regform.html" %}
-
-      <div class="form-group">
-        <div class="col-sm-6 col-sm-offset-3">
-          <button type="submit" class="btn btn-primary">Register</button>
-        </div>
-      </div>
-
-      {% include "preregistration/disclaimers.html" %}
-    </form>
+        {% include "preregistration/disclaimers.html" %}
+      </form>
+    </div>
   </div>
-</div>
 
 {% endblock %}

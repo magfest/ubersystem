@@ -701,7 +701,8 @@ class Root:
                     message = c.AT_DOOR_CASH_MSG.format('${}'.format(attendee.total_cost))
                 elif attendee.payment_method == c.MANUAL:
                     message = c.AT_DOOR_MANUAL_MSG
-                raise HTTPRedirect('register?message={}', message)
+                raise HTTPRedirect('register?message={}', message
+                                   or "Thanks! Please proceed to the registration desk to pick up your badge.")
 
         return {
             'message':  message,
