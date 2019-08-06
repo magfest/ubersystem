@@ -1,15 +1,15 @@
-"""Set GuestGroup event ID to null when their Event is deleted
+"""Replace second_shirt column with more flexible num_event_shirts column
 
-Revision ID: 4c9ae1c0db43
-Revises: 61734fcb2e72
-Create Date: 2019-04-29 16:27:19.146652
+Revision ID: 8f8419ebcf27
+Revises: e0c620d341cb
+Create Date: 2019-07-19 16:31:05.311139
 
 """
 
 
 # revision identifiers, used by Alembic.
-revision = '4c9ae1c0db43'
-down_revision = '61734fcb2e72'
+revision = '8f8419ebcf27'
+down_revision = 'e0c620d341cb'
 branch_labels = None
 depends_on = None
 
@@ -20,7 +20,7 @@ import sqlalchemy as sa
 
 try:
     is_sqlite = op.get_context().dialect.name == 'sqlite'
-except:
+except Exception:
     is_sqlite = False
 
 if is_sqlite:
@@ -52,10 +52,10 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.drop_constraint('fk_guest_group_event_id_event', 'guest_group', type_='foreignkey')
-    op.create_foreign_key(op.f('fk_guest_group_event_id_event'), 'guest_group', 'event', ['event_id'], ['id'], ondelete='SET NULL')
+    op.add_column('attendee', sa.Column('num_event_shirts', sa.Integer(), server_default='0', nullable=False))
+    op.drop_column('attendee', 'second_shirt')
 
 
 def downgrade():
-    op.drop_constraint(op.f('fk_guest_group_event_id_event'), 'guest_group', type_='foreignkey')
-    op.create_foreign_key('fk_guest_group_event_id_event', 'guest_group', 'event', ['event_id'], ['id'])
+    op.add_column('attendee', sa.Column('second_shirt', sa.INTEGER(), server_default=sa.text('194196342'), autoincrement=False, nullable=False))
+    op.drop_column('attendee', 'num_event_shirts')

@@ -89,6 +89,15 @@
         </div>
     </div>
 
+    {% if app.poc and app.poc.guest_group %}
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Guest Type</label>
+        <div class="col-sm-6 form-control-static">
+            {{ app.poc.guest_group.group_type_label }} "{{ app.poc.group|form_link }}"
+        </div>
+    </div>
+    {% endif %}
+
     <div class="form-group">
         <label class="col-sm-3 control-label">Description</label>
         <div class="col-sm-6 form-control-static">
@@ -172,6 +181,15 @@
             is_readonly=True,
             is_required=True,
             is_admin=True) }}
+    {% endif %}
+
+    {% if app.presentation == c.MUSIC %}
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Loud Environment Requested</label>
+        <div class="col-sm-6 form-control-static">
+          {{ app.is_loud|yesno }}
+        </div>
+      </div>
     {% endif %}
 
     {% if app.extra_info %}

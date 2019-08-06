@@ -1,4 +1,6 @@
 {% extends "./preregistration/preregbase.html" %}
+{% set page_ro = True if group.status in [c.APPROVED, c.CANCELLED, c.DECLINED] else False %}
+{% import "fields/group.html" as group_fields with context %}
 {% block title %}Group Members{% endblock %}
 {% block backlink %}
     {% if c.HAS_PEOPLE_ACCESS %}
@@ -54,56 +56,27 @@
             });
         })
     });
-    {% if group.status in [c.APPROVED, c.CANCELLED, c.DECLINED] %}
-        $(function() {
-            $("form[action='group_members'] :input").prop("readonly", true).prop('title','You cannot edit your information after you have {{ "cancelled" if group.status == c.CANCELLED else "been "~group.status_label }}');
-            $("form[action='group_members'] :submit, form[action='../groups/cancel_dealer'] :submit").prop("disabled", true);
-            $("[name='categories']").prop("disabled", false);
-            $("[name='categories']:checkbox").prop("disabled", true);
-        });
-    {% endif %}
 </script>
 
 {% include 'prereg_masthead.html' %}
 <div class="panel panel-default">
   <div class="panel-body">
     {% if group.is_dealer %}
-    {% if group.status == c.APPROVED %}
-      <div class="alert alert-success">
-        Congratulations, your dealer application has been <strong>approved</strong>!
-        {% if group.cost %}
-        <br/><br/>Here is your group's cost breakdown:
-        <ul>
-          {% if group.auto_recalc %}
-          <li>${{ '%0.2f' % group.table_cost }} for {{ group.tables }} table{{ group.tables|pluralize }}</li>
-          <li>${{ '%0.2f' % group.badge_cost }} for {{ group.badges }} badge{{ group.badges|pluralize }}
-            {% if upgraded_badges %}(including {{ upgraded_badges }} upgraded badge{{ upgraded_badges|pluralize }}){% endif %}</li>
-          {% else %}
-          <li>${{ '%0.2f' % group.cost }} total cost</li>
-          {% endif %}
-          <li>${{ '%0.2f' % group.amount_paid }} paid{% if group.amount_unpaid %} so far</li>
-          <li>${{ '%0.2f' % group.amount_unpaid }} unpaid</li>
-        </ul>
-              <br/>{{ stripe_form('process_group_payment',charge) }}
-        {% else %}
-        </li></ul>
-          {% endif %}
-        {% endif %}
-        {% elif group.status == c.CANCELLED %}
-      <div class="alert alert-info">
-        You have <strong>cancelled</strong> your dealer application. If this was a mistake, please contact us at
-        <a href="mailto:{{ c.MARKETPLACE_EMAIL }}">{{ c.MARKETPLACE_EMAIL }}</a>.
-        {% else %}
-      <div class="alert alert-{{ 'danger' if group.status == c.DECLINED else 'warning' }}">
-        Your dealer application {{ 'is' if group.status == c.UNAPPROVED else 'has been' }} <strong>{{ group.status_label }}</strong>.
-        {% endif %}
-      </div>
+      {{ group_fields.status }}
       <h2>"{{ group.name }}" Information</h2>
       <form method="post" action="group_members" class="form-horizontal" role="form">
         <input type="hidden" name="id" value="{{ group.id }}" />
-        {% include "groupform.html" %}
+        {% if not page_ro %}{{ group_fields.name }}{% endif %}
+        {{ group_fields.categories }}
+        {{ group_fields.wares }}
+        {{ group_fields.description }}
+        {{ group_fields.special_needs }}
+        {{ group_fields.website }}
+        {{ group_fields.address }}
+        {% if not page_ro %}
         <button type="submit" class="btn btn-primary" value="Update Application">Update Application</button>
         <button type="submit" class="btn btn-danger" value="Cancel Dealer Application" form="cancel_dealer">Cancel Application</button>
+        {% endif %}
       </form>
         <form method="post" id="cancel_dealer" action="../groups/cancel_dealer" class="form-horizontal" role="form">
           <input type="hidden" name="id" value="{{ group.id }}" />

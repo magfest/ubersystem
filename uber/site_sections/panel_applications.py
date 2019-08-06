@@ -9,7 +9,7 @@ from uber.utils import add_opt, check
 
 OTHER_PANELISTS_FIELDS = [
     'first_name', 'last_name', 'email', 'occupation', 'website',
-    'other_credentials'] + list(PanelApplicant._social_media_fields.keys())
+    'other_credentials', 'pronouns', 'other_pronouns'] + list(PanelApplicant._social_media_fields.keys())
 
 
 PANELISTS_FIELDS = OTHER_PANELISTS_FIELDS + [

@@ -486,6 +486,15 @@
             <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
         <![endif]-->
         {% include "baseextra.html" %}
+      <script type="text/javascript">
+          $(function() {
+              $('.form-control-static').each(function(index) {
+                  if($( this ).text().trim() == '') {
+                      $(this).parents('.form-group').hide();
+                  }
+              })
+          });
+      </script>
     {% endblock %}
     {% block additional_scripts %}
         {% block page_scripts %} {% endblock %}

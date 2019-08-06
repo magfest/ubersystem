@@ -39,8 +39,13 @@
             <a href="../groups/form?id={{ group.id }}">{{ group.name }}</a>
             <span class="guest_info">
                 {% if group.guest -%}
-                  (<a href="group_info?id={{ group.guest.id }}" class="text-nowrap">{{ group.guest.group_type_label }} Info</a>)
-                {% endif %}</span>
+                  &nbsp;
+                  <div class="btn-group" role="group" aria-label="...">
+                  <a href="group_info?id={{ group.guest.id }}" class="btn btn-xs btn-default"><span class="glyphicon glyphicon-cog" data-toggle="tooltip" title="{{ group.guest.group_type_label }} Info"></span></a>
+                  <a href="../guests/index?id={{ group.guest.id }}" class="btn btn-xs btn-primary"><span class="glyphicon glyphicon-check" data-toggle="tooltip" title="{{ group.guest.group_type_label }} Checklist"></span></a>
+                  </div>
+                {% endif %}
+            </span>
           </td>
           {% for item in c.GUEST_CHECKLIST_ITEMS -%}
             {% if item.header -%}

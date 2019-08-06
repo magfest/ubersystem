@@ -39,7 +39,7 @@
         <br/> <br/>
         We hope to send acceptance e-mails out no later than {{ c.EXPECTED_RESPONSE }}.
         <br/> <br/>
-        Contact us if there are any questions pertaining to the form at <b>{{ c.PANELS_EMAIL }}</b>.
+        Contact us if there are any questions pertaining to the form at <b>{{ c.PANELS_EMAIL|email_only|email_to_link }}</b>.
         <br/> <br/>
         Good luck!  We're excited to hear what you've got!
 
@@ -110,7 +110,7 @@
             </div>
           </div>
           <div class="form-group">
-            <label class="col-sm-3 control-label">What else might we need to know?</label>
+            <label class="col-sm-3 control-label">Is there anything else you would like to provide regarding your submission?</label>
             <div class="col-sm-6">
               <textarea class="form-control" name="extra_info" rows="4">{{ app.extra_info }}</textarea>
             </div>

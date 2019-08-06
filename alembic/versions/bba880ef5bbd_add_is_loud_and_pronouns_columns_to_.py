@@ -1,15 +1,15 @@
-"""Set GuestGroup event ID to null when their Event is deleted
+"""Add is_loud and pronouns columns to PanelApplicant
 
-Revision ID: 4c9ae1c0db43
-Revises: 61734fcb2e72
-Create Date: 2019-04-29 16:27:19.146652
+Revision ID: bba880ef5bbd
+Revises: 4c9ae1c0db43
+Create Date: 2019-07-20 02:57:17.794469
 
 """
 
 
 # revision identifiers, used by Alembic.
-revision = '4c9ae1c0db43'
-down_revision = '61734fcb2e72'
+revision = 'bba880ef5bbd'
+down_revision = '4c9ae1c0db43'
 branch_labels = None
 depends_on = None
 
@@ -20,7 +20,7 @@ import sqlalchemy as sa
 
 try:
     is_sqlite = op.get_context().dialect.name == 'sqlite'
-except:
+except Exception:
     is_sqlite = False
 
 if is_sqlite:
@@ -52,10 +52,12 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.drop_constraint('fk_guest_group_event_id_event', 'guest_group', type_='foreignkey')
-    op.create_foreign_key(op.f('fk_guest_group_event_id_event'), 'guest_group', 'event', ['event_id'], ['id'], ondelete='SET NULL')
+    op.add_column('panel_applicant', sa.Column('other_pronouns', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('panel_applicant', sa.Column('pronouns', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('panel_application', sa.Column('is_loud', sa.Boolean(), server_default='False', nullable=False))
 
 
 def downgrade():
-    op.drop_constraint(op.f('fk_guest_group_event_id_event'), 'guest_group', type_='foreignkey')
-    op.create_foreign_key('fk_guest_group_event_id_event', 'guest_group', 'event', ['event_id'], ['id'])
+    op.drop_column('panel_application', 'is_loud')
+    op.drop_column('panel_applicant', 'pronouns')
+    op.drop_column('panel_applicant', 'other_pronouns')

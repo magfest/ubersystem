@@ -6,6 +6,7 @@ from pockets import camel, fieldify, listify
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.schema import Column
 from sqlalchemy.sql.expression import FunctionElement
 from sqlalchemy.types import Integer, TypeDecorator
@@ -324,6 +325,7 @@ def JSONColumnMixin(column_name, fields, admin_only=False):
             fields = getattr(self, column_name)
             if fields.get(name) != value:
                 fields[name] = value
+                flag_modified(self, column_name)  # Fixes bug with this column not updating in some circumstances
                 super(_Mixin, self).__setattr__(column_name, dict(fields))
         else:
             super(_Mixin, self).__setattr__(name, value)
