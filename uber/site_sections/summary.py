@@ -358,8 +358,8 @@ class Root:
             Attendee.badge_num != None,
             order_by='badge_num')  # noqa: E711
 
-        # part 2, include some extra for safety marging
-        minimum_extra_amount = 5
+        # part 2, include some extra for safety margin
+        minimum_extra_amount = c.BLANK_STAFF_BADGES
 
         max_badges = c.BADGE_RANGES[c.STAFF_BADGE][1]
         start_badge = max_badges - minimum_extra_amount + 1
