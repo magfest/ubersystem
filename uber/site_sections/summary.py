@@ -266,7 +266,7 @@ class Root:
     def dealer_table_info(self, out, session):
         out.writerow([
             'Business Name',
-            'Dealer Name',
+            'Table Name',
             'Description',
             'URL',
             'Point of Contact',

@@ -254,7 +254,7 @@ class MarketplaceEmailFixture(AutomatedEmailFixture):
 if c.DEALER_REG_START:
 
     MarketplaceEmailFixture(
-        'Your {EVENT_NAME} Dealer registration has been approved',
+        'Your {EVENT_NAME} {} has been approved'.format(c.DEALER_REG_TERM),
         'dealers/approved.html',
         lambda g: g.status == c.APPROVED,
         # query=Group.status == c.APPROVED,
@@ -262,7 +262,7 @@ if c.DEALER_REG_START:
         ident='dealer_reg_approved')
 
     MarketplaceEmailFixture(
-        'Reminder to pay for your {EVENT_NAME} Dealer registration',
+        'Reminder to pay for your {EVENT_NAME} {}'.format(c.DEALER_REG_TERM),
         'dealers/payment_reminder.txt',
         lambda g: g.status == c.APPROVED and days_after(30, g.approved)() and g.is_unpaid,
         # query=and_(
@@ -273,7 +273,7 @@ if c.DEALER_REG_START:
         ident='dealer_reg_payment_reminder')
 
     MarketplaceEmailFixture(
-        'Your {EVENT_NAME} ({EVENT_DATE}) Dealer registration is due in one week',
+        'Your {EVENT_NAME} ({EVENT_DATE}) {} is due in one week'.format(c.DEALER_REG_TERM),
         'dealers/payment_reminder.txt',
         lambda g: g.status == c.APPROVED and g.is_unpaid,
         # query=and_(Group.status == c.APPROVED, Group.is_unpaid == True),
@@ -282,7 +282,7 @@ if c.DEALER_REG_START:
         ident='dealer_reg_payment_reminder_due_soon')
 
     MarketplaceEmailFixture(
-        'Last chance to pay for your {EVENT_NAME} ({EVENT_DATE}) Dealer registration',
+        'Last chance to pay for your {EVENT_NAME} ({EVENT_DATE}) {}'.format(c.DEALER_REG_TERM),
         'dealers/payment_reminder.txt',
         lambda g: g.status == c.APPROVED and g.is_unpaid,
         # query=and_(Group.status == c.APPROVED, Group.is_unpaid == True),
@@ -337,7 +337,7 @@ AutomatedEmailFixture(
 
 AutomatedEmailFixture(
     Attendee,
-    '{EVENT_NAME} Dealer Information Required',
+    '{EVENT_NAME} {} Information Required'.format(c.DEALER_TERM.capitalize()),
     'placeholders/dealer.txt',
     lambda a: a.placeholder and a.is_dealer and a.group.status == c.APPROVED,
     # query=and_(

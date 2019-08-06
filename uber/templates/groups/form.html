@@ -34,7 +34,7 @@
 
     $(function() {
         {% if group.is_new and not new_dealer %}
-            $.field("status").find("[value={{ c.UNAPPROVED }}]").text("n/a (not a paid Dealer)");
+            $.field("status").find("[value={{ c.UNAPPROVED }}]").text("n/a (not a paid {{ c.DEALER_TERM }})");
         {% endif %}
     });
 

@@ -1,7 +1,7 @@
 <html>
 <head></head>
 <body>
-Your group ({{ group.name }}) has been approved as a {{ c.EVENT_NAME }} Dealer for this coming {{ event_dates() }}!
+Your group ({{ group.name }}) has been approved as a {{ c.EVENT_NAME }} {{ c.DEALER_TERM }} for this coming {{ event_dates() }}!
 You can pay the ${{ group.cost }} you owe using the credit card button
 <a href="{{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}">on this page</a>.
 Payment is expected by: {{ c.DEALER_PAYMENT_DUE|datetime_local }} or your application may be removed and your tables filled by another applicant.
@@ -21,7 +21,7 @@ This registration includes:
     <li> {{ group.badges }} badge{{ group.badges|pluralize }} (${{ group.badge_cost|round(2) }}) </li>
 </ul>
 
-<br/> <u>Dealer Rules and Information</u>
+<br/> <u>{{ c.DEALER_LOC_TERM|capitalize }} Rules and Information</u>
 {% include "static_views/dealerRules.html" %}
 
 
