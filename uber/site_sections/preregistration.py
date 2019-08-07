@@ -266,7 +266,7 @@ class Root:
 
             if attendee.badge_type == c.PSEUDO_DEALER_BADGE and c.DEALER_REG_SOFT_CLOSED:
                 message = '{} is closed, but you can ' \
-                    'fill out this form to add yourself to our waitlist'.format(c.DEALER_REG_TERM.capitalize())
+                    'fill out this form to add yourself to our waitlist'.format(c.DEALER_REG_TERM.title())
 
         promo_code_group = None
         if attendee.promo_code:
@@ -618,7 +618,7 @@ class Root:
                     send_email.delay(
                         c.MARKETPLACE_EMAIL,
                         c.MARKETPLACE_EMAIL,
-                        '{} Payment Completed'.format(c.DEALER_TERM.capitalize()),
+                        '{} Payment Completed'.format(c.DEALER_TERM.title()),
                         render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
                         model=group.to_dict('id'))
                 except Exception:
@@ -692,7 +692,7 @@ class Root:
                 send_email.delay(
                     c.MARKETPLACE_EMAIL,
                     c.MARKETPLACE_EMAIL,
-                    '{} Paid for Extra Members'.capitalize(c.DEALER_TERM.capitalize()),
+                    '{} Paid for Extra Members'.capitalize(c.DEALER_TERM.title()),
                     render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
                     model=group.to_dict('id'))
             raise HTTPRedirect(

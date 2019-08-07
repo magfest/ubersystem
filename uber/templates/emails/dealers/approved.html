@@ -21,7 +21,7 @@ This registration includes:
     <li> {{ group.badges }} badge{{ group.badges|pluralize }} (${{ group.badge_cost|round(2) }}) </li>
 </ul>
 
-<br/> <u>{{ c.DEALER_LOC_TERM|capitalize }} Rules and Information</u>
+<br/> <u>{{ c.DEALER_LOC_TERM|title }} Rules and Information</u>
 {% include "static_views/dealerRules.html" %}
 
 
