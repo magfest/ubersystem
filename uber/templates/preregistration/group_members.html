@@ -75,7 +75,7 @@
         {{ group_fields.address }}
         {% if not page_ro %}
         <button type="submit" class="btn btn-primary" value="Update Application">Update Application</button>
-        <button type="submit" class="btn btn-danger" value="Cancel {{ c.DEALER_APP_TERM|capitalize }}" form="cancel_dealer">Cancel Application</button>
+        <button type="submit" class="btn btn-danger" value="Cancel {{ c.DEALER_APP_TERM|title }}" form="cancel_dealer">Cancel Application</button>
         {% endif %}
       </form>
         <form method="post" id="cancel_dealer" action="../groups/cancel_dealer" class="form-horizontal" role="form">

@@ -6,7 +6,7 @@
       <br/>
     {% elif c.AFTER_DEALER_REG_SHUTDOWN %}
       <br/>
-      {{ c.DEALER_REG_TERM|capitalize }} was shut down {{ c.DEALER_REG_SHUTDOWN|datetime_local }}.
+      {{ c.DEALER_REG_TERM|title }} was shut down {{ c.DEALER_REG_SHUTDOWN|datetime_local }}.
       <br/>
     {% elif c.DEALER_APPS >= c.MAX_DEALER_APPS and c.MAX_DEALER_APPS > 0 %}
       <br/>

@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Waitlisted {{ c.DEALER_TERM|capitalize }}s{% endblock %}
+{% block title %}Waitlisted {{ c.DEALER_TERM|title }}s{% endblock %}
 {% block content %}
 
 <style type="text/css">
@@ -13,7 +13,7 @@
       event.preventDefault();
       bootbox.confirm({
         backdrop: true,
-        title: 'Decline All Waitlisted {{ c.DEALER_TERM|capitalize }}s?',
+        title: 'Decline All Waitlisted {{ c.DEALER_TERM|title }}s?',
         message: '<p>Are you sure you want to decline <b>EVERY</b> waitlisted {{ c.DEALER_TERM }}?</p>' +
           '<p>This will delete the groups and convert the badges to normal Attendee badges ' +
           'at the price of registration when they first applied. An email will be sent to ' +
@@ -41,7 +41,7 @@
       Decline & Convert
     </button>
   </form>
-  Waitlisted {{ c.DEALER_TERM|capitalize }}s
+  Waitlisted {{ c.DEALER_TERM|title }}s
 </h2>
 <div class="clearfix"></div>
 <table class="table table-striped datatable">
