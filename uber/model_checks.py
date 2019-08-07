@@ -171,7 +171,7 @@ def group_money(group):
 @prereg_validation.Group
 def edit_only_correct_statuses(group):
     if group.status not in [c.WAITLISTED, c.UNAPPROVED]:
-        return "You cannot change your dealer application after it has been {}.".format(group.status_label)
+        return "You cannot change your {} after it has been {}.".format(c.DEALER_APP_TERM, group.status_label)
 
 
 def _invalid_phone_number(s):
@@ -242,7 +242,7 @@ def promo_code_is_useful(attendee):
         if not attendee.is_unpaid:
             return "You can't apply a promo code after you've paid or if you're in a group."
         elif attendee.is_dealer:
-            return "You can't apply a promo code to a dealer registration."
+            return "You can't apply a promo code to a {}.".format(c.DEALER_REG_TERM)
         elif attendee.age_discount != 0:
             return "You are already receiving an age based discount, you can't use a promo code on top of that."
         elif attendee.badge_type == c.ONE_DAY_BADGE or attendee.is_presold_oneday:
@@ -455,7 +455,7 @@ def attendee_money(attendee):
 @validation.Attendee
 def dealer_needs_group(attendee):
     if attendee.is_dealer and not attendee.badge_type == c.PSEUDO_DEALER_BADGE and not attendee.group_id:
-        return 'Dealers must be associated with a group'
+        return '{}s must be associated with a group'.format(c.DEALER_TERM)
 
 
 @validation.Attendee

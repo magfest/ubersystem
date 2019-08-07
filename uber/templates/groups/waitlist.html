@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Waitlisted Dealers{% endblock %}
+{% block title %}Waitlisted {{ c.DEALER_TERM|capitalize }}s{% endblock %}
 {% block content %}
 
 <style type="text/css">
@@ -13,11 +13,11 @@
       event.preventDefault();
       bootbox.confirm({
         backdrop: true,
-        title: 'Decline All Waitlisted Dealers?',
-        message: '<p>Are you sure you want to decline <b>EVERY</b> waitlisted dealer?</p>' +
+        title: 'Decline All Waitlisted {{ c.DEALER_TERM|capitalize }}s?',
+        message: '<p>Are you sure you want to decline <b>EVERY</b> waitlisted {{ c.DEALER_TERM }}?</p>' +
           '<p>This will delete the groups and convert the badges to normal Attendee badges ' +
           'at the price of registration when they first applied. An email will be sent to ' +
-          'each declined dealer.</p>' +
+          'each declined {{ c.DEALER_TERM }}.</p>' +
           '<p>This <b>CANNOT</b> be undone.</p>',
         buttons: {
           confirm: { label: '<span class="glyphicon glyphicon-repeat"></span> Decline & Convert', className: 'btn-danger' },
@@ -41,7 +41,7 @@
       Decline & Convert
     </button>
   </form>
-  Waitlisted Dealers
+  Waitlisted {{ c.DEALER_TERM|capitalize }}s
 </h2>
 <div class="clearfix"></div>
 <table class="table table-striped datatable">

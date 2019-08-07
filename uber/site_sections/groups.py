@@ -44,7 +44,7 @@ def _decline_and_convert_dealer_group(session, group, status=c.DECLINED):
     Deletes the waitlisted dealer group and converts all of the group members
     to the appropriate badge type. Unassigned, unpaid badges will be deleted.
     """
-    admin_note = 'Converted badge from waitlisted dealer group "{}".'.format(group.name)
+    admin_note = 'Converted badge from waitlisted {} "{}".'.format(c.DEALER_REG_TERM, group.name)
     group.status = status
 
     if not group.is_unpaid:
@@ -52,7 +52,7 @@ def _decline_and_convert_dealer_group(session, group, status=c.DECLINED):
         for attendee in group.attendees:
             attendee.append_admin_note(admin_note)
             attendee.ribbon = remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
-        return 'Group dealer status removed'
+        return 'Group {} status removed'.format(c.DEALER_TERM)
 
     message = ['Group declined']
     emails_failed = 0
@@ -164,8 +164,8 @@ class Root:
                 ribbon_to_use = None if 'ribbon' not in params else params['ribbon']
                 message = session.assign_badges(group, params['badges'], params['badge_type'], ribbon_to_use)
                 if not message and new_dealer and not (first_name and last_name and email and group.badges):
-                    message = 'When registering a new Dealer, you must enter the name and email address ' \
-                        'of the group leader and must allocate at least one badge'
+                    message = 'When registering a new {}, you must enter the name and email address ' \
+                        'of the group leader and must allocate at least one badge'.format(c.DEALER_TERM)
                 if not message:
                     if new_dealer:
                         session.commit()
@@ -226,7 +226,8 @@ class Root:
             if decline_and_convert:
                 for group in groups:
                     _decline_and_convert_dealer_group(session, group)
-                message = 'All waitlisted dealers have been declined and converted to regular attendee badges'
+                message = 'All waitlisted {}s have been declined and converted to regular attendee badges'\
+                    .format(c.DEALER_TERM)
             raise HTTPRedirect('index?order=name&show=tables&message={}', message)
 
         return {'groups': query.all()}
@@ -235,7 +236,7 @@ class Root:
     def unapprove(self, session, id, action, email, message=''):
         assert action in ['waitlisted', 'declined']
         group = session.group(id)
-        subject = 'Your {} Dealer registration has been {}'.format(c.EVENT_NAME, action)
+        subject = 'Your {} {} has been {}'.format(c.EVENT_NAME, c.DEALER_REG_TERM, action)
         if group.email:
             send_email.delay(
                 c.MARKETPLACE_EMAIL,
