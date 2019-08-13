@@ -254,7 +254,7 @@ class MarketplaceEmailFixture(AutomatedEmailFixture):
 if c.DEALER_REG_START:
 
     MarketplaceEmailFixture(
-        'Your {} {} has been approved'.format(c.EVENT_NAME, c.DEALER_REG_TERM),
+        'Your {} {} has been approved'.format(c.EVENT_NAME, c.DEALER_REG_TERM.capitalize()),
         'dealers/approved.html',
         lambda g: g.status == c.APPROVED,
         # query=Group.status == c.APPROVED,
@@ -262,7 +262,7 @@ if c.DEALER_REG_START:
         ident='dealer_reg_approved')
 
     MarketplaceEmailFixture(
-        'Reminder to pay for your {} {}'.format(c.EVENT_NAME, c.DEALER_REG_TERM),
+        'Reminder to pay for your {} {}'.format(c.EVENT_NAME, c.DEALER_REG_TERM.capitalize()),
         'dealers/payment_reminder.txt',
         lambda g: g.status == c.APPROVED and days_after(30, g.approved)() and g.is_unpaid,
         # query=and_(
@@ -273,7 +273,9 @@ if c.DEALER_REG_START:
         ident='dealer_reg_payment_reminder')
 
     MarketplaceEmailFixture(
-        'Your {} ({}) {} is due in one week'.format(c.EVENT_NAME, c.EPOCH.strftime('%b %Y'), c.DEALER_REG_TERM),
+        'Your {} ({}) {} is due in one week'.format(c.EVENT_NAME,
+                                                    c.EPOCH.strftime('%b %Y'),
+                                                    c.DEALER_REG_TERM.capitalize()),
         'dealers/payment_reminder.txt',
         lambda g: g.status == c.APPROVED and g.is_unpaid,
         # query=and_(Group.status == c.APPROVED, Group.is_unpaid == True),
@@ -282,7 +284,9 @@ if c.DEALER_REG_START:
         ident='dealer_reg_payment_reminder_due_soon')
 
     MarketplaceEmailFixture(
-        'Last chance to pay for your {} ({}) {}'.format(c.EVENT_NAME, c.EPOCH.strftime('%b %Y'), c.DEALER_REG_TERM),
+        'Last chance to pay for your {} ({}) {}'.format(c.EVENT_NAME,
+                                                        c.EPOCH.strftime('%b %Y'),
+                                                        c.DEALER_REG_TERM.capitalize()),
         'dealers/payment_reminder.txt',
         lambda g: g.status == c.APPROVED and g.is_unpaid,
         # query=and_(Group.status == c.APPROVED, Group.is_unpaid == True),
