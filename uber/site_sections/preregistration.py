@@ -213,13 +213,13 @@ class Root:
                         send_email.delay(
                             c.MARKETPLACE_EMAIL,
                             c.MARKETPLACE_EMAIL,
-                            '{} Received'.format(c.DEALER_APP_TERM),
+                            '{} Received'.format(c.DEALER_APP_TERM.title()),
                             render('emails/dealers/reg_notification.txt', {'group': group}, encoding=None),
                             model=group.to_dict('id'))
                         send_email.delay(
                             c.MARKETPLACE_EMAIL,
                             attendee.email,
-                            '{} Received'.format(c.DEALER_APP_TERM),
+                            '{} Received'.format(c.DEALER_APP_TERM.title()),
                             render('emails/dealers/application.html', {'group': group}, encoding=None),
                             'html',
                             model=group.to_dict('id'))
@@ -534,7 +534,7 @@ class Root:
                     send_email.delay(
                         c.MARKETPLACE_EMAIL,
                         c.MARKETPLACE_EMAIL,
-                        '{} Changed'.format(c.DEALER_APP_TERM),
+                        '{} Changed'.format(c.DEALER_APP_TERM.title()),
                         render('emails/dealers/appchange_notification.html', {'group': group}, encoding=None),
                         'html',
                         model=group.to_dict('id'))
@@ -705,7 +705,7 @@ class Root:
     def transfer_badge(self, session, message='', **params):
         old = session.attendee(params['id'])
 
-        assert old.is_transferable, 'This badge is not transferrable.'
+        assert old.is_transferable, 'This badge is not transferable.'
         session.expunge(old)
         attendee = session.attendee(params, restricted=True)
 
