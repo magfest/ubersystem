@@ -6,7 +6,7 @@ import pytz
 import re
 import uuid
 from collections import defaultdict, OrderedDict
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from hashlib import sha512
 from itertools import chain
 
