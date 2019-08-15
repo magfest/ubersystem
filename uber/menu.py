@@ -93,18 +93,18 @@ c.MENU = MenuItem(name='Root', submenu=[
     MenuItem(name='Admin', submenu=[
         MenuItem(name='Admin Accounts', href='../accounts/', access=c.ACCOUNTS),
         MenuItem(name='API Access', href='../api/', access=list(c.API_ACCESS.keys())),
-        MenuItem(name='Pending Emails', href='../emails/pending', access=c.PEOPLE),
-        MenuItem(name='Jobs', href='../jobs/', access=c.PEOPLE),
-        MenuItem(name='All Unfilled Shifts', href='../jobs/everywhere', access=c.PEOPLE),
-        MenuItem(name='Departments', href='../departments/', access=c.PEOPLE),
+        MenuItem(name='Pending Emails', href='../email_admin/pending', access=c.PEOPLE),
+        MenuItem(name='Add/Edit Shifts', href='../shifts_admin/', access=c.PEOPLE),
+        MenuItem(name='All Unfilled Shifts', href='../shifts_admin/everywhere', access=c.PEOPLE),
+        MenuItem(name='Departments', href='../dept_admin/', access=c.PEOPLE),
         MenuItem(name='Department Checklists', href='../dept_checklist/overview', access=c.PEOPLE),
         MenuItem(name='Feed of Database Changes', href='../registration/feed', access=[c.ACCOUNTS, c.STAFF_ROOMS]),
     ]),
 
     MenuItem(name='People', access=[c.PEOPLE, c.REG_AT_CON], submenu=[
         MenuItem(name='Attendees', href='../registration/{}'.format('?invalid=True' if c.AT_THE_CON else '')),
-        MenuItem(name='Promo Code Groups', href='../groups/promo_code_groups'),
-        MenuItem(name='Groups', href='../groups/'),
+        MenuItem(name='Promo Code Groups', href='../registration/promo_code_groups'),
+        MenuItem(name='Dealers', href='../dealer_admin/'),
         MenuItem(name='Bands', href='../guest_admin/?filter=only-bands', access=c.BANDS),
         MenuItem(name='Guests', href='../guest_admin/?filter=only-guests', access=c.BANDS),
         MenuItem(name='MIVS', href='../guest_admin/?filter=only-mivss', access=c.INDIE_ADMIN),
@@ -118,7 +118,7 @@ c.MENU = MenuItem(name='Root', submenu=[
 
     MenuItem(name='Statistics', access=c.STATS, submenu=[
         MenuItem(name='Summary', href='../summary/'),
-        MenuItem(name='Graphs', href='../graphs/'),
+        MenuItem(name='Badges Sold Graph', href='../reg_reports/'),
     ]),
 ])
 

@@ -176,7 +176,7 @@
     {% for attendee in group.attendees %}
         <tr>
             <td> <ul><li></li></ul> </td>
-            <td style="padding:15px;"> <a href="../registration/form?id={{ attendee.id }}&return_to=../groups/form?id={{ group.id }}">{{ attendee.full_name }}</a> </td>
+            <td style="padding:15px;"> <a href="../registration/form?id={{ attendee.id }}&return_to=../dealer_admin/form?id={{ group.id }}">{{ attendee.full_name }}</a> </td>
             <td>
                 <i>
                      (paid => {{ attendee.paid_label }}, &nbsp;&nbsp;
@@ -202,7 +202,7 @@
                     <form method="post" action="../registration/delete" onSubmit="return confirm('Are you sure you want to unassign this badge?');">
                         {{ csrf_token() }}
                         <input type="hidden" name="id" value="{{ attendee.id }}" />
-                        <input type="hidden" name="return_to" value="../groups/form?id={{ group.id }}" />
+                        <input type="hidden" name="return_to" value="../dealer_admin/form?id={{ group.id }}" />
                         <input type="submit" value="Unassign" />
                     </form>
                 {% endif %}

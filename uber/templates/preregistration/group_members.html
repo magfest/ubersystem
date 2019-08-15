@@ -4,7 +4,7 @@
 {% block title %}Group Members{% endblock %}
 {% block backlink %}
     {% if c.HAS_PEOPLE_ACCESS %}
-        <a href="../groups/form?id={{ group.id }}" style="float:right">Return to Group Admin Form</a>
+        <a href="../dealer_admin/form?id={{ group.id }}" style="float:right">Return to Group Admin Form</a>
     {% endif %}
 {% endblock %}
 {% block content %}
@@ -33,7 +33,7 @@
             });
         })
 
-        $("form[action='../groups/cancel_dealer']").submit(function(event){
+        $("form[action='../dealer_admin/cancel_dealer']").submit(function(event){
             var formToSubmit = this;
             event.preventDefault();
             bootbox.confirm({
@@ -78,7 +78,7 @@
         <button type="submit" class="btn btn-danger" value="Cancel {{ c.DEALER_APP_TERM|title }}" form="cancel_dealer">Cancel Application</button>
         {% endif %}
       </form>
-        <form method="post" id="cancel_dealer" action="../groups/cancel_dealer" class="form-horizontal" role="form">
+        <form method="post" id="cancel_dealer" action="../dealer_admin/cancel_dealer" class="form-horizontal" role="form">
           <input type="hidden" name="id" value="{{ group.id }}" />
         </form>
     {% endif%}

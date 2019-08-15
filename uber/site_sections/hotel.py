@@ -1,87 +1,65 @@
-from sqlalchemy.orm import joinedload, subqueryload
+from datetime import timedelta
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, department_id_adapter
-from uber.models import Attendee, HotelRequests, RoomAssignment, Shift
+from uber.decorators import all_renderable
+from uber.errors import HTTPRedirect
+from uber.models import AdminAccount
 
 
-@all_renderable(c.PEOPLE)
+@all_renderable(c.SIGNUPS)
 class Root:
-    @department_id_adapter
-    def index(self, session, department_id=None):
-        department_id = department_id or c.DEFAULT_DEPARTMENT_ID
-        return {
-            'department_id': department_id,
-            'department_name': c.DEPARTMENTS[department_id],
-            'checklist': session.checklist_status('hotel_eligible', department_id),
-            'attendees': session.query(Attendee).filter(
-                Attendee.hotel_eligible == True,
-                Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
-                Attendee.dept_memberships.any(department_id=department_id)
-            ).order_by(Attendee.full_name).all()
-        }  # noqa: E712
+    def index(self, session, message='', decline=None, **params):
+        if c.AFTER_ROOM_DEADLINE and c.STAFF_ROOMS not in AdminAccount.access_set():
+            raise HTTPRedirect('../signups/index?message={}', 'The room deadline has passed')
+        attendee = session.logged_in_volunteer()
+        if not attendee.hotel_eligible:
+            raise HTTPRedirect('../signups/index?message={}', 'You have not been marked as eligible for hotel space')
+        requests = session.hotel_requests(params, checkgroups=['nights'], restricted=True)
+        if 'attendee_id' in params:
+            requests.attendee = attendee  # foreign keys are automatically admin-only
+            session.add(requests)
+            if decline or not requests.nights:
+                requests.nights = ''
+                raise HTTPRedirect(
+                    '../signups/index?message={}', "We've recorded that you've declined hotel room space")
+            else:
+                if requests.setup_teardown:
+                    days = ' / '.join(
+                        c.NIGHTS[day] for day in sorted(requests.nights_ints, key=c.NIGHT_DISPLAY_ORDER.index)
+                        if day not in c.CORE_NIGHTS)
 
-    def mark_hotel_eligible(self, session, id):
-        """
-        Force mark a non-staffer as eligible for hotel space.
-        This is outside the normal workflow, used for when we have a staffer
-        that only has an attendee badge for some reason, and we want to mark
-        them as being OK to crash in a room.
-        """
-        attendee = session.attendee(id)
-        attendee.hotel_eligible = True
-        session.commit()
-        return '{} has now been overridden as being hotel eligible'.format(
-            attendee.full_name)
+                    message = "Your hotel room request has been submitted. " \
+                        "We'll let you know whether your offer to help on {} is accepted, " \
+                        "and who your roommates will be, a few weeks after the deadline.".format(days)
 
-    @department_id_adapter
-    def requests(self, session, department_id=None):
-        dept_filter = [] if not department_id \
-            else [Attendee.dept_memberships.any(department_id=department_id)]
+                else:
+                    message = "You've accepted hotel room space for {}. " \
+                        "We'll let you know your roommates a few weeks after the " \
+                        "deadline.".format(requests.nights_display)
 
-        requests = session.query(HotelRequests) \
-            .join(HotelRequests.attendee) \
-            .options(joinedload(HotelRequests.attendee)) \
-            .filter(
-                Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
-                *dept_filter) \
-            .order_by(Attendee.full_name).all()
-
-        room_access = set([c.ADMIN, c.STAFF_ROOMS])
-        admin_has_room_access = bool(room_access.intersection(session.current_admin_account().access_ints))
-        return {
-            'admin_has_room_access': admin_has_room_access,
-            'requests': requests,
-            'department_id': department_id,
-            'department_name': c.DEPARTMENTS.get(department_id, 'All'),
-            'declined_count': len([r for r in requests if r.nights == '']),
-            'checklist': session.checklist_status(
-                'approve_setup_teardown', department_id),
-            'staffer_count': session.query(Attendee).filter(
-                Attendee.hotel_eligible == True, *dept_filter).count()  # noqa: E712
-        }
-
-    def hours(self, session):
-        staffers = session.query(Attendee) \
-            .filter(Attendee.hotel_eligible == True, Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])) \
-            .options(joinedload(Attendee.hotel_requests), subqueryload(Attendee.shifts).subqueryload(Shift.job)) \
-            .order_by(Attendee.full_name).all()  # noqa: E712
-
-        return {'staffers': [s for s in staffers if s.hotel_shifts_required and s.weighted_hours < c.HOTEL_REQ_HOURS]}
-
-    def no_shows(self, session):
-        room_assignments = session.query(RoomAssignment).options(
-            joinedload(RoomAssignment.attendee).joinedload(Attendee.hotel_requests),
-            joinedload(RoomAssignment.attendee).subqueryload(Attendee.room_assignments))
-        staffers = [ra.attendee for ra in room_assignments if not ra.attendee.checked_in]
-        return {'staffers': sorted(staffers, key=lambda a: a.full_name)}
-
-    @ajax
-    def approve(self, session, id, approved):
-        hr = session.hotel_requests(id)
-        if approved == 'approved':
-            hr.approved = True
+                raise HTTPRedirect('../signups/index?message={}', message)
         else:
-            hr.decline()
-        session.commit()
-        return {'nights': hr.nights_display}
+            requests = attendee.hotel_requests or requests
+            if requests.is_new:
+                requests.nights = ','.join(map(str, c.CORE_NIGHTS))
+
+        nights = []
+        two_day_before = (c.EPOCH - timedelta(days=2)).strftime('%A')
+        day_before = (c.EPOCH - timedelta(days=1)).strftime('%A')
+        last_day = c.ESCHATON.strftime('%A').upper()
+        day_after = (c.ESCHATON + timedelta(days=1)).strftime('%A')
+        nights.append([getattr(c, two_day_before.upper()), getattr(requests, two_day_before.upper()),
+                       "I'd like to help set up on " + two_day_before])
+        nights.append([getattr(c, day_before.upper()), getattr(requests, day_before.upper()),
+                       "I'd like to help set up on " + day_before])
+        for night in c.CORE_NIGHTS:
+            nights.append([night, night in requests.nights_ints, c.NIGHTS[night]])
+        nights.append([getattr(c, last_day), getattr(requests, last_day),
+                       "I'd like to help tear down on {} / {}".format(c.ESCHATON.strftime('%A'), day_after)])
+
+        return {
+            'nights':   nights,
+            'message':  message,
+            'requests': requests,
+            'attendee': attendee
+        }

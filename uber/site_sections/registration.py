@@ -17,7 +17,8 @@ from uber.decorators import ajax, all_renderable, check_for_encrypted_badge_num,
     csrf_protected, department_id_adapter, log_pageview, renderable_override, site_mappable, unrestricted
 from uber.errors import HTTPRedirect
 from uber.models import ArbitraryCharge, Attendee, Department, Email, Group, Job, MerchDiscount, MerchPickup, \
-    MPointsForCash, NoShirt, OldMPointExchange, PageViewTracking, Sale, Session, Shift, Tracking, WatchList
+    MPointsForCash, NoShirt, OldMPointExchange, PageViewTracking, PromoCodeGroup, Sale, Session, Shift, Tracking, \
+    WatchList
 from uber.utils import add_opt, check, check_csrf, check_pii_consent, Charge, get_page, hour_day_format, \
     localized_now, Order
 
@@ -192,6 +193,25 @@ class Root:
         return {
             'message':  message,
             'attendee': attendee
+        }
+
+    def promo_code_groups(self, session, message=''):
+        groups = session.query(PromoCodeGroup).options(joinedload('buyer')).order_by(PromoCodeGroup.name).all()
+        return {
+            'groups': groups,
+            'message': message,
+        }
+
+    @log_pageview
+    def promo_code_group_form(self, session, id, message='', **params):
+        group = session.promo_code_group(id)
+        if cherrypy.request.method == 'POST':
+            group.apply(params)
+            session.commit()
+
+        return {
+            'group': group,
+            'message': message,
         }
 
     @unrestricted

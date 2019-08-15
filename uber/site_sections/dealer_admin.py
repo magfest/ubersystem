@@ -6,7 +6,7 @@ from uber.config import c
 from uber.custom_tags import pluralize
 from uber.decorators import ajax, all_renderable, csrf_protected, log_pageview, render
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Email, Group, PageViewTracking, PromoCodeGroup, Tracking
+from uber.models import Attendee, Email, Group, PageViewTracking, Tracking
 from uber.tasks.email import send_email
 from uber.utils import check, remove_opt, Order
 
@@ -133,25 +133,6 @@ class Root:
             'unapproved_tables': sum(g.tables for g in groups if g.status == c.UNAPPROVED),
             'waitlisted_tables': sum(g.tables for g in groups if g.status == c.WAITLISTED),
             'approved_tables':   sum(g.tables for g in groups if g.status == c.APPROVED)
-        }
-
-    def promo_code_groups(self, session, message=''):
-        groups = session.query(PromoCodeGroup).options(joinedload('buyer')).order_by(PromoCodeGroup.name).all()
-        return {
-            'groups': groups,
-            'message': message,
-        }
-
-    @log_pageview
-    def promo_code_group_form(self, session, id, message='', **params):
-        group = session.promo_code_group(id)
-        if cherrypy.request.method == 'POST':
-            group.apply(params)
-            session.commit()
-
-        return {
-            'group': group,
-            'message': message,
         }
 
     @log_pageview

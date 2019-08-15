@@ -20,7 +20,7 @@
       {% for group in groups -%}
         <tr id="{{ group.id }}">
           <td data-order="{{ group.name }}">
-            <a href="../groups/promo_code_group_form?id={{ group.id }}">{{ group.name }}</a>
+            <a href="promo_code_group_form?id={{ group.id }}">{{ group.name }}</a>
           </td>
           <td data-order="{{ group.buyer.full_name }}">
             {{ group.buyer|form_link }}

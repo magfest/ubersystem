@@ -182,7 +182,7 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
 def assert_dept_admin(session, department_id=None, inherent_role=None):
     message = check_dept_admin(session, department_id, inherent_role)
     if message:
-        raise HTTPRedirect("../common/invalid?message={}", message)
+        raise HTTPRedirect("../landing/invalid?message={}", message)
 
 
 def requires_dept_admin(func=None, inherent_role=None):
@@ -560,11 +560,11 @@ def renderable(func):
         except CSRFException as e:
             message = "Your CSRF token is invalid. Please go back and try again."
             uber.server.log_exception_with_verbose_context(msg=str(e))
-            raise HTTPRedirect("../common/invalid?message={}", message)
+            raise HTTPRedirect("../landing/invalid?message={}", message)
         except (AssertionError, ValueError) as e:
             message = str(e)
             uber.server.log_exception_with_verbose_context(msg=message)
-            raise HTTPRedirect("../common/invalid?message={}", message)
+            raise HTTPRedirect("../landing/invalid?message={}", message)
         except TypeError as e:
             # Very restrictive pattern so we don't accidentally match legit errors
             pattern = r"^{}\(\) missing 1 required positional argument: '\S*?id'$".format(func.__name__)
@@ -572,7 +572,7 @@ def renderable(func):
                 # NOTE: We are NOT logging the exception if the user entered an invalid URL
                 message = 'Looks like you tried to access a page without all the query parameters. '\
                           'Please go back and try again.'
-                raise HTTPRedirect("../common/invalid?message={}", message)
+                raise HTTPRedirect("../landing/invalid?message={}", message)
             else:
                 raise
 

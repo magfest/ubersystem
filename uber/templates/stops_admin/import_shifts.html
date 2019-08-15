@@ -15,7 +15,7 @@
 
 <script type="text/javascript">
   $(function() {
-    var $shiftsForm = $("form[action='shifts']"),
+    var $shiftsForm = $("form[action='import_shifts']"),
         $departmentsBlock = $('#departments_block'),
         $targetUrl = $('#target_url'),
         $fromDepartment = $('#from_department_id');
@@ -63,7 +63,7 @@
 
 <h2>Import Shifts</h2>
 
-<form id="shifts" action="shifts" method="post" class="form">
+<form id="shifts" action="import_shifts" method="post" class="form">
   <div class="form-group">
     <label class="control-label">Hostname</label>
     <input

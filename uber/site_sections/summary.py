@@ -723,10 +723,6 @@ class Root:
             count = result[1]
             out.writerow([hour, count])
 
-    def all_attendees(self):
-        raise HTTPRedirect('../export/valid_attendees')
-    all_attendees.restricted = [c.ACCOUNTS and c.STATS and c.PEOPLE and c.MONEY]
-
     def guidebook_exports(self, session, message=''):
         return {
             'message': message,

@@ -64,7 +64,7 @@
 
 <h2>Import Attendees</h2>
 
-<form id="attendees" action="attendees" method="post" class="form">
+<form id="attendees" action="import_attendees" method="post" class="form">
   <div class="form-group">
     <label class="control-label">Hostname</label>
     <input
@@ -135,7 +135,7 @@
 
 {% if attendees %}
   <h2>Matching Attendees</h2>
-  <form id="confirm_attendees" action="confirm_attendees" method="post" class="form">
+  <form id="confirm_attendees" action="confirm_import_attendees" method="post" class="form">
     <input type="hidden" name="target_server" value="{{ target_server }}">
     <input type="hidden" name="api_token" value="{{ api_token }}">
     <input type="hidden" name="query" value="{{ query }}">

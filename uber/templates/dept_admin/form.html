@@ -65,7 +65,7 @@
           attendeeId = $btnGroup.data('attendee_id');
 
       $btn.prop('disabled', true);
-      $.post('../departments/set_inherent_role', {
+      $.post('../dept_admin/set_inherent_role', {
           department_id: '{{ department.id }}',
           attendee_id: attendeeId,
           role: role,
@@ -303,7 +303,7 @@
   </p>
 {%- endif %}
 <p>
-  <a href="../jobs/index?department_id={{ department.id }}">
+  <a href="../shifts_admin/index?department_id={{ department.id }}">
     <span class="glyphicon glyphicon-time"></span>
     View Department Jobs
   </a>

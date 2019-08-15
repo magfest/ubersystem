@@ -9,7 +9,7 @@
   }
 </style>
 
-{% include "jobs/main_menu.html" %}
+{% include "shifts_admin/main_menu.html" %}
 
 {% if c.POST_CON and checklist.relevant %}
   <div class="center">
@@ -29,7 +29,7 @@
 
 <script>SHOW_FULL_JOBS = true;</script>
 <div id="jobs-container">
-{% include "jobs/job_renderer.html" %}
+{% include "shifts_admin/job_renderer.html" %}
 </div>
 
 {% endblock %}
