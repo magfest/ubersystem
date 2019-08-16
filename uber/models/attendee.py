@@ -521,6 +521,10 @@ class Attendee(MagModel, TakesPaymentMixin):
                     and c.VOLUNTEER_RIBBON in old_ribbon and not self.is_dept_head:
                 self.unset_volunteering()
 
+        self._staffing_badge_and_ribbon_adjustments()
+
+    @presave_adjustment
+    def _staffing_badge_and_ribbon_adjustments(self):
         if self.badge_type == c.STAFF_BADGE:
             self.ribbon = remove_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
 
