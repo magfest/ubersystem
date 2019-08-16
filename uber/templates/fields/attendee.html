@@ -362,6 +362,7 @@
     <div class="col-sm-6 {% if not attendee.is_new %}form-control-static">
       {{ attendee.badge }}
       &nbsp;&nbsp; {% if not read_only %}[<a href="change_badge?id={{ attendee.id }}">Change</a>]{% endif %}
+      <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
     {% else %}">
       <select name="badge_type" class="form-control" onChange="boldOrRegular(); setBadgeMessage(); setAmountPaid();">
         {{ options(c.BADGE_OPTS,attendee.badge_type) }}
@@ -1167,7 +1168,7 @@
 
 {% set promo_code %}
 {% set read_only = promo_code_ro or page_ro %}
-{% if c.BADGE_PROMO_CODES_ENABLED and not group_id and (attendee.is_unpaid or attendee.promo_code_code) %}
+{% if c.BADGE_PROMO_CODES_ENABLED and not group_id and (attendee.is_unpaid or attendee.promo_code_code or admin_area) %}
   <div class="non_group_fields form-group">
     <label for="promo_code" class="col-sm-3 control-label optional-field">Promo Code</label>
     <div class="col-sm-6">
@@ -1586,14 +1587,16 @@ $(function(){
   <div class="col-sm-6">
     <input type="text" class="form-control" name="extra_merch" value="{{ attendee.extra_merch }}" />
   </div>
-{% endcall %}
+  {% endcall %}
 </div>
+{% if attendee.merch %}
 <div class="form-group">
   <label class="col-sm-3 control-label">Received Merch</label>
   <div class="checkbox col-sm-6">
     {{ macros.checkbox(attendee, 'got_merch', label='Yes', is_readonly=read_only) }}
   </div>
 </div>
+{% endif %}
 
 {% endset %}
 
@@ -1606,12 +1609,14 @@ $(function(){
     <div class="col-sm-6 form-control-static">{{ attendee.staff_merch }}
     </div>
   </div>
+  {% if attendee.staff_merch %}
   <div class="form-group">
     <label class="col-sm-3 control-label">Received Merch</label>
     <div class="checkbox col-sm-6">
       {{ macros.checkbox(attendee, 'got_staff_merch', label='Yes', is_readonly=read_only) }}
     </div>
   </div>
+  {% endif %}
 {% endif %}
 {% endset %}
 
