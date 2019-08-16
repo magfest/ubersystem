@@ -13,7 +13,7 @@ class Root:
 
     def index(self, session, message=''):
         if c.UBER_SHUT_DOWN or c.AT_THE_CON:
-            return render('signups/printable.html', {'attendee': session.logged_in_volunteer()})
+            return render('staffing/printable.html', {'attendee': session.logged_in_volunteer()})
         else:
             return {
                 'message': message,

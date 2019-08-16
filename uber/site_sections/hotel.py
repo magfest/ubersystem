@@ -10,10 +10,10 @@ from uber.models import AdminAccount
 class Root:
     def index(self, session, message='', decline=None, **params):
         if c.AFTER_ROOM_DEADLINE and c.STAFF_ROOMS not in AdminAccount.access_set():
-            raise HTTPRedirect('../signups/index?message={}', 'The room deadline has passed')
+            raise HTTPRedirect('../staffing/index?message={}', 'The room deadline has passed')
         attendee = session.logged_in_volunteer()
         if not attendee.hotel_eligible:
-            raise HTTPRedirect('../signups/index?message={}', 'You have not been marked as eligible for hotel space')
+            raise HTTPRedirect('../staffing/index?message={}', 'You have not been marked as eligible for hotel space')
         requests = session.hotel_requests(params, checkgroups=['nights'], restricted=True)
         if 'attendee_id' in params:
             requests.attendee = attendee  # foreign keys are automatically admin-only
@@ -21,7 +21,7 @@ class Root:
             if decline or not requests.nights:
                 requests.nights = ''
                 raise HTTPRedirect(
-                    '../signups/index?message={}', "We've recorded that you've declined hotel room space")
+                    '../staffing/index?message={}', "We've recorded that you've declined hotel room space")
             else:
                 if requests.setup_teardown:
                     days = ' / '.join(
@@ -37,7 +37,7 @@ class Root:
                         "We'll let you know your roommates a few weeks after the " \
                         "deadline.".format(requests.nights_display)
 
-                raise HTTPRedirect('../signups/index?message={}', message)
+                raise HTTPRedirect('../staffing/index?message={}', message)
         else:
             requests = attendee.hotel_requests or requests
             if requests.is_new:

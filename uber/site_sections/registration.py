@@ -349,7 +349,7 @@ class Root:
 
     def goto_volunteer_checklist(self, id):
         cherrypy.session['staffer_id'] = id
-        raise HTTPRedirect('../signups/index')
+        raise HTTPRedirect('../staffing/index')
 
     @ajax
     def record_mpoint_cashout(self, session, badge_num, amount):

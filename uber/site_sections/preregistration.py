@@ -871,7 +871,7 @@ class Root:
         attendee = session.attendee(id)
         assert attendee.badge_type == c.GUEST_BADGE, 'This form is for guests only'
         cherrypy.session['staffer_id'] = attendee.id
-        raise HTTPRedirect('../signups/food_restrictions')
+        raise HTTPRedirect('../staffing/food_restrictions')
 
     @id_required(Attendee)
     def attendee_donation_form(self, session, id, message=''):

@@ -448,7 +448,7 @@ StopsEmailFixture(
 if c.VOLUNTEER_AGREEMENT_ENABLED:
     StopsEmailFixture(
         'Reminder: Please agree to terms of {EVENT_NAME} ({EVENT_DATE}) volunteer agreement',
-        'signups/volunteer_agreement.txt',
+        'staffing/volunteer_agreement.txt',
         lambda a: c.SHIFTS_CREATED and c.VOLUNTEER_AGREEMENT_ENABLED and not a.agreed_to_volunteer_agreement,
         when=days_before(45, c.FINAL_EMAIL_DEADLINE),
         ident='volunteer_agreement')

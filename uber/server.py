@@ -181,7 +181,7 @@ class AngularJavascript:
 @all_renderable()
 class Root:
     def index(self):
-        raise HTTPRedirect('common/')
+        raise HTTPRedirect('landing/')
 
     def uber(self, *path, **params):
         """
