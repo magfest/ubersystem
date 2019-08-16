@@ -717,6 +717,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     def is_unassigned(cls):
         return cls.first_name == ''
 
+    @property
+    def staffing_or_will_be(self):
+        # This is for use in our model checks -- it includes attendees who are going to be marked staffing
+        return self.staffing or self.badge_type == c.STAFF_BADGE or c.VOLUNTEER_RIBBON in self.ribbon_ints
+
     @hybrid_property
     def is_dealer(self):
         return c.DEALER_RIBBON in self.ribbon_ints or self.badge_type == c.PSEUDO_DEALER_BADGE or (
