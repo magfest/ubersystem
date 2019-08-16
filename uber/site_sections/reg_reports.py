@@ -1,10 +1,17 @@
+from collections import defaultdict, OrderedDict
+from datetime import datetime
+
+from dateutil.relativedelta import relativedelta
 from pockets.autolog import log
-from sqlalchemy import func
-from sqlalchemy.sql.expression import literal
+from pytz import UTC
+import six
+from sqlalchemy import and_, or_, func
+from sqlalchemy.orm import joinedload
+from sqlalchemy.sql.expression import extract, literal
 
 from uber.config import c
-from uber.decorators import all_renderable
-from uber.models import Attendee, Group
+from uber.decorators import all_renderable, csv_file, site_mappable
+from uber.models import Attendee, Event, Group
 
 
 class RegistrationDataOneYear:
@@ -125,6 +132,206 @@ class RegistrationDataOneYear:
 @all_renderable(c.STATS)
 class Root:
     def index(self, session):
+        counts = defaultdict(OrderedDict)
+        counts['donation_tiers'] = OrderedDict([(k, 0) for k in sorted(c.DONATION_TIERS.keys()) if k > 0])
+
+        counts.update({
+            'groups': {'paid': 0, 'free': 0},
+            'noshows': {'paid': 0, 'free': 0},
+            'checked_in': {'yes': 0, 'no': 0}
+        })
+        count_labels = {
+            'badges': c.BADGE_OPTS,
+            'paid': c.PAYMENT_OPTS,
+            'ages': c.AGE_GROUP_OPTS,
+            'ribbons': c.RIBBON_OPTS,
+            'interests': c.INTEREST_OPTS,
+            'statuses': c.BADGE_STATUS_OPTS,
+            'checked_in_by_type': c.BADGE_OPTS,
+        }
+        for label, opts in count_labels.items():
+            for val, desc in opts:
+                counts[label][desc] = 0
+        stocks = c.BADGE_PRICES['stocks']
+        for var in c.BADGE_VARS:
+            badge_type = getattr(c, var)
+            counts['stocks'][c.BADGES[badge_type]] = stocks.get(var.lower(), 'no limit set')
+            counts['counts'][c.BADGES[badge_type]] = c.get_badge_count_by_type(badge_type)
+
+        for a in session.query(Attendee).options(joinedload(Attendee.group)):
+            counts['paid'][a.paid_label] += 1
+            counts['ages'][a.age_group_label] += 1
+            for val in a.ribbon_ints:
+                counts['ribbons'][c.RIBBONS[val]] += 1
+            counts['badges'][a.badge_type_label] += 1
+            counts['statuses'][a.badge_status_label] += 1
+            counts['checked_in']['yes' if a.checked_in else 'no'] += 1
+            if a.checked_in:
+                counts['checked_in_by_type'][a.badge_type_label] += 1
+            for val in a.interests_ints:
+                counts['interests'][c.INTERESTS[val]] += 1
+            if a.paid == c.PAID_BY_GROUP and a.group:
+                counts['groups']['paid' if a.group.amount_paid else 'free'] += 1
+
+            donation_amounts = list(counts['donation_tiers'].keys())
+            for index, amount in enumerate(donation_amounts):
+                next_amount = donation_amounts[index + 1] if index + 1 < len(donation_amounts) else six.MAXSIZE
+                if a.amount_extra >= amount and a.amount_extra < next_amount:
+                    counts['donation_tiers'][amount] = counts['donation_tiers'][amount] + 1
+            if not a.checked_in:
+                is_paid = a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid
+                key = 'paid' if is_paid else 'free'
+                counts['noshows'][key] += 1
+
+        return {
+            'counts': counts,
+            'total_registrations': session.query(Attendee).count()
+        }
+
+    def affiliates(self, session):
+        class AffiliateCounts:
+            def __init__(self):
+                self.tally, self.total = 0, 0
+                self.amounts = {}
+
+            @property
+            def sorted(self):
+                return sorted(self.amounts.items())
+
+            def count(self, amount):
+                self.tally += 1
+                self.total += amount
+                self.amounts[amount] = 1 + self.amounts.get(amount, 0)
+
+        counts = defaultdict(AffiliateCounts)
+        for affiliate, amount in (session.query(Attendee.affiliate, Attendee.amount_extra)
+                                         .filter(Attendee.amount_extra > 0)):
+            counts['everything combined'].count(amount)
+            counts[affiliate or 'no affiliate selected'].count(amount)
+
+        return {
+            'counts': sorted(counts.items(), key=lambda tup: -tup[-1].total),
+            'registrations': session.query(Attendee).filter_by(paid=c.NEED_NOT_PAY).count(),
+            'quantities': [(desc, session.query(Attendee).filter(Attendee.amount_extra >= amount).count())
+                           for amount, desc in sorted(c.DONATION_TIERS.items()) if amount]
+        }
+
+    def found_how(self, session):
+        return {'all': sorted(
+            [a.found_how for a in session.query(Attendee).filter(Attendee.found_how != '').all()],
+            key=lambda s: s.lower())}
+
+    @csv_file
+    @site_mappable
+    def attendee_birthday_calendar(
+            self,
+            out,
+            session,
+            year=datetime.now(UTC).year):
+
+        out.writerow([
+            'Subject', 'Start Date', 'Start Time', 'End Date', 'End Time',
+            'All Day Event', 'Description', 'Location', 'Private'])
+
+        query = session.query(Attendee).filter(Attendee.birthdate != None)  # noqa: E711
+        for person in query.all():
+            subject = "%s's Birthday" % person.full_name
+            delta_years = year - person.birthdate.year
+            start_date = person.birthdate + relativedelta(years=delta_years)
+            end_date = start_date
+            all_day = True
+            private = False
+            out.writerow([
+                subject, start_date, '', end_date, '', all_day, '', '', private
+            ])
+
+    @csv_file
+    @site_mappable
+    def event_birthday_calendar(self, out, session):
+        out.writerow([
+            'Subject', 'Start Date', 'Start Time', 'End Date', 'End Time',
+            'All Day Event', 'Description', 'Location', 'Private'])
+
+        is_multiyear = c.EPOCH.year != c.ESCHATON.year
+        is_multimonth = c.EPOCH.month != c.ESCHATON.month
+        query = session.query(Attendee).filter(Attendee.birthdate != None)  # noqa: E711
+        birth_month = extract('month', Attendee.birthdate)
+        birth_day = extract('day', Attendee.birthdate)
+        if is_multiyear:
+            # The event starts in one year and ends in another
+            query = query.filter(or_(
+                or_(
+                    birth_month > c.EPOCH.month,
+                    birth_month < c.ESCHATON.month),
+                and_(
+                    birth_month == c.EPOCH.month,
+                    birth_day >= c.EPOCH.day),
+                and_(
+                    birth_month == c.ESCHATON.month,
+                    birth_day <= c.ESCHATON.day)))
+        elif is_multimonth:
+            # The event starts in one month and ends in another
+            query = query.filter(or_(
+                and_(
+                    birth_month > c.EPOCH.month,
+                    birth_month < c.ESCHATON.month),
+                and_(
+                    birth_month == c.EPOCH.month,
+                    birth_day >= c.EPOCH.day),
+                and_(
+                    birth_month == c.ESCHATON.month,
+                    birth_day <= c.ESCHATON.day)))
+        else:
+            # The event happens entirely within a single month
+            query = query.filter(and_(
+                birth_month == c.EPOCH.month,
+                birth_day >= c.EPOCH.day,
+                birth_day <= c.ESCHATON.day))
+
+        for person in query.all():
+            subject = "%s's Birthday" % person.full_name
+
+            year_of_birthday = c.ESCHATON.year
+            if is_multiyear:
+                birth_month = person.birthdate.month
+                birth_day = person.birthdate.day
+                if birth_month >= c.EPOCH.month and birth_day >= c.EPOCH.day:
+                    year_of_birthday = c.EPOCH.year
+
+            delta_years = year_of_birthday - person.birthdate.year
+            start_date = person.birthdate + relativedelta(years=delta_years)
+            end_date = start_date
+            all_day = True
+            private = False
+            out.writerow([
+                subject, start_date, '', end_date, '', all_day, '', '', private
+            ])
+
+    @csv_file
+    def checkins_by_hour(self, out, session):
+        def date_trunc_hour(*args, **kwargs):
+            # sqlite doesn't support date_trunc
+            if c.SQLALCHEMY_URL.startswith('sqlite'):
+                return func.strftime(literal('%Y-%m-%d %H:00'), *args, **kwargs)
+            else:
+                return func.date_trunc(literal('hour'), *args, **kwargs)
+
+        out.writerow(["time_utc", "count"])
+        query_result = session.query(
+            date_trunc_hour(Attendee.checked_in),
+            func.count(date_trunc_hour(Attendee.checked_in))
+        ) \
+            .filter(Attendee.checked_in.isnot(None)) \
+            .group_by(date_trunc_hour(Attendee.checked_in)) \
+            .order_by(date_trunc_hour(Attendee.checked_in)) \
+            .all()
+
+        for result in query_result:
+            hour = result[0]
+            count = result[1]
+            out.writerow([hour, count])
+
+    def badges_sold(self, session):
         graph_data_current_year = RegistrationDataOneYear()
         graph_data_current_year.query_current_year(session)
 

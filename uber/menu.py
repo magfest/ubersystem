@@ -117,8 +117,8 @@ c.MENU = MenuItem(name='Root', submenu=[
     ]),
 
     MenuItem(name='Statistics', access=c.STATS, submenu=[
-        MenuItem(name='Summary', href='../summary/'),
-        MenuItem(name='Badges Sold Graph', href='../reg_reports/'),
+        MenuItem(name='Summary', href='../reg_reports/'),
+        MenuItem(name='Badges Sold Graph', href='../reg_reports/badges_sold'),
     ]),
 ])
 
