@@ -286,19 +286,3 @@ class Root:
         return {
             'depts': [(d.name, d.jobs) for d in departments]
         }
-
-    @department_id_adapter
-    def add_volunteers_by_dept(self, session, message='', department_id=None):
-        department_id = department_id or c.DEFAULT_DEPARTMENT_ID
-        return {
-            'message': message,
-            'department_id': department_id,
-            'not_already_here': [
-                (a.id, a.full_name)
-                for a in session.query(Attendee)
-                                .filter(
-                                    Attendee.email != '',
-                                    ~Attendee.dept_memberships.any(department_id=department_id))
-                                .order_by(Attendee.full_name).all()
-            ]
-        }
