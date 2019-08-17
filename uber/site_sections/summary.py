@@ -490,8 +490,7 @@ class Root:
             shirt_label = attendee.shirt_label or 'size unknown'
             counts['all_staff_shirts'][label(shirt_label)][status(attendee.got_merch)] += attendee.num_staff_shirts_owed
             counts['all_event_shirts'][label(shirt_label)][status(attendee.got_merch)] += attendee.num_event_shirts_owed
-            if attendee.volunteer_event_shirt_eligible or attendee.replacement_staff_shirts:
-                counts['free_event_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
+            counts['free_event_shirts'][label(shirt_label)][status(attendee.got_merch)] += attendee.num_free_event_shirts
             if attendee.paid_for_a_shirt:
                 counts['paid_event_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
                 sales_by_week[(min(datetime.now(UTC), c.ESCHATON) - attendee.registered).days // 7] += 1
