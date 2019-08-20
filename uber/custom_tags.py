@@ -403,7 +403,7 @@ def humanize_timedelta(
 @JinjaEnv.jinja_export
 def options(options, default='""'):
     """
-    We do need to accomodate explicitly passing in other options though
+    We do need to accommodate explicitly passing in other options though
     (include None), so make sure to check all the client calls for that info.
     """
     if isinstance(default, datetime):

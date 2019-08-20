@@ -2,6 +2,12 @@
 {% block title %}Accounts{% endblock %}
 {% block content %}
   <script type="text/javascript">
+      var updateAccesses = function(dict, suffix) {
+          $.each(dict, function( key, val ) {
+              $('#' + key + suffix).val(val);
+          });
+      };
+
       var getAccessGroup = function(groupId, callback) {
           $.ajax({
               method: 'POST',
@@ -12,19 +18,19 @@
                 csrf_token: csrf_token
               },
               success: function (json) {
-                  $.each(json.access, function( key, val ) {
-                      $('#' + key + '_access').val(val);
-                  });
-                  $.each(json.read_only_access, function( key, val ) {
-                      $('#' + key + '_read_only_access').val(val);
-                  });
+                  updateAccesses(json.access, '_access');
+                  updateAccesses(json.read_only_access, '_read_only_access');
               },
               error: function () {
                   toastr.error('Unable to connect to server, please try again.');
               }
           });
       };
+
       $(function() {
+          updateAccesses({{ access_group.access|safe }}, '_access');
+          updateAccesses({{ access_group.read_only_access|safe }}, '_read_only_access');
+
           $.field('id').on('change', function () {
               if($(this).val()) {
                   getAccessGroup($(this).val());
@@ -40,6 +46,7 @@
     </div>
     <div class="panel-body">
       <form method="post" action="access_groups" class="form-horizontal">
+      {{ csrf_token() }}
         <div class="form-group">
           <label class="col-sm-1 control-label">Access Group</label>
           <div class="col-sm-6">
@@ -53,7 +60,7 @@
         <div class="form-group">
           <label class="col-sm-1 control-label">Access Group Name</label>
           <div class="col-sm-6">
-            <input type="text" class="form-control" name="name" />
+            <input type="text" class="form-control" name="name" value="{{ access_group.name }}" />
           </div>
         </div>
 

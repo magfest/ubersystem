@@ -27,6 +27,10 @@ def valid_password(password, account):
     return any(bcrypt.hashpw(password, hashed) == hashed for hashed in all_hashed)
 
 
+def access_group_opts(session):
+    return [(id, name) for id, name in session.query(AccessGroup.id, AccessGroup.name).order_by(AccessGroup.name)]
+
+
 @all_renderable(c.ACCOUNTS)
 class Root:
     def index(self, session, message=''):
@@ -43,12 +47,14 @@ class Root:
                          .join(Attendee)
                          .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts))
                          .order_by(Attendee.last_first).all()),
-            'all_attendees': sorted(attendees, key=lambda tup: tup[1])
+            'all_attendees': sorted(attendees, key=lambda tup: tup[1]),
+            'access_group_opts': access_group_opts(session),
         }
 
     @csrf_protected
     def update(self, session, password='', message='', **params):
-        account = session.admin_account(params, checkgroups=['access'])
+        account = session.admin_account(params)
+
         if account.is_new:
             if c.AT_OR_POST_CON and not password:
                 message = 'You must enter a password'
@@ -96,18 +102,14 @@ class Root:
 
         return {
             'department_id':  department_id,
-            'attendees': attendees
+            'attendees': attendees,
+            'access_group_opts': access_group_opts(session),
         }
 
     def access_groups(self, session, message='', **params):
-        if 'id' in params and params['id']:
-            access_group = session.access_group(params['id'])
-        else:
-            access_group = AccessGroup()
+        access_group = session.access_group(params)
 
         if cherrypy.request.method == "POST":
-            access_group.name = params['name']
-
             for key in params:
                 if key.endswith('_read_only_access'):
                     col_key = key[:-17]
@@ -125,18 +127,14 @@ class Root:
             session.add(access_group)
             message = check(access_group) or ''
 
-            if message:
-                session.rollback()
-            else:
+            if not message:
                 session.commit()
                 raise HTTPRedirect('access_groups?message={}'.format("Success!"))
 
         return {
             'message': message,
             'access_group': access_group,
-            'access_group_opts': [
-                (id, name)
-                for id, name in session.query(AccessGroup.id, AccessGroup.name).order_by(AccessGroup.name)]
+            'access_group_opts': access_group_opts(session),
         }
 
     @ajax
@@ -333,7 +331,7 @@ class Root:
             else:
                 match = session.query(Attendee).filter(Attendee.id == id).first()
                 if match:
-                    account = session.admin_account(params, checkgroups=['access'])
+                    account = session.admin_account(params)
                     if account.is_new:
                         password = genpasswd()
                         account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())

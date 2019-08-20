@@ -23,16 +23,33 @@ from pockets.autolog import log
 
 from uber.config import c
 from uber.decorators import prereg_validation, validation
-from uber.models import AdminAccount, ApiToken, Attendee, AttendeeTournament, Attraction, AttractionFeature, \
-    Department, DeptRole, Event, Group, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio, Job, \
-    MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam, PanelApplicant, PanelApplication, PromoCode, \
-    Sale, Session
+from uber.models import AccessGroup, AdminAccount, ApiToken, Attendee, AttendeeTournament, Attraction, \
+    AttractionFeature, Department, DeptRole, Event, Group, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, \
+    IndieStudio, Job, MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam, PanelApplicant, PanelApplication, \
+    PromoCode, Sale, Session
 from uber.utils import localized_now, Charge
+
+
+AccessGroup.required = [('name', 'Name')]
+
+
+@validation.AccessGroup
+def has_any_access(group):
+    if not group.access and not group.read_only_access:
+        return 'You must give this access group some sort of access'
+
+
+@validation.AccessGroup
+def read_only_makes_sense(group):
+    for access in group.read_only_access:
+        if group.access[access] and int(group.read_only_access[access]) < int(group.access[access]):
+            return 'You cannot set a read-only access level lower than the read-write access'
 
 
 AdminAccount.required = [
     ('attendee', 'Attendee'),
-    ('hashed', 'Password')
+    ('hashed', 'Password'),
+    ('access_group_id', 'Access Group')
 ]
 
 
