@@ -12,7 +12,7 @@ from uber.config import c
 from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
                              department_id_adapter, render, site_mappable, unrestricted)
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, Attendee, PasswordReset
+from uber.models import AccessGroup, AdminAccount, Attendee, PasswordReset
 from uber.tasks.email import send_email
 from uber.utils import check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd
 
@@ -97,6 +97,54 @@ class Root:
         return {
             'department_id':  department_id,
             'attendees': attendees
+        }
+
+    def access_groups(self, session, message='', **params):
+        if 'id' in params and params['id']:
+            access_group = session.access_group(params['id'])
+        else:
+            access_group = AccessGroup()
+
+        if cherrypy.request.method == "POST":
+            access_group.name = params['name']
+
+            for key in params:
+                if key.endswith('_read_only_access'):
+                    col_key = key[:-17]
+                    if params[key] != "0":
+                        access_group.read_only_access[col_key] = params[key]
+                    elif col_key in access_group.read_only_access:
+                        del access_group.read_only_access[col_key]
+                elif key.endswith('_access'):
+                    col_key = key[:-7]
+                    if params[key] != "0":
+                        access_group.access[col_key] = params[key]
+                    elif col_key in access_group.access:
+                        del access_group.access[col_key]
+
+            session.add(access_group)
+            message = check(access_group) or ''
+
+            if message:
+                session.rollback()
+            else:
+                session.commit()
+                raise HTTPRedirect('access_groups?message={}'.format("Success!"))
+
+        return {
+            'message': message,
+            'access_group': access_group,
+            'access_group_opts': [
+                (id, name)
+                for id, name in session.query(AccessGroup.id, AccessGroup.name).order_by(AccessGroup.name)]
+        }
+
+    @ajax
+    def get_access_group(self, session, id):
+        access_group = session.access_group(id)
+        return {
+            'access': access_group.access,
+            'read_only_access': access_group.read_only_access,
         }
 
     @unrestricted

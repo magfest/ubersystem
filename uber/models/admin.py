@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import cherrypy
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Date
@@ -13,11 +14,16 @@ from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column, MultiChoice
 
 
-__all__ = ['AdminAccount', 'PasswordReset', 'WatchList']
+__all__ = ['AccessGroup', 'AdminAccount', 'PasswordReset', 'WatchList']
 
 
 class AdminAccount(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
+    access_group_id = Column(UUID, ForeignKey('access_group.id', ondelete='SET NULL'), nullable=True)
+    access_group = relationship('AccessGroup',
+                                backref='admin_accounts',
+                                foreign_keys=access_group_id,
+                                cascade='save-update,merge,refresh-expire,expunge')
     hashed = Column(UnicodeText, private=True)
     access = Column(MultiChoice(c.ACCESS_OPTS))
 
@@ -108,6 +114,30 @@ class PasswordReset(MagModel):
         return self.generated < datetime.now(UTC) - timedelta(days=7)
 
 
+class AccessGroup(MagModel):
+    """
+    Sets of accesses to grant to admin accounts.
+    """
+    _NONE = 0
+    _LIMITED = 1
+    _CONTACT = 2
+    _FULL = 5
+    _READ_LEVEL_OPTS = [
+        (_NONE, 'Same as Read-Write Access'),
+        (_LIMITED, 'Limited'),
+        (_CONTACT, 'Contact Info'),
+        (_FULL, 'All Info')]
+    _WRITE_LEVEL_OPTS = [
+        (_NONE, 'No Access'),
+        (_LIMITED, 'Limited'),
+        (_CONTACT, 'Contact Info'),
+        (_FULL, 'All Info')]
+
+    name = Column(UnicodeText)
+    access = Column(JSONB, default={})
+    read_only_access = Column(JSONB, default={})
+
+
 class WatchList(MagModel):
     first_names = Column(UnicodeText)
     last_name = Column(UnicodeText)
@@ -126,3 +156,6 @@ class WatchList(MagModel):
     def _fix_birthdate(self):
         if self.birthdate == '':
             self.birthdate = None
+
+c.ACCESS_GROUP_WRITE_LEVEL_OPTS = AccessGroup._WRITE_LEVEL_OPTS
+c.ACCESS_GROUP_READ_LEVEL_OPTS = AccessGroup._READ_LEVEL_OPTS

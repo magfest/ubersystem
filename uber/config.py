@@ -14,7 +14,7 @@ import cherrypy
 import stripe
 from pockets import keydefaultdict, nesteddefaultdict
 from pockets.autolog import log
-from sideboard.lib import parse_config, request_cached_property
+from sideboard.lib import cached_property, parse_config, request_cached_property
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload, subqueryload
 
@@ -645,6 +645,19 @@ class Config(_Overridable):
     @dynamic
     def ADMIN_ACCESS_SET(self):
         return uber.models.AdminAccount.access_set()
+
+    @cached_property
+    def ADMIN_PAGES(self):
+        # Build a list of all site sections and their pages
+        public_site_sections = ['preregistration', 'static_views', 'landing', 'panel_applications', 'mits_applications',
+                                'attractions', 'emails', 'mivs_applications', 'uber', 'angular', 'index']
+
+        app_root = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
+
+        return {
+            section: [opt for opt in dir(getattr(app_root, section)) if not opt.startswith('_')]
+            for section in dir(app_root) if section not in public_site_sections and not section.startswith('_')
+        }
 
     # =========================
     # mivs
