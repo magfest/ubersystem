@@ -67,7 +67,7 @@ class Root:
         # anything returned here should be cache-friendly and ready to be shown to the public.
 
         dont_allow_schedule_to_be_viewed = \
-            c.HIDE_SCHEDULE and not AdminAccount.access_set() and not cherrypy.session.get('staffer_id')
+            c.HIDE_SCHEDULE and not AdminAccount.access_set(read_only=True) and not cherrypy.session.get('staffer_id')
 
         if dont_allow_schedule_to_be_viewed:
             return "The {} schedule is being developed and will be made public " \

@@ -1,3 +1,4 @@
+{% set page_ro = c.HAS_READ_ACCESS and not c.HAS_ACCESS %}
 {% import 'macros.html' as macros with context %}
 
 {%- set attendee_or_group = attendee if attendee else group -%}

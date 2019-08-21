@@ -192,6 +192,19 @@ class Config(_Overridable):
     def after_printed_badge_deadline_by_type(self, badge_type):
         return uber.utils.localized_now() > self.get_printed_badge_deadline_by_type(badge_type)
 
+    def has_section_or_page_access(self, read_only=False, page_path=''):
+        access = uber.models.AdminAccount.access_set(read_only=read_only)
+        page_path = page_path or self.PAGE_PATH
+
+        section = page_path.replace(page_path.split('/')[-1], '').strip('/')
+
+        section_and_page = page_path.strip('/').replace('/', '_')
+        if page_path.endswith('/'):
+            section_and_page += "_index"
+
+        if section_and_page in access or section in access:
+            return True
+
     @property
     def DEALER_REG_OPEN(self):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
@@ -526,6 +539,10 @@ class Config(_Overridable):
     def PAGE(self):
         return cherrypy.request.path_info.split('/')[-1]
 
+    @property
+    def PATH(self):
+        return cherrypy.request.path_info.replace(cherrypy.request.path_info.split('/')[-1], '').strip('/')
+
     @request_cached_property
     @dynamic
     def ALLOWED_ACCESS_OPTS(self):
@@ -639,11 +656,16 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def MENU_FILTERED_BY_ACCESS_LEVELS(self):
-        return c.MENU.render_items_filtered_by_current_access(uber.models.AdminAccount.access_set())
+        return c.MENU.render_items_filtered_by_current_access()
 
     @request_cached_property
     @dynamic
     def ADMIN_ACCESS_SET(self):
+        return uber.models.AdminAccount.access_set(read_only=True)
+
+    @request_cached_property
+    @dynamic
+    def ADMIN_WRITE_ACCESS_SET(self):
         return uber.models.AdminAccount.access_set()
 
     @cached_property
@@ -700,7 +722,17 @@ class Config(_Overridable):
             else:
                 return uber.utils.localized_now() > date_setting
         elif name.startswith('HAS_') and name.endswith('_ACCESS'):
-            return getattr(c, '_'.join(name.split('_')[1:-1])) in c.ADMIN_ACCESS_SET
+            access_name = '_'.join(name.split('_')[1:-1]).lower()
+
+            # No page specified means current page or section
+            if access_name == '':
+                return self.has_section_or_page_access()
+            elif access_name == 'read':
+                return self.has_section_or_page_access(read_only=True)
+
+            if access_name.endswith('_read'):
+                return access_name[:-5] in c.ADMIN_ACCESS_SET
+            return access_name in c.ADMIN_WRITE_ACCESS_SET
         elif name.endswith('_COUNT'):
             item_check = name.rsplit('_', 1)[0]
             badge_type = getattr(self, item_check, None)

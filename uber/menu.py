@@ -50,20 +50,20 @@ class MenuItem:
 
         self.submenu.append(m)
 
-    def render_items_filtered_by_current_access(self, access_set):
+    def render_items_filtered_by_current_access(self):
         """
         Returns: dict of menu items which are allowed to be seen by the logged in user's access levels
         """
         out = {}
 
-        if self.access and self.access.isdisjoint(access_set):
+        if self.href and not c.has_section_or_page_access(page_path=self.href.strip('.'), read_only=True):
             return None
 
         out['name'] = self.name
         if self.submenu:
             out['submenu'] = []
             for menu_item in self.submenu:
-                filtered_menu_items = menu_item.render_items_filtered_by_current_access(access_set)
+                filtered_menu_items = menu_item.render_items_filtered_by_current_access()
                 if filtered_menu_items:
                     out['submenu'].append(filtered_menu_items)
         else:
@@ -92,6 +92,7 @@ def get_external_schedule_menu_name():
 c.MENU = MenuItem(name='Root', submenu=[
     MenuItem(name='Admin', submenu=[
         MenuItem(name='Admin Accounts', href='../accounts/', access=c.ACCOUNTS),
+        MenuItem(name='Access Groups', href='../accounts/access_groups', access=c.ACCOUNTS),
         MenuItem(name='API Access', href='../api/', access=list(c.API_ACCESS.keys())),
         MenuItem(name='Pending Emails', href='../email_admin/pending', access=c.PEOPLE),
         MenuItem(name='Add/Edit Shifts', href='../shifts_admin/', access=c.PEOPLE),

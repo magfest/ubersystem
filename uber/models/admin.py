@@ -4,6 +4,7 @@ import cherrypy
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.dialects.postgresql.json import JSONB
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Date
@@ -60,12 +61,15 @@ class AdminAccount(MagModel):
             return None
 
     @staticmethod
-    def access_set(id=None):
+    def access_set(id=None, read_only=False):
         try:
             from uber.models import Session
             with Session() as session:
                 id = id or cherrypy.session['account_id']
-                return set(session.admin_account(id).access_ints)
+                access_group = session.admin_account(id).access_group
+                if read_only:
+                    return set({**access_group.access, **access_group.read_only_access})
+                return set(access_group.access)
         except Exception:
             return set()
 
@@ -134,8 +138,8 @@ class AccessGroup(MagModel):
         (_FULL, 'All Info')]
 
     name = Column(UnicodeText)
-    access = Column(JSONB, default={})
-    read_only_access = Column(JSONB, default={})
+    access = Column(MutableDict.as_mutable(JSONB), default={})
+    read_only_access = Column(MutableDict.as_mutable(JSONB), default={})
 
 
 class WatchList(MagModel):

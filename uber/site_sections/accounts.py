@@ -134,7 +134,7 @@ class Root:
         return {
             'message': message,
             'access_group': access_group,
-            'access_group_opts': access_group_opts(session),
+            'access_group_opts': access_group_opts(session)
         }
 
     @ajax
@@ -298,14 +298,13 @@ class Root:
         site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
         modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
         pages = defaultdict(list)
-        access_set = AdminAccount.access_set()
         for module_name, module_root in modules.items():
             for name in dir(module_root):
                 method = getattr(module_root, name)
                 if getattr(method, 'exposed', False):
                     spec = inspect.getfullargspec(unwrap(method))
                     has_defaults = len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or [])
-                    if set(getattr(method, 'restricted', []) or []).intersection(access_set) \
+                    if c.has_section_or_page_access(page_path='/{}/{}'.format(module_name, name), read_only=True) \
                             and not getattr(method, 'ajax', False) \
                             and (getattr(method, 'site_mappable', False)
                                  or has_defaults and not spec.varkw):

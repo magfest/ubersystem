@@ -3,6 +3,7 @@
 {% block content %}
   <script type="text/javascript">
       var updateAccesses = function(dict, suffix) {
+          $('.select' + suffix).val("0");
           $.each(dict, function( key, val ) {
               $('#' + key + suffix).val(val);
           });
@@ -32,9 +33,13 @@
           updateAccesses({{ access_group.read_only_access|safe }}, '_read_only_access');
 
           $.field('id').on('change', function () {
-              if($(this).val()) {
+              if($(this).val() != "None") {
                   getAccessGroup($(this).val());
                   $.field('name').val($('select[name=id] option:selected').text())
+              } else {
+                  $('.select_access').val("0");
+                  $('.select_read_only_access').val("0");
+                  $.field('name').val('');
               }
           });
       });
@@ -51,13 +56,13 @@
           <label class="col-sm-1 control-label">Access Group</label>
           <div class="col-sm-6">
             <select name="id" class="form-control">
-              <option value="">New Access Group</option>
+              <option value="None">Add new access group</option>
               {{ options(access_group_opts) }}
             </select>
           </div>
         </div>
 
-        <div class="form-group">
+        <div class="form-group"> {{ restricted }}
           <label class="col-sm-1 control-label">Access Group Name</label>
           <div class="col-sm-6">
             <input type="text" class="form-control" name="name" value="{{ access_group.name }}" />
@@ -85,10 +90,10 @@
               </td>
               <td>{{ section|replace('_', ' ')|title }}</td>
               <td>
-                <select class="form-control" id="{{ section }}_access" name="{{ section }}_access">{{ options(c.ACCESS_GROUP_WRITE_LEVEL_OPTS,access_group.access) }}</select>
+                <select class="form-control select_access" id="{{ section }}_access" name="{{ section }}_access">{{ options(c.ACCESS_GROUP_WRITE_LEVEL_OPTS,access_group.access) }}</select>
               </td>
               <td>
-                <select class="form-control" id="{{ section }}_read_only_access" name="{{ section }}_read_only_access">{{ options(c.ACCESS_GROUP_READ_LEVEL_OPTS,access_group.read_only_access) }}</select>
+                <select class="form-control select_read_only_access" id="{{ section }}_read_only_access" name="{{ section }}_read_only_access">{{ options(c.ACCESS_GROUP_READ_LEVEL_OPTS,access_group.read_only_access) }}</select>
               </td>
             </tr>
             {% for page in c.ADMIN_PAGES[section] %}
@@ -96,10 +101,10 @@
                 <td></td>
                 <td><span class="col-sm-offset-1">{{ page }}</span></td>
                 <td>
-                  <select class="form-control" id="{{ section }}_{{ page }}_access" name="{{ section }}_{{ page }}_access">{{ options(c.ACCESS_GROUP_WRITE_LEVEL_OPTS,access_group.access) }}</select>
+                  <select class="form-control select_access" id="{{ section }}_{{ page }}_access" name="{{ section }}_{{ page }}_access">{{ options(c.ACCESS_GROUP_WRITE_LEVEL_OPTS,access_group.access) }}</select>
                 </td>
                 <td>
-                  <select class="form-control" id="{{ section }}_{{ page }}_read_only_access" name="{{ section }}_{{ page }}_read_only_access">{{ options(c.ACCESS_GROUP_READ_LEVEL_OPTS,access_group.read_only_access) }}</select>
+                  <select class="form-control select_read_only_access" id="{{ section }}_{{ page }}_read_only_access" name="{{ section }}_{{ page }}_read_only_access">{{ options(c.ACCESS_GROUP_READ_LEVEL_OPTS,access_group.read_only_access) }}</select>
                 </td>
               </tr>
             {% endfor %}

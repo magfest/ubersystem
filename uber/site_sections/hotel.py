@@ -9,7 +9,7 @@ from uber.models import AdminAccount
 @all_renderable(c.SIGNUPS)
 class Root:
     def index(self, session, message='', decline=None, **params):
-        if c.AFTER_ROOM_DEADLINE and c.STAFF_ROOMS not in AdminAccount.access_set():
+        if c.AFTER_ROOM_DEADLINE and not c.HAS_HOTEL_ADMIN_ACCESS:
             raise HTTPRedirect('../staffing/index?message={}', 'The room deadline has passed')
         attendee = session.logged_in_volunteer()
         if not attendee.hotel_eligible:

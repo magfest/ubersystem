@@ -42,7 +42,7 @@ def has_any_access(group):
 @validation.AccessGroup
 def read_only_makes_sense(group):
     for access in group.read_only_access:
-        if group.access[access] and int(group.read_only_access[access]) < int(group.access[access]):
+        if access in group.access and int(group.read_only_access[access]) < int(group.access[access]):
             return 'You cannot set a read-only access level lower than the read-write access'
 
 

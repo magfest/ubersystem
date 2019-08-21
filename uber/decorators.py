@@ -609,7 +609,7 @@ def restricted(func):
     @wraps(func)
     def with_restrictions(*args, **kwargs):
         if func.restricted:
-            if func.restricted == (c.SIGNUPS,):
+            if c.PATH == 'staffing':
                 if not cherrypy.session.get('staffer_id'):
                     raise HTTPRedirect('../staffing/login?message=You+are+not+logged+in', save_location=True)
 
@@ -617,16 +617,8 @@ def restricted(func):
                 raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
 
             else:
-                access = uber.models.AdminAccount.access_set()
-                if not c.AT_THE_CON:
-                    access.discard(c.REG_AT_CON)
-
-                if not set(func.restricted).intersection(access):
-                    if len(func.restricted) == 1:
-                        return 'You need {} access for this page'.format(dict(c.ACCESS_OPTS)[func.restricted[0]])
-                    else:
-                        return ('You need at least one of the following access levels to view this page: '
-                                + ', '.join(dict(c.ACCESS_OPTS)[r] for r in func.restricted))
+                if not c.has_section_or_page_access(read_only=True):
+                    return 'You need access for either {} or {}.'.format(c.PATH, c.PAGE_PATH)
 
         return func(*args, **kwargs)
     return with_restrictions
