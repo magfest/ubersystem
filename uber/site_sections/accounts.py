@@ -145,6 +145,18 @@ class Root:
             'read_only_access': access_group.read_only_access,
         }
 
+    @ajax
+    def delete_access_group(self, session, id):
+        access_group = session.access_group(id)
+
+        if not access_group:
+            return {'success': False, 'message': 'Access group not found!'}
+
+        session.delete(access_group)
+        session.commit()
+
+        return {'success': True, 'message': 'Access group deleted.'}
+
     @unrestricted
     def login(self, session, message='', original_location=None, **params):
         original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')

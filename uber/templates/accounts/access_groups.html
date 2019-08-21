@@ -2,11 +2,27 @@
 {% block title %}Accounts{% endblock %}
 {% block content %}
   <script type="text/javascript">
+      var accessLevelToColor = {
+          0: 'btn-default',
+          1: 'btn-warning',
+          2: 'btn-info',
+          5: 'btn-primary'
+      };
+
       var updateAccesses = function(dict, suffix) {
-          $('.select' + suffix).val("0");
+          $('.select' + suffix).val("0").addClass('btn-default');
           $.each(dict, function( key, val ) {
               $('#' + key + suffix).val(val);
           });
+      };
+
+      var updateAllColors = function() {
+          $('.select_access').each(updateColor);
+          $('.select_read_only_access').each(updateColor);
+      };
+
+      var updateColor = function() {
+          $(this).removeClass('btn-default btn-warning btn-info btn-primary').addClass(accessLevelToColor[$(this).val()]);
       };
 
       var getAccessGroup = function(groupId, callback) {
@@ -15,12 +31,13 @@
               url: 'get_access_group',
               dataType: 'json',
               data: {
-                id: groupId,
-                csrf_token: csrf_token
+                  id: groupId,
+                  csrf_token: csrf_token
               },
               success: function (json) {
                   updateAccesses(json.access, '_access');
                   updateAccesses(json.read_only_access, '_read_only_access');
+                  updateAllColors();
               },
               error: function () {
                   toastr.error('Unable to connect to server, please try again.');
@@ -28,9 +45,58 @@
           });
       };
 
+      var deleteAccessGroup = function() {
+          var id = $.field('id').val();
+          if(id == "None") {
+              return
+          }
+
+          bootbox.confirm({
+              backdrop: true,
+              title: 'Delete "' + $.field('name').val() + '"?',
+              message: 'Are you sure you want to delete this access group? This cannot be undone.',
+              buttons: {
+                  confirm: { label: 'Delete Group', className: 'btn-danger' },
+                  cancel: { label: 'Nevermind', className: 'btn-default' }
+              },
+              callback: function (result) {
+                  if (result) {
+                      $.ajax({
+                          method: 'POST',
+                          url: 'delete_access_group',
+                          dataType: 'json',
+                          data: {
+                              id: id,
+                              csrf_token: csrf_token
+                          },
+                          success: function (json) {
+                            toastr.clear();
+                            var message = json.message;
+                            if (json.success) {
+                                toastr.info(message);
+                                $("select[name='id'] option[value='" + id + "']").remove();
+                                $.field('id').val("None").trigger("change");
+                            } else {
+                                toastr.error(json.error);
+                            }
+                        },
+                          error: function () {
+                              toastr.error('Unable to connect to server, please try again.');
+                          }
+                      });
+                  }
+              }
+          });
+      };
+
+      var enableOrDisabledDelete = function() {
+          $('.delete-button').toggleClass('disabled', $.field('id').val() == "None");
+      };
+
       $(function() {
           updateAccesses({{ access_group.access|safe }}, '_access');
           updateAccesses({{ access_group.read_only_access|safe }}, '_read_only_access');
+          enableOrDisabledDelete();
 
           $.field('id').on('change', function () {
               if($(this).val() != "None") {
@@ -40,8 +106,13 @@
                   $('.select_access').val("0");
                   $('.select_read_only_access').val("0");
                   $.field('name').val('');
+                  updateAllColors();
               }
+              enableOrDisabledDelete();
           });
+          $('.select_access').on('change', updateColor);
+          $('.select_read_only_access').on('change', updateColor);
+          $('.delete-button').on('click', deleteAccessGroup);
       });
   </script>
 
@@ -51,7 +122,7 @@
     </div>
     <div class="panel-body">
       <form method="post" action="access_groups" class="form-horizontal">
-      {{ csrf_token() }}
+        {{ csrf_token() }}
         <div class="form-group">
           <label class="col-sm-1 control-label">Access Group</label>
           <div class="col-sm-6">
@@ -72,6 +143,7 @@
         <p><em>Access to a site section grants access to all pages and file exports in that section, plus any pages or exports that get added later.</em></p>
 
         <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn btn-danger delete-button disabled">Delete</button>
 
         <table class="table table-striped table-responsive table-hover">
           <thead>
@@ -112,6 +184,7 @@
           </tbody>
         </table>
         <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn btn-danger delete-button disabled">Delete</button>
       </form>
 
     </div>
