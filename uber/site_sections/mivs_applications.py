@@ -11,7 +11,7 @@ from uber.models import Attendee, Group, GuestGroup, IndieDeveloper, IndieStudio
 from uber.utils import check, check_csrf
 
 
-@all_renderable()
+@all_renderable(public=True)
 class Root:
     def index(self, session, message='', **params):
         if cherrypy.request.method == 'POST':
@@ -205,7 +205,7 @@ class Root:
             raise HTTPRedirect('index?message={}', 'You did not have any games accepted')
         elif studio.group:
             raise HTTPRedirect('index?message={}', 'Your group has already been created')
-        elif studio.after_confirm_deadline and not c.HAS_INDIE_ADMIN_ACCESS:
+        elif studio.after_confirm_deadline and not c.HAS_MIVS_ADMIN_ACCESS:
             raise HTTPRedirect('index?message={}', 'The deadline for confirming your acceptance has passed.')
 
         has_leader = False

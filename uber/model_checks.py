@@ -71,17 +71,14 @@ def has_email_address(account):
 
 @validation.AdminAccount
 def admin_has_required_access(account):
-    new_access = set(int(s) for s in account.access.split(',') if s)
-    old_access = set() if account.is_new else set(int(s) for s in account.orig_value_of('access').split(',') if s)
-    access_changes = new_access.symmetric_difference(old_access)
-    if any(c.REQUIRED_ACCESS[a] for a in access_changes):
+    if (account.is_new or account.orig_value_of('access_group_id') != account.access_group_id) \
+            and getattr(account.access_group, 'required_access_groups', None):
         with Session() as session:
             admin_account = session.current_admin_account()
-            admin_access = set(admin_account.access_ints)
-            for access_change in access_changes:
-                required_access = c.REQUIRED_ACCESS[access_change]
-                if all(a not in admin_access for a in required_access):
-                    return 'You do not have permission to change that access setting'
+            for access_group in account.access_group.required_access_groups:
+                if admin_account.access_group == access_group:
+                    return
+            return 'You are not in an access group that can assign that access group'
 
 
 ApiToken.required = [('name', 'Name'), ('description', 'Intended Usage'), ('access', 'Access Controls')]
@@ -95,10 +92,10 @@ def admin_has_required_api_access(api_token):
 
     with Session() as session:
         admin_account = session.current_admin_account()
-        token_access = set(api_token.access_ints)
-        admin_access = set(admin_account.access_ints)
-        if not token_access.issubset(admin_access):
-            return 'You do not have permission to create a token with that access'
+        for access_level in set(api_token.access_ints):
+            access_name = 'api_' + c.API_ACCESS[access_level].lower()
+            if not getattr(admin_account.access_group, access_name, None):
+                return 'You do not have permission to create a token with {} access'.format(c.API_ACCESS[access_level])
 
 
 Group.required = [
@@ -770,7 +767,7 @@ def mivs_video_link(game):
 
 @validation.IndieGame
 def mivs_submitted(game):
-    if (game.submitted and not game.status == c.ACCEPTED) and not c.HAS_INDIE_ADMIN_ACCESS:
+    if (game.submitted and not game.status == c.ACCEPTED) and not c.HAS_MIVS_ADMIN_ACCESS:
         return 'You cannot edit a game after it has been submitted'
 
 
@@ -939,7 +936,7 @@ def panel_other(app):
 
 @validation.PanelApplication
 def app_deadline(app):
-    if localized_now() > c.PANEL_APP_DEADLINE and not c.HAS_PANEL_APPS_ACCESS and not app.poc_id:
+    if localized_now() > c.PANEL_APP_DEADLINE and not c.HAS_PANEL_APP_ADMIN_ACCESS and not app.poc_id:
         return 'We are now past the deadline and are no longer accepting panel applications'
 
 

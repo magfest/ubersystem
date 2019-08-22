@@ -15,7 +15,7 @@ from uber.tasks.email import send_email
 from uber.utils import check, genpasswd, localized_now
 
 
-@all_renderable(c.INDIE_ADMIN)
+@all_renderable()
 class Root:
     def index(self, session, message=''):
         return {
@@ -166,8 +166,6 @@ class Root:
                             'index?message={}{}', attendee.full_name, ' is already registered as a judge')
                     else:
                         attendee.admin_account.judge = judge
-                        attendee.admin_account.access = ','.join(map(str, set(
-                            attendee.admin_account.access_ints + [c.INDIE_JUDGE])))
 
                         raise HTTPRedirect('index?message={}{}', attendee.full_name, ' has been granted judge access')
 

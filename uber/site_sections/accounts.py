@@ -10,7 +10,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
-                             department_id_adapter, render, site_mappable, unrestricted)
+                             department_id_adapter, render, site_mappable, public)
 from uber.errors import HTTPRedirect
 from uber.models import AccessGroup, AdminAccount, Attendee, PasswordReset
 from uber.tasks.email import send_email
@@ -31,7 +31,7 @@ def access_group_opts(session):
     return [(id, name) for id, name in session.query(AccessGroup.id, AccessGroup.name).order_by(AccessGroup.name)]
 
 
-@all_renderable(c.ACCOUNTS)
+@all_renderable()
 class Root:
     def index(self, session, message=''):
         attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
@@ -157,7 +157,7 @@ class Root:
 
         return {'success': True, 'message': 'Access group deleted.'}
 
-    @unrestricted
+    @public
     def login(self, session, message='', original_location=None, **params):
         original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
 
@@ -180,20 +180,20 @@ class Root:
             'original_location': original_location,
         }
 
-    @unrestricted
+    @public
     def homepage(self, message=''):
         if not cherrypy.session.get('account_id'):
             raise HTTPRedirect('login?message={}', 'You are not logged in')
         return {'message': message}
 
-    @unrestricted
+    @public
     def logout(self):
         for key in list(cherrypy.session.keys()):
             if key not in ['preregs', 'paid_preregs', 'job_defaults', 'prev_location']:
                 cherrypy.session.pop(key)
         raise HTTPRedirect('login?message={}', 'You have been logged out')
 
-    @unrestricted
+    @public
     def reset(self, session, message='', email=None):
         if email is not None:
             try:
@@ -253,7 +253,7 @@ class Root:
             'message': message
         }
 
-    @unrestricted
+    @public
     def change_password(
             self,
             session,
@@ -296,7 +296,7 @@ class Root:
         for a in session.query(Attendee).filter_by(staffing=True, placeholder=False).order_by('email').all():
             out.writerow([a.full_name, a.email, a.zip_code])
 
-    @unrestricted
+    @public
     def insert_test_admin(self, session):
         if session.insert_test_admin_account():
             msg = "Test admin account created successfully"
@@ -305,7 +305,7 @@ class Root:
 
         raise HTTPRedirect('login?message={}', msg)
 
-    @unrestricted
+    @public
     def sitemap(self):
         site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
         modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
@@ -316,7 +316,7 @@ class Root:
                 if getattr(method, 'exposed', False):
                     spec = inspect.getfullargspec(unwrap(method))
                     has_defaults = len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or [])
-                    if c.has_section_or_page_access(page_path='/{}/{}'.format(module_name, name), read_only=True) \
+                    if c.has_section_or_page_access(page_path='/{}/{}'.format(module_name, name), include_read_only=True) \
                             and not getattr(method, 'ajax', False) \
                             and (getattr(method, 'site_mappable', False)
                                  or has_defaults and not spec.varkw):

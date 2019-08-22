@@ -133,7 +133,7 @@ def _hours_vs_rooms_by_dept(session):
     return OrderedDict(sorted(departments.items(), key=lambda d: d[0].name))
 
 
-@all_renderable(c.PEOPLE)
+@all_renderable()
 class Root:
     # TODO: handle people who didn't request setup / teardown but who were assigned to a setup / teardown room
     def setup_teardown(self, session):

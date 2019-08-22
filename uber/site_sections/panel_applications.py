@@ -46,7 +46,7 @@ def compile_other_panelists_from_params(app, **params):
     return other_panelists
 
 
-@all_renderable()
+@all_renderable(public=True)
 class Root:
     @cherrypy.expose(['post_index'])
     def index(self, session, message='', **params):

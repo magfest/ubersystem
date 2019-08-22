@@ -11,7 +11,7 @@ from uber.models import AdminAccount, Attendee, Department, DeptMembership, Dept
 from uber.utils import check
 
 
-@all_renderable(c.PEOPLE)
+@all_renderable()
 class Root:
 
     def index(self, session, filtered=False, message='', **params):

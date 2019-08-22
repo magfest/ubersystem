@@ -7,7 +7,7 @@ from uber.tasks.email import send_email
 from uber.utils import check
 
 
-@all_renderable(c.INDIE_JUDGE)
+@all_renderable()
 class Root:
     @site_mappable
     def index(self, session, message='', **params):

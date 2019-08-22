@@ -52,7 +52,7 @@ def log_pageview(func):
             try:
                 session.admin_account(cherrypy.session['account_id'])
             except Exception:
-                pass  # we don't care about unrestricted pages for this version
+                pass  # we don't care about public pages for this version
             else:
                 uber.models.PageViewTracking.track_pageview()
         return func(*args, **kwargs)
@@ -156,7 +156,7 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
     from uber.models import AdminAccount, DeptMembership, Department
     account_id = cherrypy.session['account_id']
     admin_account = session.query(AdminAccount).get(account_id)
-    if c.ACCOUNTS not in admin_account.access_ints:
+    if not admin_account.access_group.full_dept_admin:
         dh_filter = [
             AdminAccount.id == account_id,
             AdminAccount.attendee_id == DeptMembership.attendee_id]
@@ -600,15 +600,15 @@ def renderable(func):
     return with_rendering
 
 
-def unrestricted(func):
-    func.restricted = False
+def public(func):
+    func.public = True
     return func
 
 
 def restricted(func):
     @wraps(func)
     def with_restrictions(*args, **kwargs):
-        if func.restricted:
+        if not func.public:
             if c.PATH == 'staffing':
                 if not cherrypy.session.get('staffer_id'):
                     raise HTTPRedirect('../staffing/login?message=You+are+not+logged+in', save_location=True)
@@ -616,44 +616,36 @@ def restricted(func):
             elif cherrypy.session.get('account_id') is None:
                 raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
 
+            elif c.PATH == 'mivs_judging':
+                if not session.admin_account(cherrypy.session.get('account_id')).is_mivs_judge_or_admin:
+                    return 'You need to be a MIVS Judge or have access for either {} or {}'.format(c.PATH, c.PAGE_PATH)
+
             else:
-                if not c.has_section_or_page_access(read_only=True):
+                if not c.has_section_or_page_access(include_read_only=True):
                     return 'You need access for either {} or {}.'.format(c.PATH, c.PAGE_PATH)
 
         return func(*args, **kwargs)
     return with_restrictions
 
 
-def set_renderable(func, access):
+def set_renderable(func, public):
     """
     Return a function that is flagged correctly and is ready to be called by cherrypy as a request
     """
-    func.restricted = getattr(func, 'restricted', access)
+    func.public = getattr(func, 'public', public)
     new_func = profile(timed(cached_page(sessionized(restricted(renderable(func))))))
     new_func.exposed = True
     return new_func
 
 
-def renderable_override(*needs_access):
-    """
-    Like all_renderable, but works on a single method.
-
-    Overrides access settings on a class also decorated with all_renderable.
-    """
-    def _decorator(func):
-        func.restricted = needs_access
-        return func
-    return _decorator
-
-
 class all_renderable:
-    def __init__(self, *needs_access):
-        self.needs_access = needs_access
+    def __init__(self, public=False):
+        self.public = public
 
     def __call__(self, klass):
         for name, func in klass.__dict__.items():
             if hasattr(func, '__call__'):
-                new_func = set_renderable(func, self.needs_access)
+                new_func = set_renderable(func, self.public)
                 setattr(klass, name, new_func)
         return klass
 

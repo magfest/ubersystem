@@ -14,7 +14,7 @@ from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, check_for_encrypted_badge_num, check_if_can_reg, credit_card, \
-    csrf_protected, department_id_adapter, log_pageview, renderable_override, site_mappable, unrestricted
+    csrf_protected, department_id_adapter, log_pageview, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.models import ArbitraryCharge, Attendee, Department, Email, Group, Job, MerchDiscount, MerchPickup, \
     MPointsForCash, NoShirt, OldMPointExchange, PageViewTracking, PromoCodeGroup, Sale, Session, Shift, Tracking, \
@@ -61,7 +61,7 @@ def check_atd(func):
     return checking_at_the_door
 
 
-@all_renderable(c.PEOPLE, c.REG_AT_CON)
+@all_renderable()
 class Root:
     def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first', invalid=''):
         # DEVELOPMENT ONLY: it's an extremely convenient shortcut to show the first page
@@ -214,7 +214,7 @@ class Root:
             'message': message,
         }
 
-    @unrestricted
+    @public
     def qrcode_generator(self, data):
         """
         Takes a piece of data, adds the EVENT_QR_ID, and returns an Aztec barcode as an image stream.
@@ -690,7 +690,7 @@ class Root:
         session.commit()
         return {'success': True, 'message': 'Discount on badge #{} has been marked as redeemed.'.format(badge_num)}
 
-    @unrestricted
+    @public
     @check_atd
     @check_if_can_reg
     def register(self, session, message='', error_message='', **params):
@@ -731,7 +731,7 @@ class Root:
             'promo_code': params.get('promo_code', ''),
         }
 
-    @unrestricted
+    @public
     @check_atd
     def pay(self, session, id, message=''):
         attendee = session.attendee(id)
@@ -745,7 +745,7 @@ class Root:
                 'charge': Charge(attendee, description=attendee.full_name)
             }
 
-    @unrestricted
+    @public
     @check_atd
     @credit_card
     def take_payment(self, session, payment_id, stripeToken):
@@ -863,7 +863,7 @@ class Root:
 
         raise HTTPRedirect('new?message={}&checked_in={}', message, checked_in)
 
-    @unrestricted
+    @public
     def arbitrary_charge_form(self, message='', amount=None, description='', sale_id=None):
         charge = None
         if amount is not None:
@@ -882,7 +882,7 @@ class Root:
             'sale_id': sale_id
         }
 
-    @unrestricted
+    @public
     @credit_card
     def arbitrary_charge(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
@@ -990,7 +990,6 @@ class Root:
         session.delete(shift)
         raise HTTPRedirect('shifts?id={}&message={}', shift.attendee.id, 'Staffer unassigned from shift')
 
-    @renderable_override(c.ACCOUNTS, c.STAFF_ROOMS)
     def feed(self, session, message='', page='1', who='', what='', action=''):
         feed = session.query(Tracking).filter(Tracking.action != c.AUTO_BADGE_SHIFT).order_by(Tracking.when.desc())
         what = what.strip()
@@ -1113,7 +1112,7 @@ class Root:
                                 .order_by(Attendee.badge_status, Attendee.full_name).all()
         }
 
-    @unrestricted
+    @public
     def stats(self):
         cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
         return json.dumps({
@@ -1124,7 +1123,7 @@ class Root:
             'warn_if_server_browser_time_mismatch': c.WARN_IF_SERVER_BROWSER_TIME_MISMATCH
         })
 
-    @unrestricted
+    @public
     def price(self):
         cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
         return json.dumps({

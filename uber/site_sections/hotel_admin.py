@@ -12,7 +12,7 @@ from uber.models import Attendee, HotelRequests, Room, RoomAssignment, Shift
 from uber.models.attendee import _generate_hotel_pin
 
 
-@all_renderable(c.STAFF_ROOMS)
+@all_renderable()
 class Root:
     def index(self, session):
         three_days_before = (c.EPOCH - timedelta(days=3)).strftime('%A')
@@ -51,7 +51,7 @@ class Root:
 
     def goto_staffer_requests(self, id):
         cherrypy.session['staffer_id'] = id
-        raise HTTPRedirect('../hotel/index')
+        raise HTTPRedirect('../staffing/hotel')
 
     @ajax
     def create_room(self, session, **params):

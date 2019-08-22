@@ -9,7 +9,7 @@ from uber.decorators import all_renderable
 from uber.models import Attendee
 
 
-@all_renderable(c.STATS)
+@all_renderable()
 class Root:
     def shirt_manufacturing_counts(self, session):
         """

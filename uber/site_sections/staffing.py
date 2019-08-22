@@ -3,14 +3,13 @@ from datetime import timedelta
 
 from uber.config import c
 from uber.custom_tags import safe_string
-from uber.decorators import ajax, ajax_gettable, all_renderable, check_shutdown, csrf_protected, render, unrestricted
+from uber.decorators import ajax, ajax_gettable, all_renderable, check_shutdown, csrf_protected, render, public
 from uber.errors import HTTPRedirect
 from uber.utils import check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, localized_now
 
 
-@all_renderable(c.SIGNUPS)
+@all_renderable()
 class Root:
-
     def index(self, session, message=''):
         if c.UBER_SHUT_DOWN or c.AT_THE_CON:
             return render('staffing/printable.html', {'attendee': session.logged_in_volunteer()})
@@ -79,7 +78,7 @@ class Root:
         }
 
     @check_shutdown
-    @unrestricted
+    @public
     def volunteer(self, session, id, csrf_token=None, requested_depts_ids=None, message=''):
         attendee = session.attendee(id)
         if requested_depts_ids:
@@ -95,6 +94,63 @@ class Root:
             'message': message,
             'attendee': attendee,
             'requested_depts_ids': requested_depts_ids
+        }
+
+    @check_shutdown
+    def hotel(self, session, message='', decline=None, **params):
+        if c.AFTER_ROOM_DEADLINE and not c.HAS_HOTEL_ADMIN_ACCESS:
+            raise HTTPRedirect('../staffing/index?message={}', 'The room deadline has passed')
+        attendee = session.logged_in_volunteer()
+        if not attendee.hotel_eligible:
+            raise HTTPRedirect('../staffing/index?message={}', 'You have not been marked as eligible for hotel space')
+        requests = session.hotel_requests(params, checkgroups=['nights'], restricted=True)
+        if 'attendee_id' in params:
+            requests.attendee = attendee  # foreign keys are automatically admin-only
+            session.add(requests)
+            if decline or not requests.nights:
+                requests.nights = ''
+                raise HTTPRedirect(
+                    '../staffing/index?message={}', "We've recorded that you've declined hotel room space")
+            else:
+                if requests.setup_teardown:
+                    days = ' / '.join(
+                        c.NIGHTS[day] for day in sorted(requests.nights_ints, key=c.NIGHT_DISPLAY_ORDER.index)
+                        if day not in c.CORE_NIGHTS)
+
+                    message = "Your hotel room request has been submitted. " \
+                        "We'll let you know whether your offer to help on {} is accepted, " \
+                        "and who your roommates will be, a few weeks after the deadline.".format(days)
+
+                else:
+                    message = "You've accepted hotel room space for {}. " \
+                        "We'll let you know your roommates a few weeks after the " \
+                        "deadline.".format(requests.nights_display)
+
+                raise HTTPRedirect('../staffing/index?message={}', message)
+        else:
+            requests = attendee.hotel_requests or requests
+            if requests.is_new:
+                requests.nights = ','.join(map(str, c.CORE_NIGHTS))
+
+        nights = []
+        two_day_before = (c.EPOCH - timedelta(days=2)).strftime('%A')
+        day_before = (c.EPOCH - timedelta(days=1)).strftime('%A')
+        last_day = c.ESCHATON.strftime('%A').upper()
+        day_after = (c.ESCHATON + timedelta(days=1)).strftime('%A')
+        nights.append([getattr(c, two_day_before.upper()), getattr(requests, two_day_before.upper()),
+                       "I'd like to help set up on " + two_day_before])
+        nights.append([getattr(c, day_before.upper()), getattr(requests, day_before.upper()),
+                       "I'd like to help set up on " + day_before])
+        for night in c.CORE_NIGHTS:
+            nights.append([night, night in requests.nights_ints, c.NIGHTS[night]])
+        nights.append([getattr(c, last_day), getattr(requests, last_day),
+                       "I'd like to help tear down on {} / {}".format(c.ESCHATON.strftime('%A'), day_after)])
+
+        return {
+            'nights':   nights,
+            'message':  message,
+            'requests': requests,
+            'attendee': attendee
         }
 
     @check_shutdown
@@ -160,7 +216,7 @@ class Root:
         finally:
             return {'jobs': session.jobs_for_signups()}
 
-    @unrestricted
+    @public
     def login(self, session, message='',  first_name='', last_name='', email='', zip_code='', original_location=None):
         original_location = create_valid_user_supplied_redirect_url(original_location, default_url='index')
 

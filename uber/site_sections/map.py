@@ -14,7 +14,7 @@ def get_count(counter, key):
     return counter.get(key)
 
 
-@all_renderable(c.STATS)
+@all_renderable()
 class Root:
     zips_counter = Counter()
     zips = {}

@@ -1,6 +1,6 @@
 {% import 'macros.html' as macros %}
 
-{% if attendee.hotel_eligible and c.AFTER_ROOM_DEADLINE and c.HAS_STAFF_ROOMS_ACCESS %}
+{% if attendee.hotel_eligible and c.AFTER_ROOM_DEADLINE and c.HAS_HOTEL_ADMIN_ACCESS %}
     <li>
         {{ macros.checklist_image(attendee.hotel_requests) }}
         The deadline for editing hotel requests has passed, but as a STOPS admin, you can still

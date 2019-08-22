@@ -12,7 +12,7 @@ from uber.tasks.email import send_email
 from uber.utils import get_page
 
 
-@all_renderable(c.PEOPLE)
+@all_renderable()
 class Root:
     def index(self, session, page='1', search_text=''):
         emails = session.query(Email).order_by(Email.when.desc())

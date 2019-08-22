@@ -10,7 +10,7 @@ from uber.models import Attendee, MITSTeam
 from uber.utils import add_opt, check_csrf
 
 
-@all_renderable(c.MITS_ADMIN)
+@all_renderable()
 class Root:
     def index(self, session, message=''):
         return {

@@ -73,7 +73,7 @@
   {% endif %}
 
   {% if c.CAN_SUBMIT_MIVS_ROUND_ONE %}
-    {% if c.HAS_INDIE_ADMIN_ACCESS and c.AFTER_MIVS_ROUND_ONE_DEADLINE %}
+    {% if c.HAS_MIVS_ADMIN_ACCESS and c.AFTER_MIVS_ROUND_ONE_DEADLINE %}
       <br/><br/><b><font color="red">
       ADMIN NOTE: Because you are logged in as a MIVS admin, you can still use this form to manually create a
       game. For non-admin users, they will not be able to do this.
@@ -86,7 +86,7 @@
     {% set game_edit_link %}[<a href="game?id={{ game.id }}">Edit</a>]{% endset %}
     <h4>
       {{ game.title }}
-      {% if c.HAS_INDIE_ADMIN_ACCESS or not game.submitted %}{{ game_edit_link }}{% endif %}
+      {% if c.HAS_MIVS_ADMIN_ACCESS or not game.submitted %}{{ game_edit_link }}{% endif %}
     </h4>
 
     {% if game.status in c.FINAL_MIVS_GAME_STATUSES %}

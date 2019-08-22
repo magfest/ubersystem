@@ -61,51 +61,48 @@ class AdminAccount(MagModel):
             return None
 
     @staticmethod
-    def access_set(id=None, read_only=False):
+    def access_set(id=None, include_read_only=False):
         try:
             from uber.models import Session
             with Session() as session:
                 id = id or cherrypy.session['account_id']
                 access_group = session.admin_account(id).access_group
-                if read_only:
+                if include_read_only:
                     return set({**access_group.access, **access_group.read_only_access})
                 return set(access_group.access)
         except Exception:
             return set()
 
-    def _allowed_opts(self, opts, required_access):
-        access_opts = []
-        admin_access = set(self.access_ints)
-        for access, label in opts:
-            required = set(required_access.get(access, []))
-            if not required or any(a in required for a in admin_access):
-                access_opts.append((access, label))
-        return access_opts
-
     @property
     def allowed_access_opts(self):
-        return self._allowed_opts(c.ACCESS_OPTS, c.REQUIRED_ACCESS)
+        return self.session.query(AccessGroup).all()
 
     @property
     def allowed_api_access_opts(self):
-        required_access = {a: [a] for a in c.API_ACCESS.keys()}
-        return self._allowed_opts(c.API_ACCESS_OPTS, required_access)
+        no_access_set = self.access_group.invalid_api_accesses()
+        return [(access, label) for access, label in c.API_ACCESS_OPTS if access not in no_access_set]
 
     @property
     def is_admin(self):
-        return c.ADMIN in self.access_ints
+        return 'devtools' in self.access_set()
+
+    @property
+    def is_mivs_judge_or_admin(self):
+        return self.judge or 'mivs_judging' in self.access_set(include_read_only=True)
 
     @presave_adjustment
     def _disable_api_access(self):
-        new_access = set(int(s) for s in self.access.split(',') if s)
-        old_access = set(int(s) for s in self.orig_value_of('access').split(',') if s)
-        removed = old_access.difference(new_access)
-        removed_api = set(a for a in c.API_ACCESS.keys() if a in removed)
-        if removed_api:
-            revoked_time = datetime.utcnow()
-            for api_token in self.active_api_tokens:
-                if removed_api.intersection(api_token.access_ints):
-                    api_token.revoked_time = revoked_time
+        old_access_group = self.session.access_group(self.orig_value_of('access_group_id'))
+        if self.access_group != old_access_group:
+            invalid_api = self.access_group.invalid_api_accesses()
+        if invalid_api:
+            self.remove_disabled_api_keys(invalid_api)
+
+    def remove_disabled_api_keys(self, invalid_api):
+        revoked_time = datetime.utcnow()
+        for api_token in self.active_api_tokens:
+            if invalid_api.intersection(api_token.access_ints):
+                api_token.revoked_time = revoked_time
 
 
 class PasswordReset(MagModel):
@@ -140,6 +137,47 @@ class AccessGroup(MagModel):
     name = Column(UnicodeText)
     access = Column(MutableDict.as_mutable(JSONB), default={})
     read_only_access = Column(MutableDict.as_mutable(JSONB), default={})
+    # required_access_groups
+
+    @presave_adjustment
+    def _disable_api_access(self):
+        # orig_value_of doesn't seem to work for access and read_only_access so we always do this
+        invalid_api = self.invalid_api_accesses()
+        if invalid_api:
+            for account in self.admin_accounts:
+                account.remove_disabled_api_keys(invalid_api)
+
+    def invalid_api_accesses(self):
+        """
+        Builds and returns a set of API accesses that this access group does not have.
+        Designed to help remove/hide API keys/options that accounts do not have permissions for.
+        """
+        removed_api = set(c.API_ACCESS.keys())
+        for access, label in c.API_ACCESS_OPTS:
+            access_name = 'api_' + label.lower()
+            if getattr(self, access_name, None):
+                removed_api.remove(access)
+        return removed_api
+
+    @property
+    def api_read(self):
+        return int(self.access.get('api', 0)) or int(self.read_only_access.get('api', 0))
+
+    @property
+    def api_update(self):
+        return int(self.access.get('api', 0)) >= self._LIMITED
+
+    @property
+    def api_create(self):
+        return int(self.access.get('api', 0)) >= self._CONTACT
+
+    @property
+    def api_delete(self):
+        return int(self.access.get('api', 0)) >= self._FULL
+
+    @property
+    def full_dept_admin(self):
+        return int(self.access.get('dept_admin', 0)) >= self._FULL
 
 
 class WatchList(MagModel):

@@ -34,7 +34,7 @@ def run_git_cmd(cmd):
     return run_shell_cmd(git + " " + cmd, working_dir=uber_base_dir)
 
 
-@all_renderable(c.ADMIN)
+@all_renderable()
 class Root:
     def index(self):
         return {}

@@ -14,7 +14,7 @@ from uber.tasks.email import send_email
 from uber.utils import check, localized_now
 
 
-@all_renderable()
+@all_renderable(public=True)
 class Root:
     def index(self, session, message=''):
         return {

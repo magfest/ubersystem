@@ -23,7 +23,7 @@ def _get_guidebook_models(session, selected_model=''):
         return model_query
 
 
-@all_renderable(c.STATS)
+@all_renderable()
 class Root:
     def index(self, session, message=''):
         return {

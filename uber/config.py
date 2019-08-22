@@ -192,8 +192,8 @@ class Config(_Overridable):
     def after_printed_badge_deadline_by_type(self, badge_type):
         return uber.utils.localized_now() > self.get_printed_badge_deadline_by_type(badge_type)
 
-    def has_section_or_page_access(self, read_only=False, page_path=''):
-        access = uber.models.AdminAccount.access_set(read_only=read_only)
+    def has_section_or_page_access(self, include_read_only=False, page_path=''):
+        access = uber.models.AdminAccount.access_set(include_read_only=include_read_only)
         page_path = page_path or self.PAGE_PATH
 
         section = page_path.replace(page_path.split('/')[-1], '').strip('/')
@@ -661,7 +661,7 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def ADMIN_ACCESS_SET(self):
-        return uber.models.AdminAccount.access_set(read_only=True)
+        return uber.models.AdminAccount.access_set(include_read_only=True)
 
     @request_cached_property
     @dynamic
@@ -688,13 +688,13 @@ class Config(_Overridable):
     @property
     @dynamic
     def CAN_SUBMIT_MIVS_ROUND_ONE(self):
-        return not really_past_mivs_deadline(c.MIVS_ROUND_ONE_DEADLINE) or c.HAS_INDIE_ADMIN_ACCESS
+        return not really_past_mivs_deadline(c.MIVS_ROUND_ONE_DEADLINE) or c.HAS_MIVS_ADMIN_ACCESS
 
     @property
     @dynamic
     def CAN_SUBMIT_MIVS_ROUND_TWO(self):
         return c.AFTER_MIVS_ROUND_TWO_START and (
-            not really_past_mivs_deadline(c.MIVS_ROUND_TWO_DEADLINE) or c.HAS_INDIE_ADMIN_ACCESS)
+            not really_past_mivs_deadline(c.MIVS_ROUND_TWO_DEADLINE) or c.HAS_MIVS_ADMIN_ACCESS)
 
     # =========================
     # panels
@@ -728,7 +728,7 @@ class Config(_Overridable):
             if access_name == '':
                 return self.has_section_or_page_access()
             elif access_name == 'read':
-                return self.has_section_or_page_access(read_only=True)
+                return self.has_section_or_page_access(include_read_only=True)
 
             if access_name.endswith('_read'):
                 return access_name[:-5] in c.ADMIN_ACCESS_SET
@@ -859,15 +859,6 @@ if c.ONLY_PREPAY_AT_DOOR:
     c.create_enum_val('manual')
 
 c.make_enums(_config['enums'])
-
-_default_access = [getattr(c, s.upper()) for s in c.REQUIRED_ACCESS[c.__DEFAULT__]]
-del c.REQUIRED_ACCESS[c.__DEFAULT__]
-c.REQUIRED_ACCESS_VARS.remove('__DEFAULT__')
-c.REQUIRED_ACCESS = keydefaultdict(
-    lambda a: set([a] + _default_access),
-    {a: set([getattr(c, s.upper()) for s in p]) for a, p in c.REQUIRED_ACCESS.items()})
-
-c.REQUIRED_ACCESS_OPTS = [(a, c.REQUIRED_ACCESS[a]) for a, _ in c.REQUIRED_ACCESS_OPTS if a != c.__DEFAULT__]
 
 for _name, _val in _config['integer_enums'].items():
     if isinstance(_val, int):

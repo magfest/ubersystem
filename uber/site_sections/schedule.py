@@ -9,7 +9,7 @@ from pockets import listify
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, cached, csrf_protected, csv_file, render, unrestricted
+from uber.decorators import ajax, all_renderable, cached, csrf_protected, csv_file, render, public
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, AssignedPanelist, Attendee, Event, PanelApplication
 from uber.utils import check, localized_now, normalize_newlines
@@ -58,16 +58,16 @@ def get_schedule_data(session, message):
     }
 
 
-@all_renderable(c.STUFF)
+@all_renderable()
 class Root:
     @cached
-    @unrestricted
+    @public
     def index(self, session, message=''):
         # show a public-facing view of the schedule
         # anything returned here should be cache-friendly and ready to be shown to the public.
 
         dont_allow_schedule_to_be_viewed = \
-            c.HIDE_SCHEDULE and not AdminAccount.access_set(read_only=True) and not cherrypy.session.get('staffer_id')
+            c.HIDE_SCHEDULE and not AdminAccount.access_set(include_read_only=True) and not cherrypy.session.get('staffer_id')
 
         if dont_allow_schedule_to_be_viewed:
             return "The {} schedule is being developed and will be made public " \
@@ -80,13 +80,13 @@ class Root:
             # we cache this view because it takes a while to generate
             return get_schedule_data(session, message)
 
-    @unrestricted
+    @public
     @csv_file
     def time_ordered(self, out, session):
         for event in session.query(Event).order_by('start_time', 'duration', 'location').all():
             out.writerow([event.timespan(30), event.name, event.location_label])
 
-    @unrestricted
+    @public
     def xml(self, session):
         cherrypy.response.headers['Content-type'] = 'text/xml'
         schedule = defaultdict(list)
@@ -96,7 +96,7 @@ class Root:
             'schedule': sorted(schedule.items(), key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[1][0].location))
         })
 
-    @unrestricted
+    @public
     def schedule_tsv(self, session):
         cherrypy.response.headers['Content-Type'] = 'text/tsv'
         cherrypy.response.headers['Content-Disposition'] = 'attachment;filename=Schedule-{}.tsv'.format(
@@ -189,7 +189,7 @@ class Root:
                     event.description,
                     panelist_names])
 
-    @unrestricted
+    @public
     def panels_json(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/json'
         return json.dumps([
@@ -207,7 +207,7 @@ class Root:
             for event in sorted(session.query(Event).all(), key=lambda e: [e.start_time, e.location_label])
         ], indent=4).encode('utf-8')
 
-    @unrestricted
+    @public
     def now(self, session, when=None):
         if when:
             now = c.EVENT_TIMEZONE.localize(datetime(*map(int, when.split(','))))
@@ -337,7 +337,7 @@ class Root:
                           if a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid]
         }
 
-    @unrestricted
+    @public
     def panelist_schedule(self, session, id):
         attendee = session.attendee(id)
         events = defaultdict(lambda: defaultdict(lambda: (1, '')))
@@ -359,7 +359,7 @@ class Root:
             'locations': locations
         }
 
-    @unrestricted
+    @public
     @csv_file
     def panel_tech_needs(self, out, session):
         panels = defaultdict(dict)

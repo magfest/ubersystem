@@ -2,7 +2,7 @@
 {% block title %}Group Members{% endblock %}
 {% set attendee = group.buyer %}
 {% block backlink %}
-  {% if c.HAS_PEOPLE_ACCESS %}
+  {% if c.HAS_REGISTRATION_ACCESS %}
     <a href="../registration/form?id={{ attendee.id }}" style="float:right">Return to Attendee Admin Form</a>
   {% endif %}
 {% endblock %}

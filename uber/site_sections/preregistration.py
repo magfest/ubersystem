@@ -39,7 +39,7 @@ def check_post_con(klass):
     return klass
 
 
-@all_renderable()
+@all_renderable(public=True)
 @check_post_con
 class Root:
     def _get_unsaved(self, id, if_not_found=None):

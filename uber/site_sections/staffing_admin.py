@@ -41,7 +41,7 @@ def _format_import_params(target_server, api_token):
     return (target_url, target_host, remote_api_token.strip())
 
 
-@all_renderable(c.ACCOUNTS)
+@all_renderable()
 class Root:
     @site_mappable
     def import_shifts(

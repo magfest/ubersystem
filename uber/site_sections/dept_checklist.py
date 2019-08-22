@@ -32,7 +32,7 @@ def _submit_checklist_item(session, department_id, submitted, csrf_token, slug):
     return {'department': department}
 
 
-@all_renderable(c.PEOPLE)
+@all_renderable()
 class Root:
 
     @department_id_adapter
@@ -320,10 +320,8 @@ class Root:
             *dept_filter) \
             .order_by(Attendee.full_name).all()
 
-        room_access = set([c.ADMIN, c.STAFF_ROOMS])
-        admin_has_room_access = bool(room_access.intersection(session.current_admin_account().access_ints))
         return {
-            'admin_has_room_access': admin_has_room_access,
+            'admin_has_room_access': c.HAS_HOTEL_ADMIN_ACCESS,
             'requests': requests,
             'department_id': department_id,
             'department_name': c.DEPARTMENTS.get(department_id, 'All'),

@@ -11,7 +11,7 @@ from uber.models import GuestMerch
 from uber.utils import check
 
 
-@all_renderable()
+@all_renderable(public=True)
 class Root:
     def index(self, session, id, message=''):
         guest = session.guest_group(id)

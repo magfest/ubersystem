@@ -3,7 +3,7 @@
 {% import "fields/group.html" as group_fields with context %}
 {% block title %}Group Members{% endblock %}
 {% block backlink %}
-    {% if c.HAS_PEOPLE_ACCESS %}
+    {% if c.HAS_DEALER_ADMIN_ACCESS %}
         <a href="../dealer_admin/form?id={{ group.id }}" style="float:right">Return to Group Admin Form</a>
     {% endif %}
 {% endblock %}

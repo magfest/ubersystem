@@ -3,7 +3,7 @@ from uber.decorators import all_renderable, csv_file, xlsx_file
 from uber.models import Group
 
 
-@all_renderable(c.STATS)
+@all_renderable()
 class Root:
     @csv_file
     def seller_table_info(self, out, session):

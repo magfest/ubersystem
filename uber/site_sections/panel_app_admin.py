@@ -14,7 +14,7 @@ from uber.models import AssignedPanelist, Attendee, AutomatedEmail, Event, Event
 from uber.utils import add_opt, check
 
 
-@all_renderable(c.PANEL_APPS)
+@all_renderable()
 class Root:
     def index(self, session, message=''):
         return {
