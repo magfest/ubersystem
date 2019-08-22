@@ -50,7 +50,3 @@ class Root:
                 person.badge_num, person.full_name, person.badge_type_label,
                 person.email, person.comments
             ])
-
-    requested_accessibility_services.restricted = [c.ACCESSIBILITY]
-
-

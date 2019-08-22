@@ -9,7 +9,7 @@
   <h3 class="panel-title">New Watchlist Entry</h3>
 </div>
 <div class="panel-body">
-  <form id="new_entry" method="post" action="watchlist_entries" role="form" class="form-inline">
+  <form id="new_entry" method="post" action="index" role="form" class="form-inline">
     {{ csrf_token() }}
     <div class="form-group">
         <label for="first_names">First Names</label><br/>
@@ -95,7 +95,7 @@
             </div>
         </td>
         <td><div class="form-group checkbox">
-            <form method="post" id="edit_entry_{{ loop.index }}" action="watchlist_entries" role="form" class="form-inline">
+            <form method="post" id="edit_entry_{{ loop.index }}" action="index" role="form" class="form-inline">
                 {{ macros.checkbox(entry, 'active', label='Active') }}
                 {{ csrf_token() }}
             </form>

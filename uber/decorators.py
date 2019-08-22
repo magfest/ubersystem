@@ -704,13 +704,13 @@ class cost_property(property):
     """
 
 
-def create_redirect(url, access=[c.PEOPLE]):
+def create_redirect(url, public=False):
     """
     Return a function which redirects to the given url when called.
     """
     def redirect(self):
         raise HTTPRedirect(url)
-    renderable_func = set_renderable(redirect, access)
+    renderable_func = set_renderable(redirect, public)
     return renderable_func
 
 

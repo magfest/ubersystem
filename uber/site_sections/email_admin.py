@@ -28,7 +28,6 @@ class Root:
 
     def sent(self, session, **params):
         return {'emails': session.query(Email).filter_by(**params).order_by(Email.when).all()}
-    sent.restricted = [c.PEOPLE, c.REG_AT_CON]
 
     def pending(self, session, message=''):
         emails_with_count = session.query(AutomatedEmail, AutomatedEmail.email_count).filter(

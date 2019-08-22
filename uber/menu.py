@@ -107,7 +107,7 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='Bands', href='../guest_admin/?filter=only-bands'),
         MenuItem(name='Guests', href='../guest_admin/?filter=only-guests'),
         MenuItem(name='MIVS', href='../guest_admin/?filter=only-mivss'),
-        MenuItem(name='Watchlist', href='../registration/watchlist_entries'),
+        MenuItem(name='Watchlist', href='../security_admin/index'),
     ]),
 
     MenuItem(name='Schedule', submenu=[
