@@ -11,6 +11,7 @@ from dateutil import parser as dateparser
 from pockets import unwrap
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import subqueryload
+from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
 from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
@@ -266,6 +267,7 @@ class AttendeeLookup:
         'staffing': True,
         'is_dept_head': True,
         'ribbon_labels': True,
+        'public_id': True,
     }
 
     fields_full = dict(fields, **{
@@ -325,6 +327,27 @@ class AttendeeLookup:
             attendee_query = session.search(query)
             fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
             return [a.to_dict(fields) for a in attendee_query.limit(100)]
+
+    def login(self, first_name, last_name, email, zip_code):
+        """
+        Does a lookup similar to the volunteer checklist pages login screen.
+        """
+        #this code largely copied from above with different fields
+        with Session() as session:
+            attendee_query = session.query(Attendee).filter_by(first_name=first_name,
+                                                               last_name=last_name,
+                                                               email=email,
+                                                               zip_code=zip_code)
+            fields, attendee_query = _attendee_fields_and_query(False, attendee_query)
+            try:
+                attendee = attendee_query.one()
+            except MultipleResultsFound:
+                raise HTTPError(404, 'found more than one attendee with matching information?')
+            except NoResultFound:
+                raise HTTPError(404, 'No attendee found with matching information')
+
+            return attendee.to_dict(fields)
+
 
     def export(self, query, full=False):
         """

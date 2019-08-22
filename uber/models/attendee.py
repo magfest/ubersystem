@@ -214,7 +214,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     # attendee shirt size for both swag and staff shirts
     shirt = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)
-    second_shirt = Column(Choice(c.SECOND_SHIRT_OPTS), default=c.UNKNOWN)
+    num_event_shirts = Column(Choice(c.STAFF_EVENT_SHIRT_OPTS), default=0)
     can_spam = Column(Boolean, default=False)
     regdesk_info = Column(UnicodeText, admin_only=True)
     extra_merch = Column(UnicodeText, admin_only=True)
@@ -521,6 +521,10 @@ class Attendee(MagModel, TakesPaymentMixin):
                     and c.VOLUNTEER_RIBBON in old_ribbon and not self.is_dept_head:
                 self.unset_volunteering()
 
+        self._staffing_badge_and_ribbon_adjustments()
+
+    @presave_adjustment
+    def _staffing_badge_and_ribbon_adjustments(self):
         if self.badge_type == c.STAFF_BADGE:
             self.ribbon = remove_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
 
@@ -716,6 +720,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     @is_unassigned.expression
     def is_unassigned(cls):
         return cls.first_name == ''
+
+    @property
+    def staffing_or_will_be(self):
+        # This is for use in our model checks -- it includes attendees who are going to be marked staffing
+        return self.staffing or self.badge_type == c.STAFF_BADGE or c.VOLUNTEER_RIBBON in self.ribbon_ints
 
     @hybrid_property
     def is_dealer(self):
@@ -917,40 +926,28 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.amount_extra >= c.SHIRT_LEVEL
 
     @property
+    def num_free_event_shirts(self):
+        """
+        If someone is staff-shirt-eligible, we use the number of event shirts they have selected (if any)
+        Volunteers also get a free event shirt.
+        Returns: Integer representing the number of free event shirts this attendee should get.
+
+        """
+        return self.num_event_shirts if self.gets_staff_shirt else c.VOLUNTEER_RIBBON in self.ribbon_ints
+
+    @property
     def volunteer_event_shirt_eligible(self):
-        """
-        Returns a truthy value if this attendee either automatically gets a
-        complementary event shirt for being staff OR if they've eligible for a
-        complementary event shirt if they end up working enough volunteer hours
-        """
-        # Some events want to exclude staff badges from getting event shirts
-        # (typically because they are getting staff uniform shirts instead).
-        if self.badge_type == c.STAFF_BADGE:
-            return c.STAFF_ELIGIBLE_FOR_SWAG_SHIRT
-        else:
-            return c.VOLUNTEER_RIBBON in self.ribbon_ints
+        return c.VOLUNTEER_RIBBON in self.ribbon_ints
 
     @property
     def volunteer_event_shirt_earned(self):
-        return self.volunteer_event_shirt_eligible and (not self.takes_shifts or self.worked_hours >= c.HOURS_FOR_SHIRT)
-
-    @property
-    def replacement_staff_shirts(self):
-        """
-        Staffers can choose whether or not they want to swap out one of their
-        staff shirts for an event shirt.  By default and if the staffer opts
-        into this, we deduct 1 staff shirt from the staff shirt count and add 1
-        to the event shirt count.
-        """
-        is_replaced = self.second_shirt in [c.UNKNOWN, c.STAFF_AND_EVENT_SHIRT]
-        return 1 if c.SHIRTS_PER_STAFFER > 1 and self.gets_staff_shirt and is_replaced else 0
+        return c.volunteer_event_shirt_eligible and (not self.takes_shifts or self.worked_hours >= c.HOURS_FOR_SHIRT)
 
     @property
     def num_event_shirts_owed(self):
         return sum([
             int(self.paid_for_a_shirt),
-            int(self.volunteer_event_shirt_eligible),
-            self.replacement_staff_shirts
+            self.num_free_event_shirts
         ])
 
     @property
@@ -959,7 +956,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def num_staff_shirts_owed(self):
-        return 0 if not self.gets_staff_shirt else (c.SHIRTS_PER_STAFFER - self.replacement_staff_shirts)
+        return 0 if not self.gets_staff_shirt else (c.SHIRTS_PER_STAFFER - self.num_free_event_shirts)
 
     @property
     def gets_any_kind_of_shirt(self):
@@ -1030,7 +1027,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         elif self.num_event_shirts_owed > 1:
             merch.append('a 2nd tshirt')
 
-        if self.volunteer_event_shirt_eligible and not self.volunteer_event_shirt_earned:
+        if self.volunteer_shirt_eligible and not self.volunteer_event_shirt_earned:
             merch[-1] += (
                 ' (this volunteer must work at least {} hours or they will be reported for picking up their shirt)'
                     .format(c.HOURS_FOR_SHIRT))

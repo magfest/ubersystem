@@ -43,7 +43,7 @@ class Root:
         }
 
     @check_shutdown
-    def shirt_size(self, session, message='', shirt=None, second_shirt=None, csrf_token=None):
+    def shirt_size(self, session, message='', shirt=None, num_event_shirts=None, csrf_token=None):
         attendee = session.logged_in_volunteer()
         if shirt is not None:
             check_csrf(csrf_token)
@@ -51,8 +51,8 @@ class Root:
                 message = 'You must select a shirt size'
             else:
                 attendee.shirt = int(shirt)
-                if attendee.gets_staff_shirt and c.SHIRTS_PER_STAFFER > 1 and c.BEFORE_SHIRT_DEADLINE:
-                    attendee.second_shirt = int(second_shirt)
+                if c.STAFF_EVENT_SHIRT_OPTS and c.BEFORE_SHIRT_DEADLINE:
+                    attendee.num_event_shirts = int(num_event_shirts)
                 raise HTTPRedirect('index?message={}', 'Shirt info uploaded')
 
         return {

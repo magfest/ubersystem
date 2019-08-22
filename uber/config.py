@@ -346,7 +346,18 @@ class Config(_Overridable):
             return bool(got)
 
     @property
+    def kickin_availability_matrix(self):
+        return dict([[
+            getattr(self, level + "_LEVEL"), getattr(self, level + "_AVAILABLE")]
+            for level in ['SHIRT', 'SUPPORTER', 'SEASON']
+        ])
+
+    @property
     def PREREG_DONATION_OPTS(self):
+        if not self.SHARED_KICKIN_STOCKS:
+            return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS
+                    if amt not in self.kickin_availability_matrix or self.kickin_availability_matrix[amt]]
+
         if self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
             return self.DONATION_TIER_OPTS
         if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
@@ -359,7 +370,11 @@ class Config(_Overridable):
     @property
     def PREREG_DONATION_DESCRIPTIONS(self):
         # include only the items that are actually available for purchase
-        if self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
+        if not self.SHARED_KICKIN_STOCKS:
+            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
+                             if tier[1]['price'] not in self.kickin_availability_matrix
+                             or self.kickin_availability_matrix[tier[1]['price']]]
+        elif self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
             donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
         elif self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
             donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
@@ -1110,6 +1125,8 @@ c.EVENT_DURATION_OPTS = [(i, '%.1f hour%s' % (i/2, 's' if i != 2 else '')) for i
 c.ORDERED_EVENT_LOCS = [loc for loc, desc in c.EVENT_LOCATION_OPTS]
 c.EVENT_BOOKED = {'colspan': 0}
 c.EVENT_OPEN = {'colspan': 1}
+
+c.PRESENTATION_OPTS.sort(key=lambda tup: 'zzz' if tup[0] == c.OTHER else tup[1])
 
 
 def _make_room_trie(rooms):
