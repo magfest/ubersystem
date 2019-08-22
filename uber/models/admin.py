@@ -26,7 +26,6 @@ class AdminAccount(MagModel):
                                 foreign_keys=access_group_id,
                                 cascade='save-update,merge,refresh-expire,expunge')
     hashed = Column(UnicodeText, private=True)
-    access = Column(MultiChoice(c.ACCESS_OPTS))
 
     password_reset = relationship('PasswordReset', backref='admin_account', uselist=False)
 
@@ -137,7 +136,6 @@ class AccessGroup(MagModel):
     name = Column(UnicodeText)
     access = Column(MutableDict.as_mutable(JSONB), default={})
     read_only_access = Column(MutableDict.as_mutable(JSONB), default={})
-    # required_access_groups
 
     @presave_adjustment
     def _disable_api_access(self):

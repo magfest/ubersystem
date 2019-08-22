@@ -1104,11 +1104,6 @@ c.TOURNAMENT_AVAILABILITY_OPTS.append([_val, 'Morning (8am-12pm) of ' + c.ESCHAT
 c.MIVS_CODES_REQUIRING_INSTRUCTIONS = [
     getattr(c, code_type.upper()) for code_type in c.MIVS_CODES_REQUIRING_INSTRUCTIONS]
 
-# Add the access levels we defined to c.ACCESS* (this will go away if/when we implement enum merging)
-c.ACCESS.update(c.MIVS_INDIE_ACCESS_LEVELS)
-c.ACCESS_OPTS.extend(c.MIVS_INDIE_ACCESS_LEVEL_OPTS)
-c.ACCESS_VARS.extend(c.MIVS_INDIE_ACCESS_LEVEL_VARS)
-
 # c.MIVS_INDIE_JUDGE_GENRE* should be the same as c.MIVS_INDIE_GENRE* but with a c.MIVS_ALL_GENRES option
 _mivs_all_genres_desc = 'All genres'
 c.create_enum_val('mivs_all_genres')
@@ -1142,11 +1137,6 @@ c.MITS_APPLICATION_STEPS = 7
 
 # The options for the recommended minimum age for games, as filled out by the teams.
 c.MITS_AGE_OPTS = [(i, i) for i in range(4, 20, 2)]
-
-# Add the access levels we defined to c.ACCESS* (this will go away if/when we implement enum merging)
-c.ACCESS.update(c.MITS_ACCESS_LEVELS)
-c.ACCESS_OPTS.extend(c.MITS_ACCESS_LEVEL_OPTS)
-c.ACCESS_VARS.extend(c.MITS_ACCESS_LEVEL_VARS)
 
 
 # =============================
@@ -1188,11 +1178,6 @@ for room in invalid_rooms:
 c.PANEL_ROOMS = [getattr(c, room.upper()) for room in c.PANEL_ROOMS if room not in invalid_rooms]
 c.MUSIC_ROOMS = [getattr(c, room.upper()) for room in c.MUSIC_ROOMS if room not in invalid_rooms]
 
-# This can go away if/when we implement plugin enum merging
-c.ACCESS.update(c.PANEL_ACCESS_LEVELS)
-c.ACCESS_OPTS.extend(c.PANEL_ACCESS_LEVEL_OPTS)
-c.ACCESS_VARS.extend(c.PANEL_ACCESS_LEVEL_VARS)
-
 
 # =============================
 # tabletop
@@ -1209,11 +1194,6 @@ c.TABLETOP_LOCATIONS = [getattr(c, room.upper()) for room in c.TABLETOP_LOCATION
 # =============================
 # guests
 # =============================
-
-# Add the access levels we defined to c.ACCESS* (this will go away if/when we implement enum merging)
-c.ACCESS.update(c.GUEST_ACCESS_LEVELS)
-c.ACCESS_OPTS.extend(c.GUEST_ACCESS_LEVEL_OPTS)
-c.ACCESS_VARS.extend(c.GUEST_ACCESS_LEVEL_VARS)
 
 c.ROCK_ISLAND_GROUPS = [getattr(c, group.upper()) for group in c.ROCK_ISLAND_GROUPS if group or group.strip()]
 
