@@ -2,7 +2,7 @@
 
 Thanks for your interest in contributing a panel to {{ c.EVENT_NAME }} this year!  Your application for the panel "{{ app.name }}" has been received and is now being reviewed.
 
-We will continue accepting applications until {{ c.PANEL_APP_DEADLINE|datetime_local }}.  Decision notifications will be sent out {{ c.EXPECTED_RESPONSE }}.
+We will continue accepting applications until {{ c.PANELS_DEADLINE|datetime_local }}.  Decision notifications will be sent out {{ c.EXPECTED_RESPONSE }}.
 
 Meanwhile, if you want to make any changes to this application, or if you have any questions or concerns, please don't hesitate to reach out to us at {{ c.PANELS_EMAIL|email_only }}.
 

@@ -68,7 +68,7 @@ def upgrade():
             batch_op.add_column(sa.Column('has_cost', sa.Boolean(), server_default='False', nullable=False))
             batch_op.add_column(sa.Column('length_reason', sa.Unicode(), server_default='', nullable=False))
             batch_op.add_column(sa.Column('length_text', sa.Unicode(), server_default='', nullable=False))
-            batch_op.add_column(sa.Column('livestream', sa.Integer(), server_default=str(c.DONT_CARE), nullable=False))
+            batch_op.add_column(sa.Column('livestream', sa.Integer(), server_default=str(c.PRIVATE_RECORD), nullable=False))
             batch_op.add_column(sa.Column('need_tables', sa.Boolean(), server_default='False', nullable=False))
             batch_op.add_column(sa.Column('tables_desc', sa.Unicode(), server_default='', nullable=False))
 

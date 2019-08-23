@@ -239,7 +239,7 @@ def form_link(model):
         Department: 'dept_admin',
         Group: 'groups',
         Job: 'jobs',
-        PanelApplication: 'panel_app_admin'}
+        PanelApplication: 'panels_admin'}
 
     cls = model.__class__
     site_section = site_sections.get(cls, form_link_site_sections.get(cls))

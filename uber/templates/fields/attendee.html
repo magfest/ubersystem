@@ -1459,7 +1459,7 @@ $(function(){
         <ul>
           {% for applicant in attendee.panel_applicants -%}
             <li>
-              <a href="../panel_app_admin/app?id={{ applicant.application.id }}">{{ applicant.application.name }}</a>
+              <a href="../panels_admin/app?id={{ applicant.application.id }}">{{ applicant.application.name }}</a>
             </li>
           {%- endfor %}
         </ul>
