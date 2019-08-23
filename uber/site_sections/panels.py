@@ -51,7 +51,7 @@ class Root:
     @cherrypy.expose(['post_index'])
     def index(self, session, message='', **params):
         """
-        Our production NGINX config caches the page at /panel_applications/index.
+        Our production NGINX config caches the page at /panels/index.
         Since it's cached, we CAN'T return a session cookie with the page. We
         must POST to a different URL in order to bypass the cache and get a
         valid session cookie. Thus, this page is also exposed as "post_index".

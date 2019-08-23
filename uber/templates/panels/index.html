@@ -21,10 +21,10 @@
     <div class="panel-body">
       <h2>{{ c.EVENT_NAME }} Panel Submission Form</h2>
 
-      {% if c.AFTER_PANEL_APP_DEADLINE and not c.HAS_PANEL_APP_ADMIN_ACCESS %}
+      {% if c.AFTER_PANELS_DEADLINE and not c.HAS_PANELS_ADMIN_ACCESS %}
         Unfortunately, the deadline for panel applications has passed and we are no longer accepting panel submissions.
       {% else %}
-        {% if c.AFTER_PANEL_APP_DEADLINE and c.HAS_PANEL_APP_ADMIN_ACCESS %}
+        {% if c.AFTER_PANELS_DEADLINE and c.HAS_PANELS_ADMIN_ACCESS %}
           <span style="color:red">
             Panel applications have closed, but because you are a logged in
             administrator you can submit a new application using this form.
@@ -35,7 +35,7 @@
         all. We WILL be contacting potential panelists for more information as necessary.
         To increase your odds of acceptance, fill this form out accurately and keep an eye out for communication from us.
         <br/> <br/>
-        Panel requests are due by {{ c.PANEL_APP_DEADLINE|datetime_local('%-I:%M%p %Z on %A, %B %-e') }}.
+        Panel requests are due by {{ c.PANELS_DEADLINE|datetime_local('%-I:%M%p %Z on %A, %B %-e') }}.
         <br/> <br/>
         We hope to send acceptance e-mails out no later than {{ c.EXPECTED_RESPONSE }}.
         <br/> <br/>
