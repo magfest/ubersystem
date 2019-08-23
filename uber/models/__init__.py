@@ -1381,6 +1381,29 @@ class Session(SessionManager):
             return self.query(IndieGame).join(IndieStudio).options(
                 joinedload(IndieGame.studio), joinedload(IndieGame.reviews)).order_by(IndieStudio.name, IndieGame.title)
 
+        def create_or_find_mivs_judge_access_group(self):
+            """
+            Looks for an admin access group with write access to only mivs_judging,
+            and creates a new one if it can't find any.
+
+            Technically, we don't need this access group -- access to mivs_judging
+            is determined by whether the admin account is linked to an IndieJudge
+            object -- but we need to give MIVS judges some sort of access group.
+            """
+
+            existing_access_groups = self.query(AccessGroup).filter(
+                AccessGroup.access['mivs_judging'].astext.cast(Integer) > 0)
+            for group in existing_access_groups:
+                if len(group.access) == 1:
+                    return group
+            new_mivs_judge_group = AccessGroup(
+                name='MIVS Judge',
+                access={'mivs_judging': '5'}
+            )
+            self.add(new_mivs_judge_group)
+            self.commit()
+            return new_mivs_judge_group
+
         # =========================
         # mits
         # =========================

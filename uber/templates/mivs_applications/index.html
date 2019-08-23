@@ -66,14 +66,14 @@
   {% endif %}
 
   <h3>Games</h3>
-  You have {% if c.BEFORE_MIVS_ROUND_ONE_DEADLINE %}currently{% endif %} registered {{ studio.games|length }} game{{ studio.games|length|pluralize }}.
-  {% if c.CAN_SUBMIT_MIVS_ROUND_ONE %}
-    You may submit any number of games for consideration until {{ c.MIVS_ROUND_ONE_DEADLINE|datetime_local }}
+  You have {% if c.CAN_SUBMIT_MIVS %}currently{% endif %} registered {{ studio.games|length }} game{{ studio.games|length|pluralize }}.
+  {% if c.CAN_SUBMIT_MIVS %}
+    You may submit any number of games for consideration until {{ c.MIVS_DEADLINE|datetime_local }},
     after which no more games may be submitted.
   {% endif %}
 
-  {% if c.CAN_SUBMIT_MIVS_ROUND_ONE %}
-    {% if c.HAS_MIVS_ADMIN_ACCESS and c.AFTER_MIVS_ROUND_ONE_DEADLINE %}
+  {% if c.CAN_SUBMIT_MIVS %}
+    {% if c.HAS_MIVS_ADMIN_ACCESS and not c.MIVS_SUBMISSIONS_OPEN %}
       <br/><br/><b><font color="red">
       ADMIN NOTE: Because you are logged in as a MIVS admin, you can still use this form to manually create a
       game. For non-admin users, they will not be able to do this.
@@ -96,7 +96,7 @@
         <a href="show_info?id={{ game.id }}">here</a>.{% endif %}
     {% else %}
       {% set needs_screenshots = game.screenshots|length < 2 %}
-      {% set can_delete_screenshots = (not game.submitted and not game.video_submitted) or game.screenshots|length > 2%}
+      {% set can_delete_screenshots = not game.submitted or game.screenshots|length > 2%}
       <div class="game-container">
         <h4>Screenshots</h4>
         You have uploaded {{ game.screenshots|length }} screenshot{{ game.screenshots|length|pluralize }}.
@@ -129,39 +129,15 @@
         </table>
         <a class="btn btn-primary" href="screenshot?game_id={{ game.id }}">Upload a Screenshot</a>
 
-        <h4>Video Submission</h4>
-        {% if game.video_submitted %}
-          The video of your game has been submitted.
-        {% elif needs_screenshots %}
-          Please upload at least two screenshots before submitting the video of your game.
-        {% elif not game.video_submittable %}
-          Please include a link to a video for your game {{ game_edit_link }}, no longer than 2 minutes, showing
-          at least 30 seconds of uninterrupted gameplay.  This video will be utilized by our judges to
-          determine if your game is accepted through Round 1 of judging.  If your game is accepted into
-          the showcase, this video link may be embedded on the MIVS web-page and/or other places that
-          MAGFest advertises the MIVS area.  You must submit a video link before {{ c.MIVS_ROUND_ONE_DEADLINE|datetime_local }}.
-        {% elif not c.CAN_SUBMIT_MIVS_ROUND_ONE %}
-          You may no longer submit this game for consideration, as it is past the deadline
-          ({{ c.MIVS_ROUND_ONE_DEADLINE|datetime_local }}).
-        {% else %}
-          Once you're ready for our judges to look at the video link you've provided, you can submit it
-          to our panel of judges for consideration anytime until {{ c.MIVS_ROUND_ONE_DEADLINE|datetime_local }}:
-          <form method="post" action="submit_video">
-            {{ csrf_token() }}
-            <input type="hidden" name="id" value="{{ game.id }}" />
-            <input class="btn btn-primary" type="submit" value="Submit Video for Consideration" />
-          </form>
-        {% endif %}
-
-        {% if c.AFTER_MIVS_ROUND_TWO_START and game.status != c.VIDEO_DECLINED %}
+        {% if c.AFTER_MIVS_START %}
           <h4>Game Submission</h4>
           {% if game.submitted %}
             This game has been submitted.
           {% elif needs_screenshots %}
             Please upload at least two screenshots before submitting your game for consideration.
-          {% elif not c.CAN_SUBMIT_MIVS_ROUND_TWO %}
+          {% elif not c.CAN_SUBMIT_MIVS %}
             You may no longer submit this game for consideration, as it is past the deadline
-            ({{ c.MIVS_ROUND_TWO_DEADLINE|datetime_local }}).
+            ({{ c.MIVS_DEADLINE|datetime_local }}).
           {% elif not game.submittable %}
             You cannot submit this game until the following criteria are met:
             <ul>
@@ -171,10 +147,10 @@
               {% endfor %}
             </ul>
           {% else %}
-            You've met all the prerequisites to submit this game for consideration.  After submitting you may no longer
-            edit the game details unless the judges kick the game back to you and request edits.  You will still be able
-            to manage screenshots and the game build information, such as build status and link, after submitting.  Our
-            judges will not look at your game until you officially submit it by clicking this button:
+            You've met all the prerequisites to submit this game for consideration. After submitting you may no longer
+            edit the game details unless the judges kick the game back to you and requests edits. You will still be able
+            to manage your game's video, screenshots, and the game build information, such as build status and link,
+            after submitting. Our judges will not look at your game until you officially submit it by clicking this button:
             <form method="post" action="submit_game" class="form-horizontal">
               {{ csrf_token() }}
               <input type="hidden" name="id" value="{{ game.id }}" />
@@ -183,7 +159,7 @@
           {% endif %}
         {% endif %}
 
-        {% if c.CAN_SUBMIT_MIVS_ROUND_TWO %}
+        {% if c.CAN_SUBMIT_MIVS %}
           <h4>Game Build Information</h4>
           <form method="post" action="index" class="form-horizontal" role="form">
             {{ csrf_token() }}

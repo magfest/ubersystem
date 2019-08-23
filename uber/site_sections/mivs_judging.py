@@ -42,40 +42,27 @@ class Root:
 
         return {'studio': studio}
 
-    def video_review(self, session, message='', **params):
-        review = session.indie_game_review(params)
-        if cherrypy.request.method == 'POST':
-            if review.video_status == c.PENDING:
-                message = 'You must select a Video Status to tell us whether or not you were able to view the video'
-            elif review.video_status == c.VIDEO_REVIEWED and review.video_score == c.PENDING:
-                message = 'You must indicate whether or not you believe the game should pass to round 2'
-            else:
-                if review.video_status in c.MIVS_PROBLEM_STATUSES\
-                        and review.video_status != review.orig_value_of('video_status'):
-                    body = render('emails/mivs/admin_video_broken.txt', {'review': review}, encoding=None)
-                    send_email.delay(c.MIVS_EMAIL, c.MIVS_EMAIL, 'MIVS Video Submission Marked as Broken', body)
-                raise HTTPRedirect('index?message={}{}', review.game.title, ' video review has been uploaded')
-
-        return {
-            'message': message,
-            'review': review
-        }
-
     def game_review(self, session, message='', **params):
         review = session.indie_game_review(params, bools=['game_content_bad'])
         if cherrypy.request.method == 'POST':
-            if review.game_status == c.PENDING:
-                message = 'You must select a Game Status to tell us ' \
-                    'whether or not you were able to download and run the game'
+            if review.video_status == c.PENDING and review.game_status == c.PENDING:
+                message = 'You must select a Video or Game Status to tell us whether or not ' \
+                          'you were able to view the video or download and run the game'
             elif review.game_status == c.PLAYABLE and not review.game_score:
                 message = "You must indicate the game's readiness, design, and enjoyment"
             elif review.game_status != c.PLAYABLE and review.game_score:
                 message = 'If the game is not playable, please leave the score fields blank'
             else:
+                if review.video_status in c.MIVS_PROBLEM_STATUSES\
+                        and review.video_status != review.orig_value_of('video_status'):
+                    body = render('emails/mivs/admin_video_broken.txt', {'review': review}, encoding=None)
+                    send_email.delay(c.MIVS_EMAIL, c.MIVS_EMAIL, 'MIVS Video Submission Marked as Broken', body)
+
                 if review.game_status in c.MIVS_PROBLEM_STATUSES\
                         and review.game_status != review.orig_value_of('game_status'):
                     body = render('emails/mivs/admin_game_broken.txt', {'review': review}, encoding=None)
                     send_email.delay(c.MIVS_EMAIL, c.MIVS_EMAIL, 'MIVS Game Submission Marked as Broken', body)
+
                 raise HTTPRedirect('index?message={}{}', review.game.title, ' game review has been uploaded')
 
         return {

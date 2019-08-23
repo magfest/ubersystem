@@ -695,8 +695,7 @@ IndieGame.required = [
     ('title', 'Game Title'),
     ('brief_description', 'Brief Description'),
     ('genres', 'Genres'),
-    ('description', 'Full Description'),
-    ('link_to_video', 'Link to Video')
+    ('description', 'Full Description')
 ]
 
 IndieGameCode.required = [
@@ -710,8 +709,8 @@ IndieJudge.required = [
 
 @validation.IndieStudio
 def mivs_new_studio_deadline(studio):
-    if studio.is_new and not c.CAN_SUBMIT_MIVS_ROUND_ONE:
-        return 'Sorry, but the round one deadline has already passed, so no new studios may be registered'
+    if studio.is_new and not c.CAN_SUBMIT_MIVS:
+        return 'Sorry, but the deadline has already passed, so no new studios may be registered'
 
 
 @validation.IndieStudio
@@ -749,8 +748,8 @@ def mivs_platforms_or_other(game):
 
 @validation.IndieGame
 def mivs_new_game_deadline(game):
-    if game.is_new and not c.CAN_SUBMIT_MIVS_ROUND_ONE:
-        return 'Sorry, but the round one deadline has already passed, so no new games may be registered'
+    if game.is_new and not c.CAN_SUBMIT_MIVS:
+        return 'Sorry, but the deadline has already passed, so no new games may be registered'
 
 
 @validation.IndieGame

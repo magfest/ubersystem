@@ -89,22 +89,7 @@
       </div>
     </div>
 
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Link to Video</label>
-      <div class="col-sm-6">
-        <input class="form-control" type="text" name="link_to_video" value="{{ game.link_to_video }}" />
-        <p class="help-block">
-          Please include a link to a YouTube video, 720p or better, no longer than 2 minutes, showing at least 30 seconds
-          of uninterrupted gameplay.  This video will be utilized by our judges to determine if your game is accepted
-          through Round 1 of judging.  If your game is accepted into the showcase, this video link may be embedded on
-          the MIVS web-page and/or other places that MAGFest advertises the MIVS area.
-        </p>
-      </div>
-    </div>
-
-    {% if c.AFTER_MIVS_ROUND_TWO_START and game.status != c.VIDEO_DECLINED %}
-      {% include 'mivs_applications/game_build_info.html' %}
-    {% endif %}
+    {% include 'mivs_applications/game_build_info.html' %}
 
     <div class="form-group">
       <label class="col-sm-3 control-label optional-field">Demoed At Other Events</label>
@@ -131,19 +116,21 @@
     <div class="form-group">
       <label class="col-sm-3 control-label">Showtime Agreement</label>
       <div class="col-sm-6">
-        {{ macros.checkbox(game, 'agreed_showtimes') }}
+        {{ macros.checkbox(game, 'agreed_showtimes', label_class="optional-field", label="
         At least one person from my team will be available to man our booth from 11am to 7pm each full convention day and
         on the last day from 11am to 2pm.  Core hours exist each day to ensure games are setup for attendees to play. Games
         may be setup past core hours as the MIVS area is open 24 hours and will have volunteers on hand during this time.
+        ") }}
       </div>
     </div>
 
     <div class="form-group">
       <label class="col-sm-3 control-label">Liability Waiver</label>
       <div class="col-sm-6">
-        {{ macros.checkbox(game, 'agreed_liability') }}
+        {{ macros.checkbox(game, 'agreed_liability', label_class="optional-field", label="
         I understand that I am responsible for all equipment brought to the indie showcase by myself or my team,
         and we do not hold liable MAGFest, MIVS, or the venue in the event equipment is stolen or damaged.
+        ") }}
       </div>
     </div>
 
