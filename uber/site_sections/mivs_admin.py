@@ -58,7 +58,7 @@ class Root:
             out.writerow([
                 game.title,
                 game.studio.name,
-                '{}/mivs_applications/continue_app?id={}'.format(c.PATH, game.studio.id),
+                '{}/mivs/continue_app?id={}'.format(c.PATH, game.studio.id),
                 game.studio.primary_contact_first_names,
                 game.studio.email,
                 game.link_to_webpage,

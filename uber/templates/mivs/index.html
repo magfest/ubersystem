@@ -164,7 +164,7 @@
           <form method="post" action="index" class="form-horizontal" role="form">
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ game.id }}">
-            {% include 'mivs_applications/game_build_info.html' %}
+            {% include 'mivs/game_build_info.html' %}
             <div class="form-group">
               <div class="col-sm-6 col-sm-offset-3">
                 <button type="submit" class="btn btn-primary">Upload Changes</button>

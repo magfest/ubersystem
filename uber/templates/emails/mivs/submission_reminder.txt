@@ -11,6 +11,6 @@ We just wanted to remind you that {{ c.MIVS_DEADLINE|datetime_local }} is the la
  - You have not clicked the button marked "Submit Game For Consideration".
 {% endif %}
 
-You can finish your application anytime until the deadline at {{ c.URL_BASE }}/mivs_applications/continue_app?id={{ game.studio.id }}
+You can finish your application anytime until the deadline at {{ c.URL_BASE }}/mivs/continue_app?id={{ game.studio.id }}
 
 {{ c.MIVS_EMAIL_SIGNATURE }}
