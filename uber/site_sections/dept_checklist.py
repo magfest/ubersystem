@@ -294,19 +294,6 @@ class Root:
             ).order_by(Attendee.full_name).all()
         }  # noqa: E712
 
-    def mark_hotel_eligible(self, session, id):
-        """
-        Force mark a non-staffer as eligible for hotel space.
-        This is outside the normal workflow, used for when we have a staffer
-        that only has an attendee badge for some reason, and we want to mark
-        them as being OK to crash in a room.
-        """
-        attendee = session.attendee(id)
-        attendee.hotel_eligible = True
-        session.commit()
-        return '{} has now been overridden as being hotel eligible'.format(
-            attendee.full_name)
-
     @department_id_adapter
     def hotel_requests(self, session, department_id=None):
         dept_filter = [] if not department_id \

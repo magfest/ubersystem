@@ -21,7 +21,7 @@ class Root:
         return {
             'message': message,
             'judges': session.indie_judges().all(),
-            'games': [g for g in session.indie_games() if g.video_submitted]
+            'games': [g for g in session.indie_games() if g.submitted]
         }
 
     def studios(self, session, message=''):
@@ -50,7 +50,7 @@ class Root:
             'Genres', 'Brief Description', 'Long Description', 'How to Play',
             'Link to Video for Judging', 'Link to Promo Video', 'Link to Game', 'Game Link Password',
             'Game Requires Codes?', 'Code Instructions', 'Build Status', 'Build Notes',
-            'Video Submitted', 'Game Submitted', 'Current Status',
+            'Game Submitted', 'Current Status',
             'Registered', 'Accepted', 'Confirmation Deadline',
             'Screenshot Links', 'Average Score', 'Individual Scores'
         ])
@@ -58,7 +58,7 @@ class Root:
             out.writerow([
                 game.title,
                 game.studio.name,
-                '{}/mivs_applications/continue_app?id={}'.format(c.PATH, game.studio.id),
+                '{}/mivs/continue_app?id={}'.format(c.PATH, game.studio.id),
                 game.studio.primary_contact_first_names,
                 game.studio.email,
                 game.link_to_webpage,
@@ -77,7 +77,6 @@ class Root:
                 game.code_instructions,
                 game.build_status_label,
                 game.build_notes,
-                'submitted' if game.video_submitted else 'not submitted',
                 'submitted' if game.submitted else 'not submitted',
                 'accepted and confirmed' if game.confirmed else game.status_label,
                 game.registered.strftime('%Y-%m-%d'),
@@ -166,7 +165,6 @@ class Root:
                             'index?message={}{}', attendee.full_name, ' is already registered as a judge')
                     else:
                         attendee.admin_account.judge = judge
-
                         raise HTTPRedirect('index?message={}{}', attendee.full_name, ' has been granted judge access')
 
                 if not attendee:
@@ -175,9 +173,10 @@ class Root:
                     session.add(attendee)
 
                 password = genpasswd()
+                judge_access_group = session.create_or_find_mivs_judge_access_group()
                 attendee.admin_account = AdminAccount(
                     judge=judge,
-                    access=str(c.INDIE_JUDGE),
+                    access_group_id=judge_access_group.id,
                     hashed=bcrypt.hashpw(password, bcrypt.gensalt())
                 )
                 email_body = render('emails/accounts/new_account.txt', {
@@ -191,7 +190,7 @@ class Root:
                     email_body,
                     model=attendee.to_dict('id'))
                 raise HTTPRedirect(
-                    'index?message={}{}', attendee.full_name, ' has been given an admin account as an Indie Judge')
+                    'index?message={}{}', attendee.full_name, ' has been given an admin account as a MIVS Judge')
 
         return {
             'message': message,
@@ -228,7 +227,7 @@ class Root:
     def assign_games(self, session, judge_id, message=''):
         judge = session.indie_judge(judge_id)
         unassigned_games = [
-            g for g in session.indie_games() if g.video_submitted and judge.id not in (r.judge_id for r in g.reviews)]
+            g for g in session.indie_games() if g.submitted and judge.id not in (r.judge_id for r in g.reviews)]
         matching_genre = [
             g for g in unassigned_games if judge.mivs_all_genres or set(judge.genres_ints).intersection(g.genres_ints)]
         matching = [g for g in unassigned_games if set(judge.platforms_ints).intersection(g.platforms_ints)]
@@ -276,9 +275,6 @@ class Root:
                 if review:
                     session.delete(review)
         raise HTTPRedirect(return_to, 'Removal successful')
-
-    def video_results(self, session, id):
-        return {'game': session.indie_game(id)}
 
     def game_results(self, session, id, message=''):
         return {

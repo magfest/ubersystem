@@ -86,8 +86,15 @@ class AdminAccount(MagModel):
         return 'devtools' in self.access_set()
 
     @property
-    def is_mivs_judge_or_admin(self):
-        return self.judge or 'mivs_judging' in self.access_set(include_read_only=True)
+    def is_mivs_judge_or_admin(self, id=None):
+        try:
+            from uber.models import Session
+            with Session() as session:
+                id = id or cherrypy.session['account_id']
+                admin_account = session.admin_account(id)
+                return admin_account.judge or 'mivs_judging' in admin_account.access_set(include_read_only=True)
+        except Exception:
+            return None
 
     @presave_adjustment
     def _disable_api_access(self):

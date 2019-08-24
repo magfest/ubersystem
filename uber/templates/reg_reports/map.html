@@ -23,18 +23,10 @@
                 <input type="submit" value="Refresh (May Take A While)">
             </form>
             <br>
-            <br>
             <form id="radial" action="radial_zip_data">
                 <input type="number" id="radius" name="radius" min="1" placeholder="Miles From Center..." required><br>
                 <input type="submit" value="Get Basic CSV">
             </form>
-            <br>
-            <br>
-            <form id="advanced" action="attendees_can_email_in_radius_csv">
-                <input type="number" id="radius2" name="radius" min="1" placeholder="Miles From Center..." required><br>
-                <input type="submit" value="Get Attendee CSV">
-            </form>
-            <br>
             <br>
             <p>Current Zip: {{ center.Zipcode }}</p>
             <form id="set_center">

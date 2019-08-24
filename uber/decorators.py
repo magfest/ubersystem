@@ -617,7 +617,7 @@ def restricted(func):
                 raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
 
             elif c.PATH == 'mivs_judging':
-                if not session.admin_account(cherrypy.session.get('account_id')).is_mivs_judge_or_admin:
+                if not uber.models.AdminAccount.is_mivs_judge_or_admin:
                     return 'You need to be a MIVS Judge or have access for either {} or {}'.format(c.PATH, c.PAGE_PATH)
 
             else:

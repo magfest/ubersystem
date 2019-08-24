@@ -671,8 +671,8 @@ class Config(_Overridable):
     @cached_property
     def ADMIN_PAGES(self):
         # Build a list of all site sections and their pages
-        public_site_sections = ['preregistration', 'static_views', 'landing', 'panels', 'mits_applications',
-                                'attractions', 'emails', 'mivs_applications', 'uber', 'angular', 'index']
+        public_site_sections = ['preregistration', 'static_views', 'landing', 'panels', 'mits',
+                                'attractions', 'emails', 'mivs', 'uber', 'angular', 'index']
 
         app_root = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
 
@@ -687,14 +687,13 @@ class Config(_Overridable):
 
     @property
     @dynamic
-    def CAN_SUBMIT_MIVS_ROUND_ONE(self):
-        return not really_past_mivs_deadline(c.MIVS_ROUND_ONE_DEADLINE) or c.HAS_MIVS_ADMIN_ACCESS
+    def CAN_SUBMIT_MIVS(self):
+        return self.MIVS_SUBMISSIONS_OPEN or c.HAS_MIVS_ADMIN_ACCESS
 
     @property
     @dynamic
-    def CAN_SUBMIT_MIVS_ROUND_TWO(self):
-        return c.AFTER_MIVS_ROUND_TWO_START and (
-            not really_past_mivs_deadline(c.MIVS_ROUND_TWO_DEADLINE) or c.HAS_MIVS_ADMIN_ACCESS)
+    def MIVS_SUBMISSIONS_OPEN(self):
+        return not really_past_mivs_deadline(c.MIVS_DEADLINE) and c.AFTER_MIVS_START
 
     # =========================
     # panels
@@ -1113,7 +1112,7 @@ c.MIVS_INDIE_JUDGE_GENRE_OPTS.insert(0, (c.MIVS_ALL_GENRES, _mivs_all_genres_des
 
 c.MIVS_PROBLEM_STATUSES = {getattr(c, status.upper()) for status in c.MIVS_PROBLEM_STATUSES.split(',')}
 
-c.FINAL_MIVS_GAME_STATUSES = [c.ACCEPTED, c.WAITLISTED, c.DECLINED, c.STUDIO_DECLINED]
+c.FINAL_MIVS_GAME_STATUSES = [c.ACCEPTED, c.WAITLISTED, c.DECLINED, c.CANCELLED]
 
 # used for computing the difference between the "drop-dead deadline" and the "soft deadline"
 c.SOFT_MIVS_JUDGING_DEADLINE = c.MIVS_JUDGING_DEADLINE - timedelta(days=7)

@@ -182,15 +182,6 @@ class Root:
         raise HTTPRedirect('index?message={}', 'Code deleted')
 
     @csrf_protected
-    def submit_video(self, session, id):
-        game = session.indie_game(id, applicant=True)
-        if not game.video_submittable:
-            raise HTTPRedirect('index?message={}', 'You have not included a link to the video for your game')
-        else:
-            game.video_submitted = True
-            raise HTTPRedirect('index?message={}', 'Your video has been submitted to our panel of judges')
-
-    @csrf_protected
     def submit_game(self, session, id):
         game = session.indie_game(id, applicant=True)
         if not game.submittable:
@@ -229,7 +220,7 @@ class Root:
             if decision == 'Decline':
                 for game in studio.games:
                     if game.status == c.ACCEPTED:
-                        game.status = c.STUDIO_DECLINED
+                        game.status = c.CANCELLED
                 raise HTTPRedirect('index?message={}', 'You have been marked as declining space in the showcase')
             else:
                 group = studio.group = Group(name='MIVS Studio: ' + studio.name, can_add=True)
