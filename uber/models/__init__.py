@@ -1409,7 +1409,7 @@ class Session(SessionManager):
         # =========================
 
         def log_in_as_mits_team(
-                self, team_id, redirect_to='../mits_applications/index'):
+                self, team_id, redirect_to='../mits/index'):
             try:
                 team = self.mits_team(team_id)
                 duplicate_teams = []
@@ -1420,7 +1420,7 @@ class Session(SessionManager):
                         duplicate_teams)
             except Exception:
                 log.error('attempt to log into invalid team {}', team_id, exc_info=True)
-                raise HTTPRedirect('../mits_applications/login_explanation')
+                raise HTTPRedirect('../mits/login_explanation')
             else:
                 cherrypy.session['mits_team_id'] = team.id
                 raise HTTPRedirect(redirect_to)
@@ -1430,7 +1430,7 @@ class Session(SessionManager):
                 team = self.mits_team(cherrypy.session['mits_team_id'])
                 assert not team.deleted or team.duplicate_of
             except Exception:
-                raise HTTPRedirect('../mits_applications/login_explanation')
+                raise HTTPRedirect('../mits/login_explanation')
             else:
                 if team.duplicate_of:
                     # The currently-logged-in team was deleted, so log

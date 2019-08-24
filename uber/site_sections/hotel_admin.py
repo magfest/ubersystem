@@ -1,15 +1,12 @@
-from collections import defaultdict, OrderedDict
 from datetime import timedelta
 
 import cherrypy
-from sqlalchemy import or_
-from sqlalchemy.orm import joinedload, subqueryload
+from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csv_file
+from uber.decorators import ajax, all_renderable
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, HotelRequests, Room, RoomAssignment, Shift
-from uber.models.attendee import _generate_hotel_pin
+from uber.models import Attendee, Room, RoomAssignment, Shift
 
 
 @all_renderable()
@@ -110,239 +107,18 @@ class Root:
         session.commit()
         return _hotel_dump(session)
 
-    @csv_file
-    def ordered(self, out, session):
-        reqs = [
-            hr for hr in session.query(HotelRequests).options(joinedload(HotelRequests.attendee)).all()
-            if hr.nights and hr.attendee.badge_status in (c.NEW_STATUS, c.COMPLETED_STATUS)]
-
-        assigned = {
-            ra.attendee for ra in session.query(RoomAssignment).options(
-                joinedload(RoomAssignment.attendee), joinedload(RoomAssignment.room)).all()}
-
-        unassigned = {hr.attendee for hr in reqs if hr.attendee not in assigned}
-
-        names = {}
-        for attendee in unassigned:
-            names.setdefault(attendee.last_name.lower(), set()).add(attendee)
-
-        lookup = defaultdict(set)
-        for xs in names.values():
-            for attendee in xs:
-                lookup[attendee] = xs
-
-        for req in reqs:
-            if req.attendee in unassigned:
-                for word in req.wanted_roommates.lower().replace(',', '').split():
-                    try:
-                        combined = lookup[list(names[word])[0]] | lookup[req.attendee]
-                        for attendee in combined:
-                            lookup[attendee] = combined
-                    except Exception:
-                        pass
-
-        def writerow(a, hr):
-            out.writerow([
-                a.full_name, a.email, a.cellphone,
-                a.hotel_requests.nights_display, ' / '.join(a.assigned_depts_labels),
-                hr.wanted_roommates, hr.unwanted_roommates, hr.special_needs
-            ])
-
-        grouped = {frozenset(group) for group in lookup.values()}
-        out.writerow([
-            'Name',
-            'Email',
-            'Phone',
-            'Nights',
-            'Departments',
-            'Roomate Requests',
-            'Roomate Anti-Requests',
-            'Special Needs'])
-
-        # TODO: for better efficiency, a multi-level joinedload would be preferable here
-        for room in session.query(Room).options(joinedload(Room.assignments)).all():
-            for i in range(3):
-                out.writerow([])
-            out.writerow([
-                ('Locked-in ' if room.locked_in else '')
-                + 'room created by STOPS for '
-                + room.nights_display
-                + (' ({})'.format(room.notes) if room.notes else '')])
-
-            for ra in room.assignments:
-                writerow(ra.attendee, ra.attendee.hotel_requests)
-        for group in sorted(grouped, key=len, reverse=True):
-            for i in range(3):
-                out.writerow([])
-            for a in group:
-                writerow(a, a.hotel_requests)
-
-    @csv_file
-    def hotel_email_info(self, out, session):
-        fields = [
-            'CheckIn Date', 'CheckOut Date', 'Number of Guests', 'Room Notes',
-            'Guest1 First Name', 'Guest1 Last Name', 'Guest1 Legal Name',
-            'Guest2 First Name', 'Guest2 Last Name', 'Guest2 Legal Name',
-            'Guest3 First Name', 'Guest3 Last Name', 'Guest3 Legal Name',
-            'Guest4 First Name', 'Guest4 Last Name', 'Guest4 Legal Name',
-            'Guest5 First Name', 'Guest5 Last Name', 'Guest5 Legal Name',
-            'Emails',
-        ]
-
-        blank = OrderedDict([(field, '') for field in fields])
-        out.writerow(fields)
-        for room in session.query(Room).order_by(Room.created).all():
-            if room.assignments:
-                row = blank.copy()
-                row.update({
-                    'Room Notes': room.notes,
-                    'Number of Guests': min(4, len(room.assignments)),
-                    'CheckIn Date': room.check_in_date.strftime('%m/%d/%Y'),
-                    'CheckOut Date': room.check_out_date.strftime('%m/%d/%Y'),
-                    'Emails': ','.join(room.email),
-                })
-                for i, attendee in enumerate([ra.attendee for ra in room.assignments[:4]]):
-                    prefix = 'Guest{}'.format(i + 1)
-                    row.update({
-                        prefix + ' First Name': attendee.first_name,
-                        prefix + ' Last Name': attendee.last_name,
-                        prefix + ' Legal Name': attendee.legal_name,
-                    })
-                out.writerow(list(row.values()))
-
-    @csv_file
-    def mark_center(self, out, session):
-        """spreadsheet in the format requested by the Hilton Mark Center"""
-        out.writerow([
-            'Last Name',
-            'First Name',
-            'Arrival',
-            'Departure',
-            'Hide',
-            'Room Type',
-            'Hide',
-            'Number of Adults',
-            'Hide',
-            'Hide',
-            'IPO',
-            'Individual Pays Own-',
-            'Credit Card Name',
-            'Credit Card Number',
-            'Credit Card Expiration',
-            'Last Name 2',
-            'First Name 2',
-            'Last Name 3',
-            'First Name 3',
-            'Last Name 4',
-            'First Name 4',
-            'Comments',
-            'Emails',
-        ])
-        for room in session.query(Room).order_by(Room.created).all():
-            if room.assignments:
-                assignments = [ra.attendee for ra in room.assignments[:4]]
-                roommates = [
-                    [a.legal_last_name, a.legal_first_name]
-                    for a in assignments[1:]] + [['', '']] * (4 - len(assignments))
-
-                last_name = assignments[0].legal_last_name
-                first_name = assignments[0].legal_first_name
-                arrival = room.check_in_date.strftime('%-m/%-d/%Y')
-                departure = room.check_out_date.strftime('%-m/%-d/%Y')
-                out.writerow([
-                    last_name,              # Last Name
-                    first_name,             # First Name
-                    arrival,                # Arrival
-                    departure,              # Departure
-                    '',                     # Hide
-                    'Q2',                   # Room Type ('Q2' is 2 queen beds, 'K1' is 1 king bed)
-                    '',                     # Hide
-                    len(assignments),       # Number of Adults
-                    '',                     # Hide
-                    '',                     # Hide
-                    '',                     # IPO
-                    '',                     # Individual Pays Own-
-                    '',                     # Credit Card Name
-                    '',                     # Credit Card Number
-                    ''                      # Credit Card Expiration
-                ] + sum(roommates, []) + [  # Last Name, First Name 2-4
-                    room.notes,             # Comments
-                    ','.join(room.email),   # Emails
-                ])
-
-    @csv_file
-    def gaylord(self, out, session):
-        fields = [
-            'First Name', 'Last Name', 'Guest Email Address for confirmation purposes', 'Special Requests',
-            'Arrival', 'Departure', 'City', 'State', 'Zip', 'GUEST COUNTRY', 'Telephone',
-            'Payment Type', 'Card #', 'Exp.',
-            'BILLING ADDRESS', 'BILLING CITY', 'BILLING STATE', 'BILLING ZIP CODE', 'BILLING COUNTRY',
-            'Additional Guest First Name-2', 'Additional Guest Last Name-2',
-            'Additional Guest First Name-3', 'Additional Guest Last Name3',  # No, this is not a typo
-            'Additional Guest First Name-4', 'Additional Guest Last Name-4',
-            'Notes', 'Emails',
-        ]
-
-        blank = OrderedDict([(field, '') for field in fields])
-        out.writerow(fields)
-        for room in session.query(Room).order_by(Room.created).all():
-            if room.assignments:
-                row = blank.copy()
-                row.update({
-                    'Notes': room.notes,
-                    'Arrival': room.check_in_date.strftime('%m/%d/%Y'),
-                    'Departure': room.check_out_date.strftime('%m/%d/%Y'),
-                    'Emails': ','.join(room.email),
-                })
-                for i, attendee in enumerate([ra.attendee for ra in room.assignments[0:4]]):
-                    if i == 0:
-                        prefix, suffix = '', ''
-                        row.update({'Guest Email Address for confirmation purposes': attendee.email})
-                    else:
-                        prefix = 'Additional Guest'
-                        suffix = '-{}'.format(i+1) if i != 2 else str(i+1)
-                    row.update({
-                        prefix + 'First Name' + suffix: attendee.legal_first_name,
-                        prefix + 'Last Name' + suffix: attendee.legal_last_name
-                    })
-                out.writerow(list(row.values()))
-
-    @csv_file
-    def requested_hotel_info(self, out, session):
-        eligibility_filters = []
-        if c.PREREG_REQUEST_HOTEL_INFO_DURATION > 0:
-            eligibility_filters.append(Attendee.requested_hotel_info == True)  # noqa: E711
-        if c.PREREG_HOTEL_ELIGIBILITY_CUTOFF:
-            eligibility_filters.append(Attendee.registered <= c.PREREG_HOTEL_ELIGIBILITY_CUTOFF)
-
-        hotel_query = session.query(Attendee).filter(*eligibility_filters).filter(
-            Attendee.badge_status.notin_([c.INVALID_STATUS, c.REFUNDED_STATUS]),
-            Attendee.email != '',
-        )  # noqa: E712
-
-        attendees_without_hotel_pin = hotel_query.filter(*eligibility_filters).filter(or_(
-            Attendee.hotel_pin == None,
-            Attendee.hotel_pin == '',
-        )).all()  # noqa: E711
-
-        if attendees_without_hotel_pin:
-            hotel_pin_rows = session.query(Attendee.hotel_pin).filter(*eligibility_filters).filter(
-                Attendee.hotel_pin != None,
-                Attendee.hotel_pin != '',
-            ).all()  # noqa: E711
-
-            hotel_pins = set(map(lambda r: r[0], hotel_pin_rows))
-            for a in attendees_without_hotel_pin:
-                new_hotel_pin = _generate_hotel_pin()
-                while new_hotel_pin in hotel_pins:
-                    new_hotel_pin = _generate_hotel_pin()
-                hotel_pins.add(new_hotel_pin)
-                a.hotel_pin = new_hotel_pin
-            session.commit()
-
-        out.writerow(['First Name', 'Last Name', 'E-mail Address', 'Password'])
-        for a in sorted(hotel_query.all(), key=lambda a: a.legal_name or a.full_name):
-            out.writerow([a.legal_first_name, a.legal_last_name, a.email, a.hotel_pin])
+    def mark_hotel_eligible(self, session, id):
+        """
+        Force mark a non-staffer as eligible for hotel space.
+        This is outside the normal workflow, used for when we have a staffer
+        that only has an attendee badge for some reason, and we want to mark
+        them as being OK to crash in a room.
+        """
+        attendee = session.attendee(id)
+        attendee.hotel_eligible = True
+        session.commit()
+        return '{} has now been overridden as being hotel eligible'.format(
+            attendee.full_name)
 
 
 def _attendee_nights_without_shifts(attendee):

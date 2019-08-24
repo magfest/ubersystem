@@ -135,7 +135,7 @@ class Root:
         applicant = session.mits_applicant(params, applicant=True)
         if applicant.attendee_id:
             raise HTTPRedirect(
-                '../preregistration/confirm?id={}&return_to={}', applicant.attendee_id, '../mits_applications/')
+                '../preregistration/confirm?id={}&return_to={}', applicant.attendee_id, '../mits/')
 
         if cherrypy.request.method == 'POST':
             message = check(applicant)

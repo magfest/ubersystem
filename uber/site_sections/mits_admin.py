@@ -26,7 +26,7 @@ class Root:
 
     def create_new_application(self):
         cherrypy.session.pop('mits_team_id', None)
-        raise HTTPRedirect('../mits_applications/team')
+        raise HTTPRedirect('../mits/team')
 
     def team(self, session, id, message=''):
         return {

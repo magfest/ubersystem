@@ -5,6 +5,7 @@ from sqlalchemy.orm import joinedload
 from uber.config import c
 from uber.decorators import all_renderable, log_pageview
 from uber.models import Attendee, Group, MPointsForCash, Sale, StripeTransaction
+from uber.server import redirect_site_section
 
 
 def prereg_money(session):
@@ -69,3 +70,9 @@ class Root:
             'refunds': refunds,
             'refund_attendees': refund_attendees,
         }
+
+    def view_promo_codes(self, session, message='', **params):
+        redirect_site_section('budget', 'promo_codes', 'index')
+
+    def generate_promo_codes(self, session, message='', **params):
+        redirect_site_section('budget', 'promo_codes')
