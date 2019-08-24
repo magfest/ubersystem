@@ -935,7 +935,7 @@ def panel_other(app):
 
 @validation.PanelApplication
 def app_deadline(app):
-    if localized_now() > c.PANEL_APP_DEADLINE and not c.HAS_PANEL_APP_ADMIN_ACCESS and not app.poc_id:
+    if localized_now() > c.PANELS_DEADLINE and not c.HAS_PANELS_ADMIN_ACCESS and not app.poc_id:
         return 'We are now past the deadline and are no longer accepting panel applications'
 
 

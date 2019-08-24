@@ -671,7 +671,7 @@ class Config(_Overridable):
     @cached_property
     def ADMIN_PAGES(self):
         # Build a list of all site sections and their pages
-        public_site_sections = ['preregistration', 'static_views', 'landing', 'panel_applications', 'mits',
+        public_site_sections = ['preregistration', 'static_views', 'landing', 'panels', 'mits',
                                 'attractions', 'emails', 'mivs', 'uber', 'angular', 'index']
 
         app_root = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
