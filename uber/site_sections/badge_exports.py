@@ -18,7 +18,7 @@ def generate_staff_badges(start_badge, end_badge, out, session):
         badge_type_name='Staff').run(out, session)
 
 
-@all_renderable(c.STATS)
+@all_renderable()
 class Root:
     @xlsx_file
     def printed_badges_attendee(self, out, session):

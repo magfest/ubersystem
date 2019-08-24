@@ -50,7 +50,7 @@ def update_counts(job, counts):
         counts['regular_signups'] += job.weighted_hours * len(job.shifts)
 
 
-@all_renderable(c.PEOPLE)
+@all_renderable()
 class Root:
 
     @department_id_adapter

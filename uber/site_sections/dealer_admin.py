@@ -105,7 +105,7 @@ def _decline_and_convert_dealer_group(session, group, status=c.DECLINED):
     return ', '.join(message)
 
 
-@all_renderable(c.PEOPLE, c.REG_AT_CON)
+@all_renderable()
 class Root:
     def index(self, session, message='', order='name', show='all'):
         which = {

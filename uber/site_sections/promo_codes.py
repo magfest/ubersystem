@@ -11,7 +11,8 @@ from uber.errors import HTTPRedirect
 from uber.models import PromoCode, PromoCodeWord, Session
 from uber.utils import check, check_all, localized_now
 
-@all_renderable(c.MONEY)
+
+@all_renderable()
 class Root:
     @site_mappable
     @log_pageview

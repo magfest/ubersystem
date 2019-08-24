@@ -13,7 +13,7 @@
     <select name="status">
         <option value="">Choose whether to accept this game into the Showcase</option>
         <option value="{{ c.ACCEPTED }}">Accept</option>
-        <option value="{{ c.GAME_DECLINED }}">Decline</option>
+        <option value="{{ c.DECLINED }}">Decline</option>
         <option value="{{ c.WAITLISTED }}">Waitlist</option>
     </select>
     <input type="submit" value="Mark Verdict" />
@@ -59,7 +59,7 @@
 {% for review in game.game_reviews %}
     <tr>
         <td>{{ review.judge.full_name }}</td>
-        <td>{{ review.game_status_label }}</td>
+        <td>{{ review.game_status_label }} (video: {{ review.video_status_label }})</td>
         <td>{{ review.game_content_bad|yesno }}</td>
         <td>{% if review.readiness_score %}{{ review.readiness_score }}{% endif %}</td>
         <td>{% if review.design_score %}{{ review.design_score }}{% endif %}</td>

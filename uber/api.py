@@ -87,11 +87,8 @@ def auth_by_token(required_access):
             return (403, 'Auth token not recognized: {}'.format(token))
         if api_token.revoked_time:
             return (403, 'Revoked auth token: {}'.format(token))
-        if not required_access.issubset(set(api_token.access_ints)):
-            # If the API call requires extra access, like c.ADMIN, check if the
-            # associated admin account has the required access.
-            extra_required_access = required_access.difference(set(c.API_ACCESS.keys()))
-            if not extra_required_access or not extra_required_access.issubset(api_token.admin_account.access_ints):
+        for access_level in required_access:
+            if not getattr(api_token, access_level, None):
                 return (403, 'Insufficient access for auth token: {}'.format(token))
         cherrypy.session['account_id'] = api_token.admin_account_id
     return None
@@ -109,8 +106,9 @@ def auth_by_session(required_access):
         admin_account = session.query(AdminAccount).filter_by(id=admin_account_id).first()
         if not admin_account:
             return (403, 'Invalid admin account in session')
-        if not required_access.issubset(set(admin_account.access_ints)):
-            return (403, 'Insufficient access for admin account')
+        for access_level in required_access:
+            if not getattr(admin_account.access_group.access, access_level, None):
+                return (403, 'Insufficient access for admin account')
     return None
 
 
@@ -148,7 +146,7 @@ class all_api_auth:
         return cls
 
 
-@all_api_auth(c.API_READ)
+@all_api_auth('api_read')
 class GuestLookup:
     fields = {
         'group_id': True,
@@ -199,7 +197,7 @@ class GuestLookup:
             return [guest.to_dict(self.fields) for guest in query]
 
 
-@all_api_auth(c.API_READ)
+@all_api_auth('api_read')
 class MivsLookup:
     fields = {
         'name': True,
@@ -243,7 +241,7 @@ class MivsLookup:
             return [mivs.to_dict(self.fields) for mivs in query]
 
 
-@all_api_auth(c.API_READ)
+@all_api_auth('api_read')
 class AttendeeLookup:
     fields = {
         'full_name': True,
@@ -508,7 +506,7 @@ class AttendeeLookup:
             }
 
 
-@all_api_auth(c.API_UPDATE)
+@all_api_auth('api_update')
 class JobLookup:
     fields = {
         'name': True,
@@ -533,7 +531,7 @@ class JobLookup:
     }
 
     @department_id_adapter
-    @api_auth(c.API_READ)
+    @api_auth('api_read')
     def lookup(self, department_id, start_time=None, end_time=None):
         """
         Returns a list of all shifts for the given department.
@@ -637,7 +635,7 @@ class JobLookup:
             return session.job(shift.job_id).to_dict(self.fields)
 
 
-@all_api_auth(c.API_READ)
+@all_api_auth('api_read')
 class DepartmentLookup:
     def list(self):
         """
@@ -646,7 +644,7 @@ class DepartmentLookup:
         return c.DEPARTMENTS
 
     @department_id_adapter
-    @api_auth(c.API_READ)
+    @api_auth('api_read')
     def jobs(self, department_id):
         """
         Returns a list of all roles and jobs for the given department.
@@ -688,7 +686,7 @@ class DepartmentLookup:
             })
 
 
-@all_api_auth(c.API_READ)
+@all_api_auth('api_read')
 class ConfigLookup:
     fields = [
         'EVENT_NAME',
@@ -732,7 +730,7 @@ class ConfigLookup:
             raise HTTPError(404, 'Config field not found: {}'.format(field))
 
 
-@all_api_auth(c.API_READ)
+@all_api_auth('api_read')
 class BarcodeLookup:
     def lookup_attendee_from_barcode(self, barcode_value, full=False):
         """

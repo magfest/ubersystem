@@ -14,7 +14,7 @@ from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, check_for_encrypted_badge_num, check_if_can_reg, credit_card, \
-    csrf_protected, department_id_adapter, log_pageview, renderable_override, site_mappable, unrestricted
+    csrf_protected, department_id_adapter, log_pageview, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.models import ArbitraryCharge, Attendee, Department, Email, Group, Job, MerchDiscount, MerchPickup, \
     MPointsForCash, NoShirt, OldMPointExchange, PageViewTracking, PromoCodeGroup, Sale, Session, Shift, Tracking, \
@@ -61,7 +61,7 @@ def check_atd(func):
     return checking_at_the_door
 
 
-@all_renderable(c.PEOPLE, c.REG_AT_CON)
+@all_renderable()
 class Root:
     def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first', invalid=''):
         # DEVELOPMENT ONLY: it's an extremely convenient shortcut to show the first page
@@ -214,7 +214,7 @@ class Root:
             'message': message,
         }
 
-    @unrestricted
+    @public
     def qrcode_generator(self, data):
         """
         Takes a piece of data, adds the EVENT_QR_ID, and returns an Aztec barcode as an image stream.
@@ -259,58 +259,6 @@ class Root:
                                             and_(Tracking.model == 'Attendee', Tracking.fk_id == id)))
                                 .order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Attendee id={}".format(id))
-        }
-
-    @log_pageview
-    def watchlist(self, session, attendee_id, watchlist_id=None, message='', **params):
-        attendee = session.attendee(attendee_id, allow_invalid=True)
-        if cherrypy.request.method == 'POST':
-            if 'ignore' in params:
-                attendee.badge_status = c.COMPLETED_STATUS
-            elif watchlist_id:
-                watchlist_entry = session.watch_list(watchlist_id)
-
-                if 'active' in params:
-                    watchlist_entry.active = not watchlist_entry.active
-                    message = 'Watchlist entry updated'
-                if 'confirm' in params:
-                    attendee.watchlist_id = watchlist_id
-
-            session.commit()
-
-            raise HTTPRedirect('watchlist?attendee_id={}&message={}', attendee.id, message or 'Attendee updated')
-
-        return {
-            'attendee': attendee,
-            'active_entries': session.guess_attendee_watchentry(attendee, active=True),
-            'inactive_entries': session.guess_attendee_watchentry(attendee, active=False),
-            'message': message
-        }
-
-    def watchlist_entries(self, session, message='', **params):
-        watch_entry = session.watch_list(params, bools=WatchList.all_bools)
-
-        if 'first_names' in params:
-            if not watch_entry.first_names or not watch_entry.last_name:
-                message = 'First and last name are required.'
-            elif not watch_entry.reason or not watch_entry.action:
-                message = 'Reason and action are required.'
-
-            if not message:
-                session.add(watch_entry)
-                if 'id' not in params:
-                    message = 'New watch list item added.'
-                else:
-                    message = 'Watch list item updated.'
-
-                session.commit()
-
-            watch_entry = WatchList()
-
-        return {
-            'new_watch': watch_entry,
-            'watchlist_entries': session.query(WatchList).order_by(WatchList.last_name).all(),
-            'message': message
         }
 
     def duplicate(self, session, id, return_to='index'):
@@ -690,7 +638,7 @@ class Root:
         session.commit()
         return {'success': True, 'message': 'Discount on badge #{} has been marked as redeemed.'.format(badge_num)}
 
-    @unrestricted
+    @public
     @check_atd
     @check_if_can_reg
     def register(self, session, message='', error_message='', **params):
@@ -731,7 +679,7 @@ class Root:
             'promo_code': params.get('promo_code', ''),
         }
 
-    @unrestricted
+    @public
     @check_atd
     def pay(self, session, id, message=''):
         attendee = session.attendee(id)
@@ -745,7 +693,7 @@ class Root:
                 'charge': Charge(attendee, description=attendee.full_name)
             }
 
-    @unrestricted
+    @public
     @check_atd
     @credit_card
     def take_payment(self, session, payment_id, stripeToken):
@@ -863,7 +811,7 @@ class Root:
 
         raise HTTPRedirect('new?message={}&checked_in={}', message, checked_in)
 
-    @unrestricted
+    @public
     def arbitrary_charge_form(self, message='', amount=None, description='', sale_id=None):
         charge = None
         if amount is not None:
@@ -882,7 +830,7 @@ class Root:
             'sale_id': sale_id
         }
 
-    @unrestricted
+    @public
     @credit_card
     def arbitrary_charge(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
@@ -990,7 +938,6 @@ class Root:
         session.delete(shift)
         raise HTTPRedirect('shifts?id={}&message={}', shift.attendee.id, 'Staffer unassigned from shift')
 
-    @renderable_override(c.ACCOUNTS, c.STAFF_ROOMS)
     def feed(self, session, message='', page='1', who='', what='', action=''):
         feed = session.query(Tracking).filter(Tracking.action != c.AUTO_BADGE_SHIFT).order_by(Tracking.when.desc())
         what = what.strip()
@@ -1113,7 +1060,7 @@ class Root:
                                 .order_by(Attendee.badge_status, Attendee.full_name).all()
         }
 
-    @unrestricted
+    @public
     def stats(self):
         cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
         return json.dumps({
@@ -1124,7 +1071,7 @@ class Root:
             'warn_if_server_browser_time_mismatch': c.WARN_IF_SERVER_BROWSER_TIME_MISMATCH
         })
 
-    @unrestricted
+    @public
     def price(self):
         cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
         return json.dumps({

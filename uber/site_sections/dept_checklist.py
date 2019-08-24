@@ -32,7 +32,7 @@ def _submit_checklist_item(session, department_id, submitted, csrf_token, slug):
     return {'department': department}
 
 
-@all_renderable(c.PEOPLE)
+@all_renderable()
 class Root:
 
     @department_id_adapter
@@ -294,19 +294,6 @@ class Root:
             ).order_by(Attendee.full_name).all()
         }  # noqa: E712
 
-    def mark_hotel_eligible(self, session, id):
-        """
-        Force mark a non-staffer as eligible for hotel space.
-        This is outside the normal workflow, used for when we have a staffer
-        that only has an attendee badge for some reason, and we want to mark
-        them as being OK to crash in a room.
-        """
-        attendee = session.attendee(id)
-        attendee.hotel_eligible = True
-        session.commit()
-        return '{} has now been overridden as being hotel eligible'.format(
-            attendee.full_name)
-
     @department_id_adapter
     def hotel_requests(self, session, department_id=None):
         dept_filter = [] if not department_id \
@@ -320,10 +307,8 @@ class Root:
             *dept_filter) \
             .order_by(Attendee.full_name).all()
 
-        room_access = set([c.ADMIN, c.STAFF_ROOMS])
-        admin_has_room_access = bool(room_access.intersection(session.current_admin_account().access_ints))
         return {
-            'admin_has_room_access': admin_has_room_access,
+            'admin_has_room_access': c.HAS_HOTEL_ADMIN_ACCESS,
             'requests': requests,
             'department_id': department_id,
             'department_name': c.DEPARTMENTS.get(department_id, 'All'),

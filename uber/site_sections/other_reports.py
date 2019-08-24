@@ -5,7 +5,7 @@ from uber.decorators import all_renderable, csv_file, render, site_mappable
 from uber.models import Attendee, FoodRestrictions
 
 
-@all_renderable(c.STATS)
+@all_renderable()
 class Root:
     def food_restrictions(self, session):
         all_fr = session.query(FoodRestrictions).all()
@@ -50,7 +50,3 @@ class Root:
                 person.badge_num, person.full_name, person.badge_type_label,
                 person.email, person.comments
             ])
-
-    requested_accessibility_services.restricted = [c.ACCESSIBILITY]
-
-

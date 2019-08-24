@@ -48,7 +48,7 @@ If applicable, select the duplicate team from the following list:
                         <input type="radio" name="duplicate_of" value="{{ t.id }}"
                             {% if match_count and loop.index == 0 %}checked{% endif %} />
                     </td>
-                    <td><a href="../mits_applications/continue_app?id={{ t.id }}">{{ t.name }}</a></td>
+                    <td><a href="../mits/continue_app?id={{ t.id }}">{{ t.name }}</a></td>
                     <td>[{{ t.status_label }}]</td>
                     <td>{{ t.completion_percentage }}%</td>
                     <td>

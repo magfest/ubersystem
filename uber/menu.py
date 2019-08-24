@@ -7,12 +7,11 @@ from uber.config import c
 
 
 class MenuItem:
-    access = None   # list of permission levels allowed to display this menu
     href = None     # link to render
     submenu = None  # submenu to show
     name = None     # name of Menu item to show
 
-    def __init__(self, href=None, access=None, submenu=None, name=None):
+    def __init__(self, href=None, submenu=None, name=None):
         assert submenu or href, "menu items must contain ONE nonempty: href or submenu"
         assert not submenu or not href, "menu items must not contain both a href and submenu"
 
@@ -22,7 +21,6 @@ class MenuItem:
             self.href = href
 
         self.name = name
-        self.access = set(listify(access)) if access else set()
 
     def append_menu_item(self, m):
         """
@@ -50,20 +48,20 @@ class MenuItem:
 
         self.submenu.append(m)
 
-    def render_items_filtered_by_current_access(self, access_set):
+    def render_items_filtered_by_current_access(self):
         """
         Returns: dict of menu items which are allowed to be seen by the logged in user's access levels
         """
         out = {}
 
-        if self.access and self.access.isdisjoint(access_set):
+        if self.href and not c.has_section_or_page_access(page_path=self.href.strip('.'), include_read_only=True):
             return None
 
         out['name'] = self.name
         if self.submenu:
             out['submenu'] = []
             for menu_item in self.submenu:
-                filtered_menu_items = menu_item.render_items_filtered_by_current_access(access_set)
+                filtered_menu_items = menu_item.render_items_filtered_by_current_access()
                 if filtered_menu_items:
                     out['submenu'].append(filtered_menu_items)
         else:
@@ -91,32 +89,33 @@ def get_external_schedule_menu_name():
 
 c.MENU = MenuItem(name='Root', submenu=[
     MenuItem(name='Admin', submenu=[
-        MenuItem(name='Admin Accounts', href='../accounts/', access=c.ACCOUNTS),
-        MenuItem(name='API Access', href='../api/', access=list(c.API_ACCESS.keys())),
-        MenuItem(name='Pending Emails', href='../email_admin/pending', access=c.PEOPLE),
-        MenuItem(name='Add/Edit Shifts', href='../shifts_admin/', access=c.PEOPLE),
-        MenuItem(name='All Unfilled Shifts', href='../shifts_admin/everywhere', access=c.PEOPLE),
-        MenuItem(name='Departments', href='../dept_admin/', access=c.PEOPLE),
-        MenuItem(name='Department Checklists', href='../dept_checklist/overview', access=c.PEOPLE),
-        MenuItem(name='Feed of Database Changes', href='../registration/feed', access=[c.ACCOUNTS, c.STAFF_ROOMS]),
+        MenuItem(name='Admin Accounts', href='../accounts/'),
+        MenuItem(name='Access Groups', href='../accounts/access_groups'),
+        MenuItem(name='API Access', href='../api/'),
+        MenuItem(name='Pending Emails', href='../email_admin/pending'),
+        MenuItem(name='Add/Edit Shifts', href='../shifts_admin/'),
+        MenuItem(name='All Unfilled Shifts', href='../shifts_admin/everywhere'),
+        MenuItem(name='Departments', href='../dept_admin/'),
+        MenuItem(name='Department Checklists', href='../dept_checklist/overview'),
+        MenuItem(name='Feed of Database Changes', href='../registration/feed'),
     ]),
 
-    MenuItem(name='People', access=[c.PEOPLE, c.REG_AT_CON], submenu=[
+    MenuItem(name='People', submenu=[
         MenuItem(name='Attendees', href='../registration/{}'.format('?invalid=True' if c.AT_THE_CON else '')),
         MenuItem(name='Promo Code Groups', href='../registration/promo_code_groups'),
         MenuItem(name='Dealers', href='../dealer_admin/'),
-        MenuItem(name='Bands', href='../guest_admin/?filter=only-bands', access=c.BANDS),
-        MenuItem(name='Guests', href='../guest_admin/?filter=only-guests', access=c.BANDS),
-        MenuItem(name='MIVS', href='../guest_admin/?filter=only-mivss', access=c.INDIE_ADMIN),
-        MenuItem(name='Watchlist', href='../registration/watchlist_entries', access=c.WATCHLIST),
+        MenuItem(name='Bands', href='../guest_admin/?filter=only-bands'),
+        MenuItem(name='Guests', href='../guest_admin/?filter=only-guests'),
+        MenuItem(name='MIVS', href='../guest_admin/?filter=only-mivss'),
+        MenuItem(name='Watchlist', href='../security_admin/index'),
     ]),
 
-    MenuItem(name='Schedule', access=[c.STUFF, c.PEOPLE, c.REG_AT_CON], submenu=[
+    MenuItem(name='Schedule', submenu=[
         MenuItem(name=get_external_schedule_menu_name(), href='../schedule/'),
-        MenuItem(name='Edit Schedule', access=c.STUFF, href='../schedule/edit'),
+        MenuItem(name='Edit Schedule', href='../schedule/edit'),
     ]),
 
-    MenuItem(name='Statistics', access=c.STATS, submenu=[
+    MenuItem(name='Statistics', submenu=[
         MenuItem(name='Summary', href='../reg_reports/'),
         MenuItem(name='Badges Sold Graph', href='../reg_reports/badges_sold'),
     ]),

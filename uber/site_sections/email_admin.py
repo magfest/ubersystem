@@ -12,7 +12,7 @@ from uber.tasks.email import send_email
 from uber.utils import get_page
 
 
-@all_renderable(c.PEOPLE)
+@all_renderable()
 class Root:
     def index(self, session, page='1', search_text=''):
         emails = session.query(Email).order_by(Email.when.desc())
@@ -28,7 +28,6 @@ class Root:
 
     def sent(self, session, **params):
         return {'emails': session.query(Email).filter_by(**params).order_by(Email.when).all()}
-    sent.restricted = [c.PEOPLE, c.REG_AT_CON]
 
     def pending(self, session, message=''):
         emails_with_count = session.query(AutomatedEmail, AutomatedEmail.email_count).filter(

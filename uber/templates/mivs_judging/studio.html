@@ -10,8 +10,8 @@
     <div class="form-group">
         <label class="col-sm-2 control-label">Studio Name</label>
         <div class="col-sm-6 game-display">
-            {% if c.HAS_INDIE_ADMIN_ACCESS %}
-                <a href="../mivs_applications/continue_app?id={{ studio.id }}">{{ studio.name }}</a>
+            {% if c.HAS_MIVS_ADMIN_ACCESS %}
+                <a href="../mivs/continue_app?id={{ studio.id }}">{{ studio.name }}</a>
                 <br/> (click the link to become logged in as that studio)
             {% else %}
                 {{ studio.name }}
