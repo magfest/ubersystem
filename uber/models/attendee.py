@@ -1320,23 +1320,23 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.has_role_in(department)
 
     def can_admin_dept_for(self, department):
-        return (self.admin_account and c.ACCOUNTS in self.admin_account.access_ints) \
+        return (self.admin_account and self.admin_account.access_group.full_dept_admin) \
             or self.has_inherent_role_in(department)
 
     def can_dept_head_for(self, department):
-        return (self.admin_account and c.ACCOUNTS in self.admin_account.access_ints) \
+        return (self.admin_account and self.admin_account.access_group.full_dept_admin) \
             or self.is_dept_head_of(department)
 
     @property
     def can_admin_checklist(self):
-        return (self.admin_account and c.ACCOUNTS in self.admin_account.access_ints) \
+        return (self.admin_account and self.admin_account.access_group.full_dept_admin) \
             or bool(self.dept_memberships_where_can_admin_checklist)
 
     @department_id_adapter
     def can_admin_checklist_for(self, department_id):
         if not department_id:
             return False
-        return (self.admin_account and c.ACCOUNTS in self.admin_account.access_ints) \
+        return (self.admin_account and self.admin_account.access_group.full_dept_admin) \
             or any(m.department_id == department_id for m in self.dept_memberships_where_can_admin_checklist)
 
     @department_id_adapter
@@ -1406,7 +1406,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def depts_where_can_admin(self):
-        if self.admin_account and c.ACCOUNTS in self.admin_account.access_ints:
+        if self.admin_account and self.admin_account.access_group.full_dept_admin:
             from uber.models.department import Department
             return self.session.query(Department).order_by(Department.name).all()
         return self.depts_with_inherent_role

@@ -92,10 +92,10 @@
       <tbody>
         {% for shift in attendee.shifts|sort(attribute='job.start_time') %}
           <tr id="shift_{{ shift.id }}">
-            <td><a href="../jobs/form?id={{ shift.job.id }}">{{ shift.job.name }}</a></td>
+            <td><a href="../shifts_admin/form?id={{ shift.job.id }}">{{ shift.job.name }}</a></td>
             <td>
                 {{ shift.job.department|form_link }}
-                (<a href="../jobs/index?department_id={{ shift.job.department_id }}">Jobs in dept</a>)
+                (<a href="../shifts_admin/index?department_id={{ shift.job.department_id }}">Jobs in dept</a>)
             </td>
             <td>{{ hour_day_local(shift.job.start_time) }}</td>
             <td>{{ hour_day_local(shift.job.end_time) }}</td>

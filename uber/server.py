@@ -80,6 +80,15 @@ def log_exception_with_verbose_context(debug=False, msg=''):
     log_with_verbose_context('\n'.join([msg, 'Exception encountered']), exc_info=True)
 
 
+def redirect_site_section(original, redirect, new_page='', *path, **params):
+    path = cherrypy.request.path_info.replace(original, redirect)
+    if new_page:
+        path = path.replace(c.PAGE, new_page)
+    if cherrypy.request.query_string:
+        path += '?' + cherrypy.request.query_string
+    raise HTTPRedirect(path)
+
+
 cherrypy.tools.custom_verbose_logger = cherrypy.Tool('before_error_response', log_exception_with_verbose_context)
 
 
@@ -178,10 +187,10 @@ class AngularJavascript:
         ])
 
 
-@all_renderable()
+@all_renderable(public=True)
 class Root:
     def index(self):
-        raise HTTPRedirect('common/')
+        raise HTTPRedirect('landing/')
 
     def uber(self, *path, **params):
         """
@@ -200,6 +209,119 @@ class Root:
         if cherrypy.request.query_string:
             path += '?' + cherrypy.request.query_string
         raise HTTPRedirect(path)
+
+
+    """
+    In August 2019 we rearranged and refactored our site sections to be 
+    more consistent and logical. Below are several redirects to help
+    with the transition. We can remove all these when we're reasonably
+    sure people won't have bookmarks with the old URLs.
+    """
+
+    def signups(self, *path, **params):
+        redirect_site_section('signups', 'staffing')
+
+    def common(self, *path, **params):
+        redirect_site_section('common', 'landing')
+
+    def departments(self, *path, **params):
+        redirect_site_section('departments', 'dept_admin')
+
+    def emails(self, *path, **params):
+        # Is this okay with the email templates being kept under /emails?
+        redirect_site_section('emails', 'email_admin')
+
+    def graphs(self, *path, **params):
+        redirect_site_section('graphs', 'reg_reports')
+
+    def groups(self, *path, **params):
+        if 'promo_code' in c.PAGE:
+            redirect_site_section('groups', 'registration')
+        redirect_site_section('groups', 'dealer_admin')
+
+    def jobs(self, *path, **params):
+        redirect_site_section('jobs', 'shifts_admin')
+
+    def panel_applications(self, *path, **params):
+        redirect_site_section('panel_applications', 'panels')
+
+    def panel_app_management(self, *path, **params):
+        redirect_site_section('panel_app_management', 'panels_admin')
+
+    def mivs_applications(self, *path, **params):
+        redirect_site_section('mivs_applications', 'mivs')
+
+    def mits_applications(self, *path, **params):
+        redirect_site_section('mits_applications', 'mits')
+
+    def export(self, *path, **params):
+        new_page = 'csv_export' if c.PAGE == 'index' else ''
+        redirect_site_section('export', 'devtools', new_page)
+
+    @cherrypy.expose('import')  # import is a special name in Python
+    def import_page(self, *path, **params):
+        if c.PAGE == 'attendees':
+            redirect_site_section('import', 'reg_admin', 'import_attendees')
+        elif c.PAGE == 'shifts':
+            redirect_site_section('import', 'staffing_admin', 'import_shifts')
+
+        new_page = 'csv_import' if c.PAGE == 'index' else ''
+        redirect_site_section('import', 'devtools', 'csv_import')
+
+    def hotel(self, *path, **params):
+        if c.PAGE == 'index':
+            new_page = 'hotel_eligible'
+        elif c.PAGE == 'requests':
+            new_page = 'hotel_requests'
+        else:
+            new_page = ''
+
+        redirect_site_section('hotel', 'dept_checklist', new_page)
+
+    def hotel_assignments(self, *path, **params):
+        if c.PAGE == 'index':
+            redirect_site_section('hotel_assignments', 'hotel_reports')
+        redirect_site_section('hotel_assignments', 'hotel_admin')
+
+    def hotel_summary(self, *path, **params):
+        redirect_site_section('hotel_summary', 'hotel_reports')
+
+    def summary(self, *path, **params):
+        new_page = 'index' if c.PAGE in ['staffing_overview', 'guidebook_exports'] else ''
+        new_sections = {'badge_exports': [
+            'badge_hangars_supporters', 'personalized_badges_zip', 'printed_badges_attendee', 'printed_badges_guest',
+            'printed_badges_minor', 'printed_badges_one_day', 'printed_badges_staff',
+        ], 'dealer_reports': [
+            'seller_comptroller_info', 'seller_table_info',
+        ], 'merch_reports': [
+            'extra_merch', 'shirt_counts', 'shirt_manufacturing_counts',
+        ], 'other_reports': [
+            'food_eligible', 'food_restrictions', 'requested_accessibility_services',
+        ], 'reg_reports': [
+            'affiliates', 'attendee_birthday_calendar', 'badges_sold', 'checkins_by_hour', 'event_birthday_calendar',
+            'found_how', 'index'
+        ], 'schedule_reports': [
+            'export_guidebook_zip', 'guidebook_exports',
+        ], 'staffing_reports': [
+            'all_schedules', 'consecutive_threshold', 'departments', 'dept_head_contact_info', 'staffing_overview',
+            'ratings', 'restricted_untaken', 'setup_teardown_neglect', 'volunteer_checklist_csv',
+            'volunteer_checklists', 'volunteer_hours_overview', 'volunteers_owed_refunds',
+            'volunteers_with_worked_hours',
+        ]}
+        for section in new_sections:
+            if c.PAGE in new_sections[section]:
+                redirect_site_section('summary', section, new_page)
+
+    def budget(self, *path, **params):
+        if 'promo_codes' in c.PATH:
+            redirect_site_section('budget', 'promo_codes')
+
+    def map(self, *path, **params):
+        if c.PAGE == 'attendees_can_email_in_radius_csv':
+            redirect_site_section('map', 'devtools', 'csv_export')
+        new_page = 'map' if c.PAGE == 'index' else ''
+
+        redirect_site_section('map', 'reg_reports', new_page)
 
     static_views = StaticViews()
     angular = AngularJavascript()

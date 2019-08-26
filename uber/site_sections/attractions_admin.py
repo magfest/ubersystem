@@ -7,7 +7,7 @@ from pockets import listify, sluggify
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, renderable_override
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, Attraction, AttractionFeature, AttractionEvent, AttractionSignup, \
     utcmin
@@ -15,9 +15,8 @@ from uber.site_sections.attractions import _attendee_for_badge_num
 from uber.utils import check, filename_safe
 
 
-@all_renderable(c.STUFF)
+@all_renderable()
 class Root:
-    @renderable_override(c.STUFF, c.PEOPLE, c.REG_AT_CON)
     def index(self, session, filtered=False, message='', **params):
         admin_account = session.current_admin_account()
         if filtered:
@@ -364,7 +363,6 @@ class Root:
         if message:
             return {'error': message}
 
-    @renderable_override(c.STUFF, c.PEOPLE, c.REG_AT_CON)
     def checkin(self, session, message='', **params):
         id = params.get('id')
         if not id:
@@ -382,7 +380,6 @@ class Root:
 
         return {'attraction': attraction, 'message': message}
 
-    @renderable_override(c.STUFF, c.PEOPLE, c.REG_AT_CON)
     @ajax
     def get_signups(self, session, badge_num, attraction_id=None):
         if cherrypy.request.method == 'POST':
@@ -421,7 +418,6 @@ class Root:
                 }
             }
 
-    @renderable_override(c.STUFF, c.PEOPLE, c.REG_AT_CON)
     @ajax
     def checkin_signup(self, session, id):
         message = ''
@@ -436,7 +432,6 @@ class Root:
         if message:
             return {'error': message}
 
-    @renderable_override(c.STUFF, c.PEOPLE, c.REG_AT_CON)
     @ajax
     def undo_checkin_signup(self, session, id):
         if cherrypy.request.method == 'POST':

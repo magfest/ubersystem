@@ -448,7 +448,7 @@ StopsEmailFixture(
 if c.VOLUNTEER_AGREEMENT_ENABLED:
     StopsEmailFixture(
         'Reminder: Please agree to terms of {EVENT_NAME} ({EVENT_DATE}) volunteer agreement',
-        'signups/volunteer_agreement.txt',
+        'staffing/volunteer_agreement.txt',
         lambda a: c.SHIFTS_CREATED and c.VOLUNTEER_AGREEMENT_ENABLED and not a.agreed_to_volunteer_agreement,
         when=days_before(45, c.FINAL_EMAIL_DEADLINE),
         ident='volunteer_agreement')
@@ -609,25 +609,10 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieGame,
-        'Your MIVS Game Video Has Been Submitted',
-        'mivs/game_video_submitted.txt',
-        lambda game: game.video_submitted,
-        ident='mivs_video_submitted')
-
-    MIVSEmailFixture(
-        IndieGame,
         'Your MIVS Game Has Been Submitted',
         'mivs/game_submitted.txt',
         lambda game: game.submitted,
         ident='mivs_game_submitted')
-
-    MIVSEmailFixture(
-        IndieStudio,
-        'Reminder to submit your game\'s video to MIVS',
-        'mivs/videoless_studio.txt',
-        lambda studio: days_after(2, studio.registered)() and not any(game.video_submitted for game in studio.games),
-        ident='mivs_missing_video_inquiry',
-        when=days_before(7, c.MIVS_ROUND_ONE_DEADLINE))
 
     MIVSEmailFixture(
         IndieGame,
@@ -638,40 +623,19 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieGame,
-        'Round 2 Submission for MIVS are now open',
-        'mivs/round_two_open.txt',
-        lambda game: game.status == c.JUDGING and not game.submitted,
-        ident='mivs_round_two_open')
-
-    MIVSEmailFixture(
-        IndieGame,
         'Reminder to submit your game to MIVS',
-        'mivs/round_two_reminder.txt',
+        'mivs/submission_reminder.txt',
         lambda game: game.status == c.JUDGING and not game.submitted,
         ident='mivs_game_submission_reminder',
-        when=days_before(7, c.MIVS_ROUND_TWO_DEADLINE))
+        when=days_before(7, c.MIVS_DEADLINE))
 
     MIVSEmailFixture(
         IndieGame,
         'Final Reminder to submit your game to MIVS',
-        'mivs/round_two_final_reminder.txt',
+        'mivs/submission_reminder.txt',
         lambda game: game.status == c.JUDGING and not game.submitted,
         ident='mivs_game_submission_final_reminder',
-        when=days_before(2, c.MIVS_ROUND_TWO_DEADLINE))
-
-    MIVSEmailFixture(
-        IndieGame,
-        'Your game has been accepted into MIVS Round Two',
-        'mivs/video_accepted.txt',
-        lambda game: game.status == c.JUDGING,
-        ident='mivs_game_made_it_to_round_two')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'Your game has been declined from MIVS',
-        'mivs/video_declined.txt',
-        lambda game: game.status == c.VIDEO_DECLINED,
-        ident='mivs_video_declined')
+        when=days_before(2, c.MIVS_DEADLINE))
 
     MIVSEmailFixture(
         IndieGame,
@@ -691,7 +655,7 @@ if c.MIVS_ENABLED:
         IndieGame,
         'Your game application has been declined from MIVS',
         'mivs/game_declined.txt',
-        lambda game: game.status == c.GAME_DECLINED,
+        lambda game: game.status == c.DECLINED,
         ident='mivs_game_declined')
 
     MIVSEmailFixture(
@@ -713,40 +677,6 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieGame,
-        'MIVS December Updates: Hotels and Magfest Versus!',
-        'mivs/december_updates.txt',
-        lambda game: game.confirmed,
-        ident='mivs_december_updates')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'REQUIRED: Pre-flight for MIVS due by midnight, January 2nd',
-        'mivs/game_preflight.txt',
-        lambda game: game.confirmed,
-        ident='mivs_game_preflight_reminder')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS {EVENT_YEAR}: Hotel and selling signups',
-        'mivs/2018_hotel_info.txt',
-        lambda game: game.confirmed,
-        ident='2018_hotel_info')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS {EVENT_YEAR}: November Updates & info',
-        'mivs/2018_email_blast.txt',
-        lambda game: game.confirmed,
-        ident='2018_email_blast')
-
-    MIVSGuestEmailFixture(
-        'MIVS {EVENT_YEAR}: Indie Handbook and MIVS Training',
-        'mivs/accepted/2019_HandbookTrainingUpdate.txt',
-        lambda mg: True,
-        ident='2019_Handbook_Training_Update')
-
-    MIVSEmailFixture(
-        IndieGame,
         'Summary of judging feedback for your game',
         'mivs/reviews_summary.html',
         lambda game: game.status in c.FINAL_MIVS_GAME_STATUSES and game.reviews_to_email,
@@ -754,31 +684,11 @@ if c.MIVS_ENABLED:
         allow_post_con=True)
 
     MIVSEmailFixture(
-        IndieJudge,
-        'Welcome to MIVS Judging 2019!',
-        'mivs/2018_JudgingAudit.txt',
-        ident='mivs_2018_JudgingAudit')
-
-    MIVSEmailFixture(
-        IndieJudge,
-        'Reminder to accept or decline being a MIVS Judge for 2019',
-        'mivs/2018_JudgingAudit_Reminder.txt',
-        lambda judge: judge.status == c.UNCONFIRMED,
-        ident='mivs_2018_JudgingAudit_Reminder')
-
-    MIVSEmailFixture(
-        IndieJudge,
-        'Final Reminder to accept or decline being a MIVS Judge for 2019',
-        'mivs/2018_JudgingAudit_Final_Reminder.txt',
-        lambda judge: judge.status == c.UNCONFIRMED,
-        ident='mivs_2018_JudgingAudit_Final_Reminder')
-
-    MIVSEmailFixture(
         IndieGame,
         'MIVS judging is wrapping up',
-        'mivs/round_two_closing.txt',
+        'mivs/results_almost_ready.txt',
         lambda game: game.submitted, when=days_before(14, c.MIVS_JUDGING_DEADLINE),
-        ident='mivs_round_two_closing')
+        ident='mivs_results_almost_ready')
 
     MIVSEmailFixture(
         IndieJudge,
@@ -805,7 +715,7 @@ if c.MIVS_ENABLED:
     MIVSEmailFixture(
         IndieJudge,
         'Reminder: MIVS Judging due by {}'.format(c.MIVS_JUDGING_DEADLINE.strftime('%B %-d')),
-        'mivs/final_judging_reminder.txt',
+        'mivs/judging_reminder.txt',
         lambda judge: not judge.judging_complete and judge.status == c.CONFIRMED,
         when=days_before(5, c.MIVS_JUDGING_DEADLINE),
         ident='mivs_judging_due_reminder_last_chance')
@@ -824,67 +734,9 @@ if c.MIVS_ENABLED:
         lambda judge: judge.status == c.CONFIRMED,
         ident='mivs_judge_badge_info')
 
-    MIVSEmailFixture(
-        IndieJudge,
-        'MIVS Judging about to begin',
-        'mivs/judge_2016.txt',
-        lambda judge: judge.status == c.CONFIRMED,
-        ident='mivs_selected_to_judge')
-
-    MIVSEmailFixture(
-        IndieJudge,
-        'MIVS Judges: A Request for our MIVSY awards',
-        'mivs/2018_mivsy_request.txt',
-        lambda judge: judge.status == c.CONFIRMED,
-        ident='2018_mivsy_request')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS: {EVENT_YEAR} MIVSY Awards happening on January 6th, 7pm ',
-        'mivs/2018_indie_mivsy_explination.txt',
-        lambda game: game.confirmed,
-        ident='2018_indie_mivsy_explination')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS: December updates ',
-        'mivs/2018_december_updates.txt',
-        lambda game: game.confirmed,
-        ident='2018_december_updates')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'Thanks for Being part of MIVS {EVENT_YEAR} - A Request for Feedback',
-        'mivs/2018_feedback.txt',
-        lambda game: game.confirmed,
-        ident='2018_mivs_post_event_feedback',
-        when=after(c.EPOCH),
-        allow_post_con=True)
-
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS {EVENT_YEAR} - November Updates',
-        'mivs/2019_november_updates.txt',
-        lambda game: game.confirmed,
-        ident='2019_mivs_november_updates')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS {EVENT_YEAR} - Important Hotel Information',
-        'mivs/accepted/2019_Hotel.txt',
-        lambda game: game.confirmed,
-        ident='2019_mivs_accepted_hotel')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS {EVENT_YEAR}: Important Events and MIVS Training Reminder',
-        'mivs/accepted/2019_DecemberUpdate.txt',
-        lambda game: game.confirmed,
-        ident='mivs_2019_december_update')
-
     MIVSGuestEmailFixture(
         '{EVENT_NAME} MIVS Checklist',
-        'mivs/mivs_checklist_open.txt',
+        'mivs/checklist_open.txt',
         lambda mg: True,
         ident='mivs_checklist_open'
     )
@@ -893,7 +745,7 @@ if c.MIVS_ENABLED:
         if val['start']:
             MIVSGuestEmailFixture(
                 'New MIVS Checklist Item Available: {}'.format(val['name']),
-                'mivs/mivs_checklist_new_item.txt',
+                'mivs/checklist_new_item.txt',
                 lambda mg: val['start'] > mg.created.when,
                 when=after(val['start']),
                 ident='mivs_checklist_new_item_{}'.format(key),
@@ -904,7 +756,7 @@ if c.MIVS_ENABLED:
     for deadline in deadline_groups:
         MIVSGuestEmailFixture(
             'An item on your {EVENT_NAME} MIVS Checklist is due soon',
-            'mivs/mivs_checklist_reminder.txt',
+            'mivs/checklist_reminder.txt',
             lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
                            for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
             when=days_before(2, deadline, 1),
@@ -913,7 +765,7 @@ if c.MIVS_ENABLED:
 
         MIVSGuestEmailFixture(
             'An item on your {EVENT_NAME} MIVS Checklist is due tomorrow',
-            'mivs/mivs_checklist_reminder.txt',
+            'mivs/checklist_reminder.txt',
             lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
                            for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
             when=days_before(1, deadline, 0),
@@ -922,7 +774,7 @@ if c.MIVS_ENABLED:
 
         MIVSGuestEmailFixture(
             'An item on your {EVENT_NAME} MIVS Checklist is overdue',
-            'mivs/mivs_checklist_reminder.txt',
+            'mivs/checklist_reminder.txt',
             lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
                            for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
             when=days_after(1, deadline),

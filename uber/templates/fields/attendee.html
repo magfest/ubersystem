@@ -1,3 +1,4 @@
+{% set page_ro = c.HAS_READ_ACCESS and not c.HAS_ACCESS %}
 {% import 'macros.html' as macros with context %}
 
 {#- Setting some variables to keep the size of conditional clauses smaller. -#}
@@ -766,7 +767,7 @@
         {% endif %}
     };
     var noCellphoneClicked = function () {
-        if ($.field('no_cellphone')) {
+        if ($.field('no_cellphone') && $.field('cellphone')) {
             $.field('cellphone').prop('disabled', $.field('no_cellphone').prop('checked'));
             if($.field('no_cellphone').prop('checked')) {
                 $.field('cellphone').val('');
@@ -788,8 +789,10 @@
             $.field('no_cellphone').on('click', noCellphoneClicked);
         }
         {% if admin_area %}
-            toggleStaffingAdminRows();
-            $.field('staffing').on('click', toggleStaffingAdminRows);
+            if($.field('staffing')) {
+                toggleStaffingAdminRows();
+                $.field('staffing').on('click', toggleStaffingAdminRows);
+            }
         {% endif %}
     });
 </script>
@@ -1188,7 +1191,7 @@
 {% if c.ACCESSIBILITY_SERVICES_ENABLED %}
   <div class="form-group">
     <label for="requested_accessibility_services_option" class="col-sm-3 control-label optional-field">Accessibility Services</label>
-    {% if c.HAS_ACCESSIBILITY_ACCESS or not admin_area %}
+    {% if c.HAS_OTHER_REPORTS_ACCESS or not admin_area %}
       <div class="checkbox col-sm-9">
         {{ macros.checkbox(attendee, 'requested_accessibility_services', label='I would like to be contacted by the ' ~ c.EVENT_NAME ~ ' Accessibility Services department prior to the event.', is_readonly=read_only) }}
       </div>
@@ -1292,7 +1295,7 @@
             $('.full_name').css('font-weight', 'bold');
         } else {
             var form = document.forms[0];
-            if( form.group_opt.selectedIndex > 0 )
+            if( form.group_opt && form.group_opt.selectedIndex > 0 )
                 $('.maybe_bold').css('font-weight', 'normal');
             else {
                 $('.maybe_bold').css('font-weight', 'bold');
@@ -1362,7 +1365,7 @@ $(function(){
   <label for="admin_status" class="col-sm-3 control-label">Admin Accesses</label>
   <div class="col-sm-9 form-control-static">
     {% if attendee.admin_account %}
-      {{ attendee.admin_account.access_labels|join(' / ') }}
+      {{ attendee.admin_account.access_group.name }}
     {% else %}
       This attendee does not have an admin account.
     {% endif %}
@@ -1388,11 +1391,13 @@ $(function(){
 {% set read_only = group_link_ro or page_ro %}
 <script type="text/javascript">
     var setGroupLink = function () {
-        var group = $.val('group_opt');
-        if (group === '') {
-            $('#group_link').hide();
-        } else {
-            $('#group_link').attr("href", '../groups/form?id=' + group).show();
+        if ($.field('group_opt')) {
+            var group = $.val('group_opt');
+            if (group === '') {
+                $('#group_link').hide();
+            } else {
+                $('#group_link').attr("href", '../dealer_admin/form?id=' + group).show();
+            }
         }
     };
 
@@ -1433,10 +1438,10 @@ $(function(){
     <label class="col-sm-3 control-label">Promo Code Group</label>
     <div class="col-sm-6 form-control-static">
       {% for group in attendee.promo_code_groups %}
-        This attendee is the buyer/group leader for <strong><a href="../groups/promo_code_group_form?id={{ group.id }}" target="_blank">{{ group.name }}</a></strong>.
+        This attendee is the buyer/group leader for <strong><a href="../registration/promo_code_group_form?id={{ group.id }}" target="_blank">{{ group.name }}</a></strong>.
       {% endfor %}
       {% if attendee.promo_code and attendee.promo_code.group %}
-        This attendee used promo code <strong>{{ attendee.promo_code.code }}</strong> to claim a ${{ attendee.promo_code.cost }} badge in promo code group <strong><a href="../groups/promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a></strong>.
+        This attendee used promo code <strong>{{ attendee.promo_code.code }}</strong> to claim a ${{ attendee.promo_code.cost }} badge in promo code group <strong><a href="../registration/promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a></strong>.
       {% endif %}
     </div>
   </div>
@@ -1454,7 +1459,7 @@ $(function(){
         <ul>
           {% for applicant in attendee.panel_applicants -%}
             <li>
-              <a href="../panel_app_management/app?id={{ applicant.application.id }}">{{ applicant.application.name }}</a>
+              <a href="../panels_admin/app?id={{ applicant.application.id }}">{{ applicant.application.name }}</a>
             </li>
           {%- endfor %}
         </ul>
@@ -1673,7 +1678,7 @@ $(function(){
   <label class="col-sm-3 control-label">Hotel Eligible</label>
   <div class="col-sm-9">
     <div class="form-control-static">
-      {% if c.HAS_STAFF_ROOMS_ACCESS %}{{ attendee.agreed_to_volunteer_agreement|yesno("Yes,No") }}{% endif %}
+      {% if c.HAS_HOTEL_ADMIN_ACCESS %}{{ attendee.agreed_to_volunteer_agreement|yesno("Yes,No") }}{% endif %}
       <input type="hidden" name="hotel_eligible" value="{{ attendee.hotel_eligible|yesno("1,0") }}" />
     </div>
   </div>

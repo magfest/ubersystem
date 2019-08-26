@@ -39,7 +39,7 @@ def check_post_con(klass):
     return klass
 
 
-@all_renderable()
+@all_renderable(public=True)
 @check_post_con
 class Root:
     def _get_unsaved(self, id, if_not_found=None):
@@ -871,7 +871,7 @@ class Root:
         attendee = session.attendee(id)
         assert attendee.badge_type == c.GUEST_BADGE, 'This form is for guests only'
         cherrypy.session['staffer_id'] = attendee.id
-        raise HTTPRedirect('../signups/food_restrictions')
+        raise HTTPRedirect('../staffing/food_restrictions')
 
     @id_required(Attendee)
     def attendee_donation_form(self, session, id, message=''):

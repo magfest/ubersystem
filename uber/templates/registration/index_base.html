@@ -126,15 +126,15 @@
                 {% block tablerows scoped %}
                 <td id="group_{{ attendee.id }}">
                     {% if attendee.group %}
-                    <a href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
+                    <a href="../dealer_admin/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
                     {% endif %}
                 </td>
                   <td id="promo_code_group_{{ attendee.id }}">
                   {% for group in attendee.promo_code_groups %}
-                    <a href="../groups/promo_code_group_form?id={{ group.id }}" target="_blank">{{ group.name }}</a>
+                    <a href="promo_code_group_form?id={{ group.id }}" target="_blank">{{ group.name }}</a>
                   {% endfor %}
                   {% if attendee.promo_code and attendee.promo_code.group %}
-                    <a href="../groups/promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a>
+                    <a href="promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a>
                   {% endif %}
                   </td>
                 <td id="name_{{ attendee.id }}" style="text-align:left">

@@ -67,7 +67,7 @@
 
                         $.ajax({
                             method: 'POST',
-                            url: '../emails/resend_email',
+                            url: '../email_admin/resend_email',
                             dataType: 'json',
                             data: data,
                             success: function (json) {
@@ -425,10 +425,10 @@
                             <ul class="dropdown-menu" role="menu">
                                 {% if 'admin_account' in c.CURRENT_ADMIN %}
                                   <li><a href="../registration/form?id={{ c.CURRENT_ADMIN.id }}">My Registration</a></li>
-                                  {% if c.PEOPLE|string in c.CURRENT_ADMIN.admin_account.access and c.CURRENT_ADMIN.assigned_depts %}
-                                    <li><a href="../departments/?filtered=1">My Departments</a></li>
+                                  {% if c.HAS_DEPT_ADMIN_ACCESS and c.CURRENT_ADMIN.assigned_depts %}
+                                    <li><a href="../dept_admin/?filtered=1">My Departments</a></li>
                                     {% for dept in c.CURRENT_ADMIN.assigned_depts %}
-                                      <li><a href="../departments/form?id={{ dept.id }}">&nbsp;&#8226;&nbsp;{{ dept.name }}</a></li>
+                                      <li><a href="../dept_admin/form?id={{ dept.id }}">&nbsp;&#8226;&nbsp;{{ dept.name }}</a></li>
                                     {% endfor %}
                                   {% endif %}
                                   <li role="separator" class="divider"></li>

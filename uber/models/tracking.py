@@ -45,7 +45,7 @@ class PageViewTracking(MagModel):
             if "registration" in url:
                 what = "Attendee id={}".format(params['id'])
             # Looking at a group's details
-            elif "groups" in url:
+            elif "dealer_admin" in url:
                 what = "Group id={}".format(params['id'])
 
         from uber.models import Session
