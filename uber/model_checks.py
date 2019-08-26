@@ -71,7 +71,8 @@ def has_email_address(account):
 
 @validation.AdminAccount
 def admin_has_required_access(account):
-    if (account.is_new or account.orig_value_of('access_group_id') != account.access_group_id) \
+    if (account.is_new or (account.orig_value_of('access_group_id')
+                           and account.orig_value_of('access_group_id') != account.access_group_id)) \
             and getattr(account.access_group, 'required_access_groups', None):
         with Session() as session:
             admin_account = session.current_admin_account()

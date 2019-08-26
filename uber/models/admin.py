@@ -98,11 +98,12 @@ class AdminAccount(MagModel):
 
     @presave_adjustment
     def _disable_api_access(self):
-        old_access_group = self.session.access_group(self.orig_value_of('access_group_id'))
-        if self.access_group != old_access_group:
-            invalid_api = self.access_group.invalid_api_accesses()
-            if invalid_api:
-                self.remove_disabled_api_keys(invalid_api)
+        if self.orig_value_of('access_group_id'):
+            old_access_group = self.session.access_group(self.orig_value_of('access_group_id'))
+            if self.access_group != old_access_group:
+                invalid_api = self.access_group.invalid_api_accesses()
+                if invalid_api:
+                    self.remove_disabled_api_keys(invalid_api)
 
     def remove_disabled_api_keys(self, invalid_api):
         revoked_time = datetime.utcnow()
