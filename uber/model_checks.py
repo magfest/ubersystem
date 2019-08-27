@@ -26,7 +26,7 @@ from uber.decorators import prereg_validation, validation
 from uber.models import AdminAccount, ApiToken, Attendee, AttendeeTournament, Attraction, AttractionFeature, \
     Department, DeptRole, Event, Group, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio, Job, \
     MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam, PanelApplicant, PanelApplication, PromoCode, \
-    Sale, Session
+    Sale, Session, MarketplaceApplication
 from uber.utils import localized_now, Charge
 
 
@@ -649,10 +649,22 @@ def attendee_tournament_cellphone(app):
     if app.cellphone and _invalid_phone_number(app.cellphone):
         return 'You did not enter a valid cellphone number'
 
+# =============================
+# marketplace
+# =============================
+
+MarketplaceApplication.required = [('description', 'Description'), ('categories', 'Categories')]
+
+
+@validation.MarketplaceApplication
+def marketplace_other_category(app):
+    if app.categories and c.OTHER in app.categories_ints and not app.categories_text:
+        return "Please describe what 'other' things you are planning to sell."
 
 # =============================
 # mivs
 # =============================
+
 
 def _is_invalid_url(url):
     if c.MIVS_SKIP_URL_VALIDATION:

@@ -21,7 +21,8 @@ from sqlalchemy.orm import joinedload, subqueryload
 from uber.config import c
 from uber import decorators
 from uber.models import AdminAccount, Attendee, AutomatedEmail, Department, Group, GuestGroup, IndieGame, IndieJudge, \
-    IndieStudio, MITSTeam, MITSApplicant, PanelApplication, PanelApplicant, PromoCodeGroup, Room, RoomAssignment, Shift
+    IndieStudio, MarketplaceApplication, MITSTeam, MITSApplicant, PanelApplication, PanelApplicant, PromoCodeGroup, \
+    Room, RoomAssignment, Shift
 from uber.utils import after, before, days_after, days_before, localized_now, DeptChecklistConf
 
 
@@ -231,6 +232,55 @@ AutomatedEmailFixture(
     needs_approval=False,
     ident='group_preassign_badges_reminder_last_chance',
     sender=c.REGDESK_EMAIL)
+
+
+# Marketplace emails
+AutomatedEmailFixture.queries.update({
+    MarketplaceApplication:
+        lambda session: session.query(MarketplaceApplication)
+            .options(subqueryload(MarketplaceApplication.attendee))
+})
+
+
+class MarketplaceAppEmailFixture(AutomatedEmailFixture):
+    def __init__(self, subject, template, filter, ident, **kwargs):
+        AutomatedEmailFixture.__init__(self, MarketplaceApplication, subject,
+                                       template,
+                                       lambda app: True and filter(app),
+                                       ident,
+                                       sender=c.MARKETPLACE_APP_EMAIL, **kwargs)
+
+
+MarketplaceAppEmailFixture(
+    '{EVENT_NAME} Marketplace Application Confirmation',
+    'marketplace/application.html',
+    lambda a: a.status == c.UNAPPROVED,
+    ident='marketplace_confirm')
+
+MarketplaceAppEmailFixture(
+    'Your {EVENT_NAME} Marketplace application has been approved',
+    'marketplace/approved.html',
+    lambda a: a.status == c.APPROVED,
+    ident='marketplace_approved')
+
+MarketplaceAppEmailFixture(
+    'Your {EVENT_NAME} Marketplace application has been waitlisted',
+    'marketplace/waitlisted.txt',
+    lambda a: a.status == c.WAITLISTED,
+    ident='marketplace_waitlisted')
+
+MarketplaceAppEmailFixture(
+    'Your {EVENT_NAME} Marketplace application has been declined',
+    'marketplace/declined.txt',
+    lambda a: a.status == c.DECLINED,
+    ident='marketplace_declined')
+
+MarketplaceAppEmailFixture(
+    'Reminder to pay for your {EVENT_NAME} Marketplace application',
+    'marketplace/payment_reminder.txt',
+    lambda a: a.status == c.APPROVED and a.amount_unpaid,
+    when=days_before(14, c.MARKETPLACE_PAYMENT_DUE),
+    ident='marketplace_payment_reminder')
 
 
 # Dealer emails; these are safe to be turned on for all events because even if the event doesn't have dealers,

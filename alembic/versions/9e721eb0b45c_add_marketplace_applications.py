@@ -67,7 +67,6 @@ def upgrade():
     sa.Column('base_price', sa.Integer(), server_default='0', nullable=False),
     sa.Column('overridden_price', sa.Integer(), nullable=True),
     sa.Column('amount_paid', sa.Integer(), server_default='0', nullable=False),
-    sa.Column('tax_number', sa.Unicode(), server_default='', nullable=False),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_marketplace_application_attendee_id_attendee'), ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_marketplace_application'))
     )
