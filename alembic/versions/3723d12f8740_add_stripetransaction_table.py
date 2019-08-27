@@ -1,7 +1,7 @@
 """Add StripeTransaction table
 
 Revision ID: 3723d12f8740
-Revises: 1ed43776064f
+Revises: 651b1ea070d4
 Create Date: 2017-05-05 02:47:59.225336
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-05-05 02:47:59.225336
 
 # revision identifiers, used by Alembic.
 revision = '3723d12f8740'
-down_revision = '1ed43776064f'
+down_revision = '651b1ea070d4'
 branch_labels = None
 depends_on = None
 
