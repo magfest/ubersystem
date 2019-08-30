@@ -41,6 +41,74 @@ def _format_import_params(target_server, api_token):
     return (target_url, target_host, remote_api_token.strip())
 
 
+def _create_copy_department(from_department):
+    to_department = Department()
+    for field in ['name', 'description', 'solicits_volunteers', 'is_shiftless',
+                  'is_setup_approval_exempt', 'is_teardown_approval_exempt', 'max_consecutive_hours']:
+        if field in from_department:
+            setattr(to_department, field, from_department[field])
+    return to_department
+
+
+def _copy_department_roles(to_department, from_department):
+    to_dept_roles_by_id = to_department.dept_roles_by_id
+    to_dept_roles_by_name = to_department.dept_roles_by_name
+    dept_role_map = {}
+    for from_dept_role in from_department['dept_roles']:
+        to_dept_role = to_dept_roles_by_id.get(from_dept_role['id'], [None])[0]
+        if not to_dept_role:
+            to_dept_role = to_dept_roles_by_name.get(from_dept_role['name'], [None])[0]
+        if not to_dept_role:
+            to_dept_role = DeptRole(
+                name=from_dept_role['name'],
+                description=from_dept_role['description'],
+                department_id=to_department.id)
+            to_department.dept_roles.append(to_dept_role)
+        dept_role_map[from_dept_role['id']] = to_dept_role
+
+    return dept_role_map
+
+
+def _copy_department_shifts(service, to_department, from_department, dept_role_map):
+    from_config = service.config.info()
+    FROM_EPOCH = c.EVENT_TIMEZONE.localize(datetime.strptime(from_config['EPOCH'], '%Y-%m-%d %H:%M:%S.%f'))
+    EPOCH_DELTA = c.EPOCH - FROM_EPOCH
+
+    for from_job in from_department['jobs']:
+        to_job = Job(
+            name=from_job['name'],
+            description=from_job['description'],
+            duration=from_job['duration'],
+            type=from_job['type'],
+            extra15=from_job['extra15'],
+            slots=from_job['slots'],
+            start_time=UTC.localize(dateparser.parse(from_job['start_time'])) + EPOCH_DELTA,
+            visibility=from_job['visibility'],
+            weight=from_job['weight'],
+            department_id=to_department.id)
+        for from_required_role in from_job['required_roles']:
+            to_job.required_roles.append(dept_role_map[from_required_role['id']])
+        to_department.jobs.append(to_job)
+
+
+def _get_service(target_server, api_token):
+    target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
+    uri = '{}/jsonrpc/'.format(target_url)
+
+    message = ''
+    service = None
+    if target_server or api_token:
+        if not remote_api_token:
+            message = 'No API token given and could not find a token for: {}'.format(target_host)
+        elif not target_url:
+            message = 'Unrecognized hostname: {}'.format(target_server)
+
+        if not message:
+            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
+
+    return service, message, uri
+
+
 @all_renderable()
 class Root:
     @site_mappable
@@ -54,19 +122,7 @@ class Root:
             message='',
             **kwargs):
 
-        target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
-        uri = '{}/jsonrpc/'.format(target_url)
-
-        message = ''
-        service = None
-        if target_server or api_token:
-            if not remote_api_token:
-                message = 'No API token given and could not find a token for: {}'.format(target_host)
-            elif not target_url:
-                message = 'Unrecognized hostname: {}'.format(target_server)
-
-            if not message:
-                service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
+        service, message, uri = _get_service(target_server, api_token)
 
         department = {}
         from_departments = []
@@ -74,44 +130,28 @@ class Root:
             from_departments = [(id, name) for id, name in sorted(service.dept.list().items(), key=lambda d: d[1])]
             if cherrypy.request.method == 'POST':
                 from_department = service.dept.jobs(department_id=from_department_id)
-                to_department = session.query(Department).get(to_department_id)
-                from_config = service.config.info()
-                FROM_EPOCH = c.EVENT_TIMEZONE.localize(datetime.strptime(from_config['EPOCH'], '%Y-%m-%d %H:%M:%S.%f'))
-                EPOCH_DELTA = c.EPOCH - FROM_EPOCH
+                shifts_text = ' shifts' if 'skip_shifts' not in kwargs else ''
 
-                to_dept_roles_by_id = to_department.dept_roles_by_id
-                to_dept_roles_by_name = to_department.dept_roles_by_name
-                dept_role_map = {}
-                for from_dept_role in from_department['dept_roles']:
-                    to_dept_role = to_dept_roles_by_id.get(from_dept_role['id'], [None])[0]
-                    if not to_dept_role:
-                        to_dept_role = to_dept_roles_by_name.get(from_dept_role['name'], [None])[0]
-                    if not to_dept_role:
-                        to_dept_role = DeptRole(
-                            name=from_dept_role['name'],
-                            description=from_dept_role['description'],
-                            department_id=to_department.id)
-                        to_department.dept_roles.append(to_dept_role)
-                    dept_role_map[from_dept_role['id']] = to_dept_role
+                if to_department_id == "None":
+                    existing_department = session.query(Department).filter_by(name=from_department['name']).first()
+                    if existing_department:
+                        raise HTTPRedirect('import_shifts?target_server={}&api_token={}&message={}',
+                                           target_server,
+                                           api_token,
+                                           "Cannot create a department with the same name as an existing department")
+                    to_department = _create_copy_department(from_department)
+                    session.add(to_department)
+                else:
+                    to_department = session.query(Department).get(to_department_id)
 
-                for from_job in from_department['jobs']:
-                    to_job = Job(
-                        name=from_job['name'],
-                        description=from_job['description'],
-                        duration=from_job['duration'],
-                        type=from_job['type'],
-                        extra15=from_job['extra15'],
-                        slots=from_job['slots'],
-                        start_time=UTC.localize(dateparser.parse(from_job['start_time'])) + EPOCH_DELTA,
-                        visibility=from_job['visibility'],
-                        weight=from_job['weight'],
-                        department_id=to_department.id)
-                    for from_required_role in from_job['required_roles']:
-                        to_job.required_roles.append(dept_role_map[from_required_role['id']])
-                    to_department.jobs.append(to_job)
+                dept_role_map = _copy_department_roles(to_department, from_department)
 
-                message = '{} shifts successfully imported from {}'.format(to_department.name, uri)
-                raise HTTPRedirect('import_shifts?target_server={}&api_token={}&message={}', target_server, api_token, message)
+                if shifts_text:
+                    _copy_department_shifts(service, to_department, from_department, dept_role_map)
+
+                message = '{}{}successfully imported from {}'.format(to_department.name, shifts_text, uri)
+                raise HTTPRedirect('import_shifts?target_server={}&api_token={}&message={}',
+                                   target_server, api_token, message)
 
         return {
             'target_server': target_server,
@@ -145,3 +185,29 @@ class Root:
                 'error': str(ex),
                 'target_url': uri,
             }
+
+    def bulk_dept_import(
+            self,
+            session,
+            target_server='',
+            api_token='',
+            message='',
+            **kwargs):
+
+        service, message, uri = _get_service(target_server, api_token)
+
+        if not message and service and cherrypy.request.method == 'POST':
+            from_departments = [(id, name) for id, name in sorted(service.dept.list().items(), key=lambda d: d[1])]
+
+            for id, name in from_departments:
+                from_department = service.dept.jobs(department_id=id)
+                to_department = session.query(Department).filter_by(name=from_department['name']).first()
+                if not to_department:
+                    to_department = _create_copy_department(from_department)
+                    session.add(to_department)
+
+                _copy_department_roles(to_department, from_department)
+
+            message = 'Successfully imported all departments and roles from {}'.format(uri)
+            raise HTTPRedirect('import_shifts?target_server={}&api_token={}&message={}',
+                               target_server, api_token, message)
