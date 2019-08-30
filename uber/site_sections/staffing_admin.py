@@ -206,7 +206,7 @@ class Root:
                     to_department = _create_copy_department(from_department)
                     session.add(to_department)
 
-                roles = _copy_department_roles(to_department, from_department)
+                _copy_department_roles(to_department, from_department)
 
             message = 'Successfully imported all departments and roles from {}'.format(uri)
             raise HTTPRedirect('import_shifts?target_server={}&api_token={}&message={}',

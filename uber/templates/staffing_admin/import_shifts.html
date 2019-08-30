@@ -42,6 +42,8 @@
                   $.each(result.departments, function(i, d) {
                       $('<option>').val(d[0]).text(d[1]).appendTo($fromDepartment);
                   });
+                  $('#hidden_target').val($("form[action='import_shifts'] input[name='target_server']").val());
+                  $('#hidden_api').val($("form[action='import_shifts'] input[name='api_token']").val());
                   $departmentsBlock.show();
                 } else {
                   toastr.error('Did not find any results.');
@@ -115,10 +117,10 @@
   </div>
 </form>
 
-  <div class="departments_block" {% if not from_departments %}style="display: none;"{% endif %}>
+  <div class="departments_block">
   <form name="bulk_dept_import" action="bulk_dept_import" method="post" class="form">
-  <input type="hidden" name="target_server" value="{{ target_server }}" />
-  <input type="hidden" name="api_token" value="{{ api_token }}" />
+  <input type="hidden" id="hidden_target" name="target_server" value="{{ target_server }}" />
+  <input type="hidden" id="hidden_api" name="api_token" value="{{ api_token }}" />
     <p class="help-text">NOTE: Importing all departments takes a long time. Please be patient.</p>
   <input class="btn btn-info" type="submit" value="Import ALL Departments and Roles from {{ target_server }}" />
   </form>
