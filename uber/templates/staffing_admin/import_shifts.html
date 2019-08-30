@@ -119,8 +119,8 @@
   <form name="bulk_dept_import" action="bulk_dept_import" method="post" class="form">
   <input type="hidden" name="target_server" value="{{ target_server }}" />
   <input type="hidden" name="api_token" value="{{ api_token }}" />
-  <label><input type="checkbox" name="skip_shifts" /> Only import department roles</label><br/>
-  <input class="btn btn-info" type="submit" value="Import ALL Departments from {{ target_server }}" />
+    <p class="help-text">NOTE: Importing all departments takes a long time. Please be patient.</p>
+  <input class="btn btn-info" type="submit" value="Import ALL Departments and Roles from {{ target_server }}" />
   </form>
   </div>
 

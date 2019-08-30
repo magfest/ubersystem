@@ -130,7 +130,15 @@ class Root:
             from_departments = [(id, name) for id, name in sorted(service.dept.list().items(), key=lambda d: d[1])]
             if cherrypy.request.method == 'POST':
                 from_department = service.dept.jobs(department_id=from_department_id)
+                shifts_text = ' shifts' if 'skip_shifts' not in kwargs else ''
+
                 if to_department_id == "None":
+                    existing_department = session.query(Department).filter_by(name=from_department['name']).first()
+                    if existing_department:
+                        raise HTTPRedirect('import_shifts?target_server={}&api_token={}&message={}',
+                                           target_server,
+                                           api_token,
+                                           "Cannot create a department with the same name as an existing department")
                     to_department = _create_copy_department(from_department)
                     session.add(to_department)
                 else:
@@ -138,7 +146,6 @@ class Root:
 
                 dept_role_map = _copy_department_roles(to_department, from_department)
 
-                shifts_text = ' shifts' if 'skip_shifts' in kwargs else ''
                 if shifts_text:
                     _copy_department_shifts(service, to_department, from_department, dept_role_map)
 
@@ -191,6 +198,7 @@ class Root:
 
         if not message and service and cherrypy.request.method == 'POST':
             from_departments = [(id, name) for id, name in sorted(service.dept.list().items(), key=lambda d: d[1])]
+
             for id, name in from_departments:
                 from_department = service.dept.jobs(department_id=id)
                 to_department = session.query(Department).filter_by(name=from_department['name']).first()
@@ -198,12 +206,8 @@ class Root:
                     to_department = _create_copy_department(from_department)
                     session.add(to_department)
 
-                dept_role_map = _copy_department_roles(to_department, from_department)
+                _copy_department_roles(to_department, from_department)
 
-                shifts_text = ' and shifts' if 'skip_shifts' in kwargs else ''
-                if shifts_text:
-                    _copy_department_shifts(service, to_department, from_department, dept_role_map)
-
-                message = 'Bulk import of departments{} done!'.format(shifts_text)
-                raise HTTPRedirect('import_shifts?target_server={}&api_token={}&message={}',
-                                   target_server, api_token, message)
+            message = 'Successfully imported all departments and roles from {}'.format(uri)
+            raise HTTPRedirect('import_shifts?target_server={}&api_token={}&message={}',
+                               target_server, api_token, message)
