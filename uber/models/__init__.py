@@ -1276,10 +1276,12 @@ class Session(SessionManager):
             )
             self.add(attendee)
 
-            all_access_group = self.add(AccessGroup(
+            all_access_group = AccessGroup(
                 name='All Access',
                 access={section: '5' for section in c.ADMIN_PAGES}
-            ))
+            )
+
+            self.add(all_access_group)
 
             self.add(AdminAccount(
                 attendee=attendee,
