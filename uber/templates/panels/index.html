@@ -104,7 +104,7 @@
           <div class="form-group">
             <div class="col-sm-9 col-sm-offset-3">
               <label class="checkbox-label" style="font-weight: normal;">
-                <input type="checkbox" name="verify_unavailable" {% if verify_unavailable %}checked{% endif %} />
+                <input type="checkbox" name="verify_unavailable"{% if verify_unavailable %} checked{% endif %} />
                 I verify I am available at any time during the event EXCEPT for the times listed above.
               </label>
             </div>
@@ -122,10 +122,28 @@
           <div class="form-group">
             <div class="col-sm-9 col-sm-offset-3">
               <label class="checkbox-label" style="font-weight: normal;">
-                <input type="checkbox" name="verify_waiting" {% if verify_waiting %}checked{% endif %} />
+                <input type="checkbox" name="verify_waiting"{% if verify_waiting %} checked{% endif %} />
                 I understand that I will not hear back until {{ c.EXPECTED_RESPONSE }},
                 <b>and I will not prematurely email {{ c.EVENT_NAME }} to check my panel status.</b>
               </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="col-sm-9 col-sm-offset-3">
+              <label class="checkbox-label" style="font-weight: normal;">
+                <input type="checkbox" name="coc_agreement"{% if coc_agreement %} checked{% endif %} />
+                I agree to be bound by the <a href="{{ c.CODE_OF_CONDUCT_URL }}">Code of Conduct</a>.
+              </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="col-sm-9 col-sm-offset-3">
+              <label class="checkbox-label" style="font-weight: normal;">
+                <input type="checkbox" name="data_agreement"{% if data_agreement %} checked{% endif %} />
+                I agree that I am submitting my information to the panels department for the sole purpose of determining the panels
+                selections for {{ c.EVENT_NAME_AND_YEAR }}. My information will not be shared with any outside parties.
+              </label>
+            <p class="help-block">For more information on our privacy practices please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a>.</p>
             </div>
           </div>
 
@@ -143,7 +161,7 @@
             </p>
             <div class="col-sm-9 col-sm-offset-3">
               <label class="checkbox-label" style="font-weight: normal;">
-                <input type="checkbox" name="verify_poc" {% if verify_poc %}checked{% endif %} />
+                <input type="checkbox" name="verify_poc"{% if verify_poc %} checked{% endif %} />
                 I have read and agree to the terms above.
               </label>
             </div>
@@ -160,7 +178,7 @@
             </p>
             <div class="col-sm-9 col-sm-offset-3">
               <label class="checkbox-label" style="font-weight: normal;">
-                <input type="checkbox" name="verify_tos" {% if verify_tos %}checked{% endif %} />
+                <input type="checkbox" name="verify_tos"{% if verify_tos %} checked{% endif %} />
                 I have read and agree to the terms above.
               </label>
             </div>
