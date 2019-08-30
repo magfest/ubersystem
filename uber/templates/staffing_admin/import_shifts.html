@@ -16,7 +16,7 @@
 <script type="text/javascript">
   $(function() {
     var $shiftsForm = $("form[action='import_shifts']"),
-        $departmentsBlock = $('#departments_block'),
+        $departmentsBlock = $('.departments_block'),
         $targetUrl = $('#target_url'),
         $fromDepartment = $('#from_department_id');
 
@@ -86,12 +86,13 @@
   </div>
   <input class="btn btn-primary" type="submit" id="lookup_departments" value="Lookup Departments" />
 
-  <div id="departments_block" {% if not from_departments %}style="display: none;"{% endif %}>
+  <div class="departments_block" {% if not from_departments %}style="display: none;"{% endif %}>
     <div class="form-group">
       <div class="col-sm-6">
         <h4>To Department</h4>
         <select id="to_department_id" name="to_department_id" required="required">
           <option value="">Select a department...</option>
+          <option value="None">Create a new department</option>
           {% for value, label in to_departments %}
             <option value="{{ value }}">{{ label }}</option>
           {% endfor %}
@@ -109,8 +110,18 @@
         <p id="target_url" class="help-block">{{ target_url }}</p>
       </div>
     </div>
-    <input class="btn btn-primary" type="submit" value="Import Shifts" />
+    <label><input type="checkbox" name="skip_shifts" /> Only import department roles</label><br/>
+    <input class="btn btn-primary" type="submit" value="Import Department Roles and Shifts" />
   </div>
 </form>
+
+  <div class="departments_block" {% if not from_departments %}style="display: none;"{% endif %}>
+  <form name="bulk_dept_import" action="bulk_dept_import" method="post" class="form">
+  <input type="hidden" name="target_server" value="{{ target_server }}" />
+  <input type="hidden" name="api_token" value="{{ api_token }}" />
+  <label><input type="checkbox" name="skip_shifts" /> Only import department roles</label><br/>
+  <input class="btn btn-info" type="submit" value="Import ALL Departments from {{ target_server }}" />
+  </form>
+  </div>
 
 {% endblock %}
