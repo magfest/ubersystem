@@ -129,7 +129,7 @@
         </table>
         <a class="btn btn-primary" href="screenshot?game_id={{ game.id }}">Upload a Screenshot</a>
 
-        {% if c.AFTER_MIVS_START %}
+        {% if c.CAN_SUBMIT_MIVS %}
           <h4>Game Submission</h4>
           {% if game.submitted %}
             This game has been submitted.
