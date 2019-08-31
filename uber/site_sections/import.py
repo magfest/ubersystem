@@ -91,18 +91,6 @@ class Root:
                         val = val.strip().lower() not in ('f', 'false', 'n', 'no', '0')
                     else:
                         val = bool(val)
-                elif isinstance(col.type, Choice):
-                    # the export has labels, and we want to convert those back into their
-                    # integer values, so let's look that up (note: we could theoretically
-                    # modify the Choice class to do this automatically in the future)
-                    label_lookup = {val: key for key, val in col.type.choices.items()}
-                    val = label_lookup[val]
-                elif isinstance(col.type, MultiChoice):
-                    # the export has labels separated by ' / ' and we want to convert that
-                    # back into a comma-separate list of integers
-                    label_lookup = {val: key for key, val in col.type.choices}
-                    vals = [label_lookup[label] for label in val.split(' / ')]
-                    val = ','.join(map(str, vals))
                 elif isinstance(col.type, UTCDateTime):
                     # we'll need to make sure we use whatever format string we used to
                     # export this date in the first place
