@@ -15,9 +15,13 @@
             </font></b>
         {% endif %}
     {% else %}
-        The round one deadline has passed, so no new studios may be registered for this year's showcase.  If you would
+        {% if c.BEFORE_MIVS_START %}MAGFest Indie Videogame Showcase applications open {{ c.MIVS_START|datetime_local }}.
+          Please check back then!
+        {% else %} The deadline for submitting to the MAGFest Indie Videogame Showcase was {{ c.MIVS_DEADLINE|datetime_local }},
+          so no new studios may be registered for this year's showcase. If you would
         like to continue an existing registration, you may do so using the link sent to you in the email you received
         when you first registered your studio.
+        {% endif %}
     {% endif %}
 {% else %}
     <h2>Edit Your Studio Information</h2>
