@@ -98,6 +98,8 @@
             </div>
         {% endif %}
 
+        {% include 'mivs/developer_agreements.html' %}
+
         <div class="form-group">
             <div class="col-sm-6 col-sm-offset-3">
                 <button type="submit" class="btn btn-primary">{% if studio.is_new %}Register Studio{% else %}Upload Changes{% endif %}</button>

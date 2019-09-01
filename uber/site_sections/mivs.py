@@ -49,7 +49,7 @@ class Root:
     def studio(self, session, message='', **params):
         params.pop('id', None)
         studio = session.indie_studio(dict(params, id=cherrypy.session.get('studio_id', 'None')), restricted=True)
-        developer = session.indie_developer(params)
+        developer = session.indie_developer(params, restricted=True)
 
         if cherrypy.request.method == 'POST':
             message = check(studio)
@@ -83,7 +83,7 @@ class Root:
         }
 
     def developer(self, session, message='', **params):
-        developer = session.indie_developer(params, applicant=True, bools=["primary_contact"])
+        developer = session.indie_developer(params, applicant=True, restricted=True)
         if cherrypy.request.method == 'POST':
             message = check(developer)
             if not message:
