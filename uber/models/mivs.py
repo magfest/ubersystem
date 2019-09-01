@@ -224,6 +224,8 @@ class IndieDeveloper(MagModel):
     last_name = Column(UnicodeText)
     email = Column(UnicodeText)
     cellphone = Column(UnicodeText)
+    agreed_coc = Column(Boolean, default=False)
+    agreed_data_policy = Column(Boolean, default=False)
 
     @property
     def email_to_address(self):
