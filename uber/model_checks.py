@@ -730,6 +730,18 @@ def mivs_unique_name(studio):
 
 
 @validation.IndieDeveloper
+def agree_to_coc(dev):
+    if not dev.agreed_coc:
+        return 'You must agree to be bound by our Code of Conduct.'
+
+
+@validation.IndieDeveloper
+def agree_to_data_policy(dev):
+    if not dev.agreed_data_policy:
+        return 'You must agree to for your information to be used for determining showcase selection.'
+
+
+@validation.IndieDeveloper
 def mivs_dev_email(dev):
     if not re.match(c.EMAIL_RE, dev.email):
         return 'Please enter a valid email address'
