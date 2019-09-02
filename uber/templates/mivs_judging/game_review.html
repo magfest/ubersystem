@@ -55,6 +55,25 @@ for reviewing the game:
     {% endif %}
 
     <div class="form-group">
+        <label class="col-sm-3 control-label">Link to Video</label>
+        <div class="col-sm-6 game-display">
+            <a target="_blank" href="{{ review.game.video_href }}">{{ review.game.link_to_video }}</a>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Video Status</label>
+        <div class="col-sm-6">
+            <select name="video_status" class="form-control">
+                {{ options(c.MIVS_VIDEO_REVIEW_STATUS_OPTS,review.video_status) }}
+            </select>
+            <p class="help-block">
+                Please indicate whether or not you were able to watch the full video using the link above.
+            </p>
+        </div>
+    </div>
+
+    <div class="form-group">
         <label class="col-sm-3 control-label">Link to Game</label>
         <div class="col-sm-6 game-display">
             <a target="_blank" href="{{ review.game.href }}">{{ review.game.link_to_game }}</a>

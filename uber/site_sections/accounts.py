@@ -10,9 +10,9 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
-                             department_id_adapter, render, site_mappable, unrestricted)
+                             department_id_adapter, render, site_mappable, public)
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, Attendee, PasswordReset
+from uber.models import AccessGroup, AdminAccount, Attendee, PasswordReset
 from uber.tasks.email import send_email
 from uber.utils import check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd
 
@@ -27,7 +27,11 @@ def valid_password(password, account):
     return any(bcrypt.hashpw(password, hashed) == hashed for hashed in all_hashed)
 
 
-@all_renderable(c.ACCOUNTS)
+def access_group_opts(session):
+    return [(id, name) for id, name in session.query(AccessGroup.id, AccessGroup.name).order_by(AccessGroup.name)]
+
+
+@all_renderable()
 class Root:
     def index(self, session, message=''):
         attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
@@ -43,12 +47,14 @@ class Root:
                          .join(Attendee)
                          .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts))
                          .order_by(Attendee.last_first).all()),
-            'all_attendees': sorted(attendees, key=lambda tup: tup[1])
+            'all_attendees': sorted(attendees, key=lambda tup: tup[1]),
+            'access_group_opts': access_group_opts(session),
         }
 
     @csrf_protected
     def update(self, session, password='', message='', **params):
-        account = session.admin_account(params, checkgroups=['access'])
+        account = session.admin_account(params)
+
         if account.is_new:
             if c.AT_OR_POST_CON and not password:
                 message = 'You must enter a password'
@@ -96,10 +102,62 @@ class Root:
 
         return {
             'department_id':  department_id,
-            'attendees': attendees
+            'attendees': attendees,
+            'access_group_opts': access_group_opts(session),
         }
 
-    @unrestricted
+    def access_groups(self, session, message='', **params):
+        access_group = session.access_group(params)
+
+        if cherrypy.request.method == "POST":
+            for key in params:
+                if key.endswith('_read_only_access'):
+                    col_key = key[:-17]
+                    if params[key] != "0":
+                        access_group.read_only_access[col_key] = params[key]
+                    elif col_key in access_group.read_only_access:
+                        del access_group.read_only_access[col_key]
+                elif key.endswith('_access'):
+                    col_key = key[:-7]
+                    if params[key] != "0":
+                        access_group.access[col_key] = params[key]
+                    elif col_key in access_group.access:
+                        del access_group.access[col_key]
+
+            session.add(access_group)
+            message = check(access_group) or ''
+
+            if not message:
+                session.commit()
+                raise HTTPRedirect('access_groups?message={}'.format("Success!"))
+
+        return {
+            'message': message,
+            'access_group': access_group,
+            'access_group_opts': access_group_opts(session)
+        }
+
+    @ajax
+    def get_access_group(self, session, id):
+        access_group = session.access_group(id)
+        return {
+            'access': access_group.access,
+            'read_only_access': access_group.read_only_access,
+        }
+
+    @ajax
+    def delete_access_group(self, session, id):
+        access_group = session.access_group(id)
+
+        if not access_group:
+            return {'success': False, 'message': 'Access group not found!'}
+
+        session.delete(access_group)
+        session.commit()
+
+        return {'success': True, 'message': 'Access group deleted.'}
+
+    @public
     def login(self, session, message='', original_location=None, **params):
         original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
 
@@ -122,20 +180,20 @@ class Root:
             'original_location': original_location,
         }
 
-    @unrestricted
+    @public
     def homepage(self, message=''):
         if not cherrypy.session.get('account_id'):
             raise HTTPRedirect('login?message={}', 'You are not logged in')
         return {'message': message}
 
-    @unrestricted
+    @public
     def logout(self):
         for key in list(cherrypy.session.keys()):
             if key not in ['preregs', 'paid_preregs', 'job_defaults', 'prev_location']:
                 cherrypy.session.pop(key)
         raise HTTPRedirect('login?message={}', 'You have been logged out')
 
-    @unrestricted
+    @public
     def reset(self, session, message='', email=None):
         if email is not None:
             try:
@@ -195,7 +253,7 @@ class Root:
             'message': message
         }
 
-    @unrestricted
+    @public
     def change_password(
             self,
             session,
@@ -238,7 +296,7 @@ class Root:
         for a in session.query(Attendee).filter_by(staffing=True, placeholder=False).order_by('email').all():
             out.writerow([a.full_name, a.email, a.zip_code])
 
-    @unrestricted
+    @public
     def insert_test_admin(self, session):
         if session.insert_test_admin_account():
             msg = "Test admin account created successfully"
@@ -247,19 +305,18 @@ class Root:
 
         raise HTTPRedirect('login?message={}', msg)
 
-    @unrestricted
+    @public
     def sitemap(self):
         site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
         modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
         pages = defaultdict(list)
-        access_set = AdminAccount.access_set()
         for module_name, module_root in modules.items():
             for name in dir(module_root):
                 method = getattr(module_root, name)
                 if getattr(method, 'exposed', False):
                     spec = inspect.getfullargspec(unwrap(method))
                     has_defaults = len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or [])
-                    if set(getattr(method, 'restricted', []) or []).intersection(access_set) \
+                    if c.has_section_or_page_access(page_path='/{}/{}'.format(module_name, name), include_read_only=True) \
                             and not getattr(method, 'ajax', False) \
                             and (getattr(method, 'site_mappable', False)
                                  or has_defaults and not spec.varkw):
@@ -285,7 +342,7 @@ class Root:
             else:
                 match = session.query(Attendee).filter(Attendee.id == id).first()
                 if match:
-                    account = session.admin_account(params, checkgroups=['access'])
+                    account = session.admin_account(params)
                     if account.is_new:
                         password = genpasswd()
                         account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())

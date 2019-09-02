@@ -39,7 +39,7 @@ def check_post_con(klass):
     return klass
 
 
-@all_renderable()
+@all_renderable(public=True)
 @check_post_con
 class Root:
     def _get_unsaved(self, id, if_not_found=None):
@@ -213,13 +213,13 @@ class Root:
                         send_email.delay(
                             c.MARKETPLACE_EMAIL,
                             c.MARKETPLACE_EMAIL,
-                            'Dealer Application Received',
+                            '{} Received'.format(c.DEALER_APP_TERM.title()),
                             render('emails/dealers/reg_notification.txt', {'group': group}, encoding=None),
                             model=group.to_dict('id'))
                         send_email.delay(
                             c.MARKETPLACE_EMAIL,
                             attendee.email,
-                            'Dealer Application Received',
+                            '{} Received'.format(c.DEALER_APP_TERM.title()),
                             render('emails/dealers/application.html', {'group': group}, encoding=None),
                             'html',
                             model=group.to_dict('id'))
@@ -265,8 +265,8 @@ class Root:
                     attendee.requested_hotel_info = True
 
             if attendee.badge_type == c.PSEUDO_DEALER_BADGE and c.DEALER_REG_SOFT_CLOSED:
-                message = 'Dealer registration is closed, but you can ' \
-                    'fill out this form to add yourself to our waitlist'
+                message = '{} is closed, but you can ' \
+                    'fill out this form to add yourself to our waitlist'.format(c.DEALER_REG_TERM.title())
 
         promo_code_group = None
         if attendee.promo_code:
@@ -534,7 +534,7 @@ class Root:
                     send_email.delay(
                         c.MARKETPLACE_EMAIL,
                         c.MARKETPLACE_EMAIL,
-                        'Dealer Application Changed',
+                        '{} Changed'.format(c.DEALER_APP_TERM.title()),
                         render('emails/dealers/appchange_notification.html', {'group': group}, encoding=None),
                         'html',
                         model=group.to_dict('id'))
@@ -618,11 +618,11 @@ class Root:
                     send_email.delay(
                         c.MARKETPLACE_EMAIL,
                         c.MARKETPLACE_EMAIL,
-                        'Dealer Payment Completed',
+                        '{} Payment Completed'.format(c.DEALER_TERM.title()),
                         render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
                         model=group.to_dict('id'))
                 except Exception:
-                    log.error('unable to send dealer payment confirmation email', exc_info=True)
+                    log.error('unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
             raise HTTPRedirect('group_members?id={}&message={}', group.id, 'Your payment has been accepted!')
 
     @csrf_protected
@@ -692,7 +692,7 @@ class Root:
                 send_email.delay(
                     c.MARKETPLACE_EMAIL,
                     c.MARKETPLACE_EMAIL,
-                    'Dealer Paid for Extra Members',
+                    '{} Paid for Extra Members'.capitalize(c.DEALER_TERM.title()),
                     render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
                     model=group.to_dict('id'))
             raise HTTPRedirect(
@@ -705,7 +705,7 @@ class Root:
     def transfer_badge(self, session, message='', **params):
         old = session.attendee(params['id'])
 
-        assert old.is_transferable, 'This badge is not transferrable.'
+        assert old.is_transferable, 'This badge is not transferable.'
         session.expunge(old)
         attendee = session.attendee(params, restricted=True)
 
@@ -871,7 +871,7 @@ class Root:
         attendee = session.attendee(id)
         assert attendee.badge_type == c.GUEST_BADGE, 'This form is for guests only'
         cherrypy.session['staffer_id'] = attendee.id
-        raise HTTPRedirect('../signups/food_restrictions')
+        raise HTTPRedirect('../staffing/food_restrictions')
 
     @id_required(Attendee)
     def attendee_donation_form(self, session, id, message=''):

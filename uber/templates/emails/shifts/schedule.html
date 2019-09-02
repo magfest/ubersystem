@@ -40,7 +40,7 @@
     {% if c.SHIRTS_PER_STAFFER > 0 and c.STAFF_EVENT_SHIRT_OPTS %}
         <br><br>
         You may choose to receive a {{ c.EVENT_NAME }} swag shirt instead of
-        {% if c.SHIRTS_PER_STAFFER > 1 %}one of {% end %}your staff shirt{{ c.SHIRTS_PER_STAFFER|pluralize }}.
+        {% if c.SHIRTS_PER_STAFFER > 1 %}one of {% endif %}your staff shirt{{ c.SHIRTS_PER_STAFFER|pluralize }}.
         This is the same shirt that attendees can buy and is provided as a perk for staffing.
     {% endif %}
 {% endif %}
@@ -62,7 +62,7 @@
 {% endif %}
 
 <br><br>
-{% include "signups/printable_schedule.html" %}
+{% include "staffing/printable_schedule.html" %}
 
 <br> {{ c.STOPS_EMAIL_SIGNATURE|linebreaksbr }}
 

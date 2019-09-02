@@ -6,7 +6,7 @@ import pytz
 import re
 import uuid
 from collections import defaultdict, OrderedDict
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from hashlib import sha512
 from itertools import chain
 
@@ -14,7 +14,7 @@ import cherrypy
 import stripe
 from pockets import keydefaultdict, nesteddefaultdict
 from pockets.autolog import log
-from sideboard.lib import parse_config, request_cached_property
+from sideboard.lib import cached_property, parse_config, request_cached_property
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload, subqueryload
 
@@ -192,6 +192,19 @@ class Config(_Overridable):
     def after_printed_badge_deadline_by_type(self, badge_type):
         return uber.utils.localized_now() > self.get_printed_badge_deadline_by_type(badge_type)
 
+    def has_section_or_page_access(self, include_read_only=False, page_path=''):
+        access = uber.models.AdminAccount.access_set(include_read_only=include_read_only)
+        page_path = page_path or self.PAGE_PATH
+
+        section = page_path.replace(page_path.split('/')[-1], '').strip('/')
+
+        section_and_page = page_path.strip('/').replace('/', '_')
+        if page_path.endswith('/'):
+            section_and_page += "_index"
+
+        if section_and_page in access or section in access:
+            return True
+
     @property
     def DEALER_REG_OPEN(self):
         return self.AFTER_DEALER_REG_START and self.BEFORE_DEALER_REG_SHUTDOWN
@@ -346,7 +359,18 @@ class Config(_Overridable):
             return bool(got)
 
     @property
+    def kickin_availability_matrix(self):
+        return dict([[
+            getattr(self, level + "_LEVEL"), getattr(self, level + "_AVAILABLE")]
+            for level in ['SHIRT', 'SUPPORTER', 'SEASON']
+        ])
+
+    @property
     def PREREG_DONATION_OPTS(self):
+        if not self.SHARED_KICKIN_STOCKS:
+            return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS
+                    if amt not in self.kickin_availability_matrix or self.kickin_availability_matrix[amt]]
+
         if self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
             return self.DONATION_TIER_OPTS
         if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
@@ -359,7 +383,11 @@ class Config(_Overridable):
     @property
     def PREREG_DONATION_DESCRIPTIONS(self):
         # include only the items that are actually available for purchase
-        if self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
+        if not self.SHARED_KICKIN_STOCKS:
+            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
+                             if tier[1]['price'] not in self.kickin_availability_matrix
+                             or self.kickin_availability_matrix[tier[1]['price']]]
+        elif self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
             donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
         elif self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
             donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
@@ -511,6 +539,10 @@ class Config(_Overridable):
     def PAGE(self):
         return cherrypy.request.path_info.split('/')[-1]
 
+    @property
+    def PATH(self):
+        return cherrypy.request.path_info.replace(cherrypy.request.path_info.split('/')[-1], '').strip('/')
+
     @request_cached_property
     @dynamic
     def ALLOWED_ACCESS_OPTS(self):
@@ -624,12 +656,30 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def MENU_FILTERED_BY_ACCESS_LEVELS(self):
-        return c.MENU.render_items_filtered_by_current_access(uber.models.AdminAccount.access_set())
+        return c.MENU.render_items_filtered_by_current_access()
 
     @request_cached_property
     @dynamic
     def ADMIN_ACCESS_SET(self):
+        return uber.models.AdminAccount.access_set(include_read_only=True)
+
+    @request_cached_property
+    @dynamic
+    def ADMIN_WRITE_ACCESS_SET(self):
         return uber.models.AdminAccount.access_set()
+
+    @cached_property
+    def ADMIN_PAGES(self):
+        # Build a list of all site sections and their pages
+        public_site_sections = ['preregistration', 'static_views', 'landing', 'panels', 'mits',
+                                'attractions', 'emails', 'mivs', 'uber', 'angular', 'index']
+
+        app_root = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
+
+        return {
+            section: [opt for opt in dir(getattr(app_root, section)) if not opt.startswith('_')]
+            for section in dir(app_root) if section not in public_site_sections and not section.startswith('_')
+        }
 
     # =========================
     # mivs
@@ -637,14 +687,13 @@ class Config(_Overridable):
 
     @property
     @dynamic
-    def CAN_SUBMIT_MIVS_ROUND_ONE(self):
-        return not really_past_mivs_deadline(c.MIVS_ROUND_ONE_DEADLINE) or c.HAS_INDIE_ADMIN_ACCESS
+    def CAN_SUBMIT_MIVS(self):
+        return self.MIVS_SUBMISSIONS_OPEN or c.HAS_MIVS_ADMIN_ACCESS
 
     @property
     @dynamic
-    def CAN_SUBMIT_MIVS_ROUND_TWO(self):
-        return c.AFTER_MIVS_ROUND_TWO_START and (
-            not really_past_mivs_deadline(c.MIVS_ROUND_TWO_DEADLINE) or c.HAS_INDIE_ADMIN_ACCESS)
+    def MIVS_SUBMISSIONS_OPEN(self):
+        return not really_past_mivs_deadline(c.MIVS_DEADLINE) and c.AFTER_MIVS_START
 
     # =========================
     # panels
@@ -672,7 +721,17 @@ class Config(_Overridable):
             else:
                 return uber.utils.localized_now() > date_setting
         elif name.startswith('HAS_') and name.endswith('_ACCESS'):
-            return getattr(c, '_'.join(name.split('_')[1:-1])) in c.ADMIN_ACCESS_SET
+            access_name = '_'.join(name.split('_')[1:-1]).lower()
+
+            # No page specified means current page or section
+            if access_name == '':
+                return self.has_section_or_page_access()
+            elif access_name == 'read':
+                return self.has_section_or_page_access(include_read_only=True)
+
+            if access_name.endswith('_read'):
+                return access_name[:-5] in c.ADMIN_ACCESS_SET
+            return access_name in c.ADMIN_WRITE_ACCESS_SET
         elif name.endswith('_COUNT'):
             item_check = name.rsplit('_', 1)[0]
             badge_type = getattr(self, item_check, None)
@@ -799,15 +858,6 @@ if c.ONLY_PREPAY_AT_DOOR:
     c.create_enum_val('manual')
 
 c.make_enums(_config['enums'])
-
-_default_access = [getattr(c, s.upper()) for s in c.REQUIRED_ACCESS[c.__DEFAULT__]]
-del c.REQUIRED_ACCESS[c.__DEFAULT__]
-c.REQUIRED_ACCESS_VARS.remove('__DEFAULT__')
-c.REQUIRED_ACCESS = keydefaultdict(
-    lambda a: set([a] + _default_access),
-    {a: set([getattr(c, s.upper()) for s in p]) for a, p in c.REQUIRED_ACCESS.items()})
-
-c.REQUIRED_ACCESS_OPTS = [(a, c.REQUIRED_ACCESS[a]) for a, _ in c.REQUIRED_ACCESS_OPTS if a != c.__DEFAULT__]
 
 for _name, _val in _config['integer_enums'].items():
     if isinstance(_val, int):
@@ -1053,11 +1103,6 @@ c.TOURNAMENT_AVAILABILITY_OPTS.append([_val, 'Morning (8am-12pm) of ' + c.ESCHAT
 c.MIVS_CODES_REQUIRING_INSTRUCTIONS = [
     getattr(c, code_type.upper()) for code_type in c.MIVS_CODES_REQUIRING_INSTRUCTIONS]
 
-# Add the access levels we defined to c.ACCESS* (this will go away if/when we implement enum merging)
-c.ACCESS.update(c.MIVS_INDIE_ACCESS_LEVELS)
-c.ACCESS_OPTS.extend(c.MIVS_INDIE_ACCESS_LEVEL_OPTS)
-c.ACCESS_VARS.extend(c.MIVS_INDIE_ACCESS_LEVEL_VARS)
-
 # c.MIVS_INDIE_JUDGE_GENRE* should be the same as c.MIVS_INDIE_GENRE* but with a c.MIVS_ALL_GENRES option
 _mivs_all_genres_desc = 'All genres'
 c.create_enum_val('mivs_all_genres')
@@ -1067,7 +1112,7 @@ c.MIVS_INDIE_JUDGE_GENRE_OPTS.insert(0, (c.MIVS_ALL_GENRES, _mivs_all_genres_des
 
 c.MIVS_PROBLEM_STATUSES = {getattr(c, status.upper()) for status in c.MIVS_PROBLEM_STATUSES.split(',')}
 
-c.FINAL_MIVS_GAME_STATUSES = [c.ACCEPTED, c.WAITLISTED, c.DECLINED, c.STUDIO_DECLINED]
+c.FINAL_MIVS_GAME_STATUSES = [c.ACCEPTED, c.WAITLISTED, c.DECLINED, c.CANCELLED]
 
 # used for computing the difference between the "drop-dead deadline" and the "soft deadline"
 c.SOFT_MIVS_JUDGING_DEADLINE = c.MIVS_JUDGING_DEADLINE - timedelta(days=7)
@@ -1091,11 +1136,6 @@ c.MITS_APPLICATION_STEPS = 7
 
 # The options for the recommended minimum age for games, as filled out by the teams.
 c.MITS_AGE_OPTS = [(i, i) for i in range(4, 20, 2)]
-
-# Add the access levels we defined to c.ACCESS* (this will go away if/when we implement enum merging)
-c.ACCESS.update(c.MITS_ACCESS_LEVELS)
-c.ACCESS_OPTS.extend(c.MITS_ACCESS_LEVEL_OPTS)
-c.ACCESS_VARS.extend(c.MITS_ACCESS_LEVEL_VARS)
 
 
 # =============================
@@ -1137,11 +1177,6 @@ for room in invalid_rooms:
 c.PANEL_ROOMS = [getattr(c, room.upper()) for room in c.PANEL_ROOMS if room not in invalid_rooms]
 c.MUSIC_ROOMS = [getattr(c, room.upper()) for room in c.MUSIC_ROOMS if room not in invalid_rooms]
 
-# This can go away if/when we implement plugin enum merging
-c.ACCESS.update(c.PANEL_ACCESS_LEVELS)
-c.ACCESS_OPTS.extend(c.PANEL_ACCESS_LEVEL_OPTS)
-c.ACCESS_VARS.extend(c.PANEL_ACCESS_LEVEL_VARS)
-
 
 # =============================
 # tabletop
@@ -1158,11 +1193,6 @@ c.TABLETOP_LOCATIONS = [getattr(c, room.upper()) for room in c.TABLETOP_LOCATION
 # =============================
 # guests
 # =============================
-
-# Add the access levels we defined to c.ACCESS* (this will go away if/when we implement enum merging)
-c.ACCESS.update(c.GUEST_ACCESS_LEVELS)
-c.ACCESS_OPTS.extend(c.GUEST_ACCESS_LEVEL_OPTS)
-c.ACCESS_VARS.extend(c.GUEST_ACCESS_LEVEL_VARS)
 
 c.ROCK_ISLAND_GROUPS = [getattr(c, group.upper()) for group in c.ROCK_ISLAND_GROUPS if group or group.strip()]
 

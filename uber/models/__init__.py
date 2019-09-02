@@ -507,7 +507,7 @@ from uber.models.tabletop import *  # noqa: F401,E402,F403
 from uber.models.guests import *  # noqa: F401,E402,F403
 
 # Explicitly import models used by the Session class to quiet flake8
-from uber.models.admin import AdminAccount, WatchList  # noqa: E402
+from uber.models.admin import AccessGroup, AdminAccount, WatchList  # noqa: E402
 from uber.models.attendee import Attendee  # noqa: E402
 from uber.models.department import Job, Shift, Department  # noqa: E402
 from uber.models.email import Email  # noqa: E402
@@ -1276,9 +1276,16 @@ class Session(SessionManager):
             )
             self.add(attendee)
 
+            all_access_group = AccessGroup(
+                name='All Access',
+                access={section: '5' for section in c.ADMIN_PAGES}
+            )
+
+            self.add(all_access_group)
+
             self.add(AdminAccount(
                 attendee=attendee,
-                access=','.join(str(level) for level, name in c.ACCESS_OPTS),
+                access_group=all_access_group,
                 hashed=bcrypt.hashpw('magfest', bcrypt.gensalt())
             ))
 
@@ -1340,7 +1347,7 @@ class Session(SessionManager):
             try:
                 return self.indie_studio(cherrypy.session['studio_id'])
             except Exception:
-                raise HTTPRedirect('../mivs_applications/studio')
+                raise HTTPRedirect('../mivs/studio')
 
         def logged_in_judge(self):
             judge = self.admin_attendee().admin_account.judge
@@ -1376,12 +1383,35 @@ class Session(SessionManager):
             return self.query(IndieGame).join(IndieStudio).options(
                 joinedload(IndieGame.studio), joinedload(IndieGame.reviews)).order_by(IndieStudio.name, IndieGame.title)
 
+        def create_or_find_mivs_judge_access_group(self):
+            """
+            Looks for an admin access group with write access to only mivs_judging,
+            and creates a new one if it can't find any.
+
+            Technically, we don't need this access group -- access to mivs_judging
+            is determined by whether the admin account is linked to an IndieJudge
+            object -- but we need to give MIVS judges some sort of access group.
+            """
+
+            existing_access_groups = self.query(AccessGroup).filter(
+                AccessGroup.access['mivs_judging'].astext.cast(Integer) > 0)
+            for group in existing_access_groups:
+                if len(group.access) == 1:
+                    return group
+            new_mivs_judge_group = AccessGroup(
+                name='MIVS Judge',
+                access={'mivs_judging': '5'}
+            )
+            self.add(new_mivs_judge_group)
+            self.commit()
+            return new_mivs_judge_group
+
         # =========================
         # mits
         # =========================
 
         def log_in_as_mits_team(
-                self, team_id, redirect_to='../mits_applications/index'):
+                self, team_id, redirect_to='../mits/index'):
             try:
                 team = self.mits_team(team_id)
                 duplicate_teams = []
@@ -1392,7 +1422,7 @@ class Session(SessionManager):
                         duplicate_teams)
             except Exception:
                 log.error('attempt to log into invalid team {}', team_id, exc_info=True)
-                raise HTTPRedirect('../mits_applications/login_explanation')
+                raise HTTPRedirect('../mits/login_explanation')
             else:
                 cherrypy.session['mits_team_id'] = team.id
                 raise HTTPRedirect(redirect_to)
@@ -1402,7 +1432,7 @@ class Session(SessionManager):
                 team = self.mits_team(cherrypy.session['mits_team_id'])
                 assert not team.deleted or team.duplicate_of
             except Exception:
-                raise HTTPRedirect('../mits_applications/login_explanation')
+                raise HTTPRedirect('../mits/login_explanation')
             else:
                 if team.duplicate_of:
                     # The currently-logged-in team was deleted, so log

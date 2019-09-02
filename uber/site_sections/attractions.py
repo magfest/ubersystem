@@ -51,7 +51,7 @@ def _model_for_id(session, model, id, options=None, filters=[]):
     return query.first()
 
 
-@all_renderable()
+@all_renderable(public=True)
 @check_post_con
 class Root:
 

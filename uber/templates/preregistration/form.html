@@ -26,7 +26,7 @@
 {% endif %}
 
   {{ group_fields.name }}
-  {{ group_fields.badges }}
+  {{ group_fields.badges_dropdown }}
   {% if is_prereg_dealer %}
     {{ group_fields.tables }}
     {{ group_fields.categories }}
@@ -56,6 +56,7 @@
   {{ attendee_fields.interests }}
   {{ attendee_fields.found_how }}
   {{ attendee_fields.comments }}
+  {{ attendee_fields.requested_accessibility_services }}
   {{ attendee_fields.can_spam }}
   {{ attendee_fields.pii_consent_checkbox }}
 

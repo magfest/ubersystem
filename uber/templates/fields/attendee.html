@@ -1,3 +1,4 @@
+{% set page_ro = c.HAS_READ_ACCESS and not c.HAS_ACCESS %}
 {% import 'macros.html' as macros with context %}
 
 {#- Setting some variables to keep the size of conditional clauses smaller. -#}
@@ -7,7 +8,7 @@
 
 {% set prereg_intro %}
 {% if is_prereg_dealer %}
-  <h2 class="text-center">Dealer Application</h2>
+  <h2 class="text-center">{{ c.DEALER_APP_TERM|title }}</h2>
 {% elif is_prereg_attendee %}
   {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_OPEN) }}
 
@@ -31,9 +32,9 @@
     {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
       <div class="form-group row">
         <p class="col-sm-9 col-sm-offset-3">
-          <strong>Dealers:</strong>
+          <strong>{{ c.DEALER_TERM|capitalize }}s:</strong>
           {% if c.BEFORE_DEALER_REG_START %}
-            Registrations for dealer memberships begin {{ c.DEALER_REG_START|datetime_local }}.
+            {{ c.DEALER_REG_TERM|capitalize }} begins {{ c.DEALER_REG_START|datetime_local }}.
           {% else %}
             Please register <a href="dealer_registration">here</a>.
           {% endif %}
@@ -378,6 +379,37 @@
       &nbsp;&nbsp;<br/> <input type="checkbox" name="check_in" value="yes" {% if check_in %}checked{% endif %} /> Check in this attendee
     {% endif %}
     {% if not attendee.is_new %}&nbsp;&nbsp; [<a href="../preregistration/confirm?id={{ attendee.id }}">Confirm{% if attendee.is_transferable %}/Transfer{% endif %}</a>]{% endif %}
+    </div>
+  </div>
+{% elif c.AT_THE_CON %}
+  <script>
+      window.setTimeout(toastr.clear, 10000);
+      var maybeWarn = function () {
+          var types = {{ c.PRESOLD_ONEDAY_BADGE_TYPES|jsonize }};
+          var badgeType = $.val('badge_type');
+          if (badgeType in types && types[badgeType] !== moment().format('dddd')) {
+              $('#day-warning').text('This badge can ONLY be picked up on ' + types[badgeType] + '.  You cannot pick it up today or any other day than ' + types[badgeType] + '.');
+          } else {
+              $('#day-warning').empty();
+          }
+      };
+      $(function () {
+          {% if c.AT_THE_DOOR_BADGE_OPTS %}
+              $('#bold-field-message').detach().prependTo('.form-horizontal');
+              $.field('badge_type').on('change', maybeWarn);
+              maybeWarn();
+          {% else %}
+              $('.panel').empty().append('<h1>All badges are sold out!</h1>');
+          {% endif %}
+      });
+  </script>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Badge Type</label>
+    <div class="col-sm-6">
+      <select name="badge_type" class="form-control">
+        {{ options(c.AT_THE_DOOR_BADGE_OPTS,attendee.badge_type) }}
+      </select>
+      <p id="day-warning" class="help-block"></p>
     </div>
   </div>
 {% else %}
@@ -735,7 +767,7 @@
         {% endif %}
     };
     var noCellphoneClicked = function () {
-        if ($.field('no_cellphone')) {
+        if ($.field('no_cellphone') && $.field('cellphone')) {
             $.field('cellphone').prop('disabled', $.field('no_cellphone').prop('checked'));
             if($.field('no_cellphone').prop('checked')) {
                 $.field('cellphone').val('');
@@ -757,8 +789,10 @@
             $.field('no_cellphone').on('click', noCellphoneClicked);
         }
         {% if admin_area %}
-            toggleStaffingAdminRows();
-            $.field('staffing').on('click', toggleStaffingAdminRows);
+            if($.field('staffing')) {
+                toggleStaffingAdminRows();
+                $.field('staffing').on('click', toggleStaffingAdminRows);
+            }
         {% endif %}
     });
 </script>
@@ -1157,7 +1191,7 @@
 {% if c.ACCESSIBILITY_SERVICES_ENABLED %}
   <div class="form-group">
     <label for="requested_accessibility_services_option" class="col-sm-3 control-label optional-field">Accessibility Services</label>
-    {% if c.HAS_ACCESSIBILITY_ACCESS or not admin_area %}
+    {% if c.HAS_OTHER_REPORTS_ACCESS or not admin_area %}
       <div class="checkbox col-sm-9">
         {{ macros.checkbox(attendee, 'requested_accessibility_services', label='I would like to be contacted by the ' ~ c.EVENT_NAME ~ ' Accessibility Services department prior to the event.', is_readonly=read_only) }}
       </div>
@@ -1261,7 +1295,7 @@
             $('.full_name').css('font-weight', 'bold');
         } else {
             var form = document.forms[0];
-            if( form.group_opt.selectedIndex > 0 )
+            if( form.group_opt && form.group_opt.selectedIndex > 0 )
                 $('.maybe_bold').css('font-weight', 'normal');
             else {
                 $('.maybe_bold').css('font-weight', 'bold');
@@ -1331,7 +1365,7 @@ $(function(){
   <label for="admin_status" class="col-sm-3 control-label">Admin Accesses</label>
   <div class="col-sm-9 form-control-static">
     {% if attendee.admin_account %}
-      {{ attendee.admin_account.access_labels|join(' / ') }}
+      {{ attendee.admin_account.access_group.name }}
     {% else %}
       This attendee does not have an admin account.
     {% endif %}
@@ -1357,11 +1391,13 @@ $(function(){
 {% set read_only = group_link_ro or page_ro %}
 <script type="text/javascript">
     var setGroupLink = function () {
-        var group = $.val('group_opt');
-        if (group === '') {
-            $('#group_link').hide();
-        } else {
-            $('#group_link').attr("href", '../groups/form?id=' + group).show();
+        if ($.field('group_opt')) {
+            var group = $.val('group_opt');
+            if (group === '') {
+                $('#group_link').hide();
+            } else {
+                $('#group_link').attr("href", '../dealer_admin/form?id=' + group).show();
+            }
         }
     };
 
@@ -1402,10 +1438,10 @@ $(function(){
     <label class="col-sm-3 control-label">Promo Code Group</label>
     <div class="col-sm-6 form-control-static">
       {% for group in attendee.promo_code_groups %}
-        This attendee is the buyer/group leader for <strong><a href="../groups/promo_code_group_form?id={{ group.id }}" target="_blank">{{ group.name }}</a></strong>.
+        This attendee is the buyer/group leader for <strong><a href="../registration/promo_code_group_form?id={{ group.id }}" target="_blank">{{ group.name }}</a></strong>.
       {% endfor %}
       {% if attendee.promo_code and attendee.promo_code.group %}
-        This attendee used promo code <strong>{{ attendee.promo_code.code }}</strong> to claim a ${{ attendee.promo_code.cost }} badge in promo code group <strong><a href="../groups/promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a></strong>.
+        This attendee used promo code <strong>{{ attendee.promo_code.code }}</strong> to claim a ${{ attendee.promo_code.cost }} badge in promo code group <strong><a href="../registration/promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a></strong>.
       {% endif %}
     </div>
   </div>
@@ -1423,7 +1459,7 @@ $(function(){
         <ul>
           {% for applicant in attendee.panel_applicants -%}
             <li>
-              <a href="../panel_app_management/app?id={{ applicant.application.id }}">{{ applicant.application.name }}</a>
+              <a href="../panels_admin/app?id={{ applicant.application.id }}">{{ applicant.application.name }}</a>
             </li>
           {%- endfor %}
         </ul>
@@ -1456,7 +1492,7 @@ $(function(){
 
 {% set payment_method %}
 {% set read_only = payment_method_ro or page_ro %}
-{% if attendee.payment_method %}
+{% if admin_area and attendee.payment_method %}
   <div class="form-group">
     <label for="payment_method" class="col-sm-3 control-label">Payment Method</label>
     {% call macros.read_only_if(read_only, attendee.payment_method) %}
@@ -1466,6 +1502,38 @@ $(function(){
       </select>
     </div>
   {% endcall %}
+  </div>
+{% elif c.AT_THE_CON %}
+  <script type="text/javascript">
+      var maybeBold = function() {
+          var $emailLabel = $('#email').parents('.form-group').find('label');
+          var $emailConfirmLabel = $("#confirm_email").parents('.form-group').find('label');
+          if (!$.field('payment_method') || _(['', {{ c.STRIPE }}, {{ c.MANUAL }}]).contains($.val('payment_method'))) {
+              $emailLabel.removeClass('optional-field');
+              $emailConfirmLabel.removeClass('optional-field');
+          } else {
+              $emailLabel.addClass('optional-field');
+              $emailConfirmLabel.addClass('optional-field');
+          }
+      };
+      $(function () {
+          {% if c.AT_THE_DOOR_BADGE_OPTS %}
+              maybeBold();
+          {% endif %}
+      });
+  </script>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Payment Method</label>
+    <div class="col-sm-6">
+      {% if c.AFTER_BADGE_PRICE_WAIVED %}
+        <div style="margin-top:10px">All badge types are now free - enjoy {{ c.EVENT_NAME }}!</div>
+      {% else %}
+        <select name="payment_method" class="form-control" onChange="maybeBold()">
+          <option value="">Select a payment option</option>
+          {{ options(c.DOOR_PAYMENT_METHOD_OPTS,attendee.payment_method) }}
+        </select>
+      {% endif %}
+    </div>
   </div>
 {% endif %}
 {% endset %}
@@ -1610,7 +1678,7 @@ $(function(){
   <label class="col-sm-3 control-label">Hotel Eligible</label>
   <div class="col-sm-9">
     <div class="form-control-static">
-      {% if c.HAS_STAFF_ROOMS_ACCESS %}{{ attendee.agreed_to_volunteer_agreement|yesno("Yes,No") }}{% endif %}
+      {% if c.HAS_HOTEL_ADMIN_ACCESS %}{{ attendee.agreed_to_volunteer_agreement|yesno("Yes,No") }}{% endif %}
       <input type="hidden" name="hotel_eligible" value="{{ attendee.hotel_eligible|yesno("1,0") }}" />
     </div>
   </div>

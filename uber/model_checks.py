@@ -23,16 +23,33 @@ from pockets.autolog import log
 
 from uber.config import c
 from uber.decorators import prereg_validation, validation
-from uber.models import AdminAccount, ApiToken, Attendee, AttendeeTournament, Attraction, AttractionFeature, \
-    Department, DeptRole, Event, Group, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio, Job, \
-    MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam, PanelApplicant, PanelApplication, PromoCode, \
-    Sale, Session
+from uber.models import AccessGroup, AdminAccount, ApiToken, Attendee, AttendeeTournament, Attraction, \
+    AttractionFeature, Department, DeptRole, Event, Group, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, \
+    IndieStudio, Job, MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam, PanelApplicant, PanelApplication, \
+    PromoCode, Sale, Session
 from uber.utils import localized_now, Charge
+
+
+AccessGroup.required = [('name', 'Name')]
+
+
+@validation.AccessGroup
+def has_any_access(group):
+    if not group.access and not group.read_only_access:
+        return 'You must give this access group some sort of access'
+
+
+@validation.AccessGroup
+def read_only_makes_sense(group):
+    for access in group.read_only_access:
+        if access in group.access and int(group.read_only_access[access]) < int(group.access[access]):
+            return 'You cannot set a read-only access level lower than the read-write access'
 
 
 AdminAccount.required = [
     ('attendee', 'Attendee'),
-    ('hashed', 'Password')
+    ('hashed', 'Password'),
+    ('access_group_id', 'Access Group')
 ]
 
 
@@ -54,17 +71,15 @@ def has_email_address(account):
 
 @validation.AdminAccount
 def admin_has_required_access(account):
-    new_access = set(int(s) for s in account.access.split(',') if s)
-    old_access = set() if account.is_new else set(int(s) for s in account.orig_value_of('access').split(',') if s)
-    access_changes = new_access.symmetric_difference(old_access)
-    if any(c.REQUIRED_ACCESS[a] for a in access_changes):
+    if (account.is_new or (account.orig_value_of('access_group_id')
+                           and account.orig_value_of('access_group_id') != account.access_group_id)) \
+            and getattr(account.access_group, 'required_access_groups', None):
         with Session() as session:
             admin_account = session.current_admin_account()
-            admin_access = set(admin_account.access_ints)
-            for access_change in access_changes:
-                required_access = c.REQUIRED_ACCESS[access_change]
-                if all(a not in admin_access for a in required_access):
-                    return 'You do not have permission to change that access setting'
+            for access_group in account.access_group.required_access_groups:
+                if admin_account.access_group == access_group:
+                    return
+            return 'You are not in an access group that can assign that access group'
 
 
 ApiToken.required = [('name', 'Name'), ('description', 'Intended Usage'), ('access', 'Access Controls')]
@@ -78,10 +93,10 @@ def admin_has_required_api_access(api_token):
 
     with Session() as session:
         admin_account = session.current_admin_account()
-        token_access = set(api_token.access_ints)
-        admin_access = set(admin_account.access_ints)
-        if not token_access.issubset(admin_access):
-            return 'You do not have permission to create a token with that access'
+        for access_level in set(api_token.access_ints):
+            access_name = 'api_' + c.API_ACCESS[access_level].lower()
+            if not getattr(admin_account.access_group, access_name, None):
+                return 'You do not have permission to create a token with {} access'.format(c.API_ACCESS[access_level])
 
 
 Group.required = [
@@ -171,7 +186,7 @@ def group_money(group):
 @prereg_validation.Group
 def edit_only_correct_statuses(group):
     if group.status not in [c.WAITLISTED, c.UNAPPROVED]:
-        return "You cannot change your dealer application after it has been {}.".format(group.status_label)
+        return "You cannot change your {} after it has been {}.".format(c.DEALER_APP_TERM, group.status_label)
 
 
 def _invalid_phone_number(s):
@@ -242,7 +257,7 @@ def promo_code_is_useful(attendee):
         if not attendee.is_unpaid:
             return "You can't apply a promo code after you've paid or if you're in a group."
         elif attendee.is_dealer:
-            return "You can't apply a promo code to a dealer registration."
+            return "You can't apply a promo code to a {}.".format(c.DEALER_REG_TERM)
         elif attendee.age_discount != 0:
             return "You are already receiving an age based discount, you can't use a promo code on top of that."
         elif attendee.badge_type == c.ONE_DAY_BADGE or attendee.is_presold_oneday:
@@ -455,7 +470,7 @@ def attendee_money(attendee):
 @validation.Attendee
 def dealer_needs_group(attendee):
     if attendee.is_dealer and not attendee.badge_type == c.PSEUDO_DEALER_BADGE and not attendee.group_id:
-        return 'Dealers must be associated with a group'
+        return '{}s must be associated with a group'.format(c.DEALER_TERM)
 
 
 @validation.Attendee
@@ -681,8 +696,7 @@ IndieGame.required = [
     ('title', 'Game Title'),
     ('brief_description', 'Brief Description'),
     ('genres', 'Genres'),
-    ('description', 'Full Description'),
-    ('link_to_video', 'Link to Video')
+    ('description', 'Full Description')
 ]
 
 IndieGameCode.required = [
@@ -696,8 +710,8 @@ IndieJudge.required = [
 
 @validation.IndieStudio
 def mivs_new_studio_deadline(studio):
-    if studio.is_new and not c.CAN_SUBMIT_MIVS_ROUND_ONE:
-        return 'Sorry, but the round one deadline has already passed, so no new studios may be registered'
+    if studio.is_new and not c.CAN_SUBMIT_MIVS:
+        return 'Sorry, but the deadline has already passed, so no new studios may be registered'
 
 
 @validation.IndieStudio
@@ -713,6 +727,18 @@ def mivs_unique_name(studio):
         if session.query(IndieStudio).filter(IndieStudio.name == studio.name, IndieStudio.id != studio.id).count():
             return "That studio name is already taken; " \
                 "are you sure you shouldn't be logged in with that studio's account?"
+
+
+@validation.IndieDeveloper
+def agree_to_coc(dev):
+    if not dev.agreed_coc:
+        return 'You must agree to be bound by our Code of Conduct.'
+
+
+@validation.IndieDeveloper
+def agree_to_data_policy(dev):
+    if not dev.agreed_data_policy:
+        return 'You must agree to for your information to be used for determining showcase selection.'
 
 
 @validation.IndieDeveloper
@@ -735,8 +761,8 @@ def mivs_platforms_or_other(game):
 
 @validation.IndieGame
 def mivs_new_game_deadline(game):
-    if game.is_new and not c.CAN_SUBMIT_MIVS_ROUND_ONE:
-        return 'Sorry, but the round one deadline has already passed, so no new games may be registered'
+    if game.is_new and not c.CAN_SUBMIT_MIVS:
+        return 'Sorry, but the deadline has already passed, so no new games may be registered'
 
 
 @validation.IndieGame
@@ -753,7 +779,7 @@ def mivs_video_link(game):
 
 @validation.IndieGame
 def mivs_submitted(game):
-    if (game.submitted and not game.status == c.ACCEPTED) and not c.HAS_INDIE_ADMIN_ACCESS:
+    if (game.submitted and not game.status == c.ACCEPTED) and not c.HAS_MIVS_ADMIN_ACCESS:
         return 'You cannot edit a game after it has been submitted'
 
 
@@ -922,7 +948,7 @@ def panel_other(app):
 
 @validation.PanelApplication
 def app_deadline(app):
-    if localized_now() > c.PANEL_APP_DEADLINE and not c.HAS_PANEL_APPS_ACCESS and not app.poc_id:
+    if localized_now() > c.PANELS_DEADLINE and not c.HAS_PANELS_ADMIN_ACCESS and not app.poc_id:
         return 'We are now past the deadline and are no longer accepting panel applications'
 
 

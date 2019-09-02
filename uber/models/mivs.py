@@ -27,10 +27,6 @@ __all__ = [
 
 class ReviewMixin:
     @property
-    def video_reviews(self):
-        return [r for r in self.reviews if r.video_status != c.PENDING]
-
-    @property
     def game_reviews(self):
         return [r for r in self.reviews if r.game_status != c.PENDING]
 
@@ -228,6 +224,8 @@ class IndieDeveloper(MagModel):
     last_name = Column(UnicodeText)
     email = Column(UnicodeText)
     cellphone = Column(UnicodeText)
+    agreed_coc = Column(Boolean, default=False)
+    agreed_data_policy = Column(Boolean, default=False)
 
     @property
     def email_to_address(self):
@@ -274,7 +272,6 @@ class IndieGame(MagModel, ReviewMixin):
         Choice(c.MIVS_BUILD_STATUS_OPTS), default=c.PRE_ALPHA)
     build_notes = Column(UnicodeText)  # 500 max
     shown_events = Column(UnicodeText)
-    video_submitted = Column(Boolean, default=False)
     submitted = Column(Boolean, default=False)
     agreed_liability = Column(Boolean, default=False)
     agreed_showtimes = Column(Boolean, default=False)
@@ -387,6 +384,11 @@ class IndieGame(MagModel, ReviewMixin):
     @property
     def missing_steps(self):
         steps = []
+        if not self.link_to_video:
+            steps.append(
+                'You have not yet included a link to a video showcasing '
+                'at least 30 seconds of gameplay'
+            )
         if not self.link_to_game:
             steps.append(
                 'You have not yet included a link to where the judges can '
@@ -421,10 +423,6 @@ class IndieGame(MagModel, ReviewMixin):
         for code in self.codes:
             if code.unlimited_use:
                 return code
-
-    @property
-    def video_submittable(self):
-        return bool(self.link_to_video)
 
     @property
     def submittable(self):
@@ -503,7 +501,7 @@ class IndieGameImage(MagModel):
 
     @property
     def url(self):
-        return '{}/mivs_applications/view_image?id={}'.format(c.PATH, self.id)
+        return '{}/mivs/view_image?id={}'.format(c.PATH, self.id)
 
     @property
     def filepath(self):
@@ -530,8 +528,6 @@ class IndieGameReview(MagModel):
     game_status = Column(
         Choice(c.MIVS_GAME_REVIEW_STATUS_OPTS), default=c.PENDING)
     game_content_bad = Column(Boolean, default=False)
-    video_score = Column(Choice(c.MIVS_VIDEO_REVIEW_OPTS), default=c.PENDING)
-    video_review = Column(UnicodeText)
 
     # 0 = not reviewed, 1-10 score (10 is best)
     readiness_score = Column(Integer, default=0)
@@ -545,11 +541,6 @@ class IndieGameReview(MagModel):
     __table_args__ = (
         UniqueConstraint('game_id', 'judge_id', name='review_game_judge_uniq'),
     )
-
-    @presave_adjustment
-    def no_score_if_broken(self):
-        if self.has_video_issues:
-            self.video_score = c.PENDING
 
     @property
     def game_score(self):

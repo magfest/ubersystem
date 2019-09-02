@@ -32,7 +32,7 @@
       {{ table_entry('Attendee Badges', preregs.Attendee) }}
       {{ table_entry('Extra Payments (Kickins, Shirts, Food, anything else)', preregs.extra) }}
       {{ table_entry('Group Badges', preregs.group_badges) }}
-      {{ table_entry('Dealer Badges', preregs.dealer_badges) }}
+      {{ table_entry(c.DEALER_TERM + ' Badges', preregs.dealer_badges) }}
       {{ table_entry('Staff Badges', preregs.Staff) }}
       {{ table_entry('Single Day Badges', preregs.OneDay) }}
 

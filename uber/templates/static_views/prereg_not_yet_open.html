@@ -12,9 +12,9 @@
   </p>
   {%- if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN -%}
   <p>
-    <strong>Dealers:</strong>
+    <strong>{{ c.DEALER_TERM|capitalize }}s:</strong>
     {% if c.BEFORE_DEALER_REG_START %}
-        Registrations for dealer memberships begin {{ c.DEALER_REG_START|datetime_local }}.
+        {{ c.DEALER_REG_TERM|capitalize }} begin {{ c.DEALER_REG_START|datetime_local }}.
     {% else %}
         Please register <a href="../preregistration/dealer_registration">here</a>.
     {% endif %}

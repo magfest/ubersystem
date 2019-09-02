@@ -3,7 +3,7 @@
 {% import "fields/attendee.html" as attendee_fields with context %}
 {% block title %}Confirm Your Details{% endblock %}
 {% block backlink %}
-    {% if c.HAS_PEOPLE_ACCESS %}
+    {% if c.HAS_REGISTRATION_ACCESS %}
         <a href="../registration/form?id={{ attendee.id }}" style="float:right">Return to Attendee Admin Form</a>
     {% endif %}
 {% endblock %}

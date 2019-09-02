@@ -4,7 +4,7 @@ Congratulations!  Your game submission ({{ game.title }}) for the {{ c.ESCHATON.
 
 *** YOU NEED TO CONFIRM YOUR ACCEPTANCE! ***
 
-Please confirm that you are coming OR let us know that you cannot make it after all at {{ c.URL_BASE }}/mivs_applications/continue_app?id={{ game.studio.id }}
+Please confirm that you are coming OR let us know that you cannot make it after all at {{ c.URL_BASE }}/mivs/continue_app?id={{ game.studio.id }}
 
 You have until {{ game.studio.confirm_deadline|datetime_local }} to confirm (or decline).
 

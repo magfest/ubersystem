@@ -34,7 +34,7 @@
               Signed by <strong>{{ team.waiver_signature }}</strong>
               <br/>{{ team.waiver_signed|datetime_local }}
             {% else %}
-              <a target="_waiver" href="../mits_applications/waiver?id={{ team.id }}"><strong>Not Signed</strong></a>
+              <a target="_waiver" href="../mits/waiver?id={{ team.id }}"><strong>Not Signed</strong></a>
             {% endif %}
         </td>
     </tr>

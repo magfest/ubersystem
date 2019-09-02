@@ -1,0 +1,41 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}All Shifts{% endblock %}
+{% block content %}
+
+<style type="text/css">
+  h2 {
+    margin-bottom: 40px;
+  }
+
+  #jobs-container #volunteers {
+    top: 65px;
+  }
+</style>
+
+<h2>
+  All Unfilled Shifts
+  {% if show_restricted %}
+    <a href="everywhere{% if show_nonpublic %}?show_nonpublic=true{% endif %}" class="btn btn-xs btn-plain">
+  {% else %}
+    <a href="everywhere?show_restricted=true{% if show_nonpublic %}&show_nonpublic=true{% endif %}" class="btn btn-xs btn-default">
+  {% endif %}
+      <span class="glyphicon glyphicon-filter"></span>
+      Show Restricted
+    </a>
+
+  {% if show_nonpublic %}
+    <a href="everywhere{% if show_restricted %}?show_restricted=true{% endif %}" class="btn btn-xs btn-plain">
+  {% else %}
+    <a href="everywhere?show_nonpublic=true{% if show_restricted %}?show_restricted=true{% endif %}" class="btn btn-xs btn-default">
+  {% endif %}
+      <span class="glyphicon glyphicon-filter"></span>
+      Show Non Public
+    </a>
+</h2>
+
+<script>SHOW_FULL_JOBS = false;</script>
+<div id="jobs-container">
+{% include "shifts_admin/job_renderer.html" %}
+</div>
+
+{% endblock %}
