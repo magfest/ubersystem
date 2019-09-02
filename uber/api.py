@@ -282,7 +282,7 @@ class AttendeeLookup:
             'worked_label': True,
             'job': [
                 'type_label', 'department_name', 'name', 'description',
-                'start_time', 'end_time', 'extra15'
+                'start_time', 'end_time', 'extra15', 'weight'
             ]
         },
         'group': {
