@@ -625,7 +625,7 @@ if c.MIVS_ENABLED:
         IndieGame,
         'Reminder to submit your game to MIVS',
         'mivs/submission_reminder.txt',
-        lambda game: game.status == c.JUDGING and not game.submitted,
+        lambda game: not game.submitted,
         ident='mivs_game_submission_reminder',
         when=days_before(7, c.MIVS_DEADLINE))
 
@@ -633,7 +633,7 @@ if c.MIVS_ENABLED:
         IndieGame,
         'Final Reminder to submit your game to MIVS',
         'mivs/submission_reminder.txt',
-        lambda game: game.status == c.JUDGING and not game.submitted,
+        lambda game: not game.submitted,
         ident='mivs_game_submission_final_reminder',
         when=days_before(2, c.MIVS_DEADLINE))
 
