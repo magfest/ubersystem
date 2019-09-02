@@ -2,6 +2,6 @@
 
 Thanks again for submitting your game ({{ game.title }}) to the MAGFest Indie Videogame Showcase. In the few coming weeks, our judges are hard at work wrapping up their reviews and staff will be tallying up scores. You can expect to hear whether or not your game has made it into the showcase by {{ c.MIVS_RESULTS_REVEAL|datetime_local }}.
 
-If you have any questions on the judging process, you can visit https://magfest.org/mivsfaq for more information.
+If you have any questions on the judging process, you can visit https://super.magfest.org/indie-games-2019 for more information.
 
 {{ c.MIVS_EMAIL_SIGNATURE }}
