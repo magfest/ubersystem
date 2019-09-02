@@ -5,11 +5,13 @@ import random
 import re
 import string
 import traceback
+import urllib
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, timedelta
 from glob import glob
 from os.path import basename
 from random import randrange
+from rpctools.jsonrpc import ServerProxy
 from urllib.parse import urlparse, urljoin
 from uuid import uuid4
 
@@ -23,7 +25,7 @@ from sideboard.lib import threadlocal
 from pytz import UTC
 
 import uber
-from uber.config import c
+from uber.config import c, _config
 from uber.errors import CSRFException, HTTPRedirect
 
 
@@ -676,6 +678,56 @@ def remove_opt(opts, other):
     other = listify(other) if other else []
 
     return ','.join(map(str, set(opts).difference(other)))
+
+
+def _server_to_url(server):
+    if not server:
+        return ''
+    host, _, path = urllib.parse.unquote(server).replace('http://', '').replace('https://', '').partition('/')
+    if path.startswith('reggie'):
+        return 'https://{}/reggie'.format(host)
+    elif path.startswith('uber'):
+        return 'https://{}/uber'.format(host)
+    elif c.PATH == '/uber':
+        return 'https://{}{}'.format(host, c.PATH)
+    return 'https://{}'.format(host)
+
+
+def _server_to_host(server):
+    if not server:
+        return ''
+    return urllib.parse.unquote(server).replace('http://', '').replace('https://', '').split('/')[0]
+
+
+def _format_import_params(target_server, api_token):
+    target_url = _server_to_url(target_server)
+    target_host = _server_to_host(target_server)
+    remote_api_token = api_token.strip()
+    if not remote_api_token:
+        remote_api_tokens = _config.get('secret', {}).get('remote_api_tokens', {})
+        remote_api_token = remote_api_tokens.get(target_host, remote_api_tokens.get('default', ''))
+    return target_url, target_host, remote_api_token.strip()
+
+
+def get_api_service_from_server(target_server, api_token):
+    """
+    Helper method that gets a service that can be used for API calls between servers.
+    Returns the service or None, an error message or '', and a JSON-RPC URI
+    """
+    target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
+    uri = '{}/jsonrpc/'.format(target_url)
+
+    message, service = '', None
+    if target_server or api_token:
+        if not remote_api_token:
+            message = 'No API token given and could not find a token for: {}'.format(target_host)
+        elif not target_url:
+            message = 'Unrecognized hostname: {}'.format(target_server)
+
+        if not message:
+            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
+
+    return service, message, target_url
 
 
 class request_cached_context:
