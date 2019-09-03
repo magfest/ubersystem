@@ -688,12 +688,12 @@ class Config(_Overridable):
     @property
     @dynamic
     def CAN_SUBMIT_MIVS(self):
-        return self.MIVS_SUBMISSIONS_OPEN or c.HAS_MIVS_ADMIN_ACCESS
+        return self.MIVS_SUBMISSIONS_OPEN or self.HAS_MIVS_ADMIN_ACCESS
 
     @property
     @dynamic
     def MIVS_SUBMISSIONS_OPEN(self):
-        return not really_past_mivs_deadline(c.MIVS_DEADLINE) and c.AFTER_MIVS_START
+        return not really_past_mivs_deadline(c.MIVS_DEADLINE) and self.AFTER_MIVS_START
 
     # =========================
     # panels
