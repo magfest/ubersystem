@@ -1,0 +1,21 @@
+<html>
+<head></head>
+<body>
+
+You have updated your application for the Marketplace.
+<a href="{{ c.URL_BASE }}/marketplace/edit?id={{ app.id }}">Click here</a> to see
+the changes.
+
+<br/><br/>Below is the new application:
+
+<ul>
+    {% if app.business_name %}<li><strong>Business Name</strong>: {{ app.business_name }}</li>{% endif %}
+    <li><strong>Total Price</strong>: ${{ app.potential_cost }}</li>
+    <li><strong>Description</strong>: {{ app.description }}</li>
+    <li><strong>Categories</strong>: {{ app.categories_labels|join(', ') }}{% if app.categories_text %}{% if app.categories_labels%} / {% endif %}Other: {{ app.categories_text }}{% endif %}</li>
+    {% if app.tax_number %}<li><strong>Illinois Business Tax Number</strong>: {{ app.tax_number }}</li>{% endif %}
+    {% if app.special_needs %}<li><strong>Special Requests</strong>: {{ app.special_needs }}</li>{% endif %}
+</ul>
+
+</body>
+</html>

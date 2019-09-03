@@ -886,7 +886,8 @@ class Root:
             'attendee': attendee,
             'charge': Charge(
                 attendee,
-                description='{}{}'.format(attendee.full_name, '' if attendee.overridden_price else ' kicking in extra'))
+                description='{}{}'.format(attendee.full_name, '' if attendee.overridden_price else ' paying for extras')
+            )
         }
 
     def undo_attendee_donation(self, session, id):
@@ -913,7 +914,12 @@ class Root:
             # already paid for their registration, thus the attendee has been
             # saved to the database.
             attendee = session.query(Attendee).get(attendee.id)
-            attendee.amount_paid += charge.dollar_amount
+            attendee_payment = charge.dollar_amount
+            if attendee.marketplace_cost:
+                for app in attendee.marketplace_applications:
+                    attendee_payment -= app.amount_unpaid
+                    app.amount_paid += app.amount_unpaid
+            attendee.amount_paid += attendee_payment
             if attendee.paid == c.NOT_PAID and attendee.amount_paid == attendee.total_cost:
                 attendee.paid = c.HAS_PAID
             raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Your payment has been accepted')

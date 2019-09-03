@@ -1,7 +1,7 @@
 """Add separate MITS showcase scheduling column.
 
 Revision ID: b574c0577253
-Revises: 6c5cf22429e2
+Revises: 735063d71b57
 Create Date: 2018-09-26 19:29:40.149653
 
 """

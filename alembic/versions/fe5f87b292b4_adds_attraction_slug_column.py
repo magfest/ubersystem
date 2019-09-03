@@ -11,7 +11,7 @@ Create Date: 2017-12-17 02:01:36.942202
 revision = 'fe5f87b292b4'
 down_revision = '76e2905cff66'
 branch_labels = None
-depends_on='29b1b9a4e601'
+depends_on = '29b1b9a4e601'
 
 import re
 from alembic import op
