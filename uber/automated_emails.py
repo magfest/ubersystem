@@ -354,7 +354,7 @@ AutomatedEmailFixture(
     ident='dealer_info_required')
 
 StopsEmailFixture(
-    'Want to staff {EVENT_NAME} again?',
+    'Claim your Comp\'ed Badge and Apply to Staff at {EVENT_NAME} {EVENT_YEAR}!',
     'placeholders/imported_volunteer.txt',
     lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN,
     ident='volunteer_again_inquiry')
