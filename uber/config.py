@@ -671,14 +671,25 @@ class Config(_Overridable):
     @cached_property
     def ADMIN_PAGES(self):
         # Build a list of all site sections and their pages
-        public_site_sections = ['preregistration', 'static_views', 'landing', 'panels', 'mits',
-                                'attractions', 'emails', 'mivs', 'uber', 'angular', 'index']
-
-        app_root = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
+        public_site_sections = []
+        public_pages = []
+        site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
+        modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
+        for module_name, module_root in modules.items():
+            method = getattr(site_sections, module_name)
+            if getattr(method, 'public', False):
+                public_site_sections.append(module_name)
+            else:
+                for name in dir(module_root):
+                    if not name.startswith('_'):
+                        method = getattr(module_root, name)
+                        if getattr(method, 'public', False):
+                            public_pages.append(module_name + "_" + name)
 
         return {
-            section: [opt for opt in dir(getattr(app_root, section)) if not opt.startswith('_')]
-            for section in dir(app_root) if section not in public_site_sections and not section.startswith('_')
+            section: [opt for opt in dir(getattr(site_sections, section))
+                      if opt not in public_pages and not opt.startswith('_')]
+            for section in dir(site_sections) if section not in public_site_sections and not section.startswith('_')
         }
 
     # =========================
