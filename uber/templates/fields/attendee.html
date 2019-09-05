@@ -853,11 +853,11 @@
     <div class="form-control-static">
       {{ macros.checkgroup_opts(
             'assigned_depts_ids',
-            c.DEPARTMENT_OPTS_WITH_DESC,
+            c.ADMIN_DEPARTMENT_OPTS,
             defaults=attendee.assigned_depts_ids,
             include_empty_hidden=True) }}
       {% for id in attendee.assigned_depts_ids %}
-        {% if id not in c.DEPARTMENT_OPTS_WITH_DESC %}
+        {% if id not in c.ADMIN_DEPARTMENTS %}
         <input type="hidden" name="assigned_depts_ids" value="{{ id }}" />
           + {{ c.DEPARTMENTS[id] }}
         {% endif %}

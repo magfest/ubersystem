@@ -36,8 +36,8 @@
   <div class="department-group form-group">
     <label for="department_id">Department</label>
     <select id="department_id" onChange="mainMenuDropdownChanged()" class="form-control">
-      <option>All</option>
-      {{ options(c.DEPARTMENT_OPTS, department_id) }}
+      {% if c.ADMIN_DEPARTMENTS|length > 1 %}<option>All</option>{% endif %}
+      {{ options(c.ADMIN_DEPARTMENT_OPTS, department_id) }}
     </select>
   </div>
 

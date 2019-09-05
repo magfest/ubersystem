@@ -99,6 +99,7 @@ c.MENU = MenuItem(name='Root', submenu=[
 
     MenuItem(name='Staffing', submenu=[
         MenuItem(name='Staffers', href='../shifts_admin/staffers'),
+        MenuItem(name='Pending Staffers', href='../staffing_admin/badges'),
         MenuItem(name='Add/Edit Shifts', href='../shifts_admin/'),
         MenuItem(name='All Unfilled Shifts', href='../shifts_admin/everywhere'),
         MenuItem(name='Departments', href='../dept_admin/'),

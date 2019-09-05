@@ -588,11 +588,7 @@ class Config(_Overridable):
         from uber.models import Session, Department
         with Session() as session:
             query = session.query(Department).order_by(Department.name)
-            current_admin = session.admin_attendee()
-            if current_admin.admin_account.access_group.full_shifts_admin:
-                return [(d.id, d.name, d.description) for d in query]
-            else:
-                return [(d.id, d.name, d.description) for d in query if d.id in current_admin.assigned_depts_ids]
+            return [(d.id, d.name, d.description) for d in query]
 
     @request_cached_property
     @dynamic
@@ -603,6 +599,32 @@ class Config(_Overridable):
                 solicits_volunteers=True).order_by(Department.name)
             return [('All', 'Anywhere', 'I want to help anywhere I can!')] \
                 + [(d.id, d.name, d.description) for d in query]
+
+    @request_cached_property
+    @dynamic
+    def ADMIN_DEPARTMENTS(self):
+        return dict(self.ADMIN_DEPARTMENT_OPTS)
+
+    @request_cached_property
+    @dynamic
+    def ADMIN_DEPARTMENT_OPTS(self):
+        from uber.models import Session, Department
+
+        override_access = ''
+        if 'dept_admin' in c.PAGE_PATH:
+            override_access = 'full_dept_admin'
+        elif 'shifts_admin' in c.PAGE_PATH:
+            override_access = 'full_shifts_admin'
+        elif 'dept_checklist' in c.PAGE_PATH:
+            override_access = 'full_dept_checklist_admin'
+
+        with Session() as session:
+            query = session.query(Department).order_by(Department.name)
+            current_admin = session.admin_attendee()
+            if getattr(current_admin.admin_account.access_group, override_access, None):
+                return [(d.id, d.name) for d in query]
+            else:
+                return [(d.id, d.name) for d in query if d.id in current_admin.assigned_depts_ids]
 
     @request_cached_property
     @dynamic
@@ -617,7 +639,11 @@ class Config(_Overridable):
     def DEFAULT_DEPARTMENT_ID(self):
         from uber.models import Session, Department
         with Session() as session:
-            dept = session.query(Department).order_by(Department.name).first()
+            current_admin = session.admin_attendee()
+            dept_filter = [] if current_admin.admin_account.access_group.full_shifts_admin \
+                else [Department.members.any(id=current_admin.id)]
+
+            dept = session.query(Department).filter(*dept_filter).order_by(Department.name).first()
             return dept.id
 
     @property

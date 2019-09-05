@@ -129,16 +129,19 @@ class AccessGroup(MagModel):
     _NONE = 0
     _LIMITED = 1
     _CONTACT = 2
+    _SELF = 3
     _FULL = 5
     _READ_LEVEL_OPTS = [
         (_NONE, 'Same as Read-Write Access'),
         (_LIMITED, 'Limited'),
         (_CONTACT, 'Contact Info'),
+        (_SELF, 'All Info in Own Dept(s)'),
         (_FULL, 'All Info')]
     _WRITE_LEVEL_OPTS = [
         (_NONE, 'No Access'),
         (_LIMITED, 'Limited'),
         (_CONTACT, 'Contact Info'),
+        (_SELF, 'All Info in Own Dept(s)'),
         (_FULL, 'All Info')]
 
     name = Column(UnicodeText)
@@ -188,6 +191,18 @@ class AccessGroup(MagModel):
     @property
     def full_shifts_admin(self):
         return int(self.access.get('shifts_admin', 0)) >= self._FULL
+
+    @property
+    def full_dept_checklist_admin(self):
+        return int(self.access.get('dept_checklist_admin', 0)) >= self._FULL
+
+    @property
+    def full_attractions_admin(self):
+        return int(self.access.get('attractions_admin', 0)) >= self._FULL
+
+    @property
+    def full_email_admin(self):
+        return int(self.access.get('email_admin', 0)) >= self._FULL
 
     @property
     def can_create_volunteer_badges(self):

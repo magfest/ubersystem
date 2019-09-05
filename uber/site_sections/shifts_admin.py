@@ -7,7 +7,7 @@ from sqlalchemy.orm import subqueryload
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, department_id_adapter, \
-    assert_dept_admin, requires_dept_admin
+    check_can_edit_dept, requires_shifts_admin
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, Email, Job, PageViewTracking, Shift, Tracking
 from uber.utils import check, localized_now
@@ -65,15 +65,18 @@ def check_if_can_see_staffer(session, attendee):
     return ""
 
 
+def redirect_to_allowed_dept(session, department_id):
+    if not department_id or department_id not in session.admin_attendee().assigned_depts_ids:
+        department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_ID
+        raise HTTPRedirect('staffers?department_id={}'.format(department_id))
+
+
 @all_renderable()
 class Root:
     @department_id_adapter
+    @requires_shifts_admin
     def index(self, session, department_id=None, message='', time=None):
-        if not department_id:
-            if c.AT_THE_CON:
-                raise HTTPRedirect('signups')
-            else:
-                department_id = c.DEFAULT_DEPARTMENT_ID
+        redirect_to_allowed_dept(session, department_id)
 
         department_id = None if department_id == 'All' else department_id
         department = session.query(Department).get(department_id) if department_id else None
@@ -91,13 +94,14 @@ class Root:
             'normal': [j for j in jobs if j.type != c.SETUP and j.type != c.TEARDOWN],
             'checklist': department_id and session.checklist_status('creating_shifts', department_id),
             'times': [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)],
-            'jobs': jobs
+            'jobs': jobs,
+            'message': message,
         }
 
     @department_id_adapter
+    @requires_shifts_admin
     def signups(self, session, department_id=None, message=''):
-        if not department_id:
-            department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_ID
+        redirect_to_allowed_dept(session, department_id)
         department_id = None if department_id == 'All' else department_id
         cherrypy.session['prev_department_id'] = department_id
 
@@ -129,9 +133,10 @@ class Root:
         }
 
     @department_id_adapter
+    @requires_shifts_admin
     def staffers(self, session, department_id=None, message=''):
-        if not department_id:
-            department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_ID
+        redirect_to_allowed_dept(session, department_id)
+
         department_id = None if department_id == 'All' else department_id
 
         if department_id:
@@ -288,7 +293,7 @@ class Root:
         session.delete(shift)
         raise HTTPRedirect('attendee_shifts?id={}&message={}', shift.attendee.id, 'Staffer unassigned from shift')
 
-    @requires_dept_admin
+    @requires_shifts_admin
     def form(self, session, message='', **params):
         defaults = {}
         if params.get('id') == 'None' and cherrypy.request.method != 'POST':
@@ -351,7 +356,11 @@ class Root:
     @csrf_protected
     def delete(self, session, id):
         job = session.job(id)
-        assert_dept_admin(session, job.department)
+
+        message = check_can_edit_dept(session, job.department, override_access='full_shifts_admin')
+        if message:
+            raise HTTPRedirect('index?department_id={}#{}&message={}', job.department_id, job.start_time, message)
+
         for shift in job.shifts:
             session.delete(shift)
         session.delete(job)
