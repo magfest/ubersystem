@@ -2,14 +2,14 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 import cherrypy
-from sqlalchemy import select
+from sqlalchemy import select, and_, or_
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, department_id_adapter, \
     assert_dept_admin, requires_dept_admin
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Department, Job
+from uber.models import Attendee, Department, Email, Job, PageViewTracking, Shift, Tracking
 from uber.utils import check, localized_now
 
 
@@ -50,9 +50,23 @@ def update_counts(job, counts):
         counts['regular_signups'] += job.weighted_hours * len(job.shifts)
 
 
+def check_if_can_see_staffer(session, attendee):
+    if attendee.is_new:
+        return ""
+
+    if not attendee.staffing:
+        return "That attendee is not volunteering for {}".format(c.EVENT_NAME)
+
+    current_admin = session.admin_attendee()
+    if not current_admin.admin_account.access_group.full_shifts_admin \
+            and not session.attendees_share_departments(attendee, current_admin):
+        return "That attendee is not in any of your departments"
+
+    return ""
+
+
 @all_renderable()
 class Root:
-
     @department_id_adapter
     def index(self, session, department_id=None, message='', time=None):
         if not department_id:
@@ -127,7 +141,7 @@ class Root:
 
         dept_filter = [] if not department_id \
             else [Attendee.dept_memberships.any(department_id=department_id)]
-        attendees = session.staffers().filter(*dept_filter).all()
+        attendees = session.staffers(pending=True).filter(*dept_filter).all()
         for attendee in attendees:
             attendee.is_dept_head_here = attendee.is_dept_head_of(department_id) if department_id \
                 else attendee.is_dept_head
@@ -145,8 +159,134 @@ class Root:
             'attendees': attendees,
             'emails': ','.join(a.email for a in attendees),
             'emails_with_shifts': ','.join([a.email for a in attendees if a.hours_here]),
-            'checklist': session.checklist_status('assigned_volunteers', department_id)
+            'checklist': session.checklist_status('assigned_volunteers', department_id),
+            'message': message,
         }
+
+    def attendee_form(self, session, message='', return_to='staffers', **params):
+        attendee = session.attendee(
+            params, checkgroups=['ribbons', 'job_interests', 'assigned_depts'],
+            bools=['placeholder', 'no_cellphone', 'staffing', 'can_work_setup', 'can_work_teardown', 'hotel_eligible',
+                   'agreed_to_volunteer_agreement'],
+            allow_invalid=True)
+
+        error_message = check_if_can_see_staffer(session, attendee)
+
+        if error_message:
+            raise HTTPRedirect('staffers?message={}', error_message)
+
+        if cherrypy.request.method == 'POST':
+            if attendee.is_new:
+                attendee.placeholder = True
+
+            message = check(attendee)
+
+            if attendee.is_new:
+                if not attendee.staffing_or_will_be:
+                    message = "You can't create a non-volunteer attendee with this form."
+                elif session.attendees_with_badges().filter_by(first_name=attendee.first_name,
+                                                               last_name=attendee.last_name,
+                                                               email=attendee.email).count():
+                    message = "Another attendee already exists with this name and email address."
+
+            if not message:
+                session.add(attendee)
+
+                if not session.admin_can_create_attendee(attendee):
+                    attendee.badge_status = c.PENDING_STATUS
+                    if attendee.badge_type == c.STAFF_BADGE:
+                        volunteer_type = "Staffer"
+                    elif attendee.badge_type == c.CONTRACTOR_BADGE:
+                        volunteer_type = "Contractor"
+                    else:
+                        volunteer_type = "Volunteer"
+
+                    message = '{} has been submitted as a {} for approval.'.format(attendee.full_name, volunteer_type)
+
+                message = message or '{} has been saved'.format(attendee.full_name)
+                if params.get('save') == 'save_return_to_search':
+                    if return_to:
+                        raise HTTPRedirect(return_to + '?message={}', message)
+                    else:
+                        raise HTTPRedirect('staffers?message={}', message)
+                else:
+                    raise HTTPRedirect('attendee_form?id={}&message={}&return_to={}', attendee.id, msg_text, return_to)
+
+        return {
+            'message': message,
+            'attendee': attendee,
+            'return_to': return_to
+        }
+
+    def attendee_shifts(self, session, id, shift_id='', message='', return_to=''):
+        attendee = session.attendee(id, allow_invalid=True)
+
+        error_message = check_if_can_see_staffer(session, attendee)
+
+        if error_message:
+            raise HTTPRedirect('staffers?message={}', error_message)
+
+        attrs = Shift.to_dict_default_attrs + ['worked_label']
+        return {
+            'message': message,
+            'shift_id': shift_id,
+            'attendee': attendee,
+            'return_to': return_to,
+            'shifts': {s.id: s.to_dict(attrs) for s in attendee.shifts},
+            'jobs': [
+                (job.id, '({}) [{}] {}'.format(job.timespan(), job.department_name, job.name))
+                for job in attendee.available_jobs
+                if job.start_time + timedelta(hours=job.duration + 2) > localized_now()]
+        }
+
+    def attendee_history(self, session, id):
+        attendee = session.attendee(id, allow_invalid=True)
+
+        error_message = check_if_can_see_staffer(session, attendee)
+
+        if error_message:
+            raise HTTPRedirect('staffers?message={}', error_message)
+
+        return {
+            'attendee':  attendee,
+            'emails':    session.query(Email)
+                                .filter(or_(Email.to == attendee.email,
+                                            and_(Email.model == 'Attendee', Email.fk_id == id)))
+                                .order_by(Email.when).all(),
+            'changes':   session.query(Tracking)
+                                .filter(or_(Tracking.links.like('%attendee({})%'.format(id)),
+                                            and_(Tracking.model == 'Attendee', Tracking.fk_id == id)))
+                                .order_by(Tracking.when).all(),
+            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Attendee id={}".format(id))
+        }
+
+    @csrf_protected
+    def update_nonshift(self, session, id, nonshift_hours):
+        attendee = session.attendee(id, allow_invalid=True)
+        if not re.match('^[0-9]+$', nonshift_hours):
+            raise HTTPRedirect('attendee_shifts?id={}&message={}', attendee.id, 'Invalid integer')
+        else:
+            attendee.nonshift_hours = int(nonshift_hours)
+            raise HTTPRedirect('attendee_shifts?id={}&message={}', attendee.id, 'Non-shift hours updated')
+
+    @csrf_protected
+    def update_notes(self, session, id, admin_notes, for_review=None):
+        attendee = session.attendee(id, allow_invalid=True)
+        attendee.admin_notes = admin_notes
+        if for_review is not None:
+            attendee.for_review = for_review
+        raise HTTPRedirect('attendee_shifts?id={}&message={}', id, 'Notes updated')
+
+    @csrf_protected
+    def assign(self, session, staffer_id, job_id):
+        message = session.assign(staffer_id, job_id) or 'Shift added'
+        raise HTTPRedirect('attendee_shifts?id={}&message={}', staffer_id, message)
+
+    @csrf_protected
+    def unassign(self, session, shift_id):
+        shift = session.shift(shift_id)
+        session.delete(shift)
+        raise HTTPRedirect('attendee_shifts?id={}&message={}', shift.attendee.id, 'Staffer unassigned from shift')
 
     @requires_dept_admin
     def form(self, session, message='', **params):

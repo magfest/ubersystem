@@ -120,6 +120,15 @@ class MagModel:
         return self.email
 
     @property
+    def gets_emails(self):
+        """
+        In some cases, we want to apply a global filter to a model that prevents it from
+        receiving scheduled emails under certain circumstances. This property allows you
+        to define such a filter.
+        """
+        return True
+
+    @property
     def addons(self):
         """
         This exists only to be overridden by other events; it should return a
@@ -643,6 +652,16 @@ class Session(SessionManager):
         def logged_in_volunteer(self):
             return self.attendee(cherrypy.session['staffer_id'])
 
+        def attendees_share_departments(self, first, second):
+            return set(first.assigned_depts_ids).intersection(second.assigned_depts_ids)
+
+        def admin_can_create_attendee(self, attendee):
+            admin = self.current_admin_account()
+            if attendee.badge_type == c.STAFF_BADGE:
+                return admin.access_group.full_shifts_admin
+            elif attendee.badge_type in [c.CONTRACTOR_BADGE, c.ATTENDEE_BADGE] and attendee.staffing_or_will_be:
+                return admin.access_group.can_create_volunteer_badges
+
         def checklist_status(self, slug, department_id):
             attendee = self.admin_attendee()
             conf = DeptChecklistConf.instances.get(slug)
@@ -1033,7 +1052,7 @@ class Session(SessionManager):
             return self.query(Attendee).filter(not_(Attendee.badge_status.in_(
                 [c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS])))
 
-        def all_attendees(self, only_staffing=False):
+        def all_attendees(self, only_staffing=False, pending=False):
             """
             Returns a Query of Attendees with efficient loading for groups and
             shifts/jobs.
@@ -1048,8 +1067,11 @@ class Session(SessionManager):
             """
             staffing_filter = [Attendee.staffing == True] if only_staffing else []  # noqa: E712
 
-            badge_filter = Attendee.badge_status.in_(
-                [c.NEW_STATUS, c.COMPLETED_STATUS])
+            badge_statuses = [c.NEW_STATUS, c.COMPLETED_STATUS]
+            if pending:
+                badge_statuses.append(c.PENDING_STATUS)
+
+            badge_filter = Attendee.badge_status.in_(badge_statuses)
 
             return self.query(Attendee) \
                 .filter(badge_filter, *staffing_filter) \
@@ -1059,8 +1081,8 @@ class Session(SessionManager):
                     subqueryload(Attendee.shifts).subqueryload(Shift.job).subqueryload(Job.department)) \
                 .order_by(Attendee.full_name, Attendee.id)
 
-        def staffers(self):
-            return self.all_attendees(only_staffing=True)
+        def staffers(self, pending=False):
+            return self.all_attendees(only_staffing=True, pending=pending)
 
         def all_panelists(self):
             return self.query(Attendee).filter(or_(

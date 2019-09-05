@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% set name_ro = not attendee.placeholder %}
+{% set assigned_depts_ro = True %}
 {% import "fields/attendee.html" as attendee_fields with context %}
 {% block title %}Confirm Your Details{% endblock %}
 {% block backlink %}
@@ -64,6 +65,7 @@
       {{ attendee_fields.extra_donation }}
       {{ attendee_fields.staffing }}
       {{ attendee_fields.job_interests }}
+      {{ attendee_fields.assigned_depts }}
       {{ attendee_fields.agreed_to_volunteer_agreement }}
       {{ attendee_fields.age }}
       {{ attendee_fields.email }}

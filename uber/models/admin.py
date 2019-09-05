@@ -185,6 +185,15 @@ class AccessGroup(MagModel):
     def full_dept_admin(self):
         return int(self.access.get('dept_admin', 0)) >= self._FULL
 
+    @property
+    def full_shifts_admin(self):
+        return int(self.access.get('shifts_admin', 0)) >= self._FULL
+
+    @property
+    def can_create_volunteer_badges(self):
+        return int(self.access.get('shifts_admin', 0)) >= self._FULL \
+               or int(self.access.get('shifts_admin_attendee_form', 0)) >= self._FULL
+
 
 class WatchList(MagModel):
     first_names = Column(UnicodeText)

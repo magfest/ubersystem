@@ -506,25 +506,21 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.paid == c.NOT_PAID:
                 self.paid = c.NEED_NOT_PAY
         else:
-            if c.VOLUNTEER_RIBBON in self.ribbon_ints and self.is_new:
+            if self.volunteering_badge_or_ribbon:
                 self.staffing = True
 
         if not self.is_new:
             old_ribbon = map(int, self.orig_value_of('ribbon').split(',')) if self.orig_value_of('ribbon') else []
             old_staffing = self.orig_value_of('staffing')
 
-            if self.staffing and not old_staffing or c.VOLUNTEER_RIBBON in self.ribbon_ints \
-                    and c.VOLUNTEER_RIBBON not in old_ribbon:
-                self.staffing = True
-
-            elif old_staffing and not self.staffing or c.VOLUNTEER_RIBBON not in self.ribbon_ints \
+            if old_staffing and not self.staffing or c.VOLUNTEER_RIBBON not in self.ribbon_ints \
                     and c.VOLUNTEER_RIBBON in old_ribbon and not self.is_dept_head:
                 self.unset_volunteering()
 
         if self.badge_type == c.STAFF_BADGE:
             self.ribbon = remove_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
 
-        elif self.staffing and self.badge_type != c.STAFF_BADGE and c.VOLUNTEER_RIBBON not in self.ribbon_ints:
+        elif self.staffing and not self.volunteering_badge_or_ribbon:
             self.ribbon = add_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
 
         if self.badge_type == c.STAFF_BADGE:
@@ -717,6 +713,15 @@ class Attendee(MagModel, TakesPaymentMixin):
     def is_unassigned(cls):
         return cls.first_name == ''
 
+    @property
+    def volunteering_badge_or_ribbon(self):
+        return self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] or c.VOLUNTEER_RIBBON in self.ribbon_ints
+
+    @property
+    def staffing_or_will_be(self):
+        # This is for use in our model checks -- it includes attendees who are going to be marked staffing
+        return self.staffing or self.volunteering_badge_or_ribbon
+
     @hybrid_property
     def is_dealer(self):
         return c.DEALER_RIBBON in self.ribbon_ints or self.badge_type == c.PSEUDO_DEALER_BADGE or (
@@ -868,6 +873,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @classmethod
     def normalize_email(cls, email):
         return email.strip().lower().replace('.', '')
+
+    @property
+    def gets_emails(self):
+        return self.badge_status in [c.NEW_STATUS, c.COMPLETED_STATUS]
 
     @property
     def watchlist_guess(self):

@@ -93,11 +93,16 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='Access Groups', href='../accounts/access_groups'),
         MenuItem(name='API Access', href='../api/'),
         MenuItem(name='Pending Emails', href='../email_admin/pending'),
+        MenuItem(name='Feed of Database Changes', href='../registration/feed'),
+        MenuItem(name='Watchlist', href='../security_admin/index'),
+    ]),
+
+    MenuItem(name='Staffing', submenu=[
+        MenuItem(name='Staffers', href='../shifts_admin/staffers'),
         MenuItem(name='Add/Edit Shifts', href='../shifts_admin/'),
         MenuItem(name='All Unfilled Shifts', href='../shifts_admin/everywhere'),
         MenuItem(name='Departments', href='../dept_admin/'),
         MenuItem(name='Department Checklists', href='../dept_checklist/overview'),
-        MenuItem(name='Feed of Database Changes', href='../registration/feed'),
     ]),
 
     MenuItem(name='People', submenu=[
@@ -107,7 +112,6 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='Bands', href='../guest_admin/?filter=only-bands'),
         MenuItem(name='Guests', href='../guest_admin/?filter=only-guests'),
         MenuItem(name='MIVS', href='../guest_admin/?filter=only-mivss'),
-        MenuItem(name='Watchlist', href='../security_admin/index'),
     ]),
 
     MenuItem(name='Schedule', submenu=[
