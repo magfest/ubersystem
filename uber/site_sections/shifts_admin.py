@@ -58,7 +58,7 @@ def check_if_can_see_staffer(session, attendee):
         return "That attendee is not volunteering for {}".format(c.EVENT_NAME)
 
     current_admin = session.admin_attendee()
-    if not current_admin.admin_account.access_group.full_shifts_admin \
+    if not current_admin.admin_account.full_shifts_admin \
             and not session.attendees_share_departments(attendee, current_admin):
         return "That attendee is not in any of your departments"
 

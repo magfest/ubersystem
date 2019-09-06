@@ -658,9 +658,9 @@ class Session(SessionManager):
         def admin_can_create_attendee(self, attendee):
             admin = self.current_admin_account()
             if attendee.badge_type == c.STAFF_BADGE:
-                return admin.access_group.full_shifts_admin
+                return admin.full_shifts_admin
             elif attendee.badge_type in [c.CONTRACTOR_BADGE, c.ATTENDEE_BADGE] and attendee.staffing_or_will_be:
-                return admin.access_group.can_create_volunteer_badges
+                return admin.can_create_volunteer_badges
 
         def checklist_status(self, slug, department_id):
             attendee = self.admin_attendee()
@@ -1303,12 +1303,16 @@ class Session(SessionManager):
                 access={section: '5' for section in c.ADMIN_PAGES}
             )
 
-            self.add(all_access_group)
-
-            self.add(AdminAccount(
+            test_developer_account = AdminAccount(
                 attendee=attendee,
-                access_group=all_access_group,
                 hashed=bcrypt.hashpw('magfest', bcrypt.gensalt())
+            )
+
+            self.add(all_access_group)
+            self.add(test_developer_account)
+            self.add(AdminAccessGroup(
+                admin_account_id=test_developer_account.id,
+                access_group_id=all_access_group.id,
             ))
 
             return True
@@ -1404,29 +1408,6 @@ class Session(SessionManager):
         def indie_games(self):
             return self.query(IndieGame).join(IndieStudio).options(
                 joinedload(IndieGame.studio), joinedload(IndieGame.reviews)).order_by(IndieStudio.name, IndieGame.title)
-
-        def create_or_find_mivs_judge_access_group(self):
-            """
-            Looks for an admin access group with write access to only mivs_judging,
-            and creates a new one if it can't find any.
-
-            Technically, we don't need this access group -- access to mivs_judging
-            is determined by whether the admin account is linked to an IndieJudge
-            object -- but we need to give MIVS judges some sort of access group.
-            """
-
-            existing_access_groups = self.query(AccessGroup).filter(
-                AccessGroup.access['mivs_judging'].astext.cast(Integer) > 0)
-            for group in existing_access_groups:
-                if len(group.access) == 1:
-                    return group
-            new_mivs_judge_group = AccessGroup(
-                name='MIVS Judge',
-                access={'mivs_judging': '5'}
-            )
-            self.add(new_mivs_judge_group)
-            self.commit()
-            return new_mivs_judge_group
 
         # =========================
         # mits

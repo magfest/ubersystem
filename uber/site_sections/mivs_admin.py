@@ -173,10 +173,8 @@ class Root:
                     session.add(attendee)
 
                 password = genpasswd()
-                judge_access_group = session.create_or_find_mivs_judge_access_group()
                 attendee.admin_account = AdminAccount(
                     judge=judge,
-                    access_group_id=judge_access_group.id,
                     hashed=bcrypt.hashpw(password, bcrypt.gensalt())
                 )
                 email_body = render('emails/accounts/new_account.txt', {

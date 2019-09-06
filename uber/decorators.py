@@ -156,7 +156,7 @@ def check_can_edit_dept(session, department_id=None, inherent_role=None, overrid
     from uber.models import AdminAccount, DeptMembership, Department
     account_id = cherrypy.session['account_id']
     admin_account = session.query(AdminAccount).get(account_id)
-    if not getattr(admin_account.access_group, override_access, None):
+    if not getattr(admin_account, override_access, None):
         dh_filter = [
             AdminAccount.id == account_id,
             AdminAccount.attendee_id == DeptMembership.attendee_id]

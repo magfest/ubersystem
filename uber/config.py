@@ -615,13 +615,11 @@ class Config(_Overridable):
             override_access = 'full_dept_admin'
         elif 'shifts_admin' in c.PAGE_PATH:
             override_access = 'full_shifts_admin'
-        elif 'dept_checklist' in c.PAGE_PATH:
-            override_access = 'full_dept_checklist_admin'
 
         with Session() as session:
             query = session.query(Department).order_by(Department.name)
             current_admin = session.admin_attendee()
-            if getattr(current_admin.admin_account.access_group, override_access, None):
+            if getattr(current_admin.admin_account, override_access, None):
                 return [(d.id, d.name) for d in query]
             else:
                 return [(d.id, d.name) for d in query if d.id in current_admin.assigned_depts_ids]
@@ -640,7 +638,7 @@ class Config(_Overridable):
         from uber.models import Session, Department
         with Session() as session:
             current_admin = session.admin_attendee()
-            dept_filter = [] if current_admin.admin_account.access_group.full_shifts_admin \
+            dept_filter = [] if current_admin.admin_account.full_shifts_admin \
                 else [Department.members.any(id=current_admin.id)]
 
             dept = session.query(Department).filter(*dept_filter).order_by(Department.name).first()
@@ -698,6 +696,19 @@ class Config(_Overridable):
 
     @request_cached_property
     @dynamic
+    def ACCESS_GROUPS(self):
+        return dict(self.ACCESS_GROUP_OPTS)
+
+    @request_cached_property
+    @dynamic
+    def ACCESS_GROUP_OPTS(self):
+        from uber.models import Session, AccessGroup
+        with Session() as session:
+            query = session.query(AccessGroup).order_by(AccessGroup.name)
+            return [(a.id, a.name) for a in query]
+
+    @request_cached_property
+    @dynamic
     def ADMIN_ACCESS_SET(self):
         return uber.models.AdminAccount.access_set(include_read_only=True)
 
@@ -709,7 +720,7 @@ class Config(_Overridable):
     @cached_property
     def ADMIN_PAGES(self):
         # Build a list of all site sections and their pages
-        public_site_sections = []
+        public_site_sections = ['static_views', 'angular']
         public_pages = []
         site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
         modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}

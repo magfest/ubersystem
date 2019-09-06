@@ -8,6 +8,7 @@ from uber.errors import HTTPRedirect
 from uber.utils import check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, localized_now
 
 
+@public
 @all_renderable()
 class Root:
     def index(self, session, message=''):

@@ -5,7 +5,7 @@ from pockets import sluggify
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable
+from uber.decorators import ajax, all_renderable, public
 from uber.errors import HTTPRedirect
 from uber.models.attraction import Attendee, Attraction, AttractionFeature, AttractionEvent, AttractionSignup
 from uber.site_sections.preregistration import check_post_con
@@ -51,10 +51,10 @@ def _model_for_id(session, model, id, options=None, filters=[]):
     return query.first()
 
 
+@public
 @all_renderable(public=True)
 @check_post_con
 class Root:
-
     @cherrypy.expose
     def default(self, *args, **kwargs):
         if args:

@@ -7,13 +7,14 @@ from pockets import listify
 from pytz import UTC
 
 from uber.config import c
-from uber.decorators import all_renderable, csrf_protected, render
+from uber.decorators import all_renderable, csrf_protected, public, render
 from uber.errors import HTTPRedirect
 from uber.models import Email, MITSTeam
 from uber.tasks.email import send_email
 from uber.utils import check, localized_now
 
 
+@public
 @all_renderable(public=True)
 class Root:
     def index(self, session, message=''):

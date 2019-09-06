@@ -2,12 +2,6 @@
 {% block title %}Accounts{% endblock %}
 {% block content %}
 
-<script type="text/javascript">
-    $(function () {
-        $.field('access_group_id').select2().select2('val', $(this).data("access-group"));
-    });
-</script>
-
 <style>
 table form {
   display: inline;
@@ -40,10 +34,10 @@ table form {
                {% if not c.AT_OR_POST_CON %}disabled{% endif %}>
       </div>
       <div class="form-group">
-        <select name="access_group_id" class="form-control access_group_select" data-access-group="">
-          <option value="">Select an access group</option>
-          {{ options(access_group_opts) }}
-        </select>
+        {{ macros.checkgroup_opts(
+            'access_groups_ids',
+            c.ACCESS_GROUP_OPTS,
+            include_empty_hidden=True) }}
       </div>
       <button type="submit" class="btn btn-default">Create Account</button>
     </form>
@@ -77,10 +71,11 @@ table form {
               <input type="hidden" name="id" value="{{ account.id }}" />
               {{ csrf_token() }}
               <div class="form-group">
-                <select name="access_group_id" class="form-control access_group_select" data-access-group="{{ account.access_group.id }}">
-                  <option value="">Select an access group</option>
-                  {{ options(access_group_opts, account.access_group.id) }}
-                </select>
+                {{ macros.checkgroup_opts(
+                  'access_groups_ids',
+                  c.ACCESS_GROUP_OPTS,
+                  defaults=account.access_groups_ids,
+                  include_empty_hidden=True) }}
               </div>
             </form>
             {% if account.attendee.assigned_depts %}
