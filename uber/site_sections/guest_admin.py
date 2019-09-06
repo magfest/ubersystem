@@ -11,7 +11,6 @@ from uber.utils import check, convert_to_absolute_url
 
 @all_renderable()
 class Root:
-
     def _required_message(self, params, fields):
         missing = [s for s in fields if not params.get(s, '').strip()]
         if missing:
@@ -23,7 +22,7 @@ class Root:
     def index(self, session, message='', filter='show-all'):
         return {
             'message': message,
-            'groups': session.query(Group).order_by('name').all(),
+            'groups': session.query(Group).join(GuestGroup).order_by('name').all(),
             'groups_filter': filter
         }
 

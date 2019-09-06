@@ -36,7 +36,7 @@
       {% for group in groups -%}
         <tr id="{{ group.id }}" class="{{ group.guest.group_type_label|lower if group.guest else "" }} group-row">
           <td>
-            <a href="../dealer_admin/form?id={{ group.id }}">{{ group.name }}</a>
+            {{ group.name }}
             <span class="guest_info">
                 {% if group.guest -%}
                   &nbsp;
