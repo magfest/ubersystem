@@ -209,7 +209,7 @@
             </td>
             <td style="padding:15px;">
                 {% if attendee.amount_extra %}
-                    <b>Kicked in an extra ${{ attendee.amount_extra }}!</b>
+                    <b>Kicked in an extra ${{ '%0.2f' % attendee.amount_extra }}!</b>
                 {% endif %}
             </td>
             <td style="padding:15px;">{{ attendee.weighted_hours }} Hours</td>

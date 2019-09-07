@@ -61,9 +61,9 @@
         </td>
         <td data-order="{{ group.badges_purchased }}" data-search="{{ group.badges_purchased }}"> {{ group.badges_purchased }} / {{ group.badges }} </td>
         <td>{{ group.tables }}</td>
-        <td>${{ group.cost }}</td>
-        <td>${{ group.amount_unpaid }}</td>
-        <td>${{ group.amount_paid }}</td>
+        <td>${{ '%0.2f' % group.cost }}</td>
+        <td>${{ '%0.2f' % group.amount_unpaid }}</td>
+        <td>${{ '%0.2f' % (group.amount_paid / 100) }}</td>
         <td>{{ group.admin_notes }}</td>
     </tr>
 {% endfor %}

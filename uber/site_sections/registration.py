@@ -43,7 +43,7 @@ def pre_checkin_check(attendee, group):
         return attendee.full_name + ' was already checked in!'
 
     if group and attendee.paid == c.PAID_BY_GROUP and group.amount_unpaid:
-        return 'This attendee\'s group has an outstanding balance of ${}'.format(group.amount_unpaid)
+        return 'This attendee\'s group has an outstanding balance of ${}'.format('%0.2f' % group.amount_unpaid)
 
     if attendee.paid == c.NOT_PAID:
         return 'You cannot check in an attendee that has not paid.'
@@ -707,7 +707,8 @@ class Root:
             if db_attendee:
                 attendee = db_attendee
             attendee.paid = c.HAS_PAID
-            attendee.amount_paid = attendee.total_cost
+            session.add_receipt_items_by_model(charge, attendee)
+            attendee.amount_paid_override = attendee.total_cost
             session.add(attendee)
             raise HTTPRedirect(
                 'register?message={}', c.AT_DOOR_PREPAID_MSG)
@@ -765,7 +766,7 @@ class Root:
         if int(payment_method) == c.STRIPE_ERROR:
             attendee.for_review += "Automated message: Stripe payment manually verified by admin."
         attendee.payment_method = payment_method
-        attendee.amount_paid = attendee.total_cost
+        attendee.amount_paid_override = attendee.total_cost
         attendee.reg_station = cherrypy.session['reg_station']
         session.commit()
         return {'success': True, 'message': 'Attendee marked as paid.', 'id': attendee.id}
@@ -781,7 +782,8 @@ class Root:
         else:
             attendee.paid = c.HAS_PAID
             attendee.payment_method = c.MANUAL
-            attendee.amount_paid = attendee.total_cost
+            session.add_receipt_items_by_model(charge, attendee)
+            attendee.amount_paid_override = attendee.total_cost
             session.merge(attendee)
             session.commit()
             return {'success': True, 'message': 'Payment accepted.', 'id': attendee.id}

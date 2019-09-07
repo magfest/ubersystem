@@ -12,7 +12,7 @@ from uber.config import c
 from uber.decorators import all_renderable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Attraction, Email, Group, PromoCode, PromoCodeGroup, Tracking
+from uber.models import Attendee, Attraction, Email, Group, PromoCode, PromoCodeGroup, ReceiptItem, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, check_pii_consent, localized_now, Charge
 
@@ -387,8 +387,14 @@ class Root:
             if attendee.badges:
                 pc_group = session.create_promo_code_group(attendee, attendee.name, int(attendee.badges) - 1)
                 session.add(pc_group)
+                session.add(session.create_receipt_item(
+                    charge, attendee, pc_group.total_cost * 100, "Promo code group {} ({} badges at ${} each)".format(
+                        pc_group.name, int(attendee.badges) - 1, c.GROUP_PRICE), c.PROMO_CODE)
+                )
                 session.commit()
-            attendee.amount_paid = attendee.total_cost
+
+            session.add_receipt_items_by_model(charge, attendee)
+            attendee.amount_paid_override = attendee.total_cost
 
         session.commit()  # paranoia: really make sure we lock in marking taking payments in the database
 
@@ -499,8 +505,16 @@ class Root:
         if message:
             raise HTTPRedirect('group_promo_codes?id={}&message={}', group.id, message)
         else:
+            session.add(session.create_receipt_item(
+                charge, attendee, charge.amount, "Adding {} badge{} to promo code group {} (${} each)".format(
+                    badges_to_add,
+                    "s" if badges_to_add > 1 else "",
+                    group.name, c.GROUP_PRICE), c.PROMO_CODE)
+            )
+
             session.add_codes_to_pc_group(group, badges_to_add)
-            attendee.amount_paid += charge.dollar_amount
+            attendee.amount_paid_override += charge.dollar_amount
+
             session.merge(attendee)
 
             raise HTTPRedirect(
@@ -610,7 +624,9 @@ class Root:
         if message:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         else:
-            group.amount_paid += charge.dollar_amount
+            session.add_receipt_items_by_model(charge, group)
+
+            group.amount_paid_override += charge.dollar_amount
 
             session.merge(group)
             if group.is_dealer:
@@ -685,14 +701,16 @@ class Root:
         if message:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         else:
+            session.add_receipt_items_by_model(charge, group)
+
             session.assign_badges(group, group.badges + badges_to_add)
-            group.amount_paid += charge.dollar_amount
+            group.amount_paid_override += charge.dollar_amount
             session.merge(group)
             if group.is_dealer:
                 send_email.delay(
                     c.MARKETPLACE_EMAIL,
                     c.MARKETPLACE_EMAIL,
-                    '{} Paid for Extra Members'.capitalize(c.DEALER_TERM.title()),
+                    '{} Paid for Extra Members'.format(c.DEALER_TERM.title()),
                     render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
                     model=group.to_dict('id'))
             raise HTTPRedirect(
@@ -796,7 +814,7 @@ class Root:
                 .format(amount_refunded/100)
             if attendee.paid == c.HAS_PAID:
                 attendee.paid = c.REFUNDED
-                attendee.amount_refunded = amount_refunded/100
+                attendee.amount_refunded_override = amount_refunded/100
 
         # if attendee is part of a group, we must delete attendee and remove them from the group
         if attendee.group:
@@ -913,9 +931,10 @@ class Root:
             # already paid for their registration, thus the attendee has been
             # saved to the database.
             attendee = session.query(Attendee).get(attendee.id)
-            attendee.amount_paid += charge.dollar_amount
+            attendee.amount_paid_override += charge.dollar_amount
             if attendee.paid == c.NOT_PAID and attendee.amount_paid == attendee.total_cost:
                 attendee.paid = c.HAS_PAID
+            session.add_receipt_items_by_model(charge, attendee)
             raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Your payment has been accepted')
 
     def credit_card_retry(self):

@@ -43,7 +43,7 @@
         {% else %}
           <li>${{ '%0.2f' % group.cost }} total cost</li>
         {% endif %}
-        <li>${{ '%0.2f' % group.amount_paid }} paid{% if group.amount_unpaid %} so far</li>
+        <li>${{ '%0.2f' % (group.amount_paid / 100) }} paid{% if group.amount_unpaid %} so far</li>
           <li>${{ '%0.2f' % group.amount_unpaid }} unpaid</li>
           </ul>
           <br/>{{ stripe_form('process_group_payment',charge) }}
@@ -123,7 +123,7 @@
     {% call macros.read_only_if(read_only, attendee_or_group.badges, post_text=post_text) %}
       <div class="col-sm-6">
         <select name="badges" class="form-control">{{ int_options(0 if admin_area else min_badges, max_badges, attendee_or_group.badges) }}</select>
-        <span class="form-control-static">{{ post_text }}</span>
+        {% if post_text %}<span class="form-control-static">{{ post_text }}</span>{% endif %}
       </div>
     {% endcall %}
 
@@ -304,14 +304,8 @@
 {% set read_only = group_amount_paid_ro or page_ro %}
 <div class="form-group">
   <label class="col-sm-3 control-label">Amount Paid</label>
-  <div class="col-sm-6">
-    {% call macros.read_only_if(read_only, group.amount_paid, pre_text='$' if group.amount_paid) %}
-      <div class="input-group">
-        <span class="input-group-addon">$</span>
-        <input type="text" class="form-control" name="amount_paid" value="{{ group.amount_paid }}" />
-        <span class="input-group-addon">.00</span>
-      </div>
-    {% endcall %}
+  <div class="col-sm-6 form-control-static">
+    ${{ '%0.2f' % (group.amount_paid / 100) }}
   </div>
 </div>
 {% endset %}
@@ -342,15 +336,9 @@
 {% set read_only = group_amount_refunded or page_ro %}
 <div class="form-group">
   <label class="col-sm-3 control-label">Amount Refunded</label>
-  {% call macros.read_only_if(read_only, group.amount_refunded, pre_text='$' if group.amount_refunded) %}
-    <div class="col-sm-6">
-      <div class="input-group">
-        <span class="input-group-addon">$</span>
-        <input type="text" class="form-control" name="amount_refunded" value="{{ group.amount_refunded }}" />
-        <span class="input-group-addon">.00</span>
-      </div>
-    </div>
-  {% endcall %}
+  <div class="col-sm-6 form-control-static">
+    ${{ '%0.2f' % (group.amount_refunded / 100) }}
+  </div>
 </div>
 {% endset %}
 

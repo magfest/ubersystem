@@ -44,7 +44,7 @@
             {{ code.used_by[0]|form_link if code.used_by else 'N/A' }}
           </td>
           <td>{{ code.created.when|datetime_local }}</td>
-          <td>${{ code.cost }}</td>
+          <td>${{ '%0.2f' % code.cost }}</td>
         </tr>
       {% endfor -%}
       </tbody>

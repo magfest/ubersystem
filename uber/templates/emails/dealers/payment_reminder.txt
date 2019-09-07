@@ -2,6 +2,6 @@
 
 Thanks again for registering as a {{ c.DEALER_TERM }} for this year's {{ c.EVENT_NAME }}.  Our records indicate that your Dealer registration ({{ group.name }}) is still unpaid, and if we do not receive payment by {{ c.DEALER_PAYMENT_DUE|datetime_local }} then it will be deleted.
 
-You can use the credit card button on your group's page to pay the ${{ group.amount_unpaid }} that you owe: {{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}
+You can use the credit card button on your group's page to pay the ${{ '%0.2f' % group.amount_unpaid }} that you owe: {{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}
 
 {{ c.MARKETPLACE_EMAIL_SIGNATURE }}

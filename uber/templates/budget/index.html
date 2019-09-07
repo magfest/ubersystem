@@ -10,13 +10,13 @@
 </style>
 
 <div class="jumbotron">
-    <h1 class="text-center">(${{ total }} total)</h1>
+    <h1 class="text-center">(${{ '%0.2f' % total }} total)</h1>
 </div>
 
 {% macro table_entry(label, value) -%}
   <tr>
     <td>{{ label }}</td>
-    <td>${{ value }}</td>
+    <td>${{ '%0.2f' % value }}</td>
   </tr>
 {%- endmacro %}
 
@@ -43,7 +43,7 @@
       {% for item in credits %}
         <tr>
           <td><a href="form?id={{ item.id }}">{{ item.name }}</a></td>
-          <td>${{ item.amount }}</td>
+          <td>${{ '%0.2f' % item.amount }}</td>
         </tr>
       {% endfor %}
     </tbody>

@@ -8,9 +8,9 @@ this coming {{ event_dates() }}. Below is a copy of your application. You may
 <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ group.leader.id }}">view your badge here</a>.
 <ul>
     <li><strong>Table Name</strong>: {{ group.name }}</li>
-    <li><strong>Tables</strong>: {{ group.tables }} table{{ group.tables|pluralize }} (${{ group.table_cost|round(2) }}) </li>
-    <li><strong>Badges</strong>: {{ group.badges }} badge{{ group.badges|pluralize }} (${{ group.badge_cost|round(2) }}) </li>
-    <li><strong>Total Price</strong> ${{ group.cost }}</li>
+    <li><strong>Tables</strong>: {{ group.tables }} table{{ group.tables|pluralize }} (${{ '%0.2f' % group.table_cost }}) </li>
+    <li><strong>Badges</strong>: {{ group.badges }} badge{{ group.badges|pluralize }} (${{ '%0.2f' % group.badge_cost }}) </li>
+    <li><strong>Total Price</strong> ${{ '%0.2f' % group.cost }}</li>
     <li><strong>What do you sell?</strong> {{ group.wares }}</li>
     <li><strong>Description</strong>: {{ group.description }}</li>
     {% if group.special_needs %}<li><strong>Table Requests and Special Requests</strong>: {{ group.special_needs }}</li>{% endif %}

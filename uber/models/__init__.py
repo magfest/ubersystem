@@ -28,7 +28,7 @@ from sqlalchemy.util import immutabledict
 import uber
 from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
-from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
+from uber.decorators import cost_property, department_id_adapter, presave_adjustment, receipt_item, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
 from uber.utils import check_csrf, normalize_phone, DeptChecklistConf, report_critical_exception
 
@@ -146,7 +146,7 @@ class MagModel:
         """Returns the names of all cost properties on this model."""
         return [
             s for s in cls._class_attr_names
-            if s != 'cost_property_names'
+            if s not in ['receipt_item_names', 'cost_property_names']
             and isinstance(getattr(cls, s), cost_property)]
 
     @cached_classproperty
@@ -171,6 +171,24 @@ class MagModel:
                 log.error('Error calculating cost property {}: "{}"'.format(name, value))
                 log.exception(ex)
         return max(0, sum(values))
+
+    @cached_classproperty
+    def receipt_item_names(cls):
+        """Returns the names of all receipt items on this model."""
+        return [
+            s for s in cls._class_attr_names
+            if s not in ['receipt_item_names', 'cost_property_names']
+               and isinstance(getattr(cls, s), receipt_item)]
+
+    @property
+    def receipt_items_breakdown(self):
+        receipt_items = []
+        for name in self.receipt_item_names:
+            amount, desc, item_type = getattr(self, name, None) or (None, None, None)
+            if amount:
+                receipt_items.append((amount, desc, item_type))
+
+        return receipt_items or [(None, None, None)]
 
     @property
     def stripe_transactions(self):
@@ -736,6 +754,30 @@ class Session(SessionManager):
                     ))
 
                 return '', response
+
+        def add_receipt_items_by_model(self, charge, model):
+            for amount, desc, item_type in getattr(model, 'receipt_items_breakdown'):
+                if amount:
+                    if "Promo Code Group" in desc:
+                        desc = desc.format(int(getattr(model, 'badges', 0)) - 1, getattr(model, 'name', ''))
+
+                    item = self.create_receipt_item(charge, model, amount, desc, item_type)
+                    self.add(item)
+
+        def create_receipt_item(self, charge, model, amount, desc, item_type=c.OTHER, txn_type=c.PAYMENT):
+            item = ReceiptItem(
+                txn_id=charge.stripe_transaction.id,
+                txn_type=txn_type,
+                item_type=item_type,
+                amount=amount,
+                who=getattr(model, 'full_name', getattr(model, 'name', '')),
+                desc=desc)
+            if isinstance(model, uber.models.Attendee):
+                item.attendee_id = getattr(model, 'id', None)
+            elif isinstance(model, uber.models.Group):
+                item.group_id = getattr(model, 'id', None)
+
+            return item
 
         def guess_attendee_watchentry(self, attendee, active=True):
             or_clauses = [
