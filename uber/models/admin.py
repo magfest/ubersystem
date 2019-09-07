@@ -133,40 +133,44 @@ class AdminAccount(MagModel):
 
     @property
     def api_read(self):
-        return [group.has_any_access('api', read_only=True) for group in self.access_groups]
+        return any([group.has_any_access('api', read_only=True) for group in self.access_groups])
 
     @property
     def api_update(self):
-        return [group.has_access_level('api', AccessGroup.LIMITED) for group in self.access_groups]
+        return any([group.has_access_level('api', AccessGroup.LIMITED) for group in self.access_groups])
 
     @property
     def api_create(self):
-        return [group.has_access_level('api', AccessGroup.CONTACT) for group in self.access_groups]
+        return any([group.has_access_level('api', AccessGroup.CONTACT) for group in self.access_groups])
 
     @property
     def api_delete(self):
-        return [group.has_full_access('api') for group in self.access_groups]
+        return any([group.has_full_access('api') for group in self.access_groups])
 
     @property
     def full_dept_admin(self):
-        return [group.has_full_access('dept_admin') for group in self.access_groups]
+        return any([group.has_full_access('dept_admin') for group in self.access_groups])
 
     @property
     def full_shifts_admin(self):
-        return [group.has_full_access('shifts_admin') for group in self.access_groups]
+        return any([group.has_full_access('shifts_admin') for group in self.access_groups])
+
+    @property
+    def full_dept_checklist_admin(self):
+        return any([group.has_full_access('dept_checklist_admin') for group in self.access_groups])
 
     @property
     def full_attractions_admin(self):
-        return [group.has_full_access('attractions_admin') for group in self.access_groups]
+        return any([group.has_full_access('attractions_admin') for group in self.access_groups])
 
     @property
     def full_email_admin(self):
-        return [group.has_full_access('email_admin') for group in self.access_groups]
+        return any([group.has_full_access('email_admin') for group in self.access_groups])
 
     @property
     def can_create_volunteer_badges(self):
-        return [group.has_full_access('shifts_admin')
-               or group.has_full_access('shifts_admin_attendee_form') for group in self.access_groups]
+        return any([group.has_full_access('shifts_admin')
+               or group.has_full_access('shifts_admin_attendee_form') for group in self.access_groups])
 
     @presave_adjustment
     def disable_api_access(self):

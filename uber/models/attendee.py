@@ -1335,16 +1335,23 @@ class Attendee(MagModel, TakesPaymentMixin):
         return (self.admin_account and self.admin_account.full_dept_admin) \
             or self.is_dept_head_of(department)
 
+    @department_id_adapter
+    def can_admin_shifts_for(self, department_id):
+        if not department_id:
+            return False
+        return self.admin_account and self.admin_account.full_shifts_admin \
+               or any(m.department_id == department_id for m in self.dept_memberships_with_inherent_role)
+
     @property
     def can_admin_checklist(self):
-        return (self.admin_account and self.admin_account.full_dept_admin) \
+        return (self.admin_account and self.admin_account.full_dept_checklist_admin) \
             or bool(self.dept_memberships_where_can_admin_checklist)
 
     @department_id_adapter
     def can_admin_checklist_for(self, department_id):
         if not department_id:
             return False
-        return (self.admin_account and self.admin_account.full_dept_admin) \
+        return (self.admin_account and self.admin_account.full_dept_checklist_admin) \
             or any(m.department_id == department_id for m in self.dept_memberships_where_can_admin_checklist)
 
     @department_id_adapter

@@ -2,19 +2,10 @@
 {% block title %}Placeholder Attendees{% endblock %}}
 {% block content %}
 
+{% include "dept_checklist/dept_menu.html" %}
+
 <h2>{{ dept_name }} Unconfirmed Volunteers: {{ placeholders|length }}</h2>
 
-<div class="center">
-    <script>
-        var deptChanged = function () {
-            window.location = 'placeholders?department_id=' + $('#dept').val();
-        };
-    </script>
-    <select id="dept" onChange="deptChanged()">
-        <option value="">All Departments</option>
-        {{ options(c.DEPARTMENT_OPTS, department_id) }}
-    </select>
-</div>
 {% if checklist.relevant %}
     <br/>
     {% if checklist.completed %}

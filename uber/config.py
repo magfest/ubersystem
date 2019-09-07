@@ -615,6 +615,8 @@ class Config(_Overridable):
             override_access = 'full_dept_admin'
         elif 'shifts_admin' in c.PAGE_PATH:
             override_access = 'full_shifts_admin'
+        elif 'dept_checklist' in c.PAGE_PATH:
+            override_access = 'full_dept_checklist_admin'
 
         with Session() as session:
             query = session.query(Department).order_by(Department.name)
@@ -635,14 +637,7 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def DEFAULT_DEPARTMENT_ID(self):
-        from uber.models import Session, Department
-        with Session() as session:
-            current_admin = session.admin_attendee()
-            dept_filter = [] if current_admin.admin_account.full_shifts_admin \
-                else [Department.members.any(id=current_admin.id)]
-
-            dept = session.query(Department).filter(*dept_filter).order_by(Department.name).first()
-            return dept.id
+        return list(c.ADMIN_DEPARTMENTS.keys())[0]
 
     @property
     def DEFAULT_REGDESK_INT(self):

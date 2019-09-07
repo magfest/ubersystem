@@ -10,7 +10,7 @@ from uber.decorators import ajax, all_renderable, csrf_protected, department_id_
     check_can_edit_dept, requires_shifts_admin
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, Email, Job, PageViewTracking, Shift, Tracking
-from uber.utils import check, localized_now
+from uber.utils import check, localized_now, redirect_to_allowed_dept
 
 
 def job_dict(job, shifts=None):
@@ -63,12 +63,6 @@ def check_if_can_see_staffer(session, attendee):
         return "That attendee is not in any of your departments"
 
     return ""
-
-
-def redirect_to_allowed_dept(session, department_id, page):
-    if not department_id or department_id not in session.admin_attendee().assigned_depts_ids:
-        department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_ID
-        raise HTTPRedirect('{}?department_id={}'.format(page, department_id))
 
 
 @all_renderable()

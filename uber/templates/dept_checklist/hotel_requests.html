@@ -13,18 +13,11 @@
     }
 </script>
 
+{% include "dept_checklist/dept_menu.html" %}
+
 <h2> {{ department_name }} Hotel Requests </h2>
 
 <div class="center">
-    <script>
-        var deptChanged = function () {
-            window.location = 'requests?department_id=' + $('#deptDropdown').val();
-        };
-    </script>
-    <select id="deptDropdown" onChange="deptChanged()">
-        <option value="">All Departments</option>
-        {{ options(c.DEPARTMENT_OPTS, department_id) }}
-    </select>
     {% if checklist.relevant %}
         <br/>
         {% if checklist.completed %}
