@@ -202,6 +202,27 @@ class Root:
         }
 
     @department_id_adapter
+    def placeholders(self, session, department_id=None):
+        dept_filter = [] if not department_id else [Attendee.dept_memberships.any(department_id=department_id)]
+        placeholders = session.query(Attendee).filter(
+            Attendee.placeholder == True,
+            Attendee.staffing == True,
+            Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
+            *dept_filter).order_by(Attendee.full_name).all()  # noqa: E712
+
+        try:
+            checklist = session.checklist_status('placeholders', department_id)
+        except ValueError:
+            checklist = {'conf': None, 'relevant': False, 'completed': None}
+
+        return {
+            'department_id': department_id,
+            'dept_name': session.query(Department).get(department_id).name if department_id else 'All',
+            'checklist': checklist,
+            'placeholders': placeholders
+        }
+
+    @department_id_adapter
     def hotel_setup(self, session, department_id=None, submitted=None, csrf_token=None):
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'hotel_setup')
 

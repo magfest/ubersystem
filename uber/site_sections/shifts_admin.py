@@ -65,10 +65,10 @@ def check_if_can_see_staffer(session, attendee):
     return ""
 
 
-def redirect_to_allowed_dept(session, department_id):
+def redirect_to_allowed_dept(session, department_id, page):
     if not department_id or department_id not in session.admin_attendee().assigned_depts_ids:
         department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_ID
-        raise HTTPRedirect('staffers?department_id={}'.format(department_id))
+        raise HTTPRedirect('{}?department_id={}'.format(page, department_id))
 
 
 @all_renderable()
@@ -76,7 +76,7 @@ class Root:
     @department_id_adapter
     @requires_shifts_admin
     def index(self, session, department_id=None, message='', time=None):
-        redirect_to_allowed_dept(session, department_id)
+        redirect_to_allowed_dept(session, department_id, 'index')
 
         department_id = None if department_id == 'All' else department_id
         department = session.query(Department).get(department_id) if department_id else None
@@ -101,7 +101,7 @@ class Root:
     @department_id_adapter
     @requires_shifts_admin
     def signups(self, session, department_id=None, message=''):
-        redirect_to_allowed_dept(session, department_id)
+        redirect_to_allowed_dept(session, department_id, 'signups')
         department_id = None if department_id == 'All' else department_id
         cherrypy.session['prev_department_id'] = department_id
 
@@ -135,7 +135,7 @@ class Root:
     @department_id_adapter
     @requires_shifts_admin
     def staffers(self, session, department_id=None, message=''):
-        redirect_to_allowed_dept(session, department_id)
+        redirect_to_allowed_dept(session, department_id, 'staffers')
 
         department_id = None if department_id == 'All' else department_id
 

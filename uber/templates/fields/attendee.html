@@ -1371,7 +1371,7 @@ $(function(){
   <label for="admin_status" class="col-sm-3 control-label">Admin Accesses</label>
   <div class="col-sm-9 form-control-static">
     {% if attendee.admin_account %}
-      {{ attendee.admin_account.access_group.name }}
+      {{ attendee.admin_account.access_groups_labels|join(', ') }}
     {% else %}
       This attendee does not have an admin account.
     {% endif %}
