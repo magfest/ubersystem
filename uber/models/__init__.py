@@ -120,6 +120,15 @@ class MagModel:
         return self.email
 
     @property
+    def gets_emails(self):
+        """
+        In some cases, we want to apply a global filter to a model that prevents it from
+        receiving scheduled emails under certain circumstances. This property allows you
+        to define such a filter.
+        """
+        return True
+
+    @property
     def addons(self):
         """
         This exists only to be overridden by other events; it should return a
@@ -661,6 +670,16 @@ class Session(SessionManager):
         def logged_in_volunteer(self):
             return self.attendee(cherrypy.session['staffer_id'])
 
+        def attendees_share_departments(self, first, second):
+            return set(first.assigned_depts_ids).intersection(second.assigned_depts_ids)
+
+        def admin_can_create_attendee(self, attendee):
+            admin = self.current_admin_account()
+            if attendee.badge_type == c.STAFF_BADGE:
+                return admin.full_shifts_admin
+            elif attendee.badge_type in [c.CONTRACTOR_BADGE, c.ATTENDEE_BADGE] and attendee.staffing_or_will_be:
+                return admin.can_create_volunteer_badges
+
         def checklist_status(self, slug, department_id):
             attendee = self.admin_attendee()
             conf = DeptChecklistConf.instances.get(slug)
@@ -1075,7 +1094,7 @@ class Session(SessionManager):
             return self.query(Attendee).filter(not_(Attendee.badge_status.in_(
                 [c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS])))
 
-        def all_attendees(self, only_staffing=False):
+        def all_attendees(self, only_staffing=False, pending=False):
             """
             Returns a Query of Attendees with efficient loading for groups and
             shifts/jobs.
@@ -1090,8 +1109,11 @@ class Session(SessionManager):
             """
             staffing_filter = [Attendee.staffing == True] if only_staffing else []  # noqa: E712
 
-            badge_filter = Attendee.badge_status.in_(
-                [c.NEW_STATUS, c.COMPLETED_STATUS])
+            badge_statuses = [c.NEW_STATUS, c.COMPLETED_STATUS]
+            if pending:
+                badge_statuses.append(c.PENDING_STATUS)
+
+            badge_filter = Attendee.badge_status.in_(badge_statuses)
 
             return self.query(Attendee) \
                 .filter(badge_filter, *staffing_filter) \
@@ -1101,8 +1123,8 @@ class Session(SessionManager):
                     subqueryload(Attendee.shifts).subqueryload(Shift.job).subqueryload(Job.department)) \
                 .order_by(Attendee.full_name, Attendee.id)
 
-        def staffers(self):
-            return self.all_attendees(only_staffing=True)
+        def staffers(self, pending=False):
+            return self.all_attendees(only_staffing=True, pending=pending)
 
         def all_panelists(self):
             return self.query(Attendee).filter(or_(
@@ -1323,12 +1345,16 @@ class Session(SessionManager):
                 access={section: '5' for section in c.ADMIN_PAGES}
             )
 
-            self.add(all_access_group)
-
-            self.add(AdminAccount(
+            test_developer_account = AdminAccount(
                 attendee=attendee,
-                access_group=all_access_group,
                 hashed=bcrypt.hashpw('magfest', bcrypt.gensalt())
+            )
+
+            self.add(all_access_group)
+            self.add(test_developer_account)
+            self.add(AdminAccessGroup(
+                admin_account_id=test_developer_account.id,
+                access_group_id=all_access_group.id,
             ))
 
             return True
@@ -1424,29 +1450,6 @@ class Session(SessionManager):
         def indie_games(self):
             return self.query(IndieGame).join(IndieStudio).options(
                 joinedload(IndieGame.studio), joinedload(IndieGame.reviews)).order_by(IndieStudio.name, IndieGame.title)
-
-        def create_or_find_mivs_judge_access_group(self):
-            """
-            Looks for an admin access group with write access to only mivs_judging,
-            and creates a new one if it can't find any.
-
-            Technically, we don't need this access group -- access to mivs_judging
-            is determined by whether the admin account is linked to an IndieJudge
-            object -- but we need to give MIVS judges some sort of access group.
-            """
-
-            existing_access_groups = self.query(AccessGroup).filter(
-                AccessGroup.access['mivs_judging'].astext.cast(Integer) > 0)
-            for group in existing_access_groups:
-                if len(group.access) == 1:
-                    return group
-            new_mivs_judge_group = AccessGroup(
-                name='MIVS Judge',
-                access={'mivs_judging': '5'}
-            )
-            self.add(new_mivs_judge_group)
-            self.commit()
-            return new_mivs_judge_group
 
         # =========================
         # mits

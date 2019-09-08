@@ -1,44 +1,14 @@
-import urllib
 from datetime import datetime
 
 import cherrypy
 from dateutil import parser as dateparser
 from pytz import UTC
-from rpctools.jsonrpc import ServerProxy
 
-from uber.config import c, _config
+from uber.config import c
 from uber.decorators import all_renderable, ajax_gettable, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import Department, DeptRole, Job
-
-
-def _server_to_url(server):
-    if not server:
-        return ''
-    host, _, path = urllib.parse.unquote(server).replace('http://', '').replace('https://', '').partition('/')
-    if path.startswith('reggie'):
-        return 'https://{}/reggie'.format(host)
-    elif path.startswith('uber'):
-        return 'https://{}/uber'.format(host)
-    elif c.PATH == '/uber':
-        return 'https://{}{}'.format(host, c.PATH)
-    return 'https://{}'.format(host)
-
-
-def _server_to_host(server):
-    if not server:
-        return ''
-    return urllib.parse.unquote(server).replace('http://', '').replace('https://', '').split('/')[0]
-
-
-def _format_import_params(target_server, api_token):
-    target_url = _server_to_url(target_server)
-    target_host = _server_to_host(target_server)
-    remote_api_token = api_token.strip()
-    if not remote_api_token:
-        remote_api_tokens = _config.get('secret', {}).get('remote_api_tokens', {})
-        remote_api_token = remote_api_tokens.get(target_host, remote_api_tokens.get('default', ''))
-    return (target_url, target_host, remote_api_token.strip())
+from uber.models import Attendee, Department, DeptRole, Job
+from uber.utils import get_api_service_from_server
 
 
 def _create_copy_department(from_department):
@@ -91,26 +61,23 @@ def _copy_department_shifts(service, to_department, from_department, dept_role_m
         to_department.jobs.append(to_job)
 
 
-def _get_service(target_server, api_token):
-    target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
-    uri = '{}/jsonrpc/'.format(target_url)
-
-    message = ''
-    service = None
-    if target_server or api_token:
-        if not remote_api_token:
-            message = 'No API token given and could not find a token for: {}'.format(target_host)
-        elif not target_url:
-            message = 'Unrecognized hostname: {}'.format(target_server)
-
-        if not message:
-            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
-
-    return service, message, uri
-
-
 @all_renderable()
 class Root:
+    def badges(self, session, message=''):
+        return {
+            'pending_badges': session.query(Attendee).filter_by(badge_status=c.PENDING_STATUS).filter_by(staffing=True),
+            'message': message,
+        }
+
+    @ajax
+    def approve_badge(self, session, id):
+        attendee = session.attendee(id)
+        attendee.badge_status = c.NEW_STATUS
+        session.add(attendee)
+        session.commit()
+
+        return {'added': id}
+
     @site_mappable
     def import_shifts(
             self,
@@ -122,7 +89,8 @@ class Root:
             message='',
             **kwargs):
 
-        service, message, uri = _get_service(target_server, api_token)
+        service, message, target_url = get_api_service_from_server(target_server, api_token)
+        uri = '{}/jsonrpc/'.format(target_url)
 
         department = {}
         from_departments = []
@@ -165,26 +133,25 @@ class Root:
 
     @ajax_gettable
     def lookup_departments(self, session, target_server='', api_token='', **kwargs):
-        target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
+        service, message, target_url = get_api_service_from_server(target_server, api_token)
         uri = '{}/jsonrpc/'.format(target_url)
 
-        if not remote_api_token:
+        if not message:
+            try:
+                results = [(id, name) for id, name in sorted(service.dept.list().items(), key=lambda d: d[1])]
+            except Exception as ex:
+                message = str(ex)
+
+        if message:
             return {
-                'error': 'No API token given and could not find a token for: ' + target_host,
+                'error': message,
                 'target_url': uri,
             }
 
-        try:
-            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
-            return {
-                'departments': [(id, name) for id, name in sorted(service.dept.list().items(), key=lambda d: d[1])],
-                'target_url': uri,
-            }
-        except Exception as ex:
-            return {
-                'error': str(ex),
-                'target_url': uri,
-            }
+        return {
+            'departments': results,
+            'target_url': uri,
+        }
 
     def bulk_dept_import(
             self,
@@ -194,7 +161,8 @@ class Root:
             message='',
             **kwargs):
 
-        service, message, uri = _get_service(target_server, api_token)
+        service, message, target_url = get_api_service_from_server(target_server, api_token)
+        uri = '{}/jsonrpc/'.format(target_url)
 
         if not message and service and cherrypy.request.method == 'POST':
             from_departments = [(id, name) for id, name in sorted(service.dept.list().items(), key=lambda d: d[1])]

@@ -28,13 +28,13 @@
     {% for shift in job.shifts %}
         <tr>
             <td> <ul><li></li></ul> </td>
-            <td> <a href="../registration/shifts?id={{ shift.attendee.id }}">{{ shift.attendee.full_name }}</a> </td>
+            <td> <a href="attendee_shifts?id={{ shift.attendee.id }}">{{ shift.attendee.full_name }}</a> </td>
             <form method="post" action="unassign_from_job">
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ shift.id }}" />
             <td> <input type="submit" value="Unassign" /> </td>
             </form>
-        </li>
+        </tr>
     {% endfor %}
     </table>
 {% else %}

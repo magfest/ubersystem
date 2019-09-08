@@ -49,7 +49,6 @@ def read_only_makes_sense(group):
 AdminAccount.required = [
     ('attendee', 'Attendee'),
     ('hashed', 'Password'),
-    ('access_group_id', 'Access Group')
 ]
 
 
@@ -69,19 +68,6 @@ def has_email_address(account):
                 return "Attendee doesn't have a valid email set"
 
 
-@validation.AdminAccount
-def admin_has_required_access(account):
-    if (account.is_new or (account.orig_value_of('access_group_id')
-                           and account.orig_value_of('access_group_id') != account.access_group_id)) \
-            and getattr(account.access_group, 'required_access_groups', None):
-        with Session() as session:
-            admin_account = session.current_admin_account()
-            for access_group in account.access_group.required_access_groups:
-                if admin_account.access_group == access_group:
-                    return
-            return 'You are not in an access group that can assign that access group'
-
-
 ApiToken.required = [('name', 'Name'), ('description', 'Intended Usage'), ('access', 'Access Controls')]
 
 
@@ -95,7 +81,7 @@ def admin_has_required_api_access(api_token):
         admin_account = session.current_admin_account()
         for access_level in set(api_token.access_ints):
             access_name = 'api_' + c.API_ACCESS[access_level].lower()
-            if not getattr(admin_account.access_group, access_name, None):
+            if not getattr(admin_account, access_name, None):
                 return 'You do not have permission to create a token with {} access'.format(c.API_ACCESS[access_level])
 
 
@@ -344,7 +330,7 @@ def address(attendee):
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def zip_code(attendee):
-    if not attendee.international and not c.AT_OR_POST_CON and attendee.country == 'United States':
+    if not attendee.international and not c.AT_OR_POST_CON and (not c.COLLECT_FULL_ADDRESS or attendee.country == 'United States'):
         if _invalid_zip_code(attendee.zip_code):
             return 'Enter a valid zip code'
 

@@ -36,7 +36,7 @@
 <span style="font-size:14pt ; font-weight:bold"> Staffers Assigned to This Area</span>
   (<a href="mailto:{{ c.ADMIN_EMAIL }}?bcc={{ emails }}">email these staffers</a>
   or <a href="mailto:{{ c.ADMIN_EMAIL }}?bcc={{ emails_with_shifts }}">email staffers with shifts here</a>)<b>:</b>
-<br/> <br/>
+<br/> <br/><a href="attendee_form" class="btn btn-primary">Add new volunteer</a><br/><br/>
 
 <table class="table table-striped datatable">
 <thead><tr>
@@ -54,7 +54,10 @@
 </thead>
 {% for attendee in attendees %}
     <tr>
-        <td width="20%" data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}"> <a href="../registration/shifts?id={{ attendee.id }}">{{ attendee.full_name }}</a>        </td>
+        <td width="20%" data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
+          <a href="attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a>
+          {% if attendee.badge_status == c.PENDING_STATUS %}(Pending){% endif %}
+        </td>
         <td width="10">{% if not attendee.badge_num %}<font size="-1">TBD</font>{% else %}{{ attendee.badge_num }}{% endif %}</td>
         <td width="10">{% if attendee.is_dept_head_here %}<font size="-1">[D]</font>{% endif %}</td>
         <td width="10">{% if attendee.trusted_here %}<font size="-1">[T]</font>{% endif %}</td>

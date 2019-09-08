@@ -7,7 +7,7 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, department_id_adapter, render, xlsx_file
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, DeptChecklistItem, HotelRequests, RoomAssignment, Shift
-from uber.utils import check, check_csrf, days_before, DeptChecklistConf
+from uber.utils import check, check_csrf, days_before, DeptChecklistConf, redirect_to_allowed_dept
 
 
 def _submit_checklist_item(session, department_id, submitted, csrf_token, slug):
@@ -34,7 +34,6 @@ def _submit_checklist_item(session, department_id, submitted, csrf_token, slug):
 
 @all_renderable()
 class Root:
-
     @department_id_adapter
     def index(self, session, department_id=None, message=''):
         attendee = session.admin_attendee()
@@ -202,6 +201,32 @@ class Root:
         }
 
     @department_id_adapter
+    def placeholders(self, session, department_id=None):
+        redirect_to_allowed_dept(session, department_id, 'placeholders')
+
+        if department_id == 'All':
+            department_id = None
+
+        dept_filter = [] if not department_id else [Attendee.dept_memberships.any(department_id=department_id)]
+        placeholders = session.query(Attendee).filter(
+            Attendee.placeholder == True,
+            Attendee.staffing == True,
+            Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
+            *dept_filter).order_by(Attendee.full_name).all()  # noqa: E712
+
+        try:
+            checklist = session.checklist_status('placeholders', department_id)
+        except ValueError:
+            checklist = {'conf': None, 'relevant': False, 'completed': None}
+
+        return {
+            'department_id': department_id,
+            'dept_name': session.query(Department).get(department_id).name if department_id else 'All',
+            'checklist': checklist,
+            'placeholders': placeholders
+        }
+
+    @department_id_adapter
     def hotel_setup(self, session, department_id=None, submitted=None, csrf_token=None):
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'hotel_setup')
 
@@ -282,10 +307,14 @@ class Root:
 
     @department_id_adapter
     def hotel_eligible(self, session, department_id=None):
-        department_id = department_id or c.DEFAULT_DEPARTMENT_ID
+        redirect_to_allowed_dept(session, department_id, 'hotel_eligible')
+
+        if department_id == 'All':
+            department_id = None
+
         return {
             'department_id': department_id,
-            'department_name': c.DEPARTMENTS[department_id],
+            'department_name': c.DEPARTMENTS.get(department_id, 'All'),
             'checklist': session.checklist_status('hotel_eligible', department_id),
             'attendees': session.query(Attendee).filter(
                 Attendee.hotel_eligible == True,
@@ -296,6 +325,11 @@ class Root:
 
     @department_id_adapter
     def hotel_requests(self, session, department_id=None):
+        redirect_to_allowed_dept(session, department_id, 'index')
+
+        if department_id == 'All':
+            department_id = None
+
         dept_filter = [] if not department_id \
             else [Attendee.dept_memberships.any(department_id=department_id)]
 
