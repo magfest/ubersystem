@@ -234,6 +234,16 @@ def group_leader_under_13(attendee):
         return "Children under 13 cannot be group leaders."
 
 
+@validation.Attendee
+def extra_donation_valid(attendee):
+    try:
+        extra_donation = int(float(attendee.extra_donation or 0))
+        if extra_donation < 0:
+            return 'Extra Donation must be a number that is 0 or higher.'
+    except Exception:
+        return "What you entered for Extra Donation ({}) isn't even a number".format(attendee.extra_donation)
+
+
 @prereg_validation.Attendee
 def total_cost_over_paid(attendee):
     if attendee.total_cost < attendee.amount_paid:
@@ -518,16 +528,6 @@ def invalid_badge_name(attendee):
     if attendee.badge_printed_name and localized_now() <= c.get_printed_badge_deadline_by_type(attendee.badge_type) \
             and re.search(c.INVALID_BADGE_PRINTED_CHARS, attendee.badge_printed_name):
         return 'Your printed badge name has invalid characters. Please use only alphanumeric characters and symbols.'
-
-
-@validation.Attendee
-def extra_donation_valid(attendee):
-    try:
-        extra_donation = int(float(attendee.extra_donation or 0))
-        if extra_donation < 0:
-            return 'Extra Donation must be a number that is 0 or higher.'
-    except Exception:
-        return "What you entered for Extra Donation ({}) isn't even a number".format(attendee.extra_donation)
 
 
 @validation.MPointsForCash
