@@ -239,7 +239,6 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     badge_printed_name = Column(UnicodeText)
 
-    dept_checklist_items = relationship('DeptChecklistItem', backref='attendee')
     dept_memberships = relationship('DeptMembership', backref='attendee')
     dept_membership_requests = relationship('DeptMembershipRequest', backref='attendee')
     anywhere_dept_membership_request = relationship(
@@ -506,25 +505,21 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.paid == c.NOT_PAID:
                 self.paid = c.NEED_NOT_PAY
         else:
-            if c.VOLUNTEER_RIBBON in self.ribbon_ints and self.is_new:
+            if self.volunteering_badge_or_ribbon:
                 self.staffing = True
 
         if not self.is_new:
             old_ribbon = map(int, self.orig_value_of('ribbon').split(',')) if self.orig_value_of('ribbon') else []
             old_staffing = self.orig_value_of('staffing')
 
-            if self.staffing and not old_staffing or c.VOLUNTEER_RIBBON in self.ribbon_ints \
-                    and c.VOLUNTEER_RIBBON not in old_ribbon:
-                self.staffing = True
-
-            elif old_staffing and not self.staffing or c.VOLUNTEER_RIBBON not in self.ribbon_ints \
+            if old_staffing and not self.staffing or c.VOLUNTEER_RIBBON not in self.ribbon_ints \
                     and c.VOLUNTEER_RIBBON in old_ribbon and not self.is_dept_head:
                 self.unset_volunteering()
 
         if self.badge_type == c.STAFF_BADGE:
             self.ribbon = remove_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
 
-        elif self.staffing and self.badge_type != c.STAFF_BADGE and c.VOLUNTEER_RIBBON not in self.ribbon_ints:
+        elif self.staffing and not self.volunteering_badge_or_ribbon:
             self.ribbon = add_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
 
         if self.badge_type == c.STAFF_BADGE:
@@ -717,6 +712,15 @@ class Attendee(MagModel, TakesPaymentMixin):
     def is_unassigned(cls):
         return cls.first_name == ''
 
+    @property
+    def volunteering_badge_or_ribbon(self):
+        return self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] or c.VOLUNTEER_RIBBON in self.ribbon_ints
+
+    @property
+    def staffing_or_will_be(self):
+        # This is for use in our model checks -- it includes attendees who are going to be marked staffing
+        return self.staffing or self.volunteering_badge_or_ribbon
+
     @hybrid_property
     def is_dealer(self):
         return c.DEALER_RIBBON in self.ribbon_ints or self.badge_type == c.PSEUDO_DEALER_BADGE or (
@@ -868,6 +872,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @classmethod
     def normalize_email(cls, email):
         return email.strip().lower().replace('.', '')
+
+    @property
+    def gets_emails(self):
+        return self.badge_status in [c.NEW_STATUS, c.COMPLETED_STATUS]
 
     @property
     def watchlist_guess(self):
@@ -1320,23 +1328,30 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.has_role_in(department)
 
     def can_admin_dept_for(self, department):
-        return (self.admin_account and self.admin_account.access_group.full_dept_admin) \
+        return (self.admin_account and self.admin_account.full_dept_admin) \
             or self.has_inherent_role_in(department)
 
     def can_dept_head_for(self, department):
-        return (self.admin_account and self.admin_account.access_group.full_dept_admin) \
+        return (self.admin_account and self.admin_account.full_dept_admin) \
             or self.is_dept_head_of(department)
+
+    @department_id_adapter
+    def can_admin_shifts_for(self, department_id):
+        if not department_id:
+            return False
+        return self.admin_account and self.admin_account.full_shifts_admin \
+               or any(m.department_id == department_id for m in self.dept_memberships_with_inherent_role)
 
     @property
     def can_admin_checklist(self):
-        return (self.admin_account and self.admin_account.access_group.full_dept_admin) \
+        return (self.admin_account and self.admin_account.full_dept_checklist_admin) \
             or bool(self.dept_memberships_where_can_admin_checklist)
 
     @department_id_adapter
     def can_admin_checklist_for(self, department_id):
         if not department_id:
             return False
-        return (self.admin_account and self.admin_account.access_group.full_dept_admin) \
+        return (self.admin_account and self.admin_account.full_dept_checklist_admin) \
             or any(m.department_id == department_id for m in self.dept_memberships_where_can_admin_checklist)
 
     @department_id_adapter
@@ -1406,7 +1421,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def depts_where_can_admin(self):
-        if self.admin_account and self.admin_account.access_group.full_dept_admin:
+        if self.admin_account and self.admin_account.full_dept_admin:
             from uber.models.department import Department
             return self.session.query(Department).order_by(Department.name).all()
         return self.depts_with_inherent_role

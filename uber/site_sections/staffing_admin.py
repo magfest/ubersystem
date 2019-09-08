@@ -7,9 +7,9 @@ from pytz import UTC
 from rpctools.jsonrpc import ServerProxy
 
 from uber.config import c, _config
-from uber.decorators import all_renderable, ajax_gettable, site_mappable
+from uber.decorators import ajax, all_renderable, ajax_gettable, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import Department, DeptRole, Job
+from uber.models import Attendee, Department, DeptRole, Job
 
 
 def _server_to_url(server):
@@ -111,6 +111,21 @@ def _get_service(target_server, api_token):
 
 @all_renderable()
 class Root:
+    def badges(self, session, message=''):
+        return {
+            'pending_badges': session.query(Attendee).filter_by(badge_status=c.PENDING_STATUS).filter_by(staffing=True),
+            'message': message,
+        }
+
+    @ajax
+    def approve_badge(self, session, id):
+        attendee = session.attendee(id)
+        attendee.badge_status = c.NEW_STATUS
+        session.add(attendee)
+        session.commit()
+
+        return {'added': id}
+
     @site_mappable
     def import_shifts(
             self,

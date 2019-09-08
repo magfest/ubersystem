@@ -75,7 +75,7 @@
             .empty()
             .append(
                 $('<td class="attendee-name"></td>').append(
-                    $('<a href="../registration/shifts?id=' + shift.attendee_id + '"></a>').text(
+                    $('<a href="attendee_shifts?id=' + shift.attendee_id + '"></a>').text(
                         shift.attendee_name  + ' (#' + (shift.attendee_badge || 'TBD') + ')'
                     )
                 ))
