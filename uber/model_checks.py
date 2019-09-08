@@ -360,7 +360,7 @@ def address(attendee):
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def zip_code(attendee):
-    if not attendee.international and not c.AT_OR_POST_CON and attendee.country == 'United States':
+    if not attendee.international and not c.AT_OR_POST_CON and (not c.COLLECT_FULL_ADDRESS or attendee.country == 'United States'):
         if _invalid_zip_code(attendee.zip_code):
             return 'Enter a valid zip code'
 
