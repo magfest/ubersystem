@@ -748,7 +748,7 @@ class Session(SessionManager):
 
                 elif isinstance(model, Group):
                     self.add(StripeTransactionGroup(
-                        txn_id=refund_txn,
+                        txn_id=refund_txn.id,
                         group_id=model.id,
                         share=stripe_log.share
                     ))
@@ -761,12 +761,12 @@ class Session(SessionManager):
                     if "Promo code group" in desc:
                         desc = desc.format(getattr(model, 'name', ''), int(getattr(model, 'badges', 0)) - 1)
 
-                    item = self.create_receipt_item(charge, model, amount, desc, item_type)
+                    item = self.create_receipt_item(charge.stripe_transaction, model, amount, desc, item_type)
                     self.add(item)
 
-        def create_receipt_item(self, charge, model, amount, desc, item_type=c.OTHER, txn_type=c.PAYMENT):
+        def create_receipt_item(self, stripe_txn, model, amount, desc, item_type=c.OTHER, txn_type=c.PAYMENT):
             item = ReceiptItem(
-                txn_id=charge.stripe_transaction.id,
+                txn_id=stripe_txn.id,
                 txn_type=txn_type,
                 item_type=item_type,
                 amount=amount,
@@ -1144,7 +1144,7 @@ class Session(SessionManager):
                         attendee.badge_num, attendee.badge_type_label, group.name)
             else:
                 # First preserve the attributes to copy to the new group member
-                attrs = matching[0].to_dict(attrs=['group', 'group_id', 'paid', 'amount_paid', 'ribbon'])
+                attrs = matching[0].to_dict(attrs=['group', 'group_id', 'paid', 'amount_paid_override', 'ribbon'])
 
                 # Then delete the old unassigned group member
                 self.delete(matching[0])

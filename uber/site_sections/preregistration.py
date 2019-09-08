@@ -503,7 +503,8 @@ class Root:
             raise HTTPRedirect('group_promo_codes?id={}&message={}', group.id, message)
         else:
             session.add(session.create_receipt_item(
-                charge, attendee, charge.amount, "Adding {} badge{} to promo code group {} (${} each)".format(
+                charge.stripe_transaction, attendee, charge.amount,
+                "Adding {} badge{} to promo code group {} (${} each)".format(
                     badges_to_add,
                     "s" if badges_to_add > 1 else "",
                     group.name, c.GROUP_PRICE), c.PROMO_CODE)
@@ -772,7 +773,7 @@ class Root:
 
     def abandon_badge(self, session, id):
         attendee = session.attendee(id)
-        if attendee.amount_paid:
+        if not attendee.amount_paid:
             failure_message = "Something went wrong with your refund. Please contact us at {}."\
                 .format(c.REGDESK_EMAIL)
             new_status = c.REFUNDED_STATUS
@@ -808,10 +809,13 @@ class Root:
                     amount_refunded += response.amount
 
             success_message = "Your refund of ${:,.2f} should appear on your credit card in a few days."\
-                .format(amount_refunded/100)
+                .format(amount_refunded / 100)
             if attendee.paid == c.HAS_PAID:
                 attendee.paid = c.REFUNDED
-                attendee.amount_refunded_override = amount_refunded/100
+                attendee.amount_refunded_override = amount_refunded / 100
+                session.add(session.create_receipt_item(
+                    response, attendee, amount_refunded, "Self-service badge refund", txn_type=c.REFUND)
+                )
 
         # if attendee is part of a group, we must delete attendee and remove them from the group
         if attendee.group:

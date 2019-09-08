@@ -72,7 +72,7 @@
         <td>{{ group.tables }}</td>
         <td>${{ '%0.2f' % group.cost }}</td>
         <td>${{ '%0.2f' % group.amount_unpaid }}</td>
-        <td>${{ '%0.2f' % group.amount_paid }}</td>
+        <td>${{ '%0.2f' % (group.amount_paid / 100) }}</td>
         <td>{{ group.admin_notes }}</td>
     </tr>
 {% endfor %}

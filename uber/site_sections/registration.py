@@ -280,7 +280,7 @@ class Root:
                 message = 'Unassigned badge removed.'
             else:
                 replacement_attendee = Attendee(**{attr: getattr(attendee, attr) for attr in [
-                    'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_paid', 'amount_extra'
+                    'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_paid_override', 'amount_extra'
                 ]})
                 if replacement_attendee.group and replacement_attendee.group.is_dealer:
                     replacement_attendee.ribbon = add_opt(replacement_attendee.ribbon_ints, c.DEALER_RIBBON)
@@ -864,10 +864,10 @@ class Root:
             params['sales'] = sales
             params['attendees'] = attendees
             params['total_cash'] = \
-                sum(a.amount_paid for a in attendees if a.payment_method == c.CASH) \
+                sum((a.amount_paid / 100) for a in attendees if a.payment_method == c.CASH) \
                 + sum(s.cash for s in sales if s.payment_method == c.CASH)
             params['total_credit'] = \
-                sum(a.amount_paid for a in attendees if a.payment_method in [c.STRIPE, c.SQUARE, c.MANUAL]) \
+                sum((a.amount_paid / 100) for a in attendees if a.payment_method in [c.STRIPE, c.SQUARE, c.MANUAL]) \
                 + sum(s.cash for s in sales if s.payment_method == c.CREDIT)
         else:
             params['endday'] = localized_now().strftime('%Y-%m-%d')
