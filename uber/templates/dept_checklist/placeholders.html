@@ -2,26 +2,17 @@
 {% block title %}Placeholder Attendees{% endblock %}}
 {% block content %}
 
+{% include "dept_checklist/dept_menu.html" %}
+
 <h2>{{ dept_name }} Unconfirmed Volunteers: {{ placeholders|length }}</h2>
 
-<div class="center">
-    <script>
-        var deptChanged = function () {
-            window.location = 'placeholders?department_id=' + $('#dept').val();
-        };
-    </script>
-    <select id="dept" onChange="deptChanged()">
-        <option value="">All Departments</option>
-        {{ options(c.DEPARTMENT_OPTS, department_id) }}
-    </select>
-</div>
 {% if checklist.relevant %}
     <br/>
     {% if checklist.completed %}
         You've already told us that no one on this list is essential to your department; please emails STOPS if this is in error.
     {% else %}
         <a href="#" onClick="$('#checkoff').show(); return false;">This all looks good to me.</a>
-        <form id="checkoff" style="display:none" method="post" action="../dept_checklist/mark_item_complete">
+        <form id="checkoff" style="display:none" method="post" action="mark_item_complete">
         {{ csrf_token() }}
         <input type="hidden" name="department_id" value="{{ department_id }}" />
         <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
@@ -48,11 +39,11 @@ We create placeholder registrations for volunteers and ask them to fill out the 
 </tr>
 {% for attendee in placeholders %}
     <tr>
-        <td>{{ attendee|form_link }}</td>
+        <td><a href="../shifts_admin/attendee_form?id={{ attendee.id }}&return_to=../dept_checklist/placeholders">{{ attendee.full_name }}</a></td>
         <td>{{ attendee.badge }}</td>
         <td>
             {% if attendee.group %}
-                <a href="../dealer_admin/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
+                {{ attendee.group.name }}
             {% else %}
                 n/a
             {% endif %}

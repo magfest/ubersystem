@@ -100,7 +100,7 @@ class AutomatedEmailFixture:
             .replace('{EVENT_DATE}', c.EPOCH.strftime('%b %Y'))
         self.template = template
         self.format = 'text' if template.endswith('.txt') else 'html'
-        self.filter = filter or (lambda x: True)
+        self.filter = filter and (lambda x: x.gets_emails)
         self.ident = ident
         self.query = listify(query)
         self.query_options = listify(query_options)
@@ -354,7 +354,7 @@ AutomatedEmailFixture(
     ident='dealer_info_required')
 
 StopsEmailFixture(
-    'Want to staff {EVENT_NAME} again?',
+    'Claim your Comp\'ed Badge and Apply to Staff at {EVENT_NAME} {EVENT_YEAR}!',
     'placeholders/imported_volunteer.txt',
     lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN,
     ident='volunteer_again_inquiry')
@@ -625,7 +625,7 @@ if c.MIVS_ENABLED:
         IndieGame,
         'Reminder to submit your game to MIVS',
         'mivs/submission_reminder.txt',
-        lambda game: game.status == c.JUDGING and not game.submitted,
+        lambda game: not game.submitted,
         ident='mivs_game_submission_reminder',
         when=days_before(7, c.MIVS_DEADLINE))
 
@@ -633,7 +633,7 @@ if c.MIVS_ENABLED:
         IndieGame,
         'Final Reminder to submit your game to MIVS',
         'mivs/submission_reminder.txt',
-        lambda game: game.status == c.JUDGING and not game.submitted,
+        lambda game: not game.submitted,
         ident='mivs_game_submission_final_reminder',
         when=days_before(2, c.MIVS_DEADLINE))
 

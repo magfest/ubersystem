@@ -7,7 +7,7 @@ from pytz import UTC
 from uber.config import c
 from uber.decorators import all_renderable, ajax_gettable, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import Department, DeptRole, Job
+from uber.models import Attendee, Department, DeptRole, Job
 from uber.utils import get_api_service_from_server
 
 
@@ -63,6 +63,21 @@ def _copy_department_shifts(service, to_department, from_department, dept_role_m
 
 @all_renderable()
 class Root:
+    def badges(self, session, message=''):
+        return {
+            'pending_badges': session.query(Attendee).filter_by(badge_status=c.PENDING_STATUS).filter_by(staffing=True),
+            'message': message,
+        }
+
+    @ajax
+    def approve_badge(self, session, id):
+        attendee = session.attendee(id)
+        attendee.badge_status = c.NEW_STATUS
+        session.add(attendee)
+        session.commit()
+
+        return {'added': id}
+
     @site_mappable
     def import_shifts(
             self,

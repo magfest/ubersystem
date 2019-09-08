@@ -1,0 +1,20 @@
+{% if return_to == '../registration/index' %}
+  {# Use Registration's top menu if we're coming from Registration to make navigation seamless #}
+  {% include 'registration/menu.html' %}
+{% elif attendee.is_new %}
+  {# New attendee page #}
+  {{ macros.nav_menu(
+    attendee, c.PAGE_PATH,
+    "attendee_form", "Create Attendee", True,
+    return_to, "Return to " + return_to|replace('../', '')|replace('/', ' ')|title, True
+) }}
+{% else %}
+  {{ macros.nav_menu(
+    attendee, c.PAGE_PATH,
+    "attendee_form?id={id}", "Attendee Data", True,
+    "../shifts_admin/attendee_shifts?id={id}", "Shifts", attendee.staffing and c.HAS_SHIFTS_ADMIN_ACCESS,
+    "attendee_history?id={id}", "History", True,
+    "../security_admin/watchlist?attendee_id={id}", "Watch List Entry", attendee.banned and c.HAS_SECURITY_ADMIN_ACCESS,
+    return_to, "Return to " + return_to|replace('../', '')|replace('/', ' ')|title, True
+) }}
+{% endif %}

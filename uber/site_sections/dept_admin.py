@@ -13,7 +13,6 @@ from uber.utils import check
 
 @all_renderable()
 class Root:
-
     def index(self, session, filtered=False, message='', **params):
         if filtered:
             admin_account_id = cherrypy.session['account_id']

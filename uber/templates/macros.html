@@ -348,7 +348,7 @@
       {% for href, label, display in varargs|batch(3, False) if display %}
         {% set href = href.format(**model.__dict__) %}
         <td width="{{ 100 // loop.length }}%">
-          {%- if current_page_path.endswith(href.split('?')[0]) -%}
+          {%- if current_page_path.endswith(href.replace('.', '').split('?')[0]) -%}
             {{ label }}
           {%- else -%}
             <a href="{{ href }}">{{ label }}</a>

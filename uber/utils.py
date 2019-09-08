@@ -541,6 +541,23 @@ def genpasswd():
 # Miscellaneous helpers
 # ======================================================================
 
+def redirect_to_allowed_dept(session, department_id, page):
+    if department_id == 'All':
+        return
+
+    if not department_id:
+        department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_ID
+    if 'shifts_admin' in c.PAGE_PATH:
+        can_access = session.admin_attendee().can_admin_shifts_for(department_id)
+    elif 'dept_checklist' in c.PAGE_PATH:
+        can_access = session.admin_attendee().can_admin_checklist_for(department_id)
+    else:
+        can_access = session.admin_attendee().can_admin_dept_for(department_id)
+
+    if not can_access:
+        raise HTTPRedirect('{}?department_id={}'.format(page, c.DEFAULT_DEPARTMENT_ID))
+
+
 class Order:
     def __init__(self, order):
         self.order = order

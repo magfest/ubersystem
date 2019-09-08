@@ -365,7 +365,7 @@
       &nbsp;&nbsp; {% if not read_only %}[<a href="change_badge?id={{ attendee.id }}">Change</a>]{% endif %}
     {% else %}">
       <select name="badge_type" class="form-control" onChange="boldOrRegular(); setBadgeMessage(); setAmountPaid();">
-        {{ options(c.BADGE_OPTS,attendee.badge_type) }}
+        {{ options(c.ADMIN_BADGE_OPTS,attendee.badge_type) }}
       </select>
       {% if c.AT_THE_CON and c.NUMBERED_BADGES %}
         #<input class="focus" type="text" style="width:4em" name="badge_num" value="{{ attendee.badge_num|default('', boolean=True) }}" />
@@ -853,9 +853,15 @@
     <div class="form-control-static">
       {{ macros.checkgroup_opts(
             'assigned_depts_ids',
-            c.DEPARTMENT_OPTS_WITH_DESC,
+            c.ADMIN_DEPARTMENT_OPTS,
             defaults=attendee.assigned_depts_ids,
             include_empty_hidden=True) }}
+      {% for id in attendee.assigned_depts_ids %}
+        {% if id not in c.ADMIN_DEPARTMENTS %}
+        <input type="hidden" name="assigned_depts_ids" value="{{ id }}" />
+          + {{ c.DEPARTMENTS[id] }}
+        {% endif %}
+      {% endfor %}
     </div>
   </div>
 {% endcall %}
@@ -1365,7 +1371,7 @@ $(function(){
   <label for="admin_status" class="col-sm-3 control-label">Admin Accesses</label>
   <div class="col-sm-9 form-control-static">
     {% if attendee.admin_account %}
-      {{ attendee.admin_account.access_group.name }}
+      {{ attendee.admin_account.access_groups_labels|join(', ') }}
     {% else %}
       This attendee does not have an admin account.
     {% endif %}
@@ -1678,7 +1684,7 @@ $(function(){
   <label class="col-sm-3 control-label">Hotel Eligible</label>
   <div class="col-sm-9">
     <div class="form-control-static">
-      {% if c.HAS_HOTEL_ADMIN_ACCESS %}{{ attendee.agreed_to_volunteer_agreement|yesno("Yes,No") }}{% endif %}
+      {% if c.HAS_HOTEL_ADMIN_ACCESS %}{{ attendee.hotel_eligible|yesno("Yes,No") }}{% endif %}
       <input type="hidden" name="hotel_eligible" value="{{ attendee.hotel_eligible|yesno("1,0") }}" />
     </div>
   </div>
