@@ -15,7 +15,7 @@ def session(request):
     session = Session().session
     request.addfinalizer(session.close)
     check_ranges(session)
-    for badge_type, badge_name in [(c.STAFF_BADGE, 'Staff'), (c.SUPPORTER_BADGE, 'Supporter')]:
+    for badge_type, badge_name in [(c.STAFF_BADGE, 'Staff'), (c.CONTRACTOR_BADGE, 'Contractor')]:
         for number in ['One', 'Two', 'Three', 'Four', 'Five']:
             setattr(session, '{}_{}'.format(badge_name, number).lower(),
                     session.attendee(badge_type=badge_type, first_name=number))
@@ -37,7 +37,7 @@ def teardown_range_check(request):
 
 
 def check_ranges(session):
-    for badge_type in [c.STAFF_BADGE, c.SUPPORTER_BADGE]:
+    for badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
         actual = [a.badge_num for a in session.query(Attendee)
                                               .filter_by(badge_type=badge_type)
                                               .order_by(Attendee.badge_num).all()
@@ -242,7 +242,7 @@ class TestAutoBadgeNum:
         assert 3002 == session.auto_badge_num(c.ATTENDEE_BADGE)
 
     def test_diff_type_with_num_in_range(self, session, monkeypatch):
-        session.add(Attendee(badge_type=c.SUPPORTER_BADGE, badge_num=6))
+        session.add(Attendee(badge_type=c.CONTRACTOR_BADGE, badge_num=6))
 
         # We want to force the badge number we set even though it's incorrect
         @presave_adjustment
@@ -434,14 +434,14 @@ class TestShiftOnChange:
         assert [1, 3, 4, 5, 6] == self.staff_badges(session)
 
     def test_shift_on_badge_type_change(self, session):
-        session.staff_one.badge_type = c.SUPPORTER_BADGE
+        session.staff_one.badge_type = c.CONTRACTOR_BADGE
         session.staff_one.badge_num = None
         assert 'Badge updated' == session.update_badge(session.staff_one, c.STAFF_BADGE, 1)
         assert session.staff_two.badge_num == 1
         assert [1, 2, 3, 4, 505] == self.staff_badges(session)
 
     def test_shift_both_badge_types(self, session):
-        session.staff_one.badge_type = c.SUPPORTER_BADGE
+        session.staff_one.badge_type = c.CONTRACTOR_BADGE
         session.staff_one.badge_num = 503
         assert 'Badge updated' == session.update_badge(session.staff_one, c.STAFF_BADGE, 1)
         assert session.staff_two.badge_num == 1
