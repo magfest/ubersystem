@@ -715,7 +715,7 @@ class Config(_Overridable):
     @cached_property
     def ADMIN_PAGES(self):
         # Build a list of all site sections and their pages
-        public_site_sections = ['static_views', 'angular']
+        public_site_sections = ['static_views', 'angular', 'public']
         public_pages = []
         site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
         modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}

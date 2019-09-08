@@ -5,13 +5,12 @@ import cherrypy
 from cherrypy.lib.static import serve_file
 
 from uber.config import c
-from uber.decorators import all_renderable, csrf_protected, public
+from uber.decorators import all_renderable, csrf_protected
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Group, GuestGroup, IndieDeveloper, IndieStudio
 from uber.utils import check, check_csrf
 
 
-@public
 @all_renderable(public=True)
 class Root:
     def index(self, session, message='', **params):

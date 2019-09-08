@@ -651,6 +651,8 @@ class all_renderable:
         self.public = public
 
     def __call__(self, klass):
+        if self.public:
+            klass = public(klass)
         for name, func in klass.__dict__.items():
             if hasattr(func, '__call__'):
                 new_func = set_renderable(func, self.public)

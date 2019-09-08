@@ -15,7 +15,7 @@ from sideboard.server import jsonrpc_reset
 from sideboard.websockets import trigger_delayed_notifications
 
 from uber.config import c, Config
-from uber.decorators import all_renderable, public, render
+from uber.decorators import all_renderable, render
 from uber.errors import HTTPRedirect
 from uber.utils import mount_site_sections, static_overrides
 
@@ -216,64 +216,47 @@ class Root:
     more consistent and logical. Below are several redirects to help
     with the transition. We can remove all these when we're reasonably
     sure people won't have bookmarks with the old URLs.
-    
-    They are marked as 'public' so as to not clutter up our access groups
-    page -- they are not actually public, as the redirect handles the 
-    actual access check.
     """
 
-    @public
     def signups(self, *path, **params):
         redirect_site_section('signups', 'staffing')
 
-    @public
     def common(self, *path, **params):
         redirect_site_section('common', 'landing')
 
-    @public
     def departments(self, *path, **params):
         redirect_site_section('departments', 'dept_admin')
 
-    @public
     def emails(self, *path, **params):
         redirect_site_section('emails', 'email_admin')
 
-    @public
     def graphs(self, *path, **params):
         redirect_site_section('graphs', 'reg_reports')
 
-    @public
     def groups(self, *path, **params):
         if 'promo_code' in c.PAGE:
             redirect_site_section('groups', 'registration')
         redirect_site_section('groups', 'dealer_admin')
 
-    @public
     def jobs(self, *path, **params):
         redirect_site_section('jobs', 'shifts_admin')
 
-    @public
     def panel_applications(self, *path, **params):
         redirect_site_section('panel_applications', 'panels')
 
-    @public
     def panel_app_management(self, *path, **params):
         redirect_site_section('panel_app_management', 'panels_admin')
 
-    @public
     def mivs_applications(self, *path, **params):
         redirect_site_section('mivs_applications', 'mivs')
 
-    @public
     def mits_applications(self, *path, **params):
         redirect_site_section('mits_applications', 'mits')
 
-    @public
     def export(self, *path, **params):
         new_page = 'csv_export' if c.PAGE == 'index' else ''
         redirect_site_section('export', 'devtools', new_page)
 
-    @public
     @cherrypy.expose('import')  # import is a special name in Python
     def import_page(self, *path, **params):
         if c.PAGE in ['attendees', 'attendee']:
@@ -283,7 +266,6 @@ class Root:
 
         redirect_site_section('import', 'devtools', 'csv_import')
 
-    @public
     def hotel(self, *path, **params):
         if c.PAGE == 'index':
             new_page = 'hotel_eligible'
@@ -294,17 +276,14 @@ class Root:
 
         redirect_site_section('hotel', 'dept_checklist', new_page)
 
-    @public
     def hotel_assignments(self, *path, **params):
         if c.PAGE == 'index':
             redirect_site_section('hotel_assignments', 'hotel_reports')
         redirect_site_section('hotel_assignments', 'hotel_admin')
 
-    @public
     def hotel_summary(self, *path, **params):
         redirect_site_section('hotel_summary', 'hotel_reports')
 
-    @public
     def summary(self, *path, **params):
         new_page = 'index' if c.PAGE in ['staffing_overview', 'guidebook_exports'] else ''
         new_sections = {'badge_exports': [
@@ -331,12 +310,10 @@ class Root:
             if c.PAGE in new_sections[section]:
                 redirect_site_section('summary', section, new_page)
 
-    @public
     def budget(self, *path, **params):
         if 'promo_codes' in c.PATH:
             redirect_site_section('budget', 'promo_codes')
 
-    @public
     def map(self, *path, **params):
         if c.PAGE == 'attendees_can_email_in_radius_csv':
             redirect_site_section('map', 'devtools', 'csv_export')

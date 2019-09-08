@@ -5,13 +5,12 @@ import cherrypy
 from cherrypy.lib.static import serve_file
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, public
+from uber.decorators import ajax, all_renderable
 from uber.errors import HTTPRedirect
 from uber.models import GuestMerch
 from uber.utils import check
 
 
-@public
 @all_renderable(public=True)
 class Root:
     def index(self, session, id, message=''):

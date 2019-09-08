@@ -10,7 +10,7 @@ from sqlalchemy import func
 
 from uber.config import c
 from uber.decorators import all_renderable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
-    public, redirect_if_at_con_to_kiosk, render
+    redirect_if_at_con_to_kiosk, render
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Attraction, Email, Group, PromoCode, PromoCodeGroup, Tracking
 from uber.tasks.email import send_email
@@ -39,7 +39,6 @@ def check_post_con(klass):
     return klass
 
 
-@public
 @all_renderable(public=True)
 @check_post_con
 class Root:

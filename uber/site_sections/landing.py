@@ -1,7 +1,6 @@
-from uber.decorators import all_renderable, public
+from uber.decorators import all_renderable
 
 
-@public
 @all_renderable(public=True)
 class Root:
     def index(self):

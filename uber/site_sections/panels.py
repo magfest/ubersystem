@@ -1,7 +1,7 @@
 import cherrypy
 
 from uber.config import c
-from uber.decorators import all_renderable, public
+from uber.decorators import all_renderable
 from uber.errors import HTTPRedirect
 from uber.models import PanelApplicant, PanelApplication
 from uber.utils import add_opt, check
@@ -50,7 +50,6 @@ def compile_other_panelists_from_params(app, **params):
     return other_panelists
 
 
-@public
 @all_renderable(public=True)
 class Root:
     @cherrypy.expose(['post_index'])
