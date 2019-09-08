@@ -5,7 +5,7 @@ from dateutil import parser as dateparser
 from pytz import UTC
 
 from uber.config import c
-from uber.decorators import all_renderable, ajax_gettable, site_mappable
+from uber.decorators import all_renderable, ajax, ajax_gettable, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, DeptRole, Job
 from uber.utils import get_api_service_from_server
