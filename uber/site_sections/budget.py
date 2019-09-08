@@ -4,7 +4,7 @@ from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import all_renderable, log_pageview
-from uber.models import Attendee, Group, MPointsForCash, Sale, StripeTransaction
+from uber.models import ArbitraryCharge, Attendee, Group, MPointsForCash, ReceiptItem, Sale, StripeTransaction
 from uber.server import redirect_site_section
 
 
@@ -37,13 +37,16 @@ def sale_money(session):
 class Root:
     @log_pageview
     def index(self, session):
-        sales = sale_money(session)
-        preregs = prereg_money(session)
-        total = sum(preregs.values()) + sum(sales.values())
+        receipt_items = session.query(ReceiptItem)
+        receipt_total = sum([item.amount for item in receipt_items.filter_by(txn_type=c.PAYMENT).all()]) \
+                        - sum([item.amount for item in receipt_items.filter_by(txn_type=c.REFUND).all()])
+        sales_total = sum([sale.cash * 100 for sale in session.query(Sale).all()])
+        arbitrary_charge_total = sum([charge.amount * 100 for charge in session.query(ArbitraryCharge).all()])
         return {
-            'total':   total,
-            'preregs': preregs,
-            'sales':   sales
+            'receipt_items': session.query(ReceiptItem),
+            'arbitrary_charges': session.query(ArbitraryCharge),
+            'sales': session.query(Sale),
+            'total': receipt_total + sales_total + arbitrary_charge_total,
         }
 
     @log_pageview

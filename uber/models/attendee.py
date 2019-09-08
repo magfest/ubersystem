@@ -806,10 +806,10 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         promo_code_balance = self.balance_by_item_type(item_type)
 
-        # This is only for new attendees -- we handle buying additional badges in the page handler
+        # This is only for new attendees -- we add the receipt item for buying additional badges in the page handler
         if not promo_code_balance:
             return self.promo_group_cost * 100, \
-                   "{} badges in Promo Code Group {} (${} each)".format('{}', '{}', c.GROUP_PRICE), \
+                   'Promo code group "{}" ({} badges at ${} each)'.format('{}', '{}', c.GROUP_PRICE), \
                    item_type
 
     @hybrid_property

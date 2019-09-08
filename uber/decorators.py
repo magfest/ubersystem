@@ -706,10 +706,11 @@ class cost_property(property):
 
 class receipt_item(property):
     """
-    Receipt items should correspond to cost properties and return a tuple
-     that defines the amount (in cents) the item costs and a description of
-     the item. These items then get added to the ReceiptItem table to help
-     track what payments correspond to what. For example:
+    Receipt items should correspond to cost properties and return three
+    things: the amount (in cents) the item costs, a description of
+    the item, and the item's type (from [[receipt_item]] in config.
+    These items then get added to the ReceiptItem table to help
+    track what payments correspond to what. For example:
 
         @Session.model_mixin
         class Attendee:
@@ -717,8 +718,8 @@ class receipt_item(property):
 
             @receipt_item
             def food_receipt_item(self):
-                if self.is_new or not self.orig_value_of('purchased_food'):
-                    return self.food_price * 100, "Prepurchasing meal ticket"
+                if not self.balance_by_item_type(c.FOOD):
+                    return self.food_price * 100, "Prepurchasing meal ticket", c.FOOD
     """
 
 

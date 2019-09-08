@@ -358,6 +358,7 @@ class Root:
 
     @credit_card
     def prereg_payment(self, session, payment_id=None, stripeToken=None):
+        # e0953b23-cf11-4959-8f92-bf794fdaf5c7
         if not payment_id or not stripeToken or c.HTTP_METHOD != 'POST':
             message = 'The payment was interrupted. Please check below to ensure you received your badge.'
             raise HTTPRedirect('paid_preregistrations?message={}', message)
@@ -387,10 +388,6 @@ class Root:
             if attendee.badges:
                 pc_group = session.create_promo_code_group(attendee, attendee.name, int(attendee.badges) - 1)
                 session.add(pc_group)
-                session.add(session.create_receipt_item(
-                    charge, attendee, pc_group.total_cost * 100, "Promo code group {} ({} badges at ${} each)".format(
-                        pc_group.name, int(attendee.badges) - 1, c.GROUP_PRICE), c.PROMO_CODE)
-                )
                 session.commit()
 
             session.add_receipt_items_by_model(charge, attendee)

@@ -78,7 +78,7 @@
               {% if not attendee.badge_cost and attendee.age_discount and not attendee.promo_code_id %}
                 <li>Attendees who are {{ attendee.age_group_conf.desc|lower }} get in for free!</li>
               {% elif attendee.age_discount and attendee.age_group_conf.discount != 0 %}
-                <li>${{ '%0.2f' % attendee.age_group_conf.discount }} discount for attendees who are {{ attendee.age_group_conf.desc|lower }}.</li>
+                <li>${{ attendee.age_group_conf.discount }} discount for attendees who are {{ attendee.age_group_conf.desc|lower }}.</li>
               {% endif %}
               {% for swag in attendee.donation_swag|list + attendee.addons|list %}
                 <li>{{ swag }}</li>

@@ -1529,7 +1529,7 @@ $(function(){
   <label class="col-sm-3 control-label">Paid</label>
   <div class="col-sm-6">
   {% if read_only %}
-    <p class="form-control-static">This attendee's paid status is <strong>{{ attendee.paid_label }}</strong>. They have given us ${{ '%0.2f' % attendee.amount_paid }} and been refunded ${{ attendee.amount_refunded }}.</p>
+    <p class="form-control-static">This attendee's paid status is <strong>{{ attendee.paid_label }}</strong>. They have given us ${{ '%0.2f' % attendee.amount_paid }} and been refunded ${{ '%0.2f' % attendee.amount_refunded }}.</p>
     {% else %}
     <div class="form-inline">
       <select name="paid" class="form-control">

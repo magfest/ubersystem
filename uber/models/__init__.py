@@ -758,8 +758,8 @@ class Session(SessionManager):
         def add_receipt_items_by_model(self, charge, model):
             for amount, desc, item_type in getattr(model, 'receipt_items_breakdown'):
                 if amount:
-                    if "Promo Code Group" in desc:
-                        desc = desc.format(int(getattr(model, 'badges', 0)) - 1, getattr(model, 'name', ''))
+                    if "Promo code group" in desc:
+                        desc = desc.format(getattr(model, 'name', ''), int(getattr(model, 'badges', 0)) - 1)
 
                     item = self.create_receipt_item(charge, model, amount, desc, item_type)
                     self.add(item)

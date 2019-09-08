@@ -10,42 +10,61 @@
 </style>
 
 <div class="jumbotron">
-    <h1 class="text-center">(${{ '%0.2f' % total }} total)</h1>
+    <h1 class="text-center">(${{ '%0.2f' % (total / 100) }} total)</h1>
 </div>
-
-{% macro table_entry(label, value) -%}
-  <tr>
-    <td>{{ label }}</td>
-    <td>${{ '%0.2f' % value }}</td>
-  </tr>
-{%- endmacro %}
 
 <div class="panel panel-default">
   <table class="table table-striped datatable">
+    <caption><h3>Receipt Items</h3></caption>
     <thead>
       <tr>
-        <th>Name</th>
+        <th>Item Type</th>
         <th>Amount</th>
+        <th>Description</th>
       </tr>
     </thead>
     <tbody>
-      {{ table_entry('Attendee Badges', preregs.Attendee) }}
-      {{ table_entry('Extra Payments (Kickins, Shirts, Food, anything else)', preregs.extra) }}
-      {{ table_entry('Group Badges', preregs.group_badges) }}
-      {{ table_entry(c.DEALER_TERM + ' Badges', preregs.dealer_badges) }}
-      {{ table_entry('Staff Badges', preregs.Staff) }}
-      {{ table_entry('Single Day Badges', preregs.OneDay) }}
-
-      {% for what, total in sales.items() %}
-        {{ table_entry(what, total) }}
-      {% endfor %}
-
-      {% for item in credits %}
-        <tr>
-          <td><a href="form?id={{ item.id }}">{{ item.name }}</a></td>
-          <td>${{ '%0.2f' % item.amount }}</td>
-        </tr>
-      {% endfor %}
+    {% for item in receipt_items %}
+      <tr>
+        <td>{{ item.item_type_label }}</td>
+        <td>{{ '-' if item.txn_type == c.REFUND else '' }}${{ '%0.2f' % (item.amount / 100) }}</td>
+        <td>{{ item.desc }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <table class="table table-striped datatable">
+    <caption><h3>Sales</h3></caption>
+    <thead>
+      <tr>
+        <th>Amount</th>
+        <th>Item</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for sale in sales %}
+      <tr>
+        <td>${{ '%0.2f' % sale.cash }}</td>
+        <td>{{ sale.what }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <table class="table table-striped datatable">
+    <caption><h3>Arbitrary Charges</h3></caption>
+    <thead>
+      <tr>
+        <th>Amount</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for charge in arbitrary_charges %}
+      <tr>
+        <td>${{ '%0.2f' % charge.amount }}</td>
+        <td>{{ charge.what }}</td>
+      </tr>
+    {% endfor %}
     </tbody>
   </table>
 </div>
