@@ -1,9 +1,7 @@
-import urllib
 from itertools import chain
 
 import cherrypy
 from pockets import groupify, listify
-from rpctools.jsonrpc import ServerProxy
 from sqlalchemy import and_, or_, func
 
 from uber.config import c, _config
@@ -11,84 +9,47 @@ from uber.custom_tags import pluralize
 from uber.decorators import all_renderable
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, DeptMembership, DeptMembershipRequest
-
-
-def _server_to_url(server):
-    if not server:
-        return ''
-    host, _, path = urllib.parse.unquote(server).replace('http://', '').replace('https://', '').partition('/')
-    if path.startswith('reggie'):
-        return 'https://{}/reggie'.format(host)
-    elif path.startswith('uber'):
-        return 'https://{}/uber'.format(host)
-    elif c.PATH == '/uber':
-        return 'https://{}{}'.format(host, c.PATH)
-    return 'https://{}'.format(host)
-
-
-def _server_to_host(server):
-    if not server:
-        return ''
-    return urllib.parse.unquote(server).replace('http://', '').replace('https://', '').split('/')[0]
-
-
-def _format_import_params(target_server, api_token):
-    target_url = _server_to_url(target_server)
-    target_host = _server_to_host(target_server)
-    remote_api_token = api_token.strip()
-    if not remote_api_token:
-        remote_api_tokens = _config.get('secret', {}).get('remote_api_tokens', {})
-        remote_api_token = remote_api_tokens.get(target_host, remote_api_tokens.get('default', ''))
-    return (target_url, target_host, remote_api_token.strip())
+from uber.utils import get_api_service_from_server
 
 
 @all_renderable()
 class Root:
     def import_attendees(self, session, target_server='', api_token='', query='', message=''):
-        target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
+        service, message, target_url = get_api_service_from_server(target_server, api_token)
 
-        results = {}
-        if cherrypy.request.method == 'POST':
-            if not remote_api_token:
-                message = 'No API token given and could not find a token for: {}'.format(target_host)
-            elif not target_url:
-                message = 'Unrecognized hostname: {}'.format(target_server)
+        try:
+            results = service.attendee.export(query=query)
+        except Exception as ex:
+            message = str(ex)
 
-            if not message:
-                try:
-                    uri = '{}/jsonrpc/'.format(target_url)
-                    service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
-                    results = service.attendee.export(query=query)
-                except Exception as ex:
-                    message = str(ex)
+        if cherrypy.request.method == 'POST' and not message:
+            attendees = results.get('attendees', [])
+            for attendee in attendees:
+                attendee['href'] = '{}/registration/form?id={}'.format(target_url, attendee['id'])
 
-        attendees = results.get('attendees', [])
-        for attendee in attendees:
-            attendee['href'] = '{}/registration/form?id={}'.format(target_url, attendee['id'])
+            if attendees:
+                attendees_by_name_email = groupify(attendees, lambda a: (
+                    a['first_name'].lower(),
+                    a['last_name'].lower(),
+                    Attendee.normalize_email(a['email']),
+                ))
 
-        if attendees:
-            attendees_by_name_email = groupify(attendees, lambda a: (
-                a['first_name'].lower(),
-                a['last_name'].lower(),
-                Attendee.normalize_email(a['email']),
-            ))
+                filters = [
+                    and_(
+                        func.lower(Attendee.first_name) == first,
+                        func.lower(Attendee.last_name) == last,
+                        Attendee.normalized_email == email,
+                    )
+                    for first, last, email in attendees_by_name_email.keys()
+                ]
 
-            filters = [
-                and_(
-                    func.lower(Attendee.first_name) == first,
-                    func.lower(Attendee.last_name) == last,
-                    Attendee.normalized_email == email,
-                )
-                for first, last, email in attendees_by_name_email.keys()
-            ]
-
-            existing_attendees = session.query(Attendee).filter(or_(*filters)).all()
-            for attendee in existing_attendees:
-                existing_key = (attendee.first_name.lower(), attendee.last_name.lower(), attendee.normalized_email)
-                attendees_by_name_email.pop(existing_key, {})
-            attendees = list(chain(*attendees_by_name_email.values()))
-        else:
-            existing_attendees = []
+                existing_attendees = session.query(Attendee).filter(or_(*filters)).all()
+                for attendee in existing_attendees:
+                    existing_key = (attendee.first_name.lower(), attendee.last_name.lower(), attendee.normalized_email)
+                    attendees_by_name_email.pop(existing_key, {})
+                attendees = list(chain(*attendees_by_name_email.values()))
+            else:
+                existing_attendees = []
 
         return {
             'target_server': target_server,

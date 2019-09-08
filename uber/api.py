@@ -346,7 +346,6 @@ class AttendeeLookup:
 
             return attendee.to_dict(fields)
 
-
     def export(self, query, full=False):
         """
         Searches for attendees by either email, "first last" name, or
