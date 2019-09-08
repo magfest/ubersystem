@@ -1,5 +1,5 @@
 {{ attendee.first_name }},
 
-Your {{ c.EVENT_NAME_AND_YEAR }} registration has been refunded in the amount of ${{ attendee.amount_refunded }}.  Unless you've already been told otherwise in a person, this amount will be refunded to the credit card used to pay for the registration.  You can expect the money to show up in 5-10 business days.
+Your {{ c.EVENT_NAME_AND_YEAR }} registration has been refunded in the amount of ${{ '%0.2f' % (attendee.amount_refunded / 100) }}.  Unless you've already been told otherwise in a person, this amount will be refunded to the credit card used to pay for the registration.  You can expect the money to show up in 5-10 business days.
 
 {{ c.REGDESK_EMAIL_SIGNATURE }}

@@ -163,7 +163,7 @@ AutomatedEmailFixture(
     Group,
     '{EVENT_NAME} group payment received',
     'reg_workflow/group_confirmation.html',
-    lambda g: g.amount_paid == g.cost and g.cost != 0 and g.leader_id,
+    lambda g: (g.amount_paid / 100) == g.cost and g.cost != 0 and g.leader_id,
     # query=and_(Group.amount_paid >= Group.cost, Group.cost > 0, Group.leader_id != None),
     needs_approval=False,
     ident='group_payment_received')
@@ -185,7 +185,7 @@ AutomatedEmailFixture(
     Attendee,
     '{EVENT_NAME} extra payment received',
     'reg_workflow/group_donation.txt',
-    lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra,
+    lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid >= (a.amount_extra * 100),
     # query=and_(
     #     Attendee.paid == c.PAID_BY_GROUP,
     #     Attendee.amount_extra != 0,

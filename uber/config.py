@@ -661,7 +661,7 @@ class Config(_Overridable):
             group_supporters = attendees.filter(
                 Attendee.paid == self.PAID_BY_GROUP,
                 Attendee.amount_extra >= kickin_level,
-                Attendee.amount_paid >= kickin_level).count()
+                Attendee.amount_paid >= kickin_level * 100).count()
             return individual_supporters + group_supporters
 
     @request_cached_property

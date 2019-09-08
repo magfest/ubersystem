@@ -1,6 +1,6 @@
 {{ group.leader.first_name }},
 
-Your group ({{ group.name }}) has been preregistered for {{ c.EVENT_NAME }} this coming {{ event_dates() }} and your payment of ${{ attendee.amount_paid }} has been received. Your group will have {{ group.tables }} Marketplace table{{ group.table|pluralize }}. The Marketplace coordinator will continue to be in touch with you to keep you informed of Marketplace rules and procedures.
+Your group ({{ group.name }}) has been preregistered for {{ c.EVENT_NAME }} this coming {{ event_dates() }} and your payment of ${{ '%0.2f' % (attendee.amount_paid / 100) }} has been received. Your group will have {{ group.tables }} Marketplace table{{ group.table|pluralize }}. The Marketplace coordinator will continue to be in touch with you to keep you informed of Marketplace rules and procedures.
 
 {% if group.unassigned_badges %}
     <br/> <br/>

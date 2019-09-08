@@ -45,7 +45,7 @@ class Root:
                     group.zip_code,
                     group.country,
                     group.tables,
-                    group.amount_paid,
+                    group.amount_paid / 100,
                     group.cost,
                     group.badges
                 ])

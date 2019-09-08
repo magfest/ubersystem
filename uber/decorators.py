@@ -714,6 +714,25 @@ class cost_property(property):
     """
 
 
+class receipt_item(property):
+    """
+    Receipt items should correspond to cost properties and return three
+    things: the amount (in cents) the item costs, a description of
+    the item, and the item's type (from [[receipt_item]] in config.
+    These items then get added to the ReceiptItem table to help
+    track what payments correspond to what. For example:
+
+        @Session.model_mixin
+        class Attendee:
+            purchased_food = Column(Boolean, default=False)
+
+            @receipt_item
+            def food_receipt_item(self):
+                if not self.balance_by_item_type(c.FOOD):
+                    return self.food_price * 100, "Prepurchasing meal ticket", c.FOOD
+    """
+
+
 def create_redirect(url, public=False):
     """
     Return a function which redirects to the given url when called.

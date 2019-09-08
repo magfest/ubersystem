@@ -14,7 +14,7 @@
 {% endif %}
 <b>Number of remaining badges for sale (before event is sold out):</b> {{ c.REMAINING_BADGES }} <br/>
 {% for amount, count in counts.donation_tiers.items() %}
-  <b>Number of attendees who've donated at the ${{ amount }} level:</b> {{ count }} <br>
+  <b>Number of attendees who've donated at the ${{ '%0.2f' % amount }} level:</b> {{ count }} <br>
 {% endfor %}
 
 <h4>Badge Types</h4>

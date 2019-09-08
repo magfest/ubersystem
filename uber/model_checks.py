@@ -152,22 +152,6 @@ def group_money(group):
         except Exception:
             return "What you entered for Total Group Price ({}) isn't even a number".format(group.cost)
 
-    try:
-        amount_paid = int(float(group.amount_paid if group.amount_paid else 0))
-        if amount_paid < 0:
-            return 'Amount Paid must be a number that is 0 or higher.'
-    except Exception:
-        return "What you entered for Amount Paid ({}) isn't even a number".format(group.amount_paid)
-
-    try:
-        amount_refunded = int(float(group.amount_refunded if group.amount_refunded else 0))
-        if amount_refunded < 0:
-            return 'Amount Refunded must be positive'
-        elif amount_refunded > amount_paid:
-            return 'Amount Refunded cannot be greater than Amount Paid'
-    except Exception:
-        return "What you entered for Amount Refunded ({}) wasn't even a number".format(group.amount_refunded)
-
 
 @prereg_validation.Group
 def edit_only_correct_statuses(group):
@@ -222,12 +206,12 @@ def group_leader_under_13(attendee):
 
 @prereg_validation.Attendee
 def total_cost_over_paid(attendee):
-    if attendee.total_cost < attendee.amount_paid:
+    if (attendee.total_cost * 100) < attendee.amount_paid:
         if (not attendee.orig_value_of('birthdate') or attendee.orig_value_of('birthdate') < attendee.birthdate) \
                 and attendee.age_group_conf['val'] in [c.UNDER_6, c.UNDER_13]:
             return 'The date of birth you entered incurs a discount; ' \
                 'please email {} to change your badge and receive a refund'.format(c.REGDESK_EMAIL)
-        return 'You have already paid ${}, you cannot reduce your extras below that.'.format(attendee.amount_paid)
+        return 'You have already paid ${}, you cannot reduce your extras below that.'.format(attendee.amount_paid / 100)
 
 
 @validation.Attendee
@@ -420,13 +404,6 @@ def banned_volunteer(attendee):
 @validation.Attendee
 def attendee_money(attendee):
     try:
-        amount_paid = int(float(attendee.amount_paid))
-        if amount_paid < 0:
-            return 'Amount Paid cannot be less than zero'
-    except Exception:
-        return "What you entered for Amount Paid ({}) wasn't even a number".format(attendee.amount_paid)
-
-    try:
         amount_extra = int(float(attendee.amount_extra or 0))
         if amount_extra < 0:
             return 'Amount extra must be a positive integer'
@@ -440,17 +417,6 @@ def attendee_money(attendee):
                 return 'Overridden price must be a positive integer'
         except Exception:
             return 'Invalid overridden price ({})'.format(attendee.overridden_price)
-
-    try:
-        amount_refunded = int(float(attendee.amount_refunded))
-        if amount_refunded < 0:
-            return 'Amount Refunded must be positive'
-        elif amount_refunded > amount_paid:
-            return 'Amount Refunded cannot be greater than Amount Paid'
-        elif attendee.paid == c.REFUNDED and amount_refunded == 0:
-            return 'Amount Refunded may not be 0 if the attendee is marked Paid and Refunded'
-    except Exception:
-        return "What you entered for Amount Refunded ({}) wasn't even a number".format(attendee.amount_refunded)
 
 
 @validation.Attendee

@@ -47,7 +47,7 @@
         <br/>
         <div class="form-group">
           <div class="col-sm-9 col-sm-offset-3 warning">
-            You currently have an outstanding balance of ${{ attendee.amount_unpaid }}{% if attendee.amount_extra %} due to having requested
+            You currently have an outstanding balance of ${{ '%0.2f' % attendee.amount_unpaid }}{% if attendee.amount_extra %} due to having requested
             registration add-ons and then not completing the payment form{% endif %}.  Please either
             <a href="attendee_donation_form?id={{ attendee.id }}">click here</a> to pay, or alter your registration below to
             eliminate whichever addons you've decided not to select.

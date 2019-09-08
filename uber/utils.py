@@ -853,6 +853,7 @@ class Charge:
         self._amount = amount
         self._description = description
         self._receipt_email = receipt_email
+        self._stripe_transaction = None
 
     @classproperty
     def paid_preregs(cls):
@@ -1025,6 +1026,10 @@ class Charge:
     def groups(self):
         return [m for m in self.models if isinstance(m, uber.models.Group)]
 
+    @property
+    def stripe_transaction(self):
+        return self._stripe_transaction
+
     def charge_cc(self, session, token):
         try:
             log.debug('PAYMENT: !!! attempting to charge stripeToken {} {} cents for {}',
@@ -1033,7 +1038,7 @@ class Charge:
             self.response = stripe.Charge.create(
                 card=token,
                 currency='usd',
-                amount=self.amount,
+                amount=int(self.amount),
                 description=self.description,
                 receipt_email=self.receipt_email
             )
@@ -1051,11 +1056,11 @@ class Charge:
             return 'An unexpected problem occurred while processing your card: ' + str(e)
         else:
             if self.models:
-                txn = self.stripe_transaction_from_charge()
+                self._stripe_transaction = self.stripe_transaction_from_charge()
                 for model in self.models:
                     multi = len(self.models) > 1
-                    session.add(self.stripe_transaction_for_model(model, txn, multi))
-                session.add(txn)
+                    session.add(self.stripe_transaction_for_model(model, self._stripe_transaction, multi))
+                session.add(self._stripe_transaction)
 
     def stripe_transaction_from_charge(self, type=c.PAYMENT):
         return uber.models.StripeTransaction(
@@ -1071,11 +1076,11 @@ class Charge:
             return uber.models.commerce.StripeTransactionAttendee(
                 txn_id=txn.id,
                 attendee_id=model.id,
-                share=self.amount if not multi else (model.amount_unpaid * 100)
+                share=self.amount if not multi else model.amount_unpaid
             )
         elif model.__class__.__name__ == "Group":
             return uber.models.commerce.StripeTransactionGroup(
                 txn_id=txn.id,
                 group_id=model.id,
-                share=self.amount if not multi else (model.amount_unpaid * 100)
+                share=self.amount if not multi else model.amount_unpaid
             )

@@ -337,22 +337,6 @@
             $("#badge_message").text("");
         }
     };
-  var setAmountPaid = function (focus) {
-        {% if attendee.is_new %}
-            var amount = {{ c.BADGE_PRICE }};
-            if ($.val('badge_type') === {{ c.ONE_DAY_BADGE }}) {
-                amount = {{ c.ONEDAY_BADGE_PRICE }};
-            }
-            if( $.val('paid') === {{ c.HAS_PAID }} ) {
-                $.field('amount_paid').val(amount);
-            } else if ($.val('paid') === {{ c.NOT_PAID }}) {
-                $.field('amount_paid').val(0);
-            }
-        {% endif %}
-        if (focus) {
-            $.focus('amount_paid');
-        }
-    };
   $(function(){
         setBadgeMessage();
     });
@@ -364,7 +348,7 @@
       {{ attendee.badge }}
       &nbsp;&nbsp; {% if not read_only %}[<a href="change_badge?id={{ attendee.id }}">Change</a>]{% endif %}
     {% else %}">
-      <select name="badge_type" class="form-control" onChange="boldOrRegular(); setBadgeMessage(); setAmountPaid();">
+      <select name="badge_type" class="form-control" onChange="boldOrRegular(); setBadgeMessage();">
         {{ options(c.ADMIN_BADGE_OPTS,attendee.badge_type) }}
       </select>
       {% if c.AT_THE_CON and c.NUMBERED_BADGES %}
@@ -1447,7 +1431,7 @@ $(function(){
         This attendee is the buyer/group leader for <strong><a href="../registration/promo_code_group_form?id={{ group.id }}" target="_blank">{{ group.name }}</a></strong>.
       {% endfor %}
       {% if attendee.promo_code and attendee.promo_code.group %}
-        This attendee used promo code <strong>{{ attendee.promo_code.code }}</strong> to claim a ${{ attendee.promo_code.cost }} badge in promo code group <strong><a href="../registration/promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a></strong>.
+        This attendee used promo code <strong>{{ attendee.promo_code.code }}</strong> to claim a ${{ '%0.2f' % attendee.promo_code.cost }} badge in promo code group <strong><a href="../registration/promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a></strong>.
       {% endif %}
     </div>
   </div>
@@ -1488,7 +1472,7 @@ $(function(){
   <label class="col-sm-3 control-label">Badge Price</label>
   {% call macros.read_only_if(read_only, attendee.badge_price, pre_text='$' if attendee.badge_price, post_text=post_text if attendee.badge_price) %}
   <div class="checkbox col-sm-9">
-    $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost|round(2) }}" />
+    $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost }}" />
     {{ post_text }}
   </div>
 {% endcall %}
@@ -1547,19 +1531,11 @@ $(function(){
 
 {% set paid %}
 {% set read_only = paid_ro or page_ro %}
-<script type="text/javascript">
-$(function(){
-        {% if c.AT_THE_CON and attendee.is_new %}
-            $.field("paid").val({{ c.HAS_PAID }});
-            $.field("amount_paid").val({{ c.BADGE_PRICE }});
-        {% endif %}
-    });
-</script>
 <div class="form-group">
   <label class="col-sm-3 control-label">Paid</label>
   <div class="col-sm-6">
   {% if read_only %}
-    <p class="form-control-static">This attendee's paid status is <strong>{{ attendee.paid_label }}</strong>. They have given us ${{ attendee.amount_paid }} and been refunded ${{ attendee.amount_refunded }}.</p>
+    <p class="form-control-static">This attendee's paid status is <strong>{{ attendee.paid_label }}</strong>. They have given us ${{ '%0.2f' % (attendee.amount_paid / 100) }} and been refunded ${{ '%0.2f' % (attendee.amount_refunded / 100) }}.</p>
     {% else %}
     <div class="form-inline">
       <select name="paid" class="form-control">
@@ -1567,11 +1543,11 @@ $(function(){
       </select>
       &nbsp;&nbsp;&nbsp;
       <span id="amount_paid">
-            Paid: $<input type="text" style="width:4em" name="amount_paid" value="{{ attendee.amount_paid }}" />
+            Paid: ${{ '%0.2f' % (attendee.amount_paid / 100) }}
         </span>
       &nbsp;&nbsp;&nbsp;
       <span id="amount_refunded">
-            Refunded: $<input type="text" style="width:4em" name="amount_refunded" value="{{ attendee.amount_refunded }}" />
+            Refunded: ${{ '%0.2f' % (attendee.amount_refunded / 100) }}
         </span>
       {% if c.AT_THE_CON and attendee.staffing %}
         <br/> ({{ attendee.worked_hours }} out of {{ attendee.weighted_hours }} hours worked)

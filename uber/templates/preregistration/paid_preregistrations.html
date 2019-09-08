@@ -17,7 +17,7 @@
         {% if total_cost|int > 0 %}
             <p>
                 Your credit card was successfully charged for
-                <strong>${{ total_cost }}</strong>, and you will receive a confirmation
+                <strong>${{ '%0.2f' % total_cost|float }}</strong>, and you will receive a confirmation
                 email sent to you shortly. If you paid for other registrations, those
                 attendees will get their own confirmation email.
             </p>
