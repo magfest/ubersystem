@@ -555,6 +555,8 @@ def redirect_to_allowed_dept(session, department_id, page):
         can_access = session.admin_attendee().can_admin_dept_for(department_id)
 
     if not can_access:
+        if department_id == c.DEFAULT_DEPARTMENT_ID:
+            raise HTTPRedirect('landing/?message={}'.format("You do not have access to this page, sorry!"))
         raise HTTPRedirect('{}?department_id={}'.format(page, c.DEFAULT_DEPARTMENT_ID))
 
 

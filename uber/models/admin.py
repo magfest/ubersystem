@@ -157,7 +157,7 @@ class AdminAccount(MagModel):
 
     @property
     def full_dept_checklist_admin(self):
-        return any([group.has_full_access('dept_checklist_admin') for group in self.access_groups])
+        return any([group.has_full_access('dept_checklist') for group in self.access_groups])
 
     @property
     def full_attractions_admin(self):
