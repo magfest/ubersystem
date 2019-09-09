@@ -258,7 +258,7 @@ if c.DEALER_REG_START:
         'dealers/approved.html',
         lambda g: g.status == c.APPROVED,
         # query=Group.status == c.APPROVED,
-        needs_approval=False,
+        needs_approval=True,
         ident='dealer_reg_approved')
 
     MarketplaceEmailFixture(
