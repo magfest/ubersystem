@@ -15,12 +15,17 @@ from uber.utils import get_api_service_from_server
 @all_renderable()
 class Root:
     def import_attendees(self, session, target_server='', api_token='', query='', message=''):
+        load_message = message
         service, message, target_url = get_api_service_from_server(target_server, api_token)
+        message = message or load_message
 
-        try:
-            results = service.attendee.export(query=query)
-        except Exception as ex:
-            message = str(ex)
+        attendees, existing_attendees, results = {}, {}, {}
+
+        if service:
+            try:
+                results = service.attendee.export(query=query)
+            except Exception as ex:
+                message = str(ex)
 
         if cherrypy.request.method == 'POST' and not message:
             attendees = results.get('attendees', [])
@@ -48,8 +53,6 @@ class Root:
                     existing_key = (attendee.first_name.lower(), attendee.last_name.lower(), attendee.normalized_email)
                     attendees_by_name_email.pop(existing_key, {})
                 attendees = list(chain(*attendees_by_name_email.values()))
-            else:
-                existing_attendees = []
 
         return {
             'target_server': target_server,
@@ -71,11 +74,9 @@ class Root:
                                api_token,
                                query)
 
-        target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
-        results = {}
+        service, message, target_url = get_api_service_from_server(target_server, api_token)
+
         try:
-            uri = '{}/jsonrpc/'.format(target_url)
-            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
             results = service.attendee.export(query=','.join(listify(attendee_ids)), full=True)
         except Exception as ex:
             raise HTTPRedirect(
