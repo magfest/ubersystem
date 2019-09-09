@@ -100,7 +100,7 @@ class AutomatedEmailFixture:
             .replace('{EVENT_DATE}', c.EPOCH.strftime('%b %Y'))
         self.template = template
         self.format = 'text' if template.endswith('.txt') else 'html'
-        self.filter = filter and (lambda x: x.gets_emails)
+        self.filter = lambda x: (x.gets_emails and filter(x))
         self.ident = ident
         self.query = listify(query)
         self.query_options = listify(query_options)
