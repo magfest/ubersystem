@@ -99,7 +99,7 @@ def auth_by_session(required_access):
         check_csrf()
     except CSRFException:
         return (403, 'Your CSRF token is invalid. Please go back and try again.')
-    admin_account_id = cherrypy.session.get('account_id', None)
+    admin_account_id = cherrypy.session.get('account_id')
     if not admin_account_id:
         return (403, 'Missing admin account in session')
     with Session() as session:

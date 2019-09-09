@@ -758,7 +758,7 @@ class Root:
 
     @ajax
     def mark_as_paid(self, session, id, payment_method):
-        if cherrypy.session['reg_station'] == 0:
+        if cherrypy.session.get('reg_station') == 0:
             return {'success': False, 'message': 'Reg station 0 is for prereg only and may not accept payments'}
 
         attendee = session.attendee(id)
@@ -767,7 +767,7 @@ class Root:
             attendee.for_review += "Automated message: Stripe payment manually verified by admin."
         attendee.payment_method = payment_method
         attendee.amount_paid_override = attendee.total_cost
-        attendee.reg_station = cherrypy.session['reg_station']
+        attendee.reg_station = cherrypy.session.get('reg_station')
         session.commit()
         return {'success': True, 'message': 'Attendee marked as paid.', 'id': attendee.id}
 
@@ -806,7 +806,7 @@ class Root:
             if group:
                 session.match_to_group(attendee, group)
             attendee.checked_in = localized_now()
-            attendee.reg_station = cherrypy.session['reg_station']
+            attendee.reg_station = cherrypy.session.get('reg_station')
             message = '{a.full_name} checked in as {a.badge}{a.accoutrements}'.format(a=attendee)
             checked_in = attendee.id
             session.commit()
