@@ -613,10 +613,10 @@ class Config(_Overridable):
         override_access = ''
         if 'dept_admin' in c.PAGE_PATH:
             override_access = 'full_dept_admin'
-        elif 'shifts_admin' in c.PAGE_PATH:
-            override_access = 'full_shifts_admin'
         elif 'dept_checklist' in c.PAGE_PATH:
             override_access = 'full_dept_checklist_admin'
+        else:
+            override_access = 'full_shifts_admin'
 
         with Session() as session:
             query = session.query(Department).order_by(Department.name)
