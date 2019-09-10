@@ -50,7 +50,7 @@ def log_pageview(func):
     def with_check(*args, **kwargs):
         with uber.models.Session() as session:
             try:
-                session.admin_account(cherrypy.session['account_id'])
+                session.admin_account(cherrypy.session.get('account_id'))
             except Exception:
                 pass  # we don't care about public pages for this version
             else:
@@ -154,7 +154,7 @@ department_id_adapter = argmod(['location', 'department', 'department_id'], lamb
 @department_id_adapter
 def check_can_edit_dept(session, department_id=None, inherent_role=None, override_access=None):
     from uber.models import AdminAccount, DeptMembership, Department
-    account_id = cherrypy.session['account_id']
+    account_id = cherrypy.session.get('account_id')
     admin_account = session.query(AdminAccount).get(account_id)
     if not getattr(admin_account, override_access, None):
         dh_filter = [

@@ -75,7 +75,7 @@ class AdminAccount(MagModel):
         try:
             from uber.models import Session
             with Session() as session:
-                id = id or cherrypy.session['account_id']
+                id = id or cherrypy.session.get('account_id')
                 access_groups = session.admin_account(id).access_groups
                 access_list = [list(group.access) for group in access_groups]
                 if include_read_only:
@@ -125,7 +125,7 @@ class AdminAccount(MagModel):
         try:
             from uber.models import Session
             with Session() as session:
-                id = id or cherrypy.session['account_id']
+                id = id or cherrypy.session.get('account_id')
                 admin_account = session.admin_account(id)
                 return admin_account.judge or 'mivs_judging' in admin_account.access_set(include_read_only=True)
         except Exception:
@@ -157,7 +157,7 @@ class AdminAccount(MagModel):
 
     @property
     def full_dept_checklist_admin(self):
-        return any([group.has_full_access('dept_checklist_admin') for group in self.access_groups])
+        return any([group.has_full_access('dept_checklist') for group in self.access_groups])
 
     @property
     def full_attractions_admin(self):

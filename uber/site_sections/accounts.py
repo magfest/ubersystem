@@ -228,7 +228,7 @@ class Root:
 
         if updater_password is not None:
             new_password = new_password.strip()
-            updater_account = session.admin_account(cherrypy.session['account_id'])
+            updater_account = session.admin_account(cherrypy.session.get('account_id'))
             if not new_password:
                 message = 'New password is required'
             elif not valid_password(updater_password, updater_account):
@@ -261,7 +261,7 @@ class Root:
 
         if old_password is not None:
             new_password = new_password.strip()
-            account = session.admin_account(cherrypy.session['account_id'])
+            account = session.admin_account(cherrypy.session.get('account_id'))
             if not new_password:
                 message = 'New password is required'
             elif not valid_password(old_password, account):

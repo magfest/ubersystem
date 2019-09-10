@@ -525,7 +525,7 @@ class Config(_Overridable):
     @property
     def CSRF_TOKEN(self):
         uber.utils.ensure_csrf_token_exists()
-        return cherrypy.session['csrf_token'] if 'csrf_token' in cherrypy.session else ''
+        return cherrypy.session.get('csrf_token', '')
 
     @property
     def QUERY_STRING(self):
@@ -562,7 +562,7 @@ class Config(_Overridable):
             with Session() as session:
                 attrs = Attendee.to_dict_default_attrs + ['admin_account', 'assigned_depts']
                 admin_account = session.query(AdminAccount) \
-                    .filter_by(id=cherrypy.session['account_id']) \
+                    .filter_by(id=cherrypy.session.get('account_id')) \
                     .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts)).one()
 
                 return admin_account.attendee.to_dict(attrs)
@@ -613,10 +613,10 @@ class Config(_Overridable):
         override_access = ''
         if 'dept_admin' in c.PAGE_PATH:
             override_access = 'full_dept_admin'
-        elif 'shifts_admin' in c.PAGE_PATH:
-            override_access = 'full_shifts_admin'
         elif 'dept_checklist' in c.PAGE_PATH:
             override_access = 'full_dept_checklist_admin'
+        else:
+            override_access = 'full_shifts_admin'
 
         with Session() as session:
             query = session.query(Department).order_by(Department.name)
@@ -715,7 +715,7 @@ class Config(_Overridable):
     @cached_property
     def ADMIN_PAGES(self):
         # Build a list of all site sections and their pages
-        public_site_sections = ['static_views', 'angular', 'public']
+        public_site_sections = ['static_views', 'angular', 'public', 'staffing']
         public_pages = []
         site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
         modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}

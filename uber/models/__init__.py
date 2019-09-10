@@ -662,13 +662,13 @@ class Session(SessionManager):
 
     class SessionMixin:
         def current_admin_account(self):
-            return self.admin_account(cherrypy.session['account_id'])
+            return self.admin_account(cherrypy.session.get('account_id'))
 
         def admin_attendee(self):
-            return self.admin_account(cherrypy.session['account_id']).attendee
+            return self.admin_account(cherrypy.session.get('account_id')).attendee
 
         def logged_in_volunteer(self):
-            return self.attendee(cherrypy.session['staffer_id'])
+            return self.attendee(cherrypy.session.get('staffer_id'))
 
         def attendees_share_departments(self, first, second):
             return set(first.assigned_depts_ids).intersection(second.assigned_depts_ids)
@@ -1413,7 +1413,7 @@ class Session(SessionManager):
 
         def logged_in_studio(self):
             try:
-                return self.indie_studio(cherrypy.session['studio_id'])
+                return self.indie_studio(cherrypy.session.get('studio_id'))
             except Exception:
                 raise HTTPRedirect('../mivs/studio')
 
@@ -1474,7 +1474,7 @@ class Session(SessionManager):
 
         def logged_in_mits_team(self):
             try:
-                team = self.mits_team(cherrypy.session['mits_team_id'])
+                team = self.mits_team(cherrypy.session.get('mits_team_id'))
                 assert not team.deleted or team.duplicate_of
             except Exception:
                 raise HTTPRedirect('../mits/login_explanation')
