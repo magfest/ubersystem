@@ -1079,11 +1079,11 @@ class Charge:
             return uber.models.commerce.StripeTransactionAttendee(
                 txn_id=txn.id,
                 attendee_id=model.id,
-                share=self.amount if not multi else model.amount_unpaid
+                share=self.amount if not multi else model.amount_unpaid * 100
             )
         elif model.__class__.__name__ == "Group":
             return uber.models.commerce.StripeTransactionGroup(
                 txn_id=txn.id,
                 group_id=model.id,
-                share=self.amount if not multi else model.amount_unpaid
+                share=self.amount if not multi else model.amount_unpaid * 100
             )
