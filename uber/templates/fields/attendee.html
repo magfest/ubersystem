@@ -1216,7 +1216,7 @@
       <input type="checkbox" name="pii_consent" id="pii_consent" value="1" required {% if pii_consent %}checked{% endif %} />
       <strong>Yes</strong>, I understand and agree that {{ c.ORGANIZATION_NAME }} will store the personal information I provided above for the limited purposes of contacting me about my registration, hotel accommodations, kick-in packages, or volunteer opportunities selected at sign-up.
     </label>
-    {% if not admin_area and c.PRIVACY_URL %}
+    {% if not admin_area and c.PRIVACY_POLICY_URL %}
         <p class="help-block">
           For more information please check out our <a href="{{ c.PRIVACY_POLICY_URL }}" target="_blank">Privacy Policy</a>.
         </p>
