@@ -547,6 +547,7 @@ def redirect_to_allowed_dept(session, department_id, page):
 
     if not department_id:
         department_id = cherrypy.session.get('prev_department_id') or c.DEFAULT_DEPARTMENT_ID
+        raise HTTPRedirect('{}?department_id={}'.format(page, department_id))
     if 'shifts_admin' in c.PAGE_PATH:
         can_access = session.admin_attendee().can_admin_shifts_for(department_id)
     elif 'dept_checklist' in c.PAGE_PATH:
@@ -556,7 +557,7 @@ def redirect_to_allowed_dept(session, department_id, page):
 
     if not can_access:
         if department_id == c.DEFAULT_DEPARTMENT_ID:
-            raise HTTPRedirect('landing/?message={}'.format("You do not have access to this page, sorry!"))
+            raise HTTPRedirect('landing/?message={}'.format("You do not have access to this page."))
         raise HTTPRedirect('{}?department_id={}'.format(page, c.DEFAULT_DEPARTMENT_ID))
 
 

@@ -15,9 +15,8 @@ from uber.utils import get_api_service_from_server
 @all_renderable()
 class Root:
     def import_attendees(self, session, target_server='', api_token='', query='', message=''):
-        load_message = message
-        service, message, target_url = get_api_service_from_server(target_server, api_token)
-        message = message or load_message
+        service, service_message, target_url = get_api_service_from_server(target_server, api_token)
+        message = message or service_message
 
         attendees, existing_attendees, results = {}, {}, {}
 
