@@ -747,7 +747,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         badge_balance = self.balance_by_item_type(item_type)
         discount = self.new_badge_cost - self.badge_cost
 
-        if not self.badge_cost or badge_balance >= self.badge_cost:
+        if not self.badge_cost or badge_balance >= self.badge_cost or self.paid == c.PAID_BY_GROUP:
             return None, None, None
 
         return (
