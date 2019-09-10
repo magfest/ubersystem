@@ -1183,7 +1183,7 @@
     <label for="requested_accessibility_services_option" class="col-sm-3 control-label optional-field">Accessibility Services</label>
     {% if c.HAS_OTHER_REPORTS_ACCESS or not admin_area %}
       <div class="checkbox col-sm-9">
-        {{ macros.checkbox(attendee, 'requested_accessibility_services', label='I would like to be contacted by the ' ~ c.EVENT_NAME ~ ' Accessibility Services department prior to the event.', is_readonly=read_only) }}
+        {{ macros.checkbox(attendee, 'requested_accessibility_services', label='I would like to be contacted by the ' ~ c.EVENT_NAME ~ ' Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', is_readonly=read_only) }}
       </div>
     {% else %}
       <div class="form-control-static">
@@ -1200,8 +1200,8 @@
 <div class="form-group">
   <label for="email_option" class="col-sm-3 control-label optional-field">Keep Me Updated</label>
   <div class="checkbox col-sm-9">
-    {{ macros.checkbox(attendee, 'can_spam', label='Send me emails relating to ' ~ organization_with_event_name() ~ ' in future years.', is_readonly=read_only) }}<br/>
-    {% if not admin_area %}<span class="popup">{{ macros.popup_link("../static_views/privacy.html", "View Our Privacy Policy") }}</span>{% endif %}
+    {{ macros.checkbox(attendee, 'can_spam', label='Please send me emails relating to ' ~ organization_with_event_name() ~ ' in future years.', is_readonly=read_only) }}<br/>
+    {% if not admin_area %}<span class="popup">{{ macros.popup_link("../static_views/privacy.html", "View Our Spam Policy") }}</span>{% endif %}
   </div>
 </div>
 {% endset %}
@@ -1214,8 +1214,13 @@
   <div class="checkbox col-sm-9 col-sm-offset-3">
     <label for="pii_consent" class="checkbox-label">
       <input type="checkbox" name="pii_consent" id="pii_consent" value="1" required {% if pii_consent %}checked{% endif %} />
-      <strong>Yes</strong>, I understand that {{ c.ORGANIZATION_NAME }} will store the personal information I provided above for the purpose of contacting me about my registration.
+      <strong>Yes</strong>, I understand and agree that {{ c.ORGANIZATION_NAME }} will store the personal information I provided above for the limited purposes of contacting me about my registration, hotel accommodations, kick-in packages, or volunteer opportunities selected at sign-up.
     </label>
+    {% if not admin_area and c.PRIVACY_URL %}
+        <p class="help-block">
+          For more information please check out our <a href="{{ c.PRIVACY_POLICY_URL }}" target="_blank">Privacy Policy</a>.
+        </p>
+      {% endif %}
   </div>
 {% endcall %}
 </div>
