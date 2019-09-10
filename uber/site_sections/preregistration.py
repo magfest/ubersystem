@@ -184,6 +184,8 @@ class Root:
                 'copy_address': params.get('copy_address'),
                 'promo_code': params.get('promo_code', ''),
                 'pii_consent': params.get('pii_consent'),
+                'name': params.get('name', ''),
+                'badges': params.get('badges', 0),
             }
 
         if 'first_name' in params:
@@ -275,7 +277,8 @@ class Root:
         return {
             'message':    message,
             'attendee':   attendee,
-            'badges': params['badges'] if 'badges' in params else 0,
+            'badges': params.get('badges', 0),
+            'name': params.get('name', ''),
             'group':      group,
             'promo_code_group': promo_code_group,
             'edit_id':    edit_id,
@@ -378,7 +381,6 @@ class Root:
         # from this point on, the credit card has actually been charged but we haven't marked anything as charged yet.
         # be ultra-careful until the attendees/groups are marked paid and written to the DB or we could end up in a
         # situation where we took the payment, but didn't mark the cards charged
-
         for attendee in charge.attendees:
             attendee.paid = c.HAS_PAID
             attendee_name = 'PLACEHOLDER' if attendee.is_unassigned else attendee.full_name
@@ -388,7 +390,6 @@ class Root:
             if attendee.badges:
                 pc_group = session.create_promo_code_group(attendee, attendee.name, int(attendee.badges) - 1)
                 session.add(pc_group)
-                session.commit()
 
             session.add_receipt_items_by_model(charge, attendee)
             attendee.amount_paid_override = attendee.total_cost

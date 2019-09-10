@@ -64,14 +64,14 @@
 {% endset %}
 
 
-{% set name %}
+{% set group_name %}
 {% set read_only = group_name_ro or page_ro %}
 <div class="group_fields">
   <div class="form-group">
     <label for="name" class="col-sm-3 control-label">{{ "Table" if attendee_or_group.is_dealer else "Group" }} Name</label>
     {% call macros.read_only_if(read_only, attendee_or_group.name) %}
       <div class="col-sm-6">
-        <input type="text" name="name" class="form-control" value="{{ attendee_or_group.name }}" maxlength="40" />
+        <input type="text" name="name" class="form-control" value="{{ name|default(attendee_or_group.name) }}" maxlength="40" />
       </div>
     {% endcall %}
   </div>
@@ -122,7 +122,7 @@
     <label for="badges" class="col-sm-3 control-label">Badges</label>
     {% call macros.read_only_if(read_only, attendee_or_group.badges, post_text=post_text) %}
       <div class="col-sm-6">
-        <select name="badges" class="form-control">{{ int_options(0 if admin_area else min_badges, max_badges, attendee_or_group.badges) }}</select>
+        <select name="badges" class="form-control">{{ int_options(0 if admin_area else min_badges, max_badges, badges|default(attendee_or_group.badges)) }}</select>
         {% if post_text %}<span class="form-control-static">{{ post_text }}</span>{% endif %}
       </div>
     {% endcall %}
