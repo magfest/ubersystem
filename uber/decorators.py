@@ -50,7 +50,7 @@ def log_pageview(func):
     def with_check(*args, **kwargs):
         with uber.models.Session() as session:
             try:
-                session.admin_account(cherrypy.session['account_id'])
+                session.admin_account(cherrypy.session.get('account_id'))
             except Exception:
                 pass  # we don't care about public pages for this version
             else:
@@ -152,11 +152,11 @@ department_id_adapter = argmod(['location', 'department', 'department_id'], lamb
 
 
 @department_id_adapter
-def check_dept_admin(session, department_id=None, inherent_role=None):
+def check_can_edit_dept(session, department_id=None, inherent_role=None, override_access=None):
     from uber.models import AdminAccount, DeptMembership, Department
-    account_id = cherrypy.session['account_id']
+    account_id = cherrypy.session.get('account_id')
     admin_account = session.query(AdminAccount).get(account_id)
-    if not admin_account.access_group.full_dept_admin:
+    if not getattr(admin_account, override_access, None):
         dh_filter = [
             AdminAccount.id == account_id,
             AdminAccount.attendee_id == DeptMembership.attendee_id]
@@ -179,14 +179,12 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
             return 'You must be a department admin{} to complete that action.'.format(dept_msg)
 
 
-def assert_dept_admin(session, department_id=None, inherent_role=None):
-    message = check_dept_admin(session, department_id, inherent_role)
-    if message:
-        raise HTTPRedirect("../landing/invalid?message={}", message)
+def check_dept_admin(session, department_id=None, inherent_role=None):
+    return check_can_edit_dept(session, department_id, inherent_role, override_access='full_dept_admin')
 
 
-def requires_dept_admin(func=None, inherent_role=None):
-    def _decorator(func, inherent_role=None):
+def requires_admin(func=None, inherent_role=None, override_access=None):
+    def _decorator(func, inherent_role=inherent_role):
         @wraps(func)
         def _protected(*args, **kwargs):
             if cherrypy.request.method == 'POST':
@@ -194,7 +192,9 @@ def requires_dept_admin(func=None, inherent_role=None):
                     'department_id', kwargs.get('department', kwargs.get('location', kwargs.get('id'))))
 
                 with uber.models.Session() as session:
-                    assert_dept_admin(session, department_id, inherent_role)
+                    message = check_can_edit_dept(session, department_id, inherent_role, override_access)
+                    if message:
+                        raise HTTPRedirect('../landing/invalid?message={}'.format(message))
             return func(*args, **kwargs)
         return _protected
 
@@ -202,6 +202,14 @@ def requires_dept_admin(func=None, inherent_role=None):
         return functools.partial(_decorator, inherent_role=func)
     else:
         return _decorator(func)
+
+
+def requires_dept_admin(func=None, inherent_role=None):
+    return requires_admin(func, inherent_role, override_access='full_dept_admin')
+
+
+def requires_shifts_admin(func=None, inherent_role=None):
+    return requires_admin(func, inherent_role, override_access='full_shifts_admin')
 
 
 def csrf_protected(func):
@@ -643,6 +651,8 @@ class all_renderable:
         self.public = public
 
     def __call__(self, klass):
+        if self.public:
+            klass = public(klass)
         for name, func in klass.__dict__.items():
             if hasattr(func, '__call__'):
                 new_func = set_renderable(func, self.public)
@@ -701,6 +711,25 @@ class cost_property(property):
             @cost_property
             def food_price(self):
                 return c.FOOD_PRICE if self.purchased_food else 0
+    """
+
+
+class receipt_item(property):
+    """
+    Receipt items should correspond to cost properties and return three
+    things: the amount (in cents) the item costs, a description of
+    the item, and the item's type (from [[receipt_item]] in config.
+    These items then get added to the ReceiptItem table to help
+    track what payments correspond to what. For example:
+
+        @Session.model_mixin
+        class Attendee:
+            purchased_food = Column(Boolean, default=False)
+
+            @receipt_item
+            def food_receipt_item(self):
+                if not self.balance_by_item_type(c.FOOD):
+                    return self.food_price * 100, "Prepurchasing meal ticket", c.FOOD
     """
 
 

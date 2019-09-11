@@ -66,7 +66,7 @@
       <h2>"{{ group.name }}" Information</h2>
       <form method="post" action="group_members" class="form-horizontal" role="form">
         <input type="hidden" name="id" value="{{ group.id }}" />
-        {% if not page_ro %}{{ group_fields.name }}{% endif %}
+        {% if not page_ro %}{{ group_fields.group_name }}{% endif %}
         {{ group_fields.categories }}
         {{ group_fields.wares }}
         {{ group_fields.description }}
@@ -138,7 +138,7 @@
                 {% elif attendee.is_transferable and attendee.total_donation %}
                   <form method="get" action="transfer_badge">
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
-                    <b> Added on an extra ${{ attendee.total_donation }}! </b>
+                    <b> Added on an extra ${{ '%0.2f' % attendee.total_donation }}! </b>
                     <input type="submit" value="Transfer Registration" />
                   </form>
                 {% endif %}

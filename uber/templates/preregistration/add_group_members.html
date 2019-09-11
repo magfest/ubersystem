@@ -7,7 +7,7 @@
   <div class="panel-body">
     <h2> Add Members to {{ group.name }} </h2>
 
-    You've indicated you'd like to add {{ count }} {{ group.is_dealer|yesno(c.DEALER_HELPER_TERM + "s,group members") }}, at a cost of ${{ charge.dollar_amount }}.
+    You've indicated you'd like to add {{ count }} {{ group.is_dealer|yesno(c.DEALER_HELPER_TERM + "s,group members") }}, at a cost of ${{ '%0.2f' % charge.dollar_amount }}.
 
     <table style="width: auto; margin: 15px auto 0;">
       <tr>

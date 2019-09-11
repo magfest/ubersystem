@@ -13,18 +13,11 @@
     }
 </script>
 
+{% include "dept_checklist/dept_menu.html" %}
+
 <h2> {{ department_name }} Hotel Requests </h2>
 
 <div class="center">
-    <script>
-        var deptChanged = function () {
-            window.location = 'requests?department_id=' + $('#deptDropdown').val();
-        };
-    </script>
-    <select id="deptDropdown" onChange="deptChanged()">
-        <option value="">All Departments</option>
-        {{ options(c.DEPARTMENT_OPTS, department_id) }}
-    </select>
     {% if checklist.relevant %}
         <br/>
         {% if checklist.completed %}
@@ -66,7 +59,7 @@
 
 {% for request in requests %}
     <tr bgcolor="{{ loop.cycle('#FFFFFF','#DDDDDD') }}">
-        <td><a href="../registration/form?id={{ request.attendee.id }}">{{ request.attendee.full_name }}</a></td>
+        <td><a href="../shifts_admin/attendee_form?id={{ request.attendee.id }}">{{ request.attendee.full_name }}</a></td>
         <td>{{ request.attendee.assigned_depts_labels|join(" / ") }}</td>
         {% if admin_has_room_access %}
           <td>{{ request.wanted_roommates|linebreaksbr }}</td>

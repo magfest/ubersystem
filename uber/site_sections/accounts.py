@@ -27,10 +27,6 @@ def valid_password(password, account):
     return any(bcrypt.hashpw(password, hashed) == hashed for hashed in all_hashed)
 
 
-def access_group_opts(session):
-    return [(id, name) for id, name in session.query(AccessGroup.id, AccessGroup.name).order_by(AccessGroup.name)]
-
-
 @all_renderable()
 class Root:
     def index(self, session, message=''):
@@ -48,7 +44,6 @@ class Root:
                          .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts))
                          .order_by(Attendee.last_first).all()),
             'all_attendees': sorted(attendees, key=lambda tup: tup[1]),
-            'access_group_opts': access_group_opts(session),
         }
 
     @csrf_protected
@@ -103,7 +98,6 @@ class Root:
         return {
             'department_id':  department_id,
             'attendees': attendees,
-            'access_group_opts': access_group_opts(session),
         }
 
     def access_groups(self, session, message='', **params):
@@ -134,7 +128,6 @@ class Root:
         return {
             'message': message,
             'access_group': access_group,
-            'access_group_opts': access_group_opts(session)
         }
 
     @ajax
@@ -235,7 +228,7 @@ class Root:
 
         if updater_password is not None:
             new_password = new_password.strip()
-            updater_account = session.admin_account(cherrypy.session['account_id'])
+            updater_account = session.admin_account(cherrypy.session.get('account_id'))
             if not new_password:
                 message = 'New password is required'
             elif not valid_password(updater_password, updater_account):
@@ -268,7 +261,7 @@ class Root:
 
         if old_password is not None:
             new_password = new_password.strip()
-            account = session.admin_account(cherrypy.session['account_id'])
+            account = session.admin_account(cherrypy.session.get('account_id'))
             if not new_password:
                 message = 'New password is required'
             elif not valid_password(old_password, account):

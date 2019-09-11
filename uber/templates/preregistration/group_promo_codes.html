@@ -20,7 +20,7 @@
     {% include 'confirm_tabs.html' with context %}
 
     <h2> Members of "{{ group.name }}" </h2>
-    You have bought {{ group.promo_codes|length }} promo codes for a total of ${{ group.total_cost }} (not including your badge).
+    You have bought {{ group.promo_codes|length }} promo codes for a total of ${{ '%0.2f' % group.total_cost }} (not including your badge).
     {% if group.valid_codes %}Anyone can register a badge under this group using either an unclaimed promo code below or this group's universal code, <strong>{{ group.code }}</strong>.
     {% else %}All promo codes have been claimed. Please email us at {{ c.REGDESK_EMAIL|email_to_link }} if a promo code was claimed in error.{% endif %}
     <br/><br/><strong>Here are the promo codes for your group "{{ group.name }}" and who is using them:</strong>

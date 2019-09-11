@@ -99,7 +99,7 @@ def auth_by_session(required_access):
         check_csrf()
     except CSRFException:
         return (403, 'Your CSRF token is invalid. Please go back and try again.')
-    admin_account_id = cherrypy.session.get('account_id', None)
+    admin_account_id = cherrypy.session.get('account_id')
     if not admin_account_id:
         return (403, 'Missing admin account in session')
     with Session() as session:
@@ -107,7 +107,7 @@ def auth_by_session(required_access):
         if not admin_account:
             return (403, 'Invalid admin account in session')
         for access_level in required_access:
-            if not getattr(admin_account.access_group.access, access_level, None):
+            if not getattr(admin_account.access, access_level, None):
                 return (403, 'Insufficient access for admin account')
     return None
 
@@ -345,7 +345,6 @@ class AttendeeLookup:
                 raise HTTPError(404, 'No attendee found with matching information')
 
             return attendee.to_dict(fields)
-
 
     def export(self, query, full=False):
         """

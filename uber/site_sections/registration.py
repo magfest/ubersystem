@@ -43,7 +43,7 @@ def pre_checkin_check(attendee, group):
         return attendee.full_name + ' was already checked in!'
 
     if group and attendee.paid == c.PAID_BY_GROUP and group.amount_unpaid:
-        return 'This attendee\'s group has an outstanding balance of ${}'.format(group.amount_unpaid)
+        return 'This attendee\'s group has an outstanding balance of ${}'.format('%0.2f' % group.amount_unpaid)
 
     if attendee.paid == c.NOT_PAID:
         return 'You cannot check in an attendee that has not paid.'
@@ -280,7 +280,7 @@ class Root:
                 message = 'Unassigned badge removed.'
             else:
                 replacement_attendee = Attendee(**{attr: getattr(attendee, attr) for attr in [
-                    'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_paid', 'amount_extra'
+                    'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_paid_override', 'amount_extra'
                 ]})
                 if replacement_attendee.group and replacement_attendee.group.is_dealer:
                     replacement_attendee.ribbon = add_opt(replacement_attendee.ribbon_ints, c.DEALER_RIBBON)
@@ -707,7 +707,8 @@ class Root:
             if db_attendee:
                 attendee = db_attendee
             attendee.paid = c.HAS_PAID
-            attendee.amount_paid = attendee.total_cost
+            session.add_receipt_items_by_model(charge, attendee)
+            attendee.amount_paid_override = attendee.total_cost
             session.add(attendee)
             raise HTTPRedirect(
                 'register?message={}', c.AT_DOOR_PREPAID_MSG)
@@ -757,7 +758,7 @@ class Root:
 
     @ajax
     def mark_as_paid(self, session, id, payment_method):
-        if cherrypy.session['reg_station'] == 0:
+        if cherrypy.session.get('reg_station') == 0:
             return {'success': False, 'message': 'Reg station 0 is for prereg only and may not accept payments'}
 
         attendee = session.attendee(id)
@@ -765,8 +766,8 @@ class Root:
         if int(payment_method) == c.STRIPE_ERROR:
             attendee.for_review += "Automated message: Stripe payment manually verified by admin."
         attendee.payment_method = payment_method
-        attendee.amount_paid = attendee.total_cost
-        attendee.reg_station = cherrypy.session['reg_station']
+        attendee.amount_paid_override = attendee.total_cost
+        attendee.reg_station = cherrypy.session.get('reg_station')
         session.commit()
         return {'success': True, 'message': 'Attendee marked as paid.', 'id': attendee.id}
 
@@ -781,7 +782,8 @@ class Root:
         else:
             attendee.paid = c.HAS_PAID
             attendee.payment_method = c.MANUAL
-            attendee.amount_paid = attendee.total_cost
+            session.add_receipt_items_by_model(charge, attendee)
+            attendee.amount_paid_override = attendee.total_cost
             session.merge(attendee)
             session.commit()
             return {'success': True, 'message': 'Payment accepted.', 'id': attendee.id}
@@ -804,7 +806,7 @@ class Root:
             if group:
                 session.match_to_group(attendee, group)
             attendee.checked_in = localized_now()
-            attendee.reg_station = cherrypy.session['reg_station']
+            attendee.reg_station = cherrypy.session.get('reg_station')
             message = '{a.full_name} checked in as {a.badge}{a.accoutrements}'.format(a=attendee)
             checked_in = attendee.id
             session.commit()
@@ -862,10 +864,10 @@ class Root:
             params['sales'] = sales
             params['attendees'] = attendees
             params['total_cash'] = \
-                sum(a.amount_paid for a in attendees if a.payment_method == c.CASH) \
+                sum((a.amount_paid / 100) for a in attendees if a.payment_method == c.CASH) \
                 + sum(s.cash for s in sales if s.payment_method == c.CASH)
             params['total_credit'] = \
-                sum(a.amount_paid for a in attendees if a.payment_method in [c.STRIPE, c.SQUARE, c.MANUAL]) \
+                sum((a.amount_paid / 100) for a in attendees if a.payment_method in [c.STRIPE, c.SQUARE, c.MANUAL]) \
                 + sum(s.cash for s in sales if s.payment_method == c.CREDIT)
         else:
             params['endday'] = localized_now().strftime('%Y-%m-%d')
@@ -895,48 +897,6 @@ class Root:
         attendee.badge_num = None
         attendee.checked_in = attendee.group = None
         raise HTTPRedirect('new?message={}', 'Attendee un-checked-in')
-
-    def shifts(self, session, id, shift_id='', message=''):
-        attendee = session.attendee(id, allow_invalid=True)
-        attrs = Shift.to_dict_default_attrs + ['worked_label']
-        return {
-            'message': message,
-            'shift_id': shift_id,
-            'attendee': attendee,
-            'shifts': {s.id: s.to_dict(attrs) for s in attendee.shifts},
-            'jobs': [
-                (job.id, '({}) [{}] {}'.format(job.timespan(), job.department_name, job.name))
-                for job in attendee.available_jobs
-                if job.start_time + timedelta(hours=job.duration + 2) > localized_now()]
-        }
-
-    @csrf_protected
-    def update_nonshift(self, session, id, nonshift_hours):
-        attendee = session.attendee(id, allow_invalid=True)
-        if not re.match('^[0-9]+$', nonshift_hours):
-            raise HTTPRedirect('shifts?id={}&message={}', attendee.id, 'Invalid integer')
-        else:
-            attendee.nonshift_hours = int(nonshift_hours)
-            raise HTTPRedirect('shifts?id={}&message={}', attendee.id, 'Non-shift hours updated')
-
-    @csrf_protected
-    def update_notes(self, session, id, admin_notes, for_review=None):
-        attendee = session.attendee(id, allow_invalid=True)
-        attendee.admin_notes = admin_notes
-        if for_review is not None:
-            attendee.for_review = for_review
-        raise HTTPRedirect('shifts?id={}&message={}', id, 'Notes updated')
-
-    @csrf_protected
-    def assign(self, session, staffer_id, job_id):
-        message = session.assign(staffer_id, job_id) or 'Shift added'
-        raise HTTPRedirect('shifts?id={}&message={}', staffer_id, message)
-
-    @csrf_protected
-    def unassign(self, session, shift_id):
-        shift = session.shift(shift_id)
-        session.delete(shift)
-        raise HTTPRedirect('shifts?id={}&message={}', shift.attendee.id, 'Staffer unassigned from shift')
 
     def feed(self, session, message='', page='1', who='', what='', action=''):
         feed = session.query(Tracking).filter(Tracking.action != c.AUTO_BADGE_SHIFT).order_by(Tracking.when.desc())
@@ -1031,27 +991,6 @@ class Root:
                 raise HTTPRedirect('../preregistration/confirm?id={}', attendee.id)
 
         return {'message': message}
-
-    @department_id_adapter
-    def placeholders(self, session, department_id=None):
-        dept_filter = [] if not department_id else [Attendee.dept_memberships.any(department_id=department_id)]
-        placeholders = session.query(Attendee).filter(
-            Attendee.placeholder == True,
-            Attendee.staffing == True,
-            Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
-            *dept_filter).order_by(Attendee.full_name).all()  # noqa: E712
-
-        try:
-            checklist = session.checklist_status('placeholders', department_id)
-        except ValueError:
-            checklist = {'conf': None, 'relevant': False, 'completed': None}
-
-        return {
-            'department_id': department_id,
-            'dept_name': session.query(Department).get(department_id).name if department_id else 'All',
-            'checklist': checklist,
-            'placeholders': placeholders
-        }
 
     def inactive(self, session):
         return {

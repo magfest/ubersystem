@@ -32,7 +32,7 @@
                         $showLink.hide();
                     })
                 ).append('.');
-        {% elif game.status == c.JUDGING %}
+        {% else %}
             $('#mark-form').show();
         {% endif %}
     });

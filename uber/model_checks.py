@@ -49,7 +49,6 @@ def read_only_makes_sense(group):
 AdminAccount.required = [
     ('attendee', 'Attendee'),
     ('hashed', 'Password'),
-    ('access_group_id', 'Access Group')
 ]
 
 
@@ -69,25 +68,12 @@ def has_email_address(account):
                 return "Attendee doesn't have a valid email set"
 
 
-@validation.AdminAccount
-def admin_has_required_access(account):
-    if (account.is_new or (account.orig_value_of('access_group_id')
-                           and account.orig_value_of('access_group_id') != account.access_group_id)) \
-            and getattr(account.access_group, 'required_access_groups', None):
-        with Session() as session:
-            admin_account = session.current_admin_account()
-            for access_group in account.access_group.required_access_groups:
-                if admin_account.access_group == access_group:
-                    return
-            return 'You are not in an access group that can assign that access group'
-
-
 ApiToken.required = [('name', 'Name'), ('description', 'Intended Usage'), ('access', 'Access Controls')]
 
 
 @validation.ApiToken
 def admin_has_required_api_access(api_token):
-    admin_account_id = cherrypy.session['account_id']
+    admin_account_id = cherrypy.session.get('account_id')
     if api_token.is_new and admin_account_id != api_token.admin_account_id:
         return 'You may not create an API token for another user'
 
@@ -95,7 +81,7 @@ def admin_has_required_api_access(api_token):
         admin_account = session.current_admin_account()
         for access_level in set(api_token.access_ints):
             access_name = 'api_' + c.API_ACCESS[access_level].lower()
-            if not getattr(admin_account.access_group, access_name, None):
+            if not getattr(admin_account, access_name, None):
                 return 'You do not have permission to create a token with {} access'.format(c.API_ACCESS[access_level])
 
 
@@ -166,22 +152,6 @@ def group_money(group):
         except Exception:
             return "What you entered for Total Group Price ({}) isn't even a number".format(group.cost)
 
-    try:
-        amount_paid = int(float(group.amount_paid if group.amount_paid else 0))
-        if amount_paid < 0:
-            return 'Amount Paid must be a number that is 0 or higher.'
-    except Exception:
-        return "What you entered for Amount Paid ({}) isn't even a number".format(group.amount_paid)
-
-    try:
-        amount_refunded = int(float(group.amount_refunded if group.amount_refunded else 0))
-        if amount_refunded < 0:
-            return 'Amount Refunded must be positive'
-        elif amount_refunded > amount_paid:
-            return 'Amount Refunded cannot be greater than Amount Paid'
-    except Exception:
-        return "What you entered for Amount Refunded ({}) wasn't even a number".format(group.amount_refunded)
-
 
 @prereg_validation.Group
 def edit_only_correct_statuses(group):
@@ -234,14 +204,24 @@ def group_leader_under_13(attendee):
         return "Children under 13 cannot be group leaders."
 
 
+@validation.Attendee
+def extra_donation_valid(attendee):
+    try:
+        extra_donation = int(float(attendee.extra_donation or 0))
+        if extra_donation < 0:
+            return 'Extra Donation must be a number that is 0 or higher.'
+    except Exception:
+        return "What you entered for Extra Donation ({}) isn't even a number".format(attendee.extra_donation)
+
+
 @prereg_validation.Attendee
 def total_cost_over_paid(attendee):
-    if attendee.total_cost < attendee.amount_paid:
+    if (attendee.total_cost * 100) < attendee.amount_paid:
         if (not attendee.orig_value_of('birthdate') or attendee.orig_value_of('birthdate') < attendee.birthdate) \
                 and attendee.age_group_conf['val'] in [c.UNDER_6, c.UNDER_13]:
             return 'The date of birth you entered incurs a discount; ' \
                 'please email {} to change your badge and receive a refund'.format(c.REGDESK_EMAIL)
-        return 'You have already paid ${}, you cannot reduce your extras below that.'.format(attendee.amount_paid)
+        return 'You have already paid ${}, you cannot reduce your extras below that.'.format(attendee.amount_paid / 100)
 
 
 @validation.Attendee
@@ -360,7 +340,7 @@ def address(attendee):
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def zip_code(attendee):
-    if not attendee.international and not c.AT_OR_POST_CON and attendee.country == 'United States':
+    if not attendee.international and not c.AT_OR_POST_CON and (not c.COLLECT_FULL_ADDRESS or attendee.country == 'United States'):
         if _invalid_zip_code(attendee.zip_code):
             return 'Enter a valid zip code'
 
@@ -434,13 +414,6 @@ def banned_volunteer(attendee):
 @validation.Attendee
 def attendee_money(attendee):
     try:
-        amount_paid = int(float(attendee.amount_paid))
-        if amount_paid < 0:
-            return 'Amount Paid cannot be less than zero'
-    except Exception:
-        return "What you entered for Amount Paid ({}) wasn't even a number".format(attendee.amount_paid)
-
-    try:
         amount_extra = int(float(attendee.amount_extra or 0))
         if amount_extra < 0:
             return 'Amount extra must be a positive integer'
@@ -454,17 +427,6 @@ def attendee_money(attendee):
                 return 'Overridden price must be a positive integer'
         except Exception:
             return 'Invalid overridden price ({})'.format(attendee.overridden_price)
-
-    try:
-        amount_refunded = int(float(attendee.amount_refunded))
-        if amount_refunded < 0:
-            return 'Amount Refunded must be positive'
-        elif amount_refunded > amount_paid:
-            return 'Amount Refunded cannot be greater than Amount Paid'
-        elif attendee.paid == c.REFUNDED and amount_refunded == 0:
-            return 'Amount Refunded may not be 0 if the attendee is marked Paid and Refunded'
-    except Exception:
-        return "What you entered for Amount Refunded ({}) wasn't even a number".format(attendee.amount_refunded)
 
 
 @validation.Attendee
@@ -518,16 +480,6 @@ def invalid_badge_name(attendee):
     if attendee.badge_printed_name and localized_now() <= c.get_printed_badge_deadline_by_type(attendee.badge_type) \
             and re.search(c.INVALID_BADGE_PRINTED_CHARS, attendee.badge_printed_name):
         return 'Your printed badge name has invalid characters. Please use only alphanumeric characters and symbols.'
-
-
-@validation.Attendee
-def extra_donation_valid(attendee):
-    try:
-        extra_donation = int(float(attendee.extra_donation if attendee.extra_donation else 0))
-        if extra_donation < 0:
-            return 'Extra Donation must be a number that is 0 or higher.'
-    except Exception:
-        return "What you entered for Extra Donation ({}) isn't even a number".format(attendee.extra_donation)
 
 
 @validation.MPointsForCash

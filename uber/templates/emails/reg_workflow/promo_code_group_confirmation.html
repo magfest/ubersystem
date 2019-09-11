@@ -2,7 +2,7 @@
 <head></head>
 <body>
 
-You have successfully registered group "{{ group.name }}" for {{ c.EVENT_NAME }} this coming {{ event_dates() }} and your payment of ${{ group.buyer.amount_paid }} has been received. Your group has {{ group.promo_codes|length|int + 1 }} badges, including your own.
+You have successfully registered group "{{ group.name }}" for {{ c.EVENT_NAME }} this coming {{ event_dates() }} and your payment of ${{ '%0.2f' % (group.buyer.amount_paid / 100) }} has been received. Your group has {{ group.promo_codes|length|int + 1 }} badges, including your own.
 
 <br/><br/>
 Group badges are allocated using promo codes: your group members will simply enter a promo code <a href="{{ c.URL_BASE }}/preregistration/">while preregistering</a> to claim a badge in your group.

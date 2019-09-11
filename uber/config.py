@@ -525,7 +525,7 @@ class Config(_Overridable):
     @property
     def CSRF_TOKEN(self):
         uber.utils.ensure_csrf_token_exists()
-        return cherrypy.session['csrf_token'] if 'csrf_token' in cherrypy.session else ''
+        return cherrypy.session.get('csrf_token', '')
 
     @property
     def QUERY_STRING(self):
@@ -562,7 +562,7 @@ class Config(_Overridable):
             with Session() as session:
                 attrs = Attendee.to_dict_default_attrs + ['admin_account', 'assigned_depts']
                 admin_account = session.query(AdminAccount) \
-                    .filter_by(id=cherrypy.session['account_id']) \
+                    .filter_by(id=cherrypy.session.get('account_id')) \
                     .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts)).one()
 
                 return admin_account.attendee.to_dict(attrs)
@@ -602,11 +602,42 @@ class Config(_Overridable):
 
     @request_cached_property
     @dynamic
-    def DEFAULT_DEPARTMENT_ID(self):
+    def ADMIN_DEPARTMENTS(self):
+        return dict(self.ADMIN_DEPARTMENT_OPTS)
+
+    @request_cached_property
+    @dynamic
+    def ADMIN_DEPARTMENT_OPTS(self):
         from uber.models import Session, Department
+
+        override_access = ''
+        if 'dept_admin' in c.PAGE_PATH:
+            override_access = 'full_dept_admin'
+        elif 'dept_checklist' in c.PAGE_PATH:
+            override_access = 'full_dept_checklist_admin'
+        else:
+            override_access = 'full_shifts_admin'
+
         with Session() as session:
-            dept = session.query(Department).order_by(Department.name).first()
-            return dept.id
+            query = session.query(Department).order_by(Department.name)
+            current_admin = session.admin_attendee()
+            if getattr(current_admin.admin_account, override_access, None):
+                return [(d.id, d.name) for d in query]
+            else:
+                return [(d.id, d.name) for d in query if d.id in current_admin.assigned_depts_ids]
+
+    @request_cached_property
+    @dynamic
+    def ADMIN_BADGE_OPTS(self):
+        staffing_badges = [c.ATTENDEE_BADGE, c.STAFF_BADGE, c.CONTRACTOR_BADGE]
+        if 'shifts_admin' in c.PAGE_PATH:
+            return [(key, val) for key, val in c.BADGE_OPTS if key in staffing_badges]
+        return c.BADGE_OPTS
+
+    @request_cached_property
+    @dynamic
+    def DEFAULT_DEPARTMENT_ID(self):
+        return list(c.ADMIN_DEPARTMENTS.keys())[0]
 
     @property
     def DEFAULT_REGDESK_INT(self):
@@ -630,7 +661,7 @@ class Config(_Overridable):
             group_supporters = attendees.filter(
                 Attendee.paid == self.PAID_BY_GROUP,
                 Attendee.amount_extra >= kickin_level,
-                Attendee.amount_paid >= kickin_level).count()
+                Attendee.amount_paid >= kickin_level * 100).count()
             return individual_supporters + group_supporters
 
     @request_cached_property
@@ -660,6 +691,19 @@ class Config(_Overridable):
 
     @request_cached_property
     @dynamic
+    def ACCESS_GROUPS(self):
+        return dict(self.ACCESS_GROUP_OPTS)
+
+    @request_cached_property
+    @dynamic
+    def ACCESS_GROUP_OPTS(self):
+        from uber.models import Session, AccessGroup
+        with Session() as session:
+            query = session.query(AccessGroup).order_by(AccessGroup.name)
+            return [(a.id, a.name) for a in query]
+
+    @request_cached_property
+    @dynamic
     def ADMIN_ACCESS_SET(self):
         return uber.models.AdminAccount.access_set(include_read_only=True)
 
@@ -671,14 +715,25 @@ class Config(_Overridable):
     @cached_property
     def ADMIN_PAGES(self):
         # Build a list of all site sections and their pages
-        public_site_sections = ['preregistration', 'static_views', 'landing', 'panels', 'mits',
-                                'attractions', 'emails', 'mivs', 'uber', 'angular', 'index']
-
-        app_root = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
+        public_site_sections = ['static_views', 'angular', 'public', 'staffing']
+        public_pages = []
+        site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
+        modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
+        for module_name, module_root in modules.items():
+            method = getattr(site_sections, module_name)
+            if getattr(method, 'public', False):
+                public_site_sections.append(module_name)
+            else:
+                for name in dir(module_root):
+                    if not name.startswith('_'):
+                        method = getattr(module_root, name)
+                        if getattr(method, 'public', False):
+                            public_pages.append(module_name + "_" + name)
 
         return {
-            section: [opt for opt in dir(getattr(app_root, section)) if not opt.startswith('_')]
-            for section in dir(app_root) if section not in public_site_sections and not section.startswith('_')
+            section: [opt for opt in dir(getattr(site_sections, section))
+                      if opt not in public_pages and not opt.startswith('_')]
+            for section in dir(site_sections) if section not in public_site_sections and not section.startswith('_')
         }
 
     # =========================
@@ -688,12 +743,12 @@ class Config(_Overridable):
     @property
     @dynamic
     def CAN_SUBMIT_MIVS(self):
-        return self.MIVS_SUBMISSIONS_OPEN or c.HAS_MIVS_ADMIN_ACCESS
+        return self.MIVS_SUBMISSIONS_OPEN or self.HAS_MIVS_ADMIN_ACCESS
 
     @property
     @dynamic
     def MIVS_SUBMISSIONS_OPEN(self):
-        return not really_past_mivs_deadline(c.MIVS_DEADLINE) and c.AFTER_MIVS_START
+        return not really_past_mivs_deadline(c.MIVS_DEADLINE) and self.AFTER_MIVS_START
 
     # =========================
     # panels

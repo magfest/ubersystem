@@ -28,7 +28,7 @@ from sqlalchemy.util import immutabledict
 import uber
 from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
-from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
+from uber.decorators import cost_property, department_id_adapter, presave_adjustment, receipt_item, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
 from uber.utils import check_csrf, normalize_phone, DeptChecklistConf, report_critical_exception
 
@@ -120,6 +120,15 @@ class MagModel:
         return self.email
 
     @property
+    def gets_emails(self):
+        """
+        In some cases, we want to apply a global filter to a model that prevents it from
+        receiving scheduled emails under certain circumstances. This property allows you
+        to define such a filter.
+        """
+        return True
+
+    @property
     def addons(self):
         """
         This exists only to be overridden by other events; it should return a
@@ -146,7 +155,7 @@ class MagModel:
         """Returns the names of all cost properties on this model."""
         return [
             s for s in cls._class_attr_names
-            if s != 'cost_property_names'
+            if s not in ['receipt_item_names', 'cost_property_names']
             and isinstance(getattr(cls, s), cost_property)]
 
     @cached_classproperty
@@ -171,6 +180,24 @@ class MagModel:
                 log.error('Error calculating cost property {}: "{}"'.format(name, value))
                 log.exception(ex)
         return max(0, sum(values))
+
+    @cached_classproperty
+    def receipt_item_names(cls):
+        """Returns the names of all receipt items on this model."""
+        return [
+            s for s in cls._class_attr_names
+            if s not in ['receipt_item_names', 'cost_property_names']
+               and isinstance(getattr(cls, s), receipt_item)]
+
+    @property
+    def receipt_items_breakdown(self):
+        receipt_items = []
+        for name in self.receipt_item_names:
+            amount, desc, item_type = getattr(self, name, None) or (None, None, None)
+            if amount:
+                receipt_items.append((amount, desc, item_type))
+
+        return receipt_items or [(None, None, None)]
 
     @property
     def stripe_transactions(self):
@@ -635,13 +662,23 @@ class Session(SessionManager):
 
     class SessionMixin:
         def current_admin_account(self):
-            return self.admin_account(cherrypy.session['account_id'])
+            return self.admin_account(cherrypy.session.get('account_id'))
 
         def admin_attendee(self):
-            return self.admin_account(cherrypy.session['account_id']).attendee
+            return self.admin_account(cherrypy.session.get('account_id')).attendee
 
         def logged_in_volunteer(self):
-            return self.attendee(cherrypy.session['staffer_id'])
+            return self.attendee(cherrypy.session.get('staffer_id'))
+
+        def attendees_share_departments(self, first, second):
+            return set(first.assigned_depts_ids).intersection(second.assigned_depts_ids)
+
+        def admin_can_create_attendee(self, attendee):
+            admin = self.current_admin_account()
+            if attendee.badge_type == c.STAFF_BADGE:
+                return admin.full_shifts_admin
+            elif attendee.badge_type in [c.CONTRACTOR_BADGE, c.ATTENDEE_BADGE] and attendee.staffing_or_will_be:
+                return admin.can_create_volunteer_badges
 
         def checklist_status(self, slug, department_id):
             attendee = self.admin_attendee()
@@ -730,12 +767,36 @@ class Session(SessionManager):
 
                 elif isinstance(model, Group):
                     self.add(StripeTransactionGroup(
-                        txn_id=refund_txn,
+                        txn_id=refund_txn.id,
                         group_id=model.id,
                         share=stripe_log.share
                     ))
 
                 return '', response
+
+        def add_receipt_items_by_model(self, charge, model):
+            for amount, desc, item_type in getattr(model, 'receipt_items_breakdown'):
+                if amount:
+                    if "Promo code group" in desc:
+                        desc = desc.format(getattr(model, 'name', ''), int(getattr(model, 'badges', 0)) - 1)
+
+                    item = self.create_receipt_item(charge.stripe_transaction, model, amount, desc, item_type)
+                    self.add(item)
+
+        def create_receipt_item(self, stripe_txn, model, amount, desc, item_type=c.OTHER, txn_type=c.PAYMENT):
+            item = ReceiptItem(
+                txn_id=stripe_txn.id,
+                txn_type=txn_type,
+                item_type=item_type,
+                amount=amount,
+                who=getattr(model, 'full_name', getattr(model, 'name', '')),
+                desc=desc)
+            if isinstance(model, uber.models.Attendee):
+                item.attendee_id = getattr(model, 'id', None)
+            elif isinstance(model, uber.models.Group):
+                item.group_id = getattr(model, 'id', None)
+
+            return item
 
         def guess_attendee_watchentry(self, attendee, active=True):
             or_clauses = [
@@ -1033,7 +1094,7 @@ class Session(SessionManager):
             return self.query(Attendee).filter(not_(Attendee.badge_status.in_(
                 [c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS])))
 
-        def all_attendees(self, only_staffing=False):
+        def all_attendees(self, only_staffing=False, pending=False):
             """
             Returns a Query of Attendees with efficient loading for groups and
             shifts/jobs.
@@ -1048,8 +1109,11 @@ class Session(SessionManager):
             """
             staffing_filter = [Attendee.staffing == True] if only_staffing else []  # noqa: E712
 
-            badge_filter = Attendee.badge_status.in_(
-                [c.NEW_STATUS, c.COMPLETED_STATUS])
+            badge_statuses = [c.NEW_STATUS, c.COMPLETED_STATUS]
+            if pending:
+                badge_statuses.append(c.PENDING_STATUS)
+
+            badge_filter = Attendee.badge_status.in_(badge_statuses)
 
             return self.query(Attendee) \
                 .filter(badge_filter, *staffing_filter) \
@@ -1059,8 +1123,8 @@ class Session(SessionManager):
                     subqueryload(Attendee.shifts).subqueryload(Shift.job).subqueryload(Job.department)) \
                 .order_by(Attendee.full_name, Attendee.id)
 
-        def staffers(self):
-            return self.all_attendees(only_staffing=True)
+        def staffers(self, pending=False):
+            return self.all_attendees(only_staffing=True, pending=pending)
 
         def all_panelists(self):
             return self.query(Attendee).filter(or_(
@@ -1102,7 +1166,7 @@ class Session(SessionManager):
                         attendee.badge_num, attendee.badge_type_label, group.name)
             else:
                 # First preserve the attributes to copy to the new group member
-                attrs = matching[0].to_dict(attrs=['group', 'group_id', 'paid', 'amount_paid', 'ribbon'])
+                attrs = matching[0].to_dict(attrs=['group', 'group_id', 'paid', 'amount_paid_override', 'ribbon'])
 
                 # Then delete the old unassigned group member
                 self.delete(matching[0])
@@ -1281,12 +1345,16 @@ class Session(SessionManager):
                 access={section: '5' for section in c.ADMIN_PAGES}
             )
 
-            self.add(all_access_group)
-
-            self.add(AdminAccount(
+            test_developer_account = AdminAccount(
                 attendee=attendee,
-                access_group=all_access_group,
                 hashed=bcrypt.hashpw('magfest', bcrypt.gensalt())
+            )
+
+            self.add(all_access_group)
+            self.add(test_developer_account)
+            self.add(AdminAccessGroup(
+                admin_account_id=test_developer_account.id,
+                access_group_id=all_access_group.id,
             ))
 
             return True
@@ -1345,7 +1413,7 @@ class Session(SessionManager):
 
         def logged_in_studio(self):
             try:
-                return self.indie_studio(cherrypy.session['studio_id'])
+                return self.indie_studio(cherrypy.session.get('studio_id'))
             except Exception:
                 raise HTTPRedirect('../mivs/studio')
 
@@ -1383,29 +1451,6 @@ class Session(SessionManager):
             return self.query(IndieGame).join(IndieStudio).options(
                 joinedload(IndieGame.studio), joinedload(IndieGame.reviews)).order_by(IndieStudio.name, IndieGame.title)
 
-        def create_or_find_mivs_judge_access_group(self):
-            """
-            Looks for an admin access group with write access to only mivs_judging,
-            and creates a new one if it can't find any.
-
-            Technically, we don't need this access group -- access to mivs_judging
-            is determined by whether the admin account is linked to an IndieJudge
-            object -- but we need to give MIVS judges some sort of access group.
-            """
-
-            existing_access_groups = self.query(AccessGroup).filter(
-                AccessGroup.access['mivs_judging'].astext.cast(Integer) > 0)
-            for group in existing_access_groups:
-                if len(group.access) == 1:
-                    return group
-            new_mivs_judge_group = AccessGroup(
-                name='MIVS Judge',
-                access={'mivs_judging': '5'}
-            )
-            self.add(new_mivs_judge_group)
-            self.commit()
-            return new_mivs_judge_group
-
         # =========================
         # mits
         # =========================
@@ -1429,7 +1474,7 @@ class Session(SessionManager):
 
         def logged_in_mits_team(self):
             try:
-                team = self.mits_team(cherrypy.session['mits_team_id'])
+                team = self.mits_team(cherrypy.session.get('mits_team_id'))
                 assert not team.deleted or team.duplicate_of
             except Exception:
                 raise HTTPRedirect('../mits/login_explanation')

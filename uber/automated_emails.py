@@ -100,7 +100,7 @@ class AutomatedEmailFixture:
             .replace('{EVENT_DATE}', c.EPOCH.strftime('%b %Y'))
         self.template = template
         self.format = 'text' if template.endswith('.txt') else 'html'
-        self.filter = filter or (lambda x: True)
+        self.filter = lambda x: (x.gets_emails and filter(x))
         self.ident = ident
         self.query = listify(query)
         self.query_options = listify(query_options)
@@ -163,7 +163,7 @@ AutomatedEmailFixture(
     Group,
     '{EVENT_NAME} group payment received',
     'reg_workflow/group_confirmation.html',
-    lambda g: g.amount_paid == g.cost and g.cost != 0 and g.leader_id,
+    lambda g: (g.amount_paid / 100) == g.cost and g.cost != 0 and g.leader_id,
     # query=and_(Group.amount_paid >= Group.cost, Group.cost > 0, Group.leader_id != None),
     needs_approval=False,
     ident='group_payment_received')
@@ -185,7 +185,7 @@ AutomatedEmailFixture(
     Attendee,
     '{EVENT_NAME} extra payment received',
     'reg_workflow/group_donation.txt',
-    lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra,
+    lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid >= (a.amount_extra * 100),
     # query=and_(
     #     Attendee.paid == c.PAID_BY_GROUP,
     #     Attendee.amount_extra != 0,
@@ -258,7 +258,7 @@ if c.DEALER_REG_START:
         'dealers/approved.html',
         lambda g: g.status == c.APPROVED,
         # query=Group.status == c.APPROVED,
-        needs_approval=False,
+        needs_approval=True,
         ident='dealer_reg_approved')
 
     MarketplaceEmailFixture(
@@ -354,7 +354,7 @@ AutomatedEmailFixture(
     ident='dealer_info_required')
 
 StopsEmailFixture(
-    'Want to staff {EVENT_NAME} again?',
+    'Claim your Comp\'ed Badge and Apply to Staff at {EVENT_NAME} {EVENT_YEAR}!',
     'placeholders/imported_volunteer.txt',
     lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN,
     ident='volunteer_again_inquiry')
@@ -625,7 +625,7 @@ if c.MIVS_ENABLED:
         IndieGame,
         'Reminder to submit your game to MIVS',
         'mivs/submission_reminder.txt',
-        lambda game: game.status == c.JUDGING and not game.submitted,
+        lambda game: not game.submitted,
         ident='mivs_game_submission_reminder',
         when=days_before(7, c.MIVS_DEADLINE))
 
@@ -633,7 +633,7 @@ if c.MIVS_ENABLED:
         IndieGame,
         'Final Reminder to submit your game to MIVS',
         'mivs/submission_reminder.txt',
-        lambda game: game.status == c.JUDGING and not game.submitted,
+        lambda game: not game.submitted,
         ident='mivs_game_submission_final_reminder',
         when=days_before(2, c.MIVS_DEADLINE))
 

@@ -260,7 +260,7 @@
         </div>
         <div class="inventory-item-price data-item">
           <dt>Price</dt>
-          <dd>${{ '{:.2f}'.format( item.price|float) }}</dd>
+          <dd>${{ '%0.2f' %  item.price|float }}</dd>
         </div>
         <div class="inventory-item-quantity data-item">
           <dt>Quantity</dt>

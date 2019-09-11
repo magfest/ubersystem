@@ -54,7 +54,6 @@ def _model_for_id(session, model, id, options=None, filters=[]):
 @all_renderable(public=True)
 @check_post_con
 class Root:
-
     @cherrypy.expose
     def default(self, *args, **kwargs):
         if args:

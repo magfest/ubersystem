@@ -19,7 +19,8 @@ from sqlalchemy.types import Boolean, Date, Integer
 import uber
 from uber.config import c
 from uber.custom_tags import safe_string, time_day_local
-from uber.decorators import cost_property, department_id_adapter, predelete_adjustment, presave_adjustment, render
+from uber.decorators import cost_property, department_id_adapter, predelete_adjustment, presave_adjustment, \
+    receipt_item, render
 from uber.models import MagModel
 from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
@@ -230,16 +231,15 @@ class Attendee(MagModel, TakesPaymentMixin):
     paid = Column(Choice(c.PAYMENT_OPTS), default=c.NOT_PAID, index=True, admin_only=True)
     overridden_price = Column(Integer, nullable=True, admin_only=True)
     base_badge_price = Column(Integer, default=0, admin_only=True)
-    amount_paid = Column(Integer, default=0, admin_only=True)
+    amount_paid_override = Column(Integer, default=0, admin_only=True)
     amount_extra = Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True), default=0)
     extra_donation = Column(Integer, default=0)
     payment_method = Column(Choice(c.PAYMENT_METHOD_OPTS), nullable=True)
-    amount_refunded = Column(Integer, default=0, admin_only=True)
+    amount_refunded_override = Column(Integer, default=0, admin_only=True)
     stripe_txn_share_logs = relationship('StripeTransactionAttendee', backref='attendee')
 
     badge_printed_name = Column(UnicodeText)
 
-    dept_checklist_items = relationship('DeptChecklistItem', backref='attendee')
     dept_memberships = relationship('DeptMembership', backref='attendee')
     dept_membership_requests = relationship('DeptMembershipRequest', backref='attendee')
     anywhere_dept_membership_request = relationship(
@@ -448,9 +448,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not self.gets_any_kind_of_shirt:
             self.shirt = c.NO_SHIRT
 
-        if self.paid != c.REFUNDED:
-            self.amount_refunded = 0
-
         if self.badge_cost == 0 and self.paid in [c.NOT_PAID, c.PAID_BY_GROUP]:
             self.paid = c.NEED_NOT_PAY
 
@@ -506,25 +503,21 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.paid == c.NOT_PAID:
                 self.paid = c.NEED_NOT_PAY
         else:
-            if c.VOLUNTEER_RIBBON in self.ribbon_ints and self.is_new:
+            if self.volunteering_badge_or_ribbon:
                 self.staffing = True
 
         if not self.is_new:
             old_ribbon = map(int, self.orig_value_of('ribbon').split(',')) if self.orig_value_of('ribbon') else []
             old_staffing = self.orig_value_of('staffing')
 
-            if self.staffing and not old_staffing or c.VOLUNTEER_RIBBON in self.ribbon_ints \
-                    and c.VOLUNTEER_RIBBON not in old_ribbon:
-                self.staffing = True
-
-            elif old_staffing and not self.staffing or c.VOLUNTEER_RIBBON not in self.ribbon_ints \
+            if old_staffing and not self.staffing or c.VOLUNTEER_RIBBON not in self.ribbon_ints \
                     and c.VOLUNTEER_RIBBON in old_ribbon and not self.is_dept_head:
                 self.unset_volunteering()
 
         if self.badge_type == c.STAFF_BADGE:
             self.ribbon = remove_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
 
-        elif self.staffing and self.badge_type != c.STAFF_BADGE and c.VOLUNTEER_RIBBON not in self.ribbon_ints:
+        elif self.staffing and not self.volunteering_badge_or_ribbon:
             self.ribbon = add_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
 
         if self.badge_type == c.STAFF_BADGE:
@@ -624,7 +617,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def new_badge_cost(self):
         # What this badge would cost if it were new, i.e., not taking into
         # account special overrides
-        registered = self.registered_local if self.registered else None
+        registered = self.registered_local if self.registered else uber.utils.localized_now()
         if self.badge_type == c.ONE_DAY_BADGE:
             return c.get_oneday_price(registered)
         elif self.is_presold_oneday:
@@ -689,13 +682,39 @@ class Attendee(MagModel, TakesPaymentMixin):
     def amount_extra_unpaid(self):
         return self.total_cost - self.badge_cost
 
+    @hybrid_property
+    def amount_paid(self):
+        return max(sum([item.amount for item in self.receipt_items if item.txn_type == c.PAYMENT]),
+                   sum([txn.share for txn in self.stripe_txn_share_logs if txn.stripe_transaction.type == c.PAYMENT]),
+                   self.amount_paid_override * 100)
+
+    @amount_paid.expression
+    def amount_paid(cls):
+        from uber.models import ReceiptItem
+
+        return select([func.sum(ReceiptItem.amount)]
+                      ).where(and_(ReceiptItem.attendee_id == cls.id,
+                                   ReceiptItem.txn_type == c.PAYMENT)).label('amount_paid')
+
+    @hybrid_property
+    def amount_refunded(self):
+        return sum([item.amount for item in self.receipt_items if item.txn_type == c.REFUND])
+
+    @amount_refunded.expression
+    def amount_refunded(cls):
+        from uber.models import ReceiptItem
+
+        return select([func.sum(ReceiptItem.amount)]
+                      ).where(and_(ReceiptItem.attendee_id == cls.id,
+                                   ReceiptItem.txn_type == c.REFUND)).label('amount_refunded')
+
     @property
     def amount_unpaid(self):
         if self.paid == c.PAID_BY_GROUP:
             personal_cost = max(0, self.total_cost - self.badge_cost)
         else:
             personal_cost = self.total_cost
-        return max(0, personal_cost - self.amount_paid)
+        return max(0, ((personal_cost * 100) - self.amount_paid) / 100)
 
     @property
     def paid_for_badge(self):
@@ -709,6 +728,87 @@ class Attendee(MagModel, TakesPaymentMixin):
     def is_unpaid(cls):
         return cls.paid == c.NOT_PAID
 
+    def balance_by_item_type(self, item_type):
+        """
+        Return a sum of all the receipt item payments, minus the refunds, for this model by item type
+        """
+        return sum([amt for type, amt in self.itemized_payments if type == item_type]) \
+                        - sum([amt for type, amt in self.itemized_refunds if type == item_type])
+
+    @property
+    def itemized_payments(self):
+        return [(item.item_type, item.amount) for item in self.receipt_items if item.txn_type == c.PAYMENT]
+
+    @property
+    def itemized_refunds(self):
+        return [(item.item_type, item.amount) for item in self.receipt_items if item.txn_type == c.REFUND]
+
+    @receipt_item
+    def badge_cost_receipt_item(self):
+        item_type = c.BADGE
+        badge_balance = self.balance_by_item_type(item_type)
+        discount = self.new_badge_cost - self.badge_cost
+
+        if not self.badge_cost or badge_balance >= self.badge_cost or self.paid == c.PAID_BY_GROUP:
+            return None, None, None
+
+        return (
+            self.badge_cost * 100,
+            "{} badge{}".format(self.badge_type_label, " with ${} discount".format(discount) if discount > 0 else ""),
+            item_type
+        )
+
+    @receipt_item
+    def amount_extra_receipt_item(self):
+        if not self.amount_extra:
+            return None, None, None
+
+        item_type = c.AMOUNT_EXTRA
+        amount = None
+        desc = None
+
+        amount_extra_balance = self.balance_by_item_type(item_type)
+
+        if not amount_extra_balance:
+            amount, desc = self.amount_extra * 100, "Kick-in level {}"
+        elif amount_extra_balance < self.amount_extra:
+            amount, desc = (self.amount_extra - amount_extra_balance) * 100, "Upgrading to kick-in level {}"
+
+        return amount, desc.format(self.amount_extra_label), item_type
+
+    @receipt_item
+    def extra_donation_receipt_item(self):
+        if not self.extra_donation:
+            return None, None, None
+
+        item_type = c.EXTRA_DONATION
+        amount = None
+        desc = None
+
+        extra_donation_balance = self.balance_by_item_type(item_type)
+
+        if not extra_donation_balance:
+            amount, desc = self.extra_donation * 100, "Extra donation of ${}"
+        elif extra_donation_balance < self.extra_donation:
+            amount, desc = (self.extra_donation - extra_donation_balance) * 100, "Increasing extra donation to ${}"
+
+        return amount, desc.format(self.extra_donation), item_type
+
+    @receipt_item
+    def promo_code_group_receipt_item(self):
+        if not self.promo_code_groups:
+            return None, None, None
+
+        item_type = c.PROMO_CODE
+
+        promo_code_balance = self.balance_by_item_type(item_type)
+
+        # This is only for new attendees -- we add the receipt item for buying additional badges in the page handler
+        if not promo_code_balance:
+            return self.promo_group_cost * 100, \
+                   'Promo code group "{}" ({} badges at ${} each)'.format('{}', '{}', c.GROUP_PRICE), \
+                   item_type
+
     @hybrid_property
     def is_unassigned(self):
         return not self.first_name
@@ -716,6 +816,15 @@ class Attendee(MagModel, TakesPaymentMixin):
     @is_unassigned.expression
     def is_unassigned(cls):
         return cls.first_name == ''
+
+    @property
+    def volunteering_badge_or_ribbon(self):
+        return self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] or c.VOLUNTEER_RIBBON in self.ribbon_ints
+
+    @property
+    def staffing_or_will_be(self):
+        # This is for use in our model checks -- it includes attendees who are going to be marked staffing
+        return self.staffing or self.volunteering_badge_or_ribbon
 
     @hybrid_property
     def is_dealer(self):
@@ -868,6 +977,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @classmethod
     def normalize_email(cls, email):
         return email.strip().lower().replace('.', '')
+
+    @property
+    def gets_emails(self):
+        return self.badge_status in [c.NEW_STATUS, c.COMPLETED_STATUS]
 
     @property
     def watchlist_guess(self):
@@ -1320,23 +1433,30 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.has_role_in(department)
 
     def can_admin_dept_for(self, department):
-        return (self.admin_account and self.admin_account.access_group.full_dept_admin) \
+        return (self.admin_account and self.admin_account.full_dept_admin) \
             or self.has_inherent_role_in(department)
 
     def can_dept_head_for(self, department):
-        return (self.admin_account and self.admin_account.access_group.full_dept_admin) \
+        return (self.admin_account and self.admin_account.full_dept_admin) \
             or self.is_dept_head_of(department)
+
+    @department_id_adapter
+    def can_admin_shifts_for(self, department_id):
+        if not department_id:
+            return False
+        return self.admin_account and self.admin_account.full_shifts_admin \
+               or any(m.department_id == department_id for m in self.dept_memberships_with_inherent_role)
 
     @property
     def can_admin_checklist(self):
-        return (self.admin_account and self.admin_account.access_group.full_dept_admin) \
+        return (self.admin_account and self.admin_account.full_dept_checklist_admin) \
             or bool(self.dept_memberships_where_can_admin_checklist)
 
     @department_id_adapter
     def can_admin_checklist_for(self, department_id):
         if not department_id:
             return False
-        return (self.admin_account and self.admin_account.access_group.full_dept_admin) \
+        return (self.admin_account and self.admin_account.full_dept_checklist_admin) \
             or any(m.department_id == department_id for m in self.dept_memberships_where_can_admin_checklist)
 
     @department_id_adapter
@@ -1406,7 +1526,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def depts_where_can_admin(self):
-        if self.admin_account and self.admin_account.access_group.full_dept_admin:
+        if self.admin_account and self.admin_account.full_dept_admin:
             from uber.models.department import Department
             return self.session.query(Department).order_by(Department.name).all()
         return self.depts_with_inherent_role

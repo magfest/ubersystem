@@ -73,7 +73,7 @@ class Root:
     @ajax
     def create_api_token(self, session, **params):
         if cherrypy.request.method == 'POST':
-            params['admin_account_id'] = cherrypy.session['account_id']
+            params['admin_account_id'] = cherrypy.session.get('account_id')
             api_token = session.api_token(params)
             message = check(api_token)
             if not message:

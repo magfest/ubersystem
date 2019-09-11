@@ -574,7 +574,8 @@ def linebreaksbr(text):
 @JinjaEnv.jinja_export
 def csrf_token():
     ensure_csrf_token_exists()
-    return safe_string('<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session["csrf_token"]))
+    return safe_string(
+        '<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session.get("csrf_token")))
 
 
 @JinjaEnv.jinja_export

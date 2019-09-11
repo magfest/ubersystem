@@ -31,15 +31,15 @@
 </table>
 
     {% if group.stripe_txn_share_logs %}
-    <h2>Payment History for {{ group.name }}</h2>
+    <h2>Stripe Payment History for {{ group.name }}</h2>
     <table class="table-striped table-bordered table-condensed">
     <thead><tr>
         <th>Payment ID</th>
         <th>Amount</th>
-      <th>Txn Total</th>
+        <th>Txn Total</th>
         <th>When</th>
         <th>Who</th>
-        <th>Description</th>
+        <th>Payment Description</th>
     </tr></thead>
     {% for log in group.stripe_txn_share_logs %}
         <tr>
@@ -49,6 +49,28 @@
         <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.when|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
         <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.who }}</td>
         <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.desc }}</td>
+        </tr>
+    {% endfor %}
+    </table>
+    {% endif %}
+
+    {% if group.receipt_items %}
+      <h2>Itemized Running Receipt for {{ group.name }}</h2>
+    <table class="table-striped table-bordered table-condensed">
+    <thead><tr>
+        <th>Payment ID</th>
+        <th>When</th>
+        <th>Who</th>
+        <th>Item</th>
+        <th>Amount</th>
+    </tr></thead>
+    {% for item in group.receipt_items %}
+        <tr>
+        <td valign="top" style="white-space:nowrap">{{ item.stripe_transaction.stripe_id }}</td>
+        <td valign="top" style="white-space:nowrap">{{ item.when|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
+        <td valign="top" style="white-space:nowrap">{{ item.who }}</td>
+        <td valign="top" style="white-space:nowrap">{{ item.desc }}{% if item.fk_id %}({{ item.model }}){% endif %}</td>
+        <td valign="top" style="white-space:nowrap">${{ '%0.2f' % (item.amount / 100) }} {{ item.type_label }}
         </tr>
     {% endfor %}
     </table>

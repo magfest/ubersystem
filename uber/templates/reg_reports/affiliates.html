@@ -24,12 +24,12 @@
 {% for affiliate, totals in counts %}
     <tr>
         <td><b>{{ affiliate }}</b></td>
-        <td><nobr><b>${{ totals.total }}</b></nobr></td>
+        <td><nobr><b>${{ '%0.2f' % totals.total }}</b></nobr></td>
         <td><nobr><b>{{ totals.tally }} attendee{{ totals.tally|pluralize }}</b></nobr></td>
         <td>
             <ul>
             {% for amount, count in totals.sorted %}
-                <li>{{ count }} attendee{{ count|pluralize }} gave ${{ amount }}</li>
+                <li>{{ count }} attendee{{ count|pluralize }} gave ${{ '%0.2f' % amount }}</li>
             {% endfor %}
             </ul>
         </td>

@@ -3,7 +3,7 @@
 <body>
 
 Your {{ group.is_dealer|yesno(c.DEALER_REG_TERM + ",group") }} ({{ group.name }}) has been preregistered for
-{{ c.EVENT_NAME }} this coming {{ event_dates() }} and your payment of ${{ group.amount_paid }} has been received.
+{{ c.EVENT_NAME }} this coming {{ event_dates() }} and your payment of ${{ '%0.2f' % (group.amount_paid / 100) }} has been received.
 
 {% if group.unregistered_badges %}
     <br/> <br/>

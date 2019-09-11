@@ -1,12 +1,13 @@
 from datetime import datetime, timedelta
 
 import cherrypy
+from pockets import classproperty, listify
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
-from sqlalchemy.schema import ForeignKey
+from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Date
 
 from uber.config import c
@@ -18,13 +19,23 @@ from uber.models.types import default_relationship as relationship, utcnow, Defa
 __all__ = ['AccessGroup', 'AdminAccount', 'PasswordReset', 'WatchList']
 
 
+# Many to many association table to tie Access Groups with Admin Accounts
+admin_access_group = Table(
+    'admin_access_group',
+    MagModel.metadata,
+    Column('admin_account_id', UUID, ForeignKey('admin_account.id')),
+    Column('access_group_id', UUID, ForeignKey('access_group.id')),
+    UniqueConstraint('admin_account_id', 'access_group_id'),
+    Index('ix_admin_access_group_admin_account_id', 'admin_account_id'),
+    Index('ix_admin_access_group_access_group_id', 'access_group_id'),
+)
+
+
 class AdminAccount(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
-    access_group_id = Column(UUID, ForeignKey('access_group.id', ondelete='SET NULL'), nullable=True)
-    access_group = relationship('AccessGroup',
-                                backref='admin_accounts',
-                                foreign_keys=access_group_id,
-                                cascade='save-update,merge,refresh-expire,expunge')
+    access_groups = relationship(
+        'AccessGroup', backref='admin_accounts', cascade='save-update,merge,refresh-expire,expunge',
+        secondary='admin_access_group')
     hashed = Column(UnicodeText, private=True)
 
     password_reset = relationship('PasswordReset', backref='admin_account', uselist=False)
@@ -64,13 +75,37 @@ class AdminAccount(MagModel):
         try:
             from uber.models import Session
             with Session() as session:
-                id = id or cherrypy.session['account_id']
-                access_group = session.admin_account(id).access_group
+                id = id or cherrypy.session.get('account_id')
+                access_groups = session.admin_account(id).access_groups
+                access_list = [list(group.access) for group in access_groups]
                 if include_read_only:
-                    return set({**access_group.access, **access_group.read_only_access})
-                return set(access_group.access)
+                    access_list = access_list + [list(group.read_only_access) for group in access_groups]
+                return set([item for sublist in access_list for item in sublist])
         except Exception:
             return set()
+
+    @classproperty
+    def _extra_apply_attrs(cls):
+        return set(['access_groups_ids'])
+
+    @property
+    def access_groups_labels(self):
+        return [d.name for d in self.access_groups]
+
+    @property
+    def access_groups_ids(self):
+        _, ids = self._get_relation_ids('access_groups')
+        return [str(a.id) for a in self.access_groups] if ids is None else ids
+
+    @access_groups_ids.setter
+    def access_groups_ids(self, value):
+        values = set(s for s in listify(value) if s)
+        for group in list(self.access_groups):
+            if group.id not in values:
+                # Manually remove the group to ensure the associated
+                # rows in the admin_access_group table are deleted.
+                self.access_groups.remove(group)
+        self._set_relation_ids('access_groups', AccessGroup, list(values))
 
     @property
     def allowed_access_opts(self):
@@ -78,7 +113,7 @@ class AdminAccount(MagModel):
 
     @property
     def allowed_api_access_opts(self):
-        no_access_set = self.access_group.invalid_api_accesses()
+        no_access_set = self.invalid_api_accesses()
         return [(access, label) for access, label in c.API_ACCESS_OPTS if access not in no_access_set]
 
     @property
@@ -90,26 +125,76 @@ class AdminAccount(MagModel):
         try:
             from uber.models import Session
             with Session() as session:
-                id = id or cherrypy.session['account_id']
+                id = id or cherrypy.session.get('account_id')
                 admin_account = session.admin_account(id)
                 return admin_account.judge or 'mivs_judging' in admin_account.access_set(include_read_only=True)
         except Exception:
             return None
 
+    @property
+    def api_read(self):
+        return any([group.has_any_access('api', read_only=True) for group in self.access_groups])
+
+    @property
+    def api_update(self):
+        return any([group.has_access_level('api', AccessGroup.LIMITED) for group in self.access_groups])
+
+    @property
+    def api_create(self):
+        return any([group.has_access_level('api', AccessGroup.CONTACT) for group in self.access_groups])
+
+    @property
+    def api_delete(self):
+        return any([group.has_full_access('api') for group in self.access_groups])
+
+    @property
+    def full_dept_admin(self):
+        return any([group.has_full_access('dept_admin') for group in self.access_groups])
+
+    @property
+    def full_shifts_admin(self):
+        return any([group.has_full_access('shifts_admin') for group in self.access_groups])
+
+    @property
+    def full_dept_checklist_admin(self):
+        return any([group.has_full_access('dept_checklist') for group in self.access_groups])
+
+    @property
+    def full_attractions_admin(self):
+        return any([group.has_full_access('attractions_admin') for group in self.access_groups])
+
+    @property
+    def full_email_admin(self):
+        return any([group.has_full_access('email_admin') for group in self.access_groups])
+
+    @property
+    def can_create_volunteer_badges(self):
+        return any([group.has_full_access('shifts_admin')
+               or group.has_full_access('shifts_admin_attendee_form') for group in self.access_groups])
+
     @presave_adjustment
-    def _disable_api_access(self):
-        if self.orig_value_of('access_group_id'):
-            old_access_group = self.session.access_group(self.orig_value_of('access_group_id'))
-            if self.access_group != old_access_group:
-                invalid_api = self.access_group.invalid_api_accesses()
-                if invalid_api:
-                    self.remove_disabled_api_keys(invalid_api)
+    def disable_api_access(self):
+        invalid_api = self.invalid_api_accesses()
+        if invalid_api:
+            self.remove_disabled_api_keys(invalid_api)
 
     def remove_disabled_api_keys(self, invalid_api):
         revoked_time = datetime.utcnow()
         for api_token in self.active_api_tokens:
             if invalid_api.intersection(api_token.access_ints):
                 api_token.revoked_time = revoked_time
+
+    def invalid_api_accesses(self):
+        """
+        Builds and returns a set of API accesses that this account does not have.
+        Designed to help remove/hide API keys/options that accounts do not have permissions for.
+        """
+        removed_api = set(c.API_ACCESS.keys())
+        for access, label in c.API_ACCESS_OPTS:
+            access_name = 'api_' + label.lower()
+            if getattr(self, access_name, None):
+                removed_api.remove(access)
+        return removed_api
 
 
 class PasswordReset(MagModel):
@@ -126,20 +211,23 @@ class AccessGroup(MagModel):
     """
     Sets of accesses to grant to admin accounts.
     """
-    _NONE = 0
-    _LIMITED = 1
-    _CONTACT = 2
-    _FULL = 5
-    _READ_LEVEL_OPTS = [
-        (_NONE, 'Same as Read-Write Access'),
-        (_LIMITED, 'Limited'),
-        (_CONTACT, 'Contact Info'),
-        (_FULL, 'All Info')]
-    _WRITE_LEVEL_OPTS = [
-        (_NONE, 'No Access'),
-        (_LIMITED, 'Limited'),
-        (_CONTACT, 'Contact Info'),
-        (_FULL, 'All Info')]
+    NONE = 0
+    LIMITED = 1
+    CONTACT = 2
+    DEPT = 3
+    FULL = 5
+    READ_LEVEL_OPTS = [
+        (NONE, 'Same as Read-Write Access'),
+        (LIMITED, 'Limited'),
+        (CONTACT, 'Contact Info'),
+        (DEPT, 'All Info in Own Dept(s)'),
+        (FULL, 'All Info')]
+    WRITE_LEVEL_OPTS = [
+        (NONE, 'No Access'),
+        (LIMITED, 'Limited'),
+        (CONTACT, 'Contact Info'),
+        (DEPT, 'All Info in Own Dept(s)'),
+        (FULL, 'All Info')]
 
     name = Column(UnicodeText)
     access = Column(MutableDict.as_mutable(JSONB), default={})
@@ -148,42 +236,21 @@ class AccessGroup(MagModel):
     @presave_adjustment
     def _disable_api_access(self):
         # orig_value_of doesn't seem to work for access and read_only_access so we always do this
-        invalid_api = self.invalid_api_accesses()
-        if invalid_api:
-            for account in self.admin_accounts:
-                account.remove_disabled_api_keys(invalid_api)
+        for account in self.admin_accounts:
+            account.disable_api_access()
 
-    def invalid_api_accesses(self):
-        """
-        Builds and returns a set of API accesses that this access group does not have.
-        Designed to help remove/hide API keys/options that accounts do not have permissions for.
-        """
-        removed_api = set(c.API_ACCESS.keys())
-        for access, label in c.API_ACCESS_OPTS:
-            access_name = 'api_' + label.lower()
-            if getattr(self, access_name, None):
-                removed_api.remove(access)
-        return removed_api
+    def has_full_access(self, access_to, read_only=False):
+        return self.has_access_level(access_to, self.FULL, read_only)
 
-    @property
-    def api_read(self):
-        return int(self.access.get('api', 0)) or int(self.read_only_access.get('api', 0))
+    def has_any_access(self, access_to, read_only=False):
+        return self.has_access_level(access_to, self.LIMITED, read_only)
 
-    @property
-    def api_update(self):
-        return int(self.access.get('api', 0)) >= self._LIMITED
+    def has_access_level(self, access_to, access_level, read_only=False):
+        if read_only:
+            return int(self.access.get(access_to, 0)) >= access_level \
+                   or int(self.read_only_access.get(access_to, 0)) >= access_level
 
-    @property
-    def api_create(self):
-        return int(self.access.get('api', 0)) >= self._CONTACT
-
-    @property
-    def api_delete(self):
-        return int(self.access.get('api', 0)) >= self._FULL
-
-    @property
-    def full_dept_admin(self):
-        return int(self.access.get('dept_admin', 0)) >= self._FULL
+        return int(self.access.get(access_to, 0)) >= access_level
 
 
 class WatchList(MagModel):
@@ -205,5 +272,5 @@ class WatchList(MagModel):
         if self.birthdate == '':
             self.birthdate = None
 
-c.ACCESS_GROUP_WRITE_LEVEL_OPTS = AccessGroup._WRITE_LEVEL_OPTS
-c.ACCESS_GROUP_READ_LEVEL_OPTS = AccessGroup._READ_LEVEL_OPTS
+c.ACCESS_GROUP_WRITE_LEVEL_OPTS = AccessGroup.WRITE_LEVEL_OPTS
+c.ACCESS_GROUP_READ_LEVEL_OPTS = AccessGroup.READ_LEVEL_OPTS

@@ -228,7 +228,6 @@ class Root:
         redirect_site_section('departments', 'dept_admin')
 
     def emails(self, *path, **params):
-        # Is this okay with the email templates being kept under /emails?
         redirect_site_section('emails', 'email_admin')
 
     def graphs(self, *path, **params):
@@ -260,12 +259,11 @@ class Root:
 
     @cherrypy.expose('import')  # import is a special name in Python
     def import_page(self, *path, **params):
-        if c.PAGE == 'attendees':
+        if c.PAGE in ['attendees', 'attendee']:
             redirect_site_section('import', 'reg_admin', 'import_attendees')
-        elif c.PAGE == 'shifts':
+        elif c.PAGE in ['shift', 'shifts']:
             redirect_site_section('import', 'staffing_admin', 'import_shifts')
 
-        new_page = 'csv_import' if c.PAGE == 'index' else ''
         redirect_site_section('import', 'devtools', 'csv_import')
 
     def hotel(self, *path, **params):
