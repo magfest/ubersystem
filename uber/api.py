@@ -695,6 +695,7 @@ class ConfigLookup:
         'ESCHATON',
         'EVENT_VENUE',
         'EVENT_VENUE_ADDRESS',
+        'EVENT_TIMEZONE',
         'AT_THE_CON',
         'POST_CON',
         'URL_BASE',
