@@ -1,7 +1,7 @@
 """Add inappropriate content column
 
 Revision ID: 938e21c8c260
-Revises: 826e6c309c31
+Revises: 5c14f5a350dd
 Create Date: 2017-08-31 16:17:50.420672
 
 """

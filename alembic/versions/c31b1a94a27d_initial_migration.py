@@ -1,7 +1,7 @@
 """Initial migration
 
 Revision ID: c31b1a94a27d
-Revises: 4947b38a18b1
+Revises: 1ed43776064f
 Create Date: 2017-09-28 00:09:53.194594
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-09-28 00:09:53.194594
 
 # revision identifiers, used by Alembic.
 revision = 'c31b1a94a27d'
-down_revision = '4947b38a18b1'
+down_revision = '1ed43776064f'
 branch_labels = ('mits',)
 depends_on = None
 

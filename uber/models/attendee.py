@@ -687,6 +687,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     def promo_group_cost(self):
         return sum(group.total_cost for group in self.promo_code_groups)
 
+    @cost_property
+    def marketplace_cost(self):
+        return sum(app.total_cost - app.amount_paid for app in self.marketplace_applications)
+
     @property
     def amount_extra_unpaid(self):
         return self.total_cost - self.badge_cost
@@ -811,7 +815,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.shirt_size_marked and (
             not self.gets_staff_shirt
             or not c.SHIRTS_PER_STAFFER > 1
-            or self.second_shirt != c.UNKNOWN
             or c.AFTER_SHIRT_DEADLINE
         )
 

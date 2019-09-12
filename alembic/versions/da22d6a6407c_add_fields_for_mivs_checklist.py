@@ -1,7 +1,7 @@
 """Add fields for MIVS checklist
 
 Revision ID: da22d6a6407c
-Revises: 5ae9cea2cd6d
+Revises: 6c5cf22429e2
 Create Date: 2018-11-20 17:36:05.248730
 
 """
@@ -9,7 +9,7 @@ Create Date: 2018-11-20 17:36:05.248730
 
 # revision identifiers, used by Alembic.
 revision = 'da22d6a6407c'
-down_revision = '5ae9cea2cd6d'
+down_revision = '6c5cf22429e2'
 branch_labels = None
 depends_on = None
 

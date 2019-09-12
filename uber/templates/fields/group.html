@@ -37,7 +37,7 @@
       <ul>
         {% if group.auto_recalc %}
           <li>${{ '%0.2f' % group.table_cost }} for {{ group.tables }} table{{ group.tables|pluralize }}</li>
-          <li>${{ '%0.2f' % group.badge_cost }} for {{ group.badges }} badge{{ group.badges|pluralize }}
+          <li>${{ '%0.2f' % group.badge_cost }} for {{ group.badges_purchased }} badge{{ group.badges_purchased|pluralize }}
             {% if upgraded_badges %}(including {{ upgraded_badges }} upgraded badge{{ upgraded_badges|pluralize }}){% endif %}</li>
         {% else %}
           <li>${{ '%0.2f' % group.cost }} total cost</li>
@@ -57,6 +57,9 @@
   {% else %}
     <div class="alert alert-{{ 'danger' if group.status == c.DECLINED else 'warning' }}">
     Your dealer application {{ 'is' if group.status == c.UNAPPROVED else 'has been' }} <strong>{{ group.status_label }}</strong>.
+      {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and group.leader %}
+      <br/><br/>If you would like, you may instead
+      <a href="../marketplace/index?attendee_id={{ group.leader.id }}" target="_blank">apply for a table in the Marketplace.</a>{% endif %}
   {% endif %}
 </div>
 {% endif %}
@@ -114,7 +117,7 @@
 {% endset %}
 
 {% set min_badges = 1 if attendee_or_group.is_dealer else c.MIN_GROUP_SIZE %}
-{% set max_badges = c.MAX_DEALERS if attendee_or_group.is_dealer else c.MAX_GROUP_SIZE %}
+{% set max_badges = c.MAX_DEALERS if not admin_area and attendee_or_group.is_dealer else c.MAX_GROUP_SIZE %}
 
 <div class="group_fields">
   <div class="form-group">
@@ -180,7 +183,7 @@
 
 <div class="form-group">
   <label for="categories" class="col-sm-3 control-label">What kinds of things do you sell?</label>
-  {% call macros.read_only_if(read_only, group.categories_labels, post_text=("/ " if group.categories_labels else "") + "Other: "+group.categories_text if group.categories_text) %}
+  {% call macros.read_only_if(read_only, group.categories_labels, post_text=("Other: " if not group.categories_labels else ":") + group.categories_text if group.categories_text) %}
     <div class="checkbox col-sm-9">
       {{ macros.checkgroup(group, 'categories') }}
     </div>

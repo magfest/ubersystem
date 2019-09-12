@@ -1,0 +1,50 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Marketplace Admin{% endblock %}
+{% block content %}
+
+<ol class="breadcrumb">
+  <li><a href="../accounts/homepage">Home</a></li>
+  <li>Marketplace</li>
+  <li class="active">Admin</li>
+</ol>
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h3 class="panel-title">Marketplace Applications</h3>
+  </div>
+  <div class="panel-body">
+    <a class="btn btn-default" href="form?new_app=True">Add an application</a>
+    <div class="pull-right form-inline">
+      <div class="form-group">
+        <div class="control-label">Status</div> <div class="input-group" id="status_filter"></div>
+      </div>
+    </div>
+  </div>
+<table class="table table-striped datatable">
+<thead><tr>
+    <th>Name</th>
+    <th>Status</th>
+    <th>Categories</th>
+    <th>Description</th>
+    <th>Special Needs</th>
+    <th>Illinois Business Tax Number</th>
+    <th>Admin Notes</th>
+    <th>Paid</th>
+</tr></thead>
+{% for app in applications %}
+    <tr>
+        <td style="text-align:left" data-order="{{ app.attendee.full_name }}" data-search="{{ app.attendee.full_name }}"> <a href="form?id={{ app.id }}">{{ app.attendee.full_name|default("?????") }}{% if app.business_name %} ({{ app.business_name }}){% endif %}</a> </td>
+        <td>{{ app.status_label }}</td>
+        <td>{{ app.categories_labels|join(', ') }}{% if app.categories_text %}: {{ app.categories_text }}{% endif %}</td>
+        <td>{{ app.description }}</td>
+        <td>{{ app.special_needs }}</td>
+        <td>{{ app.tax_number }}</td>
+        <td>{{ app.admin_notes }}</td>
+        <td>${{ app.amount_paid }}</td>
+    </tr>
+{% endfor %}
+	<caption align="bottom">
+		<ul class="pagination"></ul>
+	</caption>
+</table>
+{% endblock %}
