@@ -26,7 +26,7 @@ from uber.decorators import prereg_validation, validation
 from uber.models import AccessGroup, AdminAccount, ApiToken, Attendee, AttendeeTournament, Attraction, \
     AttractionFeature, Department, DeptRole, Event, Group, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, \
     IndieStudio, Job, MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam, PanelApplicant, PanelApplication, \
-    PromoCode, Sale, Session
+    PromoCode, PromoCodeGroup, Sale, Session
 from uber.utils import localized_now, Charge
 
 
@@ -587,6 +587,10 @@ def no_dupe_code(promo_code):
                 return 'The code you entered already belongs to another ' \
                     'promo code. Note that promo codes are not case sensitive.'
 
+
+PromoCodeGroup.required = [
+    ('name', 'Name')
+]
 
 # =============================
 # tournaments

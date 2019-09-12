@@ -686,7 +686,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def amount_paid(self):
         return max(sum([item.amount for item in self.receipt_items if item.txn_type == c.PAYMENT]),
                    sum([txn.share for txn in self.stripe_txn_share_logs if txn.stripe_transaction.type == c.PAYMENT]),
-                   self.amount_paid_override * 100)
+                   min(self.amount_paid_override * 100, self.total_cost))
 
     @amount_paid.expression
     def amount_paid(cls):
