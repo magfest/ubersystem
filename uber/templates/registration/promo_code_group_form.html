@@ -7,8 +7,13 @@
             var buyer = $.val('buyer_id');
             if (buyer === '') {
                 $('#buyer_link').hide();
+                $('#new_buyer').hide();
+            } else if (buyer === 'None') {
+                $('#buyer_link').hide();
+                $('#new_buyer').show();
             } else {
                 $('#buyer_link').attr("href", '../registration/form?id=' + buyer).show();
+                $('#new_buyer').hide();
             }
         }
     };
@@ -34,11 +39,17 @@
           <div class="col-sm-6">
             <select class="form-control" id="attendee_id" name="buyer_id" required="required" onChange="setBuyerLink()">
               <option value="" selected="selected">Select an attendee</option>
+              <option value="None">Create new attendee</option>
               {{ options(all_attendees, buyer_id) }}
             </select>
             <a id="buyer_link" href="" target="_blank">View this Attendee's Page</a>
           </div>
         </div>
+      <div id="new_buyer">
+        {{ macros.form_group(group.buyer, 'first_name', placeholder="Buyer's First Name") }}
+        {{ macros.form_group(group.buyer, 'last_name', placeholder="Buyer's Last Name") }}
+        {{ macros.form_group(group.buyer, 'email', placeholder="Buyer's Email Address") }}
+      </div>
       {% if not group.is_new %}<hr/>{% endif %}
         <div class="form-group">
           <label class="col-sm-3 control-label">Badges{% if not group.is_new %} to Add{% endif %}</label>

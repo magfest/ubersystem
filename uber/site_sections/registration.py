@@ -203,10 +203,10 @@ class Root:
         }
 
     @log_pageview
-    def promo_code_group_form(self, session, message='', **params):
+    def promo_code_group_form(self, session, message='',
+                              badges=0, cost_per_badge=0,
+                              first_name='', last_name='', email='', **params):
         group = session.promo_code_group(params)
-        badges = params.get('badges')
-        cost_per_badge = params.get('cost_per_badge')
         badges_are_free = params.get('badges_are_free')
         buyer_id = params.get('buyer_id')
         attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
@@ -227,7 +227,16 @@ class Root:
                 elif not cost_per_badge and not badges_are_free:
                     message = "Please enter a cost per badge, or confirm that this group is free."
 
+            if not message and buyer_id == "None" and not (first_name and last_name and email):
+                message = "To create a new buyer, please enter their first name, last name, and email address."
+
             if not message:
+                if buyer_id == "None":
+                    buyer = Attendee(first_name=first_name, last_name=last_name, email=email)
+                    buyer.placeholder = True
+                    session.add(buyer)
+                    group.buyer = buyer
+
                 if badges:
                     session.add_codes_to_pc_group(group, int(badges), 0 if badges_are_free else int(cost_per_badge))
                 raise HTTPRedirect('promo_code_group_form?id={}&message={}', group.id, "Group saved")
