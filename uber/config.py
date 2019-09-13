@@ -593,11 +593,23 @@ class Config(_Overridable):
 
     @property
     def DEFAULT_REGDESK_INT(self):
-        return getattr(self, 'REGDESK', getattr(self, 'REGISTRATION', 177161930))
+        from uber.models import Session, Department
+        with Session() as session:
+            dept = session.query(Department).filter(or_(
+                Department.name == "Registration",
+                Department.name == "Regdesk")).first()
+            return dept.id if dept else ''
+
 
     @property
     def DEFAULT_STOPS_INT(self):
-        return getattr(self, 'STOPS', 29995679)
+        from uber.models import Session, Department
+        with Session() as session:
+            dept = session.query(Department).filter(or_(
+                Department.name == "STOPS",
+                Department.name == "Staffing Ops",
+                Department.name == "Staffing Operations")).first()
+            return dept.id if dept else ''
 
     @property
     def HTTP_METHOD(self):

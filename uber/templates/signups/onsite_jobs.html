@@ -10,7 +10,16 @@
     <a href="printable">Click here</a> to see a printable schedule of the {{ attendee.weighted_hours }} weighted hours worth of shifts you are signed up for.
 </div>
 
-<br/>
+{% if c.VOLUNTEER_AGREEMENT_ENABLED %}
+{% if not attendee.agreed_to_volunteer_agreement %}
+  Please read and agree
+{% else %}
+  You have agreed
+{% endif %}
+to the terms of the <a href="volunteer_agreement">Volunteer Agreement</a>{% if not attendee.agreed_to_volunteer_agreement %} in order to sign up for shifts{% endif %}.
+  {% endif %}
+{% if attendee.agreed_to_volunteer_agreement or not c.VOLUNTEER_AGREEMENT_ENABLED %}
+<br/><br/>
 {{ c.EVENT_NAME }} has already started, so it's too late to drop shifts.  However, you can sign up for new shifts below.
 <br/> <br/>
 If you cannot make it to one or more of your existing shifts, contact {{ c.STAFF_EMAIL }}
@@ -52,5 +61,6 @@ If you cannot make it to one or more of your existing shifts, contact {{ c.STAFF
     {% endfor %}
     </tbody>
 </table>
+{% endif %}
 
 {% endblock %}
