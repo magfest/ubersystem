@@ -504,11 +504,11 @@ class Root:
             raise HTTPRedirect('group_promo_codes?id={}&message={}', group.id, message)
         else:
             session.add(session.create_receipt_item(
-                charge.stripe_transaction, attendee, charge.amount,
+                attendee, charge.amount,
                 "Adding {} badge{} to promo code group {} (${} each)".format(
                     badges_to_add,
                     "s" if badges_to_add > 1 else "",
-                    group.name, c.GROUP_PRICE), c.PROMO_CODE)
+                    group.name, c.GROUP_PRICE), charge.stripe_transaction, c.PROMO_CODE),
             )
 
             session.add_codes_to_pc_group(group, badges_to_add)
@@ -815,7 +815,7 @@ class Root:
                 attendee.paid = c.REFUNDED
                 attendee.amount_refunded_override = amount_refunded / 100
                 session.add(session.create_receipt_item(
-                    response, attendee, amount_refunded, "Self-service badge refund", txn_type=c.REFUND)
+                    attendee, amount_refunded, "Self-service badge refund", response, txn_type=c.REFUND)
                 )
 
         # if attendee is part of a group, we must delete attendee and remove them from the group

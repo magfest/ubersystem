@@ -64,7 +64,7 @@
         <td valign="top" style="white-space:nowrap">{{ item.when|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
         <td valign="top" style="white-space:nowrap">{{ item.who }}</td>
         <td valign="top" style="white-space:nowrap">{{ item.desc }}{% if item.fk_id %}({{ item.model }}){% endif %}</td>
-        <td valign="top" style="white-space:nowrap">${{ '%0.2f' % (item.amount / 100) }} {{ item.type_label }}
+        <td valign="top" style="white-space:nowrap">${{ '%0.2f' % (item.amount / 100) }} {{ item.txn_type_label }}
         </tr>
     {% endfor %}
     </table>

@@ -1,0 +1,213 @@
+{% extends "base.html" %}{% set admin_area=True %}{% set resend_email_form=True %}
+{% block title %}Attendee Receipt Items - {{ attendee.full_name }}{% endblock %}
+{% block content %}
+<script type="text/javascript">
+$().ready(function() {
+      $("form[action='remove_receipt_item']").submit(function(event){
+          var formToSubmit = this;
+          event.preventDefault();
+          bootbox.confirm({
+              title: "Delete Receipt Item?",
+              message: "This will permanently remove this receipt item. " +
+              "This cannot be undone, and should only be used for receipt items " +
+              "that were recorded incorrectly. Are you sure?",
+              buttons: {
+                  confirm: {
+                      label: 'Delete Receipt Item',
+                      className: 'btn-danger'
+                  },
+                  cancel: {
+                      label: 'Nevermind',
+                      className: 'btn-default'
+                  }
+              },
+              callback: function (result) {
+                  if(result) {
+                      formToSubmit.submit();
+                  }
+              }
+          });
+      });
+  });
+</script>
+{% include "registration/menu.html" %}
+
+<h2>Receipt Items for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
+  <div class="panel panel-body">
+  <h3>Instructions</h3>
+  <p>Use this form to remove and add items an attendee has paid for or been refunded for.
+    If the system has recorded any Stripe transactions for this attendee, they will be listed at the bottom of this page --
+    you can use this for reference when adding receipt items, though theoretically the system should correctly
+    record all receipt items associated with Stripe transactions.</p>
+
+  <p>
+    If the system detects possible paid items that need to be added,
+    they will be displayed in pre-filled rows under "Add Paid Item" below.
+  </p>
+
+  <p>
+    Please always itemize payments and refunds. Items with the same price, and <em>only</em> items with the same price
+    (e.g., paying for 8 badges in a promo code group), may be grouped into one receipt item.
+  </p>
+  </div>
+
+<div class="panel panel-body"><h3>Add Paid Item</h3>
+{% macro add_item_row(amount=0, desc='', type='', iter=0) %}
+<tr>
+  <td>
+    <label class="sr-only">Stripe Transaction</label>
+    <select form="add_receipt_item_{{ iter }}" name="stripe_txn_id" class="form-control">
+      <option value="">N/A</option>
+      {{ options(stripe_txn_opts) }}
+    </select>
+  </td>
+  <td>
+    <label class="sr-only">Description</label>
+    <input form="add_receipt_item_{{ iter }}" type="text" class="form-control" placeholder="Description of item purchased" name="desc" required value="{{ desc }}" />
+  </td>
+  <td>
+    <label class="sr-only">Amount Paid</label>
+    <div class="input-group">
+      <div class="input-group-addon">$</div>
+      <input form="add_receipt_item_{{ iter }}" type="text" class="form-control" placeholder="0" name="amount" required value="{{ (amount / 100)|int if amount else '' }}" />
+      <div class="input-group-addon">.00</div>
+    </div>
+  </td>
+  <td>
+    <label class="sr-only">Item Type</label>
+    <select form="add_receipt_item_{{ iter }}" name="item_type" class="form-control" required>
+      <option value="">Select an item type</option>
+      {{ options(c.RECEIPT_ITEM_OPTS, type) }}
+    </select>
+  </td>
+  <td>
+    <form class="form-inline" method="post" action="add_receipt_item" id="add_receipt_item_{{ iter }}" role="form">
+      <input type="hidden" name="id" value="{{ attendee.id }}" />
+      <input type="hidden" name="txn_type" value="{{ c.PAYMENT }}" />
+      {{ csrf_token() }}
+      <button type="submit" class="btn btn-primary">Add Payment</button>
+    </form>
+  </td>
+</tr>
+{% endmacro %}
+<table class="table">
+    <thead><tr>
+      <th>Stripe Transaction</th>
+      <th width="25%">Description</th>
+      <th>Amount</th>
+      <th>Item Type</th>
+      <th></th>
+    </tr></thead>
+{{ add_item_row() }}
+{% for item in attendee.receipt_items_breakdown %}
+  {% set amount, desc, type = item %}
+  {% if amount %}
+    {{ add_item_row(amount, desc, type, loop.index) }}
+  {% endif %}
+{% endfor %}
+</table>
+</div>
+
+{% if attendee.receipt_items %}
+<div class="panel panel-body">
+<h3>Add Refund by Type</h3>
+  <table class="table">
+    <thead><tr>
+      <th>Item Type</th>
+      <th>Description</th>
+      <th>Amount</th>
+      <th></th>
+    </tr></thead>
+{% for item_type, item_label in c.RECEIPT_ITEM_OPTS %}
+  {% set balance = attendee.balance_by_item_type(item_type) %}
+  {% if balance %}
+    <tr></tr>
+    <td>{{ item_label }}</td>
+    <td>
+      <label class="sr-only">Description</label>
+    <input form="refund_receipt_item_{{ item_type }}" type="text" class="form-control" placeholder="Description of item refunded" name="desc" required value="Refund for {{ item_label }}" />
+    </td>
+    <td>
+    <div class="input-group">
+      <div class="input-group-addon">$</div>
+      <input form="refund_receipt_item_{{ item_type }}" type="text" class="form-control" placeholder="0" name="amount" required value="{{ (balance / 100)|int }}" />
+      <div class="input-group-addon">.00</div>
+    </div>
+    </td>
+    <td>
+    <form class="form-inline" method="post" action="add_receipt_item" id="refund_receipt_item_{{ item_type }}" role="form">
+      <input type="hidden" name="id" value="{{ attendee.id }}" />
+      <input type="hidden" name="item_type" value="{{ item_type }}" />
+      <input type="hidden" name="txn_type" value="{{ c.REFUND }}" />
+      {{ csrf_token() }}
+      <button type="submit" class="btn btn-success">Add Refund</button>
+    </form>
+    </td>
+    </tr>
+  {% endif %}
+{% endfor %}
+</table>
+</div>
+
+  <div class="panel panel-body">
+  <h3>Existing Receipt Items</h3>
+  <table class="table table-striped">
+    <thead><tr>
+      <th>Payment ID</th>
+      <th>When</th>
+      <th>Who</th>
+      <th>Description</th>
+      <th>Amount</th>
+      <th>Item Type</th>
+      <th>Paid/Refunded</th>
+      <th></th>
+    </tr></thead>
+    {% for item in attendee.receipt_items %}
+      <tr>
+        <td>{{ item.stripe_transaction.stripe_id or 'N/A' }}</td>
+        <td>{{ item.when|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
+        <td>{{ item.who }}</td>
+        <td>{{ item.desc }}{% if item.fk_id %}({{ item.model }}){% endif %}</td>
+        <td>${{ '%0.2f' % (item.amount / 100) }} {{ item.type_label }}</td>
+        <td>{{ item.item_type_label }}</td>
+        <td>{{ item.txn_type_label }}</td>
+        <td>
+          <form class="form-inline" method="post" action="remove_receipt_item" role="form">
+            <input type="hidden" name="id" value="{{ item.id }}" />
+            {{ csrf_token() }}
+            <button type="submit" class="btn btn-danger">Delete Item</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+  </div>
+{% endif %}
+
+  {% if attendee.stripe_txn_share_logs %}
+  <div class="panel panel-body">
+  <h3>Stripe Payment History for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h3>
+  <table class="table-striped table-bordered table-condensed">
+  <thead><tr>
+      <th>Payment ID</th>
+      <th>Amount</th>
+      <th>Txn Total</th>
+      <th>When</th>
+      <th>Who</th>
+      <th>Payment Description</th>
+  </tr></thead>
+  {% for log in attendee.stripe_txn_share_logs %}
+      <tr>
+      <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.stripe_id }}</td>
+      <td valign="top" style="white-space:nowrap">${{ '%0.2f' % (log.share / 100) }}
+      <td valign="top" style="white-space:nowrap">${{ '%0.2f' % (log.stripe_transaction.amount / 100) }} {{ log.stripe_transaction.type_label }}</td>
+      <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.when|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
+      <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.who }}</td>
+      <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.desc }}</td>
+      </tr>
+  {% endfor %}
+  </table>
+  </div>
+  {% endif %}
+
+{% endblock %}
