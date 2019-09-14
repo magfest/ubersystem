@@ -887,7 +887,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def can_abandon_badge(self):
         return not self.amount_paid and (
-            not self.paid == c.NEED_NOT_PAY or self.badge_type == c.STAFF_BADGE
+            (not self.paid == c.NEED_NOT_PAY or self.in_promo_code_group) or self.badge_type == c.STAFF_BADGE
         ) and not self.is_group_leader and not self.checked_in
 
     @property
@@ -919,7 +919,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def is_group_leader(self):
-        return self.group and self.id == self.group.leader_id
+        return self.group and self.id == self.group.leader_id or self.promo_code_groups
+
+    @property
+    def in_promo_code_group(self):
+        return self.promo_code and self.promo_code.group
 
     @property
     def unassigned_name(self):
@@ -1015,7 +1019,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def is_transferable(self):
         return not self.is_new \
             and not self.checked_in \
-            and self.paid in [c.HAS_PAID, c.PAID_BY_GROUP] \
+            and (self.paid in [c.HAS_PAID, c.PAID_BY_GROUP] or self.in_promo_code_group) \
             and self.badge_type in c.TRANSFERABLE_BADGE_TYPES \
             and not self.admin_account \
             and not self.has_role_somewhere

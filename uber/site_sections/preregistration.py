@@ -774,7 +774,7 @@ class Root:
 
     def abandon_badge(self, session, id):
         attendee = session.attendee(id)
-        if not attendee.amount_paid:
+        if attendee.amount_paid:
             failure_message = "Something went wrong with your refund. Please contact us at {}."\
                 .format(c.REGDESK_EMAIL)
             new_status = c.REFUNDED_STATUS
@@ -817,6 +817,9 @@ class Root:
                 session.add(session.create_receipt_item(
                     response, attendee, amount_refunded, "Self-service badge refund", txn_type=c.REFUND)
                 )
+
+        if attendee.in_promo_code_group:
+            attendee.promo_code = None
 
         # if attendee is part of a group, we must delete attendee and remove them from the group
         if attendee.group:
