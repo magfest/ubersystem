@@ -1,6 +1,5 @@
 import json
 import math
-import random
 import re
 from datetime import date, datetime, timedelta
 from uuid import uuid4
@@ -142,14 +141,8 @@ name_suffixes = [
     'IV',
     'II']
 
+
 normalized_name_suffixes = [re.sub(r'[,\.]', '', s.lower()) for s in name_suffixes]
-
-
-def _generate_hotel_pin():
-    """
-    Returns a 7 digit number formatted as a zero padded string.
-    """
-    return '{:07d}'.format(random.randint(0, 9999999))
 
 
 class Attendee(MagModel, TakesPaymentMixin):
