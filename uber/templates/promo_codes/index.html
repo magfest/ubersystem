@@ -50,6 +50,13 @@ $(document).ready(function() {
     Delete Unused
   </button>
 </h1>
+  <ul class="nav nav-tabs" role="tablist">
+  <li {% if show == "admin" %}class="active"{% endif %}><a href="index?show=admin">Discount Codes</a></li>
+  <li {% if show == "group" %}class="active"{% endif %}><a href="index?show=group">Promo Code Group Codes</a></li>
+  <li {% if show == "overused" %}class="active"{% endif %}><a href="index?show=overused">Overused</a></li>
+  <li {% if show == "all" %}class="active"{% endif %}><a href="index?show=all">All</a></li>
+</ul>
+<br/>
 <div id="modal-delete-unused" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="title-delete-unused">
   <div class="modal-dialog modal-sm" role="document">
     <div class="modal-content">
@@ -68,7 +75,7 @@ $(document).ready(function() {
   </div>
 </div>
 <div class="table-responsive">
-  <table class="table table-striped datatable form-horizontal">
+  <table id="promo_code_list" class="table table-striped datatable form-horizontal">
     <thead>
       <tr>
         <th>Promo Code</th>
@@ -77,6 +84,9 @@ $(document).ready(function() {
         <th>Discount</th>
         <th>Allowed Uses</th>
         <th>Number of Uses</th>
+        {% if show != 'admin' %}
+        <th>Promo Code Group</th>
+        {% endif %}
         <th></th>
       </tr>
     </thead>
@@ -115,6 +125,11 @@ $(document).ready(function() {
           <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a>{% if not loop.last %}, {% endif %}
           {% endfor %}
         </td>
+        {% if show != 'admin' %}
+        <td>
+          <a href="promo_code_group_form?id={{ promo_code.group.id }}" target="_blank">{{ promo_code.group.name }}</a>
+        </td>
+        {% endif %}
         <td class="text-nowrap">
           <form id="update_promo_code_{{ promo_code.id }}" method="post" action="update_promo_code">
             {{ csrf_token() }}

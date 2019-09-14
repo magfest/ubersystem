@@ -203,14 +203,51 @@ class Root:
         }
 
     @log_pageview
-    def promo_code_group_form(self, session, id, message='', **params):
-        group = session.promo_code_group(id)
+    def promo_code_group_form(self, session, message='',
+                              badges=0, cost_per_badge=0,
+                              first_name='', last_name='', email='', **params):
+        group = session.promo_code_group(params)
+        badges_are_free = params.get('badges_are_free')
+        buyer_id = params.get('buyer_id')
+        attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
+            .filter(Attendee.first_name != '', Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]))
+        attendees = [
+            (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
+            for id, name, badge_type, badge_num in attendee_attrs]
+
         if cherrypy.request.method == 'POST':
             group.apply(params)
-            session.commit()
+            message = check(group)
+            if not buyer_id and not message:
+                message = "Please select a group buyer."
+
+            if group.is_new and not message:
+                if not badges or not int(badges):
+                    message = "You cannot create a group with no badges."
+                elif not cost_per_badge and not badges_are_free:
+                    message = "Please enter a cost per badge, or confirm that this group is free."
+
+            if not message and buyer_id == "None" and not (first_name and last_name and email):
+                message = "To create a new buyer, please enter their first name, last name, and email address."
+
+            if not message:
+                if buyer_id == "None":
+                    buyer = Attendee(first_name=first_name, last_name=last_name, email=email)
+                    buyer.placeholder = True
+                    session.add(buyer)
+                    group.buyer = buyer
+
+                if badges:
+                    session.add_codes_to_pc_group(group, int(badges), 0 if badges_are_free else int(cost_per_badge))
+                raise HTTPRedirect('promo_code_group_form?id={}&message={}', group.id, "Group saved")
 
         return {
             'group': group,
+            'badges': badges,
+            'cost_per_badge': cost_per_badge or c.GROUP_PRICE,
+            'badges_are_free': badges_are_free,
+            'buyer_id': buyer_id or (group.buyer.id if group.buyer else ''),
+            'all_attendees': sorted(attendees, key=lambda tup: tup[1]),
             'message': message,
         }
 

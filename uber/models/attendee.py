@@ -1,6 +1,5 @@
 import json
 import math
-import random
 import re
 from datetime import date, datetime, timedelta
 from uuid import uuid4
@@ -142,14 +141,8 @@ name_suffixes = [
     'IV',
     'II']
 
+
 normalized_name_suffixes = [re.sub(r'[,\.]', '', s.lower()) for s in name_suffixes]
-
-
-def _generate_hotel_pin():
-    """
-    Returns a 7 digit number formatted as a zero padded string.
-    """
-    return '{:07d}'.format(random.randint(0, 9999999))
 
 
 class Attendee(MagModel, TakesPaymentMixin):
@@ -686,7 +679,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def amount_paid(self):
         return max(sum([item.amount for item in self.receipt_items if item.txn_type == c.PAYMENT]),
                    sum([txn.share for txn in self.stripe_txn_share_logs if txn.stripe_transaction.type == c.PAYMENT]),
-                   self.amount_paid_override * 100)
+                   min(self.amount_paid_override * 100, self.total_cost))
 
     @amount_paid.expression
     def amount_paid(cls):
@@ -804,7 +797,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         promo_code_balance = self.balance_by_item_type(item_type)
 
         # This is only for new attendees -- we add the receipt item for buying additional badges in the page handler
-        if not promo_code_balance:
+        if not promo_code_balance and not self.promo_code_group_name:
             return self.promo_group_cost * 100, \
                    'Promo code group "{}" ({} badges at ${} each)'.format('{}', '{}', c.GROUP_PRICE), \
                    item_type

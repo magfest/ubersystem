@@ -943,21 +943,22 @@ class Session(SessionManager):
 
             return self.query(model).filter(clause).order_by(model.normalized_code.desc()).first()
 
-        def create_promo_code_group(self, attendee, name, badges):
+        def create_promo_code_group(self, attendee, name, badges, cost=None):
             pc_group = PromoCodeGroup(name=name, buyer=attendee)
 
-            self.add_codes_to_pc_group(pc_group, badges)
+            self.add_codes_to_pc_group(pc_group, badges, cost)
 
             return pc_group
 
-        def add_codes_to_pc_group(self, pc_group, badges):
+        def add_codes_to_pc_group(self, pc_group, badges, cost=None):
+            cost = c.get_group_price() if cost is None else cost
             for _ in range(badges):
                 self.add(PromoCode(
                     discount=0,
                     discount_type=PromoCode._FIXED_PRICE,
                     uses_allowed=1,
                     group=pc_group,
-                    cost=c.get_group_price()))
+                    cost=cost))
 
         def get_next_badge_num(self, badge_type):
             """

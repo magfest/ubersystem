@@ -43,6 +43,13 @@ class Root:
 
         raise HTTPRedirect('receipt_items?id={}&message={}', attendee_or_group.id, "Receipt Item deleted")
 
+    def remove_promo_code(self, session, id=''):
+        attendee = session.attendee(id)
+        attendee.paid = c.NOT_PAID
+        attendee.promo_code = None
+        attendee.badge_status = c.NEW_STATUS
+        raise HTTPRedirect('../registration/form?id={}&message={}', id, "Promo code removed.")
+
     def import_attendees(self, session, target_server='', api_token='', query='', message=''):
         service, service_message, target_url = get_api_service_from_server(target_server, api_token)
         message = message or service_message

@@ -361,7 +361,6 @@ class Root:
 
     @credit_card
     def prereg_payment(self, session, payment_id=None, stripeToken=None):
-        # e0953b23-cf11-4959-8f92-bf794fdaf5c7
         if not payment_id or not stripeToken or c.HTTP_METHOD != 'POST':
             message = 'The payment was interrupted. Please check below to ensure you received your badge.'
             raise HTTPRedirect('paid_preregistrations?message={}', message)

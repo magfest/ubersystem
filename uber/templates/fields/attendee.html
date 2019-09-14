@@ -1160,6 +1160,29 @@
 
 {% set promo_code %}
 {% set read_only = promo_code_ro or page_ro %}
+{% if not read_only and c.HAS_REG_ADMIN_ACCESS %}
+  <script type="text/javascript">
+      var removePromoCode = function(event) {
+          event.preventDefault();
+          bootbox.confirm({
+              backdrop: true,
+              title: 'Remove "{{ attendee.promo_code_code }}" from "{{ attendee.full_name }}"?',
+              message: 'This will remove the promo code\'s discount from the attendee and ' +
+              'set them to unpaid. They will be asked to pay the difference to complete their registration.',
+              buttons: {
+                  confirm: { label: 'Remove Promo Code', className: 'btn-danger' },
+                  cancel: { label: 'Nevermind', className: 'btn-default' }
+              },
+              callback: function(result) {
+                  if (result) {
+                      window.location.href = '../reg_admin/remove_promo_code?id={{ attendee.id }}'
+                  }
+              }
+          });
+      };
+  </script>
+{% endif %}
+
 {% if c.BADGE_PROMO_CODES_ENABLED and not group_id and (attendee.is_unpaid or attendee.promo_code_code) %}
   <div class="non_group_fields form-group">
     <label for="promo_code" class="col-sm-3 control-label optional-field">Promo Code</label>
@@ -1168,7 +1191,12 @@
         <input type="textarea" name="promo_code" value="{{ attendee.promo_code_code or promo_code }}" class="form-control" placeholder="Promo Code">
       {% else %}
         <input type="hidden" name="promo_code" value="{{ attendee.promo_code_code }}">
-        <p class="form-control-static">{{ attendee.promo_code_code }}</p>
+        <p class="form-control-static">
+          {{ attendee.promo_code_code }}
+          {% if not read_only and c.HAS_REG_ADMIN_ACCESS %}
+            [<a href="" id="remove_promo_code" onClick="removePromoCode(event)">Remove</a>]
+          {% endif %}
+        </p>
       {% endif %}
     </div>
   </div>
@@ -1405,7 +1433,7 @@ $(function(){
             $("#unassigned").hide("fast");
         }
     };
-    $(function(){;
+    $(function(){
         setGroupLink();
     });
 </script>
@@ -1560,7 +1588,6 @@ $(function(){
       {% if c.AT_THE_CON and attendee.staffing %}
         <br/> ({{ attendee.worked_hours }} out of {{ attendee.weighted_hours }} hours worked)
       {% endif %}
-
     </div>
   {% endif %}
   </div>

@@ -1,23 +1,81 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Promo Code Group: {{ group.name }}{% endblock %}
 {% block content %}
-<div class="panel panel-default">
-  <div class="panel-body">
-    <h3>Group Info for "{{ group.name }}"</h3> <a href="promo_code_groups">Return to group list</a>
-    <form method="post" action="promo_code_group_form" class="form-horizontal">
+  <script type="text/javascript">
+  var setBuyerLink = function () {
+        if ($.field('buyer_id')) {
+            var buyer = $.val('buyer_id');
+            if (buyer === '') {
+                $('#buyer_link').hide();
+                $('#new_buyer').hide();
+            } else if (buyer === 'None') {
+                $('#buyer_link').hide();
+                $('#new_buyer').show();
+            } else {
+                $('#buyer_link').attr("href", '../registration/form?id=' + buyer).show();
+                $('#new_buyer').hide();
+            }
+        }
+    };
+  $(function(){
+        setBuyerLink();
+    });
+  </script>
+  <div class="panel panel-default">
+    <div class="panel-body">
+      {% if group.is_new %}
+        <h3>New Promo Code Group</h3>
+      {% else %}
+        <h3>Group Info for "{{ group.name }}"</h3>
+      {% endif %}
+      <a href="promo_code_groups">Return to group list</a>
+      <form method="post" action="promo_code_group_form" class="form-horizontal">
         {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ group.db_id }}" />
         {{ macros.form_group(group, 'name', placeholder="Group Name") }}
         {{ macros.form_group(group, 'code', is_readonly=True) }}
         <div class="form-group">
-          <label class="col-sm-3 control-label">Buyer</label>
-          <div class="col-sm-6 form-control-static">
-            {{ group.buyer|form_link }}
+          <label for="attendee" class="col-sm-3 control-label">Buyer</label>
+          <div class="col-sm-6">
+            <select class="form-control" id="attendee_id" name="buyer_id" required="required" onChange="setBuyerLink()">
+              <option value="" selected="selected">Select an attendee</option>
+              <option value="None">Create new attendee</option>
+              {{ options(all_attendees, buyer_id) }}
+            </select>
+            <a id="buyer_link" href="" target="_blank">View this Attendee's Page</a>
+          </div>
+        </div>
+      <div id="new_buyer">
+        {{ macros.form_group(group.buyer, 'first_name', placeholder="Buyer's First Name") }}
+        {{ macros.form_group(group.buyer, 'last_name', placeholder="Buyer's Last Name") }}
+        {{ macros.form_group(group.buyer, 'email', placeholder="Buyer's Email Address") }}
+      </div>
+      {% if not group.is_new %}<hr/>{% endif %}
+        <div class="form-group">
+          <label class="col-sm-3 control-label">Badges{% if not group.is_new %} to Add{% endif %}</label>
+          <div class="col-sm-6">
+            <select class="form-control" name="badges">
+              {{ int_options(0, 100, badges) }}
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="col-sm-3 control-label">Cost Per Badge</label>
+          <div class="col-sm-6">
+            <div class="input-group">
+              <span class="input-group-addon">$</span>
+              <input type="text" class="form-control" name="cost_per_badge" value="{{ cost_per_badge }}" />
+              <span class="input-group-addon">.00</span>
+            </div>
+            <label>
+              <input type="checkbox" name="badges_are_free"{% if badges_are_free %} checked{% endif %} />
+              These badges are free.
+            </label>
           </div>
         </div>
         <div class="form-group">
           <div class="col-sm-6 col-sm-offset-3">
-            <button type="submit" class="btn btn-primary">Update Group Info</button>
+            <button type="submit" class="btn btn-primary">Save</button>
           </div>
         </div>
       </form>
