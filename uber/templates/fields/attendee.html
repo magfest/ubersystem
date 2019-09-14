@@ -1582,6 +1582,9 @@ $(function(){
       <span id="amount_refunded">
             Refunded: ${{ '%0.2f' % (attendee.amount_refunded / 100) }}
         </span>
+      {% if not read_only and c.HAS_REG_ADMIN_ACCESS %}
+        [<a href="../reg_admin/receipt_items?id={{ attendee.id }}" target="_blank">Manage Payments</a>]
+      {% endif %}
       {% if c.AT_THE_CON and attendee.staffing %}
         <br/> ({{ attendee.worked_hours }} out of {{ attendee.weighted_hours }} hours worked)
       {% endif %}

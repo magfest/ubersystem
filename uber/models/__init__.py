@@ -14,6 +14,7 @@ import sqlalchemy
 from dateutil import parser as dateparser
 from pockets import cached_classproperty, classproperty, listify
 from pockets.autolog import log
+from pytz import UTC
 from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
 from sideboard.lib import on_startup, stopped
 from sqlalchemy import and_, func, or_, not_
@@ -780,16 +781,17 @@ class Session(SessionManager):
                     if "Promo code group" in desc:
                         desc = desc.format(getattr(model, 'name', ''), int(getattr(model, 'badges', 0)) - 1)
 
-                    item = self.create_receipt_item(charge.stripe_transaction, model, amount, desc, item_type)
+                    item = self.create_receipt_item(model, amount, desc, charge.stripe_transaction, item_type)
                     self.add(item)
 
-        def create_receipt_item(self, stripe_txn, model, amount, desc, item_type=c.OTHER, txn_type=c.PAYMENT):
+        def create_receipt_item(self, model, amount, desc, stripe_txn=None, item_type=c.OTHER, txn_type=c.PAYMENT):
             item = ReceiptItem(
-                txn_id=stripe_txn.id,
+                txn_id=stripe_txn.id if stripe_txn else None,
                 txn_type=txn_type,
                 item_type=item_type,
                 amount=amount,
                 who=getattr(model, 'full_name', getattr(model, 'name', '')),
+                when=stripe_txn.when if stripe_txn else datetime.now(UTC),
                 desc=desc)
             if isinstance(model, uber.models.Attendee):
                 item.attendee_id = getattr(model, 'id', None)
