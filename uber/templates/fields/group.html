@@ -260,6 +260,8 @@
 
 {% set address %}
 {% set read_only = group_address_ro or page_ro %}
+{% set required = not admin_area %}
+{% set prefix = '' if 'dealer_admin' in c.PAGE_PATH else 'group_' %}
 {% if not read_only %}
   {% if not c.COLLECT_FULL_ADDRESS or not attendee %}
     <script type="text/javascript">
@@ -276,7 +278,7 @@
   {% endif %}
 {% endif %}
 
-{{ macros.address_form(group, name_prefix="group_", is_readonly=read_only, is_required=True) }}
+{{ macros.address_form(group, name_prefix='group_', is_readonly=read_only, is_required=required) }}
 {% endset %}
 
 
