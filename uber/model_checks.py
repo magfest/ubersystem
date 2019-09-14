@@ -142,6 +142,13 @@ def dealer_address(group):
             return 'Please provide your full address for tax purposes. Missing: {}'.format(', '.join(missing))
 
 
+@prereg_validation.Group
+def dealer_region(group):
+    if group.country in ['Canada', 'United States'] and len(group.region) < 3:
+        return 'Please enter the full name of your {}.'.format(
+            'state' if group.country == 'United States' else 'province or region')
+
+
 @validation.Group
 def group_money(group):
     if not group.auto_recalc:
