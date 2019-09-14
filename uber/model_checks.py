@@ -651,6 +651,19 @@ IndieGame.required = [
     ('description', 'Full Description')
 ]
 
+
+@validation.IndieGame
+def mivs_showtime_agreement(game):
+    if not game.agreed_showtimes:
+        return 'Please check the box to confirm to the showtimes for a MIVS booth.'
+
+
+@validation.IndieGame
+def mivs_liability_agreement(game):
+    if not game.agreed_liability:
+        return 'Please check the box to confirm to agree to the liability waiver.'
+
+
 IndieGameCode.required = [
     ('code', 'Game Code')
 ]
