@@ -1,5 +1,6 @@
 from collections import defaultdict, OrderedDict
 from datetime import timedelta
+import random
 
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload, subqueryload
@@ -132,6 +133,13 @@ def _hours_vs_rooms_by_dept(session):
             dept_report['total_hotel_shoulder_nights'] += len(attendee_report['hotel_shoulder_nights'])
 
     return OrderedDict(sorted(departments.items(), key=lambda d: d[0].name))
+
+
+def _generate_hotel_pin():
+    """
+    Returns a 7 digit number formatted as a zero padded string.
+    """
+    return '{:07d}'.format(random.randint(0, 9999999))
 
 
 @all_renderable()
