@@ -16,9 +16,17 @@ from uber.utils import check, check_all, localized_now
 class Root:
     @site_mappable
     @log_pageview
-    def index(self, session, message='', **params):
-        promo_codes = session.query(PromoCode).options(joinedload(PromoCode.used_by)).all()
+    def index(self, session, message='', show='admin'):
+        which = {
+            'all': [],
+            'admin': [PromoCode.group_id == None],
+            'group': [PromoCode.group_id != None],
+            'overused': [PromoCode.uses_remaining < 0]
+        }[show]
+
+        promo_codes = session.query(PromoCode).filter(*which).options(joinedload(PromoCode.used_by)).all()
         return {
+            'show': show,
             'message': message,
             'promo_codes': promo_codes
         }
