@@ -819,6 +819,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         # This is for use in our model checks -- it includes attendees who are going to be marked staffing
         return self.staffing or self.volunteering_badge_or_ribbon
 
+    @property
+    def is_guest(self):
+        return self.group and self.group.guest or self.badge_type == c.GUEST_BADGE
+
     @hybrid_property
     def is_dealer(self):
         return c.DEALER_RIBBON in self.ribbon_ints or self.badge_type == c.PSEUDO_DEALER_BADGE or (

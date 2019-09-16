@@ -1,11 +1,12 @@
 import cherrypy
 from pockets import readable_join
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csv_file, site_mappable
+from uber.decorators import ajax, all_renderable, csv_file, log_pageview, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import Event, Group, GuestGroup, GuestMerch
+from uber.models import Email, Event, Group, GuestGroup, GuestMerch, PageViewTracking, Tracking
 from uber.utils import check, convert_to_absolute_url
 
 
@@ -26,44 +27,123 @@ class Root:
             'groups_filter': filter
         }
 
-    def add_group(self, session, message='', **params):
+    @log_pageview
+    def group_form(self, session, message='', return_to='index', **params):
         group = session.group(params, checkgroups=Group.all_checkgroups, bools=Group.all_bools)
+
         if cherrypy.request.method == 'POST':
-            message = self._required_message(
-                params, ['name', 'first_name', 'last_name', 'email', 'group_type'])
+            if group.is_new:
+                message = self._required_message(
+                    params, ['name', 'first_name', 'last_name', 'email', 'group_type'])
+            else:
+                message = check(group)
+
             if not message:
                 group.auto_recalc = False
                 session.add(group)
-                new_ribbon = c.BAND if params['group_type'] == str(c.BAND) else None
+                new_ribbon = c.BAND if params.get('group_type') == str(c.BAND) else None
                 message = session.assign_badges(
                     group,
                     params.get('badges', 1),
-                    new_badge_type=c.GUEST_BADGE,
-                    new_ribbon_type=new_ribbon,
+                    new_badge_type=params.get('badge_type', c.GUEST_BADGE),
+                    new_ribbon_type=params.get('ribbon', new_ribbon),
                     paid=c.PAID_BY_GROUP)
 
             if not message:
-                session.commit()
-                leader = group.leader = group.attendees[0]
-                leader.first_name = params.get('first_name')
-                leader.last_name = params.get('last_name')
-                leader.email = params.get('email')
-                leader.placeholder = True
-                message = check(leader)
-                if not message:
-                    group.guest = GuestGroup()
-                    group.guest.group_type = params['group_type']
+                if group.is_new:
                     session.commit()
-                    raise HTTPRedirect('index?message={} has been uploaded', group.name)
-                else:
-                    session.delete(group)
+                    leader = group.leader = group.attendees[0]
+                    leader.first_name = params.get('first_name')
+                    leader.last_name = params.get('last_name')
+                    leader.email = params.get('email')
+                    leader.placeholder = True
+                    message = check(leader)
+
+                    if not message:
+                        group.guest = GuestGroup()
+                        group.guest.group_type = params['group_type']
+                session.commit()
+                raise HTTPRedirect('group_form?id={}&message={} has been saved', group.id, group.name)
+            else:
+                session.delete(group)
 
         return {
             'message': message,
             'group': group,
             'first_name': params.get('first_name', ''),
             'last_name': params.get('last_name', ''),
-            'email': params.get('email', '')
+            'email': params.get('email', ''),
+            'return_to': return_to,
+        }
+
+    def group_history(self, session, id):
+        group = session.group(id)
+
+        if group.leader:
+            emails = session.query(Email).filter(
+                or_(Email.to == group.leader.email, Email.fk_id == id)).order_by(Email.when).all()
+        else:
+            emails = {}
+
+        return {
+            'group': group,
+            'emails': emails,
+            'changes': session.query(Tracking).filter(or_(
+                Tracking.links.like('%group({})%'.format(id)),
+                and_(Tracking.model == 'Group', Tracking.fk_id == id))).order_by(Tracking.when).all(),
+            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Group id={}".format(id))
+        }
+
+    @log_pageview
+    def attendee_form(self, session, message='', return_to='index', **params):
+        attendee = session.attendee(
+            params, checkgroups=['ribbons', 'job_interests', 'assigned_depts'],
+            bools=['placeholder', 'no_cellphone', 'staffing'],
+            allow_invalid=True)
+
+        if cherrypy.request.method == 'POST':
+            if not attendee.is_guest:
+                message = "New guests must be in a guest group or have a guest badge."
+
+            if not message:
+                session.add(attendee)
+
+                message = message or '{} has been saved'.format(attendee.full_name)
+                if params.get('save') == 'save_return_to_search':
+                    if return_to:
+                        q_or_and = '?' if '?' not in return_to else '&'
+                        raise HTTPRedirect(return_to + q_or_and + 'message={}', message)
+                    else:
+                        raise HTTPRedirect('index?message={}', message)
+                else:
+                    raise HTTPRedirect('attendee_form?id={}&message={}&return_to={}', attendee.id, message, return_to)
+
+        return {
+            'message': message,
+            'attendee': attendee,
+            'group_opts': [(g.id, g.name) for g in session.query(Group).join(GuestGroup).order_by(Group.name).all()],
+            'return_to': return_to
+        }
+
+    def attendee_history(self, session, id):
+        attendee = session.attendee(id, allow_invalid=True)
+
+        error_message = check_if_can_see_staffer(session, attendee)
+
+        if error_message:
+            raise HTTPRedirect('staffers?message={}', error_message)
+
+        return {
+            'attendee':  attendee,
+            'emails':    session.query(Email)
+                                .filter(or_(Email.to == attendee.email,
+                                            and_(Email.model == 'Attendee', Email.fk_id == id)))
+                                .order_by(Email.when).all(),
+            'changes':   session.query(Tracking)
+                                .filter(or_(Tracking.links.like('%attendee({})%'.format(id)),
+                                            and_(Tracking.model == 'Attendee', Tracking.fk_id == id)))
+                                .order_by(Tracking.when).all(),
+            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Attendee id={}".format(id))
         }
 
     @ajax

@@ -134,7 +134,7 @@
         {% else %}
           {% if c.GROUP_UPDATE_GRACE_PERIOD > 0 %}
             You have {{ c.GROUP_UPDATE_GRACE_PERIOD }} hour{{ c.GROUP_UPDATE_GRACE_PERIOD|pluralize }}
-            after paying to add badges to your group without quantity restrictions. You may continue 
+            after paying to add badges to your group without quantity restrictions. You may continue
             to add badges to your group after that, but you'll have to add at least {{ c.MIN_GROUP_ADDITION }} badges at a time.
           {% else %}
             You may add badges to your group later, but you must add at least
@@ -366,4 +366,74 @@
     </div>
   {% endcall %}
 </div>
+{% endset %}
+
+
+{% set new_badge_type %}
+<div class="form-group">
+  <label class="col-sm-3 control-label">Badge Type</label>
+  <div class="col-sm-6">
+    <select name="badge_type" class="form-control">
+      {{ options(c.BADGE_OPTS,group.leader.badge_type) }}
+    </select>
+  </div>
+  <p class="col-sm-9 col-sm-offset-3 help-block">
+    Does not change existing badges in this group, only affects newly added badges.
+  </p>
+</div>
+{% endset %}
+
+
+{% set new_badge_ribbon %}
+{% if not new_dealer and not group.is_dealer %}
+  <div class="form-group">
+    <label class="col-sm-3 control-label" class="form-control">Ribbon Type</label>
+    <div class="col-sm-6 checkbox">
+      {{ macros.checkgroup(Attendee, 'ribbon', defaults=group.new_ribbon) }}
+    </div>
+    <div class="clearfix"></div>
+    <p class="col-sm-9 col-sm-offset-3 help-block">
+      Does not change existing badges in this group, only affects newly added badges.
+    </p>
+  </div>
+{% endif %}
+{% endset %}
+
+
+{% set leader_info %}
+{% if group.is_new %}
+  <h3>Leader Info</h3>
+  <div class="form-group">
+    <label class="col-sm-3 control-label" for="first_name">First Name</label>
+    <div class="col-sm-6">
+      <input class="form-control" type="text" id="first_name" name="first_name" value="{{ group.leader.first_name or first_name }}" />
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label class="col-sm-3 control-label" for="last_name">Last Name</label>
+    <div class="col-sm-6">
+      <input class="form-control" type="text" id="last_name" name="last_name" value="{{ group.leader.last_name or last_name }}" />
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label class="col-sm-3 control-label" for="email">Email</label>
+    <div class="col-sm-6">
+      <input class="form-control" type="text" id="email" name="email" value="{{ group.leader.email or email }}" />
+    </div>
+  </div>
+{% endif %}
+{% endset %}
+
+
+{% set phone_number %}
+{% if group.leader %}
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Phone Number</label>
+    <div class="col-sm-6">
+      {{ group.leader.cellphone }}
+    </div>
+  </div>
+{% endif %}
 {% endset %}

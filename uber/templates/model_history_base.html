@@ -2,7 +2,7 @@
 {% set model = attendee if attendee else group %}
 {% block title %}{{ 'Attendee' if attendee else 'Group' }} History - {{ model.full_name|default(model.name) }}{% endblock %}
 {% block content %}
-{% include "attendee_nav_menu.html" %}
+{% include "attendee_nav_menu.html" if attendee else "group_nav_menu.html" %}
 
   <h2>Changelog for {{ model.full_name|default(model.name) }} {% if c.AT_THE_CON and model.badge_num %}({{ model.badge_num }}){% endif %}</h2>
 

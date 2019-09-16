@@ -1,0 +1,110 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import "fields/group.html" as group_fields with context %}
+{% block title %}Group Form{% endblock %}
+{% block content %}
+  {% include "group_nav_menu.html" %}
+
+
+  {% include "check_in.html" %}
+
+  <div class="panel panel-default">
+    <div class="panel-body">
+
+      <h2> Group Info {% if not group.is_new %} [<a href="../preregistration/group_members?id={{ group.id }}">Assign Badges</a>{% if group.guest and c.HAS_GUEST_ADMIN_ACCESS %} | <a href="../guests/index?id={{ group.guest.id }}">{{ group.guest.group_type_label }} Checklist</a>{% endif %}]{% endif %} </h2>
+
+      <form method="post" action="group_form" class="form-horizontal">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ group.db_id }}" />
+
+        {% block form_fields %}
+        {% endblock %}
+
+        {% include "groupextra.html" %}
+
+        {% if not page_ro %}
+          <div class="form-group">
+            <div class="col-sm-6 col-sm-offset-3">
+              <button type="submit" class="btn btn-primary" value="Upload">Save</button>
+              {% if not group.is_new %}<button type="submit" form="delete" class="btn btn-danger">Delete Group</button>{% endif %}
+            </div>
+          </div>
+          </form>
+
+          {% if not group.is_new %}
+            <form method="post" action="delete_group" id="delete">
+              {{ csrf_token() }}
+              <input type="hidden" name="id" value="{{ group.id }}" />
+            </form>
+          {% endif %}
+        {% endif %}
+
+      <div style="text-align:center">
+        <a href="index">Return to group list</a>
+      </div>
+
+
+      {% if not group.is_new %} <a style="font-size:10pt" href="../preregistration/group_members?id={{ group.id }}">Link for group leader</a> {% endif %}
+      {% if not group.is_new and group.sorted_attendees %}
+        <hr/>
+        <h5>Total Hours: {{ group.attendees|sum(attribute='weighted_hours') }}</h5>
+        <h3> Badges: &nbsp; </h3>
+        <table style="width:auto;">
+          {% for attendee in group.attendees %}
+            <tr>
+              <td> <ul><li></li></ul> </td>
+              <td style="padding:15px;"> <a href="attendee_form?id={{ attendee.id }}&return_to=group_form?id={{ group.id }}">{{ attendee.full_name }}</a> </td>
+              <td>
+                <i>
+                  (paid => {{ attendee.paid_label }}, &nbsp;&nbsp;
+                  badge => {{ attendee.badge }})
+                </i>
+              </td>
+              <td style="padding:15px">
+                {% if attendee == group.leader %}
+                  <b>Leader</b>
+                {% elif not attendee.is_unassigned %}
+                  <form method="post" action="assign_leader">
+                    {{ csrf_token() }}
+                    <input type="hidden" name="group_id" value="{{ group.id }}" />
+                    <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
+                    <input type="submit" value="Make Leader" />
+                  </form>
+                {% endif %}
+              </td>
+              <td>
+                {% if attendee == group.leader %}
+                  <b>(Cannot Unassign group leader)</b>
+                {% elif not attendee.is_unassigned %}
+                  <form method="post" action="delete_attendee" onSubmit="return confirm('Are you sure you want to unassign this badge?');">
+                    {{ csrf_token() }}
+                    <input type="hidden" name="id" value="{{ attendee.id }}" />
+                    <input type="hidden" name="return_to" value="group_form?id={{ group.id }}" />
+                    <input type="submit" value="Unassign" />
+                  </form>
+                {% endif %}
+              </td>
+              <td style="padding:15px;">
+                {% if attendee.amount_extra %}
+                  <b>Kicked in an extra ${{ attendee.amount_extra }}!</b>
+                {% endif %}
+              </td>
+              <td style="padding:15px;">{{ attendee.weighted_hours }} Hours</td>
+              {% if attendee.checked_in %}
+                <td><b>Checked-in {{ attendee.checked_in_local|datetime("%-I:%M%p")|lower }} {{ attendee.checked_in_local|datetime("%a") }}</b></td>
+              {% elif c.AT_THE_CON %}
+                {% if attendee.is_not_ready_to_checkin %}
+                  <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
+                {% else %}
+                  <td id="cin_{{ attendee.id }}">
+                    <button class="attendee-checkin" data-attendee-id="{{ attendee.id }}">Check In</button>
+                  </td>
+                {% endif %}
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </table>
+      {% endif %}
+    </div>
+  </div>
+
+{% endblock %}
