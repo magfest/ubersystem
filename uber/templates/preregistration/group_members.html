@@ -99,6 +99,9 @@
         which will allow them to fill in their own information as well as purchase any upgrades on their own.
         <br/> <br/>
     {% endif %}
+    {% if group.guest %}
+      Please check your badge information to ensure it is correct.<br/><br/>
+    {% endif %}
     If a {{ group.is_dealer|yesno("planned " + c.DEALER_HELPER_TERM + ",group member") }} cannot attend, you may use the "This person
     isn't coming" button next to their entry on the list below to unset their badge, which may then be assigned to
     someone else. Upgraded badges may only be transferred directly between two people; please contact us at
