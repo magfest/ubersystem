@@ -69,7 +69,7 @@ class GuestGroup(MagModel):
 
     @property
     def all_badges_claimed(self):
-        return not any(a.is_unassigned for a in self.group.attendees)
+        return not any(a.is_unassigned or a.placeholder for a in self.group.attendees)
 
     @property
     def estimated_performer_count(self):
