@@ -2,6 +2,7 @@ from collections import defaultdict, OrderedDict
 from datetime import timedelta
 import random
 
+from pockets.autolog import log
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload, subqueryload
 
@@ -496,7 +497,7 @@ class Root:
         if c.PREREG_HOTEL_ELIGIBILITY_CUTOFF:
             eligibility_filters.append(or_(
                 Attendee.registered <= c.PREREG_HOTEL_ELIGIBILITY_CUTOFF,
-                and_(Attendee.paid == c.NEED_NOT_PAY, Attendee.promo_code_code == None))
+                and_(Attendee.paid == c.NEED_NOT_PAY, Attendee.promo_code == None))
             )
 
         hotel_query = session.query(Attendee).filter(*eligibility_filters).filter(
@@ -529,6 +530,23 @@ class Root:
             headers.append('LoginID{}'.format(count))
 
         out.writerow(headers)
-        added = []
-        for a in sorted(hotel_query.all(), key=lambda a: a.legal_name or a.full_name):
-            out.writerow([a.legal_first_name, a.legal_last_name, a.email, a.hotel_pin])
+        added = set()
+
+        hotel_results = sorted(hotel_query.all(), key=lambda a: a.legal_name or a.full_name)
+
+        matching_attendees = defaultdict(list)
+        for a in hotel_results:
+            matching_attendees[a.first_name, a.last_name, a.email].append(a)
+
+        for a in hotel_results:
+            row = [a.legal_first_name, a.legal_last_name, a.email, a.hotel_pin]
+
+            if a.hotel_pin not in added:
+                added.add(a.hotel_pin)
+
+                for matching_attendee in matching_attendees[a.first_name, a.last_name, a.email]:
+                    if matching_attendee.id != a.id:
+                        row.append(matching_attendee.hotel_pin)
+                        added.add(matching_attendee.hotel_pin)
+
+                out.writerow(row)
