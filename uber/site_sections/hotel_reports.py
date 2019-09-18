@@ -2,6 +2,7 @@ from collections import defaultdict, OrderedDict
 from datetime import timedelta
 import random
 
+from pockets.autolog import log
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload, subqueryload
 
@@ -530,15 +531,22 @@ class Root:
 
         out.writerow(headers)
         added = set()
-        for a in sorted(hotel_query.all(), key=lambda a: a.legal_name or a.full_name):
+
+        hotel_results = sorted(hotel_query.all(), key=lambda a: a.legal_name or a.full_name)
+
+        matching_attendees = defaultdict(list)
+        for a in hotel_results:
+            matching_attendees[a.first_name, a.last_name, a.email].append(a)
+
+        for a in hotel_results:
             row = [a.legal_first_name, a.legal_last_name, a.email, a.hotel_pin]
+
             if a.hotel_pin not in added:
                 added.add(a.hotel_pin)
-                for matching_attendee in \
-                        hotel_query.filter(Attendee.email == a.email,
-                                           Attendee.id != a.id,
-                                           Attendee.last_name == a.last_name):
-                    row.append(matching_attendee.hotel_pin)
-                    added.add(matching_attendee.hotel_pin)
+
+                for matching_attendee in matching_attendees[a.first_name, a.last_name, a.email]:
+                    if matching_attendee.id != a.id:
+                        row.append(matching_attendee.hotel_pin)
+                        added.add(matching_attendee.hotel_pin)
 
                 out.writerow(row)
