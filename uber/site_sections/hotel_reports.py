@@ -2,7 +2,7 @@ from collections import defaultdict, OrderedDict
 from datetime import timedelta
 import random
 
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
@@ -494,7 +494,10 @@ class Root:
         if c.PREREG_REQUEST_HOTEL_INFO_DURATION > 0:
             eligibility_filters.append(Attendee.requested_hotel_info == True)  # noqa: E711
         if c.PREREG_HOTEL_ELIGIBILITY_CUTOFF:
-            eligibility_filters.append(Attendee.registered <= c.PREREG_HOTEL_ELIGIBILITY_CUTOFF)
+            eligibility_filters.append(or_(
+                Attendee.registered <= c.PREREG_HOTEL_ELIGIBILITY_CUTOFF,
+                and_(Attendee.paid == c.NEED_NOT_PAY, Attendee.promo_code_code == None))
+            )
 
         hotel_query = session.query(Attendee).filter(*eligibility_filters).filter(
             Attendee.badge_status.notin_([c.INVALID_STATUS, c.REFUNDED_STATUS]),
