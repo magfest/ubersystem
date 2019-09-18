@@ -2,7 +2,7 @@ from collections import defaultdict, OrderedDict
 from datetime import timedelta
 import random
 
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
@@ -494,7 +494,10 @@ class Root:
         if c.PREREG_REQUEST_HOTEL_INFO_DURATION > 0:
             eligibility_filters.append(Attendee.requested_hotel_info == True)  # noqa: E711
         if c.PREREG_HOTEL_ELIGIBILITY_CUTOFF:
-            eligibility_filters.append(Attendee.registered <= c.PREREG_HOTEL_ELIGIBILITY_CUTOFF)
+            eligibility_filters.append(or_(
+                Attendee.registered <= c.PREREG_HOTEL_ELIGIBILITY_CUTOFF,
+                and_(Attendee.paid == c.NEED_NOT_PAY, Attendee.promo_code_code == None))
+            )
 
         hotel_query = session.query(Attendee).filter(*eligibility_filters).filter(
             Attendee.badge_status.notin_([c.INVALID_STATUS, c.REFUNDED_STATUS]),
@@ -521,6 +524,19 @@ class Root:
                 a.hotel_pin = new_hotel_pin
             session.commit()
 
-        out.writerow(['First Name', 'Last Name', 'E-mail Address', 'Password'])
+        headers = ['First Name', 'Last Name', 'E-mail Address', 'LoginID']
+        for count in range(2, 21):
+            headers.append('LoginID{}'.format(count))
+
+        out.writerow(headers)
+        added = []
         for a in sorted(hotel_query.all(), key=lambda a: a.legal_name or a.full_name):
-            out.writerow([a.legal_first_name, a.legal_last_name, a.email, a.hotel_pin])
+            row = [a.legal_first_name, a.legal_last_name, a.email]
+            if [a.legal_first_name, a.legal_last_name, a.email] not in added:
+                added.append([a.legal_first_name, a.legal_last_name, a.email])
+                for matching_attendee in hotel_query.filter_by(email=a.email):
+                    if matching_attendee.legal_first_name == a.legal_first_name \
+                            and matching_attendee.legal_last_name == a.legal_last_name:
+                        row.append(matching_attendee.hotel_pin)
+
+                out.writerow(row)
