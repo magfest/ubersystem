@@ -1,7 +1,8 @@
 {% if attendee.first_name %}{{ attendee.first_name }},
 
-{% endif %}Thanks for coming out to {{ c.EVENT_NAME }} as a Guest!  We've added you to our registration database for your complimentary badge, but we don't have all of your personal information.  To ensure that you can pick up your badge with no hassles at our registration desk, please fill out the rest of your info at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }} and then simply bring a photo ID to {{ c.EVENT_NAME }}.
+{% endif %}Thanks for coming out to {{ c.EVENT_NAME }} as a Guest! We've added you to our registration database for your complimentary badge, but we don't have all of your personal information. To ensure that you can pick up your badge with no hassles, please fill out the rest of your info at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }} and then simply bring a photo ID to {{ c.EVENT_NAME }}.
 
-Please let us know if you have any questions.
+Please let us know if you have any questions by reaching out to us at {{ c.GUEST_EMAIL|email_only }}.
 
+Thank you!
 {{ c.GUEST_EMAIL_SIGNATURE }}
