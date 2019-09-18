@@ -1188,7 +1188,7 @@
     <label for="promo_code" class="col-sm-3 control-label optional-field">Promo Code</label>
     <div class="col-sm-6">
       {% if attendee.is_unpaid and not read_only %}
-        <input type="textarea" name="promo_code" value="{{ attendee.promo_code_code or promo_code }}" class="form-control" placeholder="Promo Code">
+        <input type="textarea" name="promo_code" value="{{ attendee.promo_code_code or promo_code_code }}" class="form-control" placeholder="Promo Code">
       {% else %}
         <input type="hidden" name="promo_code" value="{{ attendee.promo_code_code }}">
         <p class="form-control-static">

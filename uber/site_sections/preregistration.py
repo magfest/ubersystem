@@ -182,7 +182,7 @@ class Root:
                 'affiliates': session.affiliates(),
                 'cart_not_empty': Charge.unpaid_preregs,
                 'copy_address': params.get('copy_address'),
-                'promo_code': params.get('promo_code', ''),
+                'promo_code_code': params.get('promo_code', ''),
                 'pii_consent': params.get('pii_consent'),
                 'name': params.get('name', ''),
                 'badges': params.get('badges', 0),
@@ -285,7 +285,7 @@ class Root:
             'affiliates': session.affiliates(),
             'cart_not_empty': Charge.unpaid_preregs,
             'copy_address': params.get('copy_address'),
-            'promo_code': params.get('promo_code', ''),
+            'promo_code_code': params.get('promo_code', ''),
             'pii_consent': params.get('pii_consent'),
         }
 
