@@ -496,7 +496,7 @@ class Root:
         if c.PREREG_HOTEL_ELIGIBILITY_CUTOFF:
             eligibility_filters.append(or_(
                 Attendee.registered <= c.PREREG_HOTEL_ELIGIBILITY_CUTOFF,
-                and_(Attendee.paid == c.NEED_NOT_PAY, Attendee.promo_code_code == None))
+                and_(Attendee.paid == c.NEED_NOT_PAY, Attendee.promo_code == None))
             )
 
         hotel_query = session.query(Attendee).filter(*eligibility_filters).filter(
@@ -529,6 +529,16 @@ class Root:
             headers.append('LoginID{}'.format(count))
 
         out.writerow(headers)
-        added = []
+        added = set()
         for a in sorted(hotel_query.all(), key=lambda a: a.legal_name or a.full_name):
-            out.writerow([a.legal_first_name, a.legal_last_name, a.email, a.hotel_pin])
+            row = [a.legal_first_name, a.legal_last_name, a.email, a.hotel_pin]
+            if a.hotel_pin not in added:
+                added.add(a.hotel_pin)
+                for matching_attendee in \
+                        hotel_query.filter(Attendee.email == a.email,
+                                           Attendee.id != a.id,
+                                           Attendee.last_name == a.last_name):
+                    row.append(matching_attendee.hotel_pin)
+                    added.add(matching_attendee.hotel_pin)
+
+                out.writerow(row)
