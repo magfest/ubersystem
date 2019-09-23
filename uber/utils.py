@@ -860,11 +860,15 @@ class Charge:
 
     @classproperty
     def paid_preregs(cls):
-        return cherrypy.session.setdefault('paid_preregs', [])
+        return cherrypy.session.get('paid_preregs', [])
 
     @classproperty
     def unpaid_preregs(cls):
-        return cherrypy.session.setdefault('unpaid_preregs', OrderedDict())
+        return cherrypy.session.get('unpaid_preregs', OrderedDict())
+
+    @classproperty
+    def pending_preregs(cls):
+        return cherrypy.session.get('pending_preregs', OrderedDict())
 
     @classmethod
     def get_unpaid_promo_code_uses_count(cls, id, already_counted_attendee_ids=None):
@@ -973,16 +977,34 @@ class Charge:
         return not not self._targets
 
     @cached_property
-    def total_cost(self):
-        costs = []
-
+    def line_items(self):
+        import logging
+        line_items = []
         for m in self.models:
             if isinstance(m, uber.models.Attendee) and getattr(m, 'badges', None):
-                costs.append(c.get_group_price() * int(m.badges))
-                costs.append(m.amount_extra_unpaid)
-            else:
-                costs.append(m.amount_unpaid)
-        return 100 * sum(costs)
+                line_items.append({
+                    'name': 'Promo Code Group "{}"'.format(getattr(m, 'name', 'N/A')),
+                    'description': "Promo Code Group with {} badges".format(int(getattr(m, 'badges', 0)) - 1),
+                    'amount': c.get_group_price() * int(m.badges) * 100,
+                })
+            for amount, desc, name in m.receipt_items_breakdown:
+                if amount:
+                    if isinstance(m, uber.models.Attendee) and getattr(m, 'badges', None) and name == c.BADGE:
+                        # Add group discount for promo code group leader
+                        amount = amount - c.GROUP_DISCOUNT * 100
+                        desc = desc + ' with ${} discount'.format(c.GROUP_DISCOUNT)
+
+                    line_items.append({
+                        'name': c.RECEIPT_ITEMS[name],
+                        'description': desc or '',
+                        'amount': amount or 0,
+                    })
+
+        return line_items
+
+    @cached_property
+    def total_cost(self):
+        return sum([item.get('amount', 0) for item in self.line_items])
 
     @cached_property
     def dollar_amount(self):
@@ -1033,41 +1055,41 @@ class Charge:
     def stripe_transaction(self):
         return self._stripe_transaction
 
-    def charge_cc(self, session, token):
-        try:
-            log.debug('PAYMENT: !!! attempting to charge stripeToken {} {} cents for {}',
-                      token, self.amount, self.description)
+    def create_stripe_session(self, session, payment_id, success_url='', cancel_url=''):
+        log.debug('PAYMENT: !!! attempting to charge {} cents for {}', self.amount, self.description)
 
-            self.response = stripe.Charge.create(
-                card=token,
-                currency='usd',
-                amount=int(self.amount),
-                description=self.description,
-                receipt_email=self.receipt_email
+        try:
+            stripe_session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                client_reference_id=payment_id,
+                customer_email=self.receipt_email,
+                line_items=[{
+                    'name': item.get('name'),
+                    'description': item.get('description'),
+                    'amount': item.get('amount'),
+                    'currency': 'usd',
+                    'quantity': 1,
+                } for item in self.line_items],
+                success_url=success_url,
+                cancel_url=cancel_url,
             )
 
-            log.info('PAYMENT: !!! SUCCESS: charged stripeToken {} {} cents for {}, responseID={}',
-                     token, self.amount, self.description, getattr(self.response, 'id', None))
-
-        except stripe.CardError as e:
-            msg = 'Your card was declined with the following error from our processor: ' + str(e)
-            log.error('PAYMENT: !!! FAIL: {}', msg)
-            return msg
-        except stripe.StripeError as e:
-            error_txt = 'Got an error while calling charge_cc(self, token={!r})'.format(token)
-            report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
-            return 'An unexpected problem occurred while processing your card: ' + str(e)
-        else:
             if self.models:
-                self._stripe_transaction = self.stripe_transaction_from_charge()
+                self._stripe_transaction = self.stripe_transaction_from_charge(payment_id)
                 for model in self.models:
                     multi = len(self.models) > 1
                     session.add(self.stripe_transaction_for_model(model, self._stripe_transaction, multi))
                 session.add(self._stripe_transaction)
 
-    def stripe_transaction_from_charge(self, type=c.PAYMENT):
+            return stripe_session
+        except Exception as e:
+            error_txt = 'Got an error while calling create_stripe_session({})'.format(payment_id)
+            report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
+            return 'An unexpected problem occurred while processing your card: ' + str(e)
+
+    def stripe_transaction_from_charge(self, payment_id='', type=c.PENDING):
         return uber.models.StripeTransaction(
-            stripe_id=self.response.id or None,
+            payment_id=payment_id,
             amount=self.amount,
             desc=self.description,
             type=type,
@@ -1087,3 +1109,33 @@ class Charge:
                 group_id=model.id,
                 share=self.amount if not multi else model.amount_unpaid * 100
             )
+
+    @staticmethod
+    def mark_paid_from_stripe(checkout_session):
+        payment_id = checkout_session.client_reference_id
+
+        with uber.models.Session() as session:
+            matching_stripe_txns = session.query(uber.models.StripeTransaction).filter_by(payment_id=payment_id)
+
+            for txn in matching_stripe_txns:
+                txn.stripe_id = checkout_session.payment_intent
+                txn.type = c.PAYMENT
+                session.add(txn)
+
+                for item in txn.receipt_items:
+                    item.txn_type = c.PAYMENT
+                    session.add(txn)
+
+                for group_log in txn.groups:
+                    group = group_log.group
+                    if not group.amount_pending:
+                        group.paid = c.HAS_PAID
+                        session.add(group)
+
+                for attendee_log in txn.attendees:
+                    attendee = attendee_log.attendee
+                    if not attendee.amount_pending:
+                        attendee.paid = c.HAS_PAID
+                        session.add(attendee)
+
+            session.commit()

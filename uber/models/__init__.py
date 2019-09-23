@@ -733,6 +733,7 @@ class Session(SessionManager):
                 StripeTransactionAttendee, StripeTransactionGroup
 
             txn = stripe_log.stripe_transaction
+            response = None
             if txn.type != c.PAYMENT:
                 return 'This is not a payment and cannot be refunded.', None
             else:
@@ -740,9 +741,15 @@ class Session(SessionManager):
                     'REFUND: attempting to refund stripeID {} {} cents for {}',
                     txn.stripe_id, stripe_log.share, txn.desc)
                 try:
-                    response = stripe.Refund.create(
-                        charge=txn.stripe_id, amount=stripe_log.share, reason='requested_by_customer')
-                except stripe.StripeError as e:
+                    if txn.stripe_id.startswith('pi_'):
+                        payment_intent = stripe.PaymentIntent.retrieve(txn.stripe_id)
+                        for charge in payment_intent.charges:
+                            response = stripe.Refund.create(
+                                charge=charge.id, amount=stripe_log.share, reason='requested_by_customer')
+                    elif txn.stripe_id.startswith('ch_'):
+                        response = stripe.Refund.create(
+                            charge=txn.stripe_id, amount=stripe_log.share, reason='requested_by_customer')
+                except Exception as e:
                     error_txt = 'Error while calling process_refund' \
                                 '(self, stripeID={!r})'.format(txn.stripe_id)
                     report_critical_exception(
@@ -784,7 +791,7 @@ class Session(SessionManager):
                     item = self.create_receipt_item(model, amount, desc, charge.stripe_transaction, item_type)
                     self.add(item)
 
-        def create_receipt_item(self, model, amount, desc, stripe_txn=None, item_type=c.OTHER, txn_type=c.PAYMENT):
+        def create_receipt_item(self, model, amount, desc, stripe_txn=None, item_type=c.OTHER, txn_type=c.PENDING):
             item = ReceiptItem(
                 txn_id=stripe_txn.id if stripe_txn else None,
                 txn_type=txn_type,
@@ -959,6 +966,13 @@ class Session(SessionManager):
                     uses_allowed=1,
                     group=pc_group,
                     cost=cost))
+
+        def remove_codes_from_pc_group(self, pc_group, badges):
+            codes = sorted(pc_group.promo_codes, key=lambda x: x.cost, reverse=True)
+            for _ in range(badges):
+                code = codes.pop()
+                self.delete(code)
+                pc_group.promo_codes.remove(code)
 
         def get_next_badge_num(self, badge_type):
             """

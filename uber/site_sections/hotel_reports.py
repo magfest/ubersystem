@@ -2,7 +2,6 @@ from collections import defaultdict, OrderedDict
 from datetime import timedelta
 import random
 
-from pockets.autolog import log
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload, subqueryload
 

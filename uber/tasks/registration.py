@@ -1,19 +1,23 @@
 from collections import defaultdict
 from datetime import timedelta
 
+import stripe
+import time
 from celery.schedules import crontab
+from pockets.autolog import log
 from sqlalchemy import not_, or_
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import render
-from uber.models import Attendee, Session
+from uber.models import Attendee, Session, StripeTransaction
 from uber.tasks.email import send_email
 from uber.tasks import celery
-from uber.utils import localized_now
+from uber.utils import Charge, localized_now
 
 
-__all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_unassigned_volunteers']
+__all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_unassigned_volunteers',
+           'check_missed_stripe_payments']
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
@@ -103,3 +107,24 @@ def check_unassigned_volunteers():
             if unassigned and session.no_email(subject):
                 body = render('emails/daily_checks/unassigned.html', {'unassigned': unassigned})
                 send_email(c.STAFF_EMAIL, c.STAFF_EMAIL, subject, body, format='html', model='n/a')
+
+
+@celery.schedule(timedelta(minutes=30))
+def check_missed_stripe_payments():
+    pending_ids = []
+    with Session() as session:
+        pending_payments = session.query(StripeTransaction).filter_by(type=c.PENDING)
+        for payment in pending_payments:
+            pending_ids.append(payment.payment_id)
+
+    events = stripe.Event.list(type='checkout.session.completed', created={
+        # Check for events created in the last hour.
+        'gte': int(time.time() - 60 * 60),
+    })
+
+    for event in events.auto_paging_iter():
+        checkout_session = event['data']['object']
+        log.debug('Processing Checkout ID {}', checkout_session.id)
+        if checkout_session.client_reference_id in pending_ids:
+            log.debug('Charge is pending, client ID is {}', checkout_session.client_reference_id)
+            Charge.mark_paid_from_stripe(checkout_session)

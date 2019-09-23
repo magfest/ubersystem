@@ -1,16 +1,7 @@
 <form class="stripe" method="post" action="{{ action }}">
     <input type="hidden" name="payment_id" value="{{ payment_id }}" />
     {{ csrf_token() }}
-    <script
-        src="https://checkout.stripe.com/v2/checkout.js" class="stripe-button"
-        data-key="{{ c.STRIPE_PUBLIC_KEY }}"
-        {% if email %} data-email="{{ email }}"{% endif %}
-        {% if c.DEV_BOX %} data-bitcoin="true" {% endif %}
-        data-zip-code="true"
-        data-allow-remember-me="false"
-        data-amount="{{ charge.amount }}"
-        data-name="{{ c.EVENT_NAME_AND_YEAR }} {{ regtext }}"
-        data-description="{{ charge.description }}"
-        data-image="../static/theme/stripe-logo.png">
-    </script>
+    <button class="btn btn-primary stripe-button-el" type="submit">
+    <span class="display: block; min-height: 30px;">Pay with Card</span>
+  </button>
 </form>

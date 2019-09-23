@@ -76,7 +76,8 @@ class Sale(MagModel):
 
 class StripeTransaction(MagModel):
     stripe_id = Column(UnicodeText, nullable=True)
-    type = Column(Choice(c.TRANSACTION_TYPE_OPTS), default=c.PAYMENT)
+    payment_id = Column(UnicodeText)
+    type = Column(Choice(c.TRANSACTION_TYPE_OPTS), default=c.PENDING)
     amount = Column(Integer)
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     who = Column(UnicodeText)
@@ -113,7 +114,7 @@ class ReceiptItem(MagModel):
 
     fk_id = Column(UUID, nullable=True)
     model = Column(UnicodeText)
-    txn_type = Column(Choice(c.TRANSACTION_TYPE_OPTS), default=c.PAYMENT)
+    txn_type = Column(Choice(c.TRANSACTION_TYPE_OPTS), default=c.PENDING)
     item_type = Column(Choice(c.RECEIPT_ITEM_OPTS), default=c.OTHER)
     amount = Column(Integer)
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))

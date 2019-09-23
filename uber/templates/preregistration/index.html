@@ -36,8 +36,25 @@
   <div class="panel-body">
     {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_OPEN) }}
 
+  {% if pending %}
     <div class="row">
-        <div class="col-sm-8 col-sm-offset-2">
+    <div class="col-md-offset-1 col-md-10">
+
+    <div class="alert alert-warning">
+      <p>
+        We've detected that your payment was not fully completed.
+        If you canceled your payment before completion, you can <a href="cancel_payment?message=Payment%20reset">pay here</a>.
+        If you did not cancel your payment, please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.
+      </p>
+    </div>
+
+    </div>
+    </div>
+  {% endif %}
+
+  {% if charge.attendees or charge.groups %}
+    <div class="row">
+        <div class="col-sm-8 col-sm-offset-2">{{ charge.line_items }} {{ charge.old_total_cost }} {{ c.URL_BASE }}
             <div class="col-sm-5 text-center">
                 {% if charge.total_cost > 0 %}
                     {{ stripe_form('prereg_payment',charge) }}
@@ -138,6 +155,7 @@
       </tfoot>
     {% endif %}
   </table>
+{% endif %}
 
   <div class="panel-body">
     {% include "preregistration/disclaimers.html" %}

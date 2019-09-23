@@ -205,6 +205,10 @@ class Group(MagModel, TakesPaymentMixin):
         else:
             return self.total_cost
 
+    @property
+    def amount_pending(self):
+        return sum([item.amount for item in self.receipt_items if item.txn_type == c.PENDING])
+
     @hybrid_property
     def amount_paid(self):
         return sum([item.amount for item in self.receipt_items if item.txn_type == c.PAYMENT])

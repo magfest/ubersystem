@@ -675,6 +675,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     def amount_extra_unpaid(self):
         return self.total_cost - self.badge_cost
 
+    @property
+    def amount_pending(self):
+        return sum([item.amount for item in self.receipt_items if item.txn_type == c.PENDING])
+
     @hybrid_property
     def amount_paid(self):
         return max(sum([item.amount for item in self.receipt_items if item.txn_type == c.PAYMENT]),
@@ -739,6 +743,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @receipt_item
     def badge_cost_receipt_item(self):
         item_type = c.BADGE
+        badge_type = self.badge_type_real
         badge_balance = self.balance_by_item_type(item_type)
         discount = self.new_badge_cost - self.badge_cost
 
@@ -747,7 +752,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         return (
             self.badge_cost * 100,
-            "{} badge{}".format(self.badge_type_label, " with ${} discount".format(discount) if discount > 0 else ""),
+            "{} badge{}".format(c.BADGES[badge_type], " with ${} discount".format(discount) if discount > 0 else ""),
             item_type
         )
 

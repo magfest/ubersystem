@@ -1,0 +1,10 @@
+<script src="https://js.stripe.com/v3/"></script>
+<script type="text/javascript">
+  var stripe = Stripe('{{ c.STRIPE_PUBLIC_KEY }}');
+
+  stripe.redirectToCheckout({
+    sessionId: '{{ id }}'
+  }).then(function (result) {
+      toastr.error(result.error.message, '');
+  });
+</script>

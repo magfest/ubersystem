@@ -8,15 +8,14 @@ from pockets import unwrap
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable
+from uber.decorators import ajax, all_renderable, public
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiToken
-from uber.utils import check
+from uber.utils import Charge, check
 
 
 @all_renderable()
 class Root:
-
     def index(self, session, show_revoked=False, message='', **params):
         admin_account = session.current_admin_account()
         api_tokens = session.query(ApiToken)
@@ -94,3 +93,29 @@ class Root:
         api_token.revoked_time = datetime.now(pytz.UTC)
         raise HTTPRedirect(
             'index?message={}', 'Successfully revoked API token')
+
+    @public
+    @staticmethod
+    def stripe_webhook_handler(request=None):
+        if not request or not request.body:
+            return "Request required"
+        payload = request.body
+        event = None
+
+        try:
+            event = stripe.Event.construct_from(
+                json.loads(payload), stripe.api_key
+            )
+        except ValueError as e:
+            cherrypy.response.status = 400
+
+        if event.type == 'checkout.session.completed':
+            checkout_session = event.data.object
+            Charge.mark_paid_from_stripe(checkout_session)
+        else:
+            cherrypy.response.status = 400
+
+        cherrypy.response.status = 200
+
+        return "Success!"
+
