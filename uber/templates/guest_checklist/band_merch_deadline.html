@@ -13,7 +13,8 @@
 {% endblock %}
 
 {% block form_desc %}
-  {{ super() }}
+  Space will be provided for merchandise sales{% if not HAS_ROCK_ISLAND %}: either{% endif %} at a dedicated half table in our Marketplace area, which you will need to staff{% if not HAS_ROCK_ISLAND %}.
+  {% else %}, or at our “Rock Island” area near our concert hall, where MAGFest staff will sell guest-and-band-provided merchandise throughout the festival.{% endif %}
 
   {% if c.REQUIRE_DEDICATED_GUEST_TABLE_PRESENCE %}
     <p>
@@ -23,8 +24,8 @@
   {% endif %}
 
     <p>
-      On the night of the performance, table space will also be provided immediately outside the concert area for
-      merchandise sales and signings.
+        For mainstage performers, on the night of your performance, table space will also be provided immediately across 
+        from the entrance to the concert hall for merchandise sales and signings.
     </p>
 {% endblock %}
 
