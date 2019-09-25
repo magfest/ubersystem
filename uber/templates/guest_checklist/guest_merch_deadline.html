@@ -2,6 +2,15 @@
 
 {%- set HAS_ROCK_ISLAND = c.ROCK_ISLAND in c.GUEST_MERCHS and guest.group_type in c.ROCK_ISLAND_GROUPS -%}
 
+{% block form_desc %}
+  <p>
+    Space will be provided in our marketplace area for merchandise sales{% if not HAS_ROCK_ISLAND %}.{% else %};
+    either at a dedicated table in our main Merch Room, which you will need to staff, or at our “Rock Island” near our concert area, where {{ c.EVENT_NAME }} staff will sell guest-and-band-provided
+    merchandise throughout the festival.{% endif %}
+  </p>
+  {{ super() }}
+{% endblock %}
+
 {% block form_extra %}
   {{ super() }}
 
