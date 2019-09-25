@@ -1264,7 +1264,8 @@ c.GUEST_CHECKLIST_ITEMS = [
     {'name': 'stage_plot', 'header': 'Stage Plans', 'is_link': True},
     {'name': 'autograph'},
     {'name': 'interview'},
-    {'name': 'travel_plans'}
+    {'name': 'travel_plans'},
+    {'name': 'rehearsal'},
 ]
 
 # Generate the possible template prefixes per step
