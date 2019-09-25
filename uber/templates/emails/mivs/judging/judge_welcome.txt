@@ -2,7 +2,8 @@ Ahoy {{ judge.attendee.first_name }}!
 
 Congratulations, you have been selected to be a judge for the 2019 MAGFest Indie Videogame Showcase! If this is your first time judging for MIVS, welcome aboard! If you're a returning judging veteran, welcome back to another year!
 
-To be a judge for this year, please follow this link to update your status and preferences : <a href="{{ c.URL_BASE }}/mivs_judging" target="_mivs_judge">{{ c.URL_BASE }}/mivs_judging</a>
+To be a judge for this year, please follow this link to update your status and preferences : <a href="{{ c.URL_BASE }}/mivs_judging" target="_mivs_judge">{{ c.URL_BASE }}/mivs_judging</a>. 
+You will have to log in using this email address and the password that you received in an earlier email.
 
 Due to things outside our control, you're getting this email close to our judging start date which is September 23rd. We ask that you please Update your status ASAP. 
 
