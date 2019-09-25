@@ -35,6 +35,7 @@ class GuestGroup(MagModel):
     estimated_performance_minutes = Column(Integer, default=c.DEFAULT_PERFORMANCE_MINUTES, admin_only=True)
 
     wants_mc = Column(Boolean, nullable=True)
+    needs_rehearsal = Column(Choice(c.GUEST_REHEARSAL_OPTS), nullable=True)
     info = relationship('GuestInfo', backref=backref('guest', load_on_pending=True), uselist=False)
     bio = relationship('GuestBio', backref=backref('guest', load_on_pending=True), uselist=False)
     taxes = relationship('GuestTaxes', backref=backref('guest', load_on_pending=True), uselist=False)
@@ -113,6 +114,15 @@ class GuestGroup(MagModel):
     @property
     def mc_status(self):
         return None if self.wants_mc is None else yesno(self.wants_mc, 'Yes,No')
+
+    @property
+    def rehearsal_status(self):
+        if self.needs_rehearsal == c.NO:
+            return "do not"
+        elif self.needs_rehearsal == c.MAYBE:
+            return "might"
+        elif self.needs_rehearsal == c.YES:
+            return "do"
 
     @property
     def checklist_completed(self):
