@@ -221,6 +221,9 @@
           {{ macros.form_group(guest_merch, 'poc_email', label='Email', type='email', placeholder='merch@example.com', form_class='form-group-poc', is_required=True) }}
 
           <h4>Mailing Address</h4>
+          <script type="text/javascript">
+          {% include "region_opts.html" %}
+          </script>
           {{ macros.address_form(guest_merch, name_prefix='poc_', model_prefix='poc_', is_required=True) }}
           <h3>Trusted Merch Handlers</h3>
           <p class="help-block">
