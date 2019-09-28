@@ -382,6 +382,7 @@ class Root:
         # situation where we took the payment, but didn't mark the cards charged
         for attendee in charge.attendees:
             attendee.paid = c.HAS_PAID
+            attendee.amount_paid_override = attendee.total_cost
             attendee_name = 'PLACEHOLDER' if attendee.is_unassigned else attendee.full_name
             log.info("PAYMENT: marked attendee id={} ({}) as paid", attendee.id, attendee_name)
             session.add(attendee)
@@ -390,10 +391,9 @@ class Root:
                 pc_group = session.create_promo_code_group(attendee, attendee.name, int(attendee.badges) - 1)
                 session.add(pc_group)
 
+        session.commit() # save PromoCodeGroup to the database to generate receipt items correctly
+        for attendee in charge.attendees:
             session.add_receipt_items_by_model(charge, attendee)
-            attendee.amount_paid_override = attendee.total_cost
-
-        session.commit()  # paranoia: really make sure we lock in marking taking payments in the database
 
         Charge.unpaid_preregs.clear()
         Charge.paid_preregs.extend(charge.targets)
@@ -492,7 +492,8 @@ class Root:
     def pay_for_extra_codes(self, session, payment_id, stripeToken):
         charge = Charge.get(payment_id)
         [attendee] = charge.attendees
-        group = session.attendee(attendee.id).promo_code_groups[0]
+        attendee = session.attendee(attendee.id)
+        group = attendee.promo_code_groups[0]
         badges_to_add = charge.dollar_amount // c.GROUP_PRICE
         if charge.dollar_amount % c.GROUP_PRICE:
             message = 'Our preregistration price has gone up since you tried to add more codes; please try again'
@@ -512,8 +513,6 @@ class Root:
 
             session.add_codes_to_pc_group(group, badges_to_add)
             attendee.amount_paid_override += charge.dollar_amount
-
-            session.merge(attendee)
 
             raise HTTPRedirect(
                 'group_promo_codes?id={}&message={}',
@@ -773,7 +772,7 @@ class Root:
 
     def abandon_badge(self, session, id):
         attendee = session.attendee(id)
-        if attendee.amount_paid:
+        if attendee.amount_paid and not attendee.is_group_leader:
             failure_message = "Something went wrong with your refund. Please contact us at {}."\
                 .format(c.REGDESK_EMAIL)
             new_status = c.REFUNDED_STATUS
@@ -807,15 +806,17 @@ class Root:
                                        failure_message)
                 elif response:
                     amount_refunded += response.amount
+                    for receipt_item in [item for item in attendee.receipt_items if item.txn_type == c.PAYMENT]:
+                        refund_receipt_item = session.create_receipt_item(
+                            attendee, receipt_item.amount, "Refund for {}".format(receipt_item.desc),
+                            item_type=receipt_item.item_type, txn_type=c.REFUND)
+                        session.add(refund_receipt_item)
 
             success_message = "Your refund of ${:,.2f} should appear on your credit card in a few days."\
                 .format(amount_refunded / 100)
             if attendee.paid == c.HAS_PAID:
                 attendee.paid = c.REFUNDED
                 attendee.amount_refunded_override = amount_refunded / 100
-                session.add(session.create_receipt_item(
-                    attendee, amount_refunded, "Self-service badge refund", response, txn_type=c.REFUND)
-                )
 
         if attendee.in_promo_code_group:
             attendee.promo_code = None
