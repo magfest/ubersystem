@@ -42,10 +42,10 @@ class PageViewTracking(MagModel):
                 return
 
             # Looking at an attendee's details
-            if "registration" or "attendee" in url:
+            if "registration" in url or "attendee" in url:
                 what = "Attendee id={}".format(params['id'])
             # Looking at a group's details
-            elif "dealer_admin" or "group" in url:
+            elif "dealer_admin" in url or "group" in url:
                 what = "Group id={}".format(params['id'])
 
         from uber.models import Session
