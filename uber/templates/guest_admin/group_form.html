@@ -1,0 +1,22 @@
+{% extends "group_form_base.html" %}
+{% block form_fields %}
+  <div class="form-group">
+    <label class="col-sm-3 control-label" for="group_type">Group Type</label>
+    <div class="col-sm-6">
+      <select class="form-control" id="group_type" name="group_type">
+        {{ options(c.GROUP_TYPE_OPTS, group.guest.group_type) }}
+      </select>
+    </div>
+  </div>
+
+  {{ group_fields.group_name }}
+  {{ group_fields.badges_dropdown }}
+  {{ group_fields.admin_notes }}
+  {{ group_fields.leader_info }}
+  {% if not group.is_new %}
+    {{ group_fields.new_badge_type }}
+    {{ group_fields.new_badge_ribbon }}
+  {% endif %}
+
+
+{% endblock %}
