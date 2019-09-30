@@ -193,7 +193,7 @@ class Config(_Overridable):
         return uber.utils.localized_now() > self.get_printed_badge_deadline_by_type(badge_type)
 
     def has_section_or_page_access(self, include_read_only=False, page_path=''):
-        access = uber.models.AdminAccount.access_set(include_read_only=include_read_only)
+        access = uber.models.AdminAccount.get_access_set(include_read_only=include_read_only)
         page_path = page_path or self.PAGE_PATH
 
         section = page_path.replace(page_path.split('/')[-1], '').strip('/')
@@ -705,12 +705,12 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def ADMIN_ACCESS_SET(self):
-        return uber.models.AdminAccount.access_set(include_read_only=True)
+        return uber.models.AdminAccount.get_access_set(include_read_only=True)
 
     @request_cached_property
     @dynamic
     def ADMIN_WRITE_ACCESS_SET(self):
-        return uber.models.AdminAccount.access_set()
+        return uber.models.AdminAccount.get_access_set()
 
     @cached_property
     def ADMIN_PAGES(self):

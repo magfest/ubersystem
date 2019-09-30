@@ -71,22 +71,35 @@ class AdminAccount(MagModel):
             return None
 
     @staticmethod
-    def access_set(id=None, include_read_only=False):
+    def get_access_set(id=None, include_read_only=False):
         try:
             from uber.models import Session
             with Session() as session:
                 id = id or cherrypy.session.get('account_id')
-                access_groups = session.admin_account(id).access_groups
-                access_list = [list(group.access) for group in access_groups]
+                account = session.admin_account(id)
                 if include_read_only:
-                    access_list = access_list + [list(group.read_only_access) for group in access_groups]
-                return set([item for sublist in access_list for item in sublist])
+                    return account.read_or_write_access_set
+                return account.write_access_set
         except Exception:
             return set()
 
     @classproperty
     def _extra_apply_attrs(cls):
         return set(['access_groups_ids'])
+
+    @property
+    def write_access_set(self):
+        access_list = [list(group.access) for group in self.access_groups]
+        return set([item for sublist in access_list for item in sublist])
+
+    @property
+    def read_access_set(self):
+        access_list = [list(group.read_only_access) for group in self.access_groups]
+        return set([item for sublist in access_list for item in sublist])
+
+    @property
+    def read_or_write_access_set(self):
+        return self.read_access_set.union(self.write_access_set)
 
     @property
     def access_groups_labels(self):
@@ -118,7 +131,7 @@ class AdminAccount(MagModel):
 
     @property
     def is_admin(self):
-        return 'devtools' in self.access_set()
+        return 'devtools' in self.write_access_set
 
     @property
     def is_mivs_judge_or_admin(self, id=None):
@@ -127,7 +140,7 @@ class AdminAccount(MagModel):
             with Session() as session:
                 id = id or cherrypy.session.get('account_id')
                 admin_account = session.admin_account(id)
-                return admin_account.judge or 'mivs_judging' in admin_account.access_set(include_read_only=True)
+                return admin_account.judge or 'mivs_judging' in admin_account.read_or_write_access_set
         except Exception:
             return None
 
