@@ -739,6 +739,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @receipt_item
     def badge_cost_receipt_item(self):
         item_type = c.BADGE
+        badge_type = self.badge_type_real
         badge_balance = self.balance_by_item_type(item_type)
         discount = self.new_badge_cost - self.badge_cost
 
@@ -747,7 +748,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         return (
             self.badge_cost * 100,
-            "{} badge{}".format(self.badge_type_label, " with ${} discount".format(discount) if discount > 0 else ""),
+            "{} badge{}".format(c.BADGES[badge_type], " with ${} discount".format(discount) if discount > 0 else ""),
             item_type
         )
 
@@ -797,7 +798,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         promo_code_balance = self.balance_by_item_type(item_type)
 
         # This is only for new attendees -- we add the receipt item for buying additional badges in the page handler
-        if not promo_code_balance and not self.promo_code_group_name:
+        if not promo_code_balance:
             return self.promo_group_cost * 100, \
                    'Promo code group "{}" ({} badges at ${} each)'.format('{}', '{}', c.GROUP_PRICE), \
                    item_type

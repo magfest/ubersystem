@@ -1060,10 +1060,10 @@ class Charge:
         else:
             if self.models:
                 self._stripe_transaction = self.stripe_transaction_from_charge()
+                session.add(self._stripe_transaction)
                 for model in self.models:
                     multi = len(self.models) > 1
                     session.add(self.stripe_transaction_for_model(model, self._stripe_transaction, multi))
-                session.add(self._stripe_transaction)
 
     def stripe_transaction_from_charge(self, type=c.PAYMENT):
         return uber.models.StripeTransaction(
