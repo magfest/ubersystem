@@ -256,6 +256,13 @@ def dept_checklist_path(conf, department=None):
 
 
 @JinjaEnv.jinja_filter
+def nav_return_to_page_title(return_to):
+    # Formats a return_to link into a sensible-looking page name for our nav menus
+    return_to = return_to.split('?', 1)[0]
+    return return_to.replace('../', '').replace('/', ' ').replace('_', ' ').title()
+
+
+@JinjaEnv.jinja_filter
 def numeric_range(count):
     return range(count)
 

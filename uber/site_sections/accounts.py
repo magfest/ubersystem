@@ -64,6 +64,7 @@ class Root:
             account.attendee = attendee
             session.add(account)
             if account.is_new and not c.AT_OR_POST_CON:
+                session.commit()
                 body = render('emails/accounts/new_account.txt', {
                     'account': account,
                     'password': password,

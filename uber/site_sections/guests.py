@@ -158,6 +158,20 @@ class Root:
             'message': message
         }
 
+    def rehearsal(self, session, guest_id, message='', **params):
+        guest = session.guest_group(guest_id)
+        if cherrypy.request.method == 'POST':
+            if not params.get('needs_rehearsal'):
+                message = "Please select an option for your rehearsal needs."
+            if not message:
+                guest.needs_rehearsal = params.get('needs_rehearsal')
+                raise HTTPRedirect('index?id={}&message={}', guest.id, 'Rehearsal needs updated')
+
+        return {
+            'guest': guest,
+            'message': message
+        }
+
     def merch(self, session, guest_id, message='', coverage=False, warning=False, **params):
         guest = session.guest_group(guest_id)
         guest_merch = session.guest_merch(params, checkgroups=GuestMerch.all_checkgroups, bools=GuestMerch.all_bools)

@@ -7,7 +7,7 @@ from sqlalchemy.orm import subqueryload
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, department_id_adapter, \
-    check_can_edit_dept, requires_shifts_admin
+    check_can_edit_dept, log_pageview, requires_shifts_admin
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, Email, Job, PageViewTracking, Shift, Tracking
 from uber.utils import check, localized_now, redirect_to_allowed_dept
@@ -162,6 +162,7 @@ class Root:
             'message': message,
         }
 
+    @log_pageview
     def attendee_form(self, session, message='', return_to='staffers', **params):
         attendee = session.attendee(
             params, checkgroups=['ribbons', 'job_interests', 'assigned_depts'],

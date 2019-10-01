@@ -16,7 +16,7 @@
     {{ options(c.GROUP_TYPE_OPTS) }}
   </div>
 
-  <h1>Guest Groups <a class="btn btn-primary" href="add_group">Add a Group</a></h1>
+  <h1>Guest Groups <a class="btn btn-primary" href="group_form">Add a Group</a></h1>
   <div id="show-opts" class="btn-group" style="margin-bottom: 10px" data-toggle="buttons"></div>
 
   <div class="table-responsive">
@@ -36,7 +36,7 @@
       {% for group in groups -%}
         <tr id="{{ group.id }}" class="{{ group.guest.group_type_label|lower if group.guest else "" }} group-row">
           <td>
-            {{ group.name }}
+            <a href="group_form?id={{ group.id }}" target="_blank">{{ group.name }}</a>
             <span class="guest_info">
                 {% if group.guest -%}
                   &nbsp;
