@@ -2,17 +2,6 @@
 {% block title %}Hotel Requests{% endblock %}}
 {% block content %}
 
-<script type="text/javascript">
-    function setApproved(approved, id, btn) {
-        var $td = $(btn).parent("td");
-        $td.find("button").attr("disabled", true);
-        $.post("approve", {id: id, approved: approved, csrf_token: csrf_token}, function(resp) {
-            $td.text(approved);
-            $td.siblings(".nights").text(resp.nights);
-        }, "json");
-    }
-</script>
-
 {% include "dept_checklist/dept_menu.html" %}
 
 <h2> {{ department_name }} Hotel Requests </h2>
@@ -21,7 +10,7 @@
     {% if checklist.relevant %}
         <br/>
         {% if checklist.completed %}
-            You've already signed off that everyone who needs approval is here and no one is missing; email STOPS if this is a mistake.
+            You've already signed off that all approvals have been completed in the external hotel system. Please contact STOPS if changes still need to be made.
         {% else %}
             <a href="#" onClick="$('#checkoff').show(); return false;">I have approved everyone who should be approved</a>
             <form id="checkoff" style="display:none" method="post" action="../dept_checklist/mark_item_complete">
@@ -33,54 +22,7 @@
         {% endif %}
     {% endif %}
 </div>
-
-<div style="font-weight: bold">
-  {{ staffer_count }} eligible staffers
-  <br>
-  {{ requests|length }} requested hotel space
-  <br>
-  {{ declined_count }} declined hotel space
-</div>
-
-<br/>
-
-<table class="list">
-<tr class="header">
-    <td>Staffer Name</td>
-    <td>Departments</td>
-    {% if admin_has_room_access %}
-      <td>Roommate Requests</td>
-      <td>Roommate Anti-requests</td>
-      <td>Special Needs</td>
-    {% endif %}
-    <td>Requested Nights</td>
-    <td>Extra Nights</td>
-</tr>
-
-{% for request in requests %}
-    <tr bgcolor="{{ loop.cycle('#FFFFFF','#DDDDDD') }}">
-        <td><a href="../shifts_admin/attendee_form?id={{ request.attendee.id }}">{{ request.attendee.full_name }}</a></td>
-        <td>{{ request.attendee.assigned_depts_labels|join(" / ") }}</td>
-        {% if admin_has_room_access %}
-          <td>{{ request.wanted_roommates|linebreaksbr }}</td>
-          <td>{{ request.unwanted_roommates|linebreaksbr }}</td>
-          <td>{{ request.special_needs }}</td>
-        {% endif %}
-        <td class="nights">{{ request.attendee.hotel_requests.nights_display }}</td>
-        <td>
-            {% if not request.setup_teardown %}
-                n/a
-            {% else %}
-                {% if request.approved %}
-                    approved
-                {% else %}
-                    <button onClick="setApproved('approved', '{{ request.id }}', this)">Approve</button>
-                    <button onClick="setApproved('n/a',      '{{ request.id }}', this)">Reject</button>
-                {% endif %}
-            {% endif %}
-        </td>
-    </tr>
-{% endfor %}
-</table>
+<br>
+<a href="https://tuber.magfest.org/hotels/approvals?id={{ attendee.id }}&department={{ department_id }}"><h2>Click here to approve hotel requests from your staffers</h2></a>
 
 {% endblock %}
