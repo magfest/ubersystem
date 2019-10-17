@@ -14,7 +14,7 @@ from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, check_for_encrypted_badge_num, check_if_can_reg, credit_card, \
-    csrf_protected, department_id_adapter, log_pageview, site_mappable, public
+    csrf_protected, department_id_adapter, log_pageview, render, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.models import ArbitraryCharge, Attendee, Department, Email, Group, Job, MerchDiscount, MerchPickup, \
     MPointsForCash, NoShirt, OldMPointExchange, PageViewTracking, PromoCodeGroup, Sale, Session, Shift, Tracking, \
@@ -331,10 +331,6 @@ class Root:
             message = 'Attendee deleted'
 
         raise HTTPRedirect(return_to + ('' if return_to[-1] == '?' else '&') + 'message={}', message)
-
-    def goto_volunteer_checklist(self, id):
-        cherrypy.session['staffer_id'] = id
-        raise HTTPRedirect('../staffing/index')
 
     @ajax
     def record_mpoint_cashout(self, session, badge_num, amount):
@@ -1053,3 +1049,92 @@ class Root:
         return json.dumps({
             'badges_price': c.BADGE_PRICE
         })
+        
+    @cherrypy.expose(['attendee_data'])
+    def attendee_form(self, session, message='', **params):
+        attendee = session.attendee(params, allow_invalid=True)
+        id = attendee.id
+        attrs = Shift.to_dict_default_attrs + ['worked_label']
+
+        return_dict = {
+            'message': message,
+            'attendee': attendee,
+            'group_opts': [(g.id, g.name) for g in session.query(Group).order_by(Group.name).all()],
+        }
+        
+        if 'attendee_data' in cherrypy.url():
+            return render('registration/attendee_data.html', return_dict)
+        else:
+            return return_dict
+    
+    def attendee_history(self, session, id, **params):
+        attendee = session.attendee(id)
+        
+        return {
+            'attendee': attendee,
+            'emails': session.query(Email).filter(
+                or_(Email.to == attendee.email,
+                    and_(Email.model == 'Attendee', Email.fk_id == id))).order_by(Email.when).all(),
+            'changes': session.query(Tracking).filter(
+                or_(Tracking.links.like('%attendee({})%'.format(id)),
+                    and_(Tracking.model == 'Attendee', Tracking.fk_id == id))).order_by(Tracking.when).all(),
+            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Attendee id={}".format(id)),
+        }
+        
+    def attendee_shifts(self, session, id, **params):
+        attendee = session.attendee(id)
+        attrs = Shift.to_dict_default_attrs + ['worked_label']
+        
+        return {
+            'attendee': attendee,
+            'shifts': {s.id: s.to_dict(attrs) for s in attendee.shifts},
+            'jobs': [
+                (job.id, '({}) [{}] {}'.format(job.timespan(), job.department_name, job.name))
+                for job in attendee.available_jobs
+                if job.start_time + timedelta(hours=job.duration + 2) > localized_now()],
+        }
+        
+    def attendee_watchlist(self, session, id, **params):
+        attendee = session.attendee(id)
+        return {
+            'attendee': attendee,
+            'active_entries': session.guess_attendee_watchentry(attendee, active=True),
+            'inactive_entries': session.guess_attendee_watchentry(attendee, active=False),
+        }
+        
+    @ajax
+    def update_attendee(self, session, message='', **params):
+        for key in params:
+            if params[key] == "false":
+                params[key] = False
+            if params[key] == "true":
+                params[key] = True
+            if params[key] == "null":
+                params[key] = ""
+                
+        attendee = session.attendee(params, allow_invalid=True)
+        
+        if cherrypy.request.method == 'POST':
+            if params.get('no_badge_num'):
+                attendee.badge_num = None
+            
+            message = check(attendee)
+
+            if not message:
+                session.add(attendee)
+                session.commit()
+
+                message = message or '{} has been saved'.format(attendee.full_name)
+                
+        return {
+            'message': message,
+        }
+
+    @ajax
+    def get_attendee_history(self, session, id):
+        attendee = session.attendee(id, allow_invalid=True)
+
+        return {
+            'attendee':  attendee,
+            
+        }

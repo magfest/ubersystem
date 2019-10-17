@@ -680,6 +680,33 @@ class Session(SessionManager):
                 return admin.full_shifts_admin
             elif attendee.badge_type in [c.CONTRACTOR_BADGE, c.ATTENDEE_BADGE] and attendee.staffing_or_will_be:
                 return admin.can_create_volunteer_badges
+            
+        def viewable_attendees(self):
+            from uber.models import Attendee, Group, GuestGroup
+            admin = self.current_admin_account()
+            
+            #if admin.full_registration_admin:
+            #    return self.query(Attendee)
+            
+            or_filters = [Attendee.creator == admin.attendee]
+            if 'guest_admin' in admin.read_or_write_access_set:
+                or_filters.extend([Attendee.is_guest == True, Attendee.ribbon.contains(c.PANELIST_RIBBON)])
+            elif 'panels_admin' in admin.read_or_write_access_set:
+                or_filters.append(Attendee.ribbon.contains(c.PANELIST_RIBBON))
+            
+            if 'dealer_admin' in admin.read_or_write_access_set:
+                or_filters.append(Attendee.is_dealer)
+            
+            if 'mits_admin' in admin.read_or_write_access_set:
+                or_filters.append(Attendee.mits_applicants)
+
+            if 'mivs_admin' in admin.read_or_write_access_set:
+                or_filters.append(
+                    and_(Group.id == Attendee.group_id, GuestGroup.group_id == Group.id, GuestGroup.group_type == c.MIVS))
+
+            # TODO: Add staffers
+            
+            return self.query(Attendee).filter(or_(*or_filters)).distinct()
 
         def checklist_status(self, slug, department_id):
             attendee = self.admin_attendee()

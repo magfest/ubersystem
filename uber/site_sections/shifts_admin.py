@@ -2,6 +2,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 import cherrypy
+import re
 from sqlalchemy import select, and_, or_
 from sqlalchemy.orm import subqueryload
 
@@ -162,131 +163,44 @@ class Root:
             'message': message,
         }
 
-    @log_pageview
-    def attendee_form(self, session, message='', return_to='staffers', **params):
-        attendee = session.attendee(
-            params, checkgroups=['ribbons', 'job_interests', 'assigned_depts'],
-            bools=['placeholder', 'no_cellphone', 'staffing', 'can_work_setup', 'can_work_teardown', 'hotel_eligible',
-                   'agreed_to_volunteer_agreement'],
-            allow_invalid=True)
+    def goto_volunteer_checklist(self, id):
+        cherrypy.session['staffer_id'] = id
+        raise HTTPRedirect('../staffing/index')
 
-        error_message = check_if_can_see_staffer(session, attendee)
-
-        if error_message:
-            raise HTTPRedirect('staffers?message={}', error_message)
-
-        if cherrypy.request.method == 'POST':
-            if attendee.is_new:
-                attendee.placeholder = True
-
-            message = check(attendee)
-
-            if attendee.is_new:
-                if not attendee.staffing_or_will_be:
-                    message = "You can't create a non-volunteer attendee with this form."
-                elif session.attendees_with_badges().filter_by(first_name=attendee.first_name,
-                                                               last_name=attendee.last_name,
-                                                               email=attendee.email).count():
-                    message = "Another attendee already exists with this name and email address."
-
-            if not message:
-                session.add(attendee)
-
-                if not session.admin_can_create_attendee(attendee):
-                    attendee.badge_status = c.PENDING_STATUS
-                    if attendee.badge_type == c.STAFF_BADGE:
-                        volunteer_type = "Staffer"
-                    elif attendee.badge_type == c.CONTRACTOR_BADGE:
-                        volunteer_type = "Contractor"
-                    else:
-                        volunteer_type = "Volunteer"
-
-                    message = '{} has been submitted as a {} for approval.'.format(attendee.full_name, volunteer_type)
-
-                message = message or '{} has been saved'.format(attendee.full_name)
-                if params.get('save') == 'save_return_to_search':
-                    if return_to:
-                        raise HTTPRedirect(return_to + '?message={}', message)
-                    else:
-                        raise HTTPRedirect('staffers?message={}', message)
-                else:
-                    raise HTTPRedirect('attendee_form?id={}&message={}&return_to={}', attendee.id, msg_text, return_to)
-
-        return {
-            'message': message,
-            'attendee': attendee,
-            'return_to': return_to
-        }
-
-    def attendee_shifts(self, session, id, shift_id='', message='', return_to=''):
-        attendee = session.attendee(id, allow_invalid=True)
-
-        error_message = check_if_can_see_staffer(session, attendee)
-
-        if error_message:
-            raise HTTPRedirect('staffers?message={}', error_message)
-
-        attrs = Shift.to_dict_default_attrs + ['worked_label']
-        return {
-            'message': message,
-            'shift_id': shift_id,
-            'attendee': attendee,
-            'return_to': return_to,
-            'shifts': {s.id: s.to_dict(attrs) for s in attendee.shifts},
-            'jobs': [
-                (job.id, '({}) [{}] {}'.format(job.timespan(), job.department_name, job.name))
-                for job in attendee.available_jobs
-                if job.start_time + timedelta(hours=job.duration + 2) > localized_now()]
-        }
-
-    def attendee_history(self, session, id):
-        attendee = session.attendee(id, allow_invalid=True)
-
-        error_message = check_if_can_see_staffer(session, attendee)
-
-        if error_message:
-            raise HTTPRedirect('staffers?message={}', error_message)
-
-        return {
-            'attendee':  attendee,
-            'emails':    session.query(Email)
-                                .filter(or_(Email.to == attendee.email,
-                                            and_(Email.model == 'Attendee', Email.fk_id == id)))
-                                .order_by(Email.when).all(),
-            'changes':   session.query(Tracking)
-                                .filter(or_(Tracking.links.like('%attendee({})%'.format(id)),
-                                            and_(Tracking.model == 'Attendee', Tracking.fk_id == id)))
-                                .order_by(Tracking.when).all(),
-            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Attendee id={}".format(id))
-        }
-
-    @csrf_protected
+    @ajax
     def update_nonshift(self, session, id, nonshift_hours):
         attendee = session.attendee(id, allow_invalid=True)
         if not re.match('^[0-9]+$', nonshift_hours):
-            raise HTTPRedirect('attendee_shifts?id={}&message={}', attendee.id, 'Invalid integer')
+            return { 'success': False, 'message': 'Invalid integer' }
         else:
             attendee.nonshift_hours = int(nonshift_hours)
-            raise HTTPRedirect('attendee_shifts?id={}&message={}', attendee.id, 'Non-shift hours updated')
+            session.commit()
+            return { 'success': True, 'message': 'Non-shift hours updated' }
 
-    @csrf_protected
+    @ajax
     def update_notes(self, session, id, admin_notes, for_review=None):
         attendee = session.attendee(id, allow_invalid=True)
         attendee.admin_notes = admin_notes
         if for_review is not None:
             attendee.for_review = for_review
-        raise HTTPRedirect('attendee_shifts?id={}&message={}', id, 'Notes updated')
+        session.commit()
+        return { 'success': True, 'message': 'Notes updated' }
 
-    @csrf_protected
-    def assign(self, session, staffer_id, job_id):
-        message = session.assign(staffer_id, job_id) or 'Shift added'
-        raise HTTPRedirect('attendee_shifts?id={}&message={}', staffer_id, message)
+    @ajax
+    def assign_shift(self, session, staffer_id, job_id):
+        message = session.assign(staffer_id, job_id)
+        if message:
+            return { 'success': False, 'message': message }
+        else:
+            session.commit()
+            return { 'success': True, 'message': 'Shift added' }
 
-    @csrf_protected
-    def unassign(self, session, shift_id):
+    @ajax
+    def unassign_shift(self, session, shift_id):
         shift = session.shift(shift_id)
         session.delete(shift)
-        raise HTTPRedirect('attendee_shifts?id={}&message={}', shift.attendee.id, 'Staffer unassigned from shift')
+        session.commit()
+        return { 'success': True, 'message': 'Staffer unassigned from shift' }
 
     @requires_shifts_admin
     def form(self, session, message='', **params):

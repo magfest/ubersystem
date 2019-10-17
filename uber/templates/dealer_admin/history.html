@@ -1,7 +1,7 @@
-{% extends "base.html" %}{% set admin_area=True %}{% set resend_email_form=True %}
+{% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Group History - {{ group.name }}{% endblock %}
 {% block content %}
-
+<script src="../static/js/resend-email-form.js" type="text/javascript"></script>
 {{ macros.nav_menu(
     group, c.PAGE_PATH,
     "form?id={id}", "Group Page", True,

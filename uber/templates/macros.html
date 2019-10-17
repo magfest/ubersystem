@@ -38,7 +38,7 @@
 {%- endmacro %}
 
 
-{% macro checkbox(model, field_name, id=None, label=None, label_class=None, is_readonly=False, title=None) -%}
+{% macro checkbox(model, field_name, id=None, label=None, label_class=None, is_readonly=False, title=None, clientside_bool=False) -%}
   {%- set is_class = model is class -%}
   {%- set is_checked = not is_class and model[field_name] -%}
   {% if label %}
@@ -51,10 +51,9 @@
         type="hidden"
         name="{{ field_name }}"
         id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
-        value="{% if is_checked %}1{% else %}0{% endif %}" />
+        value="{% if is_checked %}true{% else %}false{% endif %}" />
     <input
         type="checkbox"
-        value="1"
         disabled
         {% if not label and title %} title="{{ title }}"{% endif %}
         {% if is_checked %} checked{% endif %} />
@@ -63,8 +62,8 @@
         type="checkbox"
         name="{{ field_name }}"
         id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
-        value="1"
         {% if not label and title %} title="{{ title }}"{% endif %}
+        {% if not clientside_bool %}value="1"{% endif %}
         {% if is_checked %} checked{% endif %} />
   {% endif %}
   {% if label %} {{ label }}</label>{% endif %}

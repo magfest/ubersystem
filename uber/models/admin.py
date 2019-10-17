@@ -9,6 +9,7 @@ from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Date
+from sqlalchemy.sql import and_, or_
 
 from uber.config import c
 from uber.decorators import presave_adjustment
@@ -102,6 +103,32 @@ class AdminAccount(MagModel):
         return self.read_access_set.union(self.write_access_set)
 
     @property
+    def attendee_filters(self):
+        from uber.models import Attendee, Group, GuestGroup
+        #if self.full_registration_admin:
+        #    return []
+        
+        or_filters = [Attendee.creator == self.attendee]
+        if 'guest_admin' in self.read_or_write_access_set:
+            or_filters.extend([Attendee.is_guest == True, Attendee.ribbon.contains(c.PANELIST_RIBBON)])
+        elif 'panels_admin' in self.read_or_write_access_set:
+            or_filters.append(Attendee.ribbon.contains(c.PANELIST_RIBBON))
+        
+        if 'dealer_admin' in self.read_or_write_access_set:
+            or_filters.append(Attendee.is_dealer)
+        
+        if 'mits_admin' in self.read_or_write_access_set:
+            or_filters.append(Attendee.mits_applicants)
+
+        if 'mivs_admin' in self.read_or_write_access_set:
+            or_filters.append(
+                and_(Group.id == Attendee.group_id, GuestGroup.group_id == Group.id, GuestGroup.group_type == c.MIVS))
+
+        # TODO: Add staffers
+
+        return or_filters
+
+    @property
     def access_groups_labels(self):
         return [d.name for d in self.access_groups]
 
@@ -179,6 +206,10 @@ class AdminAccount(MagModel):
     @property
     def full_email_admin(self):
         return any([group.has_full_access('email_admin') for group in self.access_groups])
+
+    @property
+    def full_registration_admin(self):
+        return any([group.has_full_access('registration') for group in self.access_groups])
 
     @property
     def can_create_volunteer_badges(self):

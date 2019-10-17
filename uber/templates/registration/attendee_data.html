@@ -1,0 +1,99 @@
+{% set admin_area=True %}
+{% import "fields/attendee.html" as attendee_fields with context %}
+<script type="text/javascript">
+var saveAndClose = function() {
+  $("#attendee_form").submit();
+  $("#attendee_modal").modal('hide');
+}
+
+var updateAttendee = function(event){
+  event.preventDefault();
+  toastr.clear();
+  
+  var formData = $("#attendee_form").serializeArray();
+  var old_hash = window.location.hash;
+  $.each(validate.collectFormValues($("#attendee_form"), {nullify:false}), function(k, v) {
+    if (v === false || v === null) {
+      formData.push({name: k, value: (v === null) ? "" : v});
+    } else if (v === true) {
+      formData.find(input => input.name == k).value = v;
+    }
+  });
+  window.location.hash = old_hash;
+  $.ajax({
+      method: 'POST',
+      url: '../registration/update_attendee',
+      data: formData,
+      success: function (json) {
+        alert(old_hash)
+        toastr.info(json.message);
+        //loadForm("Data");
+        window.location.hash = old_hash;
+      },
+      error: function () {
+          toastr.error('Unable to connect to server, please try again.');
+          window.location.hash = old_hash;
+      }
+  });
+};
+</script>
+<form method="post" action="../registration/update_attendee" id="attendee_form" onSubmit="updateAttendee(event)" class="form-horizontal">
+  {{ csrf_token() }}
+  <input type="hidden" name="id" value="{{ attendee.db_id }}" />
+  {% if attendee.is_new %}
+    {{ attendee_fields.group_link }}
+    {{ attendee_fields.badge_type }}
+    {{ attendee_fields.ribbons }}
+    {{ attendee_fields.name }}
+    {{ attendee_fields.email }}
+    {{ attendee_fields.admin_notes }}
+  {% else %}
+    {{ attendee_fields.created }}
+    {{ attendee_fields.signed_up }}
+    {{ attendee_fields.last_updated }}
+    {{ attendee_fields.checked_in }}
+    {{ attendee_fields.is_placeholder }}
+    {{ attendee_fields.badge_status }}
+    {% if c.HAS_ACCOUNTS_ACCESS %}
+      {{ attendee_fields.admin_access }}
+    {% endif %}
+    {{ attendee_fields.group_link }}
+    {{ attendee_fields.badge_type }}
+    {{ attendee_fields.ribbons }}
+    {{ attendee_fields.name }}
+    {{ attendee_fields.badge_printed_name }}
+    {{ attendee_fields.age }}
+    {{ attendee_fields.email }}
+    {{ attendee_fields.emergency_contact }}
+    {{ attendee_fields.cellphone }}
+
+    {% if c.HAS_SHIFTS_ADMIN_ACCESS %}
+      {{ attendee_fields.staffing }}
+      {{ attendee_fields.job_interests }}
+      {{ attendee_fields.assigned_depts }}
+    {% endif %}
+
+    {{ attendee_fields.for_review }}
+    {{ attendee_fields.admin_notes }}
+  {% endif %}
+</form>
+<div class="modal-footer">
+    {% set save_text = save_text or 'Create' if attendee.is_new else 'Save' %}
+      <div class="form-group">
+      {% if not attendee.is_new %}
+      <div class="pull-left">
+          <form method="post" action="delete_attendee" class="form form-inline" onSubmit="return confirm('{% if attendee.group and attendee.is_unassigned %}Are you sure you want to delete this unassigned badge?{% elif attendee.group %}Are you sure you want to unassign this badge?{% else %}Are you sure you want to delete this attendee?{% endif %}');">
+          {{ csrf_token() }}
+          <input type="hidden" name="id" value="{{ attendee.id }}" />
+          <input type="submit" class="btn btn-danger" value="{% if attendee.group and attendee.is_unassigned %}Delete this group badge{% elif attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}"
+                  {% if attendee.paid == c.HAS_PAID %} style="background-color:#BCBCBC" title="Cannot delete a paid badge." disabled {% endif %}/>
+          </form>
+      </div>
+      {% endif %}
+      <div class="pull-right">
+          <button type="button" onClick="saveAndClose()" class="btn btn-primary">{{ save_text }} & Close</button>
+          <button type="submit" form="attendee_form" class="btn btn-primary">{{ save_text }}</button>
+          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+      </div>
+      </div>
+  </div>

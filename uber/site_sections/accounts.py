@@ -5,6 +5,7 @@ from collections import defaultdict
 import bcrypt
 import cherrypy
 from pockets import unwrap
+from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -175,10 +176,14 @@ class Root:
         }
 
     @public
-    def homepage(self, message=''):
+    def homepage(self, session, message=''):
         if not cherrypy.session.get('account_id'):
             raise HTTPRedirect('login?message={}', 'You are not logged in')
-        return {'message': message}
+        attendees = session.viewable_attendees().limit(1000)
+        return {
+            'attendees': attendees,
+            'message': message
+            }
 
     @public
     def logout(self):

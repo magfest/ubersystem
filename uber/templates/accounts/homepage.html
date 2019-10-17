@@ -1,14 +1,60 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Homepage{% endblock %}
 {% block content %}
+<script src="../static/js/load-attendee-modal.js" type="text/javascript"></script>
+<div class="panel panel-body">
+<a href="#attendee_form?id=None" class="btn btn-primary">Add an attendee</a>
+</div>
 
-<div class="row">
-<div class="col-sm-6 col-sm-offset-3">
-  <div class="well">
-    <p><img class="img-responsive center-block" src="../static/images/circle-icons/easel.png"></p>
-    <h1>{{ c.EVENT_NAME }} Ubersystem</h1>
-    <p>The former contents of this page have been moved to the new menubar at the top.</p>
-    <p>New content coming soon!</p>
-  </div>
+<div class="panel panel-default">
+  <table class="table table-striped datatable">
+    <thead>
+      <tr>
+        {% block tableheadings %}
+        <th>Status</th>
+        <th> Group Name </th>
+        <th> Promo Code Group </th>
+        <th> Full Name </th>
+        <th> Name on ID </th>
+        <th> Email </th>
+        {% if c.PREASSIGNED_BADGE_TYPES %}<th> Badge Name </th>{% endif %}
+        <th> Membership Type</th>
+        {% if c.NUMBERED_BADGES %}<th> Badge # </th> {% endif %}
+        <th> Badge Ribbons</th>
+        <th> Paid </th>
+        {% endblock tableheadings %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for attendee in attendees %}
+        <tr {% if attendee.badge_status == c.INVALID_STATUS %}bgcolor="#FFE4E1"{% endif %}>
+            {% block tablerows scoped %}
+            <td>{{ attendee.badge_status_label }}</td>
+            <td id="group_{{ attendee.id }}">
+                {{ attendee.group|form_link }}
+            </td>
+              <td id="promo_code_group_{{ attendee.id }}">
+              {% for group in attendee.promo_code_groups %}
+                <a href="promo_code_group_form?id={{ group.id }}" target="_blank">{{ group.name }}</a>
+              {% endfor %}
+              {% if attendee.promo_code and attendee.promo_code.group %}
+                <a href="promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a>
+              {% endif %}
+              </td>
+            <td id="name_{{ attendee.id }}" style="text-align:left"><a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
+              <td id="name_{{ attendee.id }}" style="text-align:left">
+                  {{ attendee.legal_name }}
+              </td>
+              <td>{{ attendee.email }}</td>
+            {% if c.PREASSIGNED_BADGE_TYPES %}<td>{{ attendee.badge_printed_name }}</td>{% endif %}
+            <td><nobr>{{ attendee.badge_type_label }}</nobr></td>
+            {% if c.NUMBERED_BADGES %}<td>{{ attendee.badge_num }}</td>{% endif %}
+            <td id="ribbon_{{ attendee.id }}">{{ attendee.ribbon_labels|join(", ") }}</td>
+            <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
+          {% endblock tablerows %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 {% endblock %}

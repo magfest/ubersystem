@@ -1,7 +1,4 @@
-{% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Staffing Shifts - {{ attendee.full_name }}{% endblock %}
-{% block content %}
-
+{% set admin_area=True %}
 <style type="text/css">
   td, th {
     padding: 5px 10px;
@@ -15,6 +12,30 @@
 
 <script type="text/javascript" src="../static_views/ratings.js"></script>
 <script type="text/javascript">
+$("form[action*='/shifts_admin/']").submit(function(event){
+  event.preventDefault();
+  var formURL = $(this).attr('action');
+  var old_hash = window.location.hash;
+  $.ajax({
+      method: 'POST',
+      url: formURL,
+      data: $(this).serializeArray(),
+      success: function (json) {
+        if (json.success) {
+          window.location.hash = "#test";
+          toastr.info(json.message);
+          //loadForm('Shifts');
+        } else {
+          toastr.error(json.message);
+        }
+        toastr.info($(this))
+      },
+      error: function () {
+          toastr.error('Unable to connect to server, please try again.');
+      }
+  });
+});
+
     var SHIFTS = {{ shifts|jsonize }};
     $(function() {
         setupShiftRatingClickHandler();
@@ -30,15 +51,12 @@
     });
 </script>
 
-{% set return_to = return_to or 'staffers' %}
-{% include "attendee_nav_menu.html" %} <br/>
-
 <h2>{{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
 
 <table width="100%">
 <tr>
     <td width="50%">
-      <form method="post" action="assign">
+      <form method="post" action="../shifts_admin/assign_shift">
         {{ csrf_token() }}
         <input type="hidden" name="staffer_id" value="{{ attendee.id }}" />
         <b>Add a Shift:</b>
@@ -49,7 +67,7 @@
       </form>
     </td>
     <td width="50%" align="right">
-      <form method="post" action="update_nonshift">
+      <form method="post" action="../shifts_admin/update_nonshift">
         {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ attendee.id }}" />
         <b>Non-shift hours:</b>
@@ -105,7 +123,7 @@
             <td id="shift_status_{{ shift.id }}"></td>
             <td id="shift_rating_{{ shift.id }}"></td>
             <td class="text-right">
-              <form method="post" action="unassign">
+              <form method="post" action="../shifts_admin/unassign_shift">
                 {{ csrf_token() }}
                 <input type="hidden" name="shift_id" value="{{ shift.id }}" />
                 <input type="submit" value="Unassign" class="btn btn-xs btn-warning"/>
@@ -119,7 +137,7 @@
     <i>{{ attendee.full_name }} is not signed up for any shifts.</i>
 {% endif %}
 
-<form method="post" action="update_notes">
+<form method="post" action="../shifts_admin/update_notes">
 {{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 <br/> <b>Notes For Later Review:</b> <br/>
@@ -128,5 +146,3 @@
 <textarea name="admin_notes" rows="4" style="margin-left:10px ; margin-top:5px ; width:80%">{{ attendee.admin_notes }}</textarea>
 <br/> <input style="margin-left:10px ; margin-top:5px" type="submit" value="Update Notes" class="btn btn-primary"/>
 </form>
-
-{% endblock %}

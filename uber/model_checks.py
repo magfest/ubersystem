@@ -322,7 +322,7 @@ def email(attendee):
 
 @validation.Attendee
 def attendee_email_valid(attendee):
-    if attendee.email:
+    if attendee.email and attendee.orig_value_of('email') != attendee.email:
         try:
             validate_email(attendee.email)
         except EmailNotValidError as e:

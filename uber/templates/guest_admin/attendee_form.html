@@ -28,9 +28,11 @@
     {{ attendee_fields.emergency_contact }}
     {{ attendee_fields.cellphone }}
 
-    {{ attendee_fields.staffing }}
-    {{ attendee_fields.job_interests }}
-    {{ attendee_fields.assigned_depts }}
+    {% if c.HAS_SHIFTS_ADMIN_ACCESS %}
+      {{ attendee_fields.staffing }}
+      {{ attendee_fields.job_interests }}
+      {{ attendee_fields.assigned_depts }}
+    {% endif %}
 
     {{ attendee_fields.for_review }}
     {{ attendee_fields.admin_notes }}
