@@ -29,7 +29,6 @@
             <th>{{ item.header }}</th>
           {% endif -%}
         {% endfor -%}
-        <th>Group Type</th>
       </tr>
       </thead>
       <tbody>
@@ -64,17 +63,6 @@
               {% endif -%}
             {% endif -%}
           {% endfor -%}
-          <td class="guest">
-            {% if group.guest -%}
-              <button class="btn btn-sm btn-danger btn-unmark" data-group_id="{{ group.id }}" data-group_name="{{ group.name }}">Unmark as {{ group.guest.group_type_label }}</button>
-            {% else -%}
-              <select class="form-control" class="group_type" name="group_type">
-                <option value="">Select a group type</option>
-                {{ options(c.GROUP_TYPE_OPTS) }}
-              </select>
-              <button class="btn btn-sm btn-primary btn-mark" data-group_id="{{ group.id }}" data-group_name="{{ group.name }}">Mark as Group Type</button>
-            {% endif -%}
-          </td>
         </tr>
       {% endfor -%}
       </tbody>
