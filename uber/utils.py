@@ -542,7 +542,15 @@ def genpasswd():
 # ======================================================================
 
 def redirect_to_allowed_dept(session, department_id, page):
+    error_msg = 'You have been given admin access to this page, but you are not in any departments that you can admin. ' \
+                'Please contact STOPS to remedy this.'
+                
+    if c.DEFAULT_DEPARTMENT_ID == 0:
+        raise HTTPRedirect('../accounts/homepage?message={}'.format(error_msg))
+    
     if department_id == 'All':
+        if len(c.ADMIN_DEPARTMENT_OPTS) == 1:
+            raise HTTPRedirect('{}?department_id={}'.format(page, c.DEFAULT_DEPARTMENT_ID))
         return
 
     if not department_id:
@@ -557,7 +565,7 @@ def redirect_to_allowed_dept(session, department_id, page):
 
     if not can_access:
         if department_id == c.DEFAULT_DEPARTMENT_ID:
-            raise HTTPRedirect('landing/?message={}'.format("You do not have access to this page."))
+            raise HTTPRedirect('../accounts/homepage?message={}'.format(error_msg))
         raise HTTPRedirect('{}?department_id={}'.format(page, c.DEFAULT_DEPARTMENT_ID))
 
 

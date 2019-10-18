@@ -637,7 +637,7 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def DEFAULT_DEPARTMENT_ID(self):
-        return list(c.ADMIN_DEPARTMENTS.keys())[0]
+        return list(c.ADMIN_DEPARTMENTS.keys())[0] if c.ADMIN_DEPARTMENTS else 0
 
     @property
     def DEFAULT_REGDESK_INT(self):
