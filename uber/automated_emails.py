@@ -693,9 +693,16 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieJudge,
-        'Welcome as MIVS Judge!',
+        'Welcome as a MIVS Judge!',
         'mivs/judging/judge_welcome.txt',
         ident='mivs_judge_welcome')
+    
+    MIVSEmailFixture(
+        IndieJudge,
+        'Reminder to update your MIVS Judge status',
+        'mivs/judging/judge_welcome_reminder.txt',
+        lambda judge: judge.status == c.UNCONFIRMED,
+        ident='mivs_judge_welcome_reminder')
 
     MIVSEmailFixture(
         IndieJudge,
