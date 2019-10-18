@@ -23,6 +23,18 @@
         {% if checklist.completed %}
             You've already signed off that everyone who needs approval is here and no one is missing; email STOPS if this is a mistake.
         {% else %}
+            <p>Many staffers want to work setup and teardown shifts rather than work during the event itself. We will have more interested 
+            volunteers than we need. Below is a list of requests from people within your department for the extra nights they need to be 
+            approved for. Please approve requests for anyone you would like or need to have on site to help with your load-in. If you only 
+            need them for a few of their requested nights, please make a note so STOPS can adjust their nights given.</p>
+
+            <p>Note 1: Utilizing the "roles" feature (available on your department page) can help you restrict shifts to specific volunteers 
+            in your department. For further information, follow the question mark icon on the top right on this page.</p>
+
+            <p>Note 2: Approving and denying will affect the volunteer's requests for ALL of the departments they are assigned to, so only 
+            deny if you know for a fact that they aren't needed. Approving will make them eligible for shifts in ALL departments they are 
+            assigned to, so make sure you follow up with your volunteers to let them know that you approved them, and that you're expecting 
+            them to pick up shifts in your department.</p>
             <a href="#" onClick="$('#checkoff').show(); return false;">I have approved everyone who should be approved</a>
             <form id="checkoff" style="display:none" method="post" action="../dept_checklist/mark_item_complete">
             {{ csrf_token() }}
