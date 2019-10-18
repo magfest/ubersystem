@@ -107,7 +107,7 @@ def auth_by_session(required_access):
         if not admin_account:
             return (403, 'Invalid admin account in session')
         for access_level in required_access:
-            if not getattr(admin_account.access, access_level, None):
+            if not getattr(admin_account, access_level, None):
                 return (403, 'Insufficient access for admin account')
     return None
 
