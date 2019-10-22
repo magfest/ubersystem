@@ -60,6 +60,7 @@ def _decline_and_convert_dealer_group(session, group, status=c.DECLINED):
     badges_converted = 0
 
     for attendee in list(group.attendees):
+        session.add(attendee)
         if _is_dealer_convertible(attendee):
             attendee.badge_status = c.INVALID_STATUS
 
