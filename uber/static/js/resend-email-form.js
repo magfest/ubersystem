@@ -16,7 +16,8 @@ $("form[action='resend_email']").each(function(index) {
                 var message = json.message;
                 if (json.success) {
                     toastr.info(message);
-                    window.location.hash = old_hash;
+                    window.history.replaceState("", document.title, window.location.href.replace(location.hash, "") + old_hash);
+                    if(loadForm){loadForm("History");}
                 } else {
                     toastr.error(message);
                 }

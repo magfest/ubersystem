@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Hotel Requests{% endblock %}}
 {% block content %}
-
+<script src="../static/js/load-attendee-modal.js" type="text/javascript"></script>
 <script type="text/javascript">
     function setApproved(approved, id, btn) {
         var $td = $(btn).parent("td");
@@ -59,7 +59,7 @@
 
 {% for request in requests %}
     <tr bgcolor="{{ loop.cycle('#FFFFFF','#DDDDDD') }}">
-        <td><a href="../shifts_admin/attendee_form?id={{ request.attendee.id }}">{{ request.attendee.full_name }}</a></td>
+        <td><a href="#attendee_form?id={{ request.attendee.id }}">{{ request.attendee.full_name }}</a></td>
         <td>{{ request.attendee.assigned_depts_labels|join(" / ") }}</td>
         {% if admin_has_room_access %}
           <td>{{ request.wanted_roommates|linebreaksbr }}</td>

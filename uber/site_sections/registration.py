@@ -13,7 +13,7 @@ from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, check_for_encrypted_badge_num, check_if_can_reg, credit_card, \
+from uber.decorators import ajax, all_renderable, attendee_view, check_for_encrypted_badge_num, check_if_can_reg, credit_card, \
     csrf_protected, department_id_adapter, log_pageview, render, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.models import ArbitraryCharge, Attendee, Department, Email, Group, Job, MerchDiscount, MerchPickup, \
@@ -1049,12 +1049,11 @@ class Root:
         return json.dumps({
             'badges_price': c.BADGE_PRICE
         })
-        
+    
+    @attendee_view
     @cherrypy.expose(['attendee_data'])
     def attendee_form(self, session, message='', **params):
         attendee = session.attendee(params, allow_invalid=True)
-        id = attendee.id
-        attrs = Shift.to_dict_default_attrs + ['worked_label']
 
         return_dict = {
             'message': message,
@@ -1067,6 +1066,7 @@ class Root:
         else:
             return return_dict
     
+    @attendee_view
     def attendee_history(self, session, id, **params):
         attendee = session.attendee(id)
         
@@ -1080,7 +1080,8 @@ class Root:
                     and_(Tracking.model == 'Attendee', Tracking.fk_id == id))).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Attendee id={}".format(id)),
         }
-        
+
+    @attendee_view
     def attendee_shifts(self, session, id, **params):
         attendee = session.attendee(id)
         attrs = Shift.to_dict_default_attrs + ['worked_label']
@@ -1093,7 +1094,8 @@ class Root:
                 for job in attendee.available_jobs
                 if job.start_time + timedelta(hours=job.duration + 2) > localized_now()],
         }
-        
+    
+    @attendee_view
     def attendee_watchlist(self, session, id, **params):
         attendee = session.attendee(id)
         return {
@@ -1103,7 +1105,8 @@ class Root:
         }
         
     @ajax
-    def update_attendee(self, session, message='', **params):
+    @attendee_view
+    def update_attendee(self, session, message='', success=False, **params):
         for key in params:
             if params[key] == "false":
                 params[key] = False
@@ -1113,28 +1116,67 @@ class Root:
                 params[key] = ""
                 
         attendee = session.attendee(params, allow_invalid=True)
+
+        if attendee.is_new and (not attendee.first_name or not attendee.last_name):
+            message = 'Please enter a name for this attendee'
         
-        if cherrypy.request.method == 'POST':
+        if not message and attendee.is_new and \
+                    session.attendees_with_badges().filter_by(first_name=attendee.first_name,
+                                                                last_name=attendee.last_name,
+                                                                email=attendee.email).count():
+                message = 'An attendee with this name and email address already exists.'
+        
+        if not message:
+            if 'group_opt' in params:
+                attendee.group_id = params.get('group_opt') or None
+            
             if params.get('no_badge_num'):
                 attendee.badge_num = None
-            
+                
+            if params.get('no_override'):
+                attendee.overridden_price = None
+
+            if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
+                message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
+
+        if not message:
             message = check(attendee)
 
-            if not message:
-                session.add(attendee)
-                session.commit()
+        if not message:
+            success = True
+            message = '{} has been saved'.format(attendee.full_name)
+            
+            if (attendee.is_new 
+                or attendee.badge_type != attendee.orig_value_of('badge_type') 
+                or attendee.group_id != attendee.orig_value_of('group_id')
+                ) and not session.admin_can_create_attendee(attendee):
+                attendee.badge_status = c.PENDING_STATUS
+                message += ' as a pending badge'
+            
+            # Free group badges are only considered 'registered' when they are actually claimed.
+            if attendee.paid == c.PAID_BY_GROUP and attendee.group_id and attendee.group.cost == 0:
+                attendee.registered = localized_now()
 
-                message = message or '{} has been saved'.format(attendee.full_name)
-                
+            session.add(attendee)
+            session.commit()
+  
         return {
+            'success': success,
+            'message': message,
+            'id': attendee.id,
+        }
+    
+    def pending_badges(self, session, message=''):
+        return {
+            'pending_badges': session.query(Attendee).filter_by(badge_status=c.PENDING_STATUS),
             'message': message,
         }
 
     @ajax
-    def get_attendee_history(self, session, id):
-        attendee = session.attendee(id, allow_invalid=True)
+    def approve_badge(self, session, id):
+        attendee = session.attendee(id)
+        attendee.badge_status = c.NEW_STATUS
+        session.add(attendee)
+        session.commit()
 
-        return {
-            'attendee':  attendee,
-            
-        }
+        return {'added': id}

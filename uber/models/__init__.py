@@ -676,21 +676,34 @@ class Session(SessionManager):
 
         def admin_can_create_attendee(self, attendee):
             admin = self.current_admin_account()
+            if admin.full_registration_admin:
+                return True
+            
             if attendee.badge_type == c.STAFF_BADGE:
                 return admin.full_shifts_admin
-            elif attendee.badge_type in [c.CONTRACTOR_BADGE, c.ATTENDEE_BADGE] and attendee.staffing_or_will_be:
-                return admin.can_create_volunteer_badges
+            if attendee.badge_type in [c.CONTRACTOR_BADGE, c.ATTENDEE_BADGE] and attendee.staffing_or_will_be:
+                return admin.has_dept_level_access('shifts_admin')
+            if attendee.is_guest:
+                return admin.has_dept_level_access('guest_admin')
+            if c.PANELIST_RIBBON in attendee.ribbon_ints:
+                return admin.has_dept_level_access('panels_admin')
+            if attendee.is_dealer:
+                return admin.has_dept_level_access('dealer_admin')
+            if attendee.mits_applicants:
+                return admin.has_dept_level_access('mits_admin')
+            if attendee.group and attendee.group.guest_group and attendee.group.guest_group.group_type == c.MIVS:
+                return admin.has_dept_level_access('mivs_admin')
             
         def viewable_attendees(self):
             from uber.models import Attendee, Group, GuestGroup
             admin = self.current_admin_account()
             
-            #if admin.full_registration_admin:
-            #    return self.query(Attendee)
+            if admin.full_registration_admin:
+                return self.query(Attendee)
             
-            or_filters = [Attendee.creator == admin.attendee]
+            or_filters = [Attendee.creator == admin.attendee, Attendee.id == admin.attendee.id]
             if 'guest_admin' in admin.read_or_write_access_set:
-                or_filters.extend([Attendee.is_guest == True, Attendee.ribbon.contains(c.PANELIST_RIBBON)])
+                or_filters.extend([Attendee.is_guest == True])
             elif 'panels_admin' in admin.read_or_write_access_set:
                 or_filters.append(Attendee.ribbon.contains(c.PANELIST_RIBBON))
             
@@ -703,8 +716,6 @@ class Session(SessionManager):
             if 'mivs_admin' in admin.read_or_write_access_set:
                 or_filters.append(
                     and_(Group.id == Attendee.group_id, GuestGroup.group_id == Group.id, GuestGroup.group_type == c.MIVS))
-
-            # TODO: Add staffers
             
             return self.query(Attendee).filter(or_(*or_filters)).distinct()
 

@@ -103,32 +103,6 @@ class AdminAccount(MagModel):
         return self.read_access_set.union(self.write_access_set)
 
     @property
-    def attendee_filters(self):
-        from uber.models import Attendee, Group, GuestGroup
-        #if self.full_registration_admin:
-        #    return []
-        
-        or_filters = [Attendee.creator == self.attendee]
-        if 'guest_admin' in self.read_or_write_access_set:
-            or_filters.extend([Attendee.is_guest == True, Attendee.ribbon.contains(c.PANELIST_RIBBON)])
-        elif 'panels_admin' in self.read_or_write_access_set:
-            or_filters.append(Attendee.ribbon.contains(c.PANELIST_RIBBON))
-        
-        if 'dealer_admin' in self.read_or_write_access_set:
-            or_filters.append(Attendee.is_dealer)
-        
-        if 'mits_admin' in self.read_or_write_access_set:
-            or_filters.append(Attendee.mits_applicants)
-
-        if 'mivs_admin' in self.read_or_write_access_set:
-            or_filters.append(
-                and_(Group.id == Attendee.group_id, GuestGroup.group_id == Group.id, GuestGroup.group_type == c.MIVS))
-
-        # TODO: Add staffers
-
-        return or_filters
-
-    @property
     def access_groups_labels(self):
         return [d.name for d in self.access_groups]
 
@@ -211,10 +185,8 @@ class AdminAccount(MagModel):
     def full_registration_admin(self):
         return any([group.has_full_access('registration') for group in self.access_groups])
 
-    @property
-    def can_create_volunteer_badges(self):
-        return any([group.has_full_access('shifts_admin')
-               or group.has_full_access('shifts_admin_attendee_form') for group in self.access_groups])
+    def has_dept_level_access(self, site_section_or_page):
+        return any([group.has_access_level(site_section_or_page, AccessGroup.DEPT) for group in self.access_groups])
 
     @presave_adjustment
     def disable_api_access(self):

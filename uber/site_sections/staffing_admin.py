@@ -63,7 +63,7 @@ def _copy_department_shifts(service, to_department, from_department, dept_role_m
 
 @all_renderable()
 class Root:
-    def badges(self, session, message=''):
+    def pending_badges(self, session, message=''):
         return {
             'pending_badges': session.query(Attendee).filter_by(badge_status=c.PENDING_STATUS).filter_by(staffing=True),
             'message': message,

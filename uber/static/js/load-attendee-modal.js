@@ -3,7 +3,7 @@ form_link = window.location.hash
 if (form_link && form_link.includes('attendee_form')) {
     form_link = form_link.substr(1);
     $('#attendee_modal .modal-content').load('../registration/' + form_link, function(){
-    if ($('#attendee_form').length) {
+    if ($('#attendeeData').length) {
         $('#attendee_modal').modal({show:true});
         $(window).trigger( 'runJavaScript' );
     } else {

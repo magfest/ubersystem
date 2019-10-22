@@ -279,7 +279,7 @@
             }
         }
     };
-    $().on("runJavaScript", function () {
+    $(window).on("runJavaScript", function () {
         showOrHideBadgeTypes();
         if ($(BADGE_TYPES.row).size()) {
             $.each([REG_TYPES, BADGE_TYPES], function (i, types) {
@@ -358,7 +358,7 @@
   var toggleBadgeNumField = function () {
     $("input[name='badge_num']").prop("disabled", ($("input[name='no_badge_num']").prop('checked')));
   }
-  $().on("runJavaScript", function(){
+  $(window).on("runJavaScript", function(){
         setBadgeNum();
     });
 </script>
@@ -366,7 +366,7 @@
     <label class="col-sm-3 control-label">Badge Type</label>
     <div class="col-sm-3">
         <select name="badge_type" class="form-control" onChange="boldOrRegular(); setBadgeNum();">
-          {{ options(c.ADMIN_BADGE_OPTS, attendee.badge_type) }}
+          {{ options(c.BADGE_OPTS, attendee.badge_type) }}
         </select>
     </div>
   </div>
@@ -391,7 +391,7 @@
               $('#day-warning').empty();
           }
       };
-      $().on("runJavaScript", function () {
+      $(window).on("runJavaScript", function () {
           {% if c.AT_THE_DOOR_BADGE_OPTS %}
               $('#bold-field-message').detach().prependTo('.form-horizontal');
               $.field('badge_type').on('change', maybeWarn);
@@ -424,7 +424,7 @@
           }
 
           // This is the same idea, except it disables the kick-in buttons and then hides them
-          $().on("runJavaScript", function () {
+          $(window).on("runJavaScript", function () {
               if($('input:radio[name=amount_extra]').size()) {
                   $('input:radio[name=amount_extra]').each( function() {
                       if (!isNaN($(this).val()) && Number($(this).val()) < {{ attendee.amount_extra }}) {
@@ -462,7 +462,7 @@
               $("label[for='legal_name']").removeClass('optional-field');
           }
       };
-      $().on("runJavaScript", function () {
+      $(window).on("runJavaScript", function () {
           if ($('#same_legal_name').length) {
               sameLegalNameChecked();
               $('#same_legal_name').change(sameLegalNameChecked);
@@ -777,8 +777,7 @@
             setVisible('.staffing-checked', $.field('staffing').prop('checked'));
         };
     {% endif %}
-    $().on("runJavaScript", function () {
-        staffingClicked();
+    $(window).on("runJavaScript", function () {
         if ($.field('staffing')) {
             $.field('staffing').on('click', staffingClicked);
         }
@@ -897,7 +896,7 @@
 <div class="form-group">
   {% if c.COLLECT_EXACT_BIRTHDATE %}
   <script type="text/javascript">
-  $().on("runJavaScript", function () {
+  $(window).on("runJavaScript", function () {
     createDateTextEntries();
   });
   </script>
@@ -952,7 +951,7 @@
 
 {% if is_prereg_confirm_email_enabled and not admin_area and not read_only %}
   <script type="text/javascript">
-      $().on("runJavaScript", function () {
+      $(window).on("runJavaScript", function () {
           $('form').validate({
               rules: {
                   confirm_email: { equalTo: '#email' }
@@ -995,7 +994,7 @@
               $.field('international').prop('checked', true);
           }
       };
-      $().on("runJavaScript", function () {
+      $(window).on("runJavaScript", function () {
           $.field('international').parents('.checkbox').hide();
       });
   </script>
@@ -1027,7 +1026,7 @@
               $("label[for='zip_code']").removeClass('optional-field');
           }
       };
-      $().on("runJavaScript", function () {
+      $(window).on("runJavaScript", function () {
           if ($('#international').length) {
               internationalChecked();
               $('#international').change(internationalChecked);
@@ -1354,17 +1353,17 @@
     };
 
 var setLegalNameRequired = function() {
-        if ($("#same_legal_name").length) {
-            $.field('legal_name').attr('required', function() {
-                return !($.field('placeholder').is(':checked') || $("#same_legal_name").prop('checked'))
-            });
-        }
-    };
-$().on("runJavaScript", function(){
-        $.field("placeholder").click(boldOrRegular).click(setPreassigned).change(setLegalNameRequired);
-        boldOrRegular();
-        setLegalNameRequired();
-    });
+    if ($("#same_legal_name").length) {
+        $.field('legal_name').attr('required', function() {
+            return !($.field('placeholder').is(':checked') || $("#same_legal_name").prop('checked'))
+        });
+    }
+};
+$(window).on("runJavaScript", function(){
+    $.field("placeholder").click(boldOrRegular).click(setPreassigned).change(setLegalNameRequired);
+    boldOrRegular();
+    setLegalNameRequired();
+});
 </script>
 <div class="form-group">
   <label for="first_name" class="col-sm-3 control-label">Placeholder</label>
@@ -1453,7 +1452,7 @@ $().on("runJavaScript", function(){
             $("#unassigned").hide("fast");
         }
     };
-    $().on("runJavaScript", function(){
+    $(window).on("runJavaScript", function(){
         setGroupLink();
     });
 </script>
@@ -1559,7 +1558,7 @@ $().on("runJavaScript", function(){
               $emailConfirmLabel.addClass('optional-field');
           }
       };
-      $().on("runJavaScript", function () {
+      $(window).on("runJavaScript", function () {
           {% if c.AT_THE_DOOR_BADGE_OPTS %}
               maybeBold();
           {% endif %}

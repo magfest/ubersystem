@@ -108,6 +108,7 @@ c.MENU = MenuItem(name='Root', submenu=[
 
     MenuItem(name='People', submenu=[
         MenuItem(name='Attendees', href='../registration/{}'.format('?invalid=True' if c.AT_THE_CON else '')),
+        MenuItem(name='Pending Badges', href='../registration/pending_badges'),
         MenuItem(name='Promo Code Groups', href='../registration/promo_code_groups'),
         MenuItem(name='Dealers', href='../dealer_admin/'),
         MenuItem(name='Bands', href='../guest_admin/?filter=only-bands'),

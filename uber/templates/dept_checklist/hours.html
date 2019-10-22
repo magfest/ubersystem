@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Unfilled Hotel Requirements{% endblock %}
 {% block content %}
-
+<script src="../static/js/load-attendee-modal.js" type="text/javascript"></script>
 <h2> {{ staffers|length }} Staffers With Hotel Space Need More Hours </h2>
 
 <table class="list">
@@ -13,7 +13,7 @@
 </tr>
 {% for attendee in staffers %}
     <tr>
-        <td> <a href="../shifts_admin/attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
+        <td> <a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
         <td> {{ attendee.assigned_depts_labels|join(" / ") }} </td>
         <td> {{ attendee.hotel_requests.nights_display }} </td>
         <td> {{ attendee.weighted_hours }} </td>
