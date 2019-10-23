@@ -4,10 +4,18 @@
     <li>
         {{ macros.checklist_image(attendee.hotel_requests) }}
         The deadline for editing hotel requests has passed, but as a STOPS admin, you can still
-        {% if attendee.hotel_requests %}
-            <a href="https://tuber.magfest.org/hotels/request?id={{ attendee.id }}">edit</a>
+        {% if c.HOTEL_REQUESTS_URL %}
+            {% if attendee.hotel_requests %}
+                <a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/request?id={{ attendee.id }}">edit</a>
+            {% else %}
+                <a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/request?id={{ attendee.id }}">fill out</a>
+            {% endif %}
         {% else %}
-            <a href="https://tuber.magfest.org/hotels/request?id={{ attendee.id }}">fill out</a>
+            {% if attendee.hotel_requests %}
+                <a href="../hotel">edit</a>
+            {% else %}
+                <a href="../hotel">fill out</a>
+            {% endif %}
         {% endif %}
         this staffer's hotel room space requests.
     </li>
@@ -16,13 +24,21 @@
         <li>
             {{ macros.checklist_image(attendee.hotel_requests) }}
             {% if not attendee.placeholder and attendee.food_restrictions_filled_out and not attendee.hotel_requests %}
-                <a href="https://tuber.magfest.org/hotels/request?id={{ attendee.id }}">Tell us</a>
+            {% if c.HOTEL_REQUESTS_URL %}
+                <a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/request?id={{ attendee.id }}">Tell us</a>
+            {% else %}
+                <a href="../hotel">Tell us</a>
+            {% endif %}
             {% else %}
                 Tell us
             {% endif %}
             whether you want hotel room space no later than <b>{{ c.ROOM_DEADLINE|datetime_local }}</b>
             {% if attendee.hotel_requests %}
-                (you may <a href="https://tuber.magfest.org/hotels/request?id={{ attendee.id }}">edit your request</a> until then).
+            {% if c.HOTEL_REQUESTS_URL %}
+                (you may <a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/request?id={{ attendee.id }}">edit your request</a> until then).
+            {% else %}
+                (you may <a href="../hotel">edit your request</a> until then).
+            {% endif %}
             {% endif %}
         </li>
     {% else %}
