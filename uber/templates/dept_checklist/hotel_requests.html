@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Hotel Requests{% endblock %}}
+{% block title %}Hotel Requests{% endblock %}
 {% block content %}
 
 <script type="text/javascript">
@@ -17,6 +17,28 @@
 
 <h2> {{ department_name }} Hotel Requests </h2>
 
+{% if c.HOTEL_REQUESTS_URL %}
+
+<div class="center">
+    {% if checklist.relevant %}
+        <br/>
+        {% if checklist.completed %}
+            You've already signed off that all approvals have been completed in the external hotel system. Please contact STOPS if changes still need to be made.
+        {% else %}
+            <a href="#" onClick="$('#checkoff').show(); return false;">I have approved everyone who should be approved</a>
+            <form id="checkoff" style="display:none" method="post" action="../dept_checklist/mark_item_complete">
+            {{ csrf_token() }}
+            <input type="hidden" name="department_id" value="{{ department_id }}" />
+            <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
+            <input type="submit" value="No One Else Needs To Be Approved" />
+            </form>
+        {% endif %}
+    {% endif %}
+</div>
+<br>
+<a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/approvals?id={{ attendee.id }}&department={{ department_id }}"><h2>Click here to approve hotel requests from your staffers</h2></a>
+
+{% else %}
 <div class="center">
     {% if checklist.relevant %}
         <br/>
@@ -94,5 +116,6 @@
     </tr>
 {% endfor %}
 </table>
+{% endif %}
 
 {% endblock %}
