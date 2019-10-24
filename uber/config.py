@@ -610,29 +610,13 @@ class Config(_Overridable):
     def ADMIN_DEPARTMENT_OPTS(self):
         from uber.models import Session, Department
 
-        override_access = ''
-        if 'dept_admin' in c.PAGE_PATH:
-            override_access = 'full_dept_admin'
-        elif 'dept_checklist' in c.PAGE_PATH:
-            override_access = 'full_dept_checklist_admin'
-        else:
-            override_access = 'full_shifts_admin'
-
         with Session() as session:
             query = session.query(Department).order_by(Department.name)
             current_admin = session.admin_attendee()
-            if getattr(current_admin.admin_account, override_access, None):
+            if getattr(current_admin.admin_account, 'full_shifts_admin', None):
                 return [(d.id, d.name) for d in query]
             else:
                 return [(d.id, d.name) for d in query if d.id in current_admin.assigned_depts_ids]
-
-    @request_cached_property
-    @dynamic
-    def ADMIN_BADGE_OPTS(self):
-        staffing_badges = [c.ATTENDEE_BADGE, c.STAFF_BADGE, c.CONTRACTOR_BADGE]
-        if 'shifts_admin' in c.PAGE_PATH:
-            return [(key, val) for key, val in c.BADGE_OPTS if key in staffing_badges]
-        return c.BADGE_OPTS
 
     @request_cached_property
     @dynamic

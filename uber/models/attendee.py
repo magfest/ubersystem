@@ -150,6 +150,14 @@ class Attendee(MagModel, TakesPaymentMixin):
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(
         Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
+    
+    creator_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
+    creator = relationship(
+        'Attendee',
+        backref=backref('created_badges', order_by='Attendee.full_name', cascade='all,delete-orphan'),
+        cascade='save-update,merge,refresh-expire,expunge',
+        remote_side='Attendee.id',
+        single_parent=True)
 
     # NOTE: The cascade relationships for promo_code do NOT include
     # "save-update". During the preregistration workflow, before an Attendee
@@ -545,6 +553,11 @@ class Attendee(MagModel, TakesPaymentMixin):
             else:
                 self.paid = c.NEED_NOT_PAY
 
+    @presave_adjustment
+    def assign_creator(self):
+        if self.is_new and not self.creator:
+            self.creator = self.session.admin_attendee()
+
     def unset_volunteering(self):
         self.staffing = False
         self.dept_membership_requests = []
@@ -820,9 +833,23 @@ class Attendee(MagModel, TakesPaymentMixin):
         # This is for use in our model checks -- it includes attendees who are going to be marked staffing
         return self.staffing or self.volunteering_badge_or_ribbon
 
-    @property
+    @hybrid_property
     def is_guest(self):
-        return self.group and self.group.guest or self.badge_type == c.GUEST_BADGE
+        return self.group and self.group.guest and self.group.guest.group_type in [c.GUEST, c.BAND] \
+            or self.badge_type == c.GUEST_BADGE
+    
+    @is_guest.expression
+    def is_guest(cls):
+        from uber.models import GuestGroup
+        
+        return or_(
+            cls.badge_type == c.GUEST_BADGE,
+            and_(
+                Group.id == cls.group_id,
+                GuestGroup.group_id == Group.id,
+                or_(GuestGroup.group_type == c.GUEST, GuestGroup.group_type == c.BAND),
+            )
+        )
 
     @hybrid_property
     def is_dealer(self):
@@ -832,7 +859,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     @is_dealer.expression
     def is_dealer(cls):
         return or_(
-            cls.badge_type == c.PSEUDO_DEALER_BADGE,
             cls.ribbon.like('%{}%'.format(c.DEALER_RIBBON)),
             and_(
                 cls.paid == c.PAID_BY_GROUP,

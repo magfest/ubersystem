@@ -94,58 +94,6 @@ class Root:
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Group id={}".format(id))
         }
 
-    @log_pageview
-    def attendee_form(self, session, message='', return_to='index', **params):
-        attendee = session.attendee(
-            params, checkgroups=['ribbons', 'job_interests', 'assigned_depts'],
-            bools=['placeholder', 'no_cellphone', 'staffing'],
-            allow_invalid=True)
-
-        if cherrypy.request.method == 'POST':
-            if not attendee.is_guest:
-                message = "New guests must be in a guest group or have a guest badge."
-
-            if not message:
-                session.add(attendee)
-
-                message = message or '{} has been saved'.format(attendee.full_name)
-                if params.get('save') == 'save_return_to_search':
-                    if return_to:
-                        q_or_and = '?' if '?' not in return_to else '&'
-                        raise HTTPRedirect(return_to + q_or_and + 'message={}', message)
-                    else:
-                        raise HTTPRedirect('index?message={}', message)
-                else:
-                    raise HTTPRedirect('attendee_form?id={}&message={}&return_to={}', attendee.id, message, return_to)
-
-        return {
-            'message': message,
-            'attendee': attendee,
-            'group_opts': [(g.id, g.name) for g in session.query(Group).join(GuestGroup).order_by(Group.name).all()],
-            'return_to': return_to
-        }
-
-    def attendee_history(self, session, id):
-        attendee = session.attendee(id, allow_invalid=True)
-
-        error_message = check_if_can_see_staffer(session, attendee)
-
-        if error_message:
-            raise HTTPRedirect('staffers?message={}', error_message)
-
-        return {
-            'attendee':  attendee,
-            'emails':    session.query(Email)
-                                .filter(or_(Email.to == attendee.email,
-                                            and_(Email.model == 'Attendee', Email.fk_id == id)))
-                                .order_by(Email.when).all(),
-            'changes':   session.query(Tracking)
-                                .filter(or_(Tracking.links.like('%attendee({})%'.format(id)),
-                                            and_(Tracking.model == 'Attendee', Tracking.fk_id == id)))
-                                .order_by(Tracking.when).all(),
-            'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Attendee id={}".format(id))
-        }
-
     @ajax
     def mark_as_guest(self, session, group_id, group_type=None):
         group = session.group(group_id)
