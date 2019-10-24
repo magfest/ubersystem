@@ -23,7 +23,7 @@ A: You will have the chance to purchase a room at the Gaylord for use by your te
 Q: What will I have for setup?
 A: You will have access to a 10’x10’ space, 2 badges to MAGFest, 2 tables, 2 chairs, and power. 
 
-We ask that you hold off on non-pertinent questions until after you accept and information has a chance to be distributed to you. If you have a question who's answer is required to determine if you will accept or not, please email mivs@magfest.org
+We ask that you hold off on non-pertinent questions until after you accept and information has a chance to be distributed to you. If you have a question who's answer is required to determine if you will accept or not, please email {{ c.MIVS_EMAIL|email_only }}
 
 ***
 
