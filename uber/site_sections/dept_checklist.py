@@ -340,9 +340,12 @@ class Root:
             Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
             *dept_filter) \
             .order_by(Attendee.full_name).all()
+        
+        attendee = session.logged_in_volunteer()
 
         return {
             'admin_has_room_access': c.HAS_HOTEL_ADMIN_ACCESS,
+            'attendee': attendee,
             'requests': requests,
             'department_id': department_id,
             'department_name': c.DEPARTMENTS.get(department_id, 'All'),
