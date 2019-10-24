@@ -31,16 +31,16 @@ var updateAttendee = function(event){
         data: formData,
         success: function (json) {
             if (json.success) {
-            toastr.info(json.message);
-            {% if attendee.is_new %}
-            old_hash = "#attendee_form?id=" + json.id
-            window.location = window.location.href.replace(location.hash, "") + old_hash;
-            {% else %}
-            window.history.replaceState("", document.title, window.location.href.replace(location.hash, "") + old_hash);
-            loadForm("Data");
-            {% endif %}
+              toastr.info(json.message);
+              {% if attendee.is_new %}
+              old_hash = "#attendee_form?id=" + json.id
+              window.location = window.location.href.replace(location.hash, "") + old_hash;
+              {% else %}
+              window.history.replaceState("", document.title, window.location.href.replace(location.hash, "") + old_hash);
+              loadForm("Data");
+              {% endif %}
             } else {
-            toastr.error(json.message);
+              toastr.error(json.message);
             }
         },
         error: function () {
