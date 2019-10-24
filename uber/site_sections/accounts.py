@@ -179,9 +179,9 @@ class Root:
     def homepage(self, session, message=''):
         if not cherrypy.session.get('account_id'):
             raise HTTPRedirect('login?message={}', 'You are not logged in')
-        attendees = session.viewable_attendees().limit(1000)
+        #attendees = session.viewable_attendees().limit(1000)
         return {
-            'attendees': attendees,
+            'attendees': [],
             'message': message
             }
 
