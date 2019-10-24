@@ -142,11 +142,14 @@ class Root:
             else [Attendee.dept_memberships.any(department_id=department_id)]
         attendees = session.staffers(pending=True).filter(*dept_filter).all()
         for attendee in attendees:
-            attendee.is_dept_head_here = attendee.is_dept_head_of(department_id) if department_id \
-                else attendee.is_dept_head
-            attendee.trusted_here = attendee.trusted_in(department_id) if department_id \
-                else attendee.has_role_somewhere
-            attendee.hours_here = attendee.weighted_hours_in(department_id)
+            if session.admin_can_see_staffer(attendee) or department_id:
+                attendee.is_dept_head_here = attendee.is_dept_head_of(department_id) if department_id \
+                    else attendee.is_dept_head
+                attendee.trusted_here = attendee.trusted_in(department_id) if department_id \
+                    else attendee.has_role_somewhere
+                attendee.hours_here = attendee.weighted_hours_in(department_id)
+            else:
+                attendees.remove(attendee)
 
         counts = defaultdict(int)
         for job in session.jobs(department_id):
@@ -157,7 +160,7 @@ class Root:
             'department_id': department_id,
             'attendees': attendees,
             'emails': ','.join(a.email for a in attendees),
-            'emails_with_shifts': ','.join([a.email for a in attendees if a.hours_here]),
+            'emails_with_shifts': ','.join([a.email for a in attendees if department_id and a.hours_here]),
             'checklist': session.checklist_status('assigned_volunteers', department_id),
             'message': message,
         }

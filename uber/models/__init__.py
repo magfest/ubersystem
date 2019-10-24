@@ -673,6 +673,10 @@ class Session(SessionManager):
 
         def attendees_share_departments(self, first, second):
             return set(first.assigned_depts_ids).intersection(second.assigned_depts_ids)
+        
+        def admin_can_see_staffer(self, staffer):
+            dept_ids_with_inherent_role = [dept_id for dept_id in self.admin_attendee().dept_memberships_with_inherent_role]
+            return set(staffer.assigned_depts_ids).intersection(dept_ids_with_inherent_role)
 
         def admin_can_create_attendee(self, attendee):
             admin = self.current_admin_account()
