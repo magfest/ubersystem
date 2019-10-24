@@ -895,12 +895,6 @@
 </script>
 <div class="form-group">
   {% if c.COLLECT_EXACT_BIRTHDATE %}
-  <script type="text/javascript">
-  $(window).on("runJavaScript", function () {
-    createDateTextEntries();
-  });
-  </script>
-
   {% set post_text %}
   {% if admin_area and attendee.birthdate %}
     ({{ attendee.age_group_conf.desc }})

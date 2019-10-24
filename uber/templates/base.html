@@ -474,5 +474,8 @@
     {% block additional_scripts %}
         {% block page_scripts %} {% endblock %}
     {% endblock %}
+    <script type="text/javascript">
+        $().ready($(window).trigger( 'runJavaScript' ));
+    </script>
 </body>
 </html>
