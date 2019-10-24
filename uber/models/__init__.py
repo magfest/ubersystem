@@ -666,7 +666,8 @@ class Session(SessionManager):
             return self.admin_account(cherrypy.session.get('account_id'))
 
         def admin_attendee(self):
-            return self.admin_account(cherrypy.session.get('account_id')).attendee
+            if cherrypy.session.get('account_id'):
+                return self.admin_account(cherrypy.session.get('account_id')).attendee
 
         def logged_in_volunteer(self):
             return self.attendee(cherrypy.session.get('staffer_id'))
