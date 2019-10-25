@@ -50,22 +50,6 @@ def update_counts(job, counts):
         counts['regular_total'] += job.total_hours
         counts['regular_signups'] += job.weighted_hours * len(job.shifts)
 
-
-def check_if_can_see_staffer(session, attendee):
-    if attendee.is_new:
-        return ""
-
-    if not attendee.staffing:
-        return "That attendee is not volunteering for {}".format(c.EVENT_NAME)
-
-    current_admin = session.admin_attendee()
-    if not current_admin.admin_account.full_shifts_admin \
-            and not session.attendees_share_departments(attendee, current_admin):
-        return "That attendee is not in any of your departments"
-
-    return ""
-
-
 @all_renderable()
 class Root:
     @department_id_adapter

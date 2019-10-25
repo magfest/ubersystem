@@ -623,12 +623,10 @@ def attendee_view(func):
         if kwargs.get('id') != "None":
             with uber.models.Session() as session:
                 attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
-                if attendee not in session.viewable_attendees():
-                    return func(*args, **kwargs) # TEMPORARY FIX for broken viewable_attendees function
+                if not session.admin_can_see_staffer(attendee) and attendee not in session.viewable_attendees():
                     return "<div id='attendeeData' style='padding: 10px;'>" \
                            "You are not allowed to view this attendee. If you think this is an error, " \
                            "please email us at {}.</div>".format(cgi.escape(c.DEVELOPER_EMAIL))
-            
         return func(*args, **kwargs)
     return with_check
 

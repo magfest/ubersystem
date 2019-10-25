@@ -1,3 +1,3 @@
 Someone named {{ attendee.full_name }} has just registered for {{ c.EVENT_NAME }}, and that name is on our watchlist.  This may or may not be the same person, but we should definitely look into it.
 
-You can see their registration at {{ c.URL_BASE }}/registration/form?id={{ attendee.id }}. From there, you can click the WatchList tab to see the watchlist entry that matches them. If you don't see the tab, please contact an admin.
+You can see their registration at {{ c.URL_BASE }}/accounts/homepage#attendee_form?id={{ attendee.id }}. From there, you can click the WatchList tab to see the watchlist entry that matches them. If you don't see the tab, please contact an admin.

@@ -672,11 +672,9 @@ class Session(SessionManager):
         def logged_in_volunteer(self):
             return self.attendee(cherrypy.session.get('staffer_id'))
 
-        def attendees_share_departments(self, first, second):
-            return set(first.assigned_depts_ids).intersection(second.assigned_depts_ids)
-        
         def admin_can_see_staffer(self, staffer):
-            dept_ids_with_inherent_role = [dept_id for dept_id in self.admin_attendee().dept_memberships_with_inherent_role]
+            dept_ids_with_inherent_role = [dept_m.department_id for dept_m in 
+                                           self.admin_attendee().dept_memberships_with_inherent_role]
             return set(staffer.assigned_depts_ids).intersection(dept_ids_with_inherent_role)
 
         def admin_can_create_attendee(self, attendee):
@@ -688,7 +686,7 @@ class Session(SessionManager):
                 return admin.full_shifts_admin
             if attendee.badge_type in [c.CONTRACTOR_BADGE, c.ATTENDEE_BADGE] and attendee.staffing_or_will_be:
                 return admin.has_dept_level_access('shifts_admin')
-            if attendee.is_guest:
+            if attendee.group and attendee.group.guest_group and attendee.group.guest_group.group_type in [c.BAND, c.GUEST]:
                 return admin.has_dept_level_access('guest_admin')
             if c.PANELIST_RIBBON in attendee.ribbon_ints:
                 return admin.has_dept_level_access('panels_admin')
@@ -700,29 +698,60 @@ class Session(SessionManager):
                 return admin.has_dept_level_access('mivs_admin')
             
         def viewable_attendees(self):
-            from uber.models import Attendee, Group, GuestGroup
+            from uber.models import Attendee, DeptMembership, Group, GuestGroup, MITSApplicant
             admin = self.current_admin_account()
             
             if admin.full_registration_admin:
                 return self.query(Attendee)
             
-            or_filters = [Attendee.creator == admin.attendee, Attendee.id == admin.attendee.id]
+            subqueries = [self.query(Attendee).filter(
+                or_(Attendee.creator == admin.attendee, Attendee.id == admin.attendee.id))]
+            
             if 'guest_admin' in admin.read_or_write_access_set:
-                or_filters.extend([Attendee.is_guest == True])
+                subqueries.append(
+                    self.query(Attendee).join(Group, Attendee.group_id == Group.id)
+                    .join(GuestGroup, Group.id == GuestGroup.group_id).filter(
+                        or_(
+                            or_(
+                                Attendee.badge_type == c.GUEST_BADGE,
+                                and_(
+                                    Group.id == Attendee.group_id,
+                                    GuestGroup.group_id == Group.id,
+                                    or_(GuestGroup.group_type == c.GUEST, GuestGroup.group_type == c.BAND),
+                                )), Attendee.ribbon.contains(c.PANELIST_RIBBON)
+                        )
+                    )
+                )
             elif 'panels_admin' in admin.read_or_write_access_set:
-                or_filters.append(Attendee.ribbon.contains(c.PANELIST_RIBBON))
+                subqueries.append(
+                    self.query(Attendee).filter(Attendee.ribbon.contains(c.PANELIST_RIBBON))
+                )
             
             if 'dealer_admin' in admin.read_or_write_access_set:
-                or_filters.append(Attendee.is_dealer)
+                subqueries.append(
+                    self.query(Attendee).join(Group, Attendee.group_id == Group.id).filter(Attendee.is_dealer)
+                )
             
             if 'mits_admin' in admin.read_or_write_access_set:
-                or_filters.append(Attendee.mits_applicants)
+                subqueries.append(
+                    self.query(Attendee).join(MITSApplicant).filter(Attendee.mits_applicants)
+                )
 
             if 'mivs_admin' in admin.read_or_write_access_set:
-                or_filters.append(
-                    and_(Group.id == Attendee.group_id, GuestGroup.group_id == Group.id, GuestGroup.group_type == c.MIVS))
+                subqueries.append(
+                    self.query(Attendee).join(Group, Attendee.group_id == Group.id)
+                    .join(GuestGroup, Group.id == GuestGroup.group_id).filter(
+                        and_(Group.id == Attendee.group_id, GuestGroup.group_id == Group.id, GuestGroup.group_type == c.MIVS)
+                    )
+                )
             
-            return self.query(Attendee).filter(or_(*or_filters)).distinct()
+            if 'shifts_admin' in admin.read_or_write_access_set:
+                if admin.full_shifts_admin:
+                    subqueries.append(
+                        self.query(Attendee).filter(Attendee.staffing)
+                    )
+            
+            return subqueries[0].union(*subqueries[1:])
 
         def checklist_status(self, slug, department_id):
             attendee = self.admin_attendee()

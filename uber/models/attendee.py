@@ -834,24 +834,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.staffing or self.volunteering_badge_or_ribbon
 
     @hybrid_property
-    def is_guest(self):
-        return self.group and self.group.guest and self.group.guest.group_type in [c.GUEST, c.BAND] \
-            or self.badge_type == c.GUEST_BADGE
-    
-    @is_guest.expression
-    def is_guest(cls):
-        from uber.models import GuestGroup
-        
-        return or_(
-            cls.badge_type == c.GUEST_BADGE,
-            and_(
-                Group.id == cls.group_id,
-                GuestGroup.group_id == Group.id,
-                or_(GuestGroup.group_type == c.GUEST, GuestGroup.group_type == c.BAND),
-            )
-        )
-
-    @hybrid_property
     def is_dealer(self):
         return c.DEALER_RIBBON in self.ribbon_ints or self.badge_type == c.PSEUDO_DEALER_BADGE or (
             self.group and self.group.is_dealer and self.paid == c.PAID_BY_GROUP)

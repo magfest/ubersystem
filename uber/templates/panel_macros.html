@@ -142,7 +142,7 @@
             Point of Contact
             {% if app.submitter.attendee %}
               <small>
-                <a href="../registration/form?id={{ app.submitter.attendee.id }}">
+                <a href="#attendee_form?id={{ app.submitter.attendee.id }}">
                   View attendee record for {{ app.submitter.attendee.full_name }}
                 </a>
               </small>
@@ -162,7 +162,7 @@
             Other Panelist #{{ loop.index }}
             {% if panelist.attendee %}
               <small>
-                <a href="../registration/form?id={{ panelist.attendee.id }}">
+                <a href="#attendee_form?id={{ panelist.attendee.id }}">
                   View attendee record for {{ panelist.attendee.full_name }}
                 </a>
               </small>
