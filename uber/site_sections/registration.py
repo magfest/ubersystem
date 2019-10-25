@@ -1051,6 +1051,7 @@ class Root:
         })
     
     @attendee_view
+    @log_pageview
     @cherrypy.expose(['attendee_data'])
     def attendee_form(self, session, message='', **params):
         attendee = session.attendee(params, allow_invalid=True)
@@ -1067,6 +1068,7 @@ class Root:
             return return_dict
     
     @attendee_view
+    @log_pageview
     def attendee_history(self, session, id, **params):
         attendee = session.attendee(id)
         
@@ -1096,6 +1098,7 @@ class Root:
         }
     
     @attendee_view
+    @log_pageview
     def attendee_watchlist(self, session, id, **params):
         attendee = session.attendee(id)
         return {

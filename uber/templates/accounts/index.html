@@ -63,7 +63,7 @@ table form {
       {% for account in accounts %}
         <tr id="{{ account.email|idize }}">
           <td data-order="{{ account.attendee.last_first }}" data-search="{{ account.attendee.last_first }}">
-            <nobr><a href="../registration/form?id={{ account.attendee.id }}">{{ account.attendee.last_first }}</a></nobr>
+            <nobr><a href="#attendee_form?id={{ account.attendee.id }}">{{ account.attendee.last_first }}</a></nobr>
           </td>
           <td> {{ account.attendee.email|email_to_link }} </td>
           <td>
@@ -141,5 +141,5 @@ $(document).ready(function() {
     });
 });
 </script>
-
+<script src="../static/js/load-attendee-modal.js" type="text/javascript"></script>
 {% endblock %}

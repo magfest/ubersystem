@@ -176,7 +176,7 @@
     {% for attendee in group.attendees %}
         <tr>
             <td> <ul><li></li></ul> </td>
-            <td style="padding:15px;"> <a href="../registration/form?id={{ attendee.id }}&return_to=../dealer_admin/form?id={{ group.id }}">{{ attendee.full_name }}</a> </td>
+            <td style="padding:15px;"> <a href="#attendee_form?id={{ attendee.id }}&return_to=../dealer_admin/form?id={{ group.id }}">{{ attendee.full_name }}</a> </td>
             <td>
                 <i>
                      (paid => {{ attendee.paid_label }}, &nbsp;&nbsp;
@@ -230,5 +230,5 @@
 {% endif %}
 </div>
 </div>
-
+<script src="../static/js/load-attendee-modal.js" type="text/javascript"></script>
 {% endblock %}

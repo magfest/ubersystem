@@ -30,7 +30,7 @@
             {% for attendee in assigned|sort(attribute="is_dept_head", reverse=True) %}
             {%- set is_dept_head = attendee.is_dept_head_of(department) -%}
             <span {% if not is_dept_head %}class="nondepthead"{% endif %}>
-            <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a><span class="email"> | {{ attendee.email }}</span>
+            <a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a><span class="email"> | {{ attendee.email }}</span>
             {% if is_dept_head %} | Dept Head{% endif %}
             <br/></span>
             {% endfor %}
@@ -40,12 +40,12 @@
             <h4> Requested </h4><br/>
             {% for attendee in requested %}
             <span class="nondepthead">
-            <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a><span class="email"> | {{ attendee.email }}</span>
+            <a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a><span class="email"> | {{ attendee.email }}</span>
             <br/></span>
             {% endfor %}
             </div>
         </td>
     </tr></table>
 {% endfor %}
-
+<script src="../static/js/load-attendee-modal.js" type="text/javascript"></script>
 {% endblock %}

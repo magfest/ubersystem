@@ -233,10 +233,13 @@ def form_link(model):
 
     from uber.models import Attendee, Attraction, Department, Group, Job, PanelApplication
     
+    page = 'form'
+    
     if c.HAS_DEALER_ADMIN_ACCESS:
         group_section = 'dealer_admin'
     elif c.HAS_GUEST_ADMIN_ACCESS:
         group_section = 'guest_admin'
+        page = 'group_form' if model == Group else page
     else:
         group_section = ''
 
@@ -253,7 +256,7 @@ def form_link(model):
     name = getattr(model, 'name', getattr(model, 'full_name', model))
 
     if site_section:
-        return safe_string('<a href="../{}/form?id={}">{}</a>'.format(site_section, model.id, jinja2.escape(name)))
+        return safe_string('<a href="../{}/{}?id={}">{}</a>'.format(site_section, page, model.id, jinja2.escape(name)))
     return name
 
 

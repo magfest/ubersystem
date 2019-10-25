@@ -77,6 +77,7 @@ var updateAttendee = function(event){
     {{ attendee_fields.ribbons }}
     {{ attendee_fields.name }}
     {{ attendee_fields.email }}
+    {{ attendee_fields.paid }}
     {{ attendee_fields.admin_notes }}
   {% else %}
     {{ attendee_fields.created }}
@@ -97,7 +98,7 @@ var updateAttendee = function(event){
     {{ attendee_fields.email }}
     {{ attendee_fields.emergency_contact }}
     {{ attendee_fields.cellphone }}
-
+    {{ attendee_fields.paid }}
     {% if c.HAS_SHIFTS_ADMIN_ACCESS %}
       {{ attendee_fields.staffing }}
       {{ attendee_fields.job_interests }}
