@@ -555,8 +555,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def assign_creator(self):
-        if self.is_new and not self.creator:
-            self.creator = self.session.admin_attendee()
+        if self.is_new and not self.creator_id:
+            self.creator_id = self.session.admin_attendee().id if self.session.admin_attendee() else None
 
     def unset_volunteering(self):
         self.staffing = False
