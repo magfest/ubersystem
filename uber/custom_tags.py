@@ -239,7 +239,7 @@ def form_link(model):
         group_section = 'dealer_admin'
     elif c.HAS_GUEST_ADMIN_ACCESS:
         group_section = 'guest_admin'
-        page = 'group_form' if model == Group else page
+        page = 'group_form' if isinstance(model, Group) else page
     else:
         group_section = ''
         
@@ -247,7 +247,7 @@ def form_link(model):
         attendee_section = 'registration'
     else:
         attendee_section = 'accounts'
-        page = 'homepage#attendee_form' if model == Attendee else page
+        page = 'homepage#attendee_form' if isinstance(model, Attendee) else page
 
     site_sections = {
         Attendee: attendee_section,
