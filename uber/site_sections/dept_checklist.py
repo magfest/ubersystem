@@ -341,7 +341,7 @@ class Root:
             *dept_filter) \
             .order_by(Attendee.full_name).all()
         
-        attendee = session.logged_in_volunteer()
+        attendee = session.admin_attendee()
 
         return {
             'admin_has_room_access': c.HAS_HOTEL_ADMIN_ACCESS,
