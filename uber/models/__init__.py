@@ -686,7 +686,7 @@ class Session(SessionManager):
                 return admin.full_shifts_admin
             if attendee.badge_type in [c.CONTRACTOR_BADGE, c.ATTENDEE_BADGE] and attendee.staffing_or_will_be:
                 return admin.has_dept_level_access('shifts_admin')
-            if attendee.group and attendee.group.guest_group and attendee.group.guest_group.group_type in [c.BAND, c.GUEST]:
+            if attendee.group and attendee.group.guest and attendee.group.guest.group_type in [c.BAND, c.GUEST]:
                 return admin.has_dept_level_access('guest_admin')
             if c.PANELIST_RIBBON in attendee.ribbon_ints:
                 return admin.has_dept_level_access('panels_admin')
@@ -694,7 +694,7 @@ class Session(SessionManager):
                 return admin.has_dept_level_access('dealer_admin')
             if attendee.mits_applicants:
                 return admin.has_dept_level_access('mits_admin')
-            if attendee.group and attendee.group.guest_group and attendee.group.guest_group.group_type == c.MIVS:
+            if attendee.group and attendee.group.guest and attendee.group.guest.group_type == c.MIVS:
                 return admin.has_dept_level_access('mivs_admin')
             
         def viewable_attendees(self):
