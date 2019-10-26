@@ -1050,8 +1050,8 @@ class Root:
             'badges_price': c.BADGE_PRICE
         })
     
-    @attendee_view
     @log_pageview
+    @attendee_view
     @cherrypy.expose(['attendee_data'])
     def attendee_form(self, session, message='', **params):
         attendee = session.attendee(params, allow_invalid=True)
@@ -1067,8 +1067,8 @@ class Root:
         else:
             return return_dict
     
-    @attendee_view
     @log_pageview
+    @attendee_view
     def attendee_history(self, session, id, **params):
         attendee = session.attendee(id)
         
@@ -1097,8 +1097,8 @@ class Root:
                 if job.start_time + timedelta(hours=job.duration + 2) > localized_now()],
         }
     
-    @attendee_view
     @log_pageview
+    @attendee_view
     def attendee_watchlist(self, session, id, **params):
         attendee = session.attendee(id)
         return {
@@ -1106,7 +1106,7 @@ class Root:
             'active_entries': session.guess_attendee_watchentry(attendee, active=True),
             'inactive_entries': session.guess_attendee_watchentry(attendee, active=False),
         }
-        
+    
     @ajax
     @attendee_view
     def update_attendee(self, session, message='', success=False, **params):
