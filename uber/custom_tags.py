@@ -242,9 +242,15 @@ def form_link(model):
         page = 'group_form' if model == Group else page
     else:
         group_section = ''
+        
+    if c.HAS_REGISTRATION_ACCESS:
+        attendee_section = 'registration'
+    else:
+        attendee_section = 'accounts'
+        page = 'homepage#attendee_form' if model == Attendee else page
 
     site_sections = {
-        Attendee: 'registration',
+        Attendee: attendee_section,
         Attraction: 'attractions_admin',
         Department: 'dept_admin',
         Group: group_section,
