@@ -716,6 +716,11 @@ class ConfigLookup:
         output['YEAR'] = c.EVENT_YEAR
 
         output['API_VERSION'] = __version__
+        
+        # EVENT_TIMEZONE is a TZINFO object, not a string so convert to string for JSON
+        # sample date can be anything, the tzname function wants a datetime object for some reason
+        sample_date = datetime(2020, 1, 3, 6, 0, 0)
+        output['EVENT_TIMEZONE'] = output['EVENT_TIMEZONE'].tzname(sample_date)
         return output
 
     def lookup(self, field):
