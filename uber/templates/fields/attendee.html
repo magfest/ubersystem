@@ -812,7 +812,7 @@
       {% else %}
         {% if attendee.badge_type == c.STAFF_BADGE %} Yes, I want to staff {{ c.EVENT_NAME }}. {% else %} Sign me up! {% endif %}
         </label>
-        <span class="popup">{{ macros.popup_link("../static_views/stafferComps.html", "What do I get for volunteering?") }}</span>
+        <span class="popup">{{ macros.popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?") }}</span>
       {% endif %}
   </div>
 {% endcall %}
