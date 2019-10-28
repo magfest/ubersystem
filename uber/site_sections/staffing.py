@@ -50,7 +50,7 @@ class Root:
                 message = 'You must select a shirt size'
             else:
                 attendee.shirt = int(shirt)
-                if c.STAFF_EVENT_SHIRT_OPTS and c.BEFORE_SHIRT_DEADLINE:
+                if c.STAFF_EVENT_SHIRT_OPTS and c.BEFORE_SHIRT_DEADLINE and num_event_shirts:
                     attendee.num_event_shirts = int(num_event_shirts)
                 raise HTTPRedirect('index?message={}', 'Shirt info uploaded')
 
@@ -70,6 +70,23 @@ class Root:
                 raise HTTPRedirect('index?message={}', 'Agreement received')
 
             message = "You must agree to the terms of the agreement"
+
+        return {
+            'message': message,
+            'attendee': attendee,
+            'agreement_end_date': c.ESCHATON.date() + timedelta(days=31),
+        }
+        
+    @check_shutdown
+    def emergency_procedures(self, session, message='', reviewed_procedures=None, csrf_token=None):
+        attendee = session.logged_in_volunteer()
+        if csrf_token is not None:
+            check_csrf(csrf_token)
+            if reviewed_procedures:
+                attendee.reviewed_emergency_procedures = True
+                raise HTTPRedirect('index?message={}', 'Thanks for reviewing our emergency procedures!')
+
+            message = "You must acknowledge that you reviewed our emerency procedures"
 
         return {
             'message': message,
