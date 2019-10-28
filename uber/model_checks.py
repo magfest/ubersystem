@@ -396,7 +396,7 @@ def emergency_contact_not_cellphone(attendee):
 def printed_badge_change(attendee):
     if attendee.badge_printed_name != attendee.orig_value_of('badge_printed_name') \
             and not AdminAccount.admin_name() \
-            and localized_now() > c.get_printed_badge_deadline_by_type(attendee.badge_type):
+            and localized_now() > c.get_printed_badge_deadline_by_type(attendee.badge_type_real):
 
         return '{} badges have already been ordered, so you cannot change the badge printed name.'.format(
             attendee.badge_type_label if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES else "Supporter")
@@ -448,7 +448,7 @@ def dupe_badge_num(attendee):
             and c.NUMBERED_BADGES and attendee.badge_num \
             and (not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE or c.AT_THE_CON):
         with Session() as session:
-            existing = session.query(Attendee).filter_by(badge_type=attendee.badge_type, badge_num=attendee.badge_num)
+            existing = session.query(Attendee).filter_by(badge_type=attendee.badge_type_real, badge_num=attendee.badge_num)
             if existing.count():
                 return 'That badge number already belongs to {!r}'.format(existing.first().full_name)
 
@@ -483,17 +483,17 @@ def out_of_badge_type(attendee):
             
 @validation.Attendee
 def not_in_range(attendee):
-    lower_bound, upper_bound = c.BADGE_RANGES[attendee.badge_type]
+    lower_bound, upper_bound = c.BADGE_RANGES[attendee.badge_type_real]
     if attendee.badge_num and not (lower_bound <= attendee.badge_num <= upper_bound):
         return 'Badge number {} is out of range for badge type {} ({} - {})'.format(attendee.badge_num, 
-                                                                                    attendee.badge_type, 
+                                                                                    attendee.badge_type_real, 
                                                                                     lower_bound, 
                                                                                     upper_bound)
 
 
 @validation.Attendee
 def invalid_badge_name(attendee):
-    if attendee.badge_printed_name and localized_now() <= c.get_printed_badge_deadline_by_type(attendee.badge_type) \
+    if attendee.badge_printed_name and localized_now() <= c.get_printed_badge_deadline_by_type(attendee.badge_type_real) \
             and re.search(c.INVALID_BADGE_PRINTED_CHARS, attendee.badge_printed_name):
         return 'Your printed badge name has invalid characters. Please use only alphanumeric characters and symbols.'
 
