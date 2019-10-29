@@ -1,0 +1,35 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Department Checklist - Room Signage{% endblock %}
+{% block content %}
+{% set item = department.checklist_item_for_slug('printed_signs') %}
+
+<h2>Room Signage for {{ department.name }}</h2>
+
+<form method="post" action="form">
+<p>Signage comes in three types: 12"x18" coroplast, 24"x36" coroplast, and 33"x80" retractable floor banner. All attendee-facing rooms will automatically receive either a 24"x36" coroplast or 33"x80" retractable sign for outside of the room.</p>
+
+<p>Please submit requests for additional signage here, and be sure to specify FOR EACH SIGN:
+<ul>
+<li>Number needed</li>
+<li>Size of sign</li>
+<li>Primary text of sign</li>
+<li>Sub text of sign (if applicable)</li>
+<li>Intended placement location for sign</li>
+<li>Link to any custom artwork that is needed</li>
+<li>Any additional notes</li>
+</ul></p>
+
+<p>Note: This checklist item is NOT for printed materials such as sign-up forms, waivers, or anything else that goes on standard office paper. STOPS has a paper cutter and a printer for small jobs (less than 50 pages). Anything more than 50 pages needs to go into the Bulk Print Jobs checklist item. </p>
+
+<input type="hidden" name="department_id" value="{{ department.id }}" />
+<input type="hidden" name="slug" value="printed_signs" />
+{{ csrf_token() }}
+<textarea name="comments" rows="5" cols="80">{{ item.comments|default('', boolean=True) }}</textarea>
+<br/>
+<input type="submit" value="Upload Room Signage" />
+{% if item.is_new %}
+    <br/><i>Note: please submit this even if this doesn't apply to you so we know you don't need anything from us.</i>
+{% endif %}
+</form>
+
+{% endblock %}
