@@ -21,6 +21,11 @@
     {% else %}
         <h2>Edit Your Team Information</h2>
     {% endif %}
+    <div class="form-group">
+        <p class="text-center help-block">
+            By submitting this form you agree that MAGFest INC will store the personal information you provide for the limited purposes of contacting you and your team about your MITS application.
+        </p>
+    </div>
 
     <form method="post" action="team" class="form-horizontal" role="form">
         {{ csrf_token() }}
