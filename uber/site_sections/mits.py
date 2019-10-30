@@ -283,16 +283,20 @@ class Root:
         team = session.logged_in_mits_team()
         if cherrypy.request.method == 'POST':
             if 'showcase_availability' in params:
-                team.showcase_interest = True
+                if params.get('showcase_consent'):
+                    team.showcase_interest = True
+                else:
+                    message = "You must consent to using your information for the showcase."
             else:
                 team.showcase_interest = False
 
-            message = check(times)
+            message = message or check(times)
             if not message:
                 session.add(times)
                 raise HTTPRedirect('index?message={}', 'Times saved')
 
         return {
+            'team': team,
             'times': times,
             'message': message,
             'list': [
