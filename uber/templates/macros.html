@@ -52,7 +52,7 @@
         type="hidden"
         name="{{ field_name }}"
         id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
-        value="{% if is_checked %}{{ true_val }}{% elif clientside_bool %}{{ false_val }}{% endif %}" />
+        value="{% if is_checked %}{{ true_val }}{% else %}{{ false_val }}{% endif %}" />
     <input
         type="checkbox"
         disabled
