@@ -673,7 +673,7 @@ if c.MIVS_ENABLED:
         lambda game: (
             game.status == c.ACCEPTED
             and not game.confirmed
-            and (localized_now() - timedelta(days=2)) > game.studio.confirm_deadline),
+            and (localized_now() + timedelta(days=2)) > game.studio.confirm_deadline),
         ident='mivs_accept_booth_reminder')
 
     MIVSEmailFixture(

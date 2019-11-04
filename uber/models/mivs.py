@@ -115,7 +115,7 @@ class IndieStudio(MagModel):
         sorted_games = sorted(
             [g for g in self.games if g.accepted], key=lambda g: g.accepted)
         confirm_deadline = timedelta(days=c.MIVS_CONFIRM_DEADLINE)
-        return sorted_games[0].accepted + confirm_deadline
+        return sorted_games[0].accepted + confirm_deadline if len(sorted_games) else None
 
     @property
     def after_confirm_deadline(self):
