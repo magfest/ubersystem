@@ -156,8 +156,8 @@ class IndieStudio(MagModel):
 
     def checklist_deadline(self, slug):
         default_deadline = c.MIVS_CHECKLIST[slug]['deadline']
-        if self.group and self.group.registered >= default_deadline and slug != 'hotel_space':
-            return self.group.registered + timedelta(days=3)
+        if self.group and self.group.registered >= default_deadline and slug in ['core_hours', 'discussion']:
+            return self.group.registered + timedelta(days=7)
         return default_deadline
 
     def past_checklist_deadline(self, slug):
