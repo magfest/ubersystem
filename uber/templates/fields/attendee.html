@@ -701,6 +701,7 @@
 {% set read_only = shirt_size_ro or page_ro %}
 {% if not admin_area or attendee.gets_any_kind_of_shirt %}
   {% set shirt_opts = c.PREREG_SHIRT_OPTS if not admin_area else c.SHIRT_OPTS %}
+  {% set warn_on_change = c.PREREG_SHIRTS and not admin_area and attendee.shirt not in c.PREREG_SHIRTS.keys() %}
   {% if not admin_area %}
     <div class="shirt-row extra-row form-group" style="display:none">
   {% elif attendee.gets_any_kind_of_shirt %}
@@ -710,10 +711,17 @@
   {% call macros.read_only_if(read_only, attendee.shirt_label) %}
 <div class="col-sm-{{ "3" if admin_area else "6" }}">
   <select name="shirt" class="form-control">
+    {% if warn_on_change %}<option value="{{ attendee.shirt }}">{{ attendee.shirt_label }}</option>{% endif %}
     {% if not admin_area %}<option value="{{ c.NO_SHIRT }}">Select a shirt size</option>{% endif %}
     {{ options(shirt_opts,attendee.shirt) }}
   </select>
 </div>
+{% if warn_on_change %}
+<p class="help-block col-sm-9 col-sm-offset-3">
+  <strong>Your shirt size has been reserved for you and is no longer available for pre-order.</strong>
+  <br/>If you change your selection now you will not be able to change it back.
+</p>
+{% endif %}
   {% endcall %}
 </div>
 {% endif %}
