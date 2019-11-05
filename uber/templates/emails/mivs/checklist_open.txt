@@ -1,10 +1,17 @@
 Ahoy {{ guest.group.studio.primary_contact_first_names }},
 
-We've put together a new webpage that contains a checklist of items for you to complete that will help you better prepare for MAGFest. As we get closer to MAGFest, new checklist items may show up. You will be receiving emails from us about checklist items that need to be completed and reminders for ones that still need your attention. You can get to your checklist using this link: {{ c.URL_BASE }}/guests/index?id={{ guest.id }}
+Your MIVS Checklist is now available.  The checklist website contains information and tasks to prepare you for MAGFest and must be completed before their deadlines. We hope that this will help you manage the logistics so you can put on a great show for the MAGFest Attendees.
 
-We hope that this will help you manage the logistics so you can put on a great show for the MAGFest Attendees.
+Current checklist items are:
+Hotel signups
+Accept Core Hours
+MIVS Discussion Group
 
-If you have any questions, please email {{ c.MIVS_EMAIL|email_only }}
+
+You can get to your checklist using this link: {{ c.URL_BASE }}/guests/index?id={{ guest.id }}
+
+
+More checklist items will come online as we approach MAGFest and you will receive emails as they approach. If you have any questions, please email {{ c.MIVS_EMAIL|email_only }}
 
 Forever Your Fan,
 -The MIVS Team
