@@ -14,12 +14,12 @@
         <select name="status" class="form-control">
           {{ options(c.DEALER_STATUS_OPTS,group.status) }}
         </select>
-        {% if not new_dealer %}
+        {% if not new_dealer and not group.is_new %}
           <a href="#" onClick="$('#setstatus').toggle(); return false;">Waitlist or Decline (with Email)</a> <br/>
           <div id="setstatus" style="display:none">
             Enter an email message to be sent along with the notification: <br/>
             (The email subject will be "Your {{ c.EVENT_NAME }} {{ c.DEALER_REG_TERM|title }} has been [waitlisted | declined]")
-            <textarea name="email" class="form-control" rows="5" cols="50"></textarea> <br/>
+            <textarea name="email_text" class="form-control" rows="5" cols="50"></textarea> <br/>
             <button class="btn btn-warning" onClick="unapprove('waitlisted'); return false;">Waitlist</button>
             <button class="btn btn-danger" onClick="unapprove('declined'); return false;">Reject and Convert Badges</button>
             <p class="help-block">(Rejected {{ c.DEALER_TERM }}s are able to register at the price they would have paid when they applied.)</p>
@@ -61,6 +61,28 @@
   {% endif %}
 </div>
 {% endif %}
+<script type="text/javascript">
+  var unapprove = function(action, convert) {
+    if (!$.val("email")) {
+      $("#setstatus").prepend('<div style="color:red">You must enter an email message.</div>');
+    } else {
+      $("button").attr("disabled", true);
+      $.post("../dealer_admin/unapprove", {
+        id: "{{ group.id }}",
+        action: action,
+        convert: convert,
+        csrf_token: csrf_token,
+        email: $.val("email")
+      }, function(json) {
+        if (json.message) {
+          window.location = "index?message="+ json.message;
+        } else {
+          $("#status").text("Waitlisted");
+        }
+      }, 'json');
+    }
+  }
+</script>
 {% endset %}
 
 
@@ -122,7 +144,7 @@
     <label for="badges" class="col-sm-3 control-label">Badges</label>
     {% call macros.read_only_if(read_only, attendee_or_group.badges, post_text=post_text) %}
       <div class="col-sm-6">
-        <select name="badges" class="form-control">{{ int_options(0 if admin_area else min_badges, max_badges, badges|default(attendee_or_group.badges)) }}</select>
+        <select name="badges" class="form-control">{{ int_options(0 if admin_area else min_badges, max_badges, badges or attendee_or_group.badges) }}</select>
         {% if post_text %}<span class="form-control-static">{{ post_text }}</span>{% endif %}
       </div>
     {% endcall %}
@@ -168,17 +190,6 @@
 
 {% set categories %}
 {% set read_only = categories_ro or page_ro %}
-<script>
-    var showOrHideCategoriesText = function() {
-        setVisible('#category-other', $(":checkbox[name=categories][value={{ c.OTHER }}]").prop("checked"));
-    };
-
-    $(function () {
-        showOrHideCategoriesText();
-        $(":checkbox[name=categories]").click(showOrHideCategoriesText);
-    });
-</script>
-
 <div class="form-group">
   <label for="categories" class="col-sm-3 control-label">What kinds of things do you sell?</label>
   {% call macros.read_only_if(read_only, group.categories_labels, post_text=("/ " if group.categories_labels else "") + "Other: "+group.categories_text if group.categories_text) %}
@@ -191,6 +202,16 @@
     </div>
   {% endcall %}
 </div>
+<script>
+  var showOrHideCategoriesText = function() {
+    setVisible('#category-other', $(":checkbox[name=categories][value={{ c.OTHER }}]").prop("checked"));
+  };
+
+  $(function () {
+    showOrHideCategoriesText();
+    $(":checkbox[name=categories]").click(showOrHideCategoriesText);
+  });
+</script>
 {% endset %}
 
 
@@ -261,7 +282,7 @@
 {% set address %}
 {% set read_only = group_address_ro or page_ro %}
 {% set required = not admin_area %}
-{% set prefix = '' if 'dealer_admin' in c.PAGE_PATH else 'group_' %}
+{% set prefix = '' if 'group_admin' in c.PAGE_PATH else 'group_' %}
 {% if not read_only %}
   {% if not c.COLLECT_FULL_ADDRESS or not attendee %}
     <script type="text/javascript">
@@ -377,9 +398,12 @@
       {{ options(c.BADGE_OPTS,group.leader.badge_type) }}
     </select>
   </div>
+  {% if not group.is_new %}
+  <div class="clearfix"></div>
   <p class="col-sm-9 col-sm-offset-3 help-block">
     Does not change existing badges in this group, only affects newly added badges.
   </p>
+  {% endif %}
 </div>
 {% endset %}
 
@@ -391,10 +415,12 @@
     <div class="col-sm-6 checkbox">
       {{ macros.checkgroup(Attendee, 'ribbon', defaults=group.new_ribbon) }}
     </div>
+    {% if not group.is_new %}
     <div class="clearfix"></div>
     <p class="col-sm-9 col-sm-offset-3 help-block">
       Does not change existing badges in this group, only affects newly added badges.
     </p>
+    {% endif %}
   </div>
 {% endif %}
 {% endset %}

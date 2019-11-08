@@ -2,12 +2,13 @@ loadAttendeeModal = function() {
 form_link = window.location.hash
 if (form_link && form_link.includes('attendee_form')) {
     form_link = form_link.substr(1);
+    $('#attendee_modal').modal({show:true});
     $('#attendee_modal .modal-content').load('../registration/' + form_link, function(){
     if ($('#attendeeData').length) {
-        $('#attendee_modal').modal({show:true});
         $(window).trigger( 'runJavaScript' );
     } else {
         // We got redirected -- likely to the login page -- so load it properly
+        toastr.error("Form loading failed.");
         window.location.hash = ""; // prevent refresh loops
         window.location.reload();
     }

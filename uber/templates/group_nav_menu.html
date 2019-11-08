@@ -2,14 +2,19 @@
   {# New group page #}
   {{ macros.nav_menu(
     group, c.PAGE_PATH,
-    "group_form", "Create Group", True,
-    return_to, "Return to " + return_to|nav_return_to_page_title, True
+    "form", "Create Group", True,
+    "index", "Return to Group List", True
 ) }}
 {% else %}
+{% if group.guest %}
+  {% set return_to_hash = "#" ~ group.guest.group_type_label|lower ~ ("" if group.guest.group_type == c.MIVS else "s") %}
+{% elif group.is_dealer %}
+  {% set return_to_hash = "#dealers" %}
+{% endif %}
   {{ macros.nav_menu(
     group, c.PAGE_PATH,
-    "group_form?id={id}", "Group Data", True,
-    "group_history?id={id}", "History", True,
-    return_to, "Return to " + return_to|nav_return_to_page_title, True
+    "form?id={id}", "Group Page", True,
+    "history?id={id}", "History", True,
+    "index" ~ return_to_hash, "Return to Group List", True
 ) }}
 {% endif %}

@@ -676,6 +676,9 @@ class Session(SessionManager):
             dept_ids_with_inherent_role = [dept_m.department_id for dept_m in 
                                            self.admin_attendee().dept_memberships_with_inherent_role]
             return set(staffer.assigned_depts_ids).intersection(dept_ids_with_inherent_role)
+        
+        def admin_can_see_guest_group(self, guest):
+            return guest.group_type_label.upper() in self.current_admin_account().viewable_guest_group_types
 
         def admin_can_create_attendee(self, attendee):
             admin = self.current_admin_account()
@@ -696,6 +699,40 @@ class Session(SessionManager):
                 return admin.has_dept_level_access('mits_admin')
             if attendee.group and attendee.group.guest and attendee.group.guest.group_type == c.MIVS:
                 return admin.has_dept_level_access('mivs_admin')
+        
+        def viewable_groups(self):
+            from uber.models import Attendee, DeptMembership, Group, GuestGroup
+            admin = self.current_admin_account()
+            
+            if admin.full_registration_admin:
+                return self.query(Group)
+            
+            group_id = admin.attendee.group.id if admin.attendee.group else ''
+            
+            subqueries = [self.query(Group).filter(
+                or_(Group.creator == admin.attendee, Group.id == group_id)
+            )]
+            
+            if 'guest_admin' in admin.read_or_write_access_set:
+                subqueries.append(
+                    self.query(Group).join(GuestGroup, Group.id == GuestGroup.group_id).filter(
+                        or_(GuestGroup.group_type == c.GUEST, GuestGroup.group_type == c.BAND)
+                    )
+                )
+            
+            if 'dealer_admin' in admin.read_or_write_access_set:
+                subqueries.append(
+                    self.query(Group).filter(Group.is_dealer)
+                )
+                
+            if 'mivs_admin' in admin.read_or_write_access_set:
+                subqueries.append(
+                    self.query(Group).join(GuestGroup, Group.id == GuestGroup.group_id).filter(
+                        and_(GuestGroup.group_type == c.MIVS)
+                    )
+                )
+            
+            return subqueries[0].union(*subqueries[1:])
             
         def viewable_attendees(self):
             from uber.models import Attendee, DeptMembership, Group, GuestGroup, MITSApplicant

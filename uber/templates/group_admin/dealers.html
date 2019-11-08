@@ -1,7 +1,3 @@
-{% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Group Admin{% endblock %}
-{% block content %}
-
 <script type="text/javascript">
     function toggleDisplay(dropdown) {
         window.location = "index?order={{ order }}&show=" + $(dropdown).val();
@@ -14,28 +10,14 @@
 
 <div class="panel panel-default">
   <div class="panel-body">
-    <b>Total:</b> {{ total_groups }} groups ({{ total_badges }} badges, {{ tables }} tables)
-    &nbsp;&nbsp;&nbsp;&nbsp;
-    <b>With Tables:</b> {{ tabled_groups }} groups ({{ tabled_badges }} badges)
-    &nbsp;&nbsp;&nbsp;&nbsp;
-    <b>Without Tables:</b> {{ untabled_groups }} groups ({{ untabled_badges }} badges)
+    {{ dealer_groups }} {{ c.DEALER_TERM }} groups ({{ dealer_badges }} badges, {{ tables }} tables)
     <br/> <br/>
     {{ approved_tables }} approved tables / {{ waitlisted_tables }} waitlisted tables / {{ unapproved_tables }} unapproved tables
   </div>
-  <div class="panel-footer">
-    <a class="btn btn-default" href="form?id=None">Add a group</a>
-    <a class="btn btn-default" href="form?id=None&new_dealer=true">Add a {{ c.DEALER_TERM }}</a>
-  </div>
 </div>
 
-<ul class="nav nav-tabs" role="tablist">
-  <li {% if show == "all" %}class="active"{% endif %}><a href="index?order=name&show=all">All</a></li>
-  <li {% if show == "tables" %}class="active"{% endif %}><a href="index?order=name&show=tables">With Tables</a></li>
-  <li {% if show == "groups" %}class="active"{% endif %}><a href="index?order=name&show=groups">Without Tables</a></li>
-</ul>
-
-<div class="panel panel-default" style="border-top: none; border-radius: 0 0 4px 4px;">
-<table class="table table-striped datatable">
+<div class="table-responsive">
+<table class="table table-striped datatable" data-info="false">
   <thead>
     <tr>
       <th>Name</th>
@@ -49,7 +31,7 @@
     </tr>
   </thead>
   <tbody>
-{% for group in groups %}
+{% for group in groups if group.is_dealer %}
     <tr>
         <td style="text-align:left" data-order="{{ group.name }}" data-search="{{ group.name }}"> <a href="form?id={{ group.id }}">{{ group.name|default('?????', boolean=True) }}</a> </td>
         <td>
@@ -68,9 +50,7 @@
     </tr>
 {% endfor %}
   </tbody>
-  <caption align="bottom">
-    <ul class="pagination"></ul>
-  </caption>
 </table>
 </div>
-{% endblock %}
+
+<p><a href="../dealer_admin/waitlist">Manage waitlisted {{ c.DEALER_TERM }}s</a></p>

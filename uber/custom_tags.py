@@ -234,14 +234,6 @@ def form_link(model):
     from uber.models import Attendee, Attraction, Department, Group, Job, PanelApplication
     
     page = 'form'
-    
-    if c.HAS_DEALER_ADMIN_ACCESS:
-        group_section = 'dealer_admin'
-    elif c.HAS_GUEST_ADMIN_ACCESS:
-        group_section = 'guest_admin'
-        page = 'group_form' if isinstance(model, Group) else page
-    else:
-        group_section = ''
         
     if c.HAS_REGISTRATION_ACCESS:
         attendee_section = 'registration'
@@ -253,7 +245,7 @@ def form_link(model):
         Attendee: attendee_section,
         Attraction: 'attractions_admin',
         Department: 'dept_admin',
-        Group: group_section,
+        Group: 'group_admin',
         Job: 'jobs',
         PanelApplication: 'panels_admin'}
 

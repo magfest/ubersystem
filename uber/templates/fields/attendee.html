@@ -1433,14 +1433,13 @@ $(window).on("runJavaScript", function(){
 {% set group_link %}
 {% set read_only = group_link_ro or page_ro %}
 <script type="text/javascript">
-    {% set group_form = '../dealer_admin/form' if 'registration' in c.PAGE_PATH else 'group_form' %}
     var setGroupLink = function () {
         if ($.field('group_opt')) {
             var group = $.val('group_opt');
             if (group === '') {
                 $('#group_link').hide();
             } else {
-                $('#group_link').attr("href", '{{ group_form }}?id=' + group).show();
+                $('#group_link').attr("href", '../group_admin/form?id=' + group).show();
             }
         }
     };

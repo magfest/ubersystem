@@ -11,7 +11,7 @@ The following is a list of {{ judges|length }} attendee{{ judges|length|pluraliz
     <li>
         {{ attendee|form_link }}
         {% if attendee.group_id %}
-            (<a href="../dealer_admin/form?id={{ attendee.group_id }}">{{ attendee.group.name }}</a>)
+            (<a href="../group_admin/form?id={{ attendee.group_id }}">{{ attendee.group.name }}</a>)
         {% endif %}
     </li>
 {% endfor %}
