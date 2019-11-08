@@ -327,40 +327,39 @@
 {% set read_only = badge_type_ro or page_ro %}
 {% if admin_area %}
   <script type="text/javascript">
-  var isPreassignedBadgeType = function (badge_type) {
+  isPreassignedBadgeType = function (badge_type) {
         return $.inArray(parseInt(badge_type), {{ c.PREASSIGNED_BADGE_TYPES }}) >= 0;
     };
+  toggleBadgeNumField = function () {
+    $("input[name='badge_num']").prop("disabled", ($("input[name='no_badge_num']").prop('checked')));
+  }
   var setBadgeNum = function () {
     var badgeNumOptField = $("input[name='no_badge_num']");
-    var preassignedBadgeType = ($.field("badge_type") && isPreassignedBadgeType($.val("badge_type")))
-    if ($.field("badge_type") == {{ attendee.badge_type }} && {{ attendee.badge_num }}) {
+    var currentBadgeNum = {{ attendee.badge_num if attendee.badge_num else 0 }};
+    var sameBadgeTypeAndNum = $.val("badge_type") == {{ attendee.badge_type }} && currentBadgeNum;
+    var preassignedBadgeType = ($.field("badge_type") && isPreassignedBadgeType($.val("badge_type")));
+
+    if (sameBadgeTypeAndNum) {
       badgeNumOptField.prop('checked', false);
       $("input[name='badge_num']").val("{{ attendee.badge_num }}");
     } else {
-    if (preassignedBadgeType) {
       badgeNumOptField.prop('checked', true);
-    } else {
-      {% if c.AT_THE_CON %}
-      badgeNumOptField.prop('checked', true);
-      {% else %}
-      badgeNumOptField.prop('checked', false);
       $("input[name='badge_num']").val("");
-      {% endif %}
     }
-    }
-    if (preassignedBadgeType) {
+    if (preassignedBadgeType) { 
       $("#no_badge_num_text").text("Use next available badge #");
     } else {
       $("#no_badge_num_text").text("Omit badge #");
     }
     toggleBadgeNumField();
   };
-  var toggleBadgeNumField = function () {
-    $("input[name='badge_num']").prop("disabled", ($("input[name='no_badge_num']").prop('checked')));
+  var autoCheckBlank = function () {
+    $("input[name='no_badge_num']").prop('checked', $.val('badge_num') == '');
+    toggleBadgeNumField();
   }
   $(window).on("runJavaScript", function(){
-        setBadgeNum();
-    });
+      setBadgeNum();
+  });
 </script>
   <div class="form-group">
     <label class="col-sm-3 control-label">Badge Type</label>
@@ -373,10 +372,15 @@
   {% if c.NUMBERED_BADGES %}
   <div class="form-group">
   <label class="col-sm-3 control-label">Badge #</label>
+  {% if attendee.badge_num and not c.HAS_REG_ADMIN_ACCESS %}
+  <div class="col-sm-3 form-control-static">
+  {{ attendee.badge_num }}
+  {% else %}
   <div class="col-sm-3">
-  <input type="text" class="form-control" name="badge_num" placeholder="0000"/>
-  <div class="checkbox"><label class="checkbox"><input type="checkbox" name="no_badge_num"><span id="no_badge_num_text"></span></label></div>
-    </div>
+  <input type="text" class="form-control" name="badge_num" placeholder="0000" onBlur="autoCheckBlank();" />
+  <div class="checkbox"><label class="checkbox"><input type="checkbox" name="no_badge_num" onChange="toggleBadgeNumField();"><span id="no_badge_num_text"></span></label></div>
+  {% endif %}
+  </div>
   </div>
   {% endif %}
 {% elif c.AT_THE_CON %}
