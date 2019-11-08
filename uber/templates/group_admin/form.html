@@ -2,7 +2,7 @@
 {% import "fields/group.html" as group_fields with context %}
 {% block title %}Group Form{% endblock %}
 {% block content %}
-{% include "group_nav_menu.html" %}
+{% include "group_admin/nav_menu.html" %}
 
   {% include "check_in.html" %}
 
@@ -15,7 +15,7 @@
     </h1> 
     {% endif %}
 
-  {% if not group.is_new and group.sorted_attendees %}
+  {% if not group.is_new %}
     <div role="tabpanel">
     <ul class="nav nav-tabs" role="tablist">
     <li role="presentation">
@@ -23,17 +23,23 @@
     <span class="glyphicon glyphicon-list"></span>&nbsp;Group Info
     </a>
     </li>
+    {% if group.sorted_attendees%}
     <li role="presentation">
     <a href="#badges" aria-controls="badges" role="tab" data-toggle="tab">
     <span class="glyphicon glyphicon-user"></span>&nbsp;Badges
     </a>
     </li>
+    {% endif %}
     </ul>
     </div>
-  {% endif %}
+
     <div class="tab-content">
     <div class="row" style="padding: 10px;"></div>
     <div role="tabpanel" class="tab-pane" id="info">
+    {% else %}
+    <div>
+    <h3>Group Info</h3>
+    {% endif %}
       <form method="post" action="form" class="form-horizontal">
         {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ group.db_id }}" />
@@ -74,7 +80,9 @@
                 </div>
             {% endif %}
 
-          <h3>Marketplace Info</h3>
+        {% if new_dealer %}
+        <h3>Marketplace Info</h3>
+        {% endif %}
 
           {{ group_fields.status }}
           {{ group_fields.categories }}
