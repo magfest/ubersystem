@@ -794,7 +794,15 @@ if c.MIVS_ENABLED:
             when=days_after(1, deadline),
             ident='mivs_checklist_overdue_{}'.format(deadline.strftime('%m_%d')),
         )
-
+        
+        # start year specific MIVS Emails
+        MIVSEmailFixture(
+            IndieGame,
+            'MIVS: Participating in MAGFest Versus and an Indie Game Preservation Panel',
+            'mivs/2020/strong_versus_2020.txt',
+            lambda game: game.confirmed,
+            ident='mivs_2020_versus'
+        )
 
 # =============================
 # mits
