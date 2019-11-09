@@ -22,7 +22,10 @@
         {% endif %}
     {% endif %}
 </div>
-
+{% if c.HOTEL_REQUESTS_URL %}
+<br>
+<a href="{{ c.HOTEL_REQUESTS_URL }}"><h2>Click here to review the list of your hotel-eligible staffers</h2></a>
+{% else %}
 <table style="width:auto ; margin-left:25px">
 {% for attendee in attendees %}
     <tr>
@@ -31,5 +34,6 @@
     </tr>
 {% endfor %}
 </table>
+{% endif %}
 
 {% endblock %}

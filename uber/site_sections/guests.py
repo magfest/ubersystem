@@ -387,23 +387,25 @@ class Root:
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
             if guest.group.studio:
-                if not params['needs_hotel_space']:
+                if not params.get('needs_hotel_space'):
                     message = "Please select if you need hotel space or not."
                 elif 'confirm_checkbox' not in params:
                     message = "You must confirm that you have {}".format(
-                        "filled out the hotel form." if params['needs_hotel_space'] == '1'
+                        "filled out the hotel form." if params.get('needs_hotel_space') == '1'
                         else "taken care of your own accommodations for MAGFest."
                     )
-                elif params['needs_hotel_space'] == '1':
-                    guest.group.studio.name_for_hotel = params['name_for_hotel']
-                    guest.group.studio.email_for_hotel = params['email_for_hotel']
+                elif params.get('needs_hotel_space') == '1':
+                    guest.group.studio.name_for_hotel = params.get('name_for_hotel')
+                    guest.group.studio.email_for_hotel = params.get('email_for_hotel')
                     if not guest.group.studio.name_for_hotel:
                         message = "Please provide the first and last name you are using in your hotel booking."
                     elif not guest.group.studio.email_for_hotel:
                         message = "Please provide the email address you are using in your hotel booking."
+                    elif not params.get('same_checkbox'):
+                        message = "Please confirm you have filled out the same information here as on the hotel form"
 
                 if not message:
-                    guest.group.studio.needs_hotel_space = True if params['needs_hotel_space'] == '1' else False
+                    guest.group.studio.needs_hotel_space = True if params.get('needs_hotel_space') == '1' else False
                     session.add(guest)
                     raise HTTPRedirect('index?id={}&message={}',
                                        guest.id,

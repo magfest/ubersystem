@@ -1,7 +1,6 @@
-{% extends "base.html" %}{% set admin_area=True %}{% set resend_email_form=True %}
+{% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Sent Emails{% endblock %}
 {% block content %}
-
 <div><a href="index">Go Back</a></div>
 
 {% for email in emails  %}
@@ -21,5 +20,5 @@
     </form>
     <hr/>
 {% endfor %}
-
+<script src="../static/js/resend-email-form.js" type="text/javascript"></script>
 {% endblock %}

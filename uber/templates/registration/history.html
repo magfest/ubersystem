@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% set admin_area=True %}{% set resend_email_form=True %}
+{% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Attendee History - {{ attendee.full_name }}{% endblock %}
 {% block content %}
 {% include "registration/menu.html" %}
@@ -130,5 +130,5 @@
     </form>
     <hr/>
 {% endfor %}
-
+<script src="../static/js/resend-email-form.js" type="text/javascript"></script>
 {% endblock %}

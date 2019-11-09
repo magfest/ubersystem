@@ -9,6 +9,7 @@ from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Date
+from sqlalchemy.sql import and_, or_
 
 from uber.config import c
 from uber.decorators import presave_adjustment
@@ -181,9 +182,11 @@ class AdminAccount(MagModel):
         return any([group.has_full_access('email_admin') for group in self.access_groups])
 
     @property
-    def can_create_volunteer_badges(self):
-        return any([group.has_full_access('shifts_admin')
-               or group.has_full_access('shifts_admin_attendee_form') for group in self.access_groups])
+    def full_registration_admin(self):
+        return any([group.has_full_access('registration') for group in self.access_groups])
+
+    def has_dept_level_access(self, site_section_or_page):
+        return any([group.has_access_level(site_section_or_page, AccessGroup.DEPT) for group in self.access_groups])
 
     @presave_adjustment
     def disable_api_access(self):

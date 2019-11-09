@@ -2,4 +2,4 @@
 
 A MIVS Admin has marked the video submission issues for {{ review.game.title }} as resolved.
 
-The video status in your review has been reset to "{{ c.MIVS_VIDEO_STATUS[c.PENDING] }}." Please complete your review at {{ c.URL_BASE }}/mivs_judging/game_review?id={{ review.id }}.
+The video status in your review has been reset to "{{ c.MIVS_GAME_STATUS[c.NEW] }}." Please complete your review at {{ c.URL_BASE }}/mivs_judging/game_review?id={{ review.id }}.

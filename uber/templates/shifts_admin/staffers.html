@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Staffer Summary{% endblock %}
 {% block content %}
-
+<script src="../static/js/load-attendee-modal.js" type="text/javascript"></script>
 {% include "shifts_admin/main_menu.html" %}
 
 <div class="row">
@@ -36,7 +36,7 @@
 <span style="font-size:14pt ; font-weight:bold"> Staffers Assigned to This Area</span>
   (<a href="mailto:{{ c.ADMIN_EMAIL }}?bcc={{ emails }}">email these staffers</a>
   or <a href="mailto:{{ c.ADMIN_EMAIL }}?bcc={{ emails_with_shifts }}">email staffers with shifts here</a>)<b>:</b>
-<br/> <br/><a href="attendee_form" class="btn btn-primary">Add new volunteer</a><br/><br/>
+<br/> <br/><a href="#attendee_form?id=None" class="btn btn-primary">Add new volunteer</a><br/><br/>
 
 <table class="table table-striped datatable">
 <thead><tr>
@@ -55,7 +55,7 @@
 {% for attendee in attendees %}
     <tr>
         <td width="20%" data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
-          <a href="attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a>
+          <a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a>
           {% if attendee.badge_status == c.PENDING_STATUS %}(Pending){% endif %}
         </td>
         <td width="10">{% if not attendee.badge_num %}<font size="-1">TBD</font>{% else %}{{ attendee.badge_num }}{% endif %}</td>

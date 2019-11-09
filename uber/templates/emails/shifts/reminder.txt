@@ -1,6 +1,6 @@
 {{ attendee.first_name }},
 
-Thanks again for signing up to volunteer at {{ c.EVENT_NAME }}!  You're not currently signed up for any shifts, and it's really helpful when our staffers sign up for shifts as far in advance as possible, since that lets us know which times and departments are shorthanded.
+Thanks again for signing up to volunteer at {{ c.EVENT_NAME }}!  You are not currently signed up for any shifts. It is really helpful for us when our volunteers and staff sign up for shifts in advance, since that allows us to know that we might be short-staffed in some areas.
 
 Please sign up for shifts at {{ c.URL_BASE }}/staffing/login?first_name={{ attendee.first_name|urlencode }}&last_name={{ attendee.last_name|urlencode }}&email={{ attendee.email|urlencode }}&zip_code={{ attendee.zip_code|urlencode }} -- if you need to, you can verify/update your personal information at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}
 

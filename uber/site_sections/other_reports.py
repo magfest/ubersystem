@@ -2,7 +2,7 @@ import cherrypy
 
 from uber.config import c
 from uber.decorators import all_renderable, csv_file, render, site_mappable
-from uber.models import Attendee, FoodRestrictions
+from uber.models import Attendee, FoodRestrictions, GuestCharity
 
 
 @all_renderable()
@@ -39,6 +39,11 @@ class Root:
                 and a.weighted_hours >= 12)
         }
         return render('other_reports/food_eligible.xml', {'attendees': eligible})
+    
+    def guest_donations(self, session):
+        return {
+            'donation_offers': session.query(GuestCharity).filter(GuestCharity.desc != '')
+        }
 
     @csv_file
     @site_mappable

@@ -1,3 +1,4 @@
+import cgi
 import csv
 import functools
 import inspect
@@ -612,6 +613,22 @@ def public(func):
     func.public = True
     return func
 
+def attendee_view(func):
+    func.public = True
+    @wraps(func)
+    def with_check(*args, **kwargs):
+        if cherrypy.session.get('account_id') is None:
+                raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
+            
+        if kwargs.get('id') != "None":
+            with uber.models.Session() as session:
+                attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
+                if not session.admin_can_see_staffer(attendee) and attendee not in session.viewable_attendees():
+                    return "<div id='attendeeData' style='padding: 10px;'>" \
+                           "You are not allowed to view this attendee. If you think this is an error, " \
+                           "please email us at {}.</div>".format(cgi.escape(c.DEVELOPER_EMAIL))
+        return func(*args, **kwargs)
+    return with_check
 
 def restricted(func):
     @wraps(func)
