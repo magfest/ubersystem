@@ -1,7 +1,6 @@
-{% extends "base.html" %}{% set admin_area=True %}{% set resend_email_form=True %}
+{% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Recently Sent Automated Emails{% endblock %}
 {% block content %}
-
 <form action="index">
     <input type="email" placeholder="Search by email..." name="search_text" value="{{ search_text }}">
     <input type="submit" value="Search">
@@ -31,5 +30,5 @@
     </tr>
 {% endfor %}
 </table>
-
+<script src="../static/js/resend-email-form.js" type="text/javascript"></script>
 {% endblock %}

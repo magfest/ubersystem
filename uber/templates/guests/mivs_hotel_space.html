@@ -18,7 +18,7 @@
         </select>
       </div>
     </div>
-    <div id="hotel_link">
+    <div class="hotel_link">
       <div class="form-group">
         <div class="col-sm-9 col-sm-offset-3">
           We will need the First & Last Name, and Email address of the person who will be registering for the hotel room. Please make sure this is the same information that you use in with the hotel link below.
@@ -28,7 +28,7 @@
       {{ macros.form_group(guest.group.studio, 'email_for_hotel', placeholder="email@example.com") }}
       <div class="form-group">
         <div class="col-sm-9 col-sm-offset-3">
-          Please <strong><a href="https://registration.experientevent.com/Showmfs191/flow/mivs" target="_hotel">fill out the hotel form here</a></strong>.
+          Please <strong><a href="https://registration.experientevent.com/showmfs201/flow/mivs" target="_hotel">fill out the hotel form here</a></strong>.
         </div>
       </div>
     </div>
@@ -38,6 +38,17 @@
           <input type="checkbox" name="confirm_checkbox" id="confirm_checkbox" value="1"{% if confirm_checkbox %} checked{% endif %}>
           <span id="confirm_text"></span>
         </label>
+      </div>
+    </div>
+    <div class="hotel_link">
+      <div class="form-group">
+        <div class="col-sm-9 col-sm-offset-3">
+        <p>Our systems don't integrate into the link you just used. We will need the First & Last Name, and Email address of the person who you used to register for the hotel room in the form you just filled out.</p>
+          <label for="same_checkbox">
+            <input type="checkbox" name="same_checkbox" id="same_checkbox" value="1"{% if same_checkbox %} checked{% endif %}>
+            I have entered the same information that I used to register for the hotel. 
+          </label>
+        </div>
       </div>
     </div>
     <div class="form-group">
@@ -50,13 +61,13 @@
   <script type="text/javascript">
       var showOrHideConfirm = function() {
           if ($('#needs_hotel_space').val() == '1') {
-              $('#confirm_text').text('I have filled out the given link, and taken care of my hotel accommodations for MAGFest.')
+              $('#confirm_text').text('I have filled out the hotel form link.')
           } else {
               $('#confirm_text').text('I have taken care of my own hotel accommodations for MAGFest.')
           }
 
           setVisible($.field('confirm_checkbox').parents('.form-group'), $('#needs_hotel_space').val());
-          setVisible($('#hotel_link'), $('#needs_hotel_space').val() == '1');
+          setVisible($('.hotel_link'), $('#needs_hotel_space').val() == '1');
       };
       $().ready(function() {
           showOrHideConfirm();

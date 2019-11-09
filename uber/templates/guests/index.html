@@ -20,7 +20,7 @@
 
   <table style="width:auto">
     {% if guest.group_type == c.MIVS %}
-      {% for key, val in c.MIVS_CHECKLIST.items() %}
+      {% for key, val in c.MIVS_CHECKLIST.items()|sort(attribute='1.deadline') %}
         <h3>{{ val['name'] }}</h3>
         <p>{{ val['description'] }}</p>
         <p>

@@ -334,7 +334,8 @@ AutomatedEmailFixture(
     Attendee,
     '{EVENT_NAME} Guest Badge Confirmation',
     'placeholders/guest.txt',
-    lambda a: a.placeholder and a.badge_type == c.GUEST_BADGE,
+    lambda a: a.placeholder and a.badge_type == c.GUEST_BADGE and (
+        not a.group or a.group.guest and a.group.guest.group_type == c.GUEST),
     # query=and_(Attendee.placeholder == True, Attendee.badge_type == c.GUEST_BADGE),
     sender=c.GUEST_EMAIL,
     ident='guest_badge_confirmation')
@@ -672,7 +673,7 @@ if c.MIVS_ENABLED:
         lambda game: (
             game.status == c.ACCEPTED
             and not game.confirmed
-            and (localized_now() - timedelta(days=2)) > game.studio.confirm_deadline),
+            and (localized_now() + timedelta(days=2)) > game.studio.confirm_deadline),
         ident='mivs_accept_booth_reminder')
 
     MIVSEmailFixture(

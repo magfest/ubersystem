@@ -257,7 +257,7 @@ class Email(MagModel, BaseEmailMixin):
 
     @cached_property
     def fk(self):
-        return self.session.query(self.model_class).filter_by(id=self.fk_id).first() if self.session else None
+        return self.session.query(self.model_class).filter_by(id=self.fk_id).first() if self.session and self.fk_id else None
 
     @property
     def fk_email(self):

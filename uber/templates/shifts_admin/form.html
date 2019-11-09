@@ -108,7 +108,7 @@
   <input type="hidden" name="from_schedule" value="{{ from_schedule }}" />
   {{ csrf_token() }}
   {{ macros.form_group(job, 'name', label='Job Name', is_required=True) }}
-  {{ macros.form_group(job, 'description', label='Description (Optional)', is_required=False) }}
+  {{ macros.form_group(job, 'description', label='Description', is_required=True) }}
   <div class="form-group">
     <label class="col-sm-3 control-label">Start Time</label>
     <div class="col-sm-6">

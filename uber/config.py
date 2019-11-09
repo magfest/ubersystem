@@ -610,34 +610,18 @@ class Config(_Overridable):
     def ADMIN_DEPARTMENT_OPTS(self):
         from uber.models import Session, Department
 
-        override_access = ''
-        if 'dept_admin' in c.PAGE_PATH:
-            override_access = 'full_dept_admin'
-        elif 'dept_checklist' in c.PAGE_PATH:
-            override_access = 'full_dept_checklist_admin'
-        else:
-            override_access = 'full_shifts_admin'
-
         with Session() as session:
             query = session.query(Department).order_by(Department.name)
             current_admin = session.admin_attendee()
-            if getattr(current_admin.admin_account, override_access, None):
+            if getattr(current_admin.admin_account, 'full_shifts_admin', None):
                 return [(d.id, d.name) for d in query]
             else:
                 return [(d.id, d.name) for d in query if d.id in current_admin.assigned_depts_ids]
 
     @request_cached_property
     @dynamic
-    def ADMIN_BADGE_OPTS(self):
-        staffing_badges = [c.ATTENDEE_BADGE, c.STAFF_BADGE, c.CONTRACTOR_BADGE]
-        if 'shifts_admin' in c.PAGE_PATH:
-            return [(key, val) for key, val in c.BADGE_OPTS if key in staffing_badges]
-        return c.BADGE_OPTS
-
-    @request_cached_property
-    @dynamic
     def DEFAULT_DEPARTMENT_ID(self):
-        return list(c.ADMIN_DEPARTMENTS.keys())[0]
+        return list(c.ADMIN_DEPARTMENTS.keys())[0] if c.ADMIN_DEPARTMENTS else 0
 
     @property
     def DEFAULT_REGDESK_INT(self):
@@ -1039,8 +1023,8 @@ c.WEIGHT_OPTS = (
 )
 c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'visibility', 'required_roles_ids', 'extra15']
 
-c.PREREG_SHIRT_OPTS = sorted(c.SHIRT_OPTS)[1:]
-c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + list(c.PREREG_SHIRT_OPTS)
+c.PREREG_SHIRT_OPTS = sorted(c.PREREG_SHIRT_OPTS if c.PREREG_SHIRT_OPTS else c.SHIRT_OPTS)[1:]
+c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + sorted(list(c.SHIRT_OPTS))
 c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
 
 c.DONATION_TIER_ITEMS = {}

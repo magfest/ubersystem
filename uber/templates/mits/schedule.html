@@ -21,7 +21,7 @@
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ times.db_id }}" />
 
-    <table>
+    <table class="table">
     {% for val, desc, avail_checked in list %}
         <tr>
             <td>{{ desc }}</td>
@@ -34,9 +34,9 @@
         </tr>
     {% endfor %}
     <tr>
-        <td></td>
-        <td><button type="submit" class="btn btn-primary">Update Availability</button></td>
-        <td></td>
+    <td colspan="2"><label class="optional-field"><input type="checkbox" name="showcase_consent" {% if team.showcase_interest %}checked="checked" {% endif %}> I agree that if my tabletop game is chosen to be a part of the {{ c.EVENT_NAME_AND_YEAR }} Indie Tabletop Showcase, information on my game and its creators may be shared by MAGFest, Inc. in its promotional materials in any form.</label>
+    
+    <br/><br/><button type="submit" class="btn btn-primary">Update Availability</button></td>
     </tr>
     </table>
 </form>

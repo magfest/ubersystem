@@ -74,7 +74,7 @@
     </tr>
     {% for attendee in attendees %}
         <tr>
-            <td><a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
+            <td><a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
             <td>{{ attendee.badge }}</td>
             <td>{{ attendee.payment_method_label }}</td>
             <td>${{ '%0.2f' % (attendee.amount_paid / 100) }}</td>
@@ -83,5 +83,5 @@
     {% endfor %}
     </table>
 {% endif %}
-
+<script src="../static/js/load-attendee-modal.js" type="text/javascript"></script>
 {% endblock %}

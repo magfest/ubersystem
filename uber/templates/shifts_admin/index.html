@@ -27,12 +27,15 @@
 <div clas="row">
 {% if checklist.relevant %}
     {% if checklist.completed %}
-        You've already indicated that what's here and/or whatever shifts STOPS creates are fine.  Let us know if that's in error.
+        You've already indicated that what's here and/or whatever shifts STOPS creates are fine.  If that's not the case, please email {{ 'stops@magfest.org'|email_to_link }}.
     {% else %}
         {% if department.is_shiftless %}
-            This department is on record as not needing any shifts.  Please click the following link to confirm this so we know we don't need to make any shifts.  If this is in error and you'd like shifts for your people, please let us know and we'll fix that.
+            This department is on record as not needing any shifts.  Please click the following link to confirm this so we know we don't need to make any shifts.  If this is in error and you'd like shifts for your people, please email {{ 'stops@magfest.org'|email_to_link }}.
         {% else %}
-            STOPS usually makes shifts for each department based on last year's shifts.  You can create shifts yourself or let us do it for you.  If you want to make shifts yourself, please do so and then click the link below.  If you want us to make shifts for you, just click that link now and submit the form to confirm that.
+            <p>We are able to import shifts from last year. If you want us to import last year’s shifts, please email {{ 'stops@magfest.org'|email_to_link }}. You will still be able to edit those shifts, add slots for additional volunteers, and create new shifts. 
+            If you choose to import last year’s shifts, please take the time to look them over and make any needed changes. After the import, you will need to return to this page and approve that they are correct by clicking "I Don’t Need To Do Anything Else Here."</p>
+
+            <p>Otherwise, you can create shifts, and when you are done, click "I Don’t Need To Do Anything Else Here."</p>
         {% endif %}
         <br/> <a href="#" onClick="$('#checkoff').show(); return false;">I Don't Need To Do Anything Else Here</a>
         <form id="checkoff" style="display:none" method="post" action="../dept_checklist/mark_item_complete">

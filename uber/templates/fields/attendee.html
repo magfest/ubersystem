@@ -279,7 +279,7 @@
             }
         }
     };
-    $(function () {
+    $(window).on("runJavaScript", function () {
         showOrHideBadgeTypes();
         if ($(BADGE_TYPES.row).size()) {
             $.each([REG_TYPES, BADGE_TYPES], function (i, types) {
@@ -327,44 +327,62 @@
 {% set read_only = badge_type_ro or page_ro %}
 {% if admin_area %}
   <script type="text/javascript">
-  var isPreassignedBadgeType = function (badge_type) {
-        return $.inArray(parseInt(badge_type), [{{ c.PREASSIGNED_BADGE_TYPES }}]) >= 0;
+  isPreassignedBadgeType = function (badge_type) {
+        return $.inArray(parseInt(badge_type), {{ c.PREASSIGNED_BADGE_TYPES }}) >= 0;
     };
-  var setBadgeMessage = function () {
-        if ($.field("badge_type") && isPreassignedBadgeType($.val("badge_type"))) {
-            $("#badge_message").text("(next available badge number)");
-        } else {
-            $("#badge_message").text("");
-        }
-    };
-  $(function(){
-        setBadgeMessage();
-    });
+  toggleBadgeNumField = function () {
+    $("input[name='badge_num']").prop("disabled", ($("input[name='no_badge_num']").prop('checked')));
+  }
+  var setBadgeNum = function () {
+    var badgeNumOptField = $("input[name='no_badge_num']");
+    var currentBadgeNum = {{ attendee.badge_num if attendee.badge_num else 0 }};
+    var sameBadgeTypeAndNum = $.val("badge_type") == {{ attendee.badge_type }} && currentBadgeNum;
+    var preassignedBadgeType = ($.field("badge_type") && isPreassignedBadgeType($.val("badge_type")));
+
+    if (sameBadgeTypeAndNum) {
+      badgeNumOptField.prop('checked', false);
+      $("input[name='badge_num']").val("{{ attendee.badge_num }}");
+    } else {
+      badgeNumOptField.prop('checked', true);
+      $("input[name='badge_num']").val("");
+    }
+    if (preassignedBadgeType) { 
+      $("#no_badge_num_text").text("Use next available badge #");
+    } else {
+      $("#no_badge_num_text").text("Omit badge #");
+    }
+    toggleBadgeNumField();
+  };
+  var autoCheckBlank = function () {
+    $("input[name='no_badge_num']").prop('checked', $.val('badge_num') == '');
+    toggleBadgeNumField();
+  }
+  $(window).on("runJavaScript", function(){
+      setBadgeNum();
+  });
 </script>
   <div class="form-group">
-    <label class="col-sm-3 control-label">Badge</label>
-
-    <div class="col-sm-6 {% if not attendee.is_new %}form-control-static">
-      {{ attendee.badge }}
-      &nbsp;&nbsp; {% if not read_only %}[<a href="change_badge?id={{ attendee.id }}">Change</a>]{% endif %}
-    {% else %}">
-      <select name="badge_type" class="form-control" onChange="boldOrRegular(); setBadgeMessage();">
-        {{ options(c.ADMIN_BADGE_OPTS,attendee.badge_type) }}
-      </select>
-      {% if c.AT_THE_CON and c.NUMBERED_BADGES %}
-        #<input class="focus" type="text" style="width:4em" name="badge_num" value="{{ attendee.badge_num|default('', boolean=True) }}" />
-      {% else %}
-        <span id="badge_message" style="font-style:italic"></span>
-      {% endif %}
-    {% endif %}
-    {% if c.AT_THE_CON and not attendee.badge_num and c.NUMBERED_BADGES %}
-      &nbsp;&nbsp;<br/> <input type="checkbox" name="omit_badge" value="yes" {% if omit_badge %}checked{% endif %} /> Omit badge number
-    {% elif c.AT_THE_CON and not attendee.checked_in and not c.NUMBERED_BADGES %}
-      &nbsp;&nbsp;<br/> <input type="checkbox" name="check_in" value="yes" {% if check_in %}checked{% endif %} /> Check in this attendee
-    {% endif %}
-    {% if not attendee.is_new %}&nbsp;&nbsp; [<a href="../preregistration/confirm?id={{ attendee.id }}">Confirm{% if attendee.is_transferable %}/Transfer{% endif %}</a>]{% endif %}
+    <label class="col-sm-3 control-label">Badge Type</label>
+    <div class="col-sm-3">
+        <select name="badge_type" class="form-control" onChange="boldOrRegular(); setBadgeNum();">
+          {{ options(c.BADGE_OPTS, attendee.badge_type) }}
+        </select>
     </div>
   </div>
+  {% if c.NUMBERED_BADGES %}
+  <div class="form-group">
+  <label class="col-sm-3 control-label">Badge #</label>
+  {% if attendee.badge_num and not c.HAS_REG_ADMIN_ACCESS %}
+  <div class="col-sm-3 form-control-static">
+  {{ attendee.badge_num }}
+  {% else %}
+  <div class="col-sm-3">
+  <input type="text" class="form-control" name="badge_num" placeholder="0000" onBlur="autoCheckBlank();" />
+  <div class="checkbox"><label class="checkbox"><input type="checkbox" name="no_badge_num" onChange="toggleBadgeNumField();"><span id="no_badge_num_text"></span></label></div>
+  {% endif %}
+  </div>
+  </div>
+  {% endif %}
 {% elif c.AT_THE_CON %}
   <script>
       window.setTimeout(toastr.clear, 10000);
@@ -377,7 +395,7 @@
               $('#day-warning').empty();
           }
       };
-      $(function () {
+      $(window).on("runJavaScript", function () {
           {% if c.AT_THE_DOOR_BADGE_OPTS %}
               $('#bold-field-message').detach().prependTo('.form-horizontal');
               $.field('badge_type').on('change', maybeWarn);
@@ -410,7 +428,7 @@
           }
 
           // This is the same idea, except it disables the kick-in buttons and then hides them
-          $(function () {
+          $(window).on("runJavaScript", function () {
               if($('input:radio[name=amount_extra]').size()) {
                   $('input:radio[name=amount_extra]').each( function() {
                       if (!isNaN($(this).val()) && Number($(this).val()) < {{ attendee.amount_extra }}) {
@@ -448,7 +466,7 @@
               $("label[for='legal_name']").removeClass('optional-field');
           }
       };
-      $(function () {
+      $(window).on("runJavaScript", function () {
           if ($('#same_legal_name').length) {
               sameLegalNameChecked();
               $('#same_legal_name').change(sameLegalNameChecked);
@@ -521,7 +539,7 @@
                 }
             });
         };
-        $(function(){
+        $(window).on("runJavaScript", function(){
             if ($.field('amount_extra')) {
                 donationChanged();
                 if ($.field('amount_extra').is('select')) {
@@ -687,6 +705,7 @@
 {% set read_only = shirt_size_ro or page_ro %}
 {% if not admin_area or attendee.gets_any_kind_of_shirt %}
   {% set shirt_opts = c.PREREG_SHIRT_OPTS if not admin_area else c.SHIRT_OPTS %}
+  {% set warn_on_change = c.PREREG_SHIRTS and not admin_area and attendee.shirt not in c.PREREG_SHIRTS.keys() %}
   {% if not admin_area %}
     <div class="shirt-row extra-row form-group" style="display:none">
   {% elif attendee.gets_any_kind_of_shirt %}
@@ -696,10 +715,17 @@
   {% call macros.read_only_if(read_only, attendee.shirt_label) %}
 <div class="col-sm-{{ "3" if admin_area else "6" }}">
   <select name="shirt" class="form-control">
+    {% if warn_on_change %}<option value="{{ attendee.shirt }}">{{ attendee.shirt_label }}</option>{% endif %}
     {% if not admin_area %}<option value="{{ c.NO_SHIRT }}">Select a shirt size</option>{% endif %}
     {{ options(shirt_opts,attendee.shirt) }}
   </select>
 </div>
+{% if warn_on_change %}
+<p class="help-block col-sm-9 col-sm-offset-3">
+  <strong>Your shirt size has been reserved for you and is no longer available for pre-order.</strong>
+  <br/>If you change your selection now you will not be able to change it back.
+</p>
+{% endif %}
   {% endcall %}
 </div>
 {% endif %}
@@ -763,8 +789,7 @@
             setVisible('.staffing-checked', $.field('staffing').prop('checked'));
         };
     {% endif %}
-    $(function () {
-        staffingClicked();
+    $(window).on("runJavaScript", function () {
         if ($.field('staffing')) {
             $.field('staffing').on('click', staffingClicked);
         }
@@ -786,7 +811,7 @@
   <div class="checkbox col-sm-6">
     {% set staffing_readonly = not admin_area and attendee.shifts %}
     <label for="staffing" {% if staffing_readonly %}title="Please {{ 'see Staffing Operations to change your volunteer status' if c.AT_THE_CON else 'unassign yourself from shifts before changing your volunteer status' }}"{% endif %}>
-      {{ macros.checkbox(attendee, 'staffing', is_readonly=staffing_readonly) }}
+      {{ macros.checkbox(attendee, 'staffing', is_readonly=staffing_readonly, clientside_bool=clientside_bool) }}
       {% if admin_area %}
         This attendee is
         {% if attendee.is_new or not attendee.staffing %}
@@ -794,12 +819,12 @@
           </label>
         {% else %}
           </label>
-          <a href='goto_volunteer_checklist?id={{ attendee.id }}'>volunteering</a>
+          <a href='../shifts_admin/goto_volunteer_checklist?id={{ attendee.id }}' target="_blank">volunteering</a>
         {% endif %}
       {% else %}
         {% if attendee.badge_type == c.STAFF_BADGE %} Yes, I want to staff {{ c.EVENT_NAME }}. {% else %} Sign me up! {% endif %}
         </label>
-        <span class="popup">{{ macros.popup_link("../static_views/stafferComps.html", "What do I get for volunteering?") }}</span>
+        <span class="popup">{{ macros.popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?") }}</span>
       {% endif %}
   </div>
 {% endcall %}
@@ -858,8 +883,8 @@
 <div class="form-group staffing staffing-checked">
   <label class="col-sm-3 control-label">Approved for Setup/Teardown</label>
   <div class="checkbox col-sm-9">
-    {{ macros.checkbox(attendee, 'can_work_setup', label='Approved for setup', is_readonly=read_only) }} <br/>
-    {{ macros.checkbox(attendee, 'can_work_teardown', label='Approved for teardown', is_readonly=read_only) }}
+    {{ macros.checkbox(attendee, 'can_work_setup', label='Approved for setup', is_readonly=read_only, clientside_bool=clientside_bool) }} <br/>
+    {{ macros.checkbox(attendee, 'can_work_teardown', label='Approved for teardown', is_readonly=read_only, clientside_bool=clientside_bool) }}
   </div>
 </div>
 {% endset %}
@@ -882,7 +907,6 @@
 </script>
 <div class="form-group">
   {% if c.COLLECT_EXACT_BIRTHDATE %}
-
   {% set post_text %}
   {% if admin_area and attendee.birthdate %}
     ({{ attendee.age_group_conf.desc }})
@@ -933,7 +957,7 @@
 
 {% if is_prereg_confirm_email_enabled and not admin_area and not read_only %}
   <script type="text/javascript">
-      $(function () {
+      $(window).on("runJavaScript", function () {
           $('form').validate({
               rules: {
                   confirm_email: { equalTo: '#email' }
@@ -976,7 +1000,7 @@
               $.field('international').prop('checked', true);
           }
       };
-      $(function () {
+      $(window).on("runJavaScript", function () {
           $.field('international').parents('.checkbox').hide();
       });
   </script>
@@ -997,7 +1021,7 @@
   {{ macros.address_form(attendee, update_international=True, is_required=True) }}
 
   <div class="checkbox col-sm-6 col-sm-offset-3">
-    {{ macros.checkbox(attendee, 'international', label="I'm coming from outside the US.", is_readonly=read_only) }}
+    {{ macros.checkbox(attendee, 'international', label="I'm coming from outside the US.", is_readonly=read_only, clientside_bool=clientside_bool) }}
   </div>
 {% else %}
   <script type="text/javascript">
@@ -1008,7 +1032,7 @@
               $("label[for='zip_code']").removeClass('optional-field');
           }
       };
-      $(function () {
+      $(window).on("runJavaScript", function () {
           if ($('#international').length) {
               internationalChecked();
               $('#international').change(internationalChecked);
@@ -1023,7 +1047,7 @@
     </div>
   {% endcall %}
     <div class="checkbox col-sm-6 col-sm-offset-3">
-      {{ macros.checkbox(attendee, 'international', label="I'm coming from outside the US.", is_readonly=read_only) }}
+      {{ macros.checkbox(attendee, 'international', label="I'm coming from outside the US.", is_readonly=read_only, clientside_bool=clientside_bool) }}
     </div>
   </div>
 {% endif %}
@@ -1062,7 +1086,7 @@
 {% endcall %}
   {% if not attendee.is_dealer or admin_area %}
     <div class="checkbox col-sm-6 col-sm-offset-3">
-      {{ macros.checkbox(attendee, 'no_cellphone', label="I won't have a phone with me during the event.", label_class='cellphone-excuse', is_readonly=read_only) }}
+      {{ macros.checkbox(attendee, 'no_cellphone', label="I won't have a phone with me during the event.", label_class='cellphone-excuse', is_readonly=read_only, clientside_bool=clientside_bool) }}
     </div>
   {% endif %}
 </div>
@@ -1211,7 +1235,7 @@
     <label for="requested_accessibility_services_option" class="col-sm-3 control-label optional-field">Accessibility Services</label>
     {% if c.HAS_OTHER_REPORTS_ACCESS or not admin_area %}
       <div class="checkbox col-sm-9">
-        {{ macros.checkbox(attendee, 'requested_accessibility_services', label='I would like to be contacted by the ' ~ c.EVENT_NAME ~ ' Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', is_readonly=read_only) }}
+        {{ macros.checkbox(attendee, 'requested_accessibility_services', label='I would like to be contacted by the ' ~ c.EVENT_NAME ~ ' Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', is_readonly=read_only, clientside_bool=clientside_bool) }}
       </div>
     {% else %}
       <div class="form-control-static">
@@ -1228,7 +1252,7 @@
 <div class="form-group">
   <label for="email_option" class="col-sm-3 control-label optional-field">Keep Me Updated</label>
   <div class="checkbox col-sm-9">
-    {{ macros.checkbox(attendee, 'can_spam', label='Please send me emails relating to ' ~ organization_with_event_name() ~ ' in future years.', is_readonly=read_only) }}<br/>
+    {{ macros.checkbox(attendee, 'can_spam', label='Please send me emails relating to ' ~ organization_with_event_name() ~ ' in future years.', is_readonly=read_only, clientside_bool=clientside_bool) }}<br/>
     {% if not admin_area %}<span class="popup">{{ macros.popup_link("../static_views/privacy.html", "View Our Spam Policy") }}</span>{% endif %}
   </div>
 </div>
@@ -1335,29 +1359,29 @@
     };
 
 var setLegalNameRequired = function() {
-        if ($("#same_legal_name").length) {
-            $.field('legal_name').attr('required', function() {
-                return !($.field('placeholder').is(':checked') || $("#same_legal_name").prop('checked'))
-            });
-        }
-    };
-$(function(){
-        $.field("placeholder").click(boldOrRegular).click(setPreassigned).change(setLegalNameRequired);
-        boldOrRegular();
-        setLegalNameRequired();
-    });
+    if ($("#same_legal_name").length) {
+        $.field('legal_name').attr('required', function() {
+            return !($.field('placeholder').is(':checked') || $("#same_legal_name").prop('checked'))
+        });
+    }
+};
+$(window).on("runJavaScript", function(){
+    $.field("placeholder").click(boldOrRegular).click(setPreassigned).change(setLegalNameRequired);
+    boldOrRegular();
+    setLegalNameRequired();
+});
 </script>
 <div class="form-group">
   <label for="first_name" class="col-sm-3 control-label">Placeholder</label>
   <div class="checkbox col-sm-9">
     <label for='placeholder' class="checkbox-label">
-      {{ macros.checkbox(attendee, 'placeholder', is_readonly=read_only) }} This attendee needs to
+      {{ macros.checkbox(attendee, 'placeholder', is_readonly=read_only, clientside_bool=clientside_bool) }} This attendee needs to
       {% if attendee.is_new %}
         register themself
         </label>
       {% else %}
         </label>
-        <a href="../preregistration/confirm?id={{ attendee.id }}">register themself</a>
+        <a href="../preregistration/confirm?id={{ attendee.id }}" target="_blank">register themself</a>
       {% endif %}
   </div>
 </div>
@@ -1434,7 +1458,7 @@ $(function(){
             $("#unassigned").hide("fast");
         }
     };
-    $(function(){
+    $(window).on("runJavaScript", function(){
         setGroupLink();
     });
 </script>
@@ -1540,7 +1564,7 @@ $(function(){
               $emailConfirmLabel.addClass('optional-field');
           }
       };
-      $(function () {
+      $(window).on("runJavaScript", function () {
           {% if c.AT_THE_DOOR_BADGE_OPTS %}
               maybeBold();
           {% endif %}
@@ -1614,7 +1638,7 @@ $(function(){
 <div class="form-group">
   <label class="col-sm-3 control-label">Received Merch</label>
   <div class="checkbox col-sm-6">
-    {{ macros.checkbox(attendee, 'got_merch', label='Yes', is_readonly=read_only) }}
+    {{ macros.checkbox(attendee, 'got_merch', label='Yes', is_readonly=read_only, clientside_bool=clientside_bool) }}
   </div>
 </div>
 
@@ -1632,7 +1656,7 @@ $(function(){
   <div class="form-group">
     <label class="col-sm-3 control-label">Received Merch</label>
     <div class="checkbox col-sm-6">
-      {{ macros.checkbox(attendee, 'got_staff_merch', label='Yes', is_readonly=read_only) }}
+      {{ macros.checkbox(attendee, 'got_staff_merch', label='Yes', is_readonly=read_only, clientside_bool=clientside_bool) }}
     </div>
   </div>
 {% endif %}

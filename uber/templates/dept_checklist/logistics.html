@@ -5,7 +5,7 @@
 <h2>Logistics needs for {{ department.name }}</h2>
 
 What do you need brought from the warehouse? Please fill out the following form:
-<h3><a href="https://docs.google.com/forms/d/e/1FAIpQLSe5ZP_bJxgiiIp_mUHer_uW8i0bz8eKkwgTtaHW2VWH1e5PYw/viewform">{{ c.EVENT_NAME }} Logistics Request Form</a></h3>
+<h3><a href="{{ c.LOGISTICS_FORM_URL }}">{{ c.EVENT_NAME }} Logistics Request Form</a></h3>
 
 <form method="post" action="logistics">
 {{ csrf_token() }}

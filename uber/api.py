@@ -107,7 +107,7 @@ def auth_by_session(required_access):
         if not admin_account:
             return (403, 'Invalid admin account in session')
         for access_level in required_access:
-            if not getattr(admin_account.access, access_level, None):
+            if not getattr(admin_account, access_level, None):
                 return (403, 'Insufficient access for admin account')
     return None
 
@@ -714,8 +714,8 @@ class ConfigLookup:
 
         # This is to allow backward compatibility with pre 1.0 code
         output['YEAR'] = c.EVENT_YEAR
-
         output['API_VERSION'] = __version__
+        output['EVENT_TIMEZONE'] = str(output['EVENT_TIMEZONE'])
         return output
 
     def lookup(self, field):

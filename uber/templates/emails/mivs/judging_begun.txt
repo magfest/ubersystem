@@ -8,6 +8,8 @@ Let us know if you have any problems with your entries that may prevent you from
 
 The final date we can accept judging is {{ c.MIVS_JUDGING_DEADLINE|datetime_local }}.  But, we are encouraging you to finish by {{ c.SOFT_MIVS_JUDGING_DEADLINE|datetime_local }}, which will help us tablulate scores on time.  
 
+NOTE: There will be a section in your judging page talking about Video judging.  You can disregard this entire section. 
+
 If you find you don't have the time to judge your entries, it's ok!  Just let us know ASAP so we can assign replacements.
 
 You can begin judging at: {{ c.URL_BASE }}/mivs_judging

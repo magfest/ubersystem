@@ -115,7 +115,7 @@ class IndieStudio(MagModel):
         sorted_games = sorted(
             [g for g in self.games if g.accepted], key=lambda g: g.accepted)
         confirm_deadline = timedelta(days=c.MIVS_CONFIRM_DEADLINE)
-        return sorted_games[0].accepted + confirm_deadline
+        return sorted_games[0].accepted + confirm_deadline if len(sorted_games) else None
 
     @property
     def after_confirm_deadline(self):
@@ -156,8 +156,8 @@ class IndieStudio(MagModel):
 
     def checklist_deadline(self, slug):
         default_deadline = c.MIVS_CHECKLIST[slug]['deadline']
-        if self.group and self.group.registered >= default_deadline and slug != 'hotel_space':
-            return self.group.registered + timedelta(days=3)
+        if self.group and self.group.registered >= default_deadline and slug in ['core_hours', 'discussion']:
+            return self.group.registered + timedelta(days=7)
         return default_deadline
 
     def past_checklist_deadline(self, slug):

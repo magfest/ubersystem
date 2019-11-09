@@ -113,15 +113,15 @@ class Root:
             try:
                 # If this was an automated email, we can send out an updated copy
                 if email.automated_email and email.fk:
-                    email.automated_email.send_to(email.fk, delay=True, raise_errors=True)
+                    email.automated_email.send_to(email.fk, delay=False, raise_errors=True)
                 else:
-                    send_email.delay(
+                    send_email(
                         c.ADMIN_EMAIL,
                         email.fk_email,
                         email.subject,
                         email.body,
                         format=email.format,
-                        model=email.fk.to_dict('id') if email.fk else None,
+                        model=email.fk.to_dict('id') if email.fk_id else None,
                         ident=email.ident)
                 session.commit()
             except Exception:

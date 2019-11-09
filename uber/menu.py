@@ -99,8 +99,8 @@ c.MENU = MenuItem(name='Root', submenu=[
 
     MenuItem(name='Staffing', submenu=[
         MenuItem(name='Staffers', href='../shifts_admin/staffers'),
-        MenuItem(name='Pending Staffers', href='../staffing_admin/badges'),
-        MenuItem(name='Add/Edit Shifts', href='../shifts_admin/'),
+        MenuItem(name='Pending Staffers', href='../staffing_admin/pending_badges'),
+        MenuItem(name='View/Edit Shift Schedule', href='../shifts_admin/'),
         MenuItem(name='All Unfilled Shifts', href='../shifts_admin/everywhere'),
         MenuItem(name='Departments', href='../dept_admin/'),
         MenuItem(name='Department Checklists', href='../dept_checklist/overview'),
@@ -108,6 +108,7 @@ c.MENU = MenuItem(name='Root', submenu=[
 
     MenuItem(name='People', submenu=[
         MenuItem(name='Attendees', href='../registration/{}'.format('?invalid=True' if c.AT_THE_CON else '')),
+        MenuItem(name='Pending Badges', href='../registration/pending_badges'),
         MenuItem(name='Promo Code Groups', href='../registration/promo_code_groups'),
         MenuItem(name='Dealers', href='../dealer_admin/'),
         MenuItem(name='Bands', href='../guest_admin/?filter=only-bands'),

@@ -150,6 +150,14 @@ class Attendee(MagModel, TakesPaymentMixin):
     group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
     group = relationship(
         Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
+    
+    creator_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
+    creator = relationship(
+        'Attendee',
+        backref=backref('created_badges', order_by='Attendee.full_name', cascade='all,delete-orphan'),
+        cascade='save-update,merge,refresh-expire,expunge',
+        remote_side='Attendee.id',
+        single_parent=True)
 
     # NOTE: The cascade relationships for promo_code do NOT include
     # "save-update". During the preregistration workflow, before an Attendee
@@ -545,6 +553,11 @@ class Attendee(MagModel, TakesPaymentMixin):
             else:
                 self.paid = c.NEED_NOT_PAY
 
+    @presave_adjustment
+    def assign_creator(self):
+        if self.is_new and not self.creator_id:
+            self.creator_id = self.session.admin_attendee().id if self.session.admin_attendee() else None
+
     def unset_volunteering(self):
         self.staffing = False
         self.dept_membership_requests = []
@@ -820,10 +833,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         # This is for use in our model checks -- it includes attendees who are going to be marked staffing
         return self.staffing or self.volunteering_badge_or_ribbon
 
-    @property
-    def is_guest(self):
-        return self.group and self.group.guest or self.badge_type == c.GUEST_BADGE
-
     @hybrid_property
     def is_dealer(self):
         return c.DEALER_RIBBON in self.ribbon_ints or self.badge_type == c.PSEUDO_DEALER_BADGE or (
@@ -832,7 +841,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     @is_dealer.expression
     def is_dealer(cls):
         return or_(
-            cls.badge_type == c.PSEUDO_DEALER_BADGE,
             cls.ribbon.like('%{}%'.format(c.DEALER_RIBBON)),
             and_(
                 cls.paid == c.PAID_BY_GROUP,
@@ -908,12 +916,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def shirt_info_marked(self):
-        return self.shirt_size_marked and (
-            not self.gets_staff_shirt
-            or not c.SHIRTS_PER_STAFFER > 1
-            or self.second_shirt != c.UNKNOWN
-            or c.AFTER_SHIRT_DEADLINE
-        )
+        return self.shirt_size_marked
 
     @property
     def is_group_leader(self):

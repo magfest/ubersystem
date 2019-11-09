@@ -62,6 +62,7 @@
             {% if game.has_issues %}
                 <a href="problems?game_id={{ game.id }}">!</a>
             {% endif %}
+            {% if game.status == c.ACCEPTED and not game.confirmed %}Confirm deadline: {{ game.studio.confirm_deadline|datetime_local('%x %-I:%M%p') }}{% endif %}
         </td>
         <td><a href="../mivs/continue_app?id={{ game.studio.id }}" target="_blank">{{ game.studio.name }}</a></td>
         <td>{{ game.studio.primary_contacts[0].full_name }}</td>

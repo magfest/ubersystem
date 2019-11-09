@@ -1,45 +1,16 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Department Checklist - Tech Ops{% endblock %}
+{% block title %}Department Checklist - Treasury Needs{% endblock %}
 {% block content %}
 
-<h2>MPoint Needs for {{ department.name }}</h2>
+<h2>Treasury Needs for {{ department.name }}</h2>
 
-<h3><a href="{{ c.TREASURY_DEPT_CHECKLIST_FORM_URL }}">{{ c.EVENT_NAME_AND_YEAR }} MPoints Form</a></h3>
-
-<h2>Instructions</h2>
-<ol>
-    <li>If your department doesn't need MPoints, just skip to the bottom and click the button to complete this Checklist. Otherwise, click on the link above AFTER reading the following.</li>
-    <li>For the contacts area, please do the following:
-    <ol type="a">
-        <li>Under Legal Name:</li>
-        <ol type="i">
-            <li>Enter the name of the people who can make decisions about MPoints in <b>bold</b>.</li>
-            <li>Enter the name of the people who can receive MPoints onsite in regular text.</li>
-        </ol>
-        <li>Under MAGName:</li>
-        <ol type="i">
-            <li>Enter any common nicknames and slack handles.</li>
-        </ol>
-        <li>Under email:</li>
-        <ol type="i">
-            <li>Enter the email address of the decision makers only.</li>
-        </ol>
-    </ol>
-    </li>
-    <li>Department Heads should have recieved their assigned MPoints budget for the event. As you update it, this spreadsheet will compare your request against the budget.</li>
-    <li>All departments start with a “General” request.  If you want to enter separate MPoint requests for different divisions in your department, then copy and paste the General section to the columns next to it, change the title, and enter each division separately.
-    <ol type="a">
-        <li>For examples, see the Arcade or Tabletop sections.</li>
-    </ol></li>
-    <li>Determine the quantity of denominations you need for each day based on this year's expected activity. The “Total Requested” for the event should calculate.</li>
-    <li><b>When you are done, please change all the <span style="background-color: #FFFF00">highlighted</span> rows in your section to <span style="background-color: #228B22">dark green</span></b></li>
-
-</ol>
+Do you need cash or Mpoints for your department? Please fill out the following form:
+<h3><a href="{{ c.TREASURY_DEPT_CHECKLIST_FORM_URL }}">{{ c.EVENT_NAME_AND_YEAR }} MPoints/Cash Form</a></h3>
 
 <form method="post" action="treasury">
 {{ csrf_token() }}
 <input type="hidden" name="department_id" value="{{ department.id }}" />
-Once you've filled out the form above OR done nothing if your department does not need MPoints, please click the button below.<br/>
+Once you've filled out the form above, or if you don't need any cash or Mpoints for your department, please click the button below.<br/>
 <br/>
 <input type="submit" name="submitted" value="I Have Completed This Checklist" />
 </form>

@@ -5,7 +5,7 @@
 <h2>Hotel Setup Information for {{ department.name }}</h2>
 
 Do you need tables, chairs, trash cans, water dispensers, special layouts, etc? Please fill out the following form:
-<h3><a href="https://docs.google.com/forms/d/e/1FAIpQLSciy4leBGk9jZyu8Us_PtcCK8VNuekXQ9XL2ZJd4jh9Mwir0w/viewform">{{ c.EVENT_NAME }} Hotel Setup Form</a></h3>
+<h3><a href="{{ c.HOTEL_SETUP_FORM_URL }}">{{ c.EVENT_NAME }} Hotel Setup Form</a></h3>
 
 <form method="post" action="hotel_setup">
 {{ csrf_token() }}

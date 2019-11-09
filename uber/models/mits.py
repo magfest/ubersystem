@@ -253,7 +253,7 @@ class MITSPicture(MagModel):
 
     @property
     def url(self):
-        return '{}/mits/view_picture?id={}'.format(c.PATH, self.id)
+        return '../mits/view_picture?id={}'.format(self.id)
 
     @property
     def filepath(self):
@@ -283,7 +283,7 @@ class MITSDocument(MagModel):
 
     @property
     def url(self):
-        return '{}/mits/download_doc?id={}'.format(c.PATH, self.id)
+        return '../mits/download_doc?id={}'.format(self.id)
 
     @property
     def filepath(self):
