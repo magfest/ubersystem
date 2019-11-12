@@ -10,7 +10,7 @@
         <td>
             {{ attendee.badge_type_label }}
             {% if attendee.group_id %}
-                (<a href="../dealer_admin/form?id={{ attendee.group_id }}">{{ attendee.group.name }}</a>)
+                (<a href="../group_admin/form?id={{ attendee.group_id }}">{{ attendee.group.name }}</a>)
             {% endif %}
         </td>
         <td> paid: {{ attendee.paid_label }} </td>

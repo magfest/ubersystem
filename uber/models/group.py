@@ -6,6 +6,7 @@ from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, exists, or_, case, func, select
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer, Numeric
 
@@ -50,7 +51,15 @@ class Group(MagModel, TakesPaymentMixin):
     registered = Column(UTCDateTime, server_default=utcnow())
     approved = Column(UTCDateTime, nullable=True)
     leader_id = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
+    creator_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
 
+    creator = relationship(
+        'Attendee',
+        foreign_keys=creator_id,
+        backref=backref('created_groups', order_by='Group.name', cascade='all,delete-orphan'),
+        cascade='save-update,merge,refresh-expire,expunge',
+        remote_side='Attendee.id',
+        single_parent=True)
     leader = relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
     studio = relationship('IndieStudio', uselist=False, backref='group')
     guest = relationship('GuestGroup', backref='group', uselist=False)
@@ -73,6 +82,11 @@ class Group(MagModel, TakesPaymentMixin):
         if not self.is_unpaid:
             for a in self.attendees:
                 a.presave_adjustments()
+                
+    @presave_adjustment
+    def assign_creator(self):
+        if self.is_new and not self.creator_id:
+            self.creator_id = self.session.admin_attendee().id if self.session.admin_attendee() else None
 
     @property
     def sorted_attendees(self):

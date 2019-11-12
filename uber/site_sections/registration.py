@@ -305,8 +305,8 @@ class Root:
             'return_to': return_to
         }
 
-    @csrf_protected
-    def delete(self, session, id, return_to='index?'):
+    @cherrypy.expose(['delete_attendee'])
+    def delete(self, session, id, return_to='index?', **params):
         attendee = session.attendee(id, allow_invalid=True)
         if attendee.group:
             if attendee.group.leader_id == attendee.id:
@@ -329,8 +329,9 @@ class Root:
         else:
             session.delete(attendee)
             message = 'Attendee deleted'
-
-        raise HTTPRedirect(return_to + ('' if return_to[-1] == '?' else '&') + 'message={}', message)
+        
+        q_or_a = '?' if '?' not in return_to else '&'
+        raise HTTPRedirect(return_to + ('' if return_to[-1] == '?' else q_or_a) + 'message={}', message)
 
     @ajax
     def record_mpoint_cashout(self, session, badge_num, amount):

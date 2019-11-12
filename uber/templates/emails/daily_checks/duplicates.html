@@ -10,7 +10,7 @@
                     <a href="{{ c.URL_BASE }}/registration/form?id={{ attendee.id }}">{{ attendee.badge_type_label }}</a>
                     [{{ attendee.paid_label }}]
                     {% if attendee.group %}
-                        (<a href="{{ c.URL_BASE }}/dealer_admin/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
+                        (<a href="{{ c.URL_BASE }}/group_admin/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
                         {% if not attendee.group.amount_unpaid %}
                             has paid)
                         {% else %}

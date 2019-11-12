@@ -67,6 +67,15 @@ class GuestGroup(MagModel):
     def deadline_from_model(self, model):
         name = str(self.group_type_label).upper() + "_" + str(model).upper() + "_DEADLINE"
         return getattr(c, name, None)
+    
+    @property
+    def sorted_checklist_items(self):
+        checklist_items = []
+        for item in c.GUEST_CHECKLIST_ITEMS:
+            if self.deadline_from_model(item['name']):
+                checklist_items.append(item)
+                
+        return sorted(checklist_items, key= lambda i: self.deadline_from_model(i['name']))
 
     @property
     def all_badges_claimed(self):

@@ -4,4 +4,4 @@ from uber.decorators import all_renderable
 @all_renderable()
 class Root:
     def index(self, session, message=''):
-        HTTPRedirect('../group_admin/index#guests?message={}', message)
+        HTTPRedirect('../group_admin/index#bands?message={}', message)

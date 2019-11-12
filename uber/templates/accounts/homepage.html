@@ -7,6 +7,9 @@
 {% if c.HAS_SHIFTS_ADMIN_ACCESS %}
 <a class="btn btn-info" href="../shifts_admin/staffers?department=All">View volunteers in your department(s)</a></p>
 {% endif %}
+{% if attendees == c.ROW_LOAD_LIMIT %}
+This page only shows up to <strong>{{ c.ROW_LOAD_LIMIT }}</strong> attendees. You may need to use another view to find the attendee you need.
+{% endif %}
 </div>
 <div class="panel panel-default">
   <table class="table table-striped datatable">

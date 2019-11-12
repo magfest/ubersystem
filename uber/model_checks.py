@@ -85,9 +85,7 @@ def admin_has_required_api_access(api_token):
                 return 'You do not have permission to create a token with {} access'.format(c.API_ACCESS[access_level])
 
 
-Group.required = [
-    ('name', 'Group Name')
-]
+Group.required = [('name', 'Group Name')]
 
 
 @prereg_validation.Group

@@ -87,7 +87,7 @@ class Root:
             ] + [str(score) for score in game.scores])
 
     @csv_file
-    def checklist_completion(self, out, session):
+    def checklist_info_csv(self, out, session):
         header_row = ['Studio']
         for key, val in c.MIVS_CHECKLIST.items():
             header_row.append(val['name'])

@@ -16,13 +16,9 @@ class Root:
     def index(self, session, id, message=''):
         guest = session.guest_group(id)
 
-        def _deadline(item):
-            return guest.deadline_from_model(item['name'])
-
         return {
             'message': message,
             'guest': guest,
-            'sorted_checklist': sorted(filter(_deadline, c.GUEST_CHECKLIST_ITEMS), key=_deadline)
         }
 
     def agreement(self, session, guest_id, message='', **params):

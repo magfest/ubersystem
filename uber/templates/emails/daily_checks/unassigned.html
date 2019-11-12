@@ -8,7 +8,7 @@
                 <a href="{{ c.URL_BASE }}/registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a>
                 [{{ attendee.badge }}]
                 {% if attendee.group %}
-                    (<a href="{{ c.URL_BASE }}/dealer_admin/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>)
+                    (<a href="{{ c.URL_BASE }}/group_admin/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>)
                 {% endif %}
             </li>
     {% endfor %}

@@ -1,5 +1,6 @@
 {% set admin_area=True %}
 {% set clientside_bool=True %}
+{% set badge_status_ro=not c.HAS_REG_ADMIN_ACCESS %}
 {% import "fields/attendee.html" as attendee_fields with context %}
 <script src="//cdnjs.cloudflare.com/ajax/libs/validate.js/0.13.1/validate.min.js"></script>
 <script type="text/javascript">
@@ -53,6 +54,11 @@ var updateAttendee = function(event){
         }
       }, 1000);
 };
+$(window).on("runJavaScript", function () {
+if($.field('return_to').length) {
+    $.field('return_to').val(window.location.pathname + window.location.search);
+  }
+})
 </script>
 {% set save_buttons %}
   {% set save_text = save_text or 'Create' if attendee.is_new else 'Save' %}
@@ -113,9 +119,10 @@ var updateAttendee = function(event){
   <div class="form-group">
   {% if not attendee.is_new %}
   <div class="pull-left">
-      <form method="post" action="delete_attendee" class="form form-inline" onSubmit="return confirm('{% if attendee.group and attendee.is_unassigned %}Are you sure you want to delete this unassigned badge?{% elif attendee.group %}Are you sure you want to unassign this badge?{% else %}Are you sure you want to delete this attendee?{% endif %}');">
+      <form method="post" action="../registration/delete_attendee" class="form form-inline" onSubmit="return confirm('{% if attendee.group and attendee.is_unassigned %}Are you sure you want to delete this unassigned badge?{% elif attendee.group %}Are you sure you want to unassign this badge?{% else %}Are you sure you want to delete this attendee?{% endif %}');">
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ attendee.id }}" />
+      <input type="hidden" name="return_to" value="" />
       <input type="submit" class="btn btn-danger" value="{% if attendee.group and attendee.is_unassigned %}Delete this group badge{% elif attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}"
               {% if attendee.paid == c.HAS_PAID %} style="background-color:#BCBCBC" title="Cannot delete a paid badge." disabled {% endif %}/>
       </form>

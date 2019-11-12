@@ -677,6 +677,9 @@ class Session(SessionManager):
                                            self.admin_attendee().dept_memberships_with_inherent_role]
             return set(staffer.assigned_depts_ids).intersection(dept_ids_with_inherent_role)
 
+        def admin_can_see_guest_group(self, guest):
+            return guest.group_type_label.upper() in self.current_admin_account().viewable_guest_group_types
+
         def admin_can_create_attendee(self, attendee):
             admin = self.current_admin_account()
             if admin.full_registration_admin:
@@ -686,7 +689,10 @@ class Session(SessionManager):
                 return admin.full_shifts_admin
             if attendee.badge_type in [c.CONTRACTOR_BADGE, c.ATTENDEE_BADGE] and attendee.staffing_or_will_be:
                 return admin.has_dept_level_access('shifts_admin')
-            if attendee.group and attendee.group.guest and attendee.group.guest.group_type in [c.BAND, c.GUEST]:
+            if (attendee.group and attendee.group.guest and attendee.group.guest.group_type == c.BAND
+                ) or (attendee.badge_type == c.GUEST and c.BAND in attendee.ribbon_ints):
+                return admin.has_dept_level_access('band_admin')
+            if attendee.group and attendee.group.guest and attendee.group.guest.group_type == c.GUEST:
                 return admin.has_dept_level_access('guest_admin')
             if c.PANELIST_RIBBON in attendee.ribbon_ints:
                 return admin.has_dept_level_access('panels_admin')
@@ -696,6 +702,34 @@ class Session(SessionManager):
                 return admin.has_dept_level_access('mits_admin')
             if attendee.group and attendee.group.guest and attendee.group.guest.group_type == c.MIVS:
                 return admin.has_dept_level_access('mivs_admin')
+        
+        def viewable_groups(self):
+            from uber.models import Attendee, DeptMembership, Group, GuestGroup
+            admin = self.current_admin_account()
+            
+            if admin.full_registration_admin:
+                return self.query(Group)
+            
+            subqueries = [self.query(Group).filter(Group.creator == admin.attendee)]
+            
+            group_id = admin.attendee.group.id if admin.attendee.group else ''
+            if group_id:
+                subqueries.append(self.query(Group).filter(Group.id == group_id))
+            
+            for key, val in c.GROUP_TYPE_OPTS:
+                if val.lower() + '_admin' in admin.read_or_write_access_set:
+                    subqueries.append(
+                        self.query(Group).join(
+                            GuestGroup, Group.id == GuestGroup.group_id).filter(GuestGroup.group_type == key
+                        )
+                    )
+            
+            if 'dealer_admin' in admin.read_or_write_access_set:
+                subqueries.append(
+                    self.query(Group).filter(Group.is_dealer)
+                )
+            
+            return subqueries[0].union(*subqueries[1:])
             
         def viewable_attendees(self):
             from uber.models import Attendee, DeptMembership, Group, GuestGroup, MITSApplicant
@@ -707,22 +741,28 @@ class Session(SessionManager):
             subqueries = [self.query(Attendee).filter(
                 or_(Attendee.creator == admin.attendee, Attendee.id == admin.attendee.id))]
             
-            if 'guest_admin' in admin.read_or_write_access_set:
-                subqueries.append(
-                    self.query(Attendee).join(Group, Attendee.group_id == Group.id)
-                    .join(GuestGroup, Group.id == GuestGroup.group_id).filter(
-                        or_(
+            for group_type, badge_and_ribbon_filter in [
+                (c.BAND, and_(Attendee.badge_type == c.GUEST_BADGE, Attendee.ribbon.contains(c.BAND))),
+                (c.GUEST, and_(Attendee.badge_type == c.GUEST_BADGE, ~Attendee.ribbon.contains(c.BAND)))
+                ]:
+                if c.GROUP_TYPES[group_type].lower() + '_admin' in admin.read_or_write_access_set:
+                    subqueries.append(
+                        self.query(Attendee).join(Group, Attendee.group_id == Group.id)
+                        .join(GuestGroup, Group.id == GuestGroup.group_id).filter(
                             or_(
-                                Attendee.badge_type == c.GUEST_BADGE,
-                                and_(
-                                    Group.id == Attendee.group_id,
-                                    GuestGroup.group_id == Group.id,
-                                    or_(GuestGroup.group_type == c.GUEST, GuestGroup.group_type == c.BAND),
-                                )), Attendee.ribbon.contains(c.PANELIST_RIBBON)
+                                or_(
+                                    badge_and_ribbon_filter,
+                                    and_(
+                                        Group.id == Attendee.group_id,
+                                        GuestGroup.group_id == Group.id,
+                                        GuestGroup.group_type == group_type,
+                                        )
+                                )
+                            )
                         )
                     )
-                )
-            elif 'panels_admin' in admin.read_or_write_access_set:
+                
+            if 'panels_admin' in admin.read_or_write_access_set:
                 subqueries.append(
                     self.query(Attendee).filter(Attendee.ribbon.contains(c.PANELIST_RIBBON))
                 )
@@ -1345,11 +1385,15 @@ class Session(SessionManager):
                 return 'Custom badges have already been ordered, so you will need to select a different badge type'
             elif diff > 0:
                 for i in range(diff):
-                    group.attendees.append(Attendee(
+                    new_attendee = Attendee(
                         badge_type=new_badge_type,
                         ribbon=ribbon_to_use,
                         paid=paid,
-                        **extra_create_args))
+                        **extra_create_args)
+                    group.attendees.append(new_attendee)
+                    if not self.admin_can_create_attendee(new_attendee):
+                        new_attendee.badge_status = c.PENDING_STATUS
+                    
             elif diff < 0:
                 if len(group.floating) < abs(diff):
                     return 'You cannot reduce the number of badges for a group to below the number of assigned badges'

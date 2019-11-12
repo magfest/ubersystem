@@ -1,0 +1,35 @@
+  <div class="table-responsive">
+    <table class="datatable table table-striped" data-info="false">
+      <thead>
+      <tr>
+        <th>Group</th>
+        {% for key, val in c.MIVS_CHECKLIST.items() -%}
+          <th>{{ val['name'] }}</th>
+        {% endfor -%}
+      </tr>
+      </thead>
+      <tbody>
+      {% for group in groups if group.guest and group.guest.group_type == c.MIVS -%}
+        <tr id="{{ group.id }}" class="{{ group.guest.group_type_label|lower if group.guest else "" }} group-row">
+          <td>
+            <a href="form?id={{ group.id }}" target="_blank">{{ group.name }}</a>
+            <span class="guest_info">
+                {% if group.guest -%}
+                  &nbsp;
+                  <div class="btn-group" role="group" aria-label="...">
+                  <a href="checklist_info?id={{ group.guest.id }}" class="btn btn-xs btn-default"><span class="glyphicon glyphicon-cog" data-toggle="tooltip" title="{{ group.guest.group_type_label }} Info"></span></a>
+                  <a href="../guests/index?id={{ group.guest.id }}" class="btn btn-xs btn-primary"><span class="glyphicon glyphicon-check" data-toggle="tooltip" title="{{ group.guest.group_type_label }} Checklist"></span></a>
+                  </div>
+                {% endif %}
+            </span>
+          </td>
+          {% for key, val in c.MIVS_CHECKLIST.items() -%}
+            <td>{{ group.studio[key + "_status"] if group.studio[key + "_status"] is not none else "Not Completed" }}</td>
+          {% endfor -%}
+        </tr>
+      {% endfor -%}
+      </tbody>
+    </table>
+  </div>
+
+<p><a href="../mivs_admin/checklist_info_csv">Export all checklist data as a CSV file</a></p>
