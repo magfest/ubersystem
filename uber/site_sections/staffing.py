@@ -93,7 +93,22 @@ class Root:
             'attendee': attendee,
             'agreement_end_date': c.ESCHATON.date() + timedelta(days=31),
         }
-
+        
+    @check_shutdown
+    def credits(self, session, message='', name_in_credits='', csrf_token=None):
+        attendee = session.logged_in_volunteer()
+        if csrf_token is not None:
+            check_csrf(csrf_token)
+            attendee.name_in_credits = name_in_credits
+            message = "Thank you for providing a name for the credits roll!" if name_in_credits \
+                else "You have opted out of having your name in the credits roll."
+            raise HTTPRedirect('index?message={}', message)
+            
+        return {
+            'message': message,
+            'attendee': attendee,
+        }
+            
     @check_shutdown
     @public
     def volunteer(self, session, id, csrf_token=None, requested_depts_ids=None, message=''):
