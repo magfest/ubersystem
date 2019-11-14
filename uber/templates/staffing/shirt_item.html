@@ -1,5 +1,5 @@
 {% import 'macros.html' as macros %}
-
+{% if not attendee.badge_type == c.CONTRACTOR_BADGE %}
 <li>
     {{ macros.checklist_image(attendee.shirt_info_marked) }}
     {% if not attendee.placeholder and attendee.food_restrictions_filled_out and (not attendee.hotel_eligible or attendee.hotel_requests or not c.BEFORE_ROOM_DEADLINE) %}
@@ -16,3 +16,4 @@
     {% endif %}
     so that we can set aside shirts in the right sizes at our merch booth.
 </li>
+{% endif %}

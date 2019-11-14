@@ -9,6 +9,8 @@
     If you aren't {{ attendee.full_name }}, <a href="login">click here</a> to log in as yourself.
 </div>
 
+{% if attendee.badge_type == c.CONTRACTOR_BADGE %}<br/><strong>Note</strong>: Starting this year, contractors are no longer eligible for physical perks, such as staff shirts or swadges. You will receive whatever your contracting group has agreed with your relevant MAGFest department.<br/>{% endif %}
+
 <br/> Thanks for volunteering for {{ c.EVENT_NAME }}! We are so excited to work with you. The following is a list of items you will need to complete in order to volunteer.<br/> <br/>
 <i>You won't be able to move on with the checklist until you've completed the previous steps!</i> <br/> <br/>
 
