@@ -1,4 +1,4 @@
-Ahoy {{ game.studio.primary_contact.first_name }},
+Ahoy {{ game.studio.primary_contact_first_names }},
 
 We had two opportunities we wanted to share with you:
 
@@ -19,7 +19,7 @@ If so, you should be capable of producing a MAGFest Versus specific build of you
 * A 60 second time limit
 * The ability to determine a clear winner at the end of this time limit (either by score, or points, etc)
 
-If you are interested, email mivs@magfest.org
+If you are interested, email {{ c.MIVS_EMAIL|email_only }}
 
 2. Panelists for Indie Game Preservation Panel
 ====
