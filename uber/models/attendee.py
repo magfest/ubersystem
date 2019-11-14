@@ -516,13 +516,13 @@ class Attendee(MagModel, TakesPaymentMixin):
                     and c.VOLUNTEER_RIBBON in old_ribbon and not self.is_dept_head:
                 self.unset_volunteering()
 
-        if self.badge_type == c.STAFF_BADGE:
+        if self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
             self.ribbon = remove_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
 
         elif self.staffing and not self.volunteering_badge_or_ribbon:
             self.ribbon = add_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
 
-        if self.badge_type == c.STAFF_BADGE:
+        if self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
             self.staffing = True
             if not self.overridden_price and self.paid in [c.NOT_PAID, c.PAID_BY_GROUP]:
                 self.paid = c.NEED_NOT_PAY
@@ -565,7 +565,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         self.requested_depts = []
         self.dept_memberships = []
         self.ribbon = remove_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
-        if self.badge_type == c.STAFF_BADGE:
+        if self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
             self.badge_type = c.ATTENDEE_BADGE
             self.badge_num = None
         del self.shifts[:]
@@ -1202,7 +1202,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def takes_shifts(self):
-        return bool(self.staffing and any(not d.is_shiftless for d in self.assigned_depts))
+        return bool(self.staffing and self.badge_type != c.CONTRACTOR_BADGE and any(
+            not d.is_shiftless for d in self.assigned_depts))
 
     @property
     def hours(self):
