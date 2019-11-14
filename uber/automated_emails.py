@@ -398,7 +398,7 @@ AutomatedEmailFixture(
 StopsEmailFixture(
     'Please complete your {EVENT_NAME} Staff/Volunteer Checklist',
     'shifts/created.txt',
-    lambda a: a.takes_shifts,
+    lambda a: a.staffing,
     when=after(c.SHIFTS_CREATED),
     ident='volunteer_checklist_completion_request')
 
