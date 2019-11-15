@@ -4,6 +4,8 @@ As a department head for {{ attendee.assigned_depts_labels|readable_join }} we n
 
 {{ conf.description|safe }}
 
+Approvals here will affect setup/teardown permissions for your volunteers. We can manually update those settings for those who aren't using staff crash space during those times, but this will be the bulk of your approvals. Note that this year, hotel night approvals are done on a department-by-department basis, so your denial or approval of a given volunteer will not affect their status in another department.
+
 Please fill out the following forms by {{ conf.deadline|datetime_local }}:
 
 {% for membership in attendee.dept_memberships_as_checklist_admin -%}
