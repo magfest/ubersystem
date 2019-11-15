@@ -325,6 +325,29 @@ class AttendeeLookup:
             attendee_query = session.search(query)
             fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
             return [a.to_dict(fields) for a in attendee_query.limit(100)]
+        
+    @api_auth('api_update')
+    def update(self, **kwargs):
+        """
+        Updates an existing attendee record. "id" parameter is required and
+        sets the attendee to be updated. All other fields are taken as changes
+        to the attendee.
+        
+        Returns the updated attendee.
+        """
+        if not 'id' in kwargs:
+            return HTTPError(400, 'You must provide the id of the attendee.')
+        with Session() as session:
+            attendee = session.query(Attendee).filter(Attendee.id == kwargs['id']).one()
+            if not attendee:
+                return HTTPError(404, 'Attendee {} not found.'.format(kwargs['id']))
+            for key, val in kwargs:
+                if not hasattr(Attendee, key):
+                    return HTTPError(400 'Attendee has no field {}'.format(key))
+                setattr(attendee, key, val)
+            session.add(attendee)
+            session.commit()
+            return attendee.to_dict(fields)
 
     def login(self, first_name, last_name, email, zip_code):
         """
@@ -729,6 +752,97 @@ class ConfigLookup:
         else:
             raise HTTPError(404, 'Config field not found: {}'.format(field))
 
+@all_api_auth('api_read')
+class HotelLookup:
+    def eligible_attendees(self):
+        """
+        Returns a list of hotel eligible attendees
+        """
+        with Session() as session:
+            attendees = session.query(Attendee.id).filter(Attendee.hotel_eligible == True).all()
+            return [x.id for x in attendees]
+    
+    @api_auth('api_update')
+    def update_room(self, id=None, **kwargs):
+        """
+        Create or update a hotel room. If the id of an existing room is
+        supplied then it will attempt to update an existing room.
+        Possible attributes are notes, message, locked_in, nights, and created.
+
+        Returns the created room, with its id.
+        """
+        with Session() as session:
+            if id:
+                room = session.query(Room).filter(Room.id == id).one_or_none()
+                if not room:
+                    return HTTPError(404, "Could not locate room {}".format(id))
+            else:
+                room = Room()
+            for attr in ['notes', 'message', 'locked_in', 'nights', 'created']:
+                if attr in kwargs:
+                    setattr(room, attr, kwargs[attr])
+            session.add(room)
+            session.commit()
+            return room.to_dict()
+
+    @api_auth('api_update')
+    def update_request(self, id=None, **kwargs):
+        """
+        Create or update a hotel request. If the id is supplied then it will
+        attempt to update the given request.
+        Possible attributes are attendee_id, nights, wanted_roommates, unwanted_roommates, special_needs, and approved.
+
+        Returns the created or updated request.
+        """
+        with Session() as session:
+            if id:
+                hotel_request = session.query(HotelRequests).filter(HotelRequests.id == id).one_or_none()
+                if not hotel_request:
+                    return HTTPError(404, "Could not locate request {}".format(id))
+            else:
+                hotel_request = HotelRequests()
+            for attr in ['attendee_id', 'nights', 'wanted_roommates', 'unwanted_roommates', 'special_needs', 'approved']:
+                if attr in kwargs:
+                    setattr(hotel_request, attr, kwargs[attr])
+            session.add(hotel_request)
+            session.commit()
+            return hotel_request.to_dict()
+
+    @api_auth('api_update')
+    def update_assignment(self, id=None, **kwargs):
+        """
+        Create or update a hotel room assignment. If the id is supplied then it will
+        attempt to update the given request. Otherwise a new one is created.
+        Possible attributes are room_id, and attendee_id.
+
+        Returns the created or updated assignment.
+        """
+        with Session() as session:
+            if id:
+                assignment = session.query(RoomAssignment).filter(RoomAssignment.id == id).one_or_none()
+                if not assignment:
+                    return HTTPError(404, "Could not locate room assignment {}".format(id))
+            else:
+                assignment = RoomAssignment()
+            for attr in ['room_id', 'attendee_id']:
+                if attr in kwargs:
+                    setattr(assigment, attr, kwargs[attr])
+            session.add(assignment)
+            session.commit()
+            return assignment.to_dict()
+
+    def nights(self):
+        """
+        Returns the available room nights.
+        """
+        return {
+            "core_nights": c.CORE_NIGHTS,
+            "setup_nights": c.SETUP_NIGHTS,
+            "teardown_nights": c.TEARDOWN_NIGHTS,
+            "dates": c.NIGHT_DATES,
+            "order": c.NIGHT_DISPLAY_ORDER,
+            "names": c.NIGHT_NAMES
+        }
 
 @all_api_auth('api_read')
 class BarcodeLookup:
@@ -781,3 +895,4 @@ if c.API_ENABLED:
     register_jsonrpc(BarcodeLookup(), 'barcode')
     register_jsonrpc(GuestLookup(), 'guest')
     register_jsonrpc(MivsLookup(), 'mivs')
+    register_jsonrpc(HotelLookup(), 'hotel')
