@@ -55,7 +55,11 @@
             {% if attendee.hotel_requests %}
                 Thanks for filling out the hotel space request form before the deadline.
             {% else %}
-                You didn't fill out the hotel request form before the deadline.
+                {% if c.HOTEL_REQUESTS_URL %}
+                    Hotel requests are now closed. Please contact STOPS if you have any questions.
+                {% else %}
+                    You didn't fill out the hotel request form before the deadline.
+                {% endif %}
             {% endif %}
         </li>
     {% endif %}
