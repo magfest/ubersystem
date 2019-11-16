@@ -555,6 +555,11 @@ class Attendee(MagModel, TakesPaymentMixin):
                 self.paid = c.NEED_NOT_PAY
 
     @presave_adjustment
+    def _apply_badge_for_life(self):
+        if self.email in c.BADGE_FOR_LIFE_RECIPIENTS and not self.overridden_price and self.is_unpaid:
+            self.paid = c.NEED_NOT_PAY
+
+    @presave_adjustment
     def assign_creator(self):
         if self.is_new and not self.creator_id:
             self.creator_id = self.session.admin_attendee().id if self.session.admin_attendee() else None
