@@ -862,8 +862,6 @@ if "sqlite" in _config['secret']['sqlalchemy_url']:
     c.SQLALCHEMY_POOL_SIZE = -1
     c.SQLALCHEMY_MAX_OVERFLOW = -1
 
-c.HIDE_SCHEUDLE = True
-
 c.PRICE_BUMPS = {}
 c.PRICE_LIMITS = {}
 for _opt, _val in c.BADGE_PRICES['attendee'].items():
