@@ -4,7 +4,7 @@
 
 <h2>Band Info for <a href="../guests/index?id={{ guest.id }}">{{ guest.group.name }}</a></h2>
 
-<form class="form-horizontal" role="form" method="post" action="group_info">
+<form class="form-horizontal" role="form" method="post" action="checklist_info">
   {{ csrf_token() }}
   <input type="hidden" name="id" value="{{ guest.id }}" />
 
@@ -32,10 +32,8 @@
       <div class="form-control-static">
         {% if not guest.payment %}
           This band isn't being paid and thus doesn't need a W9 tax form.
-        {% elif guest.taxes_status %}
-          <a href="{{ guest.taxes.w9_url }}">Click here to view the band's uploaded W9 tax form</a>
         {% else %}
-          This band is supposed to be paid, but has not uploaded a W9 tax form yet.
+          This band has{% if not guest.taxes.w9_sent %} <strong>not</strong>{% endif %} uploaded their W9 form.
         {% endif %}
       </div>
     </div>

@@ -34,7 +34,6 @@ class Root:
         ])
         for guest in [guest for guest in session.query(GuestGroup).all() if session.admin_can_see_guest_group(guest)]:
             absolute_pic_url = convert_to_absolute_url(getattr(guest.bio, 'pic_url', ''))
-            absolute_w9_url = convert_to_absolute_url(getattr(guest.taxes, 'w9_url', ''))
             absolute_stageplot_url = convert_to_absolute_url(getattr(guest.stage_plot, 'url', ''))
             out.writerow([
                 guest.group.name, guest.email,
@@ -48,7 +47,7 @@ class Root:
                 getattr(guest.panel, 'wants_panel', ''), getattr(guest.panel, 'name', ''),
                 getattr(guest.panel, 'length', ''), getattr(guest.panel, 'desc', ''),
                 ' / '.join(getattr(guest.panel, 'panel_tech_needs_labels', '')),
-                absolute_w9_url, absolute_stageplot_url,
+                getattr(guest.taxes, 'w9_sent', ''), absolute_stageplot_url,
                 getattr(guest.merch, 'selling_merch_label', ''),
                 getattr(guest.charity, 'donating_label', ''), getattr(guest.charity, 'desc', '')
             ])

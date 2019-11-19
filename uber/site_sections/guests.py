@@ -79,16 +79,12 @@ class Root:
         guest = session.guest_group(guest_id)
         guest_taxes = session.guest_taxes(params, restricted=True)
         if cherrypy.request.method == 'POST':
-            guest_taxes.w9_filename = w9.filename
-            guest_taxes.w9_content_type = w9.content_type.value
-            if guest_taxes.w9_extension not in c.ALLOWED_W9_EXTENSIONS:
-                message = 'Uploaded file type must be one of ' + ', '.join(c.ALLOWED_W9_EXTENSIONS)
+            if not guest_taxes.w9_sent:
+                message = 'You must confirm that you have uploaded your W9 at the secure document portal'
             else:
-                with open(guest_taxes.w9_fpath, 'wb') as f:
-                    shutil.copyfileobj(w9.file, f)
                 guest.taxes = guest_taxes
                 session.add(guest_taxes)
-                raise HTTPRedirect('index?id={}&message={}', guest.id, 'W9 uploaded')
+                raise HTTPRedirect('index?id={}&message={}', guest.id, 'Thank you for sending in your W9!')
 
         return {
             'guest': guest,
@@ -464,14 +460,6 @@ class Root:
             disposition="attachment",
             name=guest.bio.download_filename,
             content_type=guest.bio.pic_content_type)
-
-    def view_w9(self, session, id):
-        guest = session.guest_group(id)
-        return serve_file(
-            guest.taxes.w9_fpath,
-            disposition="attachment",
-            name=guest.taxes.download_filename,
-            content_type=guest.taxes.w9_content_type)
 
     def view_stage_plot(self, session, id):
         guest = session.guest_group(id)
