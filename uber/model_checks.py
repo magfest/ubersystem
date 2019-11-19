@@ -980,6 +980,23 @@ def at_least_one_slot(event):
 # guests
 # =============================
 
+@validation.GuestGroup
+def payment_nan(guest_group):
+    try:
+        payment = int(float(guest_group.payment if guest_group.payment else 0))
+    except Exception:
+        return "What you entered for Payment ({}) isn't even a number".format(guest_group.payment)
+    
+@validation.GuestGroup
+def vehicles_nan(guest_group):
+    if not str(guest_group.vehicles).isdigit():
+        return "Please enter a whole number of comped parking spaces for vehicles."
+    
+@validation.GuestGroup
+def hotel_rooms_nan(guest_group):
+    if not str(guest_group.num_hotel_rooms).isdigit():
+        return "Please enter a whole number of comped hotel rooms."
+
 @validation.GuestMerch
 def is_merch_checklist_complete(guest_merch):
     if not guest_merch.selling_merch:

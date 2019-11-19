@@ -4,7 +4,7 @@
 
 <h2>Guest Info for <a href="../guests/index?id={{ guest.id }}">{{ guest.group.name }}</a></h2>
 
-<form class="form-horizontal" role="form" method="post" action="group_info">
+<form class="form-horizontal" role="form" method="post" action="checklist_info">
   {{ csrf_token() }}
   <input type="hidden" name="id" value="{{ guest.id }}" />
 
@@ -75,20 +75,18 @@
   {% if guest.travel_plans.modes_text %}{{ macros.form_group(guest.travel_plans, 'modes_text', label='Travel Modes (Other)', is_readonly=True) }}{% endif %}
   {{ macros.form_group(guest.travel_plans, 'details', label='Arrival and Departure Times', is_readonly=True) }}
 
-  {% if guest.payment %}
-    <div class="form-group">
-      <label class="col-sm-3 control-label">W9</label>
-      <div class="col-sm-6">
-        <div class="form-control-static">
-          {% if guest.taxes.w9_url  %}
-            <a href="{{ guest.taxes.w9_url }}">Click here to view the guests's uploaded W9 tax form</a>
-          {% else %}
-            This guest is supposed to be paid, but has not uploaded a W9 tax form yet.
-          {% endif %}
-        </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">W9</label>
+    <div class="col-sm-6">
+      <div class="form-control-static">
+        {% if not guest.payment %}
+          This guest isn't being paid and thus doesn't need a W9 tax form.
+        {% else %}
+          This guest has{% if not guest.taxes.w9_sent %} <strong>not</strong>{% endif %} uploaded their W9 form.
+        {% endif %}
       </div>
     </div>
-  {% endif %}
+  </div>
 
   {{ macros.form_group(guest, 'payment', type='number',
         help="""The number of dollars we're paying the guest.  If you leave this

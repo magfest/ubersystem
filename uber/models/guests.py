@@ -63,6 +63,17 @@ class GuestGroup(MagModel):
             return self.status(name.rsplit('_', 1)[0])
         else:
             return super(GuestGroup, self).__getattr__(name)
+        
+    @presave_adjustment
+    def empty_strings_to_zero(self):
+        if not self.payment:
+            self.payment = 0
+        
+        if not self.vehicles:
+            self.vehicles = 0
+        
+        if not self.num_hotel_rooms:
+            self.num_hotel_rooms = 0
 
     def deadline_from_model(self, model):
         name = str(self.group_type_label).upper() + "_" + str(model).upper() + "_DEADLINE"
@@ -252,31 +263,11 @@ class GuestBio(MagModel):
 
 class GuestTaxes(MagModel):
     guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
-    w9_filename = Column(UnicodeText)
-    w9_content_type = Column(UnicodeText)
-
-    @property
-    def w9_url(self):
-        if self.w9_filename:
-            return '../guests/view_w9?id={}'.format(self.guest.id)
-        return ''
-
-    @property
-    def w9_fpath(self):
-        return os.path.join(c.GUESTS_W9_FORMS_DIR, self.id)
-
-    @property
-    def w9_extension(self):
-        return filename_extension(self.w9_filename)
-
-    @property
-    def download_filename(self):
-        name = self.guest.normalized_group_name
-        return name + '_w9_form.' + self.w9_extension
+    w9_sent = Column(Boolean, default=False)
 
     @property
     def status(self):
-        return self.w9_url if self.w9_url else ''
+        return str(self.w9_sent)
 
 
 class GuestStagePlot(MagModel):

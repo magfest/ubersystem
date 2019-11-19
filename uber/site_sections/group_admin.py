@@ -153,6 +153,15 @@ class Root:
         if cherrypy.request.method == 'POST':
             if event_id:
                 guest.event_id = event_id
+            message = check(guest)
+            if not message:
+                for field in ['estimated_loadin_minutes', 'estimated_performance_minutes']:
+                    if field in params:
+                        field_name = "load-in" if field == 'estimated_loadin_minutes' else 'performance'
+                        if not params.get(field):
+                            message = "Please enter more than 0 estimated {} minutes".format(field_name)
+                        elif not str(params.get(field, '')).isdigit():
+                            message = "Please enter a whole number for estimated {} minutes".format(field_name)
             if not message:
                 raise HTTPRedirect('index?message={}{}', guest.group.name, ' data uploaded')
 
