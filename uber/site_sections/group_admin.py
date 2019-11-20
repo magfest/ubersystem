@@ -81,15 +81,15 @@ class Root:
                         group.guest = group.guest or GuestGroup()
                         group.guest.group_type = params.get('group_type')
                     
-                    if group.is_dealer and group.status == c.APPROVED:
-                        if group.amount_unpaid:
+                    if group.is_new and group.is_dealer:
+                        if group.status == c.APPROVED and group.amount_unpaid:
                             raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
+                        elif group.status == c.APPROVED:
+                            raise HTTPRedirect(
+                                'index?message={}', group.name + ' has been uploaded and approved')
                         else:
                             raise HTTPRedirect(
-                                'index?message={}{}', group.name + ' has been uploaded and approved')
-                    elif group.is_dealer:
-                        raise HTTPRedirect(
-                            'index?message={}', group.name + ' is uploaded as ' + group.status_label)
+                                'index?message={}', group.name + ' is uploaded as ' + group.status_label)
                      
                     raise HTTPRedirect('form?id={}&message={} has been saved', group.id, group.name)
 
