@@ -372,14 +372,9 @@
   {% if c.NUMBERED_BADGES %}
   <div class="form-group">
   <label class="col-sm-3 control-label">Badge #</label>
-  {% if attendee.badge_num and not c.HAS_REG_ADMIN_ACCESS %}
-  <div class="col-sm-3 form-control-static">
-  {{ attendee.badge_num }}
-  {% else %}
   <div class="col-sm-3">
   <input type="text" class="form-control" name="badge_num" placeholder="0000" onBlur="autoCheckBlank();" />
   <div class="checkbox"><label class="checkbox"><input type="checkbox" name="no_badge_num" onChange="toggleBadgeNumField();"><span id="no_badge_num_text"></span></label></div>
-  {% endif %}
   </div>
   </div>
   {% endif %}

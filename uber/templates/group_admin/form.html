@@ -45,16 +45,7 @@
         <input type="hidden" name="id" value="{{ group.db_id }}" />
         <input type="hidden" name="new_dealer" value="{{ new_dealer or '' }}" />
 
-        <div class="form-group">
-          <label class="col-sm-3 control-label" for="group_type">Checklist Type</label>
-          <div class="col-sm-6">
-            <select class="form-control" id="group_type" name="group_type">
-              <option value="">N/A</option>
-              {{ options(c.GROUP_TYPE_OPTS, group.guest.group_type or group_type) }}
-            </select>
-          </div>
-        </div>
-
+        {{ group_fields.guest_group_type }}
         {{ group_fields.group_name }}
         {{ group_fields.badges_dropdown }}
         {{ group_fields.tables }}
