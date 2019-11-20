@@ -42,7 +42,8 @@ class Root:
         group = session.group(params, checkgroups=Group.all_checkgroups, bools=Group.all_bools)
 
         if cherrypy.request.method == 'POST':
-            message = self._required_message(params, ['name', 'badges'])
+            new_with_leader = any(params.get(info) for info in ['first_name', 'last_name', 'email'])
+            message = self._required_message(params, ['name'])
             
             if not message and group.is_new and (params.get('group_type') or new_dealer or group.is_dealer):
                 message = self._required_message(params, ['first_name', 'last_name', 'email'])
@@ -57,13 +58,13 @@ class Root:
                 new_ribbon = c.BAND if params.get('group_type') == str(c.BAND) else None
                 message = session.assign_badges(
                     group,
-                    int(params.get('badges', 1)) or 1,
+                    int(params.get('badges', 0)) or int(new_with_leader),
                     new_badge_type=params.get('badge_type', c.ATTENDEE_BADGE),
                     new_ribbon_type=params.get('ribbon', new_ribbon),
-                    paid=c.PAID_BY_GROUP)
+                    )
 
             if not message:
-                if group.is_new and any(params.get(info) for info in ['first_name', 'last_name', 'email']):
+                if group.is_new and new_with_leader:
                     session.commit()
                     leader = group.leader = group.attendees[0]
                     leader.first_name = params.get('first_name')
