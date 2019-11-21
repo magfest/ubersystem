@@ -325,6 +325,29 @@ class AttendeeLookup:
             attendee_query = session.search(query)
             fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
             return [a.to_dict(fields) for a in attendee_query.limit(100)]
+        
+    @api_auth('api_update')
+    def update(self, **kwargs):
+        """
+        Updates an existing attendee record. "id" parameter is required and
+        sets the attendee to be updated. All other fields are taken as changes
+        to the attendee.
+        
+        Returns the updated attendee.
+        """
+        if not 'id' in kwargs:
+            return HTTPError(400, 'You must provide the id of the attendee.')
+        with Session() as session:
+            attendee = session.query(Attendee).filter(Attendee.id == kwargs['id']).one()
+            if not attendee:
+                return HTTPError(404, 'Attendee {} not found.'.format(kwargs['id']))
+            for key, val in kwargs:
+                if not hasattr(Attendee, key):
+                    return HTTPError(400, 'Attendee has no field {}'.format(key))
+                setattr(attendee, key, val)
+            session.add(attendee)
+            session.commit()
+            return attendee.to_dict(fields)
 
     def login(self, first_name, last_name, email, zip_code):
         """
