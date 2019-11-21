@@ -343,7 +343,7 @@ class AttendeeLookup:
                 return HTTPError(404, 'Attendee {} not found.'.format(kwargs['id']))
             for key, val in kwargs:
                 if not hasattr(Attendee, key):
-                    return HTTPError(400 'Attendee has no field {}'.format(key))
+                    return HTTPError(400, 'Attendee has no field {}'.format(key))
                 setattr(attendee, key, val)
             session.add(attendee)
             session.commit()
