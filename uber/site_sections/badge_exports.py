@@ -7,9 +7,6 @@ from uber.reports import PersonalizedBadgeReport, PrintedBadgeReport
 
 
 def generate_staff_badges(start_badge, end_badge, out, session):
-    assert start_badge >= c.BADGE_RANGES[c.STAFF_BADGE][0]
-    assert end_badge <= c.BADGE_RANGES[c.STAFF_BADGE][1]
-
     badge_range = (start_badge, end_badge)
 
     PrintedBadgeReport(
@@ -42,18 +39,19 @@ class Root:
     @xlsx_file
     def printed_badges_staff(self, out, session):
 
-        # part 1, include only staff badges that have an assigned name
+        # part 1, include staff and contractor badges
         PersonalizedBadgeReport().run(
             out,
             session,
-            Attendee.badge_type == c.STAFF_BADGE,
+            Attendee.badge_type.in_([c.STAFF_BADGE, c.CONTRACTOR_BADGE]),
             Attendee.badge_num != None,
+            badge_type_override='Staff',
             order_by='badge_num')  # noqa: E711
 
         # part 2, include some extra for safety margin
         minimum_extra_amount = c.BLANK_STAFF_BADGES
 
-        max_badges = c.BADGE_RANGES[c.STAFF_BADGE][1]
+        max_badges = max(c.BADGE_RANGES[c.STAFF_BADGE][1], c.BADGE_RANGES[c.CONTRACTOR_BADGE][1])
         start_badge = max_badges - minimum_extra_amount + 1
         end_badge = max_badges
 

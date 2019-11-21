@@ -371,14 +371,14 @@ class Config(_Overridable):
             return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS
                     if amt not in self.kickin_availability_matrix or self.kickin_availability_matrix[amt]]
 
-        if self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
-            return self.DONATION_TIER_OPTS
-        if self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
-            return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SEASON_LEVEL]
-        elif self.BEFORE_SHIRT_DEADLINE and self.SHIRT_AVAILABLE:
-            return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SUPPORTER_LEVEL]
-        else:
+        if self.BEFORE_SHIRT_DEADLINE and not self.SHIRT_AVAILABLE:
             return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SHIRT_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
+            return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SUPPORTER_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SEASON_AVAILABLE:
+            return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS if amt < self.SEASON_LEVEL]
+        else:
+            return self.DONATION_TIER_OPTS
 
     @property
     def PREREG_DONATION_DESCRIPTIONS(self):
@@ -387,17 +387,17 @@ class Config(_Overridable):
             donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
                              if tier[1]['price'] not in self.kickin_availability_matrix
                              or self.kickin_availability_matrix[tier[1]['price']]]
-        elif self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
-            donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
-        elif self.BEFORE_SUPPORTER_DEADLINE and self.SUPPORTER_AVAILABLE:
-            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
-                             if tier[1]['price'] < self.SEASON_LEVEL]
-        elif self.BEFORE_SHIRT_DEADLINE and self.SHIRT_AVAILABLE:
-            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
-                             if tier[1]['price'] < self.SUPPORTER_LEVEL]
-        else:
+        elif self.BEFORE_SHIRT_DEADLINE and not self.SHIRT_AVAILABLE:
             donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
                              if tier[1]['price'] < self.SHIRT_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
+            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
+                             if tier[1]['price'] < self.SUPPORTER_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
+            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
+                             if tier[1]['price'] < self.SEASON_LEVEL]
+        else:
+            donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
 
         donation_list = sorted(donation_list, key=lambda tier: tier[1]['price'])
 

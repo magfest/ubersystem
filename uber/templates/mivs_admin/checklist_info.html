@@ -1,6 +1,6 @@
 <h2>MIVS Checklist Info for <a href="../guests/index?id={{ guest.id }}">{{ guest.group.name }}</a></h2>
 
-<form class="form-horizontal" role="form" method="post" action="group_info">
+<form class="form-horizontal" role="form" method="post" action="checklist_info">
   {{ csrf_token() }}
   <input type="hidden" name="id" value="{{ guest.id }}" />
 

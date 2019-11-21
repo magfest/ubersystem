@@ -2,7 +2,9 @@
 
 As a department head for {{ attendee.assigned_depts_labels|readable_join }} we need some information from you about: {{ conf.name|safe }}
 
-{{ conf.description|safe }}
+{{ conf.description|safe }}{% if conf.slug == 'approve_setup_teardown' %}
+
+Approvals here will affect setup/teardown permissions for your volunteers. We can manually update those settings for those who aren't using staff crash space during those times, but this will be the bulk of your approvals. Note that this year, hotel night approvals are done on a department-by-department basis, so your denial or approval of a given volunteer will not affect their status in another department.{% endif %}
 
 Please fill out the following forms by {{ conf.deadline|datetime_local }}:
 

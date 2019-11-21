@@ -372,14 +372,9 @@
   {% if c.NUMBERED_BADGES %}
   <div class="form-group">
   <label class="col-sm-3 control-label">Badge #</label>
-  {% if attendee.badge_num and not c.HAS_REG_ADMIN_ACCESS %}
-  <div class="col-sm-3 form-control-static">
-  {{ attendee.badge_num }}
-  {% else %}
   <div class="col-sm-3">
   <input type="text" class="form-control" name="badge_num" placeholder="0000" onBlur="autoCheckBlank();" />
   <div class="checkbox"><label class="checkbox"><input type="checkbox" name="no_badge_num" onChange="toggleBadgeNumField();"><span id="no_badge_num_text"></span></label></div>
-  {% endif %}
   </div>
   </div>
   {% endif %}
@@ -634,7 +629,8 @@
       <p class="help-block col-sm-offset-3 col-sm-9">
         Each level includes all lower levels. <br/>
         {% if c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime_local }}.<br/>{% endif %}
-        {% if c.SHIRT_DEADLINE %} {% if c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Shirt level up to Supporter level{% else %}Shirt level and higher{% endif %} {% if c.BEFORE_SHIRT_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SHIRT_DEADLINE|datetime_local }}.{% endif %}
+        {% if c.SHIRT_DEADLINE %} {% if c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Shirt level up to Supporter level{% else %}Shirt level and higher{% endif %} {% if c.BEFORE_SHIRT_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SHIRT_DEADLINE|datetime_local }}.<br/>{% endif %}
+        {% if c.SHIRT_STOCK %}Kick-ins are only available while supplies last.{% endif %}
       </p>
     </div>
   {% endif %}

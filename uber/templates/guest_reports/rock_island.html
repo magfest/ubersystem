@@ -122,7 +122,7 @@
       <div class="panel panel-default inventory-table-panel">
         <div class="panel-body">
           <h2>
-            <span>Inventory for <a href="../guest_admin/group_info?id={{ guest.id }}">{{ guest.group.name }}</a></span>
+            <span>Inventory for <a href="../guest_admin/checklist_info?id={{ guest.id }}">{{ guest.group.name }}</a></span>
             {% if guest_merch.inventory -%}
               <small><a href="{{ guest_merch.rock_island_csv_url }}">Download CSV for {{ guest.group.name }}</a></small>
             {%- endif %}
@@ -138,7 +138,7 @@
     {%- set guest_merch = guest.merch -%}
     {%- import 'guests_macros.html' as guests_macros with context -%}
     <h1>
-      <span>Rock Island Inventory for <a href="../guest_admin/group_info?id={{ guest.id }}">{{ guest.group.name }}</a></span>
+      <span>Rock Island Inventory for <a href="../guest_admin/checklist_info?id={{ guest.id }}">{{ guest.group.name }}</a></span>
       {% if guest_merch.inventory -%}
         <small><a href="{{ guest_merch.rock_island_csv_url }}">Download CSV for {{ guest.group.name }}</a></small>
       {%- endif %}

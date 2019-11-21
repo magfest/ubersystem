@@ -630,6 +630,16 @@ def attendee_view(func):
         return func(*args, **kwargs)
     return with_check
 
+def schedule_view(func):
+    func.public = True
+    @wraps(func)
+    def with_check(*args, **kwargs):
+        if c.HIDE_SCHEDULE and not c.HAS_READ_ACCESS:
+            return "The {} schedule is being developed and will be made public " \
+                   "when it's closer to being finalized.".format(c.EVENT_NAME)
+        return func(*args, **kwargs)
+    return with_check
+
 def restricted(func):
     @wraps(func)
     def with_restrictions(*args, **kwargs):
