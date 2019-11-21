@@ -803,6 +803,14 @@ if c.MIVS_ENABLED:
             lambda game: game.confirmed,
             ident='mivs_2020_versus'
         )
+        
+        MIVSEmailFixture(
+            IndieGame,
+            'MIVS: Tournaments and Leaderboard Challenges',
+            'mivs/2020/tournaments_2020.txt',
+            lambda game: game.confirmed,
+            ident='mivs_2020_tournaments'
+        )
 
 # =============================
 # mits
