@@ -341,13 +341,13 @@ class AttendeeLookup:
             attendee = session.query(Attendee).filter(Attendee.id == kwargs['id']).one()
             if not attendee:
                 return HTTPError(404, 'Attendee {} not found.'.format(kwargs['id']))
-            for key, val in kwargs:
+            for key, val in kwargs.items():
                 if not hasattr(Attendee, key):
                     return HTTPError(400, 'Attendee has no field {}'.format(key))
                 setattr(attendee, key, val)
             session.add(attendee)
             session.commit()
-            return attendee.to_dict(fields)
+            return attendee.to_dict(self.fields)
 
     def login(self, first_name, last_name, email, zip_code):
         """
