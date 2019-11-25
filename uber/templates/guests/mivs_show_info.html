@@ -1,0 +1,17 @@
+{% extends "guestbase.html" %}
+
+{% block body %}
+
+  <h3>Update Studio and Game Information</h3>
+
+  Please use the link{{ guest.group.studio.confirmed_games|length|pluralize }} below to update your information for MIVS so it can be displayed on the MAGFest website.<br/><br/>
+  
+  <form class="form form-horizontal" method="post" action="mivs_show_info">
+    <input type="hidden" name="guest_id" value="{{ guest.id }}"/>
+    {% for game in guest.group.studio.confirmed_games %}
+    <a href="../mivs/show_info?id={{ game.id }}" target="_blank">Update Studio and Game Information for {{ game.title }}</a><br/>
+    {% endfor %}
+    {{ macros.checkbox(guest.group.studio, 'show_info_updated', label="I have checked and updated my game and studio information.") }}
+    <br/><button type="submit" class="btn btn-primary">Confirm Info</button>
+  </form>
+{% endblock body %}

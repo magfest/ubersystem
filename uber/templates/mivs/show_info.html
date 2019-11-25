@@ -118,71 +118,7 @@
       </div>
     </div>
 
-    <h4>Tournament Information</h4>
-    <div class="form-group">
-      <div class="col-sm-6 col-sm-offset-3">
-        {{ macros.checkbox(game, 'tournament_at_event', label="Yes, we'd like to run a tournament for this game
-      at the event.") }}
-      </div>
-    </div>
-
-    <div id="tournament-details">
-      <div class="form-group">
-        <label for="has_multiplayer" class="col-sm-3 control-label">Multiplayer</label>
-        <div class="checkbox col-sm-9">
-          {{ macros.checkbox(game, 'has_multiplayer', label="This game has a multiplayer mode.") }}
-        </div>
-      </div>
-
-      <div id="multiplayer-details">
-        <div class="form-group">
-          <label class="col-sm-3 control-label">Player Count</label>
-          <div class="col-sm-6">
-            <input class="form-control" type="text" name="player_count" value="{{ game.player_count }}" />
-            <p class="help-block">
-              How many players are supported? E.g., "2 or 4 players."
-            </p>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="col-sm-3 control-label">Multiplayer Game Length</label>
-          <div class="col-sm-6">
-            <input class="form-control" type="number" name="multiplayer_game_length" value="{{ game.multiplayer_game_length }}" />
-            <p class="help-block">
-              The length of each multiplayer game or match, in minutes.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="col-sm-3 control-label">Promo Image</label>
-        <div class="col-sm-6">
-          <input class="form-control" type="file" name="promo_image" />
-          <p class="help-block">
-            Hi-res cover art or a game logo.
-          </p>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="col-sm-3 control-label optional-field">Tournament Prizes</label>
-        <div class="col-sm-6">
-          <textarea class="form-control" name="tournament_prizes" rows="4">{{ game.tournament_prizes }}</textarea>
-          <p class="help-block">
-            A description of the prizes you're willing to offer for the game tournament, if any.
-          </p>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="col-sm-3 control-label optional-field">Leaderboard Challenge</label>
-        <div class="checkbox col-sm-9">
-          {{ macros.checkbox(game, 'leaderboard_challenge', label="Yes, we would like to run a leaderboard challenge for
-        this game.") }}
-        </div>
-      </div>
-    </div>
+    {{ macros.form_group(game.studio, 'contact_phone', label="Studio Contact Phone #", help="Used only for MIVS staff to contact you.", is_required=True) }}
 
     <button type="submit" class="btn btn-primary">Upload Information</button>
   </form>
