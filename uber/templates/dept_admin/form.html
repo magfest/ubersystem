@@ -447,7 +447,7 @@
                 {%- set weighted_hours = attendee.weighted_hours -%}
                 <tr>
                   <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
-                    {{ attendee|form_link }}
+                    <a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a>
                   </td>
                   <td>{{ attendee.badge }}</td>
                   <td>{{ attendee.paid_label }}</td>
@@ -455,11 +455,11 @@
                     {{ hours_here }}
                   </td>
                   <td data-order="{{ weighted_hours }}" data-search="{{ weighted_hours }}">
-                    <a href="../shifts_admin/attendee_shifts?id={{ attendee.id }}">{{ weighted_hours }}</a>
+                    <a href="#attendee_form?id={{ attendee.id }}&tab_view=Shifts">{{ weighted_hours }}</a>
                   </td>
                   {% if c.AT_OR_POST_CON %}
                     <td data-order="{{ attendee.worked_hours }}" data-search="{{ attendee.worked_hours }}">
-                      <a href="../shifts_admin/attendee_shifts?id={{ attendee.id }}">{{ attendee.worked_hours }}</a>
+                      <a href="#attendee_form?id={{ attendee.id }}&tab_view=Shifts">{{ attendee.worked_hours }}</a>
                     </td>
                   {% endif %}
                   {% if c.AT_THE_CON %}
@@ -494,5 +494,4 @@
     </div>
   </div>
 </div>
-
 {% endblock %}

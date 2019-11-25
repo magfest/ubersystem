@@ -236,25 +236,25 @@ def form_link(model):
     page = 'form'
         
     if c.HAS_REGISTRATION_ACCESS:
-        attendee_section = 'registration'
+        attendee_section = '../registration/'
     else:
-        attendee_section = 'accounts'
-        page = 'homepage#attendee_form' if isinstance(model, Attendee) else page
+        attendee_section = ''
+        page = '#attendee_form' if isinstance(model, Attendee) else page
 
     site_sections = {
         Attendee: attendee_section,
-        Attraction: 'attractions_admin',
-        Department: 'dept_admin',
-        Group: 'group_admin',
-        Job: 'jobs',
-        PanelApplication: 'panels_admin'}
+        Attraction: '../attractions_admin/',
+        Department: '../dept_admin/',
+        Group: '../group_admin/',
+        Job: '../jobs/',
+        PanelApplication: '../panels_admin/'}
 
     cls = model.__class__
     site_section = site_sections.get(cls, form_link_site_sections.get(cls))
     name = getattr(model, 'name', getattr(model, 'full_name', model))
 
     if site_section:
-        return safe_string('<a href="../{}/{}?id={}">{}</a>'.format(site_section, page, model.id, jinja2.escape(name)))
+        return safe_string('<a href="{}{}?id={}">{}</a>'.format(site_section, page, model.id, jinja2.escape(name)))
     return name
 
 

@@ -1054,12 +1054,13 @@ class Root:
     @log_pageview
     @attendee_view
     @cherrypy.expose(['attendee_data'])
-    def attendee_form(self, session, message='', **params):
+    def attendee_form(self, session, message='', tab_view=None, **params):
         attendee = session.attendee(params, allow_invalid=True)
 
         return_dict = {
             'message': message,
             'attendee': attendee,
+            'tab_view': tab_view,
             'group_opts': [(g.id, g.name) for g in session.query(Group).order_by(Group.name).all()],
         }
         
@@ -1085,11 +1086,12 @@ class Root:
         }
 
     @attendee_view
+    @cherrypy.expose(['shifts'])
     def attendee_shifts(self, session, id, **params):
         attendee = session.attendee(id)
         attrs = Shift.to_dict_default_attrs + ['worked_label']
         
-        return {
+        return_dict = {
             'attendee': attendee,
             'shifts': {s.id: s.to_dict(attrs) for s in attendee.shifts},
             'jobs': [
@@ -1097,6 +1099,11 @@ class Root:
                 for job in attendee.available_jobs
                 if job.start_time + timedelta(hours=job.duration + 2) > localized_now()],
         }
+        
+        if 'attendee_shifts' in cherrypy.url():
+            return return_dict
+        else:
+            return render('registration/shifts.html', return_dict)
     
     @log_pageview
     @attendee_view

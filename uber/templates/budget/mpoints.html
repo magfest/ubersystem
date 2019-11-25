@@ -25,7 +25,7 @@
                     <li>
                         ${{ '%0.2f' % mpu.amount }} from
                         {% if mpu.attendee %}
-                            <a href="../accounts/homepage#attendee_form?id={{ mpu.attendee.id }}">{{ mpu.attendee.full_name }}</a>
+                            <a href="#attendee_form?id={{ mpu.attendee.id }}">{{ mpu.attendee.full_name }}</a>
                         {% else %}
                             {{ mpu.identifier }}
                         {% endif %}

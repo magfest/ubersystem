@@ -68,6 +68,15 @@ var refreshTab = function() {
   var currentTab = $('.tab-pane.active');
   loadForm(currentTab.attr('id').slice(8));
 };
+{% if tab_view %}
+var tab = $('.nav-tabs a[href="#attendee{{ tab_view }}"]');
+if(tab.length) {
+  tab.tab('show');
+} else {
+  $('.nav-tabs a').first().tab('show');
+}
+loadForm("{{ tab_view }}");
+{% endif %}
 </script>
 <div class="modal-header">
   <button type="button" class="close" data-dismiss="modal">&times;</button>

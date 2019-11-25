@@ -399,7 +399,7 @@
                             </a>
                             <ul class="dropdown-menu" role="menu">
                                 {% if 'admin_account' in c.CURRENT_ADMIN %}
-                                  <li><a href="../accounts/homepage#attendee_form?id={{ c.CURRENT_ADMIN.id }}">My Registration</a></li>
+                                  <li><a href="#attendee_form?id={{ c.CURRENT_ADMIN.id }}">My Registration</a></li>
                                   {% if c.HAS_DEPT_ADMIN_ACCESS and c.CURRENT_ADMIN.assigned_depts %}
                                     <li><a href="../dept_admin/?filtered=1">My Departments</a></li>
                                     {% for dept in c.CURRENT_ADMIN.assigned_depts %}
@@ -470,6 +470,7 @@
               })
           });
       </script>
+      <script src="../static/js/load-attendee-modal.js" type="text/javascript"></script>
     {% endblock %}
     {% block additional_scripts %}
         {% block page_scripts %} {% endblock %}
