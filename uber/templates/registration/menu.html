@@ -1,7 +1,7 @@
 {{ macros.nav_menu(
     attendee, c.PAGE_PATH,
     "../registration/form?id={id}", "Attendee Data", True,
-    "../shifts_admin/attendee_shifts?id={id}&return_to=../registration/index", "Shifts", attendee.staffing and c.HAS_SHIFTS_ADMIN_ACCESS,
+    "../registration/shifts?id={id}&return_to=../registration/index", "Shifts", attendee.staffing and c.HAS_SHIFTS_ADMIN_ACCESS,
     "../registration/history?id={id}", "History", True,
     "../reg_admin/receipt_items?id={id}", "Receipt Items", c.HAS_REG_ADMIN_ACCESS,
     "../security_admin/watchlist?attendee_id={id}", "Watch List Entry", attendee.banned and c.HAS_SECURITY_ADMIN_ACCESS,
