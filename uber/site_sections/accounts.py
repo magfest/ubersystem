@@ -1,10 +1,8 @@
-import inspect
 import uuid
 from collections import defaultdict
 
 import bcrypt
 import cherrypy
-from pockets import unwrap
 from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload
 from sqlalchemy.orm.exc import NoResultFound
@@ -306,26 +304,7 @@ class Root:
 
     @public
     def sitemap(self):
-        site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
-        modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
-        pages = defaultdict(list)
-        for module_name, module_root in modules.items():
-            for name in dir(module_root):
-                method = getattr(module_root, name)
-                if getattr(method, 'exposed', False):
-                    spec = inspect.getfullargspec(unwrap(method))
-                    has_defaults = len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or [])
-                    if c.has_section_or_page_access(page_path='/{}/{}'.format(module_name, name), include_read_only=True) \
-                            and not getattr(method, 'ajax', False) \
-                            and (getattr(method, 'site_mappable', False)
-                                 or has_defaults and not spec.varkw):
-
-                        pages[module_name].append({
-                            'name': name.replace('_', ' ').title(),
-                            'path': '/{}/{}'.format(module_name, name)
-                        })
-
-        return {'pages': sorted(pages.items())}
+        return {'pages': c.SITE_MAP}
 
     @ajax
     def add_bulk_admin_accounts(self, session, message='', **params):

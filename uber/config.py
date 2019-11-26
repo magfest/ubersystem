@@ -1,6 +1,7 @@
 import ast
 import decimal
 import hashlib
+import inspect
 import os
 import pytz
 import re
@@ -12,7 +13,7 @@ from itertools import chain
 
 import cherrypy
 import stripe
-from pockets import keydefaultdict, nesteddefaultdict
+from pockets import keydefaultdict, nesteddefaultdict, unwrap
 from pockets.autolog import log
 from sideboard.lib import cached_property, parse_config, request_cached_property
 from sqlalchemy import or_
@@ -698,27 +699,67 @@ class Config(_Overridable):
 
     @cached_property
     def ADMIN_PAGES(self):
-        # Build a list of all site sections and their pages
-        public_site_sections = ['static_views', 'angular', 'public', 'staffing']
-        public_pages = []
+        public_site_sections, public_pages, pages = self.gettable_site_sections_and_pages
         site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
-        modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
-        for module_name, module_root in modules.items():
-            method = getattr(site_sections, module_name)
-            if getattr(method, 'public', False):
-                public_site_sections.append(module_name)
-            else:
-                for name in dir(module_root):
-                    if not name.startswith('_'):
-                        method = getattr(module_root, name)
-                        if getattr(method, 'public', False):
-                            public_pages.append(module_name + "_" + name)
 
         return {
             section: [opt for opt in dir(getattr(site_sections, section))
                       if opt not in public_pages and not opt.startswith('_')]
             for section in dir(site_sections) if section not in public_site_sections and not section.startswith('_')
         }
+        
+    @request_cached_property
+    def SITE_MAP(self):
+        public_site_sections, public_pages, pages = self.gettable_site_sections_and_pages
+        
+        accessible_site_sections = {section: pages for section, pages in pages.items() 
+                                    if c.has_section_or_page_access(page_path=section, include_read_only=True)}
+        for section in accessible_site_sections:
+            accessible_site_sections[section] = [page for page in accessible_site_sections[section] 
+                                                 if c.has_section_or_page_access(page_path=page['path'], include_read_only=True)]
+            
+        return sorted(accessible_site_sections.items())
+    
+    @cached_property
+    def gettable_site_sections_and_pages(self):
+        """
+        Introspects all available pages in the application and returns several data structures for use in displaying them.
+        Returns:
+            public_site_sections (list): a list of site sections that are accessible to the public, e.g., 'preregistration'
+            public_pages (list): a list of individual pages in non-public site sections that are accessible to the public,
+                prepended by their site section; e.g., 'registration_register' for registration/register
+            pages (defaultdict(list)): a dictionary with keys corresponding to site sections, each key containing a list
+                of key/value pairs for each page inside that section.
+                Example: 
+                    pages['registration'] = [
+                        {'name': 'Arbitrary Charge Form', 'path': '/registration/arbitrary_charge_form'},
+                        {'name': 'Comments', 'path': '/registration/comments'},
+                        {'name': 'Discount', 'path': '/registration/discount'},
+                    ]
+        """
+        public_site_sections = ['static_views', 'angular', 'public', 'staffing']
+        public_pages = []
+        site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
+        modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
+        pages = defaultdict(list)
+        for module_name, module_root in modules.items():
+            page_method = getattr(site_sections, module_name)
+            if getattr(page_method, 'public', False):
+                public_site_sections.append(module_name)
+            for name in dir(module_root):
+                method = getattr(module_root, name)
+                if getattr(page_method, 'public', False):
+                            public_pages.append(module_name + "_" + name)
+                if getattr(method, 'exposed', False):
+                    spec = inspect.getfullargspec(unwrap(method))
+                    has_defaults = len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or [])
+                    if not getattr(method, 'ajax', False) and (getattr(method, 'site_mappable', False)
+                                                               or has_defaults and not spec.varkw):
+                        pages[module_name].append({
+                            'name': name.replace('_', ' ').title(),
+                            'path': '/{}/{}'.format(module_name, name)
+                        })
+        return public_site_sections, public_pages, pages
 
     # =========================
     # mivs
