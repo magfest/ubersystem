@@ -126,6 +126,13 @@ class IndieStudio(MagModel):
     @property
     def discussion_emails_list(self):
         return list(filter(None, self.discussion_emails.split(',')))
+    
+    @property
+    def discussion_emails_last_updated(self):
+        studio_updates = self.get_tracking_by_instance(self, action=c.UPDATED, last_only=False)
+        for update in studio_updates:
+            if 'discussion_emails' in update.data:
+                return update.when
 
     @property
     def core_hours_status(self):
