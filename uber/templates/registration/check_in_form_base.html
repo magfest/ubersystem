@@ -1,3 +1,81 @@
+{% if attendee.amount_unpaid %}
+<div class="center text-center">
+<h4>{{ attendee.full_name }} currently owes <strong>${{ attendee.amount_unpaid }}</strong>.</h4>
+<form method="post" action="mark_as_paid">
+{{ csrf_token() }}
+<input type="hidden" name="id" value="{{ attendee.id }}" />
+<select name="payment_method" onChange="toggleMarkButton(this)">
+    <option value="">Payment Method</option>
+    {{ options(c.NEW_REG_PAYMENT_METHOD_OPTS,attendee.payment_method) }}
+</select>
+    <button class="btn btn-success" type="submit" disabled="disabled">Mark as Paid</button>
+</form>
+
+    <strong>OR</strong> <br/>
+{{ stripe_form('manual_reg_charge', Charge(attendee)) }}
+</div>
+<iframe id="stripe_frame" name="stripe_frame" style="display:none"></iframe>
+<script type="text/javascript">
+var toggleMarkButton = function (dropdown) {
+    var $button = $(dropdown).parent().find(':submit');
+    if ($(dropdown).val()) {
+        $button.removeAttr('disabled');
+    } else {
+        $button.attr('disabled', 'disabled');
+    }
+};
+$("form[action='manual_reg_charge']").prop('target', 'stripe_frame');
+$("form[action='mark_as_paid']").submit(function (e) {
+    e.preventDefault();
+
+    var data = $(this).serialize();
+    var currentForm = $(this);
+
+    $.ajax({
+        method: 'POST',
+        url: '../registration/mark_as_paid',
+        dataType: 'json',
+        data: data,
+        success: function (json) {
+            toastr.clear();
+            var message = json.message;
+            if (json.success) {
+                toastr.info(message);
+                $('#checkin-dialog').load('check_in_form?id={{ attendee.id }}');
+                $('#check_in_btn').show();
+            } else {
+                toastr.error(message);
+            }
+        },
+        error: function () {
+            toastr.error('Unable to connect to server, please try again.');
+        }
+    });
+});
+$('#stripe_frame').load(function() {
+    var responseText = $(this.contentDocument.body).text().trim();
+    this.contentDocument.body.innerHTML = '';
+    
+    if (responseText) {
+        toastr.clear();
+        var response = $.parseJSON(responseText);
+        if (response['success'] == true) {
+            toastr.info(response['message']);
+            $('#checkin-dialog').load('check_in_form?id={{ attendee.id }}');
+            $('#check_in_btn').show();
+        } else {
+            toastr.error('', response['message'], {timeOut: 1000});
+        }
+    }
+});
+$().ready(function() {
+    $('#check_in_btn').hide();
+    $('select[name=payment_method]').each(function (i, dropdown) {
+        toggleMarkButton(dropdown);
+    });
+})
+</script>
+{% else %}
 <form action="/" id="check_in_form_{{ attendee.id }}">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ attendee.id }}" />
@@ -107,3 +185,4 @@
     {% endblock checkin_fields %}
 </table>
 </form>
+{% endif %}
