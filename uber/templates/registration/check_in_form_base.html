@@ -24,6 +24,12 @@ var toggleMarkButton = function (dropdown) {
         $button.attr('disabled', 'disabled');
     }
 };
+var loadCheckInForm = function () {
+    $('#checkin-dialog').load('check_in_form?id={{ attendee.id }}', function () {
+                    $('#check_in_btn').show();
+                    createDateTextEntries();
+                });
+}
 $("form[action='manual_reg_charge']").prop('target', 'stripe_frame');
 $("form[action='mark_as_paid']").submit(function (e) {
     e.preventDefault();
@@ -41,8 +47,7 @@ $("form[action='mark_as_paid']").submit(function (e) {
             var message = json.message;
             if (json.success) {
                 toastr.info(message);
-                $('#checkin-dialog').load('check_in_form?id={{ attendee.id }}');
-                $('#check_in_btn').show();
+                loadCheckInForm();
             } else {
                 toastr.error(message);
             }
@@ -61,8 +66,7 @@ $('#stripe_frame').load(function() {
         var response = $.parseJSON(responseText);
         if (response['success'] == true) {
             toastr.info(response['message']);
-            $('#checkin-dialog').load('check_in_form?id={{ attendee.id }}');
-            $('#check_in_btn').show();
+            loadCheckInForm();
         } else {
             toastr.error('', response['message'], {timeOut: 1000});
         }
