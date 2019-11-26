@@ -87,6 +87,8 @@ class IndieStudio(MagModel):
     needs_hotel_space = Column(Boolean, nullable=True, admin_only=True)  # "Admin only" preserves null default
     name_for_hotel = Column(UnicodeText)
     email_for_hotel = Column(UnicodeText)
+    contact_phone = Column(UnicodeText)
+    show_info_updated = Column(Boolean, default=False)
 
     games = relationship(
         'IndieGame', backref='studio', order_by='IndieGame.title')
@@ -153,6 +155,10 @@ class IndieStudio(MagModel):
         if self.needs_hotel_space is not None:
             return "Requested hotel space for {} with email {}".format(self.name_for_hotel, self.email_for_hotel)\
                 if self.needs_hotel_space else "Opted out"
+                
+    @property
+    def show_info_status(self):
+        return self.show_info_updated
 
     def checklist_deadline(self, slug):
         default_deadline = c.MIVS_CHECKLIST[slug]['deadline']
@@ -202,6 +208,10 @@ class IndieStudio(MagModel):
     @property
     def submitted_games(self):
         return [g for g in self.games if g.submitted]
+    
+    @property
+    def confirmed_games(self):
+        return [g for g in self.games if g.confirmed]
 
     @property
     def comped_badges(self):

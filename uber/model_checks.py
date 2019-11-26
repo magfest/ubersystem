@@ -710,6 +710,11 @@ def mivs_unique_name(studio):
         if session.query(IndieStudio).filter(IndieStudio.name == studio.name, IndieStudio.id != studio.id).count():
             return "That studio name is already taken; " \
                 "are you sure you shouldn't be logged in with that studio's account?"
+                
+@validation.IndieStudio
+def mivs_studio_contact_phone(studio):
+    if studio.contact_phone and _invalid_phone_number(studio.contact_phone):
+        return 'Please enter a valid phone number'
 
 
 @validation.IndieDeveloper

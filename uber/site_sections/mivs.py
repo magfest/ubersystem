@@ -264,6 +264,10 @@ class Root:
             game.apply(params, bools=['tournament_at_event', 'has_multiplayer', 'leaderboard_challenge'],
                        restricted=False)  # Setting restricted to false lets us define custom bools and checkgroups
             game.studio.name = params.get('studio_name', '')
+            if not params.get('contact_phone', ''):
+                message = "Please enter a phone number for MIVS staff to contact your studio."
+            else: 
+                game.studio.contact_phone = params.get('contact_phone', '')
             if promo_image:
                 image = session.indie_game_image(params)
                 image.game = game
@@ -276,14 +280,13 @@ class Root:
                         shutil.copyfileobj(promo_image.file, f)
             message = check(game) or check(game.studio)
             if not message:
-                if game.tournament_at_event and not game.promo_image and not promo_image:
-                    message = 'Please upload a high resolution image of cover art or the game logo.'
-                else:
-
-                    session.add(game)
-                    raise HTTPRedirect('index?message={}', 'Game information uploaded')
+                session.add(game)
+                if game.studio.group.guest:
+                    raise HTTPRedirect('../guests/mivs_show_info?guest_id={}&message={}', 
+                                       game.studio.group.guest.id, 'Game information uploaded')
+                raise HTTPRedirect('index?message={}', 'Game information uploaded')
 
         return {
             'message': message,
-            'game': game
+            'game': game,
         }

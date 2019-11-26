@@ -434,6 +434,26 @@ class Root:
             'guest': guest,
             'message': message,
         }
+        
+    def mivs_show_info(self, session, guest_id, message='', **params):
+        guest = session.guest_group(guest_id)
+        if cherrypy.request.method == 'POST':
+            if guest.group.studio:
+                if not params.get('show_info_updated'):
+                    message = "Please confirm you have updated your studio's and game's information."
+
+                if not message:
+                    guest.group.studio.show_info_updated = True
+                    session.add(guest)
+                    raise HTTPRedirect('index?id={}&message={}',
+                                       guest.id,
+                                       'Thanks for confirming your studio and game information is up-to-date!')
+            else:
+                message = "Something is wrong with your group -- please contact us at {}.".format(c.MIVS_EMAIL)
+        return {
+            'guest': guest,
+            'message': message,
+        }
 
     def view_inventory_file(self, session, id, item_id, name):
         guest_merch = session.guest_merch(id)
