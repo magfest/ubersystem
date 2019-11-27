@@ -2,6 +2,7 @@
 {% import "fields/attendee.html" as attendee_fields with context %}
 {% block title %}Attendee Form - {{ attendee.full_name }}{% endblock %}
 {% block content %}
+{% include "check_in.html" %}
 
 {% include "registration/menu.html" %}
 
@@ -86,7 +87,10 @@
 
 <div class="form-group">
     <div class="col-sm-9 col-sm-offset-3">
-        <button type="submit" name="save" class="btn btn-primary" value="save_return_to_search">Save + return{% if not return_to %} to search{% endif %}</button>
+    {% if c.AT_THE_CON and not attendee.is_not_ready_to_checkin and not attendee.amount_unpaid %}
+        <button class="btn btn-success" name="save" value="save_check_in">Save & Check In</button>
+    {% endif %}
+        <button type="submit" name="save" class="btn btn-primary" value="save_return_to_search">Save & Return{% if not return_to %} to Search{% endif %}</button>
         <button type="submit" name="save" class="btn btn-primary" value="save">Save</button>
     </div>
 </div>
@@ -114,8 +118,33 @@
         </div>
     {% endif %}
 {% endif %}
-
 </div>
 </div>
-
+{% if c.AT_THE_CON and attendee.amount_unpaid %}
+<div class="alert alert-warning center" role="alert" id="payment-warning">
+<h4>{{ attendee.full_name }} currently owes <strong>${{ attendee.amount_unpaid }}</strong>.</h4>
+{{ stripe_form('manual_reg_charge', Charge(attendee)) }}
+</div>
+<iframe id="stripe_frame" name="stripe_frame" style="display:none"></iframe>
+<script type="text/javascript">
+$("form[action='manual_reg_charge']").prop('target', 'stripe_frame');
+$('#stripe_frame').load(function() {
+    var responseText = $(this.contentDocument.body).text().trim();
+    this.contentDocument.body.innerHTML = '';
+    
+    if (responseText) {
+        toastr.clear();
+        var response = $.parseJSON(responseText);
+        if (response['success'] == true) {
+            window.location.href = '../registration/form?id={{ attendee.id }}&message=' + response['message'];
+        } else {
+            toastr.error('', response['message'], {timeOut: 1000});
+        }
+    }
+});
+$().ready(function() {
+    $('#payment-warning').insertBefore('form[action="form"]');
+});
+</script>
+{% endif %}
 {% endblock %}

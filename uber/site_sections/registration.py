@@ -145,18 +145,35 @@ class Root:
                                                                   email=attendee.email).count():
                     raise HTTPRedirect('duplicate?id={}&return_to={}', attendee.id, return_to or 'index')
 
-                msg_text = '{} has been saved'.format(attendee.full_name)
-                if params.get('save') == 'save_return_to_search':
+                message = '{} has been saved'.format(attendee.full_name)
+                stay_on_form = params.get('save') != 'save_return_to_search'
+                if params.get('save') == 'save_check_in':
+                    session.commit()
+                    if attendee.is_not_ready_to_checkin:
+                        message = "Attendee saved, but they cannot check in now. Reason: {}".format(
+                            attendee.is_not_ready_to_checkin)
+                        stay_on_form = True
+                    elif attendee.amount_unpaid:
+                        message = "Attendee saved, but they must pay ${} before they can check in.".format(
+                            attendee.amount_unpaid)
+                        stay_on_form = True
+                    else:
+                        attendee.checked_in = localized_now()
+                        message += '{} saved and checked in as {}{}'.format(
+                            attendee.full_name, attendee.badge, attendee.accoutrements)
+                        stay_on_form = True
+                        
+                if stay_on_form:
+                    raise HTTPRedirect('form?id={}&message={}&return_to={}', attendee.id, message, return_to)
+                else:
                     if return_to:
                         raise HTTPRedirect(return_to + '&message={}', 'Attendee data saved')
                     else:
                         raise HTTPRedirect(
                             'index?uploaded_id={}&message={}&search_text={}',
                             attendee.id,
-                            msg_text,
+                            message,
                             '{} {}'.format(attendee.first_name, attendee.last_name) if c.AT_THE_CON else '')
-                else:
-                    raise HTTPRedirect('form?id={}&message={}&return_to={}', attendee.id, msg_text, return_to)
 
         return {
             'message':    message,
@@ -169,7 +186,8 @@ class Root:
             'unassigned': {
                 group_id: unassigned
                 for group_id, unassigned in session.query(Attendee.group_id, func.count('*')).filter(
-                    Attendee.group_id != None, Attendee.first_name == '').group_by(Attendee.group_id).all()}
+                    Attendee.group_id != None, Attendee.first_name == '').group_by(Attendee.group_id).all()},
+            'Charge': Charge,
         }  # noqa: E711
 
     def change_badge(self, session, id, message='', **params):
