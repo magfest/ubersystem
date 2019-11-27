@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Attendee History - {{ attendee.full_name }}{% endblock %}
+{% block title %}Attendee Shifts - {{ attendee.full_name }}{% endblock %}
 {% block content %}
 {% include "registration/menu.html" %}
-{% include "model_history_base.html" %}
+{% include "registration/attendee_shifts.html" %}
 {% endblock %}

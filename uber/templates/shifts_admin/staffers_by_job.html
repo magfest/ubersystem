@@ -28,7 +28,7 @@
     {% for shift in job.shifts %}
         <tr>
             <td> <ul><li></li></ul> </td>
-            <td> <a href="attendee_shifts?id={{ shift.attendee.id }}">{{ shift.attendee.full_name }}</a> </td>
+            <td> <a href="#attendee_form?id={{ shift.attendee.id }}&tab_view=Shifts">{{ shift.attendee.full_name }}</a> </td>
             <form method="post" action="unassign_from_job">
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ shift.id }}" />
