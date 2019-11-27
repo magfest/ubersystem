@@ -424,7 +424,8 @@ class Root:
 
         return {
             'attendee': attendee,
-            'groups': groups
+            'groups': groups,
+            'Charge': Charge,
         }
 
     @check_for_encrypted_badge_num
@@ -460,7 +461,7 @@ class Root:
             'paid':       attendee.paid_label,
             'age_group':  attendee.age_group_conf['desc'],
             'pre_badge':  pre_badge,
-            'checked_in': attendee.checked_in and hour_day_format(attendee.checked_in)
+            'checked_in': attendee.checked_in and hour_day_format(attendee.checked_in),
         }
 
     @csrf_protected
@@ -789,16 +790,13 @@ class Root:
 
     @ajax
     def mark_as_paid(self, session, id, payment_method):
-        if cherrypy.session['reg_station'] == 0:
-            return {'success': False, 'message': 'Reg station 0 is for prereg only and may not accept payments'}
-
         attendee = session.attendee(id)
         attendee.paid = c.HAS_PAID
         if int(payment_method) == c.STRIPE_ERROR:
             attendee.for_review += "Automated message: Stripe payment manually verified by admin."
         attendee.payment_method = payment_method
         attendee.amount_paid = attendee.total_cost
-        attendee.reg_station = cherrypy.session['reg_station']
+        attendee.reg_station = cherrypy.session.get('reg_station', 1)
         session.commit()
         return {'success': True, 'message': 'Attendee marked as paid.', 'id': attendee.id}
 
