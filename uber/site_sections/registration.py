@@ -159,9 +159,9 @@ class Root:
                         stay_on_form = True
                     else:
                         attendee.checked_in = localized_now()
-                        message += '{} saved and checked in as {}{}'.format(
+                        message = '{} saved and checked in as {}{}'.format(
                             attendee.full_name, attendee.badge, attendee.accoutrements)
-                        stay_on_form = True
+                        stay_on_form = False
                         
                 if stay_on_form:
                     raise HTTPRedirect('form?id={}&message={}&return_to={}', attendee.id, message, return_to)
