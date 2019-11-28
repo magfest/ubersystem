@@ -755,6 +755,13 @@ if c.MIVS_ENABLED:
         ident='mivs_checklist_open'
     )
 
+    MIVSGuestEmailFixture(
+        'New {EVENT_NAME} MIVS Checklist Item: Update Studio and Game Information',
+        'mivs/checklist/new_update_studio_information.txt',
+        lambda mg: True,
+        ident='mivs_checklist_update_studio_information'
+    )
+
     for key, val in c.MIVS_CHECKLIST.items():
         if val['start']:
             MIVSGuestEmailFixture(
