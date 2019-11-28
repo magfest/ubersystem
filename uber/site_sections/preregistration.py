@@ -698,10 +698,15 @@ class Root:
         if message:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         else:
-            session.add_receipt_items_by_model(charge, group)
-
             session.assign_badges(group, group.badges + badges_to_add)
             group.amount_paid_override += charge.dollar_amount
+            session.add(session.create_receipt_item(
+                group, charge.amount,
+                "{} badge{} (${} each)".format(
+                    badges_to_add,
+                    "s" if badges_to_add > 1 else "",
+                    group.new_badge_cost), charge.stripe_transaction, c.BADGE),
+            )
             session.merge(group)
             if group.is_dealer:
                 send_email.delay(
