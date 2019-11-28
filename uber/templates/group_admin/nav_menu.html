@@ -8,14 +8,15 @@
   {# New group page #}
   {{ macros.nav_menu(
     group, c.PAGE_PATH,
-    "form", "Create Group", True,
-    "index" ~ return_to_hash, "Return to Group List", True
+    "../group_admin/form", "Create Group", True,
+    "../group_admin/index" ~ return_to_hash, "Return to Group List", True
 ) }}
 {% else %}
     {{ macros.nav_menu(
       group, c.PAGE_PATH,
-      "form?id={id}", "Group Page", True,
-      "history?id={id}", "History", True,
-      "index" ~ return_to_hash, "Return to Group List", True
+      "../group_admin/form?id={id}", "Group Page", True,
+      "../group_admin/history?id={id}", "History", True,
+      "../reg_admin/receipt_items?id={id}", "Receipt Items", c.HAS_REG_ADMIN_ACCESS,
+      "../group_admin/index" ~ return_to_hash, "Return to Group List", True
   ) }}
 {% endif %}

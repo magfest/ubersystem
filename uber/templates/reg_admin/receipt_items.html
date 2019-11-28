@@ -1,5 +1,7 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Attendee Receipt Items - {{ attendee.full_name }}{% endblock %}
+{% set model = attendee if attendee else group %}
+{% set model_str = "attendee" if attendee else "group" %}
+{% block title %}Receipt Items - {{ model.full_name|default(model.name) }}{% endblock %}
 {% block content %}
 <script type="text/javascript">
 $().ready(function() {
@@ -30,13 +32,13 @@ $().ready(function() {
       });
   });
 </script>
-{% include "registration/menu.html" %}
+{% include "registration/menu.html" if attendee else "group_admin/nav_menu.html" %}
 
-<h2>Receipt Items for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
+<h2>Receipt Items for {{ model.full_name|default(model.name) }}{% if c.AT_THE_CON and model.badge_num %}({{ model.badge }}){% endif %}</h2>
   <div class="panel panel-body">
   <h3>Instructions</h3>
-  <p>Use this form to remove and add items an attendee has paid for or been refunded for.
-    If the system has recorded any Stripe transactions for this attendee, they will be listed at the bottom of this page --
+  <p>Use this form to remove and add items an {{ model_str }} has paid for or been refunded for.
+    If the system has recorded any Stripe transactions for this {{ model_str }}, they will be listed at the bottom of this page --
     you can use this for reference when adding receipt items, though theoretically the system should correctly
     record all receipt items associated with Stripe transactions.</p>
 
@@ -82,7 +84,7 @@ $().ready(function() {
   </td>
   <td>
     <form class="form-inline" method="post" action="add_receipt_item" id="add_receipt_item_{{ iter }}" role="form">
-      <input type="hidden" name="id" value="{{ attendee.id }}" />
+      <input type="hidden" name="id" value="{{ model.id }}" />
       <input type="hidden" name="txn_type" value="{{ c.PAYMENT }}" />
       {{ csrf_token() }}
       <button type="submit" class="btn btn-primary">Add Payment</button>
@@ -99,7 +101,7 @@ $().ready(function() {
       <th></th>
     </tr></thead>
 {{ add_item_row() }}
-{% for item in attendee.receipt_items_breakdown %}
+{% for item in model.receipt_items_breakdown %}
   {% set amount, desc, type = item %}
   {% if amount %}
     {{ add_item_row(amount, desc, type, loop.index) }}
@@ -108,7 +110,7 @@ $().ready(function() {
 </table>
 </div>
 
-{% if attendee.receipt_items %}
+{% if model.receipt_items %}
 <div class="panel panel-body">
 <h3>Add Refund by Type</h3>
   <table class="table">
@@ -119,7 +121,7 @@ $().ready(function() {
       <th></th>
     </tr></thead>
 {% for item_type, item_label in c.RECEIPT_ITEM_OPTS %}
-  {% set balance = attendee.balance_by_item_type(item_type) %}
+  {% set balance = model.balance_by_item_type(item_type) %}
   {% if balance %}
     <tr></tr>
     <td>{{ item_label }}</td>
@@ -136,7 +138,7 @@ $().ready(function() {
     </td>
     <td>
     <form class="form-inline" method="post" action="add_receipt_item" id="refund_receipt_item_{{ item_type }}" role="form">
-      <input type="hidden" name="id" value="{{ attendee.id }}" />
+      <input type="hidden" name="id" value="{{ model.id }}" />
       <input type="hidden" name="item_type" value="{{ item_type }}" />
       <input type="hidden" name="txn_type" value="{{ c.REFUND }}" />
       {{ csrf_token() }}
@@ -162,7 +164,7 @@ $().ready(function() {
       <th>Paid/Refunded</th>
       <th></th>
     </tr></thead>
-    {% for item in attendee.receipt_items %}
+    {% for item in model.receipt_items %}
       <tr>
         <td>{{ item.stripe_transaction.stripe_id or 'N/A' }}</td>
         <td>{{ item.when|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
@@ -184,9 +186,9 @@ $().ready(function() {
   </div>
 {% endif %}
 
-  {% if attendee.stripe_txn_share_logs %}
+  {% if model.stripe_txn_share_logs %}
   <div class="panel panel-body">
-  <h3>Stripe Payment History for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h3>
+  <h3>Stripe Payment History for {{ model.full_name|default(model.name) }}{% if c.AT_THE_CON and model.badge_num %}({{ model.badge }}){% endif %}</h3>
   <table class="table-striped table-bordered table-condensed">
   <thead><tr>
       <th>Payment ID</th>
@@ -196,7 +198,7 @@ $().ready(function() {
       <th>Who</th>
       <th>Payment Description</th>
   </tr></thead>
-  {% for log in attendee.stripe_txn_share_logs %}
+  {% for log in model.stripe_txn_share_logs %}
       <tr>
       <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.stripe_id }}</td>
       <td valign="top" style="white-space:nowrap">${{ '%0.2f' % (log.share / 100) }}

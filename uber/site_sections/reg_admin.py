@@ -3,6 +3,7 @@ from itertools import chain
 import cherrypy
 from pockets import groupify, listify
 from sqlalchemy import and_, or_, func
+from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c, _config
 from uber.custom_tags import pluralize
@@ -15,30 +16,38 @@ from uber.utils import get_api_service_from_server
 @all_renderable()
 class Root:
     def receipt_items(self, session, id, message=''):
-        attendee = session.attendee(id)
+        try:
+            model = session.attendee(id)
+        except NoResultFound:
+            model = session.group(id)
 
         return {
-            'attendee': attendee,
+            'attendee': model if isinstance(model, Attendee) else None,
+            'group': model,
             'message': message,
             'stripe_txn_opts': [(txn.stripe_transaction.id, txn.stripe_transaction.stripe_id)
-                                for txn in attendee.stripe_txn_share_logs],
+                                for txn in model.stripe_txn_share_logs],
         }
 
     def add_receipt_item(self, session, id='', **params):
-        attendee = session.attendee(id)
+        try:
+            model = session.attendee(id)
+        except NoResultFound:
+            model = session.group(id)
+            
         stripe_txn_id = params.get('stripe_txn_id', '')
         if stripe_txn_id:
             stripe_txn = session.stripe_transaction(stripe_txn_id)
 
         session.add(session.create_receipt_item(
-            attendee, int(params.get('amount')) * 100, params.get('desc'), stripe_txn if stripe_txn_id else None,
+            model, int(params.get('amount')) * 100, params.get('desc'), stripe_txn if stripe_txn_id else None,
             params.get('item_type'), params.get('txn_type')))
 
-        raise HTTPRedirect('receipt_items?id={}&message={}', attendee.id, "Receipt Item added")
+        raise HTTPRedirect('receipt_items?id={}&message={}', model.id, "Receipt Item added")
 
     def remove_receipt_item(self, session, id='', **params):
         item = session.receipt_item(id)
-        attendee_or_group = item.attendee if item.attendee_id else item.group_id
+        attendee_or_group = item.attendee if item.attendee_id else item.group
         session.delete(item)
 
         raise HTTPRedirect('receipt_items?id={}&message={}', attendee_or_group.id, "Receipt Item deleted")

@@ -260,16 +260,18 @@ class Group(MagModel, TakesPaymentMixin):
 
     @receipt_item
     def badge_cost_receipt_item(self):
-        if not self.badge_cost:
-            return None, None, None
-
         item_type = c.BADGE
         badge_balance = self.balance_by_item_type(item_type)
-        paid_badges = badge_balance / self.new_badge_cost
+        
+        if not self.badge_cost or badge_balance >= (self.badge_cost * 100):
+            return None, None, None
+
+        paid_badges = badge_balance / (self.new_badge_cost * 100)
+        new_badge_count = int(self.badges_purchased - paid_badges)
 
         return (self.badge_cost * 100) - badge_balance, \
-               "{} badge{} (${} each)".format(int(self.badges_purchased - paid_badges),
-                                             "s" if self.badges_purchased > 1 else "",
+               "{} badge{} (${} each)".format(new_badge_count,
+                                             "s" if new_badge_count > 1 else "",
                                              self.new_badge_cost), item_type
 
     @receipt_item
