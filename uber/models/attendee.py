@@ -867,17 +867,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         Returns None if we are ready for checkin, otherwise a short error
         message why we can't check them in.
         """
-        if self.paid == c.NOT_PAID:
-            return "Not paid"
 
-        # When someone claims an unassigned group badge on-site, they first
-        # fill out a new registration which is paid-by-group but isn't assigned
-        # to a group yet (the admin does that when they check in).
-        if self.badge_status != c.COMPLETED_STATUS and not (
-                self.badge_status == c.NEW_STATUS
-                and self.paid == c.PAID_BY_GROUP
-                and not self.group_id):
-            return "Badge status"
+        if self.badge_status not in [c.COMPLETED_STATUS, c.NEW_STATUS]:
+            return "Badge status is {}".format(self.badge_status_label)
+        
+        if self.placeholder:
+            return "Placeholder badge"
 
         if self.is_unassigned:
             return "Badge not assigned"
@@ -886,7 +881,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.badge_type_label != localized_now().strftime('%A'):
                 return "Wrong day"
 
-        return None
+        message = uber.utils.check(self)
+        return message
 
     @property
     def can_abandon_badge(self):
