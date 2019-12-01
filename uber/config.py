@@ -159,7 +159,7 @@ class Config(_Overridable):
 
             # Only check bucket-based pricing if we're not checking an existing badge AND
             # we're not on-site (because on-site pricing doesn't involve checking badges sold)
-            if not dt and localized_now < c.EPOCH:
+            if not dt and not c.AT_THE_CON:
                 badges_sold = self.BADGES_SOLD
 
                 for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
@@ -450,7 +450,7 @@ class Config(_Overridable):
         week_from_now = c.EVENT_TIMEZONE.localize(datetime.combine(date.today() + timedelta(days=7), time(23, 59)))
         return min(week_from_now, c.UBER_TAKEDOWN, c.EPOCH)
 
-    @property
+    @request_cached_property
     @dynamic
     def AT_THE_DOOR_BADGE_OPTS(self):
         """

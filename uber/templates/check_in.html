@@ -30,22 +30,22 @@ $(document).keydown(function(event) {
     }
 });
 
-var checkIn = function () {
-    var id = checkInModal.data('attendeeID');
+var checkIn = function (attendeeID) {
     $.ajax({
         method: 'POST',
         url: '../registration/check_in',
         dataType: 'json',
-        data: $("#check_in_form_" + id).serialize(),
+        data: $("#check_in_form_" + attendeeID).serialize(),
         success: function (json) {
             toastr.clear();
+            checkInModal.modal('hide');
             var message = json.message;
             if (json.success) {
-                message += ' &nbsp; <a href="#" onClick="undoCheckIn(\'' + id + '\', ' + json.pre_badge + ') ; return false">Undo</a>';
-                $('#paid_' + id).html(json.paid);
-                $('#cin_' + id).html(json.checked_in);
-                $('#age_' + id).parent().html(json.age_group);
-                $('#num_' + id).parent().html(json.badge);
+                message += ' &nbsp; <a href="#" onClick="undoCheckIn(\'' + attendeeID + '\', ' + json.pre_badge + ') ; return false">Undo</a>';
+                $('#paid_' + attendeeID).html(json.paid);
+                $('#cin_' + attendeeID).html(json.checked_in);
+                $('#age_' + attendeeID).parent().html(json.age_group);
+                $('#num_' + attendeeID).parent().html(json.badge);
                 toastr.info(message);
             } else {
                 toastr.error(message);
