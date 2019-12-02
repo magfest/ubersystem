@@ -747,7 +747,7 @@ class Config(_Overridable):
                 (a.attendee.id, a.attendee.full_name)
                 for a in session.query(AdminAccount)
                                 .options(joinedload(AdminAccount.attendee))
-                                .filter(AdminAccount.access.contains(str(c.PANEL_APPS)))
+                                if 'panels_admin' in a.read_or_write_access_set
             ], key=lambda tup: tup[1], reverse=False)
 
     def __getattr__(self, name):
