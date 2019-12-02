@@ -924,7 +924,7 @@ def unavailability(app):
 
 @validation.PanelApplication
 def availability(app):
-    if not app.available and app.poc_id:
+    if not app.available and app.poc and app.poc.guest_group:
         return 'Please list the times you are available to hold this panel!'
 
 
