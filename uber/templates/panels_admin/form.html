@@ -9,6 +9,17 @@
     <input type="hidden" name="id" value="{{ app.id }}" />
     {% include "panel_app_form.html" %}
     <div class="form-group">
+    <label class="col-sm-3 control-label">When are you NOT available?</label>
+    <div class="col-sm-6">
+        <textarea class="form-control" name="unavailable" rows="4" required="required">{{ app.unavailable }}</textarea>
+    </div>
+    <div class="clearfix"></div>
+    <p class="help-block col-sm-9 col-sm-offset-3">
+        Please list all times during the event when you will NOT be available to hold your panel.
+        This is used for scheduling purposes. Rescheduling based on information not given here will be very difficult.
+    </p>
+    </div>
+    <div class="form-group">
         <div class="col-sm-6 col-sm-offset-3">
             <button type="submit" class="btn btn-primary">Update Panel</button>
         </div>
