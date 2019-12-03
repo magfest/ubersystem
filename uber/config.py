@@ -699,7 +699,7 @@ class Config(_Overridable):
 
     @cached_property
     def ADMIN_PAGES(self):
-        public_site_sections, public_pages, pages = self.gettable_site_sections_and_pages
+        public_site_sections, public_pages, pages = self.GETTABLE_SITE_PAGES
         site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
 
         return {
@@ -710,7 +710,7 @@ class Config(_Overridable):
         
     @request_cached_property
     def SITE_MAP(self):
-        public_site_sections, public_pages, pages = self.gettable_site_sections_and_pages
+        public_site_sections, public_pages, pages = self.GETTABLE_SITE_PAGES
         
         accessible_site_sections = {section: pages for section, pages in pages.items() 
                                     if c.has_section_or_page_access(page_path=section, include_read_only=True)}
@@ -721,7 +721,7 @@ class Config(_Overridable):
         return sorted(accessible_site_sections.items())
     
     @cached_property
-    def gettable_site_sections_and_pages(self):
+    def GETTABLE_SITE_PAGES(self):
         """
         Introspects all available pages in the application and returns several data structures for use in displaying them.
         Returns:
@@ -749,7 +749,7 @@ class Config(_Overridable):
             for name in dir(module_root):
                 method = getattr(module_root, name)
                 if getattr(page_method, 'public', False):
-                            public_pages.append(module_name + "_" + name)
+                    public_pages.append(module_name + "_" + name)
                 if getattr(method, 'exposed', False):
                     spec = inspect.getfullargspec(unwrap(method))
                     has_defaults = len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or [])
