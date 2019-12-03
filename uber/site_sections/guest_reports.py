@@ -18,14 +18,14 @@ class Root:
     @csv_file
     def checklist_info_csv(self, out, session):
         out.writerow([
-            'Group Name', 'Primary Contact Email',
+            'Guest Type', 'Group Name', 'Primary Contact Email',
             'Payment', 'Vehicles', 'Hotel Rooms',
             'Load-In', 'Performance Time',
             'PoC Cellphone', 'Performer Count',
             'Bringing Vehicle', 'Vehicle Info',
             'Arrival Time', 'Bio',
             'Website', 'Facebook',
-            'Twitter', 'Other Social Media', 'Bio Pic',
+            'Twitter', 'Other Social Media', 'Bio Pic', 'Bio Pic Link',
             'Wants Panel', 'Panel Name',
             'Panel Length', 'Panel Description', 'Panel Tech Needs',
             'Completed W9', 'Stage Plot',
@@ -36,14 +36,15 @@ class Root:
             absolute_pic_url = convert_to_absolute_url(getattr(guest.bio, 'pic_url', ''))
             absolute_stageplot_url = convert_to_absolute_url(getattr(guest.stage_plot, 'url', ''))
             out.writerow([
-                guest.group.name, guest.email,
+                guest.group_type_label, guest.group.name, guest.email,
                 guest.payment, guest.vehicles, guest.num_hotel_rooms,
                 guest.estimated_loadin_minutes, guest.estimated_performance_minutes,
                 getattr(guest.info, 'poc_phone', ''), getattr(guest.info, 'performer_count', ''),
                 getattr(guest.info, 'bringing_vehicle', ''), getattr(guest.info, 'vehicle_info', ''),
                 getattr(guest.info, 'arrival_time', ''), getattr(guest.bio, 'desc', ''),
                 getattr(guest.bio, 'website', ''), getattr(guest.bio, 'facebook', ''),
-                getattr(guest.bio, 'twitter', ''), getattr(guest.bio, 'other_social_media', ''), absolute_pic_url,
+                getattr(guest.bio, 'twitter', ''), getattr(guest.bio, 'other_social_media', ''),
+                getattr(guest.bio, 'pic_filename', ''), absolute_pic_url,
                 getattr(guest.panel, 'wants_panel', ''), getattr(guest.panel, 'name', ''),
                 getattr(guest.panel, 'length', ''), getattr(guest.panel, 'desc', ''),
                 ' / '.join(getattr(guest.panel, 'panel_tech_needs_labels', '')),
