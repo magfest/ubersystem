@@ -538,6 +538,7 @@ AutomatedEmailFixture(
     'reg_workflow/attendee_qrcode.html',
     lambda a: not a.is_not_ready_to_checkin and c.USE_CHECKIN_BARCODE,
     when=days_before(14, c.EPOCH),
+    allow_at_the_con=True,
     ident='qrcode_for_checkin')
 
 
