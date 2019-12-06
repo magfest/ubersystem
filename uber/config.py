@@ -639,15 +639,8 @@ class Config(_Overridable):
     def get_kickin_count(self, kickin_level):
         from uber.models import Session, Attendee
         with Session() as session:
-            attendees = session.query(Attendee)
-            individual_supporters = attendees.filter(
-                Attendee.paid.in_([self.HAS_PAID, self.REFUNDED]),
-                Attendee.amount_extra >= kickin_level).count()
-            group_supporters = attendees.filter(
-                Attendee.paid == self.PAID_BY_GROUP,
-                Attendee.amount_extra >= kickin_level,
-                Attendee.amount_paid >= kickin_level * 100).count()
-            return individual_supporters + group_supporters
+            count = session.query(Attendee).filter_by(amount_extra=kickin_level).count()
+        return count
 
     @request_cached_property
     @dynamic
