@@ -260,6 +260,7 @@ class Root:
 
     def show_info(self, session, id, message='', promo_image=None, **params):
         game = session.indie_game(id=id)
+        cherrypy.session['studio_id'] = game.studio.id
         if cherrypy.request.method == 'POST':
             game.apply(params, bools=['tournament_at_event', 'has_multiplayer', 'leaderboard_challenge'],
                        restricted=False)  # Setting restricted to false lets us define custom bools and checkgroups
