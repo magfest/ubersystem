@@ -417,9 +417,7 @@ class Root:
                 if not params['selling_at_event']:
                     message = "Please select if you want to sell items at MAGFest or not."
                 elif params['selling_at_event'] == '1':
-                    if 'confirm_checkbox1' not in params:
-                        message = "You must confirm that you will bring a signed copy of the selling waiver to MAGFest."
-                    elif 'confirm_checkbox2' not in params:
+                    if 'confirm_checkbox' not in params:
                         message = "You must confirm that you have filled out the Google form provided."
 
                 if not message:
