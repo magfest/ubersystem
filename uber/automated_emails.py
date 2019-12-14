@@ -761,6 +761,20 @@ if c.MIVS_ENABLED:
         lambda mg: True,
         ident='mivs_checklist_update_studio_information'
     )
+    
+    MIVSGuestEmailFixture(
+        'New {EVENT_NAME} MIVS Checklist Item: MIVS Indie Handbook',
+        'mivs/checklist/new_update_indiehandbook_information.txt',
+        lambda mg: True,
+        ident='mivs_checklist_update_indiehandbook_information'
+    )
+	
+    MIVSGuestEmailFixture(
+        'New {EVENT_NAME} MIVS Checklist Item: Selling Information',
+        'mivs/checklist/new_update_selling_information.txt',
+        lambda mg: True,
+        ident='mivs_checklist_update_selling_information'
+    )
 
     for key, val in c.MIVS_CHECKLIST.items():
         if val['start']:
