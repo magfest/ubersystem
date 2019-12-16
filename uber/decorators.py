@@ -248,7 +248,9 @@ def ajax_gettable(func):
 
 
 def multifile_zipfile(func):
-    func.site_mappable = True
+    parameters = inspect.getargspec(func)
+    if len(parameters[0]) == 3:
+        func.site_mappable = True
 
     @wraps(func)
     def zipfile_out(self, session, **kwargs):
