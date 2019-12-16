@@ -11,9 +11,10 @@
 <div class="panel panel-default">
   <div class="panel-body">
     {{ dealer_groups }} {{ c.DEALER_TERM }} groups ({{ dealer_badges }} badges, {{ tables }} tables)
+    <span class="pull-right"><a href="index?show_all=true#dealers" class="btn btn-info">Show Declined Dealers</a></span>
     <br/> <br/>
     {{ approved_tables }} approved tables / {{ waitlisted_tables }} waitlisted tables / {{ unapproved_tables }} unapproved tables
-  </div>
+  </div>  
 </div>
 
 <div class="table-responsive">
@@ -31,7 +32,7 @@
     </tr>
   </thead>
   <tbody>
-{% for group in groups if group.is_dealer %}
+{% for group in groups if group.is_dealer and (show_all or group.status != c.DECLINED) %}
     <tr>
         <td style="text-align:left" data-order="{{ group.name }}" data-search="{{ group.name }}"> <a href="form?id={{ group.id }}">{{ group.name|default('?????', boolean=True) }}</a> </td>
         <td>

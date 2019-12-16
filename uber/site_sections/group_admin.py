@@ -21,7 +21,7 @@ class Root:
                 's' if len(missing) > 1 else '')
         return ''
 
-    def index(self, session, message=''):
+    def index(self, session, message='', show_all=None):
         groups = session.viewable_groups().limit(c.ROW_LOAD_LIMIT)
         dealer_groups = [group for group in groups if group.is_dealer]
         return {
@@ -32,6 +32,7 @@ class Root:
             'dealer_groups':      len(dealer_groups),
             'dealer_badges':      sum(g.badges for g in dealer_groups),
             'tables':            sum(g.tables for g in dealer_groups),
+            'show_all': show_all,
             'unapproved_tables': sum(g.tables for g in dealer_groups if g.status == c.UNAPPROVED),
             'waitlisted_tables': sum(g.tables for g in dealer_groups if g.status == c.WAITLISTED),
             'approved_tables':   sum(g.tables for g in dealer_groups if g.status == c.APPROVED)

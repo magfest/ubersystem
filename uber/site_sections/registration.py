@@ -1072,7 +1072,7 @@ class Root:
     @log_pageview
     @attendee_view
     def attendee_history(self, session, id, **params):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         
         return {
             'attendee': attendee,
@@ -1088,7 +1088,7 @@ class Root:
     @attendee_view
     @cherrypy.expose(['shifts'])
     def attendee_shifts(self, session, id, **params):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         attrs = Shift.to_dict_default_attrs + ['worked_label']
         
         return_dict = {
@@ -1108,7 +1108,7 @@ class Root:
     @log_pageview
     @attendee_view
     def attendee_watchlist(self, session, id, **params):
-        attendee = session.attendee(id)
+        attendee = session.attendee(id, allow_invalid=True)
         return {
             'attendee': attendee,
             'active_entries': session.guess_attendee_watchentry(attendee, active=True),
