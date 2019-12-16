@@ -126,7 +126,7 @@ class Root:
                     _decline_and_convert_dealer_group(session, group)
                 message = 'All waitlisted {}s have been declined and converted to regular attendee badges'\
                     .format(c.DEALER_TERM)
-            raise HTTPRedirect('index?order=name&show=tables&message={}', message)
+            raise HTTPRedirect('../group_admin/index?message={}#dealers', message)
 
         return {'groups': query.all()}
 
