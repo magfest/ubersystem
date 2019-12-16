@@ -50,7 +50,7 @@ class Root:
             out.writerow(row)
 
     @multifile_zipfile
-    def export_guidebook_zip(self, zip_file, session, selected_model=None):
+    def export_guidebook_zip(self, zip_file, session, selected_model):
         model_list = _get_guidebook_models(session, selected_model).all()
 
         for model in model_list:
