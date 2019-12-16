@@ -227,7 +227,7 @@ form_link_site_sections = {}
 
 
 @JinjaEnv.jinja_filter
-def form_link(model):
+def form_link(model, new_window=False):
     if not model:
         return ''
 
@@ -254,7 +254,12 @@ def form_link(model):
     name = getattr(model, 'name', getattr(model, 'full_name', model))
 
     if site_section:
-        return safe_string('<a href="{}{}?id={}">{}</a>'.format(site_section, page, model.id, jinja2.escape(name)))
+        return safe_string('<a href="{}{}?id={}"{}>{}</a>'.format(
+                                                           site_section, 
+                                                           page, 
+                                                           model.id, 
+                                                           ' target="_blank"' if new_window else '',
+                                                           jinja2.escape(name)))
     return name
 
 
