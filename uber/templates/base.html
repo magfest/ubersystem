@@ -177,8 +177,9 @@
           try {
               // Replace the query parameter in the web browser's address bar
               if (history && history.replaceState) {
+                  var hash = window.location.hash;
                   var queryString = replaceQueryParam(queryParam, value);
-                  history.replaceState({}, document.title, window.location.pathname + queryString);
+                  history.replaceState({}, document.title, window.location.pathname + queryString + hash);
                   return true;
               }
           } catch(ex) {

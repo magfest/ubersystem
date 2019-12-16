@@ -63,7 +63,7 @@
 {% endif %}
 <script type="text/javascript">
   var unapprove = function(action, convert) {
-    if (!$.val("email")) {
+    if (!$.val("email_text")) {
       $("#setstatus").prepend('<div style="color:red">You must enter an email message.</div>');
     } else {
       $("button").attr("disabled", true);
@@ -72,10 +72,10 @@
         action: action,
         convert: convert,
         csrf_token: csrf_token,
-        email: $.val("email")
+        email_text: $.val("email_text")
       }, function(json) {
         if (json.message) {
-          window.location = "index?message="+ json.message;
+          window.location = "index?message="+ json.message + "#dealers";
         } else {
           $("#status").text("Waitlisted");
         }
