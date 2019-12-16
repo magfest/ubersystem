@@ -918,3 +918,4 @@ if c.API_ENABLED:
     register_jsonrpc(GuestLookup(), 'guest')
     register_jsonrpc(MivsLookup(), 'mivs')
     register_jsonrpc(HotelLookup(), 'hotel')
+    register_jsonrpc(ScheduleLookup(), 'schedule')
