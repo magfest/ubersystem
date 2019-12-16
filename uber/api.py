@@ -9,6 +9,7 @@ import six
 from cherrypy import HTTPError
 from dateutil import parser as dateparser
 from pockets import unwrap
+from time import mktime
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import subqueryload
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
@@ -18,7 +19,7 @@ from uber.config import c
 from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
 from uber.models import AdminAccount, ApiToken, Attendee, Department, DeptMembership, DeptMembershipRequest, \
-    IndieStudio, Job, Session, Shift, GuestGroup, Event
+    Event, IndieStudio, Job, Session, Shift, GuestGroup
 from uber.server import register_jsonrpc
 from uber.utils import check_csrf, normalize_newlines
 
