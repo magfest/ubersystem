@@ -70,3 +70,24 @@ class Root:
             'Contact Phone #',
             'Physical Address']
         out.writerows(header_row, rows)
+        
+    @xlsx_file
+    def waitlisted_group_info(self, out, session):
+        waitlisted_groups = session.query(Group).filter(Group.status == c.WAITLISTED).all()
+        rows = []
+        for group in waitlisted_groups:
+            if group.is_dealer:
+                rows.append([
+                    group.name,
+                    group.leader.full_name,
+                    group.leader.email,
+                    group.website,
+                    group.physical_address
+                ])
+        header_row = [
+            'Group Name',
+            'Group Leader Name',
+            'Group Leader Email',
+            'Website',
+            ]
+        out.writerows(header_row, rows)
