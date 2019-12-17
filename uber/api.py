@@ -827,7 +827,7 @@ class HotelLookup:
                 assignment = RoomAssignment()
             for attr in ['room_id', 'attendee_id']:
                 if attr in kwargs:
-                    setattr(assigment, attr, kwargs[attr])
+                    setattr(assignment, attr, kwargs[attr])
             session.add(assignment)
             session.commit()
             return assignment.to_dict()
