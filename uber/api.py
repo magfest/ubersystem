@@ -19,7 +19,7 @@ from uber.config import c
 from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
 from uber.models import AdminAccount, ApiToken, Attendee, Department, DeptMembership, DeptMembershipRequest, \
-    Event, IndieStudio, Job, Session, Shift, GuestGroup
+    Event, IndieStudio, Job, Session, Shift, GuestGroup, Room, HotelRequests, RoomAssignment
 from uber.server import register_jsonrpc
 from uber.utils import check_csrf, normalize_newlines
 
