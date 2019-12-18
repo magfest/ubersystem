@@ -1,6 +1,6 @@
 {{ attendee.first_name }},
 
-You're receiving space in one of our volunteer hotel rooms, which has a requirement of {{ c.HOTEL_REQ_HOURS }} weighted volunteer hours, and you're currently only signed up for {{ attendee.weighted_hours }} hours.
+You're receiving space in one of our volunteer hotel rooms, which has a requirement of {{ c.HOURS_FOR_HOTEL_SPACE }} weighted volunteer hours, and you're currently only signed up for {{ attendee.weighted_hours }} hours.
 
 You can log in to sign up for shifts at {{ c.URL_BASE }}/staffing/login?first_name={{ attendee.first_name|urlencode }}&last_name={{ attendee.last_name|urlencode }}&email={{ attendee.email|urlencode }}&zip_code={{ attendee.zip_code|urlencode }}
 

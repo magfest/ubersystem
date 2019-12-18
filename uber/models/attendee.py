@@ -914,7 +914,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def shirt_info_marked(self):
-        return self.shirt_size_marked
+        return self.shirt_size_marked if c.HOURS_FOR_SHIRT else True
 
     @property
     def is_group_leader(self):
@@ -1040,15 +1040,15 @@ class Attendee(MagModel, TakesPaymentMixin):
         Returns: Integer representing the number of free event shirts this attendee should get.
 
         """
-        return self.num_event_shirts if self.gets_staff_shirt else c.VOLUNTEER_RIBBON in self.ribbon_ints
+        return self.num_event_shirts if self.gets_staff_shirt else self.volunteer_event_shirt_eligible
 
     @property
     def volunteer_event_shirt_eligible(self):
-        return c.VOLUNTEER_RIBBON in self.ribbon_ints
+        return bool(c.VOLUNTEER_RIBBON in self.ribbon_ints and c.HOURS_FOR_SHIRT)
 
     @property
     def volunteer_event_shirt_earned(self):
-        return c.volunteer_event_shirt_eligible and (not self.takes_shifts or self.worked_hours >= c.HOURS_FOR_SHIRT)
+        return self.volunteer_event_shirt_eligible and (not self.takes_shifts or self.worked_hours >= c.HOURS_FOR_SHIRT)
 
     @property
     def num_event_shirts_owed(self):
@@ -1059,7 +1059,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def gets_staff_shirt(self):
-        return self.badge_type == c.STAFF_BADGE
+        return bool(self.badge_type == c.STAFF_BADGE and c.HOURS_FOR_SHIRT)
 
     @property
     def num_staff_shirts_owed(self):
@@ -1130,11 +1130,11 @@ class Attendee(MagModel, TakesPaymentMixin):
                     merch.append(items)
 
         if self.num_event_shirts_owed == 1 and not self.paid_for_a_shirt:
-            merch.append('a tshirt')
+            merch.append('A T-shirt')
         elif self.num_event_shirts_owed > 1:
-            merch.append('a 2nd tshirt')
+            merch.append('A 2nd T-Shirt')
 
-        if self.volunteer_shirt_eligible and not self.volunteer_event_shirt_earned:
+        if self.volunteer_event_shirt_eligible and not self.volunteer_event_shirt_earned:
             merch[-1] += (
                 ' (this volunteer must work at least {} hours or they will be reported for picking up their shirt)'
                     .format(c.HOURS_FOR_SHIRT))
@@ -1540,7 +1540,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def food_restrictions_filled_out(self):
-        return self.food_restrictions if c.STAFF_GET_FOOD else True
+        return self.food_restrictions if c.HOURS_FOR_FOOD else True
 
     @property
     def past_years_json(self):

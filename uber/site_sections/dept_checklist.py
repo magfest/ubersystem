@@ -315,7 +315,7 @@ class Root:
             .options(joinedload(Attendee.hotel_requests), subqueryload(Attendee.shifts).subqueryload(Shift.job)) \
             .order_by(Attendee.full_name).all()  # noqa: E712
 
-        return {'staffers': [s for s in staffers if s.hotel_shifts_required and s.weighted_hours < c.HOTEL_REQ_HOURS]}
+        return {'staffers': [s for s in staffers if s.hotel_shifts_required and s.weighted_hours < c.HOURS_FOR_HOTEL_SPACE]}
 
     def no_shows(self, session):
         room_assignments = session.query(RoomAssignment).options(
