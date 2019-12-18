@@ -1020,7 +1020,7 @@ class Session(SessionManager):
             if not group:
                 return None
 
-            return group.valid_codes[0]
+            return group.valid_codes[0] if group.valid_codes else None
 
         def lookup_promo_or_group_code(self, code, model=PromoCode):
             """

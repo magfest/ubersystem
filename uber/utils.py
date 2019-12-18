@@ -873,6 +873,10 @@ class Charge:
     @classproperty
     def unpaid_preregs(cls):
         return cherrypy.session.setdefault('unpaid_preregs', OrderedDict())
+    
+    @classproperty
+    def universal_promo_codes(cls):
+        return cherrypy.session.setdefault('universal_promo_codes', {})
 
     @classmethod
     def get_unpaid_promo_code_uses_count(cls, id, already_counted_attendee_ids=None):
