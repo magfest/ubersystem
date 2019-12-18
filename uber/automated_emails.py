@@ -555,7 +555,7 @@ if c.HOTELS_ENABLED:
         Attendee,
         'Reminder to meet your {EVENT_NAME} hotel room requirements',
         'hotel/hotel_hours.txt',
-        lambda a: a.hotel_shifts_required and a.weighted_hours < c.HOTEL_REQ_HOURS, sender=c.ROOM_EMAIL_SENDER,
+        lambda a: a.hotel_shifts_required and a.weighted_hours < c.HOURS_FOR_HOTEL_SPACE, sender=c.ROOM_EMAIL_SENDER,
         when=days_before(14, c.FINAL_EMAIL_DEADLINE, 7),
         ident='hotel_requirements_reminder')
 
@@ -563,7 +563,7 @@ if c.HOTELS_ENABLED:
         Attendee,
         'Final reminder to meet your {EVENT_NAME} hotel room requirements',
         'hotel/hotel_hours.txt',
-        lambda a: a.hotel_shifts_required and a.weighted_hours < c.HOTEL_REQ_HOURS, sender=c.ROOM_EMAIL_SENDER,
+        lambda a: a.hotel_shifts_required and a.weighted_hours < c.HOURS_FOR_HOTEL_SPACE, sender=c.ROOM_EMAIL_SENDER,
         when=days_before(7, c.FINAL_EMAIL_DEADLINE),
         ident='hotel_requirements_reminder_last_chance')
 
