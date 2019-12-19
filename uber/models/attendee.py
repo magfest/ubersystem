@@ -502,7 +502,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             if self.paid == c.NOT_PAID:
                 self.paid = c.NEED_NOT_PAY
         else:
-            if self.volunteering_badge_or_ribbon:
+            if self.volunteering_badge_or_ribbon and self.is_new:
                 self.staffing = True
 
         if not self.is_new:
