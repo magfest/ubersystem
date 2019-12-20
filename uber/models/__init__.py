@@ -1391,8 +1391,6 @@ class Session(SessionManager):
                         paid=paid,
                         **extra_create_args)
                     group.attendees.append(new_attendee)
-                    if not self.admin_can_create_attendee(new_attendee):
-                        new_attendee.badge_status = c.PENDING_STATUS
                     
             elif diff < 0:
                 if len(group.floating) < abs(diff):

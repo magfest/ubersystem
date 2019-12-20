@@ -56,12 +56,16 @@ class Root:
                 if group.is_new and params.get('group_type'):
                     group.auto_recalc = False
                 session.add(group)
-                new_ribbon = c.BAND if params.get('group_type') == str(c.BAND) else None
+                new_ribbon = params.get('ribbon', c.BAND if params.get('group_type') == str(c.BAND) else None)
+                new_badge_type = params.get('badge_type', c.ATTENDEE_BADGE)
+                test_permissions = Attendee(badge_type=new_badge_type, ribbon=new_ribbon, paid=c.PAID_BY_GROUP)
+                new_badge_status = c.PENDING_STATUS if not self.admin_can_create_attendee(test_permissions) else c.NEW_STATUS
                 message = session.assign_badges(
                     group,
                     int(params.get('badges', 0)) or int(new_with_leader),
-                    new_badge_type=params.get('badge_type', c.ATTENDEE_BADGE),
-                    new_ribbon_type=params.get('ribbon', new_ribbon),
+                    new_badge_type=new_ribbon,
+                    new_ribbon_type=new_badge_type,
+                    badge_status=new_badge_status,
                     )
 
             if not message:
