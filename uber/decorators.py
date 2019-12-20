@@ -86,18 +86,7 @@ def check_if_can_reg(func):
                 return render('static_views/dealer_reg_closed.html')
             else:
                 return render('static_views/dealer_reg_not_open.html')
-        elif c.ATTENDEE_BADGES_SOLD >= c.MAX_BADGE_SALES:
-            # ===============================================================
-            # TODO: MAKE THIS COMPARE THE SPECIFIC BADGE TYPE AGAINST OUR
-            # STOCKS OF THAT TYPE. LUMPING ALL THE BADGE TYPES TOGETHER
-            # AND COMPARING AGAINST A SINGLE NUMBER DOESN'T MAKE SENSE,
-            # BECAUSE WE HAVE DIFFERENT NUMBERS OF PHYSICAL BADGES FOR EACH
-            # BADGE TYPE.
-            #
-            # FOR NOW, THIS IS COOL, BECAUSE THE ONLY BADGE TYPE WE ARE
-            # WORRIED ABOUT SELLING OUT IS ATTENDEE_BADGE. BUT THAT MAY NOT
-            # ALWAYS BE THE CASE.
-            # ===============================================================
+        elif not c.ATTENDEE_BADGE_AVAILABLE:
             return render('static_views/prereg_soldout.html')
         elif c.BEFORE_PREREG_OPEN and not is_dealer_reg:
             return render('static_views/prereg_not_yet_open.html')

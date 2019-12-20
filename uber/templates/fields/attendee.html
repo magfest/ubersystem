@@ -17,7 +17,7 @@
       <div class="form-group row">
         <p class="col-sm-9 col-sm-offset-3">
           <strong> You are on a development box.
-            {% if c.BADGES_SOLD >= c.MAX_BADGE_SALES %}
+            {% if not c.ATTENDEE_BADGE_AVAILABLE %}
               Otherwise, you would be automatically redirected to <a href="../static_views/prereg_soldout.html">the "badges sold out" page</a>.
             {% elif c.BEFORE_PREREG_OPEN %}
               Otherwise, you would be automatically redirected to <a href="../static_views/prereg_not_yet_open.html">the "prereg not yet open" page</a>.
