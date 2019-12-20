@@ -1224,30 +1224,16 @@ class Attendee(MagModel, TakesPaymentMixin):
         job_filters = [Job.is_unfilled]
 
         member_dept_ids = set(d.department_id for d in self.dept_memberships)
-        requested_dept_ids = set(d.department_id for d in self.dept_membership_requests).difference(member_dept_ids)
         member_filter = Job.department_id.in_(member_dept_ids) if member_dept_ids else None
 
         max_depts = c.MAX_DEPTS_WHERE_WORKING
         no_max = max_depts < 1
 
-        requested_filter = None
-        if requested_dept_ids:
-            requested_any_dept = None in requested_dept_ids
+        requested_filter = Job.visibility > Job._ONLY_MEMBERS
 
-            if requested_any_dept:
-                requested_filter = Job.visibility > Job._ONLY_MEMBERS
-            elif requested_dept_ids:
-                depts_where_working = set(j.department_id for j in self.jobs)
-                if len(depts_where_working) >= max_depts and not no_max:
-                    requested_dept_ids = depts_where_working.difference(member_dept_ids)
-
-                requested_filter = and_(Job.visibility > Job._ONLY_MEMBERS, Job.department_id.in_(requested_dept_ids))
-
-        if member_filter is not None and requested_filter is not None:
+        if member_filter is not None:
             job_filters += [or_(member_filter, requested_filter)]
-        elif member_filter is not None:
-            job_filters += [member_filter]
-        elif requested_filter is not None:
+        else:
             job_filters += [requested_filter]
         return job_filters
 
