@@ -869,7 +869,7 @@ class Root:
 
     @public
     @credit_card
-    def arbitrary_charge(self, session, payment_id, stripeToken):
+    def arbitrary_charge(self, session, payment_id, stripeToken, return_to='new'):
         charge = Charge.get(payment_id)
         message = charge.charge_cc(session, stripeToken)
         if message:
