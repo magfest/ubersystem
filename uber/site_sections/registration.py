@@ -813,9 +813,6 @@ class Root:
 
     @ajax
     def mark_as_paid(self, session, id, payment_method):
-        if cherrypy.session.get('reg_station') == 0:
-            return {'success': False, 'message': 'Reg station 0 is for prereg only and may not accept payments'}
-
         attendee = session.attendee(id)
         attendee.paid = c.HAS_PAID
         if int(payment_method) == c.STRIPE_ERROR:
@@ -823,7 +820,7 @@ class Root:
         attendee.payment_method = payment_method
         attendee.amount_paid_override = attendee.total_cost
         session.add_receipt_items_by_model(None, attendee, payment_method)
-        attendee.reg_station = cherrypy.session.get('reg_station', 1)
+        attendee.reg_station = cherrypy.session.get('reg_station', 0)
         session.commit()
         return {'success': True, 'message': 'Attendee marked as paid.', 'id': attendee.id}
 
