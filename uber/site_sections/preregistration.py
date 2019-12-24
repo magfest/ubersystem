@@ -38,6 +38,25 @@ def check_post_con(klass):
             setattr(klass, name, wrapper(method))
     return klass
 
+def check_prereg_promo_code(session, attendee):
+    """
+    Prevents double-use of promo codes if two people have the same promo code in their cart but only one use is remaining.
+    If the attendee originally entered a 'universal' group code, which we track via Charge.universal_promo_codes,
+    we instead try to find a different valid code and only throw an error if there are none left.
+    """
+    promo_code = session.query(PromoCode).filter(PromoCode.id==attendee.promo_code_id).with_for_update().one()
+    
+    if not promo_code.is_unlimited and not promo_code.uses_remaining:
+        universal_code = Charge.universal_promo_codes.get(attendee.id)
+        if universal_code:
+            message = session.add_promo_code_to_attendee(attendee, universal_code)
+            if message:
+                return "There are no more badges left in the group {} is trying to claim a badge in.".format(attendee.full_name)
+            return ""
+        attendee.promo_code_id = None
+        session.commit()
+        return "The promo code you're using for {} has been used too many times.".format(attendee.full_name)
+
 
 @all_renderable(public=True)
 @check_post_con
@@ -171,6 +190,8 @@ class Root:
             if not message and attendee.badge_type not in c.PREREG_BADGE_TYPES:
                 message = 'Invalid badge type!'
             if not message and c.BADGE_PROMO_CODES_ENABLED and params.get('promo_code'):
+                if session.lookup_promo_or_group_code(params.get('promo_code'), PromoCodeGroup):
+                    Charge.universal_promo_codes[attendee.id] = params.get('promo_code')
                 message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
 
         if message:
@@ -347,14 +368,21 @@ class Root:
         charge = Charge(listify(Charge.unpaid_preregs.values()))
         if charge.total_cost <= 0:
             for attendee in charge.attendees:
-                session.add(attendee)
+                message = check_prereg_promo_code(session, attendee)
+                
+                if message:
+                    session.rollback()
+                    raise HTTPRedirect('index?message={}', message)
+                else:
+                    session.add(attendee)
 
             for group in charge.groups:
                 session.add(group)
-
-            Charge.unpaid_preregs.clear()
-            Charge.paid_preregs.extend(charge.targets)
-            raise HTTPRedirect('paid_preregistrations?payment_received={}', charge.dollar_amount)
+                
+            else:
+                Charge.unpaid_preregs.clear()
+                Charge.paid_preregs.extend(charge.targets)
+                raise HTTPRedirect('paid_preregistrations?payment_received={}', charge.dollar_amount)
         else:
             message = "These badges aren't free! Please pay for them."
             raise HTTPRedirect('index?message={}', message)
@@ -372,7 +400,12 @@ class Root:
             message = 'Our preregistration price has gone up; ' \
                 'please fill out the payment form again at the higher price'
         else:
-            message = charge.charge_cc(session, stripeToken)
+            for attendee in charge.attendees:
+                if not message:
+                    message = check_prereg_promo_code(session, attendee)
+            
+            if not message:
+                message = charge.charge_cc(session, stripeToken)
 
         if message:
             raise HTTPRedirect('index?message={}', message)
