@@ -81,7 +81,7 @@ class Root:
 
     def check_prereg(self):
         return json.dumps({
-            'force_refresh': not c.AT_THE_CON and (c.AFTER_PREREG_TAKEDOWN or c.BADGES_SOLD >= c.MAX_BADGE_SALES)})
+            'force_refresh': not c.AT_THE_CON and (c.AFTER_PREREG_TAKEDOWN or not c.ATTENDEE_BADGE_AVAILABLE)})
 
     def check_if_preregistered(self, session, message='', **params):
         if 'email' in params:

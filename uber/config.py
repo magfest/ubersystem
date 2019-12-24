@@ -232,12 +232,19 @@ class Config(_Overridable):
 
     @request_cached_property
     @dynamic
-    def ATTENDEE_BADGES_SOLD(self):
+    def ATTENDEE_BADGE_COUNT(self):
+        """
+        c.ATTENDEE_BADGE_COUNT is already provided via getattr, but redefining it here lets us cache it per request.
+        """
         return self.get_badge_count_by_type(c.ATTENDEE_BADGE)
 
     @request_cached_property
     @dynamic
     def BADGES_SOLD(self):
+        """
+        The number of badges that we've sold, including all badge types and promo code groups' badges.
+        This is used for bucket-based pricing and to estimate year-over-year sales.
+        """
         from uber.models import Session, Attendee, Group, PromoCode, PromoCodeGroup
         if self.BADGES_SOLD_ESTIMATE_ENABLED:
             with Session() as session:
@@ -274,10 +281,7 @@ class Config(_Overridable):
 
         if current_price_tier != -1 and c.ORDERED_PRICE_LIMITS[current_price_tier] == c.ORDERED_PRICE_LIMITS[-1] \
                 or not c.ORDERED_PRICE_LIMITS:
-            if c.MAX_BADGE_SALES:
-                difference = c.MAX_BADGE_SALES - c.BADGES_SOLD
-            else:
-                return -1
+            return -1
         else:
             for key, val in c.PRICE_LIMITS.items():
                 if c.ORDERED_PRICE_LIMITS[current_price_tier+1] == val:
@@ -649,7 +653,7 @@ class Config(_Overridable):
     @property
     @dynamic
     def REMAINING_BADGES(self):
-        return max(0, self.MAX_BADGE_SALES - self.BADGES_SOLD)
+        return max(0, self.ATTENDEE_BADGE_STOCK - self.ATTENDEE_BADGE_COUNT)
 
     @request_cached_property
     @dynamic
