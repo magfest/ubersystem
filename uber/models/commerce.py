@@ -114,6 +114,7 @@ class ReceiptItem(MagModel):
     fk_id = Column(UUID, nullable=True)
     model = Column(UnicodeText)
     txn_type = Column(Choice(c.TRANSACTION_TYPE_OPTS), default=c.PAYMENT)
+    payment_method = Column(Choice(c.PAYMENT_METHOD_OPTS), default=c.STRIPE)
     item_type = Column(Choice(c.RECEIPT_ITEM_OPTS), default=c.OTHER)
     amount = Column(Integer)
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))

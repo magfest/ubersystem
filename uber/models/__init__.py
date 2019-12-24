@@ -887,20 +887,24 @@ class Session(SessionManager):
 
                 return '', response
 
-        def add_receipt_items_by_model(self, charge, model):
+        def add_receipt_items_by_model(self, charge, model, payment_method=c.STRIPE):
             for amount, desc, item_type in getattr(model, 'receipt_items_breakdown'):
                 if amount:
                     if "Promo code group" in desc:
                         desc = desc.format(getattr(model, 'name', ''), int(getattr(model, 'badges', 0)) - 1)
 
-                    item = self.create_receipt_item(model, amount, desc, charge.stripe_transaction, item_type)
+                    item = self.create_receipt_item(model, amount, desc, 
+                                                    charge.stripe_transaction if charge else None, 
+                                                    item_type, payment_method=payment_method)
                     self.add(item)
 
-        def create_receipt_item(self, model, amount, desc, stripe_txn=None, item_type=c.OTHER, txn_type=c.PAYMENT):
+        def create_receipt_item(self, model, amount, desc, 
+                                stripe_txn=None, item_type=c.OTHER, txn_type=c.PAYMENT, payment_method=c.STRIPE):
             item = ReceiptItem(
                 txn_id=stripe_txn.id if stripe_txn else None,
                 txn_type=txn_type,
                 item_type=item_type,
+                payment_method=payment_method,
                 amount=amount,
                 who=getattr(model, 'full_name', getattr(model, 'name', '')),
                 when=stripe_txn.when if stripe_txn else datetime.now(UTC),

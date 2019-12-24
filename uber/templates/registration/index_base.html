@@ -55,8 +55,6 @@
 
     <div class="col-sm-6 col-md-8">
         <a class="btn btn-primary" href="form?id=None">Add an attendee</a>
-        <a class="btn btn-default" {% if not c.AT_THE_CON %}disabled="disabled"{% endif %}
-           href="new">View Recent At-the-Door Registrations</a>
 
         {% if invalid  %}
             <a class="btn btn-info" href="index?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode }}">Hide invalid badges</a>
@@ -167,7 +165,7 @@
                         <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
                     {% else %}
                         <td id="cin_{{ attendee.id }}">
-                            <button class="attendee-checkin" data-attendee-id="{{ attendee.id }}">Check In</button>
+                            <button class="attendee-checkin btn-sm btn-success" data-attendee-id="{{ attendee.id }}" onClick="loadCheckInModal('{{ attendee.id }}')">Check In</button>
                         </td>
                     {% endif %}
                 {% endif %}

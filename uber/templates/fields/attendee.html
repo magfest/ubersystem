@@ -1535,18 +1535,18 @@ $(window).on("runJavaScript", function(){
 
 {% set payment_method %}
 {% set read_only = payment_method_ro or page_ro %}
-{% if admin_area and attendee.payment_method %}
+{% if admin_area and (attendee.payment_method or c.AT_THE_CON) %}
   <div class="form-group">
     <label for="payment_method" class="col-sm-3 control-label">Payment Method</label>
     {% call macros.read_only_if(read_only, attendee.payment_method) %}
     <div class="col-sm-3">
       <select id="payment_method" name="payment_method" class="form-control">
-        {{ options(c.NEW_REG_PAYMENT_METHOD_OPTS,attendee.payment_method) }}
+        {{ options(c.PAYMENT_METHOD_OPTS,attendee.payment_method) }}
       </select>
     </div>
   {% endcall %}
   </div>
-{% elif c.AT_THE_CON %}
+{% elif not admin_area and c.AT_THE_CON %}
   <script type="text/javascript">
       var maybeBold = function() {
           var $emailLabel = $('#email').parents('.form-group').find('label');
