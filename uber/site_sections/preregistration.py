@@ -369,14 +369,16 @@ class Root:
         if charge.total_cost <= 0:
             for attendee in charge.attendees:
                 message = check_prereg_promo_code(session, attendee)
-                session.add(attendee)
+                
+                if message:
+                    session.rollback()
+                    raise HTTPRedirect('index?message={}', message)
+                else:
+                    session.add(attendee)
 
             for group in charge.groups:
                 session.add(group)
                 
-            if message:
-                session.rollback()
-                raise HTTPRedirect('index?message={}', message)
             else:
                 Charge.unpaid_preregs.clear()
                 Charge.paid_preregs.extend(charge.targets)
@@ -399,7 +401,8 @@ class Root:
                 'please fill out the payment form again at the higher price'
         else:
             for attendee in charge.attendees:
-                message = check_prereg_promo_code(session, attendee)
+                if not message:
+                    message = check_prereg_promo_code(session, attendee)
             
             if not message:
                 message = charge.charge_cc(session, stripeToken)
