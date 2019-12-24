@@ -364,7 +364,7 @@ class Root:
             'id': id
         }
 
-    def process_free_prereg(self, session):
+    def process_free_prereg(self, session, message=''):
         charge = Charge(listify(Charge.unpaid_preregs.values()))
         if charge.total_cost <= 0:
             for attendee in charge.attendees:
