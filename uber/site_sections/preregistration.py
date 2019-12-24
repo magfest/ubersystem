@@ -368,7 +368,8 @@ class Root:
         charge = Charge(listify(Charge.unpaid_preregs.values()))
         if charge.total_cost <= 0:
             for attendee in charge.attendees:
-                message = check_prereg_promo_code(session, attendee)
+                if attendee.promo_code_id:
+                    message = check_prereg_promo_code(session, attendee)
                 
                 if message:
                     session.rollback()
@@ -388,7 +389,7 @@ class Root:
             raise HTTPRedirect('index?message={}', message)
 
     @credit_card
-    def prereg_payment(self, session, payment_id=None, stripeToken=None):
+    def prereg_payment(self, session, payment_id=None, stripeToken=None, message=''):
         if not payment_id or not stripeToken or c.HTTP_METHOD != 'POST':
             message = 'The payment was interrupted. Please check below to ensure you received your badge.'
             raise HTTPRedirect('paid_preregistrations?message={}', message)
@@ -401,7 +402,7 @@ class Root:
                 'please fill out the payment form again at the higher price'
         else:
             for attendee in charge.attendees:
-                if not message:
+                if not message and attendee.promo_code_id:
                     message = check_prereg_promo_code(session, attendee)
             
             if not message:
