@@ -239,6 +239,11 @@ class Root:
     @check_shutdown
     @ajax
     def drop(self, session, job_id):
+        if c.AFTER_DROP_SHIFTS_DEADLINE:
+            return {
+                'error': "You can no longer drop shifts.",
+                'jobs': session.jobs_for_signups()
+            }
         try:
             shift = session.shift(job_id=job_id, attendee_id=session.logged_in_volunteer().id)
             session.delete(shift)
