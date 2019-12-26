@@ -776,6 +776,14 @@ if c.MIVS_ENABLED:
         ident='mivs_checklist_update_selling_information'
     )
 
+
+    MIVSGuestEmailFixture(
+        'New {EVENT_NAME} MIVS Checklist Item: MIVS Training',
+        'mivs/checklist/new_update_training_information.txt',
+        lambda mg: True,
+        ident='mivs_checklist_update_training_information'
+    )
+
     for key, val in c.MIVS_CHECKLIST.items():
         if val['start']:
             MIVSGuestEmailFixture(
