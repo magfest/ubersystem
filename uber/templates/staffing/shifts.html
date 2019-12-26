@@ -54,6 +54,12 @@
     <br><br>
     You are assigned to the following department{{ assigned_depts_labels|length|pluralize }}: {{ assigned_depts_labels|join(' / ') }}.
     <br>
+    {% if c.AFTER_DROP_SHIFTS_DEADLINE %}
+    You can <b>no longer drop shifts</b>, as the deadline for doing so has passed.
+    <br/>
+    {% else %}
+    You can drop shifts until <b>{{ c.DROP_SHIFTS_DEADLINE|datetime_local }}</b>. <br/>
+    {% endif %}
     {% if has_public_jobs %}
       <br>
       Some of the listed jobs are in departments you are not assigned to
@@ -198,6 +204,12 @@
                     buttonTag += 'Sign up';
                 }
                 buttonTag += '</a>';
+
+                {% if c.AFTER_DROP_SHIFTS_DEADLINE %}
+                if (event.taken) {
+                  buttonTag = ''
+                }
+                {% endif %}
 
                 if(event.is_public_to_volunteer) {
                   element.find('.fc-list-item-title').append($('<sup class="text-public"> public</sup>'));
