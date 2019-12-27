@@ -20,8 +20,10 @@
       {{ attendee_fields.badge_printed_name }}
       {{ attendee_fields.shirt_size }}
       {{ attendee_fields.extra_donation }}
-      {{ attendee_fields.staffing }}
-      {{ attendee_fields.job_interests }}
+      {% if not must_be_staffing %}
+        {{ attendee_fields.staffing }}
+        {{ attendee_fields.job_interests }}
+      {% endif %}
       {{ attendee_fields.age }}
       {{ attendee_fields.email }}
       {{ attendee_fields.address }}
