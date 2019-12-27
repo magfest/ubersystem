@@ -4,9 +4,9 @@
   <h3>MIVS Training</h3>
   <p>MIVS Training is a google form to help you learn about being an Indie at MAGFest. Once you have completed the form, a secret phrase will be shown that you must put in below to complete this checklist item.</p>
 
-  <p>You can reference the <a href="https://docs.google.com/document/d/14DX4wMIBWiAKmqcgV4GwoQo2FAwinYfoEWizrVeSTtQ/edit?usp=sharing" target="_handbook">(MIVS Indie Handbook)</a> during Training.</p>
+  <p>You can reference the <a href="{{ c.MIVS_HANDBOOK_URL }}" target="_blank">(MIVS Indie Handbook)</a> during Training.</p>
 
-  <p><a href="https://docs.google.com/forms/d/e/1FAIpQLSf9mW5xIqxUqVrJMtdL6keQwx-XAosW52g0nebL_qirGKXnvA/viewform?usp=sf_link" target="_training">(Begin MIVS Training)</a></p>
+  <p><a href="{{ c.MIVS_TRAINING_URL }}" target="_blank">(Begin MIVS Training)</a></p>
 
   <form class="form form-horizontal" method="post" action="mivs_training">
   <input type="hidden" name="guest_id" value="{{ guest.id }}"/>
