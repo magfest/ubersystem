@@ -598,6 +598,12 @@ class Root:
         # Safe to ignore csrf tokens here, because an attacker would need to know the group id a priori
         group = session.group(group_id, ignore_csrf=True)
         attendee = session.attendee(params, restricted=True, ignore_csrf=True)
+        must_be_staffing = False
+        
+        if group.unassigned[0].staffing:
+            must_be_staffing = True
+            attendee.staffing = True
+            params['staffing'] = True
 
         message = check_pii_consent(params, attendee) or message
         if not message and 'first_name' in params:
@@ -644,7 +650,8 @@ class Root:
             'group': group,
             'attendee': attendee,
             'affiliates': session.affiliates(),
-            'badge_cost': 0
+            'badge_cost': 0,
+            'must_be_staffing': must_be_staffing,
         }
 
     @credit_card
