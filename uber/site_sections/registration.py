@@ -109,7 +109,8 @@ class Root:
             'order':          Order(order),
             'attendee_count': total_count,
             'checkin_count':  session.query(Attendee).filter(Attendee.checked_in != None).count(),
-            'attendee':       session.attendee(uploaded_id, allow_invalid=True) if uploaded_id else None
+            'attendee':       session.attendee(uploaded_id, allow_invalid=True) if uploaded_id else None,
+            'reg_station':    cherrypy.session.get('reg_station', ''),
         }  # noqa: E711
 
     @log_pageview
@@ -190,7 +191,7 @@ class Root:
                 group_id: unassigned
                 for group_id, unassigned in session.query(Attendee.group_id, func.count('*')).filter(
                     Attendee.group_id != None, Attendee.first_name == '').group_by(Attendee.group_id).all()},
-            'Charge': Charge,
+            'Charge': Charge if cherrypy.session.get('reg_station') else None,
         }  # noqa: E711
 
     def change_badge(self, session, id, message='', **params):
@@ -400,7 +401,7 @@ class Root:
 
     @ajax
     def record_sale(self, session, badge_num=None, **params):
-        params['reg_station'] = cherrypy.session.get('reg_station') or 0
+        params['reg_station'] = cherrypy.session.get('reg_station', 0)
         sale = session.sale(params)
         message = check(sale)
         if not message and badge_num is not None:
@@ -797,22 +798,24 @@ class Root:
             'Charge': Charge
         }  # noqa: E711
 
-    def new_reg_station(self, reg_station='', message=''):
-        if reg_station:
-            if not reg_station.isdigit() or not (0 <= int(reg_station) < 100):
-                message = 'Reg station must be a positive integer between 0 and 100'
+    def set_reg_station(self, reg_station='', message=''):
+        if not reg_station:
+            message = "Please enter a number for this reg station"
+            
+        if not message and not reg_station.isdigit() or not (0 <= int(reg_station) < 100):
+            message = "Reg station must be a positive integer between 0 and 100"
 
-            if not message:
-                cherrypy.session['reg_station'] = int(reg_station)
-                raise HTTPRedirect('new?message={}', 'Reg station number recorded')
-
-        return {
-            'message': message,
-            'reg_station': reg_station
-        }
+        if not message:
+            cherrypy.session['reg_station'] = int(reg_station)
+            message = "Reg station number recorded"
+            
+        raise HTTPRedirect('index?message={}', message)
 
     @ajax
     def mark_as_paid(self, session, id, payment_method):
+        if not cherrypy.session.get('reg_station'):
+            return {'success': False, 'message': 'Payments can only be taken by at-door stations.'}
+        
         attendee = session.attendee(id)
         attendee.paid = c.HAS_PAID
         if int(payment_method) == c.STRIPE_ERROR:
@@ -820,7 +823,7 @@ class Root:
         attendee.payment_method = payment_method
         attendee.amount_paid_override = attendee.total_cost
         session.add_receipt_items_by_model(None, attendee, payment_method)
-        attendee.reg_station = cherrypy.session.get('reg_station', 0)
+        attendee.reg_station = cherrypy.session.get('reg_station')
         session.commit()
         return {'success': True, 'message': 'Attendee marked as paid.', 'id': attendee.id}
 

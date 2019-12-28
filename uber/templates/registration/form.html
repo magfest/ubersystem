@@ -123,7 +123,11 @@
 {% if c.AT_THE_CON and attendee.amount_unpaid %}
 <div class="alert alert-warning center" role="alert" id="payment-warning">
 <h4>{{ attendee.full_name }} currently owes <strong>${{ '%0.2f' % attendee.amount_unpaid }}</strong>.</h4>
+{% if Charge %}
 {{ stripe_form('manual_reg_charge', Charge(attendee)) }}
+{% else %}
+Please instruct them to pay at an at-door or manager station.
+{% endif %}
 </div>
 <iframe id="stripe_frame" name="stripe_frame" style="display:none"></iframe>
 <script type="text/javascript">
