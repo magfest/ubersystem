@@ -217,12 +217,16 @@ class Root:
         }
 
     def promo_code_groups(self, session, message=''):
+        used_counts = {}
         groups = session.query(PromoCodeGroup).options(
                                                 joinedload(PromoCodeGroup.buyer),
                                                 joinedload(PromoCodeGroup.promo_codes)
                                                 ).order_by(PromoCodeGroup.name).all()
+        for group in groups:
+            used_counts[group.id] = session.query(PromoCode.id).filter(PromoCode.group_id == group.id, PromoCode.used_by).count()
         return {
             'groups': groups,
+            'used_counts': used_counts,
             'message': message,
         }
 

@@ -27,7 +27,7 @@
           </td>
           <td>{{ group.code }}</td>
           <td>{{ group.promo_codes|length }}</td>
-          <td>{{ group.promo_codes|length - group.valid_codes|length }}</td>
+          <td>{{ used_counts[group.id] }}</td>
           <td>{{ group.total_cost }}</td>
           <td>{{ group.buyer.amount_unpaid }}</td>
         </tr>
