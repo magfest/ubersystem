@@ -17,8 +17,8 @@ from uber.decorators import ajax, all_renderable, attendee_view, check_for_encry
     csrf_protected, department_id_adapter, log_pageview, render, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.models import ArbitraryCharge, Attendee, Department, Email, Group, Job, MerchDiscount, MerchPickup, \
-    MPointsForCash, NoShirt, OldMPointExchange, PageViewTracking, PromoCodeGroup, Sale, Session, Shift, Tracking, \
-    WatchList
+    MPointsForCash, NoShirt, OldMPointExchange, PageViewTracking, PromoCode, PromoCodeGroup, Sale, Session, Shift, \
+    Tracking, WatchList
 from uber.utils import add_opt, check, check_csrf, check_pii_consent, Charge, get_page, hour_day_format, \
     localized_now, Order
 
@@ -217,7 +217,10 @@ class Root:
         }
 
     def promo_code_groups(self, session, message=''):
-        groups = session.query(PromoCodeGroup).options(joinedload('buyer')).order_by(PromoCodeGroup.name).all()
+        groups = session.query(PromoCodeGroup).options(
+                                                joinedload(PromoCodeGroup.buyer),
+                                                joinedload(PromoCodeGroup.promo_codes)
+                                                ).order_by(PromoCodeGroup.name).all()
         return {
             'groups': groups,
             'message': message,
