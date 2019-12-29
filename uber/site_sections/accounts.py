@@ -177,10 +177,21 @@ class Root:
     def homepage(self, session, message=''):
         if not cherrypy.session.get('account_id'):
             raise HTTPRedirect('login?message={}', 'You are not logged in')
-        attendees = session.viewable_attendees().limit(c.ROW_LOAD_LIMIT)
+        
         return {
-            'attendees': attendees.all(),
-            'message': message
+            'message': message,
+            'site_sections': [key for key in session.access_query_matrix().keys() if getattr(c, 'HAS_' + key.upper() + '_ACCESS')]
+            }
+        
+    @public
+    def attendees(self, session, query=''):
+        if not cherrypy.session.get('account_id'):
+            raise HTTPRedirect('login?message={}', 'You are not logged in')
+        
+        attendees = session.access_query_matrix()[query].limit(c.ROW_LOAD_LIMIT).all() if query else None
+        
+        return {
+            'attendees': attendees,
             }
 
     @public
