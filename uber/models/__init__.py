@@ -730,24 +730,22 @@ class Session(SessionManager):
                 )
             
             return subqueries[0].union(*subqueries[1:])
-            
-        def viewable_attendees(self):
-            from uber.models import Attendee, DeptMembership, Group, GuestGroup, MITSApplicant
+        
+        def access_query_matrix(self):
+            """
+            There's a few different situations where we want to add certain subqueries based on
+            different site sections. This matrix returns queries keyed by site section.
+            """
             admin = self.current_admin_account()
-            
-            if admin.full_registration_admin:
-                return self.query(Attendee)
-            
-            subqueries = [self.query(Attendee).filter(
-                or_(Attendee.creator == admin.attendee, Attendee.id == admin.attendee.id))]
-            
+            return_dict = {'created': self.query(Attendee).filter(
+                or_(Attendee.creator == admin.attendee, Attendee.id == admin.attendee.id))}
+            # Guest groups
             for group_type, badge_and_ribbon_filter in [
                 (c.BAND, and_(Attendee.badge_type == c.GUEST_BADGE, Attendee.ribbon.contains(c.BAND))),
                 (c.GUEST, and_(Attendee.badge_type == c.GUEST_BADGE, ~Attendee.ribbon.contains(c.BAND)))
                 ]:
-                if c.GROUP_TYPES[group_type].lower() + '_admin' in admin.read_or_write_access_set:
-                    subqueries.append(
-                        self.query(Attendee).join(Group, Attendee.group_id == Group.id)
+                return_dict[c.GROUP_TYPES[group_type].lower() + '_admin'] = (
+                    self.query(Attendee).join(Group, Attendee.group_id == Group.id)
                         .join(GuestGroup, Group.id == GuestGroup.group_id).filter(
                             or_(
                                 or_(
@@ -760,36 +758,34 @@ class Session(SessionManager):
                                 )
                             )
                         )
-                    )
+                )
                 
-            if 'panels_admin' in admin.read_or_write_access_set:
-                subqueries.append(
-                    self.query(Attendee).filter(Attendee.ribbon.contains(c.PANELIST_RIBBON))
-                )
-            
-            if 'dealer_admin' in admin.read_or_write_access_set:
-                subqueries.append(
-                    self.query(Attendee).join(Group, Attendee.group_id == Group.id).filter(Attendee.is_dealer)
-                )
-            
-            if 'mits_admin' in admin.read_or_write_access_set:
-                subqueries.append(
-                    self.query(Attendee).join(MITSApplicant).filter(Attendee.mits_applicants)
-                )
-
-            if 'mivs_admin' in admin.read_or_write_access_set:
-                subqueries.append(
-                    self.query(Attendee).join(Group, Attendee.group_id == Group.id)
+            return_dict['panels_admin'] = self.query(Attendee).filter(Attendee.ribbon.contains(c.PANELIST_RIBBON))
+            return_dict['dealer_admin'] = self.query(Attendee).join(Group, Attendee.group_id == Group.id).filter(Attendee.is_dealer)
+            return_dict['mits_admin'] = self.query(Attendee).join(MITSApplicant).filter(Attendee.mits_applicants)
+            return_dict['mivs_admin'] = (self.query(Attendee).join(Group, Attendee.group_id == Group.id)
                     .join(GuestGroup, Group.id == GuestGroup.group_id).filter(
                         and_(Group.id == Attendee.group_id, GuestGroup.group_id == Group.id, GuestGroup.group_type == c.MIVS)
-                    )
-                )
+                    ))
+            return return_dict
             
-            if 'shifts_admin' in admin.read_or_write_access_set:
-                if admin.full_shifts_admin:
-                    subqueries.append(
-                        self.query(Attendee).filter(Attendee.staffing)
-                    )
+        def viewable_attendees(self):
+            from uber.models import Attendee, DeptMembership, Group, GuestGroup, MITSApplicant
+            admin = self.current_admin_account()
+            
+            if admin.full_registration_admin:
+                return self.query(Attendee)
+            
+            subqueries = access_query_matrix()['created']
+            
+            for key, val in self.access_query_matrix:
+                if key in admin.read_or_write_access_set:
+                    subqueries.append(val)
+            
+            if admin.full_shifts_admin:
+                subqueries.append(
+                    self.query(Attendee).filter(Attendee.staffing)
+                )
             
             return subqueries[0].union(*subqueries[1:])
 

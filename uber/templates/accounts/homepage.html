@@ -4,52 +4,34 @@
 <div class="panel panel-body">
 <a href="#attendee_form?id=None" class="btn btn-primary">Add new attendee</a>
 {% if c.HAS_SHIFTS_ADMIN_ACCESS %}
-<a class="btn btn-info" href="../shifts_admin/staffers?department=All">View volunteers in your department(s)</a></p>
+<a class="btn btn-info" href="../shifts_admin/staffers?department=All">View volunteers in your department(s)</a>
 {% endif %}
-{% if attendees == c.ROW_LOAD_LIMIT %}
-This page only shows up to <strong>{{ c.ROW_LOAD_LIMIT }}</strong> attendees. You may need to use another view to find the attendee you need.
+{% if c.HAS_REGISTRATION_ACCESS %}
+<a class="btn btn-success" href="../registration/">View all attendees</a>
 {% endif %}
 </div>
-<div class="panel panel-default">
-  <table class="table table-striped datatable">
-    <thead>
-      <tr>
-        {% block tableheadings %}
-        <th>Status</th>
-        <th> Group Name </th>
-        <th> Full Name </th>
-        <th> Name on ID </th>
-        <th> Email </th>
-        {% if c.PREASSIGNED_BADGE_TYPES %}<th> Badge Name </th>{% endif %}
-        <th> Membership Type</th>
-        {% if c.NUMBERED_BADGES %}<th> Badge # </th> {% endif %}
-        <th> Badge Ribbons</th>
-        <th> Paid </th>
-        {% endblock tableheadings %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for attendee in attendees %}
-        <tr {% if attendee.badge_status == c.INVALID_STATUS %}bgcolor="#FFE4E1"{% endif %}>
-            {% block tablerows scoped %}
-            <td>{{ attendee.badge_status_label }}</td>
-            <td id="group_{{ attendee.id }}">
-                {{ attendee.group|form_link }}
-            </td>
-            <td id="name_{{ attendee.id }}" style="text-align:left"><a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
-              <td id="name_{{ attendee.id }}" style="text-align:left">
-                  {{ attendee.legal_name }}
-              </td>
-              <td>{{ attendee.email }}</td>
-            {% if c.PREASSIGNED_BADGE_TYPES %}<td>{{ attendee.badge_printed_name }}</td>{% endif %}
-            <td><nobr>{{ attendee.badge_type_label }}</nobr></td>
-            {% if c.NUMBERED_BADGES %}<td>{{ attendee.badge_num }}</td>{% endif %}
-            <td id="ribbon_{{ attendee.id }}">{{ attendee.ribbon_labels|join(", ") }}</td>
-            <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
-          {% endblock tablerows %}
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<strong>View attendees by type:</strong>
+<div class="btn-group" style="padding-bottom:10px;">
+<button class="btn btn-default attendee-types" id="created" onClick="loadViewableAttendees('created')">Created By You</button>
+{% for section in site_sections %}
+<button class="btn btn-default attendee-types" id="{{ section }}" onClick="loadViewableAttendees('{{ section }}')">{{ section[:-6]|title }}</button>
+{% endfor %}
 </div>
+<div id="viewable_attendees"></div>
+<script type="text/javascript">
+var loadViewableAttendees = function(query) {
+  $('.attendee-types').removeClass('btn-primary btn-default').addClass('btn-default');
+  $('#' + query).addClass('btn-primary').removeClass('btn-default');
+    $('#viewable_attendees').load('../accounts/attendees?query=' + query, function(){
+      if ($('#viewable_attendees').length) {
+          $(window).trigger( 'runJavaScript' );
+      } else {
+          // We got redirected -- likely to the login page -- so load it properly
+          toastr.error("Loading failed.");
+          window.location.hash = ""; // prevent refresh loops
+          window.location.reload();
+      }
+      });
+    }
+</script>
 {% endblock %}
