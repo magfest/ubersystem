@@ -1302,7 +1302,7 @@ class Session(SessionManager):
             # We need to both outerjoin on the PromoCodeGroup table and also
             # query it.  In order to do this we need to alias it so that the
             # reference to PromoCodeGroup in the joinedload doesn't conflict
-            # with the outerjoin.
+            # with the outerjoin.  See https://docs.sqlalchemy.org/en/13/orm/query.html#sqlalchemy.orm.query.Query.join
             aliased_pcg = aliased(PromoCodeGroup)
 
             attendees = self.query(Attendee) \
@@ -1354,7 +1354,7 @@ class Session(SessionManager):
                 return attendees.filter(or_(
                     Attendee.id == terms[0],
                     Attendee.public_id == terms[0],
-                    PromoCodeGroup.id == terms[0],
+                    aliased_pcg.id == terms[0],
                     Group.id == terms[0],
                     Group.public_id == terms[0]))
 
