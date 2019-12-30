@@ -98,6 +98,7 @@
         <th>Last Name</th>
         <th>First Name</th>
         <th>Legal Name</th>
+        <th>Email</th>
         <th>Weighted Hours</th>
         <th>Hours Worked</th>
         <th>Supporter Package</th>
@@ -110,6 +111,7 @@
           <td>{{ volunteer.last_name }}</td>
           <td>{{ volunteer.first_name }}</td>
           <td>{{ volunteer.legal_name }}</td>
+          <td>{{ volunteer.email }}</td>
           <td>{{ volunteer.weighted_hours }}</td>
           <td>{{ volunteer.worked_hours }}</td>
           <td>{{ (volunteer.amount_extra >= c.SUPPORTER_LEVEL)|yesno }}</td>
