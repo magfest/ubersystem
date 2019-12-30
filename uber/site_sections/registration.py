@@ -217,16 +217,29 @@ class Root:
         }
 
     def promo_code_groups(self, session, message=''):
-        used_counts = {}
-        groups = session.query(PromoCodeGroup).options(
-                                                joinedload(PromoCodeGroup.buyer),
-                                                joinedload(PromoCodeGroup.promo_codes)
-                                                ).order_by(PromoCodeGroup.name).all()
-        for group in groups:
-            used_counts[group.id] = session.query(PromoCode.id).filter(PromoCode.group_id == group.id, PromoCode.used_by).count()
+        groups = session.query(PromoCodeGroup).order_by(PromoCodeGroup.name).all()
+        used_counts = {
+            group_id: count for group_id, count in
+                session.query(PromoCode.group_id, func.count(PromoCode.id))
+                    .filter(Attendee.promo_code_id == PromoCode.id,
+                            PromoCode.group_id == PromoCodeGroup.id)
+                    .group_by(PromoCode.group_id)
+        }
+        total_costs = {
+            group_id: total for group_id, total in
+                session.query(PromoCode.group_id, func.sum(PromoCode.cost))
+                        .group_by(PromoCode.group_id)
+        }
+        total_counts = {
+            group_id: count for group_id, count in
+                session.query(PromoCode.group_id, func.count('*'))
+                        .group_by(PromoCode.group_id)
+        }
         return {
             'groups': groups,
             'used_counts': used_counts,
+            'total_costs': total_costs,
+            'total_counts': total_counts,
             'message': message,
         }
 
