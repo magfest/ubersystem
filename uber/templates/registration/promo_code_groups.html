@@ -26,9 +26,9 @@
             {{ group.buyer|form_link }}
           </td>
           <td>{{ group.code }}</td>
-          <td>{{ group.promo_codes|length }}</td>
-          <td>{{ used_counts[group.id] }}</td>
-          <td>{{ group.total_cost }}</td>
+          <td>{{ total_counts[group.id] or '0' }}</td>
+          <td>{{ used_counts[group.id] or '0' }}</td>
+          <td>{{ total_costs[group.id] or '0' }}</td>
           <td>{{ group.buyer.amount_unpaid }}</td>
         </tr>
       {% endfor -%}
