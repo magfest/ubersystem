@@ -134,7 +134,6 @@ def check_near_cap():
     for badges_left in [int(num) for num in c.BADGES_LEFT_ALERTS]:
         subject = "BADGES SOLD ALERT: {} BADGES LEFT!".format(badges_left)
         with Session() as session:
-            if not session.query(Email).filter_by(subject=subject).first():
-                if actual_badges_left <= badges_left:
-                    body = render('emails/badges_sold_alert.txt', {'badges_left': actual_badges_left})
-                    send_email([c.REGDESK_EMAIL, c.ADMIN_EMAIL], c.ADMIN_EMAIL, subject, body, model='n/a')
+            if not session.query(Email).filter_by(subject=subject).first() and actual_badges_left <= badges_left:
+                body = render('emails/badges_sold_alert.txt', {'badges_left': actual_badges_left})
+                send_email([c.REGDESK_EMAIL, c.ADMIN_EMAIL], c.ADMIN_EMAIL, subject, body, model='n/a')
