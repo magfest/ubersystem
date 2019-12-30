@@ -471,7 +471,7 @@
       <script type="text/javascript">
           $(window).on("runJavaScript", function() {
               $('.form-control-static').each(function(index) {
-                  if($( this ).text().trim() == '') {
+                  if($( this ).text().trim() == '' && $(this).is(":visible")) {
                       $(this).parents('.form-group').hide();
                   }
               })
