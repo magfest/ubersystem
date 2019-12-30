@@ -20,7 +20,7 @@ from sideboard.lib import on_startup, stopped
 from sqlalchemy import and_, func, or_, not_
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Query, joinedload, subqueryload
+from sqlalchemy.orm import Query, joinedload, subqueryload, aliased
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import MetaData
 from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric
@@ -1298,8 +1298,21 @@ class Session(SessionManager):
                 self.commit()
 
         def search(self, text, *filters):
-            attendees = self.query(Attendee).outerjoin(Attendee.group) \
-                .options(joinedload(Attendee.group)).filter(*filters)
+
+            # We need to both outerjoin on the PromoCodeGroup table and also
+            # query it.  In order to do this we need to alias it so that the
+            # reference to PromoCodeGroup in the joinedload doesn't conflict
+            # with the outerjoin.
+            aliased_pcg = aliased(PromoCodeGroup)
+
+            attendees = self.query(Attendee) \
+                            .outerjoin(Attendee.group) \
+                            .outerjoin(Attendee.promo_code) \
+                            .outerjoin(aliased_pcg, PromoCode.group) \
+                            .options(
+                                joinedload(Attendee.group),
+                                joinedload(Attendee.promo_code).joinedload(PromoCode.group)
+                            ).filter(*filters)
 
             if ':' in text:
                 target, term = text.split(':', 1)
@@ -1341,6 +1354,7 @@ class Session(SessionManager):
                 return attendees.filter(or_(
                     Attendee.id == terms[0],
                     Attendee.public_id == terms[0],
+                    PromoCodeGroup.id == terms[0],
                     Group.id == terms[0],
                     Group.public_id == terms[0]))
 
@@ -1351,7 +1365,10 @@ class Session(SessionManager):
                         Attendee.public_id == search_uuid,
                         Group.public_id == search_uuid))
 
-            checks = [Group.name.ilike('%' + text + '%')]
+            checks = [
+                Group.name.ilike('%' + text + '%'),
+                aliased_pcg.name.ilike('%' + text + '%')
+            ]
             check_attrs = [
                 'first_name', 'last_name', 'legal_name', 'badge_printed_name',
                 'email', 'comments', 'admin_notes', 'for_review', 'promo_code_group_name']
