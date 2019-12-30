@@ -91,3 +91,31 @@ class Root:
             'Website',
             ]
         out.writerows(header_row, rows)
+        
+    @xlsx_file
+    def seller_tax_info(self, out, session):
+        waitlisted_groups = session.query(Group).filter(Group.status == c.APPROVED).all()
+        rows = []
+        for group in waitlisted_groups:
+            if group.is_dealer:
+                rows.append([
+                    group.name,
+                    group.leader.full_name,
+                    group.leader.email,
+                    group.physical_address,
+                    group.leader.cellphone,
+                    group.special_needs,
+                    group.admin_notes,
+                    group.wares,
+                ])
+        header_row = [
+            'Business Name',
+            'Group Leader Name',
+            'Group Leader Email',
+            'Business Address',
+            'Business Phone Number',
+            'Special Requests',
+            'Admin Notes',
+            'What They Sell',
+            ]
+        out.writerows(header_row, rows)
