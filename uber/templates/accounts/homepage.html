@@ -4,7 +4,10 @@
 <div class="panel panel-body">
 <a href="#attendee_form?id=None" class="btn btn-primary">Add new attendee</a>
 {% if c.HAS_SHIFTS_ADMIN_ACCESS %}
-<a class="btn btn-info" href="../shifts_admin/staffers?department=All">View volunteers in your department(s)</a></p>
+<a class="btn btn-info" href="../shifts_admin/staffers?department=All">View volunteers in your department(s)</a>
+{% endif %}
+{% if c.HAS_REGISTRATION_ACCESS %}
+<a class="btn btn-success" href="../registration/">View all attendees</a>
 {% endif %}
 </div>
 <strong>View attendees by type:</strong>
