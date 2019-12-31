@@ -776,9 +776,9 @@ class Session(SessionManager):
             if admin.full_registration_admin:
                 return self.query(Attendee)
             
-            subqueries = access_query_matrix()['created']
+            subqueries = [self.access_query_matrix()['created']]
             
-            for key, val in self.access_query_matrix:
+            for key, val in self.access_query_matrix().items():
                 if key in admin.read_or_write_access_set:
                     subqueries.append(val)
             
