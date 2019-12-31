@@ -17,7 +17,7 @@
               var worked = parseFloat( data[4] ) || 0;
 
               var show_hotel = ($('#show_all').is(':visible'));
-              var hotel_requested = (data[6] == "yes");
+              var hotel_assigned = (data[6] == "yes");
 
               if ( ( isNaN( min_hours ) && isNaN( max_hours ) ) ||
                   ( isNaN( min_hours ) && hours <= max_hours ) ||
@@ -29,7 +29,7 @@
                       ( min_worked <= worked   && isNaN( max_worked ) ) ||
                       ( min_worked <= worked   && worked <= max_worked ) )
                   {
-                      if ( !show_hotel || hotel_requested )
+                      if ( !show_hotel || hotel_assigned )
                       {
                           return true;
                       }
@@ -77,8 +77,8 @@
   </script>
 
   <div class="panel panel-body"><h2> Volunteer Hours Overview </h2>
-    <p class="text-center"><span id="show_all" class="show_or_hide_hotel"><a href="#">View all volunteers instead of only those who have requested hotel space</a>.</span>
-      <span id="show_hotel"><a href="#">View only volunteers who have requested hotel space</a>.</span></p>
+    <p class="text-center"><span id="show_all" class="show_or_hide_hotel"><a href="#">View all volunteers instead of only those who have been assigned hotel space</a>.</span>
+      <span id="show_hotel"><a href="#">View only volunteers who have been assigned hotel space</a>.</span></p>
 
     <div class="pull-left"><h4>Filter by Weighted Hours</h4>
       <p class="form-inline">Min: <input type="text" class="form-control" id="min_hours" name="min_hours">
@@ -102,7 +102,7 @@
         <th>Weighted Hours</th>
         <th>Hours Worked</th>
         <th>Supporter Package</th>
-        <th>Requested Hotel Space</th>
+        <th>Assigned Hotel Space</th>
       </tr>
       </thead>
       <tbody>
@@ -115,7 +115,7 @@
           <td>{{ volunteer.weighted_hours }}</td>
           <td>{{ volunteer.worked_hours }}</td>
           <td>{{ (volunteer.amount_extra >= c.SUPPORTER_LEVEL)|yesno }}</td>
-          <td>{{ 'no' if volunteer.hotel_requests is none else 'yes' }}</td>
+          <td>{{ 'yes' if volunteer.room_assignments else 'no' }}</td>
         </tr>
       {% endfor %}
       </tbody>
