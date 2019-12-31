@@ -10,14 +10,14 @@
           function( settings, data, dataIndex ) {
               var min_hours = parseFloat( $('#min_hours').val());
               var max_hours = parseFloat( $('#max_hours').val());
-              var hours = parseFloat( data[3] ) || 0;
+              var hours = parseFloat( data[4] ) || 0;
 
               var min_worked = parseFloat( $('#min_worked').val());
               var max_worked = parseFloat( $('#max_worked').val());
-              var worked = parseFloat( data[4] ) || 0;
+              var worked = parseFloat( data[5] ) || 0;
 
               var show_hotel = ($('#show_all').is(':visible'));
-              var hotel_assigned = (data[6] == "yes");
+              var hotel_assigned = (data[7] == "yes");
 
               if ( ( isNaN( min_hours ) && isNaN( max_hours ) ) ||
                   ( isNaN( min_hours ) && hours <= max_hours ) ||
