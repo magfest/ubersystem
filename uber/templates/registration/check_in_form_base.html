@@ -194,7 +194,29 @@ $().ready(function() {
                     </div>
                 {% else %}
                 <div class="col-sm-6">
-                  # <input class="num" id="checkin-badge" name="badge_num" type="text" size="10" autofocus/>
+                  # <input class="num" id="checkin-badge" name="badge_num" type="text" size="10" />
+                </div>
+                <script>
+                    /**
+                     * We can't just use "autofocus" because that doesn't work if there's already a focused
+                     * element on the page.  Calling $.focus() won't work until the element is visible, so
+                     * we need to keep trying until that happens.  We also use this opportunity to set a
+                     * keypress handler on the element.
+                     */
+                    var focusBadgeNum = function () {
+                        var $num = $('#checkin-badge:text');
+                        if ($num.is(':visible')) {
+                            $num.focus().keypress(function (event) {
+                                if (event.keyCode === 13) {
+                                    checkIn('{{ attendee.id }}');
+                                }
+                            });
+                        } else {
+                            setTimeout(focusBadgeNum, 100);
+                        }
+                    };
+                    focusBadgeNum();
+                </script>
                 {% endif %}
             </div>
         </div>
