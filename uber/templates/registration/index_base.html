@@ -117,8 +117,8 @@
         <thead>
           <tr>
             {% block tableheadings %}
-            <th> <a href="index?order={{ order.group_id }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Group Name</a> </th>
-            <th> Promo Code Group </th>
+            <th> <a href="index?order={{ order.group_name }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Group Name</a> </th>
+            <th> <a href="index?order={{ order.promo_code_group_name }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Promo Code Group</a> </th>
             <th> <a href="index?order={{ order.last_first }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Full Name</a> </th>
             <th> <a href="index?order={{ order.legal_name }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Name on ID</a> </th>
             {% if c.PREASSIGNED_BADGE_TYPES %}<th> <a href="index?order={{ order.badge_printed_name }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Badge Name</a> </th>{% endif %}
@@ -127,7 +127,7 @@
             <th> <a href="index?order={{ order.ribbon }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Badge Ribbons</a></th>
             <th> <a href="index?order={{ order.amount_extra }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Upgrade</a></th>
             <th> <a href="index?order={{ order.paid }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Paid</a> </th>
-            <th>Age</th>
+            <th>{% if c.COLLECT_EXACT_BIRTHDATE %}<a href="index?order={{ order.birthdate }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">{% endif%}Age{% if c.COLLECT_EXACT_BIRTHDATE %}</a>{% endif %}</th>
             {% if c.AT_THE_CON %}
                 <th> <a href="index?order={{ order.checked_in }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}"><nobr>Checked In</nobr></a> </th>
             {% endif %}

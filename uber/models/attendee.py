@@ -934,6 +934,16 @@ class Attendee(MagModel, TakesPaymentMixin):
         return case(
             [(or_(cls.first_name == None, cls.first_name == ''), 'zzz')],  # noqa: E711
             else_=func.lower(cls.first_name + ' ' + cls.last_name))
+        
+    @hybrid_property
+    def group_name(self):
+        if self.group:
+            return self.group.name
+        return ''
+
+    @group_name.expression
+    def group_name(cls):
+        return select([Group.name]).where(Group.id == cls.group_id).label('group_name')
 
     @hybrid_property
     def promo_code_group_name(self):
