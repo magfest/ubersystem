@@ -20,12 +20,10 @@
 
 {% if attendee.regdesk_info %}
     <div class="form-group">
-        <div class="col-sm-3 text-right">
-          <span class="label label-danger">Special Regdesk Instructions:</span>
-        </div>
-        <div class="col-sm-9">
-          {{ attendee.regdesk_info }}
-          <p class="help-block"><em>You can update these instructions below</em></p>
+        <label for="special_instructions" class="col-sm-3 control-label">Special Instructions</label>
+        <div class="col-sm-6">
+            <div class="form-control-static"><strong>{{ attendee.regdesk_info }}</strong></div>
+            <p class="help-block"><em>You can update these instructions below.</em></p>
         </div>
     </div>
 {% endif %}

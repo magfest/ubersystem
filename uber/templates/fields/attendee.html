@@ -1040,6 +1040,7 @@
 
 
 {% set emergency_contact %}
+{% if c.HAS_REG_ADMIN_ACCESS %}
 {% set read_only = emergency_contact_ro or page_ro %}
 <div class="form-group">
   <label for="ec_name" class="col-sm-3 control-label">Emergency Contact</label>
@@ -1057,6 +1058,7 @@
   </div>
 {% endcall %}
 </div>
+{% endif %}
 {% endset %}
 
 
