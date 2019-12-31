@@ -24,7 +24,7 @@ This page only shows up to <strong>{{ c.ROW_LOAD_LIMIT }}</strong> attendees. Yo
     </thead>
     <tbody>
       {% for attendee in attendees %}
-        <tr {% if attendee.badge_status == c.INVALID_STATUS %}bgcolor="#FFE4E1"{% endif %}>
+        <tr {% if attendee.badge_status == c.INVALID_STATUS %}class="danger"{% endif %}>
             {% block tablerows scoped %}
             <td>{{ attendee.badge_status_label }}</td>
             <td id="group_{{ attendee.id }}">
