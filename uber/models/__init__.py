@@ -1487,7 +1487,7 @@ class Session(SessionManager):
 
             self.add(all_access_group)
             self.add(test_developer_account)
-            self.add(uber.models.Admin.AdminAccessGroup(
+            self.add(AdminAccessGroup(
                 admin_account_id=test_developer_account.id,
                 access_group_id=all_access_group.id,
             ))
