@@ -93,10 +93,18 @@ $().ready(function() {
     {% block checkin_fields %}
     <div class="form-group">
     <label for="name" class="col-sm-3 control-label">Name</label>
-    <div class="col-sm-6">
+    <div class="col-sm-6 form-control-static">
         {{ attendee|form_link }}
     </div>
     </div>
+    {% if attendee.regdesk_info %}
+        <div class="form-group btn-danger">
+            <label for="special_instructions" class="col-sm-3 control-label">Special Instructions</label>
+            <div class="col-sm-6">
+                <div class="form-control-static"><strong>{{ attendee.regdesk_info }}</strong></div>
+            </div>
+        </div>
+    {% endif %}
     {% if c.COLLECT_EXACT_BIRTHDATE %}
         <div class="form-group">
             <label for="birthdate" class="col-sm-3 control-label">Date of Birth</label>
@@ -194,14 +202,6 @@ $().ready(function() {
                 <div class="col-sm-6">
                   # <input class="num" id="checkin-badge" name="badge_num" type="text" size="10" autofocus/>
                 {% endif %}
-            </div>
-        </div>
-    {% endif %}
-    {% if attendee.regdesk_info %}
-        <div class="form-group">
-            <label for="special_instructions" class="col-sm-3 control-label"><span class="label label-danger">Special Instructions:</span></label>
-            <div class="col-sm-6">
-                <div class="form-control-static">{{ attendee.regdesk_info }}</div>
             </div>
         </div>
     {% endif %}
