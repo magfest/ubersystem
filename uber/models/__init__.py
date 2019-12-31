@@ -776,9 +776,9 @@ class Session(SessionManager):
             if admin.full_registration_admin:
                 return self.query(Attendee)
             
-            subqueries = access_query_matrix()['created']
+            subqueries = [self.access_query_matrix()['created']]
             
-            for key, val in self.access_query_matrix:
+            for key, val in self.access_query_matrix().items():
                 if key in admin.read_or_write_access_set:
                     subqueries.append(val)
             
@@ -1487,7 +1487,7 @@ class Session(SessionManager):
 
             self.add(all_access_group)
             self.add(test_developer_account)
-            self.add(AdminAccessGroup(
+            self.add(uber.models.Admin.AdminAccessGroup(
                 admin_account_id=test_developer_account.id,
                 access_group_id=all_access_group.id,
             ))
