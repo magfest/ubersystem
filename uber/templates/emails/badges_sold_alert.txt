@@ -1,0 +1,1 @@
+We have {{ badges_left }} attendee badges left in stock for {{ c.EVENT_NAME_AND_YEAR }}! You may now begin panicking.
