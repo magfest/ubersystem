@@ -314,7 +314,7 @@ def allowed_to_register(attendee):
 def email(attendee):
     if len(attendee.email) > 255:
         return 'Email addresses cannot be longer than 255 characters.'
-    elif not attendee.email and not c.AT_OR_POST_CON:
+    elif not attendee.email:
         return 'Please enter an email address.'
 
 
