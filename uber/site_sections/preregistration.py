@@ -115,7 +115,7 @@ class Root:
                 if attendee.promo_code:
                     real_code = session.query(PromoCode).filter_by(code=attendee.promo_code.code).first()
                     if real_code and real_code.group:
-                        attendee.group_name = real_code.group.name
+                        attendee.promo_group_name = real_code.group.name
             return {
                 'message': message,
                 'charge': charge

@@ -85,7 +85,7 @@
               {% endfor %}
               {% if attendee.promo_code and not attendee.badges %}
                 {% if attendee.promo_code.group_id %}
-                  <li>Claiming a badge in group "{{ attendee.group_name }}"</li>
+                  <li>Claiming a badge in group "{{ attendee.promo_group_name }}"</li>
                 {% else %}
                 <li>{{ attendee.promo_code.discount_str }} with promo code "{{ attendee.promo_code.code }}"</li>
                 {% endif %}
