@@ -1236,7 +1236,7 @@ class Session(SessionManager):
                     subqueryload(Attendee.dept_memberships),
                     subqueryload(Attendee.group),
                     subqueryload(Attendee.shifts).subqueryload(Shift.job).subqueryload(Job.department),
-                    subqueryload(Attendee.hotel_requests)) \
+                    subqueryload(Attendee.room_assignments)) \
                 .order_by(Attendee.full_name, Attendee.id)
 
         def staffers(self, pending=False):
