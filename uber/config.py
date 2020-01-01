@@ -173,12 +173,14 @@ class Config(_Overridable):
 
     def get_badge_count_by_type(self, badge_type):
         """
-        Returns the count of all badges of the given type that we've promised to attendees.
-
+        Returns the count of all badges of the given type that we've promised to
+        attendees.  This counts uncompleted placeholder badges but NOT unpaid
+        badges, since those have by definition not been promised to anyone.
         """
         from uber.models import Session, Attendee
         with Session() as session:
             return session.query(Attendee).filter(
+                Attendee.paid != c.NOT_PAID,
                 Attendee.badge_type == badge_type,
                 Attendee.badge_status.in_([c.COMPLETED_STATUS, c.NEW_STATUS])).count()
 
