@@ -270,26 +270,12 @@
 
 <table>
 <tr>
-    <td> Last year's MPoints turned in: </td>
+    <td> Last year's MPoints turned in: &nbsp;</td>
     <td> Badge num: <input type="number" id="ex_badge_num" class="badge_num" min="1" max="99999" /> </td>
     <td> exchanged <input type="number" id="ex_mpoints" min="1" max="9999" /> MPoints </td>
     <td> <input type="submit" id="record_mpe" value="Record Exchange" onClick="recordMPointExchange()" /> </td>
 </tr>
-</tr><tr> <td colspan="4"> ---OR--- </td> </tr>
-<tr>
-    <td> Record a Sale: </td>
-    <td>
-        <select id="what_select" onChange="showOrHideWhatText()">
-            {{ options(c.STORE_ITEM_NAMES) }}
-            <option value="">Other...</option>
-        </select>
-        <input type="text" id="what_text" size="20" maxlength="50" />
-    </td>
-    <td> Money: $<input type="number" id="store_cash" min="0" max="999" /> </td>
-    <td> MPoints: <input type="number" id="store_mpoints" min="0" max="999" /> </td>
-    <td> <input type="submit" id="record_sale" value="Record Sale" onClick="recordSale()" />
-</td>
-</tr><tr> <td colspan="4"> ---OR--- </td> </tr>
+</tr><tr display="none"> <td colspan="4"> ---OR--- </td> </tr>
     <td> Apply a merch discount </td>
     <td>
         Badge num: <input type="number" id="dis_badge_num" class="badge_num" min="1" max="99999" />

@@ -718,7 +718,7 @@ class Config(_Overridable):
                 of key/value pairs for each page inside that section.
                 Example: 
                     pages['registration'] = [
-                        {'name': 'Arbitrary Charge Form', 'path': '/registration/arbitrary_charge_form'},
+                        {'name': 'Arbitrary Charge Form', 'path': '/merch_admin/arbitrary_charge_form'},
                         {'name': 'Comments', 'path': '/registration/comments'},
                         {'name': 'Discount', 'path': '/registration/discount'},
                     ]
