@@ -797,7 +797,7 @@ class Root:
 
     def new(self, session, show_all='', message='', checked_in=''):
         if 'reg_station' not in cherrypy.session:
-            raise HTTPRedirect('new_reg_station')
+            raise HTTPRedirect('index?message={}', 'You must set your reg station number')
 
         if show_all:
             restrict_to = [Attendee.paid == c.NOT_PAID, Attendee.placeholder == False]  # noqa: E711
@@ -872,7 +872,7 @@ class Root:
 
         checked_in = ''
         if 'reg_station' not in cherrypy.session:
-            raise HTTPRedirect('new_reg_station')
+            raise HTTPRedirect('index?message={}', 'You must set your reg station number')
 
         message = pre_checkin_check(attendee, group)
 
