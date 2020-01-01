@@ -823,7 +823,16 @@ if c.MIVS_ENABLED:
             when=days_after(1, deadline),
             ident='mivs_checklist_overdue_{}'.format(deadline.strftime('%m_%d')),
         )
-        
+
+    # At-Con MIVS Emails
+    MIVSEmailFixture(
+        IndieGame,
+        'MIVS {EVENT_NAME}: Load-In @ MAGFest',
+        'mivs/At-Con/LoadIn.txt',
+        lambda game: game.confirmed,
+        ident='mivs_2020_LoadIn.txt'
+    )
+
     # start year specific MIVS Emails
     MIVSEmailFixture(
         IndieGame,
@@ -839,6 +848,20 @@ if c.MIVS_ENABLED:
         'mivs/2020/tournaments_2020.txt',
         lambda game: game.confirmed,
         ident='mivs_2020_tournaments'
+    )
+    MIVSEmailFixture(
+        IndieGame,
+        'MIVS {EVENT_NAME}: Reminder for IGDA Meetup tonight',
+        'mivs/2020/igda_reminder.txt',
+        lambda game: game.confirmed,
+        ident='mivs_2020_igda_reminder'
+    )
+    MIVSEmailFixture(
+        IndieGame,
+        'MIVS {EVENT_NAME}: Reminder for MIVS Indie Mixer happening Tonight',
+        'mivs/2020/mixer_reminder.txt',
+        lambda game: game.confirmed,
+        ident='mivs_2020_mixer_reminder'
     )
 
 # =============================
