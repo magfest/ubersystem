@@ -476,6 +476,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def _status_adjustments(self):
+        if self.badge_status == c.WATCHED_STATUS and not self.banned:
+            self.badge_status = c.NEW_STATUS
+        
         if self.badge_status == c.NEW_STATUS and self.banned:
             self.badge_status = c.WATCHED_STATUS
             try:
