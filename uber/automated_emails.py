@@ -229,6 +229,7 @@ AutomatedEmailFixture(
     #     or_(Group.is_dealer == False, Group.status == c.APPROVED)),
     when=after(c.GROUP_PREREG_TAKEDOWN),
     needs_approval=False,
+    allow_at_the_con=True,
     ident='group_preassign_badges_reminder_last_chance',
     sender=c.REGDESK_EMAIL)
 
