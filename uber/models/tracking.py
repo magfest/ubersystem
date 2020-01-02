@@ -157,6 +157,11 @@ class Tracking(MagModel):
             who = 'server admin'
         else:
             who = AdminAccount.admin_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+            
+        try:
+            snapshot = json.dumps(instance.to_dict(), cls=serializer)
+        except TypeError as e:
+            snapshot = "(Could not save JSON dump due to error: {}".format(e)
 
         def _insert(session):
             session.add(Tracking(
@@ -168,7 +173,7 @@ class Tracking(MagModel):
                 links=links,
                 action=action,
                 data=data,
-                snapshot=json.dumps(instance.to_dict(), cls=serializer)
+                snapshot=snapshot,
             ))
         if instance.session:
             _insert(instance.session)
