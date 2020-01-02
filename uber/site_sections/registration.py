@@ -112,32 +112,33 @@ class Root:
         }  # noqa: E711
 
     @log_pageview
-    def form(self, session, message='', return_to='', check_in='', **params):
+    def form(self, session, message='', return_to='', **params):
         attendee = session.attendee(
             params, checkgroups=Attendee.all_checkgroups, bools=Attendee.all_bools, allow_invalid=True)
 
         if 'first_name' in params:
+            message = ''
+            
             attendee.group_id = params['group_opt'] or None
             if params.get('no_badge_num') or not attendee.badge_num:
-                attendee.badge_num = None
+                if params.get('save') == 'save_check_in' and attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES:
+                    message = "Please enter a badge number to check this attendee in"
+                else:
+                    attendee.badge_num = None
 
             if 'no_override' in params:
                 attendee.overridden_price = None
 
-            message = ''
             if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
                 message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
 
             if not message:
-                
                 message = check(attendee)
 
             if not message:
                 # Free group badges are only considered 'registered' when they are actually claimed.
                 if attendee.paid == c.PAID_BY_GROUP and attendee.group_id and attendee.group.cost == 0:
                     attendee.registered = localized_now()
-                if check_in:
-                    attendee.checked_in = localized_now()
                 session.add(attendee)
 
                 if attendee.is_new and \
@@ -180,7 +181,6 @@ class Root:
         return {
             'message':    message,
             'attendee':   attendee,
-            'check_in':   check_in,
             'return_to':  return_to,
             'no_badge_num': params.get('no_badge_num'),
             'admin_can_change_status': session.admin_attendee().is_dept_head_of(c.DEFAULT_REGDESK_INT),
