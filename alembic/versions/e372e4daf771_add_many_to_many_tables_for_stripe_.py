@@ -11,7 +11,7 @@ Create Date: 2018-08-31 20:42:18.905795
 revision = 'e372e4daf771'
 down_revision = 'b574c0577253'
 branch_labels = None
-depends_on = None
+depends_on = 'ff7e7ae6d711'
 
 import residue
 import sqlalchemy as sa

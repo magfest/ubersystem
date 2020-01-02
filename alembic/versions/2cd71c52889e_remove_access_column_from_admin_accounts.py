@@ -11,7 +11,7 @@ Create Date: 2019-08-22 15:05:58.532275
 revision = '2cd71c52889e'
 down_revision = 'da22d6a6407c'
 branch_labels = None
-depends_on = None
+depends_on = '5ca0661d5081'
 
 from alembic import op
 import residue
