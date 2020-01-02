@@ -55,7 +55,7 @@ var updateAttendee = function(event){
       }, 1000);
 };
 $(window).on("runJavaScript", function () {
-if($.field('return_to') && $.field('return_to').length) {
+if($.field('return_to')) {
     $.field('return_to').val(window.location.pathname + window.location.search);
   }
 })
