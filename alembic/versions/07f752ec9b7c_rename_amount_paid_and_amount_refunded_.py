@@ -11,7 +11,7 @@ Create Date: 2019-08-28 22:58:09.649117
 revision = '07f752ec9b7c'
 down_revision = '3c0edc37569e'
 branch_labels = None
-depends_on = None
+depends_on = 'd1ae7f4f7767'
 
 from alembic import op
 import sqlalchemy as sa
