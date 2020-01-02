@@ -14,16 +14,23 @@ class Root:
 
         if 'first_names' in params:
             if not watch_entry.first_names or not watch_entry.last_name:
-                message = 'First and last name are required.'
+                message = 'First and last name are required'
             elif not watch_entry.reason or not watch_entry.action:
-                message = 'Reason and action are required.'
+                message = 'Reason and action are required'
 
             if not message:
                 session.add(watch_entry)
                 if 'id' not in params:
-                    message = 'New watch list item added.'
+                    message = 'New watch list item added'
                 else:
-                    message = 'Watch list item updated.'
+                    message = 'Watch list item updated'
+                    if not watch_entry.active and watch_entry.orig_value_of('active') == True:
+                        session.commit()
+                        unbanned_attendees = session.unban_attendees_by_watchlist_entry(watch_entry)
+                        if unbanned_attendees:
+                            message += "and {} has been taken off On Hold status".format(
+                                    ' ,'.join([attendee.full_name for attendee in unbanned_attendees]))
+                            session.add(unbanned_attendees)
 
                 session.commit()
 

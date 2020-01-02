@@ -936,6 +936,26 @@ class Session(SessionManager):
                 or_(*or_clauses),
                 func.lower(WatchList.last_name) == attendee.last_name.lower(),
                 WatchList.active == active)).all()  # noqa: E712
+            
+        def watched_attendees(self):
+            return self.query(Attendee).filter_by(badge_status=c.WATCHED_STATUS)
+        
+        def unban_attendees_by_watchlist_entry(self, watchlist_entry):
+            """
+            Takes a disabled watchlist entry and unbans attendees that were banned by that entry.
+            Returns the unbanned attendees.
+            """
+            assert not watchlist_entry.active
+            unwatched_attendees = []
+            for attendee in self.watched_attendees():
+                for matched_entry in self.guess_attendee_watchentry(attendee):
+                    if matched_entry.id == watchlist_entry.id:
+                        attendee.badge_status = c.NEW_STATUS
+                        
+                        if attendee.badge_status != c.WATCHED_STATUS:
+                            unwatched_attendees.append(attendee)
+                        break
+            return unwatched_attendees
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
