@@ -847,6 +847,7 @@ class Root:
         
         return_dict = {
             'attendee': attendee,
+            'message': params.get('message', ''),
             'shifts': {s.id: s.to_dict(attrs) for s in attendee.shifts},
             'jobs': [
                 (job.id, '({}) [{}] {}'.format(job.timespan(), job.department_name, job.name))

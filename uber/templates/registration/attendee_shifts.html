@@ -12,29 +12,37 @@
 
 <script type="text/javascript" src="../static_views/ratings.js"></script>
 <script type="text/javascript">
-$("form[action*='/shifts_admin/']").submit(function(event){
-  event.preventDefault();
-  toastr.clear();
-  var formURL = $(this).attr('action');
-  var old_hash = window.location.hash;
-  $.ajax({
-      method: 'POST',
-      url: formURL,
-      data: $(this).serializeArray(),
-      success: function (json) {
-        window.location.hash = old_hash;
-        if (json.success) {
-          toastr.info(json.message);
-          loadForm('Shifts');
-        } else {
-          toastr.error(json.message);
-        }
-      },
-      error: function () {
-          toastr.error('Unable to connect to server, please try again.');
-      }
-  });
-});
+    $(function () {
+        $("form[action*='/shifts_admin/']").submit(function(event){
+            event.preventDefault();
+            toastr.clear();
+            var formURL = $(this).attr('action');
+            var old_hash = window.location.hash;
+            $.ajax({
+                method: 'POST',
+                url: formURL,
+                data: $(this).serializeArray(),
+                success: function (json) {
+                    window.location.hash = old_hash;
+                    if (json.success) {
+                        // non-modal pages don't have a loadForm function, so we
+                        // use that to tell whether we're in a modal form
+                        if (window.loadForm) {
+                            toastr.info(json.message);
+                            window.loadForm('Shifts');
+                        } else {
+                            location.search += '&message=' + json.message;
+                        }
+                    } else {
+                        toastr.error(json.message);
+                    }
+                },
+                error: function () {
+                    toastr.error('Unable to connect to server, please try again.');
+                }
+            });
+        });
+    });
 
     var SHIFTS = {{ shifts|jsonize }};
     $(function() {
