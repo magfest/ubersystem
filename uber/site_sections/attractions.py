@@ -158,8 +158,8 @@ class Root:
     def signup_for_event(self, session, id, badge_num='', first_name='',
                          last_name='', email='', zip_code='', **params):
 
-        # Badge number during AT_THE_CON is a hard requirement for Autographs
-        if badge_num or c.AT_THE_CON:
+        # Badge number during the event is a hard requirement for Autographs
+        if badge_num or c.AFTER_EPOCH:
             attendee = _attendee_for_badge_num(session, badge_num)
             if not attendee:
                 return {
