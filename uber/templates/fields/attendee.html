@@ -378,7 +378,7 @@
   </div>
   </div>
   {% endif %}
-{% elif c.AT_THE_CON %}
+{% elif c.AT_THE_CON and attendee.is_new %}
   <script>
       window.setTimeout(toastr.clear, 10000);
       var maybeWarn = function () {
