@@ -1,6 +1,8 @@
 import uuid
+from datetime import datetime
 
 import cherrypy
+from pytz import UTC
 from pockets import sluggify
 from sqlalchemy.orm import subqueryload
 
@@ -87,8 +89,12 @@ class Root:
 
         if not attraction:
             raise HTTPRedirect('index')
+
+        no_events = datetime.max.replace(tzinfo=UTC)  # features with no events should sort to the end
+        features = attraction.public_features
         return {
             'attraction': attraction,
+            'features': sorted(features, key=lambda f: f.events[0].start_time if f.events else no_events),
             'show_all': params.get('show_all')}
 
     def events(self, session, id=None, slug=None, feature=None, **params):
