@@ -382,7 +382,14 @@ class Root:
 
     @ajax
     def get_signups(self, session, badge_num, attraction_id=None):
+        from uber.barcode import get_badge_num_from_barcode
+        
         if cherrypy.request.method == 'POST':
+            try:
+                badge_num = int(badge_num)
+            except ValueError:
+                badge_num = get_badge_num_from_barcode(badge_num)['badge_num']
+                
             attendee = _attendee_for_badge_num(
                 session, badge_num,
                 subqueryload(Attendee.attraction_signups)
