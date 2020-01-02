@@ -1040,7 +1040,7 @@
 
 
 {% set emergency_contact %}
-{% if not admin_area or c.HAS_REG_ADMIN_ACCESS %}
+{% if not attendee.is_new or not admin_area or c.HAS_REG_ADMIN_ACCESS %}
 {% set read_only = emergency_contact_ro or page_ro %}
 <div class="form-group">
   <label for="ec_name" class="col-sm-3 control-label">Emergency Contact</label>
