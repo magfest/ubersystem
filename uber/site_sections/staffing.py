@@ -22,7 +22,6 @@ class Root:
     def printable(self, session):
         return {'attendee': session.logged_in_volunteer()}
 
-    @check_shutdown
     def food_restrictions(self, session, message='', **params):
         from uber.models.attendee import FoodRestrictions
         attendee = session.logged_in_volunteer()
