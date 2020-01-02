@@ -356,10 +356,10 @@ class AttendeeLookup:
         """
         #this code largely copied from above with different fields
         with Session() as session:
-            attendee_query = session.query(Attendee).filter_by(first_name=first_name,
-                                                               last_name=last_name,
-                                                               email=email,
-                                                               zip_code=zip_code)
+            attendee_query = session.query(Attendee).filter(Attendee.first_name.ilike(first_name),
+                                                               Attendee.last_name.ilike(last_name),
+                                                               Attendee.email.ilike(email),
+                                                               Attendee.zip_code.ilike(zip_code))
             fields, attendee_query = _attendee_fields_and_query(False, attendee_query)
             try:
                 attendee = attendee_query.one()
