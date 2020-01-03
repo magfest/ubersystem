@@ -183,7 +183,6 @@ class Root:
             'attendee':   attendee,
             'return_to':  return_to,
             'no_badge_num': params.get('no_badge_num'),
-            'admin_can_change_status': session.admin_attendee().is_dept_head_of(c.DEFAULT_REGDESK_INT),
             'group_opts': [(g.id, g.name) for g in session.query(Group).order_by(Group.name).all()],
             'unassigned': {
                 group_id: unassigned

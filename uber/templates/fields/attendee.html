@@ -1393,14 +1393,15 @@ $(window).on("runJavaScript", function(){
 
 {% set badge_status %}
 {% set read_only = badge_status_ro or page_ro %}
+{% set admin_can_change_status = not c.AT_THE_CON or c.HAS_REG_ADMIN_ACCESS or c.HAS_SECURITY_ADMIN_ACCESS %}
 <div class="form-group">
   <label for="badge_status" class="col-sm-3 control-label">Status</label>
   {% call macros.read_only_if(read_only, attendee.badge_status_label) %}
     <div class="col-sm-3">
-      <select name="badge_status" class="form-control"{% if c.AT_THE_CON and not admin_can_change_status %} disabled="true"{% endif %}>
+      <select name="badge_status" class="form-control"{% if not admin_can_change_status %} disabled="true"{% endif %}>
         {{ options(c.BADGE_STATUS_OPTS,attendee.badge_status) }}
       </select>
-      {% if c.AT_THE_CON and not admin_can_change_status %}
+      {% if not admin_can_change_status %}
         <input type="hidden" name="badge_status" value="{{ attendee.badge_status }}"/>
         Altering the badge status is disabled during the event. The system will update it automatically.{% endif %}
     </div>
