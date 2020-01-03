@@ -867,6 +867,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         Returns None if we are ready for checkin, otherwise a short error
         message why we can't check them in.
         """
+        
+        if self.badge_status == c.WATCHED_STATUS:
+            if self.banned or not self.regdesk_info:
+                regdesk_info_append = " [{}]".format(self.regdesk_info) if self.regdesk_info else ""
+                return "MUST TALK TO SECURITY before picking up badge{}".format(regdesk_info_append)
+            return self.regdesk_info or "Badge status is {}".format(self.badge_status_label)
 
         if self.badge_status not in [c.COMPLETED_STATUS, c.NEW_STATUS]:
             return "Badge status is {}".format(self.badge_status_label)
