@@ -14,11 +14,15 @@ from uber.site_sections.preregistration import check_post_con
 
 
 def _attendee_for_badge_num(session, badge_num, options=None):
+    from uber.barcode import get_badge_num_from_barcode
+    
     if not badge_num:
         return None
 
     try:
         badge_num = int(badge_num)
+    except ValueError:
+        badge_num = get_badge_num_from_barcode(badge_num)['badge_num']
     except Exception:
         return None
 
