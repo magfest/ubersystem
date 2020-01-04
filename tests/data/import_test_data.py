@@ -99,7 +99,7 @@ def import_attendees(session):
         a['requested_depts_ids'] = all_dept_ids_from_existing_locations(a.pop('requested_depts', ''))
         del a['amount_paid']
         del a['amount_refunded']
-        if a['badge_type'] == 67489953:
+        if a['badge_type'] == 67489953:  # Supporter is no longer a badge type
             skipped_attendees.append(secret_id)
             continue
         attendees[secret_id] = Attendee(**a)
