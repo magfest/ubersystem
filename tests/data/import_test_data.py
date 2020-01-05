@@ -158,7 +158,7 @@ def import_jobs(session):
 def import_uber_test_data(test_data_file):
     if not c.JOB_LOCATION_OPTS:
         print("JOB_LOCATION_OPTS is empty! "
-        "Try copying the [[job_location]] section from test-defaults.ini to your development.ini.")  # noqa
+        "Try copying the [[job_location]] section from test-defaults.ini to your development.ini.")
         exit(1)
 
     with open(test_data_file) as f:
