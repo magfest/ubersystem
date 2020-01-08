@@ -870,7 +870,7 @@ if c.MIVS_ENABLED:
         IndieGame,
         'MIVS {EVENT_NAME}: Request for Feedback',
         'mivs/feedback/indie_survey.txt',
-		lambda game: game.status == c.CONFIRMED,
+        lambda game: game.status == c.CONFIRMED,
         ident='mivs_feedback_survey'
     )
 
