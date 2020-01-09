@@ -734,7 +734,15 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def paid_for_badge(self):
-        return self.paid == c.HAS_PAID or self.group_id and self.group and self.group.amount_paid
+        return self.paid == c.HAS_PAID or \
+                self.group_id and self.group and self.group.amount_paid or \
+                self.in_promo_code_group and self.promo_code.cost
+                
+    @property
+    def has_been_refunded(self):
+        return self.paid == c.REFUNDED or \
+                self.group and self.group.amount_refunded or \
+                self.in_promo_code_group and self.promo_code.group.buyer.paid == c.REFUNDED
 
     @hybrid_property
     def is_unpaid(self):
