@@ -14,7 +14,7 @@ from uszipcode import ZipcodeSearchEngine
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csv_file, site_mappable
 from uber.jinja import JinjaEnv
-from uber.models import Attendee, Event, Group
+from uber.models import Attendee, Event, Group, PromoCode
 
 
 @JinjaEnv.jinja_filter
@@ -64,7 +64,7 @@ class RegistrationDataOneYear:
                 date_trunc_day(Attendee.registered),
                 func.count(date_trunc_day(Attendee.registered))
             ) \
-            .outerjoin(Attendee.group) \
+            .outerjoin(Attendee.group).outerjoin(Attendee.promo_code) \
             .filter(
                 (
                     (Attendee.group_id != None) &
@@ -73,6 +73,10 @@ class RegistrationDataOneYear:
                     (Group.amount_paid > 0)               # make sure they've paid something
                 ) | (                                     # OR
                     (Attendee.paid == c.HAS_PAID)         # if they're an attendee, make sure they're fully paid
+                ) | (
+                    (Attendee.promo_code != None) &
+                    (PromoCode.group_id != None) &
+                    (PromoCode.cost > 0)
                 )
             ) \
             .group_by(date_trunc_day(Attendee.registered)) \
