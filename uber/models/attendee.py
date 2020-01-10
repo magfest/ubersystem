@@ -556,7 +556,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 
     @presave_adjustment
     def add_purchased_items(self):
-        if self.purchased_items:
+        if not self.purchased_items:
             for name in self.cost_property_names:
                 value = getattr(self, name, 0)
                 if value:
