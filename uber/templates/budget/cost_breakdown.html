@@ -15,15 +15,13 @@
     </thead>
     <tbody>
     {% for attendee in paid_attendees %}
-      {% set name = "Unassigned badge in {}".format(attendee.group) if attendee.unassigned_name else attendee.full_name %}
-      {% for item, cost in [("Badge", attendee.badge_cost_real), ("Extra Donation", attendee.extra_donation), ("Kick-in Level", attendee.amount_extra)] %}
-      {% if cost %}
+      {% set name = "Unassigned badge in {}".format(attendee.group_name) if attendee.is_unassigned else attendee.first_name ~ " " ~ attendee.last_name %}
+      {% for item in attendee.purchased_items %}
         <tr>
           <td>{{ name }}</td>
-          <td>{{ item }}</td>
-          <td>${{ "{0:g}".format(cost) }}</td>
+          <td>{{ item[:-5]|replace('_', ' ')|title }}</td>
+          <td>${{ "{0:g}".format(attendee.purchased_items[item]) }}</td>
         </tr>
-      {% endif %}
       {% endfor %}
       {% if attendee.amount_unpaid %}
         <tr>
