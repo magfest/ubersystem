@@ -11,6 +11,8 @@ from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.orm import backref, subqueryload
 from sqlalchemy.schema import Column as SQLAlchemyColumn, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.types import Boolean, Date, Integer
@@ -238,6 +240,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     payment_method = Column(Choice(c.PAYMENT_METHOD_OPTS), nullable=True)
     amount_refunded_override = Column(Integer, default=0, admin_only=True)
     stripe_txn_share_logs = relationship('StripeTransactionAttendee', backref='attendee')
+    purchased_items = Column(MutableDict.as_mutable(JSONB), default={}, server_default='{}')
 
     badge_printed_name = Column(UnicodeText)
 
@@ -550,6 +553,17 @@ class Attendee(MagModel, TakesPaymentMixin):
                 self.overridden_price = self.badge_cost
             else:
                 self.paid = c.NEED_NOT_PAY
+                
+    @presave_adjustment
+    def add_purchased_items(self):
+        if not self.purchased_items:
+            for name in self.cost_property_names:
+                value = getattr(self, name, 0)
+                if value:
+                    self.purchased_items[name] = value
+            if self.amount_extra:
+                self.purchased_items['amount_extra_cost'] = self.amount_extra
+            
 
     @presave_adjustment
     def assign_creator(self):
