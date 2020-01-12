@@ -563,7 +563,11 @@ class Attendee(MagModel, TakesPaymentMixin):
                     self.purchased_items[name] = value
             if self.amount_extra:
                 self.purchased_items['amount_extra_cost'] = self.amount_extra
-            
+    
+    @presave_adjustment
+    def set_payment_method(self):
+        if not self.payment_method and self.stripe_txn_share_logs:
+            self.payment_method = c.STRIPE
 
     @presave_adjustment
     def assign_creator(self):
