@@ -49,11 +49,11 @@
     <tr>
       <td>{{ group.name }}</td>
       <td>Total Cost</td>
-      <td>{{ group.cost }}</td>
+      <td>${{ group.cost }}</td>
       <td>Group price set by admin and cannot be itemized.</td>
     </tr>
     {% elif group.tables %}
-    {% for table_num in range(1, group.tables|int) %}
+    {% for table_num in range(1, group.tables|int + 1) %}
       {% if table_num < 5 %}
       {% set cost, desc = table_cost_matrix[table_num - 1] %}
       {% else %}
