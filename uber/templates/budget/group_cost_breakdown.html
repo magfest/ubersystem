@@ -1,40 +1,10 @@
 {% set admin_area=True %}
 {% extends "base.html" %}
-{% block title %}Cost Breakdown{% endblock %}
+{% block title %}Group Cost Breakdown{% endblock %}
 {% block content %}
-
+<h3>Group Cost Breakdown</h3>
 <div class="panel panel-default">
   <table class="table table-striped export-datatable">
-    <caption><h3>Attendees</h3></caption>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Item</th>
-        <th>Cost</th>
-      </tr>
-    </thead>
-    <tbody>
-    {% for attendee in paid_attendees %}
-      {% set name = "Unassigned badge in {}".format(attendee.group_name) if attendee.is_unassigned else attendee.first_name ~ " " ~ attendee.last_name %}
-      {% for item in attendee.purchased_items %}
-        <tr>
-          <td>{{ name }}</td>
-          <td>{{ item[:-5]|replace('_', ' ')|title }}</td>
-          <td>${{ "{0:g}".format(attendee.purchased_items[item]) }}</td>
-        </tr>
-      {% endfor %}
-      {% if attendee.amount_unpaid %}
-        <tr>
-          <td>{{ name }}</td>
-          <td>Amount Owed</td>
-          <td>-${{ "{0:g}".format(attendee.amount_unpaid) }}</td>
-        </tr>
-      {% endif %}
-    {% endfor %}
-    </tbody>
-  </table>
-  <table class="table table-striped export-datatable">
-    <caption><h3>Groups</h3></caption>
     <thead>
       <tr>
         <th>Name</th>

@@ -19,14 +19,14 @@ class Root:
         sales_total = sum([sale.cash * 100 for sale in session.query(Sale).all()])
         arbitrary_charge_total = sum([charge.amount * 100 for charge in session.query(ArbitraryCharge).all()])
         return {
-            'receipt_items': session.query(ReceiptItem),
+            'receipt_items': receipt_items.filter_by(txn_type=c.REFUND),
             'arbitrary_charges': session.query(ArbitraryCharge),
             'sales': session.query(Sale),
             'total': receipt_total + sales_total + arbitrary_charge_total,
         }
         
     @log_pageview
-    def cost_breakdown(self, session):
+    def attendee_cost_breakdown(self, session):
         paid_attendees = session.query(Attendee.is_unassigned, 
                                        Attendee.purchased_items, 
                                        Attendee.first_name,
@@ -40,6 +40,11 @@ class Root:
         
         return {
             'paid_attendees': paid_attendees,
+        }
+        
+    @log_pageview
+    def group_cost_breakdown(self, session):
+        return {
             'paid_groups': session.query(Group.auto_recalc, Group.name, Group.tables, Group.cost).filter(Group.amount_paid > 0),
             'table_cost_matrix': [
                 (c.TABLE_PRICES[1], "First Table"),
@@ -66,8 +71,7 @@ class Root:
 
         refund_attendees = {}
         for refund in refunds:
-            refund_attendees[refund.id] = session.query(Attendee)\
-                .filter_by(id=refund.fk_id).first() if refund.fk_model == 'Attendee' else None
+            refund_attendees[refund.id] = refund.attendees[0].attendee if refund.attendees else None
 
         return {
             'refunds': refunds,

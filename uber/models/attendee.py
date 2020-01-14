@@ -555,14 +555,13 @@ class Attendee(MagModel, TakesPaymentMixin):
                 self.paid = c.NEED_NOT_PAY
                 
     @presave_adjustment
-    def add_purchased_items(self):
-        if not self.purchased_items:
-            for name in self.cost_property_names:
-                value = getattr(self, name, 0)
-                if value:
-                    self.purchased_items[name] = value
-            if self.amount_extra:
-                self.purchased_items['amount_extra_cost'] = self.amount_extra
+    def update_purchased_items(self):
+        for name in self.cost_property_names:
+            value = getattr(self, name, 0)
+            if value:
+                self.purchased_items[name] = value
+        if self.amount_extra:
+            self.purchased_items['kick_in_cost'] = self.amount_extra
     
     @presave_adjustment
     def set_payment_method(self):
@@ -601,18 +600,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def badge_type_real(self):
         return uber.badge_funcs.get_real_badge_type(self.badge_type)
-    
-    @property
-    def badge_cost_real(self):
-        """
-        The actual cost of this attendee's badge, regardless of whether they themselves are paying for it.
-        Accounts for promo code group member and group overridden cost
-        """
-        if self.group and (not self.group.auto_recalc or self.group.cost == 0):
-            return 0
-        if self.in_promo_code_group:
-            return self.promo_code.cost
-        return self.badge_cost
 
     @cost_property
     def badge_cost(self):
@@ -709,7 +696,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.extra_donation or 0
 
     @cost_property
-    def promo_group_cost(self):
+    def promo_code_group_cost(self):
         return sum(group.total_cost for group in self.promo_code_groups)
 
     @property

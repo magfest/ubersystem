@@ -1549,6 +1549,7 @@ $(window).on("runJavaScript", function(){
     {% call macros.read_only_if(read_only, attendee.payment_method) %}
     <div class="col-sm-3">
       <select id="payment_method" name="payment_method" class="form-control">
+        <option value="">N/A</option>
         {{ options(c.PAYMENT_METHOD_OPTS,attendee.payment_method) }}
       </select>
     </div>
