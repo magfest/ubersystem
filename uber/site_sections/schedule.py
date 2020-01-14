@@ -324,7 +324,7 @@ class Root:
                                             .filter_by(ribbon=c.PANELIST_RIBBON)
                                             .options(joinedload(Attendee.group))
                                             .order_by(Attendee.full_name).all()
-                          if a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid]
+                          if a.paid_for_badge and not a.has_been_refunded]
         }
 
     @schedule_view

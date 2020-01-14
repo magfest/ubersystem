@@ -94,13 +94,10 @@ class Root:
     def judges_owed_refunds(self, session):
         return {
             'judges': [
-                a for a in session.query(Attendee).outerjoin(Group, Attendee.group_id == Group.id)
-                    .filter(or_(
-                        Attendee.paid == c.HAS_PAID, and_(Attendee.paid == c.PAID_BY_GROUP, Group.amount_paid > 0)))
-                    .join(Attendee.admin_account)
-                    .filter(AdminAccount.judge != None, AdminAccount.access.contains(str(c.INDIE_JUDGE)))
+                a for a in session.query(Attendee).join(Attendee.admin_account)
+                    .filter(AdminAccount.judge != None)
                     .options(joinedload(Attendee.group))
-                    .order_by(Attendee.full_name)
+                    .order_by(Attendee.full_name) if a.paid_for_badge and not a.has_been_refunded
             ]}  # noqa: E711
 
     def assign_games(self, session, judge_id, message=''):
