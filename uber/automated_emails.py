@@ -442,7 +442,7 @@ StopsEmailFixture(
 StopsEmailFixture(
     'Please review your worked shifts for {EVENT_NAME}!',
     'shifts/shifts_worked.html',
-    lambda a: a.weighted_hours or a.nonshift_hours,
+    lambda a: (a.weighted_hours or a.nonshift_hours) and a.badge_type != c.CONTRACTOR_BADGE,
     when=days_after(1, c.ESCHATON),
     ident='volunteer_shifts_worked',
     allow_post_con=True)
