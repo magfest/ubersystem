@@ -53,6 +53,12 @@ class Root:
                 (sum(c.TABLE_PRICES[i] for i in range(1, 5)), "Fourth Table"),
             ]
         }
+        
+    @log_pageview
+    def attendee_donation_breakdown(self, session):
+        return {
+            'donated_attendees': session.query(Attendee).filter(or_(Attendee.amount_extra > 0, Attendee.extra_donation > 0)),
+        }
 
     @log_pageview
     def mpoints(self, session):
