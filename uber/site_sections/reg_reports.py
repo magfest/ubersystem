@@ -199,6 +199,26 @@ class Root:
             'counts': counts,
             'total_registrations': session.query(Attendee).count()
         }
+        
+    def comped_badges(self, session, message='', show='all'):
+        regular_comped = session.attendees_with_badges().filter(Attendee.paid == c.NEED_NOT_PAY, 
+                                                                Attendee.promo_code == None)
+        promo_comped = session.attendees_with_badges().join(PromoCode).filter(or_(PromoCode.cost == None, 
+                                                                                  PromoCode.cost == 0))
+        group_comped = session.attendees_with_badges().join(Group, Attendee.group_id == Group.id)\
+                .filter(Attendee.paid == c.PAID_BY_GROUP, Group.cost == 0)
+        all_comped = regular_comped.union(promo_comped, group_comped)
+        claimed_comped = all_comped.filter(Attendee.placeholder == False)
+        unclaimed_comped = all_comped.filter(Attendee.placeholder == True)
+            
+        return {
+            'message': message,
+            'comped_attendees': all_comped,
+            'all_comped': all_comped.count(),
+            'claimed_comped': claimed_comped.count(),
+            'unclaimed_comped': unclaimed_comped.count(),
+            'show': show,
+        }
 
     def affiliates(self, session):
         class AffiliateCounts:

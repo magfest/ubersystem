@@ -11,17 +11,15 @@
         <th>Email Address</th>
         <th>Amount Donated</th>
         <th>Kick-in</th>
-        <th>Unpaid</th>
       </tr>
     </thead>
     <tbody>
-    {% for attendee in donated_attendees %}
+    {% for attendee in donated_attendees if not attendee.amount_unpaid %}
       <tr>
         <td>{{ attendee|form_link }}</td>
         <td>{{ attendee.email }}</td>
         <td>${{ "{0:g}".format(attendee.extra_donation) }}</td>
         <td>${{ "{0:g}".format(attendee.amount_extra) }}</td>
-        <td>${{ "{0:g}".format(attendee.amount_unpaid) }}</td>
       </tr>
     {% endfor %}
     </tbody>
