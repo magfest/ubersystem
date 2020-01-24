@@ -24,6 +24,11 @@
   </a>
   </li>
   <li role="presentation">
+  <a href="#staff" aria-controls="staff" role="tab" data-toggle="tab">
+  Staff/Volunteer Badges
+  </a>
+  </li>
+  <li role="presentation">
   <a href="#other" aria-controls="other" role="tab" data-toggle="tab">
   Other Badges
   </a>
@@ -41,17 +46,19 @@
     <th>Name on ID</th>
     <th>Badge Type</th>
     <th>Badge #</th>
+    <th>Created By</th>
     <th>Admin Notes</th>
 </tr></thead>
 {% for attendee in comped_attendees %}
     <tr>
-        <td>{{ attendee.placeholder|yesno("No,Yes") }}</td>
-        <td>{{ attendee.group_name }}</td>
-        <td>{{ attendee.promo_code_code }}</td>
-        <td style="text-align:left" data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}"> <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
+        <td>{{ (attendee.placeholder or attendee.is_unassigned)|yesno("No,Yes") }}</td>
+        <td data-order="{{ attendee.group_name }}" data-search="{{ attendee.group_name }}">{{ attendee.group|form_link }}</td>
+        <td>{{ attendee.promo_code_code }}{% if attendee.promo_code.group %}({{ attendee.promo_code.group|form_link }}){% endif %}</td>
+        <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}"> {{ attendee|form_link }}</a> </td>
         <td>{{ attendee.legal_name }}</td>
         <td>{{ attendee.badge_type_label }} {% if attendee.ribbon != c.NO_RIBBON %} {{ attendee.ribbon_label }} {% endif %}</td>
         <td>{{ attendee.badge_num }}</td>
+        <td data-order="{{ attendee.creator.full_name }}" data-search="{{ attendee.creator.full_name }}">{{ attendee.creator|form_link or 'N/A' }}</td>
         <td>{{ attendee.admin_notes }}</td>
     </tr>
 {% endfor %}
@@ -62,6 +69,7 @@
 </div>
 <div role="tabpanel" class="tab-pane" id="promo">{% include '/reg_reports/comped_badges_promo.html' %}</div>
 <div role="tabpanel" class="tab-pane" id="group">{% include '/reg_reports/comped_badges_group.html' %}</div>
+<div role="tabpanel" class="tab-pane" id="staff">{% include '/reg_reports/comped_badges_staff.html' %}</div>
 <div role="tabpanel" class="tab-pane" id="other">{% include '/reg_reports/comped_badges_other.html' %}</div>
 </div>
 <script src="../static/js/window-hash-tabload.js" type="text/javascript"></script>
