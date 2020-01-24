@@ -519,6 +519,8 @@ class Attendee(MagModel, TakesPaymentMixin):
                     and c.VOLUNTEER_RIBBON in old_ribbon and not self.is_dept_head:
                 self.unset_volunteering()
 
+    @presave_adjustment
+    def staffing_badge_and_ribbon_adjustments(self):
         if self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
             self.ribbon = remove_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
 
@@ -701,6 +703,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @cost_property
     def promo_code_group_cost(self):
         return sum(group.total_cost for group in self.promo_code_groups)
+
+    @cost_property
+    def marketplace_cost(self):
+        return sum(app.total_cost - app.amount_paid for app in self.marketplace_applications)
 
     @property
     def amount_extra_unpaid(self):

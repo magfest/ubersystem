@@ -1,7 +1,7 @@
 """Add platforms to judges and games
 
 Revision ID: 5c14f5a350dd
-Revises: 938e21c8c260
+Revises: 826e6c309c31
 Create Date: 2017-09-01 01:18:49.783091
 
 """

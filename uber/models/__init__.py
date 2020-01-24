@@ -353,6 +353,7 @@ class MagModel:
             return []
 
         choices = dict(self.get_field(name).type.choices)
+        val = MultiChoice.convert_if_labels(self.get_field(name).type, val)
         return [int(i) for i in str(val).split(',') if i and int(i) in choices]
 
     @suffix_property
@@ -527,6 +528,7 @@ from uber.models.types import *  # noqa: F401,E402,F403
 from uber.models.api import *  # noqa: F401,E402,F403
 from uber.models.hotel import *  # noqa: F401,E402,F403
 from uber.models.attendee_tournaments import *  # noqa: F401,E402,F403
+from uber.models.marketplace import *  # noqa: F401,E402,F403
 from uber.models.mivs import *  # noqa: F401,E402,F403
 from uber.models.mits import *  # noqa: F401,E402,F403
 from uber.models.panels import *  # noqa: F401,E402,F403
@@ -965,6 +967,45 @@ class Session(SessionManager):
                 return attendees[0]
 
             raise ValueError('Attendee not found')
+
+        def create_or_find_attendee_by_id(self, **params):
+            message = ''
+            if params.get('attendee_id', ''):
+                try:
+                    attendee = self.attendee(id=params['attendee_id'])
+                except Exception:
+                    try:
+                        attendee = self.attendee(public_id=params['attendee_id'])
+                    except Exception:
+                        return \
+                            None, \
+                            'The confirmation number you entered is not valid, ' \
+                            'or there is no matching badge.'
+
+                if attendee.badge_status in [c.INVALID_STATUS, c.WATCHED_STATUS]:
+                    return None, \
+                           'This badge is invalid. Please contact registration.'
+            else:
+                attendee_params = {
+                    attr: params.get(attr, '')
+                    for attr in ['first_name', 'last_name', 'email']}
+                attendee = self.attendee(attendee_params, restricted=True,
+                                         ignore_csrf=True)
+                attendee.placeholder = True
+                if not params.get('email', ''):
+                    message = 'Email address is a required field.'
+            return attendee, message
+
+        def attendee_from_marketplace_app(self, **params):
+            attendee, message = self.create_or_find_attendee_by_id(**params)
+            if message:
+                return attendee, message
+            elif attendee.marketplace_applications:
+                return attendee, \
+                       'There is already a marketplace application ' \
+                       'for that badge!'
+
+            return attendee, message
 
         def add_promo_code_to_attendee(self, attendee, code):
             """

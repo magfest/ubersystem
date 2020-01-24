@@ -25,8 +25,8 @@ from uber.config import c
 from uber.decorators import prereg_validation, validation
 from uber.models import AccessGroup, AdminAccount, ApiToken, Attendee, AttendeeTournament, Attraction, \
     AttractionFeature, Department, DeptRole, Event, Group, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, \
-    IndieStudio, Job, MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam, PanelApplicant, PanelApplication, \
-    PromoCode, PromoCodeGroup, Sale, Session
+    IndieStudio, Job, MarketplaceApplication, MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam, \
+    PanelApplicant, PanelApplication, PromoCode, PromoCodeGroup, Sale, Session
 from uber.utils import localized_now, Charge
 
 
@@ -279,7 +279,7 @@ def full_name(attendee):
 
 @validation.Attendee
 def allowed_to_volunteer(attendee):
-    if attendee.staffing \
+    if attendee.staffing_or_will_be \
             and not attendee.age_group_conf['can_volunteer'] \
             and attendee.badge_type != c.STAFF_BADGE \
             and c.PRE_CON:
@@ -373,7 +373,7 @@ def cellphone(attendee):
         return 'Your phone number was not a valid 10-digit US phone number. ' \
             'Please include a country code (e.g. +44) for international numbers.'
 
-    if not attendee.no_cellphone and attendee.staffing and not attendee.cellphone:
+    if not attendee.no_cellphone and attendee.staffing_or_will_be and not attendee.cellphone:
         return "Phone number is required for volunteers (unless you don't own a cellphone)"
 
 
@@ -410,7 +410,7 @@ def group_leadership(attendee):
 
 @validation.Attendee
 def banned_volunteer(attendee):
-    if (c.VOLUNTEER_RIBBON in attendee.ribbon_ints or attendee.staffing) and attendee.full_name in c.BANNED_STAFFERS:
+    if attendee.staffing_or_will_be and attendee.full_name in c.BANNED_STAFFERS:
         return "We've declined to invite {} back as a volunteer, ".format(attendee.full_name) + (
                     'talk to Stops to override if necessary' if c.AT_THE_CON else
                     'Please contact us via {} if you believe this is in error'.format(c.CONTACT_URL))
@@ -634,10 +634,22 @@ def attendee_tournament_cellphone(app):
     if app.cellphone and _invalid_phone_number(app.cellphone):
         return 'You did not enter a valid cellphone number'
 
+# =============================
+# marketplace
+# =============================
+
+MarketplaceApplication.required = [('description', 'Description'), ('categories', 'Categories')]
+
+
+@validation.MarketplaceApplication
+def marketplace_other_category(app):
+    if app.categories and c.OTHER in app.categories_ints and not app.categories_text:
+        return "Please describe what 'other' things you are planning to sell."
 
 # =============================
 # mivs
 # =============================
+
 
 def _is_invalid_url(url):
     if c.MIVS_SKIP_URL_VALIDATION:
