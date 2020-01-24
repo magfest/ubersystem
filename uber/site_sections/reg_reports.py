@@ -203,7 +203,8 @@ class Root:
     def comped_badges(self, session, message='', show='all'):
         regular_comped = session.attendees_with_badges().filter(Attendee.paid == c.NEED_NOT_PAY, 
                                                                 Attendee.promo_code == None)
-        promo_comped = session.attendees_with_badges().join(PromoCode).filter(or_(PromoCode.cost == None, 
+        promo_comped = session.attendees_with_badges().join(PromoCode).filter(Attendee.paid == c.NEED_NOT_PAY,
+                                                                              or_(PromoCode.cost == None, 
                                                                                   PromoCode.cost == 0))
         group_comped = session.attendees_with_badges().join(Group, Attendee.group_id == Group.id)\
                 .filter(Attendee.paid == c.PAID_BY_GROUP, Group.cost == 0)
