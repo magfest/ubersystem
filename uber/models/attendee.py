@@ -413,6 +413,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     games = relationship('TabletopGame', backref='attendee')
     checkouts = relationship('TabletopCheckout', backref='attendee')
     entrants = relationship('TabletopEntrant', backref='attendee')
+    
+    # =========================
+    # badge printing
+    # =========================
+    times_printed = Column(Integer, default=0)
+    print_pending = Column(Boolean, default=False)
 
     _attendee_table_args = [
         Index('ix_attendee_paid_group_id', paid, group_id),
@@ -577,6 +583,40 @@ class Attendee(MagModel, TakesPaymentMixin):
     def assign_creator(self):
         if self.is_new and not self.creator_id:
             self.creator_id = self.session.admin_attendee().id if self.session.admin_attendee() else None
+    
+    @presave_adjustment
+    def assign_number_after_payment(self):
+        if c.AT_THE_CON:
+            if self.has_personalized_badge and not self.badge_num:
+                if not self.amount_unpaid:
+                    self.badge_num = self.session.next_badge_num(self.badge_type, old_badge_num=0)
+
+    @presave_adjustment
+    def print_ready_before_event(self):
+        if c.PRE_CON:
+            if self.badge_status == c.COMPLETED_STATUS\
+                    and not self.is_not_ready_to_checkin\
+                    and self.times_printed < 1:
+                self.print_pending = True
+
+    @presave_adjustment
+    def print_ready_at_event(self):
+        if c.AT_THE_CON:
+            if self.checked_in and self.times_printed < 1:
+                self.print_pending = True
+                
+    @cost_property
+    def reprint_cost(self):
+        return c.BADGE_REPRINT_FEE or 0
+
+    @property
+    def age_now_or_at_con(self):
+        if not self.birthdate:
+            return None
+        day = c.EPOCH.date() if date.today() <= c.EPOCH.date()\
+            else uber.utils.localized_now().date()
+        return day.year - self.birthdate.year - (
+            (day.month, day.day) < (self.birthdate.month, self.birthdate.day))
 
     def unset_volunteering(self):
         self.staffing = False

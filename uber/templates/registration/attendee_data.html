@@ -92,6 +92,8 @@ if($.field('return_to')) {
     {{ attendee_fields.checked_in }}
     {{ attendee_fields.is_placeholder }}
     {{ attendee_fields.badge_status }}
+    {{ attendee_fields.print_pending }}
+    {{ attendee_fields.reprint_fee }}
     {% if c.HAS_ACCOUNTS_ACCESS %}
       {{ attendee_fields.admin_access }}
     {% endif %}

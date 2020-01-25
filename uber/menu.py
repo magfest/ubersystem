@@ -134,3 +134,12 @@ c.MENU = MenuItem(name='Root', submenu=[
 
 if c.ATTRACTIONS_ENABLED:
     c.MENU['Schedule'].append_menu_item(MenuItem(name='Attractions', href='../attractions_admin/'))
+
+
+if c.BADGE_PRINTING_ENABLED:
+    c.MENU.append_menu_item(MenuItem(name='Badge Printing', submenu=[
+        MenuItem(name='Printed Badges', href='../badge_printing/'),
+        MenuItem(name='Waiting to Print', href='../badge_printing/index?pending=True'),
+        MenuItem(name='Print Adult Badges', href='../badge_printing/print_next_badge'),
+        MenuItem(name='Print Minor Badges', href='../badge_printing/print_next_badge?minor=True'),
+    ]))

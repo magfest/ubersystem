@@ -1747,3 +1747,33 @@ $(window).on("runJavaScript", function(){
   </div>
 </div>
 {% endset %}
+
+{% if c.BADGE_PRINTING_ENABLED %}
+{% set print_pending %}
+{% set read_only = print_pending_ro or page_ro %}
+<div class="form-group">
+    <label class="col-sm-3 control-label">Ready to Print</label>
+    <div class="checkbox col-sm-6">
+        {{ macros.checkbox(attendee, 'print_pending', label='Yes', is_readonly=read_only, clientside_bool=clientside_bool) }}
+    </div>
+</div>
+{% endset %}
+
+{% set reprint_fee %}
+{% if c.BADGE_REPRINT_FEE %}
+{# This field currently breaks the page flow and should be replaced with an AJAX call. #}
+<div class="form-group">
+  <label class="col-sm-3 control-label">Reprint Badge</label>
+  <div class="col-sm-6">
+      <form role="form" method="post" action="../badge_printing/reprint_fee">
+          <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
+          $<input type="text" style="width:4em" name="fee_amount" value="{{ c.BADGE_REPRINT_FEE }}" />
+          <span id="reprint_reason">Reason: <input type="text" name="reprint_reason" style="width:20em" placeholder="Reason for reprinting." /></span>
+          <button class="btn btn-warning" type="submit">Record Reprint</button>
+          <button class="btn btn-success" type="submit" name="refund" value="True">Refund Reprint Fee</button>
+      </form>
+  </div>
+</div>
+{% endif %}
+{% endset %}
+{% endif %}
