@@ -113,7 +113,7 @@ class Root:
                 for app in attendee.marketplace_applications:
                     attendee_payment -= app.amount_unpaid
                     app.amount_paid += app.amount_unpaid
-            attendee.amount_paid += attendee_payment
+            attendee.amount_paid_override += attendee_payment
             if attendee.paid == c.NOT_PAID:
                 attendee.paid = c.HAS_PAID
         session.add(attendee)

@@ -75,10 +75,12 @@ app, c.PAGE_PATH,
           </p>
           {% endif %}
         </div>
+        {% if not app.is_new %}
         <div class="clearfix"></div>
           <p class="help-block col-sm-6 col-sm-offset-3">
             <a href="../marketplace/edit?id={{ app.id }}">View this application</a>{% if app.status == c.APPROVED and app.amount_unpaid %} for the payment button{% endif %}.
           </p>
+        {% endif %}
       </div>
 
 
