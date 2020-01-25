@@ -547,31 +547,32 @@ class AttendeeLookup:
                 'attendees': attendees,
             }
 
-    @api_auth(c.API_CREATE)
+    @api_auth('api_create')
     def create(self, first_name, last_name, email, params):
         """
         Create an attendee with at least a first name, last name, and email. Prevents duplicate attendees.
 
-        `params` should be a dictionary with column name: value to set other values.
+        `params` should be a dictionary with column name: value to set other values, or a falsey value.
         Use labels for Choice and MultiChoice columns, and a string like "no" or "yes" for Boolean columns.
         Date and DateTime columns should be parsed correctly as long as they follow a standard format.
 
-        Example:
-        <pre>{"legal_name": "First Last", "cellphone": "5555555555", "can_work_setup": "yes"}</pre>
+        Example `params` dictionary for setting extra parameters:
+        <pre>{"placeholder": "yes", "legal_name": "First Last", "cellphone": "5555555555"}</pre>
         """
         with Session() as session:
-            attendee_query = session.query(Attendee).filter_by(first_name=first_name,
-                                                               last_name=last_name,
-                                                               email=email)
+            attendee_query = session.query(Attendee).filter(Attendee.first_name.ilike("first_name"),
+                                                            Attendee.last_name.ilike("last_name"),
+                                                            Attendee.email.ilike("email@example.com"))
 
             if attendee_query.first():
                 raise HTTPError(400, 'An attendee with this name and email address already exists')
 
             attendee = Attendee(first_name=first_name, last_name=last_name, email=email)
 
-            for key, val in params.items():
-                params[key] = _parse_if_datetime(key, val)
-                params[key] = _parse_if_boolean(key, val)
+            if params:
+                for key, val in params.items():
+                    params[key] = _parse_if_datetime(key, val)
+                    params[key] = _parse_if_boolean(key, val)
 
             attendee.apply(params, restricted=False)
             session.add(attendee)
@@ -589,7 +590,7 @@ class AttendeeLookup:
 
             return attendee.id
 
-    @api_auth(c.API_UPDATE)
+    @api_auth('api_update')
     def update(self, id, params):
         """
         Update an attendee using their unique ID, returned by our lookup functions.
@@ -599,13 +600,16 @@ class AttendeeLookup:
         Date and DateTime columns should be parsed correctly as long as they follow a standard format.
 
         Example:
-        <pre>{"first_name": "First", "paid": "doesn't need to", "ribbons": "Staff, Panelist"}</pre>
+        <pre>{"first_name": "First", "paid": "doesn't need to", "ribbon": "Volunteer, Panelist"}</pre>
         """
         with Session() as session:
             attendee = session.attendee(id, allow_invalid=True)
 
             if not attendee:
                 raise HTTPError(404, 'No attendee found with this ID')
+            
+            if not params:
+                raise HTTPError(400, 'Please provide parameters to update')
 
             for key, val in params.items():
                 params[key] = _parse_if_datetime(key, val)
