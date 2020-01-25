@@ -10,7 +10,7 @@ Create Date: 2017-04-23 19:14:43.751659
 # revision identifiers, used by Alembic.
 revision = 'fc791d73e762'
 down_revision = '416eb615ff1a'
-branch_labels = ('guests',)
+branch_labels = None
 depends_on = None
 
 from alembic import op

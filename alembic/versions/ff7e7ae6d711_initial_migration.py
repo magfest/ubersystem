@@ -10,7 +10,7 @@ Create Date: 2017-04-23 19:06:15.552092
 # revision identifiers, used by Alembic.
 revision = 'ff7e7ae6d711'
 down_revision = None
-branch_labels = ('uber',)
+branch_labels = None
 depends_on = None
 
 from alembic import op

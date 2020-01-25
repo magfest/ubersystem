@@ -1,7 +1,7 @@
 """Add tax phone for merch
 
 Revision ID: 27a3a3676666
-Revises: a1a5bd54b2aa
+Revises: f619fbd56912
 Create Date: 2017-09-22 11:27:58.543880
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-09-22 11:27:58.543880
 
 # revision identifiers, used by Alembic.
 revision = '27a3a3676666'
-down_revision = 'a1a5bd54b2aa'
+down_revision = 'f619fbd56912'
 branch_labels = None
 depends_on = None
 

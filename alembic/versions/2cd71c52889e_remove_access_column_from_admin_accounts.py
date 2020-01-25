@@ -1,7 +1,7 @@
 """Remove access column from admin accounts
 
 Revision ID: 2cd71c52889e
-Revises: da22d6a6407c
+Revises: 5ca0661d5081
 Create Date: 2019-08-22 15:05:58.532275
 
 """
@@ -9,7 +9,7 @@ Create Date: 2019-08-22 15:05:58.532275
 
 # revision identifiers, used by Alembic.
 revision = '2cd71c52889e'
-down_revision = 'da22d6a6407c'
+down_revision = '5ca0661d5081'
 branch_labels = None
 depends_on = None
 

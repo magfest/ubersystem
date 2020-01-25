@@ -1,7 +1,7 @@
 """Adds Guest.wants_mc
 
 Revision ID: 61734fcb2e72
-Revises: 9e3e15a7cf59
+Revises: 9d90d3d538c6
 Create Date: 2018-08-19 23:12:44.242956
 
 """
@@ -9,7 +9,7 @@ Create Date: 2018-08-19 23:12:44.242956
 
 # revision identifiers, used by Alembic.
 revision = '61734fcb2e72'
-down_revision = '9e3e15a7cf59'
+down_revision = '9d90d3d538c6'
 branch_labels = None
 depends_on = None
 

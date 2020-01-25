@@ -1,7 +1,7 @@
-"""Rename band tables to guest tables.
+"""Rename band tables to guest tables
 
 Revision ID: f619fbd56912
-Revises: adf30f2f47d5
+Revises: 5dced3c6ef91
 Create Date: 2017-09-18 07:45:24.077355
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-09-18 07:45:24.077355
 
 # revision identifiers, used by Alembic.
 revision = 'f619fbd56912'
-down_revision = 'adf30f2f47d5'
+down_revision = '5dced3c6ef91'
 branch_labels = None
 depends_on = None
 

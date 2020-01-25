@@ -1,7 +1,7 @@
 """Add Promo Code Groups to prereg
 
 Revision ID: 523e3d243395
-Revises: 82e95f305078
+Revises: d1ae7f4f7767
 Create Date: 2019-03-05 03:43:43.048891
 
 """
@@ -9,7 +9,7 @@ Create Date: 2019-03-05 03:43:43.048891
 
 # revision identifiers, used by Alembic.
 revision = '523e3d243395'
-down_revision = '82e95f305078'
+down_revision = 'd1ae7f4f7767'
 branch_labels = None
 depends_on = None
 
