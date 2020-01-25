@@ -1,7 +1,7 @@
 """Add autograph, interview, and travel plan checklist items
 
 Revision ID: a1a5bd54b2aa
-Revises: 651b1ea070d4
+Revises: f619fbd56912
 Create Date: 2017-09-21 07:17:46.817443
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-09-21 07:17:46.817443
 
 # revision identifiers, used by Alembic.
 revision = 'a1a5bd54b2aa'
-down_revision = '651b1ea070d4'
+down_revision = 'f619fbd56912'
 branch_labels = None
 depends_on = None
 
