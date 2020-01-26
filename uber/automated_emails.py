@@ -235,7 +235,9 @@ AutomatedEmailFixture(
     sender=c.REGDESK_EMAIL)
 
 
-# Marketplace emails
+# =============================
+# marketplace
+# =============================
 AutomatedEmailFixture.queries.update({
     MarketplaceApplication:
         lambda session: session.query(MarketplaceApplication)
@@ -251,37 +253,37 @@ class MarketplaceAppEmailFixture(AutomatedEmailFixture):
                                        ident,
                                        sender=c.MARKETPLACE_APP_EMAIL, **kwargs)
 
+if c.MARKETPLACE_REG_START:
+    MarketplaceAppEmailFixture(
+        '{EVENT_NAME} Marketplace Application Confirmation',
+        'marketplace/application.html',
+        lambda a: a.status == c.UNAPPROVED,
+        ident='marketplace_confirm')
 
-MarketplaceAppEmailFixture(
-    '{EVENT_NAME} Marketplace Application Confirmation',
-    'marketplace/application.html',
-    lambda a: a.status == c.UNAPPROVED,
-    ident='marketplace_confirm')
+    MarketplaceAppEmailFixture(
+        'Your {EVENT_NAME} Marketplace application has been approved',
+        'marketplace/approved.html',
+        lambda a: a.status == c.APPROVED,
+        ident='marketplace_approved')
 
-MarketplaceAppEmailFixture(
-    'Your {EVENT_NAME} Marketplace application has been approved',
-    'marketplace/approved.html',
-    lambda a: a.status == c.APPROVED,
-    ident='marketplace_approved')
+    MarketplaceAppEmailFixture(
+        'Your {EVENT_NAME} Marketplace application has been waitlisted',
+        'marketplace/waitlisted.txt',
+        lambda a: a.status == c.WAITLISTED,
+        ident='marketplace_waitlisted')
 
-MarketplaceAppEmailFixture(
-    'Your {EVENT_NAME} Marketplace application has been waitlisted',
-    'marketplace/waitlisted.txt',
-    lambda a: a.status == c.WAITLISTED,
-    ident='marketplace_waitlisted')
+    MarketplaceAppEmailFixture(
+        'Your {EVENT_NAME} Marketplace application has been declined',
+        'marketplace/declined.txt',
+        lambda a: a.status == c.DECLINED,
+        ident='marketplace_declined')
 
-MarketplaceAppEmailFixture(
-    'Your {EVENT_NAME} Marketplace application has been declined',
-    'marketplace/declined.txt',
-    lambda a: a.status == c.DECLINED,
-    ident='marketplace_declined')
-
-MarketplaceAppEmailFixture(
-    'Reminder to pay for your {EVENT_NAME} Marketplace application',
-    'marketplace/payment_reminder.txt',
-    lambda a: a.status == c.APPROVED and a.amount_unpaid,
-    when=days_before(14, c.MARKETPLACE_PAYMENT_DUE),
-    ident='marketplace_payment_reminder')
+    MarketplaceAppEmailFixture(
+        'Reminder to pay for your {EVENT_NAME} Marketplace application',
+        'marketplace/payment_reminder.txt',
+        lambda a: a.status == c.APPROVED and a.amount_unpaid,
+        when=days_before(14, c.MARKETPLACE_PAYMENT_DUE),
+        ident='marketplace_payment_reminder')
 
 
 # Dealer emails; these are safe to be turned on for all events because even if the event doesn't have dealers,
