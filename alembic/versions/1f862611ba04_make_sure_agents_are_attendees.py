@@ -1,13 +1,15 @@
-"""Initial migration
-Revision ID: af64b33e950a
-Revises: 0b4ad67a27be
-Create Date: 2018-05-08 23:18:35.150928
+"""Make sure agents are attendees
+
+Revision ID: 1f862611ba04
+Revises: a18bda430e7f
+Create Date: 2018-05-19 14:37:54.148958
+
 """
 
 
 # revision identifiers, used by Alembic.
-revision = 'af64b33e950a'
-down_revision = '0b4ad67a27be'
+revision = '1f862611ba04'
+down_revision = 'a18bda430e7f'
 branch_labels = None
 depends_on = None
 
@@ -50,10 +52,14 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('attendee', sa.Column('print_pending', sa.Boolean(), server_default='False', nullable=False))
-    op.add_column('attendee', sa.Column('times_printed', sa.Integer(), server_default='0', nullable=False))
+    op.add_column('art_show_application', sa.Column('agent_code', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('art_show_application', sa.Column('agent_id', residue.UUID(), nullable=True))
+    op.create_foreign_key(op.f('fk_art_show_application_agent_id_attendee'), 'art_show_application', 'attendee', ['agent_id'], ['id'], ondelete='SET NULL')
+    op.drop_column('art_show_application', 'agent_name')
 
 
 def downgrade():
-    op.drop_column('attendee', 'times_printed')
-    op.drop_column('attendee', 'print_pending')
+    op.add_column('art_show_application', sa.Column('agent_name', sa.VARCHAR(), server_default=sa.text("''::character varying"), autoincrement=False, nullable=False))
+    op.drop_constraint(op.f('fk_art_show_application_agent_id_attendee'), 'art_show_application', type_='foreignkey')
+    op.drop_column('art_show_application', 'agent_id')
+    op.drop_column('art_show_application', 'agent_code')

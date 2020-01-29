@@ -1,19 +1,21 @@
-"""Initial migration
-Revision ID: af64b33e950a
-Revises: 0b4ad67a27be
-Create Date: 2018-05-08 23:18:35.150928
+"""Add paypal address column for international artist checkout
+
+Revision ID: df889f662fe6
+Revises: 181ceea98b62
+Create Date: 2018-11-06 17:07:13.473046
+
 """
 
 
 # revision identifiers, used by Alembic.
-revision = 'af64b33e950a'
-down_revision = '0b4ad67a27be'
+revision = 'df889f662fe6'
+down_revision = '181ceea98b62'
 branch_labels = None
 depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
+
 
 
 try:
@@ -50,10 +52,8 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('attendee', sa.Column('print_pending', sa.Boolean(), server_default='False', nullable=False))
-    op.add_column('attendee', sa.Column('times_printed', sa.Integer(), server_default='0', nullable=False))
+    op.add_column('art_show_application', sa.Column('paypal_address', sa.Unicode(), server_default='', nullable=False))
 
 
 def downgrade():
-    op.drop_column('attendee', 'times_printed')
-    op.drop_column('attendee', 'print_pending')
+    op.drop_column('art_show_application', 'paypal_address')

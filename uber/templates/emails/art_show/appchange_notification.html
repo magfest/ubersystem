@@ -1,0 +1,34 @@
+<html>
+<head></head>
+<body>
+
+You have updated your application for the Art Show.
+<a href="{{ c.URL_BASE }}/art_show_applications/edit?id={{ app.id }}">Click here</a> to see
+the changes.
+
+<br/><br/>Below is the new application:
+
+<ul>
+    {% if not app.incomplete_reason and not app.is_unpaid %}
+    <li><strong>Banner Name</strong>: {{ app.display_name }}</li>
+    <li><strong>Name on Check</strong>: {{ app.check_payable or app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name }}</li>
+    {% if app.hotel_name %}<li><strong>Hotel Staying At</strong>: {{ app.hotel_name }}</li>{% endif %}
+    {% if app.hotel_name %}<li><strong>Room Number</strong>: {{ app.hotel_room_num }}</li>{% endif %}
+    {% endif %}
+    {% if app.artist_name %}<li><strong>Artist Name</strong>: {{ app.artist_name }}</li>{% endif %}
+    <li><strong>General Panels</strong>: {{ app.panels }} panels (${{ app.panels_cost }}) </li>
+    <li><strong>General Table Sections</strong>: {{ app.tables }} table sections (${{ app.tables_cost }}) </li>
+    <li><strong>Mature Panels</strong>: {{ app.panels_ad }} mature panels (${{ app.panels_ad_cost }}) </li>
+    <li><strong>Mature Table Sections</strong>: {{ app.tables_ad }} mature table sections (${{ app.tables_ad_cost }}) </li>
+    <li><strong>Total Price</strong>: ${{ app.potential_cost }}{% if app.mailing_fee %} (including ${{ app.mailing_fee }} mailing fee){% endif %}</li>
+    <li><strong>Description</strong>: {{ app.description }}</li>
+    {% if app.special_needs %}<li><strong>Special Requests</strong>: {{ app.special_needs }}</li>{% endif %}
+    {% if app.attendee.badge_status == c.NOT_ATTENDING %}<li>You will not be attending {{ c.EVENT_NAME }} and thus will
+    not be issued a badge. If you expect this to change, please contact the art show staff at {{ c.ART_SHOW_EMAIL }}
+    {% endif %}
+    {% if app.website %}<li><strong>Website URL</strong>: {{ app.website }}</li>{% endif %}
+    {% if app.agent_code %}<li><strong>Agent Code</strong>: {{ app.agent_code}}</li>{% endif %}
+</ul>
+
+</body>
+</html>

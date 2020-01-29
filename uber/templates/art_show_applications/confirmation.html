@@ -1,0 +1,39 @@
+{% extends "./preregistration/preregbase.html" %}
+{% block title %}Art Show Application Received{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+<div class="masthead">
+</div>
+<div class="panel panel-default" style="padding:15px;">
+  <h2>{% if c.AFTER_ART_SHOW_WAITLIST %}You've been added to our waitlist!
+    {% else %}Thanks for applying for the Art Show!{% endif %}</h2>
+
+  We've received your application for the {{ c.EVENT_NAME }} Art Show. You applied for {{ app.panels }}
+  panel{{ app.panels|pluralize }} and {{ app.tables }} table{{ app.tables|pluralize }} in our general area,
+  and {{ app.panels_ad }} panel{{ app.panels_ad|pluralize }} and {{ app.tables_ad }} table{{ app.tables_ad|pluralize }}
+  in our mature area.
+
+  {% if app.attendee.badge_status == c.NEW_STATUS %}
+  <br/><br/>We've created a badge for you based on your information. You may complete your registration
+  <a href="../preregistration/confirm?id={{ app.attendee_id }}" target="_blank">here</a> or wait and pay for your badge
+  if and when your application is approved.
+  {% endif %}
+
+  {% if c.AFTER_ART_SHOW_WAITLIST %}
+  <br/><br/>You've been added to our waitlist, and we'll let you know if a spot opens up for you.
+  {% endif %}
+
+  <h3>What Happens Next</h3>
+  You will be emailed a link to <a href="edit?id={{ app.id }}" target="_blank">manage your art show application</a>.
+  You may change your application up until it is approved, declined, or waitlisted by an admin.
+
+  <br/><br/>Once your application has been reviewed, you will receive an email letting you know of your application's
+  status. If your application is approved, you will also receive a link to pay for the panel and table space you've
+  requested.{% if app.attendee.paid == c.NOT_PAID %} Your payment will also include your badge for the convention.
+  {% endif %}
+
+  <br/><br/>If you have any questions, please email us at <a href="mailto:{{c.ART_SHOW_EMAIL}}">{{ c.ART_SHOW_EMAIL }}</a>.
+
+
+</div>
+{% endblock %}

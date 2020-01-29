@@ -1,13 +1,15 @@
-"""Initial migration
-Revision ID: af64b33e950a
-Revises: 0b4ad67a27be
-Create Date: 2018-05-08 23:18:35.150928
+"""Add bidder signup
+
+Revision ID: 54227ab70c17
+Revises: 14ef3a47a1d6
+Create Date: 2018-10-15 17:02:07.266972
+
 """
 
 
 # revision identifiers, used by Alembic.
-revision = 'af64b33e950a'
-down_revision = '0b4ad67a27be'
+revision = '54227ab70c17'
+down_revision = '14ef3a47a1d6'
 branch_labels = None
 depends_on = None
 
@@ -50,10 +52,18 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('attendee', sa.Column('print_pending', sa.Boolean(), server_default='False', nullable=False))
-    op.add_column('attendee', sa.Column('times_printed', sa.Integer(), server_default='0', nullable=False))
+    op.create_table('art_show_bidder',
+    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('attendee_id', residue.UUID(), nullable=True),
+    sa.Column('bidder_num', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('hotel_name', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('hotel_room_num', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('admin_notes', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('signed_up', residue.UTCDateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_art_show_bidder_attendee_id_attendee'), ondelete='SET NULL'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_art_show_bidder'))
+    )
 
 
 def downgrade():
-    op.drop_column('attendee', 'times_printed')
-    op.drop_column('attendee', 'print_pending')
+    op.drop_table('art_show_bidder')

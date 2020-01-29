@@ -1,19 +1,21 @@
-"""Initial migration
-Revision ID: af64b33e950a
-Revises: 0b4ad67a27be
-Create Date: 2018-05-08 23:18:35.150928
+"""Add 2018 art show fields
+
+Revision ID: a18bda430e7f
+Revises: b55cbf903320
+Create Date: 2018-05-15 22:04:20.513567
+
 """
 
 
 # revision identifiers, used by Alembic.
-revision = 'af64b33e950a'
-down_revision = '0b4ad67a27be'
+revision = 'a18bda430e7f'
+down_revision = 'b55cbf903320'
 branch_labels = None
 depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
+
 
 
 try:
@@ -50,10 +52,10 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('attendee', sa.Column('print_pending', sa.Boolean(), server_default='False', nullable=False))
-    op.add_column('attendee', sa.Column('times_printed', sa.Integer(), server_default='0', nullable=False))
+    op.add_column('art_show_application', sa.Column('agent_name', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('art_show_application', sa.Column('delivery_method', sa.Integer(), server_default='32373808', nullable=False))
 
 
 def downgrade():
-    op.drop_column('attendee', 'times_printed')
-    op.drop_column('attendee', 'print_pending')
+    op.drop_column('art_show_application', 'delivery_method')
+    op.drop_column('art_show_application', 'agent_name')

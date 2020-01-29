@@ -1,0 +1,6 @@
+{% extends "art_show_common/print_form.html" %}
+{% import 'art_show_common/print_macros.html' as print_macros with context %}
+
+{% block printform %}
+  {{ print_macros.print_receipt(receipt) }}
+{% endblock %}

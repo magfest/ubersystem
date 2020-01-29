@@ -143,3 +143,13 @@ if c.BADGE_PRINTING_ENABLED:
         MenuItem(name='Print Adult Badges', href='../badge_printing/print_next_badge'),
         MenuItem(name='Print Minor Badges', href='../badge_printing/print_next_badge?minor=True'),
     ]))
+
+
+if c.ART_SHOW_ENABLED:
+    c.MENU.append_menu_item(MenuItem(name='Art Show', submenu=[
+        MenuItem(name='Applications', href='../art_show_admin/'),
+        MenuItem(name='Link to Apply', href='../art_show_applications/'),
+        MenuItem(name='At-Con Operations', href='../art_show_admin/ops'),
+        MenuItem(name='Reports', href='../art_show_reports/index'),
+        MenuItem(name='Sales Charge Form', href='../art_show_admin/sales_charge_form'),
+        ]))

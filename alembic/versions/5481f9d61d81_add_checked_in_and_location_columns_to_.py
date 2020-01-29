@@ -1,13 +1,15 @@
-"""Initial migration
-Revision ID: af64b33e950a
-Revises: 0b4ad67a27be
-Create Date: 2018-05-08 23:18:35.150928
+"""Add checked_in and location columns to apps
+
+Revision ID: 5481f9d61d81
+Revises: 6fd0a683af2d
+Create Date: 2018-09-25 15:01:15.896928
+
 """
 
 
 # revision identifiers, used by Alembic.
-revision = 'af64b33e950a'
-down_revision = '0b4ad67a27be'
+revision = '5481f9d61d81'
+down_revision = '6fd0a683af2d'
 branch_labels = None
 depends_on = None
 
@@ -50,10 +52,12 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('attendee', sa.Column('print_pending', sa.Boolean(), server_default='False', nullable=False))
-    op.add_column('attendee', sa.Column('times_printed', sa.Integer(), server_default='0', nullable=False))
+    op.add_column('art_show_application', sa.Column('checked_in', residue.UTCDateTime(), nullable=True))
+    op.add_column('art_show_application', sa.Column('checked_out', residue.UTCDateTime(), nullable=True))
+    op.add_column('art_show_application', sa.Column('locations', sa.Unicode(), server_default='', nullable=False))
 
 
 def downgrade():
-    op.drop_column('attendee', 'times_printed')
-    op.drop_column('attendee', 'print_pending')
+    op.drop_column('art_show_application', 'locations')
+    op.drop_column('art_show_application', 'checked_in')
+    op.drop_column('art_show_application', 'checked_out')

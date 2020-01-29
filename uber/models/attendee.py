@@ -419,6 +419,16 @@ class Attendee(MagModel, TakesPaymentMixin):
     # =========================
     times_printed = Column(Integer, default=0)
     print_pending = Column(Boolean, default=False)
+    
+    # =========================
+    # art show
+    # =========================
+    art_show_bidder = relationship('ArtShowBidder', backref=backref('attendee', load_on_pending=True), uselist=False)
+    art_show_purchases = relationship(
+        'ArtShowPiece',
+        backref='buyer',
+        cascade='save-update,merge,refresh-expire,expunge',
+        secondary='art_show_receipt')
 
     _attendee_table_args = [
         Index('ix_attendee_paid_group_id', paid, group_id),
@@ -617,6 +627,46 @@ class Attendee(MagModel, TakesPaymentMixin):
             else uber.utils.localized_now().date()
         return day.year - self.birthdate.year - (
             (day.month, day.day) < (self.birthdate.month, self.birthdate.day))
+        
+    @presave_adjustment
+    def not_attending_need_not_pay(self):
+        if self.badge_status == c.NOT_ATTENDING:
+            self.paid = c.NEED_NOT_PAY
+
+    @presave_adjustment
+    def add_as_agent(self):
+        if self.promo_code:
+            art_apps = self.session.lookup_agent_code(self.promo_code.code)
+            for app in art_apps:
+                app.agent_id = self.id
+
+    @cost_property
+    def art_show_app_cost(self):
+        cost = 0
+        if self.art_show_applications:
+            for app in self.art_show_applications:
+                cost += app.total_cost
+        return cost
+
+    @property
+    def art_show_receipt(self):
+        open_receipts = [receipt for receipt in self.art_show_receipts if not receipt.closed]
+        if open_receipts:
+            return open_receipts[0]
+
+    @property
+    def full_address(self):
+        if self.country and self.city and (
+                    self.region or self.country not in ['United States', 'Canada']) and self.address1:
+            return True
+
+    @property
+    def payment_page(self):
+        if self.art_show_applications:
+            for app in self.art_show_applications:
+                if app.total_cost and app.status != c.PAID:
+                    return '../art_show_applications/edit?id={}'.format(app.id)
+        return 'attendee_donation_form?id={}'.format(self.id)
 
     def unset_volunteering(self):
         self.staffing = False

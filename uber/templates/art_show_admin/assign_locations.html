@@ -1,0 +1,40 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Assign Locations{% endblock %}
+{% block content %}
+
+{% block admin_controls %}
+
+<h3>Assign Locations</h3>
+<div class="panel panel-body">
+  <form role="form" method="post" action="assign_locations" class="form-inline">
+  <button class="btn btn-primary" type="submit">Save</button>
+  <table class="table table-striped datatable">
+    <thead><tr>
+        <th>Artist Name</th>
+        <th>Real Name</th>
+        <th>Mature Grids</th>
+        <th>General Grids</th>
+        <th>General Tables</th>
+        <th>Mature Tables</th>
+        <th>Location</th>
+    </tr></thead>
+    {% for app in apps %}
+        <tr>
+            <td>{{ app.artist_name|default('N/A') }}</td>
+            <td style="text-align:left" data-order="{{ app.attendee.full_name }}" data-search="{{ app.attendee.full_name }}"> <a href="form?id={{ app.id }}">{{ app.attendee.full_name|default("?????") }}</a> </td>
+            <td>{{ app.panels }}</td>
+            <td>{{ app.panels_ad }}</td>
+            <td>{{ app.tables }}</td>
+            <td>{{ app.tables_ad }}</td>
+            <td><input type="text" class="form-control" name="{{ app.id }}_locations" value="{{ app.locations }}" /></td>
+        </tr>
+    {% endfor %}
+      <caption align="bottom">
+        <ul class="pagination"></ul>
+      </caption>
+    </table>
+    <button class="btn btn-primary" type="submit">Save</button>
+    </form>
+</div>
+{% endblock admin_controls %}
+{% endblock content %}

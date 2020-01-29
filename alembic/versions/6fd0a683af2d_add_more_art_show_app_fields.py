@@ -1,19 +1,21 @@
-"""Initial migration
-Revision ID: af64b33e950a
-Revises: 0b4ad67a27be
-Create Date: 2018-05-08 23:18:35.150928
+"""Add more art show app fields
+
+Revision ID: 6fd0a683af2d
+Revises: f812bc84e064
+Create Date: 2018-08-24 06:52:17.873616
+
 """
 
 
 # revision identifiers, used by Alembic.
-revision = 'af64b33e950a'
-down_revision = '0b4ad67a27be'
+revision = '6fd0a683af2d'
+down_revision = 'f812bc84e064'
 branch_labels = None
 depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
+
 
 
 try:
@@ -50,10 +52,16 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('attendee', sa.Column('print_pending', sa.Boolean(), server_default='False', nullable=False))
-    op.add_column('attendee', sa.Column('times_printed', sa.Integer(), server_default='0', nullable=False))
+    op.add_column('art_show_application', sa.Column('artist_id', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('art_show_application', sa.Column('banner_name', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('art_show_application', sa.Column('check_payable', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('art_show_application', sa.Column('hotel_name', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('art_show_application', sa.Column('hotel_room_num', sa.Unicode(), server_default='', nullable=False))
 
 
 def downgrade():
-    op.drop_column('attendee', 'times_printed')
-    op.drop_column('attendee', 'print_pending')
+    op.drop_column('art_show_application', 'hotel_room_num')
+    op.drop_column('art_show_application', 'hotel_name')
+    op.drop_column('art_show_application', 'check_payable')
+    op.drop_column('art_show_application', 'banner_name')
+    op.drop_column('art_show_application', 'artist_id')

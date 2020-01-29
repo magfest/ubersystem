@@ -1,0 +1,43 @@
+<html>
+<head></head>
+<body>
+You have been approved to show in the Art Show for {{ c.EVENT_NAME }} this coming {{ event_dates() }}!
+
+<br/><br/>{% if app.attendee.amount_unpaid or app.attendee.badge_status == c.NEW_STATUS %}
+In order to complete your application, you must
+{% if app.attendee.badge_status == c.NEW_STATUS %}finish filling out your information
+<a href="{{ c.URL_BASE }}//preregistration/confirm?id={{ app.attendee_id }}">here</a>{% if app.attendee.amount_unpaid %},
+and pay to {% if app.attendee.badge_status == c.NEW_STATUS %}register for the convention and {% endif %}be in the art show{% endif %}
+{% elif app.attendee.amount_unpaid %}pay to be in the art show <a href="{{ c.URL_BASE }}/art_show_applications/edit?id={{ app.id }}">here</a>{% endif %}.
+Afterwards, y{% else %}Y{% endif %}ou can enter your artwork <a href="{{ c.URL_BASE }}/art_show_applications/edit?id={{ app.id }}">on this page</a>.
+{% if app.attendee.amount_unpaid %}Payment is expected by {{ c.ART_SHOW_PAYMENT_DUE|datetime_local }} or your application may be removed and your space
+filled by another applicant.{% endif %}
+
+{% if app.attendee.badge_status == c.NOT_ATTENDING %}
+    <br/> <br/>
+    As a reminder, you have indicated that you are not attending {{ c.EVENT_NAME }}. As such, you will need to contact
+    the art show staff at {{ c.ART_SHOW_EMAIL }} to coordinate sending your art.
+{% endif %}
+
+{% if app.agent_code %}
+<br /><br />
+  You have specified you will be using an agent. Your agent code is: {{ app.agent_code }}
+{% endif %}
+
+<br/> <br/>
+
+This registration includes:
+<ul>
+    <li> {{ app.panels }} general panels (${{ app.panels_cost }}) </li>
+    <li> {{ app.tables }} general table sections (${{ app.tables_cost }}) </li>
+    <li> {{ app.panels_ad }} mature panels (${{ app.panels_ad_cost }}) </li>
+    <li> {{ app.tables_ad }} mature table sections (${{ app.tables_ad_cost }}) </li>
+</ul>
+
+<br/>You can always review the {{ c.EVENT_NAME }} Art Show rules
+<a href="{{ c.ART_SHOW_RULES_URL }}" target="_blank">here</a>.
+
+
+<br/><br/>{{ c.ART_SHOW_SIGNATURE }}
+</body>
+</html>

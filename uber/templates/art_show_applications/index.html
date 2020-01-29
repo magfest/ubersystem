@@ -1,0 +1,88 @@
+{% extends "preregistration/preregbase.html" %}
+{% block title %}Art Show Application{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+<script type="text/javascript">
+    var showOrHideNewBadge = function() {
+        var noBadgeChecked = $.field("new_badge").prop('checked');
+        setVisible($('#new-badge'), noBadgeChecked);
+        $.field("attendee_id").prop('disabled', noBadgeChecked);
+        setVisible($.field('attendee_id').parents('.form-group'), !noBadgeChecked);
+    };
+    $(function() {
+        showOrHideNewBadge();
+        $.field('new_badge').on('click', showOrHideNewBadge);
+    });
+</script>
+<div class="masthead"></div>
+<div class="panel panel-default">
+  <div class="panel-body">
+    <h2>{{ c.EVENT_NAME }} Art Show Application</h2>
+    {% if c.AFTER_ART_SHOW_DEADLINE and not c.HAS_ART_SHOW_ACCESS %}
+    Unfortunately, the deadline for art show applications has passed and we are no longer accepting applications.
+    {% else %}
+    {% if c.AFTER_ART_SHOW_DEADLINE and c.HAS_ART_SHOW_ACCESS %}
+    <span style="color:red">
+        Art show applications have closed, but because you are a logged in
+        administrator you can submit a new application using this form.
+      </span>
+    <br/> <br/>
+    {% endif %}
+    {% if c.AFTER_ART_SHOW_WAITLIST %}
+    <span style="color:orange">
+        The deadline for art show applications has passed. You may still submit an application to be put on our waiting
+        list. Applications will close completely on {{ c.ART_SHOW_DEADLINE|datetime_local }}.
+      </span>
+    <br/><br/>
+    {% endif %}
+
+    Art show applications are due by {{ c.ART_SHOW_WAITLIST|datetime_local }}. Any applications submitted after this
+    date will be automatically waitlisted. Applications will close completely on
+    {{ c.ART_SHOW_DEADLINE|datetime_local }}. Please review the {{ c.EVENT_NAME }} Art Show rules
+    <a href="{{ c.ART_SHOW_RULES_URL }}" target="_blank">here</a>.
+
+    <form method="post" action="index" class="form-horizontal" role="form">
+      <h3>Your Information</h3>
+      <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-3">
+          <label class="optional-field">
+            <input type="checkbox" name="new_badge" id="no_badge"
+                   {% if new_badge %}checked {% endif %}/>
+            I don't have a badge for {{ c.EVENT_NAME }}.
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="attendee_id" class="col-sm-3 control-label">Confirmation Number</label>
+        <div class="col-sm-6">
+          <input type="text" name="attendee_id" class="form-control" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                 value="{{ attendee_id }}" {% if attendee.id and not attendee.is_new %}readonly {% endif %}/>
+        </div>
+        <div class="clearfix"></div>
+        <p class="help-block col-sm-6 col-sm-offset-3">The confirmation number you received when you registered.</p>
+      </div>
+
+      <div id="new-badge">
+        <div class="form-group">
+          <div class="col-sm-9 col-sm-offset-3">
+            <p class="help-block form-control-static">A new badge will be created for you, and you'll have the
+              opportunity to complete your registration after submitting your application.</p>
+          </div>
+        </div>
+        {% include 'art_show_applications/new_attendee_fields.html' %}
+      </div>
+
+      <h3>Art Information</h3>
+      {% include 'art_show_applications/art_show_form.html' %}
+
+      <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-3">
+          <button type="submit" class="btn btn-primary">Submit Application</button>
+        </div>
+      </div>
+    </form>
+
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

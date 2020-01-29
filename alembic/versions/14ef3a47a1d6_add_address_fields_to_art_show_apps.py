@@ -1,19 +1,21 @@
-"""Initial migration
-Revision ID: af64b33e950a
-Revises: 0b4ad67a27be
-Create Date: 2018-05-08 23:18:35.150928
+"""Add address fields to art show apps.
+
+Revision ID: 14ef3a47a1d6
+Revises: 5481f9d61d81
+Create Date: 2018-09-28 16:16:54.438418
+
 """
 
 
 # revision identifiers, used by Alembic.
-revision = 'af64b33e950a'
-down_revision = '0b4ad67a27be'
+revision = '14ef3a47a1d6'
+down_revision = '5481f9d61d81'
 branch_labels = None
 depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
+
 
 
 try:
@@ -50,10 +52,20 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('attendee', sa.Column('print_pending', sa.Boolean(), server_default='False', nullable=False))
-    op.add_column('attendee', sa.Column('times_printed', sa.Integer(), server_default='0', nullable=False))
+    op.add_column('art_show_application', sa.Column('address1', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('art_show_application', sa.Column('address2', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('art_show_application', sa.Column('business_name', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('art_show_application', sa.Column('city', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('art_show_application', sa.Column('country', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('art_show_application', sa.Column('region', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('art_show_application', sa.Column('zip_code', sa.Unicode(), server_default='', nullable=False))
 
 
 def downgrade():
-    op.drop_column('attendee', 'times_printed')
-    op.drop_column('attendee', 'print_pending')
+    op.drop_column('art_show_application', 'zip_code')
+    op.drop_column('art_show_application', 'region')
+    op.drop_column('art_show_application', 'country')
+    op.drop_column('art_show_application', 'city')
+    op.drop_column('art_show_application', 'business_name')
+    op.drop_column('art_show_application', 'address2')
+    op.drop_column('art_show_application', 'address1')
