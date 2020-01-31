@@ -743,7 +743,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def paid_for_badge(self):
         return self.paid == c.HAS_PAID or \
-                self.group_id and self.group and self.group.amount_paid or \
+                self.paid == c.PAID_BY_GROUP and self.group and self.group.amount_paid or \
                 self.in_promo_code_group and self.promo_code.cost
                 
     @property
