@@ -1,13 +1,13 @@
 """Added document uploads and team deletion
 
 Revision ID: 735063d71b57
-Revises: c31b1a94a27d
+Revises: 76e2905cff66
 Create Date: 2017-11-26 00:16:52.930412
 """
 
 # revision identifiers, used by Alembic.
 revision = '735063d71b57'
-down_revision = 'c31b1a94a27d'
+down_revision = '76e2905cff66'
 branch_labels = None
 depends_on = None
 

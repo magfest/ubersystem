@@ -1,7 +1,7 @@
 """Adds Job visibility column
 
 Revision ID: 1c87fd8da02e
-Revises: 06b9ad98e471
+Revises: 735063d71b57
 Create Date: 2017-12-13 12:18:59.551609
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-12-13 12:18:59.551609
 
 # revision identifiers, used by Alembic.
 revision = '1c87fd8da02e'
-down_revision = '06b9ad98e471'
+down_revision = '735063d71b57'
 branch_labels = None
 depends_on = None
 

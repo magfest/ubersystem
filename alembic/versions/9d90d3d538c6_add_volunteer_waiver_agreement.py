@@ -1,7 +1,7 @@
 """Add volunteer waiver agreement
 
 Revision ID: 9d90d3d538c6
-Revises: e4d09d36083d
+Revises: 05009fad3d3c
 Create Date: 2018-08-05 11:10:27.007024
 
 """
@@ -9,7 +9,7 @@ Create Date: 2018-08-05 11:10:27.007024
 
 # revision identifiers, used by Alembic.
 revision = '9d90d3d538c6'
-down_revision = 'e4d09d36083d'
+down_revision = '05009fad3d3c'
 branch_labels = None
 depends_on = None
 

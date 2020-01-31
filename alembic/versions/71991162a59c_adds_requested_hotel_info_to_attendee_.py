@@ -1,7 +1,7 @@
 """Adds requested_hotel_info to attendee table
 
 Revision ID: 71991162a59c
-Revises: fc4b8eb3a35f
+Revises: edd7b60ea4b4
 Create Date: 2017-07-10 14:35:20.810300
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-07-10 14:35:20.810300
 
 # revision identifiers, used by Alembic.
 revision = '71991162a59c'
-down_revision = 'fc4b8eb3a35f'
+down_revision = 'edd7b60ea4b4'
 branch_labels = None
 depends_on = None
 

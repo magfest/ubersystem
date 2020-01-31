@@ -20,8 +20,9 @@ from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
 from uber import decorators
-from uber.models import AdminAccount, Attendee, AutomatedEmail, Department, Group, GuestGroup, IndieGame, IndieJudge, \
-    IndieStudio, MITSTeam, MITSApplicant, PanelApplication, PanelApplicant, PromoCodeGroup, Room, RoomAssignment, Shift
+from uber.models import AdminAccount, Attendee, ArtShowApplication, AutomatedEmail, Department, Group, GuestGroup, \
+    IndieGame, IndieJudge, IndieStudio, MarketplaceApplication, MITSTeam, MITSApplicant, PanelApplication, PanelApplicant, \
+    PromoCodeGroup, Room, RoomAssignment, Shift
 from uber.utils import after, before, days_after, days_before, localized_now, DeptChecklistConf
 
 
@@ -232,6 +233,129 @@ AutomatedEmailFixture(
     allow_at_the_con=True,
     ident='group_preassign_badges_reminder_last_chance',
     sender=c.REGDESK_EMAIL)
+
+
+# =============================
+# art show
+# =============================
+AutomatedEmailFixture.queries.update({
+    ArtShowApplication:
+        lambda session: session.query(ArtShowApplication)
+            .options(subqueryload(ArtShowApplication.attendee))
+})
+
+
+class ArtShowAppEmailFixture(AutomatedEmailFixture):
+    def __init__(self, subject, template, filter, ident, **kwargs):
+        AutomatedEmailFixture.__init__(self, ArtShowApplication, subject,
+                                       template,
+                                       lambda app: True and filter(app),
+                                       ident,
+                                       sender=c.ART_SHOW_EMAIL, **kwargs)
+
+if c.ART_SHOW_ENABLED:
+    ArtShowAppEmailFixture(
+        '{EVENT_NAME} Art Show Application Confirmation',
+        'art_show/application.html',
+        lambda a: a.status == c.UNAPPROVED,
+        ident='art_show_confirm')
+
+    ArtShowAppEmailFixture(
+        'Your {EVENT_NAME} Art Show application has been approved',
+        'art_show/approved.html',
+        lambda a: a.status == c.APPROVED,
+        ident='art_show_approved')
+
+    ArtShowAppEmailFixture(
+        'Your {EVENT_NAME} Art Show application has been waitlisted',
+        'art_show/waitlisted.txt',
+        lambda a: a.status == c.WAITLISTED,
+        ident='art_show_waitlisted')
+
+    ArtShowAppEmailFixture(
+        'Your {EVENT_NAME} Art Show application has been declined',
+        'art_show/declined.txt',
+        lambda a: a.status == c.DECLINED,
+        ident='art_show_declined')
+
+    ArtShowAppEmailFixture(
+        'Reminder to pay for your {EVENT_NAME} Art Show application',
+        'art_show/payment_reminder.txt',
+        lambda a: a.status == c.APPROVED and a.is_unpaid,
+        when=days_before(14, c.ART_SHOW_PAYMENT_DUE),
+        ident='art_show_payment_reminder')
+
+    ArtShowAppEmailFixture(
+        '{EVENT_NAME} Art Show piece entry needed',
+        'art_show/pieces_reminder.txt',
+        lambda a: a.status == c.PAID and not a.art_show_pieces,
+        when=days_before(15, c.EPOCH),
+        ident='art_show_pieces_reminder')
+
+    ArtShowAppEmailFixture(
+        'Reminder to assign an agent for your {EVENT_NAME} Art Show application',
+        'art_show/agent_reminder.html',
+        lambda a: a.status == c.PAID and not a.agent,
+        when=after(c.EVENT_TIMEZONE.localize(datetime(int(c.EVENT_YEAR), 11, 1))),
+        ident='art_show_agent_reminder')
+
+    ArtShowAppEmailFixture(
+        '{EVENT_NAME} Art Show MAIL IN Instructions',
+        'art_show/mailing_in.html',
+        lambda a: a.status == c.PAID and a.delivery_method == c.BY_MAIL,
+        when=days_before(40, c.ART_SHOW_DEADLINE),
+        ident='art_show_mail_in')
+
+
+# =============================
+# marketplace
+# =============================
+AutomatedEmailFixture.queries.update({
+    MarketplaceApplication:
+        lambda session: session.query(MarketplaceApplication)
+            .options(subqueryload(MarketplaceApplication.attendee))
+})
+
+
+class MarketplaceAppEmailFixture(AutomatedEmailFixture):
+    def __init__(self, subject, template, filter, ident, **kwargs):
+        AutomatedEmailFixture.__init__(self, MarketplaceApplication, subject,
+                                       template,
+                                       lambda app: True and filter(app),
+                                       ident,
+                                       sender=c.MARKETPLACE_APP_EMAIL, **kwargs)
+
+if c.MARKETPLACE_REG_START:
+    MarketplaceAppEmailFixture(
+        '{EVENT_NAME} Marketplace Application Confirmation',
+        'marketplace/application.html',
+        lambda a: a.status == c.UNAPPROVED,
+        ident='marketplace_confirm')
+
+    MarketplaceAppEmailFixture(
+        'Your {EVENT_NAME} Marketplace application has been approved',
+        'marketplace/approved.html',
+        lambda a: a.status == c.APPROVED,
+        ident='marketplace_approved')
+
+    MarketplaceAppEmailFixture(
+        'Your {EVENT_NAME} Marketplace application has been waitlisted',
+        'marketplace/waitlisted.txt',
+        lambda a: a.status == c.WAITLISTED,
+        ident='marketplace_waitlisted')
+
+    MarketplaceAppEmailFixture(
+        'Your {EVENT_NAME} Marketplace application has been declined',
+        'marketplace/declined.txt',
+        lambda a: a.status == c.DECLINED,
+        ident='marketplace_declined')
+
+    MarketplaceAppEmailFixture(
+        'Reminder to pay for your {EVENT_NAME} Marketplace application',
+        'marketplace/payment_reminder.txt',
+        lambda a: a.status == c.APPROVED and a.amount_unpaid,
+        when=days_before(14, c.MARKETPLACE_PAYMENT_DUE),
+        ident='marketplace_payment_reminder')
 
 
 # Dealer emails; these are safe to be turned on for all events because even if the event doesn't have dealers,
@@ -494,6 +618,7 @@ AutomatedEmailFixture(
     'reg_workflow/attendee_qrcode.html',
     lambda a: not a.is_not_ready_to_checkin and c.USE_CHECKIN_BARCODE,
     when=days_before(14, c.EPOCH),
+    allow_at_the_con=True,
     ident='qrcode_for_checkin')
 
 

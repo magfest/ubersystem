@@ -335,7 +335,7 @@ def email_only(email):
     former to be used in our text-only emails.  This filter takes an email which
     can be in either format and spits out just the email address portion.
     """
-    return re.search(c.EMAIL_RE.lstrip('^').rstrip('$'), email).group()
+    return re.search(c.EMAIL_RE.lstrip('^').rstrip('$'), email).group() if email else ''
 
 
 @JinjaEnv.jinja_export

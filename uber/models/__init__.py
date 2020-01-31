@@ -353,6 +353,7 @@ class MagModel:
             return []
 
         choices = dict(self.get_field(name).type.choices)
+        val = MultiChoice.convert_if_labels(self.get_field(name).type, val)
         return [int(i) for i in str(val).split(',') if i and int(i) in choices]
 
     @suffix_property
@@ -527,15 +528,18 @@ from uber.models.types import *  # noqa: F401,E402,F403
 from uber.models.api import *  # noqa: F401,E402,F403
 from uber.models.hotel import *  # noqa: F401,E402,F403
 from uber.models.attendee_tournaments import *  # noqa: F401,E402,F403
+from uber.models.marketplace import *  # noqa: F401,E402,F403
 from uber.models.mivs import *  # noqa: F401,E402,F403
 from uber.models.mits import *  # noqa: F401,E402,F403
 from uber.models.panels import *  # noqa: F401,E402,F403
 from uber.models.attraction import *  # noqa: F401,E402,F403
 from uber.models.tabletop import *  # noqa: F401,E402,F403
 from uber.models.guests import *  # noqa: F401,E402,F403
+from uber.models.art_show import *  # noqa: F401,E402,F403
 
 # Explicitly import models used by the Session class to quiet flake8
 from uber.models.admin import AccessGroup, AdminAccount, WatchList  # noqa: E402
+from uber.models.art_show import ArtShowApplication  # noqa: E402
 from uber.models.attendee import Attendee  # noqa: E402
 from uber.models.department import Job, Shift, Department  # noqa: E402
 from uber.models.email import Email  # noqa: E402
@@ -966,6 +970,65 @@ class Session(SessionManager):
 
             raise ValueError('Attendee not found')
 
+        def create_or_find_attendee_by_id(self, **params):
+            message = ''
+            if params.get('attendee_id', ''):
+                try:
+                    attendee = self.attendee(id=params['attendee_id'])
+                except Exception:
+                    try:
+                        attendee = self.attendee(public_id=params['attendee_id'])
+                    except Exception:
+                        return \
+                            None, \
+                            'The confirmation number you entered is not valid, ' \
+                            'or there is no matching badge.'
+
+                if attendee.badge_status in [c.INVALID_STATUS, c.WATCHED_STATUS]:
+                    return None, \
+                           'This badge is invalid. Please contact registration.'
+            else:
+                attendee_params = {
+                    attr: params.get(attr, '')
+                    for attr in ['first_name', 'last_name', 'email']}
+                attendee = self.attendee(attendee_params, restricted=True,
+                                         ignore_csrf=True)
+                attendee.placeholder = True
+                if not params.get('email', ''):
+                    message = 'Email address is a required field.'
+            return attendee, message
+
+        def attendee_from_marketplace_app(self, **params):
+            attendee, message = self.create_or_find_attendee_by_id(**params)
+            if message:
+                return attendee, message
+            elif attendee.marketplace_applications:
+                return attendee, \
+                       'There is already a marketplace application ' \
+                       'for that badge!'
+
+            return attendee, message
+        
+        def art_show_apps(self):
+            return self.query(ArtShowApplication).options(joinedload('attendee')).all()
+
+        def attendee_from_art_show_app(self, **params):
+            attendee, message = self.create_or_find_attendee_by_id(**params)
+            if message:
+                return attendee, message
+            elif attendee.art_show_applications:
+                return attendee, \
+                    'There is already an art show application ' \
+                    'for that badge!'
+
+            if params.get('not_attending', ''):
+                    attendee.badge_status = c.NOT_ATTENDING
+
+            return attendee, ''
+
+        def lookup_agent_code(self, code):
+            return self.query(ArtShowApplication).filter_by(agent_code=code).all()
+
         def add_promo_code_to_attendee(self, attendee, code):
             """
             Convenience method for adding a promo code to an attendee.
@@ -1201,6 +1264,31 @@ class Session(SessionManager):
             query.update({Attendee.badge_num: Attendee.badge_num + shift}, synchronize_session='evaluate')
 
             return True
+        
+        def get_next_badge_to_print(self, minor='', printerNumber='', numberOfPrinters=''):
+            badge_list = self.query(Attendee) \
+                .filter(
+                Attendee.print_pending,
+                Attendee.birthdate != None,
+                Attendee.badge_num != None).order_by(Attendee.badge_num).all()
+
+            try:
+                if minor:
+                    attendee = next(badge for badge
+                                    in badge_list
+                                    if badge.age_now_or_at_con < 18)
+                elif printerNumber != "" and numberOfPrinters != "": 
+                    attendee = next(badge for badge
+                                    in badge_list
+                                    if badge.age_now_or_at_con >= 18 and badge.badge_num % int(numberOfPrinters) == (int(printerNumber) - 1))
+                else:
+                    attendee = next(badge for badge
+                                    in badge_list
+                                    if badge.age_now_or_at_con >= 18)
+            except StopIteration:
+                return None
+
+            return attendee
 
         def valid_attendees(self):
             return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)

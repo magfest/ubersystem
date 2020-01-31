@@ -108,9 +108,10 @@
     </style>
 
     {% block feedback_javascript %}
-      {% if admin_area %}
-      <script type="text/javascript" async="async" src="https://jira.magfest.net/s/7cedd06b64911e869dc2b32a6477230c-T/kby73n/73019/6d39734591565d7d1928c35b4400d05a/2.0.23/_/download/batch/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector.js?locale=en-US&collectorId=a192a515"></script>
-      <script type="text/javascript" async="async" src="https://jira.magfest.net/s/7cedd06b64911e869dc2b32a6477230c-T/kby73n/73019/6d39734591565d7d1928c35b4400d05a/2.0.23/_/download/batch/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector/com.atlassian.jira.collector.plugin.jira-issue-collector-plugin:issuecollector.js?locale=en-US&collectorId=a9568879"></script>
+      {% if admin_area and c.JIRA_ENABLED %}
+      {% for url in c.JIRA_COLLECTOR_URLS %}
+      <script type="text/javascript" async="async" src="{{ url }}"></script>
+      {% endfor %}
       <script type="text/javascript">
         $(window).on("runJavaScript", function() {
           window.ATL_JQ_PAGE_PROPS = $.extend(window.ATL_JQ_PAGE_PROPS || {}, {
@@ -388,6 +389,7 @@
                 <div class="collapse navbar-collapse" id="main-navbar-collapse-1">
                     <ul class="nav navbar-nav navbar-right">
                       {% block feedback_menu %}
+                      {% if c.JIRA_ENABLED %}
                         <li class="dropdown">
                           <a href="#" class="dropdown-toggle" data-toggle="dropdown" title="Submit feedback">
                             <span class="glyphicon glyphicon-send"></span>
@@ -397,6 +399,7 @@
                             <li><a id="request-an-improvement" href="#" title="Request an Improvement">Request an Improvement</a></li>
                           </ul>
                         </li>
+                      {% endif %}
                       {% endblock %}
                         <li><a href="{{ c.ADMIN_GUIDE_URL }}" target="admin_guide"><span title="Admin Guide" class="glyphicon glyphicon-question-sign"></span></a></li>
                         <li><a href="../accounts/sitemap"><span title="Site Map" class="glyphicon glyphicon-road"></span></a></li>

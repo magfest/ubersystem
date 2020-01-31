@@ -1,7 +1,7 @@
 """Adds attendee.hotel_pin unique constraint
 
 Revision ID: 116e5aad3a5c
-Revises: 5dced3c6ef91
+Revises: 61734fcb2e72
 Create Date: 2018-08-22 03:40:36.246934
 
 """
@@ -9,7 +9,7 @@ Create Date: 2018-08-22 03:40:36.246934
 
 # revision identifiers, used by Alembic.
 revision = '116e5aad3a5c'
-down_revision = '5dced3c6ef91'
+down_revision = '61734fcb2e72'
 branch_labels = None
 depends_on = None
 

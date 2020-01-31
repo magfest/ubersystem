@@ -1,0 +1,2 @@
+{{ app.attendee.full_name }}{% if app.business_name %} ("{{ app.business_name }}"){% endif %} has just applied for the Marketplace{% if c.AFTER_MARKETPLACE_WAITLIST %} and was automatically waitlisted{% endif %}:
+{{ c.URL_BASE }}/marketplace_admin/form?id={{ app.id }}

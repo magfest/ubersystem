@@ -1,0 +1,34 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Art Show Admin{% endblock %}
+{% block content %}
+
+<ol class="breadcrumb">
+  <li><a href="../accounts/homepage">Home</a></li>
+  <li>Art Show</li>
+  <li class="active">Admin</li>
+</ol>
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h3 class="panel-title">Art Show Reports</h3>
+  </div>
+  <div class="panel-body">
+    <p>
+    <a class="btn btn-default" href="sales_invoices">Sales Invoices</a>
+    <a class="btn btn-primary" href="artist_invoices">Artist Payout Invoices</a>
+    <a class="btn btn-info" href="high_bids">High Bids Door Report</a>
+    </p><p>
+    <a class="btn btn-default" href="auction_report?mature=True">Mature Auction</a>
+    <a class="btn btn-default" href="auction_report">General Auction</a>
+    <a class="btn btn-primary" href="summary">Grand Summaries</a>
+    <a class="btn btn-default" href="pieces_by_status">Piece Statuses</a>
+    <a class="btn btn-info" href="high_bids?admin_report=True">Pieces Won by Bidder</a>
+    </p><p>
+    <a class="btn btn-primary" href="banner_csv">Banner Name/Location CSV</a>
+    <a class="btn btn-primary" href="artist_csv">Artist Information CSV</a>
+    <a class="btn btn-default" href="pieces_csv">Piece Information CSV</a>
+    <a class="btn btn-info" href="bidder_csv">Bidder Information CSV</a>
+    </p>
+  </div>
+</div>
+    {% endblock %}

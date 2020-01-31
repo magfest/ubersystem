@@ -1,7 +1,7 @@
 """Add group type column
 
 Revision ID: adf30f2f47d5
-Revises: 6aef7396c197
+Revises: 5c14f5a350dd
 Create Date: 2017-09-11 16:27:19.276277
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-09-11 16:27:19.276277
 
 # revision identifiers, used by Alembic.
 revision = 'adf30f2f47d5'
-down_revision = '6aef7396c197'
+down_revision = '5c14f5a350dd'
 branch_labels = None
 depends_on = None
 

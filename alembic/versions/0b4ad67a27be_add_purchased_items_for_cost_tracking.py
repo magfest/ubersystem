@@ -1,7 +1,7 @@
 """Add purchased items for cost tracking
 
 Revision ID: 0b4ad67a27be
-Revises: 53b71e7c45b5
+Revises: e74a6a5904cd
 Create Date: 2020-01-10 05:31:46.035375
 
 """
@@ -9,7 +9,7 @@ Create Date: 2020-01-10 05:31:46.035375
 
 # revision identifiers, used by Alembic.
 revision = '0b4ad67a27be'
-down_revision = '53b71e7c45b5'
+down_revision = 'e74a6a5904cd'
 branch_labels = None
 depends_on = None
 

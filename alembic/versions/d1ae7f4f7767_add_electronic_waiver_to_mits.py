@@ -1,7 +1,7 @@
 """Add electronic waiver to MITS
 
 Revision ID: d1ae7f4f7767
-Revises: e372e4daf771
+Revises: 82e95f305078
 Create Date: 2018-12-12 22:23:31.798569
 
 """
@@ -9,7 +9,7 @@ Create Date: 2018-12-12 22:23:31.798569
 
 # revision identifiers, used by Alembic.
 revision = 'd1ae7f4f7767'
-down_revision = 'e372e4daf771'
+down_revision = '82e95f305078'
 branch_labels = None
 depends_on = None
 

@@ -1,0 +1,27 @@
+{% extends "art_show_common/print_form.html" %}{% set admin_area=True %}{% set no_print = True %}
+{% import 'art_show_common/print_macros.html' as print_macros with context %}
+
+{% block noprint %}
+<strong>{{ message }}</strong>
+<form role="form" method="get" action="sales_invoices" class="form-inline">
+  <div class="form-group">
+    <label class="control-label">Start #</label>
+    <input class="form-control" type="text" name="start" value="{{ start }}" placeholder="1" />
+  </div>
+  <div class="form-group">
+    <label class="control-label">End #</label>
+    <input class="form-control" type="text" name="end" value="{{ end }}" placeholder="100 (or leave blank)" />
+  </div>
+  <div class="form-group">
+    <button type="submit" class="btn btn-primary">Load Range of Receipts</button>
+  </div>
+</form>
+<a href="javascript:window.print()" class="btn btn-success">Print Receipts</a>
+{% endblock %}
+
+{% block printform %}
+{% for receipt in receipts %}
+{{ print_macros.print_receipt(receipt) }}
+<div class="pagebreak"></div>
+{% endfor %}
+{% endblock %}

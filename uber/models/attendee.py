@@ -413,6 +413,22 @@ class Attendee(MagModel, TakesPaymentMixin):
     games = relationship('TabletopGame', backref='attendee')
     checkouts = relationship('TabletopCheckout', backref='attendee')
     entrants = relationship('TabletopEntrant', backref='attendee')
+    
+    # =========================
+    # badge printing
+    # =========================
+    times_printed = Column(Integer, default=0)
+    print_pending = Column(Boolean, default=False)
+    
+    # =========================
+    # art show
+    # =========================
+    art_show_bidder = relationship('ArtShowBidder', backref=backref('attendee', load_on_pending=True), uselist=False)
+    art_show_purchases = relationship(
+        'ArtShowPiece',
+        backref='buyer',
+        cascade='save-update,merge,refresh-expire,expunge',
+        secondary='art_show_receipt')
 
     _attendee_table_args = [
         Index('ix_attendee_paid_group_id', paid, group_id),
@@ -519,6 +535,8 @@ class Attendee(MagModel, TakesPaymentMixin):
                     and c.VOLUNTEER_RIBBON in old_ribbon and not self.is_dept_head:
                 self.unset_volunteering()
 
+    @presave_adjustment
+    def staffing_badge_and_ribbon_adjustments(self):
         if self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
             self.ribbon = remove_opt(self.ribbon_ints, c.VOLUNTEER_RIBBON)
 
@@ -575,6 +593,80 @@ class Attendee(MagModel, TakesPaymentMixin):
     def assign_creator(self):
         if self.is_new and not self.creator_id:
             self.creator_id = self.session.admin_attendee().id if self.session.admin_attendee() else None
+    
+    @presave_adjustment
+    def assign_number_after_payment(self):
+        if c.AT_THE_CON:
+            if self.has_personalized_badge and not self.badge_num:
+                if not self.amount_unpaid:
+                    self.badge_num = self.session.next_badge_num(self.badge_type, old_badge_num=0)
+
+    @presave_adjustment
+    def print_ready_before_event(self):
+        if c.PRE_CON:
+            if self.badge_status == c.COMPLETED_STATUS\
+                    and not self.is_not_ready_to_checkin\
+                    and self.times_printed < 1:
+                self.print_pending = True
+
+    @presave_adjustment
+    def print_ready_at_event(self):
+        if c.AT_THE_CON:
+            if self.checked_in and self.times_printed < 1:
+                self.print_pending = True
+                
+    @cost_property
+    def reprint_cost(self):
+        return c.BADGE_REPRINT_FEE or 0
+
+    @property
+    def age_now_or_at_con(self):
+        if not self.birthdate:
+            return None
+        day = c.EPOCH.date() if date.today() <= c.EPOCH.date()\
+            else uber.utils.localized_now().date()
+        return day.year - self.birthdate.year - (
+            (day.month, day.day) < (self.birthdate.month, self.birthdate.day))
+        
+    @presave_adjustment
+    def not_attending_need_not_pay(self):
+        if self.badge_status == c.NOT_ATTENDING:
+            self.paid = c.NEED_NOT_PAY
+
+    @presave_adjustment
+    def add_as_agent(self):
+        if self.promo_code:
+            art_apps = self.session.lookup_agent_code(self.promo_code.code)
+            for app in art_apps:
+                app.agent_id = self.id
+
+    @cost_property
+    def art_show_app_cost(self):
+        cost = 0
+        if self.art_show_applications:
+            for app in self.art_show_applications:
+                cost += app.total_cost
+        return cost
+
+    @property
+    def art_show_receipt(self):
+        open_receipts = [receipt for receipt in self.art_show_receipts if not receipt.closed]
+        if open_receipts:
+            return open_receipts[0]
+
+    @property
+    def full_address(self):
+        if self.country and self.city and (
+                    self.region or self.country not in ['United States', 'Canada']) and self.address1:
+            return True
+
+    @property
+    def payment_page(self):
+        if self.art_show_applications:
+            for app in self.art_show_applications:
+                if app.total_cost and app.status != c.PAID:
+                    return '../art_show_applications/edit?id={}'.format(app.id)
+        return 'attendee_donation_form?id={}'.format(self.id)
 
     def unset_volunteering(self):
         self.staffing = False
@@ -701,6 +793,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @cost_property
     def promo_code_group_cost(self):
         return sum(group.total_cost for group in self.promo_code_groups)
+
+    @cost_property
+    def marketplace_cost(self):
+        return sum(app.total_cost - app.amount_paid for app in self.marketplace_applications)
 
     @property
     def amount_extra_unpaid(self):

@@ -1,7 +1,7 @@
 """Initial migration
 
 Revision ID: 826e6c309c31
-Revises: 1ed43776064f
+Revises: 771555241255
 Create Date: 2017-04-24 09:34:47.564099
 
 """
@@ -9,8 +9,8 @@ Create Date: 2017-04-24 09:34:47.564099
 
 # revision identifiers, used by Alembic.
 revision = '826e6c309c31'
-down_revision = '1ed43776064f'
-branch_labels = ('mivs',)
+down_revision = '771555241255'
+branch_labels = None
 depends_on = None
 
 from alembic import op

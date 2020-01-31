@@ -1,7 +1,7 @@
 """Add payment_method to receipt items
 
 Revision ID: e74a6a5904cd
-Revises: b9aa7cc0b9ae
+Revises: 53b71e7c45b5
 Create Date: 2019-12-20 19:00:34.631484
 
 """
@@ -9,7 +9,7 @@ Create Date: 2019-12-20 19:00:34.631484
 
 # revision identifiers, used by Alembic.
 revision = 'e74a6a5904cd'
-down_revision = 'b9aa7cc0b9ae'
+down_revision = '53b71e7c45b5'
 branch_labels = None
 depends_on = None
 

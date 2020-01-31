@@ -1,0 +1,66 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Badge Printing{% endblock %}
+{% block content %}
+
+<script src="../static/lib/utils/servertimecheck.js" type="text/javascript"></script>
+
+<h2> Printed Badges {% if pending %}Queue{% endif %}</h2>
+
+<div style="text-align:center">
+    <br/> <a href="../registration/index">Click Here</a> to view the preregistered and checked in attendee list
+    {% if pending %}<br/><a href="index">Click here</a> to view the badges that have been printed.
+    {% else %}<br/><a href="index?pending=True">Click here</a> to view the badges waiting to be printed.{% endif %}
+</div>
+
+<br/>
+<div class="panel panel-default">
+    {% for pagenum in pages %}
+        {% if pagenum == page %}
+            {{ pagenum }}
+        {% else %}
+            <a href="index?pending={{ pending }}&page={{ pagenum }}">{{ pagenum }}</a>
+        {% endif %}
+    {% endfor %}
+{% if page %}
+<table class="table footable" data-page-size="9999999">
+<thead><tr>
+    <th>Full Name</th>
+    <th>Badge Type</th>
+    <th>Badge Number</th>
+    <th>Badge Name</th>
+    <th>Kickin Level</th>
+    <th>Ribbon</th>
+    {% if not pending %}<th></th>{% endif %}
+</tr></thead>
+{% set row_color = cycler('#FFFFFF', '#DDDDDD') %}
+{% for attendee in badges %}
+    <tr bgcolor="{{ row_color.next() }}">
+        <td id="name_{{ attendee.id }}" style="text-align:left">
+            <a href="../registration/form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
+        </td>
+        <td><nobr>{{ attendee.badge_type_label }}</nobr></td>
+        <td>{{ attendee.badge_num }}</td>
+        <td>
+            {{ attendee.badge_printed_name }}
+        </td>
+        <td id="amount_extra_{{ attendee.id }}">
+            {% if attendee.donation_tier != NO_DONATION %}
+                {{ attendee.donation_tier_label }} (Comped) <br/>
+            {% else %}
+                {{ attendee.amount_extra_label }}
+            {% endif %}
+        </td>
+        <td id="ribbon_{{ attendee.id }}">{{ attendee.ribbon_label }}</td>
+        {% if not pending %}<form method="post" action="printed_badges">
+        <td>
+            <input type="hidden" name="id" value="{{ attendee.id }}" />
+            <input type="text" name="reprint_reason" placeholder="Reason for free reprint" />
+            <input type="submit" value="Mark for Reprint" {% if attendee.paid == NOT_PAID %}disabled{% endif %} />
+        </td>
+        </form>{% endif %}
+    </tr>
+{% endfor %}
+</table>
+    {% endif %}
+
+{% endblock %}

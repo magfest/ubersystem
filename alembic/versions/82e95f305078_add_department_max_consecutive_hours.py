@@ -1,7 +1,7 @@
 """Add Department.max_consecutive_hours
 
 Revision ID: 82e95f305078
-Revises: 116e5aad3a5c
+Revises: da22d6a6407c
 Create Date: 2018-11-30 16:10:08.348278
 
 """
@@ -9,7 +9,7 @@ Create Date: 2018-11-30 16:10:08.348278
 
 # revision identifiers, used by Alembic.
 revision = '82e95f305078'
-down_revision = '116e5aad3a5c'
+down_revision = 'da22d6a6407c'
 branch_labels = None
 depends_on = None
 

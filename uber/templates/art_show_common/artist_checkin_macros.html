@@ -1,0 +1,292 @@
+{% import 'macros.html' as macros with context %}
+
+{%- macro check_in_modal(app) -%}
+<style type="text/css">
+.dataTables_filter {
+display: none; 
+}
+</style>
+{% set printable = not admin_area if not printable else printable %}
+<div class="modal fade" id="app_{{ app.id }}" role="dialog" tabindex="-1">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="app_title_{{ app.id }}">Check-{{ checkout|yesno("Out, In") }} Artist</h4>
+      </div>
+
+      <form target="upload_frame" method="post" action="../art_show_admin/save_and_check_in_out" role="form" class="form-horizontal">
+        <div class="modal-body">
+          {% if not printable %}{{ csrf_token() }}{% endif %}
+          {{ check_in_form(app) }}
+        </div>
+        <div class="modal-footer">
+          {% set print_invoice = checkout and app.total_sales %}
+          <button type="submit" class="btn btn-primary save_app print">
+            Save & Print Form
+          </button>
+          {% if print_invoice %}
+          <button type="submit" class="btn btn-primary save_app print_invoice">
+            Save & Print Invoice
+          </button>
+          {% endif %}
+          {% if not app.checked_in %}
+          <input type="hidden" class="complete" name="check_in" />
+          <button type="submit" class="btn btn-success save_app action">Save & Check-In</button>
+          {% elif not app.checked_out and checkout %}
+          <input type="hidden" class="complete" name="check_out" />
+          <button type="submit" class="btn btn-success save_app action">Save & Check-Out</button>
+          {% else %}
+          <button type="submit" class="btn btn-success save_app action">Save</button>
+          {% endif %}
+          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{%- endmacro -%}
+
+{%- macro check_in_form(app, printable=not admin_area) -%}
+<span{% if printable %} style="font-size: 125%;"{% endif %}>
+
+<input type="hidden" name="app_id" value="{{ app.id }}" />
+{% if checkout %}
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Artist Code</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+      {{ app.artist_id }}
+    </div>
+  </div>
+</div>
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Artist Name</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+      {{ app.display_name }}{% if app.display_name != app.attendee.full_name %} ({{ app.attendee.full_name }}){% endif %}
+    </div>
+  </div>
+</div>
+{% if app.attendee.country != 'United States' and app.country != 'United States' and printable %}
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Paypal Address</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+      {{ app.paypal_address }}
+    </div>
+  </div>
+</div>
+{% elif app.attendee.country != 'United States' and app.country != 'United States' %}
+{{ macros.form_group(app, 'paypal_address', label="Paypal Address", help="The Paypal address for the artist, whose personal address is outside the US.", placeholder='email@example.com') }}
+{% endif %}
+{% else %}
+<div class="pull-left form-control-static">
+  <label class="control-label optional-field" style="padding:0;">Location</label>
+  {% if printable %}
+  &nbsp;<div style="outline: 1px solid black; width: 4em; height: 3em;" class="text-center">{{ app.locations }}</div>
+  {% else %}
+  <input class="form-control" type="text" name="locations" value="{{ app.locations }}" placeholder="Space assignments for this artist." />
+  {% endif %}
+</div>
+<div class="pull-right form-control-static" style="padding-top:0;">
+  <label class="control-label optional-field">Artist ID</label>
+  <br/><span style="font-size: 2em;">{{ app.artist_id }}</span>
+</div>
+<div class="clearfix"></div>
+<br/><br/>
+{% if not app.artist_name and printable %}
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Artist Name</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+      {{ app.attendee.full_name }}
+    </div>
+  </div>
+</div>
+{% else %}
+{{ macros.form_group(app, 'artist_name', label="Artist Name", help="The name the artist wants to use with their artwork, if different from their first and last name.", placeholder=app.attendee.full_name, is_readonly=printable) }}
+{% endif %}
+
+{% if not app.banner_name and printable %}
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Banner Name</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+      {{ app.artist_name or app.attendee.full_name }}
+    </div>
+  </div>
+</div>
+{% else %}
+{{ macros.form_group(app, 'banner_name', label="Banner Name", help="The name displayed with their art.", placeholder=app.artist_name or app.attendee.full_name, is_readonly=printable) }}
+{% endif %}
+
+{{ macros.name_form_group(app.attendee, label="Artist Full Name", is_readonly=printable) }}
+{{ macros.form_group(app.attendee, 'legal_name', label="Artist Legal Name", placeholder="Name exactly as it appears on Photo ID", is_readonly=printable) }}
+
+{% if app.attendee.badge_status != c.NOT_ATTENDING %}
+{{ macros.address_form(app.attendee, name_prefix="attendee_", label_prefix="Artist", is_readonly=printable) }}
+{% endif %}
+
+{% if app.delivery_method == c.BY_MAIL %}
+  {% if not app.business_name and printable %}
+  <div class="form-group">
+    <label class="col-sm-3 control-label optional-field">Mailing Business Name</label>
+    <div class="col-sm-6">
+      <div class="form-control-static">{{ app.attendee.full_name }}</div>
+    </div>
+  </div>
+  {% else %}
+    {{ macros.form_group(app, 'business_name', label="Mailing Business Name", placeholder=app.attendee.full_name, is_readonly=printable) }}
+  {% endif %}
+{{ macros.address_form(app, label_prefix="Mailing", is_readonly=printable) }}
+{% endif %}
+
+{% if not app.attendee.cellphone and printable %}
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Artist Phone</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+    </div>
+  </div>
+</div>
+{% else %}
+  {{ macros.form_group(app.attendee, 'cellphone', label="Artist Phone", placeholder="A phone number we can use to contact the artist", is_readonly=printable) }}
+{% endif %}
+
+<br/>
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Artist Type</label>
+  <div class="col-sm-6">
+    {% if printable %}
+    <div class="form-control-static">
+      {{ app.delivery_method_label }}
+    </div>
+    {% else %}
+    <select name="delivery_method" class="form-control">
+      {{ options(c.ART_SHOW_DELIVERY_OPTS, app.delivery_method) }}
+    </select>
+    {% endif %}
+  </div>
+</div>
+{% if not printable and app.delivery_method == c.AGENT %}
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Agent</label>
+  <div class="col-sm-6">
+    <select name="agent_id" class="form-control">
+      {{ options(all_attendees, app.agent.id) }}
+    </select>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+{% if not app.check_payable and printable %}
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Name on Check</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+      {{ app.attendee.legal_first_name }} {{ app.attendee.legal_last_name }}
+    </div>
+  </div>
+</div>
+{% else %}
+{{ macros.form_group(app, 'check_payable', label="Name on Check", placeholder=app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name, is_readonly=printable) }}
+{% endif %}
+<br/>
+<div class="table-responsive">
+  <table class="table table-striped{% if not printable %} datatable {% endif %}">
+    <thead>
+    <tr>
+      <th>ID</th>
+      <th>Status</th>
+      <th>Gallery</th>
+      <th>Name</th>
+      <th>Min. Bid</th>
+      <th>QuickSale</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for piece in app.art_show_pieces|sort(attribute='piece_id')|sort(attribute='gallery_label') %}
+    <tr class="piece-row" data-piece_id="{{ piece.piece_id }}">
+      <td> {{ piece.artist_and_piece_id }} <input type="hidden" name="piece_ids{{ app.id }}" value="{{ piece.id }}" /> </td>
+      <td data-order="{{ piece.status_label }}">
+        {% if printable %}{{ piece.status_label }} {% else %}
+        <select name="status{{ piece.id }}" class="form-control">
+          {{ options(c.ART_PIECE_STATUS_OPTS, piece.status) }}
+        </select>
+        {% endif %}
+      </td>
+      <td data-order="{{ piece.gallery_label }}"> {% if printable %}{{ piece.gallery_label }}{% else %}{{ macros.buttongroup(piece, 'gallery', suffix=piece.id) }}{% endif %} </td>
+      <td data-order="{{ piece.name }}"> {% if printable %}{{ piece.name|wordwrap(25, wrapstring="<br />"|safe) }}{% else %}<input type="text" class="form-control" name="name{{ piece.id }}" value="{{ piece.name }}" />{% endif %}</td>
+      <td data-order="{{ piece.opening_bid }}"> {% if printable %}{{ '$' ~ piece.opening_bid if piece.valid_for_sale else "N/A" }}
+        {% else %}<input type="text" class="form-control" size="10" placeholder="N/A" name="opening_bid{{ piece.id }}" value="{{ piece.opening_bid if piece.valid_for_sale else '' }}" />{% endif %}</td>
+      <td data-order="{{ piece.quick_sale_price }}"> {% if printable %}{{ '$' ~ piece.quick_sale_price if piece.valid_quick_sale else "N/A" }}
+        {% else %}<input type="text" class="form-control" size="10" placeholder="N/A" name="quick_sale_price{{ piece.id }}" value="{{ piece.quick_sale_price if piece.valid_quick_sale else '' }}" />{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if not printable and not app.checked_in %}<em>NOTE: All "Expected" pieces will become "Hung" upon clicking "Save & Check-In"</em>
+{% elif not printable and not app.checked_out %}<em>NOTE: All "Hung" pieces will become "Return to Artist" upon clicking "Save & Check-Out"</em>{% endif %}
+  {% if printable and not checkout %}
+<br/>
+<span class="text-center">
+<strong><p class="pagebreak">I understand that I am giving Midwest Furfest the right to sell my art at the above prices.  I also understand that I will be charged a commission of 10% on all sales and that the convention will collect sales tax on my sales. I also have read and agree to the art show rules.</p>
+<p>MFF reserves the right to remove works for sale that, in our sole discretion, do not conform to our rules and policies. MFF will have no liability for any loss, including but not limited to lost revenue, resulting from the removal of works from the Furfest Art Show for violation of MFF's rules and/or policies.</p>
+<p>If I have chosen an Agent I understand that they have the rights to act as myself and make decisions on my behalf.</p>
+<p>I understand that all unsold art must be picked up between Noon and 5PM on Sunday.</p></strong><br/>
+</span>
+
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Artist Signature</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+      ____________________________________________________________
+    </div>
+  </div>
+</div>
+
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Date</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+      ______________________________
+    </div>
+  </div>
+</div>
+
+{% if app.delivery_method == c.AGENT %}
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Agent Name</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+      {{ app.agent.legal_first_name }} {{ app.agent.legal_last_name }}
+    </div>
+  </div>
+</div>
+
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Agent Signature</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+      ____________________________________________________________
+    </div>
+  </div>
+</div>
+
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Date</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+      ______________________________
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+</span>
+{%- endmacro -%}
+
+<iframe id="upload_frame" name="upload_frame" style="display:none"></iframe>

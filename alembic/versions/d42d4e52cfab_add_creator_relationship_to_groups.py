@@ -1,7 +1,7 @@
 """Add creator relationship to groups
 
 Revision ID: d42d4e52cfab
-Revises: c36659e7f238
+Revises: b960d6adb51a
 Create Date: 2019-11-01 02:43:25.303666
 
 """
@@ -9,7 +9,7 @@ Create Date: 2019-11-01 02:43:25.303666
 
 # revision identifiers, used by Alembic.
 revision = 'd42d4e52cfab'
-down_revision = 'c36659e7f238'
+down_revision = 'b960d6adb51a'
 branch_labels = None
 depends_on = None
 

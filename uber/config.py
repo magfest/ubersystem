@@ -217,6 +217,10 @@ class Config(_Overridable):
     def DEALER_REG_SOFT_CLOSED(self):
         return self.AFTER_DEALER_REG_DEADLINE or self.DEALER_APPS >= self.MAX_DEALER_APPS \
             if self.MAX_DEALER_APPS else self.AFTER_DEALER_REG_DEADLINE
+            
+    @property
+    def ART_SHOW_OPEN(self):
+        return self.AFTER_ART_SHOW_REG_START and self.BEFORE_ART_SHOW_DEADLINE
 
     @property
     def SELF_SERVICE_REFUNDS_OPEN(self):

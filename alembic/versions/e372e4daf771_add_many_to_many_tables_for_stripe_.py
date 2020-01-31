@@ -1,7 +1,7 @@
 """Add many-to-many tables for stripe transactions
 
 Revision ID: e372e4daf771
-Revises: 735063d71b57
+Revises: f142e4d54e49
 Create Date: 2018-08-31 20:42:18.905795
 
 """
@@ -9,7 +9,7 @@ Create Date: 2018-08-31 20:42:18.905795
 
 # revision identifiers, used by Alembic.
 revision = 'e372e4daf771'
-down_revision = 'b574c0577253'
+down_revision = 'f142e4d54e49'
 branch_labels = None
 depends_on = None
 
