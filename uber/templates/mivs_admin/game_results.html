@@ -13,7 +13,7 @@
     <select name="status">
         <option value="">Choose whether to accept this game into the Showcase</option>
         <option value="{{ c.ACCEPTED }}">Accept</option>
-        <option value="{{ c.GAME_DECLINED }}">Decline</option>
+        <option value="{{ c.DECLINED }}">Decline</option>
         <option value="{{ c.WAITLISTED }}">Waitlist</option>
     </select>
     <input type="submit" value="Mark Verdict" />
@@ -32,7 +32,7 @@
                         $showLink.hide();
                     })
                 ).append('.');
-        {% elif game.status == c.JUDGING %}
+        {% else %}
             $('#mark-form').show();
         {% endif %}
     });
@@ -59,7 +59,7 @@
 {% for review in game.game_reviews %}
     <tr>
         <td>{{ review.judge.full_name }}</td>
-        <td>{{ review.game_status_label }}</td>
+        <td>{{ review.game_status_label }} (video: {{ review.video_status_label }})</td>
         <td>{{ review.game_content_bad|yesno }}</td>
         <td>{% if review.readiness_score %}{{ review.readiness_score }}{% endif %}</td>
         <td>{% if review.design_score %}{{ review.design_score }}{% endif %}</td>
@@ -82,7 +82,7 @@
       Mark Reviews for Sending to Indie Studio
     </button>
   <p class="help-block">Please note that once the "Summary of judging results for your game" email is
-    <a href="../emails/pending">approved for sending</a>, marking ANY reviews as ready to send will trigger an email to
+    <a href="../email_admin/pending">approved for sending</a>, marking ANY reviews as ready to send will trigger an email to
     the studio, after which editing the reviews to send will do nothing.</p>
   </form>
 

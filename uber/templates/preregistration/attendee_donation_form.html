@@ -8,7 +8,7 @@
     {% if attendee.paid == c.NOT_PAID %}
       <h2> Badge Payment for {{ attendee.full_name }} </h2>
 
-      You've registered for {{ c.EVENT_NAME }} at a {% if attendee.overridden_price %}discounted{% endif %} price of ${{ attendee.badge_cost }}{% if attendee.amount_extra %} and you've also kicked in ${{ attendee.amount_extra|round(2) }}{% endif %}; your total outstanding balance is ${{ attendee.amount_unpaid|round(2) }}.
+      You've registered for {{ c.EVENT_NAME }} at a {% if attendee.overridden_price %}discounted{% endif %} price of ${{ '%0.2f' % attendee.badge_cost }}{% if attendee.amount_extra %} and you've also kicked in ${{ attendee.amount_extra }}{% endif %}; your total outstanding balance is ${{ attendee.amount_unpaid|round(2) }}.
 
       <table style="width: auto; margin: 15px auto 0;">
         <tr>
@@ -33,7 +33,7 @@
     {% else %}
       <h2> Extra Payment for {{ attendee.full_name }} </h2>
 
-      Thanks for offering to kick in money to help make {{ c.EVENT_NAME }} better.  As thanks, your total donation (of which ${{ attendee.amount_unpaid|round(2) }} is outstanding) entitles you to the following:
+      Thanks for offering to kick in money to help make {{ c.EVENT_NAME }} better.  As thanks, your total donation (of which ${{ '%0.2f' % attendee.amount_unpaid }} is outstanding) entitles you to the following:
       <ul>
         {% for swag in attendee.donation_swag|list + attendee.addons|list %}
           <li>{{ swag }}</li>

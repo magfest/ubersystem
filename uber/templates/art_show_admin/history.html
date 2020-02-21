@@ -1,0 +1,33 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Art Show Application History - {{ app.attendee.full_name }}{% endblock %}
+{% block content %}
+
+{{ macros.nav_menu(
+app, c.PAGE_PATH,
+"form?id={id}", "App Form", True,
+"history?id={id}", "History", True,
+"index", "Return to App List", True
+) }}
+
+<h2>Changelog for {{ app.attendee.full_name }}'s Art Show Application</h2>
+
+<table class="table-striped table-bordered table-condensed">
+<thead><tr>
+    <th>Which</th>
+    <th>What</th>
+    <th>When</th>
+    <th>Who</th>
+    <th>Changes</th>
+</tr></thead>
+{% for tracked in changes %}
+    <tr>
+        <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.when|full_datetime_local }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.who }}</td>
+        <td valign="top">{{ tracked.data }}</td>
+    </tr>
+{% endfor %}
+</table>
+
+{% endblock %}

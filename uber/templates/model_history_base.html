@@ -1,0 +1,110 @@
+{% import 'macros.html' as macros with context %}
+{% set model = attendee if attendee else group %}
+{% set admin_area=True %}
+  <h2>Changelog for {{ model.full_name|default(model.name) }} {% if c.AT_THE_CON and model.badge_num %}({{ model.badge_num }}){% endif %}</h2>
+
+  <table class="table-striped table-bordered table-condensed">
+    <thead><tr>
+      <th>Which</th>
+      <th>What</th>
+      <th>When</th>
+      <th>Who</th>
+      <th>Changes</th>
+    </tr></thead>
+    {% for tracked in changes %}
+      <tr>
+        <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.when|full_datetime_local }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.who }}</td>
+        <td valign="top">{{ tracked.data }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+
+  {% if model.stripe_txn_share_logs %}
+    <h2>Payment History for {{ model.full_name|default(model.name) }} {% if c.AT_THE_CON and model.badge_num %}({{ model.badge_num }}){% endif %}</h2>
+    <table class="table-striped table-bordered table-condensed">
+      <thead><tr>
+        <th>Payment ID</th>
+        <th>Amount</th>
+        <th>Txn Total</th>
+        <th>When</th>
+        <th>Who</th>
+        <th>Description</th>
+      </tr></thead>
+      {% for log in model.stripe_txn_share_logs %}
+        <tr>
+          <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.stripe_id }}</td>
+          <td valign="top" style="white-space:nowrap">${{ '%0.2f' % (log.share / 100) }}
+          <td valign="top" style="white-space:nowrap">${{ '%0.2f' % (log.stripe_transaction.amount / 100) }} {{ log.stripe_transaction.type_label }}</td>
+          <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.when|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
+          <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.who }}</td>
+          <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.desc }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% endif %}
+
+  <h2>Page View History for {{ model.full_name|default(model.name) }} {% if c.AT_THE_CON and model.badge_num %}({{ model.badge_num }}){% endif %}</h2>
+
+  <table class="table-striped table-bordered table-condensed">
+    <thead><tr>
+      <th>When</th>
+      <th>Who</th>
+      <th>Page Path</th>
+    </tr></thead>
+    {% for view in pageviews %}
+      <tr>
+        <td valign="top" style="white-space:nowrap">{{ view.when|full_datetime_local }}</td>
+        <td valign="top" style="white-space:nowrap">{{ view.who }}</td>
+        <td valign="top">{{ view.page }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+
+  {% if attendee and attendee.past_years %}
+    <h2> Past Years' Staffing </h2>
+    {% for year in attendee.past_years_json %}
+      <h3>{{ year.year }}</h3>
+      <b>{{ year.worked_hours }}</b> hours worked ({{ year.nonshift_hours }} of them were nonshift hours) <br/>
+      <b>{{ year.unworked_hours }}</b> hours unworked <br/>
+      {% if year.admin_notes %}<br/><b>Admin Notes:</b><br/><pre>{{ year.admin_notes }}</pre>{% endif %}
+      <table width="95%" align="center">
+        <tr style="font-weight:bold">
+          <td>Job</td>
+          <td>When</td>
+          <td>Weight</td>
+          <td>Status</td>
+          <td>Rating</td>
+        </tr>
+        {% for shift in year.shifts %}
+          <tr>
+            <td><nobr>{{ shift.job.name }} ({{ shift.job.location }})</nobr></td>
+            <td>{{ shift.job.when }}</td>
+            <td><nobr>x{{ shift.job.weight }} ({{ shift.job.total_hours }} total)</nobr></td>
+            <td>{{ shift.worked }}</td>
+            <td>
+              {{ shift.rating }}
+              {% if shift.comment %}<br/>{{ shift.comment }}{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% endfor %}
+  {% endif %}
+
+  {% for email in emails  %}
+    {% if loop.first %}<h2> Automated Emails </h2>{% endif %}
+    <h3> {{ email.subject }} ({{ email.when|full_datetime_local }}) </h3>
+    {{ macros.preview_email(email) }}
+    {% if not read_only %}
+      <form method="post" action="resend_email" id="resend_email_{{ email.id }}">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ email.id }}" />
+        <button class="btn btn-primary" type="submit">Resend Email</button>
+      </form>
+    {% endif %}
+    <hr/>
+  {% endfor %}
+<script src="../static/js/resend-email-form.js" type="text/javascript"></script>

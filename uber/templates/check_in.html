@@ -1,89 +1,70 @@
-<div class="dialog-form" id="checkin-dialog" title="Quick Check-In"></div>
+<div class="modal fade" id="checkin_modal" role="dialog">
+    <div class="modal-dialog modal-lg">
+        <!-- Modal content-->
+        <div class="modal-content"><div style='padding: 10px;'>Loading...</div></div>
+    </div>
+</div>
+
 <script type="text/javascript">
-$(function() {
-        var $dialog = $('#checkin-dialog').dialog({
-            autoOpen: false,
-            width: 666,
-            modal: true,
-            buttons: [{
-                text: 'Save & Check In',
-                click: function() {
-                    checkIn();
-                    $dialog.dialog('close');
-                }
-            }, {
-                text: 'Cancel',
-                click: function () {
-                    $dialog.dialog('close');
-                }
-            }]
-        });
+checkInModal = $('#checkin_modal')
 
-        $('.attendee-checkin').on('click', function () {
-            var attendeeId = $(this).attr('data-attendee-id');
-            $dialog.data('attendeeId', attendeeId).text('Loading...').dialog('open');
-            $.ajax({
-                method: 'GET',
-                dataType: 'html',
-                url: '../registration/check_in_form',
-                data: {id: attendeeId},
-                success: function (response) {
-                    $dialog.html(response);
-                    $dialog.find('input.num').keypress(function (event) {
-                        if (event.keyCode === 13) {  // Enter key
-                            event.preventDefault();
-                            checkIn(attendeeId);
-                            $dialog.dialog('close');
-                        }
-                    });
-                    $dialog.find('input.date').datetextentry({
-                        field_order: 'MDY',
-                        show_tooltips: false
-                    });
-                    $dialog.dialog('option', 'position', {at: 'center', of: window});
-                },
-                error: function () {
-                    $dialog.text('Unexpected error pulling up attendee form - please try again.');
-                }
+var loadCheckInModal = function (attendeeID) {
+    checkInModal.modal({show:true});
+    $('#checkin_modal .modal-content').load('../registration/check_in_form?id=' + attendeeID, function() {
+        if ($('.check-in').length) {
+            checkInModal.find('input.date').datetextentry({
+                field_order: 'MDY',
+                show_tooltips: false
             });
-        });
+        } else {
+            toastr.error("Form loading failed.");
+            checkInModal.modal('hide');
+        }
     });
+};
 
-    var checkIn = function () {
-        var id = $('#checkin-dialog').data('attendeeId');
-        $.ajax({
-            method: 'POST',
-            url: '../registration/check_in',
-            dataType: 'json',
-            data: $("#check_in_form_" + id).serialize(),
-            success: function (json) {
-                toastr.clear();
-                var message = json.message;
-                if (json.success) {
-                    message += ' &nbsp; <a href="#" onClick="undoCheckIn(\'' + id + '\', ' + json.pre_badge + ') ; return false">Undo</a>';
-                    $('#paid_' + id).html(json.paid);
-                    $('#cin_' + id).html(json.checked_in);
-                    $('#age_' + id).parent().html(json.age_group);
-                    $('#num_' + id).parent().html(json.badge);
-                    toastr.info(message);
-                } else {
-                    toastr.error(message);
-                }
-                if (json.increment) {
-                    $('#checkin_count').html(1 + parseInt($("#checkin_count").text()));
-                }
-            },
-            error: function () {
-                toastr.error('Unable to connect to server, please try again.');
+// Hide modal on Esc keydown
+$(document).keydown(function(event) { 
+    if (event.keyCode == 27) { 
+        checkInModal.modal('hide');
+    }
+});
+
+var checkIn = function (attendeeID) {
+    $.ajax({
+        method: 'POST',
+        url: '../registration/check_in',
+        dataType: 'json',
+        data: $("#check_in_form_" + attendeeID).serialize(),
+        success: function (json) {
+            toastr.clear();
+            checkInModal.modal('hide');
+            var message = json.message;
+            if (json.success) {
+                message += ' &nbsp; <a href="#" onClick="undoCheckIn(\'' + attendeeID + '\', ' + json.pre_badge + ') ; return false">Undo</a>';
+                $('#paid_' + attendeeID).html(json.paid);
+                $('#cin_' + attendeeID).html(json.checked_in);
+                $('#age_' + attendeeID).parent().html(json.age_group);
+                $('#num_' + attendeeID).parent().html(json.badge);
+                toastr.info(message);
+            } else {
+                toastr.error(message);
             }
-        });
-    };
-    var undoCheckIn = function (id, pre_badge) {
-        $.post('undo_checkin', {id: id, csrf_token: csrf_token, pre_badge: pre_badge}, function(s) {
-            var sep = location.href.indexOf('?') === -1 ? '?' : '&';
-            location.href += sep + 'message=' + encodeURIComponent(s);
-        });
-    };
+            if (json.increment) {
+                $('#checkin_count').html(1 + parseInt($("#checkin_count").text()));
+            }
+        },
+        error: function () {
+            toastr.error('Unable to connect to server, please try again.');
+        }
+    });
+};
+var undoCheckIn = function (id, pre_badge) {
+    $.post('undo_checkin', {id: id, csrf_token: csrf_token, pre_badge: pre_badge}, function(s) {
+        var sep = location.href.indexOf('?') === -1 ? '?' : '&';
+        location.href += sep + 'message=' + encodeURIComponent(s);
+    });
+};
 </script>
 <style type="text/css">
     table.check-in td {

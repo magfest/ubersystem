@@ -1,0 +1,50 @@
+<html>
+<head></head>
+<body>
+
+You have successfully submitted an application for the Art Show for {{ c.EVENT_NAME }}
+this coming {{ event_dates() }}. Below is a copy of your application. You may
+<a href="{{ c.URL_BASE }}/art_show_applications/edit?id={{ app.id }}">update it here</a>.
+
+<ul>
+    {% if app.artist_name %}<li><strong>Artist Name</strong>: {{ app.artist_name }}</li>{% endif %}
+    <li><strong>General Panels</strong>: {{ app.panels }} panels (${{ app.panels_cost }}) </li>
+    <li><strong>General Table Sections</strong>: {{ app.tables }} table sections (${{ app.tables_cost }}) </li>
+    <li><strong>Mature Panels</strong>: {{ app.panels_ad }} mature panels (${{ app.panels_ad_cost }}) </li>
+    <li><strong>Mature Table Sections</strong>: {{ app.tables_ad }} mature table sections (${{ app.tables_ad_cost }}) </li>
+    <li><strong>Total Price</strong>: ${{ app.potential_cost }}{% if app.mailing_fee %} (including ${{ app.mailing_fee }} mailing fee){% endif %}</li>
+    <li><strong>Description</strong>: {{ app.description }}</li>
+    {% if app.special_needs %}<li><strong>Special Requests</strong>: {{ app.special_needs }}</li>{% endif %}
+    {% if app.attendee.badge_status == c.NOT_ATTENDING %}<li>You will not be attending {{ c.EVENT_NAME }} and thus will
+    not be issued a badge. If you expect this to change, please contact the art show staff at {{ c.ART_SHOW_EMAIL }}
+    {% endif %}
+    <li><strong>Website URL</strong>: {{ app.website }}</li>
+</ul>
+
+Should your application be approved, you will be required to pay for your space to complete your reservation.
+{% if app.attendee.badge_status == c.NEW_STATUS %}
+You MUST complete your {{ c.EVENT_NAME }} registration before you will be able to pay for your art show space. You
+may complete your registration
+<a href="{{ c.URL_BASE }}//preregistration/confirm?id={{ app.attendee_id }}">here</a>.
+{% endif %}
+
+{% if app.agent_code %}
+<br/><br/>In order to assign an agent to your art application, please send them
+this code: <strong>{{ app.agent_code }}</strong>. They must then add the code
+to their registration, either while signing up or afterwards by using the
+confirmation link they receive by email when they register.
+{% endif %}
+
+<br/><br/>
+{% if c.AFTER_ART_SHOW_WAITLIST %}
+    Because our art show is currently full, your submission has been automatically placed on our waitlist.  We'll let
+    you know if your application is later approved.
+{% else %}
+    We will review your request and provide you with a payment link once your application has been approved.
+{% endif %}
+
+<br/> <br/> You can always review the {{ c.EVENT_NAME }} Art Show rules
+<a href="{{ c.ART_SHOW_RULES_URL }}" target="_blank">here</a>.
+
+</body>
+</html>

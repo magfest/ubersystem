@@ -1,0 +1,40 @@
+Ahoy {{ game.studio.primary_contact_first_names }},
+
+We had two opportunities we wanted to share with you:
+
+====
+1. Participating in MAGFest Versus
+2. Panelists for Indie Game Preservation Panel
+====
+
+1. Participating in MAGFest Versus
+====
+We're looking for viable candidates to feature in 2020's MAGFest Versus! What is MAGFest Versus?  See a previous year at https://youtu.be/hGPr_9A0Qzg
+
+Do you want your game to be part of it?
+
+If so, you should be capable of producing a MAGFest Versus specific build of your game which has:
+* support for 4-player (2v2) style team games with two teams.
+* Some kind of clear team designation (with a YELLOW and a RED team)
+* A 60 second time limit
+* The ability to determine a clear winner at the end of this time limit (either by score, or points, etc)
+
+If you are interested, email {{ c.MIVS_EMAIL|email_only }}
+
+2. Panelists for Indie Game Preservation Panel
+====
+Andrew Borman from The Strong Museum of Play is leading a "Indie Game Preservation and You" Panel and writes:
+
+"Discover The Strong National Museum of Play's efforts to preserve independent games and how developers can help preserve their history.
+
+I am looking for around 2 to 4 indie game developers to join me on the panel, to talk about the sort of materials they create during the game development process. There will be a brief introduction.
+
+The idea is to have a discussion about how to best preserve those materials for future generations, knowing that there are a wide variety of tools used to create digital objects in varied formats, and how we might keep those things accessible. I would love to highlight some of the work being created as well, through screenshots, pictures, and video."
+
+If you're interested, contact Andrew Borman at aborman@museumofplay.org
+
+
+
+Forever your Fan,
+The MIVS Team
+ 

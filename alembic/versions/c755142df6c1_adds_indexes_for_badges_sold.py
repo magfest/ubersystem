@@ -1,7 +1,7 @@
 """Adds indexes for BADGES_SOLD
 
 Revision ID: c755142df6c1
-Revises: 9359297269a8
+Revises: 3733faf640e9
 Create Date: 2017-07-26 01:40:26.647502
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-07-26 01:40:26.647502
 
 # revision identifiers, used by Alembic.
 revision = 'c755142df6c1'
-down_revision = '9359297269a8'
+down_revision = '3733faf640e9'
 branch_labels = None
 depends_on = None
 

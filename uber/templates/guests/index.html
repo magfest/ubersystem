@@ -20,7 +20,7 @@
 
   <table style="width:auto">
     {% if guest.group_type == c.MIVS %}
-      {% for key, val in c.MIVS_CHECKLIST.items() %}
+      {% for key, val in c.MIVS_CHECKLIST.items()|sort(attribute='1.deadline') %}
         <h3>{{ val['name'] }}</h3>
         <p>{{ val['description'] }}</p>
         <p>
@@ -40,7 +40,7 @@
           </p>
       {% endfor %}
     {% else %}
-      {% for item in sorted_checklist -%}
+      {% for item in guest.sorted_checklist_items -%}
         {# Try to include the checklist template with a prefix matching the group's type, e.g. band_info_deadline.html #}
         {%- include [
           item['deadline_template'][0] ~ guest.group_type_label|lower ~ '_' ~ item['deadline_template'][1],

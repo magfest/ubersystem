@@ -227,32 +227,52 @@ form_link_site_sections = {}
 
 
 @JinjaEnv.jinja_filter
-def form_link(model):
+def form_link(model, new_window=False):
     if not model:
         return ''
 
     from uber.models import Attendee, Attraction, Department, Group, Job, PanelApplication
+    
+    page = 'form'
+        
+    if c.HAS_REGISTRATION_ACCESS:
+        attendee_section = '../registration/'
+    else:
+        attendee_section = ''
+        page = '#attendee_form' if isinstance(model, Attendee) else page
 
     site_sections = {
-        Attendee: 'registration',
-        Attraction: 'attractions_admin',
-        Department: 'departments',
-        Group: 'groups',
-        Job: 'jobs',
-        PanelApplication: 'panel_app_management'}
+        Attendee: attendee_section,
+        Attraction: '../attractions_admin/',
+        Department: '../dept_admin/',
+        Group: '../group_admin/',
+        Job: '../jobs/',
+        PanelApplication: '../panels_admin/'}
 
     cls = model.__class__
     site_section = site_sections.get(cls, form_link_site_sections.get(cls))
-    name = getattr(model, 'name', getattr(model, 'full_name', cls.__name__))
+    name = getattr(model, 'name', getattr(model, 'full_name', model))
 
     if site_section:
-        return safe_string('<a href="../{}/form?id={}">{}</a>'.format(site_section, model.id, jinja2.escape(name)))
-    return model
+        return safe_string('<a href="{}{}?id={}"{}>{}</a>'.format(
+                                                           site_section, 
+                                                           page, 
+                                                           model.id, 
+                                                           ' target="_blank"' if new_window else '',
+                                                           jinja2.escape(name)))
+    return name
 
 
 @JinjaEnv.jinja_filter
 def dept_checklist_path(conf, department=None):
     return safe_string(conf.path(department))
+
+
+@JinjaEnv.jinja_filter
+def nav_return_to_page_title(return_to):
+    # Formats a return_to link into a sensible-looking page name for our nav menus
+    return_to = return_to.split('?', 1)[0]
+    return return_to.replace('../', '').replace('/', ' ').replace('_', ' ').title()
 
 
 @JinjaEnv.jinja_filter
@@ -315,7 +335,7 @@ def email_only(email):
     former to be used in our text-only emails.  This filter takes an email which
     can be in either format and spits out just the email address portion.
     """
-    return re.search(c.EMAIL_RE.lstrip('^').rstrip('$'), email).group()
+    return re.search(c.EMAIL_RE.lstrip('^').rstrip('$'), email).group() if email else ''
 
 
 @JinjaEnv.jinja_export
@@ -403,7 +423,7 @@ def humanize_timedelta(
 @JinjaEnv.jinja_export
 def options(options, default='""'):
     """
-    We do need to accomodate explicitly passing in other options though
+    We do need to accommodate explicitly passing in other options though
     (include None), so make sure to check all the client calls for that info.
     """
     if isinstance(default, datetime):
@@ -574,7 +594,8 @@ def linebreaksbr(text):
 @JinjaEnv.jinja_export
 def csrf_token():
     ensure_csrf_token_exists()
-    return safe_string('<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session["csrf_token"]))
+    return safe_string(
+        '<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session.get("csrf_token")))
 
 
 @JinjaEnv.jinja_export

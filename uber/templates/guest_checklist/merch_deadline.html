@@ -142,12 +142,6 @@
   <h2>{% block form_title %}Selling Merch{% endblock %}</h2>
 
   {% block form_desc %}
-    <p>
-      Space will be provided in our marketplace area for merchandise sales{% if not HAS_ROCK_ISLAND %}.{% else %};
-      either at a dedicated table or at our “Rock Island” sales area, where {{ c.EVENT_NAME }} staff will sell {{ guest.group_type_label|lower }}-provided
-      merchandise throughout the festival.{% endif %}
-    </p>
-
     {% if HAS_ROCK_ISLAND %}
       <p>
         It is recommended, but not required, for {{ guest.group_type_label|lower }}s to use our Rock Island service in this area, as merchandise can
@@ -186,6 +180,7 @@
       {% if HAS_ROCK_ISLAND %}
         <div id="rockisland" style="display:none">
           <h3>Your Inventory</h3>
+          <p class="help-block">You may add or edit items in your inventory until {{ c.ROCK_ISLAND_DEADLINE|datetime_local }}.</p>
           <div id="inventory_container"{% if not guest_merch.inventory %} style="display:none"{% endif %}>
             {{ guests_macros.inventory_table(show_controls=True) }}
           </div>
@@ -201,7 +196,9 @@
           </div>
           <div class="clearfix"></div>
           <h3>Merch Point of Contact</h3>
-
+          <p class="help-block">
+            Required fields are in <strong>bold</strong>.
+          </p>
           <div class="form-group">
             <div class="col-sm-9 col-sm-offset-3 checkbox">
               {{ macros.toggle_checkbox(
@@ -224,7 +221,7 @@
           {{ macros.address_form(guest_merch, name_prefix='poc_', model_prefix='poc_', is_required=True) }}
           <h3>Trusted Merch Handlers</h3>
           <p class="help-block">
-            Please include the first and last names of trusted people authorized to drop-off/pick-up your merch.
+            Please include the first and last names of trusted people authorized to drop-off/pick-up your merch, if any.
           </p>
           <div class="clearfix"></div>
           {% for index in range(0, 6) -%}
@@ -241,7 +238,9 @@
               is_required=False) }}
         </div>
 
-        <script>
+        <script type="text/javascript">
+          {% include "region_opts.html" %}
+
             var showOrHideRockIsland = function() {
                 var isRockIsland = $.val('selling_merch') === {{ c.ROCK_ISLAND }};
                 setVisible('#rockisland', isRockIsland);
@@ -249,6 +248,8 @@
                 $('#rockisland input, #rockisland textarea, #rockisland select').prop('disabled', !isRockIsland);
                 if (isRockIsland) {
                     toggleVisibility_poc();
+                    $("[name='poc_region']").prop("disabled", true);
+                    $("select[name='poc_region']").prop("disabled", false);
                 }
             };
 

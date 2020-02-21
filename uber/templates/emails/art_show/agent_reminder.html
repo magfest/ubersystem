@@ -1,0 +1,16 @@
+Dear {{ app.attendee.first_name }},
+
+<p>Thank you for applying to the {{ c.EVENT_NAME }} Art Show. It is our understanding that your art will be arriving via an Agent, 
+however that Agent is not yet assigned to your application. This must be done by {{ c.PREREG_TAKEDOWN|datetime_local }}, as that is when online registration closes.</p>
+
+<p>To assign an agent to your application please ask them to assign your Agent ID {{ app.agent_code }} to their Midwest FurFest registration. 
+This will be right above Badge level on their registration screen:</p>
+<img src="../static/images/agent_code.png">
+
+<p>Once an agent has been assigned you will need to <a href="{{ c.URL_BASE }}/art_show_applications/edit?id={{ app.id }}" target="_blank">open your application</a>, enter your pieces, and print the Check in Sheet.</p>
+
+<p>This signed sheet needs to be on file with us before your art can be hung by your agent, so we recommend sending it with them to the art show.</p>
+
+<p>Thank you,
+<br/>Hugmonster
+<br/>Art Show Director</p>

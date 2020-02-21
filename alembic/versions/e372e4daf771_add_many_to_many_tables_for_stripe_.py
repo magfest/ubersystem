@@ -1,7 +1,7 @@
 """Add many-to-many tables for stripe transactions
 
 Revision ID: e372e4daf771
-Revises: 735063d71b57
+Revises: f142e4d54e49
 Create Date: 2018-08-31 20:42:18.905795
 
 """
@@ -9,7 +9,7 @@ Create Date: 2018-08-31 20:42:18.905795
 
 # revision identifiers, used by Alembic.
 revision = 'e372e4daf771'
-down_revision = 'b574c0577253'
+down_revision = 'f142e4d54e49'
 branch_labels = None
 depends_on = None
 
@@ -127,6 +127,7 @@ def get_model_share(id, model):
         return None, "Error: could not get amount paid from tracking table for {} {}. ({})" \
             .format(model, id, e)
 
+
 def add_attendee_txn(txn, attendee, share=None):
     if not share:
         share, error = get_model_share(attendee.id, 'Attendee')
@@ -157,6 +158,7 @@ def add_group_txn(txn, group, share=None):
         })
     )
 
+
 def add_model_by_txn(txn, multi=False):
     # Adds a model according to the fk_model stored on a transaction, and returns its name
     connection = op.get_bind()
@@ -172,7 +174,7 @@ def add_model_by_txn(txn, multi=False):
 
         if len(attendees) == 1:
             [attendee] = attendees
-            if txn.amount <= (attendee.amount_paid * 100) or multi:
+            if txn.amount <= attendee.amount_paid or multi:
                 error = add_attendee_txn(txn, attendee, share)
                 return ('', '', error) if error else (attendee.first_name, attendee.last_name, None)
             else:
@@ -188,7 +190,7 @@ def add_model_by_txn(txn, multi=False):
 
         if len(groups) == 1:
             [group] = groups
-            if txn.amount <= (group.amount_paid * 100) or multi:
+            if txn.amount <= group.amount_paid or multi:
                 error = add_group_txn(txn, group, share)
                 return ('', '', error) if error else (group.name, '', None)
             else:
@@ -198,7 +200,7 @@ def add_model_by_txn(txn, multi=False):
                     )
                 )
                 if group_leader.amount_extra:
-                    txn_guess = (group.amount_paid * 100)+(group_leader.amount_extra * 100)
+                    txn_guess = group.amount_paid + (group_leader.amount_extra * 100)
                     if txn.amount <= txn_guess:
                         error = add_group_txn(txn, group, share)
                         if error:

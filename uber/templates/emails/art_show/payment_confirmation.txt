@@ -1,0 +1,5 @@
+{{ app.attendee.first_name }},
+
+Your payment of ${{ app.total_cost }} for space in the {{ c.EVENT_NAME }} Art Show has been received. You will have {{ app.panels }} general panel{{ app.panels|pluralize }}, {{ app.panels_ad}} adult panel{{ app.panels_ad|pluralize }}, {{ app.tables }} general table{{ app.tables|pluralize }}, and {{ app.tables_ad}} adult table{{ app.tables_ad|pluralize }} available to display your art. {% if app.delivery_method == c.BY_MAIL %} Your mail-in fee was ${{ c.ART_MAILING_FEE }}. {% endif %}The Art Show director will continue to be in touch with you to keep you informed of Art Show rules and procedures.
+
+{{ c.ART_SHOW_SIGNATURE }}

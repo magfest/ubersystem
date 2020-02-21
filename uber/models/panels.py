@@ -23,7 +23,8 @@ class Event(MagModel):
     description = Column(UnicodeText)
 
     assigned_panelists = relationship('AssignedPanelist', backref='event')
-    applications = relationship('PanelApplication', backref='event')
+    applications = relationship('PanelApplication', backref=backref('event', cascade="save-update,merge"), 
+                                cascade="save-update,merge")
     panel_feedback = relationship('EventFeedback', backref='event')
     tournaments = relationship('TabletopTournament', backref='event', uselist=False)
     guest = relationship('GuestGroup', backref=backref('event', cascade="save-update,merge"),
@@ -111,7 +112,7 @@ class PanelApplication(MagModel):
     has_cost = Column(Boolean, default=False)
     is_loud = Column(Boolean, default=False)
     cost_desc = Column(UnicodeText)
-    livestream = Column(Choice(c.LIVESTREAM_OPTS), default=c.DONT_CARE)
+    livestream = Column(Choice(c.LIVESTREAM_OPTS), default=c.OPT_IN)
     panelist_bringing = Column(UnicodeText)
     extra_info = Column(UnicodeText)
     applied = Column(UTCDateTime, server_default=utcnow())

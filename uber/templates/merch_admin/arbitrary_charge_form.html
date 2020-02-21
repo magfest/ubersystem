@@ -1,0 +1,39 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Create Credit Card Charges{% endblock %}
+{% block content %}
+<script type="text/javascript">
+    var undoSale = function(id) {
+        $.post('undo_sale', {id: id, csrf_token: csrf_token}, function(message) {
+            toastr.remove();
+            window.location.replace('new?message=' + message);
+        });
+    };
+</script>
+
+{% if charge %}
+    <h2>${{ '%0.2f' % amount|float }}: {{ description }}</h2>
+    <div class="center">
+        {{ stripe_form('arbitrary_charge',charge) }}
+        {% if sale_id %}<a href="#" onClick="undoSale('{{ sale_id }}'); return false">Undo</a>{% endif %}
+    </div>
+{% else %}
+    <h2>Create Arbitrary Credit Card Charges</h2>
+    <form method="get" action="arbitrary_charge_form">
+    <table style="width:auto">
+    <tr>
+        <td><b>Amount:</b></td>
+        <td>$<input type="number" name="amount" min="1" max="999" value="{{ amount }}" /></td>
+    </tr>
+    <tr>
+        <td><b>Brief Description:</b></td>
+        <td><input type="text" name="description" value="{{ description }}" /></td>
+    </tr>
+    <tr>
+        <td></td>
+        <td><input type="submit" value="Create Charge" /></td>
+    </tr>
+    </table>
+    </form>
+{% endif %}
+
+{% endblock %}

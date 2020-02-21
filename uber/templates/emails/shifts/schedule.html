@@ -40,7 +40,7 @@
     {% if c.SHIRTS_PER_STAFFER > 0 and c.STAFF_EVENT_SHIRT_OPTS %}
         <br><br>
         You may choose to receive a {{ c.EVENT_NAME }} swag shirt instead of
-        {% if c.SHIRTS_PER_STAFFER > 1 %}one of {% end %}your staff shirt{{ c.SHIRTS_PER_STAFFER|pluralize }}.
+        {% if c.SHIRTS_PER_STAFFER > 1 %}one of {% endif %}your staff shirt{{ c.SHIRTS_PER_STAFFER|pluralize }}.
         This is the same shirt that attendees can buy and is provided as a perk for staffing.
     {% endif %}
 {% endif %}
@@ -53,8 +53,9 @@
 
 {% if attendee.takes_shifts and attendee.shifts %}
     <br><br>
-    The schedule of shifts you've signed up for is below; please print it out
-    so that you can have your department managers mark each shift as worked.
+    If you'd like, you can print this out for your own reference. If your 
+    department head isn't able to mark off your shift electronically, you 
+    can have them sign this and bring it to STOPS so we can.
     <br><br>
     If you forget to print out this sheet and would like to pick up a spare
     copy, or if you want to change your hours, you can drop by Staffing Ops
@@ -62,7 +63,7 @@
 {% endif %}
 
 <br><br>
-{% include "signups/printable_schedule.html" %}
+{% include "staffing/printable_schedule.html" %}
 
 <br> {{ c.STOPS_EMAIL_SIGNATURE|linebreaksbr }}
 

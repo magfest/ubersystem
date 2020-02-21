@@ -1,0 +1,55 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Placeholder Attendees{% endblock %}}
+{% block content %}
+{% include "dept_checklist/dept_menu.html" %}
+
+<h2>{{ dept_name }} Unconfirmed Volunteers: {{ placeholders|length }}</h2>
+
+{% if checklist.relevant %}
+    <br/>
+    {% if checklist.completed %}
+        You've already told us that no one on this list is essential to your department; please emails STOPS if this is in error.
+    {% else %}
+        <a href="#" onClick="$('#checkoff').show(); return false;">This all looks good to me.</a>
+        <form id="checkoff" style="display:none" method="post" action="mark_item_complete">
+        {{ csrf_token() }}
+        <input type="hidden" name="department_id" value="{{ department_id }}" />
+        <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
+        Volunteers with unclaimed placeholder registrations will NOT be coming to MAGFest if they don't claim their badges by the deadline.  So by clicking the button below, you're telling us:
+        <ul>
+            <li>No one who's still a placeholder registration is essential to {{ dept_name }}.</li>
+            <li>It's okay for {{ dept_name }} if everyone on this list is deleted after the deadline.</li>
+        </ul>
+        <input type="submit" value="This All Looks Good To Me" />
+        </form>
+    {% endif %}
+    <br/>
+{% endif %}
+<br/>
+
+We create placeholder registrations for volunteers and ask them to fill out the rest of their information and also confirm that they'll be coming.  The people on this list have not yet done this and will be deleted after the placeholder deadline:
+
+<table class="list">
+<tr class="header">
+    <td>Name</td>
+    <td>Badge</td>
+    <td>Group</td>
+    <td>Departments</td>
+</tr>
+{% for attendee in placeholders %}
+    <tr>
+        <td><a href="#attendee_form?id={{ attendee.id }}&return_to=../dept_checklist/placeholders">{{ attendee.full_name }}</a></td>
+        <td>{{ attendee.badge }}</td>
+        <td>
+            {% if attendee.group %}
+                {{ attendee.group.name }}
+            {% else %}
+                n/a
+            {% endif %}
+        </td>
+        <td>{{ attendee.assigned_depts_labels|join(' / ') }}</td>
+    </tr>
+{% endfor %}
+</table>
+
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Create Credit Card Charges{% endblock %}
+{% block content %}
+{% set sales_tax_percent = c.SALES_TAX / 100 %}
+<script type="text/javascript">
+    var undoSale = function(id) {
+        $.post('../registration/undo_sale', {id: id, csrf_token: csrf_token}, function(message) {
+            toastr.remove();
+            window.location.replace('sales_charge_form?message=' + message);
+        });
+    };
+
+    var updateCharge = function() {
+        subtotal = $('#subtotal').val();
+        tax = subtotal * ({{ sales_tax_percent }} / 100)
+        $('#calculated_tax').text(tax);
+        $('#calculated_total').val(Number(tax) + Number(subtotal));
+    };
+</script>
+
+{% if charge %}
+    <h2>${{ amount }}: {{ description }}</h2>
+    <div class="center">
+        {{ stripe_form('sales_charge',charge) }}
+        {% if sale_id %}<a href="#" onClick="undoSale('{{ sale_id }}'); return false">Undo</a>{% endif %}
+    </div>
+{% else %}
+    <h2>Create Arbitrary Credit Card Charges</h2>
+    <form method="get" action="sales_charge_form">
+    <table style="width:auto">
+    <tr>
+        <td><b>Subtotal:</b></td>
+        <td>$<input id="subtotal" type="text" min="1" max="999999" onChange="updateCharge()" /></td>
+    </tr>
+    <tr>
+        <td><b>Tax ({{ sales_tax_percent }}%):</b></td>
+        <td><span id="calculated_tax"></span></td>
+    </tr>
+    <tr>
+        <td><b>Total:</b></td>
+        <td><input id="calculated_total" readonly name="amount" /></td>
+    </tr>
+    <tr>
+        <td><b>Brief Description:</b></td>
+        <td><input type="text" name="description" value="{{ description }}" /></td>
+    </tr>
+    <tr>
+        <td></td>
+        <td><input type="submit" value="Create Charge" /></td>
+    </tr>
+    </table>
+    </form>
+{% endif %}
+
+{% endblock %}

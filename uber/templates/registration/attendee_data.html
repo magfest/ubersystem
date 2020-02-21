@@ -1,0 +1,136 @@
+{% set admin_area=True %}
+{% set clientside_bool=True %}
+{% set badge_status_ro=not c.HAS_REG_ADMIN_ACCESS %}
+{% import "fields/attendee.html" as attendee_fields with context %}
+<script src="//cdnjs.cloudflare.com/ajax/libs/validate.js/0.13.1/validate.min.js"></script>
+<script type="text/javascript">
+createDateTextEntries();
+{% if attendee.is_new %}
+$.field('placeholder').prop('checked', true);
+{% endif %}
+var saveAndClose = function() {
+  $("#attendee_form").submit();
+  $("#attendee_modal").modal('hide');
+};
+  
+var updateAttendee = function(event){
+    event.preventDefault();
+    toastr.clear();
+
+    var formData = $("#attendee_form").serializeArray();
+    var old_hash = window.location.hash;
+    $.each(validate.collectFormValues($("#attendee_form"), {nullify:false}), function(k, v) {
+        if (v === false || v === null) {
+        formData.push({name: k, value: (v === null) ? "" : v});
+        } else if (v === true) {
+        formData.find(input => input.name == k).value = v;
+        }
+    });
+    $.ajax({
+        method: 'POST',
+        url: '../registration/update_attendee',
+        data: formData,
+        success: function (json) {
+            if (json.success) {
+              toastr.info(json.message);
+              {% if attendee.is_new %}
+              old_hash = "#attendee_form?id=" + json.id
+              window.location = window.location.href.replace(location.hash, "") + old_hash;
+              {% else %}
+              window.history.replaceState("", document.title, window.location.href.replace(location.hash, "") + old_hash);
+              loadForm("Data");
+              {% endif %}
+            } else {
+              toastr.error(json.message);
+            }
+        },
+        error: function () {
+            toastr.error('Unable to connect to server, please try again.');
+        }
+    });
+    setTimeout(function(){ 
+      if($('#attendee_modal').is(':visible')) {
+        window.history.replaceState("", document.title, window.location.href.replace(location.hash, "") + old_hash); 
+        }
+      }, 1000);
+};
+$(window).on("runJavaScript", function () {
+if($.field('return_to')) {
+    $.field('return_to').val(window.location.pathname + window.location.search);
+  }
+})
+</script>
+{% set save_buttons %}
+  {% set save_text = save_text or 'Create' if attendee.is_new else 'Save' %}
+  <div class="pull-right">
+      <button type="button" onClick="saveAndClose()" class="btn btn-primary">{{ save_text }} & Close</button>
+      <button type="submit" form="attendee_form" class="btn btn-primary">{{ save_text }}</button>
+      <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+  </div>
+{% endset %}
+{% if not attendee.is_new %}
+<div class="row" style="padding: 10px;">
+{{ save_buttons }}
+</div>
+{% endif %}
+<form method="post" action="../registration/update_attendee" id="attendee_form" onSubmit="updateAttendee(event)" class="form-horizontal">
+  {{ csrf_token() }}
+  <input type="hidden" name="id" value="{{ attendee.db_id }}" />
+  {% if attendee.is_new %}
+    {{ attendee_fields.is_placeholder }}
+    {{ attendee_fields.group_link }}
+    {{ attendee_fields.badge_type }}
+    {{ attendee_fields.ribbons }}
+    {{ attendee_fields.name }}
+    {{ attendee_fields.email }}
+    {{ attendee_fields.paid }}
+    {{ attendee_fields.admin_notes }}
+  {% else %}
+    {{ attendee_fields.created }}
+    {{ attendee_fields.signed_up }}
+    {{ attendee_fields.last_updated }}
+    {{ attendee_fields.checked_in }}
+    {{ attendee_fields.is_placeholder }}
+    {{ attendee_fields.badge_status }}
+    {{ attendee_fields.print_pending }}
+    {{ attendee_fields.reprint_fee }}
+    {% if c.HAS_ACCOUNTS_ACCESS %}
+      {{ attendee_fields.admin_access }}
+    {% endif %}
+    {{ attendee_fields.group_link }}
+    {{ attendee_fields.badge_type }}
+    {{ attendee_fields.ribbons }}
+    {{ attendee_fields.name }}
+    {{ attendee_fields.badge_printed_name }}
+    {{ attendee_fields.age }}
+    {{ attendee_fields.email }}
+    {{ attendee_fields.emergency_contact }}
+    {{ attendee_fields.cellphone }}
+    {{ attendee_fields.paid }}
+    {% if c.HAS_SHIFTS_ADMIN_ACCESS %}
+      {{ attendee_fields.staffing }}
+      {{ attendee_fields.job_interests }}
+      {{ attendee_fields.assigned_depts }}
+      {{ attendee_fields.setup_teardown }}
+    {% endif %}
+
+    {{ attendee_fields.for_review }}
+    {{ attendee_fields.admin_notes }}
+  {% endif %}
+</form>
+<div class="modal-footer">
+  <div class="form-group">
+  {% if not attendee.is_new %}
+  <div class="pull-left">
+      <form method="post" action="../registration/delete_attendee" class="form form-inline" onSubmit="return confirm('{% if attendee.group and attendee.is_unassigned %}Are you sure you want to delete this unassigned badge?{% elif attendee.group %}Are you sure you want to unassign this badge?{% else %}Are you sure you want to delete this attendee?{% endif %}');">
+      {{ csrf_token() }}
+      <input type="hidden" name="id" value="{{ attendee.id }}" />
+      <input type="hidden" name="return_to" value="" />
+      <input type="submit" class="btn btn-danger" value="{% if attendee.group and attendee.is_unassigned %}Delete this group badge{% elif attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}"
+              {% if attendee.paid == c.HAS_PAID %} style="background-color:#BCBCBC" title="Cannot delete a paid badge." disabled {% endif %}/>
+      </form>
+  </div>
+  {% endif %}
+  {{ save_buttons }}
+  </div>
+</div>

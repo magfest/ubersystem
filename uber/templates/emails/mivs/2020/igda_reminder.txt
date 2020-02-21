@@ -1,0 +1,6 @@
+Ahoy {{ game.studio.primary_contact_first_names }},
+
+We wanted to remind you that the IGDA Meetup is happening Tonight (Thursday) at 10pm at the Belvedere Lobby Bar. This is not to be confused with our MIVS Mixer which is happening tommorrow, but is still a good chance to meet other developers.   
+
+Forever your Fan,
+The MIVS Team

@@ -1,14 +1,15 @@
 {% extends "guest_checklist/badges_deadline.html" %}
 {% block deadline_text %}
+  Please check your badge information to ensure it is correct{% if guest.group.badges == 1 %}.{% else %},
+  then enter the legal names and contact info for the group members attending with you.{% endif %}
+  Additional badges may be considered upon request.
+  <br/><br/>
   {% if guest.all_badges_claimed %}
     You have already assigned all badges which have been assigned to your group, but you may change who your
-    complementary badges are assigned to using the link above anytime until the start of {{ c.EVENT_NAME }}.
+    complimentary badges are assigned to using the link above anytime until the start of {{ c.EVENT_NAME }}.
   {% else %}
-    You currently have {{ guest.group.floating|length }} unassigned complementary
+    You currently have {{ guest.group.floating|length }} unassigned complimentary
     badge{{ guest.group.floating|length|pluralize }} available to your group.  You may use the link above to
     assign these badges.
   {% endif %}
-  <br/><br/>
-  Enter the legal names and contact info for the group members attending with you. Additional badges may be considered
-  upon request.
 {% endblock %}

@@ -1,0 +1,45 @@
+{% extends "preregistration/preregbase.html" %}
+{% block title %}Art Show Application{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+{% set payment_includes_badge = app.attendee.badge_cost and app.attendee.amount_unpaid > app.total_cost %}
+<div class="masthead"></div>
+<div class="panel panel-default">
+  <div class="panel-body">
+    <h2>{{ c.EVENT_NAME }} Marketplace Application</h2>
+    <p>
+      {% if app.status in [c.APPROVED, c.PAID] %}
+      {% if app.status == c.APPROVED %}Congratulations, your application has been approved!{% endif %}
+        {% if not app.incomplete_reason and app.amount_unpaid %}
+          In order to complete your application, please pay ${{ app.attendee.amount_unpaid }} using the button below.
+          {% if payment_includes_badge %}This total includes the cost of your badge.{% endif %}<br/><br/>
+          <div style="text-align:center">
+              {{ stripe_form('process_marketplace_payment', charge) }}
+          </div>
+        {% elif app.attendee.placeholder %}
+          Before completing your application, please finish filling out your information
+          <a href="../preregistration/confirm?id={{ app.attendee_id }}" target="_blank">here</a>. You may also use that page
+          to pay for your {% if payment_includes_badge %}badge and {% endif %}marketplace spot, or pay here later.
+        {% endif %}
+      {% elif app.status != c.UNAPPROVED %}
+      Unfortunately, since your application has been {{ app.status_label|lower }}, you may no longer edit it. However,
+      you may still view the details of your application below. <br/><br/>
+      {% endif %}
+    </p>
+    <form method="post" id="new_agent" action="new_agent" role="form"></form>
+    <form method="post" action="edit" class="form-horizontal" role="form">
+      <input type="hidden" name="id" value="{{ app.id }}">
+
+      {% include 'marketplace/marketplace_form.html' %}
+
+      {% if app.status == c.UNAPPROVED %}
+      <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-3">
+          <button type="submit" class="btn btn-primary">Update Application</button>
+        </div>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+{% endblock %}

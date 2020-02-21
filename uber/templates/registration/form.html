@@ -2,6 +2,7 @@
 {% import "fields/attendee.html" as attendee_fields with context %}
 {% block title %}Attendee Form - {{ attendee.full_name }}{% endblock %}
 {% block content %}
+{% include "check_in.html" %}
 
 {% include "registration/menu.html" %}
 
@@ -19,18 +20,18 @@
 
 {% if attendee.regdesk_info %}
     <div class="form-group">
-        <div class="col-sm-3 text-right">
-          <span class="label label-danger">Special Regdesk Instructions:</span>
-        </div>
-        <div class="col-sm-9">
-          {{ attendee.regdesk_info }}
-          <p class="help-block"><em>You can update these instructions below</em></p>
+        <label for="special_instructions" class="col-sm-3 control-label">Special Instructions</label>
+        <div class="col-sm-6">
+            <div class="form-control-static"><strong>{{ attendee.regdesk_info }}</strong></div>
+            <p class="help-block"><em>You can update these instructions below.</em></p>
         </div>
     </div>
 {% endif %}
 
 {{ attendee_fields.is_placeholder }}
 {{ attendee_fields.badge_status }}
+{{ attendee_fields.print_pending }}
+{{ attendee_fields.reprint_fee }}
 {% if c.HAS_ACCOUNTS_ACCESS %}
   {{ attendee_fields.admin_access }}
 {% endif %}
@@ -86,8 +87,11 @@
 
 <div class="form-group">
     <div class="col-sm-9 col-sm-offset-3">
-        <button type="submit" name="save" class="btn btn-primary" value="save_return_to_search">Save + return{% if not return_to %} to search{% endif %}</button>
+        <button type="submit" name="save" class="btn btn-primary" value="save_return_to_search">Save & Return{% if not return_to %} to Search{% endif %}</button>
         <button type="submit" name="save" class="btn btn-primary" value="save">Save</button>
+        {% if c.AT_THE_CON and not attendee.checked_in and not attendee.is_not_ready_to_checkin and not attendee.amount_unpaid %}
+        <button class="btn btn-success" name="save" value="save_check_in">Save & Check In</button>
+    {% endif %}
     </div>
 </div>
 
@@ -95,7 +99,7 @@
 
 {% if not attendee.is_new %}
     <div style="margin-left:25%">
-        <form method="post" action="delete" onSubmit="return confirm('{% if attendee.group and attendee.is_unassigned %}Are you sure you want to delete this unassigned badge?{% elif attendee.group %}Are you sure you want to unassign this badge?{% else %}Are you sure you want to delete this attendee?{% endif %}');" />
+        <form method="post" action="delete" onSubmit="return confirm('{% if attendee.group and attendee.is_unassigned %}Are you sure you want to delete this unassigned badge?{% elif attendee.group %}Are you sure you want to unassign this badge?{% else %}Are you sure you want to delete this attendee?{% endif %}');">
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ attendee.id }}" />
             {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}" />{% endif %}
@@ -114,8 +118,37 @@
         </div>
     {% endif %}
 {% endif %}
-
 </div>
 </div>
-
+{% if c.AT_THE_CON and attendee.amount_unpaid %}
+<div class="alert alert-warning center" role="alert" id="payment-warning">
+<h4>{{ attendee.full_name }} currently owes <strong>${{ '%0.2f' % attendee.amount_unpaid }}</strong>.</h4>
+{% if Charge %}
+{{ stripe_form('manual_reg_charge', Charge(attendee)) }}
+{% else %}
+Please instruct them to pay at an at-door or manager station.
+{% endif %}
+</div>
+<iframe id="stripe_frame" name="stripe_frame" style="display:none"></iframe>
+<script type="text/javascript">
+$("form[action='manual_reg_charge']").prop('target', 'stripe_frame');
+$('#stripe_frame').load(function() {
+    var responseText = $(this.contentDocument.body).text().trim();
+    this.contentDocument.body.innerHTML = '';
+    
+    if (responseText) {
+        toastr.clear();
+        var response = $.parseJSON(responseText);
+        if (response['success'] == true) {
+            window.location.href = '../registration/form?id={{ attendee.id }}&message=' + response['message'];
+        } else {
+            toastr.error('', response['message'], {timeOut: 1000});
+        }
+    }
+});
+$().ready(function() {
+    $('#payment-warning').insertBefore('form[action="form"]');
+});
+</script>
+{% endif %}
 {% endblock %}

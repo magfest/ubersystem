@@ -6,7 +6,7 @@
   {% if c.REG_USES_BARCODES %}
     {% include 'barcode_client.html' %}
   {% endif %}
-
+  <style> .badge_count { margin-left: 15px; } </style>
   <script>
     $(function() {
       $('#search_bar').select();
@@ -31,6 +31,16 @@
           showErrorMessageWhenHidden: false
         });
       {% endif %}
+      $('.badge_count').each(function () {
+        text = $(this).text()
+        num_badges_left = parseInt(text.substr(0,text.indexOf(' ')));
+        if ($(this).data('danger-threshold') && num_badges_left <= $(this).data('danger-threshold')) {
+          $(this).removeClass('btn').addClass('btn-danger');
+        }
+        else if ($(this).data('warning-threshold') && num_badges_left <= $(this).data('warning-threshold')) {
+          $(this).removeClass('btn').addClass('btn-warning');
+        }
+      });
     });
   </script>
   {% include "check_in.html" %}
@@ -54,15 +64,29 @@
     </div>
 
     <div class="col-sm-6 col-md-8">
+      <form method="post" action="set_reg_station" class="form-inline">
         <a class="btn btn-primary" href="form?id=None">Add an attendee</a>
-        <a class="btn btn-default" {% if not c.AT_THE_CON %}disabled="disabled"{% endif %}
-           href="new">View Recent At-the-Door Registrations</a>
 
         {% if invalid  %}
             <a class="btn btn-info" href="index?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode }}">Hide invalid badges</a>
         {% else %}
             <a class="btn btn-info" href="index?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid=True">Show all badge statuses</a>
         {% endif %}
+
+        <div class="form-group">
+        <style type="text/css">
+        .collapse.in {
+          display: inline-block;
+        }
+        </style>
+        <a href="#set-reg-station" class="btn btn-default" data-toggle="collapse">Set At-Door Reg Station</a>
+        <span id="set-reg-station" class="collapse">
+        <label class="sr-only" for="reg_station">Reg Station #</label>
+        <input class="form-control" id="reg_station" name="reg_station" placeholder="Reg Station #" value="{{ reg_station }}">
+        <button type="submit" class="btn btn-primary">Save</button>
+        </span>
+        </div>
+      </form>
     </div>
 </div>
 
@@ -70,6 +94,11 @@
     <div class="col-xs-12">
         <span style="margin-right: 15px;">{{ attendee_count }} Attendee{{ attendee_count|pluralize }}</span>
         <span><span id="checkin_count">{{ checkin_count }}</span> Checked In</span>
+        {% if c.HAS_REG_ADMIN_ACCESS %}
+        {% block badge_counts %}
+        <span class="badge_count btn" data-warning-threshold="1500" data-danger-thresold="250">{{ c.ATTENDEE_BADGE_STOCK - c.ATTENDEE_BADGE_COUNT }} Attendee badges left</span>
+        {% endblock %}
+        {% endif %}
     </div>
 </div>
 
@@ -103,17 +132,17 @@
         <thead>
           <tr>
             {% block tableheadings %}
-            <th> <a href="index?order={{ order.group_id }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Group Name</a> </th>
-            <th> Promo Code Group </th>
+            <th> <a href="index?order={{ order.group_name }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Group Name</a> </th>
+            <th> <a href="index?order={{ order.promo_code_group_name }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Promo Code Group</a> </th>
             <th> <a href="index?order={{ order.last_first }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Full Name</a> </th>
             <th> <a href="index?order={{ order.legal_name }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Name on ID</a> </th>
             {% if c.PREASSIGNED_BADGE_TYPES %}<th> <a href="index?order={{ order.badge_printed_name }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Badge Name</a> </th>{% endif %}
-            <th> <a href="index?order={{ order.badge_type }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Membership Type</a></th>
+            <th> <a href="index?order={{ order.badge_type }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Badges Type</a></th>
             {% if c.NUMBERED_BADGES %}<th> <a href="index?order={{ order.badge_num }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Badge #</a> </th> {% endif %}
             <th> <a href="index?order={{ order.ribbon }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Badge Ribbons</a></th>
             <th> <a href="index?order={{ order.amount_extra }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Upgrade</a></th>
             <th> <a href="index?order={{ order.paid }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">Paid</a> </th>
-            <th>Age</th>
+            <th>{% if c.COLLECT_EXACT_BIRTHDATE %}<a href="index?order={{ order.birthdate }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}">{% endif%}Age{% if c.COLLECT_EXACT_BIRTHDATE %}</a>{% endif %}</th>
             {% if c.AT_THE_CON %}
                 <th> <a href="index?order={{ order.checked_in }}&page={{ page }}&search_text={{ search_text|urlencode }}&invalid={{ invalid }}"><nobr>Checked In</nobr></a> </th>
             {% endif %}
@@ -122,19 +151,19 @@
         </thead>
         <tbody>
           {% for attendee in attendees %}
-            <tr {% if attendee.badge_status == c.INVALID_STATUS %}bgcolor="#FFE4E1"{% endif %}>
+            <tr {% if attendee.badge_status == c.INVALID_STATUS %}class="danger"{% endif %}>
                 {% block tablerows scoped %}
                 <td id="group_{{ attendee.id }}">
                     {% if attendee.group %}
-                    <a href="../groups/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
+                    <a href="../group_admin/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
                     {% endif %}
                 </td>
                   <td id="promo_code_group_{{ attendee.id }}">
                   {% for group in attendee.promo_code_groups %}
-                    <a href="../groups/promo_code_group_form?id={{ group.id }}" target="_blank">{{ group.name }}</a>
+                    <a href="promo_code_group_form?id={{ group.id }}" target="_blank">{{ group.name }}</a>
                   {% endfor %}
                   {% if attendee.promo_code and attendee.promo_code.group %}
-                    <a href="../groups/promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a>
+                    <a href="promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a>
                   {% endif %}
                   </td>
                 <td id="name_{{ attendee.id }}" style="text-align:left">
@@ -166,9 +195,13 @@
                     {% elif attendee.is_not_ready_to_checkin %}
                         <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
                     {% else %}
+                      {% if not reg_station and attendee.amount_unpaid %}
+                        <td>Can't checkin (Attendee owes ${{ '%0.2f' % attendee.amount_unpaid }})</td>
+                      {% else %}
                         <td id="cin_{{ attendee.id }}">
-                            <button class="attendee-checkin" data-attendee-id="{{ attendee.id }}">Check In</button>
+                            <button class="attendee-checkin btn-sm btn-success" data-attendee-id="{{ attendee.id }}" onClick="loadCheckInModal('{{ attendee.id }}')">Check In</button>
                         </td>
+                      {% endif %}
                     {% endif %}
                 {% endif %}
               {% endblock tablerows %}

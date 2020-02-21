@@ -34,7 +34,10 @@ table form {
                {% if not c.AT_OR_POST_CON %}disabled{% endif %}>
       </div>
       <div class="form-group">
-        {{ macros.access_checkgroup(AdminAccount) }}
+        {{ macros.checkgroup_opts(
+            'access_groups_ids',
+            c.ACCESS_GROUP_OPTS,
+            include_empty_hidden=True) }}
       </div>
       <button type="submit" class="btn btn-default">Create Account</button>
     </form>
@@ -51,7 +54,7 @@ table form {
         <tr>
           <th>Name</th>
           <th>Email</th>
-          <th data-hide="phone">Access</th>
+          <th data-hide="phone">Access Groups</th>
           <th></th>
           <th></th>
         </tr>
@@ -60,14 +63,20 @@ table form {
       {% for account in accounts %}
         <tr id="{{ account.email|idize }}">
           <td data-order="{{ account.attendee.last_first }}" data-search="{{ account.attendee.last_first }}">
-            <nobr><a href="../registration/form?id={{ account.attendee.id }}">{{ account.attendee.last_first }}</a></nobr>
+            <nobr><a href="#attendee_form?id={{ account.attendee.id }}">{{ account.attendee.last_first }}</a></nobr>
           </td>
           <td> {{ account.attendee.email|email_to_link }} </td>
           <td>
             <form class="form update-form" method="post" action="update">
               <input type="hidden" name="id" value="{{ account.id }}" />
               {{ csrf_token() }}
-              <div class="form-group">{{ macros.access_checkgroup(account) }}</div>
+              <div class="form-group">
+                {{ macros.checkgroup_opts(
+                  'access_groups_ids',
+                  c.ACCESS_GROUP_OPTS,
+                  defaults=account.access_groups_ids,
+                  include_empty_hidden=True) }}
+              </div>
             </form>
             {% if account.attendee.assigned_depts %}
               <br>
@@ -132,5 +141,4 @@ $(document).ready(function() {
     });
 });
 </script>
-
 {% endblock %}

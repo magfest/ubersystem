@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% set name_ro = not attendee.placeholder %}
+{% set assigned_depts_ro = True %}
 {% import "fields/attendee.html" as attendee_fields with context %}
 {% block title %}Confirm Your Details{% endblock %}
 {% block backlink %}
-    {% if c.HAS_PEOPLE_ACCESS %}
+    {% if c.HAS_REGISTRATION_ACCESS %}
         <a href="../registration/form?id={{ attendee.id }}" style="float:right">Return to Attendee Admin Form</a>
     {% endif %}
 {% endblock %}
@@ -46,11 +47,30 @@
         <br/>
         <div class="form-group">
           <div class="col-sm-9 col-sm-offset-3 warning">
-            You currently have an outstanding balance of ${{ attendee.amount_unpaid }}{% if attendee.amount_extra %} due to having requested
+            You currently have an outstanding balance of ${{ '%0.2f' % attendee.amount_unpaid }}{% if attendee.amount_extra %} due to having requested
             registration add-ons and then not completing the payment form{% endif %}.  Please either
             <a href="attendee_donation_form?id={{ attendee.id }}">click here</a> to pay, or alter your registration below to
             eliminate whichever addons you've decided not to select.
           </div>
+        </div>
+      {% endif %}
+
+      {% if attendee.is_dealer %}
+      {% if attendee.group.status == c.DECLINED %}
+        {% set bg_class = 'danger' %}
+      {% elif attendee.group.status == c.APPROVED %}
+        {% set bg_class = 'success' %}
+      {% elif attendee.group.status == c.WAITLISTED %}
+        {% set bg_class = 'warning' %}
+      {% else %}
+        {% set bg_class = 'info' %}
+      {% endif %}
+        <div class="alert alert-{{ bg_class }}">
+          Your group "<a href="group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>"
+          is currently {{ attendee.group.status_label }}.
+          {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE %}
+          <br/><br/>If you would like, you may instead
+          <a href="../marketplace/index?attendee_id={{ attendee.id }}" target="_blank">apply for a table in the Marketplace.</a>{% endif %}
         </div>
       {% endif %}
 
@@ -64,6 +84,7 @@
       {{ attendee_fields.extra_donation }}
       {{ attendee_fields.staffing }}
       {{ attendee_fields.job_interests }}
+      {{ attendee_fields.assigned_depts }}
       {{ attendee_fields.agreed_to_volunteer_agreement }}
       {{ attendee_fields.age }}
       {{ attendee_fields.email }}

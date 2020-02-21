@@ -7,10 +7,10 @@
   <div class="panel-body">
     <h2>{{ message }}!</h2>
     <p>
-      You have successfully {% if 'registered' or 'confirmed' in message %}confirmed{% else %}updated{% endif %} your registration.
-      Thank you{% if 'payment' in message %} for upgrading your badge{% endif %}!
+      You have successfully {% if 'registered' or 'confirmed' in message %}confirmed{% elif 'transferred' in message %}transferred{% else %}updated{% endif %} your registration.
+      Thank you{% if 'payment' in message %} for your payment{% endif %}!
     </p>
-    <a href="confirm?id={{ id }}" class="btn btn-primary">Go Back to My Badge</a>
+    {% if 'transferred' not in message %}<a href="confirm?id={{ id }}" class="btn btn-primary">Go Back to My Badge</a>{% endif %}
   </div>
 </div>
 {% endblock %}

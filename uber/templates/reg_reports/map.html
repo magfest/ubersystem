@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Attendance Map{% endblock %}
+{% block content %}
+    <style>
+        /* Always set the map height explicitly to define the size of the div
+        * element that contains the map. */
+        #map {
+            height: 100%;
+            position: static;
+        }
+
+        /* Optional: Makes the sample page fill the window. */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+
+    <div class="row">
+        <div class="panel col-md-3">
+            <form id="refresh">
+                <input type="submit" value="Refresh (May Take A While)">
+            </form>
+            <br>
+            <form id="radial" action="radial_zip_data">
+                <input type="number" id="radius" name="radius" min="1" placeholder="Miles From Center..." required><br>
+                <input type="submit" value="Get Basic CSV">
+            </form>
+            <br>
+            <p>Current Zip: {{ center.Zipcode }}</p>
+            <form id="set_center">
+                <input type="text" id="zip" placeholder="New Zip Code..." required><input type="submit" value="Set Center">
+            </form>
+        </div>
+        <div style="height:48em" class="panel col-md-9">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <script>
+    $("#refresh").submit(function(e){
+        e.preventDefault();
+        $.ajax({
+            url: "refresh",
+            data: {
+                csrf_token: csrf_token
+            },
+            type: "POST",
+            success: function(e){
+                window.location.reload();
+            }
+
+        });
+    });
+    $("#radial").submit(function(e){
+        e.preventDefault();
+        var distance = $("#radius");
+        this.submit();
+        distance.val("");
+    });
+
+    $("#set_center").submit(function(e){
+        e.preventDefault();
+        var zip = $("#zip");
+        $.ajax({
+            url: "set_center",
+            data: {
+                zip: zip.val(),
+                csrf_token: csrf_token
+            },
+            type: "POST",
+            success: function(e){
+                alert(e);
+                window.location.reload();
+            }
+        });
+        zip.val("");
+    });
+
+    var refresh = function(){
+        return false;
+    };
+
+    var set_center = function(center_form){
+        console.log(center_form);
+        return false;
+    };
+
+    var center = {
+        "lat": {{ center.Latitude }},
+        "lng": {{ center.Longitude }}
+    };
+    var map;
+    function initMap() {
+        map = new google.maps.Map(document.getElementById('map'), {
+            zoom: 10,
+            center: center
+        });
+
+        var windows = [];
+        var markers = [];
+
+        windows[0] = new google.maps.InfoWindow({
+                content: "{{ center.City }}, {{ center.State }} - {{ center.Zipcode }} - Event City"
+            });
+        markers[0] = new google.maps.Marker({
+            position: {
+                "lat": {{ center.Latitude }},
+                "lng": {{ center.Longitude }}
+            },
+            map: map,
+            title: '{{ center.City }}, {{ center.State }} - {{ center.Zipcode }}'
+        });
+        markers[0].addListener('click', function () {
+            windows[0].open(map, markers[0]);
+        });
+
+        {% for key, value in zips.items() %}
+            windows[{{ loop.index }}] = new google.maps.InfoWindow({
+                content: "{{ value.City }}, {{ value.State }} - {{ value.Zipcode }} - {{ zip_counts|get_count(key) }}"
+            });
+            markers[{{ loop.index }}] = new google.maps.Marker({
+                position: {
+                    "lat": {{ value.Latitude }},
+                    "lng": {{ value.Longitude }}
+                },
+                map: map,
+                title: '{{ value.City }}, {{ value.State }} - {{ value.Zipcode }}'
+            });
+            markers[{{ loop.index }}].addListener('click', function () {
+                windows[{{ loop.index }}].open(map, markers[{{ loop.index }}]);
+            });
+        {% endfor %}
+    }
+    </script>
+
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBc0XLtT-jCG3-v0JFLo9vSr2xYljpRRh4&callback=initMap"
+    async defer></script>
+
+{% endblock %}

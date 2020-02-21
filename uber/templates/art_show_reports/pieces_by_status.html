@@ -1,0 +1,49 @@
+{% extends "art_show_common/print_form.html" %}{% set admin_area=True %}{% set no_print = True %}
+{% import 'macros.html' as macros with context %}
+
+{% block noprint %}
+<strong>{{ message }}</strong>
+<form role="form" method="get" action="pieces_by_status" class="form-horizontal">
+  <div class="form-group">
+    <label class="control-label">Pieces in Status of</label>
+      {{ macros.checkgroup_opts('yes_status', c.ART_PIECE_STATUS_OPTS, defaults=[] if not yes_status else yes_status|join(',')) }}
+  </div>
+  <div class="form-group">
+    <label class="control-label">Pieces NOT in Status of</label>
+      {{ macros.checkgroup_opts('no_status', c.ART_PIECE_STATUS_OPTS, defaults=[] if not no_status else no_status|join(',')) }}
+  </div>
+  <div class="form-group">
+    <button type="submit" class="btn btn-primary">Load Pieces by Status</button>
+  </div>
+</form>
+<a href="javascript:window.print()" class="btn btn-success">Print Pieces</a>
+{% endblock %}
+
+{% block printform %}
+{% for app in apps %}
+<table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
+  <tr>
+    <td><strong>Artist ID</strong></td><td colspan="2">{{ app.artist_id }}</td>
+  </tr>
+  <tr>
+    <td><strong>Artist Name</strong></td><td colspan="2">{{ app.display_name }}</td>
+  </tr>
+  <tr>
+    <th>Piece ID</th>
+    <th>Piece Name</th>
+    <th>Status</th>
+    <th>Location</th>
+  </tr>
+  {% for piece in app.art_show_pieces %}
+  {% if (not yes_status or piece.status|string in yes_status|join(',')) and (not no_status or piece.status|string not in no_status|join(',')) %}
+  <tr>
+    <td>{{ piece.artist_and_piece_id }}</td>
+    <td>{{ piece.name|wordwrap(25, wrapstring="<br />"|safe) }}</td>
+    <td>{{ piece.status_label }}</td>
+    <td>{{ piece.gallery_label }}</td>
+  </tr>
+  {% endif %}
+  {% endfor %}
+</table>
+{% endfor %}
+{% endblock %}

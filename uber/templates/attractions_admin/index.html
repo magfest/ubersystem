@@ -5,7 +5,7 @@
   <h1>
     Attractions
     <small><a href="../attractions">View Public Schedule</a></small>
-    {% if c.STUFF in admin_account.access_ints %}
+    {% if c.HAS_ATTRACTIONS_ADMIN_ACCESS %}
       <a href="new" class="btn btn-primary pull-right">
         <span class="glyphicon glyphicon-plus"></span>
         Create Attraction
@@ -39,7 +39,7 @@
           {%- for attraction in attractions -%}
             <tr>
               <td>
-                {% if c.STUFF in admin_account.access_ints %}
+                {% if c.HAS_ATTRACTIONS_ADMIN_ACCESS %}
                   {{ attraction|form_link }}
                 {% else %}
                   {{ attraction.name }}

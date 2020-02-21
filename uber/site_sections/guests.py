@@ -11,18 +11,14 @@ from uber.models import GuestMerch
 from uber.utils import check
 
 
-@all_renderable()
+@all_renderable(public=True)
 class Root:
     def index(self, session, id, message=''):
         guest = session.guest_group(id)
 
-        def _deadline(item):
-            return guest.deadline_from_model(item['name'])
-
         return {
             'message': message,
             'guest': guest,
-            'sorted_checklist': sorted(filter(_deadline, c.GUEST_CHECKLIST_ITEMS), key=_deadline)
         }
 
     def agreement(self, session, guest_id, message='', **params):
@@ -83,16 +79,12 @@ class Root:
         guest = session.guest_group(guest_id)
         guest_taxes = session.guest_taxes(params, restricted=True)
         if cherrypy.request.method == 'POST':
-            guest_taxes.w9_filename = w9.filename
-            guest_taxes.w9_content_type = w9.content_type.value
-            if guest_taxes.w9_extension not in c.ALLOWED_W9_EXTENSIONS:
-                message = 'Uploaded file type must be one of ' + ', '.join(c.ALLOWED_W9_EXTENSIONS)
+            if not guest_taxes.w9_sent:
+                message = 'You must confirm that you have uploaded your W9 at the secure document portal'
             else:
-                with open(guest_taxes.w9_fpath, 'wb') as f:
-                    shutil.copyfileobj(w9.file, f)
                 guest.taxes = guest_taxes
                 session.add(guest_taxes)
-                raise HTTPRedirect('index?id={}&message={}', guest.id, 'W9 uploaded')
+                raise HTTPRedirect('index?id={}&message={}', guest.id, 'Thank you for sending in your W9!')
 
         return {
             'guest': guest,
@@ -152,6 +144,20 @@ class Root:
         if cherrypy.request.method == 'POST':
             guest.wants_mc = bool(params.get('wants_mc', False))
             raise HTTPRedirect('index?id={}&message={}', guest.id, 'MC preferences updated')
+
+        return {
+            'guest': guest,
+            'message': message
+        }
+
+    def rehearsal(self, session, guest_id, message='', **params):
+        guest = session.guest_group(guest_id)
+        if cherrypy.request.method == 'POST':
+            if not params.get('needs_rehearsal'):
+                message = "Please select an option for your rehearsal needs."
+            if not message:
+                guest.needs_rehearsal = params.get('needs_rehearsal')
+                raise HTTPRedirect('index?id={}&message={}', guest.id, 'Rehearsal needs updated')
 
         return {
             'guest': guest,
@@ -373,23 +379,25 @@ class Root:
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
             if guest.group.studio:
-                if not params['needs_hotel_space']:
+                if not params.get('needs_hotel_space'):
                     message = "Please select if you need hotel space or not."
                 elif 'confirm_checkbox' not in params:
                     message = "You must confirm that you have {}".format(
-                        "filled out the hotel form." if params['needs_hotel_space'] == '1'
+                        "filled out the hotel form." if params.get('needs_hotel_space') == '1'
                         else "taken care of your own accommodations for MAGFest."
                     )
-                elif params['needs_hotel_space'] == '1':
-                    guest.group.studio.name_for_hotel = params['name_for_hotel']
-                    guest.group.studio.email_for_hotel = params['email_for_hotel']
+                elif params.get('needs_hotel_space') == '1':
+                    guest.group.studio.name_for_hotel = params.get('name_for_hotel')
+                    guest.group.studio.email_for_hotel = params.get('email_for_hotel')
                     if not guest.group.studio.name_for_hotel:
                         message = "Please provide the first and last name you are using in your hotel booking."
                     elif not guest.group.studio.email_for_hotel:
                         message = "Please provide the email address you are using in your hotel booking."
+                    elif not params.get('same_checkbox'):
+                        message = "Please confirm you have filled out the same information here as on the hotel form"
 
                 if not message:
-                    guest.group.studio.needs_hotel_space = True if params['needs_hotel_space'] == '1' else False
+                    guest.group.studio.needs_hotel_space = True if params.get('needs_hotel_space') == '1' else False
                     session.add(guest)
                     raise HTTPRedirect('index?id={}&message={}',
                                        guest.id,
@@ -409,9 +417,7 @@ class Root:
                 if not params['selling_at_event']:
                     message = "Please select if you want to sell items at MAGFest or not."
                 elif params['selling_at_event'] == '1':
-                    if 'confirm_checkbox1' not in params:
-                        message = "You must confirm that you will bring a signed copy of the selling waiver to MAGFest."
-                    elif 'confirm_checkbox2' not in params:
+                    if 'confirm_checkbox' not in params:
                         message = "You must confirm that you have filled out the Google form provided."
 
                 if not message:
@@ -420,6 +426,26 @@ class Root:
                     raise HTTPRedirect('index?id={}&message={}',
                                        guest.id,
                                        'Selling preferences updated.')
+            else:
+                message = "Something is wrong with your group -- please contact us at {}.".format(c.MIVS_EMAIL)
+        return {
+            'guest': guest,
+            'message': message,
+        }
+        
+    def mivs_show_info(self, session, guest_id, message='', **params):
+        guest = session.guest_group(guest_id)
+        if cherrypy.request.method == 'POST':
+            if guest.group.studio:
+                if not params.get('show_info_updated'):
+                    message = "Please confirm you have updated your studio's and game's information."
+
+                if not message:
+                    guest.group.studio.show_info_updated = True
+                    session.add(guest)
+                    raise HTTPRedirect('index?id={}&message={}',
+                                       guest.id,
+                                       'Thanks for confirming your studio and game information is up-to-date!')
             else:
                 message = "Something is wrong with your group -- please contact us at {}.".format(c.MIVS_EMAIL)
         return {
@@ -452,14 +478,6 @@ class Root:
             disposition="attachment",
             name=guest.bio.download_filename,
             content_type=guest.bio.pic_content_type)
-
-    def view_w9(self, session, id):
-        guest = session.guest_group(id)
-        return serve_file(
-            guest.taxes.w9_fpath,
-            disposition="attachment",
-            name=guest.taxes.download_filename,
-            content_type=guest.taxes.w9_content_type)
 
     def view_stage_plot(self, session, id):
         guest = session.guest_group(id)

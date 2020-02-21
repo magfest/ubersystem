@@ -1,7 +1,7 @@
 """Adds Attractions
 
 Revision ID: 76e2905cff66
-Revises: b4a97b074ef2
+Revises: 06b9ad98e471
 Create Date: 2017-11-23 04:34:38.474631
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-11-23 04:34:38.474631
 
 # revision identifiers, used by Alembic.
 revision = '76e2905cff66'
-down_revision = 'b4a97b074ef2'
+down_revision = '06b9ad98e471'
 branch_labels = None
 depends_on = None
 

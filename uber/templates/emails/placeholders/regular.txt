@@ -1,6 +1,6 @@
 {% if attendee.first_name %}{{ attendee.first_name }},
 
-{% endif %}You've been added to the {{ c.EVENT_NAME }} registration database, but we don't have all of your personal information{% if attendee.amount_unpaid %} and you have not yet paid your outstanding balance of ${{ attendee.amount_unpaid }}{% endif %}.  To ensure that you can pick up your badge with no hassles at our registration desk, please fill out the rest of your info{% if attendee.amount_unpaid %} and pay{% endif %} at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }} and then simply bring a photo ID to {{ c.EVENT_NAME }}.
+{% endif %}You've been added to the {{ c.EVENT_NAME }} registration database, but we don't have all of your personal information{% if attendee.amount_unpaid %} and you have not yet paid your outstanding balance of ${{ '%0.2f' % attendee.amount_unpaid }}{% endif %}.  To ensure that you can pick up your badge with no hassles at our registration desk, please fill out the rest of your info{% if attendee.amount_unpaid %} and pay{% endif %} at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }} and then simply bring a photo ID to {{ c.EVENT_NAME }}.
 
 Please let us know if you have any questions.
 

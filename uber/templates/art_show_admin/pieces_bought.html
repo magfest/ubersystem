@@ -1,0 +1,236 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Art Show Pieces Bought - {{ receipt.attendee.full_name }}{% endblock %}
+{% block content %}
+<h3>Art Show Purchases for {{ receipt.attendee|form_link }}</h3>
+{% for receipt_iter in receipt.attendee.art_show_receipts %}
+{% if receipt_iter.id != receipt.id %}
+<a href="pieces_bought?id={{ receipt_iter.id }}">(Invoice #{{ receipt_iter.invoice_num }})</a>
+{% else %}
+Invoice #{{ receipt.invoice_num }}
+{% endif %}
+{% endfor %}
+{% if not receipt.attendee.art_show_receipt %}
+<a href="pieces_bought?id={{ receipt.attendee.id }}">[Start New Invoice]</a>
+{% endif %}
+{% set receipt_open = (receipt.id == receipt.attendee.art_show_receipt.id) %}
+<div class="panel panel-default">
+  {% if receipt_open %}
+  <div class="panel-body">
+    <div class="row text-center">
+      <div class="col-sm-4">
+        <form role="form" method="post" action="pieces_bought" id="search_form">
+          <input type="hidden" name="id" value="{{ receipt.id }}" />
+          <div class="input-group">
+            <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
+            <span class="input-group-btn">
+              <button class="btn btn-primary">Add Piece</button>
+          </span>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% if must_choose %}
+  <div class="modal fade" id="choose_modal" role="dialog" tabindex="-1">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <h4 class="modal-title">Choose Piece to Claim</h4>
+        </div>
+
+        <form role="form" method="get" class="form" action="pieces_bought">
+          <div class="modal-body">
+            <input type="hidden" name="id" value="{{ receipt.id }}" />
+            {% for piece in pieces %}
+            <button class="btn btn-default" name="search_text" value="{{ piece.artist_and_piece_id }}">
+              {{ piece.name }} by {{ piece.app.display_name }}
+            </button>
+            {% endfor %}
+            <br/><br/><button type="button" class="btn btn-danger" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">Nevermind</span></button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% elif charge %}
+  <div class="modal fade" id="charge_modal" role="dialog" tabindex="-1">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <h4 class="modal-title">Stripe Charge for ${{ '%0.2f' % (charge.amount / 100) }}</h4>
+        </div>
+
+        <div class="panel-body">
+          {{ stripe_form('purchases_charge', charge) }}
+          <br/><button type="button" class="btn btn-danger" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">Nevermind</span></button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+  <div class="table-responsive">
+    <table class="table table-striped">
+      <thead>
+      <tr>
+        {% if receipt_open %}<th>Unclaim Piece</th>{% endif %}
+        <th>ID</th>
+        <th>Status</th>
+        <th>Name</th>
+        <th>Media</th>
+        <th>Gallery</th>
+        <th>Type</th>
+        <th class="text-right">Price</th>
+      </tr>
+      </thead>
+      <tbody>
+      {% for piece in receipt.pieces %}
+      <tr class="piece-row" data-piece_id="{{ piece.id }}">
+        {% if receipt_open %}
+        <td>
+          <form method="post" action="unclaim_piece">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ receipt.id }}" />
+            <input type="hidden" name="piece_id" value="{{ piece.id }}" />
+            <button type="submit" class="btn-xs btn-danger remove_piece" data-name="{{ piece.name }}">
+              Remove
+            </button>
+          </form>
+        </td>
+        {% endif %}
+        <td> {{ piece.artist_and_piece_id }} </td>
+        <td>{{ piece.status_label }}</td>
+        <td> {{ piece.name|wordwrap(25, wrapstring="<br />"|safe) }} </td>
+        <td> {{ piece.media }} </td>
+        <td> {{ piece.gallery_label }} </td>
+        <td> {{ piece.type_label }}
+          {% if piece.print_run_num and piece.type == c.PRINT %}({{ piece.print_run_num }} of {{ piece.print_run_total }}){% endif %}
+        </td>
+        <td class="text-right"> ${{ '%0.2f' % piece.sale_price }}
+        </td>
+      </tr>
+      {% endfor %}
+      {% if receipt.pieces %}
+      <tr><td colspan="8" class="text-right">Subtotal: ${{ '%0.2f' % (receipt.subtotal / 100) }}</td></tr>
+      <tr><td colspan="8" class="text-right">Sales Tax ({{ c.SALES_TAX / 100 }}%): ${{ '%0.2f' % (receipt.tax / 100) }}</td></tr>
+      <tr><td colspan="8" class="text-right">Total Cost: ${{ '%0.2f' % (receipt.total / 100) }}</td></tr>
+      <tr><td colspan="8" class="text-right">Total Paid: ${{ '%0.2f' % (receipt.paid / 100) }}</td></tr>
+      <tr><td colspan="8"></td></tr>
+      {% if receipt.owed and receipt_open %}
+      <tr><td colspan="8" class="text-right">Owed: ${{ '%0.2f' % (receipt.owed / 100) }}</td></tr>
+      <tr><td colspan="8" class="text-right">
+        <form role="form" method="post" class="form form-inline" action="record_payment">
+          <input type="hidden" name="id" value="{{ receipt.id }}" />
+          <input type="hidden" name="type" value="{{ c.CASH }}" />
+          <div class="input-group">
+            <span class="input-group-addon">$</span><input type="text" class="form-control" name="amount" placeholder="{{ '%0.2f' % (receipt.owed / 100) }}" />
+          </div>
+          <button type="submit" class="btn btn-success">Record Cash Payment</button>
+        </form>
+      </td></tr>
+      <tr><td colspan="8" class="text-right">
+        <form role="form" method="post" class="form form-inline" action="pieces_bought">
+          <input type="hidden" name="id" value="{{ receipt.id }}" />
+          <div class="input-group">
+            <span class="input-group-addon">$</span><input type="text" class="form-control" name="amount" placeholder="{{ '%0.2f' % (receipt.owed / 100) }}" />
+          </div>
+          <button type="submit" class="btn btn-success">Begin Card Payment</button>
+        </form>
+      </td></tr>
+      {% endif %}
+      <tr><td colspan="8" class="text-right">
+        <form role="form" method="post" class="form form-inline" action="record_payment">
+          <input type="hidden" name="id" value="{{ receipt.id }}" />
+          <input type="hidden" name="type" value="{{ c.REFUND }}" />
+          <div class="input-group">
+            <span class="input-group-addon">$</span><input type="text" class="form-control" name="amount" placeholder="{{ '%0.2f' % (receipt.paid / 100) }}" />
+          </div>
+          <button type="submit" class="btn btn-success">Record Refund</button>
+        </form>
+      </td></tr>
+      {% if not receipt.owed %}
+      <tr><td colspan="8" class="text-right"><button class="btn btn-primary" id="print_receipt">Print{% if receipt_open %} & Close Out{% endif %} Receipt</button></td></tr>
+      {% endif %}
+      {% for payment in receipt.art_show_payments %}
+      <tr><td colspan="8" class="text-right">
+        <form role="form" method="post" action="undo_payment">
+          {%- set payment_desc -%}
+          {%- if payment.type == c.REFUND -%}
+          Refund of
+          {%- else -%}
+          {{ payment.type_label }} payment of
+          {% endif %} ${{ '%0.2f' % (payment.amount / 100) }}
+          {%- endset -%}
+          {{ payment_desc }} on {{ payment.when_local|datetime("%-I:%M%p")|lower }} {{ payment.when_local|datetime("%a") }}
+          &nbsp;
+          <input type="hidden" name="id" value="{{ payment.id }}" />
+          {{ csrf_token() }}
+          <button type="submit" 
+          class="undo_payment btn btn-sm btn-danger glyphicon glyphicon-remove" 
+          data-desc="{{ payment_desc }}"></button>
+        </form>
+      </td></tr>
+      {% endfor %}
+      {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<form role="form" method="post" id="print_form" action="print_receipt">
+  <input type="hidden" name="id" value="{{ receipt.id }}" />
+  {{ csrf_token() }}
+</form>
+<script type="text/javascript">
+    var printReceipt = function() {
+        window.open('', 'print_receipt_target', 'width=400,height=400,resizeable,scrollbars');
+        $('#print_form').attr('target', 'print_receipt_target').submit();
+    };
+
+    $('#print_receipt').click(printReceipt);
+
+    {% if must_choose %}
+    $('.modal').modal('show');
+    $().ready(function() {
+        $("#choose_modal").on("hidden.bs.modal", function () {
+            window.location.assign('?id={{ receipt.id }}');
+        });
+    });
+    {% elif charge %}
+    $('.modal').modal('show');
+    {% endif %}
+
+    $(document).ready(function() {
+    $('.undo_payment').on('click', function (event) {
+        event.preventDefault();
+        var $self = $(this),
+            desc = $self.data('desc'),
+            $formToSubmit = $self.closest('form');
+            if (desc.split(" ")[0] == "Refund") {
+              payment_or_refund = "Refund";
+            } else {
+              payment_or_refund = "Payment";
+            }
+            if (desc.split(" ")[0] != "Stripe") {
+                desc = desc.toLowerCase();
+            }
+        bootbox.confirm({
+            backdrop: true,
+            title: 'Delete ' + desc + '?',
+            message: 'Are you sure you want to remove this ' + payment_or_refund.toLowerCase() + '? This cannot be undone.',
+            buttons: {
+                confirm: { label: 'Delete ' + payment_or_refund, className: 'btn-danger' },
+                cancel: { label: 'Nevermind', className: 'btn-default' }
+            },
+            callback: function (result) {
+                if (result) {
+                    $formToSubmit.submit();
+                }
+            }
+        });
+    });
+    });
+</script>
+{% endblock %}

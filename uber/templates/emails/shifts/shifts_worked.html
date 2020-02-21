@@ -8,13 +8,15 @@
 {% if attendee.badge_type == c.STAFF_BADGE %}
     Thanks again for Staffing at this year's {{ c.EVENT_NAME }}!
 {% elif c.VOLUNTEER_RIBBON in attendee.ribbon_ints %}
-    Thanks again for Volunteering at this year's {{ c.EVENT_NAME }}!
+    Thanks again for volunteering at this year's {{ c.EVENT_NAME }}!
 {% endif %}
 We couldn't have done it without the help of every single one of our volunteers. Now that the event is over, we'd like to send you what we have on file for your worked shifts, just in case somebody missed something.
 
-<br/><br/>We have you down as having worked {{ attendee.unweighted_worked_hours }} actual hours, for a weighed total of {{ attendee.worked_hours }} hours. If that number doesn't sound right, check the schedule below. It shows which shifts were marked as worked, and which ones weren't. If any of them are in error, please let us know so we can work to rectify them!
+<br/><br/>We have you down as having worked {{ attendee.unweighted_worked_hours }} actual hours, for a weighted total of {{ attendee.worked_hours }} hours. If that number doesn't sound right, check the schedule below. It shows which shifts were marked as worked, and which ones weren't. If any of them are in error, please let us know so we can work to rectify them!
 
-<br/><br/>Remember, if you don't have at least 18 weighed hours, you won't be eligible for a staff badge or hotel space for {{ c.EVENT_NAME }} {{ c.EPOCH|datetime_local("%Y")|int + 1 }}. If you don't have {{ c.HOTEL_REQ_HOURS }} weighed hours and claimed hotel space this year, we will also be reviewing your eligibility for next event.
+<br/><br/>Remember, if you don't have at least {{ c.HOURS_FOR_REFUND }} weighted hours, you won't be eligible for a staff badge or hotel space for {{ c.EVENT_NAME }} {{ c.EPOCH|datetime_local("%Y")|int + 1 }}. If you don't have {{ c.HOURS_FOR_HOTEL_SPACE }} weighted hours and claimed hotel space this year, we will also be reviewing your eligibility for next event.
+
+<br/><br/>If you have any issues with the shifts listed, please contact us before the end of January so that we can fix any issues that could impact your ability to staff or request hotel space next year.
 
 <br/>
     <table width="95%" align="center">

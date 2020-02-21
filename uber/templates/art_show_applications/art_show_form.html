@@ -1,0 +1,137 @@
+{% set readonly = app.status != c.UNAPPROVED and not admin_area %}
+{% set max_tables = c.MAX_ART_TABLES if not admin_area else 30 %}
+{% set max_panels = c.MAX_ART_PANELS if not admin_area else 30 %}
+
+{{ macros.form_group(app, 'artist_name', label="Artist Name",
+help="The name you want to use with your artwork, if different from your first and last name." if not admin_area else "",
+placeholder=app.attendee.full_name, is_readonly=readonly) }}
+
+
+<div class="form-group">
+  <label for="delivery_method" class="col-sm-3 control-label{% if readonly %} optional-field{% endif %}">Art Delivery</label>
+  <div class="col-sm-6">
+    {% if readonly %}
+    <div class="form-control-static">
+      {{ app.delivery_method_label }}
+    </div>
+    {% else %}
+    <select name="delivery_method" class="form-control">
+      {{ options(c.ART_SHOW_DELIVERY_OPTS,app.delivery_method) }}
+    </select>
+    {% endif %}
+  </div>
+  {% if c.BY_MAIL_US_ONLY %}
+  <div id="us_only_checkbox" class="col-sm-9 col-sm-offset-3">
+    {{ macros.checkbox(app, 'us_only', label='I verify that my mailing address will be in the continental US.', is_readonly=readonly) }}
+  </div>
+  <script type="text/javascript">
+      var showOrHideUSOnly = function() {
+          setVisible($('#us_only_checkbox'), $.field('delivery_method').val() == '{{ c.BY_MAIL }}');
+      };
+      $(function() {
+          showOrHideUSOnly();
+          $.field('delivery_method').on('change', showOrHideUSOnly);
+      });
+  </script>
+  {% endif %}
+  {% if not readonly and not admin_area %}
+  <div class="clearfix"></div>
+  <p class="help-block col-sm-6 col-sm-offset-3">Mailing your art to the show incurs a fee of ${{ c.ART_MAILING_FEE }}.</p>
+  {% endif %}
+</div>
+
+{% if app.agent_code and app.delivery_method == c.AGENT %}
+<div class="form-group">
+  <label for="agent_code" class="col-sm-3 control-label{% if readonly %} optional-field{% endif %}">Agent</label>
+  <div class="col-sm-6">
+    {% if readonly %}<div class="form-control-static">{% endif %}
+    {% if app.agent %}
+      {{ app.agent.full_name }} is currently assigned as your agent.
+    {% else %}
+    Your art show application does not have an agent assigned. Your agent code
+    is <strong>{{ app.agent_code }}</strong>. Your agent
+    can enter this code while preregistering for {{ c.EVENT_NAME }}, or after
+    registering by using their registration confirmation link.
+    {% endif %}
+    {% if not readonly %}
+    <input type="hidden" name="id" form="new_agent" value="{{ app.id }}" />
+    <br/><button type="submit" form="new_agent" class="btn btn-primary">Assign New Agent</button>
+    {% else %}</div>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="form-group">
+  <label for="panels" class="col-sm-3 control-label{% if readonly %} optional-field{% endif %}">General Panels</label>
+  <div class="col-sm-6">
+    {% if app.panels and app.panels > max_panels and not admin_area %}
+      <div class="form-control-static">An admin has granted you {{ app.panels }} general panels. Please contact us via via {{ c.ART_SHOW_EMAIL|email_only|email_to_link }}
+      if you wish to change the number of panels on your application.</div>
+    {% elif readonly %}
+      <div class="form-control-static">{{ app.panels }}</div>
+    {% else %}
+      <select class="form-control" name="panels">
+        {{ int_options(0, max_panels, app.panels) }}
+      </select>(${{ c.COST_PER_PANEL }} per panel)
+    {% endif %}
+    </div>
+</div>
+
+<div class="form-group">
+  <label for="tables" class="col-sm-3 control-label{% if readonly %} optional-field{% endif %}">General Table Sections</label>
+  <div class="col-sm-6">
+    {% if app.tables and app.tables > max_tables and not admin_area %}
+      <div class="form-control-static">An admin has granted you {{ app.tables }} general table sections. Please contact us via via {{ c.ART_SHOW_EMAIL|email_only|email_to_link }}
+      if you wish to change the number of table sections on your application.</div>
+    {% elif readonly %}
+      <div class="form-control-static">{{ app.tables }}</div>
+    {% else %}
+      <select class="form-control" name="tables">
+        {{ int_options(0, max_tables, app.tables) }}
+      </select>(${{ c.COST_PER_TABLE }} per table section)
+    {% endif %}
+    </div>
+</div>
+
+<div class="form-group">
+  <label for="panels" class="col-sm-3 control-label{% if readonly %} optional-field{% endif %}">Mature Panels</label>
+  <div class="col-sm-6">
+    {% if app.panels_ad and app.panels_ad > max_panels and not admin_area %}
+      <div class="form-control-static">An admin has granted you {{ app.panels_ad }} mature panels. Please contact us via via {{ c.ART_SHOW_EMAIL|email_only|email_to_link }}
+      if you wish to change the number of panels on your application.</div>
+    {% elif readonly %}
+      <div class="form-control-static">{{ app.panels_ad }}</div>
+    {% else %}
+      <select class="form-control" name="panels_ad">
+        {{ int_options(0, max_panels, app.panels_ad) }}
+      </select>{% if not no_help_text %}(${{ c.COST_PER_PANEL }} per panel){% endif %}
+      {% endif %}
+    </div>
+</div>
+
+<div class="form-group">
+  <label for="tables" class="col-sm-3 control-label{% if readonly %} optional-field{% endif %}">Mature Table Sections</label>
+  <div class="col-sm-6">
+    {% if app.tables_ad and app.tables_ad > max_tables and not admin_area %}
+      <div class="form-control-static">An admin has granted you {{ app.tables_ad }} mature table sections. Please contact us via {{ c.ART_SHOW_EMAIL|email_only|email_to_link }}
+      if you wish to change the number of table sections on your application.</div>
+    {% elif readonly %}
+      <div class="form-control-static">{{ app.tables_ad }}</div>
+    {% else %}
+      <select class="form-control" name="tables_ad">
+        {{ int_options(0, max_tables, app.tables_ad) }}
+      </select>{% if not no_help_text %}(${{ c.COST_PER_TABLE }} per table section){% endif %}
+    {% endif %}
+    </div>
+</div>
+
+{% if not readonly and not admin_area and (app.panels < max_panels or app.tables < max_tables or app.tables_ad < max_tables or app.panels_ad < max_panels) %}
+<div class="help-block text-center">
+  You may contact us via {{ c.ART_SHOW_EMAIL|email_only|email_to_link }} to request more
+  than {{ c.MAX_ART_PANELS }} panels or{% if c.MAX_ART_PANELS != c.MAX_ART_TABLES %} {{ c.MAX_ART_TABLES }}{% endif %} table sections.<br/><br/>
+</div>
+{% endif %}
+
+{{ macros.form_group(app, 'description', type="textarea", label="Description", help="A short description of your artwork." if not admin_area else "", is_readonly=readonly, is_required=True) }}
+{{ macros.form_group(app, 'website', label="Website URL", is_readonly=readonly, is_required=True, help="If you do not have a website showing your work, please enter 'N/A' and contact " + c.ART_SHOW_EMAIL|email_only|email_to_link + " after submitting your application.") }}
+{{ macros.form_group(app, 'special_needs', type="textarea", label="Special Requests", help="We cannot guarantee that we will accommodate all requests." if not admin_area else "", is_readonly=readonly) }}

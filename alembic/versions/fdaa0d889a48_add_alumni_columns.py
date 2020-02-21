@@ -1,7 +1,7 @@
 """Add alumni columns.
 
 Revision ID: fdaa0d889a48
-Revises: 938e21c8c260
+Revises: c31b1a94a27d
 Create Date: 2017-09-28 12:53:41.083147
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-09-28 12:53:41.083147
 
 # revision identifiers, used by Alembic.
 revision = 'fdaa0d889a48'
-down_revision = '938e21c8c260'
+down_revision = 'c31b1a94a27d'
 branch_labels = None
 depends_on = None
 

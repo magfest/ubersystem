@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Art Show Form{% endblock %}
+{% block content %}
+
+{{ macros.nav_menu(
+app, c.PAGE_PATH,
+"form?id={id}", "App Form", True,
+"pieces?id={id}", "Submitted Pieces", True,
+"history?id={id}", "History", True,
+"index", "Return to App List", True
+) }}
+<h2>Art Show Pieces{% if app.attendee %} for
+    <a href="../registration/form?id={{ app.attendee.id }}">{{ app.attendee.full_name }}{% endif %}</a></h2>
+{% include 'art_show_common/art_pieces_form.html' %}
+{% endblock %}

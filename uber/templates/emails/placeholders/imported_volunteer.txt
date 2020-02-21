@@ -1,12 +1,12 @@
 {% if attendee.first_name %}{{ attendee.first_name }},
 
-{% endif %}{% if attendee.is_dept_head %}NOTE: This is an automated email, but even though you are a Department Head you should still pay attention to it, since you DO need to fill out the form linked below.
+{% endif %}Hey all! Heads up - we're changing some policies in order to make volunteering easier for everyone, so keep your eyes peeled when you see these emails, because they might look different from previous years.
 
-{% endif %}Thanks so much for helping run {{ c.EVENT_NAME }} last year, we couldn't have pulled it off without so much help from our wonderful volunteers.  As thanks for your help, you're eligible for a complementary Staff badge for the next {{ c.EVENT_NAME }}, which will be {{ c.EPOCH|datetime_local("%b %e") }} - {{ c.ESCHATON|datetime_local("%e") }}.  You can accept your badge by visiting {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}
+That being said, thank you so much for helping run {{ c.EVENT_NAME }} last year - we couldn't have pulled it off without so much help from our awesome volunteers! As a thank you for your help, you're eligible for a complimentary Volunteer Badge for the next {{ c.EVENT_NAME }}, which will be {{ c.EPOCH|datetime_local }}. You can accept your Volunteer Badge by visiting {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}
 
-After you accept your Staff badge, you'll be emailed when next year's shifts become available.  Also, as a returning staffer, you'll also be eligible for complementary crash space in one of our staffer hotel rooms.  You'll be emailed closer to {{ c.EVENT_NAME }} with details about how to sign up for this.
+At this stage, you can apply to volunteer again this year. By default, the checkbox labeled "Yes, I want to staff {{ c.EVENT_NAME }}." is toggled ON, which means that you'll automatically be enrolled. If you are not interested in applying to volunteer again, you can uncheck that box (toggle it OFF), and your badge will be set to a complimentary Attendee Badge (instead of Volunteer Badge).
 
-If you want to return to {{ c.EVENT_NAME }} but don't want to volunteer again, just let us know and we'll swap your Staff badge for a complementary Attendee badge as thanks for the hard work you put in last time.
+If accepted, you'll be emailed when your Volunteer Checklist launches. The Checklist will need to be completed before the event starts, and will have a link to our volunteering guidelines and agreement. As a returning volunteer, you'll also be eligible for crash space in one of our staffer hotel rooms. This is included in our Volunteer Checklist, but you'll be emailed closer to the event with details about how to sign up.
 
 Please let us know if you have any questions.
 

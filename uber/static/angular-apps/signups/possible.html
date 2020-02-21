@@ -4,7 +4,7 @@
     <span style="font-size:12pt ; font-style:italic">(If you are not {{ name }}, <a href="login">log in here</a>.)</span>
     <table width="100%" style="text-align:center">
     <tr>
-        <td ng-bind-html-unsafe="'../static_views/stafferComps.html' | popupLink:'See What You Get For Volunteering'"></td>
+        <td ng-bind-html-unsafe="'{{ c.VOLUNTEER_PERKS_URL }}' | popupLink:'See What You Get For Volunteering'"></td>
         <td ng-if="!c.HIDE_SCHEDULE"> <a target="_blank" href="../schedule/">View the {{ c.EVENT_NAME }} Schedule</a> </td>
     </tr>
     </table>

@@ -7,13 +7,13 @@ from sqlalchemy.types import Integer
 
 from uber.config import c
 from uber.models import MagModel
-from uber.models.attendee import Attendee
+from uber.models.attendee import Attendee, Group
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column
 
 
 __all__ = [
     'ArbitraryCharge', 'MerchDiscount', 'MerchPickup', 'MPointsForCash',
-    'NoShirt', 'OldMPointExchange', 'Sale', 'StripeTransaction']
+    'NoShirt', 'OldMPointExchange', 'ReceiptItem', 'Sale', 'StripeTransaction']
 
 
 class ArbitraryCharge(MagModel):
@@ -95,3 +95,28 @@ class StripeTransactionGroup(MagModel):
     txn_id = Column(UUID, ForeignKey('stripe_transaction.id'))
     group_id = Column(UUID, ForeignKey('group.id'))
     share = Column(Integer)
+
+
+class ReceiptItem(MagModel):
+    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
+    attendee = relationship(
+        Attendee, backref='receipt_items', foreign_keys=attendee_id, cascade='save-update,merge,refresh-expire,expunge')
+
+    group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
+    group = relationship(
+        Group, backref='receipt_items', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
+
+    txn_id = Column(UUID, ForeignKey('stripe_transaction.id', ondelete='SET NULL'), nullable=True)
+    stripe_transaction = relationship(
+        StripeTransaction, backref='receipt_items',
+        foreign_keys=txn_id, cascade='save-update,merge,refresh-expire,expunge')
+
+    fk_id = Column(UUID, nullable=True)
+    model = Column(UnicodeText)
+    txn_type = Column(Choice(c.TRANSACTION_TYPE_OPTS), default=c.PAYMENT)
+    payment_method = Column(Choice(c.PAYMENT_METHOD_OPTS), default=c.STRIPE)
+    item_type = Column(Choice(c.RECEIPT_ITEM_OPTS), default=c.OTHER)
+    amount = Column(Integer)
+    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    who = Column(UnicodeText)
+    desc = Column(UnicodeText)

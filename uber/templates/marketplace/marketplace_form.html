@@ -1,0 +1,12 @@
+{% set readonly = app.status != c.UNAPPROVED and not admin_area %}
+{% set group = app %}
+{% import "fields/group.html" as group_fields with context %}
+
+{{ macros.form_group(app, 'business_name', label="Business Name",
+help="The name you want to use for your table, if different from your first and last name." if not admin_area else "",
+placeholder=app.attendee.full_name, is_readonly=readonly) }}
+
+{{ group_fields.categories }}
+{{ group_fields.description }}
+{{ group_fields.special_needs }}
+{{ macros.form_group(app, 'tax_number', label='Illinois Business Tax Number')}}

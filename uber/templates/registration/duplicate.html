@@ -31,7 +31,7 @@
     editing the attendee's name if at all possible, as badges with duplicate names may be picked up by the wrong
     person.
     {% if attendee.paid == c.PAID_BY_GROUP and attendee.group.status == c.WAITLISTED %}
-        Please keep in mind that dealers have an option to buy their badge once the Marketplace fills up, so you
+        Please keep in mind that {{ c.DEALER_TERM }}s have an option to buy their badge once the {{ c.DEALER_LOC_TERM }} fills up, so you
         normally do not need to create an additional badge for them.
     {% endif %}
     If you are at all not sure what to do, contact your Registration department at {{ c.REGDESK_EMAIL }}.

@@ -1,0 +1,128 @@
+<style type="text/css">
+  .form-group { margin-bottom: 8px; }
+</style>
+
+<h2>Band Info for <a href="../guests/index?id={{ guest.id }}">{{ guest.group.name }}</a></h2>
+
+<form class="form-horizontal" role="form" method="post" action="checklist_info">
+  {{ csrf_token() }}
+  <input type="hidden" name="id" value="{{ guest.id }}" />
+
+  {{ macros.form_group(guest.panel, 'name', label='Panel Name', is_readonly=True) }}
+  {{ macros.form_group(guest.panel, 'length', label='Panel Length', is_readonly=True) }}
+  {{ macros.form_group(guest.panel, 'desc', label='Panel Description', is_readonly=True) }}
+
+  {% if guest.panel.tech_needs or guest.panel.other_tech_needs %}
+    {{ macros.form_checkgroup(guest.panel, 'tech_needs',
+          other_field='other_tech_needs',
+          label='Panel Tech Needs',
+          is_readonly=True) }}
+  {% endif %}
+
+  {{ macros.form_group(guest.bio, 'desc', label='Bio', is_readonly=True) }}
+  {{ macros.form_group(guest.bio, 'pic_url',
+        url_text="Click here to view the band's uploaded picture",
+        url_is_relative=True,
+        label='Bio Pic',
+        is_readonly=True) }}
+
+  <div class="form-group">
+    <label class="col-sm-3 control-label">W9</label>
+    <div class="col-sm-6">
+      <div class="form-control-static">
+        {% if not guest.payment %}
+          This band isn't being paid and thus doesn't need a W9 tax form.
+        {% else %}
+          This band has{% if not guest.taxes.w9_sent %} <strong>not</strong>{% endif %} uploaded their W9 form.
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Wants MC?</label>
+    <div class="col-sm-6">
+      <div class="form-control-static">
+        {% if guest.wants_mc is none %}
+          This band hasn't answered if they want an MC or not.
+        {% else %}
+          {{ guest.wants_mc|yesno('Yes,No') }}, this band <strong>{{ guest.wants_mc|yesno('DOES,DOES NOT') }}</strong> want an MC.
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {{ macros.form_group(guest.bio, 'website', type='url', is_readonly=True) }}
+  {{ macros.form_group(guest.bio, 'facebook', is_readonly=True) }}
+  {{ macros.form_group(guest.bio, 'twitter', is_readonly=True) }}
+  {{ macros.form_group(guest.bio, 'other_social_media', is_readonly=True) }}
+  {{ macros.form_group(guest.bio, 'teaser_song_url', type='url', label='Teaser Song', is_readonly=True) }}
+  {{ macros.form_group(guest.info, 'poc_phone', label='PoC Cellphone', is_readonly=True) }}
+
+  {% if guest.info.performer_count %}
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Performer Count</label>
+      <div class="col-sm-6">
+        <div class="form-control-static">{{ guest.info.performer_count }} ({{ guest.estimated_performer_count }} is the number of Guest badges assigned)</div>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if guest.info.bringing_vehicle %}
+    {{ macros.form_group(guest.info, 'vehicle_info', is_readonly=True) }}
+  {% endif %}
+  {{ macros.form_group(guest.info, 'arrival_time', is_readonly=True) }}
+  {{ macros.form_group(guest.stage_plot, 'url',
+        url_text="Click here to view the band's stage plot",
+        url_is_relative=True,
+        label='Stage Plot',
+        is_readonly=True) }}
+
+  {%- set is_rock_island = guest.merch.selling_merch == c.ROCK_ISLAND -%}
+  {{ macros.form_group(guest.merch, 'selling_merch_label', label='Merchandise',
+        url_field=('rock_island_url' if is_rock_island else False),
+        url_is_relative=is_rock_island,
+        is_readonly=True) }}
+  {{ macros.form_group(guest.charity, 'donating_label', label='Charity', is_readonly=True) }}
+  {{ macros.form_group(guest.charity, 'desc', label='Donation', is_readonly=True) }}
+
+  {{ macros.form_group(guest, 'payment', type='number',
+        help="""The number of dollars we're paying the band.  If you leave this
+        at zero, then no mention of payment will be made in their performance contract,
+        otherwise the amount will be listed and the band will be told they will
+        receive a check on-site after their performance.""") }}
+
+  {{ macros.form_group(guest, 'vehicles', type='number',
+        help="The number of vehicles we're paying for parking (attached to the band's room).") }}
+
+  {{ macros.form_group(guest, 'num_hotel_rooms', type='number', label='Hotel Rooms',
+        help="How many hotel rooms are we offering the band.") }}
+
+  {{ macros.form_group(guest, 'estimated_loadin_minutes', type='number', label='Load-In length',
+        help="""The number of minutes we're telling the band they will
+        have prior to performance for stage load-in and setup.""") }}
+
+  {{ macros.form_group(guest, 'estimated_performance_minutes', type='number', label='Performance length',
+        help="The number of minutes we're telling the band they will have to perform.") }}
+
+
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Event</label>
+    <div class="col-sm-6">
+      <select name="event_id" class="form-control">
+        <option value="">Pick an Event</option>
+        {{ options(events,guest.event_id) }}
+      </select>
+      <p class="help-block">
+        If not set, the performance contract will say "date and time information coming soon"<br/>
+        If this is set, the performance contract will reflect the start time of the event on the schedule.
+      </p>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <div class="col-sm-6 col-sm-offset-3">
+      <button type="submit" class="btn btn-primary">Upload Band Info</button>
+    </div>
+  </div>
+</form>

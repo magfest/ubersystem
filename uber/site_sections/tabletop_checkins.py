@@ -8,7 +8,7 @@ from uber.models import Attendee, TabletopCheckout, TabletopGame
 from uber.utils import localized_now
 
 
-@all_renderable(c.CHECKINS)
+@all_renderable()
 class Root:
     def index(self, session):
         return {

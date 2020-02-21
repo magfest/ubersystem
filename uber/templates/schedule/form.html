@@ -81,7 +81,7 @@
       {% endfor %}
     </select>
     {% for app in event.applications %}
-      <br/> (<a href="../panel_app_management/app?id={{ app.id }}">view application for {{ app.name }}</a>)
+      <br/> (<a href="../panels_admin/app?id={{ app.id }}">view application for {{ app.name }}</a>)
     {% endfor %}
   </td>
 </tr>
@@ -117,8 +117,8 @@
             <input type="hidden" name="id" value="{{ event.id }}" />
             <input type="submit" value="Delete This Event" />
         </form>
-        {% if c.HAS_PANEL_APPS_ACCESS and not event.is_new %}
-            <br/> <a href="../panel_app_management/panel_feedback?event_id={{ event.id }}">Leave panel feedback</a>
+        {% if c.HAS_PANELS_ADMIN_ACCESS and not event.is_new %}
+            <br/> <a href="../panels_admin/panel_feedback?event_id={{ event.id }}">Leave panel feedback</a>
         {% endif %}
     </div>
 {% endif %}

@@ -1,54 +1,63 @@
-import shlex
-import urllib
 from collections import defaultdict
-from datetime import timedelta
 
-import cherrypy
 from sqlalchemy.orm import joinedload
+from sqlalchemy import and_, or_
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csv_file, log_pageview, site_mappable
-from uber.errors import HTTPRedirect
-from uber.models import Attendee, Group, MPointsForCash, PromoCode, PromoCodeWord, Sale, Session, StripeTransaction
-from uber.utils import check, check_all, localized_now
+from uber.decorators import all_renderable, log_pageview
+from uber.models import ArbitraryCharge, Attendee, Group, MPointsForCash, ReceiptItem, Sale, StripeTransaction
+from uber.server import redirect_site_section
 
 
-def prereg_money(session):
-    preregs = defaultdict(int)
-    for attendee in session.query(Attendee):
-        preregs['Attendee'] += attendee.amount_paid - attendee.amount_extra
-        preregs['extra'] += attendee.amount_extra
-
-    preregs['group_badges'] = sum(
-        g.badge_cost for g in session.query(Group).filter(
-            Group.tables == 0, Group.amount_paid > 0).options(joinedload(Group.attendees)))
-
-    dealers = session.query(Group).filter(
-        Group.tables > 0, Group.amount_paid > 0).options(joinedload(Group.attendees)).all()
-    preregs['dealer_tables'] = sum(d.table_cost for d in dealers)
-    preregs['dealer_badges'] = sum(d.badge_cost for d in dealers)
-
-    return preregs
-
-
-def sale_money(session):
-    sales = defaultdict(int)
-    for sale in session.query(Sale).all():
-        sales[sale.what] += sale.cash
-    return dict(sales)  # converted to a dict so we can say sales.items in our template
-
-
-@all_renderable(c.MONEY)
+@all_renderable()
 class Root:
     @log_pageview
     def index(self, session):
-        sales = sale_money(session)
-        preregs = prereg_money(session)
-        total = sum(preregs.values()) + sum(sales.values())
+        receipt_items = session.query(ReceiptItem)
+        receipt_total = sum([item.amount for item in receipt_items.filter_by(txn_type=c.PAYMENT).all()]) \
+                        - sum([item.amount for item in receipt_items.filter_by(txn_type=c.REFUND).all()])
+        sales_total = sum([sale.cash * 100 for sale in session.query(Sale).all()])
+        arbitrary_charge_total = sum([charge.amount * 100 for charge in session.query(ArbitraryCharge).all()])
         return {
-            'total':   total,
-            'preregs': preregs,
-            'sales':   sales
+            'receipt_items': receipt_items.filter_by(txn_type=c.REFUND),
+            'arbitrary_charges': session.query(ArbitraryCharge),
+            'sales': session.query(Sale),
+            'total': receipt_total + sales_total + arbitrary_charge_total,
+        }
+        
+    @log_pageview
+    def attendee_cost_breakdown(self, session):
+        paid_attendees = session.query(Attendee.is_unassigned, 
+                                       Attendee.purchased_items, 
+                                       Attendee.first_name,
+                                       Attendee.last_name,
+                                       Group.name.label('group_name')).outerjoin(Attendee.group)\
+                    .filter(Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
+                                                        or_(Attendee.amount_paid > 0, 
+                                                            and_(Attendee.group_id == Group.id, 
+                                                                 Group.amount_paid > 0, 
+                                                                 Group.auto_recalc == True)))
+        
+        return {
+            'paid_attendees': paid_attendees,
+        }
+        
+    @log_pageview
+    def group_cost_breakdown(self, session):
+        return {
+            'paid_groups': session.query(Group.auto_recalc, Group.name, Group.tables, Group.cost).filter(Group.amount_paid > 0),
+            'table_cost_matrix': [
+                (c.TABLE_PRICES[1], "First Table"),
+                (sum(c.TABLE_PRICES[i] for i in range(1, 3)), "Second Table"),
+                (sum(c.TABLE_PRICES[i] for i in range(1, 4)), "Third Table"),
+                (sum(c.TABLE_PRICES[i] for i in range(1, 5)), "Fourth Table"),
+            ]
+        }
+        
+    @log_pageview
+    def attendee_donation_breakdown(self, session):
+        return {
+            'donated_attendees': session.query(Attendee).filter(or_(Attendee.amount_extra > 0, Attendee.extra_donation > 0)),
         }
 
     @log_pageview
@@ -68,183 +77,15 @@ class Root:
 
         refund_attendees = {}
         for refund in refunds:
-            refund_attendees[refund.id] = session.query(Attendee)\
-                .filter_by(id=refund.fk_id).first() if refund.fk_model == 'Attendee' else None
+            refund_attendees[refund.id] = refund.attendees[0].attendee if refund.attendees else None
 
         return {
             'refunds': refunds,
             'refund_attendees': refund_attendees,
         }
 
-    @ajax
-    def add_promo_code_words(self, session, text='', part_of_speech=0):
-        text = text.strip()
-        words = []
-        if text:
-            with Session() as session:
-                old_words = set(s for (s,) in session.query(PromoCodeWord.normalized_word).filter(
-                    PromoCodeWord.part_of_speech == part_of_speech).all())
-
-            for word in [s for s in shlex.split(text.replace(',', ' ')) if s]:
-                if PromoCodeWord.normalize_word(word) not in old_words:
-                    words.append(PromoCodeWord().apply(
-                        dict(word=word, part_of_speech=part_of_speech)))
-            words = [word.word for word in session.bulk_insert(words)]
-        return {'words': words}
-
-    @ajax
-    def delete_all_promo_code_words(self, session, part_of_speech=None):
-        query = session.query(PromoCodeWord)
-        if part_of_speech is not None:
-            query = query.filter(PromoCodeWord.part_of_speech == part_of_speech)
-        result = query.delete(synchronize_session=False)
-        return {'result': result}
-
-    @ajax
-    def delete_promo_code_word(self, session, word=''):
-        result = 0
-        word = PromoCodeWord.normalize_word(word)
-        if word:
-            result = session.query(PromoCodeWord).filter(
-                PromoCodeWord.normalized_word == word).delete(synchronize_session=False)
-
-        return {'result': result}
-
-    def delete_promo_codes(self, session, id=None, **params):
-        query = session.query(PromoCode).filter(PromoCode.uses_count == 0)
-        if id is not None:
-            ids = [s.strip() for s in id.split(',') if s.strip()]
-            query = query.filter(PromoCode.id.in_(ids))
-        result = query.delete(synchronize_session=False)
-
-        referer = cherrypy.request.headers.get('Referer', 'view_promo_codes')
-        page = urllib.parse.urlparse(referer).path.split('/')[-1]
-
-        raise HTTPRedirect(page + '?message={}', '{} promo code{} deleted'.format(result, '' if result == 1 else 's'))
-
-    @csv_file
-    def export_promo_codes(self, out, session, codes):
-        codes = codes or session.query(PromoCode).all()
-        out.writerow(['Code', 'Expiration Date', 'Discount', 'Uses'])
-        for code in codes:
-            out.writerow([
-                code.code,
-                code.expiration_date,
-                code.discount_str,
-                code.uses_allowed_str])
-
-    @site_mappable
-    @log_pageview
-    def generate_promo_codes(self, session, message='', **params):
-        defaults = dict(
-            is_single_promo_code=1,
-            count=1,
-            use_words=False,
-            length=9,
-            segment_length=3,
-            code='',
-            expiration_date=c.ESCHATON,
-            discount_type=0,
-            discount=10,
-            uses_allowed=1,
-            export=False)
-        params = dict(defaults, **{k: v for k, v in params.items() if k in defaults})
-
-        params['code'] = params['code'].strip()
-        params['expiration_date'] = PromoCode.normalize_expiration_date(params['expiration_date'])
-
-        try:
-            params['count'] = int(params['count'])
-        except Exception:
-            params['count'] = 1
-
-        try:
-            params['is_single_promo_code'] = int(params['is_single_promo_code'])
-        except Exception:
-            params['is_single_promo_code'] = 0
-
-        words = PromoCodeWord.group_by_parts_of_speech(
-            session.query(PromoCodeWord).order_by(PromoCodeWord.normalized_word).all())
-
-        result = dict(
-            params,
-            message=message,
-            promo_codes=[],
-            words=[(i, s) for (i, s) in words.items()])
-
-        if cherrypy.request.method == 'POST':
-            codes = None
-            if params['is_single_promo_code']:
-                params['count'] = 1
-                if params['code']:
-                    codes = [params['code']]
-
-            if params['use_words'] and not codes and \
-                    not any(s for (_, s) in words.items()):
-                result['message'] = 'Please add some promo code words!'
-                return result
-
-            if not codes:
-                if params['use_words']:
-                    codes = PromoCode.generate_word_code(params['count'])
-                else:
-                    try:
-                        length = int(params['length'])
-                    except Exception:
-                        length = 9
-                    try:
-                        segment_length = int(params['segment_length'])
-                    except Exception:
-                        segment_length = 3
-                    codes = PromoCode.generate_random_code(
-                        params['count'], length, segment_length)
-
-            promo_codes = []
-            for code in codes:
-                params['code'] = code
-                promo_codes.append(PromoCode().apply(params, restricted=False))
-
-            message = check_all(promo_codes)
-            if message:
-                result['message'] = message
-                return result
-
-            result['promo_codes'] = session.bulk_insert(promo_codes)
-            generated_count = len(result['promo_codes'])
-            if generated_count <= 0:
-                result['message'] = "Could not generate any of the requested " \
-                    "promo codes. Perhaps they've all been taken already?"
-                return result
-
-            if generated_count != params['count']:
-                result['message'] = 'Some of the requested promo codes could not be generated'
-
-        if params['export']:
-            return self.export_promo_codes(codes=result['promo_codes'])
-
-        result.update(defaults)
-        return result
-
-    def update_promo_code(self, session, message='', **params):
-        if 'id' in params:
-            promo_code = session.promo_code(params)
-            message = check(promo_code)
-            if message:
-                session.rollback()
-            else:
-                if 'expire' in params:
-                    promo_code.expiration_date = localized_now() - timedelta(days=1)
-
-                message = 'Promo code updated'
-                session.commit()
-
-            raise HTTPRedirect('view_promo_codes?message={}', message)
-
-    @site_mappable
-    @log_pageview
     def view_promo_codes(self, session, message='', **params):
-        promo_codes = session.query(PromoCode).options(joinedload(PromoCode.used_by)).all()
-        return {
-            'message': message,
-            'promo_codes': promo_codes
-        }
+        redirect_site_section('budget', 'promo_codes', 'index')
+
+    def generate_promo_codes(self, session, message='', **params):
+        redirect_site_section('budget', 'promo_codes')

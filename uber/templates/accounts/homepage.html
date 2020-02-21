@@ -1,14 +1,37 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Homepage{% endblock %}
 {% block content %}
-
-<div class="row">
-<div class="col-sm-6 col-sm-offset-3">
-  <div class="well">
-    <p><img class="img-responsive center-block" src="../static/images/circle-icons/easel.png"></p>
-    <h1>{{ c.EVENT_NAME }} Ubersystem</h1>
-    <p>The former contents of this page have been moved to the new menubar at the top.</p>
-    <p>New content coming soon!</p>
-  </div>
+<div class="panel panel-body">
+<a href="#attendee_form?id=None" class="btn btn-primary">Add new attendee</a>
+{% if c.HAS_SHIFTS_ADMIN_ACCESS %}
+<a class="btn btn-info" href="../shifts_admin/staffers?department=All">View volunteers in your department(s)</a>
+{% endif %}
+{% if c.HAS_REGISTRATION_ACCESS %}
+<a class="btn btn-success" href="../registration/">View all attendees</a>
+{% endif %}
 </div>
+<strong>View attendees by type:</strong>
+<div class="btn-group" style="padding-bottom:10px;">
+<button class="btn btn-default attendee-types" id="created" onClick="loadViewableAttendees('created')">Created By You</button>
+{% for section in site_sections %}
+<button class="btn btn-default attendee-types" id="{{ section }}" onClick="loadViewableAttendees('{{ section }}')">{{ section[:-6]|title }}</button>
+{% endfor %}
+</div>
+<div id="viewable_attendees"></div>
+<script type="text/javascript">
+var loadViewableAttendees = function(query) {
+  $('.attendee-types').removeClass('btn-primary btn-default').addClass('btn-default');
+  $('#' + query).addClass('btn-primary').removeClass('btn-default');
+    $('#viewable_attendees').load('../accounts/attendees?query=' + query, function(){
+      if ($('#viewable_attendees').length) {
+          $(window).trigger( 'runJavaScript' );
+      } else {
+          // We got redirected -- likely to the login page -- so load it properly
+          toastr.error("Loading failed.");
+          window.location.hash = ""; // prevent refresh loops
+          window.location.reload();
+      }
+      });
+    }
+</script>
 {% endblock %}

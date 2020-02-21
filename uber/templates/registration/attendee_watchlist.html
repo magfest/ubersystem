@@ -1,0 +1,139 @@
+<script type="text/javascript">
+var updateWatchlist = function () {
+  $(this).submit(function (event) {
+    event.preventDefault();
+    var old_hash = window.location.hash;
+    $.post($(this).attr('action'), $(this).serializeArray())
+    .success(function (json) {
+        toastr.info(json.message);
+        loadForm("Watchlist");
+        window.location.hash = old_hash;
+    })
+    .fail(function(message) {
+        toastr.error(message);
+        window.location.hash = old_hash;
+    });
+  })
+  }
+$("form[name='confirm_entry']").submit(function (event) {
+  var formToSubmit = this;
+  event.preventDefault();
+  bootbox.confirm({
+      title: 'Confirm Watchlist Entry?',
+      message: 'When you "confirm" a watchlist entry, that entry will be permanently associated with this ' +
+      'attendee and no other watchlist entries will be matched to this person. If there are multiple ' +
+      'correct watchlist entries for an attendee, please choose the most recent one. This cannot be undone.',
+      buttons: {
+          confirm: {
+              label: 'Confirm Entry',
+              className: 'btn-info'
+          },
+          cancel: {
+              label: 'Nevermind',
+              className: 'btn-default'
+          }
+      },
+      callback: function (result) {
+          if (result) {
+            updateWatchlist();
+          }
+      }
+  });
+});
+  </script>
+
+  <h2>{% if not attendee.watchlist_id %}Possible Watchlist Entries{% else %}Watchlist Entry{% endif %}
+    for {{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
+  {% if attendee.badge_status == c.WATCHED_STATUS %}
+    <div class="form-group">
+      <form class="form-inline" role="form" method="post" onSubmit="updateWatchlist()" action="../security_admin/update_watchlist_entry">
+        {{ csrf_token() }}
+        <input type="hidden" name="attendee_id" value="{{ attendee.id }}"/>
+        <button class="btn btn-success" type="submit" name="ignore">
+          Ignore Watchlist Entries
+        </button>
+        Set attendee to "Completed" status, allowing them to check in without altering any watchlist entries.
+      </form>
+    </div>
+  {% endif %}
+
+  {% if attendee.watchlist_id %}
+    Below is the confirmed watchlist entry for this attendee. All other possible watchlist entries are ignored.
+    <br/><strong>Reason</strong>: {{ attendee.watch_list.reason }}
+    <br/><strong>Action</strong>: {{ attendee.watch_list.action }}
+    <br/>
+    <form class="form-inline" role="form" method="post" onSubmit="updateWatchlist()" action="../security_admin/update_watchlist_entry">
+      {{ csrf_token() }}
+      <input type="hidden" name="attendee_id" value="{{ attendee.id }}"/>
+      <input type="hidden" name="watchlist_id" value="{{ attendee.watch_list.id }}"/>
+      <input type="hidden" name="active" value="1" />
+      <button class="btn btn-success" type="submit">
+        {% if attendee.watch_list.active %} Deactivate {% else %} Activate {% endif %}
+        Watchlist Entry
+      </button>
+    </form>
+  {% else %}
+    {% for list in active_entries, inactive_entries %}
+      {% set active = loop.cycle(True, False) %}
+      <div class="panel panel-default">
+      <div class="panel-heading"><h3 class="panel-title">{{ loop.cycle('Active', 'Inactive') }} Entries</h3></div>
+      <div class="panel-body">
+        {% if active %}
+          Active watchlist entries attempt to match themselves to new attendees,
+          even if another attendee is already confirmed as matching. If an attendee
+          registers and has matching attributes to an active watchlist entry, that attendee
+          is put 'on hold' and prevented from checking in until an admin intervenes.
+        {% else %}Inactive watchlist entries do not attempt to match any new attendees.
+          Generally, entries should only be inactive if they have expired or are otherwise
+          no longer meant to affect check-in.{% endif %}</div>
+
+      <table class="table">
+      <div>
+        <table class="table">
+          <tr>
+            <th>Watchlist First Names</th>
+            <th>Watchlist Last Name</th>
+            <th>Watchlist Email</th>
+            <th>Watchlist DOB</th>
+            <th>Watchlist Reason</th>
+            <th>Watchlist Action</th>
+            <th>{{ loop.cycle('Deactivate', 'Activate') }}</th>
+            <th>Confirm as Correct Match</th>
+          </tr>
+          {% for entry in list %}
+            <tr>
+            <td>{{ entry.first_names }}</td>
+            <td>{{ entry.last_name }}</td>
+            <td>{{ entry.email }}</td>
+            <td>{{ entry.birthdate|datetime("%Y-%m-%d") }}</td>
+            <td>{{ entry.reason }}</td>
+            <td>{{ entry.action }}</td>
+            <td>
+              <form class="form-inline" role="form" method="post" onSubmit="updateWatchlist()" action="../security_admin/update_watchlist_entry">
+                {{ csrf_token() }}
+                <input type="hidden" name="attendee_id" value="{{ attendee.id }}"/>
+                <input type="hidden" name="watchlist_id" value="{{ entry.id }}"/>
+                <input type="hidden" name="active" value="1"/>
+                <button class="btn btn-success" type="submit">
+                  {% if entry.active %} Deactivate {% else %} Activate {% endif %}
+                </button>
+              </form>
+            </td>
+            <td>
+              <form class="form-inline" role="form" method="post" name="confirm_entry" action="../security_admin/update_watchlist_entry">
+                {{ csrf_token() }}
+                <input type="hidden" name="attendee_id" value="{{ attendee.id }}"/>
+                <input type="hidden" name="watchlist_id" value="{{ entry.id }}"/>
+                <input type="hidden" name="confirm" value="1"/>
+                <button class="btn btn-info">
+                  Confirm Watchlist Entry
+                </button>
+              </form>
+            </td>
+          {% endfor %}
+        </table>
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  

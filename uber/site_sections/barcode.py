@@ -3,7 +3,7 @@ from uber.config import c
 from uber.decorators import all_renderable, ajax
 
 
-@all_renderable(c.PEOPLE, c.REG_AT_CON)
+@all_renderable()
 class Root:
     def index(self):
         return {}

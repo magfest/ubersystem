@@ -1,0 +1,76 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Comped Badges Report{% endblock %}
+{% block content %}
+
+<b>Total:</b> {{ all_comped }} comped badges <br/>
+<strong>Claimed:</strong> {{ claimed_comped }} <br/>
+<strong>Unclaimed:</strong> {{ unclaimed_comped }}
+<div class="row" style="padding: 10px;"></div>
+<div role="tabpanel">
+<ul class="nav nav-tabs" role="tablist">
+  <li role="presentation">
+  <a href="#all" aria-controls="all" role="tab" data-toggle="tab">
+  All Badges
+  </a>
+  </li>
+  <li role="presentation">
+  <a href="#promo" aria-controls="promo" role="tab" data-toggle="tab">
+  Badges w/ Promo Codes
+  </a>
+  </li>
+  <li role="presentation">
+  <a href="#group" aria-controls="group" role="tab" data-toggle="tab">
+  Badges in Groups
+  </a>
+  </li>
+  <li role="presentation">
+  <a href="#staff" aria-controls="staff" role="tab" data-toggle="tab">
+  Staff/Volunteer Badges
+  </a>
+  </li>
+  <li role="presentation">
+  <a href="#other" aria-controls="other" role="tab" data-toggle="tab">
+  Other Badges
+  </a>
+  </li>
+</ul>
+<div class="tab-content">
+<div class="row" style="padding: 10px;"></div>
+<div role="tabpanel" class="tab-pane" id="all">
+<table class="table table-striped datatable">
+<thead><tr>
+    <th>Claimed?</th>
+    <th>Group Name</th>
+    <th>Promo Code</th>
+    <th>Name</th>
+    <th>Name on ID</th>
+    <th>Badge Type</th>
+    <th>Badge #</th>
+    <th>Created By</th>
+    <th>Admin Notes</th>
+</tr></thead>
+{% for attendee in comped_attendees %}
+    <tr>
+        <td>{{ (attendee.placeholder or attendee.is_unassigned)|yesno("No,Yes") }}</td>
+        <td data-order="{{ attendee.group_name }}" data-search="{{ attendee.group_name }}">{{ attendee.group|form_link }}</td>
+        <td>{{ attendee.promo_code_code }}{% if attendee.promo_code.group %}({{ attendee.promo_code.group|form_link }}){% endif %}</td>
+        <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}"> {{ attendee|form_link }}</a> </td>
+        <td>{{ attendee.legal_name }}</td>
+        <td>{{ attendee.badge_type_label }} {% if attendee.ribbon != c.NO_RIBBON %} {{ attendee.ribbon_label }} {% endif %}</td>
+        <td>{{ attendee.badge_num }}</td>
+        <td data-order="{{ attendee.creator.full_name }}" data-search="{{ attendee.creator.full_name }}">{{ attendee.creator|form_link or 'N/A' }}</td>
+        <td>{{ attendee.admin_notes }}</td>
+    </tr>
+{% endfor %}
+	<caption align="bottom">
+		<ul class="pagination"></ul>
+	</caption>
+</table>
+</div>
+<div role="tabpanel" class="tab-pane" id="promo">{% include '/reg_reports/comped_badges_promo.html' %}</div>
+<div role="tabpanel" class="tab-pane" id="group">{% include '/reg_reports/comped_badges_group.html' %}</div>
+<div role="tabpanel" class="tab-pane" id="staff">{% include '/reg_reports/comped_badges_staff.html' %}</div>
+<div role="tabpanel" class="tab-pane" id="other">{% include '/reg_reports/comped_badges_other.html' %}</div>
+</div>
+<script src="../static/js/window-hash-tabload.js" type="text/javascript"></script>
+{% endblock %}

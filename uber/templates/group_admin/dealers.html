@@ -1,0 +1,57 @@
+<script type="text/javascript">
+    function toggleDisplay(dropdown) {
+        window.location = "index?order={{ order }}&show=" + $(dropdown).val();
+    }
+
+    $(document).ready(function () {
+        $('div.dataTables_filter input').focus();
+    });
+</script>
+
+<div class="panel panel-default">
+  <div class="panel-body">
+    {{ dealer_groups }} {{ c.DEALER_TERM }} groups ({{ dealer_badges }} badges, {{ tables }} tables)
+    <span class="pull-right"><a href="index?show_all=true#dealers" class="btn btn-info">Show Declined Dealers</a></span>
+    <br/> <br/>
+    {{ approved_tables }} approved tables / {{ waitlisted_tables }} waitlisted tables / {{ unapproved_tables }} unapproved tables
+  </div>  
+</div>
+
+<div class="table-responsive">
+<table class="table table-striped datatable" data-info="false">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Approved</th>
+      <th>Badges{{ macros.popup_link("../static_views/badgeCounts.html") }}</th>
+      <th>Tables</th>
+      <th>Cost</th>
+      <th>Owed</th>
+      <th>Paid</th>
+      <th>Admin Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+{% for group in groups if group.is_dealer and (show_all or group.status != c.DECLINED) %}
+    <tr>
+        <td style="text-align:left" data-order="{{ group.name }}" data-search="{{ group.name }}"> <a href="form?id={{ group.id }}">{{ group.name|default('?????', boolean=True) }}</a> </td>
+        <td>
+            {% if group.is_dealer %}
+                {{ group.status_label }}
+            {% else %}
+                n/a
+            {% endif %}
+        </td>
+        <td data-order="{{ group.badges_purchased }}" data-search="{{ group.badges_purchased }}"> {{ group.badges_purchased }} / {{ group.badges }} </td>
+        <td>{{ group.tables }}</td>
+        <td>${{ '%0.2f' % group.cost }}</td>
+        <td>${{ '%0.2f' % group.amount_unpaid }}</td>
+        <td>${{ '%0.2f' % (group.amount_paid / 100) }}</td>
+        <td>{{ group.admin_notes }}</td>
+    </tr>
+{% endfor %}
+  </tbody>
+</table>
+</div>
+
+<p><a href="../dealer_admin/waitlist">Manage waitlisted {{ c.DEALER_TERM }}s</a></p>

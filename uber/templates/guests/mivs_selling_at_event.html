@@ -4,15 +4,12 @@
   <h3>Selling at MAGFest</h3>
   <p>We are allowing Indies to sell items in MIVS. If you wish to do so, the highlights to remember are:</p>
   <ul>
-  <li>You can only sell things that are directly related to your game or studio</li>
-  <li>You must own the license to any intellectual property that you are selling</li>
-  <li>You are responsible for paying taxes to the Maryland Comptroller</li>
-  <li>You will need to sign a waiver form and bring it with you to MAGFest, and signup using a google form.</li>
-  <li>The Selling Policy is at the discretion of MIVS</li>
+  <li>There is a google form you will need to fill out. This information will be sent to the Maryland State Comptroller.</li>
+  <li>You can only sell things that are directly related to your game or studio.</li>
+  <li>You must own the license to any intellectual property that you are selling.</li>
+  <li>You can only sell at your MIVS Booth.</li>
+  <li>The Selling Policy is at the discretion of MIVS.</li>
   </ul>
-
-  <p>You can find more information as well as the Waiver form you will need to
-    <a href="https://docs.google.com/document/d/1syCLRqOPmgeTKsbEgko8_9utpOgi7ap7CYEaLArNjmQ/edit?usp=sharing" target="_waiver">sign here</a>.</p>
 
   <form class="form form-horizontal" method="post" action="mivs_selling_at_event">
     <input type="hidden" name="guest_id" value="{{ guest.id }}"/>
@@ -29,13 +26,9 @@
     <div class="form-group">
       <div class="col-sm-9 col-sm-offset-3">
         <p id="selling_link">
-          Along with bringing a signed copy of the Waiver form, you will also need to fill out <a href="https://goo.gl/forms/fQPxo5uMUdohZU893" target="_gform">this google form</a>.
-        <label for="confirm_checkbox1">
-          <input type="checkbox" name="confirm_checkbox1" id="confirm_checkbox1" value="1"{% if guest.group.studio.selling_at_event %} checked{% endif %}>
-          I will bring a signed copy of the MIVS Waiver Form with me to MAGFest.
-        </label>
-        <label for="confirm_checkbox2">
-          <input type="checkbox" name="confirm_checkbox2" id="confirm_checkbox2" value="1"{% if guest.group.studio.selling_at_event %} checked{% endif %}>
+          You will need to fill out the <a href="https://docs.google.com/forms/d/e/1FAIpQLSfxVM_ymIfWbetRfPkLiJmFuIbq-Ap0-W5Xt4xBRxJkHeIMuQ/viewform" target="_blank">MAGFest Maryland Tax Info Collection google form</a>.
+        <label for="confirm_checkbox">
+          <input type="checkbox" name="confirm_checkbox" id="confirm_checkbox" value="1"{% if guest.group.studio.selling_at_event %} checked{% endif %}>
           I have filled out the "Maryland Tax Info Collection" google form.
         </label>
         </p>

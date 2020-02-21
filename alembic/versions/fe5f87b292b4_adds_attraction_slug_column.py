@@ -1,7 +1,7 @@
 """Adds attraction slug column
 
 Revision ID: fe5f87b292b4
-Revises: 76e2905cff66
+Revises: 1c87fd8da02e
 Create Date: 2017-12-17 02:01:36.942202
 
 """
@@ -9,9 +9,9 @@ Create Date: 2017-12-17 02:01:36.942202
 
 # revision identifiers, used by Alembic.
 revision = 'fe5f87b292b4'
-down_revision = '76e2905cff66'
+down_revision = '1c87fd8da02e'
 branch_labels = None
-depends_on='29b1b9a4e601'
+depends_on = None
 
 import re
 from alembic import op

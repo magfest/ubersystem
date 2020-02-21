@@ -85,7 +85,7 @@
               {% endfor %}
               {% if attendee.promo_code and not attendee.badges %}
                 {% if attendee.promo_code.group_id %}
-                  <li>Claiming a badge in group "{{ attendee.group_name }}"</li>
+                  <li>Claiming a badge in group "{{ attendee.promo_group_name }}"</li>
                 {% else %}
                 <li>{{ attendee.promo_code.discount_str }} with promo code "{{ attendee.promo_code.code }}"</li>
                 {% endif %}
@@ -94,9 +94,9 @@
           </td>
           <td>
             {% if attendee.badges %}
-              ${{ attendee.amount_extra_unpaid + (attendee.badges|int * c.GROUP_PRICE) }}
+              ${{ '%0.2f' % (attendee.amount_extra_unpaid + (attendee.badges|int * c.GROUP_PRICE)) }}
             {% else %}
-              ${{ attendee.total_cost|round(2) }}
+              ${{ '%0.2f' % attendee.total_cost }}
             {% endif %}
           </td>
           <td>
@@ -119,7 +119,7 @@
               {% endfor %}
             </ul>
           </td>
-          <td>${{ group.default_cost|round(2) }}</td>
+          <td>${{ '%0.2f' % group.default_cost }}</td>
           <td>
             <a href="form?edit_id={{ group.id }}">Edit</a> /
             <a href="delete?id={{ group.id }}">Delete</a>
@@ -132,7 +132,7 @@
         <tr>
           <th></th>
           <th style="text-align:right;"><i>Total:</i></th>
-          <th><b>${{ charge.dollar_amount|round(2) }}</b></th>
+          <th><b>${{ '%0.2f' % charge.dollar_amount }}</b></th>
           <th></th>
         </tr>
       </tfoot>

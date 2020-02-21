@@ -14,13 +14,13 @@ from uber.models import AdminAccount, ApiToken
 from uber.utils import check
 
 
-@all_renderable(*c.API_ACCESS.keys())
+@all_renderable()
 class Root:
 
     def index(self, session, show_revoked=False, message='', **params):
         admin_account = session.current_admin_account()
         api_tokens = session.query(ApiToken)
-        if c.ADMIN not in admin_account.access_ints:
+        if not admin_account.is_admin:
             api_tokens = api_tokens.filter_by(admin_account_id=admin_account.id)
         if not show_revoked:
             api_tokens = api_tokens.filter(ApiToken.revoked_time == None)  # noqa: E711
@@ -51,7 +51,7 @@ class Root:
                     if 'self' in args:
                         args.remove('self')
                     access = getattr(method, 'required_access', set())
-                    required_access = sorted(c.API_ACCESS.get(i, c.ACCESS[i]) for i in access)
+                    required_access = sorted([opt[4:].title() for opt in access])
                     methods.append({
                         'name': method_name,
                         'doc': newlines.sub(r'\1 \2', doc).strip(),
@@ -73,7 +73,7 @@ class Root:
     @ajax
     def create_api_token(self, session, **params):
         if cherrypy.request.method == 'POST':
-            params['admin_account_id'] = cherrypy.session['account_id']
+            params['admin_account_id'] = cherrypy.session.get('account_id')
             api_token = session.api_token(params)
             message = check(api_token)
             if not message:

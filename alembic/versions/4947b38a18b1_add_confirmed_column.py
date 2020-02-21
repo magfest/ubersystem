@@ -1,7 +1,7 @@
-"""Add confirmed column.
+"""Add confirmed column
 
 Revision ID: 4947b38a18b1
-Revises: d0c15c44a031
+Revises: 6aef7396c197
 Create Date: 2017-08-06 12:48:43.186696
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-08-06 12:48:43.186696
 
 # revision identifiers, used by Alembic.
 revision = '4947b38a18b1'
-down_revision = 'd0c15c44a031'
+down_revision = '6aef7396c197'
 branch_labels = None
 depends_on = None
 

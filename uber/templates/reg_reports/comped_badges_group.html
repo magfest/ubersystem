@@ -1,0 +1,27 @@
+<table class="table table-striped datatable">
+<thead><tr>
+    <th>Claimed?</th>
+    <th>Group Name</th>
+    <th>Name</th>
+    <th>Name on ID</th>
+    <th>Badge Type</th>
+    <th>Badge #</th>
+    <th>Created By</th>
+    <th>Admin Notes</th>
+</tr></thead>
+{% for attendee in comped_attendees if attendee.group %}
+    <tr>
+        <td>{{ (attendee.placeholder or attendee.is_unassigned)|yesno("No,Yes") }}</td>
+        <td data-order="{{ attendee.group_name }}" data-search="{{ attendee.group_name }}">{{ attendee.group|form_link }}</td>
+        <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}"> {{ attendee|form_link }}</a> </td>
+        <td>{{ attendee.legal_name }}</td>
+        <td>{{ attendee.badge_type_label }} {% if attendee.ribbon != c.NO_RIBBON %} {{ attendee.ribbon_label }} {% endif %}</td>
+        <td>{{ attendee.badge_num }}</td>
+        <td data-order="{{ attendee.creator.full_name }}" data-search="{{ attendee.creator.full_name }}">{{ attendee.creator|form_link or 'N/A' }}</td>
+        <td>{{ attendee.admin_notes }}</td>
+    </tr>
+{% endfor %}
+	<caption align="bottom">
+		<ul class="pagination"></ul>
+	</caption>
+</table>

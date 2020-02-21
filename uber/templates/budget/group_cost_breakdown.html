@@ -1,0 +1,71 @@
+{% set admin_area=True %}
+{% extends "base.html" %}
+{% block title %}Group Cost Breakdown{% endblock %}
+{% block content %}
+<h3>Group Cost Breakdown</h3>
+<div class="panel panel-default">
+  <table class="table table-striped export-datatable">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Item</th>
+        <th>Cost</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for group in paid_groups %}
+    {% if not group.auto_recalc %}
+    <tr>
+      <td>{{ group.name }}</td>
+      <td>Total Cost</td>
+      <td>${{ group.cost }}</td>
+      <td>Group price set by admin and cannot be itemized.</td>
+    </tr>
+    {% elif group.tables %}
+    {% for table_num in range(1, group.tables|int + 1) %}
+      {% if table_num < 5 %}
+      {% set cost, desc = table_cost_matrix[table_num - 1] %}
+      {% else %}
+      {% set extra_tables = table_num - 4 %}
+      {% set cost, desc = c.TABLE_PRICES[5] * extra_tables + table_cost_matrix[3], "{} More Table{}".format(extra_tables, "s" if extra_tables > 1 else "") %}
+      {% endif %}
+      <tr>
+        <td>{{ group.name }}</td>
+        <td>{{ desc }}</td>
+        <td>${{ "{0:g}".format(cost) }}</td>
+        <td></td>
+      </tr>
+      {% endfor %}
+    {% endif %}
+    {% if group.amount_unpaid %}
+    <tr>
+        <td>{{ group.name }}</td>
+        <td>Amount Owed</td>
+        <td>-${{ "{0:g}".format(group.amount_unpaid) }}</td>
+      </tr>
+    {% endif %}
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<script type="text/javascript" src="https://cdn.datatables.net/buttons/1.5.2/js/dataTables.buttons.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/buttons/1.5.2/js/buttons.html5.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/1.5.2/css/buttons.dataTables.min.css">
+<script type="text/javascript">
+$().ready(function() {
+  var dtable = $('.export-datatable').DataTable({
+      dom: 'Bfrtipl',
+      buttons: [
+          {
+              extend: 'excelHtml5',
+              exportOptions: {
+                  columns: ':visible'
+              }
+          },
+      ]
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,156 @@
+{% set admin_area=True %}
+<style type="text/css">
+  td, th {
+    padding: 5px 10px;
+  }
+
+  .rating img {
+    cursor: pointer;
+    margin: 0 5px;
+  }
+</style>
+
+<script type="text/javascript" src="../static_views/ratings.js"></script>
+<script type="text/javascript">
+    $(function () {
+        $("form[action*='/shifts_admin/']").submit(function(event){
+            event.preventDefault();
+            toastr.clear();
+            var formURL = $(this).attr('action');
+            var old_hash = window.location.hash;
+            $.ajax({
+                method: 'POST',
+                url: formURL,
+                data: $(this).serializeArray(),
+                success: function (json) {
+                    window.location.hash = old_hash;
+                    if (json.success) {
+                        // non-modal pages don't have a loadForm function, so we
+                        // use that to tell whether we're in a modal form
+                        if (window.loadForm) {
+                            toastr.info(json.message);
+                            window.loadForm('Shifts');
+                        } else {
+                            location.search += '&message=' + json.message;
+                        }
+                    } else {
+                        toastr.error(json.message);
+                    }
+                },
+                error: function () {
+                    toastr.error('Unable to connect to server, please try again.');
+                }
+            });
+        });
+    });
+
+    var SHIFTS = {{ shifts|jsonize }};
+    $(function() {
+        setupShiftRatingClickHandler();
+
+        var onShiftStatusChanged = function(job, shift) {
+            $('#shift_status_' + shift.id).empty().append(renderShiftStatus(shift, onShiftStatusChanged));
+            $('#shift_rating_' + shift.id).empty().append(renderShiftRating(shift.id));
+        };
+
+        $.each(SHIFTS, function(id, shift) {
+            onShiftStatusChanged({}, shift);
+        });
+    });
+</script>
+
+<h2>{{ attendee.full_name }} {% if c.AT_THE_CON %}({{ attendee.badge }}){% endif %}</h2>
+
+<table width="100%">
+<tr>
+    <td width="50%">
+      <form method="post" action="../shifts_admin/assign_shift">
+        {{ csrf_token() }}
+        <input type="hidden" name="staffer_id" value="{{ attendee.id }}" />
+        <b>Add a Shift:</b>
+        <select name="job_id" {% if not jobs %}disabled="disabled"{% endif %}>
+            {{ options(jobs) }}
+        </select>
+        <input type="submit" value="Assign" class="btn btn-xs btn-success" {% if not jobs %}disabled="disabled"{% endif %}/>
+      </form>
+    </td>
+    <td width="50%" align="right">
+      <form method="post" action="../shifts_admin/update_nonshift">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ attendee.id }}" />
+        <b>Non-shift hours:</b>
+        <input type="number" class="focus" name="nonshift_hours" value="{{ attendee.nonshift_hours }}" style="width:3.5em" />
+        <input type="submit" value="Update" class="btn btn-xs btn-primary"/>
+      </form>
+    </td>
+</tr>
+</table>
+
+<br/><br/>
+
+{% if attendee.shifts %}
+    <b>
+        Shifts signed up for by {{ attendee.full_name }}
+        {% if c.AT_THE_CON %}
+            {% if attendee.checked_in %}
+                <i>[checked in]</i>
+            {% else %}
+                <b>[not checked in]</b>
+            {% endif %}
+        {% endif %}
+        ({{ attendee.weighted_hours }} weighted hours,
+        {{ attendee.hours|length + attendee.nonshift_hours }} actual hours): </b>
+        {% if c.AT_OR_POST_CON %}<br />{{ attendee.worked_hours }} hours worked.{% endif %}
+    <br/> <br/>
+    <table width="95%" align="center" class="table-striped">
+      <thead>
+        <tr>
+          <th>Job</th>
+          <th>Dept</th>
+          <th>Start</th>
+          <th>End</th>
+          <th>Hours</th>
+          <th>Weighted Total</th>
+          <th>Status</th>
+          <th></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for shift in attendee.shifts|sort(attribute='job.start_time') %}
+          <tr id="shift_{{ shift.id }}">
+            <td><a href="../shifts_admin/form?id={{ shift.job.id }}" target="_blank">{{ shift.job.name }}</a></td>
+            <td>
+                {{ shift.job.department|form_link(new_window=True) }}
+                (<a href="../shifts_admin/index?department_id={{ shift.job.department_id }}" target="_blank">Jobs in dept</a>)
+            </td>
+            <td>{{ hour_day_local(shift.job.start_time) }}</td>
+            <td>{{ hour_day_local(shift.job.end_time) }}</td>
+            <td>{{ shift.job.duration }} (x{{ shift.job.weight }})</td>
+            <td>{{ shift.job.weighted_hours}}</td>
+            <td id="shift_status_{{ shift.id }}"></td>
+            <td id="shift_rating_{{ shift.id }}"></td>
+            <td class="text-right">
+              <form method="post" action="../shifts_admin/unassign_shift">
+                {{ csrf_token() }}
+                <input type="hidden" name="shift_id" value="{{ shift.id }}" />
+                <input type="submit" value="Unassign" class="btn btn-xs btn-warning"/>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+{% else %}
+    <i>{{ attendee.full_name }} is not signed up for any shifts.</i>
+{% endif %}
+
+<form method="post" action="../shifts_admin/update_notes">
+{{ csrf_token() }}
+<input type="hidden" name="id" value="{{ attendee.id }}" />
+<br/> <b>Notes For Later Review:</b> <br/>
+<textarea name="for_review" rows="4" style="margin-left:10px ; margin-top:5px ; width:80%">{{ attendee.for_review }}</textarea>
+<br/> <br/> <b>Admin Notes:</b> <br/>
+<textarea name="admin_notes" rows="4" style="margin-left:10px ; margin-top:5px ; width:80%">{{ attendee.admin_notes }}</textarea>
+<br/> <input style="margin-left:10px ; margin-top:5px" type="submit" value="Update Notes" class="btn btn-primary"/>
+</form>

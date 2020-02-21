@@ -1,109 +1,243 @@
-<form action="/" id="check_in_form_{{ attendee.id }}">
+<div class="modal-header">
+  <button type="button" class="close" data-dismiss="modal">&times;</button>
+  <h4 class="modal-title">Attendee Check-In{% if attendee.first_name %} - {{ attendee.full_name }}{% endif %}</h4>
+  </div>
+  <div class="modal-body">
+{% if attendee.amount_unpaid %}
+<div class="center text-center check-in">
+<h4>{{ attendee.full_name }} currently owes <strong>${{ '%0.2f' % attendee.amount_unpaid  }}</strong>.</h4>
+<form method="post" action="mark_as_paid">
+{{ csrf_token() }}
+<input type="hidden" name="id" value="{{ attendee.id }}" />
+<select name="payment_method" onChange="toggleMarkButton(this)">
+    <option value="">Payment Method</option>
+    {{ options(c.NEW_REG_PAYMENT_METHOD_OPTS,attendee.payment_method) }}
+</select>
+    <button class="btn btn-success" type="submit" disabled="disabled">Mark as Paid</button>
+</form>
+
+    <strong>OR</strong> <br/>
+{{ stripe_form('manual_reg_charge', Charge(attendee)) }}
+</div>
+<iframe id="stripe_frame" name="stripe_frame" style="display:none"></iframe>
+</div>
+<div class="modal-footer">
+  <div class="form-group">
+  <div class="pull-right">
+<script type="text/javascript">
+var toggleMarkButton = function (dropdown) {
+    var $button = $(dropdown).parent().find(':submit');
+    if ($(dropdown).val()) {
+        $button.removeAttr('disabled');
+    } else {
+        $button.attr('disabled', 'disabled');
+    }
+};
+var loadCheckInForm = function () {
+    $('#checkin_modal .modal-content').load('check_in_form?id={{ attendee.id }}', function () {
+        createDateTextEntries();
+    });
+}
+$("form[action='manual_reg_charge']").prop('target', 'stripe_frame');
+$("form[action='mark_as_paid']").submit(function (e) {
+    e.preventDefault();
+
+    var data = $(this).serialize();
+    var currentForm = $(this);
+
+    $.ajax({
+        method: 'POST',
+        url: '../registration/mark_as_paid',
+        dataType: 'json',
+        data: data,
+        success: function (json) {
+            toastr.clear();
+            var message = json.message;
+            if (json.success) {
+                toastr.info(message);
+                loadCheckInForm();
+            } else {
+                toastr.error(message);
+            }
+        },
+        error: function () {
+            toastr.error('Unable to connect to server, please try again.');
+        }
+    });
+});
+$('#stripe_frame').load(function() {
+    var responseText = $(this.contentDocument.body).text().trim();
+    this.contentDocument.body.innerHTML = '';
+    
+    if (responseText) {
+        toastr.clear();
+        var response = $.parseJSON(responseText);
+        if (response['success'] == true) {
+            toastr.info(response['message']);
+            loadCheckInForm();
+        } else {
+            toastr.error('', response['message'], {timeOut: 1000});
+        }
+    }
+});
+$().ready(function() {
+    $('select[name=payment_method]').each(function (i, dropdown) {
+        toggleMarkButton(dropdown);
+    });
+})
+</script>
+{% else %}
+<form action="/" id="check_in_form_{{ attendee.id }}" role="form" class="form-horizontal check-in">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ attendee.id }}" />
-<table class="check-in">
     {% block checkin_fields %}
-    <tr>
-        <td>Name:</td>
-        <td>{{ attendee|form_link }}</td>
-    </tr>
+    <div class="form-group">
+    <label for="name" class="col-sm-3 control-label">Name</label>
+    <div class="col-sm-6 form-control-static">
+        {{ attendee|form_link }}
+    </div>
+    </div>
+    {% if attendee.regdesk_info %}
+        <div class="form-group btn-danger">
+            <label for="special_instructions" class="col-sm-3 control-label">Special Instructions</label>
+            <div class="col-sm-6">
+                <div class="form-control-static"><strong>{{ attendee.regdesk_info }}</strong></div>
+            </div>
+        </div>
+    {% endif %}
     {% if c.COLLECT_EXACT_BIRTHDATE %}
-        <tr>
-            <td>Birthdate</td>
-            <td>
+        <div class="form-group">
+            <label for="birthdate" class="col-sm-3 control-label">Date of Birth</label>
+            <div class="col-sm-6">
                 <input type="text" id="checkin-birthdate" name="birthdate" class="date" value="{{ attendee.birthdate|datetime("%Y-%m-%d")}}" />
-            </td>
-        </tr>
+            </div>
+        </div>
          {% if attendee.birthdate %}
-            <tr>
-                <td>Age Group:</td>
-                <td>{{ attendee.age_group_conf.desc }}</td>
-            </tr>
+            <div class="form-group">
+                <label for="age_group" class="col-sm-3 control-label">Age Group</label>
+                <div class="col-sm-6">
+                <div class="form-control-static">{{ attendee.age_group_conf.desc }}</div>
+                </div>
+            </div>
         {% endif %}
     {% else %}
-        <tr>
-            <td>Age Group:</td>
-            <td>
+        <div class="form-group">
+            <label for="age_group" class="col-sm-3 control-label">Age Group</label>
+            <div class="col-sm-6">
                 <select id="checkin-age">
                     {{ options(c.AGE_GROUP_OPTS,attendee.age_group) }}
                 </select>
-            </td>
-        </tr>
+            </div>
+        </div>
     {% endif %}
     {% if attendee.paid == c.PAID_BY_GROUP and not attendee.group_id %}
-        <tr>
-            <td>Group:</td>
-            <td>
+        <div class="form-group">
+            <label for="group" class="col-sm-3 control-label">Group</label>
+            <div class="col-sm-6">
                 <select id="checkin-group" name="group_id">
                     <option value="">No Group</option>
                     {{ options(groups,attendee.group_id) }}
                 </select>
-            </td>
-        </tr>
+            </div>
+        </div>
     {% endif %}
-    <tr>
-        <td>Email:</td>
-        <td>{{ attendee.email }}</td>
-    </tr>
-    <tr>
-        <td>Zipcode:</td>
-        <td>{{ attendee.zip_code }}</td>
-    </tr>
-    <tr>
-        <td>Emergency Contact:</td>
-        <td>{{ attendee.ec_name }} <span class="pull-right">{{ attendee.ec_phone }}</span></td>
-    </tr>
+    <div class="form-group">
+        <label for="email" class="col-sm-3 control-label">Email</label>
+        <div class="col-sm-6">
+            <div class="form-control-static">{{ attendee.email }}</div>
+        </div>
+    </div>
+    <div class="form-group">
+        <label for="zip_code" class="col-sm-3 control-label">Zipcode</label>
+        <div class="col-sm-6">
+        <div class="form-control-static">{{ attendee.zip_code }}</div>
+        </div>
+    </div>
     {% if c.VOLUNTEER_AGREEMENT_ENABLED and (attendee.staffing or c.VOLUNTEER in attendee.ribbon_ints) %}
-        <tr>
-            <td>Volunteer Agreement:</td>
-            <td>
-              {%- if attendee.agreed_to_volunteer_agreement -%}
+        <div class="form-group">
+            <label for="volunteer_agreement" class="col-sm-3 control-label">Volunteer Agreement</label>
+            <div class="col-sm-6">
+                <div class="form-control-static">
+                {%- if attendee.agreed_to_volunteer_agreement -%}
                 Completed
-              {%- else -%}
+                {%- else -%}
                 <b class="text-danger">Not Completed</b>
-              {%- endif -%}
-            </td>
-        </tr>
+                {%- endif -%}
+                </div>
+            </div>
+        </div>
     {% endif %}
-    <tr>
-        <td>Badge Type:</td>
-        <td>{{ attendee.badge_type_label }}
+    <div class="form-group">
+        <label for="badge_type" class="col-sm-3 control-label">Badge Type</label>
+        <div class="col-sm-6">
+            <div class="form-control-static">{{ attendee.badge_type_label }}
             {% if attendee.ribbon %}
                 ({{ attendee.ribbon_labels|join(", ") }})
             {% endif %}
-        </td>
-    </tr>
+            </div>
+        </div>
+    </div>
     {% if attendee.badge_printed_name %}
-        <tr>
-            <td>Badge Printed Name:</td>
-            <td><input type="text" class="form-control" value="{{ attendee.badge_printed_name }}" name="badge_printed_name" /></td>
-        </tr>
+        <div class="form-group">
+            <label for="badge_printed_name" class="col-sm-3 control-label">Badge Printed Name</label>
+            <div class="col-sm-6"><input type="text" class="form-control" value="{{ attendee.badge_printed_name }}" name="badge_printed_name" /></div>
+        </div>
     {% endif %}
     {% if c.NUMBERED_BADGES %}
-        <tr>
-            <td>Badge Number:</td>
-            <td>
+        <div class="form-group">
+            <label for="badge_num" class="col-sm-3 control-label">Badge Number</label>
                 {% if attendee.badge_num %}
+                <div class="col-sm-6">
+                    <div class="form-control-static">
                     {{ attendee.badge_num }}
                     <input type="hidden" id="checkin-badge" name="badge_num" value="{{ attendee.badge_num }}" />
+                    </div>
                 {% else %}
-                  # <input class="num" id="checkin-badge" name="badge_num" type="text" size="10" autofocus/>
+                <div class="col-sm-6">
+                  # <input class="num" id="checkin-badge" name="badge_num" type="text" size="10" />
+                </div>
+                <script>
+                    /**
+                     * We can't just use "autofocus" because that doesn't work if there's already a focused
+                     * element on the page.  Calling $.focus() won't work until the element is visible, so
+                     * we need to keep trying until that happens.  We also use this opportunity to set a
+                     * keypress handler on the element.
+                     */
+                    var focusBadgeNum = function () {
+                        var $num = $('#checkin-badge:text');
+                        if ($num.is(':visible')) {
+                            $num.focus().keypress(function (event) {
+                                if (event.keyCode === 13) {
+                                    checkIn('{{ attendee.id }}');
+                                }
+                            });
+                        } else {
+                            setTimeout(focusBadgeNum, 100);
+                        }
+                    };
+                    focusBadgeNum();
+                </script>
                 {% endif %}
-            </td>
-        </tr>
-    {% endif %}
-    {% if attendee.regdesk_info %}
-        <tr>
-            <td><span class="label label-danger">Special Instructions:</span></td>
-            <td>{{ attendee.regdesk_info }}</td>
-        </tr>
+            </div>
+        </div>
     {% endif %}
     {% if attendee.amount_extra and c.MERCH_AT_CHECKIN %}
-      <tr>
-        <td><strong>Picked Up Merch?</strong></td>
-        <td><label style="font-weight:normal;"><input type="checkbox" name="got_merch" value="1" /> Yes, this attendee has received their merch</label></td>
-      </tr>
+      <div class="form-group">
+        <label for="merch" class="col-sm-3 control-label"><strong>Picked Up Merch?</strong></label>
+        <div class="col-sm-6"><label style="font-weight:normal;"><input type="checkbox" name="got_merch" value="1" /> Yes, this attendee has received their merch</label></div>
+      </div>
     {% endif %}
     {% endblock checkin_fields %}
-</table>
 </form>
+</div>
+<div class="modal-footer">
+  <div class="form-group">
+  <div class="pull-right">
+      <button type="button" onClick="checkIn('{{ attendee.id }}')" class="btn btn-primary">Save & Check In</button>
+{% endif %}
+   <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+  </div>
+  </div>
+  </div>
+ 
+</div>

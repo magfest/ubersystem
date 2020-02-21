@@ -65,13 +65,13 @@
     <td valign="top">
         <b>{{ unconfirmed.length }} haven't filled out<br/>the volunteer checklist</b>
         <div ng-repeat="attendee in lists.unconfirmed">
-            <a href="../registration/form?id={{ attendee.id }}">{{ attendee.name }}</a>
+            <a href="#attendee_form?id={{ attendee.id }}">{{ attendee.name }}</a>
         </div>
     </td>
     <td valign="top">
         <br/> <b>{{ declined.length }} declined hotel space</b>
         <div ng-repeat="attendee in lists.declined">
-            <a href="../registration/form?id={{ attendee.id }}">{{ attendee.name }}</a>
+            <a href="#attendee_form?id={{ attendee.id }}">{{ attendee.name }}</a>
         </div>
     </td>
 </table>

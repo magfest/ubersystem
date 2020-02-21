@@ -1,0 +1,10 @@
+{{ app.attendee.first_name }},
+
+Thanks again for applying to present in the Art Show for this year's {{ c.EVENT_NAME }}.  Our records indicate that your
+Art Show application is still unpaid, and if we do not receive payment by {{ c.ART_SHOW_PAYMENT_DUE|datetime_local }} then it will be
+deleted.
+
+You can use the credit card button on your application's page to pay the ${{ app.attendee.amount_unpaid }} that you owe:
+{{ c.URL_BASE }}/art_show_applications/edit?id={{ app.id }}
+
+{{ c.ART_SHOW_EMAIL_SIGNATURE }}

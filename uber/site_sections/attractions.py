@@ -1,6 +1,8 @@
 import uuid
+from datetime import datetime
 
 import cherrypy
+from pytz import UTC
 from pockets import sluggify
 from sqlalchemy.orm import subqueryload
 
@@ -12,11 +14,15 @@ from uber.site_sections.preregistration import check_post_con
 
 
 def _attendee_for_badge_num(session, badge_num, options=None):
+    from uber.barcode import get_badge_num_from_barcode
+    
     if not badge_num:
         return None
 
     try:
         badge_num = int(badge_num)
+    except ValueError:
+        badge_num = get_badge_num_from_barcode(badge_num)['badge_num']
     except Exception:
         return None
 
@@ -51,10 +57,9 @@ def _model_for_id(session, model, id, options=None, filters=[]):
     return query.first()
 
 
-@all_renderable()
+@all_renderable(public=True)
 @check_post_con
 class Root:
-
     @cherrypy.expose
     def default(self, *args, **kwargs):
         if args:
@@ -88,8 +93,12 @@ class Root:
 
         if not attraction:
             raise HTTPRedirect('index')
+
+        no_events = datetime.max.replace(tzinfo=UTC)  # features with no events should sort to the end
+        features = attraction.public_features
         return {
             'attraction': attraction,
+            'features': sorted(features, key=lambda f: f.events[0].start_time if f.events else no_events),
             'show_all': params.get('show_all')}
 
     def events(self, session, id=None, slug=None, feature=None, **params):
@@ -159,8 +168,8 @@ class Root:
     def signup_for_event(self, session, id, badge_num='', first_name='',
                          last_name='', email='', zip_code='', **params):
 
-        # Badge number during AT_THE_CON is a hard requirement for Autographs
-        if badge_num or c.AT_THE_CON:
+        # Badge number during the event is a hard requirement for Autographs
+        if badge_num or c.AFTER_EPOCH:
             attendee = _attendee_for_badge_num(session, badge_num)
             if not attendee:
                 return {

@@ -27,10 +27,6 @@ __all__ = [
 
 class ReviewMixin:
     @property
-    def video_reviews(self):
-        return [r for r in self.reviews if r.video_status != c.PENDING]
-
-    @property
     def game_reviews(self):
         return [r for r in self.reviews if r.game_status != c.PENDING]
 
@@ -91,6 +87,8 @@ class IndieStudio(MagModel):
     needs_hotel_space = Column(Boolean, nullable=True, admin_only=True)  # "Admin only" preserves null default
     name_for_hotel = Column(UnicodeText)
     email_for_hotel = Column(UnicodeText)
+    contact_phone = Column(UnicodeText)
+    show_info_updated = Column(Boolean, default=False)
 
     games = relationship(
         'IndieGame', backref='studio', order_by='IndieGame.title')
@@ -119,7 +117,7 @@ class IndieStudio(MagModel):
         sorted_games = sorted(
             [g for g in self.games if g.accepted], key=lambda g: g.accepted)
         confirm_deadline = timedelta(days=c.MIVS_CONFIRM_DEADLINE)
-        return sorted_games[0].accepted + confirm_deadline
+        return sorted_games[0].accepted + confirm_deadline if len(sorted_games) else None
 
     @property
     def after_confirm_deadline(self):
@@ -128,6 +126,13 @@ class IndieStudio(MagModel):
     @property
     def discussion_emails_list(self):
         return list(filter(None, self.discussion_emails.split(',')))
+    
+    @property
+    def discussion_emails_last_updated(self):
+        studio_updates = self.get_tracking_by_instance(self, action=c.UPDATED, last_only=False)
+        for update in studio_updates:
+            if 'discussion_emails' in update.data:
+                return update.when
 
     @property
     def core_hours_status(self):
@@ -157,11 +162,15 @@ class IndieStudio(MagModel):
         if self.needs_hotel_space is not None:
             return "Requested hotel space for {} with email {}".format(self.name_for_hotel, self.email_for_hotel)\
                 if self.needs_hotel_space else "Opted out"
+                
+    @property
+    def show_info_status(self):
+        return self.show_info_updated
 
     def checklist_deadline(self, slug):
         default_deadline = c.MIVS_CHECKLIST[slug]['deadline']
-        if self.group and self.group.registered >= default_deadline and slug != 'hotel_space':
-            return self.group.registered + timedelta(days=3)
+        if self.group and self.group.registered >= default_deadline and slug in ['core_hours', 'discussion']:
+            return self.group.registered + timedelta(days=7)
         return default_deadline
 
     def past_checklist_deadline(self, slug):
@@ -206,6 +215,10 @@ class IndieStudio(MagModel):
     @property
     def submitted_games(self):
         return [g for g in self.games if g.submitted]
+    
+    @property
+    def confirmed_games(self):
+        return [g for g in self.games if g.confirmed]
 
     @property
     def comped_badges(self):
@@ -228,6 +241,8 @@ class IndieDeveloper(MagModel):
     last_name = Column(UnicodeText)
     email = Column(UnicodeText)
     cellphone = Column(UnicodeText)
+    agreed_coc = Column(Boolean, default=False)
+    agreed_data_policy = Column(Boolean, default=False)
 
     @property
     def email_to_address(self):
@@ -274,7 +289,6 @@ class IndieGame(MagModel, ReviewMixin):
         Choice(c.MIVS_BUILD_STATUS_OPTS), default=c.PRE_ALPHA)
     build_notes = Column(UnicodeText)  # 500 max
     shown_events = Column(UnicodeText)
-    video_submitted = Column(Boolean, default=False)
     submitted = Column(Boolean, default=False)
     agreed_liability = Column(Boolean, default=False)
     agreed_showtimes = Column(Boolean, default=False)
@@ -387,6 +401,11 @@ class IndieGame(MagModel, ReviewMixin):
     @property
     def missing_steps(self):
         steps = []
+        if not self.link_to_video:
+            steps.append(
+                'You have not yet included a link to a video showcasing '
+                'at least 30 seconds of gameplay'
+            )
         if not self.link_to_game:
             steps.append(
                 'You have not yet included a link to where the judges can '
@@ -421,10 +440,6 @@ class IndieGame(MagModel, ReviewMixin):
         for code in self.codes:
             if code.unlimited_use:
                 return code
-
-    @property
-    def video_submittable(self):
-        return bool(self.link_to_video)
 
     @property
     def submittable(self):
@@ -503,7 +518,7 @@ class IndieGameImage(MagModel):
 
     @property
     def url(self):
-        return '{}/mivs_applications/view_image?id={}'.format(c.PATH, self.id)
+        return 'view_image?id={}'.format(self.id)
 
     @property
     def filepath(self):
@@ -530,8 +545,6 @@ class IndieGameReview(MagModel):
     game_status = Column(
         Choice(c.MIVS_GAME_REVIEW_STATUS_OPTS), default=c.PENDING)
     game_content_bad = Column(Boolean, default=False)
-    video_score = Column(Choice(c.MIVS_VIDEO_REVIEW_OPTS), default=c.PENDING)
-    video_review = Column(UnicodeText)
 
     # 0 = not reviewed, 1-10 score (10 is best)
     readiness_score = Column(Integer, default=0)
@@ -545,11 +558,6 @@ class IndieGameReview(MagModel):
     __table_args__ = (
         UniqueConstraint('game_id', 'judge_id', name='review_game_judge_uniq'),
     )
-
-    @presave_adjustment
-    def no_score_if_broken(self):
-        if self.has_video_issues:
-            self.video_score = c.PENDING
 
     @property
     def game_score(self):

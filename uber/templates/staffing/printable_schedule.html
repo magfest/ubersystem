@@ -1,0 +1,50 @@
+{% if attendee.takes_shifts %}
+    You are signed up for {{ attendee.weighted_hours }} hours (after weighting)
+
+    <br/> <br/>
+    After working each shift, make sure you get a department chair to initial under the <b>Worked</b> column below.
+    If your shifts are not marked as worked, you won't
+    {% if attendee.paid != c.NEED_NOT_PAY %}
+        get your badge refund, plus you won't
+    {% endif %}
+    get a free badge or free hotel room space next year.
+{% endif %}
+
+{% if c.HOURS_FOR_FOOD %}{% include "staffing/food_info.html" %}{% endif %}
+
+{% if attendee.shifts %}
+    <i>You should report to a Department Chair for each department you're working before the start of your first shift:</i>
+    <div style="margin-left:5% ; font-weight:bold">
+        {{ attendee.must_contact }}
+    </div>
+
+    <br/>
+    <table width="95%" align="center">
+    <tr style="font-weight:bold">
+        <td>Job</td>
+        <td>Dept</td>
+        <td>Start</td>
+        <td>Hours</td>
+        <td>Weight</td>
+        <td>Worked</td>
+    </tr>
+    {% for shift in attendee.shifts|sortBy('job.start_time') %}
+        <tr>
+            <td>{{ shift.job.name }}</td>
+            <td>{{ shift.job.department_name }}</td>
+            <td>{{ hour_day_local(shift.job.start_time) }}</td>
+            <td>{% if shift.job.is_setup or shift.job.is_teardown %}__________
+                {% else %}{{ shift.job.duration }}{% endif %}</td>
+            <td>(x{{ shift.job.weight }})</td>
+            <td>__________</td>
+        </tr>
+        {% if shift.job.description %}
+            <tr>
+                <td colspan="5" align="center" valign="top" style="padding-top:0px"><i>{{ shift.job.description }}</i><br/><br/></td>
+            </tr>
+        {% endif %}
+    {% endfor %}
+    </table>
+{% elif attendee.takes_shifts %}
+    <h3>You have not signed up for any shifts.</h3>
+{% endif %}
