@@ -869,17 +869,6 @@ class Session(SessionManager):
 
                 return '', response, refund_txn
 
-        def add_receipt_items_by_model(self, charge, model, payment_method=c.STRIPE):
-            for amount, desc, item_type in getattr(model, 'receipt_items_breakdown'):
-                if amount:
-                    if "Promo code group" in desc:
-                        desc = desc.format(getattr(model, 'name', ''), int(getattr(model, 'badges', 0)) - 1)
-
-                    item = self.create_receipt_item(model, amount, desc, 
-                                                    charge.stripe_transaction if charge else None, 
-                                                    item_type, payment_method=payment_method)
-                    self.add(item)
-
         def create_receipt_item(self, model, amount, desc, 
                                 stripe_txn=None, txn_type=c.PAYMENT, payment_method=c.STRIPE):
             item = ReceiptItem(
