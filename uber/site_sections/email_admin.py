@@ -143,7 +143,9 @@ class Root:
             automated_email.approved = True
             raise HTTPRedirect(
                 'pending?message={}',
-                '"{}" approved and will be sent out shortly'.format(automated_email.subject))
+                '"{}" approved and will be sent out {}'.format(automated_email.subject, 
+                                                               "shortly" if not automated_email.active_when_label
+                                                               else automated_email.active_when_label))
         raise HTTPRedirect('pending?message={}{}', 'Unknown automated email: ', ident)
 
     @csrf_protected
