@@ -21,7 +21,7 @@ import uber
 from uber.config import c
 from uber.custom_tags import safe_string, time_day_local
 from uber.decorators import cost_property, department_id_adapter, predelete_adjustment, presave_adjustment, \
-    receipt_item, render
+    render
 from uber.models import MagModel
 from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
@@ -241,6 +241,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     amount_refunded_override = Column(Integer, default=0, admin_only=True)
     stripe_txn_share_logs = relationship('StripeTransactionAttendee', backref='attendee')
     purchased_items = Column(MutableDict.as_mutable(JSONB), default={}, server_default='{}')
+    refunded_items = Column(MutableDict.as_mutable(JSONB), default={}, server_default='{}')
 
     badge_printed_name = Column(UnicodeText)
 
@@ -577,12 +578,15 @@ class Attendee(MagModel, TakesPaymentMixin):
                 
     @presave_adjustment
     def update_purchased_items(self):
+        self.purchased_items.clear()
         for name in self.cost_property_names:
             value = getattr(self, name, 0)
             if value:
                 self.purchased_items[name] = value
         if self.amount_extra:
             self.purchased_items['kick_in_cost'] = self.amount_extra
+        if self.paid == c.PAID_BY_GROUP and self.purchased_items['badge_cost']:
+            del self.purchased_items['badge_cost']
     
     @presave_adjustment
     def set_payment_method(self):
@@ -804,9 +808,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def amount_paid(self):
-        return max(sum([item.amount for item in self.receipt_items if item.txn_type == c.PAYMENT]),
-                   sum([txn.share for txn in self.stripe_txn_share_logs if txn.stripe_transaction.type == c.PAYMENT]),
-                   min(self.amount_paid_override * 100, self.total_cost))
+        return sum([item.amount for item in self.receipt_items if item.txn_type == c.PAYMENT])
 
     @amount_paid.expression
     def amount_paid(cls):
@@ -870,73 +872,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def itemized_refunds(self):
         return [(item.item_type, item.amount) for item in self.receipt_items if item.txn_type == c.REFUND]
-
-    @receipt_item
-    def badge_cost_receipt_item(self):
-        item_type = c.BADGE
-        badge_type = self.badge_type_real
-        badge_balance = self.balance_by_item_type(item_type)
-        discount = self.new_badge_cost - self.badge_cost
-
-        if not self.badge_cost or badge_balance >= self.badge_cost or self.paid == c.PAID_BY_GROUP:
-            return None, None, None
-
-        return (
-            self.badge_cost * 100,
-            "{} badge{}".format(c.BADGES[badge_type], " with ${} discount".format(discount) if discount > 0 else ""),
-            item_type
-        )
-
-    @receipt_item
-    def amount_extra_receipt_item(self):
-        if not self.amount_extra:
-            return None, None, None
-
-        item_type = c.AMOUNT_EXTRA
-        amount = None
-        desc = None
-
-        amount_extra_balance = self.balance_by_item_type(item_type)
-
-        if not amount_extra_balance:
-            amount, desc = self.amount_extra * 100, "Kick-in level {}"
-        elif amount_extra_balance < self.amount_extra:
-            amount, desc = (self.amount_extra - amount_extra_balance) * 100, "Upgrading to kick-in level {}"
-
-        return amount, desc.format(self.amount_extra_label), item_type
-
-    @receipt_item
-    def extra_donation_receipt_item(self):
-        if not self.extra_donation:
-            return None, None, None
-
-        item_type = c.EXTRA_DONATION
-        amount = None
-        desc = None
-
-        extra_donation_balance = self.balance_by_item_type(item_type)
-
-        if not extra_donation_balance:
-            amount, desc = self.extra_donation * 100, "Extra donation of ${}"
-        elif extra_donation_balance < self.extra_donation:
-            amount, desc = (self.extra_donation - extra_donation_balance) * 100, "Increasing extra donation to ${}"
-
-        return amount, desc.format(self.extra_donation), item_type
-
-    @receipt_item
-    def promo_code_group_receipt_item(self):
-        if not self.promo_code_groups:
-            return None, None, None
-
-        item_type = c.PROMO_CODE
-
-        promo_code_balance = self.balance_by_item_type(item_type)
-
-        # This is only for new attendees -- we add the receipt item for buying additional badges in the page handler
-        if not promo_code_balance:
-            return self.promo_group_cost * 100, \
-                   'Promo code group "{}" ({} badges at ${} each)'.format('{}', '{}', c.GROUP_PRICE), \
-                   item_type
 
     @hybrid_property
     def is_unassigned(self):
