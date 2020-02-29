@@ -8,11 +8,47 @@
   <a href="pending">Return to pending email list</a>
 </div>
 <br>
+{% if not email.active_when_label %}
+{% set active_when_text = "It will be sent as soon as it's approved." %}
+{% else %}
+{% set active_when_text = "It will be sent " + email.active_when_label + "." %}
+{% endif %}
+{% if not email.needs_approval %}
+    This email is pre-approved. {{ active_when_text }}<br/><br/>
+{% else %}
+    {% if not email.approved %}
+        <form method="post" action="approve">
+        {{ csrf_token() }}
+        This email is currently <b>unapproved</b>. {{ active_when_text }}
+        <input type="hidden" name="ident" value="{{ email.ident }}" />
+        <input type="submit" value="Approve" class="btn btn-sm btn-success"/>
+        </form>
+    {% else %}
+        <form method="post" action="unapprove">
+        {{ csrf_token() }}
+        This email is currently <b>approved</b>. {{ active_when_text }}
+        <input type="hidden" name="ident" value="{{ email.ident }}" />
+        <input type="submit" value="Undo Approval" class="btn btn-sm btn-warning"/>
+        </form>
+    {% endif %}<br/>
+{% endif %}
+
+<form method="post" action="update_dates">
+{{ csrf_token() }}
+<input type="hidden" name="ident" value="{{ email.ident }}" />
+
+<label for="active_after">Send only after</label>
+<input type='text' class="date" name="active_after" value="{{ email.active_after|datetime("%Y-%m-%d") }}"/>
+and <label for="active_after">don't send after</label>
+<input type='text' class="date" name="active_before" value="{{ email.active_before|datetime("%Y-%m-%d") }}"/>
+    
+<input type="submit" value="Update Send Date(s)" class="btn btn-sm btn-warning"/>
+</form><br/>
 
 {% if email.unapproved_count > 0 %}
   There are {{ email.unapproved_count }} copies of this email that will be sent once it's approved.<br><br>
 {% elif examples %}
-  Congratulations! There are no unsent copies of this email waiting to be approved!<br><br>
+  There are no unsent copies of this email waiting to be approved.<br><br>
 {% endif %}
 
 {% if examples %}
@@ -22,7 +58,7 @@
     {{ macros.preview_email(example) }}
   {% endfor %}
 {% else %}
-  No recepients match the email criteria.<br><br>
+  We couldn't find recipients matching the email criteria in the first 1000 possible recipients.<br><br>
   Here's what the template looks like though:<br>
   {{ macros.preview_email(email) }}
 {% endif %}
