@@ -1185,7 +1185,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 'Supporter Pack',
                 [
                     'Swag Bag',
-                    'Badge Hpolder'
+                    'Badge Holder'
                 ],
                 'Season Pass Certificate'
             ]
