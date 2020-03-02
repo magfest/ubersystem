@@ -525,7 +525,7 @@ class Root:
                 attendee = db_attendee
             attendee.paid = c.HAS_PAID
             session.add(session.create_receipt_item(attendee, attendee.total_cost * 100,
-                                                        "At-door kiosk payment", charge.stripe_transaction)
+                                                        "At-door kiosk payment", charge.stripe_transaction))
             attendee.amount_paid_override = attendee.total_cost
             session.add(attendee)
             raise HTTPRedirect(
@@ -585,7 +585,7 @@ class Root:
         attendee.payment_method = payment_method
         attendee.amount_paid_override = attendee.total_cost
         session.add(session.create_receipt_item(attendee, attendee.total_cost * 100,
-                                                        "At-door marked as paid", txn_type=c.PAYMENT, payment_method=payment_method)
+                                                        "At-door marked as paid", txn_type=c.PAYMENT, payment_method=payment_method))
         attendee.reg_station = cherrypy.session.get('reg_station')
         session.commit()
         return {'success': True, 'message': 'Attendee marked as paid.', 'id': attendee.id}
@@ -602,7 +602,7 @@ class Root:
             attendee.paid = c.HAS_PAID
             attendee.payment_method = c.MANUAL
             session.add(session.create_receipt_item(attendee, attendee.total_cost * 100,
-                                                        "At-door desk payment", charge.stripe_transaction)
+                                                        "At-door desk payment", charge.stripe_transaction))
             attendee.amount_paid_override = attendee.total_cost
             session.merge(attendee)
             session.commit()
