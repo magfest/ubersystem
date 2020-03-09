@@ -652,7 +652,7 @@ class Session(SessionManager):
             return self.admin_account(cherrypy.session.get('account_id'))
 
         def admin_attendee(self):
-            if cherrypy.session.get('account_id'):
+            if getattr(cherrypy, 'session', {}).get('account_id'):
                 return self.admin_account(cherrypy.session.get('account_id')).attendee
 
         def logged_in_volunteer(self):
@@ -1546,10 +1546,6 @@ class Session(SessionManager):
 
             self.add(all_access_group)
             self.add(test_developer_account)
-            self.add(AdminAccessGroup(
-                admin_account_id=test_developer_account.id,
-                access_group_id=all_access_group.id,
-            ))
 
             return True
 
