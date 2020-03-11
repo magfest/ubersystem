@@ -652,12 +652,8 @@ class Session(SessionManager):
             return self.admin_account(cherrypy.session.get('account_id'))
 
         def admin_attendee(self):
-            try:
-                if cherrypy.session.get('account_id'):
-                    return self.admin_account(cherrypy.session.get('account_id')).attendee
-            except AttributeError:
-                # cherrypy.session may not exist when this runs outside of a request (e.g. new dev user creation)
-                return None
+            if getattr(cherrypy, 'session', {}).get('account_id'):
+                return self.admin_account(cherrypy.session.get('account_id')).attendee
 
         def logged_in_volunteer(self):
             return self.attendee(cherrypy.session.get('staffer_id'))
