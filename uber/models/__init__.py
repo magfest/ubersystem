@@ -520,7 +520,7 @@ from uber.models.guests import *  # noqa: F401,E402,F403
 from uber.models.art_show import *  # noqa: F401,E402,F403
 
 # Explicitly import models used by the Session class to quiet flake8
-from uber.models.admin import AccessGroup, AdminAccount, WatchList  # noqa: E402
+from uber.models.admin import AccessGroup, AdminAccount, WatchList, admin_access_group  # noqa: E402
 from uber.models.art_show import ArtShowApplication  # noqa: E402
 from uber.models.attendee import Attendee  # noqa: E402
 from uber.models.department import Job, Shift, Department  # noqa: E402
@@ -652,8 +652,12 @@ class Session(SessionManager):
             return self.admin_account(cherrypy.session.get('account_id'))
 
         def admin_attendee(self):
-            if cherrypy.session.get('account_id'):
-                return self.admin_account(cherrypy.session.get('account_id')).attendee
+            try:
+                if cherrypy.session.get('account_id'):
+                    return self.admin_account(cherrypy.session.get('account_id')).attendee
+            except AttributeError:
+                # cherrypy.session may not exist when this runs outside of a request (e.g. new dev user creation)
+                return None
 
         def logged_in_volunteer(self):
             return self.attendee(cherrypy.session.get('staffer_id'))
@@ -1546,10 +1550,9 @@ class Session(SessionManager):
 
             self.add(all_access_group)
             self.add(test_developer_account)
-            self.add(AdminAccessGroup(
-                admin_account_id=test_developer_account.id,
-                access_group_id=all_access_group.id,
-            ))
+            self.commit()
+            self.execute(admin_access_group.insert().values(admin_account_id=test_developer_account.id,
+                                                            access_group_id=all_access_group.id))
 
             return True
 
