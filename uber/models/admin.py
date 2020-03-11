@@ -17,7 +17,7 @@ from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column, MultiChoice
 
 
-__all__ = ['AccessGroup', 'AdminAccount', 'PasswordReset', 'WatchList', 'admin_access_group']
+__all__ = ['AccessGroup', 'AdminAccount', 'PasswordReset', 'WatchList']
 
 
 # Many to many association table to tie Access Groups with Admin Accounts

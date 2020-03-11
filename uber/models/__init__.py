@@ -520,7 +520,7 @@ from uber.models.guests import *  # noqa: F401,E402,F403
 from uber.models.art_show import *  # noqa: F401,E402,F403
 
 # Explicitly import models used by the Session class to quiet flake8
-from uber.models.admin import AccessGroup, AdminAccount, WatchList, admin_access_group  # noqa: E402
+from uber.models.admin import AccessGroup, AdminAccount, WatchList  # noqa: E402
 from uber.models.art_show import ArtShowApplication  # noqa: E402
 from uber.models.attendee import Attendee  # noqa: E402
 from uber.models.department import Job, Shift, Department  # noqa: E402
@@ -1543,12 +1543,11 @@ class Session(SessionManager):
                 attendee=attendee,
                 hashed=bcrypt.hashpw('magfest', bcrypt.gensalt())
             )
+            test_developer_account.access_groups.append(all_access_group)
 
             self.add(all_access_group)
             self.add(test_developer_account)
             self.commit()
-            self.execute(admin_access_group.insert().values(admin_account_id=test_developer_account.id,
-                                                            access_group_id=all_access_group.id))
 
             return True
 
