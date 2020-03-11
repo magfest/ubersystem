@@ -1,7 +1,7 @@
 """Add base_badge_price column
 
 Revision ID: b6074f8ea4ab
-Revises: 71991162a59c
+Revises: 167243c0e86c
 Create Date: 2017-07-14 04:16:59.504802
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-07-14 04:16:59.504802
 
 # revision identifiers, used by Alembic.
 revision = 'b6074f8ea4ab'
-down_revision = '71991162a59c'
+down_revision = '167243c0e86c'
 branch_labels = None
 depends_on = None
 

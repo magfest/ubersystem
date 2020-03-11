@@ -1,0 +1,2 @@
+{{ app.attendee.full_name }}{% if app.artist_name %} ("{{ app.artist_name }}"){% endif %} has just applied for the Art Show{% if c.AFTER_ART_SHOW_WAITLIST %} and was automatically waitlisted{% endif %}:
+{{ c.URL_BASE }}/art_show_admin/form?id={{ app.id }}

@@ -1,7 +1,7 @@
 """Add MITS Panel Application table.
 
 Revision ID: 72f97bdad2fa
-Revises: 9d90d3d538c6
+Revises: b574c0577253
 Create Date: 2018-10-04 23:14:03.153533
 
 """

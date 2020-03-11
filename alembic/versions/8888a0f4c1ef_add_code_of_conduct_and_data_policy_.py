@@ -1,7 +1,7 @@
 """Add Code of Conduct and Data Policy agreement columns
 
 Revision ID: 8888a0f4c1ef
-Revises: fa869546b8ca
+Revises: 07f752ec9b7c
 Create Date: 2019-09-01 01:17:02.604266
 
 """
@@ -9,7 +9,7 @@ Create Date: 2019-09-01 01:17:02.604266
 
 # revision identifiers, used by Alembic.
 revision = '8888a0f4c1ef'
-down_revision = 'fa869546b8ca'
+down_revision = '07f752ec9b7c'
 branch_labels = None
 depends_on = None
 

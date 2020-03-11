@@ -40,17 +40,45 @@ class Root:
             stripe_txn = session.stripe_transaction(stripe_txn_id)
 
         session.add(session.create_receipt_item(
-            model, int(params.get('amount')) * 100, params.get('desc'), stripe_txn if stripe_txn_id else None,
-            params.get('item_type'), params.get('txn_type')))
+            model, float(params.get('amount')) * 100, params.get('desc'), stripe_txn if stripe_txn_id else None,
+            params.get('txn_type')))
 
-        raise HTTPRedirect('receipt_items?id={}&message={}', model.id, "Receipt Item added")
+        item_type = "Payment" if params.get('txn_type') == c.PAYMENT else "Refund"
+
+        raise HTTPRedirect('receipt_items?id={}&message={}', model.id, "{} added".format(item_type))
 
     def remove_receipt_item(self, session, id='', **params):
         item = session.receipt_item(id)
+        item_type = "Payment" if item.txn_type == c.PAYMENT else "Refund"
+        
         attendee_or_group = item.attendee if item.attendee_id else item.group
         session.delete(item)
 
-        raise HTTPRedirect('receipt_items?id={}&message={}', attendee_or_group.id, "Receipt Item deleted")
+        raise HTTPRedirect('receipt_items?id={}&message={}', attendee_or_group.id, "{} deleted".format(item_type))
+    
+    def add_refund_item(self, session, id='', **params):
+        try:
+            model = session.attendee(id)
+        except NoResultFound:
+            model = session.group(id)
+        
+        if params.get('item_name') and params.get('item_val'):
+            model.refunded_items[params.get('item_name')] = params.get('item_val')
+            session.add(model)
+        
+        raise HTTPRedirect('receipt_items?id={}&message={}', model.id, "Item marked as refunded")
+    
+    def remove_refund_item(self, session, id='', **params):
+        try:
+            model = session.attendee(id)
+        except NoResultFound:
+            model = session.group(id)
+        
+        if params.get('item_name') and params.get('item_val'):
+            model.refunded_items[params.get('item_name')] = params.get('item_val')
+            session.add(model)
+        
+        raise HTTPRedirect('receipt_items?id={}&message={}', model.id, "Refunded item removed")
 
     def remove_promo_code(self, session, id=''):
         attendee = session.attendee(id)

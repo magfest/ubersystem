@@ -94,12 +94,6 @@
         $showCheckedInButton = $('#filter'),
         $attendee = $('#attendee');
 
-    $('input[name=badge_num]').barcodeField({
-      blurOnKeys: ['~', '\\'],
-      detectBadgeNum: true,
-      autoSubmitForm: 'form.badge-num-form'
-    });
-
     var updateAttendee = function(attendee) {
       $container.toggleClass('has-attendee', !!attendee);
       if(attendee) {

@@ -1,0 +1,30 @@
+<html>
+<head></head>
+<body>
+You have been approved for a space in the Marketplace for {{ c.EVENT_NAME }} this coming {{ event_dates() }}!
+
+<br/><br/>
+{% if app.amount_unpaid or app.attendee.amount_unpaid or app.attendee.badge_status == c.NEW_STATUS %}
+  In order to complete your application, you must
+  {% if app.attendee.badge_status == c.NEW_STATUS %}
+    finish filling out your information
+    <a href="{{ c.URL_BASE }}//preregistration/confirm?id={{ app.attendee_id }}">here</a>
+    {% if app.attendee.amount_unpaid %}, and pay to
+      {% if app.attendee.badge_status == c.NEW_STATUS %}register for the convention and {% endif %}
+      be in the marketplace
+    {% endif %}
+  {% elif app.amount_unpaid or app.attendee.amount_unpaid %}
+    pay the ${{ app.amount_unpaid }} marketplace fee <a href="{{ c.URL_BASE }}/marketplace/edit?id={{ app.id }}">here</a>
+  {% endif %}.
+{% endif %}
+{% if app.attendee.amount_unpaid %}Payment is expected by {{ c.MARKETPLACE_PAYMENT_DUE|datetime_local }} or your application may be removed and your space
+filled by another applicant.{% endif %}
+
+<br/> <br/>
+
+<br/> <br/> You can always review the {{ c.EVENT_NAME }} Marketplace rules
+<a href="{{ c.MARKETPLACE_RULES_URL }}" target="_blank">here</a>.
+
+<br/><br/>{{ c.MARKETPLACE_APP_SIGNATURE }}
+</body>
+</html>

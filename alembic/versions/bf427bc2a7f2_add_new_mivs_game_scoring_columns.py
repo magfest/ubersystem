@@ -1,7 +1,7 @@
 """Add new MIVS game scoring columns
 
 Revision ID: bf427bc2a7f2
-Revises: 9d90d3d538c6
+Revises: 72f97bdad2fa
 Create Date: 2018-10-05 17:04:48.477995
 
 """
@@ -9,7 +9,7 @@ Create Date: 2018-10-05 17:04:48.477995
 
 # revision identifiers, used by Alembic.
 revision = 'bf427bc2a7f2'
-down_revision = '9d90d3d538c6'
+down_revision = '72f97bdad2fa'
 branch_labels = None
 depends_on = None
 

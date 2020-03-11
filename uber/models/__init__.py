@@ -29,7 +29,7 @@ from sqlalchemy.util import immutabledict
 import uber
 from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
-from uber.decorators import cost_property, department_id_adapter, presave_adjustment, receipt_item, suffix_property
+from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
 from uber.utils import check_csrf, normalize_phone, DeptChecklistConf, report_critical_exception
 
@@ -156,7 +156,7 @@ class MagModel:
         """Returns the names of all cost properties on this model."""
         return [
             s for s in cls._class_attr_names
-            if s not in ['receipt_item_names', 'cost_property_names']
+            if s not in ['cost_property_names']
             and isinstance(getattr(cls, s), cost_property)]
 
     @cached_classproperty
@@ -181,24 +181,6 @@ class MagModel:
                 log.error('Error calculating cost property {}: "{}"'.format(name, value))
                 log.exception(ex)
         return max(0, sum(values))
-
-    @cached_classproperty
-    def receipt_item_names(cls):
-        """Returns the names of all receipt items on this model."""
-        return [
-            s for s in cls._class_attr_names
-            if s not in ['receipt_item_names', 'cost_property_names']
-               and isinstance(getattr(cls, s), receipt_item)]
-
-    @property
-    def receipt_items_breakdown(self):
-        receipt_items = []
-        for name in self.receipt_item_names:
-            amount, desc, item_type = getattr(self, name, None) or (None, None, None)
-            if amount:
-                receipt_items.append((amount, desc, item_type))
-
-        return receipt_items or [(None, None, None)]
 
     @property
     def stripe_transactions(self):
@@ -353,6 +335,7 @@ class MagModel:
             return []
 
         choices = dict(self.get_field(name).type.choices)
+        val = MultiChoice.convert_if_labels(self.get_field(name).type, val)
         return [int(i) for i in str(val).split(',') if i and int(i) in choices]
 
     @suffix_property
@@ -527,15 +510,18 @@ from uber.models.types import *  # noqa: F401,E402,F403
 from uber.models.api import *  # noqa: F401,E402,F403
 from uber.models.hotel import *  # noqa: F401,E402,F403
 from uber.models.attendee_tournaments import *  # noqa: F401,E402,F403
+from uber.models.marketplace import *  # noqa: F401,E402,F403
 from uber.models.mivs import *  # noqa: F401,E402,F403
 from uber.models.mits import *  # noqa: F401,E402,F403
 from uber.models.panels import *  # noqa: F401,E402,F403
 from uber.models.attraction import *  # noqa: F401,E402,F403
 from uber.models.tabletop import *  # noqa: F401,E402,F403
 from uber.models.guests import *  # noqa: F401,E402,F403
+from uber.models.art_show import *  # noqa: F401,E402,F403
 
 # Explicitly import models used by the Session class to quiet flake8
 from uber.models.admin import AccessGroup, AdminAccount, WatchList, admin_access_group  # noqa: E402
+from uber.models.art_show import ArtShowApplication  # noqa: E402
 from uber.models.attendee import Attendee  # noqa: E402
 from uber.models.department import Job, Shift, Department  # noqa: E402
 from uber.models.email import Email  # noqa: E402
@@ -885,30 +871,19 @@ class Session(SessionManager):
                         share=stripe_log.share
                     ))
 
-                return '', response
-
-        def add_receipt_items_by_model(self, charge, model, payment_method=c.STRIPE):
-            for amount, desc, item_type in getattr(model, 'receipt_items_breakdown'):
-                if amount:
-                    if "Promo code group" in desc:
-                        desc = desc.format(getattr(model, 'name', ''), int(getattr(model, 'badges', 0)) - 1)
-
-                    item = self.create_receipt_item(model, amount, desc, 
-                                                    charge.stripe_transaction if charge else None, 
-                                                    item_type, payment_method=payment_method)
-                    self.add(item)
+                return '', response, refund_txn
 
         def create_receipt_item(self, model, amount, desc, 
-                                stripe_txn=None, item_type=c.OTHER, txn_type=c.PAYMENT, payment_method=c.STRIPE):
+                                stripe_txn=None, txn_type=c.PAYMENT, payment_method=c.STRIPE):
             item = ReceiptItem(
                 txn_id=stripe_txn.id if stripe_txn else None,
                 txn_type=txn_type,
-                item_type=item_type,
                 payment_method=payment_method,
                 amount=amount,
                 who=getattr(model, 'full_name', getattr(model, 'name', '')),
                 when=stripe_txn.when if stripe_txn else datetime.now(UTC),
-                desc=desc)
+                desc=desc,
+                cost_snapshot=getattr(model, 'purchased_items', {}))
             if isinstance(model, uber.models.Attendee):
                 item.attendee_id = getattr(model, 'id', None)
             elif isinstance(model, uber.models.Group):
@@ -969,6 +944,65 @@ class Session(SessionManager):
                 return attendees[0]
 
             raise ValueError('Attendee not found')
+
+        def create_or_find_attendee_by_id(self, **params):
+            message = ''
+            if params.get('attendee_id', ''):
+                try:
+                    attendee = self.attendee(id=params['attendee_id'])
+                except Exception:
+                    try:
+                        attendee = self.attendee(public_id=params['attendee_id'])
+                    except Exception:
+                        return \
+                            None, \
+                            'The confirmation number you entered is not valid, ' \
+                            'or there is no matching badge.'
+
+                if attendee.badge_status in [c.INVALID_STATUS, c.WATCHED_STATUS]:
+                    return None, \
+                           'This badge is invalid. Please contact registration.'
+            else:
+                attendee_params = {
+                    attr: params.get(attr, '')
+                    for attr in ['first_name', 'last_name', 'email']}
+                attendee = self.attendee(attendee_params, restricted=True,
+                                         ignore_csrf=True)
+                attendee.placeholder = True
+                if not params.get('email', ''):
+                    message = 'Email address is a required field.'
+            return attendee, message
+
+        def attendee_from_marketplace_app(self, **params):
+            attendee, message = self.create_or_find_attendee_by_id(**params)
+            if message:
+                return attendee, message
+            elif attendee.marketplace_applications:
+                return attendee, \
+                       'There is already a marketplace application ' \
+                       'for that badge!'
+
+            return attendee, message
+        
+        def art_show_apps(self):
+            return self.query(ArtShowApplication).options(joinedload('attendee')).all()
+
+        def attendee_from_art_show_app(self, **params):
+            attendee, message = self.create_or_find_attendee_by_id(**params)
+            if message:
+                return attendee, message
+            elif attendee.art_show_applications:
+                return attendee, \
+                    'There is already an art show application ' \
+                    'for that badge!'
+
+            if params.get('not_attending', ''):
+                    attendee.badge_status = c.NOT_ATTENDING
+
+            return attendee, ''
+
+        def lookup_agent_code(self, code):
+            return self.query(ArtShowApplication).filter_by(agent_code=code).all()
 
         def add_promo_code_to_attendee(self, attendee, code):
             """
@@ -1205,6 +1239,31 @@ class Session(SessionManager):
             query.update({Attendee.badge_num: Attendee.badge_num + shift}, synchronize_session='evaluate')
 
             return True
+        
+        def get_next_badge_to_print(self, minor='', printerNumber='', numberOfPrinters=''):
+            badge_list = self.query(Attendee) \
+                .filter(
+                Attendee.print_pending,
+                Attendee.birthdate != None,
+                Attendee.badge_num != None).order_by(Attendee.badge_num).all()
+
+            try:
+                if minor:
+                    attendee = next(badge for badge
+                                    in badge_list
+                                    if badge.age_now_or_at_con < 18)
+                elif printerNumber != "" and numberOfPrinters != "": 
+                    attendee = next(badge for badge
+                                    in badge_list
+                                    if badge.age_now_or_at_con >= 18 and badge.badge_num % int(numberOfPrinters) == (int(printerNumber) - 1))
+                else:
+                    attendee = next(badge for badge
+                                    in badge_list
+                                    if badge.age_now_or_at_con >= 18)
+            except StopIteration:
+                return None
+
+            return attendee
 
         def valid_attendees(self):
             return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)

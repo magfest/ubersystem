@@ -1,7 +1,7 @@
 """Replace second_shirt column with more flexible num_event_shirts column
 
 Revision ID: 8f8419ebcf27
-Revises: e0c620d341cb
+Revises: 4c9ae1c0db43
 Create Date: 2019-07-19 16:31:05.311139
 
 """
@@ -9,7 +9,7 @@ Create Date: 2019-07-19 16:31:05.311139
 
 # revision identifiers, used by Alembic.
 revision = '8f8419ebcf27'
-down_revision = 'e0c620d341cb'
+down_revision = '4c9ae1c0db43'
 branch_labels = None
 depends_on = None
 

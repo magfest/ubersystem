@@ -427,7 +427,8 @@ class Root:
 
         session.commit() # save PromoCodeGroup to the database to generate receipt items correctly
         for attendee in charge.attendees:
-            session.add_receipt_items_by_model(charge, attendee)
+            session.add(session.create_receipt_item(attendee, attendee.total_cost * 100,
+                                                    "Prereg payment", charge.stripe_transaction))
 
         Charge.unpaid_preregs.clear()
         Charge.paid_preregs.extend(charge.targets)
@@ -542,7 +543,7 @@ class Root:
                 "Adding {} badge{} to promo code group {} (${} each)".format(
                     badges_to_add,
                     "s" if badges_to_add > 1 else "",
-                    group.name, c.GROUP_PRICE), charge.stripe_transaction, c.PROMO_CODE),
+                    group.name, c.GROUP_PRICE), charge.stripe_transaction),
             )
 
             session.add_codes_to_pc_group(group, badges_to_add)
@@ -662,7 +663,7 @@ class Root:
         if message:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         else:
-            session.add_receipt_items_by_model(charge, group)
+            session.add(session.create_receipt_item(group, group.cost * 100, "Group page payment", charge.stripe_transaction))
 
             group.amount_paid_override += charge.dollar_amount
 
@@ -743,10 +744,10 @@ class Root:
             group.amount_paid_override += charge.dollar_amount
             session.add(session.create_receipt_item(
                 group, charge.amount,
-                "{} badge{} (${} each)".format(
+                "Adding {} badge{} to group {} (${} each)".format(
                     badges_to_add,
                     "s" if badges_to_add > 1 else "",
-                    group.new_badge_cost), charge.stripe_transaction, c.BADGE),
+                    group.name, group.new_badge_cost), charge.stripe_transaction),
             )
             session.merge(group)
             if group.is_dealer:
@@ -838,31 +839,23 @@ class Root:
             raise HTTPRedirect('confirm?id={}&message={}', id, failure_message)
 
         if attendee.amount_paid:
-            amount_refunded = 0
-
             if not all(stripe_log.stripe_transaction.stripe_id
                        and stripe_log.stripe_transaction.type == c.PAYMENT
                        for stripe_log in attendee.stripe_txn_share_logs):
                 raise HTTPRedirect('confirm?id={}&message={}', id,
                                    failure_message)
             for stripe_log in attendee.stripe_txn_share_logs:
-                error, response = session.process_refund(stripe_log, attendee)
+                error, response, stripe_transaction = session.process_refund(stripe_log, attendee)
                 if error:
                     raise HTTPRedirect('confirm?id={}&message={}', id,
                                        failure_message)
                 elif response:
-                    amount_refunded += response.amount
-                    for receipt_item in [item for item in attendee.receipt_items if item.txn_type == c.PAYMENT]:
-                        refund_receipt_item = session.create_receipt_item(
-                            attendee, receipt_item.amount, "Refund for {}".format(receipt_item.desc),
-                            item_type=receipt_item.item_type, txn_type=c.REFUND)
-                        session.add(refund_receipt_item)
+                    session.add(session.create_receipt_item(attendee, response.amount, "Self-service refund", stripe_transaction))
 
             success_message = "Your refund of ${:,.2f} should appear on your credit card in a few days."\
                 .format(amount_refunded / 100)
             if attendee.paid == c.HAS_PAID:
                 attendee.paid = c.REFUNDED
-                attendee.amount_refunded_override = amount_refunded / 100
 
         if attendee.in_promo_code_group:
             attendee.promo_code = None
@@ -955,7 +948,8 @@ class Root:
             'attendee': attendee,
             'charge': Charge(
                 attendee,
-                description='{}{}'.format(attendee.full_name, '' if attendee.overridden_price else ' kicking in extra'))
+                description='{}{}'.format(attendee.full_name, '' if attendee.overridden_price else ' paying for extras')
+            )
         }
 
     def undo_attendee_donation(self, session, id):
@@ -982,10 +976,17 @@ class Root:
             # already paid for their registration, thus the attendee has been
             # saved to the database.
             attendee = session.query(Attendee).get(attendee.id)
-            attendee.amount_paid_override += charge.dollar_amount
+            
+            attendee_payment = charge.dollar_amount
+            if attendee.marketplace_cost:
+                for app in attendee.marketplace_applications:
+                    attendee_payment -= app.amount_unpaid
+                    app.amount_paid += app.amount_unpaid
+                
+            session.add(session.create_receipt_item(attendee, charge.amount, "Extra donation", charge.stripe_transaction))
+            
             if attendee.paid == c.NOT_PAID and attendee.amount_paid == attendee.total_cost:
                 attendee.paid = c.HAS_PAID
-            session.add_receipt_items_by_model(charge, attendee)
             raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Your payment has been accepted')
 
     def credit_card_retry(self):

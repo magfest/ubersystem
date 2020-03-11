@@ -1,0 +1,57 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Art Show Admin{% endblock %}
+{% block content %}
+
+<ol class="breadcrumb">
+  <li><a href="../accounts/homepage">Home</a></li>
+  <li>Art Show</li>
+  <li class="active">Admin</li>
+</ol>
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h3 class="panel-title">Art Show Applications</h3>
+  </div>
+  <div class="panel-body">
+    <a class="btn btn-default" href="form?new_app=True">Add an application</a>
+    <div class="pull-right form-inline">
+      <div class="form-group">
+        <div class="control-label">Status</div> <div class="input-group" id="status_filter"></div>
+      </div>
+    </div>
+  </div>
+<table class="table table-striped datatable">
+<thead><tr>
+    <th>Name</th>
+    <th>Artist Type</th>
+    <th>Pieces Submitted</th>
+    <th>Status</th>
+    <th>General Panels</th>
+    <th>General Tables</th>
+    <th>Mature Panels</th>
+    <th>Mature Tables</th>
+    <th>Art Show Cost</th>
+    <th>Admin Notes</th>
+</tr></thead>
+{% for app in applications %}
+    <tr>
+        <td style="text-align:left" data-order="{{ app.attendee.full_name }}" data-search="{{ app.attendee.full_name }}"> <a href="form?id={{ app.id }}">{{ app.attendee.full_name|default("?????") }}{% if app.artist_name %} ({{ app.artist_name }}){% endif %}</a> </td>
+        <td>{% if app.delivery_method == c.BRINGING_IN %}Attending
+            {% elif app.delivery_method == c.BY_MAIL %}Mailing In
+            {% elif app.delivery_method == c.AGENT %}Agenting{% endif %}</td>
+        <td>{% if app.incomplete_reason or app.is_unpaid %}N/A{% else %}
+        {{ app.art_show_pieces|length }} (<a href="pieces?id={{ app.id }}">View</a>){% endif %}</td>
+        <td>{{ app.status_label }}</td>
+        <td>{{ app.panels }}</td>
+        <td>{{ app.tables }}</td>
+        <td>{{ app.panels_ad }}</td>
+        <td>{{ app.tables_ad }}</td>
+        <td>${{ app.potential_cost }}</td>
+        <td>{{ app.admin_notes }}</td>
+    </tr>
+{% endfor %}
+	<caption align="bottom">
+		<ul class="pagination"></ul>
+	</caption>
+</table>
+{% endblock %}

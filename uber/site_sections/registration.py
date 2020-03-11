@@ -524,7 +524,8 @@ class Root:
             if db_attendee:
                 attendee = db_attendee
             attendee.paid = c.HAS_PAID
-            session.add_receipt_items_by_model(charge, attendee)
+            session.add(session.create_receipt_item(attendee, attendee.total_cost * 100,
+                                                        "At-door kiosk payment", charge.stripe_transaction))
             attendee.amount_paid_override = attendee.total_cost
             session.add(attendee)
             raise HTTPRedirect(
@@ -583,7 +584,8 @@ class Root:
             attendee.for_review += "Automated message: Stripe payment manually verified by admin."
         attendee.payment_method = payment_method
         attendee.amount_paid_override = attendee.total_cost
-        session.add_receipt_items_by_model(None, attendee, payment_method)
+        session.add(session.create_receipt_item(attendee, attendee.total_cost * 100,
+                                                        "At-door marked as paid", txn_type=c.PAYMENT, payment_method=payment_method))
         attendee.reg_station = cherrypy.session.get('reg_station')
         session.commit()
         return {'success': True, 'message': 'Attendee marked as paid.', 'id': attendee.id}
@@ -599,7 +601,8 @@ class Root:
         else:
             attendee.paid = c.HAS_PAID
             attendee.payment_method = c.MANUAL
-            session.add_receipt_items_by_model(charge, attendee)
+            session.add(session.create_receipt_item(attendee, attendee.total_cost * 100,
+                                                        "At-door desk payment", charge.stripe_transaction))
             attendee.amount_paid_override = attendee.total_cost
             session.merge(attendee)
             session.commit()

@@ -161,25 +161,18 @@ class Root:
         }
 
     def volunteers_owed_refunds(self, session):
-        attendees = session.all_attendees().filter(Attendee.paid.in_([c.HAS_PAID, c.PAID_BY_GROUP, c.REFUNDED])).all()
-
-        def is_unrefunded(a):
-            return a.paid == c.HAS_PAID \
-                or a.paid == c.PAID_BY_GROUP \
-                and a.group \
-                and a.group.amount_paid \
-                and not a.group.amount_refunded
+        attendees = session.all_attendees(only_staffing=True).all()
 
         return {
             'attendees': [(
                 'Volunteers Owed Refunds',
-                [a for a in attendees if is_unrefunded(a) and a.worked_hours >= c.HOURS_FOR_REFUND]
+                [a for a in attendees if a.paid_for_badge and not a.has_been_refunded and a.worked_hours >= c.HOURS_FOR_REFUND]
             ), (
                 'Volunteers Already Refunded',
-                [a for a in attendees if not is_unrefunded(a) and a.staffing]
+                [a for a in attendees if a.has_been_refunded]
             ), (
                 'Volunteers Who Can Be Refunded Once Their Shifts Are Marked',
-                [a for a in attendees if is_unrefunded(a)
+                [a for a in attendees if a.paid_for_badge and not a.has_been_refunded
                     and a.worked_hours < c.HOURS_FOR_REFUND and a.weighted_hours >= c.HOURS_FOR_REFUND]
             )]
         }

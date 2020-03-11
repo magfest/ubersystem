@@ -1,7 +1,7 @@
 """Add Rehearsal checklist step for bands
 
 Revision ID: c36659e7f238
-Revises: 07f752ec9b7c
+Revises: 5743392076b1
 Create Date: 2019-09-25 14:10:35.730473
 
 """
@@ -9,9 +9,9 @@ Create Date: 2019-09-25 14:10:35.730473
 
 # revision identifiers, used by Alembic.
 revision = 'c36659e7f238'
-down_revision = '07f752ec9b7c'
+down_revision = '5743392076b1'
 branch_labels = None
-depends_on = 'f619fbd56912'
+depends_on = None
 
 from alembic import op
 import sqlalchemy as sa

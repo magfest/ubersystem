@@ -1,7 +1,7 @@
 """Add creator relationship to attendees
 
 Revision ID: b960d6adb51a
-Revises: 5743392076b1
+Revises: c36659e7f238
 Create Date: 2019-10-01 14:19:12.815190
 
 """
@@ -9,7 +9,7 @@ Create Date: 2019-10-01 14:19:12.815190
 
 # revision identifiers, used by Alembic.
 revision = 'b960d6adb51a'
-down_revision = '5743392076b1'
+down_revision = 'c36659e7f238'
 branch_labels = None
 depends_on = None
 

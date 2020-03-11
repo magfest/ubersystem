@@ -26,4 +26,5 @@ node_modules/
 .coverage
 uploaded_files/*
 uber/static/analytics/extra-attendance-data.json
-
+uber/static/fonts/free3of9.pkl
+*.DS_Store

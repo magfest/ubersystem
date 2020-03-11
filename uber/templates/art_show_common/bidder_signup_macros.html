@@ -1,0 +1,88 @@
+{% import 'macros.html' as macros with context %}
+
+{%- macro bidder_signup_modal(attendee) -%}
+<div class="modal fade" id="attendee_{{ attendee.id }}" role="dialog" tabindex="-1">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="bidder_title_{{ attendee.id }}">Bidder Signup</h4>
+      </div>
+
+      <form target="upload_frame" method="post" action="sign_up_bidder" role="form" class="form-horizontal">
+        <div class="modal-body">
+          {{ csrf_token() }}
+          {{ sign_up_form(attendee) }}
+        </div>
+        <div class="modal-footer">
+          <input type="hidden" name="complete" class="complete" />
+          <button type="submit" class="btn btn-primary save_bidder print">Save & Print Form</button>
+          {% if attendee.art_show_bidder.signed_up %}
+          <button type="submit" class="btn btn-success save_bidder">Save</button>
+          {% else %}
+          <button type="submit" class="btn btn-success save_bidder complete">Complete Signup</button>
+          {% endif %}
+          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{%- endmacro -%}
+
+{%- macro sign_up_form(attendee, printable=not admin_area) -%}
+
+<div class="pull-right form-control-static" style="padding-top:0;">
+  <label class="control-label optional-field">Bidder Number</label>
+  <span class="bidder_num">{{ attendee.art_show_bidder.bidder_num }}</span>
+</div>
+<div class="clearfix"><input type="hidden" name="attendee_id" value="{{ attendee.id }}" /></div>
+<input type="hidden" name="id" class="bidder_id" value="{{ attendee.art_show_bidder.id }}" />
+{{ macros.form_group(attendee, 'badge_printed_name', label="Badge Name", is_readonly=True) }}
+{{ macros.name_form_group(attendee, label="Full Name", is_readonly=True) }}
+{{ macros.form_group(attendee, 'legal_name', label="Legal Name", is_readonly=True) }}
+{{ macros.address_form(attendee, is_readonly=True) }}
+{% if not attendee.cellphone and printable %}
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Phone</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+      {{ attendee.cellphone }}
+    </div>
+  </div>
+</div>
+{% else %}
+{{ macros.form_group(attendee, 'cellphone', label="Phone", is_readonly=printable) }}
+{% endif %}
+
+{{ macros.form_group(attendee.art_show_bidder, 'hotel_name', label="Hotel", is_readonly=printable) }}
+{{ macros.form_group(attendee.art_show_bidder, 'hotel_room_num', label="Room Number", is_readonly=printable) }}
+{{ macros.form_group(attendee.art_show_bidder, 'admin_notes', label="Notes", is_readonly=printable) }}
+
+{% if printable %}
+<br/>
+<span class="text-center">
+<strong><p>I understand that a bid is a binding contract. I should not bid more than I can afford to pay. Failure to pickup and pay for art I have bid on could result in my not being able to attend Midwest FurFest in the future. I have read and understand the art show rules.</p>
+<p>I also understand that pick up is from 10 AM to 4 PM on Sunday.</p>
+</strong><br/>
+</span>
+
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Signature</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+      ____________________________________________________________
+    </div>
+  </div>
+</div>
+
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Date</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+      ______________________________
+    </div>
+  </div>
+</div>
+{% endif %}
+{%- endmacro -%}

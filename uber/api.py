@@ -10,9 +10,11 @@ from cherrypy import HTTPError
 from dateutil import parser as dateparser
 from pockets import unwrap
 from time import mktime
+from residue import UTCDateTime
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import subqueryload
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
+from sqlalchemy.types import Boolean, Date
 
 from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
@@ -21,7 +23,7 @@ from uber.errors import CSRFException
 from uber.models import AdminAccount, ApiToken, Attendee, Department, DeptMembership, DeptMembershipRequest, \
     Event, IndieStudio, Job, Session, Shift, GuestGroup, Room, HotelRequests, RoomAssignment
 from uber.server import register_jsonrpc
-from uber.utils import check_csrf, normalize_newlines
+from uber.utils import check, check_csrf, normalize_newlines
 
 
 __version__ = '1.0'
@@ -70,6 +72,23 @@ def _parse_datetime(d):
     except ValueError:
         d = c.EVENT_TIMEZONE.localize(d)  # naive assumed to be event timezone
     return d
+
+
+def _parse_if_datetime(key, val):
+    # This should be in the UTCDateTime and Date classes, but they're not defined in this app
+    if hasattr(getattr(Attendee, key), 'type') and (
+            isinstance(getattr(Attendee, key).type, UTCDateTime) or isinstance(getattr(Attendee, key).type, Date)):
+        return _parse_datetime(val)
+    return val
+
+
+def _parse_if_boolean(key, val):
+    if hasattr(getattr(Attendee, key), 'type') and isinstance(getattr(Attendee, key).type, Boolean):
+        if isinstance(val, six.string_types):
+            return val.strip().lower() not in ('f', 'false', 'n', 'no', '0')
+        else:
+            return bool(val)
+    return val
 
 
 def auth_by_token(required_access):
@@ -527,6 +546,87 @@ class AttendeeLookup:
                 'unknown_names_and_emails': unknown_names_and_emails,
                 'attendees': attendees,
             }
+
+    @api_auth('api_create')
+    def create(self, first_name, last_name, email, params):
+        """
+        Create an attendee with at least a first name, last name, and email. Prevents duplicate attendees.
+
+        `params` should be a dictionary with column name: value to set other values, or a falsey value.
+        Use labels for Choice and MultiChoice columns, and a string like "no" or "yes" for Boolean columns.
+        Date and DateTime columns should be parsed correctly as long as they follow a standard format.
+
+        Example `params` dictionary for setting extra parameters:
+        <pre>{"placeholder": "yes", "legal_name": "First Last", "cellphone": "5555555555"}</pre>
+        """
+        with Session() as session:
+            attendee_query = session.query(Attendee).filter(Attendee.first_name.ilike("first_name"),
+                                                            Attendee.last_name.ilike("last_name"),
+                                                            Attendee.email.ilike("email@example.com"))
+
+            if attendee_query.first():
+                raise HTTPError(400, 'An attendee with this name and email address already exists')
+
+            attendee = Attendee(first_name=first_name, last_name=last_name, email=email)
+
+            if params:
+                for key, val in params.items():
+                    params[key] = _parse_if_datetime(key, val)
+                    params[key] = _parse_if_boolean(key, val)
+
+            attendee.apply(params, restricted=False)
+            session.add(attendee)
+
+            message = check(attendee)
+            if message:
+                session.rollback()
+                raise HTTPError(400, message)
+
+            # Duplicates functionality on the admin form that makes placeholder badges need not pay
+            # Staff (not volunteers) also almost never need to pay by default
+            if (attendee.placeholder or
+                    attendee.staffing and c.VOLUNTEER_RIBBON not in attendee.ribbon_ints) and 'paid' not in params:
+                attendee.paid = c.NEED_NOT_PAY
+
+            return attendee.id
+
+    @api_auth('api_update')
+    def update(self, id, params):
+        """
+        Update an attendee using their unique ID, returned by our lookup functions.
+
+        `params` should be a dictionary with column name: value to update values.
+        Use labels for Choice and MultiChoice columns, and a string like "no" or "yes" for Boolean columns.
+        Date and DateTime columns should be parsed correctly as long as they follow a standard format.
+
+        Example:
+        <pre>{"first_name": "First", "paid": "doesn't need to", "ribbon": "Volunteer, Panelist"}</pre>
+        """
+        with Session() as session:
+            attendee = session.attendee(id, allow_invalid=True)
+
+            if not attendee:
+                raise HTTPError(404, 'No attendee found with this ID')
+            
+            if not params:
+                raise HTTPError(400, 'Please provide parameters to update')
+
+            for key, val in params.items():
+                params[key] = _parse_if_datetime(key, val)
+                params[key] = _parse_if_boolean(key, val)
+
+            attendee.apply(params, restricted=False)
+            message = check(attendee)
+            if message:
+                session.rollback()
+                raise HTTPError(400, message)
+
+            # Staff (not volunteers) also almost never need to pay by default
+            if attendee.staffing and not attendee.orig_value_of('staffing') \
+                    and c.VOLUNTEER_RIBBON not in attendee.ribbon_ints and 'paid' not in params:
+                attendee.paid = c.NEED_NOT_PAY
+
+            return attendee.id
 
 
 @all_api_auth('api_update')

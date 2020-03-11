@@ -89,3 +89,8 @@ class Root:
     def extra_merch(self, session):
         return {
             'attendees': session.query(Attendee).filter(Attendee.extra_merch != '').order_by(Attendee.full_name).all()}
+        
+    def owed_merch(self, session):
+        return {
+            'attendees': session.query(Attendee).filter(Attendee.amount_extra > 0, Attendee.got_merch == False)
+        }

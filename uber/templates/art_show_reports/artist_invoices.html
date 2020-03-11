@@ -1,0 +1,9 @@
+{% extends "art_show_common/print_form.html" %}{% set admin_area=True %}{% set no_print = True %}
+{% import 'art_show_common/print_macros.html' as print_macros with context %}
+
+{% block printform %}
+{% for app in apps %}
+{{ print_macros.print_artist_invoice(app) }}
+<div class="pagebreak"></div>
+{% endfor %}
+{% endblock %}

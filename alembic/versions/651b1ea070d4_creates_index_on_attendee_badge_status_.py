@@ -1,7 +1,7 @@
 """Creates index on attendee(badge_status, badge_type)
 
 Revision ID: 651b1ea070d4
-Revises: 05009fad3d3c
+Revises: 9d90d3d538c6
 Create Date: 2018-08-16 05:25:14.626408
 
 """
@@ -9,7 +9,7 @@ Create Date: 2018-08-16 05:25:14.626408
 
 # revision identifiers, used by Alembic.
 revision = '651b1ea070d4'
-down_revision = '05009fad3d3c'
+down_revision = '9d90d3d538c6'
 branch_labels = None
 depends_on = None
 

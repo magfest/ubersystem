@@ -55,6 +55,25 @@
         </div>
       {% endif %}
 
+      {% if attendee.is_dealer %}
+      {% if attendee.group.status == c.DECLINED %}
+        {% set bg_class = 'danger' %}
+      {% elif attendee.group.status == c.APPROVED %}
+        {% set bg_class = 'success' %}
+      {% elif attendee.group.status == c.WAITLISTED %}
+        {% set bg_class = 'warning' %}
+      {% else %}
+        {% set bg_class = 'info' %}
+      {% endif %}
+        <div class="alert alert-{{ bg_class }}">
+          Your group "<a href="group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>"
+          is currently {{ attendee.group.status_label }}.
+          {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE %}
+          <br/><br/>If you would like, you may instead
+          <a href="../marketplace/index?attendee_id={{ attendee.id }}" target="_blank">apply for a table in the Marketplace.</a>{% endif %}
+        </div>
+      {% endif %}
+
       {{ attendee_fields.badge_buttons }}
       {{ attendee_fields.prereg_intro }}
       {{ attendee_fields.name }}

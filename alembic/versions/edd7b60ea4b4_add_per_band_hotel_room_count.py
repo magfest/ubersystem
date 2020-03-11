@@ -1,7 +1,7 @@
 """Add per-band hotel room count
 
 Revision ID: edd7b60ea4b4
-Revises: fc791d73e762
+Revises: fc4b8eb3a35f
 Create Date: 2017-06-22 15:36:41.797478
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-06-22 15:36:41.797478
 
 # revision identifiers, used by Alembic.
 revision = 'edd7b60ea4b4'
-down_revision = 'fc791d73e762'
+down_revision = 'fc4b8eb3a35f'
 branch_labels = None
 depends_on = None
 
