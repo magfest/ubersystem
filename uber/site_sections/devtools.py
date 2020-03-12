@@ -138,7 +138,7 @@ class Root:
 
         all_instances = session.query(model).filter(model.id.in_(id_list)).all() if id_list else None
 
-        return self.index(message, all_instances)
+        return self.csv_import(message, all_instances)
 
     @site_mappable
     def csv_export(self, message='', **params):
