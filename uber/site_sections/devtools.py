@@ -1,4 +1,5 @@
 import os
+import json
 import shlex
 import subprocess
 import csv
@@ -7,6 +8,7 @@ import six
 from datetime import datetime
 
 from sideboard.debugging import register_diagnostics_status_function, gather_diagnostics_status_information
+from sqlalchemy.dialects.postgresql.json import JSONB
 from pockets.autolog import log
 from pytz import UTC
 from sqlalchemy.types import Date, Boolean, Integer
@@ -122,6 +124,9 @@ class Root:
                     val = datetime.strptime(val, date_format).date()
                 elif isinstance(col.type, Integer):
                     val = int(val)
+                elif isinstance(col.type, JSONB):
+                    val = val.replace("'", '"') # Temporary fix for Access Groups -- remove after SuperMAG 2021
+                    val = json.loads(val)
 
                 # now that we've converted val to whatever it actually needs to be, we
                 # can just set it on the model
@@ -175,6 +180,8 @@ class Root:
                     # Also you should fill in whatever actual format you want.
                     val = getattr(attendee, col.name)
                     row.append(val.strftime('%Y-%m-%d %H:%M:%S') if val else '')
+                elif isinstance(col.type, JSONB):
+                    row.append(json.dumps(getattr(attendee, col.name)))
                 else:
                     # For everything else we'll just dump the value, although we might
                     # consider adding more special cases for things like foreign keys.
