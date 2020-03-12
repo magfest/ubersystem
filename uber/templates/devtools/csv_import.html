@@ -29,7 +29,7 @@ This attempts to import a csv file for the table you select. <strong>Please do n
         <th>When</th>
     </tr></thead>
 {% for attendee in attendees %}
-    <tr bgcolor="{{ loop.cycle('#FFFFFF', '#DDDDDD') }}">
+    <tr>
         <td id="uuid">
             {{ attendee.id }}
         </td>
