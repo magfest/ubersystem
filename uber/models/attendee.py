@@ -579,14 +579,21 @@ class Attendee(MagModel, TakesPaymentMixin):
     @presave_adjustment
     def update_purchased_items(self):
         self.purchased_items.clear()
+        self.purchased_items = self.current_purchased_items
+    
+    @property
+    def current_purchased_items(self):
+        purchased_items = {}
         for name in self.cost_property_names:
             value = getattr(self, name, 0)
             if value:
-                self.purchased_items[name] = value
+                purchased_items[name] = value
         if self.amount_extra:
-            self.purchased_items['kick_in_cost'] = self.amount_extra
-        if self.paid == c.PAID_BY_GROUP and self.purchased_items['badge_cost']:
-            del self.purchased_items['badge_cost']
+            purchased_items['kick_in_cost'] = self.amount_extra
+        if self.promo_code_groups or self.paid == c.PAID_BY_GROUP and purchased_items['badge_cost']:
+            del purchased_items['badge_cost']
+        
+        return purchased_items
     
     @presave_adjustment
     def set_payment_method(self):
@@ -805,6 +812,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def amount_extra_unpaid(self):
         return self.total_cost - self.badge_cost
+    
+    @property
+    def amount_pending(self):
+        return sum([item.amount for item in self.receipt_items if item.txn_type == c.PENDING])
 
     @hybrid_property
     def amount_paid(self):
@@ -836,7 +847,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             personal_cost = max(0, self.total_cost - self.badge_cost)
         else:
             personal_cost = self.total_cost
-        return max(0, ((personal_cost * 100) - self.amount_paid) / 100)
+        return max(0, ((personal_cost * 100) - self.amount_paid - self.amount_pending) / 100)
 
     @property
     def paid_for_badge(self):

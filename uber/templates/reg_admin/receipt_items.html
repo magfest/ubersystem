@@ -53,20 +53,20 @@ $().ready(function() {
 
 <div class="panel panel-body"><h3>Add Payment or Refund</h3>
 <p>Use the Stripe Payment History table at the bottom of this page to associate a payment or refund with a Stripe transaction. Please <b>only</b> add payments if the attendee has paid.</p>
-{% if attendee.purchased_items %}<p>This attendee has purchased the following:
-<br/> {% for name, val in attendee.purchased_items.items() %}{{ name[:-5]|replace('_', ' ')|title }}: ${{ val }}<br/>{% endfor %}
+{% if model.purchased_items %}<p>This attendee has purchased the following:
+<br/> {% for name, val in model.purchased_items.items() %}{{ name[:-5]|replace('_', ' ')|title }}: ${{ val }}<br/>{% endfor %}
 </p>{% endif %}
-{% if attendee.refunded_items %}<p>We have marked the following items as refunded:
-<br/> {% for name, val in attendee.refunded_items.items() %}{{ name[:-5]|replace('_', ' ')|title }}: ${{ val }}<br/>{% endfor %}
+{% if model.refunded_items %}<p>We have marked the following items as refunded:
+<br/> {% for name, val in model.refunded_items.items() %}{{ name[:-5]|replace('_', ' ')|title }}: ${{ val }}<br/>{% endfor %}
 </p>{% endif %}
 <form class="form" method="post" action="add_receipt_item" id="add_receipt_item" role="form">
 <input type="hidden" name="id" value="{{ model.id }}" />
 {{ csrf_token() }}
-{% if attendee.amount_unpaid %}
-{% set amount = amount or attendee.amount_unpaid %}
+{% if model.amount_unpaid %}
+{% set amount = amount or model.amount_unpaid %}
 {% set default_txn_type = c.PAYMENT %}
 {% else %}
-{% set amount = amount or (attendee.amount_paid - attendee.amount_refunded) / 100 %}
+{% set amount = amount or (model.amount_paid - model.amount_refunded) / 100 %}
 {% set default_txn_type = c.REFUND %}
 {% endif %}
 <table class="table">
@@ -133,7 +133,7 @@ $().ready(function() {
         <td>{{ item.who }}</td>
         <td>{{ item.desc }}{% if item.fk_id %}({{ item.model }}){% endif %}</td>
         <td>${{ '%0.2f' % (item.amount / 100) }} {{ item.type_label }}</td>
-        <td>{{ 'N/A' if item.cost_snapshot == {} }}{% for name, val in item.cost_snapshot.items() %}{{ name[:-5]|replace('_', ' ')|title }}: ${{ val }}{% endfor %}</td>
+        <td>{{ 'N/A' if item.cost_snapshot == {} }}{% for name, val in item.cost_snapshot.items() %}{{ name[:-5]|replace('_', ' ')|title }}: ${{ val }}<br/>{% endfor %}</td>
         <td>{{ 'N/A' if item.refund_snapshot == {} }}{% for name, val in item.refund_snapshot.items() %}{{ name[:-5]|replace('_', ' ')|title }}: ${{ val }}{% endfor %}</td>
         <td>{{ item.txn_type_label }}</td>
         <td>
@@ -159,8 +159,8 @@ $().ready(function() {
     <th>Amount</th>
     <th></th>
   </tr></thead>
-  {% for name, val in attendee.purchased_items.items() %}
-  {% if name not in attendee.refunded_items %}
+  {% for name, val in model.purchased_items.items() %}
+  {% if not model.refunded_items or name not in model.refunded_items %}
   <tr>
   <td>
     {{ name[:-5]|replace('_', ' ')|title }}
@@ -180,7 +180,8 @@ $().ready(function() {
   </tr>
   {% endif %}
   {% endfor %}
-  {% for name, val in attendee.refunded_items.items() %}
+  {% if model.refunded_items %}
+  {% for name, val in model.refunded_items.items() %}
   <tr>
   <td>
     {{ name[:-5]|replace('_', ' ')|title }}
@@ -199,6 +200,7 @@ $().ready(function() {
   </td>
   </tr>
   {% endfor %}
+  {% endif %}
 </table>
 </div>
 {% endif %}

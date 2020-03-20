@@ -93,32 +93,40 @@ class Group(MagModel, TakesPaymentMixin):
             return
         
         self.purchased_items.clear()
+        self.purchaed_items = self.current_purchased_items
+        
+    @property
+    def current_purchased_items(self):
+        purchased_items = {}
         if not self.auto_recalc:
             # ¯\_(ツ)_/¯
             if self.cost:
-                self.purchased_items['group_total'] = self.cost
+                purchased_items['group_total'] = self.cost
         else:
             # Groups tables and paid-by-group badges by cost
             table_count = int(float(self.tables))
             default_price = c.TABLE_PRICES['default_price']
             more_tables = {default_price: 0}
-            for i in table_count:
+            for i in range(table_count):
                 if c.TABLE_PRICES[i] == default_price:
                     more_tables[default_price] += 1
                 else:
-                    self.purchased_items['table_' + i] = c.TABLE_PRICES[i]
+                    purchased_items['table_' + str(i) + '_cost'] = c.TABLE_PRICES[i]
             if more_tables[default_price]:
-                self.purchased_items[more_tables[default_price] + 
-                                     ' extra table(s) at $' + 
-                                     default_price + ' each'] = default_price * more_tables[default_price]
+                cost_label = str(more_tables[default_price]) + '_extra_table{}_($'.format(
+                    's' if more_tables[default_price] > 1 else '') + str(default_price) + '_each)_cost'
+                purchased_items[cost_label] = default_price * more_tables[default_price]
             
             badges_by_cost = {}
             for attendee in self.attendees:
                 if attendee.paid == c.PAID_BY_GROUP:
                     badges_by_cost[attendee.badge_cost] = bool(badges_by_cost.get(attendee.badge_cost)) + 1
             for cost in badges_by_cost:
-                self.purchased_items[badges_by_cost[cost] + 
-                                     ' badge(s) at $' + cost + ' each'] = cost * badges_by_cost[cost]
+                cost_label = str(badges_by_cost[cost]) + '_badge{}_($'.format(
+                    's' if badges_by_cost[cost] > 1 else '') + str(cost) + '_each)_cost'
+                purchased_items[cost_label] = cost * badges_by_cost[cost]
+        
+        return purchased_items
                 
     @presave_adjustment
     def assign_creator(self):
@@ -252,9 +260,13 @@ class Group(MagModel, TakesPaymentMixin):
     @property
     def amount_unpaid(self):
         if self.registered:
-            return max(0, ((self.cost * 100) - self.amount_paid) / 100)
+            return max(0, ((self.cost * 100) - self.amount_paid - self.amount_pending) / 100)
         else:
             return self.total_cost
+        
+    @property
+    def amount_pending(self):
+        return sum([item.amount for item in self.receipt_items if item.txn_type == c.PENDING])
 
     @hybrid_property
     def amount_paid(self):

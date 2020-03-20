@@ -347,15 +347,10 @@ def check_shutdown(func):
 
 def credit_card(func):
     @wraps(func)
-    def charge(self, session, payment_id=None, stripeToken=None, stripeEmail='ignored', **ignored):
-        log.debug('PAYMENT: payment_id={}, stripeToken={}', payment_id or 'NONE', stripeToken or 'NONE')
-
-        if ignored:
-            log.debug('PAYMENT: received unexpected stripe parameters: {}', ignored)
-
+    def charge(self, session, id=None, **kwargs):
         try:
             try:
-                return func(self, session=session, payment_id=payment_id, stripeToken=stripeToken)
+                return func(self, session=session, id=id, **kwargs)
             except HTTPRedirect:
                 # Paranoia: we want to try commiting while we're INSIDE of the
                 # @credit_card decorator to ensure that we catch any database
@@ -369,11 +364,10 @@ def credit_card(func):
             raise
         except Exception:
             error_text = \
-                'Got an error while calling charge' \
-                '(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}\n\n' \
-                'IMPORTANT: This could have resulted in an attendee paying and not being ' \
-                'marked as paid in the database. Definitely double check this.'\
-                .format(payment_id, stripeToken, ignored, traceback.format_exc())
+                'Got an error while calling charge:\n{}\n\n' \
+                'IMPORTANT: This is likely preventing someone from paying for' \
+                ' something with no error on their end. Look into this ASAP.'\
+                .format(traceback.format_exc())
 
             report_critical_exception(msg=error_text, subject='ERROR: MAGFest Stripe error (Automated Message)')
             return traceback.format_exc()

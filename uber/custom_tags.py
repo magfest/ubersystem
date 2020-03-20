@@ -599,33 +599,14 @@ def csrf_token():
 
 
 @JinjaEnv.jinja_export
-def stripe_form(action, charge):
-    payment_id = uuid4().hex
-    cherrypy.session[payment_id] = charge.to_dict()
+def stripe_form(action, model=None, **params):
+    new_params = {'params': {}}
+    for key, val in params.items():
+        new_params['params'][key] = val
+    new_params['action'] = action
+    new_params['id'] = model.id if model else None
 
-    email = None
-    if charge.models and charge.models[0].email:
-        email = charge.models[0].email[:255]
-
-    if not charge.models:
-        if c.AT_THE_CON:
-            regtext = 'On-Site Charge'
-        else:
-            regtext = 'Charge'
-    elif c.AT_THE_CON:
-        regtext = 'Registration'
-    else:
-        regtext = 'Preregistration'
-
-    params = {
-        'action': action,
-        'regtext': regtext,
-        'email': email,
-        'payment_id': payment_id,
-        'charge': charge
-    }
-
-    return safe_string(render('preregistration/stripeForm.html', params).decode('utf-8'))
+    return safe_string(render('preregistration/stripeForm.html', new_params).decode('utf-8'))
 
 
 @JinjaEnv.jinja_export
