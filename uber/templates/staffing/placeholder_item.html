@@ -7,6 +7,6 @@
     {% else %}
         Confirm
     {% endif %}
-    you are coming to {{ c.EVENT_NAME }}. (Deadline: {% c.VOLUNTEER_PLACEHOLDER_DEADLINE %})
+    you are coming to {{ c.EVENT_NAME }}. (Deadline: {{ c.VOLUNTEER_PLACEHOLDER_DEADLINE }})
     {% if not attendee.placeholder %}(you can still <a href="../preregistration/confirm?return_to=../staffing/index&id={{ attendee.id }}">edit your info</a>){% endif %}
 </li>
