@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Volunteer Agreement{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<h1>Emergency Procedures</h1>
+
+<p>
+<a href="../static/emergency-procedures.pdf" class="btn btn-info" download>Download and Review Emergency Procedures</a>
+</p>
+
+{% if not attendee.reviewed_emergency_procedures %}
+    <form method="post" action="emergency_procedures">
+        {{ csrf_token() }}
+        <label for="reviewed_procedures">
+          I have reviewed these procedures: <input type="checkbox" id="reviewed_procedures" name="reviewed_procedures" />
+        </label>
+        <br><br>
+        <input class="btn btn-primary" type="submit" value="Save" />
+    </form>
+{% else %}
+    <p>You have already told us that you reviewed our emergency procedures.</p>
+{% endif %}
+
+{% endblock %}

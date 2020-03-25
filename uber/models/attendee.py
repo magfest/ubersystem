@@ -350,7 +350,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     staffing = Column(Boolean, default=False)
     agreed_to_volunteer_agreement = Column(Boolean, default=False)
+    reviewed_emergency_procedures = Column(Boolean, default=False)
     name_in_credits = Column(UnicodeText, nullable=True)
+    walk_on_volunteer = Column(Boolean, default=False)
     nonshift_hours = Column(Integer, default=0, admin_only=True)
     past_years = Column(UnicodeText, admin_only=True)
     can_work_setup = Column(Boolean, default=False, admin_only=True)
@@ -1687,7 +1689,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         return not self.placeholder and self.food_restrictions_filled_out and self.shirt_info_marked and (
             not self.hotel_eligible
             or self.hotel_requests
-            or not c.BEFORE_ROOM_DEADLINE)
+            or not c.BEFORE_ROOM_DEADLINE) and (
+            not c.VOLUNTEER_AGREEMENT_ENABLED or self.agreed_to_volunteer_agreement) and (
+            not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures)
 
     @property
     def hotel_nights(self):

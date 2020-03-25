@@ -195,3 +195,10 @@ class Root:
 
     def volunteer_checklists(self, session):
         return volunteer_checklists(session)
+    
+    @csv_file
+    def name_in_credits(self, out, session):
+        out.writerow(["Name submitted for credits"])
+        for attendee in session.all_attendees():
+            if attendee.name_in_credits:
+                out.writerow([attendee.name_in_credits])
