@@ -7,16 +7,25 @@ from pockets import listify
 from pytz import UTC
 
 from uber.config import c
-from uber.decorators import all_renderable, csrf_protected, render
+from uber.decorators import ajax, all_renderable, csrf_protected, render
 from uber.errors import HTTPRedirect
-from uber.models import Email, MITSTeam
+from uber.models import Email, MITSDocument, MITSPicture, MITSTeam
 from uber.tasks.email import send_email
 from uber.utils import check, localized_now
 
 
 @all_renderable(public=True)
 class Root:
-    def index(self, session, message=''):
+    def index(self, session, message='', **params):
+        team = session.mits_team(params, restricted=True)
+        
+        if cherrypy.request.method == 'POST':
+            message = check(team)
+        
+            if not message:
+                session.add(team)
+                raise HTTPRedirect('index?message={}', 'Team updated')
+        
         return {
             'message': message,
             'team': session.logged_in_mits_team()
@@ -172,59 +181,44 @@ class Root:
             session.delete(applicant)
             raise HTTPRedirect('index?message={}', 'Team member deleted')
 
-    def picture(self, session, message='', image=None, **params):
-        picture = session.mits_picture(params, applicant=True)
-        if cherrypy.request.method == 'POST':
-            message = check(picture)
-            if not message and (not image or not image.filename):
-                message = 'You must select a picture to upload'
-            if not message:
-                picture.filename = image.filename
-                picture.content_type = image.content_type.value
-                picture.extension = image.filename.split('.')[-1].lower()
-                with open(picture.filepath, 'wb') as f:
-                    shutil.copyfileobj(image.file, f)
-                raise HTTPRedirect('index?message={}', 'Picture Uploaded')
-
-        return {
-            'message': message,
-            'picture': picture
-        }
-
-    @csrf_protected
+    @ajax
     def delete_picture(self, session, id):
-        picture = session.mits_picture(id, applicant=True)
+        picture = session.mits_picture(id)
         session.delete_mits_file(picture)
-        raise HTTPRedirect('index?message={}', 'Picture deleted')
+        return "Picture deleted"
 
-    def document(self, session, message='', upload=None, **params):
-        doc = session.mits_document(params, applicant=True)
-        if cherrypy.request.method == 'POST':
-            message = check(doc)
-            if not message and not upload:
-                message = 'You must select a document to upload'
-            if not message:
-                doc.filename = upload.filename
-                with open(doc.filepath, 'wb') as f:
-                    shutil.copyfileobj(upload.file, f)
-                raise HTTPRedirect('index?message={}', 'Document Uploaded')
-
-        return {
-            'doc': doc,
-            'message': message
-        }
-
-    @csrf_protected
+    @ajax
     def delete_document(self, session, id):
-        doc = session.mits_document(id, applicant=True)
+        doc = session.mits_document(id)
         session.delete_mits_file(doc)
-        raise HTTPRedirect('index?message={}', 'Document deleted')
+        return "Document deleted"
 
     def game(self, session, message='', **params):
-        game = session.mits_game(params, bools=['personally_own', 'unlicensed', 'professional'], applicant=True)
+        game = session.mits_game(params, applicant=True)
         if cherrypy.request.method == 'POST':
-            message = check(game)
+            documents = params.get('upload_documents', [])
+            documents = documents if isinstance(documents, list) else [documents]
+            if not documents[0].filename and not game.documents:
+                message = "You must upload at least one rulesbook or other document."
+            else:
+                message = check(game)
             if not message:
+                for doc in [d for d in documents if d.filename]:
+                    new_doc = MITSDocument(game_id=game.id, filename=doc.filename)
+                    with open(new_doc.filepath, 'wb') as f:
+                        shutil.copyfileobj(doc.file, f)
+                    session.add(new_doc)
+                
+                pictures = params.get('upload_pictures', [])
+                pictures = pictures if isinstance(pictures, list) else [pictures]
+                for pic in [p for p in pictures if p.filename]:
+                    new_pic = MITSPicture(game_id=game.id, 
+                                          filename=pic.filename, 
+                                          content_type=pic.content_type.value,
+                                          extension=pic.filename.split('.')[-1].lower())
+                    with open(new_pic.filepath, 'wb') as f:
+                        shutil.copyfileobj(pic.file, f)
+                    session.add(new_pic)
                 session.add(game)
                 raise HTTPRedirect('index?message={}', 'Game saved')
 
