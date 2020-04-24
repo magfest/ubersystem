@@ -100,7 +100,7 @@ class Root:
     def stripe_webhook_handler(request=None):
         if not request or not request.body:
             return "Request required"
-        sig_header = request.META['HTTP_STRIPE_SIGNATURE']
+        sig_header = cherrypy.request.headers['HTTP_STRIPE_SIGNATURE']
         payload = request.body
         event = None
 

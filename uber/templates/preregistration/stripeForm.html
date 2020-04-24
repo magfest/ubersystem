@@ -112,7 +112,7 @@ var collectStripePayment = function (client_secret, stripe_id, success_url, canc
             fontSmoothing: 'antialiased',
             fontSize: '16px',
             '::placeholder': {
-            color: '#aab7c4'
+                color: '#aab7c4'
             }
         },
         invalid: {
@@ -126,9 +126,9 @@ var collectStripePayment = function (client_secret, stripe_id, success_url, canc
     card.addEventListener('change', ({error}) => {
         const displayError = $('#card-errors');
         if (error) {
-        displayError.textContent = error.message;
+            displayError.textContent = error.message;
         } else {
-        displayError.textContent = '';
+            displayError.textContent = '';
         }
     });
 
