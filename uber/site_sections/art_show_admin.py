@@ -5,6 +5,7 @@ import re
 import math
 
 from decimal import Decimal
+from six import string_types
 from sqlalchemy import or_, and_
 from io import BytesIO
 
@@ -695,24 +696,12 @@ class Root:
 
             if not must_choose:
                 raise HTTPRedirect('pieces_bought?id={}&message={}', receipt.id, message)
-        elif 'amount' in params:
-            if params['amount']:
-                amount = int(Decimal(params['amount']) * 100)
-            else:
-                amount = receipt.owed
-
-            charge = Charge(targets=[attendee],
-                            amount=amount,
-                            description='{}ayment for {}\'s art show purchases'.format(
-                                'P' if amount == receipt.total else 'Partial p',
-                                attendee.full_name))
 
         return {
             'receipt': receipt,
             'message': message,
             'must_choose': must_choose,
             'pieces': unclaimed_pieces or unpaid_pieces,
-            'charge': charge,
         }
 
     def unclaim_piece(self, session, id, piece_id, **params):
@@ -762,7 +751,7 @@ class Root:
 
         session.delete(payment)
 
-        raise HTTPRedirect('pieces_bought?id={}&message={}', payment.receipt.attendee.id, payment_or_refund + "deleted")
+        raise HTTPRedirect('pieces_bought?id={}&message={}', payment.receipt.attendee.id, payment_or_refund + " deleted")
 
     def print_receipt(self, session, id, **params):
         receipt = session.art_show_receipt(id)
@@ -781,54 +770,63 @@ class Root:
         }
 
     @public
+    @ajax
     @credit_card
-    def purchases_charge(self, session, payment_id, stripeToken):
-        charge = Charge.get(payment_id)
-        message = charge.charge_cc(session, stripeToken)
-        attendee_id = charge.attendees[0].id
-        attendee = session.attendee(attendee_id)
-        receipt = attendee.art_show_receipt
+    def purchases_charge(self, session, id, amount, receipt_id):
+        receipt = session.art_show_receipt(receipt_id)
+        attendee = session.attendee(id)
+        charge = Charge(attendee,
+                        amount=amount,
+                        description='{}ayment for {}\'s art show purchases'.format(
+                            'P' if int(amount) == receipt.total else 'Partial p',
+                            attendee.full_name))
+        stripe_intent = charge.create_stripe_intent(session)
+        message = stripe_intent if isinstance(stripe_intent, string_types) else ''
         if message:
-            raise HTTPRedirect('pieces_bought?id={}&message={}', attendee.id, message)
+            return {'error': message}
         else:
             session.add(ArtShowPayment(
                 receipt=receipt,
                 amount=charge.amount,
                 type=c.STRIPE,
             ))
-            raise HTTPRedirect('pieces_bought?id={}&message={}', attendee.id, 'Charge successfully processed')
+            session.commit()
+            return {'stripe_intent': stripe_intent,
+                    'success_url': 'pieces_bought?id={}&message={}'.format(attendee.id, 'Charge successfully processed')}
 
     @public
     def sales_charge_form(self, message='', amount=None, description='',
                           sale_id=None):
-        charge = None
+        charge = False
         if amount is not None:
             if not description:
                 message = "You must enter a brief description " \
                           "of what's being sold"
             else:
-                charge = Charge(amount=int(100 * float(amount)),
-                                description=description)
+                charge = True
 
         return {
-            'charge': charge,
             'message': message,
             'amount': amount,
             'description': description,
-            'sale_id': sale_id
+            'sale_id': sale_id,
+            'charge': charge,
         }
 
     @public
+    @ajax
     @credit_card
-    def sales_charge(self, session, payment_id, stripeToken):
-        charge = Charge.get(payment_id)
-        message = charge.charge_cc(session, stripeToken)
+    def sales_charge(self, session, id, amount, description):
+        charge = Charge(amount=100 * float(amount), description=description)
+        stripe_intent = charge.create_stripe_intent(session)
+        message = stripe_intent if isinstance(stripe_intent, string_types) else ''
         if message:
-            raise HTTPRedirect('sales_charge_form?message={}', message)
+            return {'error': message}
         else:
             session.add(ArbitraryCharge(
                 amount=charge.dollar_amount,
-                what=charge.description
+                what=charge.description,
             ))
-            raise HTTPRedirect('sales_charge_form?message={}',
-                               'Charge successfully processed')
+            return {'stripe_intent': stripe_intent,
+                    'success_url': 'sales_charge_form?message={}'.format('Charge successfully processed'),
+                    'cancel_url': '../merch_admin/cancel_arbitrary_charge'}

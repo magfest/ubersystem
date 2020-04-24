@@ -88,7 +88,7 @@
 
 {% if group.amount_unpaid and not group.is_dealer %}
     <div style="text-align:center">
-        {{ stripe_form('process_group_payment',charge) }}
+        {{ stripe_form('process_group_payment',group) }}
     </div>
 {% endif %}
 

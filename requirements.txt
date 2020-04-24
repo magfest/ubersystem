@@ -3,7 +3,7 @@ celery==4.1.1
 python-dateutil==2.6.0
 psycopg2==2.7.3.2
 py3k-bcrypt==0.3
-stripe==1.25.0
+stripe==2.42.0
 pytz==2017.2
 alembic==0.9.1
 treepoem==1.0.1

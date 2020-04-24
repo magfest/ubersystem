@@ -867,11 +867,15 @@ class Charge:
 
     @classproperty
     def paid_preregs(cls):
-        return cherrypy.session.setdefault('paid_preregs', [])
+        return cherrypy.session.get('paid_preregs', [])
 
     @classproperty
     def unpaid_preregs(cls):
         return cherrypy.session.setdefault('unpaid_preregs', OrderedDict())
+    
+    @classproperty
+    def pending_preregs(cls):
+        return cherrypy.session.get('pending_preregs', OrderedDict())
     
     @classproperty
     def universal_promo_codes(cls):
@@ -1001,7 +1005,7 @@ class Charge:
 
     @cached_property
     def amount(self):
-        return self._amount or self.total_cost or 0
+        return int(self._amount or self.total_cost or 0)
 
     @cached_property
     def description(self):
@@ -1044,41 +1048,32 @@ class Charge:
     def stripe_transaction(self):
         return self._stripe_transaction
 
-    def charge_cc(self, session, token):
+    def create_stripe_intent(self, session):
+        log.debug('PAYMENT: !!! attempting to charge {} cents for {}', self.amount, self.description)
         try:
-            log.debug('PAYMENT: !!! attempting to charge stripeToken {} {} cents for {}',
-                      token, self.amount, self.description)
-
-            self.response = stripe.Charge.create(
-                card=token,
+            stripe_intent = stripe.PaymentIntent.create(
+                payment_method_types=['card'],
+                amount=self.amount,
                 currency='usd',
-                amount=int(self.amount),
                 description=self.description,
-                receipt_email=self.receipt_email
             )
 
-            log.info('PAYMENT: !!! SUCCESS: charged stripeToken {} {} cents for {}, responseID={}',
-                     token, self.amount, self.description, getattr(self.response, 'id', None))
-
-        except stripe.CardError as e:
-            msg = 'Your card was declined with the following error from our processor: ' + str(e)
-            log.error('PAYMENT: !!! FAIL: {}', msg)
-            return msg
-        except stripe.StripeError as e:
-            error_txt = 'Got an error while calling charge_cc(self, token={!r})'.format(token)
-            report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
-            return 'An unexpected problem occurred while processing your card: ' + str(e)
-        else:
             if self.models:
-                self._stripe_transaction = self.stripe_transaction_from_charge()
+                self._stripe_transaction = self.stripe_transaction_from_charge(stripe_intent.id)
                 session.add(self._stripe_transaction)
                 for model in self.models:
                     multi = len(self.models) > 1
                     session.add(self.stripe_transaction_for_model(model, self._stripe_transaction, multi))
 
-    def stripe_transaction_from_charge(self, type=c.PAYMENT):
+            return stripe_intent
+        except Exception as e:
+            error_txt = 'Got an error while calling create_stripe_intent()'
+            report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
+            return 'An unexpected problem occurred while processing your card: ' + str(e)
+
+    def stripe_transaction_from_charge(self, stripe_id='', type=c.PENDING):
         return uber.models.StripeTransaction(
-            stripe_id=self.response.id or None,
+            stripe_id=stripe_id,
             amount=self.amount,
             desc=self.description,
             type=type,
@@ -1098,3 +1093,34 @@ class Charge:
                 group_id=model.id,
                 share=self.amount if not multi else model.amount_unpaid * 100
             )
+
+    @staticmethod
+    def mark_paid_from_stripe(payment_intent):
+        stripe_id = payment_intent.id
+
+        with uber.models.Session() as session:
+            matching_stripe_txns = session.query(uber.models.StripeTransaction).filter_by(stripe_id=stripe_id)
+
+            for txn in matching_stripe_txns:
+                txn.type = c.PAYMENT
+                session.add(txn)
+
+                for item in txn.receipt_items:
+                    item.txn_type = c.PAYMENT
+                    session.add(item)
+
+                for group_log in txn.groups:
+                    group = group_log.group
+                    if not group.amount_pending:
+                        group.paid = c.HAS_PAID
+                        session.add(group)
+
+                for attendee_log in txn.attendees:
+                    attendee = attendee_log.attendee
+                    if not attendee.amount_pending:
+                        if attendee.badge_status == c.PENDING_STATUS:
+                            attendee.badge_status = c.NEW_STATUS
+                        attendee.paid = c.HAS_PAID
+                        session.add(attendee)
+
+            session.commit()

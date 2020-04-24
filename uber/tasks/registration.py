@@ -1,19 +1,23 @@
 from collections import defaultdict
 from datetime import timedelta
 
+import stripe
+import time
 from celery.schedules import crontab
+from pockets.autolog import log
 from sqlalchemy import not_, or_
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import render
-from uber.models import Attendee, Email, Session
+from uber.models import Attendee, Email, Session, StripeTransaction
 from uber.tasks.email import send_email
 from uber.tasks import celery
-from uber.utils import localized_now
+from uber.utils import Charge, localized_now
 
 
-__all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_unassigned_volunteers']
+__all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_unassigned_volunteers',
+           'check_missed_stripe_payments']
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
@@ -137,3 +141,24 @@ def check_near_cap():
             if not session.query(Email).filter_by(subject=subject).first() and actual_badges_left <= badges_left:
                 body = render('emails/badges_sold_alert.txt', {'badges_left': actual_badges_left})
                 send_email(c.ADMIN_EMAIL, [c.REGDESK_EMAIL, c.ADMIN_EMAIL], subject, body, model='n/a')
+
+
+@celery.schedule(timedelta(minutes=30))
+def check_missed_stripe_payments():
+    pending_ids = []
+    with Session() as session:
+        pending_payments = session.query(StripeTransaction).filter_by(type=c.PENDING)
+        for payment in pending_payments:
+            pending_ids.append(payment.stripe_id)
+
+    events = stripe.Event.list(type='payment_intent.succeeded', created={
+        # Check for events created in the last hour.
+        'gte': int(time.time() - 60 * 60),
+    })
+
+    for event in events.auto_paging_iter():
+        payment_intent = event.data.object
+        log.debug('Processing Payment Intent ID {}', payment_intent.id)
+        if payment_intent.id in pending_ids:
+            log.debug('Charge is pending, intent ID is {}', payment_intent.id)
+            Charge.mark_paid_from_stripe(payment_intent)

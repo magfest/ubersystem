@@ -70,8 +70,8 @@ app, c.PAGE_PATH,
           </select>
           <span id="amount_paid">
             <div class="input-group">
-              <span class="input-group-addon">$</span><input type="text" class="form-control" name="app_paid" value="{{ app_paid }}" />
-            </div> (${{ app.attendee.amount_paid / 100 }} of ${{ app.attendee.total_cost }} total)
+              <span class="input-group-addon">$</span><input type="text" class="form-control" name="app_paid" value="{{ app_paid|int }}" />
+            </div> (${{ (app.attendee.amount_paid / 100)|int }} of ${{ app.attendee.total_cost }} total)
           </span>
           </div>
           {% else %}

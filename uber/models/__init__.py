@@ -827,6 +827,7 @@ class Session(SessionManager):
                 StripeTransactionAttendee, StripeTransactionGroup
 
             txn = stripe_log.stripe_transaction
+            response = None
             if txn.type != c.PAYMENT:
                 return 'This is not a payment and cannot be refunded.', None
             else:
@@ -834,9 +835,15 @@ class Session(SessionManager):
                     'REFUND: attempting to refund stripeID {} {} cents for {}',
                     txn.stripe_id, stripe_log.share, txn.desc)
                 try:
-                    response = stripe.Refund.create(
-                        charge=txn.stripe_id, amount=stripe_log.share, reason='requested_by_customer')
-                except stripe.StripeError as e:
+                    if txn.stripe_id.startswith('pi_'):
+                        payment_intent = stripe.PaymentIntent.retrieve(txn.stripe_id)
+                        for charge in payment_intent.charges:
+                            response = stripe.Refund.create(
+                                charge=charge.id, amount=stripe_log.share, reason='requested_by_customer')
+                    elif txn.stripe_id.startswith('ch_'):
+                        response = stripe.Refund.create(
+                            charge=txn.stripe_id, amount=stripe_log.share, reason='requested_by_customer')
+                except Exception as e:
                     error_txt = 'Error while calling process_refund' \
                                 '(self, stripeID={!r})'.format(txn.stripe_id)
                     report_critical_exception(
@@ -870,7 +877,7 @@ class Session(SessionManager):
                 return '', response, refund_txn
 
         def create_receipt_item(self, model, amount, desc, 
-                                stripe_txn=None, txn_type=c.PAYMENT, payment_method=c.STRIPE):
+                                stripe_txn=None, txn_type=c.PENDING, payment_method=c.STRIPE):
             item = ReceiptItem(
                 txn_id=stripe_txn.id if stripe_txn else None,
                 txn_type=txn_type,
@@ -879,13 +886,19 @@ class Session(SessionManager):
                 who=getattr(model, 'full_name', getattr(model, 'name', '')),
                 when=stripe_txn.when if stripe_txn else datetime.now(UTC),
                 desc=desc,
-                cost_snapshot=getattr(model, 'purchased_items', {}))
+                cost_snapshot=getattr(model, 'current_purchased_items', {}))
             if isinstance(model, uber.models.Attendee):
                 item.attendee_id = getattr(model, 'id', None)
             elif isinstance(model, uber.models.Group):
                 item.group_id = getattr(model, 'id', None)
 
             return item
+        
+        def delete_txn_by_stripe_id(self, stripe_id):
+            stripe_txn = self.query(StripeTransaction).filter_by(stripe_id=stripe_id).first()
+            if stripe_txn:
+                self.delete(self.query(ReceiptItem).filter_by(txn_id=stripe_txn.id).first())
+                self.delete(stripe_txn)
 
         def guess_attendee_watchentry(self, attendee, active=True):
             or_clauses = [
@@ -1105,6 +1118,13 @@ class Session(SessionManager):
                     uses_allowed=1,
                     group=pc_group,
                     cost=cost))
+        
+        def remove_codes_from_pc_group(self, pc_group, badges):
+            codes = sorted(pc_group.promo_codes, key=lambda x: x.cost, reverse=True)
+            for _ in range(badges):
+                code = codes.pop()
+                self.delete(code)
+                pc_group.promo_codes.remove(code)
 
         def get_next_badge_num(self, badge_type):
             """
@@ -1266,7 +1286,7 @@ class Session(SessionManager):
 
         def attendees_with_badges(self):
             return self.query(Attendee).filter(not_(Attendee.badge_status.in_(
-                [c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS])))
+                [c.PENDING_STATUS, c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS])))
 
         def all_attendees(self, only_staffing=False, pending=False):
             """

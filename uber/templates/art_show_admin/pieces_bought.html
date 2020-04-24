@@ -53,23 +53,6 @@ Invoice #{{ receipt.invoice_num }}
       </div>
     </div>
   </div>
-  {% elif charge %}
-  <div class="modal fade" id="charge_modal" role="dialog" tabindex="-1">
-    <div class="modal-dialog modal-lg" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-          <h4 class="modal-title">Stripe Charge for ${{ '%0.2f' % (charge.amount / 100) }}</h4>
-        </div>
-
-        <div class="panel-body">
-          {{ stripe_form('purchases_charge', charge) }}
-          <br/><button type="button" class="btn btn-danger" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">Nevermind</span></button>
-        </div>
-
-      </div>
-    </div>
-  </div>
   {% endif %}
   {% endif %}
   <div class="table-responsive">
@@ -132,13 +115,12 @@ Invoice #{{ receipt.invoice_num }}
         </form>
       </td></tr>
       <tr><td colspan="8" class="text-right">
-        <form role="form" method="post" class="form form-inline" action="pieces_bought">
-          <input type="hidden" name="id" value="{{ receipt.id }}" />
+      <div class="form form-inline">
           <div class="input-group">
-            <span class="input-group-addon">$</span><input type="text" class="form-control" name="amount" placeholder="{{ '%0.2f' % (receipt.owed / 100) }}" />
+            <span class="input-group-addon">$</span><input type="text" class="form-control" id="stripe_amount" placeholder="{{ '%0.2f' % (receipt.owed / 100) }}" />
           </div>
-          <button type="submit" class="btn btn-success">Begin Card Payment</button>
-        </form>
+          {{ stripe_form('purchases_charge', receipt.attendee, receipt_id=receipt.id) }}
+      </div>
       </td></tr>
       {% endif %}
       <tr><td colspan="8" class="text-right">
@@ -184,6 +166,16 @@ Invoice #{{ receipt.invoice_num }}
   {{ csrf_token() }}
 </form>
 <script type="text/javascript">
+    var resumeStripeAction = callStripeAction;
+    var callStripeAction = function() {
+      var credit_amt = $('#stripe_amount').val();
+      if (credit_amt == 0) {
+        credit_amt = {{ receipt.owed }} / 100;
+      }
+      stripe_action_params.amount = credit_amt * 100;
+      resumeStripeAction();
+    }
+
     var printReceipt = function() {
         window.open('', 'print_receipt_target', 'width=400,height=400,resizeable,scrollbars');
         $('#print_form').attr('target', 'print_receipt_target').submit();
@@ -198,8 +190,6 @@ Invoice #{{ receipt.invoice_num }}
             window.location.assign('?id={{ receipt.id }}');
         });
     });
-    {% elif charge %}
-    $('.modal').modal('show');
     {% endif %}
 
     $(document).ready(function() {

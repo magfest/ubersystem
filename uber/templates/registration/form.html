@@ -125,7 +125,7 @@
 <div class="alert alert-warning center" role="alert" id="payment-warning">
 <h4>{{ attendee.full_name }} currently owes <strong>${{ '%0.2f' % attendee.amount_unpaid }}</strong>.</h4>
 {% if Charge %}
-{{ stripe_form('manual_reg_charge', Charge(attendee)) }}
+{{ stripe_form('manual_reg_charge', attendee) }}
 {% else %}
 Please instruct them to pay at an at-door or manager station.
 {% endif %}

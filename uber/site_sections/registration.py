@@ -8,6 +8,7 @@ from io import BytesIO
 import cherrypy
 import treepoem
 from pytz import UTC
+from six import string_types
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import joinedload
 
@@ -500,36 +501,37 @@ class Root:
     @check_atd
     def pay(self, session, id, message=''):
         attendee = session.attendee(id)
-        if attendee.paid != c.NOT_PAID:
+        if not attendee.amount_unpaid:
             raise HTTPRedirect(
                 'register?message={}', c.AT_DOOR_NOPAY_MSG)
         else:
             return {
                 'message': message,
                 'attendee': attendee,
-                'charge': Charge(attendee, description=attendee.full_name)
             }
 
     @public
     @check_atd
+    @ajax
     @credit_card
-    def take_payment(self, session, payment_id, stripeToken):
-        charge = Charge.get(payment_id)
-        [attendee] = charge.attendees
-        message = charge.charge_cc(session, stripeToken)
+    def take_payment(self, session, id):
+        attendee = session.attendee(id)
+        charge = Charge(attendee, amount=attendee.amount_unpaid * 100)
+        stripe_intent = charge.create_stripe_intent(session)
+        message = stripe_intent if isinstance(stripe_intent, string_types) else ''
+        
         if message:
-            raise HTTPRedirect('pay?id={}&message={}', attendee.id, message)
+            return {'error': message}
         else:
             db_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
             if db_attendee:
                 attendee = db_attendee
-            attendee.paid = c.HAS_PAID
-            session.add(session.create_receipt_item(attendee, attendee.total_cost * 100,
-                                                        "At-door kiosk payment", charge.stripe_transaction))
-            attendee.amount_paid_override = attendee.total_cost
+            session.add(session.create_receipt_item(attendee, charge.amount,
+                                                    "At-door kiosk payment", charge.stripe_transaction))
             session.add(attendee)
-            raise HTTPRedirect(
-                'register?message={}', c.AT_DOOR_PREPAID_MSG)
+            session.commit()
+            return {'stripe_intent': stripe_intent,
+                    'success_url': 'register?message={}'.format(c.AT_DOOR_PREPAID_MSG)}
 
     def comments(self, session, order='last_name'):
         return {
@@ -592,21 +594,22 @@ class Root:
 
     @ajax
     @credit_card
-    def manual_reg_charge(self, session, payment_id, stripeToken):
-        charge = Charge.get(payment_id)
-        [attendee] = charge.attendees
-        message = charge.charge_cc(session, stripeToken)
+    def manual_reg_charge(self, session, id):
+        attendee = session.attendee(id)
+        charge = Charge(attendee, amount=attendee.amount_unpaid * 100)
+        stripe_intent = charge.create_stripe_intent(session)
+        message = stripe_intent if isinstance(stripe_intent, string_types) else ''
+        
         if message:
-            return {'success': False, 'message': 'Error processing card: {}'.format(message)}
+            return {'error': message}
         else:
-            attendee.paid = c.HAS_PAID
             attendee.payment_method = c.MANUAL
-            session.add(session.create_receipt_item(attendee, attendee.total_cost * 100,
-                                                        "At-door desk payment", charge.stripe_transaction))
-            attendee.amount_paid_override = attendee.total_cost
+            session.add(session.create_receipt_item(attendee, charge.amount,
+                                                    "At-door desk payment", charge.stripe_transaction))
+            
             session.merge(attendee)
             session.commit()
-            return {'success': True, 'message': 'Payment accepted.', 'id': attendee.id}
+            return {'stripe_intent': stripe_intent, 'success_url': ''}
 
     @check_for_encrypted_badge_num
     @csrf_protected

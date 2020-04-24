@@ -17,7 +17,7 @@
 </form>
 
     <strong>OR</strong> <br/>
-{{ stripe_form('manual_reg_charge', Charge(attendee)) }}
+{{ stripe_form('manual_reg_charge', attendee) }}
 </div>
 <iframe id="stripe_frame" name="stripe_frame" style="display:none"></iframe>
 </div>
@@ -33,12 +33,24 @@ var toggleMarkButton = function (dropdown) {
         $button.attr('disabled', 'disabled');
     }
 };
-var loadCheckInForm = function () {
+loadCheckInForm = function () {
+    $('#stripeModal').off('hidden.bs.modal');
+    $('#stripeModal').modal('hide');
+    $('#stripeModal').remove();
+    $('#checkin_modal').modal('show');
     $('#checkin_modal .modal-content').load('check_in_form?id={{ attendee.id }}', function () {
         createDateTextEntries();
     });
 }
-$("form[action='manual_reg_charge']").prop('target', 'stripe_frame');
+var resumeStripeAction = callStripeAction;
+var callStripeAction = function() {
+    $('#checkin_modal').off('hidden.bs.modal');
+    $('#checkin_modal').modal('hide');
+    $('#stripeModal').on('hidden.bs.modal', function (e) {
+        $('#stripeModal').remove();
+    })
+    resumeStripeAction();
+}
 $("form[action='mark_as_paid']").submit(function (e) {
     e.preventDefault();
 
@@ -81,6 +93,7 @@ $('#stripe_frame').load(function() {
     }
 });
 $().ready(function() {
+    $('#stripeModal').detach().appendTo($('#checkin_modal').parent());
     $('select[name=payment_method]').each(function (i, dropdown) {
         toggleMarkButton(dropdown);
     });

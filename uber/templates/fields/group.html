@@ -46,7 +46,7 @@
         <li>${{ '%0.2f' % (group.amount_paid / 100) }} paid{% if group.amount_unpaid %} so far</li>
           <li>${{ '%0.2f' % group.amount_unpaid }} unpaid</li>
           </ul>
-          <br/>{{ stripe_form('process_group_payment',charge) }}
+          <br/>{{ stripe_form('process_group_payment',group) }}
         {% else %}
           </li></ul>
         {% endif %}
