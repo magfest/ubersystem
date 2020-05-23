@@ -12,6 +12,7 @@ import json
 import math
 import os
 import re
+import sys
 from datetime import datetime, timedelta
 from urllib.parse import quote_plus
 from uuid import uuid4
@@ -19,7 +20,7 @@ from uuid import uuid4
 import cherrypy
 import jinja2
 from dateutil.relativedelta import relativedelta
-from markupsafe import text_type, Markup
+from markupsafe import Markup
 from pockets import fieldify, unfieldify, listify, readable_join
 from sideboard.lib import serializer
 
@@ -28,6 +29,10 @@ from uber.decorators import render
 from uber.jinja import JinjaEnv
 from uber.utils import ensure_csrf_token_exists, hour_day_format, localized_now, normalize_newlines
 
+# This used to be available as markupsafe.text_type, but that was removed in version 1.1.0
+text_type = str
+if sys.version_info[0] == 2:
+    text_type = unicode
 
 def safe_string(text):
     if isinstance(text, Markup):

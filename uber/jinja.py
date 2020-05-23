@@ -1,9 +1,9 @@
 import os
+import sys
 from functools import lru_cache
 from types import FunctionType
 
 import jinja2
-from jinja2._compat import string_types
 from jinja2.environment import Template
 from jinja2.loaders import split_template_path
 from jinja2.utils import open_if_exists
@@ -11,6 +11,11 @@ from jinja2.exceptions import TemplateNotFound, TemplatesNotFound
 from sideboard.lib import request_cached_property
 
 from uber.config import c
+
+# This used to be in jinja2._compat, but that was removed in version 3.0.0
+string_types = (str,)
+if sys.version_info[0] == 2:
+    string_types = (str,unicode)
 
 
 class MultiPathEnvironment(jinja2.Environment):
