@@ -1218,7 +1218,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         elif self.num_event_shirts_owed > 1:
             merch.append('A 2nd T-Shirt')
 
-        if self.volunteer_event_shirt_eligible and not self.volunteer_event_shirt_earned:
+        if merch and self.volunteer_event_shirt_eligible and not self.volunteer_event_shirt_earned:
             merch[-1] += (
                 ' (this volunteer must work at least {} hours or they will be reported for picking up their shirt)'
                     .format(c.HOURS_FOR_SHIRT))
