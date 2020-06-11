@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from pockets import groupify, listify
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
@@ -50,7 +50,7 @@ class Root:
         model = email.model_class
         query = AutomatedEmailFixture.queries.get(model)(session).order_by(model.id)
         limit = 1000
-        for model_instance in query.limit(limit):
+        for model_instance in query.order_by(func.random()).limit(limit):
             if email.would_send_if_approved(model_instance):
                 # These examples are never added to the session or saved to the database.
                 # They are only used to render an example of the automated email.
