@@ -5,7 +5,7 @@ from sqlalchemy import and_, or_
 
 from uber.config import c
 from uber.decorators import all_renderable, log_pageview
-from uber.models import ArbitraryCharge, Attendee, Group, MPointsForCash, ReceiptItem, Sale, StripeTransaction
+from uber.models import ArbitraryCharge, Attendee, Group, MPointsForCash, ReceiptItem, Sale
 from uber.server import redirect_site_section
 
 
@@ -70,19 +70,6 @@ class Root:
         all = [(sum(mpu.amount for mpu in mpus), group, mpus)
                for group, mpus in groups.items()]
         return {'all': sorted(all, reverse=True)}
-
-    @log_pageview
-    def refunds(self, session):
-        refunds = session.query(StripeTransaction).filter_by(type=c.REFUND)
-
-        refund_attendees = {}
-        for refund in refunds:
-            refund_attendees[refund.id] = refund.attendees[0].attendee if refund.attendees else None
-
-        return {
-            'refunds': refunds,
-            'refund_attendees': refund_attendees,
-        }
 
     def view_promo_codes(self, session, message='', **params):
         redirect_site_section('budget', 'promo_codes', 'index')

@@ -296,8 +296,7 @@ class Root:
         ], 'other_reports': [
             'food_eligible', 'food_restrictions', 'requested_accessibility_services',
         ], 'reg_reports': [
-            'affiliates', 'attendee_birthday_calendar', 'badges_sold', 'checkins_by_hour', 'event_birthday_calendar',
-            'found_how', 'index'
+            'found_how'
         ], 'schedule_reports': [
             'export_guidebook_zip', 'guidebook_exports',
         ], 'staffing_reports': [
@@ -305,6 +304,8 @@ class Root:
             'ratings', 'restricted_untaken', 'setup_teardown_neglect', 'volunteer_checklist_csv',
             'volunteer_checklists', 'volunteer_hours_overview', 'volunteers_owed_refunds',
             'volunteers_with_worked_hours',
+        ], 'statistics': [
+            'affiliates', 'badges_sold', 'checkins_by_hour', 'index'
         ]}
         for section in new_sections:
             if c.PAGE in new_sections[section]:
