@@ -697,6 +697,36 @@ class Attendee(MagModel, TakesPaymentMixin):
         return [(d.id, d.name) for d in self.assigned_depts]
 
     @property
+    def access_sections(self):
+        """
+        Returns what site sections an attendee 'belongs' to based on their properties.
+        We use this list to determine which admins can create, edit, and view the attendee.
+        """
+        section_list = []
+        if self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE, c.ATTENDEE_BADGE] and self.staffing_or_will_be:
+            section_list.append('shifts_admin')
+        if (self.group and self.group.guest and self.group.guest.group_type == c.BAND
+            ) or (self.badge_type == c.GUEST and c.BAND in self.ribbon_ints):
+            section_list.append('band_admin')
+        if self.group and self.group.guest and self.group.guest.group_type == c.GUEST:
+            section_list.append('guest_admin')
+        if c.PANELIST_RIBBON in self.ribbon_ints:
+            section_list.append('panels_admin')
+        if self.is_dealer:
+            section_list.append('dealer_admin')
+        if self.mits_applicants:
+            section_list.append('mits_admin')
+        if self.group and self.group.guest and self.group.guest.group_type == c.MIVS:
+            section_list.append('mivs_admin')
+        return section_list
+
+    def admin_read_access(self):
+        return self.session.admin_attendee_max_access(self)
+    
+    def admin_write_access(self):
+        return self.session.admin_attendee_max_access(self, read_only=False)
+
+    @property
     def ribbon_and_or_badge(self):
         if self.ribbon and self.badge_type != c.ATTENDEE_BADGE:
             return ' / '.join([self.badge_type_label] + self.ribbon_labels)
@@ -1825,6 +1855,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def attractions(self):
         return list({e.feature.attraction for e in self.attraction_events})
+
+    @property
+    def masked_name(self):
+        return self.first_name + ' ' + self.last_name[0] + '.'
 
     @property
     def masked_email(self):

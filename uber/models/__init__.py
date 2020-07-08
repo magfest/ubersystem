@@ -658,7 +658,7 @@ class Session(SessionManager):
         def logged_in_volunteer(self):
             return self.attendee(cherrypy.session.get('staffer_id'))
 
-        def admin_can_see_staffer(self, staffer):
+        def admin_has_staffer_access(self, staffer, access="view"):
             dept_ids_with_inherent_role = [dept_m.department_id for dept_m in 
                                            self.admin_attendee().dept_memberships_with_inherent_role]
             return set(staffer.assigned_depts_ids).intersection(dept_ids_with_inherent_role)
@@ -666,28 +666,20 @@ class Session(SessionManager):
         def admin_can_see_guest_group(self, guest):
             return guest.group_type_label.upper() in self.current_admin_account().viewable_guest_group_types
 
+        def admin_attendee_max_access(self, attendee, read_only=True):
+            admin = self.current_admin_account()
+            if admin.full_registration_admin or attendee.creator == admin.attendee or attendee == admin.attendee:
+                return AccessGroup.FULL
+            
+            return max([admin.max_level_access(section, read_only=read_only) for section in attendee.access_sections])
+
         def admin_can_create_attendee(self, attendee):
             admin = self.current_admin_account()
             if admin.full_registration_admin:
                 return True
             
-            if attendee.badge_type == c.STAFF_BADGE:
-                return admin.full_shifts_admin
-            if attendee.badge_type in [c.CONTRACTOR_BADGE, c.ATTENDEE_BADGE] and attendee.staffing_or_will_be:
-                return admin.has_dept_level_access('shifts_admin')
-            if (attendee.group and attendee.group.guest and attendee.group.guest.group_type == c.BAND
-                ) or (attendee.badge_type == c.GUEST and c.BAND in attendee.ribbon_ints):
-                return admin.has_dept_level_access('band_admin')
-            if attendee.group and attendee.group.guest and attendee.group.guest.group_type == c.GUEST:
-                return admin.has_dept_level_access('guest_admin')
-            if c.PANELIST_RIBBON in attendee.ribbon_ints:
-                return admin.has_dept_level_access('panels_admin')
-            if attendee.is_dealer:
-                return admin.has_dept_level_access('dealer_admin')
-            if attendee.mits_applicants:
-                return admin.has_dept_level_access('mits_admin')
-            if attendee.group and attendee.group.guest and attendee.group.guest.group_type == c.MIVS:
-                return admin.has_dept_level_access('mivs_admin')
+            return admin.full_shifts_admin if attendee.badge_type == c.STAFF_BADGE else \
+                self.admin_attendee_max_access >= AccessGroup.DEPT
         
         def viewable_groups(self):
             from uber.models import Attendee, DeptMembership, Group, GuestGroup
@@ -719,8 +711,8 @@ class Session(SessionManager):
         
         def access_query_matrix(self):
             """
-            There's a few different situations where we want to add certain subqueries based on
-            different site sections. This matrix returns queries keyed by site section.
+            There's a few different situations where we want to add certain subqueries to find attendees
+            based on different site sections. This matrix returns queries keyed by site section.
             """
             admin = self.current_admin_account()
             return_dict = {'created': self.query(Attendee).filter(

@@ -608,7 +608,7 @@ def attendee_view(func):
         if kwargs.get('id') != "None":
             with uber.models.Session() as session:
                 attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
-                if not session.admin_can_see_staffer(attendee) and attendee not in session.viewable_attendees():
+                if not session.admin_attendee_max_access(attendee):
                     return "<div id='attendeeData' style='padding: 10px;'>" \
                            "You are not allowed to view this attendee. If you think this is an error, " \
                            "please email us at {}.</div>".format(cgi.escape(c.DEVELOPER_EMAIL))
