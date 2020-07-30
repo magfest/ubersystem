@@ -24,7 +24,7 @@ also shows their worked hours.
     <tr>
         <td> {{ attendee|form_link }} </td>
         <td> {{ attendee.assigned_depts_labels|join(" / ") }} </td>
-        <td> {{ attendee.worked_hours }} ({{ attendee.nonshift_hours }} nonshift) </td>
+        <td> {{ attendee.worked_hours }} ({{ attendee.nonshift_minutes / 60 }} nonshift) </td>
         <td> {{ attendee.hotel_requests.nights_display }} </td>
         <td>
             {% for ra in attendee.room_assignments %}

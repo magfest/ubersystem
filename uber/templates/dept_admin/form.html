@@ -236,10 +236,21 @@
                 </div>
               </div>
             </div>
-            {{ macros.form_group(
-                department,
-                'max_consecutive_hours',
-                help='The maximum number of consecutive hours a staffer may work. Enter 0 for no limit.') }}
+            <div class="form-group">
+              <label class="col-sm-3 control-label optional-field">Max Consecutive Hours</label>
+              <div class="col-sm-6">
+                  <input
+                            class="form-control"
+                            type="text"
+                            name="max_consecutive_hours"
+                            value="{{ department.max_consecutive_minutes / 60 }}"
+                  />
+              </div>
+                <div class="clearfix"></div>
+                <p class="col-sm-9 col-sm-offset-3 help-block">
+                  The maximum number of consecutive hours a staffer may work. Enter 0 for no limit.
+                </p>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="submit" class="btn btn-primary">Save</button>
@@ -280,10 +291,10 @@
 {% if department.is_shiftless -%}
   <p>This department is <b>shiftless</b>; it does not track staff hours using shifts.</p>
 {%- else -%}
-{% if department.max_consecutive_hours == 0 -%}
+{% if not department.max_consecutive_minutess -%}
   <p>Members of this department may work <strong>any number of hours</strong> in a row</p>
 {%- else -%}
-  <p>Members of this department may work <strong>{{ department.max_consecutive_hours }} hours</strong> in a row</p>
+  <p>Members of this department may work <strong>{{ department.max_consecutive_minutes / 60 }} hours</strong> in a row</p>
 {%- endif %}
 {%- endif %}
 <p>This department {% if department.solicits_volunteers %}solicits{% else %}<b>does not</b> solicit{% endif %} volunteers.</p>

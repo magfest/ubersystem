@@ -534,14 +534,14 @@ StopsEmailFixture(
         c.AFTER_SHIFTS_CREATED
         and days_after(30, max(a.registered_local, c.SHIFTS_CREATED))()
         and a.takes_shifts
-        and not a.hours),
+        and not a.shift_minutes),
     when=before(c.PREREG_TAKEDOWN),
     ident='volunteer_shift_signup_reminder')
 
 StopsEmailFixture(
     'Last chance to sign up for {EVENT_NAME} ({EVENT_DATE}) shifts',
     'shifts/reminder.txt',
-    lambda a: c.AFTER_SHIFTS_CREATED and c.BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.hours,
+    lambda a: c.AFTER_SHIFTS_CREATED and c.BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.shift_minutes,
     when=days_before(10, c.EPOCH),
     ident='volunteer_shift_signup_reminder_last_chance')
 
@@ -566,7 +566,7 @@ StopsEmailFixture(
 StopsEmailFixture(
     'Please review your worked shifts for {EVENT_NAME}!',
     'shifts/shifts_worked.html',
-    lambda a: (a.weighted_hours or a.nonshift_hours) and a.badge_type != c.CONTRACTOR_BADGE,
+    lambda a: (a.weighted_hours or a.nonshift_minutes) and a.badge_type != c.CONTRACTOR_BADGE,
     when=days_after(1, c.ESCHATON),
     ident='volunteer_shifts_worked',
     allow_post_con=True)

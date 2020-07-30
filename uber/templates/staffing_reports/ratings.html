@@ -5,7 +5,7 @@
 <h2>Poor Ratings From This Year</h2>
 {% for attendee in current %}
     <h3>{{ attendee.full_name }}</h3>  
-    <b>{{ attendee.worked_hours }}</b> hours worked ({{ attendee.nonshift_hours }} of them were nonshift hours) <br/>
+    <b>{{ attendee.worked_hours }}</b> hours worked ({{ attendee.nonshift_minutes / 60 }} of them were nonshift hours) <br/>
     <b>{{ attendee.weighted_hours }}</b> hours signed up for <br/>
     {% if attendee.admin_notes %}<br/><b>Admin Notes:</b><br/><pre>{{ attendee.admin_notes }}</pre>{% endif %}
     <table width="95%" align="center">

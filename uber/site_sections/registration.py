@@ -750,7 +750,7 @@ class Root:
         return {
             'order': Order(order),
             'message': message,
-            'taken_hours': sum([s.weighted_hours - s.nonshift_hours for s in staffers], 0.0),
+            'taken_hours': sum([s.weighted_hours - s.nonshift_minutes / 60 for s in staffers], 0.0),
             'total_hours': sum([j.weighted_hours * j.slots for j in session.query(Job).all()], 0.0),
             'staffers': sorted(staffers, reverse=order.startswith('-'), key=lambda s: getattr(s, order.lstrip('-')))
         }
@@ -857,7 +857,7 @@ class Root:
             'jobs': [
                 (job.id, '({}) [{}] {}'.format(job.timespan(), job.department_name, job.name))
                 for job in attendee.available_jobs
-                if job.start_time + timedelta(hours=job.duration + 2) > localized_now()],
+                if job.start_time + timedelta(minutes=job.duration + 120) > localized_now()],
         }
         
         if 'attendee_shifts' in cherrypy.url():

@@ -157,12 +157,9 @@ class Root:
     @ajax
     def update_nonshift(self, session, id, nonshift_hours):
         attendee = session.attendee(id, allow_invalid=True)
-        if not re.match('^[0-9]+$', nonshift_hours):
-            return { 'success': False, 'message': 'Invalid integer' }
-        else:
-            attendee.nonshift_hours = int(nonshift_hours)
-            session.commit()
-            return { 'success': True, 'message': 'Non-shift hours updated' }
+        attendee.nonshift_minutes = int(float(nonshift_hours or 0) * 60)
+        session.commit()
+        return { 'success': True, 'message': 'Non-shift hours updated' }
 
     @ajax
     def update_notes(self, session, id, admin_notes, for_review=None):
@@ -202,6 +199,7 @@ class Root:
             allowed=['department_id', 'start_time', 'type'] + list(defaults.keys()))
 
         if cherrypy.request.method == 'POST':
+            job.duration = int(params.get('duration_hours', 0)) * 60 + int(params.get('duration_minutes', 0))
             message = check(job)
             if not message:
                 session.add(job)

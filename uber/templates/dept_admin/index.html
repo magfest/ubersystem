@@ -45,7 +45,7 @@
               <td>{{ department.solicits_volunteers|yesno("Yes,No") }}</td>
               <td>{{ department.is_setup_approval_exempt|yesno("Yes,No") }}</td>
               <td>{{ department.is_teardown_approval_exempt|yesno("Yes,No") }}</td>
-              <td>{{ department.max_consecutive_hours }}</td>
+              <td>{{ department.max_consecutive_minutes / 60 }}</td>
               <td>{{ department.member_count }}</td>
             </tr>
           {%- endfor -%}
