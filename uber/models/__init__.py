@@ -925,6 +925,11 @@ class Session(SessionManager):
                 func.lower(WatchList.last_name) == attendee.last_name.lower(),
                 WatchList.active == active)).all()  # noqa: E712
 
+        def guess_watchentry_attendees(self, watch_entry):
+            return self.query(Attendee).filter(func.lower(Attendee.first_name).in_(watch_entry.first_name_list),
+                                               func.lower(Attendee.last_name) == watch_entry.last_name.lower(),
+                                               Attendee.watchlist_id == None).all()
+
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
 

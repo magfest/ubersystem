@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 import cherrypy
 from pockets import classproperty, listify
+from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.dialects.postgresql.json import JSONB
@@ -9,12 +10,11 @@ from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Date
-from sqlalchemy.sql import and_, or_
 
 from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column, MultiChoice
+from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column
 
 
 __all__ = ['AccessGroup', 'AdminAccount', 'PasswordReset', 'WatchList']
@@ -287,10 +287,15 @@ class WatchList(MagModel):
     def full_name(self):
         return '{} {}'.format(self.first_names, self.last_name).strip() or 'Unknown'
 
+    @property
+    def first_name_list(self):
+        return [name.strip().lower() for name in self.first_names.split(',')]
+
     @presave_adjustment
     def _fix_birthdate(self):
         if self.birthdate == '':
             self.birthdate = None
+
 
 c.ACCESS_GROUP_WRITE_LEVEL_OPTS = AccessGroup.WRITE_LEVEL_OPTS
 c.ACCESS_GROUP_READ_LEVEL_OPTS = AccessGroup.READ_LEVEL_OPTS
