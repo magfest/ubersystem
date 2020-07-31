@@ -17,8 +17,10 @@ class Root:
             entry.attendee_guesses = session.guess_watchentry_attendees(entry)
 
         if 'first_names' in params:
-            if not watch_entry.first_names or not watch_entry.last_name:
-                message = 'First and last name are required.'
+            if not watch_entry.first_names and not watch_entry.last_name:
+                message = 'A first or last name is required.'
+            if not watch_entry.email and not watch_entry.birthdate:
+                message = 'Email or date of birth is required.'
             elif not watch_entry.reason or not watch_entry.action:
                 message = 'Reason and action are required.'
 
