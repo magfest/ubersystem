@@ -3,17 +3,67 @@
 
 <h2>Enter Your Game Info</h2>
 
-<form method="post" action="game" class="form-horizontal" role="form">
+<form method="post" enctype="multipart/form-data" action="game" class="form-horizontal" role="form">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ game.db_id }}" />
 
+    {{ macros.form_group(game, 'name', is_required=True)}}
+    
     <div class="form-group">
-        <label class="col-sm-3 control-label">Name</label>
+        <label class="col-sm-3 control-label">Rules/Document</label>
         <div class="col-sm-6">
-            <input class="form-control focus" type="text" name="name" value="{{ game.name }}" />
+            <input type="file" name="upload_documents" multiple />
         </div>
+        <p class="help-block col-sm-9 col-sm-offset-3">
+            {% for doc in game.documents|sort(attribute='filename') %}
+                <span id="{{ doc.id }}"
+                {% if loop.first %} class="tooltip-wrapper" data-toggle="tooltip" title="You must always have at least one document uploaded."{% endif %}>
+                <a target="_blank" href="{{ doc.url }}">{{ doc.filename }}</a>
+                <button type="button" class="btn btn-xs btn-danger delete_doc" 
+                {% if loop.first %}disabled="disabled"{% else %}
+                onClick="deleteDoc('{{ doc.id }}'); return false"
+                {% endif %}>Delete</button>
+                <br/></span>
+            {% else %}
+                You must upload at least one rulesbook or other document for your game.
+            {% endfor %}
+        </p>
     </div>
 
+    <div class="form-group">
+        <label class="col-sm-3 control-label optional-field">Pictures</label>
+        <div class="col-sm-6">
+            <input type="file" name="upload_pictures" multiple />
+        </div>
+        <p class="help-block col-sm-9 col-sm-offset-3">
+            Optional images of, e.g., game pieces and people playing the game.<br/>
+            {% for pic in game.pictures|sort(attribute='filename') %}
+                <span id="{{ pic.id }}">
+                <a target="_blank" href="{{ pic.url }}">{{ pic.filename }}</a>
+                <button type="button" class="btn btn-xs btn-danger delete_pic" onClick="deletePic('{{ pic.id }}'); return false">Delete</button>
+                <br/></span>
+            {% endfor %}
+        </p>
+    </div>
+
+    {{ macros.form_group(game, 'description', type="textarea", is_required=True)}}
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Age Group</label>
+        <div class="col-sm-6">
+            <select name="min_age" class="form-control">
+                {{ options(c.MITS_AGE_OPTS, game.min_age) }}
+            </select>
+            <span id="age_desc"></span>
+        </div>
+        <p class="help-block col-sm-9 col-sm-offset-3">
+        MITS reserves the right to adjust this rating based on submitted materials.
+        </p>
+    </div>
+    {{ macros.form_group(game, 'age_explanation', label="Rating Explanation", type="textarea", help="Please explain what content your game has that rates it for the age category you selected.") }}
+    {{ macros.form_group(game, 'max_players', is_required=True)}}
+    {{ macros.form_group(game, 'copyrighted', type='radio_buttons', label="Copyrighted Materials", help="Does your game contain copyrighted materials?", is_required=True) }}
+
+    {% if game.team.status == c.ACCEPTED %}
     <div class="form-group">
         <label class="col-sm-3 control-label">Promo Blurb</label>
         <div class="col-sm-6">
@@ -29,13 +79,6 @@
     </div>
 
     <div class="form-group">
-        <label class="col-sm-3 control-label">Description</label>
-        <div class="col-sm-6">
-            <textarea class="form-control" name="description" rows="4">{{ game.description }}</textarea>
-        </div>
-    </div>
-
-    <div class="form-group">
         <label class="col-sm-3 control-label">Game's Development Phase</label>
         <div class="col-sm-6">
             <select name="phase" class="form-control">
@@ -45,28 +88,10 @@
     </div>
 
     <div class="form-group">
-        <label class="col-sm-3 control-label">Min Recommended Age</label>
-        <div class="col-sm-6">
-            <select name="min_age" class="form-control">
-                {{ options(c.MITS_AGE_OPTS, game.min_age) }}
-            </select>
-        </div>
-    </div>
-
-    <div class="form-group">
         <label class="col-sm-3 control-label">Min Required Players</label>
         <div class="col-sm-6">
             <select name="min_players" class="form-control">
                 {{ int_options(1, 20, game.min_players) }}
-            </select>
-        </div>
-    </div>
-
-    <div class="form-group">
-        <label class="col-sm-3 control-label">Max Players</label>
-        <div class="col-sm-6">
-            <select name="max_players" class="form-control">
-                {{ int_options(1, 20, game.max_players) }}
             </select>
         </div>
     </div>
@@ -96,6 +121,7 @@
             {{ macros.checkbox(game, 'professional', label='Yes, my employment involves working on this game for any large company, e.g. Fantasy Flight or Wizards of the Coast.') }}
         </div>
     </div>
+    {% endif %}
 
     <div class="form-group">
         <div class="col-sm-6 col-sm-offset-3">
@@ -103,5 +129,36 @@
         </div>
     </div>
 </form>
-
+<script type="text/javascript">
+var deleteDoc = function (id) {
+    $.post('delete_document', {id: id, csrf_token: csrf_token}, function(message) {
+        toastr.remove();
+        toastr.info(message);
+        $('#' + id).remove();
+    });
+};
+var deletePic = function (id) {
+    $.post('delete_picture', {id: id, csrf_token: csrf_token}, function(message) {
+        toastr.remove();
+        toastr.info(message);
+        $('#' + id).remove();
+    });
+};
+$().ready(function() {
+    ageToDesc = {{ c.MITS_DESC_BY_AGE|tojson }};
+    explanationAges = [{{ c.TEEN }}, {{ c.MATURE }}, {{ c.ADULT }}]
+    showAgeDesc = function() {
+        $("#age_desc").text(ageToDesc[$.val('min_age')]);
+    };
+    showOrHideAgeExplanation = function() {
+        $('[name="age_explanation"').parents('.form-group').toggle(explanationAges.indexOf($.val('min_age')) != -1)
+    };
+    $.field('min_age').on('change', function() {
+        showAgeDesc();
+        showOrHideAgeExplanation();
+    });
+    showAgeDesc();
+    showOrHideAgeExplanation();
+});
+</script>
 {% endblock %}

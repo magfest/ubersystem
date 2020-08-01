@@ -1204,11 +1204,9 @@ for num in range(c.ESCHATON.year - c.MIVS_START_YEAR):
 
 # The number of steps to the MITS application process.  Since changing this requires a code change
 # anyway (in order to add another step), this is hard-coded here rather than being a config option.
-c.MITS_APPLICATION_STEPS = 7
+c.MITS_APPLICATION_STEPS = 4
 
-# The options for the recommended minimum age for games, as filled out by the teams.
-c.MITS_AGE_OPTS = [(i, i) for i in range(4, 20, 2)]
-
+c.MITS_DESC_BY_AGE = {age: c.MITS_AGE_DESCRIPTIONS[age] for age in c.MITS_AGES}
 
 # =============================
 # panels

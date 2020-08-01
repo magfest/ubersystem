@@ -1707,8 +1707,6 @@ class Session(SessionManager):
                 joinedload(MITSTeam.applicants).subqueryload(MITSApplicant.attendee),
                 joinedload(MITSTeam.games),
                 joinedload(MITSTeam.schedule),
-                joinedload(MITSTeam.pictures),
-                joinedload(MITSTeam.documents)
             ).order_by(MITSTeam.name)
 
         def delete_mits_file(self, model):
