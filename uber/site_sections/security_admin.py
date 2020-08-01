@@ -10,13 +10,14 @@ from uber.models import Attendee, WatchList
 class Root:
     @log_pageview
     def index(self, session, message='', **params):
-        watch_entry = session.watch_list(params, bools=WatchList.all_bools)
-
         watchlist_entries = session.query(WatchList).order_by(WatchList.last_name).all()
         for entry in watchlist_entries:
-            entry.attendee_guesses = session.guess_watchentry_attendees(entry)
+            if entry.active:
+                entry.attendee_guesses = session.guess_watchentry_attendees(entry)
 
         if 'first_names' in params:
+            watch_entry = session.watch_list(params, bools=WatchList.all_bools)
+
             if not watch_entry.first_names and not watch_entry.last_name:
                 message = 'A first or last name is required.'
             if not watch_entry.email and not watch_entry.birthdate:
@@ -26,13 +27,23 @@ class Root:
 
             if not message:
                 session.add(watch_entry)
+                for attendee in session.guess_watchentry_attendees(watch_entry):
+                    if attendee.badge_status == c.NEW_STATUS:
+                        attendee.badge_status = c.WATCHED_STATUS
+                        session.add(attendee)
                 if 'id' not in params:
                     message = 'New watch list item added.'
                 else:
                     message = 'Watch list item updated.'
 
                 session.commit()
-
+        elif 'attendee_id' in params:
+            attendee = session.attendee(params.get('attendee_id'), allow_invalid=True)
+            watch_entry = WatchList(first_names=attendee.first_name,
+                                    last_name=attendee.last_name,
+                                    email=attendee.email,
+                                    birthdate=attendee.birthdate)
+        else:
             watch_entry = WatchList()
 
         return {
