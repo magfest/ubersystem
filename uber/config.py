@@ -981,7 +981,7 @@ for key, val in c.MIVS_CHECKLIST.items():
     if val['start']:
         val['start'] = c.EVENT_TIMEZONE.localize(datetime.strptime(val['start'] + ' 23:59', '%Y-%m-%d %H:%M'))
 
-c.DEPT_HEAD_CHECKLIST = _config['dept_head_checklist']
+c.DEPT_HEAD_CHECKLIST = {key: val for key, val in _config['dept_head_checklist'].items() if val['deadline']}
 
 c.CON_LENGTH = int((c.ESCHATON - c.EPOCH).total_seconds() // 3600)
 c.START_TIME_OPTS = [
