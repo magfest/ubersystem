@@ -1052,7 +1052,6 @@ c.WEIGHT_OPTS = (
     ('1.0', 'x1.0'),
     ('1.5', 'x1.5'),
     ('2.0', 'x2.0'),
-    ('2.5', 'x2.5'),
 )
 c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'visibility', 'required_roles_ids', 'extra15']
 
