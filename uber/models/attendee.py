@@ -218,7 +218,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     # attendee shirt size for both swag and staff shirts
     shirt = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)
-    num_event_shirts = Column(Choice(c.STAFF_EVENT_SHIRT_OPTS), default=0)
+    num_event_shirts = Column(Choice(c.STAFF_EVENT_SHIRT_OPTS, allow_unspecified=True), default=-1)
     can_spam = Column(Boolean, default=False)
     regdesk_info = Column(UnicodeText, admin_only=True)
     extra_merch = Column(UnicodeText, admin_only=True)
@@ -988,7 +988,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def shirt_info_marked(self):
-        return self.shirt_size_marked if c.HOURS_FOR_SHIRT else True
+        return not c.HOURS_FOR_SHIRT or (self.shirt_size_marked and (self.num_event_shirts != -1 or not c.EVENT_SHIRT_OPTS))
 
     @property
     def is_group_leader(self):
@@ -1124,7 +1124,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         Returns: Integer representing the number of free event shirts this attendee should get.
 
         """
-        return self.num_event_shirts if self.gets_staff_shirt else self.volunteer_event_shirt_eligible
+        return max(0, self.num_event_shirts) if self.gets_staff_shirt else self.volunteer_event_shirt_eligible
 
     @property
     def volunteer_event_shirt_eligible(self):
