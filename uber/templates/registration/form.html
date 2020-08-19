@@ -108,7 +108,7 @@
         <input type="submit" form="delete_attendee" class="btn btn-danger" value="{% if attendee.group and attendee.is_unassigned %}Delete this group badge{% elif attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}"
                         {% if attendee.paid == c.HAS_PAID %} style="background-color:#BCBCBC" title="Cannot delete a paid badge." disabled {% endif %}/>
         {% if c.HAS_SECURITY_ADMIN_ACCESS %}
-        <a href="../security_admin/index?attendee_id={{ attendee.id }}" class="btn btn-warning">Add to Watchlist</a>
+        <a href="../security_admin/watchlist_form?attendee_id={{ attendee.id }}" class="btn btn-warning">Add to Watchlist</a>
         {% endif %}
     </div>
 
