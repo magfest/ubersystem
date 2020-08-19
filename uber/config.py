@@ -981,7 +981,7 @@ for key, val in c.MIVS_CHECKLIST.items():
     if val['start']:
         val['start'] = c.EVENT_TIMEZONE.localize(datetime.strptime(val['start'] + ' 23:59', '%Y-%m-%d %H:%M'))
 
-c.DEPT_HEAD_CHECKLIST = _config['dept_head_checklist']
+c.DEPT_HEAD_CHECKLIST = {key: val for key, val in _config['dept_head_checklist'].items() if val['deadline']}
 
 c.CON_LENGTH = int((c.ESCHATON - c.EPOCH).total_seconds() // 3600)
 c.START_TIME_OPTS = [
@@ -1052,7 +1052,6 @@ c.WEIGHT_OPTS = (
     ('1.0', 'x1.0'),
     ('1.5', 'x1.5'),
     ('2.0', 'x2.0'),
-    ('2.5', 'x2.5'),
 )
 c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'visibility', 'required_roles_ids', 'extra15']
 
@@ -1063,7 +1062,11 @@ c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) fo
 c.DONATION_TIER_ITEMS = {}
 c.DONATION_TIER_DESCRIPTIONS = _config.get('donation_tier_descriptions', {})
 for _ident, _tier in c.DONATION_TIER_DESCRIPTIONS.items():
-    [price] = [amt for amt, name in c.DONATION_TIERS.items() if name == _tier['name']]
+    try:
+        [price] = [amt for amt, name in c.DONATION_TIERS.items() if name == _tier['name']]
+    except ValueError:
+        pass
+
     _tier['price'] = price
     if price:  # ignore the $0 kickin level
         c.DONATION_TIER_ITEMS[price] = _tier['merch_items'] or _tier['description'].split('|')
@@ -1204,11 +1207,9 @@ for num in range(c.ESCHATON.year - c.MIVS_START_YEAR):
 
 # The number of steps to the MITS application process.  Since changing this requires a code change
 # anyway (in order to add another step), this is hard-coded here rather than being a config option.
-c.MITS_APPLICATION_STEPS = 7
+c.MITS_APPLICATION_STEPS = 4
 
-# The options for the recommended minimum age for games, as filled out by the teams.
-c.MITS_AGE_OPTS = [(i, i) for i in range(4, 20, 2)]
-
+c.MITS_DESC_BY_AGE = {age: c.MITS_AGE_DESCRIPTIONS[age] for age in c.MITS_AGES}
 
 # =============================
 # panels

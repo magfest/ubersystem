@@ -845,9 +845,7 @@ MITSApplicant.required = [
 
 MITSGame.required = [
     ('name', 'Name'),
-    ('promo_blurb', 'Promo Blurb'),
-    ('description', 'Description'),
-    ('genre', 'Game Genre')
+    ('description', 'Description')
 ]
 
 MITSPicture.required = [
@@ -879,6 +877,26 @@ def address_required_for_sellers(team):
         return 'You must provide a business address if you wish to sell your merchandise'
 
 
+@validation.MITSTeam
+def min_num_days_hours(team):
+    if team.days_available is not None and team.days_available < 3:
+        return 'You must be available at least 3 days to present at MITS.'
+    if team.hours_available is not None and team.hours_available < 4:
+        return 'You must be able to show at least 4 hours per day to present at MITS.'
+
+
+@validation.MITSTeam
+def min_concurrent_attendees(team):
+    if team.days_available and not team.concurrent_attendees:
+        return 'Please enter the number of attendees you can show to at a time.'
+
+
+@validation.MITSGame
+def must_select_copyright(game):
+    if not game.copyrighted:
+        return 'Please tell us if your game contains copyrighted materials.'
+
+
 @validation.MITSApplicant
 def mits_applicant_email_valid(applicant):
     try:
@@ -892,12 +910,6 @@ def valid_phone_number(applicant):
     if _invalid_phone_number(applicant.cellphone):
         return 'Your cellphone number was not a valid 10-digit US phone number. ' \
             'Please include a country code (e.g. +44) for international numbers.'
-
-
-@validation.MITSGame
-def consistent_players(game):
-    if game.min_players > game.max_players:
-        return 'Min players must be less than or equal to max players'
 
 
 # =============================

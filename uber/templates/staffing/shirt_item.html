@@ -8,12 +8,12 @@
         Let us know
     {% endif %}
     your shirt size
-    {% if attendee.gets_staff_shirt %}
+    {% if c.STAFF_EVENT_SHIRT_OPTS and attendee.gets_staff_shirt %}
         and your preference of staff or event shirt
     {% endif %}
     {% if c.SHIRT_DEADLINE %}
         <b>no later than {{ c.SHIRT_DEADLINE|datetime_local }}</b>
     {% endif %}
-    so that we can set aside shirts in the right sizes at our merch booth.
+    so that we can set aside shirts in the right sizes.
 </li>
 {% endif %}

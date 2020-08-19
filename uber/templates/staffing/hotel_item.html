@@ -1,5 +1,5 @@
 {% import 'macros.html' as macros %}
-
+{% if c.HOTELS_ENABLED %}
 {% if attendee.hotel_eligible and c.AFTER_ROOM_DEADLINE and c.HAS_HOTEL_ADMIN_ACCESS %}
     <li>
         {% if c.HOTEL_REQUESTS_URL %}
@@ -21,7 +21,7 @@
         {% endif %}
         this staffer's hotel room space requests.
     </li>
-{% elif attendee.hotel_eligible and attendee.registered < c.ROOM_DEADLINE %}
+{% elif c.ROOM_DEADLINE and attendee.hotel_eligible and attendee.registered < c.ROOM_DEADLINE %}
     {% if c.BEFORE_ROOM_DEADLINE %}
         <li>
             {% if not attendee.placeholder and (attendee.agreed_to_volunteer_agreement or not c.VOLUNTEER_AGREEMENT_ENABLED) and not attendee.hotel_requests %}
@@ -63,4 +63,5 @@
             {% endif %}
         </li>
     {% endif %}
+{% endif %}
 {% endif %}
