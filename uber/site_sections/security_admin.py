@@ -34,23 +34,33 @@ class Root:
 
         if cherrypy.request.method == 'POST':
             message = check(entry)
-            newly_banned_attendees = []
+            changed_attendees = 0
 
             if not message:
                 session.add(entry)
+                session.commit()
 
                 if entry.active:
-                    for attendee in session.guess_watchentry_attendees(entry):
+                    for attendee in entry.attendee_guesses:
                         if attendee.badge_status == c.NEW_STATUS:
                             attendee.badge_status = c.WATCHED_STATUS
-                            newly_banned_attendees.append(attendee.full_name)
+                            changed_attendees += 1
                             session.add(attendee)
+                else:
+                    for attendee in entry.attendees + entry.attendee_guesses:
+                        if attendee.badge_status == c.WATCHED_STATUS:
+                            attendee.badge_status = c.NEW_STATUS
+                            changed_attendees -= 1
+                changed_message = "" if not changed_attendees else \
+                                  " and {} attendee{} moved to {} status".format(abs(changed_attendees),
+                                                                                's' if changed_attendees else '',
+                                                                                c.BADGE_STATUS[c.WATCHED_STATUS] if changed_attendees > 0 else c.BADGE_STATUS[c.NEW_STATUS])
 
                 if 'id' not in params:
-                    message = 'New watchlist entry added.'
+                    message = 'New watchlist entry added'
                 else:
-                    message = 'Watchlist entry updated.'
-                raise HTTPRedirect('index?message={}', message)
+                    message = 'Watchlist entry updated'
+                raise HTTPRedirect('index?message={}{}', message, changed_message)
                 
         return {
             'entry': entry,
