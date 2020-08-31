@@ -583,20 +583,21 @@ if c.VOLUNTEER_AGREEMENT_ENABLED:
 # For events with customized badges, these emails remind people to let us know what we want on their badges.  We have
 # one email for our volunteers who haven't bothered to confirm they're coming yet (bleh) and one for everyone else.
 
-StopsEmailFixture(
-    'Last chance to personalize your {EVENT_NAME} ({EVENT_DATE}) badge',
-    'personalized_badges/volunteers.txt',
-    lambda a: a.staffing and a.badge_type in c.PREASSIGNED_BADGE_TYPES and a.placeholder,
-    when=days_before(7, c.PRINTED_BADGE_DEADLINE),
-    ident='volunteer_personalized_badge_reminder')
+if c.PRINTED_BADGE_DEADLINE:
+    StopsEmailFixture(
+        'Last chance to personalize your {EVENT_NAME} ({EVENT_DATE}) badge',
+        'personalized_badges/volunteers.txt',
+        lambda a: a.staffing and a.badge_type in c.PREASSIGNED_BADGE_TYPES and a.placeholder,
+        when=days_before(7, c.PRINTED_BADGE_DEADLINE),
+        ident='volunteer_personalized_badge_reminder')
 
-AutomatedEmailFixture(
-    Attendee,
-    'Personalized {EVENT_NAME} ({EVENT_DATE}) badges will be ordered next week',
-    'personalized_badges/reminder.txt',
-    lambda a: a.badge_type in c.PREASSIGNED_BADGE_TYPES and not a.placeholder,
-    when=days_before(7, c.PRINTED_BADGE_DEADLINE),
-    ident='personalized_badge_reminder')
+    AutomatedEmailFixture(
+        Attendee,
+        'Personalized {EVENT_NAME} ({EVENT_DATE}) badges will be ordered next week',
+        'personalized_badges/reminder.txt',
+        lambda a: a.badge_type in c.PREASSIGNED_BADGE_TYPES and not a.placeholder,
+        when=days_before(7, c.PRINTED_BADGE_DEADLINE),
+        ident='personalized_badge_reminder')
 
 
 # MAGFest requires signed and notarized parental consent forms for anyone under 18.  This automated email reminder to

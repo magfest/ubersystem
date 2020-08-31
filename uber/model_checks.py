@@ -395,6 +395,7 @@ def emergency_contact_not_cellphone(attendee):
 def printed_badge_change(attendee):
     if attendee.badge_printed_name != attendee.orig_value_of('badge_printed_name') \
             and not AdminAccount.admin_name() \
+            and c.PRINTED_BADGE_DEADLINE \
             and localized_now() > c.get_printed_badge_deadline_by_type(attendee.badge_type_real):
 
         return '{} badges have already been ordered, so you cannot change the badge printed name.'.format(
@@ -492,7 +493,8 @@ def not_in_range(attendee):
 
 @validation.Attendee
 def invalid_badge_name(attendee):
-    if attendee.badge_printed_name and localized_now() <= c.get_printed_badge_deadline_by_type(attendee.badge_type_real) \
+    if attendee.badge_printed_name and c.PRINTED_BADGE_DEADLINE \
+            and localized_now() <= c.get_printed_badge_deadline_by_type(attendee.badge_type_real) \
             and re.search(c.INVALID_BADGE_PRINTED_CHARS, attendee.badge_printed_name):
         return 'Your printed badge name has invalid characters. Please use only alphanumeric characters and symbols.'
 

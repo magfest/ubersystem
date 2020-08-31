@@ -667,6 +667,7 @@
 
 {% set badge_printed_name %}
 {% set read_only = badge_printed_name_ro or page_ro %}
+{% if c.PRINTED_BADGE_DEADLINE %}
 {% if not admin_area %}
   {%- set readonly_badge_name = c.after_printed_badge_deadline_by_type(attendee.badge_type) -%}
   <div class="badge-row extra-row form-group" style="display:none">
@@ -693,6 +694,7 @@
       {% endcall %}
     </div>
   {% endif %}
+{% endif %}
 {% endif %}
 {% endset %}
 
@@ -1002,7 +1004,7 @@
       </div>
     </div>
   {% endif %}
-
+  <div class="row"><label class="col-sm-6 col-sm-offset-3">Mailing Address</label></div>
   {{ macros.address_form(attendee, update_international=True, is_required=(not admin_area)) }}
 
   <div class="checkbox col-sm-6 col-sm-offset-3">
