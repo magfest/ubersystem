@@ -224,7 +224,7 @@ class Root:
         out.writerow(["Attendee name", "Start of overworked shift sequence",
                       "Length of shift sequence", "Departments overworked in"])
         for attendee in session.query(Attendee).filter(Attendee.staffing == True).all():  # noqa: E712
-            minute_map = attendee.minute_map
+            minute_map = attendee.shift_minute_map
             for start_minute in minute_map:
                 # only look at start-of-sequence minutes
                 if start_minute - timedelta(minutes=1) not in minute_map:
