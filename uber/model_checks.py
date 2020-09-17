@@ -520,9 +520,9 @@ def slots(job):
 @validation.Job
 def time_conflicts(job):
     if not job.is_new:
-        original_hours = Job(start_time=job.orig_value_of('start_time'), duration=job.orig_value_of('duration')).hours
+        original_minutes = Job(start_time=job.orig_value_of('start_time'), duration=job.orig_value_of('duration')).minutes
         for shift in job.shifts:
-            if job.hours.intersection(shift.attendee.hours - original_hours):
+            if job.minutes.intersection(shift.attendee.shift_minutes - original_minutes):
                 return 'You cannot change this job to this time, because {} is already working a shift then'.format(
                     shift.attendee.full_name)
 

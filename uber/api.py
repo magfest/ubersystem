@@ -787,7 +787,7 @@ class DepartmentLookup:
                 'is_shiftless': True,
                 'is_setup_approval_exempt': True,
                 'is_teardown_approval_exempt': True,
-                'max_consecutive_hours': True,
+                'max_consecutive_minutes': True,
                 'jobs': {
                     'id': True,
                     'type': True,

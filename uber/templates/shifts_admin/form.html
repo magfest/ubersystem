@@ -112,30 +112,49 @@
   <div class="form-group">
     <label class="col-sm-3 control-label">Start Time</label>
     <div class="col-sm-6">
-      <select name="start_time" class="form-control">
-        {% if job.type == c.SETUP %}
-          <!-- SETUP -->
-          {{ options(c.SETUP_TIME_OPTS, job.start_time) }}
-        {% elif job.type == c.TEARDOWN %}
-          <!-- TEARDOWN -->
-          {{ options(c.TEARDOWN_TIME_OPTS, job.start_time) }}
-        {% elif job.type == c.REGULAR %}
-          <!-- REGULAR -->
-          {{ options(c.START_TIME_OPTS, job.start_time) }}
-        {% else %}
-          <!-- ALL -->
-          {{ options(c.ALL_TIME_OPTS, job.start_time) }}
-        {% endif %}
-      </select>
+      <div class="input-group">
+        <input
+        id="start-time"
+        name="start_time"
+        type="text"
+        class="form-control"
+        value="{{ job.start_time.astimezone(c.EVENT_TIMEZONE).strftime('%-m/%-d/%Y %-I:%M %p') if job.start_time else '' }}">
+        <span class="input-group-addon">
+          <span class="glyphicon glyphicon-calendar"></span>
+        </span>
+      </div>
     </div>
   </div>
+  {% if job.type == c.SETUP %}
+    {% set min_date = c.SETUP_JOB_START %}
+    {% set max_date = c.EPOCH %}
+  {% elif job.type == c.TEARDOWN %}
+    {% set min_date = c.ESCHATON %}
+    {% set max_date = c.TEARDOWN_JOB_END %}
+  {% elif job.type == c.REGULAR %}
+    {% set min_date = c.EPOCH %}
+    {% set max_date = c.ESCHATON %}
+  {% else %}
+    {% set min_date = c.SETUP_JOB_START %}
+    {% set max_date = c.TEARDOWN_JOB_END %}
+  {% endif %}
+
+  <script type="text/javascript">
+    $('#start-time').datetimepicker({
+      sideBySide: true,
+      useCurrent: false,
+      defaultDate: '{{ min_date.isoformat() }}',
+      minDate: '{{ min_date.isoformat() }}',
+      maxDate: '{{ max_date.isoformat() }}',
+      format: 'M/D/Y h:mm A'
+    });
+  </script>
   <div class="form-group">
     <label class="col-sm-3 control-label">{% if job.type != c.REGULAR %}Expected Approximate {% endif %}Duration</label>
-    <div class="col-sm-6">
-      <select name="duration" class="form-control">
-        {{ options(c.DURATION_OPTS, job.duration) }}
-      </select>
-    </div>
+    <div class="col-sm-2"><input type="number" class="form-control" name="duration_hours" value="{{ ((job.duration or 0) / 60)|int }}" /></div>
+    <span class="col-sm-1 form-control-static"> hours</span>
+    <div class="col-sm-2"><input type="number" class="form-control" name="duration_minutes" value="{{ (job.duration or 0) % 60 }}" /></div>
+    <span class="col-sm-1 form-control-static"> minutes</span>
   </div>
   <div class="form-group">
     <label class="col-sm-3 control-label">Extra 15{{ macros.popup_link("../static_views/extra15.html") }}</label>

@@ -353,7 +353,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     reviewed_emergency_procedures = Column(Boolean, default=False)
     name_in_credits = Column(UnicodeText, nullable=True)
     walk_on_volunteer = Column(Boolean, default=False)
-    nonshift_hours = Column(Integer, default=0, admin_only=True)
+    nonshift_minutes = Column(Integer, default=0, admin_only=True)
     past_years = Column(UnicodeText, admin_only=True)
     can_work_setup = Column(Boolean, default=False, admin_only=True)
     can_work_teardown = Column(Boolean, default=False, admin_only=True)
@@ -1221,7 +1221,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if merch and self.volunteer_event_shirt_eligible and not self.volunteer_event_shirt_earned:
             merch[-1] += (
                 ' (this volunteer must work at least {} hours or they will be reported for picking up their shirt)'
-                    .format(c.HOURS_FOR_SHIRT))
+                .format(c.HOURS_FOR_SHIRT))
 
         if not c.SEPARATE_STAFF_MERCH:
             merch.extend(self.staff_merch_items)
@@ -1273,11 +1273,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         return (' with ' if stuff else '') + readable_join(stuff)
 
     @property
-    def payment_page(self):
-        # Some plugins need to redirect attendees to custom payment pages under certain circumstances
-        return 'attendee_donation_form?id={}'.format(self.id)
-
-    @property
     def multiply_assigned(self):
         return len(self.dept_memberships) > 1
 
@@ -1287,19 +1282,19 @@ class Attendee(MagModel, TakesPaymentMixin):
             not d.is_shiftless for d in self.assigned_depts))
 
     @property
-    def hours(self):
-        all_hours = set()
+    def shift_minutes(self):
+        all_minutes = set()
         for shift in self.shifts:
-            all_hours.update(shift.job.hours)
-        return all_hours
+            all_minutes.update(shift.job.minutes)
+        return all_minutes
 
     @property
-    def hour_map(self):
-        all_hours = {}
+    def shift_minute_map(self):
+        all_minutes = {}
         for shift in self.shifts:
-            for hour in shift.job.hours:
-                all_hours[hour] = shift.job
-        return all_hours
+            for minute in shift.job.minutes:
+                all_minutes[minute] = shift.job
+        return all_minutes
 
     @cached_property
     def available_job_filters(self):
@@ -1347,7 +1342,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         return [
             job for job in self.available_jobs
-            if job.no_overlap(self)
+            if job.no_overlap(self) and job.working_limit_ok(self)
             and (
                 job.type != c.SETUP
                 or self.can_work_setup
@@ -1441,12 +1436,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def weighted_hours(self):
         weighted_hours = sum(s.job.weighted_hours for s in self.shifts)
-        return weighted_hours + self.nonshift_hours
+        return weighted_hours + self.nonshift_minutes / 60
 
     @property
     def unweighted_hours(self):
-        unweighted_hours = sum(s.job.real_duration for s in self.shifts)
-        return unweighted_hours + self.nonshift_hours
+        unweighted_hours = sum(s.job.real_duration for s in self.shifts) / 60
+        return unweighted_hours + self.nonshift_minutes / 60
 
     @department_id_adapter
     def weighted_hours_in(self, department_id):
@@ -1458,17 +1453,17 @@ class Attendee(MagModel, TakesPaymentMixin):
     def unweighted_hours_in(self, department_id):
         if not department_id:
             return self.unweighted_hours
-        return sum(s.job.real_duration for s in self.shifts if s.job.department_id == department_id)
+        return sum(s.job.real_duration / 60 for s in self.shifts if s.job.department_id == department_id)
 
     @property
     def worked_hours(self):
         weighted_hours = sum(s.job.weighted_hours for s in self.worked_shifts)
-        return weighted_hours + self.nonshift_hours
+        return weighted_hours + self.nonshift_minutes / 60
 
     @property
     def unweighted_worked_hours(self):
-        unweighted_hours = sum(s.job.real_duration for s in self.worked_shifts)
-        return unweighted_hours + self.nonshift_hours
+        unweighted_hours = sum(s.job.real_duration / 60 for s in self.worked_shifts)
+        return unweighted_hours + self.nonshift_minutes / 60
 
     @department_id_adapter
     def worked_hours_in(self, department_id):
@@ -1480,7 +1475,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def unweighted_worked_hours_in(self, department_id):
         if not department_id:
             return self.unweighted_worked_hours
-        return sum(s.job.real_duration for s in self.worked_shifts if s.job.department_id == department_id)
+        return sum(s.job.real_duration / 60 for s in self.worked_shifts if s.job.department_id == department_id)
 
     @department_id_adapter
     def dept_membership_for(self, department_id):
@@ -1634,7 +1629,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             'admin_notes': self.admin_notes,
             'worked_hours': self.worked_hours,
             'unworked_hours': self.weighted_hours - self.worked_hours,
-            'nonshift_hours': self.nonshift_hours,
+            'nonshift_hours': self.nonshift_minutes / 60,
             'shifts': [{
                 'worked': shift.worked_label,
                 'rating': shift.rating_label,
@@ -1645,9 +1640,9 @@ class Attendee(MagModel, TakesPaymentMixin):
                     'weight': shift.job.weight,
                     'when': (
                             time_day_local(shift.job.start_time) + ' - ' +
-                            time_day_local(shift.job.start_time + timedelta(hours=shift.job.duration))
+                            time_day_local(shift.job.start_time + timedelta(minutes=shift.job.duration))
                         ).replace('<nobr>', '').replace('</nobr>', ''),
-                    'total_hours': shift.job.duration * shift.job.weight,
+                    'total_hours': shift.job.duration / 60 * shift.job.weight,
                 }
             } for shift in self.shifts]
         }]

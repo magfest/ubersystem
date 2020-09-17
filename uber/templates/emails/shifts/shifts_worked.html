@@ -39,12 +39,12 @@ We couldn't have done it without the help of every single one of our volunteers.
             {% elif shift.worked == c.SHIFT_UNWORKED %}No{% endif %}</td>
         </tr>
     {% endfor %}
-  {% if attendee.nonshift_hours %}
+  {% if attendee.nonshift_minutes %}
     {% if attendee.shifts %}
       <tr><td colspan="5"></td></tr>
     {% endif %}
     <tr>
-    <td colspan="5" align="right">{{ attendee.nonshift_hours }} Non-Shift Hours</td>
+    <td colspan="5" align="right">{{ attendee.nonshift_minutes / 60 }} Non-Shift Hours</td>
     </tr>
   {% endif %}
 {% endif %}

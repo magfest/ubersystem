@@ -806,13 +806,13 @@ class Session(SessionManager):
                 'weighted_hours', 'restricted', 'extra15', 'taken',
                 'visibility', 'is_public', 'is_setup', 'is_teardown']
             jobs = self.logged_in_volunteer().possible_and_current
-            restricted_hours = set()
+            restricted_minutes = set()
             for job in jobs:
                 if job.required_roles:
-                    restricted_hours.add(frozenset(job.hours))
+                    restricted_minutes.add(frozenset(job.minutes))
             return [
                 job.to_dict(fields)
-                for job in jobs if (job.required_roles or frozenset(job.hours) not in restricted_hours)]
+                for job in jobs if (job.required_roles or frozenset(job.minutes) not in restricted_minutes)]
 
         def process_refund(self, stripe_log, model=Attendee):
             """
@@ -1513,6 +1513,9 @@ class Session(SessionManager):
 
             if not job.no_overlap(attendee):
                 return 'This volunteer is already signed up for a shift during that time'
+
+            if not job.working_limit_ok(attendee):
+                return 'This shift would put this volunteer over one of their department\'s max consecutive hours'
 
             self.add(Shift(attendee=attendee, job=job))
             self.commit()
