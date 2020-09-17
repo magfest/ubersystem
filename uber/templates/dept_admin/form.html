@@ -291,7 +291,7 @@
 {% if department.is_shiftless -%}
   <p>This department is <b>shiftless</b>; it does not track staff hours using shifts.</p>
 {%- else -%}
-{% if not department.max_consecutive_minutess -%}
+{% if not department.max_consecutive_minutes -%}
   <p>Members of this department may work <strong>any number of hours</strong> in a row</p>
 {%- else -%}
   <p>Members of this department may work <strong>{{ department.max_consecutive_minutes / 60 }} hours</strong> in a row</p>
