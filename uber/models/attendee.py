@@ -1695,7 +1695,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         return not self.placeholder and self.food_restrictions_filled_out and self.shirt_info_marked and (
             not self.hotel_eligible
             or self.hotel_requests
-            or not c.BEFORE_ROOM_DEADLINE) and (
+            or not c.BEFORE_ROOM_DEADLINE
+            or not c.HOTELS_ENABLED) and (
             not c.VOLUNTEER_AGREEMENT_ENABLED or self.agreed_to_volunteer_agreement) and (
             not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures)
 
