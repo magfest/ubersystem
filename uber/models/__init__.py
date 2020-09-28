@@ -477,7 +477,7 @@ class MagModel:
 
         return self
 
-    def timespan(self, minute_increment=60):
+    def timespan(self, minute_increment=1):
         def minutestr(dt):
             return ':30' if dt.minute == 30 else ''
 
