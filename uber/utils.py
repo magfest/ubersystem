@@ -529,11 +529,16 @@ def genpasswd():
     three random dictionary words but returns a string of 8 random characters if
     no dictionary is installed.
     """
-    try:
-        with open('/usr/share/dict/words') as f:
-            words = [s.strip() for s in f.readlines() if "'" not in s and s.islower() and 3 < len(s) < 8]
+    import glob
+    words = []
+    # Word lists source: https://bitbucket.org/jvdl/correcthorsebatterystaple/src/master/data/
+    word_lists = glob.glob(c.ROOT + '/uber/static/correcthorsebatterystaple/*.txt')
+    for word_list in word_lists:
+        words.extend(open(word_list).read().strip().split(','))
+    else:
+        if words:
+            words = [s.strip() for s in words if "'" not in s and s.islower() and 3 < len(s) < 8]
             return ' '.join(random.choice(words) for i in range(4))
-    except Exception:
         return ''.join(chr(randrange(33, 127)) for i in range(8))
 
 
