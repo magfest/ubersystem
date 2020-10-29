@@ -802,8 +802,8 @@ class Config(_Overridable):
                 return self.has_section_or_page_access(include_read_only=True)
 
             if access_name.endswith('_read'):
-                return access_name[:-5] in c.ADMIN_ACCESS_SET
-            return access_name in c.ADMIN_WRITE_ACCESS_SET
+                return access_name[:-5] in self.ADMIN_ACCESS_SET
+            return access_name in self.ADMIN_WRITE_ACCESS_SET
         elif name.endswith('_COUNT'):
             item_check = name.rsplit('_', 1)[0]
             badge_type = getattr(self, item_check, None)

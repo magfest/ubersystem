@@ -127,7 +127,7 @@ class Root:
             else [Attendee.dept_memberships.any(department_id=department_id)]
         attendees = session.staffers(pending=True).filter(*dept_filter).all()
         for attendee in attendees:
-            if session.admin_can_see_staffer(attendee) or department_id:
+            if session.admin_has_staffer_access(attendee) or department_id:
                 attendee.is_dept_head_here = attendee.is_dept_head_of(department_id) if department_id \
                     else attendee.is_dept_head
                 attendee.trusted_here = attendee.trusted_in(department_id) if department_id \

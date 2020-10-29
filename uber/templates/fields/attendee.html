@@ -1,4 +1,11 @@
-{% set page_ro = c.HAS_READ_ACCESS and not c.HAS_ACCESS %}
+{% set read_access_level = attendee.admin_read_access() %}
+{% set write_access_level = attendee.admin_write_access() %}
+{% set page_ro = c.HAS_READ_ACCESS and not c.HAS_ACCESS or write_access_level < 3 or read_access_level and not write_access_level %}
+
+{% set limited_read = read_access_level == 1 %}
+{% set full_read = read_access_level > 2 %}
+{% set limited_write = write_access_level == 1 %}
+{% set contact_write = write_access_level == 2 %}
 {% import 'macros.html' as macros with context %}
 
 {#- Setting some variables to keep the size of conditional clauses smaller. -#}
@@ -363,19 +370,23 @@
 </script>
   <div class="form-group">
     <label class="col-sm-3 control-label">Badge Type</label>
+    {% call macros.read_only_if(read_only, attendee.badge_type_label) %}
     <div class="col-sm-3">
         <select name="badge_type" class="form-control" onChange="boldOrRegular(); setBadgeNum();">
           {{ options(c.BADGE_OPTS, attendee.badge_type) }}
         </select>
     </div>
+    {% endcall %}
   </div>
   {% if c.NUMBERED_BADGES %}
   <div class="form-group">
-  <label class="col-sm-3 control-label">Badge #</label>
-  <div class="col-sm-3">
-  <input type="text" class="form-control" name="badge_num" placeholder="0000" onBlur="autoCheckBlank();" />
-  <div class="checkbox"><label class="checkbox"><input type="checkbox" name="no_badge_num" onChange="toggleBadgeNumField();"><span id="no_badge_num_text"></span></label></div>
-  </div>
+    <label class="col-sm-3 control-label">Badge #</label>
+    {% call macros.read_only_if(read_only, attendee.badge_num) %}
+    <div class="col-sm-3">
+    <input type="text" class="form-control" name="badge_num" placeholder="0000" onBlur="autoCheckBlank();" />
+    <div class="checkbox"><label class="checkbox"><input type="checkbox" name="no_badge_num" onChange="toggleBadgeNumField();"><span id="no_badge_num_text"></span></label></div>
+    </div>
+    {% endcall %}
   </div>
   {% endif %}
 {% elif c.AT_THE_CON and attendee.is_new %}
@@ -449,7 +460,7 @@
 
 
 {% set name %}
-{% set read_only = name_ro or page_ro %}
+{% set read_only = name_ro or (page_ro and not (limited_write or contact_write)) %}
 {% if not admin_area %}
   <script type="text/javascript">
       var sameLegalNameChecked = function () {
@@ -471,13 +482,17 @@
 {% endif %}
 <div class="form-group">
   <label for="first_name" class="col-sm-3 control-label">Name</label>
-  {% call macros.read_only_if(read_only, attendee.full_name) %}
+  {% call macros.read_only_if(read_only, attendee.masked_name if limited_read else attendee.full_name) %}
     <div class="col-sm-3">
       <input type="text" name="first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name" autocomplete="fname">
     </div>
+    {% if limited_read or limited_write %}
+    <div class="col-sm-3 form-control-static">{{ attendee.last_name[0] ~ '.' if limited_read else attendee.last_name }}</div>
+    {% else %}
     <div class="col-sm-3">
       <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name" autocomplete="lname">
     </div>
+    {% endif %}
   {% endcall %}
 </div>
 
@@ -492,6 +507,7 @@
   </div>
 {% endif %}
 
+{% if full_read %}
 <div class="form-group">
   <label for="legal_name" class="col-sm-3 control-label">Name as appears on <span class="text-nowrap">Legal Photo ID</span></label>
   {% call macros.read_only_if(read_only, attendee.legal_name) %}
@@ -505,6 +521,7 @@
     </div>
   {% endcall %}
 </div>
+{% endif %}
 {% endset %}
 
 
@@ -877,6 +894,7 @@
 {% endset %}
 
 
+{% if not c.COLLECT_EXACT_BIRTHDATE or full_read %}
 {% set age %}
 {% set read_only = age_ro or page_ro %}
 <script type="text/javascript">
@@ -929,17 +947,22 @@
   {% endif %}
 </div>
 {% endset %}
+{% endif %}
 
 
 {% set email %}
-{% set read_only = email_ro or page_ro %}
+{% set read_only = email_ro or (page_ro and not contact_write) %}
 <div class="form-group">
   <label for="email" class="col-sm-3 control-label">Email Address</label>
+  {% if limited_read %}
+    <div class="col-sm-6 form-control-static">{{ attendee.masked_email }}</div>
+  {% else %}
   {% call macros.read_only_if(read_only, attendee.email) %}
   <div class="col-sm-6">
     <input type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="Email Address">
   </div>
   {% endcall %}
+  {% endif %}
 </div>
 
 {% if is_prereg_confirm_email_enabled and not admin_area and not read_only %}
@@ -1040,7 +1063,7 @@
 {% endif %}
 {% endset %}
 
-
+{% if full_read %}
 {% set emergency_contact %}
 {% if attendee.is_new or not admin_area or c.HAS_REG_ADMIN_ACCESS %}
 {% set read_only = emergency_contact_ro or page_ro %}
@@ -1062,8 +1085,10 @@
 </div>
 {% endif %}
 {% endset %}
+{% endif %}
 
 
+{% if not limited_read %}
 {% set cellphone %}
 <script type="text/javascript">
 var noCellphoneClicked = function () {
@@ -1081,7 +1106,7 @@ $(window).on("runJavaScript", function () {
   }
 });
   </script>
-{% set read_only = cellphone_ro or page_ro %}
+{% set read_only = cellphone_ro or (page_ro and not contact_write) %}
 <div class="form-group">
   <label for="cellphone" class="col-sm-3 control-label">Your Phone Number</label>
 {% call macros.read_only_if(read_only, attendee.cellphone) %}
@@ -1096,6 +1121,7 @@ $(window).on("runJavaScript", function () {
   {% endif %}
 </div>
 {% endset %}
+{% endif %}
 
 
 {% set interests %}
@@ -1124,6 +1150,7 @@ $(window).on("runJavaScript", function () {
 {% endcall %}
 </div>
 {% endset %}
+
 
 {% set comments %}
 {% set read_only = comments_ro or page_ro %}
@@ -1484,6 +1511,7 @@ $(window).on("runJavaScript", function(){
 </div>
 {% endset %}
 
+
 {% set promo_code_group_link %}
 {# Always read-only #}
 {% if attendee.promo_code_groups or attendee.promo_code and attendee.promo_code.group %}
@@ -1500,6 +1528,7 @@ $(window).on("runJavaScript", function(){
   </div>
 {% endif %}
 {% endset %}
+
 
 {% set panel_app_link %}
 {# Always read-only #}
@@ -1711,6 +1740,7 @@ $(window).on("runJavaScript", function(){
 </div>
 {% endset %}
 
+
 {% set agreed_to_volunteer_agreement %}
 {# Always read-only #}
 <div class="form-group staffing staffing-checked">
@@ -1723,6 +1753,7 @@ $(window).on("runJavaScript", function(){
   </div>
 </div>
 {% endset %}
+
 
 {% set reviewed_emergency_procedures %}
 {# Always read-only #}
@@ -1737,6 +1768,7 @@ $(window).on("runJavaScript", function(){
 </div>
 {% endset %}
 
+
 {% set hotel_eligible %}
 {# Always read-only #}
 <div class="form-group staffing staffing-checked">
@@ -1749,6 +1781,7 @@ $(window).on("runJavaScript", function(){
   </div>
 </div>
 {% endset %}
+
 
 {% set attractions_opt_out %}
 {# Always read-only #}
@@ -1763,6 +1796,7 @@ $(window).on("runJavaScript", function(){
 </div>
 {% endset %}
 
+
 {% if c.BADGE_PRINTING_ENABLED %}
 {% set print_pending %}
 {% set read_only = print_pending_ro or page_ro %}
@@ -1773,6 +1807,7 @@ $(window).on("runJavaScript", function(){
     </div>
 </div>
 {% endset %}
+
 
 {% set reprint_fee %}
 {% if c.BADGE_REPRINT_FEE %}
