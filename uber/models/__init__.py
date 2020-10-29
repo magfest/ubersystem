@@ -430,6 +430,8 @@ class MagModel:
                             value = int(float(value))
 
                     elif isinstance(column.type, UTCDateTime):
+                        if value == '':
+                            value = None
                         try:
                             value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
                         except ValueError:
@@ -438,6 +440,8 @@ class MagModel:
                             value = c.EVENT_TIMEZONE.localize(value)
 
                     elif isinstance(column.type, Date):
+                        if value == '':
+                            value = None
                         try:
                             value = datetime.strptime(value, c.DATE_FORMAT)
                         except ValueError:
@@ -893,8 +897,20 @@ class Session(SessionManager):
                 self.delete(stripe_txn)
 
         def guess_attendee_watchentry(self, attendee, active=True):
+            """
+            Finds all watchlist entries that match a given attendee.
+            Only active entries are matched. Watchlist entries with confirmed attendees
+            are still matched to attendees -- otherwise attendees could dodge bans just by
+            registering twice.
+
+            A watchlist entry is considered a match if both of the following are true:
+                a) one of the entry's first names or its last name matches the attendee's
+                b) the entry's email address or date of birth matches the attendee's
+
+            Because this could be run while in the middle of creating an attendee, we
+            need to do several checks on how the attendee's DOB might be formatted.
+            """
             or_clauses = [
-                func.lower(WatchList.first_names).contains(attendee.first_name.lower()),
                 and_(
                     WatchList.email != '',
                     func.lower(WatchList.email) == attendee.email.lower())]
@@ -913,9 +929,25 @@ class Session(SessionManager):
                     or_clauses.append(WatchList.birthdate == attendee.birthdate)
 
             return self.query(WatchList).filter(and_(
+                or_(func.lower(WatchList.first_names).contains(attendee.first_name.lower()),
+                    func.lower(WatchList.last_name) == attendee.last_name.lower()),
                 or_(*or_clauses),
-                func.lower(WatchList.last_name) == attendee.last_name.lower(),
                 WatchList.active == active)).all()  # noqa: E712
+
+        def guess_watchentry_attendees(self, entry):
+            return self.query(Attendee).filter(
+                or_(func.lower(Attendee.first_name).in_(entry.first_name_list),
+                    func.lower(Attendee.last_name) == entry.last_name.lower()),
+                or_(and_(
+                        Attendee.email != '',
+                        func.lower(Attendee.email) == entry.email.lower()
+                        ),
+                    and_(
+                        Attendee.birthdate != None,
+                        Attendee.birthdate == entry.birthdate
+                        ),
+                    ),
+                Attendee.watchlist_id == None).all()
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()

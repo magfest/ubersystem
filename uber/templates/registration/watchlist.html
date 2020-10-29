@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Watchlist Entry - {{ attendee.full_name }}{% endblock %}
+{% block content %}
+{% include "registration/menu.html" %}
+{% include "registration/attendee_watchlist.html" %}
+{% endblock %}

@@ -849,7 +849,7 @@ class Root:
     def attendee_shifts(self, session, id, **params):
         attendee = session.attendee(id, allow_invalid=True)
         attrs = Shift.to_dict_default_attrs + ['worked_label']
-        
+
         return_dict = {
             'attendee': attendee,
             'message': params.get('message', ''),
@@ -859,22 +859,27 @@ class Root:
                 for job in attendee.available_jobs
                 if job.start_time + timedelta(minutes=job.duration + 120) > localized_now()],
         }
-        
+
         if 'attendee_shifts' in cherrypy.url():
             return return_dict
         else:
             return render('registration/shifts.html', return_dict)
-    
-    @log_pageview
+
     @attendee_view
+    @cherrypy.expose(['watchlist'])
     def attendee_watchlist(self, session, id, **params):
         attendee = session.attendee(id, allow_invalid=True)
-        return {
+        return_dict = {
             'attendee': attendee,
             'active_entries': session.guess_attendee_watchentry(attendee, active=True),
             'inactive_entries': session.guess_attendee_watchentry(attendee, active=False),
         }
-    
+
+        if 'attendee_watchlist' in cherrypy.url():
+            return return_dict
+        else:
+            return render('registration/watchlist.html', return_dict)
+
     @ajax
     @attendee_view
     def update_attendee(self, session, message='', success=False, **params):

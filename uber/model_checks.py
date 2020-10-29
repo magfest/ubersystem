@@ -27,7 +27,7 @@ from uber.models import AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowAp
     AttendeeTournament, Attraction, AttractionFeature, Department, DeptRole, Event, Group, \
     IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio, Job, MarketplaceApplication, \
     MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam, PanelApplicant, PanelApplication, \
-    PromoCode, PromoCodeGroup, Sale, Session
+    PromoCode, PromoCodeGroup, Sale, Session, WatchList
 from uber.utils import localized_now, Charge
 
 
@@ -480,7 +480,8 @@ def out_of_badge_type(attendee):
                 session.get_next_badge_num(attendee.badge_type_real)
             except AssertionError:
                 return 'There are no more badges available for that type'
-            
+
+
 @validation.Attendee
 def not_in_range(attendee):
     lower_bound, upper_bound = c.BADGE_RANGES[attendee.badge_type_real]
@@ -497,6 +498,24 @@ def invalid_badge_name(attendee):
             and localized_now() <= c.get_printed_badge_deadline_by_type(attendee.badge_type_real) \
             and re.search(c.INVALID_BADGE_PRINTED_CHARS, attendee.badge_printed_name):
         return 'Your printed badge name has invalid characters. Please use only alphanumeric characters and symbols.'
+
+
+WatchList.required = [
+    ('reason', 'Reason'),
+    ('action', 'Action')
+]
+
+
+@validation.WatchList
+def include_a_name(entry):
+    if not entry.first_names and not entry.last_name:
+        return 'A first or last name is required.'
+
+
+@validation.WatchList
+def include_other_details(entry):
+    if not entry.birthdate and not entry.email:
+        return 'Email or date of birth is required.'
 
 
 @validation.MPointsForCash
