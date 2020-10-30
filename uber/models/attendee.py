@@ -721,10 +721,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         return section_list
 
     def admin_read_access(self):
-        return self.session.admin_attendee_max_access(self)
+        return self.session.admin_attendee_max_access(self) if self.session else False
     
     def admin_write_access(self):
-        return self.session.admin_attendee_max_access(self, read_only=False)
+        return self.session.admin_attendee_max_access(self, read_only=False) if self.session else False
 
     @property
     def ribbon_and_or_badge(self):
