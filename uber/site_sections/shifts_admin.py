@@ -56,6 +56,9 @@ class Root:
     @requires_shifts_admin
     def index(self, session, department_id=None, message='', time=None):
         redirect_to_allowed_dept(session, department_id, 'index')
+        initial_date = max(datetime.now(c.EVENT_TIMEZONE), c.SHIFTS_START_DAY)
+        if time:
+            initial_date = max(initial_date, datetime.strptime(time, "%Y-%m-%dT%H:%M:%S%z"))
 
         department_id = None if department_id == 'All' else department_id
         department = session.query(Department).get(department_id) if department_id else None
@@ -75,6 +78,7 @@ class Root:
             'times': [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)],
             'jobs': jobs,
             'message': message,
+            'initial_date': initial_date,
         }
 
     @department_id_adapter
@@ -207,7 +211,7 @@ class Root:
                     defaults = cherrypy.session.get('job_defaults', defaultdict(dict))
                     defaults[params['department_id']] = {field: getattr(job, field) for field in c.JOB_DEFAULTS}
                     cherrypy.session['job_defaults'] = defaults
-                tgt_start_time = str(job.start_time_local).replace(" ", "T")
+                tgt_start_time = job.start_time_local.strftime("%Y-%m-%dT%H:%M:%S%z")
                 raise HTTPRedirect('index?department_id={}&time={}', job.department_id, tgt_start_time)
 
         if 'start_time' in params and 'type' not in params:
@@ -253,12 +257,16 @@ class Root:
 
         message = check_can_edit_dept(session, job.department, override_access='full_shifts_admin')
         if message:
-            raise HTTPRedirect('index?department_id={}#{}&message={}', job.department_id, job.start_time, message)
+            raise HTTPRedirect('index?department_id={}&time={}&message={}', 
+                               job.department_id, job.start_time_local.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                               message)
 
         for shift in job.shifts:
             session.delete(shift)
         session.delete(job)
-        raise HTTPRedirect('index?department_id={}#{}', job.department_id, job.start_time)
+        raise HTTPRedirect('index?department_id={}&time={}',
+                           job.department_id, 
+                           job.start_time_local.strftime("%Y-%m-%dT%H:%M:%S%z"))
 
     @csrf_protected
     def assign_from_job(self, session, job_id, staffer_id):
