@@ -653,7 +653,8 @@ class Session(SessionManager):
 
     class SessionMixin:
         def current_admin_account(self):
-            return self.admin_account(cherrypy.session.get('account_id'))
+            if getattr(cherrypy, 'session', {}).get('account_id'):
+                return self.admin_account(cherrypy.session.get('account_id'))
 
         def admin_attendee(self):
             if getattr(cherrypy, 'session', {}).get('account_id'):
@@ -672,6 +673,9 @@ class Session(SessionManager):
 
         def admin_attendee_max_access(self, attendee, read_only=True):
             admin = self.current_admin_account()
+            if not admin:
+                return
+                
             if admin.full_registration_admin or attendee.creator == admin.attendee or attendee == admin.attendee:
                 return AccessGroup.FULL
             
@@ -679,6 +683,9 @@ class Session(SessionManager):
 
         def admin_can_create_attendee(self, attendee):
             admin = self.current_admin_account()
+            if not admin:
+                return
+                
             if admin.full_registration_admin:
                 return True
             
