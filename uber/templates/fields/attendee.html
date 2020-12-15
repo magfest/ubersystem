@@ -1,11 +1,15 @@
-{% set read_access_level = attendee.admin_read_access() %}
-{% set write_access_level = attendee.admin_write_access() %}
-{% set page_ro = c.HAS_READ_ACCESS and not c.HAS_ACCESS or write_access_level < 3 or read_access_level and not write_access_level %}
+{% if admin_area %}
+  {% set read_access_level = attendee.admin_read_access() or 0 %}
+  {% set write_access_level = attendee.admin_write_access() or 0 %}
+  {% set page_ro = c.HAS_READ_ACCESS and not c.HAS_ACCESS or write_access_level < 3 or read_access_level and not write_access_level %}
 
-{% set limited_read = read_access_level == 1 %}
-{% set full_read = read_access_level > 2 %}
-{% set limited_write = write_access_level == 1 %}
-{% set contact_write = write_access_level == 2 %}
+  {% set limited_read = read_access_level == 1 %}
+  {% set full_read = read_access_level > 2 %}
+  {% set limited_write = write_access_level == 1 %}
+  {% set contact_write = write_access_level == 2 %}
+{% else %}
+{% set full_read = true %}
+{% endif %}
 {% import 'macros.html' as macros with context %}
 
 {#- Setting some variables to keep the size of conditional clauses smaller. -#}
@@ -749,10 +753,11 @@
 
 {% set extra_donation %}
 {% set read_only = extra_donation_ro or page_ro %}
-{% if c.COLLECT_EXTRA_DONATION %}
-  <div id="extra_donation">
-    <div class="form-group">
+{% if c.COLLECT_EXTRA_DONATION or c.EXTRA_DONATION_URL %}
+<div id="extra_donation">
+  <div class="form-group">
       <label class="col-sm-3 control-label">Extra Donation</label>
+  {% if c.COLLECT_EXTRA_DONATION %}
     {% call macros.read_only_if(read_only, attendee.extra_donation, pre_text='$' if attendee.extra_donation) %}
       <div class="col-sm-6">
         <div class="input-group">
@@ -769,8 +774,13 @@
           Your employer may also have a charitable donation matching program. E-mail contact@magfest.org for details.
         </p>
       {% endif %}
-    </div>
-  </div>
+{% endif %}
+{% if c.EXTRA_DONATION_URL %}
+<div class="help-block col-sm-9{% if c.COLLECT_EXTRA_DONATION %} col-sm-offset-3{% endif %}">
+If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXTRA_DONATION %} also{% endif %} do so at any time of year at <a href="{{ c.EXTRA_DONATION_URL }}" target="_blank">{{ c.EXTRA_DONATION_URL }}</a>!
+</div>
+{% endif %}
+</div>
 {% endif %}
 {% endset %}
 
@@ -1298,7 +1308,7 @@ $(window).on("runJavaScript", function () {
   <div class="checkbox col-sm-9 col-sm-offset-3">
     <label for="pii_consent" class="checkbox-label">
       <input type="checkbox" name="pii_consent" id="pii_consent" value="1" required {% if pii_consent %}checked{% endif %} />
-      <strong>Yes</strong>, I understand and agree that {{ c.ORGANIZATION_NAME }} will store the personal information I provided above for the limited purposes of contacting me about my registration, hotel accommodations, kick-in packages, or volunteer opportunities selected at sign-up.
+      <strong>Yes</strong>, I understand and agree that {{ c.ORGANIZATION_NAME }} will store the personal information I provided above for the limited purposes of contacting me about my registration{% if c.HOTELS_ENABLED %}, hotel accommodations{% endif %}{% if c.DONATIONS_ENABLED %}, kick-in packages{% endif %}{% if c.HOTELS_ENABLED or c.DONATIONS_ENABLED %},{% endif %} or volunteer opportunities selected at sign-up.
     </label>
     {% if not admin_area and c.PRIVACY_POLICY_URL %}
         <p class="help-block">
