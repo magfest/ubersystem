@@ -18,6 +18,6 @@ twilio==6.10.0
 cherrys==0.4
 redis==2.10.6
 ics==0.4
-Pillow==6.2.2
+Pillow==8.2.0
 fpdf==1.7.2
 boto3==1.14.45
