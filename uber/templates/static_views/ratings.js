@@ -36,7 +36,7 @@ var setupShiftRatingClickHandler = function () {
 
         if (comment !== null ) {
             var params = {shift_id: shift.id, rating: rating, comment: comment, csrf_token: csrf_token};
-            $.post('../jobs/rate', params, function (json) {
+            $.post('../shifts_admin/rate', params, function (json) {
                 $img.parent().find('img').each(function () {
                     var r = $(this).data('rating');
                     $(this)
@@ -86,7 +86,7 @@ var renderShiftStatus = function(shift, onUpdateShiftStatus) {
 };
 
 var updateShiftStatus = function(shift, status, onUpdateShiftStatus) {
-    $.post('../jobs/set_worked', {
+    $.post('../shifts_admin/set_worked', {
         id: shift.id,
         status: status,
         csrf_token: csrf_token

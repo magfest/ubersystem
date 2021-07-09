@@ -1,2 +1,2 @@
-"{{ group.name }}" has just paid ${{ group.amount_paid }} for their Dealer registration.
-{{ c.URL_BASE }}/groups/form?id={{ group.id }}
+"{{ group.name }}" has just paid ${{ '%0.2f' % (group.amount_paid / 100) }} for their {{ c.DEALER_REG_TERM }}.
+{{ c.URL_BASE }}/group_admin/form?id={{ group.id }}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Attendees Owed Merch{% endblock %}
+{% block content %}
+<h3>Attendees Owed Merch</h3>
+<p>The below list is all attendees who selected a kick-in level but were not marked as receiving their merch.</p> 
+<table class="table table-striped datatable">
+<thead><tr>
+    <th>Name</th>
+    <th>Name on ID</th>
+    <th>Email Address</th>
+    <th>Merch</th>
+    <th>Shirt Size</th>
+    <th>Badge #</th>
+    <th>Money Owed</th>
+    <th>Checked In</th>
+    <th>Admin Notes</th>
+</tr></thead>
+{% for attendee in attendees %}
+    <tr>
+        <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}"> {{ attendee|form_link }}</a> </td>
+        <td>{{ attendee.legal_name }}</td>
+        <td>{{ attendee.email|email_to_link }}</td>
+        <td>{{ attendee.merch }}</td>
+        <td>{{ attendee.shirt_label }}</td>
+        <td>{{ attendee.badge_num }}</td>
+        <td>${{ "{0:g}".format(attendee.amount_unpaid) }}</td>
+        <td>{{ attendee.checked_in|datetime_local }}</td>
+        <td>{{ attendee.admin_notes }}</td>
+    </tr>
+{% endfor %}
+	<caption align="bottom">
+		<ul class="pagination"></ul>
+	</caption>
+</table>
+{% endblock %}

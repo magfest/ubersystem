@@ -1,0 +1,35 @@
+Dear {{ app.attendee.first_name }},
+
+<p>Thank you for registering to send Art to {{ c.EVENT_NAME }} via our Mail-In Option. Below you will find the steps you need to follow to successfully submit/send art to us.</p>
+
+<p>Here is a link to <a href="{{ c.URL_BASE }}/art_show_applications/edit?id={{ app.id }}" target="_blank">your application</a>.</p>
+
+<p>**If you have not paid for your space in the show, please do so now. Any unpaid reservations will be deleted on November 1st, and you will lose your space to the waitlist.</p>
+<ol>
+    <li>Enter your mailing address.</li>
+    <li>Enter your pieces into your application.</li>
+    <li>When all pieces are entered click the Green "Print Check in Button." This will open a print dialog window. Please print, review and sign this document. We MUST have it on file to hang and sell your art.</li>
+    <li>Ship your
+        <ul>
+        <li>Art</li>
+        <li>Check-in Sheet</li>
+        <li>PREPAID Return label to:
+        <blockquote>
+            Midwest Art Show 
+            <br/>c/o Carol Gobeyn
+            <br/>607 Lilac Way
+            <br/>Lombard, IL 60148
+        </blockquote>
+        All art must be shipped via trackable means both ways. DO NOT SEND SIGNATURE REQUIRED.
+        <br/>Deadline to receive mail-in packages is Wednesday, November 27th.
+        </li>
+        </ul>
+    </li>
+    <li>Email {{ c.ART_SHOW_EMAIL|email_only|email_to_link }} with your Name, Tracking Number and shipper name.</li>
+</ol>
+
+<p>I will send back any unsold Art via your prepaid label on Monday, December 9th. If all of your art sells we will send back your prepaid label, receipt and the check for your sales during the week after the convention.</p>
+
+<p>Thank you,
+<br/>Hugmonster
+<br/>Art Show Director</p>

@@ -161,7 +161,7 @@ class Department(MagModel):
     parent_id = Column(UUID, ForeignKey('department.id'), nullable=True)
     is_setup_approval_exempt = Column(Boolean, default=False)
     is_teardown_approval_exempt = Column(Boolean, default=False)
-    max_consecutive_hours = Column(Integer, default=0)
+    max_consecutive_minutes = Column(Integer, default=0)
 
     jobs = relationship('Job', backref='department')
 
@@ -340,7 +340,7 @@ class Job(MagModel):
     _ALL_VOLUNTEERS = 2
     _VISIBILITY_OPTS = [
         (_ONLY_MEMBERS, 'Members of this department'),
-        (_ALL_VOLUNTEERS, 'Volunteers who\'ve requested this dept or "Anywhere"')]
+        (_ALL_VOLUNTEERS, 'All volunteers')]
 
     type = Column(Choice(c.JOB_TYPE_OPTS), default=c.REGULAR)
     name = Column(UnicodeText)
@@ -376,13 +376,13 @@ class Job(MagModel):
         return select([Department.name]).where(Department.id == cls.department_id).label('department_name')
 
     @hybrid_property
-    def max_consecutive_hours(self):
-        return self.department.max_consecutive_hours
+    def max_consecutive_minutes(self):
+        return self.department.max_consecutive_minutes
 
-    @max_consecutive_hours.expression
-    def max_consecutive_hours(cls):
-        return select([Department.max_consecutive_hours]) \
-            .where(Department.id == cls.department_id).label('max_consecutive_hours')
+    @max_consecutive_minutes.expression
+    def max_consecutive_minutes(cls):
+        return select([Department.max_consecutive_minutes]) \
+            .where(Department.id == cls.department_id).label('max_consecutive_minutes')
 
     @hybrid_property
     def restricted(self):
@@ -407,66 +407,66 @@ class Job(MagModel):
         self._set_relation_ids('required_roles', DeptRole, value)
 
     @property
-    def hours(self):
-        hours = set()
-        for i in range(self.duration):
-            hours.add(self.start_time + timedelta(hours=i))
-        return hours
+    def minutes(self):
+        minutes = set()
+        for i in range(int(self.duration)):
+            minutes.add(self.start_time + timedelta(minutes=i))
+        return minutes
 
     @property
     def end_time(self):
-        return self.start_time + timedelta(hours=self.duration)
+        return self.start_time + timedelta(minutes=self.duration)
 
     def working_limit_ok(self, attendee):
         """
-        Prevent signing up for too many shifts in a row. `hours_worked` is the
-        number of hours that the attendee is working immediately before plus
-        immediately after this job, plus this job's hours. `working_hour_limit`
-        is the *min* of Department.max_consecutive_hours for all the jobs we've
-        seen (including self). This means that if dept A has a limit of 3 hours,
-        and dept B has a limit of 2 hours, (for one-hour shifts), if we try to
+        Prevent signing up for too many shifts in a row. `minutes_worked` is the
+        number of minutes that the attendee is working immediately before plus
+        immediately after this job, plus this job's minutes. `working_minutes_limit`
+        is the *min* of Department.max_consecutive_minutes for all the jobs we've
+        seen (including self). This means that if dept A has a limit of 3 minutes,
+        and dept B has a limit of 2 minutes, (for one-hour shifts), if we try to
         sign up for the shift order of [A, A, B], B's limits will kick in and
         block the signup.
         """
 
-        attendee_hour_map = attendee.hour_map
-        hours_worked = self.duration
-        working_hour_limit = self.max_consecutive_hours
-        if working_hour_limit == 0:
-            working_hour_limit = 1000  # just default to something large
+        attendee_minute_map = attendee.shift_minute_map
+        minutes_worked = self.duration
+        working_minutes_limit = self.max_consecutive_minutes
+        if working_minutes_limit == 0:
+            working_minutes_limit = 60000  # just default to something large
 
-        # count the number of filled hours before this shift
-        current_shift_hour = self.start_time - timedelta(hours=1)
-        while current_shift_hour in attendee_hour_map:
-            hours_worked += 1
-            this_job_hour_limit = attendee_hour_map[current_shift_hour].max_consecutive_hours
-            if this_job_hour_limit > 0:
-                working_hour_limit = min(working_hour_limit, this_job_hour_limit)
-            current_shift_hour = current_shift_hour - timedelta(hours=1)
+        # count the number of filled minutes before this shift
+        current_shift_minute = self.start_time - timedelta(minutes=1)
+        while current_shift_minute in attendee_minute_map:
+            minutes_worked += 1
+            this_job_minute_limit = attendee_minute_map[current_shift_minute].max_consecutive_minutes
+            if this_job_minute_limit > 0:
+                working_minutes_limit = min(working_minutes_limit, this_job_minute_limit)
+            current_shift_minute = current_shift_minute - timedelta(minutes=1)
 
-        # count the number of filled hours after this shift
-        current_shift_hour = self.start_time + timedelta(hours=self.duration)
-        while current_shift_hour in attendee_hour_map:
-            hours_worked += 1
-            this_job_hour_limit = attendee_hour_map[current_shift_hour].max_consecutive_hours
-            if this_job_hour_limit > 0:
-                working_hour_limit = min(working_hour_limit, this_job_hour_limit)
-            current_shift_hour = current_shift_hour + timedelta(hours=1)
+        # count the number of filled minutes after this shift
+        current_shift_minute = self.start_time + timedelta(minutes=self.duration)
+        while current_shift_minute in attendee_minute_map:
+            minutes_worked += 1
+            this_job_minute_limit = attendee_minute_map[current_shift_minute].max_consecutive_minutes
+            if this_job_minute_limit > 0:
+                working_minutes_limit = min(working_minutes_limit, this_job_minute_limit)
+            current_shift_minute = current_shift_minute + timedelta(minutes=1)
 
-        return hours_worked <= working_hour_limit
+        return minutes_worked <= working_minutes_limit
 
     def no_overlap(self, attendee):
-        before = self.start_time - timedelta(hours=1)
-        after = self.start_time + timedelta(hours=self.duration)
-        return not self.hours.intersection(attendee.hours) and (
-            before not in attendee.hour_map
-            or not attendee.hour_map[before].extra15
-            or self.department_id == attendee.hour_map[before].department_id
+        before = self.start_time - timedelta(minutes=1)
+        after = self.start_time + timedelta(minutes=self.duration)
+        return not self.minutes.intersection(attendee.shift_minutes) and (
+            before not in attendee.shift_minute_map
+            or not attendee.shift_minute_map[before].extra15
+            or self.department_id == attendee.shift_minute_map[before].department_id
         ) and (
-            after not in attendee.hour_map
+            after not in attendee.shift_minute_map
             or not self.extra15
-            or self.department_id == attendee.hour_map[after].department_id
-        ) and self.working_limit_ok(attendee)
+            or self.department_id == attendee.shift_minute_map[after].department_id
+        )
 
     @hybrid_property
     def slots_taken(self):
@@ -506,11 +506,11 @@ class Job(MagModel):
 
     @property
     def real_duration(self):
-        return self.duration + (0.25 if self.extra15 else 0)
+        return self.duration + (15 if self.extra15 else 0)
 
     @property
     def weighted_hours(self):
-        return self.weight * self.real_duration
+        return self.weight * (self.real_duration / 60)
 
     @property
     def total_hours(self):
@@ -567,7 +567,8 @@ class Job(MagModel):
         Returns a list of volunteers who are allowed to sign up for
         this Job and have the free time to work it.
         """
-        return [s for s in self._potential_volunteers(order_by=Attendee.last_first) if self.no_overlap(s)]
+        return [s for s in self._potential_volunteers(order_by=Attendee.last_first) if self.no_overlap(s)
+                and self.working_limit_ok(s)]
 
 
 class Shift(MagModel):

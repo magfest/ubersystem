@@ -12,6 +12,7 @@ import json
 import math
 import os
 import re
+import sys
 from datetime import datetime, timedelta
 from urllib.parse import quote_plus
 from uuid import uuid4
@@ -19,7 +20,7 @@ from uuid import uuid4
 import cherrypy
 import jinja2
 from dateutil.relativedelta import relativedelta
-from markupsafe import text_type, Markup
+from markupsafe import Markup
 from pockets import fieldify, unfieldify, listify, readable_join
 from sideboard.lib import serializer
 
@@ -28,6 +29,10 @@ from uber.decorators import render
 from uber.jinja import JinjaEnv
 from uber.utils import ensure_csrf_token_exists, hour_day_format, localized_now, normalize_newlines
 
+# This used to be available as markupsafe.text_type, but that was removed in version 1.1.0
+text_type = str
+if sys.version_info[0] == 2:
+    text_type = unicode
 
 def safe_string(text):
     if isinstance(text, Markup):
@@ -227,32 +232,52 @@ form_link_site_sections = {}
 
 
 @JinjaEnv.jinja_filter
-def form_link(model):
+def form_link(model, new_window=False):
     if not model:
         return ''
 
     from uber.models import Attendee, Attraction, Department, Group, Job, PanelApplication
+    
+    page = 'form'
+        
+    if c.HAS_REGISTRATION_ACCESS:
+        attendee_section = '../registration/'
+    else:
+        attendee_section = ''
+        page = '#attendee_form' if isinstance(model, Attendee) else page
 
     site_sections = {
-        Attendee: 'registration',
-        Attraction: 'attractions_admin',
-        Department: 'departments',
-        Group: 'groups',
-        Job: 'jobs',
-        PanelApplication: 'panel_app_management'}
+        Attendee: attendee_section,
+        Attraction: '../attractions_admin/',
+        Department: '../dept_admin/',
+        Group: '../group_admin/',
+        Job: '../jobs/',
+        PanelApplication: '../panels_admin/'}
 
     cls = model.__class__
     site_section = site_sections.get(cls, form_link_site_sections.get(cls))
-    name = getattr(model, 'name', getattr(model, 'full_name', cls.__name__))
+    name = getattr(model, 'name', getattr(model, 'full_name', model))
 
     if site_section:
-        return safe_string('<a href="../{}/form?id={}">{}</a>'.format(site_section, model.id, jinja2.escape(name)))
-    return model
+        return safe_string('<a href="{}{}?id={}"{}>{}</a>'.format(
+                                                           site_section, 
+                                                           page, 
+                                                           model.id, 
+                                                           ' target="_blank"' if new_window else '',
+                                                           jinja2.escape(name)))
+    return name
 
 
 @JinjaEnv.jinja_filter
 def dept_checklist_path(conf, department=None):
     return safe_string(conf.path(department))
+
+
+@JinjaEnv.jinja_filter
+def nav_return_to_page_title(return_to):
+    # Formats a return_to link into a sensible-looking page name for our nav menus
+    return_to = return_to.split('?', 1)[0]
+    return return_to.replace('../', '').replace('/', ' ').replace('_', ' ').title()
 
 
 @JinjaEnv.jinja_filter
@@ -315,7 +340,7 @@ def email_only(email):
     former to be used in our text-only emails.  This filter takes an email which
     can be in either format and spits out just the email address portion.
     """
-    return re.search(c.EMAIL_RE.lstrip('^').rstrip('$'), email).group()
+    return re.search(c.EMAIL_RE.lstrip('^').rstrip('$'), email).group() if email else ''
 
 
 @JinjaEnv.jinja_export
@@ -403,7 +428,7 @@ def humanize_timedelta(
 @JinjaEnv.jinja_export
 def options(options, default='""'):
     """
-    We do need to accomodate explicitly passing in other options though
+    We do need to accommodate explicitly passing in other options though
     (include None), so make sure to check all the client calls for that info.
     """
     if isinstance(default, datetime):
@@ -574,37 +599,19 @@ def linebreaksbr(text):
 @JinjaEnv.jinja_export
 def csrf_token():
     ensure_csrf_token_exists()
-    return safe_string('<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session["csrf_token"]))
+    return safe_string(
+        '<input type="hidden" name="csrf_token" value="{}" />'.format(cherrypy.session.get("csrf_token")))
 
 
 @JinjaEnv.jinja_export
-def stripe_form(action, charge):
-    payment_id = uuid4().hex
-    cherrypy.session[payment_id] = charge.to_dict()
+def stripe_form(action, model=None, **params):
+    new_params = {'params': {}}
+    for key, val in params.items():
+        new_params['params'][key] = val
+    new_params['action'] = action
+    new_params['id'] = model.id if model else None
 
-    email = None
-    if charge.models and charge.models[0].email:
-        email = charge.models[0].email[:255]
-
-    if not charge.models:
-        if c.AT_THE_CON:
-            regtext = 'On-Site Charge'
-        else:
-            regtext = 'Charge'
-    elif c.AT_THE_CON:
-        regtext = 'Registration'
-    else:
-        regtext = 'Preregistration'
-
-    params = {
-        'action': action,
-        'regtext': regtext,
-        'email': email,
-        'payment_id': payment_id,
-        'charge': charge
-    }
-
-    return safe_string(render('preregistration/stripeForm.html', params).decode('utf-8'))
+    return safe_string(render('preregistration/stripeForm.html', new_params).decode('utf-8'))
 
 
 @JinjaEnv.jinja_export

@@ -147,7 +147,7 @@ def init_db(request):
                 first_name=name,
                 last_name=name,
                 paid=c.NEED_NOT_PAY,
-                badge_type=c.SUPPORTER_BADGE
+                badge_type=c.CONTRACTOR_BADGE
             ))
             session.commit()
 

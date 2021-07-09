@@ -1,13 +1,13 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}Dealer Application Received{% endblock %}
+{% block title %}{{ c.DEALER_APP_TERM|title }} Received{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
 {% include 'prereg_masthead.html' %}
 <div class="panel panel-default">
   <div class="panel-body">
-    <h2>{% if group.status == c.WAITLISTED %}You've been added to our waitlist!{% else %}Thanks for applying as a Dealer!{% endif %}</h2>
+    <h2>{% if group.status == c.WAITLISTED %}You've been added to our waitlist!{% else %}Thanks for applying as a {{ c.DEALER_TERM }}!{% endif %}</h2>
 
-    We've received your application for {{ group.name }} to purchase a Dealer registration for {{ c.EVENT_NAME }}.
+    We've received your application for {{ group.name }} to purchase a {{ c.DEALER_REG_TERM }} for {{ c.EVENT_NAME }}.
 
     <br/><br/>
     {% if group.status == c.WAITLISTED %}
@@ -18,20 +18,20 @@
     {% endif %}
 
     <h3>What Happens Next</h3>
-    After approval, you will be emailed a link to manage your dealer registration. From this link, you will be able to:
+    After approval, you will be emailed a link to manage your {{ c.DEALER_REG_TERM }}. From this link, you will be able to:
     <ul>
-        <li>Pay for your dealer registration, which includes the cost of tables and badges.</li>
-        <li>Register your Dealer Assistants.</li>
-        <li>After your badge and table payment is received, you may add and pay for additional Dealer Assistants.</li>
+        <li>Pay for your {{ c.DEALER_REG_TERM }}, which includes the cost of tables and badges.</li>
+        <li>Register your {{ c.DEALER_HELPER_TERM }}s.</li>
+        <li>After your badge and table payment is received, you may add and pay for additional {{ c.DEALER_HELPER_TERM }}s.</li>
     </ul>
 
-    Your Dealership Payment includes your table cost and all badges in your group.  After payment, you'll be sent a link
-    by email to follow if you wish to later upgrade your badge. Your Dealer Assistants will be able to upgrade their own
+    Your {{ c.DEALER_REG_TERM }} payment includes your table cost and all badges in your group.  After payment, you'll be sent a link
+    by email to follow if you wish to later upgrade your badge. Your {{ c.DEALER_HELPER_TERM }}s will be able to upgrade their own
     badges and pay for those upgrades on their own.
 
     <br/><br/>Later, you will receive another email with more specific information about this year's event.
 
-    <br/><br/>In the event we cannot accommodate your Dealership, you will receive an email. If your application
+    <br/><br/>In the event we cannot accommodate your {{ c.DEALER_REG_TERM }}, you will receive an email. If your application
     is not approved, you will be able to purchase badges for yourself and the number of assistants on the application
     at the pre-registration price of ${{ c.BADGE_PRICE }} when the waitlist is exhausted. You will receive an email
     when these badges are available for purchase.

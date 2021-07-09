@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% set name_ro = not attendee.placeholder %}
+{% set assigned_depts_ro = True %}
 {% import "fields/attendee.html" as attendee_fields with context %}
 {% block title %}Confirm Your Details{% endblock %}
 {% block backlink %}
-    {% if c.HAS_PEOPLE_ACCESS %}
+    {% if c.HAS_REGISTRATION_ACCESS %}
         <a href="../registration/form?id={{ attendee.id }}" style="float:right">Return to Attendee Admin Form</a>
     {% endif %}
 {% endblock %}
@@ -46,7 +47,7 @@
         <br/>
         <div class="form-group">
           <div class="col-sm-9 col-sm-offset-3 warning">
-            You currently have an outstanding balance of ${{ attendee.amount_unpaid }}{% if attendee.amount_extra %} due to having requested
+            You currently have an outstanding balance of ${{ '%0.2f' % attendee.amount_unpaid }}{% if attendee.amount_extra %} due to having requested
             registration add-ons and then not completing the payment form{% endif %}.  Please either
             <a href="attendee_donation_form?id={{ attendee.id }}">click here</a> to pay, or alter your registration below to
             eliminate whichever addons you've decided not to select.
@@ -83,7 +84,9 @@
       {{ attendee_fields.extra_donation }}
       {{ attendee_fields.staffing }}
       {{ attendee_fields.job_interests }}
+      {{ attendee_fields.assigned_depts }}
       {{ attendee_fields.agreed_to_volunteer_agreement }}
+      {{ attendee_fields.reviewed_emergency_procedures }}
       {{ attendee_fields.age }}
       {{ attendee_fields.email }}
       {{ attendee_fields.address }}

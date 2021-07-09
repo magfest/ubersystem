@@ -1,0 +1,18 @@
+<h2>MIVS Checklist Info for <a href="../guests/index?id={{ guest.id }}">{{ guest.group.name }}</a></h2>
+
+<form class="form-horizontal" role="form" method="post" action="checklist_info">
+  {{ csrf_token() }}
+  <input type="hidden" name="id" value="{{ guest.id }}" />
+
+    <h3>Checklist Status</h3>
+      <table class="table">
+        {% for key, val in c.MIVS_CHECKLIST.items() %}
+          <tr>
+          <td><strong>{{ val['name'] }}</strong></td><td>{{ guest.group.studio[key + "_status"] if guest.group.studio[key + "_status"] is not none else "Not Completed" }}
+          {% if guest.group.studio %}
+            <td>{{ humanize_timedelta(guest.group.studio.past_checklist_deadline(key), granularity='hours', past_suffix=' until deadline', suffix=' past deadline') }}</td>
+          {% endif %}
+          </tr>
+        {% endfor %}
+      </table>
+</form>

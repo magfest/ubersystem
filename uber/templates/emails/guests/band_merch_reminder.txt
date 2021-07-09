@@ -1,7 +1,7 @@
 {{ guest.group.name }},
 
-{{ c.EVENT_NAME }} encourages performers to sell their merchandise throughout the event.  The best way to do this is to participate in "Rock Island", where our volunteers sell your merchandise at a booth which is staffed throughout the event.  Bands can opt to instead sell from their own dedicated table in the Marketplace if they are will to staff for at least 8 hours per day.  We need you to tell us which option you prefer by filling out the form at {{ c.URL_BASE }}/guests/merch?guest_id={{ guest.id }}
+{{ c.EVENT_NAME }} encourages performers to sell their merchandise throughout the event. The best way to do this is to participate in "Rock Island," where our volunteers sell your merchandise at a booth which is staffed throughout the event. Performers can opt to instead sell from their own dedicated half table in the Marketplace if they are willing to staff it for at least 8 hours per day. We need you to tell us which option you prefer by filling out the form at {{ c.URL_BASE }}/guests/merch?guest_id={{ guest.id }}
 
-Failing to fill out this form by {{ c.BAND_MERCH_DEADLINE|datetime_local }} forfeits the offer of a dedicated table and may interfere with our ability to accept your merchandise at Rock Island.
+Failing to fill out this form by {{ c.BAND_MERCH_DEADLINE|datetime_local }} forfeits the offer of table space in the Marketplace and may interfere with our ability to accept your merchandise at Rock Island.
 
 {{ c.BAND_EMAIL_SIGNATURE }}

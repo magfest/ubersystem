@@ -1,10 +1,10 @@
 <html>
 <head></head>
 <body>
-Your group ({{ group.name }}) has been approved as a {{ c.EVENT_NAME }} Dealer for this coming {{ event_dates() }}!
-You can pay the ${{ group.cost }} you owe using the credit card button
+Your group ({{ group.name }}) has been approved as a {{ c.EVENT_NAME }} {{ c.DEALER_TERM }} for this coming {{ event_dates() }}!
+You can pay the ${{ '%0.2f' % group.cost }} you owe using the credit card button
 <a href="{{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}">on this page</a>.
-Payment is expected by: {{ c.DEALER_PAYMENT_DUE|datetime_local }} or your application may be removed and your tables filled by another applicant.
+Payment is expected by: {{ c.DEALER_PAYMENT_DUE|datetime_local }} or your application will be removed and your tables filled by another applicant.
 
 {% if group.unassigned_badges %}
     <br/> <br/>
@@ -17,11 +17,11 @@ Payment is expected by: {{ c.DEALER_PAYMENT_DUE|datetime_local }} or your applic
 
 This registration includes:
 <ul>
-    <li> {{ group.tables }} table{{ group.tables|pluralize }} (${{ group.table_cost|round(2) }}) </li>
-    <li> {{ group.badges }} badge{{ group.badges|pluralize }} (${{ group.badge_cost|round(2) }}) </li>
+    <li> {{ group.tables }} table{{ group.tables|pluralize }} (${{ '%0.2f' % group.table_cost }}) </li>
+    <li> {{ group.badges }} badge{{ group.badges|pluralize }} (${{ '%0.2f' % group.badge_cost }}) </li>
 </ul>
 
-<br/> <u>Dealer Rules and Information</u>
+<br/> <u>{{ c.DEALER_LOC_TERM|title }} Rules and Information</u>
 {% include "static_views/dealerRules.html" %}
 
 

@@ -1,0 +1,132 @@
+{% set admin_area=True %}
+<style type="text/css">
+.modal-dialog {
+  width: 98%;
+  padding: 0;
+}
+.gly-spin {
+  -webkit-animation: spin 2s infinite linear;
+  -moz-animation: spin 2s infinite linear;
+  -o-animation: spin 2s infinite linear;
+  animation: spin 2s infinite linear;
+}
+@-moz-keyframes spin {
+  0% {
+    -moz-transform: rotate(0deg);
+  }
+  100% {
+    -moz-transform: rotate(359deg);
+  }
+}
+@-webkit-keyframes spin {
+  0% {
+    -webkit-transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(359deg);
+  }
+}
+@-o-keyframes spin {
+  0% {
+    -o-transform: rotate(0deg);
+  }
+  100% {
+    -o-transform: rotate(359deg);
+  }
+}
+@keyframes spin {
+  0% {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(359deg);
+    transform: rotate(359deg);
+  }
+}
+</style>
+<script type="text/javascript">
+$('#attendee_form').load(function() {$(window).trigger( 'runJavaScript' );});
+var attendeeID = '{{ attendee.id }}';
+loadForm = function(kw) {
+  var glyphicon_span = $('a[href="#attendee' + kw + '"]').children('span');
+  var glyphicon_class = glyphicon_span.attr('class');
+  var old_hash = window.location.hash;
+  glyphicon_span.removeClass().addClass('glyphicon glyphicon-repeat gly-spin');
+  $('#attendee' + kw).load('../registration/attendee_' + kw.toLowerCase() + '?id=' + attendeeID, function(response, status){
+    window.history.replaceState("", document.title, window.location.href.replace(location.hash, "") + old_hash);
+    if (status == 'success') {
+      $(window).trigger( 'runJavaScript' );
+      glyphicon_span.removeClass().addClass(glyphicon_class);
+    } else {
+      toastr.error("Unable to connect to server, please try again.");
+      glyphicon_span.removeClass().addClass(glyphicon_class);
+    }
+  });
+};
+var refreshTab = function() {
+  var currentTab = $('.tab-pane.active');
+  loadForm(currentTab.attr('id').slice(8));
+};
+{% if tab_view %}
+var tab = $('.nav-tabs a[href="#attendee{{ tab_view }}"]');
+if(tab.length) {
+  tab.tab('show');
+} else {
+  $('.nav-tabs a').first().tab('show');
+}
+loadForm("{{ tab_view }}");
+{% endif %}
+</script>
+<div class="modal-header">
+  <button type="button" class="close" data-dismiss="modal">&times;</button>
+  <h4 class="modal-title">Attendee Form{% if attendee.first_name %} - {{ attendee.full_name }}{% endif %}</h4>
+  </div>
+  <div class="modal-body">
+    <div role="tabpanel">
+      <!-- Nav tabs -->
+      {% if not attendee.is_new %}
+      <ul class="nav nav-tabs" role="tablist">
+          <li role="presentation" class="active">
+          <a href="#attendeeData" aria-controls="attendeeData" role="tab" data-toggle="tab" onClick="loadForm('Data')">
+          <span class="glyphicon glyphicon-user"></span>&nbsp;Data
+          </a>
+          </li>
+          {% if attendee.staffing and c.HAS_SHIFTS_ADMIN_ACCESS %}
+          <li role="presentation">
+          <a href="#attendeeShifts" aria-controls="attendeeShifts" role="tab" data-toggle="tab" onClick="loadForm('Shifts')">
+          <span class="glyphicon glyphicon-calendar"></span>&nbsp;Shifts
+          </a>
+          </li>
+          {% endif %}
+          <li role="presentation">
+          <a href="#attendeeHistory" aria-controls="attendeeHistory" role="tab" data-toggle="tab" onClick="loadForm('History')">
+          <span class="glyphicon glyphicon-time"></span>&nbsp;History
+          </a>
+          </li>
+          {% if attendee.banned and c.HAS_SECURITY_ADMIN_ACCESS %}
+          <li role="presentation">
+          <a href="#attendeeWatchlist" aria-controls="attendeeWatchlist" role="tab" data-toggle="tab" onClick="loadForm('Watchlist')">
+          <span class="glyphicon glyphicon-ban-circle"></span>&nbsp;Watchlist Entry
+          </a>
+          </li>
+          {% endif %}
+          <button class='btn btn-info pull-right' onClick="refreshTab()">
+          Refresh&nbsp;<span class="glyphicon glyphicon-refresh pull-right"></span>
+          </button>
+      </ul>
+      {% endif %}
+      <!-- Tab panes -->
+      <div class="tab-content">
+        <div role="tabpanel" class="tab-pane active" id="attendeeData">{% include 'registration/attendee_data.html' %}</div>
+        {% if attendee.staffing and c.HAS_SHIFTS_ADMIN_ACCESS %}
+        <div role="tabpanel" class="tab-pane" id="attendeeShifts"></div>
+        {% endif %}
+        {% if not attendee.is_new %}
+        <div role="tabpanel" class="tab-pane" id="attendeeHistory"></div>
+        {% endif %}
+        {% if attendee.banned and c.HAS_SECURITY_ADMIN_ACCESS %}
+        <div role="tabpanel" class="tab-pane" id="attendeeWatchlist"></div>
+        {% endif %}
+      </div>
+  </div>

@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Art Show Admin{% endblock %}
+{% block content %}
+
+<ol class="breadcrumb">
+  <li><a href="../accounts/homepage">Home</a></li>
+  <li>Art Show</li>
+  <li class="active">Admin</li>
+</ol>
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h3 class="panel-title">Art Show At-Con Ops</h3>
+  </div>
+  <div class="panel-body">
+    <a class="btn btn-default" href="index">View Applications</a>
+    <a class="btn btn-success" href="artist_check_in_out">Check In Artists</a>
+    <a class="btn btn-info" href="bidder_signup">Add Bidders</a>
+    <a class="btn btn-default" href="assign_locations">Assign Artist Locations</a>
+    <a class="btn btn-warning" href="artist_check_in_out?checkout=True">Check Out Artists</a>
+    <a class="btn btn-primary" href="sales_search">Make Sale</a>
+    <a class="btn btn-danger" href="close_out">Close Out</a>
+  </div>
+</div>
+    {% endblock %}

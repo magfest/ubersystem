@@ -2,25 +2,28 @@
 {% if attendee.amount_paid %}
   {% set abandon_action1, abandon_action2, abandon_button='Refunding', 'request a refund', 'Refund my Badge' %}
 {% endif %}
-{% if (c.REFUND_CUTOFF and (c.AFTER_REFUND_START or not c.REFUND_START)) or not attendee.amount_paid %}
-{% if must_keep %}
-  {% set abandon_hover_text %}
-    {% if attendee.amount_paid and not c.SELF_SERVICE_REFUNDS_OPEN %}
-Refunds are no longer available.
-    {% elif attendee.amount_paid %}
-We cannot automatically refund your badge at the moment due to technical difficulties.
-    {% elif attendee.is_group_leader %}
-As a leader of a group, you cannot abandon your badge.
-    {% elif attendee.paid == c.NEED_NOT_PAY %}
-You cannot abandon a comped badge.
-    {% elif attendee.checked_in %}
-This badge has already been picked up.s
+{% if c.REFUND_CUTOFF or not attendee.amount_paid %}
+    {% if must_keep %}
+    {% set abandon_hover_text %}
+        {% if attendee.amount_paid and c.AFTER_REFUND_CUTOFF %}
+            Refunds are no longer available.
+        {% elif attendee.amount_paid and c.BEFORE_REFUND_START %}
+            Refunds will open at {{ c.REFUND_START|datetime_local }}.
+        {% elif attendee.is_group_leader %}
+            As a leader of a group, you cannot abandon your badge.
+        {% elif attendee.amount_paid %}
+            We cannot automatically refund your badge at the moment due to technical difficulties.
+        {% elif attendee.paid == c.NEED_NOT_PAY %}
+            You cannot abandon a comped badge.
+        {% elif attendee.checked_in %}
+            This badge has already been picked up.
+        {% endif %}
+    {% if not c.BEFORE_REFUND_CUTOFF %}Please {% if attendee.is_transferable %}transfer your badge instead or
+    {% endif %}contact us at {{ c.REGDESK_EMAIL|email_only }}{% if c.SELF_SERVICE_REFUNDS_OPEN %} to make sure your refund gets processed.{% endif %}
     {% endif %}
-Please {% if attendee.is_transferable and not c.SELF_SERVICE_REFUNDS_OPEN %}transfer your badge instead or
-{% endif %}contact us at {{ c.REGDESK_EMAIL|email_only }}{% if c.SELF_SERVICE_REFUNDS_OPEN %} to make sure your refund gets processed.{% endif %}
-  {% endset %}
-<span class="tooltip-wrapper" tabindex="0" data-toggle="tooltip" data-placement="top"{% if must_keep %} title="{{ abandon_hover_text }}"{% endif %}>
-{% endif %}
+    {% endset %}
+    <span class="tooltip-wrapper" tabindex="0" data-toggle="tooltip" data-placement="top"{% if must_keep %} title="{{ abandon_hover_text }}"{% endif %}>
+    {% endif %}
 <button type="submit" form="abandon_badge" alt="{{ abandon_hover_text }}" id="abandon_button" class="btn btn-danger"
         {% if must_keep %}disabled style="pointer-events: none;" {% endif %}>
   {{ abandon_button }}</button>

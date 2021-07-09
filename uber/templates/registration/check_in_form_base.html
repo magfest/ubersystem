@@ -5,7 +5,7 @@
   <div class="modal-body">
 {% if attendee.amount_unpaid %}
 <div class="center text-center check-in">
-<h4>{{ attendee.full_name }} currently owes <strong>${{ attendee.amount_unpaid }}</strong>.</h4>
+<h4>{{ attendee.full_name }} currently owes <strong>${{ '%0.2f' % attendee.amount_unpaid  }}</strong>.</h4>
 <form method="post" action="mark_as_paid">
 {{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.id }}" />
@@ -17,7 +17,7 @@
 </form>
 
     <strong>OR</strong> <br/>
-{{ stripe_form('manual_reg_charge', Charge(attendee)) }}
+{{ stripe_form('manual_reg_charge', attendee) }}
 </div>
 <iframe id="stripe_frame" name="stripe_frame" style="display:none"></iframe>
 </div>
@@ -33,12 +33,24 @@ var toggleMarkButton = function (dropdown) {
         $button.attr('disabled', 'disabled');
     }
 };
-var loadCheckInForm = function () {
+loadCheckInForm = function () {
+    $('#stripeModal').off('hidden.bs.modal');
+    $('#stripeModal').modal('hide');
+    $('#stripeModal').remove();
+    $('#checkin_modal').modal('show');
     $('#checkin_modal .modal-content').load('check_in_form?id={{ attendee.id }}', function () {
         createDateTextEntries();
     });
 }
-$("form[action='manual_reg_charge']").prop('target', 'stripe_frame');
+var resumeStripeAction = callStripeAction;
+var callStripeAction = function() {
+    $('#checkin_modal').off('hidden.bs.modal');
+    $('#checkin_modal').modal('hide');
+    $('#stripeModal').on('hidden.bs.modal', function (e) {
+        $('#stripeModal').remove();
+    })
+    resumeStripeAction();
+}
 $("form[action='mark_as_paid']").submit(function (e) {
     e.preventDefault();
 
@@ -81,6 +93,7 @@ $('#stripe_frame').load(function() {
     }
 });
 $().ready(function() {
+    $('#stripeModal').detach().appendTo($('#checkin_modal').parent());
     $('select[name=payment_method]').each(function (i, dropdown) {
         toggleMarkButton(dropdown);
     });
@@ -93,10 +106,18 @@ $().ready(function() {
     {% block checkin_fields %}
     <div class="form-group">
     <label for="name" class="col-sm-3 control-label">Name</label>
-    <div class="col-sm-6">
+    <div class="col-sm-6 form-control-static">
         {{ attendee|form_link }}
     </div>
     </div>
+    {% if attendee.regdesk_info %}
+        <div class="form-group btn-danger">
+            <label for="special_instructions" class="col-sm-3 control-label">Special Instructions</label>
+            <div class="col-sm-6">
+                <div class="form-control-static"><strong>{{ attendee.regdesk_info }}</strong></div>
+            </div>
+        </div>
+    {% endif %}
     {% if c.COLLECT_EXACT_BIRTHDATE %}
         <div class="form-group">
             <label for="birthdate" class="col-sm-3 control-label">Date of Birth</label>
@@ -145,12 +166,6 @@ $().ready(function() {
         <div class="form-control-static">{{ attendee.zip_code }}</div>
         </div>
     </div>
-    <div class="form-group">
-        <label for="ec_name" class="col-sm-3 control-label">Emergency Contact</label>
-        <div class="col-sm-6">
-            <div class="form-control-static">{{ attendee.ec_name }} (Phone #: {{ attendee.ec_phone }})</div>
-        </div>
-    </div>
     {% if c.VOLUNTEER_AGREEMENT_ENABLED and (attendee.staffing or c.VOLUNTEER in attendee.ribbon_ints) %}
         <div class="form-group">
             <label for="volunteer_agreement" class="col-sm-3 control-label">Volunteer Agreement</label>
@@ -192,16 +207,30 @@ $().ready(function() {
                     </div>
                 {% else %}
                 <div class="col-sm-6">
-                  # <input class="num" id="checkin-badge" name="badge_num" type="text" size="10" autofocus/>
+                  # <input class="num" id="checkin-badge" name="badge_num" type="text" size="10" />
+                </div>
+                <script>
+                    /**
+                     * We can't just use "autofocus" because that doesn't work if there's already a focused
+                     * element on the page.  Calling $.focus() won't work until the element is visible, so
+                     * we need to keep trying until that happens.  We also use this opportunity to set a
+                     * keypress handler on the element.
+                     */
+                    var focusBadgeNum = function () {
+                        var $num = $('#checkin-badge:text');
+                        if ($num.is(':visible')) {
+                            $num.focus().keypress(function (event) {
+                                if (event.keyCode === 13) {
+                                    checkIn('{{ attendee.id }}');
+                                }
+                            });
+                        } else {
+                            setTimeout(focusBadgeNum, 100);
+                        }
+                    };
+                    focusBadgeNum();
+                </script>
                 {% endif %}
-            </div>
-        </div>
-    {% endif %}
-    {% if attendee.regdesk_info %}
-        <div class="form-group">
-            <label for="special_instructions" class="col-sm-3 control-label"><span class="label label-danger">Special Instructions:</span></label>
-            <div class="col-sm-6">
-                <div class="form-control-static">{{ attendee.regdesk_info }}</div>
             </div>
         </div>
     {% endif %}

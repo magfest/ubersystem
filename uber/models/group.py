@@ -4,8 +4,11 @@ from uuid import uuid4
 
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import and_, exists, or_
+from sqlalchemy import and_, exists, or_, case, func, select
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.dialects.postgresql.json import JSONB
+from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer, Numeric
 
@@ -37,9 +40,11 @@ class Group(MagModel, TakesPaymentMixin):
     description = Column(UnicodeText)
     special_needs = Column(UnicodeText)
 
-    amount_paid = Column(Integer, default=0, index=True, admin_only=True)
-    amount_refunded = Column(Integer, default=0, admin_only=True)
+    amount_paid_override = Column(Integer, default=0, index=True, admin_only=True)
+    amount_refunded_override = Column(Integer, default=0, admin_only=True)
     cost = Column(Integer, default=0, admin_only=True)
+    purchased_items = Column(MutableDict.as_mutable(JSONB), default={}, server_default='{}')
+    refunded_items = Column(MutableDict.as_mutable(JSONB), default={}, server_default='{}')
     auto_recalc = Column(Boolean, default=True, admin_only=True)
     stripe_txn_share_logs = relationship('StripeTransactionGroup',
                                          backref='group')
@@ -50,7 +55,15 @@ class Group(MagModel, TakesPaymentMixin):
     registered = Column(UTCDateTime, server_default=utcnow())
     approved = Column(UTCDateTime, nullable=True)
     leader_id = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader'), nullable=True)
+    creator_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
 
+    creator = relationship(
+        'Attendee',
+        foreign_keys=creator_id,
+        backref=backref('created_groups', order_by='Group.name', cascade='all,delete-orphan'),
+        cascade='save-update,merge,refresh-expire,expunge',
+        remote_side='Attendee.id',
+        single_parent=True)
     leader = relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
     studio = relationship('IndieStudio', uselist=False, backref='group')
     guest = relationship('GuestGroup', backref='group', uselist=False)
@@ -66,10 +79,6 @@ class Group(MagModel, TakesPaymentMixin):
             self.cost = self.default_cost
         elif not self.cost:
             self.cost = 0
-        if not self.amount_paid:
-            self.amount_paid = 0
-        if not self.amount_refunded:
-            self.amount_refunded = 0
         if self.status == c.APPROVED and not self.approved:
             self.approved = datetime.now(UTC)
         if self.leader and self.is_dealer:
@@ -77,6 +86,52 @@ class Group(MagModel, TakesPaymentMixin):
         if not self.is_unpaid:
             for a in self.attendees:
                 a.presave_adjustments()
+                
+    @presave_adjustment
+    def update_purchased_items(self):
+        if self.cost == self.orig_value_of('cost') and self.tables == self.orig_value_of('tables'):
+            return
+        
+        self.purchased_items.clear()
+        self.purchaed_items = self.current_purchased_items
+        
+    @property
+    def current_purchased_items(self):
+        purchased_items = {}
+        if not self.auto_recalc:
+            # ¯\_(ツ)_/¯
+            if self.cost:
+                purchased_items['group_total'] = self.cost
+        else:
+            # Groups tables and paid-by-group badges by cost
+            table_count = int(float(self.tables))
+            default_price = c.TABLE_PRICES['default_price']
+            more_tables = {default_price: 0}
+            for i in range(table_count):
+                if c.TABLE_PRICES[i] == default_price:
+                    more_tables[default_price] += 1
+                else:
+                    purchased_items['table_' + str(i) + '_cost'] = c.TABLE_PRICES[i]
+            if more_tables[default_price]:
+                cost_label = str(more_tables[default_price]) + '_extra_table{}_($'.format(
+                    's' if more_tables[default_price] > 1 else '') + str(default_price) + '_each)_cost'
+                purchased_items[cost_label] = default_price * more_tables[default_price]
+            
+            badges_by_cost = {}
+            for attendee in self.attendees:
+                if attendee.paid == c.PAID_BY_GROUP:
+                    badges_by_cost[attendee.badge_cost] = bool(badges_by_cost.get(attendee.badge_cost)) + 1
+            for cost in badges_by_cost:
+                cost_label = str(badges_by_cost[cost]) + '_badge{}_($'.format(
+                    's' if badges_by_cost[cost] > 1 else '') + str(cost) + '_each)_cost'
+                purchased_items[cost_label] = cost * badges_by_cost[cost]
+        
+        return purchased_items
+                
+    @presave_adjustment
+    def assign_creator(self):
+        if self.is_new and not self.creator_id:
+            self.creator_id = self.session.admin_attendee().id if self.session.admin_attendee() else None
 
     @property
     def sorted_attendees(self):
@@ -205,9 +260,52 @@ class Group(MagModel, TakesPaymentMixin):
     @property
     def amount_unpaid(self):
         if self.registered:
-            return max(0, self.cost - self.amount_paid)
+            return max(0, ((self.cost * 100) - self.amount_paid - self.amount_pending) / 100)
         else:
             return self.total_cost
+        
+    @property
+    def amount_pending(self):
+        return sum([item.amount for item in self.receipt_items if item.txn_type == c.PENDING])
+
+    @hybrid_property
+    def amount_paid(self):
+        return sum([item.amount for item in self.receipt_items if item.txn_type == c.PAYMENT])
+
+    @amount_paid.expression
+    def amount_paid(cls):
+        from uber.models import ReceiptItem
+
+        return select([func.sum(ReceiptItem.amount)]
+                      ).where(and_(ReceiptItem.group_id == cls.id,
+                                   ReceiptItem.txn_type == c.PAYMENT)).label('amount_paid')
+
+    @hybrid_property
+    def amount_refunded(self):
+        return sum([item.amount for item in self.receipt_items if item.txn_type == c.REFUND])
+
+    @amount_refunded.expression
+    def amount_refunded(cls):
+        from uber.models import ReceiptItem
+
+        return select([func.sum(ReceiptItem.amount)]
+                      ).where(and_(ReceiptItem.group_id == cls.id,
+                                   ReceiptItem.txn_type == c.REFUND)).label('amount_refunded')
+
+    def balance_by_item_type(self, item_type):
+        """
+        Return a sum of all the receipt item payments, minus the refunds, for this model by item type
+        """
+        return sum([amt for type, amt in self.itemized_payments if type == item_type]) \
+               - sum([amt for type, amt in self.itemized_refunds if type == item_type])
+
+    @property
+    def itemized_payments(self):
+        return [(item.item_type, item.amount) for item in self.receipt_items if item.txn_type == c.PAYMENT]
+
+    @property
+    def itemized_refunds(self):
+        return [(item.item_type, item.amount) for item in self.receipt_items if item.txn_type == c.REFUND]
 
     @property
     def dealer_max_badges(self):

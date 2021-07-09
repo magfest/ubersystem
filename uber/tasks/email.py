@@ -8,7 +8,7 @@ from pockets.autolog import log
 from sqlalchemy.orm import joinedload
 
 from uber import utils
-from uber.amazon_ses import AmazonSES, EmailMessage  # TODO: replace this after boto adds Python 3 support
+from uber.amazon_ses import email_sender
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
 from uber.decorators import render
@@ -53,14 +53,20 @@ def send_email(
         to, cc, bcc = map(lambda xs: list(filter(_is_dev_email, xs)), [to, cc, bcc])
 
     if c.SEND_EMAILS and to:
-        msg_kwargs = {'bodyText' if format == 'text' else 'bodyHtml': body}
-        message = EmailMessage(subject=subject, **msg_kwargs)
-        AmazonSES(c.AWS_ACCESS_KEY, c.AWS_SECRET_KEY).sendEmail(
+        message = {
+            'bodyText' if format == 'text' else 'bodyHtml': body,
+            'subject': subject,
+            'charset': 'UTF-8',
+            }
+
+        error_msg = email_sender.sendEmail(
             source=sender,
             toAddresses=to,
             ccAddresses=cc,
             bccAddresses=bcc,
             message=message)
+        if error_msg:
+            log.error('Error while sending email: ' + error_msg)
         sleep(0.1)  # Avoid hitting rate limit
     else:
         log.error('Email sending turned off, so unable to send {}', locals())
@@ -93,9 +99,11 @@ def send_email(
         session = session or getattr(model, 'session', getattr(automated_email, 'session', None))
         if session:
             session.add(email)
+            session.commit()
         else:
             with Session() as session:
                 session.add(email)
+                session.commit()
 
 
 @celery.schedule(crontab(hour=6, minute=0, day_of_week=1))

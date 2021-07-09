@@ -37,7 +37,7 @@
     };
 
     var recordFee = function() {
-        $.post('record_sale', {
+        $.post('../merch_admin/record_sale', {
                 id:             'None',
                 what:           $('#what_select').val() || $('#what_text').val() || '',
                 cash:           $('#store_cash').val(),
@@ -52,7 +52,7 @@
                 } else {
                     $('#badge_num').val('');
                     toastr.info(json.message);
-                    window.location.replace('arbitrary_charge_form?amount=' + $('#store_cash').val() +
+                    window.location.replace('../merch_admin/arbitrary_charge_form?amount=' + $('#store_cash').val() +
                         '&description=' + json.message + '&sale_id=' + json.id);
                 }
             }, 'json');
@@ -172,7 +172,7 @@
         <a href="new?show_all=true">Click Here</a> to see all at-the-door registrations instead of only recent ones
     {% endif %}
     <br/> <a href="index{% if c.AT_THE_CON %}?invalid=True{% endif %}">Click Here</a> to view the preregistered and checked in attendee list
-    <br/> <a href="arbitrary_charge_form">Click Here</a> to create arbitrary credit card charges or run a purchase
+    {% if c.MERCH_ADMIN_ACCESS %}<br/> <a href="../merch_admin/arbitrary_charge_form">Click Here</a> to create arbitrary credit card charges or run a purchase{% endif %}
 </div>
 
 <div style="text-align:center; font-weight:bold; {% if c.REMAINING_BADGES < 50 %} font-size:18pt; {% endif %}">
@@ -260,7 +260,7 @@
                 {{ attendee.age_group_conf.desc }}
             {% endif %}
         </td>
-        <td>{% if attendee.paid != c.PAID_BY_GROUP %}${{ attendee.total_cost }}{% endif %}</td>
+        <td>{% if attendee.paid != c.PAID_BY_GROUP %}${{ '%0.2f' % attendee.total_cost }}{% endif %}</td>
         <td>
             {% if attendee.paid == c.HAS_PAID %}
                 paid

@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% set admin_area=True %}{% set group_type=guest.group_type_label|lower %}
+{% block title %}{{ guest.group.name }}{% endblock %}
+{% block content %}
+  {% include group_type ~ "_admin/checklist_info.html" %}
+{% endblock %}

@@ -38,9 +38,10 @@
 {%- endmacro %}
 
 
-{% macro checkbox(model, field_name, id=None, label=None, label_class=None, is_readonly=False, title=None) -%}
+{% macro checkbox(model, field_name, id=None, label=None, label_class=None, is_readonly=False, title=None, clientside_bool=False) -%}
   {%- set is_class = model is class -%}
   {%- set is_checked = not is_class and model[field_name] -%}
+  {% set true_val, false_val = ('true', 'false') if clientside_bool else ('1', '0') %}
   {% if label %}
     <label
         class="checkbox-label{% if label_class %} {{ label_class }}{% endif %}{% if is_readonly %} disabled{% endif %}"
@@ -51,10 +52,9 @@
         type="hidden"
         name="{{ field_name }}"
         id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
-        value="{% if is_checked %}1{% else %}0{% endif %}" />
+        value="{% if is_checked %}{{ true_val }}{% else %}{{ false_val }}{% endif %}" />
     <input
         type="checkbox"
-        value="1"
         disabled
         {% if not label and title %} title="{{ title }}"{% endif %}
         {% if is_checked %} checked{% endif %} />
@@ -63,8 +63,8 @@
         type="checkbox"
         name="{{ field_name }}"
         id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
-        value="1"
         {% if not label and title %} title="{{ title }}"{% endif %}
+        {% if not clientside_bool %}value="1"{% endif %}
         {% if is_checked %} checked{% endif %} />
   {% endif %}
   {% if label %} {{ label }}</label>{% endif %}
@@ -348,7 +348,7 @@
       {% for href, label, display in varargs|batch(3, False) if display %}
         {% set href = href.format(**model.__dict__) %}
         <td width="{{ 100 // loop.length }}%">
-          {%- if current_page_path.endswith(href.split('?')[0]) -%}
+          {%- if current_page_path.endswith(href.replace('.', '').split('?')[0]) -%}
             {{ label }}
           {%- else -%}
             <a href="{{ href }}">{{ label }}</a>

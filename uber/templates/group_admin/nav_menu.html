@@ -1,0 +1,22 @@
+{% if group.guest %}
+  {% set return_to_hash = "#" ~ group.guest.group_type_label|lower ~ ("" if group.guest.group_type == c.MIVS else "s") %}
+{% elif group.is_dealer %}
+  {% set return_to_hash = "#dealers" %}
+{% endif %}
+
+{% if group.is_new %}
+  {# New group page #}
+  {{ macros.nav_menu(
+    group, c.PAGE_PATH,
+    "../group_admin/form", "Create Group", True,
+    "../group_admin/index" ~ return_to_hash, "Return to Group List", True
+) }}
+{% else %}
+    {{ macros.nav_menu(
+      group, c.PAGE_PATH,
+      "../group_admin/form?id={id}", "Group Page", True,
+      "../group_admin/history?id={id}", "History", True,
+      "../reg_admin/receipt_items?id={id}", "Receipt Items", c.HAS_REG_ADMIN_ACCESS,
+      "../group_admin/index" ~ return_to_hash, "Return to Group List", True
+  ) }}
+{% endif %}

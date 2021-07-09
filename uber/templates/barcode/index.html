@@ -32,7 +32,7 @@
         .done(function(data) {
             txt = "badge_num: " + data['badge_num']
             if (!data['attendee']) {
-                txt += '<br/>name: <a href="../registration/form?id=' + data['attendee_id'] + '">' + data['attendee_name'] + '</a>';
+                txt += '<br/>name: <a href="#attendee_form?id=' + data['attendee_id'] + '">' + data['attendee_name'] + '</a>';
             }
             $("#result").html(txt);
             $("#result_msg").html(data.message);

@@ -1,0 +1,22 @@
+Ahoy {{ judge.attendee.first_name }}!
+
+Congratulations, you have been selected to be a judge for the 2019 MAGFest Indie Videogame Showcase! If this is your first time judging for MIVS, welcome aboard! If you're a returning judging veteran, welcome back to another year!
+
+To be a judge for this year, please follow this link to update your status and preferences : <a href="{{ c.URL_BASE }}/mivs_judging" target="_mivs_judge">{{ c.URL_BASE }}/mivs_judging</a>. You will have to log in using this email address and the password that you received in an earlier email.
+
+Due to things outside our control, you're getting this email close to our judging start date which is September 23rd. We ask that you please Update your status ASAP. 
+
+As a judge, expect to be responsible for judging a dozen games. We've learned to expect to spend at least 15 minutes per game to get a good idea for how the games feels. 
+
+You'll be giving the games a score from 1-10 based on three categories:
+<b>Show Readiness</b> - how ready the game appears to be when shown to the public. This means the degree of visual and audible asset completion as well any programming bugs.
+<b>Overall Design</b> - how well the judge feels that the game addresses its own central concept. (I.e. If it is a puzzle game, are the puzzles good? If it is a narrative-driven game, is the story compelling?)
+<b>Overall Enjoyment</b> - how enjoyable was the game? Did it keep you on your toes, make you laugh, push your reflexes to the limit?
+
+There will also be a space for you to leave constructive feedback and will be sent to the developers after judging completes. 
+
+You will have until {{ c.MIVS_JUDGING_DEADLINE|datetime_local }} to complete judging for your entries.  
+
+From all of us here on the MIVS team and all the independent developers, we thank you for your continued help in making MIVS incredible, year after year!
+
+{{ c.MIVS_EMAIL_SIGNATURE }}

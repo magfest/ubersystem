@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Group History - {{ group.name }}{% endblock %}
+{% block content %}
+{% include "group_admin/nav_menu.html" %}
+{% include "model_history_base.html" %}
+{% endblock %}

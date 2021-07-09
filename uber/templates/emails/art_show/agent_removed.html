@@ -1,0 +1,10 @@
+<html>
+<head></head>
+<body>
+
+We're emailing you because a new agent was requested for {% if app.artist_name %}{{ app.artist_name }}{% else %}{{ app.attendee.full_name }}{% endif %}'s art
+application. So {{ app.agent.full_name }} is no longer the agent for this art
+show application, and a new agent must be assigned instead.
+
+</body>
+</html>

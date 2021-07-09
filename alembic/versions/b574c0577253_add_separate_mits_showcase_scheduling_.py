@@ -1,7 +1,7 @@
 """Add separate MITS showcase scheduling column.
 
 Revision ID: b574c0577253
-Revises: 735063d71b57
+Revises: 6c5cf22429e2
 Create Date: 2018-09-26 19:29:40.149653
 
 """
@@ -9,7 +9,7 @@ Create Date: 2018-09-26 19:29:40.149653
 
 # revision identifiers, used by Alembic.
 revision = 'b574c0577253'
-down_revision = '735063d71b57'
+down_revision = '6c5cf22429e2'
 branch_labels = None
 depends_on = None
 

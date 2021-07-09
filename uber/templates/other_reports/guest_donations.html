@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Charity Donations from Guest Groups{% endblock %}
+{% block content %}
+  
+  <div class="panel panel-body"><h2> Charity Donations from Guest Groups </h2>
+    <table id="donation_offers" class="table table-striped">
+      <thead>
+      <tr>
+        <th>Group Type</th>
+        <th>Group Name</th>
+        <th>Donation Description</th>
+      </tr>
+      </thead>
+      <tbody>
+      {% for donation in donation_offers %}
+        <tr>
+          <td>{{ donation.guest.group_type_label if donation.guest else 'N/A' }}</td>
+          <td>{{ donation.guest.group.name if donation.guest and donation.guest.group else 'N/A' }}</td>
+          <td>{{ donation.desc }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

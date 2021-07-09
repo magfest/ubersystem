@@ -1,16 +1,16 @@
 <html><head></head><body style='text-align:center'>
-    Dealers room applications for {{ c.EVENT_NAME_AND_YEAR }} ({{ c.EVENT_MONTH }} {{ c.EVENT_YEAR }}) are now closed.<br/>
+    {{ c.DEALER_APP_TERM }}s for {{ c.EVENT_NAME_AND_YEAR }} ({{ c.EVENT_MONTH }} {{ c.EVENT_YEAR }}) are now closed.<br/>
     {% if c.AFTER_DEALER_REG_DEADLINE %}
       <br/>
-      The deadline for dealer registration was {{ c.DEALER_REG_DEADLINE|datetime_local }}.
+      The deadline for {{ c.DEALER_REG_TERM }} was {{ c.DEALER_REG_DEADLINE|datetime_local }}.
       <br/>
     {% elif c.AFTER_DEALER_REG_SHUTDOWN %}
       <br/>
-      Dealer registration was shut down {{ c.DEALER_REG_SHUTDOWN|datetime_local }}.
+      {{ c.DEALER_REG_TERM|title }} was shut down {{ c.DEALER_REG_SHUTDOWN|datetime_local }}.
       <br/>
     {% elif c.DEALER_APPS >= c.MAX_DEALER_APPS and c.MAX_DEALER_APPS > 0 %}
       <br/>
-      We have already received the maximum number of dealer applications ({{ c.MAX_DEALER_APPS }}) we are accepting this year.
+      We have already received the maximum number of {{ c.DEALER_APP_TERM }}s ({{ c.MAX_DEALER_APPS }}) we are accepting this year.
       <br/>
     {% endif %}
     <br/>

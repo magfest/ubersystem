@@ -41,9 +41,9 @@
         &nbsp; / &nbsp;
         Total Fees Taken: {{ sales|length }}
         &nbsp; / &nbsp;
-        Total Cash: ${{ total_cash }}
+        Total Cash: ${{ '%0.2f' % total_cash }}
         &nbsp; / &nbsp;
-        Total Credit: ${{ total_credit }}
+        Total Credit: ${{ '%0.2f' % total_credit }}
     </div>
     <table class="list">
     <tr class="header">
@@ -58,7 +58,7 @@
             <td>{{ sale.what }}</td>
             <td><a href="./form?id={{ sale.attendee_id }}">{{ sale.attendee.full_name }}</a></td>
             <td>{{ sale.payment_method_label }}</td>
-            <td>${{ sale.cash }}</td>
+            <td>${{ '%0.2f' % sale.cash }}</td>
             <td>{{ sale.when }}</td>
         </tr>
     {% endfor %}
@@ -74,14 +74,13 @@
     </tr>
     {% for attendee in attendees %}
         <tr>
-            <td><a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
+            <td><a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
             <td>{{ attendee.badge }}</td>
             <td>{{ attendee.payment_method_label }}</td>
-            <td>${{ attendee.amount_paid }}</td>
+            <td>${{ '%0.2f' % (attendee.amount_paid / 100) }}</td>
             <td>{{ attendee.registered }}</td>
         </tr>
     {% endfor %}
     </table>
 {% endif %}
-
 {% endblock %}

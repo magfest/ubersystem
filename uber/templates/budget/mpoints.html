@@ -12,10 +12,10 @@
 </tr>
 {% for total,group,mpus in all %}
     <tr bgcolor="{{ loop.cycle('#ffffff', '#eeeeee') }}">
-        <td>${{ total }}</td>
+        <td>${{ '%0.2f' % total }}</td>
         <td>
             {% if group %}
-                <a href="../groups/form?id={{ group.id }}">{{ group.name }}</a>
+                <a href="../group_admin/form?id={{ group.id }}">{{ group.name }}</a>
             {% else %}
                 No Group
             {% endif %}
@@ -23,9 +23,9 @@
             <ul>
                 {% for mpu in mpus %}
                     <li>
-                        ${{ mpu.amount }} from
+                        ${{ '%0.2f' % mpu.amount }} from
                         {% if mpu.attendee %}
-                            <a href="../registration/form?id={{ mpu.attendee.id }}">{{ mpu.attendee.full_name }}</a>
+                            <a href="#attendee_form?id={{ mpu.attendee.id }}">{{ mpu.attendee.full_name }}</a>
                         {% else %}
                             {{ mpu.identifier }}
                         {% endif %}

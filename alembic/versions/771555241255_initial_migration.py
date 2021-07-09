@@ -1,7 +1,7 @@
 """Initial migration
 
 Revision ID: 771555241255
-Revises: 1ed43776064f
+Revises: 73b22ccbe472
 Create Date: 2017-04-24 09:15:59.549855
 
 """
@@ -9,8 +9,8 @@ Create Date: 2017-04-24 09:15:59.549855
 
 # revision identifiers, used by Alembic.
 revision = '771555241255'
-down_revision = '1ed43776064f'
-branch_labels = ('hotel',)
+down_revision = '73b22ccbe472'
+branch_labels = None
 depends_on = None
 
 from alembic import op

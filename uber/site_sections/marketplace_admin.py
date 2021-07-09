@@ -10,13 +10,13 @@ from sqlalchemy.orm import backref, joinedload
 from io import BytesIO
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, credit_card, unrestricted
+from uber.decorators import ajax, all_renderable, credit_card
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Tracking, ArbitraryCharge, MarketplaceApplication
 from uber.utils import Charge, check, localized_now, Order, remove_opt
 
 
-@all_renderable(c.MARKETPLACE)
+@all_renderable()
 class Root:
     def index(self, session, message=''):
         return {

@@ -1,0 +1,14 @@
+{% import 'macros.html' as macros %}
+{% if c.VOLUNTEER_CREDITS_ROLL %}
+<li>
+    {{ macros.checklist_image(attendee.name_in_credits != None) }}
+    {% if attendee.name_in_credits == None %} 
+        Please provide a name for or opt-out of our
+    {% elif not attendee.name_in_credits %}
+        You have opted out of our
+    {% else %}
+        You have provided a name for our
+    {% endif %}
+    {% if attendee.reviewed_emergency_procedures %}<a href="credits">credits roll for volunteers</a>{% else %}credits roll for volunteers{% endif %}.
+</li>
+{% endif %}

@@ -1,13 +1,13 @@
 """Added second_shirt column to the Attendee table
 
 Revision ID: 06b9ad98e471
-Revises: f142e4d54e49
+Revises: 7839740aa454
 Create Date: 2017-11-22 22:06:03.196604
 """
 
 # revision identifiers, used by Alembic.
 revision = '06b9ad98e471'
-down_revision = 'f142e4d54e49'
+down_revision = '7839740aa454'
 branch_labels = None
 depends_on = None
 

@@ -1,0 +1,22 @@
+<form method="post" id="new_agent_app" class="form-horizontal" action="../art_show_applications/new_agent_app">
+<div class="form-group" id="art-show-agent">
+  <label for="art_show_agent" class="col-sm-3 control-label optional-field">Art Show Agent</label>
+  <div class="col-sm-6">
+    <span class="form-control-static">
+    {% if attendee.art_agent_applications %}
+      You are currently an agent for the following artists:
+      <ul>{% for app in attendee.art_agent_applications %}
+        <li>{% if app.artist_name %}{{ app.artist_name }}{% else %}{{ app.attendee.full_name }}{% endif %}</li>
+      {% endfor %}</ul>
+    {% else %}
+      You are not an agent for any artists in the {{ c.EVENT_NAME }} Art Show.
+    {% endif %}
+    </span>
+      <div class="input-group">
+        <input type="hidden" name="id" form="new_agent_app" value="{{ attendee.id }}" />
+        <input type="text" class="form-control" name="agent_code" />
+        <span class="input-group-btn"><button type="submit" form="new_agent_app" class="btn btn-primary">Submit Agent Code</button></span>
+      </div>
+  </div>
+</div>
+</form>

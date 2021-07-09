@@ -3,7 +3,7 @@
     <tr>
       <td width="25">{{ macros.checklist_image(guest.taxes_status) }}</td>
       <td><b><a href="taxes?guest_id={{ guest.id }}">
-        {% block deadline_headline %}Completed W9{% endblock %}</a></b></td>
+        {% block deadline_headline %}Upload W9{% endblock %}</a></b></td>
       <td><i>Deadline:</i> {{ guest.deadline_from_model('taxes')|datetime_local }}</td>
     </tr>
     <tr>
@@ -24,25 +24,20 @@
   <h2>{% block form_title %}Completed W9 for {{ guest.group.name }}{% endblock %}</h2>
 
   {% block form_desc %}
-    {% if guest.taxes_status %}
-      <a href="{{ guest.taxes.w9_url }}">Click here to view the W9 tax form you uploaded.</a>
-      <br/><br/>
-      Need to update this form?
-    {% endif %}
-
-    You can find a blank W9 form <a target="_blank" href="https://www.irs.gov/pub/irs-pdf/fw9.pdf">here</a>.
-    Please upload a filled out copy of this form.
+    Please use our secure document portal below to upload a W9 for the person to whom the check will be issued. We will issue 1099 forms to applicable parties at the end of the tax year.
+    <br/><br/>You can find a blank W9 form <a target="_blank" href="https://www.irs.gov/pub/irs-pdf/fw9.pdf">here</a>.
   {% endblock %}
 
-  <br/><br/>
+  <br/><br/><a href="{{ c.SECURE_DOCUMENT_URL }}" class="btn btn-info" target="_blank">Secure Document Portal</a>
 
-  <form method="post" action="w9" enctype="multipart/form-data">
+  <br/><br/><form method="post" action="w9">
     <input type="hidden" name="guest_id" value="{{ guest.id }}" />
     <input type="hidden" name="id" value="{{ guest_taxes.db_id }}" />
+    
     {{ csrf_token() }}
-    <input type="file" name="w9" />
+    {{ macros.checkbox(guest_taxes, 'w9_sent', label='I confirm that I have uploaded my W9 form at the document portal above.')}}
     <br/>
     {% block form_extra %}{% endblock %}
-    <input type="submit" class="btn btn-primary" value="Upload Completed Form" />
+    <input type="submit" class="btn btn-primary" value="Confirm Upload" />
   </form>
 {% endif %}

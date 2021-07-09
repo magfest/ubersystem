@@ -1,0 +1,55 @@
+{% if snippet %}
+  <tr>
+    <td width="25">{{ macros.checklist_image(guest.rehearsal_status) }}</td>
+    <td><b><a href="rehearsal?guest_id={{ guest.id }}">
+      {% block deadline_headline %}Need Rehearsal Space Onsite?{% endblock %}</a></b></td>
+    <td><i>Deadline:</i> {{ guest.deadline_from_model('rehearsal')|datetime_local }}</td>
+  </tr>
+  <tr>
+    <td colspan="3">
+      {% block deadline_text %}
+        {% if guest.needs_rehearsal is none %}
+          Please use the above link to let us know if you will need rehearsal space onsite.
+        {% else %}
+          You have already told us you <strong>{{ guest.rehearsal_status }}</strong> need rehearsal space.
+          You can use the link above to change your answer before the deadline.
+        {% endif %}
+      {% endblock %}
+      <br/></br>
+    </td>
+  </tr>
+{% else %}
+
+  <h2>{% block form_title %}Need Rehearsal Space Onsite?{% endblock %}</h2>
+
+  {% block form_desc %}
+  This year, we have reserved rehearsal space for acts that includes a basic backline of 
+  drum kit, guitar amps, bass amp, and vocal mic/small PA. We cannot guarantee rehearsal space; 
+  priority will go to acts that are remote/large/complicated. Rehearsal space/time will be reserved 
+  by us after collating all requests. You will receive notice of whether we are able to reserve space 
+  for you no later than December 15.
+  {% endblock %}
+
+  <br/> <br/>
+
+  <form method="post" action="rehearsal" class="form-horizontal" role="form">
+    <input type="hidden" name="guest_id" value="{{ guest.id }}" />
+    {{ csrf_token() }}
+
+    <div class="form-group rehearsal-info">
+      <label class="col-sm-3 control-label">Need rehearsal space?</label>
+      <div class="col-sm-6">
+          <select name="needs_rehearsal" class="form-control">
+            <option value="">Tell us if you need rehearsal space onsite</option>
+              {{ options(c.GUEST_REHEARSAL_OPTS, guest.needs_rehearsal) }}
+          </select>
+        </div>
+    </div>
+
+    <div class="form-group">
+      <div class="col-sm-6 col-sm-offset-3">
+        <button class="btn btn-primary">Submit</button>
+      </div>
+    </div>
+  </form>
+{% endif %}

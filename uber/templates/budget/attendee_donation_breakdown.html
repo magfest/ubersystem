@@ -1,0 +1,47 @@
+{% set admin_area=True %}
+{% extends "base.html" %}
+{% block title %}Attendee Cost Breakdown{% endblock %}
+{% block content %}
+<h3>Attendee Donation Breakdown</h3>
+<div class="panel panel-default">
+  <table class="table table-striped export-datatable">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email Address</th>
+        <th>Amount Donated</th>
+        <th>Kick-in</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for attendee in donated_attendees if not attendee.amount_unpaid %}
+      <tr>
+        <td>{{ attendee|form_link }}</td>
+        <td>{{ attendee.email }}</td>
+        <td>${{ "{0:g}".format(attendee.extra_donation) }}</td>
+        <td>${{ "{0:g}".format(attendee.amount_extra) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<script type="text/javascript" src="https://cdn.datatables.net/buttons/1.5.2/js/dataTables.buttons.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/buttons/1.5.2/js/buttons.html5.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/1.5.2/css/buttons.dataTables.min.css">
+<script type="text/javascript">
+$().ready(function() {
+  var dtable = $('.export-datatable').DataTable({
+      dom: 'Bfrtipl',
+      buttons: [
+          {
+              extend: 'excelHtml5',
+              exportOptions: {
+                  columns: ':visible'
+              }
+          },
+      ]
+  });
+});
+</script>
+{% endblock %}

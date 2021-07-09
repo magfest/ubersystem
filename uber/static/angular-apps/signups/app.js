@@ -32,7 +32,7 @@ angular.module('signups', ['ngRoute', 'magfest'])
             _error: function () {
                 console.log('unexpected error', arguments);
                 $timeout.cancel(self.currentTimeout);
-                self.nextTimeout = Math.min(600000, self.next_timeout * 2);
+                self.nextTimeout = Math.min(600000, self.nextTimeout * 2);
                 self.currentTimeout = $timeout(self.refresh, self.nextTimeout);
             },
             refresh: function () {

@@ -1,0 +1,49 @@
+{% if attendees|length == c.ROW_LOAD_LIMIT %}
+<div class="panel panel-body">
+This page only shows up to <strong>{{ c.ROW_LOAD_LIMIT }}</strong> attendees. You may need to use another view to find the attendee you need.
+</div>
+{% endif %}
+{% if attendees %}
+<div class="panel panel-default">
+  <table class="table table-striped datatable">
+    <thead>
+      <tr>
+        {% block tableheadings %}
+        <th>Status</th>
+        <th> Group Name </th>
+        <th> Full Name </th>
+        <th> Name on ID </th>
+        <th> Email </th>
+        {% if c.PREASSIGNED_BADGE_TYPES %}<th> Badge Name </th>{% endif %}
+        <th> Badge Type</th>
+        {% if c.NUMBERED_BADGES %}<th> Badge # </th> {% endif %}
+        <th> Badge Ribbons</th>
+        <th> Paid </th>
+        {% endblock tableheadings %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for attendee in attendees %}
+        <tr {% if attendee.badge_status == c.INVALID_STATUS %}class="danger"{% endif %}>
+            {% block tablerows scoped %}
+            <td>{{ attendee.badge_status_label }}</td>
+            <td id="group_{{ attendee.id }}">
+                {{ attendee.group|form_link }}
+            </td>
+            <td id="name_{{ attendee.id }}" style="text-align:left"><a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
+              <td id="name_{{ attendee.id }}" style="text-align:left">
+                  {{ attendee.legal_name }}
+              </td>
+              <td>{{ attendee.email }}</td>
+            {% if c.PREASSIGNED_BADGE_TYPES %}<td>{{ attendee.badge_printed_name }}</td>{% endif %}
+            <td><nobr>{{ attendee.badge_type_label }}</nobr></td>
+            {% if c.NUMBERED_BADGES %}<td>{{ attendee.badge_num }}</td>{% endif %}
+            <td id="ribbon_{{ attendee.id }}">{{ attendee.ribbon_labels|join(", ") }}</td>
+            <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
+          {% endblock tablerows %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}

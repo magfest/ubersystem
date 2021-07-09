@@ -32,7 +32,9 @@
 
   <h2>{% block form_title %}Travel Plans for {{ guest.group.name }}{% endblock %}</h2>
 
-  {% block form_desc %}{% endblock %}
+  {% block form_desc %}
+    To help with scheduling, please include any travel you have arranged through {{ c.EVENT_NAME }}.
+  {% endblock %}
   <br/> <br/>
 
   <form method="post" action="travel_plans" class="form-horizontal" role="form" enctype="multipart/form-data">

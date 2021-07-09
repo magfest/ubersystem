@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Department Checklist - Schedule Updated For Guidebook{% endblock %}
+{% block content %}
+
+<h2>Update Schedule for {{ department.name }}</h2>
+
+<h3><a href="../schedule/edit" target="_blank">Edit Schedule for {{ c.EVENT_NAME }}</a></h3>
+
+<form method="post" action="guidebook_schedule">
+{{ csrf_token() }}
+<input type="hidden" name="department_id" value="{{ department.id }}" />
+Make sure your public-facing events or open hours are on our Uber schedule so they can be exported to Guidebook.
+<br/>
+<input type="submit" name="submitted" value="I have added my department's events to the schedule" />
+</form>
+
+{% endblock %}

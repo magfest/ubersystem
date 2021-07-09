@@ -1,16 +1,161 @@
-<form class="stripe" method="post" action="{{ action }}">
-    <input type="hidden" name="payment_id" value="{{ payment_id }}" />
-    {{ csrf_token() }}
-    <script
-        src="https://checkout.stripe.com/v2/checkout.js" class="stripe-button"
-        data-key="{{ c.STRIPE_PUBLIC_KEY }}"
-        {% if email %} data-email="{{ email }}"{% endif %}
-        {% if c.DEV_BOX %} data-bitcoin="true" {% endif %}
-        data-zip-code="true"
-        data-allow-remember-me="false"
-        data-amount="{{ charge.amount }}"
-        data-name="{{ c.EVENT_NAME_AND_YEAR }} {{ regtext }}"
-        data-description="{{ charge.description }}"
-        data-image="../static/theme/stripe-logo.png">
-    </script>
-</form>
+
+<style>
+.StripeElement {
+  box-sizing: border-box;
+
+  height: 40px;
+
+  padding: 10px 12px;
+
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background-color: white;
+
+  box-shadow: 0 1px 3px 0 #e6ebf1;
+  -webkit-transition: box-shadow 150ms ease;
+  transition: box-shadow 150ms ease;
+}
+
+.StripeElement--focus {
+  box-shadow: 0 1px 3px 0 #cfd7df;
+}
+
+.StripeElement--invalid {
+  border-color: #fa755a;
+}
+
+.StripeElement--webkit-autofill {
+  background-color: #fefde5 !important;
+}
+</style>
+<button class="btn btn-info" onClick="callStripeAction();">
+<span class="display: block; min-height: 30px;">Pay with Card</span>
+</button>
+<div id="stripeModal" class="modal" style="color:black;" tabindex="-1" role="dialog" data-backdrop="static">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+        <div class="modal-header">
+        <h4 class="modal-title text-center"></h4>
+        </div>
+        <div class="modal-body text-left jumbotron">
+        <div class="charge_desc" style="margin-bottom:10px;"></div>
+        <form action="/charge" method="post" id="payment-form" class="hidden">
+        <div class="form-row">
+            <label for="card-element">
+            Credit or debit card
+            </label>
+            <div id="card-element">
+            <!-- A Stripe Element will be inserted here. -->
+            </div>
+
+            <!-- Used to display form errors. -->
+            <div id="card-errors" role="alert"></div>
+        </div>
+        <div style="margin-top:10px;"><button class="btn btn-success">Submit Payment</button>
+        <button class="btn btn-default" data-dismiss="modal">Cancel</button></div>
+        </form>
+        </div>
+    </div>
+  </div>
+</div>
+<script type="text/javascript">
+stripe_action_params = {id: '{{ id }}'};
+
+var callStripeAction = function () {
+    var $btn = $(this);
+    $btn.prop('disabled', true);
+    {% for key, val in params.items() %}
+        stripe_action_params['{{ key }}'] = '{{ val }}';
+    {% endfor %}
+    stripe_action_params.csrf_token = csrf_token;
+    $.post('{{ action }}', stripe_action_params, 
+    function(result) {
+        $btn.prop('disabled', false);
+        if (result.error) {
+            toastr.error(result.error);
+        } else if (result.stripe_intent) {
+            var dollars = result.stripe_intent.amount / 100;
+            dollars = dollars.toLocaleString("en-US", {style:"currency", currency:"USD"});
+            var cancel_url = result.cancel_url || '../preregistration/cancel_payment'
+            $('#stripeModal').find('.modal-title').text('Paying ' + dollars + ' to {{ c.ORGANIZATION_NAME }}');
+            $('#stripeModal').find('.charge_desc').text(result.stripe_intent.description);
+            collectStripePayment(result.stripe_intent.client_secret, result.stripe_intent.id, result.success_url, cancel_url);
+        }
+        });
+};
+
+var collectStripePayment = function (client_secret, stripe_id, success_url, cancel_url) {
+    $('#stripeModal').modal('show');
+    toastr.clear();
+    var form = document.getElementById('payment-form');
+    var stripe = Stripe('{{ c.STRIPE_PUBLIC_KEY }}');
+    var elements = stripe.elements();
+    var card = elements.create("card");
+
+    $('#stripeModal').on('hidden.bs.modal', function (e) {
+        card.destroy();
+        $.post(cancel_url, {stripe_id: stripe_id, csrf_token: csrf_token},
+        function(result) {
+            if (result.message) {
+                toastr.error(result.message);
+                $(form).addClass('hidden');
+                $('#stripeModal').off('hidden.bs.modal');
+            }
+        });
+    })
+
+    // Set up Stripe.js and Elements to use in checkout form
+    var style = {
+        base: {
+            color: '#32325d',
+            fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+            fontSmoothing: 'antialiased',
+            fontSize: '16px',
+            '::placeholder': {
+                color: '#aab7c4'
+            }
+        },
+        invalid: {
+            color: '#fa755a',
+            iconColor: '#fa755a'
+        }
+    };
+
+    card.mount("#card-element");
+
+    card.addEventListener('change', ({error}) => {
+        const displayError = $('#card-errors');
+        if (error) {
+            displayError.textContent = error.message;
+        } else {
+            displayError.textContent = '';
+        }
+    });
+
+    $(form).removeClass('hidden');
+
+    form.addEventListener('submit', function(event) {
+        event.preventDefault();
+        stripe.confirmCardPayment(client_secret, {
+            payment_method: {
+                card: card
+            }
+            }).then(function(result) {
+            if (result.error) {
+                // Show error to your customer (e.g., insufficient funds)
+                toastr.error(result.error.message);
+            } else {
+                // The payment has been processed!
+                if (result.paymentIntent.status === 'succeeded') {
+                    if(success_url == '') {
+                        // Special override for at-door check-in modal payment workflow
+                        window[loadCheckInForm()];
+                    } else {
+                        window.location.replace(success_url);
+                    }
+                }
+            };
+        });
+    });
+}
+</script>

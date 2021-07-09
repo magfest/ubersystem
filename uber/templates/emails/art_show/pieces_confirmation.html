@@ -1,0 +1,46 @@
+<html>
+<head></head>
+<body>
+
+You have updated your pieces for the Art Show.
+<a href="{{ c.URL_BASE }}/art_show_applications/edit?id={{ app.id }}">Click here</a> to review or change your pieces.
+
+<br/><br/>Below is a list of your pieces:
+
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Status</th>
+            <th>Name</th>
+            <th>Media</th>
+            <th>Gallery</th>
+            <th>Type</th>
+            <th>Price</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for piece in app.art_show_pieces %}
+        <tr class="piece-row" data-piece_id="{{ piece.id }}">
+            <td> {{ piece.artist_and_piece_id }} </td>
+            <td> {{ piece.status_label }} </td>
+            <td> {{ piece.name|wordwrap(25, wrapstring="<br />"|safe) }} </td>
+            <td> {{ piece.media }} </td>
+            <td> {{ piece.gallery_label }} </td>
+            <td> {{ piece.type_label }}
+                {% if piece.print_run_num %}({{ piece.print_run_num }} of {{ piece.print_run_total }}){% endif %}
+            </td>
+            <td> {% if piece.valid_for_sale %}
+                Opening Bid: {{ piece.opening_bid }}
+                <br/>Quick Sale Price: {% if not piece.valid_quick_sale %}N/A{% else %}{{ piece.quick_sale_price }}{% endif %}
+                {% else %}N/A{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+</body>
+</html>

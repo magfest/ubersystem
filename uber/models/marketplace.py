@@ -60,11 +60,11 @@ class MarketplaceApplication(MagModel):
 
     @cost_property
     def app_fee(self):
-        return c.MARKETPLACE_FEE
+        return c.MARKETPLACE_FEE or 0
 
     @property
     def total_cost(self):
-        if self.status not in [c.APPROVED, c.PAID]:
+        if self.status != c.APPROVED:
             return 0
         else:
             return self.potential_cost

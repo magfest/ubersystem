@@ -3,8 +3,8 @@
 {% import "fields/group.html" as group_fields with context %}
 {% block title %}Group Members{% endblock %}
 {% block backlink %}
-    {% if c.HAS_PEOPLE_ACCESS %}
-        <a href="../groups/form?id={{ group.id }}" style="float:right">Return to Group Admin Form</a>
+    {% if c.HAS_GROUP_ADMIN_ACCESS %}
+        <a href="../group_admin/form?id={{ group.id }}" style="float:right">Return to Group Admin Form</a>
     {% endif %}
 {% endblock %}
 {% block content %}
@@ -33,7 +33,7 @@
             });
         })
 
-        $("form[action='../groups/cancel_dealer']").submit(function(event){
+        $("form[action='../dealer_admin/cancel_dealer']").submit(function(event){
             var formToSubmit = this;
             event.preventDefault();
             bootbox.confirm({
@@ -66,7 +66,7 @@
       <h2>"{{ group.name }}" Information</h2>
       <form method="post" action="group_members" class="form-horizontal" role="form">
         <input type="hidden" name="id" value="{{ group.id }}" />
-        {% if not page_ro %}{{ group_fields.name }}{% endif %}
+        {% if not page_ro %}{{ group_fields.group_name }}{% endif %}
         {{ group_fields.categories }}
         {{ group_fields.wares }}
         {{ group_fields.description }}
@@ -75,10 +75,10 @@
         {{ group_fields.address }}
         {% if not page_ro %}
         <button type="submit" class="btn btn-primary" value="Update Application">Update Application</button>
-        <button type="submit" class="btn btn-danger" value="Cancel Dealer Application" form="cancel_dealer">Cancel Application</button>
+        <button type="submit" class="btn btn-danger" value="Cancel {{ c.DEALER_APP_TERM|title }}" form="cancel_dealer">Cancel Application</button>
         {% endif %}
       </form>
-        <form method="post" id="cancel_dealer" action="../groups/cancel_dealer" class="form-horizontal" role="form">
+        <form method="post" id="cancel_dealer" action="../dealer_admin/cancel_dealer" class="form-horizontal" role="form">
           <input type="hidden" name="id" value="{{ group.id }}" />
         </form>
     {% endif%}
@@ -88,18 +88,21 @@
 
 {% if group.amount_unpaid and not group.is_dealer %}
     <div style="text-align:center">
-        {{ stripe_form('process_group_payment',charge) }}
+        {{ stripe_form('process_group_payment',group) }}
     </div>
 {% endif %}
 
 <div style="margin:15px">
     {% if group.unregistered_badges and group.tables %}
-        Some of your Dealer Assistant badges are not yet assigned to a specific person. Using the links below, please assign these badges before the close of preregistration; any badges unclaimed at that time will be
+        Some of your {{ c.DEALER_HELPER_TERM }} badges are not yet assigned to a specific person. Using the links below, please assign these badges before the close of preregistration; any badges unclaimed at that time will be
         invalid. You may also distribute each of the registration links below to the individual members of your group,
         which will allow them to fill in their own information as well as purchase any upgrades on their own.
         <br/> <br/>
     {% endif %}
-    If a {{ group.is_dealer|yesno("planned Dealer Assistant,group member") }} cannot attend, you may use the "This person
+    {% if group.guest %}
+      Please check your badge information to ensure it is correct.<br/><br/>
+    {% endif %}
+    If a {{ group.is_dealer|yesno("planned " + c.DEALER_HELPER_TERM + ",group member") }} cannot attend, you may use the "This person
     isn't coming" button next to their entry on the list below to unset their badge, which may then be assigned to
     someone else. Upgraded badges may only be transferred directly between two people; please contact us at
     <a href="{{ c.CONTACT_URL }}">{{ c.CONTACT_URL }}</a> if you wish to transfer badges.
@@ -138,7 +141,7 @@
                 {% elif attendee.is_transferable and attendee.total_donation %}
                   <form method="get" action="transfer_badge">
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
-                    <b> Added on an extra ${{ attendee.total_donation }}! </b>
+                    <b> Added on an extra ${{ '%0.2f' % attendee.total_donation }}! </b>
                     <input type="submit" value="Transfer Registration" />
                   </form>
                 {% endif %}
@@ -167,7 +170,7 @@
         <input type="hidden" name="id" value="{{ group.id }}" />
         <p>
           {%- set min_badges = group.min_badges_addable -%}
-          {%- set members = group.is_dealer|yesno("Dealer Assistants,group members") -%}
+          {%- set members = group.is_dealer|yesno(c.DEALER_HELPER_TERM + ",group members") -%}
           Enter the number of {{ members }} to add.
           {% if min_badges > 1 -%}
             {%- set hours_remaining = group.hours_remaining_in_grace_period -%}
@@ -188,7 +191,7 @@
             {{ int_options(min_badges, 10) }}
           {%- endif -%}
         </select>
-        <input class="btn btn-primary" type="submit" value="{{ group.is_dealer|yesno("Add Dealer Assistants,Add Group Members") }}">
+        <input class="btn btn-primary" type="submit" value="{{ group.is_dealer|yesno("Add " + c.DEALER_HELPER_TERM + ",Add Group Members") }}">
       </form>
     </div>
 
@@ -196,12 +199,12 @@
         {% if group.amount_unpaid %}
             $(function(){
                 $('<div class="disabled" title="Group must be paid for before new members can be added">' +
-                    '<button disabled class="btn btn-primary">Click here to add more {{ group.is_dealer|yesno("Dealer Assistants,group members") }}</button>' +
+                    '<button disabled class="btn btn-primary">Click here to add more {{ group.is_dealer|yesno(c.DEALER_HELPER_TERM + "s,group members") }}</button>' +
                   '</div>').insertAfter($("#add"));
             });
         {% else %}
             $(function(){
-                $('<button class="btn btn-primary">Click here to add more {{ group.is_dealer|yesno("Dealer Assistants,group members") }}</button>').click(function(e){
+                $('<button class="btn btn-primary">Click here to add more {{ group.is_dealer|yesno(c.DEALER_HELPER_TERM + "s,group members") }}</button>').click(function(e){
                         $(e.target).hide();
                         $("#add").show();
                     }).insertAfter($("#add"));

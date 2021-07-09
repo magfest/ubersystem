@@ -157,7 +157,7 @@
         first_name: $.val('first_name'),
         last_name: $.val('last_name'),
         email: $.val('email'),
-        zip_code: $.val('zip_code')
+        zip_code: $('[name="zip_code"]').val() // keep leading 0, if present
       };
       signupForEvent(eventId, params, function (response) {
         if (response) {
@@ -249,7 +249,7 @@
       <div class="modal-footer">
         {# Signups with a badge number during the event is a hard requirement for Autographs #}
         {% if c.BEFORE_EPOCH %}
-          <button class="btn btn-default btn-lg btn-xl modal-form-switch">I don't have my badge</button>
+          <button class="btn btn-default btn-lg btn-xl modal-form-switch">Sign up without badge #</button>
         {% endif %}
         <button class="btn btn-default btn-lg btn-xl" data-dismiss="modal">Nevermind</button>
       </div>
@@ -271,7 +271,7 @@
       </div>
       <form id="alt_signup_form" class="form-horizontal" method="post" action="sign" role="form">
         <div class="modal-body">
-          <p>Enter your personal information to sign up.  You must already be registered to sign up for this event.</p>
+          <p>Enter your personal information to sign up. You must already be registered to sign up for this event.</p>
           <div class="row">
             <div class="col-sm-offset-2 col-sm-8">
               <div class="attendee-info-row">
@@ -297,7 +297,7 @@
               </div>
               <div class="attendee-info-row">
                 <input class="form-control input-lg info-field"
-                    type="number"
+                    pattern="[0-9]*"
                     name="zip_code"
                     placeholder="Zip Code"
                     required="required" />

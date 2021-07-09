@@ -9,7 +9,8 @@ from os.path import join
 from sideboard.lib import entry_point
 
 from uber.config import c, create_namespace_uuid
-from uber.models import AssignedPanelist, Attendee, Event, FoodRestrictions, Group, HotelRequests, Job, Session, Shift
+from uber.models import AssignedPanelist, Attendee, Department, Event, FoodRestrictions, Group, HotelRequests, Job
+from uber.models import Session, Shift
 
 
 DEPT_HEAD_RIBBON_STR = str(c.DEPT_HEAD_RIBBON)
@@ -66,6 +67,7 @@ TEST_DATA_FILE = join(os.path.dirname(__file__), 'test_data.json')
 words = []
 offset_from = c.EPOCH
 dump, groups, attendees = {}, {}, {}
+skipped_attendees = []
 
 
 def offset_to_datetime(offset):
@@ -84,6 +86,7 @@ def import_groups(session):
         secret_id = g.pop('secret_id')
         g['cost'] = int(float(g.pop('amount_owed')))
         g['name'] = random_group_name()
+        del g['amount_paid']
         groups[secret_id] = Group(**g)
         session.add(groups[secret_id])
 
@@ -94,16 +97,27 @@ def import_attendees(session):
         secret_id = a.pop('secret_id')
         a['assigned_depts_ids'] = all_dept_ids_from_existing_locations(a.pop('assigned_depts', ''))
         a['requested_depts_ids'] = all_dept_ids_from_existing_locations(a.pop('requested_depts', ''))
+        del a['amount_paid']
+        del a['amount_refunded']
+        if a['badge_type'] == 67489953:  # Supporter is no longer a badge type
+            skipped_attendees.append(secret_id)
+            continue
         attendees[secret_id] = Attendee(**a)
         session.add(attendees[secret_id])
 
     for f in dump['food']:
-        f['attendee'] = attendees[f.pop('attendee_id')]
+        attendee_id = f.pop('attendee_id')
+        if attendee_id in skipped_attendees:
+            continue
+        f['attendee'] = attendees[attendee_id]
         f.setdefault('sandwich_pref', str(c.PEANUT_BUTTER))  # sandwich_pref didn't exist when the dump was taken
         session.add(FoodRestrictions(**f))
 
     for h in dump['hotel']:
-        h['attendee'] = attendees[h.pop('attendee_id')]
+        attendee_id = h.pop('attendee_id')
+        if attendee_id in skipped_attendees:
+            continue
+        h['attendee'] = attendees[attendee_id]
         session.add(HotelRequests(**h))
 
 
@@ -121,20 +135,32 @@ def import_events(session):
 
 def import_jobs(session):
     job_locs, _ = zip(*c.JOB_LOCATION_OPTS)
+    depts_known = []
     for j in dump['jobs']:
         if j['location'] in job_locs:
             j.pop('restricted', '')
-            j['department_id'] = _dept_id_from_location(j.pop('location', ''))
+            location = j.pop('location', '')
+            dept_id = _dept_id_from_location(location)
+            j['department_id'] = dept_id
+            if dept_id not in depts_known and not session.query(Department).filter(Department.id == dept_id).count():
+                session.add(Department(id=dept_id, name=location))
+                depts_known.append(dept_id)
             j['start_time'] = offset_to_datetime(j['start_time'])
             shifts = j.pop('shifts')
             job = Job(**j)
             session.add(job)
             for secret_id in shifts:
-                job.shifts.append(Shift(attendee=attendees[secret_id]))
+                if secret_id not in skipped_attendees:
+                    job.shifts.append(Shift(attendee=attendees[secret_id]))
 
 
 @entry_point
 def import_uber_test_data(test_data_file):
+    if not c.JOB_LOCATION_OPTS:
+        print("JOB_LOCATION_OPTS is empty! "
+        "Try copying the [[job_location]] section from test-defaults.ini to your development.ini.")
+        exit(1)
+
     with open(test_data_file) as f:
         global dump
         dump = json.load(f)

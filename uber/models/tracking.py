@@ -42,10 +42,10 @@ class PageViewTracking(MagModel):
                 return
 
             # Looking at an attendee's details
-            if "registration" in url:
+            if "registration" in url or "attendee" in url:
                 what = "Attendee id={}".format(params['id'])
             # Looking at a group's details
-            elif "groups" in url:
+            elif "dealer_admin" in url or "group" in url:
                 what = "Group id={}".format(params['id'])
 
         from uber.models import Session
@@ -157,6 +157,11 @@ class Tracking(MagModel):
             who = 'server admin'
         else:
             who = AdminAccount.admin_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+            
+        try:
+            snapshot = json.dumps(instance.to_dict(), cls=serializer)
+        except TypeError as e:
+            snapshot = "(Could not save JSON dump due to error: {}".format(e)
 
         def _insert(session):
             session.add(Tracking(
@@ -168,7 +173,7 @@ class Tracking(MagModel):
                 links=links,
                 action=action,
                 data=data,
-                snapshot=json.dumps(instance.to_dict(), cls=serializer)
+                snapshot=snapshot,
             ))
         if instance.session:
             _insert(instance.session)

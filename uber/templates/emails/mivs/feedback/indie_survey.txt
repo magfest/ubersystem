@@ -1,0 +1,14 @@
+Ahoy {{ game.studio.primary_contact_first_names }},
+
+Thank you for showing your game at MIVS this past year.  We'd appreciate if you take this feedback survey to help MIVS continue to do better.  This survey will take about 5 minutes and is anonymous. Everyone on your team can take the survey and we ask that you forward it to your teammates.  
+
+You can take the MIVS Feedback Survey here:
+https://forms.gle/qqfvibstvLrkd1ii6
+
+We also request that you take Uplift's Convention Safety Survey for this year's MAGFest.  This information will be used to continue to help make MAGFest a safe convention.
+
+You can take Uplift's Convention Safety Survey here:
+https://docs.google.com/forms/d/e/1FAIpQLScy7EajpfgecKtoID5Rb-M1AqM_MvqJG6KGJRg_NdGOE8xJgg/viewform
+
+Forever your fan,
+The MIVS Team

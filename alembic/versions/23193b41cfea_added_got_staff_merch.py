@@ -1,11 +1,11 @@
 """added Attendee.got_staff_merch column
 
 Revision ID: 23193b41cfea
-Revises: 06b9ad98e471
+Revises: 5ae9cea2cd6d
 Create Date: 2018-01-01 00:43:46.450809
 """
 revision = '23193b41cfea'
-down_revision = '06b9ad98e471'
+down_revision = '5ae9cea2cd6d'
 branch_labels = None
 depends_on = None
 

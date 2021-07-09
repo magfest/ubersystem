@@ -1,7 +1,7 @@
 """Add Marketplace applications
 
 Revision ID: 9e721eb0b45c
-Revises: 7839740aa454
+Revises: fa869546b8ca
 Create Date: 2019-08-25 00:13:12.508824
 
 """
@@ -9,7 +9,7 @@ Create Date: 2019-08-25 00:13:12.508824
 
 # revision identifiers, used by Alembic.
 revision = '9e721eb0b45c'
-down_revision = '7839740aa454'
+down_revision = 'fa869546b8ca'
 branch_labels = None
 depends_on = None
 

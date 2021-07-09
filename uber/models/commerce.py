@@ -1,19 +1,19 @@
 from datetime import datetime
 
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Integer
 
 from uber.config import c
 from uber.models import MagModel
-from uber.models.attendee import Attendee
+from uber.models.attendee import Attendee, Group
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column
 
 
 __all__ = [
     'ArbitraryCharge', 'MerchDiscount', 'MerchPickup', 'MPointsForCash',
-    'NoShirt', 'OldMPointExchange', 'Sale', 'StripeTransaction']
+    'NoShirt', 'OldMPointExchange', 'ReceiptItem', 'Sale', 'StripeTransaction']
 
 
 class ArbitraryCharge(MagModel):
@@ -76,7 +76,7 @@ class Sale(MagModel):
 
 class StripeTransaction(MagModel):
     stripe_id = Column(UnicodeText, nullable=True)
-    type = Column(Choice(c.TRANSACTION_TYPE_OPTS), default=c.PAYMENT)
+    type = Column(Choice(c.TRANSACTION_TYPE_OPTS), default=c.PENDING)
     amount = Column(Integer)
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     who = Column(UnicodeText)
@@ -95,3 +95,26 @@ class StripeTransactionGroup(MagModel):
     txn_id = Column(UUID, ForeignKey('stripe_transaction.id'))
     group_id = Column(UUID, ForeignKey('group.id'))
     share = Column(Integer)
+
+
+class ReceiptItem(MagModel):
+    attendee_id = Column(UUID, ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
+    attendee = relationship(
+        Attendee, backref='receipt_items', foreign_keys=attendee_id, cascade='save-update,merge,refresh-expire,expunge')
+
+    group_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
+    group = relationship(
+        Group, backref='receipt_items', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
+
+    txn_id = Column(UUID, ForeignKey('stripe_transaction.id', ondelete='SET NULL'), nullable=True)
+    stripe_transaction = relationship(
+        StripeTransaction, backref='receipt_items',
+        foreign_keys=txn_id, cascade='save-update,merge,refresh-expire,expunge')
+    txn_type = Column(Choice(c.TRANSACTION_TYPE_OPTS), default=c.PENDING)
+    payment_method = Column(Choice(c.PAYMENT_METHOD_OPTS), default=c.STRIPE)
+    amount = Column(Integer)
+    when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    who = Column(UnicodeText)
+    desc = Column(UnicodeText)
+    cost_snapshot = Column(JSON, default={}, server_default='{}')
+    refund_snapshot = Column(JSON, default={}, server_default='{}')

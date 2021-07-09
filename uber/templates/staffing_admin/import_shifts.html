@@ -1,0 +1,129 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Import Shifts{% endblock %}
+{% block content %}
+
+<style>
+  .form {
+    max-width: 720px;
+    margin-bottom: 20px;
+  }
+
+  table.form tbody td:first-child {
+    width: 24px;
+  }
+</style>
+
+<script type="text/javascript">
+  $(function() {
+    var $shiftsForm = $("form[action='import_shifts']"),
+        $departmentsBlock = $('.departments_block'),
+        $targetUrl = $('#target_url'),
+        $fromDepartment = $('#from_department_id');
+
+    $('#lookup_departments').on('click', function(e) {
+        // Prevent form submit.
+        e.preventDefault();
+
+        $departmentsBlock.hide();
+
+        $.ajax({
+            method: 'GET',
+            url: 'lookup_departments',
+            dataType: 'json',
+            data: $shiftsForm.serialize(),
+            success: function(result) {
+                toastr.clear();
+                if (result && result.error) {
+                  toastr.error(result.error);
+                } else if (result && result.departments) {
+                  $targetUrl.html(result.target_url || '&nbsp;');
+                  $fromDepartment.find('option').remove();
+                  $('<option value="">Select a department...</option>').appendTo($fromDepartment);
+                  $.each(result.departments, function(i, d) {
+                      $('<option>').val(d[0]).text(d[1]).appendTo($fromDepartment);
+                  });
+                  $('#hidden_target').val($("form[action='import_shifts'] input[name='target_server']").val());
+                  $('#hidden_api').val($("form[action='import_shifts'] input[name='api_token']").val());
+                  $departmentsBlock.show();
+                } else {
+                  toastr.error('Did not find any results.');
+                }
+            },
+            error: function() {
+                toastr.error('Unable to connect to server, please try again.');
+            }
+        });
+    });
+
+    $shiftsForm.each(function(index) {
+      $(this).submit(function(e) {
+
+      });
+    });
+  });
+</script>
+
+<h2>Import Shifts</h2>
+
+<form id="shifts" action="import_shifts" method="post" class="form">
+  <div class="form-group">
+    <label class="control-label">Hostname</label>
+    <input
+        class="form-control"
+        type="text"
+        name="target_server"
+        value="{{ target_server }}"
+        placeholder="event.uber.magfest.org/uber"
+        required>
+  </div>
+  <div class="form-group">
+    <label class="control-label">API Token</label>
+    <input
+        class="form-control"
+        type="text"
+        name="api_token"
+        value="{{ api_token }}"
+        placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX">
+    <p class="form-control-static help-block">Leave blank to try using system API token</p>
+  </div>
+  <input class="btn btn-primary" type="submit" id="lookup_departments" value="Lookup Departments" />
+
+  <div class="departments_block" {% if not from_departments %}style="display: none;"{% endif %}>
+    <div class="form-group">
+      <div class="col-sm-6">
+        <h4>To Department</h4>
+        <select id="to_department_id" name="to_department_id" required="required">
+          <option value="">Select a department...</option>
+          <option value="None">Create a new department</option>
+          {% for value, label in to_departments %}
+            <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+        <p class="help-block">This server</p>
+      </div>
+      <div class="col-sm-6">
+        <h4>From Department</h4>
+        <select id="from_department_id" name="from_department_id" required="required">
+          <option value="">Select a department...</option>
+          {% for value, label in from_departments %}
+            <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+        <p id="target_url" class="help-block">{{ target_url }}</p>
+      </div>
+    </div>
+    <label><input type="checkbox" name="skip_shifts" /> Only import department roles</label><br/>
+    <input class="btn btn-primary" type="submit" value="Import Department Roles and Shifts" />
+  </div>
+</form>
+
+  <div class="departments_block">
+  <form name="bulk_dept_import" action="bulk_dept_import" method="post" class="form">
+  <input type="hidden" id="hidden_target" name="target_server" value="{{ target_server }}" />
+  <input type="hidden" id="hidden_api" name="api_token" value="{{ api_token }}" />
+    <p class="help-text">NOTE: Importing all departments takes a long time. Please be patient.</p>
+  <input class="btn btn-info" type="submit" value="Import ALL Departments and Roles from {{ target_server }}" />
+  </form>
+  </div>
+
+{% endblock %}

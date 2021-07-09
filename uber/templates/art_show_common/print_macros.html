@@ -1,0 +1,146 @@
+{% import 'macros.html' as macros with context %}
+
+{%- macro print_receipt(receipt) -%}
+  <table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
+  <tr><td colspan="6" class="text-center"><strong>Midwest FurFest Art Show Receipt</strong></td></tr>
+  <tr>
+    <td colspan="3"><strong>Invoice #:</strong> {{ receipt.invoice_num }}</td>
+    <td colspan="3"><strong>Date and Time</strong> {{ receipt.closed_local|datetime("%m-%d-%Y - %H:%M") }}</td>
+  </tr>
+  <tr>
+    <td colspan="6"><strong>Sold To:</strong> {{ receipt.attendee.full_name }}</td>
+  </tr>
+  <tr><td colspan="6"></td></tr>
+  <tr>
+    <th><nobr>Piece ID</nobr></th>
+    <th>Piece Title</th>
+    <th>Type</th>
+    <th>Medium</th>
+    <th>Artist Name</th>
+    <th><nobr>Sale Price</nobr></th>
+  </tr>
+  {% for piece in receipt.pieces %}
+  <tr>
+    <td> {{ piece.artist_and_piece_id }} </td>
+    <td> {{ piece.name|wordwrap(25, wrapstring="<br />"|safe) }} </td>
+    <td> {{ piece.type_label }}
+      {% if piece.print_run_num and piece.type == c.PRINT %}({{ piece.print_run_num }} of {{ piece.print_run_total }}){% endif %}
+    </td>
+    <td> {{ piece.media }} </td>
+    <td> {{ piece.app.display_name }} </td>
+    <td> ${{ '%0.2f' % piece.sale_price }}
+    </td>
+  </tr>
+  {% endfor %}
+  <tr><td colspan="6"></td></tr>
+  <tr><td colspan="4"></td><td><strong>TOTAL Pretax</strong></td><td>${{ '%0.2f' % (receipt.subtotal / 100) }}</td></tr>
+  <tr><td colspan="4"></td><td><strong>Tax</strong></td><td>${{ '%0.2f' % (receipt.tax / 100) }}</td></tr>
+  <tr><td colspan="4"></td><td><strong>Grand Total</strong></td><td>${{ '%0.2f' % (receipt.total / 100) }}</td></tr>
+  <tr></tr>
+  {% for payment in receipt.stripe_payments %}
+  <tr>
+    <td colspan="4"></td><td><strong>Total Card {{ loop.index }}</strong></td><td>${{ '%0.2f' % (payment.amount / 100) }}</td>
+  </tr>
+  {% endfor %}
+  <tr><td colspan="4"></td><td><strong>Total Paid Credit</strong></td><td>${{ '%0.2f' % (receipt.stripe_total / 100) }}</td></tr>
+  <tr><td colspan="4"></td><td><strong>Total Paid Cash</strong></td><td>${{ '%0.2f' % (receipt.cash_total / 100) }}</td></tr>
+  <tr><td colspan="4"></td><td><strong>Amount Due:</strong></td><td>${{ '%0.2f' % (receipt.owed / 100) }}</td></tr>
+</table>
+{%- endmacro -%}
+
+{%- macro print_artist_invoice(app) -%}
+<h3 align="center">Midwest FurFest Artist Payment Sheet</h3>
+<table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
+  <tr><td width="25%"><strong>Artist Name</strong></td><td>{{ app.display_name }}</td></tr>
+  <tr><td><strong>Legal Name</strong></td><td>{{ app.attendee.legal_first_name }} {{ app.attendee.legal_last_name }}</td></tr>
+    {% set address_model = app if app.delivery_method == c.BY_MAIL else app.attendee %}
+  <tr><td><strong>Address</strong></td><td>{{ address_model.address1 }}</td></tr>
+  {% if address_model.address2 %}
+  <tr><td></td><td>{{ address_model.address2 }}</td></tr>
+  {% endif %}
+  <tr><td><strong>City</strong></td><td>{{ address_model.city }}</td></tr>
+  <tr><td><strong>State/Region</strong></td><td>{{ address_model.region }}</td></tr>
+  <tr><td><strong>Postal Code</strong></td><td>{{ address_model.zip_code }}</td></tr>
+  <tr><td><strong>Country</strong></td><td>{{ address_model.country }}</td></tr>
+</table>
+<table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
+  <tr>
+    <th width="25%"><nobr>Piece ID</nobr></th>
+    <th>Piece Name</th>
+    <th>Sale Type</th>
+    <th>Minimum Bid</th>
+    <th><nobr>Top Bid</nobr></th>
+  </tr>
+  {% for piece in app.art_show_pieces %}
+  {% if piece.status in [c.SOLD, c.PAID] %}
+  <tr>
+    <td> {{ piece.artist_and_piece_id }} </td>
+    <td> {{ piece.name|wordwrap(25, wrapstring="<br />"|safe) }} </td>
+    <td> {% if piece.voice_auctioned %}Auction{% elif piece.winning_bid %}Bid Sheet{% elif piece.valid_quick_sale %}QuickSale{% endif %} </td>
+    <td> ${{ piece.opening_bid }} </td>
+    <td> ${{ '%0.2f' % piece.sale_price }} </td>
+  </tr>
+  {% endif %}
+  {% endfor %}
+  <tr><td colspan="5"></td></tr>
+  <tr><td colspan="4"><strong>Total Payment from Bids</strong></td><td>${{ '%0.2f' % (app.total_sales / 100) }}</td></tr>
+</table>
+<table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
+  <tr><td width="25%"><strong>Fees</strong></td></tr>
+  <tr>
+    <td>Panels</td><td>{{ app.panels + app.panels_ad }}</td>
+    <td>Panel Cost</td><td>${{ c.COST_PER_PANEL }}</td>
+    <td>Total Panel Fee</td><td>${{ '%0.2f' % ((app.panels + app.panels_ad) * c.COST_PER_PANEL) }}</td>
+  </tr>
+  <tr>
+    <td>Tables</td><td>{{ app.tables + app.tables_ad }}</td>
+    <td>Table Cost</td><td>${{ c.COST_PER_TABLE }}</td>
+    <td>Total Table Fee</td><td>${{ '%0.2f' % ((app.tables + app.tables_ad) * c.COST_PER_TABLE) }}</td>
+  </tr>
+  {% if app.delivery_method == c.BY_MAIL %}<tr><td colspan="4"></td><td>Total Mail-In Fee</td><td>${{ '%0.2f' % c.ART_MAILING_FEE }}</td></tr>{% endif %}
+  <tr><td colspan="4"></td><td><strong>Total Fees</strong></td><td>${{ '%0.2f' % app.total_cost }}</td></tr>
+  <tr><td colspan="4"></td><td>Prepaid</td><td>${{ '%0.2f' % app.amount_paid }}</td></tr>
+</table>
+<table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
+  <tr>
+    <td width="25%"><strong>Commission Rate</strong></td><td>{{ c.COMMISSION_PCT / 100 }}%</td>
+    <td><strong>Commission</strong></td><td>${{ '%0.2f' % (app.commission / 100) }}</td>
+  </tr>
+  <tr><td><strong>Name on Check</strong></td><td>{{ app.check_payable or app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name }}</td></tr>
+  <tr><td><strong>Check Total</strong></td><td>${{ '%0.2f' % (app.check_total / 100) }}</td></tr>
+</table>
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Artist Signature</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+      _________________________________________________________
+    </div>
+  </div>
+</div>
+
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Date</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+      ___________________________
+    </div>
+  </div>
+</div>
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Convention Staff Signature</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+      _________________________________________________________
+    </div>
+  </div>
+</div>
+
+<div class="form-group">
+  <label class="col-sm-3 control-label optional-field">Date</label>
+  <div class="col-sm-6">
+    <div class="form-control-static">
+      ___________________________
+    </div>
+  </div>
+</div>
+{%- endmacro -%}

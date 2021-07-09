@@ -8,19 +8,19 @@ from pockets import unwrap
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable
+from uber.decorators import ajax, all_renderable, public
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiToken
-from uber.utils import check
+from uber.utils import Charge, check
 
 
-@all_renderable(*c.API_ACCESS.keys())
+@all_renderable()
 class Root:
 
     def index(self, session, show_revoked=False, message='', **params):
         admin_account = session.current_admin_account()
         api_tokens = session.query(ApiToken)
-        if c.ADMIN not in admin_account.access_ints:
+        if not admin_account.is_admin:
             api_tokens = api_tokens.filter_by(admin_account_id=admin_account.id)
         if not show_revoked:
             api_tokens = api_tokens.filter(ApiToken.revoked_time == None)  # noqa: E711
@@ -51,7 +51,7 @@ class Root:
                     if 'self' in args:
                         args.remove('self')
                     access = getattr(method, 'required_access', set())
-                    required_access = sorted(c.API_ACCESS.get(i, c.ACCESS[i]) for i in access)
+                    required_access = sorted([opt[4:].title() for opt in access])
                     methods.append({
                         'name': method_name,
                         'doc': newlines.sub(r'\1 \2', doc).strip(),
@@ -73,7 +73,7 @@ class Root:
     @ajax
     def create_api_token(self, session, **params):
         if cherrypy.request.method == 'POST':
-            params['admin_account_id'] = cherrypy.session['account_id']
+            params['admin_account_id'] = cherrypy.session.get('account_id')
             api_token = session.api_token(params)
             message = check(api_token)
             if not message:
@@ -94,3 +94,33 @@ class Root:
         api_token.revoked_time = datetime.now(pytz.UTC)
         raise HTTPRedirect(
             'index?message={}', 'Successfully revoked API token')
+
+    @public
+    @staticmethod
+    def stripe_webhook_handler(request=None):
+        if not request or not request.body:
+            return "Request required"
+        sig_header = cherrypy.request.headers['HTTP_STRIPE_SIGNATURE']
+        payload = request.body
+        event = None
+
+        try:
+            event = stripe.Webhook.construct_event(
+                payload, sig_header, c.STRIPE_ENDPOINT_SECRET
+            )
+        except ValueError as e:
+            # Invalid payload
+            cherrypy.response.status = 400
+        except stripe.error.SignatureVerificationError as e:
+            # Invalid signature
+            return HttpResponse(status=400)
+
+        if event['type'] == 'payment_intent.succeeded':
+            payment_intent = event.data.object
+            Charge.mark_paid_from_stripe(payment_intent)
+        else:
+            cherrypy.response.status = 400
+
+        cherrypy.response.status = 200
+
+        return "Success!"

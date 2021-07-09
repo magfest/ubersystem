@@ -1,0 +1,110 @@
+{% extends "art_show_common/print_form.html" %}{% set admin_area=True %}{% set no_print = True %}
+
+{% block printform %}
+<h3 align="center">Grand Summary Report -- {{ now|datetime("%m/%d/%Y, %-I:%M%p") }}</h3>
+<table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
+  <tr>
+    <td colspan="2"><strong>Total Sales</strong></td><td width="75%">${{ '%0.2f' % (general_sales_sum + mature_sales_sum) }}</td>
+  </tr>
+  <tr>
+    <td></td><td>General</td><td>${{ '%0.2f' % general_sales_sum }}</td>
+  </tr>
+  <tr>
+    <td></td><td>Mature</td><td>${{ '%0.2f' % mature_sales_sum }}</td>
+  </tr>
+  <tr></tr>
+  <tr>
+    <td colspan="2"><strong>Total Taxes</strong></td><td>${{ '%0.2f' % ((general_sales_sum + mature_sales_sum) * (c.SALES_TAX / 10000)) }}</td>
+  </tr>
+  <tr>
+    <td colspan="2"><strong>Tax % Charged</strong></td><td>{{ c.SALES_TAX / 100 }}%</td>
+  </tr>
+  <tr></tr>
+  <tr>
+    <td colspan="2"><strong>Total Commission</strong></td><td>{{ '%0.2f' % ((general_sales_sum + mature_sales_sum) * (c.COMMISSION_PCT / 10000)) }}</td>
+  </tr>
+  <tr>
+    <td colspan="2"><strong>Commission % Charged</strong></td><td>{{ c.COMMISSION_PCT / 100 }}%</td>
+  </tr>
+  <tr></tr>
+  <tr>
+    <td colspan="2"><strong>Total Pieces Entered</strong></td><td>{{ general_count + mature_count }}</td>
+  </tr>
+  <tr>
+    <td></td><td>General</td><td>{{ general_count }}</td>
+  </tr>
+  <tr>
+    <td></td><td>Mature</td><td>{{ mature_count }}</td>
+  </tr>
+  <tr></tr>
+  <tr>
+    <td colspan="2"><strong>Total Pieces Sold</strong></td><td>{{ general_sold_count + mature_sold_count }}</td>
+  </tr>
+  <tr>
+    <td></td><td>General</td><td>{{ general_sold_count }}</td>
+  </tr>
+  <tr>
+    <td></td><td>Mature</td><td>{{ mature_sold_count }}</td>
+  </tr>
+  <tr></tr>
+  <tr>
+    <td colspan="2"><strong>Total Pieces Sent to Auction</strong></td><td>{{ general_auctioned_count + mature_auctioned_count }}</td>
+  </tr>
+  <tr>
+    <td></td><td>General</td><td>{{ general_auctioned_count }}</td>
+  </tr>
+  <tr>
+    <td></td><td>Mature</td><td>{{ mature_auctioned_count }}</td>
+  </tr>
+  <tr></tr>
+  <tr>
+    <td colspan="2"><strong>Total Artists</strong></td><td>{{ artist_count }}</td>
+  </tr>
+  <tr></tr>
+  <tr>
+    <td colspan="2"><strong>Total Panels</strong></td><td>{{ general_panels_count + mature_panels_count }}</td>
+  </tr>
+  <tr>
+    <td></td><td>General</td><td>{{ general_panels_count }}</td>
+  </tr>
+  <tr>
+    <td></td><td>Mature</td><td>{{ mature_panels_count }}</td>
+  </tr>
+  <tr></tr>
+  <tr>
+    <td colspan="2"><strong>Panel Fee</strong></td><td>${{ c.COST_PER_PANEL }}</td>
+  </tr>
+  <tr>
+    <td colspan="2"><strong>Total Panel Fees</strong></td><td>${{ '%0.2f' % ((general_panels_count + mature_panels_count) * c.COST_PER_PANEL) }}</td>
+  </tr>
+  <tr>
+    <td></td><td>General</td><td>${{ '%0.2f' % (general_panels_count * c.COST_PER_PANEL) }}</td>
+  </tr>
+  <tr>
+    <td></td><td>Mature</td><td>${{ '%0.2f' % (mature_panels_count * c.COST_PER_PANEL) }}</td>
+  </tr>
+  <tr></tr>
+  <tr>
+    <td colspan="2"><strong>Total Tables</strong></td><td>{{ general_tables_count + mature_tables_count }}</td>
+  </tr>
+  <tr>
+    <td></td><td>General</td><td>{{ general_tables_count }}</td>
+  </tr>
+  <tr>
+    <td></td><td>Mature</td><td>{{ mature_tables_count }}</td>
+  </tr>
+  <tr></tr>
+  <tr>
+    <td colspan="2"><strong>Table Fee</strong></td><td>${{ c.COST_PER_TABLE }}</td>
+  </tr>
+  <tr>
+    <td colspan="2"><strong>Total Table Fees</strong></td><td>${{ '%0.2f' % ((general_tables_count + mature_tables_count) * c.COST_PER_TABLE) }}</td>
+  </tr>
+  <tr>
+    <td></td><td>General</td><td>${{ '%0.2f' % (general_tables_count * c.COST_PER_TABLE) }}</td>
+  </tr>
+  <tr>
+    <td></td><td>Mature</td><td>${{ '%0.2f' % (mature_tables_count * c.COST_PER_TABLE) }}</td>
+  </tr>
+</table>
+{% endblock %}

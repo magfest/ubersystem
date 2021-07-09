@@ -14,12 +14,13 @@ import sqlalchemy
 from dateutil import parser as dateparser
 from pockets import cached_classproperty, classproperty, listify
 from pockets.autolog import log
+from pytz import UTC
 from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
 from sideboard.lib import on_startup, stopped
 from sqlalchemy import and_, func, or_, not_
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Query, joinedload, subqueryload
+from sqlalchemy.orm import Query, joinedload, subqueryload, aliased
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import MetaData
 from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric
@@ -120,6 +121,15 @@ class MagModel:
         return self.email
 
     @property
+    def gets_emails(self):
+        """
+        In some cases, we want to apply a global filter to a model that prevents it from
+        receiving scheduled emails under certain circumstances. This property allows you
+        to define such a filter.
+        """
+        return True
+
+    @property
     def addons(self):
         """
         This exists only to be overridden by other events; it should return a
@@ -146,7 +156,7 @@ class MagModel:
         """Returns the names of all cost properties on this model."""
         return [
             s for s in cls._class_attr_names
-            if s != 'cost_property_names'
+            if s not in ['cost_property_names']
             and isinstance(getattr(cls, s), cost_property)]
 
     @cached_classproperty
@@ -420,6 +430,8 @@ class MagModel:
                             value = int(float(value))
 
                     elif isinstance(column.type, UTCDateTime):
+                        if value == '':
+                            value = None
                         try:
                             value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
                         except ValueError:
@@ -428,6 +440,8 @@ class MagModel:
                             value = c.EVENT_TIMEZONE.localize(value)
 
                     elif isinstance(column.type, Date):
+                        if value == '':
+                            value = None
                         try:
                             value = datetime.strptime(value, c.DATE_FORMAT)
                         except ValueError:
@@ -467,7 +481,7 @@ class MagModel:
 
         return self
 
-    def timespan(self, minute_increment=60):
+    def timespan(self, minute_increment=1):
         def minutestr(dt):
             return ':30' if dt.minute == 30 else ''
 
@@ -507,9 +521,11 @@ from uber.models.panels import *  # noqa: F401,E402,F403
 from uber.models.attraction import *  # noqa: F401,E402,F403
 from uber.models.tabletop import *  # noqa: F401,E402,F403
 from uber.models.guests import *  # noqa: F401,E402,F403
+from uber.models.art_show import *  # noqa: F401,E402,F403
 
 # Explicitly import models used by the Session class to quiet flake8
-from uber.models.admin import AdminAccount, WatchList  # noqa: E402
+from uber.models.admin import AccessGroup, AdminAccount, WatchList  # noqa: E402
+from uber.models.art_show import ArtShowApplication  # noqa: E402
 from uber.models.attendee import Attendee  # noqa: E402
 from uber.models.department import Job, Shift, Department  # noqa: E402
 from uber.models.email import Email  # noqa: E402
@@ -637,13 +653,130 @@ class Session(SessionManager):
 
     class SessionMixin:
         def current_admin_account(self):
-            return self.admin_account(cherrypy.session['account_id'])
+            if getattr(cherrypy, 'session', {}).get('account_id'):
+                return self.admin_account(cherrypy.session.get('account_id'))
 
         def admin_attendee(self):
-            return self.admin_account(cherrypy.session['account_id']).attendee
+            if getattr(cherrypy, 'session', {}).get('account_id'):
+                return self.admin_account(cherrypy.session.get('account_id')).attendee
 
         def logged_in_volunteer(self):
-            return self.attendee(cherrypy.session['staffer_id'])
+            return self.attendee(cherrypy.session.get('staffer_id'))
+
+        def admin_has_staffer_access(self, staffer, access="view"):
+            dept_ids_with_inherent_role = [dept_m.department_id for dept_m in 
+                                           self.admin_attendee().dept_memberships_with_inherent_role]
+            return set(staffer.assigned_depts_ids).intersection(dept_ids_with_inherent_role)
+
+        def admin_can_see_guest_group(self, guest):
+            return guest.group_type_label.upper() in self.current_admin_account().viewable_guest_group_types
+
+        def admin_attendee_max_access(self, attendee, read_only=True):
+            admin = self.current_admin_account()
+            if not admin:
+                return
+                
+            if admin.full_registration_admin or attendee.creator == admin.attendee or attendee == admin.attendee:
+                return AccessGroup.FULL
+            
+            return max([admin.max_level_access(section, read_only=read_only) for section in attendee.access_sections])
+
+        def admin_can_create_attendee(self, attendee):
+            admin = self.current_admin_account()
+            if not admin:
+                return
+                
+            if admin.full_registration_admin:
+                return True
+            
+            return admin.full_shifts_admin if attendee.badge_type == c.STAFF_BADGE else \
+                self.admin_attendee_max_access >= AccessGroup.DEPT
+        
+        def viewable_groups(self):
+            from uber.models import Attendee, DeptMembership, Group, GuestGroup
+            admin = self.current_admin_account()
+            
+            if admin.full_registration_admin:
+                return self.query(Group)
+            
+            subqueries = [self.query(Group).filter(Group.creator == admin.attendee)]
+            
+            group_id = admin.attendee.group.id if admin.attendee.group else ''
+            if group_id:
+                subqueries.append(self.query(Group).filter(Group.id == group_id))
+            
+            for key, val in c.GROUP_TYPE_OPTS:
+                if val.lower() + '_admin' in admin.read_or_write_access_set:
+                    subqueries.append(
+                        self.query(Group).join(
+                            GuestGroup, Group.id == GuestGroup.group_id).filter(GuestGroup.group_type == key
+                        )
+                    )
+            
+            if 'dealer_admin' in admin.read_or_write_access_set:
+                subqueries.append(
+                    self.query(Group).filter(Group.is_dealer)
+                )
+            
+            return subqueries[0].union(*subqueries[1:])
+        
+        def access_query_matrix(self):
+            """
+            There's a few different situations where we want to add certain subqueries to find attendees
+            based on different site sections. This matrix returns queries keyed by site section.
+            """
+            admin = self.current_admin_account()
+            return_dict = {'created': self.query(Attendee).filter(
+                or_(Attendee.creator == admin.attendee, Attendee.id == admin.attendee.id))}
+            # Guest groups
+            for group_type, badge_and_ribbon_filter in [
+                (c.BAND, and_(Attendee.badge_type == c.GUEST_BADGE, Attendee.ribbon.contains(c.BAND))),
+                (c.GUEST, and_(Attendee.badge_type == c.GUEST_BADGE, ~Attendee.ribbon.contains(c.BAND)))
+                ]:
+                return_dict[c.GROUP_TYPES[group_type].lower() + '_admin'] = (
+                    self.query(Attendee).join(Group, Attendee.group_id == Group.id)
+                        .join(GuestGroup, Group.id == GuestGroup.group_id).filter(
+                            or_(
+                                or_(
+                                    badge_and_ribbon_filter,
+                                    and_(
+                                        Group.id == Attendee.group_id,
+                                        GuestGroup.group_id == Group.id,
+                                        GuestGroup.group_type == group_type,
+                                        )
+                                )
+                            )
+                        )
+                )
+                
+            return_dict['panels_admin'] = self.query(Attendee).filter(Attendee.ribbon.contains(c.PANELIST_RIBBON))
+            return_dict['dealer_admin'] = self.query(Attendee).join(Group, Attendee.group_id == Group.id).filter(Attendee.is_dealer)
+            return_dict['mits_admin'] = self.query(Attendee).join(MITSApplicant).filter(Attendee.mits_applicants)
+            return_dict['mivs_admin'] = (self.query(Attendee).join(Group, Attendee.group_id == Group.id)
+                    .join(GuestGroup, Group.id == GuestGroup.group_id).filter(
+                        and_(Group.id == Attendee.group_id, GuestGroup.group_id == Group.id, GuestGroup.group_type == c.MIVS)
+                    ))
+            return return_dict
+            
+        def viewable_attendees(self):
+            from uber.models import Attendee, DeptMembership, Group, GuestGroup, MITSApplicant
+            admin = self.current_admin_account()
+            
+            if admin.full_registration_admin:
+                return self.query(Attendee)
+            
+            subqueries = [self.access_query_matrix()['created']]
+            
+            for key, val in self.access_query_matrix().items():
+                if key in admin.read_or_write_access_set:
+                    subqueries.append(val)
+            
+            if admin.full_shifts_admin:
+                subqueries.append(
+                    self.query(Attendee).filter(Attendee.staffing)
+                )
+            
+            return subqueries[0].union(*subqueries[1:])
 
         def checklist_status(self, slug, department_id):
             attendee = self.admin_attendee()
@@ -676,13 +809,13 @@ class Session(SessionManager):
                 'weighted_hours', 'restricted', 'extra15', 'taken',
                 'visibility', 'is_public', 'is_setup', 'is_teardown']
             jobs = self.logged_in_volunteer().possible_and_current
-            restricted_hours = set()
+            restricted_minutes = set()
             for job in jobs:
                 if job.required_roles:
-                    restricted_hours.add(frozenset(job.hours))
+                    restricted_minutes.add(frozenset(job.minutes))
             return [
                 job.to_dict(fields)
-                for job in jobs if (job.required_roles or frozenset(job.hours) not in restricted_hours)]
+                for job in jobs if (job.required_roles or frozenset(job.minutes) not in restricted_minutes)]
 
         def process_refund(self, stripe_log, model=Attendee):
             """
@@ -697,6 +830,7 @@ class Session(SessionManager):
                 StripeTransactionAttendee, StripeTransactionGroup
 
             txn = stripe_log.stripe_transaction
+            response = None
             if txn.type != c.PAYMENT:
                 return 'This is not a payment and cannot be refunded.', None
             else:
@@ -704,9 +838,15 @@ class Session(SessionManager):
                     'REFUND: attempting to refund stripeID {} {} cents for {}',
                     txn.stripe_id, stripe_log.share, txn.desc)
                 try:
-                    response = stripe.Refund.create(
-                        charge=txn.stripe_id, amount=stripe_log.share, reason='requested_by_customer')
-                except stripe.StripeError as e:
+                    if txn.stripe_id.startswith('pi_'):
+                        payment_intent = stripe.PaymentIntent.retrieve(txn.stripe_id)
+                        for charge in payment_intent.charges:
+                            response = stripe.Refund.create(
+                                charge=charge.id, amount=stripe_log.share, reason='requested_by_customer')
+                    elif txn.stripe_id.startswith('ch_'):
+                        response = stripe.Refund.create(
+                            charge=txn.stripe_id, amount=stripe_log.share, reason='requested_by_customer')
+                except Exception as e:
                     error_txt = 'Error while calling process_refund' \
                                 '(self, stripeID={!r})'.format(txn.stripe_id)
                     report_critical_exception(
@@ -732,16 +872,52 @@ class Session(SessionManager):
 
                 elif isinstance(model, Group):
                     self.add(StripeTransactionGroup(
-                        txn_id=refund_txn,
+                        txn_id=refund_txn.id,
                         group_id=model.id,
                         share=stripe_log.share
                     ))
 
-                return '', response
+                return '', response, refund_txn
+
+        def create_receipt_item(self, model, amount, desc, 
+                                stripe_txn=None, txn_type=c.PENDING, payment_method=c.STRIPE):
+            item = ReceiptItem(
+                txn_id=stripe_txn.id if stripe_txn else None,
+                txn_type=txn_type,
+                payment_method=payment_method,
+                amount=amount,
+                who=getattr(model, 'full_name', getattr(model, 'name', '')),
+                when=stripe_txn.when if stripe_txn else datetime.now(UTC),
+                desc=desc,
+                cost_snapshot=getattr(model, 'current_purchased_items', {}))
+            if isinstance(model, uber.models.Attendee):
+                item.attendee_id = getattr(model, 'id', None)
+            elif isinstance(model, uber.models.Group):
+                item.group_id = getattr(model, 'id', None)
+
+            return item
+        
+        def delete_txn_by_stripe_id(self, stripe_id):
+            stripe_txn = self.query(StripeTransaction).filter_by(stripe_id=stripe_id).first()
+            if stripe_txn:
+                self.delete(self.query(ReceiptItem).filter_by(txn_id=stripe_txn.id).first())
+                self.delete(stripe_txn)
 
         def guess_attendee_watchentry(self, attendee, active=True):
+            """
+            Finds all watchlist entries that match a given attendee.
+            Only active entries are matched. Watchlist entries with confirmed attendees
+            are still matched to attendees -- otherwise attendees could dodge bans just by
+            registering twice.
+
+            A watchlist entry is considered a match if both of the following are true:
+                a) one of the entry's first names or its last name matches the attendee's
+                b) the entry's email address or date of birth matches the attendee's
+
+            Because this could be run while in the middle of creating an attendee, we
+            need to do several checks on how the attendee's DOB might be formatted.
+            """
             or_clauses = [
-                func.lower(WatchList.first_names).contains(attendee.first_name.lower()),
                 and_(
                     WatchList.email != '',
                     func.lower(WatchList.email) == attendee.email.lower())]
@@ -760,9 +936,25 @@ class Session(SessionManager):
                     or_clauses.append(WatchList.birthdate == attendee.birthdate)
 
             return self.query(WatchList).filter(and_(
+                or_(func.lower(WatchList.first_names).contains(attendee.first_name.lower()),
+                    func.lower(WatchList.last_name) == attendee.last_name.lower()),
                 or_(*or_clauses),
-                func.lower(WatchList.last_name) == attendee.last_name.lower(),
                 WatchList.active == active)).all()  # noqa: E712
+
+        def guess_watchentry_attendees(self, entry):
+            return self.query(Attendee).filter(
+                or_(func.lower(Attendee.first_name).in_(entry.first_name_list),
+                    func.lower(Attendee.last_name) == entry.last_name.lower()),
+                or_(and_(
+                        Attendee.email != '',
+                        func.lower(Attendee.email) == entry.email.lower()
+                        ),
+                    and_(
+                        Attendee.birthdate != None,
+                        Attendee.birthdate == entry.birthdate
+                        ),
+                    ),
+                Attendee.watchlist_id == None).all()
 
         def get_account_by_email(self, email):
             return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
@@ -831,6 +1023,26 @@ class Session(SessionManager):
                        'for that badge!'
 
             return attendee, message
+        
+        def art_show_apps(self):
+            return self.query(ArtShowApplication).options(joinedload('attendee')).all()
+
+        def attendee_from_art_show_app(self, **params):
+            attendee, message = self.create_or_find_attendee_by_id(**params)
+            if message:
+                return attendee, message
+            elif attendee.art_show_applications:
+                return attendee, \
+                    'There is already an art show application ' \
+                    'for that badge!'
+
+            if params.get('not_attending', ''):
+                    attendee.badge_status = c.NOT_ATTENDING
+
+            return attendee, ''
+
+        def lookup_agent_code(self, code):
+            return self.query(ArtShowApplication).filter_by(agent_code=code).all()
 
         def add_promo_code_to_attendee(self, attendee, code):
             """
@@ -886,7 +1098,7 @@ class Session(SessionManager):
             if not group:
                 return None
 
-            return group.valid_codes[0]
+            return group.valid_codes[0] if group.valid_codes else None
 
         def lookup_promo_or_group_code(self, code, model=PromoCode):
             """
@@ -921,21 +1133,29 @@ class Session(SessionManager):
 
             return self.query(model).filter(clause).order_by(model.normalized_code.desc()).first()
 
-        def create_promo_code_group(self, attendee, name, badges):
+        def create_promo_code_group(self, attendee, name, badges, cost=None):
             pc_group = PromoCodeGroup(name=name, buyer=attendee)
 
-            self.add_codes_to_pc_group(pc_group, badges)
+            self.add_codes_to_pc_group(pc_group, badges, cost)
 
             return pc_group
 
-        def add_codes_to_pc_group(self, pc_group, badges):
+        def add_codes_to_pc_group(self, pc_group, badges, cost=None):
+            cost = c.get_group_price() if cost is None else cost
             for _ in range(badges):
                 self.add(PromoCode(
                     discount=0,
                     discount_type=PromoCode._FIXED_PRICE,
                     uses_allowed=1,
                     group=pc_group,
-                    cost=c.get_group_price()))
+                    cost=cost))
+        
+        def remove_codes_from_pc_group(self, pc_group, badges):
+            codes = sorted(pc_group.promo_codes, key=lambda x: x.cost, reverse=True)
+            for _ in range(badges):
+                code = codes.pop()
+                self.delete(code)
+                pc_group.promo_codes.remove(code)
 
         def get_next_badge_num(self, badge_type):
             """
@@ -1066,15 +1286,40 @@ class Session(SessionManager):
             query.update({Attendee.badge_num: Attendee.badge_num + shift}, synchronize_session='evaluate')
 
             return True
+        
+        def get_next_badge_to_print(self, minor='', printerNumber='', numberOfPrinters=''):
+            badge_list = self.query(Attendee) \
+                .filter(
+                Attendee.print_pending,
+                Attendee.birthdate != None,
+                Attendee.badge_num != None).order_by(Attendee.badge_num).all()
+
+            try:
+                if minor:
+                    attendee = next(badge for badge
+                                    in badge_list
+                                    if badge.age_now_or_at_con < 18)
+                elif printerNumber != "" and numberOfPrinters != "": 
+                    attendee = next(badge for badge
+                                    in badge_list
+                                    if badge.age_now_or_at_con >= 18 and badge.badge_num % int(numberOfPrinters) == (int(printerNumber) - 1))
+                else:
+                    attendee = next(badge for badge
+                                    in badge_list
+                                    if badge.age_now_or_at_con >= 18)
+            except StopIteration:
+                return None
+
+            return attendee
 
         def valid_attendees(self):
             return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)
 
         def attendees_with_badges(self):
             return self.query(Attendee).filter(not_(Attendee.badge_status.in_(
-                [c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS])))
+                [c.PENDING_STATUS, c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS])))
 
-        def all_attendees(self, only_staffing=False):
+        def all_attendees(self, only_staffing=False, pending=False):
             """
             Returns a Query of Attendees with efficient loading for groups and
             shifts/jobs.
@@ -1089,19 +1334,23 @@ class Session(SessionManager):
             """
             staffing_filter = [Attendee.staffing == True] if only_staffing else []  # noqa: E712
 
-            badge_filter = Attendee.badge_status.in_(
-                [c.NEW_STATUS, c.COMPLETED_STATUS])
+            badge_statuses = [c.NEW_STATUS, c.COMPLETED_STATUS]
+            if pending:
+                badge_statuses.append(c.PENDING_STATUS)
+
+            badge_filter = Attendee.badge_status.in_(badge_statuses)
 
             return self.query(Attendee) \
                 .filter(badge_filter, *staffing_filter) \
                 .options(
                     subqueryload(Attendee.dept_memberships),
                     subqueryload(Attendee.group),
-                    subqueryload(Attendee.shifts).subqueryload(Shift.job).subqueryload(Job.department)) \
+                    subqueryload(Attendee.shifts).subqueryload(Shift.job).subqueryload(Job.department),
+                    subqueryload(Attendee.room_assignments)) \
                 .order_by(Attendee.full_name, Attendee.id)
 
-        def staffers(self):
-            return self.all_attendees(only_staffing=True)
+        def staffers(self, pending=False):
+            return self.all_attendees(only_staffing=True, pending=pending)
 
         def all_panelists(self):
             return self.query(Attendee).filter(or_(
@@ -1143,7 +1392,7 @@ class Session(SessionManager):
                         attendee.badge_num, attendee.badge_type_label, group.name)
             else:
                 # First preserve the attributes to copy to the new group member
-                attrs = matching[0].to_dict(attrs=['group', 'group_id', 'paid', 'amount_paid', 'ribbon'])
+                attrs = matching[0].to_dict(attrs=['group', 'group_id', 'paid', 'amount_paid_override', 'ribbon'])
 
                 # Then delete the old unassigned group member
                 self.delete(matching[0])
@@ -1159,8 +1408,21 @@ class Session(SessionManager):
                 self.commit()
 
         def search(self, text, *filters):
-            attendees = self.query(Attendee).outerjoin(Attendee.group) \
-                .options(joinedload(Attendee.group)).filter(*filters)
+
+            # We need to both outerjoin on the PromoCodeGroup table and also
+            # query it.  In order to do this we need to alias it so that the
+            # reference to PromoCodeGroup in the joinedload doesn't conflict
+            # with the outerjoin.  See https://docs.sqlalchemy.org/en/13/orm/query.html#sqlalchemy.orm.query.Query.join
+            aliased_pcg = aliased(PromoCodeGroup)
+
+            attendees = self.query(Attendee) \
+                            .outerjoin(Attendee.group) \
+                            .outerjoin(Attendee.promo_code) \
+                            .outerjoin(aliased_pcg, PromoCode.group) \
+                            .options(
+                                joinedload(Attendee.group),
+                                joinedload(Attendee.promo_code).joinedload(PromoCode.group)
+                            ).filter(*filters)
 
             if ':' in text:
                 target, term = text.split(':', 1)
@@ -1202,6 +1464,7 @@ class Session(SessionManager):
                 return attendees.filter(or_(
                     Attendee.id == terms[0],
                     Attendee.public_id == terms[0],
+                    aliased_pcg.id == terms[0],
                     Group.id == terms[0],
                     Group.public_id == terms[0]))
 
@@ -1212,7 +1475,10 @@ class Session(SessionManager):
                         Attendee.public_id == search_uuid,
                         Group.public_id == search_uuid))
 
-            checks = [Group.name.ilike('%' + text + '%')]
+            checks = [
+                Group.name.ilike('%' + text + '%'),
+                aliased_pcg.name.ilike('%' + text + '%')
+            ]
             check_attrs = [
                 'first_name', 'last_name', 'legal_name', 'badge_printed_name',
                 'email', 'comments', 'admin_notes', 'for_review', 'promo_code_group_name']
@@ -1247,11 +1513,13 @@ class Session(SessionManager):
                 return 'Custom badges have already been ordered, so you will need to select a different badge type'
             elif diff > 0:
                 for i in range(diff):
-                    group.attendees.append(Attendee(
+                    new_attendee = Attendee(
                         badge_type=new_badge_type,
                         ribbon=ribbon_to_use,
                         paid=paid,
-                        **extra_create_args))
+                        **extra_create_args)
+                    group.attendees.append(new_attendee)
+                    
             elif diff < 0:
                 if len(group.floating) < abs(diff):
                     return 'You cannot reduce the number of badges for a group to below the number of assigned badges'
@@ -1276,6 +1544,9 @@ class Session(SessionManager):
 
             if not job.no_overlap(attendee):
                 return 'This volunteer is already signed up for a shift during that time'
+
+            if not job.working_limit_ok(attendee):
+                return 'This shift would put this volunteer over one of their department\'s max consecutive hours'
 
             self.add(Shift(attendee=attendee, job=job))
             self.commit()
@@ -1317,11 +1588,20 @@ class Session(SessionManager):
             )
             self.add(attendee)
 
-            self.add(AdminAccount(
+            all_access_group = AccessGroup(
+                name='All Access',
+                access={section: '5' for section in c.ADMIN_PAGES}
+            )
+
+            test_developer_account = AdminAccount(
                 attendee=attendee,
-                access=','.join(str(level) for level, name in c.ACCESS_OPTS),
                 hashed=bcrypt.hashpw('magfest', bcrypt.gensalt())
-            ))
+            )
+            test_developer_account.access_groups.append(all_access_group)
+
+            self.add(all_access_group)
+            self.add(test_developer_account)
+            self.commit()
 
             return True
 
@@ -1379,9 +1659,9 @@ class Session(SessionManager):
 
         def logged_in_studio(self):
             try:
-                return self.indie_studio(cherrypy.session['studio_id'])
+                return self.indie_studio(cherrypy.session.get('studio_id'))
             except Exception:
-                raise HTTPRedirect('../mivs_applications/studio')
+                raise HTTPRedirect('../mivs/studio')
 
         def logged_in_judge(self):
             judge = self.admin_attendee().admin_account.judge
@@ -1422,7 +1702,7 @@ class Session(SessionManager):
         # =========================
 
         def log_in_as_mits_team(
-                self, team_id, redirect_to='../mits_applications/index'):
+                self, team_id, redirect_to='../mits/index'):
             try:
                 team = self.mits_team(team_id)
                 duplicate_teams = []
@@ -1433,17 +1713,17 @@ class Session(SessionManager):
                         duplicate_teams)
             except Exception:
                 log.error('attempt to log into invalid team {}', team_id, exc_info=True)
-                raise HTTPRedirect('../mits_applications/login_explanation')
+                raise HTTPRedirect('../mits/login_explanation')
             else:
                 cherrypy.session['mits_team_id'] = team.id
                 raise HTTPRedirect(redirect_to)
 
         def logged_in_mits_team(self):
             try:
-                team = self.mits_team(cherrypy.session['mits_team_id'])
+                team = self.mits_team(cherrypy.session.get('mits_team_id'))
                 assert not team.deleted or team.duplicate_of
             except Exception:
-                raise HTTPRedirect('../mits_applications/login_explanation')
+                raise HTTPRedirect('../mits/login_explanation')
             else:
                 if team.duplicate_of:
                     # The currently-logged-in team was deleted, so log
@@ -1461,8 +1741,6 @@ class Session(SessionManager):
                 joinedload(MITSTeam.applicants).subqueryload(MITSApplicant.attendee),
                 joinedload(MITSTeam.games),
                 joinedload(MITSTeam.schedule),
-                joinedload(MITSTeam.pictures),
-                joinedload(MITSTeam.documents)
             ).order_by(MITSTeam.name)
 
         def delete_mits_file(self, model):

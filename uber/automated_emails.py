@@ -20,9 +20,9 @@ from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
 from uber import decorators
-from uber.models import AdminAccount, Attendee, AutomatedEmail, Department, Group, GuestGroup, IndieGame, IndieJudge, \
-    IndieStudio, MarketplaceApplication, MITSTeam, MITSApplicant, PanelApplication, PanelApplicant, PromoCodeGroup, \
-    Room, RoomAssignment, Shift
+from uber.models import AdminAccount, Attendee, ArtShowApplication, AutomatedEmail, Department, Group, GuestGroup, \
+    IndieGame, IndieJudge, IndieStudio, MarketplaceApplication, MITSTeam, MITSApplicant, PanelApplication, PanelApplicant, \
+    PromoCodeGroup, Room, RoomAssignment, Shift
 from uber.utils import after, before, days_after, days_before, localized_now, DeptChecklistConf
 
 
@@ -101,7 +101,7 @@ class AutomatedEmailFixture:
             .replace('{EVENT_DATE}', c.EPOCH.strftime('%b %Y'))
         self.template = template
         self.format = 'text' if template.endswith('.txt') else 'html'
-        self.filter = filter or (lambda x: True)
+        self.filter = lambda x: (x.gets_emails and filter(x))
         self.ident = ident
         self.query = listify(query)
         self.query_options = listify(query_options)
@@ -164,7 +164,7 @@ AutomatedEmailFixture(
     Group,
     '{EVENT_NAME} group payment received',
     'reg_workflow/group_confirmation.html',
-    lambda g: g.amount_paid == g.cost and g.cost != 0 and g.leader_id,
+    lambda g: (g.amount_paid / 100) == g.cost and g.cost != 0 and g.leader_id,
     # query=and_(Group.amount_paid >= Group.cost, Group.cost > 0, Group.leader_id != None),
     needs_approval=False,
     ident='group_payment_received')
@@ -186,7 +186,7 @@ AutomatedEmailFixture(
     Attendee,
     '{EVENT_NAME} extra payment received',
     'reg_workflow/group_donation.txt',
-    lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid == a.amount_extra,
+    lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid >= (a.amount_extra * 100),
     # query=and_(
     #     Attendee.paid == c.PAID_BY_GROUP,
     #     Attendee.amount_extra != 0,
@@ -230,11 +230,86 @@ AutomatedEmailFixture(
     #     or_(Group.is_dealer == False, Group.status == c.APPROVED)),
     when=after(c.GROUP_PREREG_TAKEDOWN),
     needs_approval=False,
+    allow_at_the_con=True,
     ident='group_preassign_badges_reminder_last_chance',
     sender=c.REGDESK_EMAIL)
 
 
-# Marketplace emails
+# =============================
+# art show
+# =============================
+AutomatedEmailFixture.queries.update({
+    ArtShowApplication:
+        lambda session: session.query(ArtShowApplication)
+            .options(subqueryload(ArtShowApplication.attendee))
+})
+
+
+class ArtShowAppEmailFixture(AutomatedEmailFixture):
+    def __init__(self, subject, template, filter, ident, **kwargs):
+        AutomatedEmailFixture.__init__(self, ArtShowApplication, subject,
+                                       template,
+                                       lambda app: True and filter(app),
+                                       ident,
+                                       sender=c.ART_SHOW_EMAIL, **kwargs)
+
+if c.ART_SHOW_ENABLED:
+    ArtShowAppEmailFixture(
+        '{EVENT_NAME} Art Show Application Confirmation',
+        'art_show/application.html',
+        lambda a: a.status == c.UNAPPROVED,
+        ident='art_show_confirm')
+
+    ArtShowAppEmailFixture(
+        'Your {EVENT_NAME} Art Show application has been approved',
+        'art_show/approved.html',
+        lambda a: a.status == c.APPROVED,
+        ident='art_show_approved')
+
+    ArtShowAppEmailFixture(
+        'Your {EVENT_NAME} Art Show application has been waitlisted',
+        'art_show/waitlisted.txt',
+        lambda a: a.status == c.WAITLISTED,
+        ident='art_show_waitlisted')
+
+    ArtShowAppEmailFixture(
+        'Your {EVENT_NAME} Art Show application has been declined',
+        'art_show/declined.txt',
+        lambda a: a.status == c.DECLINED,
+        ident='art_show_declined')
+
+    ArtShowAppEmailFixture(
+        'Reminder to pay for your {EVENT_NAME} Art Show application',
+        'art_show/payment_reminder.txt',
+        lambda a: a.status == c.APPROVED and a.is_unpaid,
+        when=days_before(14, c.ART_SHOW_PAYMENT_DUE),
+        ident='art_show_payment_reminder')
+
+    ArtShowAppEmailFixture(
+        '{EVENT_NAME} Art Show piece entry needed',
+        'art_show/pieces_reminder.txt',
+        lambda a: a.status == c.PAID and not a.art_show_pieces,
+        when=days_before(15, c.EPOCH),
+        ident='art_show_pieces_reminder')
+
+    ArtShowAppEmailFixture(
+        'Reminder to assign an agent for your {EVENT_NAME} Art Show application',
+        'art_show/agent_reminder.html',
+        lambda a: a.status == c.PAID and not a.agent,
+        when=after(c.EVENT_TIMEZONE.localize(datetime(int(c.EVENT_YEAR), 11, 1))),
+        ident='art_show_agent_reminder')
+
+    ArtShowAppEmailFixture(
+        '{EVENT_NAME} Art Show MAIL IN Instructions',
+        'art_show/mailing_in.html',
+        lambda a: a.status == c.PAID and a.delivery_method == c.BY_MAIL,
+        when=days_before(40, c.ART_SHOW_DEADLINE),
+        ident='art_show_mail_in')
+
+
+# =============================
+# marketplace
+# =============================
 AutomatedEmailFixture.queries.update({
     MarketplaceApplication:
         lambda session: session.query(MarketplaceApplication)
@@ -250,37 +325,37 @@ class MarketplaceAppEmailFixture(AutomatedEmailFixture):
                                        ident,
                                        sender=c.MARKETPLACE_APP_EMAIL, **kwargs)
 
+if c.MARKETPLACE_REG_START:
+    MarketplaceAppEmailFixture(
+        '{EVENT_NAME} Marketplace Application Confirmation',
+        'marketplace/application.html',
+        lambda a: a.status == c.UNAPPROVED,
+        ident='marketplace_confirm')
 
-MarketplaceAppEmailFixture(
-    '{EVENT_NAME} Marketplace Application Confirmation',
-    'marketplace/application.html',
-    lambda a: a.status == c.UNAPPROVED,
-    ident='marketplace_confirm')
+    MarketplaceAppEmailFixture(
+        'Your {EVENT_NAME} Marketplace application has been approved',
+        'marketplace/approved.html',
+        lambda a: a.status == c.APPROVED,
+        ident='marketplace_approved')
 
-MarketplaceAppEmailFixture(
-    'Your {EVENT_NAME} Marketplace application has been approved',
-    'marketplace/approved.html',
-    lambda a: a.status == c.APPROVED,
-    ident='marketplace_approved')
+    MarketplaceAppEmailFixture(
+        'Your {EVENT_NAME} Marketplace application has been waitlisted',
+        'marketplace/waitlisted.txt',
+        lambda a: a.status == c.WAITLISTED,
+        ident='marketplace_waitlisted')
 
-MarketplaceAppEmailFixture(
-    'Your {EVENT_NAME} Marketplace application has been waitlisted',
-    'marketplace/waitlisted.txt',
-    lambda a: a.status == c.WAITLISTED,
-    ident='marketplace_waitlisted')
+    MarketplaceAppEmailFixture(
+        'Your {EVENT_NAME} Marketplace application has been declined',
+        'marketplace/declined.txt',
+        lambda a: a.status == c.DECLINED,
+        ident='marketplace_declined')
 
-MarketplaceAppEmailFixture(
-    'Your {EVENT_NAME} Marketplace application has been declined',
-    'marketplace/declined.txt',
-    lambda a: a.status == c.DECLINED,
-    ident='marketplace_declined')
-
-MarketplaceAppEmailFixture(
-    'Reminder to pay for your {EVENT_NAME} Marketplace application',
-    'marketplace/payment_reminder.txt',
-    lambda a: a.status == c.APPROVED and a.amount_unpaid,
-    when=days_before(14, c.MARKETPLACE_PAYMENT_DUE),
-    ident='marketplace_payment_reminder')
+    MarketplaceAppEmailFixture(
+        'Reminder to pay for your {EVENT_NAME} Marketplace application',
+        'marketplace/payment_reminder.txt',
+        lambda a: a.status == c.APPROVED and a.amount_unpaid,
+        when=days_before(14, c.MARKETPLACE_PAYMENT_DUE),
+        ident='marketplace_payment_reminder')
 
 
 # Dealer emails; these are safe to be turned on for all events because even if the event doesn't have dealers,
@@ -304,15 +379,15 @@ class MarketplaceEmailFixture(AutomatedEmailFixture):
 if c.DEALER_REG_START:
 
     MarketplaceEmailFixture(
-        'Your {EVENT_NAME} Dealer registration has been approved',
+        'Your {} {} has been approved'.format(c.EVENT_NAME, c.DEALER_REG_TERM.capitalize()),
         'dealers/approved.html',
         lambda g: g.status == c.APPROVED,
         # query=Group.status == c.APPROVED,
-        needs_approval=False,
+        needs_approval=True,
         ident='dealer_reg_approved')
 
     MarketplaceEmailFixture(
-        'Reminder to pay for your {EVENT_NAME} Dealer registration',
+        'Reminder to pay for your {} {}'.format(c.EVENT_NAME, c.DEALER_REG_TERM.capitalize()),
         'dealers/payment_reminder.txt',
         lambda g: g.status == c.APPROVED and days_after(30, g.approved)() and g.is_unpaid,
         # query=and_(
@@ -323,7 +398,9 @@ if c.DEALER_REG_START:
         ident='dealer_reg_payment_reminder')
 
     MarketplaceEmailFixture(
-        'Your {EVENT_NAME} ({EVENT_DATE}) Dealer registration is due in one week',
+        'Your {} ({}) {} is due in one week'.format(c.EVENT_NAME,
+                                                    c.EPOCH.strftime('%b %Y'),
+                                                    c.DEALER_REG_TERM.capitalize()),
         'dealers/payment_reminder.txt',
         lambda g: g.status == c.APPROVED and g.is_unpaid,
         # query=and_(Group.status == c.APPROVED, Group.is_unpaid == True),
@@ -332,7 +409,9 @@ if c.DEALER_REG_START:
         ident='dealer_reg_payment_reminder_due_soon')
 
     MarketplaceEmailFixture(
-        'Last chance to pay for your {EVENT_NAME} ({EVENT_DATE}) Dealer registration',
+        'Last chance to pay for your {} ({}) {}'.format(c.EVENT_NAME,
+                                                        c.EPOCH.strftime('%b %Y'),
+                                                        c.DEALER_REG_TERM.capitalize()),
         'dealers/payment_reminder.txt',
         lambda g: g.status == c.APPROVED and g.is_unpaid,
         # query=and_(Group.status == c.APPROVED, Group.is_unpaid == True),
@@ -380,14 +459,15 @@ AutomatedEmailFixture(
     Attendee,
     '{EVENT_NAME} Guest Badge Confirmation',
     'placeholders/guest.txt',
-    lambda a: a.placeholder and a.badge_type == c.GUEST_BADGE,
+    lambda a: a.placeholder and a.badge_type == c.GUEST_BADGE and (
+        not a.group or a.group.guest and a.group.guest.group_type == c.GUEST),
     # query=and_(Attendee.placeholder == True, Attendee.badge_type == c.GUEST_BADGE),
     sender=c.GUEST_EMAIL,
     ident='guest_badge_confirmation')
 
 AutomatedEmailFixture(
     Attendee,
-    '{EVENT_NAME} Dealer Information Required',
+    '{} {} Information Required'.format(c.EVENT_NAME, c.DEALER_TERM.title()),
     'placeholders/dealer.txt',
     lambda a: a.placeholder and a.is_dealer and a.group.status == c.APPROVED,
     # query=and_(
@@ -400,7 +480,7 @@ AutomatedEmailFixture(
     ident='dealer_info_required')
 
 StopsEmailFixture(
-    'Want to staff {EVENT_NAME} again?',
+    'Claim your Comp\'ed Badge and Apply to Staff at {EVENT_NAME} {EVENT_YEAR}!',
     'placeholders/imported_volunteer.txt',
     lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN,
     ident='volunteer_again_inquiry')
@@ -443,7 +523,7 @@ AutomatedEmailFixture(
 StopsEmailFixture(
     'Please complete your {EVENT_NAME} Staff/Volunteer Checklist',
     'shifts/created.txt',
-    lambda a: a.takes_shifts,
+    lambda a: a.staffing,
     when=after(c.SHIFTS_CREATED),
     ident='volunteer_checklist_completion_request')
 
@@ -454,14 +534,14 @@ StopsEmailFixture(
         c.AFTER_SHIFTS_CREATED
         and days_after(30, max(a.registered_local, c.SHIFTS_CREATED))()
         and a.takes_shifts
-        and not a.hours),
+        and not a.shift_minutes),
     when=before(c.PREREG_TAKEDOWN),
     ident='volunteer_shift_signup_reminder')
 
 StopsEmailFixture(
     'Last chance to sign up for {EVENT_NAME} ({EVENT_DATE}) shifts',
     'shifts/reminder.txt',
-    lambda a: c.AFTER_SHIFTS_CREATED and c.BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.hours,
+    lambda a: c.AFTER_SHIFTS_CREATED and c.BEFORE_PREREG_TAKEDOWN and a.takes_shifts and not a.shift_minutes,
     when=days_before(10, c.EPOCH),
     ident='volunteer_shift_signup_reminder_last_chance')
 
@@ -486,7 +566,7 @@ StopsEmailFixture(
 StopsEmailFixture(
     'Please review your worked shifts for {EVENT_NAME}!',
     'shifts/shifts_worked.html',
-    lambda a: a.weighted_hours or a.nonshift_hours,
+    lambda a: (a.weighted_hours or a.nonshift_minutes) and a.badge_type != c.CONTRACTOR_BADGE,
     when=days_after(1, c.ESCHATON),
     ident='volunteer_shifts_worked',
     allow_post_con=True)
@@ -494,7 +574,7 @@ StopsEmailFixture(
 if c.VOLUNTEER_AGREEMENT_ENABLED:
     StopsEmailFixture(
         'Reminder: Please agree to terms of {EVENT_NAME} ({EVENT_DATE}) volunteer agreement',
-        'signups/volunteer_agreement.txt',
+        'staffing/volunteer_agreement.txt',
         lambda a: c.SHIFTS_CREATED and c.VOLUNTEER_AGREEMENT_ENABLED and not a.agreed_to_volunteer_agreement,
         when=days_before(45, c.FINAL_EMAIL_DEADLINE),
         ident='volunteer_agreement')
@@ -503,20 +583,21 @@ if c.VOLUNTEER_AGREEMENT_ENABLED:
 # For events with customized badges, these emails remind people to let us know what we want on their badges.  We have
 # one email for our volunteers who haven't bothered to confirm they're coming yet (bleh) and one for everyone else.
 
-StopsEmailFixture(
-    'Last chance to personalize your {EVENT_NAME} ({EVENT_DATE}) badge',
-    'personalized_badges/volunteers.txt',
-    lambda a: a.staffing and a.badge_type in c.PREASSIGNED_BADGE_TYPES and a.placeholder,
-    when=days_before(7, c.PRINTED_BADGE_DEADLINE),
-    ident='volunteer_personalized_badge_reminder')
+if c.PRINTED_BADGE_DEADLINE:
+    StopsEmailFixture(
+        'Last chance to personalize your {EVENT_NAME} ({EVENT_DATE}) badge',
+        'personalized_badges/volunteers.txt',
+        lambda a: a.staffing and a.badge_type in c.PREASSIGNED_BADGE_TYPES and a.placeholder,
+        when=days_before(7, c.PRINTED_BADGE_DEADLINE),
+        ident='volunteer_personalized_badge_reminder')
 
-AutomatedEmailFixture(
-    Attendee,
-    'Personalized {EVENT_NAME} ({EVENT_DATE}) badges will be ordered next week',
-    'personalized_badges/reminder.txt',
-    lambda a: a.badge_type in c.PREASSIGNED_BADGE_TYPES and not a.placeholder,
-    when=days_before(7, c.PRINTED_BADGE_DEADLINE),
-    ident='personalized_badge_reminder')
+    AutomatedEmailFixture(
+        Attendee,
+        'Personalized {EVENT_NAME} ({EVENT_DATE}) badges will be ordered next week',
+        'personalized_badges/reminder.txt',
+        lambda a: a.badge_type in c.PREASSIGNED_BADGE_TYPES and not a.placeholder,
+        when=days_before(7, c.PRINTED_BADGE_DEADLINE),
+        ident='personalized_badge_reminder')
 
 
 # MAGFest requires signed and notarized parental consent forms for anyone under 18.  This automated email reminder to
@@ -601,7 +682,7 @@ if c.HOTELS_ENABLED:
         Attendee,
         'Reminder to meet your {EVENT_NAME} hotel room requirements',
         'hotel/hotel_hours.txt',
-        lambda a: a.hotel_shifts_required and a.weighted_hours < c.HOTEL_REQ_HOURS, sender=c.ROOM_EMAIL_SENDER,
+        lambda a: a.hotel_shifts_required and a.weighted_hours < c.HOURS_FOR_HOTEL_SPACE, sender=c.ROOM_EMAIL_SENDER,
         when=days_before(14, c.FINAL_EMAIL_DEADLINE, 7),
         ident='hotel_requirements_reminder')
 
@@ -609,7 +690,7 @@ if c.HOTELS_ENABLED:
         Attendee,
         'Final reminder to meet your {EVENT_NAME} hotel room requirements',
         'hotel/hotel_hours.txt',
-        lambda a: a.hotel_shifts_required and a.weighted_hours < c.HOTEL_REQ_HOURS, sender=c.ROOM_EMAIL_SENDER,
+        lambda a: a.hotel_shifts_required and a.weighted_hours < c.HOURS_FOR_HOTEL_SPACE, sender=c.ROOM_EMAIL_SENDER,
         when=days_before(7, c.FINAL_EMAIL_DEADLINE),
         ident='hotel_requirements_reminder_last_chance')
 
@@ -656,25 +737,10 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieGame,
-        'Your MIVS Game Video Has Been Submitted',
-        'mivs/game_video_submitted.txt',
-        lambda game: game.video_submitted,
-        ident='mivs_video_submitted')
-
-    MIVSEmailFixture(
-        IndieGame,
         'Your MIVS Game Has Been Submitted',
         'mivs/game_submitted.txt',
         lambda game: game.submitted,
         ident='mivs_game_submitted')
-
-    MIVSEmailFixture(
-        IndieStudio,
-        'Reminder to submit your game\'s video to MIVS',
-        'mivs/videoless_studio.txt',
-        lambda studio: days_after(2, studio.registered)() and not any(game.video_submitted for game in studio.games),
-        ident='mivs_missing_video_inquiry',
-        when=days_before(7, c.MIVS_ROUND_ONE_DEADLINE))
 
     MIVSEmailFixture(
         IndieGame,
@@ -685,40 +751,19 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieGame,
-        'Round 2 Submission for MIVS are now open',
-        'mivs/round_two_open.txt',
-        lambda game: game.status == c.JUDGING and not game.submitted,
-        ident='mivs_round_two_open')
-
-    MIVSEmailFixture(
-        IndieGame,
         'Reminder to submit your game to MIVS',
-        'mivs/round_two_reminder.txt',
-        lambda game: game.status == c.JUDGING and not game.submitted,
+        'mivs/submission_reminder.txt',
+        lambda game: not game.submitted,
         ident='mivs_game_submission_reminder',
-        when=days_before(7, c.MIVS_ROUND_TWO_DEADLINE))
+        when=days_before(7, c.MIVS_DEADLINE))
 
     MIVSEmailFixture(
         IndieGame,
         'Final Reminder to submit your game to MIVS',
-        'mivs/round_two_final_reminder.txt',
-        lambda game: game.status == c.JUDGING and not game.submitted,
+        'mivs/submission_reminder.txt',
+        lambda game: not game.submitted,
         ident='mivs_game_submission_final_reminder',
-        when=days_before(2, c.MIVS_ROUND_TWO_DEADLINE))
-
-    MIVSEmailFixture(
-        IndieGame,
-        'Your game has been accepted into MIVS Round Two',
-        'mivs/video_accepted.txt',
-        lambda game: game.status == c.JUDGING,
-        ident='mivs_game_made_it_to_round_two')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'Your game has been declined from MIVS',
-        'mivs/video_declined.txt',
-        lambda game: game.status == c.VIDEO_DECLINED,
-        ident='mivs_video_declined')
+        when=days_before(2, c.MIVS_DEADLINE))
 
     MIVSEmailFixture(
         IndieGame,
@@ -738,7 +783,7 @@ if c.MIVS_ENABLED:
         IndieGame,
         'Your game application has been declined from MIVS',
         'mivs/game_declined.txt',
-        lambda game: game.status == c.GAME_DECLINED,
+        lambda game: game.status == c.DECLINED,
         ident='mivs_game_declined')
 
     MIVSEmailFixture(
@@ -755,42 +800,8 @@ if c.MIVS_ENABLED:
         lambda game: (
             game.status == c.ACCEPTED
             and not game.confirmed
-            and (localized_now() - timedelta(days=2)) > game.studio.confirm_deadline),
+            and (localized_now() + timedelta(days=2)) > game.studio.confirm_deadline),
         ident='mivs_accept_booth_reminder')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS December Updates: Hotels and Magfest Versus!',
-        'mivs/december_updates.txt',
-        lambda game: game.confirmed,
-        ident='mivs_december_updates')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'REQUIRED: Pre-flight for MIVS due by midnight, January 2nd',
-        'mivs/game_preflight.txt',
-        lambda game: game.confirmed,
-        ident='mivs_game_preflight_reminder')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS {EVENT_YEAR}: Hotel and selling signups',
-        'mivs/2018_hotel_info.txt',
-        lambda game: game.confirmed,
-        ident='2018_hotel_info')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS {EVENT_YEAR}: November Updates & info',
-        'mivs/2018_email_blast.txt',
-        lambda game: game.confirmed,
-        ident='2018_email_blast')
-
-    MIVSGuestEmailFixture(
-        'MIVS {EVENT_YEAR}: Indie Handbook and MIVS Training',
-        'mivs/accepted/2019_HandbookTrainingUpdate.txt',
-        lambda mg: True,
-        ident='2019_Handbook_Training_Update')
 
     MIVSEmailFixture(
         IndieGame,
@@ -801,31 +812,24 @@ if c.MIVS_ENABLED:
         allow_post_con=True)
 
     MIVSEmailFixture(
-        IndieJudge,
-        'Welcome to MIVS Judging 2019!',
-        'mivs/2018_JudgingAudit.txt',
-        ident='mivs_2018_JudgingAudit')
-
-    MIVSEmailFixture(
-        IndieJudge,
-        'Reminder to accept or decline being a MIVS Judge for 2019',
-        'mivs/2018_JudgingAudit_Reminder.txt',
-        lambda judge: judge.status == c.UNCONFIRMED,
-        ident='mivs_2018_JudgingAudit_Reminder')
-
-    MIVSEmailFixture(
-        IndieJudge,
-        'Final Reminder to accept or decline being a MIVS Judge for 2019',
-        'mivs/2018_JudgingAudit_Final_Reminder.txt',
-        lambda judge: judge.status == c.UNCONFIRMED,
-        ident='mivs_2018_JudgingAudit_Final_Reminder')
-
-    MIVSEmailFixture(
         IndieGame,
         'MIVS judging is wrapping up',
-        'mivs/round_two_closing.txt',
+        'mivs/results_almost_ready.txt',
         lambda game: game.submitted, when=days_before(14, c.MIVS_JUDGING_DEADLINE),
-        ident='mivs_round_two_closing')
+        ident='mivs_results_almost_ready')
+
+    MIVSEmailFixture(
+        IndieJudge,
+        'Welcome as a MIVS Judge!',
+        'mivs/judging/judge_welcome.txt',
+        ident='mivs_judge_welcome')
+    
+    MIVSEmailFixture(
+        IndieJudge,
+        'Reminder to update your MIVS Judge status',
+        'mivs/judging/judge_welcome_reminder.txt',
+        lambda judge: judge.status == c.UNCONFIRMED,
+        ident='mivs_judge_welcome_reminder')
 
     MIVSEmailFixture(
         IndieJudge,
@@ -852,7 +856,7 @@ if c.MIVS_ENABLED:
     MIVSEmailFixture(
         IndieJudge,
         'Reminder: MIVS Judging due by {}'.format(c.MIVS_JUDGING_DEADLINE.strftime('%B %-d')),
-        'mivs/final_judging_reminder.txt',
+        'mivs/judging_reminder.txt',
         lambda judge: not judge.judging_complete and judge.status == c.CONFIRMED,
         when=days_before(5, c.MIVS_JUDGING_DEADLINE),
         ident='mivs_judging_due_reminder_last_chance')
@@ -871,76 +875,47 @@ if c.MIVS_ENABLED:
         lambda judge: judge.status == c.CONFIRMED,
         ident='mivs_judge_badge_info')
 
-    MIVSEmailFixture(
-        IndieJudge,
-        'MIVS Judging about to begin',
-        'mivs/judge_2016.txt',
-        lambda judge: judge.status == c.CONFIRMED,
-        ident='mivs_selected_to_judge')
-
-    MIVSEmailFixture(
-        IndieJudge,
-        'MIVS Judges: A Request for our MIVSY awards',
-        'mivs/2018_mivsy_request.txt',
-        lambda judge: judge.status == c.CONFIRMED,
-        ident='2018_mivsy_request')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS: {EVENT_YEAR} MIVSY Awards happening on January 6th, 7pm ',
-        'mivs/2018_indie_mivsy_explination.txt',
-        lambda game: game.confirmed,
-        ident='2018_indie_mivsy_explination')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS: December updates ',
-        'mivs/2018_december_updates.txt',
-        lambda game: game.confirmed,
-        ident='2018_december_updates')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'Thanks for Being part of MIVS {EVENT_YEAR} - A Request for Feedback',
-        'mivs/2018_feedback.txt',
-        lambda game: game.confirmed,
-        ident='2018_mivs_post_event_feedback',
-        when=after(c.EPOCH),
-        allow_post_con=True)
-
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS {EVENT_YEAR} - November Updates',
-        'mivs/2019_november_updates.txt',
-        lambda game: game.confirmed,
-        ident='2019_mivs_november_updates')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS {EVENT_YEAR} - Important Hotel Information',
-        'mivs/accepted/2019_Hotel.txt',
-        lambda game: game.confirmed,
-        ident='2019_mivs_accepted_hotel')
-
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS {EVENT_YEAR}: Important Events and MIVS Training Reminder',
-        'mivs/accepted/2019_DecemberUpdate.txt',
-        lambda game: game.confirmed,
-        ident='mivs_2019_december_update')
-
     MIVSGuestEmailFixture(
         '{EVENT_NAME} MIVS Checklist',
-        'mivs/mivs_checklist_open.txt',
+        'mivs/checklist_open.txt',
         lambda mg: True,
         ident='mivs_checklist_open'
+    )
+
+    MIVSGuestEmailFixture(
+        'New {EVENT_NAME} MIVS Checklist Item: Update Studio and Game Information',
+        'mivs/checklist/new_update_studio_information.txt',
+        lambda mg: True,
+        ident='mivs_checklist_update_studio_information'
+    )
+    
+    MIVSGuestEmailFixture(
+        'New {EVENT_NAME} MIVS Checklist Item: MIVS Indie Handbook',
+        'mivs/checklist/new_update_indiehandbook_information.txt',
+        lambda mg: True,
+        ident='mivs_checklist_update_indiehandbook_information'
+    )
+	
+    MIVSGuestEmailFixture(
+        'New {EVENT_NAME} MIVS Checklist Item: Selling Information',
+        'mivs/checklist/new_update_selling_information.txt',
+        lambda mg: True,
+        ident='mivs_checklist_update_selling_information'
+    )
+
+
+    MIVSGuestEmailFixture(
+        'New {EVENT_NAME} MIVS Checklist Item: MIVS Training',
+        'mivs/checklist/new_update_training_information.txt',
+        lambda mg: True,
+        ident='mivs_checklist_update_training_information'
     )
 
     for key, val in c.MIVS_CHECKLIST.items():
         if val['start']:
             MIVSGuestEmailFixture(
                 'New MIVS Checklist Item Available: {}'.format(val['name']),
-                'mivs/mivs_checklist_new_item.txt',
+                'mivs/checklist_new_item.txt',
                 lambda mg: val['start'] > mg.created.when,
                 when=after(val['start']),
                 ident='mivs_checklist_new_item_{}'.format(key),
@@ -951,7 +926,7 @@ if c.MIVS_ENABLED:
     for deadline in deadline_groups:
         MIVSGuestEmailFixture(
             'An item on your {EVENT_NAME} MIVS Checklist is due soon',
-            'mivs/mivs_checklist_reminder.txt',
+            'mivs/checklist_reminder.txt',
             lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
                            for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
             when=days_before(2, deadline, 1),
@@ -960,7 +935,7 @@ if c.MIVS_ENABLED:
 
         MIVSGuestEmailFixture(
             'An item on your {EVENT_NAME} MIVS Checklist is due tomorrow',
-            'mivs/mivs_checklist_reminder.txt',
+            'mivs/checklist_reminder.txt',
             lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
                            for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
             when=days_before(1, deadline, 0),
@@ -969,13 +944,61 @@ if c.MIVS_ENABLED:
 
         MIVSGuestEmailFixture(
             'An item on your {EVENT_NAME} MIVS Checklist is overdue',
-            'mivs/mivs_checklist_reminder.txt',
+            'mivs/checklist_reminder.txt',
             lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
                            for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
             when=days_after(1, deadline),
             ident='mivs_checklist_overdue_{}'.format(deadline.strftime('%m_%d')),
         )
 
+    # At-Con MIVS Emails
+    MIVSEmailFixture(
+        IndieGame,
+        'MIVS {EVENT_NAME}: Load-In @ MAGFest',
+        'mivs/At-Con/LoadIn.txt',
+        lambda game: game.confirmed,
+        ident='mivs_2020_LoadIn.txt'
+    )
+
+    # start year specific MIVS Emails
+    MIVSEmailFixture(
+        IndieGame,
+        'MIVS: Participating in MAGFest Versus and an Indie Game Preservation Panel',
+        'mivs/2020/strong_versus_2020.txt',
+        lambda game: game.confirmed,
+        ident='mivs_2020_versus'
+    )
+    
+    MIVSEmailFixture(
+        IndieGame,
+        'MIVS: Tournaments and Leaderboard Challenges',
+        'mivs/2020/tournaments_2020.txt',
+        lambda game: game.confirmed,
+        ident='mivs_2020_tournaments'
+    )
+    MIVSEmailFixture(
+        IndieGame,
+        'MIVS {EVENT_NAME}: Reminder for IGDA Meetup tonight',
+        'mivs/2020/igda_reminder.txt',
+        lambda game: game.confirmed,
+        ident='mivs_2020_igda_reminder'
+    )
+    MIVSEmailFixture(
+        IndieGame,
+        'MIVS {EVENT_NAME}: Reminder for MIVS Indie Mixer happening Tonight',
+        'mivs/2020/mixer_reminder.txt',
+        lambda game: game.confirmed,
+        ident='mivs_2020_mixer_reminder'
+    )
+
+    MIVSEmailFixture(
+        IndieGame,
+        'MIVS {EVENT_NAME}: Request for Feedback',
+        'mivs/feedback/indie_survey.txt',
+        lambda game: game.confirmed,
+        ident='mivs_feedback_survey',
+        allow_post_con=True,
+    )
 
 # =============================
 # mits
