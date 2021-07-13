@@ -1,4 +1,4 @@
-FROM vmearl/sideboard:master
+FROM vmearl/sideboard:latest
 MAINTAINER RAMS Project "code@magfest.org"
 LABEL version.rams-core ="0.1"
 
