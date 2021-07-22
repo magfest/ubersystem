@@ -73,15 +73,6 @@ def upgrade():
     connection = op.get_bind()
 
     connection.execute(
-        access_group.insert().values({
-                'id': access_group_id,
-                'name': "All Access",
-                'access': all_access,
-                'read_only_access': {},
-            }),
-    )
-
-    connection.execute(
         admin_account.update()
             .where(admin_account.c.access.like('%37271822%'))
             .values({'access_group_id': access_group_id})
