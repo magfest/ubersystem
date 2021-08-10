@@ -4,6 +4,7 @@ from inspect import getargspec, getmembers, ismethod
 
 import cherrypy
 import pytz
+import stripe
 from pockets import unwrap
 from sqlalchemy.orm import subqueryload
 
@@ -96,8 +97,8 @@ class Root:
             'index?message={}', 'Successfully revoked API token')
 
     @public
-    @staticmethod
-    def stripe_webhook_handler(request=None):
+    def stripe_webhook_handler(self, request=None):
+        cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
         if not request or not request.body:
             return "Request required"
         sig_header = cherrypy.request.headers['HTTP_STRIPE_SIGNATURE']
