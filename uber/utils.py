@@ -1101,7 +1101,7 @@ class Charge:
 
     @staticmethod
     def mark_paid_from_stripe(payment_intent):
-        stripe_id = payment_intent.id
+        stripe_id = payment_intent['id']
 
         with uber.models.Session() as session:
             matching_stripe_txns = session.query(uber.models.StripeTransaction).filter_by(stripe_id=stripe_id)

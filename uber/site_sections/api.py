@@ -6,6 +6,7 @@ import cherrypy
 import pytz
 import stripe
 from pockets import unwrap
+from pockets.autolog import log
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
@@ -97,12 +98,16 @@ class Root:
             'index?message={}', 'Successfully revoked API token')
 
     @public
-    def stripe_webhook_handler(self, request=None):
+    @cherrypy.tools.json_in()
+    def stripe_webhook_handler(self):
+        import json
         cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
-        if not request or not request.body:
+        
+        if not cherrypy.request or not cherrypy.request.body:
             return "Request required"
-        sig_header = cherrypy.request.headers['HTTP_STRIPE_SIGNATURE']
-        payload = request.body
+        #return str(cherrypy.request.body)
+        sig_header = cherrypy.request.headers.get('Stripe-Signature', '')
+        payload = cherrypy.request.body
         event = None
 
         try:
@@ -112,16 +117,23 @@ class Root:
         except ValueError as e:
             # Invalid payload
             cherrypy.response.status = 400
+            log.error("Invalid payload")
+            return
         except stripe.error.SignatureVerificationError as e:
-            # Invalid signature
-            return HttpResponse(status=400)
+            if not c.DEV_BOX:
+                # Invalid signature
+                cherrypy.response.status = 400
+                log.error("Invalid signature: " + sig_header)
+                return
+            event = cherrypy.request.json
 
-        if event['type'] == 'payment_intent.succeeded':
-            payment_intent = event.data.object
-            Charge.mark_paid_from_stripe(payment_intent)
-        else:
+        if not event:
             cherrypy.response.status = 400
+            log.error("No event")
 
-        cherrypy.response.status = 200
-
-        return "Success!"
+        if event and event['type'] == 'payment_intent.succeeded':
+            log.error(event)
+            payment_intent = event['data']['object']
+            Charge.mark_paid_from_stripe(payment_intent)
+            cherrypy.response.status = 200
+            return "Success!"
