@@ -139,7 +139,7 @@
         selector: '.badge-type-selector',
         options: [],
     };
-    {% set downgrading = not attendee.is_new and attendee.amount_unpaid and 'attendee_donation_form' in attendee.payment_page %}
+    {% set downgrading = not attendee.placeholder and not attendee.is_new and attendee.amount_unpaid and 'attendee_donation_form' in attendee.payment_page %}
     {% if not attendee or attendee.is_new or (attendee.badge_type not in c.BADGE_TYPE_PRICES or (downgrading and attendee.badge_cost - c.BADGE_PRICE <= attendee.amount_unpaid)) %}
         BADGE_TYPES.options.push({
             title: '{% if is_prereg_attendee or is_prereg_dealer or downgrading %}Attending{% elif attendee %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
