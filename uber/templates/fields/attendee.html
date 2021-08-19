@@ -344,6 +344,15 @@
   toggleBadgeNumField = function () {
     $("input[name='badge_num']").prop("disabled", ($("input[name='no_badge_num']").prop('checked')));
   }
+  toggleStaffingField = function () {
+    if ($.field('staffing') && $.field('staffing').length) {
+      var changeToStaffing = ($.val("badge_type") == {{ c.STAFF_BADGE }} && $.field('staffing').prop('checked', false));
+      var changeFromStaffing = ($.val("badge_type") != {{ c.STAFF_BADGE }} && $.field('staffing').prop('checked', true));
+      if (changeToStaffing || changeFromStaffing) {
+        $.field('staffing').click();
+      }
+    }
+  }
   var setBadgeNum = function () {
     var badgeNumOptField = $("input[name='no_badge_num']");
     var currentBadgeNum = {{ attendee.badge_num if attendee.badge_num else 0 }};
@@ -376,7 +385,7 @@
     <label class="col-sm-3 control-label">Badge Type</label>
     {% call macros.read_only_if(read_only, attendee.badge_type_label) %}
     <div class="col-sm-3">
-        <select name="badge_type" class="form-control" onChange="boldOrRegular(); setBadgeNum();">
+        <select name="badge_type" class="form-control" onChange="boldOrRegular(); setBadgeNum(); toggleStaffingField();">
           {{ options(c.BADGE_OPTS, attendee.badge_type) }}
         </select>
     </div>
