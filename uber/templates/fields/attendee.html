@@ -139,15 +139,16 @@
         selector: '.badge-type-selector',
         options: [],
     };
-    {% if not attendee or attendee.is_new or attendee.badge_type not in c.BADGE_TYPE_PRICES %}
+    {% set downgrading = not attendee.placeholder and not attendee.is_new and attendee.amount_unpaid and 'attendee_donation_form' in attendee.payment_page %}
+    {% if not attendee or attendee.is_new or (attendee.badge_type not in c.BADGE_TYPE_PRICES or (downgrading and attendee.badge_cost - c.BADGE_PRICE <= attendee.amount_unpaid)) %}
         BADGE_TYPES.options.push({
-            title: '{% if is_prereg_attendee or is_prereg_dealer or undoing_extra %}Attending{% elif attendee %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
+            title: '{% if is_prereg_attendee or is_prereg_dealer or downgrading %}Attending{% elif attendee %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
             description: 'Allows access to the convention for its duration.',
             extra: 0,
             badge_type: '{{ c.ATTENDEE_BADGE }}',
 
-            price: {{ badge_cost if badge_cost is defined else c.BADGE_PRICE }},
-            {% if c.BADGE_TYPE_PRICES and (attendee.is_new or attendee.badge_type == c.ATTENDEE_BADGE) %}
+            price: {{ badge_cost if badge_cost is defined and not downgrading else c.BADGE_PRICE }},
+            {% if c.BADGE_TYPE_PRICES and (attendee.is_new or attendee.badge_type == c.ATTENDEE_BADGE or downgrading) %}
             onClick: function () {
                 $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
             }
@@ -180,9 +181,8 @@
     {% endif %}
 
     {% for badge_type in c.BADGE_TYPE_PRICES %}
-
         {% if badge_type != c.ATTENDEE_BADGE %}
-            {% if (badge_type != c.SPONSOR_BADGE or c.SPONSOR_BADGE_AVAILABLE) and (badge_type != c.SHINY_BADGE or c.SHINY_BADGE_AVAILABLE) %}
+            {% if (not attendee.is_new and attendee.badge_type == badge_type) or ((badge_type != c.SPONSOR_BADGE or c.SPONSOR_BADGE_AVAILABLE) and (badge_type != c.SHINY_BADGE or c.SHINY_BADGE_AVAILABLE)) %}
                 BADGE_TYPES.options.push({
                     title: '{{ c.BADGES[badge_type] }}',
                     description: 'Donate extra to get an upgraded badge with perks.',
