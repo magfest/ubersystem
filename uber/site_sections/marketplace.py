@@ -9,7 +9,7 @@ from uber.tasks.email import send_email
 from uber.utils import Charge, check
 
 
-@all_renderable()
+@all_renderable(public=True)
 class Root:
     def index(self, session, message='', **params):
         attendee = None

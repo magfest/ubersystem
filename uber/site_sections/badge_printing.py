@@ -117,7 +117,12 @@ class Root:
                             reprint_reason)
                 message = 'Reprint fee of ${} refunded.'.format(fee_amount)
             else:
-                attendee.amount_paid += fee_amount
+                session.add(session.create_receipt_item(
+                    attendee, 
+                    fee_amount * 100, 
+                    "Badge Reprint Fee", 
+                    txn_type=c.PAYMENT, 
+                    payment_method=c.CASH))
                 attendee.for_review += \
                     "Automated message: " \
                     "Reprint fee of ${} charged by {} on {}. Reason: {}"\

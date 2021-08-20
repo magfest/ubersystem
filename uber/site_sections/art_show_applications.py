@@ -8,7 +8,7 @@ from uber.tasks.email import send_email
 from uber.utils import Charge, check
 
 
-@all_renderable()
+@all_renderable(public=True)
 class Root:
     def index(self, session, message='', **params):
         app = session.art_show_application(params, restricted=True,
@@ -81,7 +81,8 @@ class Root:
                     app.email,
                     'Art Show Application Updated',
                     render('emails/art_show/appchange_notification.html',
-                           {'app': app}, encoding=None), 'html',
+                           {'app': app}, encoding=None),
+                    format='html',
                     model=app.to_dict('id'))
                 raise HTTPRedirect('..{}?id={}&message={}', return_to, app.id,
                                    'Your application has been updated')
