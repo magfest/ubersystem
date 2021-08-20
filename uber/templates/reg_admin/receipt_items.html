@@ -54,10 +54,10 @@ $().ready(function() {
 <div class="panel panel-body"><h3>Add Payment or Refund</h3>
 <p>Use the Stripe Payment History table at the bottom of this page to associate a payment or refund with a Stripe transaction. Please <b>only</b> add payments if the attendee has paid.</p>
 {% if model.purchased_items %}<p>This attendee has purchased the following:
-<br/> {% for name, val in model.purchased_items.items() %}{{ name[:-5]|replace('_', ' ')|title }}: ${{ val }}<br/>{% endfor %}
+<br/> {% for name, val in model.purchased_items.items() %}{{ name[:-5]|replace('_', ' ')|title }}: {{ val|format_currency }}<br/>{% endfor %}
 </p>{% endif %}
 {% if model.refunded_items %}<p>We have marked the following items as refunded:
-<br/> {% for name, val in model.refunded_items.items() %}{{ name[:-5]|replace('_', ' ')|title }}: ${{ val }}<br/>{% endfor %}
+<br/> {% for name, val in model.refunded_items.items() %}{{ name[:-5]|replace('_', ' ')|title }}: {{ val|format_currency }}<br/>{% endfor %}
 </p>{% endif %}
 <form class="form" method="post" action="add_receipt_item" id="add_receipt_item" role="form">
 <input type="hidden" name="id" value="{{ model.id }}" />
@@ -132,9 +132,9 @@ $().ready(function() {
         <td>{{ item.when|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
         <td>{{ item.who }}</td>
         <td>{{ item.desc }}{% if item.fk_id %}({{ item.model }}){% endif %}</td>
-        <td>${{ '%0.2f' % (item.amount / 100) }} {{ item.type_label }}</td>
-        <td>{{ 'N/A' if item.cost_snapshot == {} }}{% for name, val in item.cost_snapshot.items() %}{{ name[:-5]|replace('_', ' ')|title }}: ${{ val }}<br/>{% endfor %}</td>
-        <td>{{ 'N/A' if item.refund_snapshot == {} }}{% for name, val in item.refund_snapshot.items() %}{{ name[:-5]|replace('_', ' ')|title }}: ${{ val }}{% endfor %}</td>
+        <td>{{ (item.amount / 100)|format_currency }} {{ item.type_label }}</td>
+        <td>{{ 'N/A' if item.cost_snapshot == {} }}{% for name, val in item.cost_snapshot.items() %}{{ name[:-5]|replace('_', ' ')|title }}: {{ val|format_currency }}<br/>{% endfor %}</td>
+        <td>{{ 'N/A' if item.refund_snapshot == {} }}{% for name, val in item.refund_snapshot.items() %}{{ name[:-5]|replace('_', ' ')|title }}: {{ val|format_currency }}{% endfor %}</td>
         <td>{{ item.txn_type_label }}</td>
         <td>
           <form class="form-inline" method="post" action="remove_receipt_item" role="form">
@@ -166,7 +166,7 @@ $().ready(function() {
     {{ name[:-5]|replace('_', ' ')|title }}
   </td>
   <td>
-    ${{ val }}
+    {{ val|format_currency }}
   </td>
   <td>
   <form class="form-inline" method="post" action="add_refund_item" role="form">
@@ -187,7 +187,7 @@ $().ready(function() {
     {{ name[:-5]|replace('_', ' ')|title }}
   </td>
   <td>
-    ${{ val }}
+    {{ val|format_currency }}
   </td>
   <td>
   <form class="form-inline" method="post" action="remove_refund_item" role="form">
@@ -220,8 +220,8 @@ $().ready(function() {
   {% for log in model.stripe_txn_share_logs %}
       <tr>
       <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.stripe_id }}</td>
-      <td valign="top" style="white-space:nowrap">${{ '%0.2f' % (log.share / 100) }}
-      <td valign="top" style="white-space:nowrap">${{ '%0.2f' % (log.stripe_transaction.amount / 100) }} {{ log.stripe_transaction.type_label }}</td>
+      <td valign="top" style="white-space:nowrap">{{ (log.share / 100)|format_currency }}
+      <td valign="top" style="white-space:nowrap">{{ (log.stripe_transaction.amount / 100)|format_currency }} {{ log.stripe_transaction.type_label }}</td>
       <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.when|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
       <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.who }}</td>
       <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.desc }}</td>

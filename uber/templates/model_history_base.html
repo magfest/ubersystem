@@ -36,8 +36,8 @@
       {% for log in model.stripe_txn_share_logs %}
         <tr>
           <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.stripe_id }}</td>
-          <td valign="top" style="white-space:nowrap">${{ '%0.2f' % (log.share / 100) }}
-          <td valign="top" style="white-space:nowrap">${{ '%0.2f' % (log.stripe_transaction.amount / 100) }} {{ log.stripe_transaction.type_label }}</td>
+          <td valign="top" style="white-space:nowrap">{{ (log.share / 100)|format_currency }}
+          <td valign="top" style="white-space:nowrap">{{ (log.stripe_transaction.amount / 100)|format_currency }} {{ log.stripe_transaction.type_label }}</td>
           <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.when|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
           <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.who }}</td>
           <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.desc }}</td>

@@ -224,6 +224,13 @@ def percent_of(numerator, denominator):
 
 
 @JinjaEnv.jinja_filter
+def format_currency(value):
+    if int(value) != value:
+        return "${:,.2f}".format(value)
+    return "${:,}".format(value)
+
+
+@JinjaEnv.jinja_filter
 def remove_newlines(string):
     return string.replace('\n', ' ')
 

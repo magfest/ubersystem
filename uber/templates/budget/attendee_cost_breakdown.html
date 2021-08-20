@@ -19,14 +19,14 @@
         <tr>
           <td>{{ name }}</td>
           <td>{{ item[:-5]|replace('_', ' ')|title }}</td>
-          <td>${{ "{0:g}".format(attendee.purchased_items[item]) }}</td>
+          <td>{{ attendee.purchased_items[item]|format_currency }}</td>
         </tr>
       {% endfor %}
       {% if attendee.amount_unpaid %}
         <tr>
           <td>{{ name }}</td>
           <td>Amount Owed</td>
-          <td>-${{ "{0:g}".format(attendee.amount_unpaid) }}</td>
+          <td>-attendee.amount_unpaid|format_currency }}</td>
         </tr>
       {% endif %}
     {% endfor %}

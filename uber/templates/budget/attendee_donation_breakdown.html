@@ -18,8 +18,8 @@
       <tr>
         <td>{{ attendee|form_link }}</td>
         <td>{{ attendee.email }}</td>
-        <td>${{ "{0:g}".format(attendee.extra_donation) }}</td>
-        <td>${{ "{0:g}".format(attendee.amount_extra) }}</td>
+        <td>{{ attendee.extra_donation|format_currency }}</td>
+        <td>{{ attendee.amount_extra|format_currency }}</td>
       </tr>
     {% endfor %}
     </tbody>

@@ -19,7 +19,7 @@
 </script>
 
 {% if charge %}
-    <h2>${{ amount }}: {{ description }}</h2>
+    <h2>{{ amount|format_currency }}: {{ description }}</h2>
     <div class="center">
         {{ stripe_form('sales_charge',None,amount=amount,description=description) }}
         {% if sale_id %}<a href="#" onClick="undoSale('{{ sale_id }}'); return false">Undo</a>{% endif %}

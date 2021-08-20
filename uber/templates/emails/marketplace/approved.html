@@ -14,7 +14,7 @@ You have been approved for a space in the Marketplace for {{ c.EVENT_NAME }} thi
       be in the marketplace
     {% endif %}
   {% elif app.amount_unpaid or app.attendee.amount_unpaid %}
-    pay the ${{ app.amount_unpaid }} marketplace fee <a href="{{ c.URL_BASE }}/marketplace/edit?id={{ app.id }}">here</a>
+    pay the {{ app.amount_unpaid|format_currency }} marketplace fee <a href="{{ c.URL_BASE }}/marketplace/edit?id={{ app.id }}">here</a>
   {% endif %}.
 {% endif %}
 {% if app.attendee.amount_unpaid %}Payment is expected by {{ c.MARKETPLACE_PAYMENT_DUE|datetime_local }} or your application may be removed and your space

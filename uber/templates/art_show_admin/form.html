@@ -71,7 +71,7 @@ app, c.PAGE_PATH,
           <span id="amount_paid">
             <div class="input-group">
               <span class="input-group-addon">$</span><input type="text" class="form-control" name="app_paid" value="{{ app_paid|int }}" />
-            </div> (${{ (app.attendee.amount_paid / 100)|int }} of ${{ app.attendee.total_cost }} total)
+            </div> ({{ (app.attendee.amount_paid / 100)|format_currency }} of {{ app.attendee.total_cost|format_currency }} total)
           </span>
           </div>
           {% else %}
@@ -98,7 +98,7 @@ app, c.PAGE_PATH,
                  value="{{ app.overridden_price if app.overridden_price != None else '' }}" />
         </div>
         <span class="col-sm-4 form-control-static">
-          (Base Price: ${{ app.base_price|default(app.potential_cost) }})
+          (Base Price: {{ app.base_price|default(app.potential_cost)|format_currency }})
         </span>
         <div class="clearfix"></div>
         <p class="help-block col-sm-6 col-sm-offset-3">Change this to set an override on the application price, or leave
