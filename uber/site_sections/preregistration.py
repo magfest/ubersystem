@@ -889,6 +889,7 @@ class Root:
                        for stripe_log in attendee.stripe_txn_share_logs):
                 raise HTTPRedirect('confirm?id={}&message={}', id,
                                    failure_message)
+            total_refunded = 0
             for stripe_log in attendee.stripe_txn_share_logs:
                 error, response, stripe_transaction = session.process_refund(stripe_log, attendee)
                 if error:
@@ -896,9 +897,10 @@ class Root:
                                        failure_message)
                 elif response:
                     session.add(session.create_receipt_item(attendee, response.amount, "Self-service refund", stripe_transaction))
+                    total_refunded += response.amount
 
             success_message = "Your refund of ${:,.2f} should appear on your credit card in a few days."\
-                .format(amount_refunded / 100)
+                .format(total_refunded / 100)
             if attendee.paid == c.HAS_PAID:
                 attendee.paid = c.REFUNDED
 
