@@ -227,7 +227,7 @@ def percent_of(numerator, denominator):
 def format_currency(value):
     if int(value) != value:
         return "${:,.2f}".format(value)
-    return "${:,}".format(value)
+    return "${:,}".format(int(value))
 
 
 @JinjaEnv.jinja_filter
