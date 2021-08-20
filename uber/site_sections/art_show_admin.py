@@ -459,6 +459,7 @@ class Root:
             pdf.cell(53, 24, txt=piece.type_label, ln=1, align="C")
             pdf.set_font("Arial", size=8)
             pdf.set_xy(242 + xplus, 90 + yplus)
+            # Note: we want the prices on the PDF to always have a trailing .00
             pdf.cell(53, 14, txt=('${:,.2f}'.format(piece.opening_bid)) if piece.valid_for_sale else 'N/A', ln=1)
             pdf.set_xy(242 + xplus, 116 + yplus)
             pdf.cell(
@@ -724,6 +725,7 @@ class Root:
                                'Piece {} successfully unclaimed'.format(piece.artist_and_piece_id))
 
     def record_payment(self, session, id, amount='', type=c.CASH):
+        from uber.custom_tags import format_currency
         receipt = session.art_show_receipt(id)
 
         if amount:
@@ -731,10 +733,10 @@ class Root:
 
         if type == str(c.CASH):
             amount = amount or receipt.owed
-            message = 'Cash payment of ${} recorded'.format('%0.2f' % float(amount / 100))
+            message = 'Cash payment of ${} recorded'.format(format_currency(amount / 100))
         else:
             amount = amount or receipt.paid
-            message = 'Refund of ${} recorded'.format('%0.2f' % float(amount / 100))
+            message = 'Refund of ${} recorded'.format(format_currency(amount / 100))
 
         session.add(ArtShowPayment(
             receipt=receipt,

@@ -109,7 +109,7 @@ Invoice #{{ receipt.invoice_num }}
           <input type="hidden" name="id" value="{{ receipt.id }}" />
           <input type="hidden" name="type" value="{{ c.CASH }}" />
           <div class="input-group">
-            <span class="input-group-addon">$</span><input type="text" class="form-control" name="amount" placeholder="{{ '%0.2f' % (receipt.owed / 100) }}" />
+            <span class="input-group-addon">$</span><input type="text" class="form-control" name="amount" placeholder="{{ (receipt.owed / 100)|format_currency }}" />
           </div>
           <button type="submit" class="btn btn-success">Record Cash Payment</button>
         </form>
@@ -117,7 +117,7 @@ Invoice #{{ receipt.invoice_num }}
       <tr><td colspan="8" class="text-right">
       <div class="form form-inline">
           <div class="input-group">
-            <span class="input-group-addon">$</span><input type="text" class="form-control" id="stripe_amount" placeholder="{{ '%0.2f' % (receipt.owed / 100) }}" />
+            <span class="input-group-addon">$</span><input type="text" class="form-control" id="stripe_amount" placeholder="{{ (receipt.owed / 100)format_currency }}" />
           </div>
           {{ stripe_form('purchases_charge', receipt.attendee, receipt_id=receipt.id) }}
       </div>
@@ -128,7 +128,7 @@ Invoice #{{ receipt.invoice_num }}
           <input type="hidden" name="id" value="{{ receipt.id }}" />
           <input type="hidden" name="type" value="{{ c.REFUND }}" />
           <div class="input-group">
-            <span class="input-group-addon">$</span><input type="text" class="form-control" name="amount" placeholder="{{ '%0.2f' % (receipt.paid / 100) }}" />
+            <span class="input-group-addon">$</span><input type="text" class="form-control" name="amount" placeholder="{{ (receipt.paid / 100)format_currency }}" />
           </div>
           <button type="submit" class="btn btn-success">Record Refund</button>
         </form>

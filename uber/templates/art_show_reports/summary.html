@@ -21,7 +21,7 @@
   </tr>
   <tr></tr>
   <tr>
-    <td colspan="2"><strong>Total Commission</strong></td><td>{{ '%0.2f' % ((general_sales_sum + mature_sales_sum) * (c.COMMISSION_PCT / 10000)) }}</td>
+    <td colspan="2"><strong>Total Commission</strong></td><td>{{ ((general_sales_sum + mature_sales_sum) * (c.COMMISSION_PCT / 10000))|format_currency }}</td>
   </tr>
   <tr>
     <td colspan="2"><strong>Commission % Charged</strong></td><td>{{ c.COMMISSION_PCT / 100 }}%</td>
