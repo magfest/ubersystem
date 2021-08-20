@@ -99,37 +99,41 @@ class Root:
             if not fee_amount:
                 attendee.for_review += \
                     "Automated message: " \
-                    "Badge marked for free reprint by {} on {}. Reason: {}"\
+                    "Badge marked for free reprint by {} on {}.{}"\
                     .format(session.admin_attendee().full_name,
                             localized_now().strftime('%m/%d, %H:%M'),
-                            reprint_reason)
+                            " Reason: " + reprint_reason if reprint_reason else '')
                 message = 'Free reprint recorded and badge sent to printer.'
                 attendee.print_pending = True
             elif refund:
                 attendee.paid = c.REFUNDED
-                attendee.amount_refunded += fee_amount
+                session.add(session.create_receipt_item(attendee, 
+                    fee_amount * 100,
+                    "Badge reprint fee refund",
+                    txn_type=c.REFUND,
+                    payment_method=c.CASH))
                 attendee.for_review += \
                     "Automated message: " \
-                    "Reprint fee of ${} refunded by {} on {}. Reason: {}"\
+                    "Reprint fee of ${} refunded by {} on {}.{}"\
                     .format(fee_amount,
                             session.admin_attendee().full_name,
                             localized_now().strftime('%m/%d, %H:%M'),
-                            reprint_reason)
+                            " Reason: " + reprint_reason if reprint_reason else '')
                 message = 'Reprint fee of ${} refunded.'.format(fee_amount)
             else:
                 session.add(session.create_receipt_item(
                     attendee, 
                     fee_amount * 100, 
-                    "Badge Reprint Fee", 
+                    "Badge reprint fee", 
                     txn_type=c.PAYMENT, 
                     payment_method=c.CASH))
                 attendee.for_review += \
                     "Automated message: " \
-                    "Reprint fee of ${} charged by {} on {}. Reason: {}"\
+                    "Reprint fee of ${} charged by {} on {}.{}"\
                     .format(fee_amount,
                             session.admin_attendee().full_name,
                             localized_now().strftime('%m/%d, %H:%M'),
-                            reprint_reason)
+                            " Reason: " + reprint_reason if reprint_reason else '')
                 message = 'Reprint fee of ${} charged. Badge sent to printer.'\
                     .format(fee_amount)
                 attendee.print_pending = True

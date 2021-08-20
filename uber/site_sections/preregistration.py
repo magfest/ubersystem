@@ -896,7 +896,11 @@ class Root:
                     raise HTTPRedirect('confirm?id={}&message={}', id,
                                        failure_message)
                 elif response:
-                    session.add(session.create_receipt_item(attendee, response.amount, "Self-service refund", stripe_transaction))
+                    session.add(session.create_receipt_item(attendee, 
+                        response.amount, 
+                        "Self-service refund", 
+                        stripe_transaction,
+                        c.REFUND))
                     total_refunded += response.amount
 
             success_message = "Your refund of ${:,.2f} should appear on your credit card in a few days."\
