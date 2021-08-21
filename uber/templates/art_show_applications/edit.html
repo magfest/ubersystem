@@ -7,7 +7,7 @@
 <div class="panel panel-default">
   <div class="panel-body">
     <h2>{{ c.EVENT_NAME }} Art Show Application</h2>
-      {% if app.status in [c.APPROVED, c.PAID] %}
+      {% if app.status == c.APPROVED %}
       {% if app.status == c.APPROVED %}Congratulations, your application has been approved!{% endif %}
         {% if not app.incomplete_reason and app.is_unpaid %}
           In order to complete your application, please pay ${{ '%0.2f' % app.attendee.amount_unpaid }} using the button below.

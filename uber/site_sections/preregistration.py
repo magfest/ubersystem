@@ -1,6 +1,8 @@
 import json
 from datetime import timedelta
 from functools import wraps
+from uber.models.marketplace import MarketplaceApplication
+from uber.models.art_show import ArtShowApplication
 
 import cherrypy
 from email_validator import validate_email, EmailNotValidError
@@ -477,8 +479,14 @@ class Root:
         return {'message': 'Payment cancelled.'}
     
     @ajax
-    def cancel_payment(self, session, stripe_id):
+    def cancel_payment(self, session, stripe_id, model_id=None, cancel_amt=0):
         session.delete_txn_by_stripe_id(stripe_id)
+        if model_id and cancel_amt:
+            for model in [ArtShowApplication, MarketplaceApplication]:
+                app = session.query(model).filter_by(id=model_id).first()
+                if app:
+                    app.amount_paid -= int(cancel_amt)
+                    session.add(app)
         session.commit()
         
         return {'message': 'Payment cancelled.'}

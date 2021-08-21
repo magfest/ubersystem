@@ -596,10 +596,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             del purchased_items['badge_cost']
         if self.marketplace_applications:
             for app in self.marketplace_applications:
-                purchased_items['marketplace_app'] = app.total_cost
+                purchased_items['marketplace_application_cost'] = app.total_cost
         if self.art_show_applications:
             for app in self.art_show_applications:
-                purchased_items['art_show_app'] = app.total_cost
+                purchased_items['art_show_application_cost'] = app.total_cost
         
         return purchased_items
     

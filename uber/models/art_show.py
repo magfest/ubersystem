@@ -60,6 +60,7 @@ class ArtShowApplication(MagModel):
     admin_notes = Column(UnicodeText, admin_only=True)
     base_price = Column(Integer, default=0, admin_only=True)
     overridden_price = Column(Integer, nullable=True, admin_only=True)
+    amount_paid = Column(Integer, default=0, index=True, admin_only=True)
 
     email_model_name = 'app'
 
@@ -73,7 +74,7 @@ class ArtShowApplication(MagModel):
     @presave_adjustment
     def add_artist_id(self):
         from uber.models import Session
-        if self.status in [c.APPROVED, c.PAID] and not self.artist_id:
+        if self.status == c.APPROVED and not self.artist_id:
             with Session() as session:
                 # Kind of inefficient, but doing one big query for all the existing
                 # codes will be faster than a separate query for each new code.
@@ -120,7 +121,7 @@ class ArtShowApplication(MagModel):
 
     @property
     def incomplete_reason(self):
-        if self.status not in [c.APPROVED, c.PAID]:
+        if self.status != c.APPROVED:
             return self.status_label
         if self.delivery_method == c.BY_MAIL \
                 and not self.address1:
@@ -130,7 +131,7 @@ class ArtShowApplication(MagModel):
 
     @property
     def total_cost(self):
-        if self.status not in [c.APPROVED, c.PAID]:
+        if self.status != c.APPROVED:
             return 0
         else:
             return self.potential_cost
@@ -168,7 +169,11 @@ class ArtShowApplication(MagModel):
 
     @property
     def is_unpaid(self):
-        return self.status == c.APPROVED
+        return not self.amount_paid
+
+    @property
+    def amount_unpaid(self):
+        return max(0, self.total_cost - self.amount_paid)
 
     @property
     def has_general_space(self):
@@ -202,11 +207,6 @@ class ArtShowApplication(MagModel):
     @property
     def check_total(self):
         return round(self.total_sales - self.commission)
-
-    @property
-    def amount_paid(self):
-        if self.attendee:
-            return max(0, self.attendee.amount_paid - ((self.attendee.total_cost - self.total_cost) * 100))
 
 
 class ArtShowPiece(MagModel):

@@ -243,8 +243,10 @@ class Root:
         if message:
             return {'error': message}
         else:
+            cancel_amt = 0
             for app in attendee.art_show_applications:
-                app.status = c.PAID  # This needs to accommodate payment cancellations
+                cancel_amt = app.amount_unpaid
+                app.amount_paid += app.amount_unpaid
                 send_email.delay(
                     c.ADMIN_EMAIL,
                     c.ART_SHOW_EMAIL,
@@ -267,4 +269,7 @@ class Root:
             
             return {'stripe_intent': stripe_intent,
                     'success_url': 'edit?id={}&message={}'.format(attendee.art_show_applications[0].id,
-                                                                  'Your payment has been accepted')}
+                                                                  'Your payment has been accepted'),
+                    'cancel_url': '../preregistration/cancel_payment?model_id={}&cancel_amt={}'.format(
+                            attendee.art_show_applications[0].id, cancel_amt
+                    )}

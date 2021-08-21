@@ -59,8 +59,6 @@ class Root:
                     session.add(attendee)
                     app.attendee = attendee
 
-                if 'mark_paid' in params and app.status in [c.APPROVED, c.PAID]:
-                    app.status = c.APPROVED if int(params['mark_paid']) == 0 else c.PAID
                 session.add(app)
                 if params.get('save') == 'save_return_to_search':
                     return_to = 'index?'
@@ -347,8 +345,8 @@ class Root:
         }
 
     def assign_locations(self, session, message='', **params):
-        valid_apps = session.query(ArtShowApplication).filter_by(status=c.PAID)
-        for app in valid_apps:
+        valid_apps = session.query(ArtShowApplication).filter_by(status=c.APPROVED)
+        for app in [app for app in valid_apps if app.amount_unpaid == 0]:
             field_name = '{}_locations'.format(app.id)
             if field_name in params:
                 app.locations = params.get(field_name)
