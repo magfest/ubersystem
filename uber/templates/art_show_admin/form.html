@@ -62,16 +62,12 @@ app, c.PAGE_PATH,
       <div class="form-group">
         <label class="col-sm-3 control-label">Paid?</label>
         <div class="col-sm-6">
-          {% if app.status in [c.APPROVED, c.PAID] %}
+          {% if app.status == c.APPROVED %}
           <div class="form-inline">
-          <select class="form-control" name="mark_paid">
-            <option value="0"{% if app.status == c.APPROVED %}selected="selected"{% endif %}>No</option>
-            <option value="1"{% if app.status == c.PAID %}selected="selected"{% endif %}>Yes</option>
-          </select>
           <span id="amount_paid">
             <div class="input-group">
-              <span class="input-group-addon">$</span><input type="text" class="form-control" name="app_paid" value="{{ app_paid|int }}" />
-            </div> ({{ (app.attendee.amount_paid / 100)|format_currency }} of {{ app.attendee.total_cost|format_currency }} total)
+              <span class="input-group-addon">$</span><input type="text" class="form-control" name="amount_paid" value="{{ app.amount_paid }}" />
+            </div>
           </span>
           </div>
           {% else %}

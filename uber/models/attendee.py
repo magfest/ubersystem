@@ -594,6 +594,12 @@ class Attendee(MagModel, TakesPaymentMixin):
             purchased_items['kick_in_cost'] = self.amount_extra
         if self.promo_code_groups or self.paid == c.PAID_BY_GROUP and purchased_items['badge_cost']:
             del purchased_items['badge_cost']
+        if self.marketplace_applications:
+            for app in self.marketplace_applications:
+                purchased_items['marketplace_application_cost'] = app.total_cost
+        if self.art_show_applications:
+            for app in self.art_show_applications:
+                purchased_items['art_show_application_cost'] = app.total_cost
         
         return purchased_items
     
@@ -612,7 +618,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if c.AT_THE_CON:
             if self.has_personalized_badge and not self.badge_num:
                 if not self.amount_unpaid:
-                    self.badge_num = self.session.next_badge_num(self.badge_type, old_badge_num=0)
+                    self.badge_num = self.session.get_next_badge_num(self.badge_type)
 
     @presave_adjustment
     def print_ready_before_event(self):

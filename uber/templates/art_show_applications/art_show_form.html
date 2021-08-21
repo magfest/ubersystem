@@ -20,10 +20,11 @@ placeholder=app.attendee.full_name, is_readonly=readonly) }}
     </select>
     {% endif %}
   </div>
-  {% if c.BY_MAIL_US_ONLY %}
+  {% if c.BY_MAIL_US_ONLY and (not readonly or app.delivery_method == c.BY_MAIL) %}
   <div id="us_only_checkbox" class="col-sm-9 col-sm-offset-3">
     {{ macros.checkbox(app, 'us_only', label='I verify that my mailing address will be in the continental US.', is_readonly=readonly) }}
   </div>
+  {% if not readonly %}
   <script type="text/javascript">
       var showOrHideUSOnly = function() {
           setVisible($('#us_only_checkbox'), $.field('delivery_method').val() == '{{ c.BY_MAIL }}');
@@ -33,6 +34,7 @@ placeholder=app.attendee.full_name, is_readonly=readonly) }}
           $.field('delivery_method').on('change', showOrHideUSOnly);
       });
   </script>
+  {% endif %}
   {% endif %}
   {% if not readonly and not admin_area %}
   <div class="clearfix"></div>
@@ -65,7 +67,7 @@ placeholder=app.attendee.full_name, is_readonly=readonly) }}
   <label for="panels" class="col-sm-3 control-label{% if readonly %} optional-field{% endif %}">General Panels</label>
   <div class="col-sm-6">
     {% if app.panels and app.panels > max_panels and not admin_area %}
-      <div class="form-control-static">An admin has granted you {{ app.panels }} general panels. Please contact us via via {{ c.ART_SHOW_EMAIL|email_only|email_to_link }}
+      <div class="form-control-static">An admin has granted you {{ app.panels }} general panels. Please contact us via {{ c.ART_SHOW_EMAIL|email_only|email_to_link }}
       if you wish to change the number of panels on your application.</div>
     {% elif readonly %}
       <div class="form-control-static">{{ app.panels }}</div>
