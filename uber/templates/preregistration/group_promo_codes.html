@@ -20,7 +20,7 @@
     {% include 'confirm_tabs.html' with context %}
 
     <h2> Members of "{{ group.name }}" </h2>
-    You have bought {{ group.promo_codes|length }} promo codes for a total of ${{ '%0.2f' % group.total_cost }} (not including your badge).
+    You have bought {{ group.promo_codes|length }} promo codes for a total of {{ group.total_cost|format_currency }} (not including your badge).
     {% if group.valid_codes %}Anyone can register a badge under this group using either an unclaimed promo code below or this group's universal code, <strong>{{ group.code }}</strong>.
     {% else %}All promo codes have been claimed. Please email us at {{ c.REGDESK_EMAIL|email_to_link }} if a promo code was claimed in error.{% endif %}
     <br/><br/><strong>Here are the promo codes for your group "{{ group.name }}" and who is using them:</strong>
@@ -65,7 +65,7 @@
         <form class="form-inline" method="get" action="add_promo_codes">
           <input type="hidden" name="id" value="{{ group.id }}" />
           <p>
-            Enter the number of extra codes to purchase for <strong>${{ c.GROUP_PRICE }}</strong> per code.&nbsp;
+            Enter the number of extra codes to purchase for <strong>{{ c.GROUP_PRICE|format_currency }}</strong> per code.&nbsp;
               {%- set hours_remaining = group.hours_remaining_in_grace_period -%}
               {%- if hours_remaining > 0 -%}
                 You have {{ humanize_timedelta(hours=hours_remaining, granularity='minutes') }}

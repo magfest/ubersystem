@@ -38,7 +38,7 @@ placeholder=app.attendee.full_name, is_readonly=readonly) }}
   {% endif %}
   {% if not readonly and not admin_area %}
   <div class="clearfix"></div>
-  <p class="help-block col-sm-6 col-sm-offset-3">Mailing your art to the show incurs a fee of ${{ c.ART_MAILING_FEE }}.</p>
+  <p class="help-block col-sm-6 col-sm-offset-3">Mailing your art to the show incurs a fee of {{ c.ART_MAILING_FEE|format_currency }}.</p>
   {% endif %}
 </div>
 
@@ -74,7 +74,7 @@ placeholder=app.attendee.full_name, is_readonly=readonly) }}
     {% else %}
       <select class="form-control" name="panels">
         {{ int_options(0, max_panels, app.panels) }}
-      </select>(${{ c.COST_PER_PANEL }} per panel)
+      </select>({{ c.COST_PER_PANEL|format_currency }} per panel)
     {% endif %}
     </div>
 </div>
@@ -90,7 +90,7 @@ placeholder=app.attendee.full_name, is_readonly=readonly) }}
     {% else %}
       <select class="form-control" name="tables">
         {{ int_options(0, max_tables, app.tables) }}
-      </select>(${{ c.COST_PER_TABLE }} per table section)
+      </select>({{ c.COST_PER_TABLE|format_currency }} per table section)
     {% endif %}
     </div>
 </div>
@@ -106,7 +106,7 @@ placeholder=app.attendee.full_name, is_readonly=readonly) }}
     {% else %}
       <select class="form-control" name="panels_ad">
         {{ int_options(0, max_panels, app.panels_ad) }}
-      </select>{% if not no_help_text %}(${{ c.COST_PER_PANEL }} per panel){% endif %}
+      </select>{% if not no_help_text %}({{ c.COST_PER_PANEL|format_currency }} per panel){% endif %}
       {% endif %}
     </div>
 </div>
@@ -122,7 +122,7 @@ placeholder=app.attendee.full_name, is_readonly=readonly) }}
     {% else %}
       <select class="form-control" name="tables_ad">
         {{ int_options(0, max_tables, app.tables_ad) }}
-      </select>{% if not no_help_text %}(${{ c.COST_PER_TABLE }} per table section){% endif %}
+      </select>{% if not no_help_text %}({{ c.COST_PER_TABLE|format_currency }} per table section){% endif %}
     {% endif %}
     </div>
 </div>

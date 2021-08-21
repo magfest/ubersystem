@@ -141,7 +141,7 @@
                 {% elif attendee.is_transferable and attendee.total_donation %}
                   <form method="get" action="transfer_badge">
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
-                    <b> Added on an extra ${{ '%0.2f' % attendee.total_donation }}! </b>
+                    <b> Added on an extra {{ attendee.total_donation|format_currency }}! </b>
                     <input type="submit" value="Transfer Registration" />
                   </form>
                 {% endif %}

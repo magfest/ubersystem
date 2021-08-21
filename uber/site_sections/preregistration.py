@@ -871,6 +871,7 @@ class Root:
         return {'id': id, 'message': message}
 
     def abandon_badge(self, session, id):
+        from uber.custom_tags import format_currency
         attendee = session.attendee(id)
         if attendee.amount_paid and not attendee.is_group_leader:
             failure_message = "Something went wrong with your refund. Please contact us at {}."\
@@ -911,8 +912,8 @@ class Root:
                         c.REFUND))
                     total_refunded += response.amount
 
-            success_message = "Your refund of ${:,.2f} should appear on your credit card in a few days."\
-                .format(total_refunded / 100)
+            success_message = "Your refund of {} should appear on your credit card in a few days."\
+                .format(format_currency(total_refunded / 100))
             if attendee.paid == c.HAS_PAID:
                 attendee.paid = c.REFUNDED
 

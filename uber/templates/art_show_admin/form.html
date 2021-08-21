@@ -94,7 +94,7 @@ app, c.PAGE_PATH,
                  value="{{ app.overridden_price if app.overridden_price != None else '' }}" />
         </div>
         <span class="col-sm-4 form-control-static">
-          (Base Price: ${{ app.base_price|default(app.potential_cost) }})
+          (Base Price: {{ app.base_price|default(app.potential_cost)|format_currency }})
         </span>
         <div class="clearfix"></div>
         <p class="help-block col-sm-6 col-sm-offset-3">Change this to set an override on the application price, or leave

@@ -630,7 +630,7 @@
                                               src="{{ tier.icon }}"
                                               width="50px"
                                               alt="">
-                                      + ${{ tier.price }}
+                                      + {{ tier.price|format_currency }}
                                     </span>
                     {% endif %}
                   </div>
@@ -1541,7 +1541,7 @@ $(window).on("runJavaScript", function(){
         This attendee is the buyer/group leader for <strong><a href="../registration/promo_code_group_form?id={{ group.id }}" target="_blank">{{ group.name }}</a></strong>.
       {% endfor %}
       {% if attendee.promo_code and attendee.promo_code.group %}
-        This attendee used promo code <strong>{{ attendee.promo_code.code }}</strong> to claim a ${{ '%0.2f' % attendee.promo_code.cost }} badge in promo code group <strong><a href="../registration/promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a></strong>.
+        This attendee used promo code <strong>{{ attendee.promo_code.code }}</strong> to claim a {{ attendee.promo_code.cost|format_currency }} badge in promo code group <strong><a href="../registration/promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a></strong>.
       {% endif %}
     </div>
   </div>
@@ -1647,7 +1647,7 @@ $(window).on("runJavaScript", function(){
   <label class="col-sm-3 control-label">Paid</label>
   <div class="col-sm-6">
   {% if read_only %}
-    <p class="form-control-static">This attendee's paid status is <strong>{{ attendee.paid_label }}</strong>. They have given us ${{ '%0.2f' % (attendee.amount_paid / 100) }} and been refunded ${{ '%0.2f' % (attendee.amount_refunded / 100) }}.</p>
+    <p class="form-control-static">This attendee's paid status is <strong>{{ attendee.paid_label }}</strong>. They have given us {{ (attendee.amount_paid / 100)|format_currency }} and been refunded {{ (attendee.amount_refunded / 100)|format_currency }}.</p>
     {% else %}
     <div class="form-inline">
       <select name="paid" class="form-control">
@@ -1655,11 +1655,11 @@ $(window).on("runJavaScript", function(){
       </select>
       &nbsp;&nbsp;&nbsp;
       <span id="amount_paid">
-            Paid: ${{ '%0.2f' % (attendee.amount_paid / 100) }}
+            Paid: {{ (attendee.amount_paid / 100)|format_currency }}
         </span>
       &nbsp;&nbsp;&nbsp;
       <span id="amount_refunded">
-            Refunded: ${{ '%0.2f' % (attendee.amount_refunded / 100) }}
+            Refunded: {{ (attendee.amount_refunded / 100)|format_currency }}
         </span>
       {% if not read_only and c.HAS_REG_ADMIN_ACCESS %}
         [<a href="../reg_admin/receipt_items?id={{ attendee.id }}" target="_blank">Manage Payments</a>]

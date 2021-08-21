@@ -13,6 +13,7 @@ from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
+from uber.custom_tags import format_currency
 from uber.decorators import ajax, all_renderable, attendee_view, check_for_encrypted_badge_num, check_if_can_reg, credit_card, \
     csrf_protected, department_id_adapter, log_pageview, render, site_mappable, public
 from uber.errors import HTTPRedirect
@@ -42,7 +43,7 @@ def pre_checkin_check(attendee, group):
         return attendee.full_name + ' was already checked in!'
 
     if group and attendee.paid == c.PAID_BY_GROUP and group.amount_unpaid:
-        return 'This attendee\'s group has an outstanding balance of ${}'.format('%0.2f' % group.amount_unpaid)
+        return 'This attendee\'s group has an outstanding balance of ${}'.format(format_currency(group.amount_unpaid))
 
     if attendee.paid == c.NOT_PAID:
         return 'You cannot check in an attendee that has not paid.'

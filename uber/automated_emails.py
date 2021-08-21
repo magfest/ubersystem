@@ -164,7 +164,7 @@ AutomatedEmailFixture(
     Group,
     '{EVENT_NAME} group payment received',
     'reg_workflow/group_confirmation.html',
-    lambda g: (g.amount_paid / 100) == g.cost and g.cost != 0 and g.leader_id,
+    lambda g: g.amount_paid == g.cost * 100 and g.cost != 0 and g.leader_id,
     # query=and_(Group.amount_paid >= Group.cost, Group.cost > 0, Group.leader_id != None),
     needs_approval=False,
     ident='group_payment_received')

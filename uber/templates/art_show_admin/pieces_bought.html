@@ -92,24 +92,24 @@ Invoice #{{ receipt.invoice_num }}
         <td> {{ piece.type_label }}
           {% if piece.print_run_num and piece.type == c.PRINT %}({{ piece.print_run_num }} of {{ piece.print_run_total }}){% endif %}
         </td>
-        <td class="text-right"> ${{ '%0.2f' % piece.sale_price }}
+        <td class="text-right"> {{ piece.sale_price|format_currency }}
         </td>
       </tr>
       {% endfor %}
       {% if receipt.pieces %}
-      <tr><td colspan="8" class="text-right">Subtotal: ${{ '%0.2f' % (receipt.subtotal / 100) }}</td></tr>
-      <tr><td colspan="8" class="text-right">Sales Tax ({{ c.SALES_TAX / 100 }}%): ${{ '%0.2f' % (receipt.tax / 100) }}</td></tr>
-      <tr><td colspan="8" class="text-right">Total Cost: ${{ '%0.2f' % (receipt.total / 100) }}</td></tr>
-      <tr><td colspan="8" class="text-right">Total Paid: ${{ '%0.2f' % (receipt.paid / 100) }}</td></tr>
+      <tr><td colspan="8" class="text-right">Subtotal: {{ (receipt.subtotal / 100)|format_currency }}</td></tr>
+      <tr><td colspan="8" class="text-right">Sales Tax ({{ c.SALES_TAX / 100 }}%): {{ (receipt.tax / 100)|format_currency }}</td></tr>
+      <tr><td colspan="8" class="text-right">Total Cost: {{ (receipt.total / 100)|format_currency }}</td></tr>
+      <tr><td colspan="8" class="text-right">Total Paid: {{ (receipt.paid / 100)|format_currency }}</td></tr>
       <tr><td colspan="8"></td></tr>
       {% if receipt.owed and receipt_open %}
-      <tr><td colspan="8" class="text-right">Owed: ${{ '%0.2f' % (receipt.owed / 100) }}</td></tr>
+      <tr><td colspan="8" class="text-right">Owed: {{ (receipt.owed / 100)|format_currency }}</td></tr>
       <tr><td colspan="8" class="text-right">
         <form role="form" method="post" class="form form-inline" action="record_payment">
           <input type="hidden" name="id" value="{{ receipt.id }}" />
           <input type="hidden" name="type" value="{{ c.CASH }}" />
           <div class="input-group">
-            <span class="input-group-addon">$</span><input type="text" class="form-control" name="amount" placeholder="{{ '%0.2f' % (receipt.owed / 100) }}" />
+            <span class="input-group-addon">$</span><input type="text" class="form-control" name="amount" placeholder="{{ (receipt.owed / 100)|format_currency }}" />
           </div>
           <button type="submit" class="btn btn-success">Record Cash Payment</button>
         </form>
@@ -117,7 +117,7 @@ Invoice #{{ receipt.invoice_num }}
       <tr><td colspan="8" class="text-right">
       <div class="form form-inline">
           <div class="input-group">
-            <span class="input-group-addon">$</span><input type="text" class="form-control" id="stripe_amount" placeholder="{{ '%0.2f' % (receipt.owed / 100) }}" />
+            <span class="input-group-addon">$</span><input type="text" class="form-control" id="stripe_amount" placeholder="{{ (receipt.owed / 100)format_currency }}" />
           </div>
           {{ stripe_form('purchases_charge', receipt.attendee, receipt_id=receipt.id) }}
       </div>
@@ -128,7 +128,7 @@ Invoice #{{ receipt.invoice_num }}
           <input type="hidden" name="id" value="{{ receipt.id }}" />
           <input type="hidden" name="type" value="{{ c.REFUND }}" />
           <div class="input-group">
-            <span class="input-group-addon">$</span><input type="text" class="form-control" name="amount" placeholder="{{ '%0.2f' % (receipt.paid / 100) }}" />
+            <span class="input-group-addon">$</span><input type="text" class="form-control" name="amount" placeholder="{{ (receipt.paid / 100)format_currency }}" />
           </div>
           <button type="submit" class="btn btn-success">Record Refund</button>
         </form>
@@ -144,7 +144,7 @@ Invoice #{{ receipt.invoice_num }}
           Refund of
           {%- else -%}
           {{ payment.type_label }} payment of
-          {% endif %} ${{ '%0.2f' % (payment.amount / 100) }}
+          {% endif %} {{ (payment.amount / 100)|format_currency }}
           {%- endset -%}
           {{ payment_desc }} on {{ payment.when_local|datetime("%-I:%M%p")|lower }} {{ payment.when_local|datetime("%a") }}
           &nbsp;

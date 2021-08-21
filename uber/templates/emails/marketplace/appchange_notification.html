@@ -10,7 +10,7 @@ the changes.
 
 <ul>
     {% if app.business_name %}<li><strong>Business Name</strong>: {{ app.business_name }}</li>{% endif %}
-    <li><strong>Total Price</strong>: ${{ app.potential_cost }}</li>
+    <li><strong>Total Price</strong>: {{ app.potential_cost|format_currency }}</li>
     <li><strong>Description</strong>: {{ app.description }}</li>
     <li><strong>Categories</strong>: {{ app.categories_labels|join(', ') }}{% if app.categories_text %}{% if app.categories_labels%} / {% endif %}Other: {{ app.categories_text }}{% endif %}</li>
     {% if app.tax_number %}<li><strong>Illinois Business Tax Number</strong>: {{ app.tax_number }}</li>{% endif %}
