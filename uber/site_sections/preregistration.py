@@ -1,6 +1,8 @@
 import json
 from datetime import timedelta
 from functools import wraps
+from uber.models.marketplace import MarketplaceApplication
+from uber.models.art_show import ArtShowApplication
 
 import cherrypy
 from email_validator import validate_email, EmailNotValidError
@@ -477,8 +479,14 @@ class Root:
         return {'message': 'Payment cancelled.'}
     
     @ajax
-    def cancel_payment(self, session, stripe_id):
+    def cancel_payment(self, session, stripe_id, model_id=None, cancel_amt=0):
         session.delete_txn_by_stripe_id(stripe_id)
+        if model_id and cancel_amt:
+            for model in [ArtShowApplication, MarketplaceApplication]:
+                app = session.query(model).filter_by(id=model_id).first()
+                if app:
+                    app.amount_paid -= int(cancel_amt)
+                    session.add(app)
         session.commit()
         
         return {'message': 'Payment cancelled.'}
@@ -863,6 +871,7 @@ class Root:
         return {'id': id, 'message': message}
 
     def abandon_badge(self, session, id):
+        from uber.custom_tags import format_currency
         attendee = session.attendee(id)
         if attendee.amount_paid and not attendee.is_group_leader:
             failure_message = "Something went wrong with your refund. Please contact us at {}."\
@@ -889,16 +898,22 @@ class Root:
                        for stripe_log in attendee.stripe_txn_share_logs):
                 raise HTTPRedirect('confirm?id={}&message={}', id,
                                    failure_message)
+            total_refunded = 0
             for stripe_log in attendee.stripe_txn_share_logs:
                 error, response, stripe_transaction = session.process_refund(stripe_log, attendee)
                 if error:
                     raise HTTPRedirect('confirm?id={}&message={}', id,
                                        failure_message)
                 elif response:
-                    session.add(session.create_receipt_item(attendee, response.amount, "Self-service refund", stripe_transaction))
+                    session.add(session.create_receipt_item(attendee, 
+                        response.amount, 
+                        "Self-service refund", 
+                        stripe_transaction,
+                        c.REFUND))
+                    total_refunded += response.amount
 
-            success_message = "Your refund of ${:,.2f} should appear on your credit card in a few days."\
-                .format(amount_refunded / 100)
+            success_message = "Your refund of {} should appear on your credit card in a few days."\
+                .format(format_currency(total_refunded / 100))
             if attendee.paid == c.HAS_PAID:
                 attendee.paid = c.REFUNDED
 

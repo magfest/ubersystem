@@ -58,7 +58,7 @@
       Payment
     </h3>
     <p>
-      <strong>${{ guest.payment }}</strong> by check on site after the show.
+      <strong>{{ guest.payment|format_currency }}</strong> by check on site after the show.
     </p>
   {% endif %}
 {% endblock %}

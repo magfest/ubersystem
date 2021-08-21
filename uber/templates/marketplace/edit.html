@@ -11,7 +11,7 @@
       {% if app.status in [c.APPROVED, c.PAID] %}
       {% if app.status == c.APPROVED %}Congratulations, your application has been approved!{% endif %}
         {% if not app.incomplete_reason and app.amount_unpaid %}
-          In order to complete your application, please pay ${{ '%0.2f' % app.attendee.amount_unpaid }} using the button below.
+          In order to complete your application, please pay {{ app.attendee.amount_unpaid|format_currency }} using the button below.
           {% if payment_includes_badge %}This total includes the cost of your badge.{% endif %}<br/><br/>
           <div style="text-align:center">
               {{ stripe_form('process_marketplace_payment', app.attendee) }}

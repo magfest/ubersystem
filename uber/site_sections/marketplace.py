@@ -9,7 +9,7 @@ from uber.tasks.email import send_email
 from uber.utils import Charge, check
 
 
-@all_renderable()
+@all_renderable(public=True)
 class Root:
     def index(self, session, message='', **params):
         attendee = None
@@ -109,7 +109,8 @@ class Root:
         else:
             if attendee.marketplace_cost:
                 for app in attendee.marketplace_applications:
-                    app.amount_paid += app.amount_unpaid  # This needs to accommodate payment cancellations
+                    cancel_amt = app.amount_unpaid
+                    app.amount_paid += app.amount_unpaid
                     send_email.delay(
                         c.ADMIN_EMAIL,
                         c.MARKETPLACE_APP_EMAIL,
@@ -133,4 +134,7 @@ class Root:
         
         return {'stripe_intent': stripe_intent,
                 'success_url': 'edit?id={}&message={}'.format(attendee.marketplace_applications[0].id,
-                                                              'Your payment has been accepted')}
+                                                              'Your payment has been accepted'),
+                'cancel_url': '../preregistration/cancel_payment?model_id={}&cancel_amt={}'.format(
+                        attendee.marketplace_applications[0].id, cancel_amt
+                )}

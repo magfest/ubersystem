@@ -260,7 +260,7 @@
                 {{ attendee.age_group_conf.desc }}
             {% endif %}
         </td>
-        <td>{% if attendee.paid != c.PAID_BY_GROUP %}${{ '%0.2f' % attendee.total_cost }}{% endif %}</td>
+        <td>{% if attendee.paid != c.PAID_BY_GROUP %}{{ attendee.total_cost|format_currency }}{% endif %}</td>
         <td>
             {% if attendee.paid == c.HAS_PAID %}
                 paid

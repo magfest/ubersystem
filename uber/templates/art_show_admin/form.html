@@ -62,16 +62,12 @@ app, c.PAGE_PATH,
       <div class="form-group">
         <label class="col-sm-3 control-label">Paid?</label>
         <div class="col-sm-6">
-          {% if app.status in [c.APPROVED, c.PAID] %}
+          {% if app.status == c.APPROVED %}
           <div class="form-inline">
-          <select class="form-control" name="mark_paid">
-            <option value="0"{% if app.status == c.APPROVED %}selected="selected"{% endif %}>No</option>
-            <option value="1"{% if app.status == c.PAID %}selected="selected"{% endif %}>Yes</option>
-          </select>
           <span id="amount_paid">
             <div class="input-group">
-              <span class="input-group-addon">$</span><input type="text" class="form-control" name="app_paid" value="{{ app_paid|int }}" />
-            </div> (${{ (app.attendee.amount_paid / 100)|int }} of ${{ app.attendee.total_cost }} total)
+              <span class="input-group-addon">$</span><input type="text" class="form-control" name="amount_paid" value="{{ app.amount_paid }}" />
+            </div>
           </span>
           </div>
           {% else %}
@@ -98,7 +94,7 @@ app, c.PAGE_PATH,
                  value="{{ app.overridden_price if app.overridden_price != None else '' }}" />
         </div>
         <span class="col-sm-4 form-control-static">
-          (Base Price: ${{ app.base_price|default(app.potential_cost) }})
+          (Base Price: {{ app.base_price|default(app.potential_cost)|format_currency }})
         </span>
         <div class="clearfix"></div>
         <p class="help-block col-sm-6 col-sm-offset-3">Change this to set an override on the application price, or leave

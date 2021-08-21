@@ -23,7 +23,7 @@
         <td>{{ attendee.merch }}</td>
         <td>{{ attendee.shirt_label }}</td>
         <td>{{ attendee.badge_num }}</td>
-        <td>${{ "{0:g}".format(attendee.amount_unpaid) }}</td>
+        <td>{{ attendee.amount_unpaid|format_currency }}</td>
         <td>{{ attendee.checked_in|datetime_local }}</td>
         <td>{{ attendee.admin_notes }}</td>
     </tr>

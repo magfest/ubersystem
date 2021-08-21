@@ -10,7 +10,7 @@
 </style>
 
 <div class="jumbotron">
-    <h1 class="text-center">(${{ '%0.2f' % (total / 100) }} total)</h1>
+    <h1 class="text-center">({{ (total / 100)|format_currency }} total)</h1>
 </div>
 
 <div class="panel panel-default">
@@ -29,7 +29,7 @@
       <tr>
         <td>{{ item.attendee|form_link }}</td>
         <td>{{ item.item_type_label }}</td>
-        <td>{{ '-' if item.txn_type == c.REFUND else '' }}${{ '%0.2f' % (item.amount / 100) }}</td>
+        <td>{{ '-' if item.txn_type == c.REFUND else '' }}{{ (item.amount / 100)|format_currency }}</td>
         <td>{{ item.desc }}</td>
       </tr>
     {% endfor %}
@@ -46,7 +46,7 @@
     <tbody>
     {% for sale in sales %}
       <tr>
-        <td>${{ '%0.2f' % sale.cash }}</td>
+        <td>{{ sale.cash|format_currency }}</td>
         <td>{{ sale.what }}</td>
       </tr>
     {% endfor %}
@@ -63,7 +63,7 @@
     <tbody>
     {% for charge in arbitrary_charges %}
       <tr>
-        <td>${{ '%0.2f' % charge.amount }}</td>
+        <td>{{ charge.amount|format_currency }}</td>
         <td>{{ charge.what }}</td>
       </tr>
     {% endfor %}

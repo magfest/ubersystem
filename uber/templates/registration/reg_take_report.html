@@ -41,9 +41,9 @@
         &nbsp; / &nbsp;
         Total Fees Taken: {{ sales|length }}
         &nbsp; / &nbsp;
-        Total Cash: ${{ '%0.2f' % total_cash }}
+        Total Cash: {{ total_cash|format_currency }}
         &nbsp; / &nbsp;
-        Total Credit: ${{ '%0.2f' % total_credit }}
+        Total Credit: {{ total_credit|format_currency }}
     </div>
     <table class="list">
     <tr class="header">
@@ -58,7 +58,7 @@
             <td>{{ sale.what }}</td>
             <td><a href="./form?id={{ sale.attendee_id }}">{{ sale.attendee.full_name }}</a></td>
             <td>{{ sale.payment_method_label }}</td>
-            <td>${{ '%0.2f' % sale.cash }}</td>
+            <td>{{ sale.cash|format_currency }}</td>
             <td>{{ sale.when }}</td>
         </tr>
     {% endfor %}
@@ -77,7 +77,7 @@
             <td><a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
             <td>{{ attendee.badge }}</td>
             <td>{{ attendee.payment_method_label }}</td>
-            <td>${{ '%0.2f' % (attendee.amount_paid / 100) }}</td>
+            <td>{{ (attendee.amount_paid / 100)|format_currency }}</td>
             <td>{{ attendee.registered }}</td>
         </tr>
     {% endfor %}

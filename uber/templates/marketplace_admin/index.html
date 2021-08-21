@@ -40,7 +40,7 @@
         <td>{{ app.special_needs }}</td>
         <td>{{ app.tax_number }}</td>
         <td>{{ app.admin_notes }}</td>
-        <td>${{ app.amount_paid }}</td>
+        <td>{{ app.amount_paid|format_currency }}</td>
     </tr>
 {% endfor %}
 	<caption align="bottom">

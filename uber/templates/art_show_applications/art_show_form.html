@@ -20,10 +20,11 @@ placeholder=app.attendee.full_name, is_readonly=readonly) }}
     </select>
     {% endif %}
   </div>
-  {% if c.BY_MAIL_US_ONLY %}
+  {% if c.BY_MAIL_US_ONLY and (not readonly or app.delivery_method == c.BY_MAIL) %}
   <div id="us_only_checkbox" class="col-sm-9 col-sm-offset-3">
     {{ macros.checkbox(app, 'us_only', label='I verify that my mailing address will be in the continental US.', is_readonly=readonly) }}
   </div>
+  {% if not readonly %}
   <script type="text/javascript">
       var showOrHideUSOnly = function() {
           setVisible($('#us_only_checkbox'), $.field('delivery_method').val() == '{{ c.BY_MAIL }}');
@@ -34,9 +35,10 @@ placeholder=app.attendee.full_name, is_readonly=readonly) }}
       });
   </script>
   {% endif %}
+  {% endif %}
   {% if not readonly and not admin_area %}
   <div class="clearfix"></div>
-  <p class="help-block col-sm-6 col-sm-offset-3">Mailing your art to the show incurs a fee of ${{ c.ART_MAILING_FEE }}.</p>
+  <p class="help-block col-sm-6 col-sm-offset-3">Mailing your art to the show incurs a fee of {{ c.ART_MAILING_FEE|format_currency }}.</p>
   {% endif %}
 </div>
 
@@ -65,14 +67,14 @@ placeholder=app.attendee.full_name, is_readonly=readonly) }}
   <label for="panels" class="col-sm-3 control-label{% if readonly %} optional-field{% endif %}">General Panels</label>
   <div class="col-sm-6">
     {% if app.panels and app.panels > max_panels and not admin_area %}
-      <div class="form-control-static">An admin has granted you {{ app.panels }} general panels. Please contact us via via {{ c.ART_SHOW_EMAIL|email_only|email_to_link }}
+      <div class="form-control-static">An admin has granted you {{ app.panels }} general panels. Please contact us via {{ c.ART_SHOW_EMAIL|email_only|email_to_link }}
       if you wish to change the number of panels on your application.</div>
     {% elif readonly %}
       <div class="form-control-static">{{ app.panels }}</div>
     {% else %}
       <select class="form-control" name="panels">
         {{ int_options(0, max_panels, app.panels) }}
-      </select>(${{ c.COST_PER_PANEL }} per panel)
+      </select>({{ c.COST_PER_PANEL|format_currency }} per panel)
     {% endif %}
     </div>
 </div>
@@ -88,7 +90,7 @@ placeholder=app.attendee.full_name, is_readonly=readonly) }}
     {% else %}
       <select class="form-control" name="tables">
         {{ int_options(0, max_tables, app.tables) }}
-      </select>(${{ c.COST_PER_TABLE }} per table section)
+      </select>({{ c.COST_PER_TABLE|format_currency }} per table section)
     {% endif %}
     </div>
 </div>
@@ -104,7 +106,7 @@ placeholder=app.attendee.full_name, is_readonly=readonly) }}
     {% else %}
       <select class="form-control" name="panels_ad">
         {{ int_options(0, max_panels, app.panels_ad) }}
-      </select>{% if not no_help_text %}(${{ c.COST_PER_PANEL }} per panel){% endif %}
+      </select>{% if not no_help_text %}({{ c.COST_PER_PANEL|format_currency }} per panel){% endif %}
       {% endif %}
     </div>
 </div>
@@ -120,7 +122,7 @@ placeholder=app.attendee.full_name, is_readonly=readonly) }}
     {% else %}
       <select class="form-control" name="tables_ad">
         {{ int_options(0, max_tables, app.tables_ad) }}
-      </select>{% if not no_help_text %}(${{ c.COST_PER_TABLE }} per table section){% endif %}
+      </select>{% if not no_help_text %}({{ c.COST_PER_TABLE|format_currency }} per table section){% endif %}
     {% endif %}
     </div>
 </div>

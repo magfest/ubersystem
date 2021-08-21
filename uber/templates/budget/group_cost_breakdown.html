@@ -19,7 +19,7 @@
     <tr>
       <td>{{ group.name }}</td>
       <td>Total Cost</td>
-      <td>${{ group.cost }}</td>
+      <td>{{ group.cost|format_currency }}</td>
       <td>Group price set by admin and cannot be itemized.</td>
     </tr>
     {% elif group.tables %}
@@ -33,7 +33,7 @@
       <tr>
         <td>{{ group.name }}</td>
         <td>{{ desc }}</td>
-        <td>${{ "{0:g}".format(cost) }}</td>
+        <td>{{ cost|format_currency }}</td>
         <td></td>
       </tr>
       {% endfor %}
@@ -42,7 +42,7 @@
     <tr>
         <td>{{ group.name }}</td>
         <td>Amount Owed</td>
-        <td>-${{ "{0:g}".format(group.amount_unpaid) }}</td>
+        <td>-{{ group.amount_unpaid|format_currency }}</td>
       </tr>
     {% endif %}
     {% endfor %}
