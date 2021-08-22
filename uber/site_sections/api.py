@@ -98,16 +98,12 @@ class Root:
             'index?message={}', 'Successfully revoked API token')
 
     @public
-    @cherrypy.tools.json_in()
     def stripe_webhook_handler(self):
-        import json
-        cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
-        
         if not cherrypy.request or not cherrypy.request.body:
+            cherrypy.response.status = 400
             return "Request required"
-        #return str(cherrypy.request.body)
         sig_header = cherrypy.request.headers.get('Stripe-Signature', '')
-        payload = cherrypy.request.body
+        payload = cherrypy.request.body.read()
         event = None
 
         try:
@@ -115,25 +111,21 @@ class Root:
                 payload, sig_header, c.STRIPE_ENDPOINT_SECRET
             )
         except ValueError as e:
-            # Invalid payload
             cherrypy.response.status = 400
-            log.error("Invalid payload")
-            return
+            return "Invalid payload: " + payload
         except stripe.error.SignatureVerificationError as e:
-            if not c.DEV_BOX:
-                # Invalid signature
-                cherrypy.response.status = 400
-                log.error("Invalid signature: " + sig_header)
-                return
-            event = cherrypy.request.json
+            cherrypy.response.status = 400
+            return "Invalid signature: " + sig_header
 
         if not event:
             cherrypy.response.status = 400
-            log.error("No event")
+            return "No event"
 
         if event and event['type'] == 'payment_intent.succeeded':
-            log.error(event)
             payment_intent = event['data']['object']
-            Charge.mark_paid_from_stripe(payment_intent)
+            matching_txns = Charge.mark_paid_from_stripe_id(payment_intent['id'])
+            if not matching_txns:
+                cherrypy.response.status = 400
+                return "No matching Stripe transaction"
             cherrypy.response.status = 200
-            return "Success!"
+            return "Payment marked complete for payment intent ID " + payment_intent['id']

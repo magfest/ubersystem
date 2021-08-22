@@ -161,4 +161,4 @@ def check_missed_stripe_payments():
         log.debug('Processing Payment Intent ID {}', payment_intent.id)
         if payment_intent.id in pending_ids:
             log.debug('Charge is pending, intent ID is {}', payment_intent.id)
-            Charge.mark_paid_from_stripe(payment_intent)
+            Charge.mark_paid_from_stripe_id(payment_intent.id)
