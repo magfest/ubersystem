@@ -58,6 +58,13 @@ def check_prereg_promo_code(session, attendee):
         session.commit()
         return "The promo code you're using for {} has been used too many times.".format(attendee.full_name)
 
+def rollback_prereg_session(session, stripe_intent_id):
+    Charge.paid_preregs.clear()
+    Charge.unpaid_preregs = Charge.pending_preregs.copy()
+    Charge.pending_preregs.clear()
+    if stripe_intent_id:
+        session.delete_txn_by_stripe_id(stripe_intent_id)
+    session.commit()
 
 @all_renderable(public=True)
 @check_post_con
@@ -108,15 +115,11 @@ class Root:
 
     @check_if_can_reg
     def index(self, session, message=''):
-        pending_attendees = []
         if Charge.pending_preregs:
-            pending_preregs = listify(Charge.pending_preregs.keys())
-            pending_attendees = [session.query(Attendee).filter_by(id=prereg).first() 
-                                 for prereg in pending_preregs]
-            if not any([a for a in pending_attendees if a.paid == c.PENDING]):
-                Charge.pending_preregs.clear()
+            rollback_prereg_session(session, Charge.stripe_intent_id)
+            raise HTTPRedirect('index')
 
-        if not Charge.unpaid_preregs and not Charge.pending_preregs:
+        if not Charge.unpaid_preregs:
             raise HTTPRedirect('form?message={}', message) if message else HTTPRedirect('form')
         else:
             charge = Charge(listify(Charge.unpaid_preregs.values()))
@@ -128,7 +131,6 @@ class Root:
             return {
                 'message': message,
                 'charge': charge,
-                'pending_attendees': pending_attendees,
             }
 
     @check_if_can_reg
@@ -460,20 +462,17 @@ class Root:
 
         Charge.unpaid_preregs.clear()
         Charge.paid_preregs.extend(charge.targets)
+        Charge.stripe_intent_id = stripe_intent.id
         session.commit()
 
         return {'stripe_intent': stripe_intent,
-                'success_url': 'paid_preregistrations?message={}'.format('Payment accepted!'),
+                'success_url': 'paid_preregistrations?stripe_intent_id={}&message={}'.format(
+                    stripe_intent.id, 'Payment accepted!'),
                 'cancel_url': 'cancel_prereg_payment'}
 
     @ajax
     def cancel_prereg_payment(self, session, stripe_id=None):
-        Charge.paid_preregs.clear()
-        Charge.unpaid_preregs = Charge.pending_preregs.copy()
-        Charge.pending_preregs.clear()
-        if stripe_id:
-            session.delete_txn_by_stripe_id(stripe_id)
-        session.commit()
+        rollback_prereg_session(session, stripe_id)
         return {'message': 'Payment cancelled.'}
     
     @ajax
@@ -483,9 +482,13 @@ class Root:
         
         return {'message': 'Payment cancelled.'}
 
-    def paid_preregistrations(self, session, total_cost=None, message=''):
+    def paid_preregistrations(self, session, total_cost=None, stripe_intent_id=None, message=''):
         if not Charge.paid_preregs:
             raise HTTPRedirect('index')
+        elif not stripe_intent_id or stripe_intent_id != Charge.stripe_intent_id:
+            rollback_prereg_session(session, stripe_intent_id or Charge.stripe_intent_id)
+            raise HTTPRedirect('index?message={}'.format(
+                "Something went wrong, please try again or contact us at {}".format(c.REGDESK_EMAIL)))
         else:
             Charge.pending_preregs.clear()
             preregs = [session.merge(Charge.from_sessionized(d)) for d in Charge.paid_preregs]
