@@ -16,11 +16,16 @@ Ubersystem for over ten years.
 
 
 # Installation / Development
+## Installation
+To install via vagrant, follow the instructions at https://github.com/magfest/reggie-formula.
 
-Please follow the instructions at https://github.com/magfest/reggie-formula to
-get started with ubersystem.
+To install via Docker, follow the instructions at https://github.com/RAMSProject/quickstart.
 
 To install ubersystem the Hard Way™️ take a look at
 [INSTALL.manually.md](/INSTALL.manually.md).
 
+## Setup
+After installing Ubersystem, please refer to the [Stripe instructions](/STRIPE.md) to set up immediate payment processing.
+
+## Reference
 Here are [some quick reference notes](DBUTILS.md) on common PostgreSQL tasks.
