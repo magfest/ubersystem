@@ -54,7 +54,7 @@ sqlite_reflect_kwargs = {
 def upgrade():
     op.add_column('mits_team', sa.Column('concurrent_attendees', sa.Integer(), nullable=True))
     op.add_column('mits_team', sa.Column('days_available', sa.Integer(), nullable=True))
-    op.add_column('mits_team', sa.Column('hours_available', sa.Integer(), server_default='0', nullable=False))
+    op.add_column('mits_team', sa.Column('hours_available', sa.Integer(), nullable=True))
 
 
 def downgrade():

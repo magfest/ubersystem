@@ -45,27 +45,6 @@
   <div class="panel-body">
     {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_OPEN) }}
 
-  {% if pending_attendees %}
-    <div class="row">
-      <div class="col-md-offset-1 col-md-10">
-      {% if c.DEV_BOX %}<p>Since this is a test server, the message below could have a few causes:
-      <ul><li>The Payment Intent Succeeded Stripe webhook may not be set up to point to this server's stripe_webhook_handler yet.</li>
-      <li>This is a local server, so Stripe cannot call any of its webhooks.</li>
-      <li>The stripe_webhook_handler is broken, possibly due to a breaking change in Stripe's API.</li>
-      </ul>
-       You can run the registration.check_missed_stripe_payments task (which should run on its own, albeit infrequently) to force payments to complete.</p>{% endif %}
-        <div class="alert alert-warning">
-          <p>
-            Your payment is still marked as pending completion. 
-            If you canceled your payment before completion, you can <a href="index" id="cancel_payment">pay here</a>.
-            Otherwise, if you have not received your confirmation email after an hour, please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.
-          </p>
-        </div>
-
-        </div>
-        </div>
-      {% endif %}
-
       {% if charge.attendees or charge.groups %}
         <div class="row">
             <div class="col-sm-8 col-sm-offset-2">

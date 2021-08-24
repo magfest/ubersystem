@@ -872,7 +872,7 @@ class Charge:
 
     @classproperty
     def paid_preregs(cls):
-        return cherrypy.session.get('paid_preregs', [])
+        return cherrypy.session.setdefault('paid_preregs', [])
 
     @classproperty
     def unpaid_preregs(cls):
@@ -881,6 +881,10 @@ class Charge:
     @classproperty
     def pending_preregs(cls):
         return cherrypy.session.get('pending_preregs', OrderedDict())
+
+    @classproperty
+    def stripe_intent_id(cls):
+        return cherrypy.session.get('stripe_intent_id', '')
     
     @classproperty
     def universal_promo_codes(cls):
@@ -1054,7 +1058,7 @@ class Charge:
         return self._stripe_transaction
 
     def create_stripe_intent(self, session):
-        log.debug('PAYMENT: !!! attempting to charge {} cents for {}', self.amount, self.description)
+        log.debug('Creating Stripe Intent to charge {} cents for {}', self.amount, self.description)
         try:
             stripe_intent = stripe.PaymentIntent.create(
                 payment_method_types=['card'],
@@ -1074,7 +1078,7 @@ class Charge:
         except Exception as e:
             error_txt = 'Got an error while calling create_stripe_intent()'
             report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
-            return 'An unexpected problem occurred while processing your card: ' + str(e)
+            return 'An unexpected problem occurred while setting up payment: ' + str(e)
 
     def stripe_transaction_from_charge(self, stripe_id='', type=c.PENDING):
         return uber.models.StripeTransaction(
@@ -1100,9 +1104,7 @@ class Charge:
             )
 
     @staticmethod
-    def mark_paid_from_stripe(payment_intent):
-        stripe_id = payment_intent.id
-
+    def mark_paid_from_stripe_id(stripe_id):
         with uber.models.Session() as session:
             matching_stripe_txns = session.query(uber.models.StripeTransaction).filter_by(stripe_id=stripe_id)
 
@@ -1129,3 +1131,4 @@ class Charge:
                         session.add(attendee)
 
             session.commit()
+            return matching_stripe_txns

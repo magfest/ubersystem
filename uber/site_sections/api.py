@@ -4,7 +4,9 @@ from inspect import getargspec, getmembers, ismethod
 
 import cherrypy
 import pytz
+import stripe
 from pockets import unwrap
+from pockets.autolog import log
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
@@ -96,12 +98,12 @@ class Root:
             'index?message={}', 'Successfully revoked API token')
 
     @public
-    @staticmethod
-    def stripe_webhook_handler(request=None):
-        if not request or not request.body:
+    def stripe_webhook_handler(self):
+        if not cherrypy.request or not cherrypy.request.body:
+            cherrypy.response.status = 400
             return "Request required"
-        sig_header = cherrypy.request.headers['HTTP_STRIPE_SIGNATURE']
-        payload = request.body
+        sig_header = cherrypy.request.headers.get('Stripe-Signature', '')
+        payload = cherrypy.request.body.read()
         event = None
 
         try:
@@ -109,18 +111,21 @@ class Root:
                 payload, sig_header, c.STRIPE_ENDPOINT_SECRET
             )
         except ValueError as e:
-            # Invalid payload
             cherrypy.response.status = 400
+            return "Invalid payload: " + payload
         except stripe.error.SignatureVerificationError as e:
-            # Invalid signature
-            return HttpResponse(status=400)
-
-        if event['type'] == 'payment_intent.succeeded':
-            payment_intent = event.data.object
-            Charge.mark_paid_from_stripe(payment_intent)
-        else:
             cherrypy.response.status = 400
+            return "Invalid signature: " + sig_header
 
-        cherrypy.response.status = 200
+        if not event:
+            cherrypy.response.status = 400
+            return "No event"
 
-        return "Success!"
+        if event and event['type'] == 'payment_intent.succeeded':
+            payment_intent = event['data']['object']
+            matching_txns = Charge.mark_paid_from_stripe_id(payment_intent['id'])
+            if not matching_txns:
+                cherrypy.response.status = 400
+                return "No matching Stripe transaction"
+            cherrypy.response.status = 200
+            return "Payment marked complete for payment intent ID " + payment_intent['id']
