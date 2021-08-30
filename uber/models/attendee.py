@@ -14,7 +14,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.orm import backref, subqueryload
-from sqlalchemy.schema import Column as SQLAlchemyColumn, ForeignKey, Index, UniqueConstraint
+from sqlalchemy.schema import Column as SQLAlchemyColumn, ForeignKey, Index, Table, UniqueConstraint
 from sqlalchemy.types import Boolean, Date, Integer
 
 import uber
@@ -29,7 +29,7 @@ from uber.models.types import default_relationship as relationship, utcnow, Choi
 from uber.utils import add_opt, get_age_from_birthday, hour_day_format, localized_now, mask_string, remove_opt
 
 
-__all__ = ['Attendee', 'FoodRestrictions']
+__all__ = ['Attendee', 'AttendeeAccount', 'FoodRestrictions']
 
 
 RE_NONDIGIT = re.compile(r'\D+')
@@ -1913,6 +1913,25 @@ class Attendee(MagModel, TakesPaymentMixin):
         guest or a +1 comp), or None.
         """
         return self.group and self.group.guest
+
+
+# Many to many association table to tie Attendees to Attendee Accounts
+attendee_attendee_account = Table(
+    'attendee_attendee_account',
+    MagModel.metadata,
+    Column('attendee_id', UUID, ForeignKey('attendee.id')),
+    Column('attendee_account_id', UUID, ForeignKey('attendee_account.id')),
+    UniqueConstraint('attendee_id', 'attendee_account_id'),
+    Index('ix_attendee_attendee_account_attendee_id', 'attendee_id'),
+    Index('ix_attendee_attendee_account_attendee_account_id', 'attendee_account_id'),
+)
+
+class AttendeeAccount(MagModel):
+    email = Column(UnicodeText)
+    hashed = Column(UnicodeText, private=True)
+    attendees = relationship(
+        'Attendee', backref='managers', cascade='save-update,merge,refresh-expire,expunge',
+        secondary='attendee_attendee_account')
 
 
 class FoodRestrictions(MagModel):

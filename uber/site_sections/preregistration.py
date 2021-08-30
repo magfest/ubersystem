@@ -13,7 +13,7 @@ from sqlalchemy import func
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
-    redirect_if_at_con_to_kiosk, render
+    redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Attraction, Email, Group, PromoCode, PromoCodeGroup, ReceiptItem, StripeTransaction, Tracking
 from uber.tasks.email import send_email
@@ -61,12 +61,27 @@ def check_prereg_promo_code(session, attendee):
         return "The promo code you're using for {} has been used too many times.".format(attendee.full_name)
 
 def rollback_prereg_session(session, stripe_intent_id):
+    if stripe_intent_id:
+        session.delete_txn_by_stripe_id(stripe_intent_id)
     Charge.paid_preregs.clear()
     Charge.unpaid_preregs = Charge.pending_preregs.copy()
     Charge.pending_preregs.clear()
-    if stripe_intent_id:
-        session.delete_txn_by_stripe_id(stripe_intent_id)
     session.commit()
+    session.rollback()
+
+def check_prereg_account(email, password):
+    if len(email) > 255:
+        return 'Email addresses cannot be longer than 255 characters.'
+    elif not email:
+        return 'Please enter an email address.'
+    if not password:
+        return 'Please enter a password.'
+    
+    try:
+        validate_email(email)
+    except EmailNotValidError as e:
+        message = str(e)
+        return 'Enter a valid email address. ' + message
 
 @all_renderable(public=True)
 @check_post_con
@@ -116,7 +131,7 @@ class Root:
         return {'message': message}
 
     @check_if_can_reg
-    def index(self, session, message=''):
+    def index(self, session, message='', account_email='', account_password=''):
         if Charge.pending_preregs:
             rollback_prereg_session(session, Charge.stripe_intent_id)
             raise HTTPRedirect('index')
@@ -133,6 +148,8 @@ class Root:
             return {
                 'message': message,
                 'charge': charge,
+                'account_email': account_email,
+                'account_password': account_password,
             }
 
     @check_if_can_reg
@@ -380,7 +397,13 @@ class Root:
             'id': id
         }
 
-    def process_free_prereg(self, session, message=''):
+    def process_free_prereg(self, session, message='', **params):
+        account_email, account_password = params.get('account_email'), params.get('account_password')
+        message = check_prereg_account(account_email, account_password)
+        if message:
+            return {'error': message}
+        new_account = session.create_attendee_account(account_email, account_password)
+        
         charge = Charge(listify(Charge.unpaid_preregs.values()))
         if charge.total_cost <= 0:
             for attendee in charge.attendees:
@@ -391,7 +414,7 @@ class Root:
                     session.rollback()
                     raise HTTPRedirect('index?message={}', message)
                 else:
-                    session.add(attendee)
+                    session.add_attendee_to_account(attendee, new_account)
 
             for group in charge.groups:
                 session.add(group)
@@ -406,7 +429,12 @@ class Root:
 
     @ajax
     @credit_card
-    def prereg_payment(self, session, id=None, message=''):
+    def prereg_payment(self, session, message='', **params):
+        account_email, account_password = params.get('account_email'), params.get('account_password')
+        message = check_prereg_account(account_email, account_password)
+        if message:
+            return {'error': message}
+        new_account = session.create_attendee_account(account_email, account_password)
         charge = Charge(listify(Charge.unpaid_preregs.values()))
         if not charge.total_cost:
             message = 'Your total cost was $0. Your credit card has not been charged.'
@@ -444,10 +472,12 @@ class Root:
                     session.delete(receipt_item)
                 
                 pending_attendee.amount_paid_override = pending_attendee.total_cost
+                session.add_attendee_to_account(attendee, new_account)
             else:
                 attendee.badge_status = c.PENDING_STATUS
                 attendee.paid = c.PENDING
                 session.add(attendee)
+                session.add_attendee_to_account(attendee, new_account)
                 
                 if attendee.badges:
                     pc_group = session.create_promo_code_group(attendee, attendee.name, int(attendee.badges) - 1)
@@ -945,7 +975,34 @@ class Root:
     def badge_updated(self, session, id, message=''):
         return {'id': id, 'message': message}
 
+    def login(self, session, message='', original_location=None, **params):
+        from sqlalchemy.orm.exc import NoResultFound
+        from uber.models import AttendeeAccount
+        from uber.utils import create_valid_user_supplied_redirect_url, ensure_csrf_token_exists
+        from uber.site_sections.accounts import valid_password
+        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
+
+        if 'email' in params:
+            try:
+                account = session.query(AttendeeAccount).filter_by(email=params['email']).first()
+                if not valid_password(params['password'], account, False):
+                    message = 'Incorrect password'
+            except NoResultFound:
+                message = 'No account exists for that email address'
+
+            if not message:
+                cherrypy.session['attendee_account_id'] = account.id
+                ensure_csrf_token_exists()
+                raise HTTPRedirect(original_location)
+
+        return {
+            'message': message,
+            'email':   params.get('email', ''),
+            'original_location': original_location,
+        }
+
     @id_required(Attendee)
+    @requires_account
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
         # Safe to ignore csrf tokens here, because an attacker would need to know the attendee id a priori

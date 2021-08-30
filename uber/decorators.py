@@ -173,6 +173,34 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
     return check_can_edit_dept(session, department_id, inherent_role, override_access='full_dept_admin')
 
 
+def requires_account(func=None):
+    from uber.models import Attendee, AttendeeAccount
+    def _decorator(func):
+        @wraps(func)
+        def _protected(*args, **kwargs):
+            with uber.models.Session() as session:
+                check_id_for_model(model=Attendee, **kwargs)
+                message = ''
+                attendee_account_id = cherrypy.session.get('attendee_account_id')
+                if attendee_account_id is None:
+                    message = 'You are not logged in'
+                else:
+                    account = session.query(AttendeeAccount).get(attendee_account_id)
+                    attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
+                    if account not in attendee.managers:
+                        message = 'You do not have permission to view this page'
+
+                if message:
+                    raise HTTPRedirect('../preregistration/login?message={}'.format(message), save_location=True)
+            return func(*args, **kwargs)
+        return _protected
+
+    if func is None or isinstance(func, six.string_types):
+        return functools.partial(_decorator, inherent_role=func)
+    else:
+        return _decorator(func)
+
+
 def requires_admin(func=None, inherent_role=None, override_access=None):
     def _decorator(func, inherent_role=inherent_role):
         @wraps(func)
@@ -603,7 +631,7 @@ def attendee_view(func):
     @wraps(func)
     def with_check(*args, **kwargs):
         if cherrypy.session.get('account_id') is None:
-                raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
+            raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
             
         if kwargs.get('id') != "None":
             with uber.models.Session() as session:

@@ -1013,6 +1013,21 @@ class Session(SessionManager):
                     message = 'Email address is a required field.'
             return attendee, message
 
+        def create_attendee_account(self, email, password):
+            from uber.models import AttendeeAccount
+
+            new_account = AttendeeAccount(email=email, hashed=bcrypt.hashpw(password, bcrypt.gensalt()))
+            self.add(new_account)
+            return new_account
+
+        def add_attendee_to_account(self, attendee, account):
+            if c.ONE_MANAGER_PER_BADGE and attendee.managers:
+                for manager in attendee.managers:
+                    manager.attendees.remove(attendee)
+            account.attendees.append(attendee)
+            self.add(account)
+            self.add(attendee)
+
         def attendee_from_marketplace_app(self, **params):
             attendee, message = self.create_or_find_attendee_by_id(**params)
             if message:

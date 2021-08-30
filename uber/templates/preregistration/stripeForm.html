@@ -67,6 +67,15 @@ var callStripeAction = function () {
     {% for key, val in params.items() %}
         stripe_action_params['{{ key }}'] = '{{ val }}';
     {% endfor %}
+    if($(".stripe-form-input")[0].form.checkValidity()) {
+        $(".stripe-form-input").each(function( index ) {
+            stripe_action_params[$(this).attr("name")] = $(this).val();
+        });
+    } else {
+        $(".stripe-form-input")[0].form.reportValidity();
+        return false;
+    }
+    console.log(stripe_action_params);
     stripe_action_params.csrf_token = csrf_token;
     $.post('{{ action }}', stripe_action_params, 
     function(result) {

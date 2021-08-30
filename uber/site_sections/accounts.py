@@ -16,11 +16,13 @@ from uber.tasks.email import send_email
 from uber.utils import check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd
 
 
-def valid_password(password, account):
-    pr = account.password_reset
-    if pr and pr.is_expired:
-        account.session.delete(pr)
-        pr = None
+def valid_password(password, account, pr_enabled=True):
+    pr = None
+    if pr_enabled:
+        pr = account.password_reset
+        if pr and pr.is_expired:
+            account.session.delete(pr)
+            pr = None
 
     all_hashed = [account.hashed] + ([pr.hashed] if pr else [])
     return any(bcrypt.hashpw(password, hashed) == hashed for hashed in all_hashed)
