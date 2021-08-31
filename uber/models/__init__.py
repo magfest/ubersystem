@@ -900,7 +900,13 @@ class Session(SessionManager):
         def delete_txn_by_stripe_id(self, stripe_id):
             stripe_txn = self.query(StripeTransaction).filter_by(stripe_id=stripe_id).first()
             if stripe_txn:
-                self.delete(self.query(ReceiptItem).filter_by(txn_id=stripe_txn.id).first())
+                if stripe_txn.type != c.PENDING:
+                    return # Don't delete completed transactions
+                receipt_items = self.query(ReceiptItem).filter_by(txn_id=stripe_txn.id).all()
+                for receipt_item in receipt_items:
+                    if receipt_item.txn_type != c.PENDING:
+                        return # Don't delete a transaction if it has completed receipt items
+                    self.delete(receipt_item)
                 self.delete(stripe_txn)
 
         def guess_attendee_watchentry(self, attendee, active=True):
@@ -1022,11 +1028,9 @@ class Session(SessionManager):
 
         def add_attendee_to_account(self, attendee, account):
             if c.ONE_MANAGER_PER_BADGE and attendee.managers:
-                for manager in attendee.managers:
-                    manager.attendees.remove(attendee)
-            account.attendees.append(attendee)
-            self.add(account)
-            self.add(attendee)
+                attendee.managers.clear()
+            if attendee not in account.attendees:
+                account.attendees.append(attendee)
 
         def attendee_from_marketplace_app(self, **params):
             attendee, message = self.create_or_find_attendee_by_id(**params)

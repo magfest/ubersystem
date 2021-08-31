@@ -885,6 +885,10 @@ class Charge:
     @classproperty
     def stripe_intent_id(cls):
         return cherrypy.session.get('stripe_intent_id', '')
+
+    @classproperty
+    def attendee_account_id(cls):
+        return cherrypy.session.get('attendee_account_id', '')
     
     @classproperty
     def universal_promo_codes(cls):

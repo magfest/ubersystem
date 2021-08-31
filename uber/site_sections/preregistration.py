@@ -15,7 +15,7 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Attraction, Email, Group, PromoCode, PromoCodeGroup, ReceiptItem, StripeTransaction, Tracking
+from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, PromoCode, PromoCodeGroup, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, check_pii_consent, localized_now, Charge
 
@@ -60,14 +60,19 @@ def check_prereg_promo_code(session, attendee):
         session.commit()
         return "The promo code you're using for {} has been used too many times.".format(attendee.full_name)
 
-def rollback_prereg_session(session, stripe_intent_id):
+def rollback_prereg_session(session, stripe_intent_id, account_id=None):
     if stripe_intent_id:
+        log.debug("Rolling back Stripe ID " + stripe_intent_id)
         session.delete_txn_by_stripe_id(stripe_intent_id)
+    if account_id:
+        log.debug("Deleting attendee account ID " + account_id)
+        account = session.query(AttendeeAccount).get(account_id)
+        session.delete(account)
+    Charge.attendee_account_id = ''
     Charge.paid_preregs.clear()
     Charge.unpaid_preregs = Charge.pending_preregs.copy()
     Charge.pending_preregs.clear()
     session.commit()
-    session.rollback()
 
 def check_prereg_account(email, password):
     if len(email) > 255:
@@ -133,7 +138,7 @@ class Root:
     @check_if_can_reg
     def index(self, session, message='', account_email='', account_password=''):
         if Charge.pending_preregs:
-            rollback_prereg_session(session, Charge.stripe_intent_id)
+            rollback_prereg_session(session, Charge.stripe_intent_id, Charge.attendee_account_id)
             raise HTTPRedirect('index')
 
         if not Charge.unpaid_preregs:
@@ -148,7 +153,7 @@ class Root:
             return {
                 'message': message,
                 'charge': charge,
-                'account_email': account_email,
+                'account_email': account_email or charge.attendees[0].email,
                 'account_password': account_password,
             }
 
@@ -180,6 +185,7 @@ class Root:
         valid session cookie. Thus, this page is also exposed as "post_form".
         """
         params['id'] = 'None'   # security!
+        Charge.attendee_account_id = ''
         group = Group()
 
         if edit_id is not None:
@@ -422,7 +428,8 @@ class Root:
             else:
                 Charge.unpaid_preregs.clear()
                 Charge.paid_preregs.extend(charge.targets)
-                raise HTTPRedirect('paid_preregistrations?payment_received={}', charge.dollar_amount)
+                Charge.attendee_account_id = ''
+                raise HTTPRedirect('paid_preregistrations?total_cost={}', charge.dollar_amount)
         else:
             message = "These badges aren't free! Please pay for them."
             raise HTTPRedirect('index?message={}', message)
@@ -430,11 +437,6 @@ class Root:
     @ajax
     @credit_card
     def prereg_payment(self, session, message='', **params):
-        account_email, account_password = params.get('account_email'), params.get('account_password')
-        message = check_prereg_account(account_email, account_password)
-        if message:
-            return {'error': message}
-        new_account = session.create_attendee_account(account_email, account_password)
         charge = Charge(listify(Charge.unpaid_preregs.values()))
         if not charge.total_cost:
             message = 'Your total cost was $0. Your credit card has not been charged.'
@@ -452,6 +454,13 @@ class Root:
 
         if message:
             return {'error': message}
+
+        account_email, account_password = params.get('account_email'), params.get('account_password')
+        message = check_prereg_account(account_email, account_password)
+        if message:
+            return {'error': message}
+        new_account = session.create_attendee_account(account_email, account_password)
+        Charge.attendee_account_id = new_account.id
 
         for attendee in charge.attendees:
             pending_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
@@ -472,7 +481,7 @@ class Root:
                     session.delete(receipt_item)
                 
                 pending_attendee.amount_paid_override = pending_attendee.total_cost
-                session.add_attendee_to_account(attendee, new_account)
+                session.add_attendee_to_account(pending_attendee, new_account)
             else:
                 attendee.badge_status = c.PENDING_STATUS
                 attendee.paid = c.PENDING
@@ -498,13 +507,13 @@ class Root:
         session.commit()
 
         return {'stripe_intent': stripe_intent,
-                'success_url': 'paid_preregistrations?stripe_intent_id={}&message={}'.format(
-                    stripe_intent.id, 'Payment accepted!'),
-                'cancel_url': 'cancel_prereg_payment'}
+                'success_url': 'paid_preregistrations?total_cost={}&message={}'.format(
+                    charge.dollar_amount, 'Payment accepted!'),
+                'cancel_url': 'cancel_prereg_payment?account_id={}'.format(new_account.id)}
 
     @ajax
-    def cancel_prereg_payment(self, session, stripe_id=None):
-        rollback_prereg_session(session, stripe_id)
+    def cancel_prereg_payment(self, session, stripe_id=None, account_id=None):
+        rollback_prereg_session(session, stripe_id, account_id)
         return {'message': 'Payment cancelled.'}
     
     @ajax
@@ -523,12 +532,9 @@ class Root:
     def paid_preregistrations(self, session, total_cost=None, stripe_intent_id=None, message=''):
         if not Charge.paid_preregs:
             raise HTTPRedirect('index')
-        elif not stripe_intent_id or stripe_intent_id != Charge.stripe_intent_id:
-            rollback_prereg_session(session, stripe_intent_id or Charge.stripe_intent_id)
-            raise HTTPRedirect('index?message={}'.format(
-                "Something went wrong, please try again or contact us at {}".format(c.REGDESK_EMAIL)))
         else:
             Charge.pending_preregs.clear()
+            Charge.attendee_account_id = ''
             preregs = [session.merge(Charge.from_sessionized(d)) for d in Charge.paid_preregs]
             for prereg in preregs:
                 try:

@@ -93,7 +93,7 @@ class Group(MagModel, TakesPaymentMixin):
             return
         
         self.purchased_items.clear()
-        self.purchaed_items = self.current_purchased_items
+        self.purchased_items = self.current_purchased_items
         
     @property
     def current_purchased_items(self):
