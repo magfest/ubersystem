@@ -4,8 +4,8 @@ from functools import wraps
 from uber.models.marketplace import MarketplaceApplication
 from uber.models.art_show import ArtShowApplication
 
+import bcrypt
 import cherrypy
-from email_validator import validate_email, EmailNotValidError
 from pockets import listify
 from pockets.autolog import log
 from six import string_types
@@ -17,7 +17,7 @@ from uber.decorators import ajax, all_renderable, check_if_can_reg, credit_card,
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, PromoCode, PromoCodeGroup, Tracking
 from uber.tasks.email import send_email
-from uber.utils import add_opt, check, check_pii_consent, localized_now, Charge
+from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, valid_email, valid_password, Charge
 
 
 def check_post_con(klass):
@@ -74,19 +74,13 @@ def rollback_prereg_session(session, stripe_intent_id, account_id=None):
     Charge.pending_preregs.clear()
     session.commit()
 
-def check_prereg_account(email, password):
-    if len(email) > 255:
-        return 'Email addresses cannot be longer than 255 characters.'
-    elif not email:
-        return 'Please enter an email address.'
+def check_account(email, password, confirm_password):
     if not password:
         return 'Please enter a password.'
+    if password != confirm_password:
+        return 'Password confirmation does not match.'
     
-    try:
-        validate_email(email)
-    except EmailNotValidError as e:
-        message = str(e)
-        return 'Enter a valid email address. ' + message
+    return valid_email(email)
 
 @all_renderable(public=True)
 @check_post_con
@@ -405,7 +399,7 @@ class Root:
 
     def process_free_prereg(self, session, message='', **params):
         account_email, account_password = params.get('account_email'), params.get('account_password')
-        message = check_prereg_account(account_email, account_password)
+        message = check_account(account_email, account_password, params.get('confirm_password'))
         if message:
             return {'error': message}
         new_account = session.create_attendee_account(account_email, account_password)
@@ -456,7 +450,7 @@ class Root:
             return {'error': message}
 
         account_email, account_password = params.get('account_email'), params.get('account_password')
-        message = check_prereg_account(account_email, account_password)
+        message = check_account(account_email, account_password, params.get('confirm_password'))
         if message:
             return {'error': message}
         new_account = session.create_attendee_account(account_email, account_password)
@@ -855,6 +849,7 @@ class Root:
                         group.id, 'Your payment has been accepted and the badges have been added to your group')}
 
     @id_required(Attendee)
+    @requires_account
     @log_pageview
     def transfer_badge(self, session, message='', **params):
         old = session.attendee(params['id'])
@@ -907,8 +902,9 @@ class Root:
         return {'attendee': session.attendee(id, allow_invalid=True), 'message': message}
 
     def not_found(self, id, message=''):
-        return {'id': id, 'message': message}
+        return
 
+    @requires_account
     def abandon_badge(self, session, id):
         from uber.custom_tags import format_currency
         attendee = session.attendee(id)
@@ -978,23 +974,20 @@ class Root:
                 session.delete(shift)
             raise HTTPRedirect('{}?id={}&message={}', page_redirect, attendee.id, success_message)
 
-    def badge_updated(self, session, id, message=''):
+    @requires_account
+    def badge_updated(self, id, message=''):
         return {'id': id, 'message': message}
 
     def login(self, session, message='', original_location=None, **params):
-        from sqlalchemy.orm.exc import NoResultFound
-        from uber.models import AttendeeAccount
         from uber.utils import create_valid_user_supplied_redirect_url, ensure_csrf_token_exists
-        from uber.site_sections.accounts import valid_password
         original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
 
         if 'email' in params:
-            try:
-                account = session.query(AttendeeAccount).filter_by(email=params['email']).first()
-                if not valid_password(params['password'], account, False):
-                    message = 'Incorrect password'
-            except NoResultFound:
+            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(params.get('email', ''))).first()
+            if not account:
                 message = 'No account exists for that email address'
+            if not valid_password(params['password'], account, False):
+                message = 'Incorrect password'
 
             if not message:
                 cherrypy.session['attendee_account_id'] = account.id
@@ -1007,6 +1000,16 @@ class Root:
             'original_location': original_location,
         }
 
+    @requires_account
+    def homepage(self, session, message=''):
+        account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id'))
+        if account.has_only_one_badge:
+            raise HTTPRedirect('confirm?id={}&message={}', account.attendees[0].id, message)
+    
+    def logout(self):
+        cherrypy.session.pop('attendee_account_id', None)
+        raise HTTPRedirect('login?message={}', 'You have been logged out')
+
     @id_required(Attendee)
     @requires_account
     @log_pageview
@@ -1016,6 +1019,12 @@ class Root:
 
         if attendee.badge_status == c.REFUNDED_STATUS:
             raise HTTPRedirect('repurchase?id={}', attendee.id)
+
+        account = None
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            logged_in_account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id'))
+            if logged_in_account.has_only_one_badge:
+                account = logged_in_account
 
         placeholder = attendee.placeholder
         if 'email' in params and not message:
@@ -1048,13 +1057,43 @@ class Root:
             'undoing_extra': undoing_extra,
             'return_to':     return_to,
             'attendee':      attendee,
+            'account':       account,
             'message':       message,
             'affiliates':    session.affiliates(),
             'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
             'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
         }
 
+    @requires_account
+    def update_account(self, session, account_id, **params):
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('homepage')
+
+        account = session.attendee_account(account_id)
+        password = params.get('current_password')
+        new_password = params.get('new_password')
+        message = ''
+        if not password:
+            message = 'Please enter your current password to make changes to your account.'
+        elif not valid_password(password, account, False):
+            message = 'Incorrect password'
+
+        if not message:
+            message = valid_email(params.get('email'))
+
+        if not message and new_password:
+            if new_password != params.pop('confirm_new_password'):
+                message = 'Password confirmation does not match.'
+            else:
+                account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+        
+        if not message:
+            account.email = params.get('email')
+            message = 'Account information updated successfully.'
+        raise HTTPRedirect('homepage?message={}', message)
+
     @id_required(Attendee)
+    @requires_account
     def guest_food(self, session, id):
         attendee = session.attendee(id)
         assert attendee.badge_type == c.GUEST_BADGE, 'This form is for guests only'
@@ -1062,6 +1101,7 @@ class Root:
         raise HTTPRedirect('../staffing/food_restrictions')
 
     @id_required(Attendee)
+    @requires_account
     def attendee_donation_form(self, session, id, message=''):
         attendee = session.attendee(id)
         if attendee.amount_unpaid <= 0:
@@ -1074,6 +1114,7 @@ class Root:
             'attendee': attendee,
         }
 
+    @requires_account
     def undo_attendee_donation(self, session, id):
         attendee = session.attendee(id)
         if len(attendee.cost_property_names) > 1:  # core Uber only has one cost property
@@ -1087,6 +1128,7 @@ class Root:
 
     @ajax
     @credit_card
+    @requires_account
     def process_attendee_donation(self, session, id):
         attendee = session.attendee(id)
         charge = Charge(

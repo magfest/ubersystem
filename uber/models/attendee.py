@@ -26,7 +26,8 @@ from uber.models import MagModel
 from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, TakesPaymentMixin
-from uber.utils import add_opt, get_age_from_birthday, hour_day_format, localized_now, mask_string, remove_opt
+from uber.utils import add_opt, get_age_from_birthday, hour_day_format, localized_now, mask_string, normalize_email, \
+    remove_opt
 
 
 __all__ = ['Attendee', 'AttendeeAccount', 'FoodRestrictions']
@@ -1095,15 +1096,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def normalized_email(self):
-        return self.normalize_email(self.email)
+        return normalize_email(self.email)
 
     @normalized_email.expression
     def normalized_email(cls):
         return func.replace(func.lower(func.trim(cls.email)), '.', '')
-
-    @classmethod
-    def normalize_email(cls, email):
-        return email.strip().lower().replace('.', '')
 
     @property
     def gets_emails(self):
@@ -1932,6 +1929,18 @@ class AttendeeAccount(MagModel):
     attendees = relationship(
         'Attendee', backref='managers', cascade='save-update,merge,refresh-expire,expunge',
         secondary='attendee_attendee_account')
+
+    @property
+    def has_only_one_badge(self):
+        return len(self.attendees) == 1
+
+    @hybrid_property
+    def normalized_email(self):
+        return normalize_email(self.email)
+
+    @normalized_email.expression
+    def normalized_email(cls):
+        return func.replace(func.lower(func.trim(cls.email)), '.', '')
 
 
 class FoodRestrictions(MagModel):

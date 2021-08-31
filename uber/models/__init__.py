@@ -31,7 +31,7 @@ from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
-from uber.utils import check_csrf, normalize_phone, DeptChecklistConf, report_critical_exception
+from uber.utils import check_csrf, normalize_email, normalize_phone, DeptChecklistConf, report_critical_exception
 
 
 def _make_getter(model):
@@ -974,7 +974,7 @@ class Session(SessionManager):
                 last_name=last_name,
                 zip_code=zip_code
             ).filter(
-                Attendee.normalized_email == Attendee.normalize_email(email),
+                Attendee.normalized_email == normalize_email(email),
                 Attendee.badge_status != c.INVALID_STATUS
             ).limit(10).all()
 
@@ -1446,7 +1446,7 @@ class Session(SessionManager):
             if ':' in text:
                 target, term = text.split(':', 1)
                 if target == 'email':
-                    return attendees.icontains(Attendee.normalized_email, Attendee.normalize_email(term))
+                    return attendees.icontains(Attendee.normalized_email, normalize_email(term))
                 elif target == 'group':
                     return attendees.icontains(Group.name, term.strip())
 

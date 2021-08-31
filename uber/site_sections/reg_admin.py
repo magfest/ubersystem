@@ -10,7 +10,7 @@ from uber.custom_tags import pluralize
 from uber.decorators import all_renderable
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, DeptMembership, DeptMembershipRequest
-from uber.utils import get_api_service_from_server
+from uber.utils import get_api_service_from_server, normalize_email
 
 
 @all_renderable()
@@ -108,7 +108,7 @@ class Root:
                 attendees_by_name_email = groupify(attendees, lambda a: (
                     a['first_name'].lower(),
                     a['last_name'].lower(),
-                    Attendee.normalize_email(a['email']),
+                    normalize_email(a['email']),
                 ))
 
                 filters = [

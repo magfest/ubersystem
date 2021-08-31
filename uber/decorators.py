@@ -178,13 +178,15 @@ def requires_account(func=None):
     def _decorator(func):
         @wraps(func)
         def _protected(*args, **kwargs):
+            if not c.ATTENDEE_ACCOUNTS_ENABLED:
+                return func(*args, **kwargs)
             with uber.models.Session() as session:
-                check_id_for_model(model=Attendee, **kwargs)
-                message = ''
                 attendee_account_id = cherrypy.session.get('attendee_account_id')
+                message = ''
                 if attendee_account_id is None:
                     message = 'You are not logged in'
-                else:
+                elif kwargs.get('id'):
+                    check_id_for_model(model=Attendee, **kwargs)
                     account = session.query(AttendeeAccount).get(attendee_account_id)
                     attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
                     if account not in attendee.managers:

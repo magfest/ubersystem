@@ -23,7 +23,7 @@ from uber.errors import CSRFException
 from uber.models import AdminAccount, ApiToken, Attendee, Department, DeptMembership, DeptMembershipRequest, \
     Event, IndieStudio, Job, Session, Shift, GuestGroup, Room, HotelRequests, RoomAssignment
 from uber.server import register_jsonrpc
-from uber.utils import check, check_csrf, normalize_newlines
+from uber.utils import check, check_csrf, normalize_email, normalize_newlines
 
 
 __version__ = '1.0'
@@ -417,14 +417,14 @@ class AttendeeLookup:
                 match = _re_name_email.match(q)
                 if match:
                     name = match.group(1)
-                    email = Attendee.normalize_email(match.group(2))
+                    email = normalize_email(match.group(2))
                     if name:
                         first, last = (_re_whitespace.split(name.lower(), 1) + [''])[0:2]
                         names_and_emails[(first, last, email)] = q
                     else:
                         emails[email] = q
                 else:
-                    emails[Attendee.normalize_email(q)] = q
+                    emails[normalize_email(q)] = q
             elif q:
                 try:
                     ids.add(str(uuid.UUID(q)))

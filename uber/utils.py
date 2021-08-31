@@ -123,6 +123,10 @@ def normalize_newlines(text):
         return ''
 
 
+def normalize_email(email):
+    return email.strip().lower().replace('.', '')
+
+
 def convert_to_absolute_url(relative_uber_page_url):
     """
     In ubersystem, we always use relative url's of the form
@@ -494,6 +498,19 @@ def check_pii_consent(params, attendee=None):
     return ''
 
 
+def valid_password(password, account, pr_enabled=True):
+    import bcrypt
+    pr = None
+    if pr_enabled:
+        pr = account.password_reset
+        if pr and pr.is_expired:
+            account.session.delete(pr)
+            pr = None
+
+    all_hashed = [account.hashed] + ([pr.hashed] if pr else [])
+    return any(bcrypt.hashpw(password, hashed) == hashed for hashed in all_hashed)
+
+
 def check_csrf(csrf_token=None):
     """
     Accepts a csrf token (and checks the request headers if None is provided)
@@ -571,6 +588,20 @@ def redirect_to_allowed_dept(session, department_id, page):
         if department_id == c.DEFAULT_DEPARTMENT_ID:
             raise HTTPRedirect('../accounts/homepage?message={}', error_msg)
         raise HTTPRedirect('{}?department_id={}', page, c.DEFAULT_DEPARTMENT_ID)
+
+
+def valid_email(email):
+    from email_validator import validate_email, EmailNotValidError
+    if len(email) > 255:
+        return 'Email addresses cannot be longer than 255 characters.'
+    elif not email:
+        return 'Please enter an email address.'
+    
+    try:
+        validate_email(email)
+    except EmailNotValidError as e:
+        message = str(e)
+        return 'Enter a valid email address. ' + message
 
 
 class Order:
