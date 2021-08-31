@@ -30,16 +30,13 @@
 {% include 'prereg_masthead.html' %}
 {% if account %}
   {% include 'preregistration/attendee_account.html' %}
-  <div class="panel panel-default">
-    <div class="panel-heading">
-      Registration Information
-    </div>
-    <div class="panel-body">
-{% else %}
-<div class="panel panel-default">
-  <div class="panel-body">
 {% endif %}
-    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups %}
+<div class="panel panel-default">
+  <div class="panel-heading">
+    Registration Information
+  </div>
+  <div class="panel-body">
+    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_applications %}
       {% include 'confirm_tabs.html' with context %}
     {% endif %}
     {% block panel_top %}{% endblock %}

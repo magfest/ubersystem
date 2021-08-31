@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Manage Your Registrations{% endblock %}
+{% block backlink %}
+    {% if c.HAS_REGISTRATION_ACCESS and false %}
+        <a href="../registration/form?id={{ attendee.id }}" style="float:right">Return to Attendee Admin Form</a>
+    {% endif %}
+{% endblock %}
+{% block content %}
+{% include 'prereg_masthead.html' %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+        Your Registrations
+    </div>
+    <div class="panel-body">
+        <table>
+        {% for attendee in account.attendees %}
+          <tr>
+            <td></td>
+            <td><a href="../preregistration/confirm?id={{ attendee.id }}" target="_blank">{{ attendee.full_name }}</a></td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+</div>
+{% endblock %}

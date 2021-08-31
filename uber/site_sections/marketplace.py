@@ -2,7 +2,7 @@ import cherrypy
 from six import string_types
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, render, credit_card
+from uber.decorators import ajax, all_renderable, render, credit_card, requires_account
 from uber.errors import HTTPRedirect
 from uber.models import MarketplaceApplication
 from uber.tasks.email import send_email
@@ -61,12 +61,12 @@ class Root:
             'new_badge': params.get('new_badge', '')
         }
 
+    @requires_account(MarketplaceApplication)
     def edit(self, session, message='', **params):
         app = session.marketplace_application(params, restricted=True,
                                               ignore_csrf=True)
-        return_to = params['return_to'] \
-            if 'return_to' in params else '/marketplace/edit'
-        if 'id' not in params:
+        return_to = params.get('return_to', '/marketplace/edit?id={}'.format(app.id))
+        if not params.get('id'):
             message = 'Invalid marketplace application ID. ' \
                       'Please try going back in your browser.'
 
@@ -90,7 +90,8 @@ class Root:
         return {
             'message': message,
             'app': app,
-            'return_to': 'edit',
+            'account': session.one_badge_attendee_account(),
+            'return_to': 'edit?id={}'.format(app.id),
         }
 
     def confirmation(self, session, id):

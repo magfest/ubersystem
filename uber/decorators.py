@@ -173,11 +173,11 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
     return check_can_edit_dept(session, department_id, inherent_role, override_access='full_dept_admin')
 
 
-def requires_account(func=None):
+def requires_account(model=None):
     from uber.models import Attendee, AttendeeAccount
-    def _decorator(func):
+    def model_requires_account(func):
         @wraps(func)
-        def _protected(*args, **kwargs):
+        def protected(*args, **kwargs):
             if not c.ATTENDEE_ACCOUNTS_ENABLED:
                 return func(*args, **kwargs)
             with uber.models.Session() as session:
@@ -185,22 +185,22 @@ def requires_account(func=None):
                 message = ''
                 if attendee_account_id is None:
                     message = 'You are not logged in'
-                elif kwargs.get('id'):
-                    check_id_for_model(model=Attendee, **kwargs)
+                elif kwargs.get('id') and model:
+                    check_id_for_model(model, **kwargs)
+                    if model == Attendee:
+                        attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
+                    else: 
+                        attendee = session.query(model).filter_by(id=kwargs.get('id')).first().attendee
                     account = session.query(AttendeeAccount).get(attendee_account_id)
-                    attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
+                    
                     if account not in attendee.managers:
                         message = 'You do not have permission to view this page'
 
                 if message:
                     raise HTTPRedirect('../preregistration/login?message={}'.format(message), save_location=True)
             return func(*args, **kwargs)
-        return _protected
-
-    if func is None or isinstance(func, six.string_types):
-        return functools.partial(_decorator, inherent_role=func)
-    else:
-        return _decorator(func)
+        return protected
+    return model_requires_account
 
 
 def requires_admin(func=None, inherent_role=None, override_access=None):

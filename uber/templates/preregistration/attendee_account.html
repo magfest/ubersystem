@@ -5,7 +5,7 @@
     <div class="panel-body">
         <form method="post" action="update_account" class="form-horizontal">
             {{ csrf_token() }}
-            <input type="hidden" name="account_id" value="{{ account.id }}" />
+            <input type="hidden" name="id" value="{{ account.id }}" />
             <div class="form-group">
                 <label for="current_password" class="col-sm-3 control-label">Current Password</label>
                 <div class="col-sm-6">

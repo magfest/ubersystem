@@ -849,7 +849,7 @@ class Root:
                         group.id, 'Your payment has been accepted and the badges have been added to your group')}
 
     @id_required(Attendee)
-    @requires_account
+    @requires_account(Attendee)
     @log_pageview
     def transfer_badge(self, session, message='', **params):
         old = session.attendee(params['id'])
@@ -904,7 +904,7 @@ class Root:
     def not_found(self, id, message=''):
         return
 
-    @requires_account
+    @requires_account(Attendee)
     def abandon_badge(self, session, id):
         from uber.custom_tags import format_currency
         attendee = session.attendee(id)
@@ -974,7 +974,6 @@ class Root:
                 session.delete(shift)
             raise HTTPRedirect('{}?id={}&message={}', page_redirect, attendee.id, success_message)
 
-    @requires_account
     def badge_updated(self, id, message=''):
         return {'id': id, 'message': message}
 
@@ -1000,18 +999,22 @@ class Root:
             'original_location': original_location,
         }
 
-    @requires_account
+    @requires_account()
     def homepage(self, session, message=''):
         account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id'))
         if account.has_only_one_badge:
             raise HTTPRedirect('confirm?id={}&message={}', account.attendees[0].id, message)
+        return {
+            'message': message,
+            'account': account,
+        }
     
     def logout(self):
         cherrypy.session.pop('attendee_account_id', None)
         raise HTTPRedirect('login?message={}', 'You have been logged out')
 
     @id_required(Attendee)
-    @requires_account
+    @requires_account(Attendee)
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
         # Safe to ignore csrf tokens here, because an attacker would need to know the attendee id a priori
@@ -1019,12 +1022,6 @@ class Root:
 
         if attendee.badge_status == c.REFUNDED_STATUS:
             raise HTTPRedirect('repurchase?id={}', attendee.id)
-
-        account = None
-        if c.ATTENDEE_ACCOUNTS_ENABLED:
-            logged_in_account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id'))
-            if logged_in_account.has_only_one_badge:
-                account = logged_in_account
 
         placeholder = attendee.placeholder
         if 'email' in params and not message:
@@ -1057,19 +1054,19 @@ class Root:
             'undoing_extra': undoing_extra,
             'return_to':     return_to,
             'attendee':      attendee,
-            'account':       account,
+            'account':       session.one_badge_attendee_account(),
             'message':       message,
             'affiliates':    session.affiliates(),
             'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
             'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
         }
 
-    @requires_account
-    def update_account(self, session, account_id, **params):
+    @requires_account()
+    def update_account(self, session, id, **params):
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('homepage')
 
-        account = session.attendee_account(account_id)
+        account = session.attendee_account(id)
         password = params.get('current_password')
         new_password = params.get('new_password')
         message = ''
@@ -1093,7 +1090,7 @@ class Root:
         raise HTTPRedirect('homepage?message={}', message)
 
     @id_required(Attendee)
-    @requires_account
+    @requires_account(Attendee)
     def guest_food(self, session, id):
         attendee = session.attendee(id)
         assert attendee.badge_type == c.GUEST_BADGE, 'This form is for guests only'
@@ -1101,7 +1098,7 @@ class Root:
         raise HTTPRedirect('../staffing/food_restrictions')
 
     @id_required(Attendee)
-    @requires_account
+    @requires_account(Attendee)
     def attendee_donation_form(self, session, id, message=''):
         attendee = session.attendee(id)
         if attendee.amount_unpaid <= 0:
@@ -1114,7 +1111,7 @@ class Root:
             'attendee': attendee,
         }
 
-    @requires_account
+    @requires_account(Attendee)
     def undo_attendee_donation(self, session, id):
         attendee = session.attendee(id)
         if len(attendee.cost_property_names) > 1:  # core Uber only has one cost property
@@ -1128,7 +1125,7 @@ class Root:
 
     @ajax
     @credit_card
-    @requires_account
+    @requires_account(Attendee)
     def process_attendee_donation(self, session, id):
         attendee = session.attendee(id)
         charge = Charge(

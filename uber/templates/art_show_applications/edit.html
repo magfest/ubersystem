@@ -4,8 +4,18 @@
 {% block content %}
 <script type="text/javascript">{% include "region_opts.html" %}</script>
 <div class="masthead"></div>
+{% set attendee = app.attendee %}
+{% if account %}
+  {% include 'preregistration/attendee_account.html' %}
+{% endif %}
 <div class="panel panel-default">
+  <div class="panel-heading">
+    Application Information
+  </div>
   <div class="panel-body">
+    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_applications %}
+      {% include 'confirm_tabs.html' with context %}
+    {% endif %}
     <h2>{{ c.EVENT_NAME }} Art Show Application</h2>
       {% if app.status == c.APPROVED %}
       {% if app.status == c.APPROVED %}Congratulations, your application has been approved!{% endif %}
