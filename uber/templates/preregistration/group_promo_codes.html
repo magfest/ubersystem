@@ -1,7 +1,8 @@
-{% extends "./preregistration/preregbase.html" %}
+{% extends "preregistration/preregbase.html" %}
 {% block title %}Group Members{% endblock %}
 {% set attendee = group.buyer %}
 {% block backlink %}
+  {{ super() }}
   {% if c.HAS_REGISTRATION_ACCESS %}
     <a href="../registration/form?id={{ attendee.id }}" style="float:right">Return to Attendee Admin Form</a>
   {% endif %}

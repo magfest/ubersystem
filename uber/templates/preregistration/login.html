@@ -1,33 +1,21 @@
-{% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Login{% endblock %}
-{% block backlink %}{% endblock %}
-{% block content %}
-
-<!-- Custom styles for this template -->
-<link href="../static/styles/login.css" rel="stylesheet">
-
-<div class="container">
-  <form class="form-signin" role="form" method="post" action="../preregistration/login">
-	<h2 class="form-signin-heading">Account Login</h2>
-	<input type="email" class="form-control" placeholder="Email address" name="email"
-		value="{{ email }}" required autofocus />
-	<input type="password" class="form-control" placeholder="Password" name="password" required />
+<form method="post" action="../preregistration/login" class="form-horizontal">
+    <div class="col-sm-6 col-sm-offset-3">
+        <h2>Log in</h2>
+    </div>
     <input type="hidden" name="original_location" value="{{ original_location }}" />
-	<button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
- 
- <div class="text-center">
-	{% if c.AT_THE_CON %}
-		Contact STOPS if you've forgotten your username/password.
-    {% else %}
-        <a href="reset">Forgot your password?</a>
-    {% endif %}
-</div>
-<br>
-<div class="well">
-	Note: This login is for attendees only.  If you are a staffer wanting to sign
-	up for shifts, you may <a href="../staffing/login">log in here</a>.
-</div> 
-  </form>
-</div>
-
-{% endblock %}
+    <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-3">
+            <input type="email" class="form-control" placeholder="Email address" name="email"
+    value="{{ email }}" required autofocus />
+        </div>
+    </div>
+    <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-3">
+            <input type="password" class="form-control" placeholder="Password" name="password" required />
+        </div>
+    </div>
+    <div class="col-sm-3 col-sm-offset-3">
+        <button class="btn btn-success" type="submit">Log in</button>
+    </div>
+    <div class="col-sm-3 text-right"><a href="../preregistration/reset">Forgot your password?</a></div>
+</form>

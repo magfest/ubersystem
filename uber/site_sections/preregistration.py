@@ -1000,11 +1000,7 @@ class Root:
                 ensure_csrf_token_exists()
                 raise HTTPRedirect(original_location)
 
-        return {
-            'message': message,
-            'email':   params.get('email', ''),
-            'original_location': original_location,
-        }
+        raise HTTPRedirect('../landing/index?message={}&original_location={}&email={}', message, original_location, params.get('email', ''))
 
     @requires_account()
     def homepage(self, session, message=''):
@@ -1057,7 +1053,7 @@ class Root:
         attendee.placeholder = placeholder
         if not message and attendee.placeholder:
             message = 'You are not yet registered!  You must fill out this form to complete your registration.'
-        elif not message:
+        elif not message and not c.ATTENDEE_ACCOUNTS_ENABLED:
             message = 'You are already registered but you may update your information with this form.'
 
         return {

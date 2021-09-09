@@ -1,8 +1,9 @@
-{% extends "./preregistration/preregbase.html" %}
+{% extends "preregistration/preregbase.html" %}
 {% set page_ro = True if group.status in [c.APPROVED, c.CANCELLED, c.DECLINED] else False %}
 {% import "fields/group.html" as group_fields with context %}
 {% block title %}Group Members{% endblock %}
 {% block backlink %}
+{{ super() }}
     {% if c.HAS_GROUP_ADMIN_ACCESS %}
         <a href="../group_admin/form?id={{ group.id }}" style="float:right">Return to Group Admin Form</a>
     {% endif %}

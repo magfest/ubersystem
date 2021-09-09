@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block head_javascript %}
     {{ super() }}
-
-
 {% endblock head_javascript %}
+{% block backlink %}
+{% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+    <a class="btn btn-danger pull-right" href="../preregistration/logout">Logout</a>
+{% endif %}
+{% endblock %}

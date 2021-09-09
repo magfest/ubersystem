@@ -1,4 +1,5 @@
 from itertools import chain
+from uber.models.attendee import AttendeeAccount
 
 import cherrypy
 from pockets import groupify, listify
@@ -86,6 +87,11 @@ class Root:
         attendee.promo_code = None
         attendee.badge_status = c.NEW_STATUS
         raise HTTPRedirect('../registration/form?id={}&message={}', id, "Promo code removed.")
+
+    def attendee_accounts(self, session):
+        return {
+            'accounts': session.query(AttendeeAccount).all(),
+        }
 
     def import_attendees(self, session, target_server='', api_token='', query='', message=''):
         service, service_message, target_url = get_api_service_from_server(target_server, api_token)

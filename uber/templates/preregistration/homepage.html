@@ -1,25 +1,61 @@
-{% extends "base.html" %}
+{% extends "preregistration/preregbase.html" %}
 {% block title %}Manage Your Registrations{% endblock %}
 {% block backlink %}
+    {{ super() }}
     {% if c.HAS_REGISTRATION_ACCESS and false %}
         <a href="../registration/form?id={{ attendee.id }}" style="float:right">Return to Attendee Admin Form</a>
     {% endif %}
 {% endblock %}
 {% block content %}
 {% include 'prereg_masthead.html' %}
+{% include 'preregistration/update_account.html' %}
 <div class="panel panel-default">
     <div class="panel-heading">
-        Your Registrations
+        Registrations
     </div>
-    <div class="panel-body">
-        <table>
+    <div class="table-responsive">
+        <table class="table table-striped datatable">
+        <thead>
+            <tr>
+            <th>Registration</th>
+            <th>Art Show</th>
+            <th>Marketplace</th>
+            <th></th>
+            </tr>
+        </thead>
+        <tbody>
         {% for attendee in account.attendees %}
-          <tr>
-            <td></td>
-            <td><a href="../preregistration/confirm?id={{ attendee.id }}" target="_blank">{{ attendee.full_name }}</a></td>
-          </tr>
+            <tr id="{{ account.email|idize }}">
+            <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
+                <a href="../preregistration/confirm?id={{ attendee.id }}" target="_blank">{{ attendee.full_name }}</a>
+                {% if attendee.is_group_leader %}(<a href="../preregistration/group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>){% endif %}
+            </td>
+            <td>
+                {% for app in attendee.art_show_applications %}
+                <a href="../art_show_applications/edit?id={{ app.id }}" target="_blank">{{ app.display_name }}</a>
+                {% else %} N/A
+                {% endfor %}
+            </td>
+            <td>
+                {% for app in attendee.marketplace_applications %}
+                <a href="../marketplace_applications/edit?id={{ app.id }}" target="_blank">{{ app.display_name }}</a>
+                {% else %} N/A
+                {% endfor %}
+            </td>
+            <td>
+                <form class="form update-form" method="post" action="grant_account">
+                <input type="hidden" name="id" value="{{ account.id }}" />
+                {{ csrf_token() }}
+                <button type="submit" class="btn btn-sm btn-primary btn-info">
+                    <span class="glyphicon glyphicon-repeat"></span> Create Account
+                </button>
+                </form>
+                
+            </td>
+            </tr>
         {% endfor %}
-      </table>
+        </tbody>
+        </table>
     </div>
 </div>
 {% endblock %}
