@@ -181,9 +181,10 @@ def requires_account(model=None):
             if not c.ATTENDEE_ACCOUNTS_ENABLED:
                 return func(*args, **kwargs)
             with uber.models.Session() as session:
+                admin_account_id = cherrypy.session.get('account_id')
                 attendee_account_id = cherrypy.session.get('attendee_account_id')
                 message = ''
-                if attendee_account_id is None:
+                if attendee_account_id is None and admin_account_id is None:
                     message = 'You are not logged in'
                 elif kwargs.get('id') and model:
                     check_id_for_model(model, **kwargs)
@@ -191,6 +192,11 @@ def requires_account(model=None):
                         attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
                     else: 
                         attendee = session.query(model).filter_by(id=kwargs.get('id')).first().attendee
+                    
+                    # Admin account override
+                    if session.admin_attendee_max_access(attendee):
+                        return func(*args, **kwargs)
+                    
                     account = session.query(AttendeeAccount).get(attendee_account_id)
                     
                     if account not in attendee.managers:
