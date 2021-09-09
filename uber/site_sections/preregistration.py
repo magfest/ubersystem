@@ -256,32 +256,37 @@ class Root:
 
             if not message:
                 if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
-                    attendee.paid = c.PAID_BY_GROUP
-                    group.attendees = [attendee]
-                    session.assign_badges(group, params['badges'])
-                    group.status = c.WAITLISTED if c.DEALER_REG_SOFT_CLOSED else c.UNAPPROVED
-                    attendee.ribbon = add_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
-                    attendee.badge_type = c.ATTENDEE_BADGE
+                    account_email, account_password = params.get('account_email'), params.get('account_password')
+                    message = check_account(account_email, account_password, params.get('confirm_password'))
+                    if not message:
+                        new_account = session.create_attendee_account(account_email, account_password)
+                        session.add_attendee_to_account(attendee, new_account)
+                        attendee.paid = c.PAID_BY_GROUP
+                        group.attendees = [attendee]
+                        session.assign_badges(group, params['badges'])
+                        group.status = c.WAITLISTED if c.DEALER_REG_SOFT_CLOSED else c.UNAPPROVED
+                        attendee.ribbon = add_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
+                        attendee.badge_type = c.ATTENDEE_BADGE
 
-                    session.add_all([attendee, group])
-                    session.commit()
-                    try:
-                        send_email.delay(
-                            c.MARKETPLACE_EMAIL,
-                            c.MARKETPLACE_EMAIL,
-                            '{} Received'.format(c.DEALER_APP_TERM.title()),
-                            render('emails/dealers/reg_notification.txt', {'group': group}, encoding=None),
-                            model=group.to_dict('id'))
-                        send_email.delay(
-                            c.MARKETPLACE_EMAIL,
-                            attendee.email,
-                            '{} Received'.format(c.DEALER_APP_TERM.title()),
-                            render('emails/dealers/application.html', {'group': group}, encoding=None),
-                            'html',
-                            model=group.to_dict('id'))
-                    except Exception:
-                        log.error('unable to send marketplace application confirmation email', exc_info=True)
-                    raise HTTPRedirect('dealer_confirmation?id={}', group.id)
+                        session.add_all([attendee, group])
+                        session.commit()
+                        try:
+                            send_email.delay(
+                                c.MARKETPLACE_EMAIL,
+                                c.MARKETPLACE_EMAIL,
+                                '{} Received'.format(c.DEALER_APP_TERM.title()),
+                                render('emails/dealers/reg_notification.txt', {'group': group}, encoding=None),
+                                model=group.to_dict('id'))
+                            send_email.delay(
+                                c.MARKETPLACE_EMAIL,
+                                attendee.email,
+                                '{} Received'.format(c.DEALER_APP_TERM.title()),
+                                render('emails/dealers/application.html', {'group': group}, encoding=None),
+                                'html',
+                                model=group.to_dict('id'))
+                        except Exception:
+                            log.error('unable to send marketplace application confirmation email', exc_info=True)
+                        raise HTTPRedirect('dealer_confirmation?id={}', group.id)
                 else:
                     track_type = c.UNPAID_PREREG
                     if attendee.id in Charge.unpaid_preregs:
@@ -295,19 +300,20 @@ class Root:
                                                                                params.get('badges'))
                     Tracking.track(track_type, attendee)
 
-                if session.attendees_with_badges().filter_by(
-                        first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
+                if not message:
+                    if session.attendees_with_badges().filter_by(
+                            first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
 
-                    raise HTTPRedirect('duplicate?id={}', group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
+                        raise HTTPRedirect('duplicate?id={}', group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
 
-                if attendee.banned:
-                    raise HTTPRedirect('banned?id={}', group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
+                    if attendee.banned:
+                        raise HTTPRedirect('banned?id={}', group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
 
-                if c.PREREG_REQUEST_HOTEL_INFO_OPEN:
-                    hotel_page = 'hotel?edit_id={}' if edit_id else 'hotel?id={}'
-                    raise HTTPRedirect(hotel_page, group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
-                else:
-                    raise HTTPRedirect('index')
+                    if c.PREREG_REQUEST_HOTEL_INFO_OPEN:
+                        hotel_page = 'hotel?edit_id={}' if edit_id else 'hotel?id={}'
+                        raise HTTPRedirect(hotel_page, group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
+                    else:
+                        raise HTTPRedirect('index')
 
         else:
             if edit_id is None:
@@ -331,6 +337,7 @@ class Root:
         return {
             'message':    message,
             'attendee':   attendee,
+            'account_email': params.get('account_email', ''),
             'badges': params.get('badges', 0),
             'name': params.get('name', ''),
             'group':      group,
@@ -1003,7 +1010,10 @@ class Root:
     def homepage(self, session, message=''):
         account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id'))
         if account.has_only_one_badge:
-            raise HTTPRedirect('confirm?id={}&message={}', account.attendees[0].id, message)
+            if account.attendees[0].is_group_leader:
+                raise HTTPRedirect('group_members?id={}&message={}', account.attendees[0].group.id, message)
+            else:
+                raise HTTPRedirect('confirm?id={}&message={}', account.attendees[0].id, message)
         return {
             'message': message,
             'account': account,

@@ -1,0 +1,60 @@
+<form class="form-horizontal" id="account-form">
+    <div class="form-group">
+        <label class="col-sm-6 col-sm-offset-2"><h4>Create New Account</h4></label>
+    </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Email</label>
+    <div class="col-sm-6">
+      <input type="email" class="form-control account-form-input" name="account_email" value="{{ account_email or '' }}" required />
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Password</label>
+    <div class="col-sm-6">
+      <input id="account_password" type="password" class="form-control account-form-input" name="account_password" value="{{ account_password or '' }}" required />
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Confirm Password</label>
+    <div class="col-sm-6">
+      <input id="account_confirm_password" type="password" class="form-control account-form-input" name="confirm_password" value="" required />
+    </div>
+  </div>
+</form>
+<script type="text/javascript">
+  var password = document.getElementById("account_password")
+  , confirm_password = document.getElementById("account_confirm_password");
+
+  function validatePassword(){
+  if(password.value != confirm_password.value) {
+      confirm_password.setCustomValidity("Please make sure the passwords match.");
+  } else {
+      confirm_password.setCustomValidity('');
+  }
+  }
+
+  password.onchange = validatePassword;
+  confirm_password.onkeyup = validatePassword;
+
+  function validateAndIncludeAccountFields(params_list) {
+    if($(".account-form-input")[0].form.checkValidity()) {
+        $(".account-form-input").each(function( index ) {
+          var account_input = $(this);
+          if(typeof params_list !== 'undefined') {
+            params_list[account_input.attr("name")] = account_input.val();
+          }
+          $(".copy-from-account-input").each(function( index ) {
+            if ($(this).attr("name") == account_input.attr("name")) {
+              $(this).val(account_input.val());
+            }
+          });
+        });
+    } else {
+        $(".account-form-input")[0].form.reportValidity();
+        event.preventDefault();
+        return false;
+    }
+    return params_list;
+  }
+  $("#account-form").submit(function () { event.preventDefault(); return false; });
+</script>
