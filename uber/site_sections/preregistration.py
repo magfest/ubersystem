@@ -75,7 +75,10 @@ def rollback_prereg_session(session, stripe_intent_id, account_id=None):
     Charge.pending_preregs.clear()
     session.commit()
 
-def check_account(email, password, confirm_password):
+def check_account(session, email, password, confirm_password):
+    if session.current_attendee_account():
+        return
+    
     if not email:
         return 'Please enter an email address.'
     if not password:
@@ -84,6 +87,20 @@ def check_account(email, password, confirm_password):
         return 'Password confirmation does not match.'
     
     return valid_email(email)
+
+def add_to_new_or_existing_account(session, attendee, **params):
+    current_account = session.current_attendee_account()
+    if current_account:
+        session.add_attendee_to_account(attendee, current_account)
+        return
+    
+    account_email, account_password = params.get('account_email'), params.get('account_password')
+    message = check_account(session, account_email, account_password, params.get('confirm_password'))
+    if not message:
+        new_account = session.create_attendee_account(account_email, account_password)
+        session.add_attendee_to_account(attendee, new_account)
+    return message
+
 
 @all_renderable(public=True)
 @check_post_con
@@ -148,6 +165,7 @@ class Root:
                     if real_code and real_code.group:
                         attendee.promo_group_name = real_code.group.name
             return {
+                'logged_in_account': session.current_attendee_account(),
                 'message': message,
                 'charge': charge,
                 'account_email': account_email or charge.attendees[0].email,
@@ -232,6 +250,7 @@ class Root:
 
         if message:
             return {
+                'logged_in_account': session.current_attendee_account(),
                 'message':    message,
                 'attendee':   attendee,
                 'group':      group,
@@ -259,11 +278,9 @@ class Root:
 
             if not message:
                 if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
-                    account_email, account_password = params.get('account_email'), params.get('account_password')
-                    message = check_account(account_email, account_password, params.get('confirm_password'))
+                    add_to_new_or_existing_account(session, attendee, **params)
+
                     if not message:
-                        new_account = session.create_attendee_account(account_email, account_password)
-                        session.add_attendee_to_account(attendee, new_account)
                         attendee.paid = c.PAID_BY_GROUP
                         group.attendees = [attendee]
                         session.assign_badges(group, params['badges'])
@@ -338,6 +355,7 @@ class Root:
             promo_code_group = session.query(PromoCode).filter_by(code=attendee.promo_code.code).first().group
 
         return {
+            'logged_in_account': session.current_attendee_account(),
             'message':    message,
             'attendee':   attendee,
             'account_email': params.get('account_email', ''),
@@ -409,10 +427,9 @@ class Root:
 
     def process_free_prereg(self, session, message='', **params):
         account_email, account_password = params.get('account_email'), params.get('account_password')
-        message = check_account(account_email, account_password, params.get('confirm_password'))
+        message = check_account(session, account_email, account_password, params.get('confirm_password'))
         if message:
             return {'error': message}
-        new_account = session.create_attendee_account(account_email, account_password)
         
         charge = Charge(listify(Charge.unpaid_preregs.values()))
         if charge.total_cost <= 0:
@@ -424,7 +441,7 @@ class Root:
                     session.rollback()
                     raise HTTPRedirect('index?message={}', message)
                 else:
-                    session.add_attendee_to_account(attendee, new_account)
+                    add_to_new_or_existing_account(session, attendee, **params)
 
             for group in charge.groups:
                 session.add(group)
@@ -460,11 +477,14 @@ class Root:
             return {'error': message}
 
         account_email, account_password = params.get('account_email'), params.get('account_password')
-        message = check_account(account_email, account_password, params.get('confirm_password'))
+        message = check_account(session, account_email, account_password, params.get('confirm_password'))
         if message:
             return {'error': message}
-        new_account = session.create_attendee_account(account_email, account_password)
-        Charge.attendee_account_id = new_account.id
+
+        new_or_existing_account = session.current_attendee_account()
+        if not new_or_existing_account:
+            new_or_existing_account = session.create_attendee_account(account_email, account_password)
+        Charge.attendee_account_id = new_or_existing_account.id
 
         for attendee in charge.attendees:
             pending_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
@@ -485,12 +505,12 @@ class Root:
                     session.delete(receipt_item)
                 
                 pending_attendee.amount_paid_override = pending_attendee.total_cost
-                session.add_attendee_to_account(pending_attendee, new_account)
+                session.add_attendee_to_account(pending_attendee, new_or_existing_account)
             else:
                 attendee.badge_status = c.PENDING_STATUS
                 attendee.paid = c.PENDING
                 session.add(attendee)
-                session.add_attendee_to_account(attendee, new_account)
+                session.add_attendee_to_account(attendee, new_or_existing_account)
                 
                 if attendee.badges:
                     pc_group = session.create_promo_code_group(attendee, attendee.name, int(attendee.badges) - 1)
@@ -513,7 +533,7 @@ class Root:
         return {'stripe_intent': stripe_intent,
                 'success_url': 'paid_preregistrations?total_cost={}&message={}'.format(
                     charge.dollar_amount, 'Payment accepted!'),
-                'cancel_url': 'cancel_prereg_payment?account_id={}'.format(new_account.id)}
+                'cancel_url': 'cancel_prereg_payment?account_id={}'.format(new_or_existing_account.id)}
 
     @ajax
     def cancel_prereg_payment(self, session, stripe_id=None, account_id=None):
@@ -1018,9 +1038,10 @@ class Root:
             'account': account,
         }
     
-    def logout(self):
+    def logout(self, return_to=''):
         cherrypy.session.pop('attendee_account_id', None)
-        raise HTTPRedirect('login?message={}', 'You have been logged out')
+        return_to = return_to or '/preregistration/login'
+        raise HTTPRedirect('..{}?message={}', return_to, 'You have been logged out.')
 
     @id_required(Attendee)
     @requires_account(Attendee)
@@ -1143,7 +1164,7 @@ class Root:
         
         if cherrypy.request.method == 'POST':
             account_password = params.get('account_password')
-            message = check_account(account_email, account_password, params.get('confirm_password'))
+            message = check_account(session, account_email, account_password, params.get('confirm_password'))
 
             if not message:
                 account.email = account_email

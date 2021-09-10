@@ -1,3 +1,8 @@
+{% if logged_in_account %}
+<div class="text-center">You are currently logged in as <strong>{{ logged_in_account.email }}</strong>.
+Your {{ 'registration(s)' if c.PAGE_PATH == '/preregistration/index' else 'application' }} will be added to your account.
+<a href="../preregistration/logout?return_to={{ c.PAGE_PATH }}" class="btn btn-sm btn-danger">Logout</a></div>
+{% else %}
 <form class="form-horizontal" id="account-form"{% if post_to %} method="post" action="{{ post_to }}"{% endif %}>
     <div class="form-group">
         <label class="col-sm-6 col-sm-offset-2"><h4>{{ account_form_label or 'Create New Account' }}</h4></label>
@@ -65,3 +70,4 @@
   $("#account-form").submit(function () { event.preventDefault(); return false; });
   {% endif %}
 </script>
+{% endif %}

@@ -38,6 +38,22 @@
             </div>
         </form>
     </div>
+    <div class="panel-footer">
+        <div class="btn-group">
+            <a href="../preregistration/form" class="btn btn-primary" target="_blank">Add Registration(s)</a>
+            {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
+            <a href="../preregistration/dealer_registration" class="btn btn-success" target="_blank">Apply as Dealer</a>
+            {% endif %}
+            {% if attendee %}
+                {% if c.ART_SHOW_OPEN %}
+                <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-info" target="_blank">Apply for Art Show</a>
+                {% endif %}
+                {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE %}
+                <a href="../marketplace/index?attendee_id={{ attendee.id }}" class="btn btn-default" target="_blank">Apply for Marketplace</a>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
 </div>
 
 <script type="text/javascript">

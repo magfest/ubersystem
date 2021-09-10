@@ -33,20 +33,30 @@
             <td>
                 {% for app in attendee.art_show_applications %}
                 <a href="../art_show_applications/edit?id={{ app.id }}" target="_blank">{{ app.display_name }}</a>
-                {% else %} N/A
+                {% else %}
+                    {% if c.ART_SHOW_OPEN %}
+                    <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-info" target="_blank">Apply for Art Show</a>
+                    {% else %}
+                    N/A
+                    {% endif %}
                 {% endfor %}
             </td>
             <td>
                 {% for app in attendee.marketplace_applications %}
                 <a href="../marketplace_applications/edit?id={{ app.id }}" target="_blank">{{ app.display_name }}</a>
-                {% else %} N/A
+                {% else %}
+                    {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE %}
+                    <a href="../marketplace/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-default" target="_blank">Apply for Marketplace</a>
+                    {% else %}
+                    N/A
+                    {% endif %}
                 {% endfor %}
             </td>
             <td>
                 <form class="form update-form" method="post" action="grant_account">
                 <input type="hidden" name="id" value="{{ account.id }}" />
                 {{ csrf_token() }}
-                <button type="submit" class="btn btn-sm btn-primary btn-info">
+                <button type="submit" class="btn btn-sm btn-primary btn-primary">
                     <span class="glyphicon glyphicon-repeat"></span> Create Account
                 </button>
                 </form>

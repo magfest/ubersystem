@@ -67,7 +67,9 @@ var callStripeAction = function () {
     {% for key, val in params.items() %}
         stripe_action_params['{{ key }}'] = '{{ val }}';
     {% endfor %}
-    validateAndIncludeAccountFields(stripe_action_params);
+    if(typeof(validateAndIncludeAccountFields) != 'undefined') {
+        validateAndIncludeAccountFields(stripe_action_params);
+    }
     stripe_action_params.csrf_token = csrf_token;
     $.post('{{ action }}', stripe_action_params, 
     function(result) {

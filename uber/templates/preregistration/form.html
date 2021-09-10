@@ -19,11 +19,13 @@
     {% include 'preregistration/new_or_login_account.html' %}
   </div>
 </div>
+{% if not logged_in_account %}
 <script type="text/javascript">
 $(document).ready(function() {
   $("form").submit(function () { validateAndIncludeAccountFields(); });
 })
 </script>
+{% endif %}
 {% endif %}
 <div class="panel panel-default">
   <div class="panel-body">
