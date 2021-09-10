@@ -24,8 +24,9 @@
                 <nobr>{%- if not loop.first -%}/ {% endif %}<a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a></nobr>
                 {% endfor %} </td>
             <td>
-                <form class="form update-form" method="post" action="reset_password">
-                <input type="hidden" name="id" value="{{ account.id }}" />
+                <form class="form update-form" method="post" action="../preregistration/reset_password">
+                <input type="hidden" name="account_email" value="{{ account.email }}" />
+                <input type="hidden" name="is_admin" value=1 />
                 {{ csrf_token() }}
                 <button type="submit" class="btn btn-sm btn-primary btn-warning">
                     <span class="glyphicon glyphicon-repeat"></span> Reset Password

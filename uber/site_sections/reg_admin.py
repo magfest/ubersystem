@@ -88,8 +88,9 @@ class Root:
         attendee.badge_status = c.NEW_STATUS
         raise HTTPRedirect('../registration/form?id={}&message={}', id, "Promo code removed.")
 
-    def attendee_accounts(self, session):
+    def attendee_accounts(self, session, message=''):
         return {
+            'message': message,
             'accounts': session.query(AttendeeAccount).all(),
         }
 

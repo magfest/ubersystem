@@ -1926,6 +1926,7 @@ attendee_attendee_account = Table(
 class AttendeeAccount(MagModel):
     email = Column(UnicodeText)
     hashed = Column(UnicodeText, private=True)
+    password_reset = relationship('PasswordReset', backref='attendee_account', uselist=False)
     attendees = relationship(
         'Attendee', backref='managers', cascade='save-update,merge,refresh-expire,expunge',
         secondary='attendee_attendee_account')

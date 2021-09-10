@@ -498,19 +498,6 @@ def check_pii_consent(params, attendee=None):
     return ''
 
 
-def valid_password(password, account, pr_enabled=True):
-    import bcrypt
-    pr = None
-    if pr_enabled:
-        pr = account.password_reset
-        if pr and pr.is_expired:
-            account.session.delete(pr)
-            pr = None
-
-    all_hashed = [account.hashed] + ([pr.hashed] if pr else [])
-    return any(bcrypt.hashpw(password, hashed) == hashed for hashed in all_hashed)
-
-
 def check_csrf(csrf_token=None):
     """
     Accepts a csrf token (and checks the request headers if None is provided)

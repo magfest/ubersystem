@@ -1,6 +1,7 @@
 import json
 from datetime import timedelta
 from functools import wraps
+from uber.models.admin import PasswordReset
 from uber.models.marketplace import MarketplaceApplication
 from uber.models.art_show import ArtShowApplication
 
@@ -17,7 +18,7 @@ from uber.decorators import ajax, all_renderable, check_if_can_reg, credit_card,
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, PromoCode, PromoCodeGroup, Tracking
 from uber.tasks.email import send_email
-from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, valid_email, valid_password, Charge
+from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, genpasswd, valid_email, Charge
 
 
 def check_post_con(klass):
@@ -75,6 +76,8 @@ def rollback_prereg_session(session, stripe_intent_id, account_id=None):
     session.commit()
 
 def check_account(email, password, confirm_password):
+    if not email:
+        return 'Please enter an email address.'
     if not password:
         return 'Please enter a password.'
     if password != confirm_password:
@@ -992,7 +995,7 @@ class Root:
             account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(params.get('email', ''))).first()
             if not account:
                 message = 'No account exists for that email address'
-            if not valid_password(params['password'], account, False):
+            if not bcrypt.hashpw(params.get('password', ''), account.hashed) == account.hashed:
                 message = 'Incorrect password'
 
             if not message:
@@ -1078,7 +1081,7 @@ class Root:
         message = ''
         if not password:
             message = 'Please enter your current password to make changes to your account.'
-        elif not valid_password(password, account, False):
+        elif not bcrypt.hashpw(password, account.hashed) == account.hashed:
             message = 'Incorrect password'
 
         if not message:
@@ -1094,6 +1097,66 @@ class Root:
             account.email = params.get('email')
             message = 'Account information updated successfully.'
         raise HTTPRedirect('homepage?message={}', message)
+
+    def reset_password(self, session, **params):
+        if 'account_email' in params:
+            account_email = params['account_email']
+            account = session.query(AttendeeAccount).filter_by(email=account_email).first()
+            if 'is_admin' in params:
+                success_url = "../reg_admin/attendee_accounts?message=Password reset email sent."
+            else:
+                success_url = "../landing/index?message=Check your email for a password reset link."
+            if not account:
+                # Avoid letting attendees de facto search for other attendees by email
+                raise HTTPRedirect(success_url)
+            if account.password_reset:
+                session.delete(account.password_reset)
+                session.commit()
+
+            token = genpasswd()
+            session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token, bcrypt.gensalt())))
+
+            body = render('emails/accounts/password_reset.html', {
+                    'account': account, 'token': token}, encoding=None)
+            send_email.delay(
+                c.ADMIN_EMAIL,
+                account.email,
+                c.EVENT_NAME + ' Account Password Reset',
+                body,
+                format='html',
+                model=account.to_dict('id'))
+            
+            raise HTTPRedirect(success_url)
+        return {}
+
+    def new_password_setup(self, session, account_email, token, message='', **params):
+        account = session.query(AttendeeAccount).filter_by(email=account_email).first()
+        if not account or not account.password_reset:
+            message = 'Invalid link. This link may have already been used or replaced.'
+        elif bcrypt.hashpw(token, account.password_reset.hashed) != account.password_reset.hashed:
+            message = 'Invalid token. Did you copy the URL correctly?' + token
+        elif account.password_reset.is_expired:
+            message = 'This link has expired. Please use the "forgot password" option to get a new link.'
+        
+        if message:
+            raise HTTPRedirect('../landing/index?message={}', message)
+        
+        if cherrypy.request.method == 'POST':
+            account_password = params.get('account_password')
+            message = check_account(account_email, account_password, params.get('confirm_password'))
+
+            if not message:
+                account.email = account_email
+                account.hashed = bcrypt.hashpw(account_password, bcrypt.gensalt())
+                session.delete(account.password_reset)
+                cherrypy.session['attendee_account_id'] = account.id
+                raise HTTPRedirect('../preregistration/homepage?message={}', "Success!")
+
+        return {
+            'message': message,
+            'token': token,
+            'account_email': params.get('account_email', account_email),
+        }
 
     @id_required(Attendee)
     @requires_account(Attendee)
