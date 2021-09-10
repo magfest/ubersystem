@@ -2,7 +2,7 @@
     <div class="col-sm-6 col-sm-offset-3">
         <h2>Log in</h2>
     </div>
-    <input type="hidden" name="original_location" value="{{ original_location }}" />
+    <input type="hidden" name="original_location" value="{{ original_location or '' }}" />
     <div class="form-group">
         <div class="col-sm-6 col-sm-offset-3">
             <input type="email" class="form-control" placeholder="Email address" name="email"
