@@ -1027,7 +1027,11 @@ class Root:
 
     @requires_account()
     def homepage(self, session, message=''):
+        if not cherrypy.session.get('attendee_account_id'):
+            raise HTTPRedirect('../landing/')
+
         account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id'))
+
         if account.has_only_one_badge:
             if account.attendees[0].is_group_leader:
                 raise HTTPRedirect('group_members?id={}&message={}', account.attendees[0].group.id, message)
@@ -1037,6 +1041,39 @@ class Root:
             'message': message,
             'account': account,
         }
+
+    @requires_account()
+    @csrf_protected
+    def grant_account(self, session, id, message=''):
+        attendee = session.attendee(id)
+        if not attendee:
+            message = "Something went wrong. Please try again."
+        if not attendee.email:
+            message = "This attendee needs an email address to set up a new account."
+        if not message:
+            token = genpasswd()
+            account = session.query(AttendeeAccount).filter_by(email=attendee.email).first()
+            if account:
+                if account.password_reset:
+                    session.delete(account.password_reset)
+                    session.commit()
+            else:
+                account = session.create_attendee_account(attendee.email)
+                session.add_attendee_to_account(attendee, account)
+            session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token, bcrypt.gensalt())))
+
+            body = render('emails/accounts/new_account.html', {
+                    'attendee': attendee, 'token': token}, encoding=None)
+            send_email.delay(
+                c.ADMIN_EMAIL,
+                account.email,
+                c.EVENT_NAME + ' Account Setup',
+                body,
+                format='html',
+                model=account.to_dict('id'))
+        
+        raise HTTPRedirect('homepage?message={}', message or 
+                'An email has been sent to {} to set up their account.'.format(attendee.email))
     
     def logout(self, return_to=''):
         cherrypy.session.pop('attendee_account_id', None)
@@ -1154,10 +1191,10 @@ class Root:
         account = session.query(AttendeeAccount).filter_by(email=account_email).first()
         if not account or not account.password_reset:
             message = 'Invalid link. This link may have already been used or replaced.'
-        elif bcrypt.hashpw(token, account.password_reset.hashed) != account.password_reset.hashed:
-            message = 'Invalid token. Did you copy the URL correctly?' + token
         elif account.password_reset.is_expired:
             message = 'This link has expired. Please use the "forgot password" option to get a new link.'
+        elif bcrypt.hashpw(token, account.password_reset.hashed) != account.password_reset.hashed:
+            message = 'Invalid token. Did you copy the URL correctly?'
         
         if message:
             raise HTTPRedirect('../landing/index?message={}', message)
@@ -1170,10 +1207,15 @@ class Root:
                 account.email = account_email
                 account.hashed = bcrypt.hashpw(account_password, bcrypt.gensalt())
                 session.delete(account.password_reset)
+                for attendee in account.attendees:
+                    # Make sure only this account manages the attendee if c.ONE_MANAGER_PER_BADGE is set
+                    # This lets us keep attendees under the prior account until their new account is confirmed
+                    session.add_attendee_to_account(attendee, account)
                 cherrypy.session['attendee_account_id'] = account.id
                 raise HTTPRedirect('../preregistration/homepage?message={}', "Success!")
 
         return {
+            'is_new': account.hashed == '',
             'message': message,
             'token': token,
             'account_email': params.get('account_email', account_email),

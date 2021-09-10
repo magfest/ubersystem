@@ -1028,15 +1028,15 @@ class Session(SessionManager):
                     message = 'Email address is a required field.'
             return attendee, message
 
-        def create_attendee_account(self, email, password):
+        def create_attendee_account(self, email, password=None):
             from uber.models import AttendeeAccount
 
-            new_account = AttendeeAccount(email=email, hashed=bcrypt.hashpw(password, bcrypt.gensalt()))
+            new_account = AttendeeAccount(email=email, hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
             self.add(new_account)
             return new_account
 
         def add_attendee_to_account(self, attendee, account):
-            if c.ONE_MANAGER_PER_BADGE and attendee.managers:
+            if c.ONE_MANAGER_PER_BADGE and attendee.managers and account.hashed != '':
                 attendee.managers.clear()
             if attendee not in account.attendees:
                 account.attendees.append(attendee)

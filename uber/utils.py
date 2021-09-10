@@ -543,7 +543,8 @@ def genpasswd():
         if words:
             words = [s.strip() for s in words if "'" not in s and s.islower() and 3 < len(s) < 8]
             return ' '.join(random.choice(words) for i in range(4))
-        return ''.join(chr(randrange(33, 127)) for i in range(8))
+        characters = string.ascii_letters + string.digits
+        return ''.join(random.choice(characters) for i in range(8))
 
 
 # ======================================================================
