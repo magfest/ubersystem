@@ -94,6 +94,14 @@ class Root:
             'accounts': session.query(AttendeeAccount).all(),
         }
 
+    def delete_attendee_account(self, session, id, message='', **params):
+        account = session.attendee_account(id)
+        if not account:
+            message = "No account found!"
+        else:
+            session.delete(account)
+        raise HTTPRedirect('attendee_accounts?message={}', message or 'Account deleted.')
+
     def import_attendees(self, session, target_server='', api_token='', query='', message=''):
         service, service_message, target_url = get_api_service_from_server(target_server, api_token)
         message = message or service_message
