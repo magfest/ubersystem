@@ -159,7 +159,7 @@ class Root:
                 if not last_email or last_email.when < (localized_now() - timedelta(days=7)):
                     send_email.delay(
                         c.REGDESK_EMAIL,
-                        attendee.email,
+                        attendee.email_to_address,
                         subject,
                         render('emails/reg_workflow/prereg_check.txt', {'attendee': attendee}, encoding=None),
                         model=attendee.to_dict('id'))
@@ -316,7 +316,7 @@ class Root:
                                 model=group.to_dict('id'))
                             send_email.delay(
                                 c.MARKETPLACE_EMAIL,
-                                attendee.email,
+                                attendee.email_to_address,
                                 '{} Received'.format(c.DEALER_APP_TERM.title()),
                                 render('emails/dealers/application.html', {'group': group}, encoding=None),
                                 'html',
@@ -820,7 +820,7 @@ class Root:
         try:
             send_email.delay(
                 c.REGDESK_EMAIL,
-                attendee.email,
+                attendee.email_to_address,
                 '{} group registration dropped'.format(c.EVENT_NAME),
                 render('emails/reg_workflow/group_member_dropped.txt', {'attendee': attendee}, encoding=None),
                 model=attendee.to_dict('id'))
@@ -922,7 +922,7 @@ class Root:
                 try:
                     send_email.delay(
                         c.REGDESK_EMAIL,
-                        [old.email, attendee.email, c.REGDESK_EMAIL],
+                        [old.email_to_address, attendee.email_to_address, c.REGDESK_EMAIL],
                         subject,
                         body,
                         model=attendee.to_dict('id'))
@@ -1083,7 +1083,7 @@ class Root:
                     'attendee': attendee, 'token': token}, encoding=None)
             send_email.delay(
                 c.ADMIN_EMAIL,
-                account.email,
+                account.email_to_address,
                 c.EVENT_NAME + ' Account Setup',
                 body,
                 format='html',
@@ -1197,7 +1197,7 @@ class Root:
                     'account': account, 'token': token}, encoding=None)
             send_email.delay(
                 c.ADMIN_EMAIL,
-                account.email,
+                account.email_to_address,
                 c.EVENT_NAME + ' Account Password Reset',
                 body,
                 format='html',

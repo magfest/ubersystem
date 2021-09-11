@@ -79,7 +79,7 @@ class Root:
                 session.commit() # Make sure we update the DB or the email will be wrong!
                 send_email.delay(
                     c.ART_SHOW_EMAIL,
-                    app.email,
+                    app.email_to_address,
                     'Art Show Application Updated',
                     render('emails/art_show/appchange_notification.html',
                            {'app': app}, encoding=None),
@@ -139,7 +139,7 @@ class Root:
         if cherrypy.request.method == 'POST':
             send_email.delay(
                 c.ART_SHOW_EMAIL,
-                app.email,
+                app.email_to_address,
                 'Art Show Pieces Updated',
                 render('emails/art_show/pieces_confirmation.html',
                        {'app': app}, encoding=None), 'html',
@@ -194,7 +194,7 @@ class Root:
             message='Agent removed and code updated'
             send_email.delay(
                 c.ART_SHOW_EMAIL,
-                [app.agent.email, app.attendee.email],
+                [app.agent.email_to_address, app.attendee.email_to_address],
                 '{} Art Show Agent Removed'.format(c.EVENT_NAME),
                 render('emails/art_show/agent_removed.html',
                        {'app': app}, encoding=None), 'html',
@@ -203,7 +203,7 @@ class Root:
 
         send_email.delay(
             c.ART_SHOW_EMAIL,
-            app.attendee.email,
+            app.attendee.email_to_address,
             'New Agent Code for the {} Art Show'.format(c.EVENT_NAME),
             render('emails/art_show/agent_code.html',
                    {'app': app}, encoding=None), 'html',
@@ -258,7 +258,7 @@ class Root:
                     model=app.to_dict('id'))
                 send_email.delay(
                     c.ART_SHOW_EMAIL,
-                    app.email,
+                    app.email_to_address,
                     'Art Show Payment Received',
                     render('emails/art_show/payment_confirmation.txt',
                         {'app': app}, encoding=None),

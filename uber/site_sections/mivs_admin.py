@@ -64,7 +64,7 @@ class Root:
                 }, encoding=None)
                 send_email.delay(
                     c.MIVS_EMAIL,
-                    attendee.email,
+                    attendee.email_to_address,
                     'New {} Ubersystem Account'.format(c.EVENT_NAME),
                     email_body,
                     model=attendee.to_dict('id'))
@@ -193,7 +193,7 @@ class Root:
                 body = render('emails/mivs/video_fixed.txt', {'review': review}, encoding=None)
                 send_email.delay(
                     c.MIVS_EMAIL,
-                    review.judge.email,
+                    review.judge.email_to_address,
                     'MIVS: Video Problems Resolved for {}'.format(review.game.title),
                     body,
                     model=review.judge.to_dict('id'))
@@ -202,7 +202,7 @@ class Root:
                 body = render('emails/mivs/game_fixed.txt', {'review': review}, encoding=None)
                 send_email.delay(
                     c.MIVS_EMAIL,
-                    review.judge.email,
+                    review.judge.email_to_address,
                     'MIVS: Game Problems Resolved for {}'.format(review.game.title),
                     body,
                     model=review.judge.to_dict('id'))

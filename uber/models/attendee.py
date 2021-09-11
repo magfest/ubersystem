@@ -1107,6 +1107,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.badge_status in [c.NEW_STATUS, c.COMPLETED_STATUS]
 
     @property
+    def email_to_address(self):
+        if c.ATTENDEE_ACCOUNTS_ENABLED and self.managers:
+            return [manager.email for manager in self.managers]
+        return self.email
+
+    @property
     def watchlist_guess(self):
         try:
             from uber.models import Session

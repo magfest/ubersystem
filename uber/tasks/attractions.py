@@ -158,7 +158,7 @@ def attractions_send_notifications():
                         type_ = Attendee._NOTIFICATION_EMAIL
                         type_str = 'EMAIL'
                         from_ = c.ATTRACTIONS_EMAIL
-                        to_ = attendee.email
+                        to_ = attendee.email_to_address
                         if is_first_signup:
                             template = 'emails/panels/attractions_welcome.html'
                             subject = 'Welcome to {} Attractions'.format(c.EVENT_NAME)

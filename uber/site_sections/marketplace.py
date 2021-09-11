@@ -77,7 +77,7 @@ class Root:
                 session.commit()  # Make sure we update the DB or the email will be wrong!
                 send_email.delay(
                     c.MARKETPLACE_APP_EMAIL,
-                    app.email,
+                    app.email_to_address,
                     'Marketplace Application Updated',
                     render('emails/marketplace/appchange_notification.html',
                            {'app': app}, encoding=None), 'html',
@@ -121,7 +121,7 @@ class Root:
                         model=app.to_dict('id'))
                     send_email.delay(
                         c.MARKETPLACE_APP_EMAIL,
-                        app.email,
+                        app.email_to_address,
                         'Marketplace Payment Received',
                         render('emails/marketplace/payment_confirmation.txt',
                             {'app': app}, encoding=None),
