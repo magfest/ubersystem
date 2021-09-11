@@ -14,7 +14,7 @@
     </script>
   {% endif %}
 {% include 'prereg_masthead.html' %}
-{% if is_prereg_dealer %}
+{% if is_prereg_dealer or logged_in_account %}
 <div class="panel panel-default">
   <div class="panel-body">
     {% include 'preregistration/new_or_login_account.html' %}

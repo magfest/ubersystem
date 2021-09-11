@@ -1,8 +1,9 @@
 {% if logged_in_account %}
 <div class="text-center">You are currently logged in as <strong>{{ logged_in_account.email }}</strong>.
-Your {{ 'registration(s)' if c.PAGE_PATH == '/preregistration/index' else 'application' }} will be added to your account.
+Your {{ 'application' if 'dealer' in c.PAGE_PATH else 'registration(s)' }} will be added to your account.
 <a href="../preregistration/logout?return_to={{ c.PAGE_PATH }}" class="btn btn-sm btn-danger">Logout</a></div>
 {% else %}
+{% import "fields/account.html" as account_fields with context %}
 <form class="form-horizontal" id="account-form"{% if post_to %} method="post" action="{{ post_to }}"{% endif %}>
     <div class="form-group">
         <label class="col-sm-6 col-sm-offset-2"><h4>{{ account_form_label or 'Create New Account' }}</h4></label>
@@ -16,14 +17,14 @@ Your {{ 'registration(s)' if c.PAGE_PATH == '/preregistration/index' else 'appli
   <div class="form-group">
     <label class="col-sm-3 control-label">Password</label>
     <div class="col-sm-6">
-      <input id="account_password" type="password" class="form-control account-form-input" name="account_password" value="{{ account_password or '' }}" required />
+      <input id="new_password" type="password" class="form-control account-form-input" name="account_password" value="{{ account_password or '' }}" required />
     </div>
     {{ account_fields.password_help }}
   </div>
   <div class="form-group">
     <label class="col-sm-3 control-label">Confirm Password</label>
     <div class="col-sm-6">
-      <input id="account_confirm_password" type="password" class="form-control account-form-input" name="confirm_password" value="" required />
+      <input id="confirm_new_password" type="password" class="form-control account-form-input" name="confirm_password" value="" required />
     </div>
   </div>
   {% if post_to %}
@@ -49,6 +50,7 @@ Your {{ 'registration(s)' if c.PAGE_PATH == '/preregistration/index' else 'appli
         });
     } else {
         $(".account-form-input")[0].form.reportValidity();
+        return false;
     }
     return params_list;
   }
