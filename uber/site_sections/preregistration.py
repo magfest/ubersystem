@@ -18,7 +18,8 @@ from uber.decorators import ajax, all_renderable, check_if_can_reg, credit_card,
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, PromoCode, PromoCodeGroup, Tracking
 from uber.tasks.email import send_email
-from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, genpasswd, valid_email, Charge
+from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, genpasswd, valid_email, \
+    valid_password, Charge
 
 
 def check_post_con(klass):
@@ -75,18 +76,34 @@ def rollback_prereg_session(session, stripe_intent_id, account_id=None):
     Charge.pending_preregs.clear()
     session.commit()
 
-def check_account(session, email, password, confirm_password):
-    if session.current_attendee_account():
+def check_account(session, email, password, confirm_password, new_account_only=True, update_password=True):
+    if session.current_attendee_account() and new_account_only:
         return
-    
+
     if not email:
         return 'Please enter an email address.'
+
+    if valid_email(email):
+        return valid_email(email)
+    
+    if update_password:
+        if not password:
+            return 'Please enter a password.'
+        if password != confirm_password:
+            return 'Password confirmation does not match.'
+
+        return valid_password(password)
+
+def check_account_password(session, password, confirm_password, new_account_only=True):
+    if session.current_attendee_account() and new_account_only:
+        return
+
     if not password:
         return 'Please enter a password.'
     if password != confirm_password:
         return 'Password confirmation does not match.'
-    
-    return valid_email(email)
+
+    return valid_password(password)
 
 def add_to_new_or_existing_account(session, attendee, **params):
     current_account = session.current_attendee_account()
@@ -1132,27 +1149,29 @@ class Root:
     def update_account(self, session, id, **params):
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('homepage')
-
+        
+        message = ''
         account = session.attendee_account(id)
         password = params.get('current_password')
-        new_password = params.get('new_password')
-        message = ''
+
         if not password:
             message = 'Please enter your current password to make changes to your account.'
         elif not bcrypt.hashpw(password, account.hashed) == account.hashed:
             message = 'Incorrect password'
 
         if not message:
-            message = valid_email(params.get('email'))
-
-        if not message and new_password:
-            if new_password != params.pop('confirm_new_password'):
-                message = 'Password confirmation does not match.'
+            if params.get('new_password') == '':
+                new_password = None
+                confirm_password = None
             else:
-                account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
-        
+                new_password = params.get('new_password')
+                confirm_password = params.get('confirm_new_password')
+            message = check_account(session, params.get('account_email'), new_password, confirm_password, False, new_password)
+
         if not message:
-            account.email = params.get('email')
+            if new_password:
+                account.hashed = bcrypt.hashpw(new_password, bcrypt.gensalt())
+            account.email = params.get('account_email')
             message = 'Account information updated successfully.'
         raise HTTPRedirect('homepage?message={}', message)
 
@@ -1201,7 +1220,7 @@ class Root:
         
         if cherrypy.request.method == 'POST':
             account_password = params.get('account_password')
-            message = check_account(session, account_email, account_password, params.get('confirm_password'))
+            message = check_account(session, account_email, account_password, params.get('confirm_password'), False)
 
             if not message:
                 account.email = account_email

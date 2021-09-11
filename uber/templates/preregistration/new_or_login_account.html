@@ -18,6 +18,7 @@ Your {{ 'registration(s)' if c.PAGE_PATH == '/preregistration/index' else 'appli
     <div class="col-sm-6">
       <input id="account_password" type="password" class="form-control account-form-input" name="account_password" value="{{ account_password or '' }}" required />
     </div>
+    {{ account_fields.password_help }}
   </div>
   <div class="form-group">
     <label class="col-sm-3 control-label">Confirm Password</label>
@@ -31,21 +32,8 @@ Your {{ 'registration(s)' if c.PAGE_PATH == '/preregistration/index' else 'appli
   </div>
   {% endif %}
 </form>
+{{ account_fields.new_password_validation }}
 <script type="text/javascript">
-  var password = document.getElementById("account_password")
-  , confirm_password = document.getElementById("account_confirm_password");
-
-  function validatePassword(){
-  if(password.value != confirm_password.value) {
-      confirm_password.setCustomValidity("Please make sure the passwords match.");
-  } else {
-      confirm_password.setCustomValidity('');
-  }
-  }
-
-  password.onchange = validatePassword;
-  confirm_password.onkeyup = validatePassword;
-
   function validateAndIncludeAccountFields(params_list) {
     if($(".account-form-input")[0].form.checkValidity()) {
         $(".account-form-input").each(function( index ) {
@@ -61,8 +49,6 @@ Your {{ 'registration(s)' if c.PAGE_PATH == '/preregistration/index' else 'appli
         });
     } else {
         $(".account-form-input")[0].form.reportValidity();
-        event.preventDefault();
-        return false;
     }
     return params_list;
   }

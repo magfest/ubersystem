@@ -1,3 +1,4 @@
+{% import "fields/account.html" as account_fields with context %}
 <div class="panel panel-default">
     <div class="panel-heading">
         Account Information
@@ -16,7 +17,7 @@
             <div class="form-group">
                 <label for="email" class="col-sm-3 control-label">Account Email</label>
                 <div class="col-sm-6">
-                    <input type="email" name="email" id="email" value="{{ account.email }}" class="form-control" placeholder="Account email address" required>
+                    <input type="email" name="account_email" id="account_email" value="{{ account.email }}" class="form-control" placeholder="Account email address" required>
                 </div>
             </div>
             <div class="form-group">
@@ -24,6 +25,7 @@
                 <div class="col-sm-6">
                     <input type="password" name="new_password" id="new_password" value="" class="form-control" placeholder="Leave blank to keep current password">
                 </div>
+                {{ account_fields.password_help }}
             </div>
             <div class="form-group">
                 <label for="confirm_new_password" class="col-sm-3 control-label">Confirm New Password</label>
@@ -56,18 +58,4 @@
     </div>
 </div>
 
-<script type="text/javascript">
-    var password = document.getElementById("new_password")
-    , confirm_password = document.getElementById("confirm_new_password");
-
-    function validatePassword(){
-    if(password.value != confirm_password.value) {
-        confirm_password.setCustomValidity("Please make sure the passwords match.");
-    } else {
-        confirm_password.setCustomValidity('');
-    }
-    }
-
-    password.onchange = validatePassword;
-    confirm_password.onkeyup = validatePassword;
-</script>
+{{ account_fields.new_password_validation }}

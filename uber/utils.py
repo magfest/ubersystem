@@ -592,6 +592,23 @@ def valid_email(email):
         return 'Enter a valid email address. ' + message
 
 
+def valid_password(password):
+    import re
+
+    if len(password) < c.MINIMUM_PASSWORD_LENGTH:
+        return 'Password must be at least {} characters long.'.format(c.MINIMUM_PASSWORD_LENGTH)
+    if re.search("[^a-zA-Z0-9{}]".format(c.PASSWORD_SPECIAL_CHARS), password):
+        return 'Password must contain only letters, numbers, and the following symbols: {}'.format(c.PASSWORD_SPECIAL_CHARS)
+    if 'lowercase_char' in c.PASSWORD_CONDITIONS and not re.search("[a-z]", password):
+        return 'Password must contain at least one lowercase letter.'
+    if 'uppercase_char' in c.PASSWORD_CONDITIONS and not re.search("[A-Z]", password):
+        return 'Password must contain at least one uppercase letter.'
+    if 'number' in c.PASSWORD_CONDITIONS and not re.search("[0-9]", password):
+        return 'Password must contain at least one number.'
+    if 'special_char' in c.PASSWORD_CONDITIONS and not re.search("[{}]".format(c.PASSWORD_SPECIAL_CHARS), password):
+        return 'Password must contain at least one of the following symbols: {}'.format(c.PASSWORD_SPECIAL_CHARS)
+
+
 class Order:
     def __init__(self, order):
         self.order = order
