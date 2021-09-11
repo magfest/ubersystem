@@ -20,9 +20,9 @@ from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
 from uber import decorators
-from uber.models import AdminAccount, Attendee, ArtShowApplication, AutomatedEmail, Department, Group, GuestGroup, \
-    IndieGame, IndieJudge, IndieStudio, MarketplaceApplication, MITSTeam, MITSApplicant, PanelApplication, PanelApplicant, \
-    PromoCodeGroup, Room, RoomAssignment, Shift
+from uber.models import AdminAccount, Attendee, AttendeeAccount, ArtShowApplication, AutomatedEmail, Department, Group, \
+    GuestGroup, IndieGame, IndieJudge, IndieStudio, MarketplaceApplication, MITSTeam, MITSApplicant, PanelApplication, \
+    PanelApplicant, PromoCodeGroup, Room, RoomAssignment, Shift
 from uber.utils import after, before, days_after, days_before, localized_now, DeptChecklistConf
 
 
@@ -47,6 +47,8 @@ class AutomatedEmailFixture:
             subqueryload(Attendee.depts_where_working),
             subqueryload(Attendee.hotel_requests),
             subqueryload(Attendee.assigned_panelists)),
+        AttendeeAccount: lambda session: session.query(AttendeeAccount).options(
+            subqueryload(AttendeeAccount.attendees)),
         Group: lambda session: session.query(Group).options(
             subqueryload(Group.attendees)).order_by(Group.id),
         PromoCodeGroup: lambda session: session.query(PromoCodeGroup).options(
@@ -150,6 +152,15 @@ AutomatedEmailFixture(
     needs_approval=False,
     allow_at_the_con=True,
     ident='attendee_badge_confirmed')
+
+AutomatedEmailFixture(
+    AttendeeAccount,
+    '{EVENT_NAME} account creation confirmed',
+    'reg_workflow/account_confirmation.html',
+    lambda x: True,
+    needs_approval=False,
+    allow_at_the_con=True,
+    ident='attendee_account_confirmed')
 
 AutomatedEmailFixture(
     PromoCodeGroup,

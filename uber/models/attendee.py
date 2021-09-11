@@ -1107,12 +1107,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.badge_status in [c.NEW_STATUS, c.COMPLETED_STATUS]
 
     @property
-    def email_to_address(self):
-        if c.ATTENDEE_ACCOUNTS_ENABLED and self.managers:
-            return [manager.email for manager in self.managers]
-        return self.email
-
-    @property
     def watchlist_guess(self):
         try:
             from uber.models import Session
@@ -1936,6 +1930,8 @@ class AttendeeAccount(MagModel):
     attendees = relationship(
         'Attendee', backref='managers', cascade='save-update,merge,refresh-expire,expunge',
         secondary='attendee_attendee_account')
+
+    email_model_name = 'account'
 
     @property
     def has_only_one_badge(self):
