@@ -94,17 +94,6 @@ def check_account(session, email, password, confirm_password, new_account_only=T
 
         return valid_password(password)
 
-def check_account_password(session, password, confirm_password, new_account_only=True):
-    if session.current_attendee_account() and new_account_only:
-        return
-
-    if not password:
-        return 'Please enter a password.'
-    if password != confirm_password:
-        return 'Password confirmation does not match.'
-
-    return valid_password(password)
-
 def add_to_new_or_existing_account(session, attendee, **params):
     current_account = session.current_attendee_account()
     if current_account:
@@ -620,14 +609,8 @@ class Root:
             if not code:
                 message = "This code is invalid. If it has not been claimed, please contact us at {}".format(
                     c.REGDESK_EMAIL)
-            elif not params.get('email'):
-                message = "Please enter an email address"
             else:
-                try:
-                    validate_email(params.get('email'))
-                except EmailNotValidError as e:
-                    message = str(e)
-                    message = 'Enter a valid email address. ' + message
+                message = valid_email(params.get('email'))
 
             if not message:
                 send_email.delay(
@@ -688,6 +671,7 @@ class Root:
                         'You payment has been accepted and the codes have been added to your group')}
 
     @id_required(Group)
+    @requires_account(Group)
     @log_pageview
     def group_members(self, session, id, message='', **params):
         group = session.group(id)
@@ -1032,7 +1016,7 @@ class Root:
             account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(params.get('email', ''))).first()
             if not account:
                 message = 'No account exists for that email address'
-            if not bcrypt.hashpw(params.get('password', ''), account.hashed) == account.hashed:
+            elif not bcrypt.hashpw(params.get('password', ''), account.hashed) == account.hashed:
                 message = 'Incorrect password'
 
             if not message:

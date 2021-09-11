@@ -174,7 +174,7 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
 
 
 def requires_account(model=None):
-    from uber.models import Attendee, AttendeeAccount
+    from uber.models import Attendee, AttendeeAccount, Group
     def model_requires_account(func):
         @wraps(func)
         def protected(*args, **kwargs):
@@ -190,7 +190,9 @@ def requires_account(model=None):
                     check_id_for_model(model, **kwargs)
                     if model == Attendee:
                         attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
-                    else: 
+                    elif model == Group:
+                        attendee = session.query(model).filter_by(id=kwargs.get('id')).first().leader
+                    else:
                         attendee = session.query(model).filter_by(id=kwargs.get('id')).first().attendee
                     
                     # Admin account override
