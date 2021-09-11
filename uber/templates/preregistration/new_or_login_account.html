@@ -4,35 +4,47 @@ Your {{ 'application' if 'dealer' in c.PAGE_PATH else 'registration(s)' }} will 
 <a href="../preregistration/logout?return_to={{ c.PAGE_PATH }}" class="btn btn-sm btn-danger">Logout</a></div>
 {% else %}
 {% import "fields/account.html" as account_fields with context %}
-<form class="form-horizontal" id="account-form"{% if post_to %} method="post" action="{{ post_to }}"{% endif %}>
-    <div class="form-group">
-        <label class="col-sm-6 col-sm-offset-2"><h4>{{ account_form_label or 'Create New Account' }}</h4></label>
-    </div>
-  <div class="form-group">
-    <label class="col-sm-3 control-label">Email</label>
-    <div class="col-sm-6">
-      <input type="email" class="form-control account-form-input" name="account_email" value="{{ account_email or '' }}" required />
-    </div>
+<ul class="nav nav-tabs" role="tablist">
+  <li role="presentation" class="active"><a href="#create" aria-controls="create" role="tab" data-toggle="tab">Create Account</a></li>
+  <li role="presentation"><a href="#login" aria-controls="login" role="tab" data-toggle="tab">Log In</a></li>
+</ul>
+<div class="tab-content">
+  <div role="tabpanel" class="tab-pane active" id="create">
+    <form class="form-horizontal" id="account-form"{% if post_to %} method="post" action="{{ post_to }}"{% endif %}>
+      <div class="form-group">
+          <label class="col-sm-6 col-sm-offset-2"><h4>{{ account_form_label }}</h4></label>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Email</label>
+        <div class="col-sm-6">
+          <input type="email" class="form-control account-form-input" name="account_email" value="{{ account_email or '' }}" placeholder="Email address" required />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Password</label>
+        <div class="col-sm-6">
+          <input id="new_password" type="password" class="form-control account-form-input" name="account_password" value="{{ account_password or '' }}" placeholder="Password" required />
+        </div>
+        {{ account_fields.password_help }}
+      </div>
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Confirm Password</label>
+        <div class="col-sm-6">
+          <input id="confirm_new_password" type="password" class="form-control account-form-input" name="confirm_password" value="" placeholder="Confirm Password" required />
+        </div>
+      </div>
+      {% if post_to %}
+      <div class="col-sm-3 col-sm-offset-3">
+        <button class="btn btn-success" type="submit">Submit</button>
+      </div>
+      {% endif %}
+    </form>
   </div>
-  <div class="form-group">
-    <label class="col-sm-3 control-label">Password</label>
-    <div class="col-sm-6">
-      <input id="new_password" type="password" class="form-control account-form-input" name="account_password" value="{{ account_password or '' }}" required />
-    </div>
-    {{ account_fields.password_help }}
+  <div role="tabpanel" class="tab-pane" id="login">
+    {% include 'preregistration/login.html' %}
   </div>
-  <div class="form-group">
-    <label class="col-sm-3 control-label">Confirm Password</label>
-    <div class="col-sm-6">
-      <input id="confirm_new_password" type="password" class="form-control account-form-input" name="confirm_password" value="" required />
-    </div>
   </div>
-  {% if post_to %}
-  <div class="col-sm-3 col-sm-offset-3">
-    <button class="btn btn-success" type="submit">Submit</button>
-  </div>
-  {% endif %}
-</form>
+
 {{ account_fields.new_password_validation }}
 <script type="text/javascript">
   function validateAndIncludeAccountFields(params_list) {

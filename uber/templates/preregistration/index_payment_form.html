@@ -1,4 +1,5 @@
 {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+{% set original_location = ".." ~ c.PAGE_PATH %}
 {% if logged_in_account %}
 {% include '/preregistration/new_or_login_account.html' %}
 <div class="row">
@@ -21,7 +22,7 @@
 </div>
   
 {% include '/preregistration/new_or_login_account.html' %}
-  <div class="form-group">
+  <div class="form-group" id="payment_button">
     <div class="col-sm-6 col-sm-offset-3">
         {% if charge.total_cost > 0 %}
             {{ stripe_form('prereg_payment') }}
@@ -30,6 +31,9 @@
         {% endif %}
     </div>
   </div>
+<script type="text/javascript">
+    $('#payment_button').insertAfter($('#confirm_new_password').parents('.form-group'));
+</script>
 {% endif %}
 {% else %}
 <div class="row">
