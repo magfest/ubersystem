@@ -1,7 +1,7 @@
 {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
 {% set original_location = ".." ~ c.PAGE_PATH %}
 {% if logged_in_account %}
-{% include '/preregistration/new_or_login_account.html' %}
+{% include '/preregistration/create_or_login_account.html' %}
 <div class="row">
     <div class="text-center">
       <a href="form">{{ macros.stripe_button("Add Another Registration") }}</a>
@@ -21,7 +21,7 @@
     <div class="col-sm-6 col-sm-offset-3 form-control-static">or</div>
 </div>
   
-{% include '/preregistration/new_or_login_account.html' %}
+{% include '/preregistration/create_or_login_account.html' %}
   <div class="form-group" id="payment_button">
     <div class="col-sm-6 col-sm-offset-3">
         {% if charge.total_cost > 0 %}

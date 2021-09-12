@@ -58,6 +58,7 @@ class Root:
             'app': app,
             'attendee': attendee,
             'attendee_id': app.attendee_id or params.get('attendee_id', ''),
+            'logged_in_account': session.current_attendee_account(),
             'new_badge': params.get('new_badge', '')
         }
 

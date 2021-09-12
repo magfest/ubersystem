@@ -1,0 +1,29 @@
+{% import "fields/account.html" as account_fields with context %}
+{% if not no_email %}
+<div class="form-group">
+    <label class="col-sm-3 control-label">Email</label>
+    <div class="col-sm-6">
+    <input type="email" class="form-control account-form-input" name="account_email" value="{{ account_email or '' }}" placeholder="Email address" required />
+    </div>
+</div>
+{% endif %}
+<div class="form-group">
+    <label class="col-sm-3 control-label">Password</label>
+    <div class="col-sm-6">
+    <input id="new_password" type="password" class="form-control account-form-input" name="account_password" value="{{ account_password or '' }}" placeholder="Password" required />
+    </div>
+    {{ account_fields.password_help }}
+</div>
+<div class="form-group">
+    <label class="col-sm-3 control-label">Confirm Password</label>
+    <div class="col-sm-6">
+    <input id="confirm_new_password" type="password" class="form-control account-form-input" name="confirm_password" value="" placeholder="Confirm Password" required />
+    </div>
+</div>
+{% if post_to %}
+<div class="col-sm-3 col-sm-offset-3">
+    <button class="btn btn-success" type="submit">Submit</button>
+</div>
+{% endif %}
+
+{{ account_fields.new_password_validation }}

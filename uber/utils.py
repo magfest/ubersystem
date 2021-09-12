@@ -595,6 +595,9 @@ def valid_email(email):
 def valid_password(password):
     import re
 
+    if not password:
+        return 'Please enter a password.'
+
     if len(password) < c.MINIMUM_PASSWORD_LENGTH:
         return 'Password must be at least {} characters long.'.format(c.MINIMUM_PASSWORD_LENGTH)
     if re.search("[^a-zA-Z0-9{}]".format(c.PASSWORD_SPECIAL_CHARS), password):

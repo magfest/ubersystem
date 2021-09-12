@@ -80,16 +80,11 @@ def check_account(session, email, password, confirm_password, new_account_only=T
     if session.current_attendee_account() and new_account_only:
         return
 
-    if not email:
-        return 'Please enter an email address.'
-
     if valid_email(email):
         return valid_email(email)
     
     if update_password:
-        if not password:
-            return 'Please enter a password.'
-        if password != confirm_password:
+        if password and password != confirm_password:
             return 'Password confirmation does not match.'
 
         return valid_password(password)

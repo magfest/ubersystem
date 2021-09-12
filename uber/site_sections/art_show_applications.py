@@ -31,7 +31,6 @@ class Root:
         if cherrypy.request.method == 'POST':
             attendee, message = session.attendee_from_art_show_app(**params)
 
-            # We do an extra check here to handle new attendees
             if attendee and attendee.badge_status == c.NOT_ATTENDING \
                     and app.delivery_method == c.BRINGING_IN:
                 message = 'You cannot bring your own art ' \
@@ -59,6 +58,7 @@ class Root:
             'app': app,
             'attendee': attendee,
             'attendee_id': app.attendee_id or params.get('attendee_id', ''),
+            'logged_in_account': session.current_attendee_account(),
             'not_attending': params.get('not_attending', ''),
             'new_badge': params.get('new_badge', '')
         }

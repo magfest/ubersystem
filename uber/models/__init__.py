@@ -31,7 +31,8 @@ from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
-from uber.utils import check_csrf, normalize_email, normalize_phone, DeptChecklistConf, report_critical_exception
+from uber.utils import check_csrf, normalize_email, normalize_phone, DeptChecklistConf, report_critical_exception, \
+    valid_email, valid_password
 
 
 def _make_getter(model):
@@ -1026,6 +1027,19 @@ class Session(SessionManager):
                 attendee.placeholder = True
                 if not params.get('email', ''):
                     message = 'Email address is a required field.'
+                elif c.ATTENDEE_ACCOUNTS_ENABLED:
+                    if self.current_attendee_account():
+                        self.add_attendee_to_account(attendee, self.current_attendee_account())
+                    else:
+                        password = params.get('account_password')
+                        if password and password != params.get('confirm_password'):
+                            message = 'Password confirmation does not match.'
+                        else:
+                            message = valid_password(password) or valid_email(params.get('email', ''))
+                        if not message:
+                            new_account = self.create_attendee_account(params.get('email', ''), password)
+                            self.add_attendee_to_account(attendee, new_account)
+                            cherrypy.session['attendee_account_id'] = new_account.id
             return attendee, message
 
         def create_attendee_account(self, email, password=None):
