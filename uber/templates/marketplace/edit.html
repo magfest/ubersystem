@@ -4,12 +4,12 @@
 {% set payment_includes_badge = app.attendee.badge_cost and app.attendee.amount_unpaid > app.total_cost %}
 <div class="masthead"></div>
 {% set attendee = app.attendee %}
-{% if account %}
+{% if show_account %}
   {% include 'preregistration/update_account.html' %}
 {% endif %}
 <div class="panel panel-default">
   <div class="panel-heading">
-    Art Show Application
+    Marketplace Application
   </div>
   <div class="panel-body">
     {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_applications %}

@@ -6,7 +6,7 @@
 {% block backlink %}
 {{ super() }}
     {% if c.HAS_REGISTRATION_ACCESS %}
-        <a class="pull-right" href="../registration/form?id={{ attendee.id }}">Return to Attendee Admin Form</a>
+        <a class="pull-right" style="padding-right:5px;" href="../registration/form?id={{ attendee.id }}">Return to Attendee Admin Form</a>
     {% endif %}
 {% endblock %}
 {% block content %}
@@ -29,7 +29,7 @@
 </script>
 
 {% include 'prereg_masthead.html' %}
-{% if account %}
+{% if show_account %}
   {% include 'preregistration/update_account.html' %}
 {% endif %}
 <div class="panel panel-default">

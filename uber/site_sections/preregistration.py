@@ -1117,7 +1117,7 @@ class Root:
             'undoing_extra': undoing_extra,
             'return_to':     return_to,
             'attendee':      attendee,
-            'account':       session.one_badge_attendee_account(),
+            'show_account':  session.one_badge_attendee_account(),
             'message':       message,
             'affiliates':    session.affiliates(),
             'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
