@@ -14,7 +14,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.orm import backref, subqueryload
-from sqlalchemy.schema import Column as SQLAlchemyColumn, ForeignKey, Index, UniqueConstraint
+from sqlalchemy.schema import Column as SQLAlchemyColumn, ForeignKey, Index, Table, UniqueConstraint
 from sqlalchemy.types import Boolean, Date, Integer
 
 import uber
@@ -26,10 +26,11 @@ from uber.models import MagModel
 from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, TakesPaymentMixin
-from uber.utils import add_opt, get_age_from_birthday, hour_day_format, localized_now, mask_string, remove_opt
+from uber.utils import add_opt, get_age_from_birthday, hour_day_format, localized_now, mask_string, normalize_email, \
+    remove_opt
 
 
-__all__ = ['Attendee', 'FoodRestrictions']
+__all__ = ['Attendee', 'AttendeeAccount', 'FoodRestrictions']
 
 
 RE_NONDIGIT = re.compile(r'\D+')
@@ -1095,15 +1096,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def normalized_email(self):
-        return self.normalize_email(self.email)
+        return normalize_email(self.email)
 
     @normalized_email.expression
     def normalized_email(cls):
         return func.replace(func.lower(func.trim(cls.email)), '.', '')
-
-    @classmethod
-    def normalize_email(cls, email):
-        return email.strip().lower().replace('.', '')
 
     @property
     def gets_emails(self):
@@ -1913,6 +1910,40 @@ class Attendee(MagModel, TakesPaymentMixin):
         guest or a +1 comp), or None.
         """
         return self.group and self.group.guest
+
+
+# Many to many association table to tie Attendees to Attendee Accounts
+attendee_attendee_account = Table(
+    'attendee_attendee_account',
+    MagModel.metadata,
+    Column('attendee_id', UUID, ForeignKey('attendee.id')),
+    Column('attendee_account_id', UUID, ForeignKey('attendee_account.id')),
+    UniqueConstraint('attendee_id', 'attendee_account_id'),
+    Index('ix_attendee_attendee_account_attendee_id', 'attendee_id'),
+    Index('ix_attendee_attendee_account_attendee_account_id', 'attendee_account_id'),
+)
+
+class AttendeeAccount(MagModel):
+    email = Column(UnicodeText)
+    hashed = Column(UnicodeText, private=True)
+    password_reset = relationship('PasswordReset', backref='attendee_account', uselist=False)
+    attendees = relationship(
+        'Attendee', backref='managers', cascade='save-update,merge,refresh-expire,expunge',
+        secondary='attendee_attendee_account')
+
+    email_model_name = 'account'
+
+    @property
+    def has_only_one_badge(self):
+        return len(self.attendees) == 1
+
+    @hybrid_property
+    def normalized_email(self):
+        return normalize_email(self.email)
+
+    @normalized_email.expression
+    def normalized_email(cls):
+        return func.replace(func.lower(func.trim(cls.email)), '.', '')
 
 
 class FoodRestrictions(MagModel):

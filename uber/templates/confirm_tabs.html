@@ -37,7 +37,21 @@
     </a>
   </li>
 {% endfor %}
-{% if c.ATTRACTIONS_ENABLED %}
+{% for art_show_app in attendee.art_show_applications %}
+  <li role="presentation"{% if 'art_show_applications' in c.PAGE_PATH %} class="active"{% endif %}>
+    <a href="../art_show_applications/edit?id={{ art_show_app.id }}">
+      <span class="glyphicon glyphicon-picture"></span> Art Show Application{% if art_show_app.display_name != art_show_app.attendee.full_name %} ({{ art_show_app.display_name }}){% endif %}
+    </a>
+  </li>
+{% endfor %}
+{% for marketplace_app in attendee.marketplace_applications %}
+  <li role="presentation"{% if 'marketplace' in c.PAGE_PATH %} class="active"{% endif %}>
+    <a href="../marketplace/edit?id={{ marketplace_app.id }}">
+      <span class="glyphicon glyphicon-shopping-cart"></span> Marketplace Application{% if marketplace_app.business_name %} ({{ marketplace_app.business_name }}){% endif %}
+    </a>
+  </li>
+{% endfor %}
+{% if c.ATTRACTIONS_ENABLED and attractions %}
   <li role="presentation"{% if 'manage' in c.PAGE_PATH %} class="active"{% endif %}>
     <a href="../attractions/manage?id={{ attendee.id }}">
       <span class="bling-icon"></span> Attraction Signups

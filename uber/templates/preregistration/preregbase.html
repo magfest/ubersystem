@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% block head_javascript %}
     {{ super() }}
-
-
 {% endblock head_javascript %}
+{% block backlink %}
+{% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+<div class="pull-right" style="padding-top:5px;">
+    {% if not show_account and c.PAGE_PATH != '/preregistration/homepage' %}<a class="btn btn-info" href="../preregistration/homepage">Homepage</a>{% endif %}
+    <a class="btn btn-danger" href="../preregistration/logout">Logout</a>
+</div>
+{% endif %}
+{% endblock %}

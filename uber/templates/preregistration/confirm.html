@@ -1,11 +1,12 @@
-{% extends "base.html" %}
+{% extends "preregistration/preregbase.html" %}
 {% set name_ro = not attendee.placeholder %}
 {% set assigned_depts_ro = True %}
 {% import "fields/attendee.html" as attendee_fields with context %}
 {% block title %}Confirm Your Details{% endblock %}
 {% block backlink %}
+{{ super() }}
     {% if c.HAS_REGISTRATION_ACCESS %}
-        <a href="../registration/form?id={{ attendee.id }}" style="float:right">Return to Attendee Admin Form</a>
+        <a class="pull-right" style="padding-right:5px;" href="../registration/form?id={{ attendee.id }}">Return to Attendee Admin Form</a>
     {% endif %}
 {% endblock %}
 {% block content %}
@@ -28,9 +29,15 @@
 </script>
 
 {% include 'prereg_masthead.html' %}
+{% if show_account %}
+  {% include 'preregistration/update_account.html' %}
+{% endif %}
 <div class="panel panel-default">
+  <div class="panel-heading">
+    Registration Information
+  </div>
   <div class="panel-body">
-    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups %}
+    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_applications %}
       {% include 'confirm_tabs.html' with context %}
     {% endif %}
     {% block panel_top %}{% endblock %}

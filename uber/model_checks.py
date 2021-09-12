@@ -18,18 +18,17 @@ from urllib.request import urlopen
 
 import cherrypy
 import phonenumbers
-from email_validator import validate_email, EmailNotValidError
 from pockets.autolog import log
 
 from uber.config import c
 from uber.custom_tags import format_currency
 from uber.decorators import prereg_validation, validation
 from uber.models import AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowApplication, ArtShowPiece, \
-    AttendeeTournament, Attraction, AttractionFeature, Department, DeptRole, Event, Group, \
+    AttendeeAccount, AttendeeTournament, Attraction, AttractionFeature, Department, DeptRole, Event, Group, \
     IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio, Job, MarketplaceApplication, \
     MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam, PanelApplicant, PanelApplication, \
     PromoCode, PromoCodeGroup, Sale, Session, WatchList
-from uber.utils import localized_now, Charge
+from uber.utils import localized_now, Charge, valid_email
 
 
 AccessGroup.required = [('name', 'Name')]
@@ -314,21 +313,15 @@ def allowed_to_register(attendee):
 
 @validation.Attendee
 @ignore_unassigned_and_placeholders
-def email(attendee):
-    if len(attendee.email) > 255:
-        return 'Email addresses cannot be longer than 255 characters.'
-    elif not attendee.email:
+def has_email(attendee):
+    if not attendee.email:
         return 'Please enter an email address.'
 
 
 @validation.Attendee
 def attendee_email_valid(attendee):
     if attendee.email and attendee.orig_value_of('email') != attendee.email:
-        try:
-            validate_email(attendee.email)
-        except EmailNotValidError as e:
-            message = str(e)
-            return 'Enter a valid email address. ' + message
+        return valid_email(attendee.email)
 
 
 @validation.Attendee
@@ -903,10 +896,7 @@ def must_select_copyright(game):
 
 @validation.MITSApplicant
 def mits_applicant_email_valid(applicant):
-    try:
-        validate_email(applicant.email)
-    except EmailNotValidError as e:
-        return 'Enter a valid email address. ' + str(e)
+    return valid_email(applicant.email)
 
 
 @validation.MITSApplicant

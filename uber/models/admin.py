@@ -220,14 +220,14 @@ class AdminAccount(MagModel):
 
 
 class PasswordReset(MagModel):
-    account_id = Column(UUID, ForeignKey('admin_account.id'), unique=True)
+    admin_id = Column(UUID, ForeignKey('admin_account.id'), unique=True, nullable=True)
+    attendee_id = Column(UUID, ForeignKey('attendee_account.id'), unique=True, nullable=True)
     generated = Column(UTCDateTime, server_default=utcnow())
     hashed = Column(UnicodeText, private=True)
 
     @property
     def is_expired(self):
-        return self.generated < datetime.now(UTC) - timedelta(days=7)
-
+        return self.generated < datetime.now(UTC) - timedelta(hours=c.PASSWORD_RESET_HOURS)
 
 class AccessGroup(MagModel):
     """

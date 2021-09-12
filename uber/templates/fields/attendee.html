@@ -244,6 +244,8 @@
         // badge types for upgrades. We thus want to hide any badge buttons with a unique badge type if the attendee
         // is a dealer or group leader.
         if ($(BADGE_TYPES.row).size()) {
+            // Actually, don't show any buttons at all for dealers
+            $(BADGE_TYPES.row).toggle($.field('badge_type').val() != '{{ c.PSEUDO_DEALER_BADGE }}')
             $.each(BADGE_TYPES.options, function (i, badgeType) {
                 if (badgeType.badge_type && badgeType.badge_type != {{ c.ATTENDEE_BADGE }}) {
                     var current_button = $(BADGE_TYPES.selector).slice(i, 1+i);
@@ -316,7 +318,7 @@
                     setBadge(REG_TYPES, $.field('name') && $.val('name') ? 1 : 0);  // default to attendee or group
                 }
             {% endif %}
-            makeBadgeMatchExtra();
+            {% if not is_prereg_dealer %}makeBadgeMatchExtra(){% endif %};
             if ($.field('amount_extra')) {
                 {% if not c.PREREG_DONATION_DESCRIPTIONS %}
                     $.field('amount_extra').parents('.form-group').hide();
@@ -1046,7 +1048,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
       </div>
     </div>
   {% endif %}
-  <div class="row"><label class="col-sm-6 col-sm-offset-3">Mailing Address</label></div>
+  <div class="row"><label class="col-sm-6 col-sm-offset-3 address_details{{ attendee_address_suffix }}">Mailing Address</label></div>
   {{ macros.address_form(attendee, update_international=True, is_required=(not admin_area)) }}
 
   <div class="checkbox col-sm-6 col-sm-offset-3">

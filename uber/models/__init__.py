@@ -31,7 +31,8 @@ from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
-from uber.utils import check_csrf, normalize_phone, DeptChecklistConf, report_critical_exception
+from uber.utils import check_csrf, normalize_email, normalize_phone, DeptChecklistConf, report_critical_exception, \
+    valid_email, valid_password
 
 
 def _make_getter(model):
@@ -660,6 +661,15 @@ class Session(SessionManager):
             if getattr(cherrypy, 'session', {}).get('account_id'):
                 return self.admin_account(cherrypy.session.get('account_id')).attendee
 
+        def current_attendee_account(self):
+            if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id'):
+                return self.attendee_account(cherrypy.session.get('attendee_account_id'))
+        
+        def one_badge_attendee_account(self):
+            account = self.current_attendee_account()
+            if account and account.has_only_one_badge:
+                return account
+
         def logged_in_volunteer(self):
             return self.attendee(cherrypy.session.get('staffer_id'))
 
@@ -900,7 +910,13 @@ class Session(SessionManager):
         def delete_txn_by_stripe_id(self, stripe_id):
             stripe_txn = self.query(StripeTransaction).filter_by(stripe_id=stripe_id).first()
             if stripe_txn:
-                self.delete(self.query(ReceiptItem).filter_by(txn_id=stripe_txn.id).first())
+                if stripe_txn.type != c.PENDING:
+                    return # Don't delete completed transactions
+                receipt_items = self.query(ReceiptItem).filter_by(txn_id=stripe_txn.id).all()
+                for receipt_item in receipt_items:
+                    if receipt_item.txn_type != c.PENDING:
+                        return # Don't delete a transaction if it has completed receipt items
+                    self.delete(receipt_item)
                 self.delete(stripe_txn)
 
         def guess_attendee_watchentry(self, attendee, active=True):
@@ -968,7 +984,7 @@ class Session(SessionManager):
                 last_name=last_name,
                 zip_code=zip_code
             ).filter(
-                Attendee.normalized_email == Attendee.normalize_email(email),
+                Attendee.normalized_email == normalize_email(email),
                 Attendee.badge_status != c.INVALID_STATUS
             ).limit(10).all()
 
@@ -1011,7 +1027,33 @@ class Session(SessionManager):
                 attendee.placeholder = True
                 if not params.get('email', ''):
                     message = 'Email address is a required field.'
+                elif c.ATTENDEE_ACCOUNTS_ENABLED:
+                    if self.current_attendee_account():
+                        self.add_attendee_to_account(attendee, self.current_attendee_account())
+                    else:
+                        password = params.get('account_password')
+                        if password and password != params.get('confirm_password'):
+                            message = 'Password confirmation does not match.'
+                        else:
+                            message = valid_password(password) or valid_email(params.get('email', ''))
+                        if not message:
+                            new_account = self.create_attendee_account(params.get('email', ''), password)
+                            self.add_attendee_to_account(attendee, new_account)
+                            cherrypy.session['attendee_account_id'] = new_account.id
             return attendee, message
+
+        def create_attendee_account(self, email, password=None):
+            from uber.models import AttendeeAccount
+
+            new_account = AttendeeAccount(email=email, hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
+            self.add(new_account)
+            return new_account
+
+        def add_attendee_to_account(self, attendee, account):
+            if c.ONE_MANAGER_PER_BADGE and attendee.managers and account.hashed != '':
+                attendee.managers.clear()
+            if attendee not in account.attendees:
+                account.attendees.append(attendee)
 
         def attendee_from_marketplace_app(self, **params):
             attendee, message = self.create_or_find_attendee_by_id(**params)
@@ -1427,7 +1469,7 @@ class Session(SessionManager):
             if ':' in text:
                 target, term = text.split(':', 1)
                 if target == 'email':
-                    return attendees.icontains(Attendee.normalized_email, Attendee.normalize_email(term))
+                    return attendees.icontains(Attendee.normalized_email, normalize_email(term))
                 elif target == 'group':
                     return attendees.icontains(Group.name, term.strip())
 

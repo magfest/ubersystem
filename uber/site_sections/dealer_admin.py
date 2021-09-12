@@ -75,7 +75,7 @@ def _decline_and_convert_dealer_group(session, group, status=c.DECLINED):
                 try:
                     send_email.delay(
                         c.MARKETPLACE_EMAIL,
-                        new_attendee.email,
+                        new_attendee.email_to_address,
                         'Do you still want to come to {}?'.format(c.EVENT_NAME),
                         render('emails/dealers/badge_converted.html', {
                             'attendee': new_attendee,
@@ -138,7 +138,7 @@ class Root:
         if group.email:
             send_email.delay(
                 c.MARKETPLACE_EMAIL,
-                group.email,
+                group.email_to_address,
                 subject,
                 email_text,
                 bcc=c.MARKETPLACE_EMAIL,
