@@ -32,7 +32,7 @@
             </td>
             <td>
                 {% for app in attendee.art_show_applications %}
-                <a href="../art_show_applications/edit?id={{ app.id }}" target="_blank">{{ app.display_name }}</a>
+                <a href="../art_show_applications/edit?id={{ app.id }}" target="_blank">View Application</a>
                 {% else %}
                     {% if c.ART_SHOW_OPEN %}
                     <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-info" target="_blank">Apply for Art Show</a>
@@ -43,7 +43,7 @@
             </td>
             <td>
                 {% for app in attendee.marketplace_applications %}
-                <a href="../marketplace_applications/edit?id={{ app.id }}" target="_blank">{{ app.display_name }}</a>
+                <a href="../marketplace/edit?id={{ app.id }}" target="_blank">View Application</a>
                 {% else %}
                     {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE %}
                     <a href="../marketplace/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-default" target="_blank">Apply for Marketplace</a>
