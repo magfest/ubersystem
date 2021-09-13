@@ -43,14 +43,14 @@
     <div class="panel-footer">
         <div class="btn-group">
             <a href="../preregistration/form" class="btn btn-primary" target="_blank">Add Registration(s)</a>
-            {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
+            {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN and (not group or not group.is_dealer) and (not attendee or not attendee.is_dealer) %}
             <a href="../preregistration/dealer_registration" class="btn btn-success" target="_blank">Apply as Dealer</a>
             {% endif %}
             {% if attendee %}
-                {% if c.ART_SHOW_OPEN %}
+                {% if c.ART_SHOW_OPEN and not attendee.art_show_applications %}
                 <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-info" target="_blank">Apply for Art Show</a>
                 {% endif %}
-                {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE %}
+                {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and not attendee.marketplace_applications %}
                 <a href="../marketplace/index?attendee_id={{ attendee.id }}" class="btn btn-default" target="_blank">Apply for Marketplace</a>
                 {% endif %}
             {% endif %}

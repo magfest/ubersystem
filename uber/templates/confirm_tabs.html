@@ -25,6 +25,13 @@
 </style>
 
 <ul class="nav nav-tabs" role="tablist">
+  {% if attendee.is_group_leader %}
+  <li role="presentation"{% if 'group_members' in c.PAGE_PATH %} class="active"{% endif %}>
+    <a href="../preregistration/group_members?id={{ attendee.group.id }}">
+      <span class="glyphicon glyphicon-briefcase"></span> {% if attendee.group.is_dealer %}Dealer Application{% else %}Manage {{ attendee.group.name }}{% endif %}
+    </a>
+  </li>
+  {% endif %}
   <li role="presentation"{% if 'confirm' in c.PAGE_PATH %} class="active"{% endif %}>
     <a href="../preregistration/confirm?id={{ attendee.id }}">
       <span class="glyphicon glyphicon-user"></span> {{ attendee.full_name }}'s Info

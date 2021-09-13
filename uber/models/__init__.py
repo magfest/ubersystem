@@ -665,8 +665,16 @@ class Session(SessionManager):
             if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id'):
                 return self.attendee_account(cherrypy.session.get('attendee_account_id'))
         
-        def one_badge_attendee_account(self):
-            account = self.current_attendee_account()
+        def one_badge_attendee_account(self, attendee):
+            logged_in_account = self.current_attendee_account()
+            attendee_accounts = attendee.managers
+            if logged_in_account in attendee_accounts:
+                account = logged_in_account
+            elif len(attendee.managers) == 1:
+                account = attendee.managers[0]
+            else:
+                return
+
             if account and account.has_only_one_badge:
                 return account
 

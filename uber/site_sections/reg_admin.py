@@ -4,6 +4,7 @@ from uber.models.attendee import AttendeeAccount
 import cherrypy
 from pockets import groupify, listify
 from sqlalchemy import and_, or_, func
+from sqlalchemy.orm import joinedload, raiseload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c, _config
@@ -91,7 +92,7 @@ class Root:
     def attendee_accounts(self, session, message=''):
         return {
             'message': message,
-            'accounts': session.query(AttendeeAccount).all(),
+            'accounts': session.query(AttendeeAccount).options(joinedload(AttendeeAccount.attendees), raiseload('*')).all(),
         }
 
     def delete_attendee_account(self, session, id, message='', **params):
