@@ -93,7 +93,7 @@ class Root:
         return {
             'message': message,
             'app': app,
-            'show_account': session.one_badge_attendee_account(),
+            'account': session.one_badge_attendee_account(app.attendee),
             'return_to': 'edit?id={}'.format(app.id),
         }
 

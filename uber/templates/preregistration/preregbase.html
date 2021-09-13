@@ -3,9 +3,16 @@
     {{ super() }}
 {% endblock head_javascript %}
 {% block backlink %}
-{% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+{% if c.ATTENDEE_ACCOUNTS_ENABLED or c.HAS_REGISTRATION_ACCESS or c.HAS_GROUP_ADMIN_ACCESS %}
 <div class="pull-right" style="padding-top:5px;">
-    {% if not show_account and c.PAGE_PATH != '/preregistration/homepage' %}<a class="btn btn-info" href="../preregistration/homepage">Homepage</a>{% endif %}
+    {% if c.HAS_REGISTRATION_ACCESS and attendee %}
+    <a class="btn btn-default" href="../registration/form?id={{ attendee.id }}">Admin Form</a>
+    {% elif c.HAS_GROUP_ADMIN_ACCESS and group %}
+    <a class="btn btn-default" href="../group_admin/form?id={{ group.id }}">Admin Form</a>
+    {% endif %}
+    {% if not account and c.PAGE_PATH != '/preregistration/homepage' %}
+    <a class="btn btn-info" href="../preregistration/homepage">Homepage</a>
+    {% endif %}
     <a class="btn btn-danger" href="../preregistration/logout">Logout</a>
 </div>
 {% endif %}

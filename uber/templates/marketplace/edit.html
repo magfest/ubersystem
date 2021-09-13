@@ -4,7 +4,7 @@
 {% set payment_includes_badge = app.attendee.badge_cost and app.attendee.amount_unpaid > app.total_cost %}
 <div class="masthead"></div>
 {% set attendee = app.attendee %}
-{% if show_account %}
+{% if account %}
   {% include 'preregistration/update_account.html' %}
 {% endif %}
 <div class="panel panel-default">

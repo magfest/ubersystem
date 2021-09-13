@@ -701,6 +701,7 @@ class Root:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         return {
             'group':   group,
+            'account': session.one_badge_attendee_account(group.leader),
             'upgraded_badges': len([a for a in group.attendees if a.badge_type in c.BADGE_TYPE_PRICES]),
             'message': message
         }
@@ -1117,7 +1118,7 @@ class Root:
             'undoing_extra': undoing_extra,
             'return_to':     return_to,
             'attendee':      attendee,
-            'show_account':  session.one_badge_attendee_account(),
+            'account':       session.one_badge_attendee_account(attendee),
             'message':       message,
             'affiliates':    session.affiliates(),
             'attractions':   session.query(Attraction).filter_by(is_public=True).all(),

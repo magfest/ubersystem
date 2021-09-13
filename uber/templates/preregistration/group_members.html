@@ -2,12 +2,6 @@
 {% set page_ro = True if group.status in [c.APPROVED, c.CANCELLED, c.DECLINED] else False %}
 {% import "fields/group.html" as group_fields with context %}
 {% block title %}Group Members{% endblock %}
-{% block backlink %}
-{{ super() }}
-    {% if c.HAS_GROUP_ADMIN_ACCESS %}
-        <a href="../group_admin/form?id={{ group.id }}" style="float:right">Return to Group Admin Form</a>
-    {% endif %}
-{% endblock %}
 {% block content %}
 <script type="text/javascript">
     $().ready(function() {
@@ -60,8 +54,15 @@
 </script>
 
 {% include 'prereg_masthead.html' %}
+{% if account %}
+  {% include 'preregistration/update_account.html' %}
+{% endif %}
 <div class="panel panel-default">
   <div class="panel-body">
+    {% if group.leader %}
+    {% set attendee = group.leader %}
+    {% include 'confirm_tabs.html' with context %}
+    {% endif %}
     {% if group.is_dealer %}
       {{ group_fields.status }}
       <h2>"{{ group.name }}" Information</h2>
