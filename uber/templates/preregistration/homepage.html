@@ -22,7 +22,7 @@
             <tr id="{{ account.email|idize }}">
             <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
                 <a href="../preregistration/confirm?id={{ attendee.id }}" target="_blank">{{ attendee.full_name }}</a>
-                {% if attendee.is_group_leader %}(<a href="../preregistration/group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>){% endif %}
+                {% if attendee.group %}({% if attendee.group.leader in account.attendees %}<a href="../preregistration/group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>{% else %}{{ attendee.group.name }}{% endif %}){% endif %}
             </td>
             <td>
                 {% for app in attendee.art_show_applications %}
