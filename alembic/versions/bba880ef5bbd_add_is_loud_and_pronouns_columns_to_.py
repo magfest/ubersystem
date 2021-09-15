@@ -1,7 +1,7 @@
 """Add is_loud and pronouns columns to PanelApplicant
 
 Revision ID: bba880ef5bbd
-Revises: 4c9ae1c0db43
+Revises: 8f8419ebcf27
 Create Date: 2019-07-20 02:57:17.794469
 
 """
@@ -9,7 +9,7 @@ Create Date: 2019-07-20 02:57:17.794469
 
 # revision identifiers, used by Alembic.
 revision = 'bba880ef5bbd'
-down_revision = '4c9ae1c0db43'
+down_revision = '8f8419ebcf27'
 branch_labels = None
 depends_on = None
 

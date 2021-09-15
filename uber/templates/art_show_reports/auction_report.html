@@ -1,0 +1,23 @@
+{% extends "art_show_common/print_form.html" %}{% set admin_area=True %}{% set no_print = True %}
+
+{% block printform %}
+<h3 align="center">{{ "Mature" if mature else "General" }} Auction -- {{ now|datetime("%m/%d/%Y, %-I:%M%p") }}</h3>
+<table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
+  <tr>
+    <th>Piece ID</th>
+    <th>Location</th>
+    <th>Artist Name</th>
+    <th>Piece Name</th>
+    <th>Winning Bid</th>
+  </tr>
+  {% for piece in pieces %}
+  <tr>
+    <td>{{ piece.artist_and_piece_id }}</td>
+    <td>{{ piece.gallery_label }}</td>
+    <td>{{ piece.app.display_name }}</td>
+    <td>{{ piece.name|wordwrap(25, wrapstring="<br />"|safe) }}</td>
+    <td></td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

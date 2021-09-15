@@ -1,7 +1,7 @@
 """Adds fields to panel_application
 
 Revision ID: 3733faf640e9
-Revises: 416eb615ff1a
+Revises: 9359297269a8
 Create Date: 2017-07-25 08:43:56.445034
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-07-25 08:43:56.445034
 
 # revision identifiers, used by Alembic.
 revision = '3733faf640e9'
-down_revision = '416eb615ff1a'
+down_revision = '9359297269a8'
 branch_labels = None
 depends_on = None
 
@@ -68,7 +68,7 @@ def upgrade():
             batch_op.add_column(sa.Column('has_cost', sa.Boolean(), server_default='False', nullable=False))
             batch_op.add_column(sa.Column('length_reason', sa.Unicode(), server_default='', nullable=False))
             batch_op.add_column(sa.Column('length_text', sa.Unicode(), server_default='', nullable=False))
-            batch_op.add_column(sa.Column('livestream', sa.Integer(), server_default=str(c.DONT_CARE), nullable=False))
+            batch_op.add_column(sa.Column('livestream', sa.Integer(), server_default=str(c.OPT_IN), nullable=False))
             batch_op.add_column(sa.Column('need_tables', sa.Boolean(), server_default='False', nullable=False))
             batch_op.add_column(sa.Column('tables_desc', sa.Unicode(), server_default='', nullable=False))
 
@@ -81,7 +81,7 @@ def upgrade():
         op.add_column('panel_application', sa.Column('has_cost', sa.Boolean(), server_default='False', nullable=False))
         op.add_column('panel_application', sa.Column('length_reason', sa.Unicode(), server_default='', nullable=False))
         op.add_column('panel_application', sa.Column('length_text', sa.Unicode(), server_default='', nullable=False))
-        op.add_column('panel_application', sa.Column('livestream', sa.Integer(), server_default=str(c.DONT_CARE), nullable=False))
+        op.add_column('panel_application', sa.Column('livestream', sa.Integer(), server_default=str(c.OPT_IN), nullable=False))
         op.add_column('panel_application', sa.Column('need_tables', sa.Boolean(), server_default='False', nullable=False))
         op.add_column('panel_application', sa.Column('tables_desc', sa.Unicode(), server_default='', nullable=False))
 

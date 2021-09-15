@@ -1,0 +1,238 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Job Form{% endblock %}
+
+{% block page_styles %}
+<style type="text/css">
+  .form-save {
+    margin-top: 30px;
+  }
+
+  .form-group input.btn {
+    margin: 5px 0;
+  }
+
+  .form-group .optional-field {
+    font-weight: normal;
+  }
+
+  .form-group { margin-bottom: 5px }
+  @media (max-width: 768px) {
+    .form-group { margin-bottom: 10px }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% include "shifts_admin/job_menu.html" %}
+
+<h2>
+  {%- if job.is_new -%}
+    <span class="glyphicon glyphicon-plus"></span> New Job
+  {%- else -%}
+    <span class="glyphicon glyphicon-cog"></span> Edit {{ job.name }}
+  {%- endif -%}
+</h2>
+
+<script type="text/javascript">
+    function blank() {
+        var defaults = {
+            name: "",
+            description: "",
+            duration: 1,
+            slots: 1,
+            weight: 1.0
+        };
+        $.each(defaults, function(name, value){
+            $("[name=" + name + "]").val(value);
+        });
+        $("input[type=checkbox]").prop("checked", false);
+    }
+
+    var onDepartmentChange = function() {
+      var deptRolesSelector = '#dept_roles-' + $.field('department_id').val();
+
+      $('.dept_roles').hide();
+      $('input[name="required_roles_ids"]').prop('disabled', true);
+
+      $(deptRolesSelector + ' input').prop('disabled', false);
+      $(deptRolesSelector).show();
+    };
+
+    $(function() {
+      onDepartmentChange();
+      $.field('department_id').on('change', onDepartmentChange);
+    });
+
+    {% if not job.is_new %}
+      $(function() {
+          $("form[action='delete']").submit(function(event){
+              var formToSubmit = this;
+              event.preventDefault();
+              bootbox.confirm({
+                  message: "This will permanently delete this shift. Are you sure?",
+                  buttons: {
+                      confirm: {
+                          label: 'Delete Shift',
+                          className: 'btn-danger'
+                      },
+                      cancel: {
+                          label: 'Nevermind',
+                          className: 'btn-default'
+                      }
+                  },
+                  callback: function (result) {
+                      if(result) {
+                          formToSubmit.submit();
+                      }
+                  }
+              });
+          });
+      });
+    {% endif %}
+</script>
+
+{% if defaults %}
+  <i>
+    Note: To help you enter the same job at multiple times, this form has
+    been filled in using the values of the last shift you created in this
+    department.<br/>
+    <a href="#" onClick="blank(); return false;">Click here</a> to undo
+    these defaults and start with a blank form.
+  </i>
+{% endif %}
+
+<form method="post" action="form" class="form-horizontal form-save" style="max-width: 738px;">
+  <input type="hidden" name="id" value="{{ job.db_id }}" />
+  <input type="hidden" name="type" value="{{ job.type }}" />
+  <input type="hidden" name="from_schedule" value="{{ from_schedule }}" />
+  {{ csrf_token() }}
+  {{ macros.form_group(job, 'name', label='Job Name', is_required=True) }}
+  {{ macros.form_group(job, 'description', label='Description', is_required=True) }}
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Start Time</label>
+    <div class="col-sm-6">
+      <div class="input-group">
+        <input
+        id="start-time"
+        name="start_time"
+        type="text"
+        class="form-control"
+        value="{{ job.start_time.astimezone(c.EVENT_TIMEZONE).strftime('%-m/%-d/%Y %-I:%M %p') if job.start_time else '' }}">
+        <span class="input-group-addon">
+          <span class="glyphicon glyphicon-calendar"></span>
+        </span>
+      </div>
+    </div>
+  </div>
+  {% if job.type == c.SETUP %}
+    {% set min_date = c.SETUP_JOB_START %}
+    {% set max_date = c.EPOCH %}
+  {% elif job.type == c.TEARDOWN %}
+    {% set min_date = c.ESCHATON %}
+    {% set max_date = c.TEARDOWN_JOB_END %}
+  {% elif job.type == c.REGULAR %}
+    {% set min_date = c.EPOCH %}
+    {% set max_date = c.ESCHATON %}
+  {% else %}
+    {% set min_date = c.SETUP_JOB_START %}
+    {% set max_date = c.TEARDOWN_JOB_END %}
+  {% endif %}
+
+  <script type="text/javascript">
+    $('#start-time').datetimepicker({
+      sideBySide: true,
+      useCurrent: false,
+      defaultDate: '{{ min_date.isoformat() }}',
+      minDate: '{{ min_date.isoformat() }}',
+      maxDate: '{{ max_date.isoformat() }}',
+      format: 'M/D/Y h:mm A'
+    });
+  </script>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">{% if job.type != c.REGULAR %}Expected Approximate {% endif %}Duration</label>
+    <div class="col-sm-2"><input type="number" class="form-control" name="duration_hours" value="{{ ((job.duration or 0) / 60)|int }}" /></div>
+    <span class="col-sm-1 form-control-static"> hours</span>
+    <div class="col-sm-2"><input type="number" class="form-control" name="duration_minutes" value="{{ (job.duration or 0) % 60 }}" /></div>
+    <span class="col-sm-1 form-control-static"> minutes</span>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Extra 15{{ macros.popup_link("../static_views/extra15.html") }}</label>
+    <div class="col-sm-6">
+      <div class="form-control-static checkbox">
+        {{ macros.checkbox(job, 'extra15', label='Yes') }}
+      </div>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Slots</label>
+    <div class="col-sm-6">
+      <select name="slots" class="form-control">
+        {{ int_options(1, 50, job.slots) }}
+      </select>
+      {% if not job.is_new %}<i>{{ job.shifts|length }} already filled</i>{% endif %}
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Weight{{ macros.popup_link("../static_views/weightDesc.html") }}</label>
+    <div class="col-sm-6">
+      <select name="weight" class="form-control">
+        {{ options(c.WEIGHT_OPTS, job.weight) }}
+      </select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Department</label>
+    <div class="col-sm-6">
+      <select name="department_id" class="form-control">
+        {{ options(dept_opts, job.department_id) }}
+      </select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Visibility{{ macros.popup_link("../static_views/visibility.html") }}</label>
+    <div class="col-sm-6">
+      <select name="visibility" class="form-control">
+        {{ options(job._VISIBILITY_OPTS, job.visibility) }}
+      </select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="col-sm-3 control-label">Required Roles{{ macros.popup_link("../static_views/trustDesc.html") }}</label>
+    <div class="col-sm-9">
+      <div class="form-control-static">
+        {%- for department_id, dept_roles_opts in dept_roles.items() -%}
+          <div id="dept_roles-{{ department_id }}" class="dept_roles">
+            {{ macros.checkgroup_opts(
+                  'required_roles_ids',
+                  dept_roles_opts,
+                  defaults=job.required_roles_ids or defaults.required_roles_ids,
+                  include_empty_hidden=True) }}
+          </div>
+        {%- endfor -%}
+      </div>
+    </div>
+  </div>
+  <div class="form-group">
+    <div class="col-sm-9 col-sm-offset-3">
+      <input type="submit" class="btn btn-primary" value="Save Job" />
+    </div>
+  </div>
+</form>
+
+{% if not job.is_new %}
+  <form method="post" action="delete" class="form-horizontal form-delete" style="max-width: 738px;">
+    {{ csrf_token() }}
+    <input type="hidden" name="id" value="{{ job.id }}" />
+    <div class="form-group">
+      <div class="col-sm-9 col-sm-offset-3">
+        <input type="submit" class="btn btn-danger" value="Delete Job" />
+      </div>
+    </div>
+  </form>
+{% endif %}
+
+{% endblock %}
+
+{% block page_scripts %}{% endblock %}
+

@@ -2,12 +2,12 @@
 <head></head>
 <body>
 
-{{ group.name }} has updated their application. <a href="{{ c.URL_BASE }}/groups/history?id={{ group.id }}">Click here</a> to see the changes.
+{{ group.name }} has updated their application. <a href="{{ c.URL_BASE }}/group_admin/history?id={{ group.id }}">Click here</a> to see the changes.
 
 <br/><br/>Below is the new application:
 
 <ul>
-    <li><strong>Dealer Table Name</strong>: {{ group.name }}</li>
+    <li><strong>Table Name</strong>: {{ group.name }}</li>
     <li><strong>What do you sell?</strong> {{ group.wares }}</li>
     <li><strong>Description</strong>: {{ group.description }}</li>
     {% if group.special_needs %}<li><strong>Table Requests and Special Requests</strong>: {{ group.special_needs }}</li>{% endif %}

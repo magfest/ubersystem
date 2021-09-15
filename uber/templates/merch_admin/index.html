@@ -1,0 +1,305 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Merch Booth{% endblock %}
+{% block content %}
+
+{% include 'barcode_client.html' %}
+
+<style type="text/css">
+    #give .merch-list { color: red; }
+</style>
+
+<script type="text/javascript">
+
+    var $shirtOpts = $('<select/>').attr('id', 'shirt');
+    $.each({{ c.MERCH_SHIRT_OPTS|jsonize }}, function(i,size) {
+        $shirtOpts.append($('<option/>').val(size[0]).text(size[1]));
+    });
+
+    /**
+     * Given the list of items returned by Attendee.merch_list, return a nested
+     * list of those items for display when that attendee's merch is checked.
+     */
+    var createMerchList = function (message, merchItems) {
+        var $merchList = $('<ul></ul>');
+        $.each(merchItems, function (i, item) {
+            if ($.isArray(item)) {
+                var $subList = $('<ul></ul>');
+                $.each(item, function (j, subItem) {
+                    $subList.append(
+                        $('<li></li>').text(subItem));
+                });
+                $merchList.append($subList);
+            } else {
+                $merchList.append(
+                    $('<li></li>').text(item));
+            }
+        });
+        return $('<div class="merch-list"></div>')
+            .append(message)
+            .append($merchList);
+    };
+
+    var recordSale = function () {
+        $.post('record_sale', {
+            id:         'None',
+            what:       $('#what_select').val() || $('#what_text').val() || '',
+            cash:       $('#store_cash').val(),
+            mpoints:    $('#store_mpoints').val(),
+            csrf_token: csrf_token
+        }, function(json) {
+            $('#message').html(json.message);
+            if (json.success) {
+                $('#message').append(' &nbsp; <a href="#" onClick="undoSale(\'' + json.id + '\') ; return false">Undo</a>');
+            }
+        }, 'json');
+    };
+
+    var undoSale = function (id) {
+        $.post('undo_sale', {id: id, csrf_token: csrf_token}, function(message) {
+            $('#message').html(message);
+        });
+    };
+
+    var showOrHideWhatText = function (pageLoading) {
+        $('#store_mpoints').val('0');
+        if($('#what_select').val() === '') {
+            $('#what_text').show().focus();
+            $('#store_cash').val('');
+        }
+        else {
+            var prices = {{ c.STORE_PRICES|jsonize }};
+            $('#what_text').val('').hide();
+            $('#store_cash').val( prices[$('#what_select').val()] );
+            if (!pageLoading) {
+                $('#store_amount').focus();
+            }
+        }
+    };
+
+    var recordMPointExchange = function () {
+        $.post('record_old_mpoint_exchange', {
+            badge_num:  $('#ex_badge_num').val(),
+            amount:     $('#ex_mpoints').val(),
+            csrf_token: csrf_token
+        }, function(json) {
+            $('#message').html(json.message);
+            if (json.success) {
+                $('#ex_badge_num,#ex_mpoints').val('');
+                $("#message").append(' &nbsp; ').append(
+                    $('<a href="#">Undo</a>').click(function(){
+                        undoMPointExchange(json.id);
+                        return false;
+                    }));
+            }
+       }, 'json');
+    };
+    var undoMPointExchange = function (id) {
+        $.post('undo_mpoint_exchange', {'id': id, csrf_token: csrf_token}, function(s) {
+            $('#message').html(s);
+        });
+    };
+
+    var giveMerch = function (noShirt, id, staffMerch, shirtSize, giveSwadge) {
+        $('#give button').attr('disabled', true);
+        var params = {
+            id: id,
+            no_shirt: noShirt,
+            csrf_token: csrf_token,
+            staff_merch: staffMerch,
+            shirt_size: shirtSize || null,
+            give_swadge: giveSwadge ? 'true' : ''
+        };
+        $.post('give_merch', params, function(json) {
+            $('#give').html('');
+            $('#badge_num').val('');
+            $('#message').html(json.message);
+            if (json.success) {
+                $('#message')
+                    .append(' &nbsp; ')
+                    .append(
+                        $('<a href="#">Undo</a>').click(function(){
+                            takeBackMerch(id, staffMerch);
+                            return false;
+                         }));
+            }
+        }, 'json');
+    };
+    var takeBackMerch = function (id, staffMerch) {
+        var params = {
+            id: id,
+            csrf_token: csrf_token,
+            staff_merch: staffMerch
+        };
+        $.post('take_back_merch', params, function (message) {
+            $('#message').html(message);
+        });
+    };
+
+    var checkDiscount = function () {
+        var $num = $('#dis_badge_num'),
+            $confirm = $('#discount_confirm'),
+            $checkButton = $('#discount_check');
+        var reset = function () {
+            toastr.clear();
+            $confirm.empty();
+            $checkButton.show();
+            $num.prop('disabled', false).val('');
+        };
+        $num.prop('disabled', true);
+        $confirm.empty();
+        $checkButton.hide();
+        toastr.clear();
+        var params = {badge_num: $num.val(), csrf_token: csrf_token};
+        $.post('redeem_merch_discount', params, function (checkResponse) {
+            if (!checkResponse.message) {
+                reset();
+                toastr.error(checkResponse.error || 'An unexpected error occurred');
+            } else {
+                toastr[checkResponse.warning ? 'warning' : 'info'](checkResponse.message);
+                $confirm.append(
+                    $('<button></button>').click(function () {
+                        params.apply = 'true';
+                        $.post('redeem_merch_discount', params, function (applyResponse) {
+                            reset();
+                            toastr.info(applyResponse.message || applyResponse.error);
+                        });
+                    }).text(checkResponse.warning ? 'Redeem Anyway' : 'Redeem')
+                ).append('<span>&nbsp;&nbsp;</span>').append(
+                    $('<button>Cancel</button>').click(reset)
+                );
+            }
+        });
+    };
+
+    $(function() {
+        $('body').barcodeField({
+          targetField: 'input.badge_num:focus',
+          blurOnKeys: ['~', '\\'],
+          detectBadgeNum: true
+        });
+
+        $('#message').ajaxError(function () {
+            toastr.error('Oh noes - the web server is down or something!!!!!');
+        });
+
+        $('input[type=text],input[type=number]').on('focus', function(event){
+            var field = event.target;
+            setTimeout(function(){ field.select(); }, 1);
+        });
+
+        showOrHideWhatText(true);
+        $('#what_text,#store_amount').keypress(function(e){
+            if( (e.keyCode || e.which) == 13 ) { // ENTER
+                recordSale();
+            }
+        });
+
+        $('#ex_badge_num,#ex_mpoints,#cash').keypress(function(e){
+            if( (e.keyCode || e.which) == 13 ) { // ENTER
+                recordMPointExchange();
+            }
+        });
+
+        $('#dis_badge_num').keypress(function (e) {
+            if ( (e.keyCode || e.which) == 13 ) {  // ENTER
+                checkDiscount();
+            }
+        });
+
+        $.each(['#check_merch', '#check_staff_merch'], function (i, id) {
+            $(id).on('click', function() {
+                var staffMerch = id == '#check_staff_merch' ? 'true' : '';
+                var params = {
+                    csrf_token: csrf_token,
+                    staff_merch: staffMerch,
+                    badge_num: $('#badge_num').val(),
+                };
+                $('#give,#message').html('');
+                $.post('check_merch', params, function (resp) {
+                    if (!resp.id) {
+                        $('#message').html(resp.message);
+                    } else {
+                        $('#give').empty().append(
+                            createMerchList(resp.message, resp.merch_items)
+                        );
+                        if (resp.shirt != {{ c.NO_SHIRT }}) {
+                            $('#give').append('Choose a shirt size:').append($shirtOpts);
+                            $('#give select').val(resp.shirt);
+                        }
+
+                        if (resp.swadges_available || !resp.gets_swadge) {
+                            $('#give').append(
+                                $('<button>Give Merch</button>').click(function () {
+                                    giveMerch('', resp.id, staffMerch, $("#shirt").val(), resp.gets_swadge);
+                                })
+                            );
+                        } else {
+                            $('#give').append(
+                                $('<button>Give Merch WITH Swadge</button>').click(function () {
+                                    giveMerch('', resp.id, staffMerch, $("#shirt").val(), true);
+                                })
+                            );
+                            $('#give').append(
+                                $('<button>Give Merch WITHOUT Swadge</button>').click(function () {
+                                    giveMerch('', resp.id, staffMerch, $("#shirt").val(), false);
+                                })
+                            );
+                        }
+
+                        {% if c.OUT_OF_SHIRTS %}
+                            $("#give").append(
+                                $('<button>Give Merch Without Shirt</button>').click(function () {
+                                    giveMerch('no_shirt', resp.id, staffMerch, $('#shirt').val());
+                                })
+                            );
+                        {% endif %}
+                    }
+                }, 'json');
+            });
+        });
+    });
+</script>
+
+<div id="message" style="color:red ; margin-bottom:10px">&nbsp;</div>
+
+<div class="center" style="margin-bottom:10px ; font-style:italic">
+    Square not working?  In a pinch, you can create arbitrary charges <a href="arbitrary_charge_form">here</a>.
+    <br/>See outstanding t-shirt counts <a href="../merch_reports/shirt_counts">here</a>.
+    <br/>To have one person pick up merch for others, <a href="multi_merch_pickup">click here</a>.
+</div>
+
+<table>
+<tr>
+    <td> Last year's MPoints turned in: &nbsp;</td>
+    <td> Badge num: <input type="number" id="ex_badge_num" class="badge_num" min="1" max="99999" /> </td>
+    <td> exchanged <input type="number" id="ex_mpoints" min="1" max="9999" /> MPoints </td>
+    <td> <input type="submit" id="record_mpe" value="Record Exchange" onClick="recordMPointExchange()" /> </td>
+</tr>
+</tr><tr display="none"> <td colspan="4"> ---OR--- </td> </tr>
+    <td> Apply a merch discount </td>
+    <td>
+        Badge num: <input type="number" id="dis_badge_num" class="badge_num" min="1" max="99999" />
+        <input type="submit" id="discount_check" value="Check Eligibility" onClick="checkDiscount()" />
+        &nbsp;
+        <span id="discount_confirm"></span>
+    <td></td>
+    <td></td>
+<tr> <td colspan="4"> ---OR--- </td>
+<tr>
+    <td> Give Merch </td>
+    <td colspan="2">
+        Badge Number: <input type="number" id="badge_num"  class="badge_num"min="1" max="99999" />
+        <input type="submit" id="check_merch" value="Check Merch" />
+        {% if c.SEPARATE_STAFF_MERCH %}
+            <input type="submit" id="check_staff_merch" value="Check Staff Merch" />
+        {% endif %}
+    </td>
+    <td colspan="2"></td>
+</tr>
+<tr>
+    <td></td>
+    <td id="give" colspan="4"></td>
+</tr>
+</table>
+
+{% endblock %}

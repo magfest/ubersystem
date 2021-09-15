@@ -1,6 +1,6 @@
 Ahoy {{ game.studio.primary_contact_first_names }},
 
-This is a confirmation that you have submitted your game {{ game.title }} to our panel of judges for Round Two of judging.
+This is a confirmation that you have submitted your game {{ game.title }} to our panel of judges for showcase selection.
 
 We expect to announce results around November 5th. 
 

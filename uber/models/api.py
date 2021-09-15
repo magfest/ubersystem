@@ -21,3 +21,19 @@ class ApiToken(MagModel):
     description = Column(UnicodeText)
     issued_time = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     revoked_time = Column(UTCDateTime, default=None, nullable=True)
+
+    @property
+    def api_read(self):
+        return c.API_READ in self.access_ints
+
+    @property
+    def api_update(self):
+        return c.API_UPDATE in self.access_ints
+
+    @property
+    def api_create(self):
+        return c.API_CREATE in self.access_ints
+
+    @property
+    def api_delete(self):
+        return c.API_DELETE in self.access_ints

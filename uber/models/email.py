@@ -14,7 +14,7 @@ from sqlalchemy.types import Boolean, Integer
 
 from uber import utils
 from uber.config import c
-from uber.decorators import renderable_data
+from uber.decorators import presave_adjustment, renderable_data
 from uber.jinja import JinjaEnv
 from uber.models import MagModel
 from uber.models.types import DefaultColumn as Column
@@ -78,6 +78,18 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
     active_before = Column(UTCDateTime, nullable=True, default=None)
 
     emails = relationship('Email', backref='automated_email', order_by='Email.id')
+    
+    @presave_adjustment
+    def date_adjustments(self):
+        if self.active_after == '':
+            self.active_after = None
+        elif isinstance(self.active_after, str):
+            self.active_after = datetime.strptime(self.active_after, c.DATE_FORMAT)
+        
+        if self.active_before == '':
+            self.active_before = None
+        elif isinstance(self.active_before, str):
+            self.active_before = datetime.strptime(self.active_before, c.DATE_FORMAT)
 
     @classproperty
     def filters_for_allowed(cls):
@@ -257,7 +269,7 @@ class Email(MagModel, BaseEmailMixin):
 
     @cached_property
     def fk(self):
-        return self.session.query(self.model_class).filter_by(id=self.fk_id).first() if self.session else None
+        return self.session.query(self.model_class).filter_by(id=self.fk_id).first() if self.session and self.fk_id else None
 
     @property
     def fk_email(self):

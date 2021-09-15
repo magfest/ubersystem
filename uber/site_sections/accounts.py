@@ -1,33 +1,22 @@
-import inspect
 import uuid
 from collections import defaultdict
 
 import bcrypt
 import cherrypy
-from pockets import unwrap
+from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
-                             department_id_adapter, render, site_mappable, unrestricted)
+                             department_id_adapter, render, site_mappable, public)
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, Attendee, PasswordReset
+from uber.models import AccessGroup, AdminAccount, Attendee, PasswordReset
 from uber.tasks.email import send_email
 from uber.utils import check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd
 
 
-def valid_password(password, account):
-    pr = account.password_reset
-    if pr and pr.is_expired:
-        account.session.delete(pr)
-        pr = None
-
-    all_hashed = [account.hashed] + ([pr.hashed] if pr else [])
-    return any(bcrypt.hashpw(password, hashed) == hashed for hashed in all_hashed)
-
-
-@all_renderable(c.ACCOUNTS)
+@all_renderable()
 class Root:
     def index(self, session, message=''):
         attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
@@ -43,12 +32,13 @@ class Root:
                          .join(Attendee)
                          .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts))
                          .order_by(Attendee.last_first).all()),
-            'all_attendees': sorted(attendees, key=lambda tup: tup[1])
+            'all_attendees': sorted(attendees, key=lambda tup: tup[1]),
         }
 
     @csrf_protected
     def update(self, session, password='', message='', **params):
-        account = session.admin_account(params, checkgroups=['access'])
+        account = session.admin_account(params)
+
         if account.is_new:
             if c.AT_OR_POST_CON and not password:
                 message = 'You must enter a password'
@@ -63,6 +53,7 @@ class Root:
             account.attendee = attendee
             session.add(account)
             if account.is_new and not c.AT_OR_POST_CON:
+                session.commit()
                 body = render('emails/accounts/new_account.txt', {
                     'account': account,
                     'password': password,
@@ -96,17 +87,67 @@ class Root:
 
         return {
             'department_id':  department_id,
-            'attendees': attendees
+            'attendees': attendees,
         }
 
-    @unrestricted
+    def access_groups(self, session, message='', **params):
+        access_group = session.access_group(params)
+
+        if cherrypy.request.method == "POST":
+            for key in params:
+                if key.endswith('_read_only_access'):
+                    col_key = key[:-17]
+                    if params[key] != "0":
+                        access_group.read_only_access[col_key] = params[key]
+                    elif col_key in access_group.read_only_access:
+                        del access_group.read_only_access[col_key]
+                elif key.endswith('_access'):
+                    col_key = key[:-7]
+                    if params[key] != "0":
+                        access_group.access[col_key] = params[key]
+                    elif col_key in access_group.access:
+                        del access_group.access[col_key]
+
+            session.add(access_group)
+            message = check(access_group) or ''
+
+            if not message:
+                session.commit()
+                raise HTTPRedirect('access_groups?message={}'.format("Success!"))
+
+        return {
+            'message': message,
+            'access_group': access_group,
+        }
+
+    @ajax
+    def get_access_group(self, session, id):
+        access_group = session.access_group(id)
+        return {
+            'access': access_group.access,
+            'read_only_access': access_group.read_only_access,
+        }
+
+    @ajax
+    def delete_access_group(self, session, id):
+        access_group = session.access_group(id)
+
+        if not access_group:
+            return {'success': False, 'message': 'Access group not found!'}
+
+        session.delete(access_group)
+        session.commit()
+
+        return {'success': True, 'message': 'Access group deleted.'}
+
+    @public
     def login(self, session, message='', original_location=None, **params):
         original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
 
         if 'email' in params:
             try:
                 account = session.get_account_by_email(params['email'])
-                if not valid_password(params['password'], account):
+                if not bcrypt.hashpw(params.get('password', ''), account.hashed) == account.hashed:
                     message = 'Incorrect password'
             except NoResultFound:
                 message = 'No account exists for that email address'
@@ -122,20 +163,35 @@ class Root:
             'original_location': original_location,
         }
 
-    @unrestricted
-    def homepage(self, message=''):
+    @public
+    def homepage(self, session, message=''):
         if not cherrypy.session.get('account_id'):
             raise HTTPRedirect('login?message={}', 'You are not logged in')
-        return {'message': message}
+        
+        return {
+            'message': message,
+            'site_sections': [key for key in session.access_query_matrix().keys() if getattr(c, 'HAS_' + key.upper() + '_ACCESS')]
+            }
+        
+    @public
+    def attendees(self, session, query=''):
+        if not cherrypy.session.get('account_id'):
+            raise HTTPRedirect('login?message={}', 'You are not logged in')
+        
+        attendees = session.access_query_matrix()[query].limit(c.ROW_LOAD_LIMIT).all() if query else None
+        
+        return {
+            'attendees': attendees,
+            }
 
-    @unrestricted
+    @public
     def logout(self):
         for key in list(cherrypy.session.keys()):
             if key not in ['preregs', 'paid_preregs', 'job_defaults', 'prev_location']:
                 cherrypy.session.pop(key)
         raise HTTPRedirect('login?message={}', 'You have been logged out')
 
-    @unrestricted
+    @public
     def reset(self, session, message='', email=None):
         if email is not None:
             try:
@@ -177,10 +233,10 @@ class Root:
 
         if updater_password is not None:
             new_password = new_password.strip()
-            updater_account = session.admin_account(cherrypy.session['account_id'])
+            updater_account = session.admin_account(cherrypy.session.get('account_id'))
             if not new_password:
                 message = 'New password is required'
-            elif not valid_password(updater_password, updater_account):
+            elif not bcrypt.hashpw(updater_password, updater_account.hashed) == updater_account.hashed:
                 message = 'Your password is incorrect'
             elif new_password != confirm_new_password:
                 message = 'Passwords do not match'
@@ -195,7 +251,7 @@ class Root:
             'message': message
         }
 
-    @unrestricted
+    @public
     def change_password(
             self,
             session,
@@ -210,10 +266,10 @@ class Root:
 
         if old_password is not None:
             new_password = new_password.strip()
-            account = session.admin_account(cherrypy.session['account_id'])
+            account = session.admin_account(cherrypy.session.get('account_id'))
             if not new_password:
                 message = 'New password is required'
-            elif not valid_password(old_password, account):
+            elif not bcrypt.hashpw(old_password, account.hashed) == account.hashed:
                 message = 'Incorrect old password; please try again'
             elif new_password != confirm_new_password:
                 message = 'Passwords do not match'
@@ -238,7 +294,7 @@ class Root:
         for a in session.query(Attendee).filter_by(staffing=True, placeholder=False).order_by('email').all():
             out.writerow([a.full_name, a.email, a.zip_code])
 
-    @unrestricted
+    @public
     def insert_test_admin(self, session):
         if session.insert_test_admin_account():
             msg = "Test admin account created successfully"
@@ -247,29 +303,9 @@ class Root:
 
         raise HTTPRedirect('login?message={}', msg)
 
-    @unrestricted
+    @public
     def sitemap(self):
-        site_sections = cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].root
-        modules = {name: getattr(site_sections, name) for name in dir(site_sections) if not name.startswith('_')}
-        pages = defaultdict(list)
-        access_set = AdminAccount.access_set()
-        for module_name, module_root in modules.items():
-            for name in dir(module_root):
-                method = getattr(module_root, name)
-                if getattr(method, 'exposed', False):
-                    spec = inspect.getfullargspec(unwrap(method))
-                    has_defaults = len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or [])
-                    if set(getattr(method, 'restricted', []) or []).intersection(access_set) \
-                            and not getattr(method, 'ajax', False) \
-                            and (getattr(method, 'site_mappable', False)
-                                 or has_defaults and not spec.varkw):
-
-                        pages[module_name].append({
-                            'name': name.replace('_', ' ').title(),
-                            'path': '/{}/{}'.format(module_name, name)
-                        })
-
-        return {'pages': sorted(pages.items())}
+        return {'pages': c.SITE_MAP}
 
     @ajax
     def add_bulk_admin_accounts(self, session, message='', **params):
@@ -285,7 +321,7 @@ class Root:
             else:
                 match = session.query(Attendee).filter(Attendee.id == id).first()
                 if match:
-                    account = session.admin_account(params, checkgroups=['access'])
+                    account = session.admin_account(params)
                     if account.is_new:
                         password = genpasswd()
                         account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())

@@ -1,0 +1,39 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Hotel Eligible Staffers{% endblock %}}
+{% block content %}
+{% include "dept_checklist/dept_menu.html" %}
+<h2>{{ department_name }} Hotel-Eligible Staffers</h2>
+
+<div class="center">
+    <br/><br/>
+    {% if checklist.relevant %}
+        {% if checklist.completed %}
+            You've already indicated that this list is complete; emails STOPS if you completed this in error.
+        {% else %}
+            <a href="#" onClick="$('#complete').show(); return false;">I've reviewed this list and there's no one missing from it for my department.</a>
+            <div style="display:none" id="complete">
+                <form method="post" action="../dept_checklist/mark_item_complete">
+                {{ csrf_token() }}
+                <input type="hidden" name="department_id" value="{{ department_id }}" />
+                <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
+                <input type="submit" value="I Confirm This All Looks Fine To Me" />
+                </form>
+            </div>
+        {% endif %}
+    {% endif %}
+</div>
+{% if c.HOTEL_REQUESTS_URL %}
+<br>
+<a href="{{ c.HOTEL_REQUESTS_URL }}"><h2>Click here to review the list of your hotel-eligible staffers</h2></a>
+{% else %}
+<table style="width:auto ; margin-left:25px">
+{% for attendee in attendees %}
+    <tr>
+        <td>{{ attendee|form_link }}</td>
+        <td>{% if not attendee.hotel_requests %}<b>[HAS NOT REQUESTED HOTEL SPACE]</b>{% endif %}</td>
+    </tr>
+{% endfor %}
+</table>
+{% endif %}
+
+{% endblock %}

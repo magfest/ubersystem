@@ -1,0 +1,234 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% set model = attendee if attendee else group %}
+{% set model_str = "attendee" if attendee else "group" %}
+{% block title %}Receipt Items - {{ model.full_name|default(model.name) }}{% endblock %}
+{% block content %}
+<script type="text/javascript">
+$().ready(function() {
+      $("form[action='remove_receipt_item']").submit(function(event){
+          var formToSubmit = this;
+          event.preventDefault();
+          bootbox.confirm({
+              title: "Delete Receipt Item?",
+              message: "This will permanently remove this receipt item. " +
+              "This cannot be undone, and should only be used for receipt items " +
+              "that were recorded incorrectly. Are you sure?",
+              buttons: {
+                  confirm: {
+                      label: 'Delete Receipt Item',
+                      className: 'btn-danger'
+                  },
+                  cancel: {
+                      label: 'Nevermind',
+                      className: 'btn-default'
+                  }
+              },
+              callback: function (result) {
+                  if(result) {
+                      formToSubmit.submit();
+                  }
+              }
+          });
+      });
+  });
+</script>
+{% include "registration/menu.html" if attendee else "group_admin/nav_menu.html" %}
+
+<h2>Receipt Items for {{ model.full_name|default(model.name) }}{% if c.AT_THE_CON and model.badge_num %}({{ model.badge }}){% endif %}</h2>
+  <div class="panel panel-body">
+  <h3>Instructions</h3>
+  <p>Use this form to remove and add payments and refunds for this {{ model_str }}.
+    If the system has recorded any Stripe transactions for this {{ model_str }}, they will be listed at the bottom of this page --
+    you can use this for reference when adding payments and refunds, though theoretically the system should correctly
+    record all payments and refunds with Stripe transactions.</p>
+
+  <p>If this {{ model_str }} owes money, the system will prefill the "Amount" in the Add Payment table below.
+  Please only add a payment if the attendee has actually paid.</p>
+
+  <p>
+    Please always itemize payments and refunds. Items with the same price, and <em>only</em> items with the same price
+    (e.g., paying for 8 badges in a promo code group), may be grouped into one receipt item.
+  </p>
+  </div>
+
+<div class="panel panel-body"><h3>Add Payment or Refund</h3>
+<p>Use the Stripe Payment History table at the bottom of this page to associate a payment or refund with a Stripe transaction. Please <b>only</b> add payments if the attendee has paid.</p>
+{% if model.purchased_items %}<p>This attendee has purchased the following:
+<br/> {% for name, val in model.purchased_items.items() %}{{ name[:-5]|replace('_', ' ')|title }}: {{ val|format_currency }}<br/>{% endfor %}
+</p>{% endif %}
+{% if model.refunded_items %}<p>We have marked the following items as refunded:
+<br/> {% for name, val in model.refunded_items.items() %}{{ name[:-5]|replace('_', ' ')|title }}: {{ val|format_currency }}<br/>{% endfor %}
+</p>{% endif %}
+<form class="form" method="post" action="add_receipt_item" id="add_receipt_item" role="form">
+<input type="hidden" name="id" value="{{ model.id }}" />
+{{ csrf_token() }}
+{% if model.amount_unpaid %}
+{% set amount = amount or model.amount_unpaid %}
+{% set default_txn_type = c.PAYMENT %}
+{% else %}
+{% set amount = amount or (model.amount_paid - model.amount_refunded) / 100 %}
+{% set default_txn_type = c.REFUND %}
+{% endif %}
+<table class="table">
+    <thead><tr>
+      <th>Stripe Transaction</th>
+      <th width="25%">Description</th>
+      <th>Amount</th>
+      <th>Payment/Refund</th>
+      <th></th>
+    </tr></thead>
+<tr>
+  <td>
+    <label class="sr-only">Stripe Transaction</label>
+    <select name="stripe_txn_id" class="form-control">
+      <option value="">N/A</option>
+      {{ options(stripe_txn_opts) }}
+    </select>
+  </td>
+  <td>
+    <label class="sr-only">Description</label>
+    <input type="text" class="form-control" placeholder="Description of payment/refund" name="desc" required value="{{ desc }}" />
+  </td>
+  <td>
+    <label class="sr-only">Amount</label>
+    <div class="input-group">
+      <div class="input-group-addon">$</div>
+      <input type="text" class="form-control" placeholder="0" name="amount" required value="{{ amount|int }}" />
+      <div class="input-group-addon">.00</div>
+    </div>
+  </td>
+  <td>
+    <label class="sr-only">Payment/Refund</label>
+    <select name="txn_type" class="form-control">
+      {{ options(c.TRANSACTION_TYPE_OPTS, default_txn_type) }}
+    </select>
+  </td>
+  <td>
+    <button type="submit" class="btn btn-primary">Add Item</button>
+  </td>
+</tr>
+</table>
+</form>
+</div>
+
+{% if model.receipt_items %}
+  <div class="panel panel-body">
+  <h3>Existing Payments and Refunds</h3>
+  <table class="table table-striped">
+    <thead><tr>
+      <th>Payment ID</th>
+      <th>When</th>
+      <th>Who</th>
+      <th>Description</th>
+      <th>Amount</th>
+      <th>Purchased Items</th>
+      <th>Refunded Items</th>
+      <th>Paid/Refunded</th>
+      <th></th>
+    </tr></thead>
+    {% for item in model.receipt_items %}
+      <tr>
+        <td>{{ item.stripe_transaction.stripe_id or 'N/A' }}</td>
+        <td>{{ item.when|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
+        <td>{{ item.who }}</td>
+        <td>{{ item.desc }}{% if item.fk_id %}({{ item.model }}){% endif %}</td>
+        <td>{{ (item.amount / 100)|format_currency }} {{ item.type_label }}</td>
+        <td>{{ 'N/A' if item.cost_snapshot == {} }}{% for name, val in item.cost_snapshot.items() %}{{ name[:-5]|replace('_', ' ')|title }}: {{ val|format_currency }}<br/>{% endfor %}</td>
+        <td>{{ 'N/A' if item.refund_snapshot == {} }}{% for name, val in item.refund_snapshot.items() %}{{ name[:-5]|replace('_', ' ')|title }}: {{ val|format_currency }}{% endfor %}</td>
+        <td>{{ item.txn_type_label }}</td>
+        <td>
+          <form class="form-inline" method="post" action="remove_receipt_item" role="form">
+            <input type="hidden" name="id" value="{{ item.id }}" />
+            {{ csrf_token() }}
+            <button type="submit" class="btn btn-danger">Delete Item</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+  </div>
+{% endif %}
+
+{% if model.purchased_items %}
+<div class="panel panel-body">
+<h3>Refund Items</h3>
+<p>Add and remove items from this {{ model_str }}'s refunded items list. Please make sure all refunded items are correctly recorded here.</p>
+<table class="table">
+  <thead><tr>
+    <th>Item Name</th>
+    <th>Amount</th>
+    <th></th>
+  </tr></thead>
+  {% for name, val in model.purchased_items.items() %}
+  {% if not model.refunded_items or name not in model.refunded_items %}
+  <tr>
+  <td>
+    {{ name[:-5]|replace('_', ' ')|title }}
+  </td>
+  <td>
+    {{ val|format_currency }}
+  </td>
+  <td>
+  <form class="form-inline" method="post" action="add_refund_item" role="form">
+    <input type="hidden" name="id" value="{{ model.id }}" />
+    <input type="hidden" name="item_name" value="{{ name }}" />
+    <input type="hidden" name="item_val" value="{{ val }}" />
+    {{ csrf_token() }}
+    <button type="submit" class="btn btn-success">Mark Item As Refunded</button>
+    </form>
+  </td>
+  </tr>
+  {% endif %}
+  {% endfor %}
+  {% if model.refunded_items %}
+  {% for name, val in model.refunded_items.items() %}
+  <tr>
+  <td>
+    {{ name[:-5]|replace('_', ' ')|title }}
+  </td>
+  <td>
+    {{ val|format_currency }}
+  </td>
+  <td>
+  <form class="form-inline" method="post" action="remove_refund_item" role="form">
+    <input type="hidden" name="id" value="{{ model.id }}" />
+    <input type="hidden" name="item_name" value="{{ name }}" />
+    <input type="hidden" name="item_val" value="{{ val }}" />
+    {{ csrf_token() }}
+    <button type="submit" class="btn btn-danger">Remove Refunded Item</button>
+    </form>
+  </td>
+  </tr>
+  {% endfor %}
+  {% endif %}
+</table>
+</div>
+{% endif %}
+
+  {% if model.stripe_txn_share_logs %}
+  <div class="panel panel-body">
+  <h3>Stripe Payment History for {{ model.full_name|default(model.name) }}{% if c.AT_THE_CON and model.badge_num %}({{ model.badge }}){% endif %}</h3>
+  <table class="table-striped table-bordered table-condensed">
+  <thead><tr>
+      <th>Payment ID</th>
+      <th>Amount</th>
+      <th>Txn Total</th>
+      <th>When</th>
+      <th>Who</th>
+      <th>Payment Description</th>
+  </tr></thead>
+  {% for log in model.stripe_txn_share_logs %}
+      <tr>
+      <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.stripe_id }}</td>
+      <td valign="top" style="white-space:nowrap">{{ (log.share / 100)|format_currency }}
+      <td valign="top" style="white-space:nowrap">{{ (log.stripe_transaction.amount / 100)|format_currency }} {{ log.stripe_transaction.type_label }}</td>
+      <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.when|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
+      <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.who }}</td>
+      <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.desc }}</td>
+      </tr>
+  {% endfor %}
+  </table>
+  </div>
+  {% endif %}
+
+{% endblock %}

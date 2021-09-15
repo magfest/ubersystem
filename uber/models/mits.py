@@ -19,6 +19,9 @@ __all__ = ['MITSTeam', 'MITSApplicant', 'MITSGame', 'MITSPicture', 'MITSDocument
 
 class MITSTeam(MagModel):
     name = Column(UnicodeText)
+    days_available = Column(Integer, nullable=True)
+    hours_available = Column(Integer, nullable=True)
+    concurrent_attendees = Column(Integer, default=0)
     panel_interest = Column(Boolean, nullable=True, admin_only=True)
     showcase_interest = Column(Boolean, nullable=True, admin_only=True)
     want_to_sell = Column(Boolean, default=False)
@@ -32,8 +35,6 @@ class MITSTeam(MagModel):
 
     applicants = relationship('MITSApplicant', backref='team')
     games = relationship('MITSGame', backref='team')
-    pictures = relationship('MITSPicture', backref='team')
-    documents = relationship('MITSDocument', backref='team')
     schedule = relationship('MITSTimes', uselist=False, backref='team')
     panel_app = relationship('MITSPanelApplication', uselist=False, backref='team')
 
@@ -115,20 +116,14 @@ class MITSTeam(MagModel):
 
     @property
     def steps_completed(self):
-        if not self.games:
+        if not self.days_available:
             return 1
-        elif not self.pictures:
+        elif not self.games:
             return 2
-        elif not self.completed_panel_request:
-            return 3
-        elif not self.completed_showcase_request:
-            return 4
-        elif not self.completed_hotel_form:
-            return 5
         elif not self.submitted:
-            return 6
+            return 3
         else:
-            return 7
+            return 4
 
     @property
     def completion_percentage(self):
@@ -170,13 +165,17 @@ class MITSGame(MagModel):
     promo_blurb = Column(UnicodeText)
     description = Column(UnicodeText)
     genre = Column(UnicodeText)
-    phase = Column(Choice(c.MITS_PHASE_OPTS))
-    min_age = Column(Integer)
+    phase = Column(Choice(c.MITS_PHASE_OPTS), default=c.DEVELOPMENT)
+    min_age = Column(Choice(c.MITS_AGE_OPTS), default=c.CHILD)
+    age_explanation = Column(UnicodeText)
     min_players = Column(Integer, default=2)
     max_players = Column(Integer, default=4)
+    copyrighted = Column(Choice(c.MITS_COPYRIGHT_OPTS), nullable=True)
     personally_own = Column(Boolean, default=False)
     unlicensed = Column(Boolean, default=False)
     professional = Column(Boolean, default=False)
+    pictures = relationship('MITSPicture', backref='team')
+    documents = relationship('MITSDocument', backref='team')
 
     @hybrid_property
     def has_been_accepted(self):
@@ -204,39 +203,39 @@ class MITSGame(MagModel):
 
     @property
     def guidebook_image(self):
-        if not self.team.pictures:
+        if not self.pictures:
             return ''
-        for image in self.team.pictures:
+        for image in self.pictures:
             if image.is_header:
                 return image.filename
-        return self.team.pictures[0].filename
+        return self.pictures[0].filename
 
     @property
     def guidebook_thumbnail(self):
-        if not self.team.pictures:
+        if not self.pictures:
             return ''
-        for image in self.team.pictures:
+        for image in self.pictures:
             if image.is_thumbnail:
                 return image.filename
-        return self.team.pictures[1].filename if len(self.team.pictures) > 1 else self.team.pictures[0].filename
+        return self.pictures[1].filename if len(self.pictures) > 1 else self.pictures[0].filename
 
     @property
     def guidebook_images(self):
-        if not self.team.pictures:
+        if not self.pictures:
             return ['', '']
 
         header = None
         thumbnail = None
-        for image in self.team.pictures:
+        for image in self.pictures:
             if image.is_header and not header:
                 header = image
             if image.is_thumbnail and not thumbnail:
                 thumbnail = image
 
         if not header:
-            header = self.team.pictures[0]
+            header = self.pictures[0]
         if not thumbnail:
-            thumbnail = self.team.pictures[1] if len(self.team.pictures) > 1 else self.team.pictures[0]
+            thumbnail = self.pictures[1] if len(self.pictures) > 1 else self.pictures[0]
 
         if header == thumbnail:
             return [header.filename], [header]
@@ -245,7 +244,7 @@ class MITSGame(MagModel):
 
 
 class MITSPicture(MagModel):
-    team_id = Column(UUID, ForeignKey('mits_team.id'))
+    game_id = Column(UUID, ForeignKey('mits_game.id'))
     filename = Column(UnicodeText)
     content_type = Column(UnicodeText)
     extension = Column(UnicodeText)
@@ -253,7 +252,7 @@ class MITSPicture(MagModel):
 
     @property
     def url(self):
-        return '{}/mits_applications/view_picture?id={}'.format(c.PATH, self.id)
+        return '../mits/view_picture?id={}'.format(self.id)
 
     @property
     def filepath(self):
@@ -277,13 +276,13 @@ class MITSPicture(MagModel):
 
 
 class MITSDocument(MagModel):
-    team_id = Column(UUID, ForeignKey('mits_team.id'))
+    game_id = Column(UUID, ForeignKey('mits_game.id'))
     filename = Column(UnicodeText)
     description = Column(UnicodeText)
 
     @property
     def url(self):
-        return '{}/mits_applications/download_doc?id={}'.format(c.PATH, self.id)
+        return '../mits/download_doc?id={}'.format(self.id)
 
     @property
     def filepath(self):

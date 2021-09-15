@@ -1,0 +1,99 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Group Admin{% endblock %}
+{% block content %}
+
+  <div id="group-type-opts" style="display:none;">
+    {{ options(c.GROUP_TYPE_OPTS) }}
+  </div>
+
+  <h1>
+  <a class="btn btn-primary" href="form">Add a Group</a>
+  {% if c.HAS_DEALER_ADMIN_ACCESS %}<a class="btn btn-success" href="form?id=None&new_dealer=true">Add a {{ c.DEALER_TERM|title }}</a>{% endif %}
+  </h1>
+
+  <div role="tabpanel">
+  <ul class="nav nav-tabs" role="tablist">
+  <li role="presentation">
+  <a href="#all" aria-controls="all" role="tab" data-toggle="tab">
+  <span class="glyphicon glyphicon-list"></span>&nbsp;All Groups
+  </a>
+  </li>
+  {% if c.HAS_GUEST_ADMIN_ACCESS %}
+  <li role="presentation">
+  <a href="#guests" aria-controls="guests" role="tab" data-toggle="tab">
+  <span class="glyphicon glyphicon-star"></span>&nbsp;Guests
+  </a>
+  </li>
+  {% endif %}
+  {% if c.HAS_BAND_ADMIN_ACCESS %}
+  <li role="presentation">
+  <a href="#bands" aria-controls="bands" role="tab" data-toggle="tab">
+  <span class="glyphicon glyphicon-music"></span>&nbsp;Bands
+  </a>
+  </li>
+  {% endif %}
+  {% if c.HAS_MIVS_ADMIN_ACCESS %}
+  <li role="presentation">
+  <a href="#mivs" aria-controls="mivs" role="tab" data-toggle="tab">
+  <span class="glyphicon glyphicon-floppy-disk"></span>&nbsp;MIVS
+  </a>
+  </li>
+  {% endif %}
+  {% if c.HAS_DEALER_ADMIN_ACCESS %}
+  <li role="presentation">
+  <a href="#dealers" aria-controls="dealers" role="tab" data-toggle="tab">
+  <span class="glyphicon glyphicon-usd"></span>&nbsp;Marketplace
+  </a>
+  </li>
+  {% endif %}
+  </ul>
+  <div class="tab-content">
+  <div class="row" style="padding: 10px;"></div>
+  <div role="tabpanel" class="tab-pane" id="all">
+    <table class="datatable table table-striped">
+      <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Leader</th>
+        <th>Assigned/Total Badges</th>
+        <th>Admin Notes</th>
+      </tr>
+      </thead>
+      <tbody>
+      {% for group in groups -%}
+        <tr id="{{ group.id }}">
+          <td>{{ group|form_link }}</td>
+          <td>
+          {% if group.guest %}{{ group.guest.group_type_label }}
+          {% else %}{{ 'Dealer' if group.is_dealer else 'N/A' }}{% endif %}
+          </td>
+          <td>
+          {% if group.leader %}
+          <a href="#attendee_form?id={{ group.leader_id }}">{{ group.leader.full_name }}</a>
+          {% else %}None{% endif %}
+          </td>
+          <td>{{ group.badges - group.unregistered_badges }} / {{ group.badges }}</td>
+          <td>{{ group.admin_notes }}</td>
+        </tr>
+      {% endfor -%}
+      </tbody>
+    </table>
+  
+  </div>
+  {% if c.HAS_GUEST_ADMIN_ACCESS %}
+  <div role="tabpanel" class="tab-pane" id="guests">{% include '/group_admin/guests.html' %}</div>
+  {% endif %}
+  {% if c.HAS_BAND_ADMIN_ACCESS %}
+  <div role="tabpanel" class="tab-pane" id="bands">{% with band = True %}{% include '/group_admin/guests.html' %}{% endwith %}</div>
+  {% endif %}
+  {% if c.HAS_MIVS_ADMIN_ACCESS %}
+  <div role="tabpanel" class="tab-pane" id="mivs">{% include '/group_admin/mivs.html' %}</div>
+  {% endif %}
+  {% if c.HAS_DEALER_ADMIN_ACCESS %}
+  <div role="tabpanel" class="tab-pane" id="dealers">{% include '/group_admin/dealers.html' %}</div>
+  {% endif %}
+  </div>
+  </div>
+  <script src="../static/js/window-hash-tabload.js" type="text/javascript"></script>
+{% endblock %}

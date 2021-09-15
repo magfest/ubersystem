@@ -10,7 +10,7 @@
 
     <p>
     According to our records, your badge has been refunded. You may repurchase your badge at the current price of
-    ${{ c.BADGE_PRICE }} for an Attendee badge. We will pre-fill your details into the pre-registration form.
+    {{ c.BADGE_PRICE|format_currency }} for an Attendee badge. We will pre-fill your details into the pre-registration form.
     </p>
 
     <form method="post" action="repurchase" class="form-horizontal">

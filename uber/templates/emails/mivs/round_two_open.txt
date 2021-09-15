@@ -1,9 +1,0 @@
-Ahoy {{ game.studio.primary_contact_first_names }},
-
-Round 2 Submissions for MAGFest Indie Videogame Showcase are now open and you may submit your game {{ game.title }}. 
-
-You have until {{ c.MIVS_ROUND_TWO_DEADLINE|datetime_local }} to finish your submission. 
-
-You can complete your submission application at {{ c.URL_BASE }}/mivs_applications/continue_app?id={{ game.studio.id }}
-
-{{ c.MIVS_EMAIL_SIGNATURE }}

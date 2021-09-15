@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<head>
+    <!-- Print and Reload Function -->
+    <script type="text/javascript">
+        window.print();
+
+        // reload to print the next badge
+        setTimeout(function() {window.location = "print_next_badge?minor={{ minor }}&printerNumber={{ printerNumber }}&numberOfPrinters={{ numberOfPrinters }}";}, 3500);
+    </script>
+    <!-- force chrome style for now -->
+    <style type="text/css">
+body {margin: 0; padding: 0;}
+#container {position: relative; height: 600px; width: 800px;}
+#badge_type {
+	position: absolute;
+    text-align: right;
+	top: 10px;
+	right: 20px;
+	font-size: 32pt;
+	font-family: "palantino";
+	font-weight: bold;
+}
+#badge_num {
+	position: absolute;
+	top: 10px;
+	left: 20px;
+	font-size: 32pt;
+	font-family: "palantino";
+	font-weight: bold;
+}
+#badge_name {
+	display:block;
+	position: absolute;
+	width: 800px;
+	left: 0;
+	right: 0;
+	margin-left: auto;
+	margin-right: auto;
+	bottom: 70px;
+	text-align: center;
+	font-size: 44pt;
+	font-family: arial;
+	font-weight: bold;
+}
+
+    </style>
+</head>
+<body>
+    <div id="container">
+        <span id="badge_type">{{ badge_type|safe }}{{ ribbon|safe }}</span>
+        <span id="badge_num">{{ c.EVENT_YEAR }}-{{ '{0:04d}'.format(badge_num) }}</span>
+        <span id="badge_name">{{ badge_name }}</span>
+    </div>
+</body>
+</html>

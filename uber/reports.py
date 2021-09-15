@@ -54,7 +54,7 @@ class PersonalizedBadgeReport(ReportBase):
                 badge_type_label = a.badge_type_label
 
             if a.unassigned_name:
-                printed_name = ''
+                printed_name = a.group.name if a.group else ''
             else:
                 printed_name = a.badge_printed_name or a.full_name
 

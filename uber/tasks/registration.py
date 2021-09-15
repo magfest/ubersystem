@@ -1,19 +1,23 @@
 from collections import defaultdict
 from datetime import timedelta
 
+import stripe
+import time
 from celery.schedules import crontab
+from pockets.autolog import log
 from sqlalchemy import not_, or_
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import render
-from uber.models import Attendee, Session
+from uber.models import Attendee, Email, Session, StripeTransaction
 from uber.tasks.email import send_email
 from uber.tasks import celery
-from uber.utils import localized_now
+from uber.utils import Charge, localized_now
 
 
-__all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_unassigned_volunteers']
+__all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_unassigned_volunteers',
+           'check_missed_stripe_payments']
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
@@ -93,6 +97,29 @@ def check_placeholder_registrations():
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
+def check_pending_badges():
+    if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS):
+        emails = [[
+            'Staff',
+            c.STAFF_EMAIL,
+            Attendee.badge_type == c.STAFF_BADGE,
+            'staffing_admin'
+        ], [
+            'Attendee',
+            c.REGDESK_EMAIL,
+            Attendee.badge_type != c.STAFF_BADGE,
+            'registration'
+        ]]
+        subject = c.EVENT_NAME + ' Pending {} Badge Report for ' + localized_now().strftime('%Y-%m-%d')
+        with Session() as session:
+            for badge_type, to, per_email_filter, site_section in emails:
+                pending = session.query(Attendee).filter_by(badge_status=c.PENDING_STATUS).filter(per_email_filter).all()
+                if pending and session.no_email(subject.format(badge_type)):
+                        body = render('emails/daily_checks/pending.html', {'pending': pending, 'site_section': site_section})
+                        send_email(c.ADMIN_EMAIL, to, subject.format(badge_type), body, format='html', model='n/a')
+
+
+@celery.schedule(crontab(minute=0, hour='*/6'))
 def check_unassigned_volunteers():
     if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS):
         with Session() as session:
@@ -103,3 +130,35 @@ def check_unassigned_volunteers():
             if unassigned and session.no_email(subject):
                 body = render('emails/daily_checks/unassigned.html', {'unassigned': unassigned})
                 send_email(c.STAFF_EMAIL, c.STAFF_EMAIL, subject, body, format='html', model='n/a')
+
+
+@celery.schedule(timedelta(minutes=5))
+def check_near_cap():
+    actual_badges_left = c.ATTENDEE_BADGE_STOCK - c.ATTENDEE_BADGE_COUNT
+    for badges_left in [int(num) for num in c.BADGES_LEFT_ALERTS]:
+        subject = "BADGES SOLD ALERT: {} BADGES LEFT!".format(badges_left)
+        with Session() as session:
+            if not session.query(Email).filter_by(subject=subject).first() and actual_badges_left <= badges_left:
+                body = render('emails/badges_sold_alert.txt', {'badges_left': actual_badges_left})
+                send_email(c.ADMIN_EMAIL, [c.REGDESK_EMAIL, c.ADMIN_EMAIL], subject, body, model='n/a')
+
+
+@celery.schedule(timedelta(minutes=30))
+def check_missed_stripe_payments():
+    pending_ids = []
+    with Session() as session:
+        pending_payments = session.query(StripeTransaction).filter_by(type=c.PENDING)
+        for payment in pending_payments:
+            pending_ids.append(payment.stripe_id)
+
+    events = stripe.Event.list(type='payment_intent.succeeded', created={
+        # Check for events created in the last hour.
+        'gte': int(time.time() - 60 * 60),
+    })
+
+    for event in events.auto_paging_iter():
+        payment_intent = event.data.object
+        log.debug('Processing Payment Intent ID {}', payment_intent.id)
+        if payment_intent.id in pending_ids:
+            log.debug('Charge is pending, intent ID is {}', payment_intent.id)
+            Charge.mark_paid_from_stripe_id(payment_intent.id)

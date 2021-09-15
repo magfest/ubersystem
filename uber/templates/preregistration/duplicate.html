@@ -32,9 +32,9 @@
 
     {% if attendee.group and attendee.group.is_dealer and attendee.group.status != c.APPROVED %}
         <br/> <br/>
-        It looks like your dealership application has not been approved yet. If your application
+        It looks like your {{ c.DEALER_REG_TERM }} application has not been approved yet. If your application
         is not approved, you will be able to purchase badges for yourself and the number of assistants on the application
-        at the pre-registration price of ${{ attendee.badge_cost }} when the waitlist is exhausted. You will receive an email
+        at the pre-registration price of {{ attendee.badge_cost|format_currency }} when the waitlist is exhausted. You will receive an email
         when these badges are available for purchase.
     {% endif %}
 

@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Group Deletion Confirmation{% endblock %}
+{% block content %}
+
+<h2> Confirm Deletion of {{ group.name }} </h2>
+
+This group still has unassigned badges:
+<ul>
+    {% for attendee in group.attendees %}
+        {% if not attendee.is_unassigned %}
+            <li> <a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </li>
+        {% endif %}
+    {% endfor %}
+</ul>
+<br/>
+
+Deleting this group will also delete all of these badges and anything linked to them (e.g. volunteer shifts).  This often isn't a good idea, but if you're sure you know what you're doing, click the button below:
+<form method="post" action="delete">
+{{ csrf_token() }}
+<input type="hidden" name="id" value="{{ group.id }}" />
+<input type="hidden" name="confirmed" value="true" />
+<input type="submit" value="Delete Group and All Its Badges" />
+</form>
+
+{% endblock %}

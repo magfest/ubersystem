@@ -1,0 +1,14 @@
+Ahoy {{ game.studio.primary_contact_first_names }},
+
+Setup begins today for MAGFest! You can begin checking in at 6pm today. 
+
+If you need to view the indie handbook, you can at  https://docs.google.com/document/d/1D2j2d56wtbyy5iZ6ZtaBURsZHRd77wuTHxNCGAQqfkQ/
+
+If you need help onsite:
+
+1) Ask through Discord or Google Groups
+
+2) Text (202)573-8716.  This number will transfer to the MIVS Department Heads who can help if we're onsite and available.
+
+Forever your Fan,
+The MIVS Team

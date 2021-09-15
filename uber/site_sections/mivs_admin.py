@@ -7,21 +7,20 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
-from uber.custom_tags import humanize_timedelta
-from uber.decorators import all_renderable, csrf_protected, csv_file, multifile_zipfile, render, xlsx_file
+from uber.decorators import all_renderable, csrf_protected, render
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, Group, IndieGame, IndieGameReview, IndieStudio
 from uber.tasks.email import send_email
-from uber.utils import check, genpasswd, localized_now
+from uber.utils import check, genpasswd
 
 
-@all_renderable(c.INDIE_ADMIN)
+@all_renderable()
 class Root:
     def index(self, session, message=''):
         return {
             'message': message,
             'judges': session.indie_judges().all(),
-            'games': [g for g in session.indie_games() if g.video_submitted]
+            'games': [g for g in session.indie_games() if g.submitted]
         }
 
     def studios(self, session, message=''):
@@ -29,125 +28,6 @@ class Root:
             'message': message,
             'studios': session.query(IndieStudio).all()
         }
-
-    @csv_file
-    def social_media(self, out, session):
-        out.writerow(['Studio', 'Website', 'Twitter', 'Facebook'])
-        for game in session.indie_games():
-            if game.confirmed:
-                out.writerow([
-                    game.studio.name,
-                    game.studio.website,
-                    game.studio.twitter,
-                    game.studio.facebook
-                ])
-
-    @csv_file
-    def everything(self, out, session):
-        out.writerow([
-            'Game', 'Studio', 'Studio URL', 'Primary Contact Names', 'Primary Contact Emails',
-            'Game Website', 'Twitter', 'Facebook', 'Other Social Media',
-            'Genres', 'Brief Description', 'Long Description', 'How to Play',
-            'Link to Video for Judging', 'Link to Promo Video', 'Link to Game', 'Game Link Password',
-            'Game Requires Codes?', 'Code Instructions', 'Build Status', 'Build Notes',
-            'Video Submitted', 'Game Submitted', 'Current Status',
-            'Registered', 'Accepted', 'Confirmation Deadline',
-            'Screenshot Links', 'Average Score', 'Individual Scores'
-        ])
-        for game in session.indie_games():
-            out.writerow([
-                game.title,
-                game.studio.name,
-                '{}/mivs_applications/continue_app?id={}'.format(c.PATH, game.studio.id),
-                game.studio.primary_contact_first_names,
-                game.studio.email,
-                game.link_to_webpage,
-                game.twitter,
-                game.facebook,
-                game.other_social_media,
-                ' / '.join(game.genres_labels),
-                game.brief_description,
-                game.description,
-                game.how_to_play,
-                game.link_to_video,
-                game.link_to_promo_video,
-                game.link_to_game,
-                game.password_to_game,
-                game.code_type_label,
-                game.code_instructions,
-                game.build_status_label,
-                game.build_notes,
-                'submitted' if game.video_submitted else 'not submitted',
-                'submitted' if game.submitted else 'not submitted',
-                'accepted and confirmed' if game.confirmed else game.status_label,
-                game.registered.strftime('%Y-%m-%d'),
-                'n/a' if not game.accepted else game.accepted.strftime('%Y-%m-%d'),
-                'n/a' if not game.accepted else game.studio.confirm_deadline.strftime('%Y-%m-%d'),
-                '\n'.join(c.URL_BASE + screenshot.url.lstrip('.') for screenshot in game.screenshots),
-                str(game.average_score)
-            ] + [str(score) for score in game.scores])
-
-    @csv_file
-    def checklist_completion(self, out, session):
-        header_row = ['Studio']
-        for key, val in c.MIVS_CHECKLIST.items():
-            header_row.append(val['name'])
-            header_row.append('Past Due?')
-        out.writerow(header_row)
-
-        for studio in session.query(IndieStudio).join(IndieStudio.group).join(Group.guest):
-            row = [studio.name]
-            for key, val in c.MIVS_CHECKLIST.items():
-                row.extend([
-                    'Not Completed' if getattr(studio, key + "_status", None) is None
-                    else getattr(studio, key + "_status"),
-                    'No' if localized_now() <= studio.checklist_deadline(key)
-                    else humanize_timedelta(studio.past_checklist_deadline(key), granularity='hours'),
-                ])
-            out.writerow(row)
-
-    @csv_file
-    def discussion_group_emails(self, out, session):
-        emails = []
-        for studio in session.query(IndieStudio).join(IndieStudio.group).join(Group.guest):
-            emails.extend(studio.group.guest.email)
-            if studio.discussion_emails:
-                emails.extend(studio.discussion_emails_list)
-
-        out.writerow(emails)
-
-    @xlsx_file
-    def accepted_games_xlsx(self, out, session):
-        rows = []
-        for game in session.query(IndieGame).filter_by(status=c.ACCEPTED):
-            screenshots = game.best_screenshot_download_filenames()
-            rows.append([
-                game.studio.name, game.studio.website,
-                game.title, game.brief_description, game.link_to_webpage,
-                game.twitter, game.facebook, game.other_social_media,
-                game.link_to_promo_video, game.link_to_video, game.link_to_game,
-                screenshots[0], screenshots[1]
-            ])
-
-        header_row = [
-            'Studio', 'Studio Website',
-            'Game Title', 'Description', 'Website',
-            'Twitter', 'Facebook', 'Other Social Media',
-            'Link to Promo Video', 'Link to Video for Judging', 'Link to Game',
-            'Screenshot 1', 'Screenshot 2']
-        out.writerows(header_row, rows)
-
-    @multifile_zipfile
-    def accepted_games_zip(self, zip_file, session):
-        output = self.accepted_games_xlsx(set_headers=False)
-        zip_file.writestr('mivs_accepted_games.xlsx', output)
-        for game in session.query(IndieGame).filter_by(status=c.ACCEPTED):
-            filenames = game.best_screenshot_download_filenames()
-            screenshots = game.best_screenshot_downloads()
-            for filename, screenshot in zip(filenames, screenshots):
-                if filename:
-                    filepath = os.path.join(c.MIVS_GAME_IMAGE_DIR, screenshot.id)
-                    zip_file.write(filepath, os.path.join('mivs_accepted_game_images', filename))
 
     def create_judge(self, session, message='', first_name='', last_name='', email='', **params):
         judge = session.indie_judge(params, checkgroups=['genres', 'platforms'])
@@ -166,9 +46,6 @@ class Root:
                             'index?message={}{}', attendee.full_name, ' is already registered as a judge')
                     else:
                         attendee.admin_account.judge = judge
-                        attendee.admin_account.access = ','.join(map(str, set(
-                            attendee.admin_account.access_ints + [c.INDIE_JUDGE])))
-
                         raise HTTPRedirect('index?message={}{}', attendee.full_name, ' has been granted judge access')
 
                 if not attendee:
@@ -179,7 +56,6 @@ class Root:
                 password = genpasswd()
                 attendee.admin_account = AdminAccount(
                     judge=judge,
-                    access=str(c.INDIE_JUDGE),
                     hashed=bcrypt.hashpw(password, bcrypt.gensalt())
                 )
                 email_body = render('emails/accounts/new_account.txt', {
@@ -188,12 +64,12 @@ class Root:
                 }, encoding=None)
                 send_email.delay(
                     c.MIVS_EMAIL,
-                    attendee.email,
+                    attendee.email_to_address,
                     'New {} Ubersystem Account'.format(c.EVENT_NAME),
                     email_body,
                     model=attendee.to_dict('id'))
                 raise HTTPRedirect(
-                    'index?message={}{}', attendee.full_name, ' has been given an admin account as an Indie Judge')
+                    'index?message={}{}', attendee.full_name, ' has been given an admin account as a MIVS Judge')
 
         return {
             'message': message,
@@ -218,19 +94,16 @@ class Root:
     def judges_owed_refunds(self, session):
         return {
             'judges': [
-                a for a in session.query(Attendee).outerjoin(Group, Attendee.group_id == Group.id)
-                    .filter(or_(
-                        Attendee.paid == c.HAS_PAID, and_(Attendee.paid == c.PAID_BY_GROUP, Group.amount_paid > 0)))
-                    .join(Attendee.admin_account)
-                    .filter(AdminAccount.judge != None, AdminAccount.access.contains(str(c.INDIE_JUDGE)))
+                a for a in session.query(Attendee).join(Attendee.admin_account)
+                    .filter(AdminAccount.judge != None)
                     .options(joinedload(Attendee.group))
-                    .order_by(Attendee.full_name)
+                    .order_by(Attendee.full_name) if a.paid_for_badge and not a.has_been_refunded
             ]}  # noqa: E711
 
     def assign_games(self, session, judge_id, message=''):
         judge = session.indie_judge(judge_id)
         unassigned_games = [
-            g for g in session.indie_games() if g.video_submitted and judge.id not in (r.judge_id for r in g.reviews)]
+            g for g in session.indie_games() if g.submitted and judge.id not in (r.judge_id for r in g.reviews)]
         matching_genre = [
             g for g in unassigned_games if judge.mivs_all_genres or set(judge.genres_ints).intersection(g.genres_ints)]
         matching = [g for g in unassigned_games if set(judge.platforms_ints).intersection(g.platforms_ints)]
@@ -279,9 +152,6 @@ class Root:
                     session.delete(review)
         raise HTTPRedirect(return_to, 'Removal successful')
 
-    def video_results(self, session, id):
-        return {'game': session.indie_game(id)}
-
     def game_results(self, session, id, message=''):
         return {
             'game': session.indie_game(id),
@@ -323,7 +193,7 @@ class Root:
                 body = render('emails/mivs/video_fixed.txt', {'review': review}, encoding=None)
                 send_email.delay(
                     c.MIVS_EMAIL,
-                    review.judge.email,
+                    review.judge.email_to_address,
                     'MIVS: Video Problems Resolved for {}'.format(review.game.title),
                     body,
                     model=review.judge.to_dict('id'))
@@ -332,21 +202,10 @@ class Root:
                 body = render('emails/mivs/game_fixed.txt', {'review': review}, encoding=None)
                 send_email.delay(
                     c.MIVS_EMAIL,
-                    review.judge.email,
+                    review.judge.email_to_address,
                     'MIVS: Game Problems Resolved for {}'.format(review.game.title),
                     body,
                     model=review.judge.to_dict('id'))
                 review.game_status = c.PENDING
         raise HTTPRedirect(
             'index?message={}{}', review.game.title, ' has been marked as having its judging issues fixed')
-
-    @csv_file
-    def presenters(self, out, session):
-        presenters = set()
-        for game in (session.query(IndieGame)
-                            .filter_by(status=c.ACCEPTED)
-                            .options(joinedload(IndieGame.studio).joinedload(IndieStudio.group))):
-            for attendee in getattr(game.studio.group, 'attendees', []):
-                if not attendee.is_unassigned and attendee not in presenters:
-                    presenters.add(attendee)
-                    out.writerow([attendee.full_name, game.studio.name])

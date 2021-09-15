@@ -409,7 +409,7 @@ def test_must_contact():
 def test_has_personalized_badge():
     assert not Attendee().has_personalized_badge
     assert Attendee(badge_type=c.STAFF_BADGE).has_personalized_badge
-    assert Attendee(badge_type=c.SUPPORTER_BADGE).has_personalized_badge
+    assert Attendee(badge_type=c.CONTRACTOR_BADGE).has_personalized_badge
     for badge_type in [c.ATTENDEE_BADGE, c.ONE_DAY_BADGE, c.GUEST_BADGE]:
         assert not Attendee(badge_type=badge_type).has_personalized_badge
 

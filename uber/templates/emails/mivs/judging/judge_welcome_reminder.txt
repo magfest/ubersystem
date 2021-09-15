@@ -1,0 +1,9 @@
+Ahoy {{ judge.attendee.first_name }},
+
+This is a reminder to update your judging status if you'd like to continue being a judge in MIVS.
+
+If you don't have time this year, we have an option where we won't contact you again until next year.
+
+To Update your status, please go to {{ c.URL_BASE }}/mivs_judging. You will have to log in using this email address and the password that you received in an earlier email.
+
+{{ c.MIVS_EMAIL_SIGNATURE }}

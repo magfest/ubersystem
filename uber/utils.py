@@ -5,11 +5,13 @@ import random
 import re
 import string
 import traceback
+import urllib
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, timedelta
 from glob import glob
 from os.path import basename
 from random import randrange
+from rpctools.jsonrpc import ServerProxy
 from urllib.parse import urlparse, urljoin
 from uuid import uuid4
 
@@ -23,7 +25,7 @@ from sideboard.lib import threadlocal
 from pytz import UTC
 
 import uber
-from uber.config import c
+from uber.config import c, _config
 from uber.errors import CSRFException, HTTPRedirect
 
 
@@ -119,6 +121,10 @@ def normalize_newlines(text):
         return re.sub(r'\r\n|\r|\n', '\n', str(text))
     else:
         return ''
+
+
+def normalize_email(email):
+    return email.strip().lower().replace('.', '')
 
 
 def convert_to_absolute_url(relative_uber_page_url):
@@ -527,17 +533,84 @@ def genpasswd():
     three random dictionary words but returns a string of 8 random characters if
     no dictionary is installed.
     """
-    try:
-        with open('/usr/share/dict/words') as f:
-            words = [s.strip() for s in f.readlines() if "'" not in s and s.islower() and 3 < len(s) < 8]
+    import glob
+    words = []
+    # Word lists source: https://bitbucket.org/jvdl/correcthorsebatterystaple/src/master/data/
+    word_lists = glob.glob(c.ROOT + '/uber/static/correcthorsebatterystaple/*.txt')
+    for word_list in word_lists:
+        words.extend(open(word_list).read().strip().split(','))
+    else:
+        if words:
+            words = [s.strip() for s in words if "'" not in s and s.islower() and 3 < len(s) < 8]
             return ' '.join(random.choice(words) for i in range(4))
-    except Exception:
-        return ''.join(chr(randrange(33, 127)) for i in range(8))
+        characters = string.ascii_letters + string.digits
+        return ''.join(random.choice(characters) for i in range(8))
 
 
 # ======================================================================
 # Miscellaneous helpers
 # ======================================================================
+
+def redirect_to_allowed_dept(session, department_id, page):
+    error_msg = 'You have been given admin access to this page, but you are not in any departments that you can admin. ' \
+                'Please contact STOPS to remedy this.'
+                
+    if c.DEFAULT_DEPARTMENT_ID == 0:
+        raise HTTPRedirect('../accounts/homepage?message={}', error_msg)
+    
+    if department_id == 'All':
+        if len(c.ADMIN_DEPARTMENT_OPTS) == 1:
+            raise HTTPRedirect('{}?department_id={}', page, c.DEFAULT_DEPARTMENT_ID)
+        return
+
+    if not department_id:
+        raise HTTPRedirect('{}?department_id=All', page, department_id)
+    if 'shifts_admin' in c.PAGE_PATH:
+        can_access = session.admin_attendee().can_admin_shifts_for(department_id)
+    elif 'dept_checklist' in c.PAGE_PATH:
+        can_access = session.admin_attendee().can_admin_checklist_for(department_id)
+    else:
+        can_access = session.admin_attendee().can_admin_dept_for(department_id)
+
+    if not can_access:
+        if department_id == c.DEFAULT_DEPARTMENT_ID:
+            raise HTTPRedirect('../accounts/homepage?message={}', error_msg)
+        raise HTTPRedirect('{}?department_id={}', page, c.DEFAULT_DEPARTMENT_ID)
+
+
+def valid_email(email):
+    from email_validator import validate_email, EmailNotValidError
+    if len(email) > 255:
+        return 'Email addresses cannot be longer than 255 characters.'
+    elif not email:
+        return 'Please enter an email address.'
+    
+    try:
+        validate_email(email)
+    except EmailNotValidError as e:
+        message = str(e)
+        return 'Enter a valid email address. ' + message
+
+
+def valid_password(password):
+    import re
+
+    if not password:
+        return 'Please enter a password.'
+
+    if len(password) < c.MINIMUM_PASSWORD_LENGTH:
+        return 'Password must be at least {} characters long.'.format(c.MINIMUM_PASSWORD_LENGTH)
+    if re.search("[^a-zA-Z0-9{}]".format(c.PASSWORD_SPECIAL_CHARS), password):
+        return 'Password must contain only letters, numbers, and the following symbols: {}'.format(c.PASSWORD_SPECIAL_CHARS)
+    if 'lowercase_char' in c.PASSWORD_CONDITIONS and not re.search("[a-z]", password):
+        return 'Password must contain at least one lowercase letter.'
+    if 'uppercase_char' in c.PASSWORD_CONDITIONS and not re.search("[A-Z]", password):
+        return 'Password must contain at least one uppercase letter.'
+    if 'number' in c.PASSWORD_CONDITIONS and not re.search("[0-9]", password):
+        return 'Password must contain at least one number.'
+    if 'special_char' in c.PASSWORD_CONDITIONS and not re.search("[{}]".format(c.PASSWORD_SPECIAL_CHARS), password):
+        return 'Password must contain at least one of the following symbols: {}'.format(c.PASSWORD_SPECIAL_CHARS)
+
 
 class Order:
     def __init__(self, order):
@@ -563,11 +636,11 @@ class Registry:
 class DeptChecklistConf(Registry):
     instances = OrderedDict()
 
-    def __init__(self, slug, description, deadline, name=None, path=None, email_post_con=False):
+    def __init__(self, slug, description, deadline, full_description='', name=None, path=None, email_post_con=False):
         assert re.match('^[a-z0-9_]+$', slug), \
             'Dept Head checklist item sections must have separated_by_underscore names'
 
-        self.slug, self.description = slug, description
+        self.slug, self.description, self.full_description = slug, description, full_description
         self.name = name or slug.replace('_', ' ').title()
         self._path = path or '/dept_checklist/form?slug={slug}&department_id={department_id}'
         self.email_post_con = bool(email_post_con)
@@ -678,6 +751,56 @@ def remove_opt(opts, other):
     return ','.join(map(str, set(opts).difference(other)))
 
 
+def _server_to_url(server):
+    if not server:
+        return ''
+    host, _, path = urllib.parse.unquote(server).replace('http://', '').replace('https://', '').partition('/')
+    if path.startswith('reggie'):
+        return 'https://{}/reggie'.format(host)
+    elif path.startswith('uber'):
+        return 'https://{}/uber'.format(host)
+    elif c.PATH == '/uber':
+        return 'https://{}{}'.format(host, c.PATH)
+    return 'https://{}'.format(host)
+
+
+def _server_to_host(server):
+    if not server:
+        return ''
+    return urllib.parse.unquote(server).replace('http://', '').replace('https://', '').split('/')[0]
+
+
+def _format_import_params(target_server, api_token):
+    target_url = _server_to_url(target_server)
+    target_host = _server_to_host(target_server)
+    remote_api_token = api_token.strip()
+    if not remote_api_token:
+        remote_api_tokens = _config.get('secret', {}).get('remote_api_tokens', {})
+        remote_api_token = remote_api_tokens.get(target_host, remote_api_tokens.get('default', ''))
+    return target_url, target_host, remote_api_token.strip()
+
+
+def get_api_service_from_server(target_server, api_token):
+    """
+    Helper method that gets a service that can be used for API calls between servers.
+    Returns the service or None, an error message or '', and a JSON-RPC URI
+    """
+    target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
+    uri = '{}/jsonrpc/'.format(target_url)
+
+    message, service = '', None
+    if target_server or api_token:
+        if not remote_api_token:
+            message = 'No API token given and could not find a token for: {}'.format(target_host)
+        elif not target_url:
+            message = 'Unrecognized hostname: {}'.format(target_server)
+
+        if not message:
+            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
+
+    return service, message, target_url
+
+
 class request_cached_context:
     """
     We cache certain variables (like c.BADGES_SOLD) on a per-cherrypy.request basis.
@@ -784,6 +907,7 @@ class Charge:
         self._amount = amount
         self._description = description
         self._receipt_email = receipt_email
+        self._stripe_transaction = None
 
     @classproperty
     def paid_preregs(cls):
@@ -792,6 +916,22 @@ class Charge:
     @classproperty
     def unpaid_preregs(cls):
         return cherrypy.session.setdefault('unpaid_preregs', OrderedDict())
+    
+    @classproperty
+    def pending_preregs(cls):
+        return cherrypy.session.get('pending_preregs', OrderedDict())
+
+    @classproperty
+    def stripe_intent_id(cls):
+        return cherrypy.session.get('stripe_intent_id', '')
+
+    @classproperty
+    def attendee_account_id(cls):
+        return cherrypy.session.get('attendee_account_id', '')
+    
+    @classproperty
+    def universal_promo_codes(cls):
+        return cherrypy.session.setdefault('universal_promo_codes', {})
 
     @classmethod
     def get_unpaid_promo_code_uses_count(cls, id, already_counted_attendee_ids=None):
@@ -917,7 +1057,7 @@ class Charge:
 
     @cached_property
     def amount(self):
-        return self._amount or self.total_cost or 0
+        return int(self._amount or self.total_cost or 0)
 
     @cached_property
     def description(self):
@@ -956,41 +1096,36 @@ class Charge:
     def groups(self):
         return [m for m in self.models if isinstance(m, uber.models.Group)]
 
-    def charge_cc(self, session, token):
-        try:
-            log.debug('PAYMENT: !!! attempting to charge stripeToken {} {} cents for {}',
-                      token, self.amount, self.description)
+    @property
+    def stripe_transaction(self):
+        return self._stripe_transaction
 
-            self.response = stripe.Charge.create(
-                card=token,
-                currency='usd',
+    def create_stripe_intent(self, session):
+        log.debug('Creating Stripe Intent to charge {} cents for {}', self.amount, self.description)
+        try:
+            stripe_intent = stripe.PaymentIntent.create(
+                payment_method_types=['card'],
                 amount=self.amount,
+                currency='usd',
                 description=self.description,
-                receipt_email=self.receipt_email
             )
 
-            log.info('PAYMENT: !!! SUCCESS: charged stripeToken {} {} cents for {}, responseID={}',
-                     token, self.amount, self.description, getattr(self.response, 'id', None))
-
-        except stripe.CardError as e:
-            msg = 'Your card was declined with the following error from our processor: ' + str(e)
-            log.error('PAYMENT: !!! FAIL: {}', msg)
-            return msg
-        except stripe.StripeError as e:
-            error_txt = 'Got an error while calling charge_cc(self, token={!r})'.format(token)
-            report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
-            return 'An unexpected problem occurred while processing your card: ' + str(e)
-        else:
             if self.models:
-                txn = self.stripe_transaction_from_charge()
+                self._stripe_transaction = self.stripe_transaction_from_charge(stripe_intent.id)
+                session.add(self._stripe_transaction)
                 for model in self.models:
                     multi = len(self.models) > 1
-                    session.add(self.stripe_transaction_for_model(model, txn, multi))
-                session.add(txn)
+                    session.add(self.stripe_transaction_for_model(model, self._stripe_transaction, multi))
 
-    def stripe_transaction_from_charge(self, type=c.PAYMENT):
+            return stripe_intent
+        except Exception as e:
+            error_txt = 'Got an error while calling create_stripe_intent()'
+            report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
+            return 'An unexpected problem occurred while setting up payment: ' + str(e)
+
+    def stripe_transaction_from_charge(self, stripe_id='', type=c.PENDING):
         return uber.models.StripeTransaction(
-            stripe_id=self.response.id or None,
+            stripe_id=stripe_id,
             amount=self.amount,
             desc=self.description,
             type=type,
@@ -1002,11 +1137,41 @@ class Charge:
             return uber.models.commerce.StripeTransactionAttendee(
                 txn_id=txn.id,
                 attendee_id=model.id,
-                share=self.amount if not multi else (model.amount_unpaid * 100)
+                share=self.amount if not multi else model.amount_unpaid * 100
             )
         elif model.__class__.__name__ == "Group":
             return uber.models.commerce.StripeTransactionGroup(
                 txn_id=txn.id,
                 group_id=model.id,
-                share=self.amount if not multi else (model.amount_unpaid * 100)
+                share=self.amount if not multi else model.amount_unpaid * 100
             )
+
+    @staticmethod
+    def mark_paid_from_stripe_id(stripe_id):
+        with uber.models.Session() as session:
+            matching_stripe_txns = session.query(uber.models.StripeTransaction).filter_by(stripe_id=stripe_id)
+
+            for txn in matching_stripe_txns:
+                txn.type = c.PAYMENT
+                session.add(txn)
+
+                for item in txn.receipt_items:
+                    item.txn_type = c.PAYMENT
+                    session.add(item)
+
+                for group_log in txn.groups:
+                    group = group_log.group
+                    if not group.amount_pending:
+                        group.paid = c.HAS_PAID
+                        session.add(group)
+
+                for attendee_log in txn.attendees:
+                    attendee = attendee_log.attendee
+                    if not attendee.amount_pending:
+                        if attendee.badge_status == c.PENDING_STATUS:
+                            attendee.badge_status = c.NEW_STATUS
+                        attendee.paid = c.HAS_PAID
+                        session.add(attendee)
+
+            session.commit()
+            return matching_stripe_txns

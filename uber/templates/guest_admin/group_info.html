@@ -1,5 +1,0 @@
-{% extends "base.html" %}{% set admin_area=True %}{% set group_type=guest.group_type_label|lower %}
-{% block title %}{{ guest.group.name }}{% endblock %}
-{% block content %}
-  {% include "guest_admin/" + group_type + "_info.html" %}
-{% endblock %}

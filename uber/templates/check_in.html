@@ -16,6 +16,9 @@ var loadCheckInModal = function (attendeeID) {
                 field_order: 'MDY',
                 show_tooltips: false
             });
+            checkInModal.on('hidden.bs.modal', function (e) {
+                $('#stripeModal').remove();
+            });
         } else {
             toastr.error("Form loading failed.");
             checkInModal.modal('hide');

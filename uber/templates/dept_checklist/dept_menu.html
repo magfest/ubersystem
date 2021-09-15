@@ -1,0 +1,43 @@
+<style type="text/css">
+  .jobs-menu:after {
+    content: " ";
+    display: block;
+    clear: both;
+  }
+
+  .jobs-menu .form-group {
+    display: inline-block;
+    margin-bottom: 15px;
+  }
+
+  .jobs-menu .department-group label,
+  .jobs-menu .page-group label {
+    margin-right: 10px;
+  }
+
+  .jobs-menu .page-group {
+    float: right;
+    text-align: right;
+  }
+
+  .jobs-menu label {
+    font-size: 1.5em;
+    vertical-align: middle;
+  }
+</style>
+
+<script type="text/javascript">
+    var mainMenuDropdownChanged = function () {
+        window.location = "{{ c.PAGE }}?department_id=" + $("#department_id").val();
+    };
+</script>
+
+<div class="jobs-menu form-inline">
+  <div class="department-group form-group">
+    <label for="department_id">Department</label>
+    <select id="department_id" onChange="mainMenuDropdownChanged()" class="form-control">
+      {% if c.ADMIN_DEPARTMENTS|length > 1 %}<option>All</option>{% endif %}
+      {{ options(c.ADMIN_DEPARTMENT_OPTS, department_id) }}
+    </select>
+  </div>
+</div>

@@ -1,0 +1,16 @@
+Ahoy {{ game.studio.primary_contact_first_names }},
+
+Congrats on presenting at the MAGFest Indie Videogame Showcase! 
+
+We want to know if you would like to run a Leaderboard Challenge or Tournament at the Showcase.
+
+* To run a Leaderboard Challenge your game should have a way to track a high score, distance, or highest level of some sort. 
+
+* To run a Tournament your game should contain some sort of head to head mode where a Single Elimination bracket can be used.
+
+There will be time slots for each game, but a tournament can go past your slotted time. We will be entering these times into Guidebook which attendees will be able to see at the event. 
+
+If you are interested, please email mivs@magfest.org ASAP. 
+
+Forever your Fan,
+The MIVS Team

@@ -1,0 +1,171 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'art_show_common/artist_checkin_macros.html' as artist_checkin_macros with context %}
+{% block title %}Art Show Admin{% endblock %}
+{% block content %}
+<script type="text/javascript">{% include "region_opts.html" %}</script>
+<ol class="breadcrumb">
+  <li><a href="../accounts/homepage">Home</a></li>
+  <li>Art Show</li>
+  <li class="active">Admin</li>
+</ol>
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h3 class="panel-title">Artist Check-{{ checkout|yesno("Out, In") }}</h3>
+  </div>
+  <div class="panel-body">
+    <form role="form" method="get" action="artist_check_in_out" id="search_form" class="form-inline">
+      <div class="form-group"><a class="btn btn-default" href="form?new_app=True">Add an application</a></div>
+      {% if checkout %}<input type="hidden" name="checkout" value="1" />{% endif %}
+      <div class="input-group col-sm-6">
+        <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
+        <span class="input-group-btn">
+          <button class="btn btn-default" type="submit">
+              <span class="glyphicon glyphicon-search"></span>
+          </button>
+        </span>
+      </div>
+    </form>
+    {% if search_text %}<a href="artist_check_in_out{{ '?checkout=True' if checkout }}">View all artists who have {{ 'checked in' if checkout else 'not checked out' }}</a>{% endif %}
+
+    <iframe id="upload_frame" name="upload_frame" style="display:none"></iframe>
+    <div id="app_modals">
+      {% for app in applications -%}
+      {{ artist_checkin_macros.check_in_modal(app) }}
+      {%- endfor %}
+    </div>
+    <form role="form" method="post" id="print_form" action="print_check_in_out_form">
+      <input type="hidden" name="id" class="print_id" />
+      {% if checkout %}<input type="hidden" name="checkout" value="1" />{% endif %}
+      {{ csrf_token() }}
+    </form>
+    <form role="form" method="post" id="print_invoice" action="print_artist_invoice">
+      <input type="hidden" name="id" class="print_id" />
+      {{ csrf_token() }}
+    </form>
+    <ul class="pagination{% if not page %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
+  {% for pagenum in pages %}
+  {% if pagenum == page %}
+  <li class="page-item active">
+    <a class="page-link" href="#">{{ pagenum }}</a>
+  </li>
+  {% else %}
+  <li class="page-item">
+    <a class="page-link"
+       href="artist_check_in_out?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode or '' }}{{ '&checkout=True' if checkout }}">
+      {{ pagenum }}</a>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+    <table class="table table-striped">
+      <thead><tr>
+        <th><a href="artist_check_in_out?order={{ order.first_name }}&page={{ page }}&search_text={{ search_text|urlencode or '' }}{{ '&checkout=True' if checkout }}">Name</a></th>
+        <th>Pieces Submitted</th>
+        <th>Status</th>
+        <th>General Panels</th>
+        <th>General Tables</th>
+        <th>Mature Panels</th>
+        <th>Mature Tables</th>
+        <th>Admin Notes</th>
+        <th>Check-{{ checkout|yesno("Out,In") }}</th>
+      </tr></thead>
+      {% for app in applications %}
+      <tr class="app-row" data-app_id="{{ app.id }}">
+        <td><a href="form?id={{ app.id }}">{{ app.attendee.full_name|default("?????") }}{% if app.artist_name %} ({{ app.artist_name }}){% endif %}</a></td>
+        <td>{% if app.incomplete_reason or app.is_unpaid %}N/A{% else %}
+          {{ app.art_show_pieces|length }} (<a href="pieces?id={{ app.id }}">View</a>){% endif %}</td>
+        <td>{{ app.status_label }}</td>
+        <td>{{ app.panels }}</td>
+        <td>{{ app.tables }}</td>
+        <td>{{ app.panels_ad }}</td>
+        <td>{{ app.tables_ad }}</td>
+        <td>{{ app.admin_notes }}</td>
+        <td>
+          {% if not app.checked_in %}
+          <button type="button" class="btn btn-primary open_modal">Check-In Artist</button>
+          {% elif not app.checked_out and checkout %}
+          <button type="button" class="btn btn-primary open_modal">Check-Out Artist</button>
+          {% else %}
+          {% if app.checked_out %}<em>Checked-out {{ app.checked_out_local|datetime("%-I:%M%p")|lower }} {{ app.checked_out_local|datetime("%a") }}</em><br/>
+          {% elif app.checked_in %}<em>Checked-in {{ app.checked_in_local|datetime("%-I:%M%p")|lower }} {{ app.checked_in_local|datetime("%a") }}</em><br/>{% endif %}
+          (<a href="#" class="open_modal">View/Edit Artist Info</a>)
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      <caption align="bottom">
+        <ul class="pagination"></ul>
+      </caption>
+    </table>
+    <script type="text/javascript">
+        var openModal = function(e) {
+            e.preventDefault();
+            var id = $(this).closest('.app-row').data('app_id');
+            $('#app_modals').find('.modal').removeClass('print_form');
+            $('#app_'+id).modal();
+
+            // We need to run regionChange again because the function is running before the modal is actually ready
+            $('#app_'+id).find('.address_suffixes').each(function() {
+                eval("regionChange" + $(this).val() + "()");
+            })
+        };
+
+        $(document).ready(function() {
+            var print = false;
+            var print_invoice = false;
+            $('.open_modal').on('click', openModal);
+            $('.save_app').on('click', function() {
+                print = $(this).hasClass('print');
+                print_invoice = $(this).hasClass('print_invoice');
+                if ($(this).hasClass('action')) {
+                    $('.complete').val('1');
+                } else {
+                    $('.complete').val('');
+                }
+            });
+
+            $('#app_modals').find('form').submit(function(e) {
+                $(this).find('.save_app').prop('disabled', true);
+                return true;
+            });
+
+            $('#upload_frame').load(function() {
+                try {
+                    var responseText = $(this.contentDocument.body).text().trim();
+                    this.contentDocument.body.innerHTML = '';
+                    if (responseText) {
+                        try {
+                            var response = $.parseJSON(responseText);
+                            if (!response['error']) {
+                                var $modals = $('#app_modals').find('.modal');
+
+                                if (print || print_invoice) {
+                                  $('.print_id').val(response['id']);
+                                  if (print) {
+                                    window.open('', 'print_form_target', 'width=400,height=400,resizeable,scrollbars');
+                                    $('#print_form').attr('target', 'print_form_target').submit();
+                                  }
+                                  if (print_invoice) {
+                                      window.open('', 'print_invoice_target', 'width=400,height=400,resizeable,scrollbars');
+                                      $('#print_invoice').attr('target', 'print_invoice_target').submit();
+                                  }
+                                } else {
+                                    $modals.modal('hide');
+                                    location.href = '?{% if checkout %}checkout=True&{% endif %}message=' + response['success'];
+                                }
+                            } else {
+                                toastr.error('', response['error'], {timeOut: 5000});
+                            }
+                        } catch(ex) {
+                            toastr.error('', 'There was an error saving the app: ' + responseText.substring(0, 1024), {timeOut: 5000});
+                        }
+                    }
+                } finally {
+                    $('#app_modals').find('.save_app').prop('disabled', false);
+                }
+            });
+
+        });
+    </script>
+    {% endblock %}

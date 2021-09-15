@@ -6,7 +6,7 @@
 
 {% for section, pagelist in pages %}
 <div class="panel panel-default">
-  <div class="panel-heading"><a href="../{{ section }}/index">{{ section|title }}</a></div>
+  <div class="panel-heading"><a href="../{{ section }}/index">{{ section|replace("_", " ")|title }}</a></div>
   <div class="panel-body">
     <ul class="nav nav-pills">
     {% for page in pagelist %}

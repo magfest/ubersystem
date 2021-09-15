@@ -1,0 +1,56 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Panelist Badges{% endblock %}}
+{% block content %}
+  <script>
+      var hideRows = function (id) {
+          $('#' + id).hide('slow');
+      };
+      var approve = function (id) {
+          $.post('approve_badge', {csrf_token: csrf_token, id: id}, function (response) {
+              if (response.error) {
+                  toastr.error(response.error);
+              } else {
+                  toastr.info('Badge approved');
+                  hideRows(response.added);
+              }
+          }, 'json');
+      };
+  </script>
+
+  <h3>Pending volunteer badges</h3>
+
+  The following is a list of volunteer badges that have been submitted for creation.
+
+  <table class="table table-striped">
+    <thead>
+    <tr>
+      <th>Name</th>
+      <th>Email</th>
+      <th>Badge Type</th>
+      <th>Ribbons</th>
+      <th>Assigned Departments</th>
+      <th>Created By</th>
+      <th>Admin Notes</th>
+      <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for badge in pending_badges %}
+      <tr id="{{ badge.id }}">
+        <td>
+          <a href="#attendee_form?id={{ badge.id }}" target="_blank">{{ badge.full_name }}</a>
+          {% if badge.legal_name %}(Name on Photo ID: {{ badge.legal_name }}){% endif %}
+        </td>
+        <td>{{ badge.email|email_to_link }}</td>
+        <td>{{ badge.badge_type_label }}</td>
+        <td>{{ badge.ribbon_labels|join(", ") }}</td>
+        <td>{{ badge.assigned_depts_labels|join(", ") }}</td>
+        <td>{{ badge.created.who }}</td>
+        <td>{{ badge.admin_notes }}</td>
+        <td><button class="btn btn-primary" onClick="approve('{{ badge.id }}')">Approve Badge</button></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+{% endblock %}

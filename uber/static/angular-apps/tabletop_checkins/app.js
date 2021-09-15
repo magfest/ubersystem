@@ -9,7 +9,7 @@ angular.module('tabletop.checkins', ['ngRoute', 'magfest', 'ui.bootstrap'])
         return {
             restrict: 'E',
             template: '<span>' +
-                          '<a target="_blank" href="../registration/form?id={{ attendee.id }}">{{ attendee.name }}</a>' +
+                          '<a target="_blank" href="#attendee_form?id={{ attendee.id }}">{{ attendee.name }}</a>' +
                           '<span ng-if="badge"> (Badge #{{ attendee.badge }})</span>' +
                       '</span>',
             scope: {

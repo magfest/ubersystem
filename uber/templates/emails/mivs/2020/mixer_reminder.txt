@@ -1,0 +1,6 @@
+Ahoy {{ game.studio.primary_contact_first_names }},
+
+We wanted to remind you that the MIVS Indie Mixer is happening tonight, 10pm at the Belvedere Lobby Bar. We'll have Nametags for you to fill out. Hope to see you there!
+
+Forever your Fan,
+The MIVS Team

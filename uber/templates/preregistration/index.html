@@ -5,28 +5,37 @@
 
 <script type="text/javascript">
     $().ready(function() {
-        $("a[href^='delete']").click(function(event){
-            var urlToUse = $(this).attr('href');
-            event.preventDefault();
-            bootbox.confirm({
-                message: "Are you sure you want to delete this preregistration?",
-                buttons: {
-                    confirm: {
-                        label: 'Delete Preregistration',
-                        className: 'btn-danger'
-                    },
-                    cancel: {
-                        label: 'Nevermind',
-                        className: 'btn-default'
-                    }
-                },
-                callback: function (result) {
-                    if(result) {
-                        window.location.href = urlToUse
-                    }
-                }
-            });
-        })
+      $('#cancel_payment').click(function(event) {
+        event.preventDefault();
+        $.post('cancel_prereg_payment', {csrf_token: csrf_token},
+        function(result) {
+            if (result.message) {
+                window.location.replace('index?message=Payment%20reset');
+            }
+        });
+      })
+      $("a[href^='delete']").click(function(event){
+          var urlToUse = $(this).attr('href');
+          event.preventDefault();
+          bootbox.confirm({
+              message: "Are you sure you want to delete this preregistration?",
+              buttons: {
+                  confirm: {
+                      label: 'Delete Preregistration',
+                      className: 'btn-danger'
+                  },
+                  cancel: {
+                      label: 'Nevermind',
+                      className: 'btn-default'
+                  }
+              },
+              callback: function (result) {
+                  if(result) {
+                      window.location.href = urlToUse
+                  }
+              }
+          });
+      })
     });
 </script>
 
@@ -36,23 +45,8 @@
   <div class="panel-body">
     {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_OPEN) }}
 
-    <div class="row">
-        <div class="col-sm-8 col-sm-offset-2">
-            <div class="col-sm-5 text-center">
-                {% if charge.total_cost > 0 %}
-                    {{ stripe_form('prereg_payment',charge) }}
-                {% else %}
-                    <a href="process_free_prereg">{{ macros.stripe_button("Complete Registration!") }}</a>
-                {% endif %}
-            </div>
-            <div class="col-sm-2 text-center">
-                or
-            </div>
-            <div class="col-sm-5 text-center">
-                <a href="form">{{ macros.stripe_button("Add Another Prereg") }}</a>
-            </div>
-        </div>
-    </div>
+      {% if charge.attendees or charge.groups %}
+        {% include 'preregistration/index_payment_form.html' %}
   </div>
 
   <table class="charge table table-striped">
@@ -78,14 +72,14 @@
               {% if not attendee.badge_cost and attendee.age_discount and not attendee.promo_code_id %}
                 <li>Attendees who are {{ attendee.age_group_conf.desc|lower }} get in for free!</li>
               {% elif attendee.age_discount and attendee.age_group_conf.discount != 0 %}
-                <li>${{ attendee.age_group_conf.discount }} discount for attendees who are {{ attendee.age_group_conf.desc|lower }}.</li>
+                <li>{{ attendee.age_group_conf.discount|format_currency }} discount for attendees who are {{ attendee.age_group_conf.desc|lower }}.</li>
               {% endif %}
               {% for swag in attendee.donation_swag|list + attendee.addons|list %}
                 <li>{{ swag }}</li>
               {% endfor %}
               {% if attendee.promo_code and not attendee.badges %}
                 {% if attendee.promo_code.group_id %}
-                  <li>Claiming a badge in group "{{ attendee.group_name }}"</li>
+                  <li>Claiming a badge in group "{{ attendee.promo_group_name }}"</li>
                 {% else %}
                 <li>{{ attendee.promo_code.discount_str }} with promo code "{{ attendee.promo_code.code }}"</li>
                 {% endif %}
@@ -94,9 +88,9 @@
           </td>
           <td>
             {% if attendee.badges %}
-              ${{ attendee.amount_extra_unpaid + (attendee.badges|int * c.GROUP_PRICE) }}
+              {{ (attendee.amount_extra_unpaid + (attendee.badges|int * c.GROUP_PRICE))|format_currency }}
             {% else %}
-              ${{ attendee.total_cost|round(2) }}
+              {{ attendee.total_cost|format_currency }}
             {% endif %}
           </td>
           <td>
@@ -119,7 +113,7 @@
               {% endfor %}
             </ul>
           </td>
-          <td>${{ group.default_cost|round(2) }}</td>
+          <td>{{ group.default_cost|format_currency }}</td>
           <td>
             <a href="form?edit_id={{ group.id }}">Edit</a> /
             <a href="delete?id={{ group.id }}">Delete</a>
@@ -132,12 +126,13 @@
         <tr>
           <th></th>
           <th style="text-align:right;"><i>Total:</i></th>
-          <th><b>${{ charge.dollar_amount|round(2) }}</b></th>
+          <th><b>{{ charge.dollar_amount|format_currency }}</b></th>
           <th></th>
         </tr>
       </tfoot>
     {% endif %}
   </table>
+  {% endif %}
 
   <div class="panel-body">
     {% include "preregistration/disclaimers.html" %}

@@ -1,0 +1,12 @@
+{% import 'macros.html' as macros %}
+
+<li>
+    {{ macros.checklist_image(not attendee.placeholder) }}
+    {% if attendee.placeholder %}
+        <a href="../preregistration/confirm?return_to=../staffing/index&id={{ attendee.id }}">Confirm</a>
+    {% else %}
+        Confirm
+    {% endif %}
+    you are attending {{ c.EVENT_NAME }}. (Deadline: {{ c.VOLUNTEER_PLACEHOLDER_DEADLINE }})
+    {% if not attendee.placeholder %}(you can still <a href="../preregistration/confirm?return_to=../staffing/index&id={{ attendee.id }}">edit your info</a>){% endif %}
+</li>

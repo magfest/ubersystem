@@ -1,7 +1,7 @@
 """Add available column
 
 Revision ID: b4a97b074ef2
-Revises: a3d71270256c
+Revises: 9e3e15a7cf59
 Create Date: 2017-09-27 14:05:52.746446
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-09-27 14:05:52.746446
 
 # revision identifiers, used by Alembic.
 revision = 'b4a97b074ef2'
-down_revision = 'a3d71270256c'
+down_revision = '9e3e15a7cf59'
 branch_labels = None
 depends_on = None
 

@@ -1,20 +1,29 @@
 {% extends "preregistration/preregbase.html" %}
-{% block title %}Art Show Application{% endblock %}
-{% block backlink %}{% endblock %}
+{% block title %}Marketplace Application{% endblock %}
 {% block content %}
 {% set payment_includes_badge = app.attendee.badge_cost and app.attendee.amount_unpaid > app.total_cost %}
 <div class="masthead"></div>
+{% set attendee = app.attendee %}
+{% if account %}
+  {% include 'preregistration/update_account.html' %}
+{% endif %}
 <div class="panel panel-default">
+  <div class="panel-heading">
+    Marketplace Application
+  </div>
   <div class="panel-body">
+    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_applications %}
+      {% include 'confirm_tabs.html' with context %}
+    {% endif %}
     <h2>{{ c.EVENT_NAME }} Marketplace Application</h2>
     <p>
       {% if app.status in [c.APPROVED, c.PAID] %}
       {% if app.status == c.APPROVED %}Congratulations, your application has been approved!{% endif %}
         {% if not app.incomplete_reason and app.amount_unpaid %}
-          In order to complete your application, please pay ${{ app.attendee.amount_unpaid }} using the button below.
+          In order to complete your application, please pay {{ app.attendee.amount_unpaid|format_currency }} using the button below.
           {% if payment_includes_badge %}This total includes the cost of your badge.{% endif %}<br/><br/>
           <div style="text-align:center">
-              {{ stripe_form('process_marketplace_payment', charge) }}
+              {{ stripe_form('process_marketplace_payment', app.attendee) }}
           </div>
         {% elif app.attendee.placeholder %}
           Before completing your application, please finish filling out your information

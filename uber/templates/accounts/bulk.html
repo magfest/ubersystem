@@ -38,8 +38,8 @@ var mainMenuDropdownChanged = function () {
 </thead>
 {% for attendee in attendees %}
     <tr>
-        <td width="20%" data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}"> <a href="../registration/shifts?id={{ attendee.id }}">{{ attendee.full_name }}</a>        </td>
-        {% if c.HAS_ACCOUNTS_ACCESS %}<td width="10">{% if attendee.admin_account %}Enabled{% else %}<input type="checkbox" class="cbox" id="{{ attendee.id }}"> Enable?{% endif %}</td>{% endif %}
+        <td width="20%" data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}"> <a href="#attendee_form?id={{ attendee.id }}&tab_view=Shifts">{{ attendee.full_name }}</a>        </td>
+        {% if c.HAS_ACCOUNTS_ACCESS %}<td width="10">{% if attendee.admin_account %}Enabled{% else %}<label for="{{ attendee.id }}" class="checkbox-label optional-field"><input type="checkbox" class="cbox" id="{{ attendee.id }}"> Enable?</label>{% endif %}</td>{% endif %}
         <td width="10">{% if not attendee.badge_num %}<font size="-1">TBD</font>{% else %}{{ attendee.badge_num }}{% endif %}</td>
         <td width="10">{% if attendee.is_dept_head %}<font size="-1">[D]</font>{% endif %}</td>
         <td width="10">{% if attendee.trusted_here %}<font size="-1">[T]</font>{% endif %}</td>
@@ -63,7 +63,10 @@ var mainMenuDropdownChanged = function () {
         <input type="hidden" name="ids" id="ids" value="" />
         {{ csrf_token() }}
         <div class="form-group">
-            {{ macros.access_checkgroup(AdminAccount) }}
+            {{ macros.checkgroup_opts(
+            'access_groups_ids',
+            c.ACCESS_GROUP_OPTS,
+            include_empty_hidden=True) }}
         </div>
         <button type="submit" class="btn btn-default">Create Checked Accounts</button>
     </form>

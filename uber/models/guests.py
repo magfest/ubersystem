@@ -35,6 +35,7 @@ class GuestGroup(MagModel):
     estimated_performance_minutes = Column(Integer, default=c.DEFAULT_PERFORMANCE_MINUTES, admin_only=True)
 
     wants_mc = Column(Boolean, nullable=True)
+    needs_rehearsal = Column(Choice(c.GUEST_REHEARSAL_OPTS), nullable=True)
     info = relationship('GuestInfo', backref=backref('guest', load_on_pending=True), uselist=False)
     bio = relationship('GuestBio', backref=backref('guest', load_on_pending=True), uselist=False)
     taxes = relationship('GuestTaxes', backref=backref('guest', load_on_pending=True), uselist=False)
@@ -62,14 +63,34 @@ class GuestGroup(MagModel):
             return self.status(name.rsplit('_', 1)[0])
         else:
             return super(GuestGroup, self).__getattr__(name)
+        
+    @presave_adjustment
+    def empty_strings_to_zero(self):
+        if not self.payment:
+            self.payment = 0
+        
+        if not self.vehicles:
+            self.vehicles = 0
+        
+        if not self.num_hotel_rooms:
+            self.num_hotel_rooms = 0
 
     def deadline_from_model(self, model):
         name = str(self.group_type_label).upper() + "_" + str(model).upper() + "_DEADLINE"
         return getattr(c, name, None)
+    
+    @property
+    def sorted_checklist_items(self):
+        checklist_items = []
+        for item in c.GUEST_CHECKLIST_ITEMS:
+            if self.deadline_from_model(item['name']):
+                checklist_items.append(item)
+                
+        return sorted(checklist_items, key= lambda i: self.deadline_from_model(i['name']))
 
     @property
     def all_badges_claimed(self):
-        return not any(a.is_unassigned for a in self.group.attendees)
+        return not any(a.is_unassigned or a.placeholder for a in self.group.attendees)
 
     @property
     def estimated_performer_count(self):
@@ -113,6 +134,15 @@ class GuestGroup(MagModel):
     @property
     def mc_status(self):
         return None if self.wants_mc is None else yesno(self.wants_mc, 'Yes,No')
+
+    @property
+    def rehearsal_status(self):
+        if self.needs_rehearsal == c.NO:
+            return "do not"
+        elif self.needs_rehearsal == c.MAYBE:
+            return "might"
+        elif self.needs_rehearsal == c.YES:
+            return "do"
 
     @property
     def checklist_completed(self):
@@ -206,7 +236,7 @@ class GuestBio(MagModel):
     @property
     def pic_url(self):
         if self.uploaded_pic:
-            return '{}/guests/view_bio_pic?id={}'.format(c.PATH, self.guest.id)
+            return '../guests/view_bio_pic?id={}'.format(self.guest.id)
         return ''
 
     @property
@@ -233,31 +263,11 @@ class GuestBio(MagModel):
 
 class GuestTaxes(MagModel):
     guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
-    w9_filename = Column(UnicodeText)
-    w9_content_type = Column(UnicodeText)
-
-    @property
-    def w9_url(self):
-        if self.w9_filename:
-            return '{}/guests/view_w9?id={}'.format(c.PATH, self.guest.id)
-        return ''
-
-    @property
-    def w9_fpath(self):
-        return os.path.join(c.GUESTS_W9_FORMS_DIR, self.id)
-
-    @property
-    def w9_extension(self):
-        return filename_extension(self.w9_filename)
-
-    @property
-    def download_filename(self):
-        name = self.guest.normalized_group_name
-        return name + '_w9_form.' + self.w9_extension
+    w9_sent = Column(Boolean, default=False)
 
     @property
     def status(self):
-        return self.w9_url if self.w9_url else ''
+        return str(self.w9_sent)
 
 
 class GuestStagePlot(MagModel):
@@ -268,7 +278,7 @@ class GuestStagePlot(MagModel):
     @property
     def url(self):
         if self.uploaded_file:
-            return '{}/guests/view_stage_plot?id={}'.format(c.PATH, self.guest.id)
+            return '../guests/view_stage_plot?id={}'.format(self.guest.id)
         return ''
 
     @property
@@ -367,11 +377,11 @@ class GuestMerch(MagModel):
 
     @property
     def rock_island_url(self):
-        return '{}/guest_admin/rock_island?id={}'.format(c.PATH, self.guest_id)
+        return '../guest_admin/rock_island?id={}'.format(self.guest_id)
 
     @property
     def rock_island_csv_url(self):
-        return '{}/guest_admin/rock_island_csv?id={}'.format(c.PATH, self.guest_id)
+        return '../guest_admin/rock_island_csv?id={}'.format(self.guest_id)
 
     @property
     def status(self):
@@ -551,7 +561,7 @@ class GuestMerch(MagModel):
         return os.path.join(c.GUESTS_INVENTORY_DIR, file)
 
     def inventory_url(self, item_id, name):
-        return '{}/guests/view_inventory_file?id={}&item_id={}&name={}'.format(c.PATH, self.id, item_id, name)
+        return '../guests/view_inventory_file?id={}&item_id={}&name={}'.format(self.id, item_id, name)
 
     def remove_inventory_item(self, item_id, *, persist_files=True):
         item = None

@@ -1,7 +1,7 @@
 """Add dealer categories
 
 Revision ID: 063eeaf98c57
-Revises: 167243c0e86c
+Revises: b6074f8ea4ab
 Create Date: 2017-07-21 03:24:02.771982
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-07-21 03:24:02.771982
 
 # revision identifiers, used by Alembic.
 revision = '063eeaf98c57'
-down_revision = '167243c0e86c'
+down_revision = 'b6074f8ea4ab'
 branch_labels = None
 depends_on = None
 

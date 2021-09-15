@@ -1,0 +1,19 @@
+{% import 'macros.html' as macros %}
+{% if c.HOURS_FOR_SHIRT and attendee.gets_any_kind_of_shirt %}
+<li>
+    {{ macros.checklist_image(attendee.shirt_info_marked) }}
+    {% if not attendee.placeholder and attendee.food_restrictions_filled_out %}
+        <a href="shirt_size">Let us know</a>
+    {% else %}
+        Let us know
+    {% endif %}
+    your shirt size
+    {% if c.STAFF_EVENT_SHIRT_OPTS and attendee.gets_staff_shirt %}
+        and your preference of staff or event shirt
+    {% endif %}
+    {% if c.SHIRT_DEADLINE %}
+        <b>no later than {{ c.SHIRT_DEADLINE|datetime_local }}</b>
+    {% endif %}
+    so that we can set aside shirts in the right sizes.
+</li>
+{% endif %}

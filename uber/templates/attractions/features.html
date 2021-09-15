@@ -7,6 +7,7 @@
 <style type="text/css">
   .hover-btn h3 {
     margin: 5px 0;
+    font-weight: bold;
     font-size: 1.125em;
   }
 </style>
@@ -34,7 +35,7 @@
       </p>
       <hr>
       <div id="features">
-        {% for feature in attraction.public_features %}
+        {% for feature in features %}
           <div class="feature hover-btn"
               data-feature-id="{{ feature.id }}"
               data-feature-name="{{ feature.name }}">

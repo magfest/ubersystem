@@ -1,3 +1,4 @@
+import cgi
 import csv
 import functools
 import inspect
@@ -50,9 +51,9 @@ def log_pageview(func):
     def with_check(*args, **kwargs):
         with uber.models.Session() as session:
             try:
-                session.admin_account(cherrypy.session['account_id'])
+                session.admin_account(cherrypy.session.get('account_id'))
             except Exception:
-                pass  # we don't care about unrestricted pages for this version
+                pass  # we don't care about public pages for this version
             else:
                 uber.models.PageViewTracking.track_pageview()
         return func(*args, **kwargs)
@@ -85,18 +86,7 @@ def check_if_can_reg(func):
                 return render('static_views/dealer_reg_closed.html')
             else:
                 return render('static_views/dealer_reg_not_open.html')
-        elif c.ATTENDEE_BADGES_SOLD >= c.MAX_BADGE_SALES:
-            # ===============================================================
-            # TODO: MAKE THIS COMPARE THE SPECIFIC BADGE TYPE AGAINST OUR
-            # STOCKS OF THAT TYPE. LUMPING ALL THE BADGE TYPES TOGETHER
-            # AND COMPARING AGAINST A SINGLE NUMBER DOESN'T MAKE SENSE,
-            # BECAUSE WE HAVE DIFFERENT NUMBERS OF PHYSICAL BADGES FOR EACH
-            # BADGE TYPE.
-            #
-            # FOR NOW, THIS IS COOL, BECAUSE THE ONLY BADGE TYPE WE ARE
-            # WORRIED ABOUT SELLING OUT IS ATTENDEE_BADGE. BUT THAT MAY NOT
-            # ALWAYS BE THE CASE.
-            # ===============================================================
+        elif not c.ATTENDEE_BADGE_AVAILABLE:
             return render('static_views/prereg_soldout.html')
         elif c.BEFORE_PREREG_OPEN and not is_dealer_reg:
             return render('static_views/prereg_not_yet_open.html')
@@ -152,11 +142,11 @@ department_id_adapter = argmod(['location', 'department', 'department_id'], lamb
 
 
 @department_id_adapter
-def check_dept_admin(session, department_id=None, inherent_role=None):
+def check_can_edit_dept(session, department_id=None, inherent_role=None, override_access=None):
     from uber.models import AdminAccount, DeptMembership, Department
-    account_id = cherrypy.session['account_id']
+    account_id = cherrypy.session.get('account_id')
     admin_account = session.query(AdminAccount).get(account_id)
-    if c.ACCOUNTS not in admin_account.access_ints:
+    if not getattr(admin_account, override_access, None):
         dh_filter = [
             AdminAccount.id == account_id,
             AdminAccount.attendee_id == DeptMembership.attendee_id]
@@ -179,14 +169,50 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
             return 'You must be a department admin{} to complete that action.'.format(dept_msg)
 
 
-def assert_dept_admin(session, department_id=None, inherent_role=None):
-    message = check_dept_admin(session, department_id, inherent_role)
-    if message:
-        raise HTTPRedirect("../common/invalid?message={}", message)
+def check_dept_admin(session, department_id=None, inherent_role=None):
+    return check_can_edit_dept(session, department_id, inherent_role, override_access='full_dept_admin')
 
 
-def requires_dept_admin(func=None, inherent_role=None):
-    def _decorator(func, inherent_role=None):
+def requires_account(model=None):
+    from uber.models import Attendee, AttendeeAccount, Group
+    def model_requires_account(func):
+        @wraps(func)
+        def protected(*args, **kwargs):
+            if not c.ATTENDEE_ACCOUNTS_ENABLED:
+                return func(*args, **kwargs)
+            with uber.models.Session() as session:
+                admin_account_id = cherrypy.session.get('account_id')
+                attendee_account_id = cherrypy.session.get('attendee_account_id')
+                message = ''
+                if attendee_account_id is None and admin_account_id is None:
+                    message = 'You are not logged in'
+                elif kwargs.get('id') and model:
+                    check_id_for_model(model, **kwargs)
+                    if model == Attendee:
+                        attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
+                    elif model == Group:
+                        attendee = session.query(model).filter_by(id=kwargs.get('id')).first().leader
+                    else:
+                        attendee = session.query(model).filter_by(id=kwargs.get('id')).first().attendee
+                    
+                    # Admin account override
+                    if session.admin_attendee_max_access(attendee):
+                        return func(*args, **kwargs)
+                    
+                    account = session.query(AttendeeAccount).get(attendee_account_id)
+                    
+                    if account not in attendee.managers:
+                        message = 'You do not have permission to view this page'
+
+                if message:
+                    raise HTTPRedirect('../preregistration/login?message={}'.format(message), save_location=True)
+            return func(*args, **kwargs)
+        return protected
+    return model_requires_account
+
+
+def requires_admin(func=None, inherent_role=None, override_access=None):
+    def _decorator(func, inherent_role=inherent_role):
         @wraps(func)
         def _protected(*args, **kwargs):
             if cherrypy.request.method == 'POST':
@@ -194,7 +220,9 @@ def requires_dept_admin(func=None, inherent_role=None):
                     'department_id', kwargs.get('department', kwargs.get('location', kwargs.get('id'))))
 
                 with uber.models.Session() as session:
-                    assert_dept_admin(session, department_id, inherent_role)
+                    message = check_can_edit_dept(session, department_id, inherent_role, override_access)
+                    if message:
+                        raise HTTPRedirect('../landing/invalid?message={}'.format(message))
             return func(*args, **kwargs)
         return _protected
 
@@ -202,6 +230,14 @@ def requires_dept_admin(func=None, inherent_role=None):
         return functools.partial(_decorator, inherent_role=func)
     else:
         return _decorator(func)
+
+
+def requires_dept_admin(func=None, inherent_role=None):
+    return requires_admin(func, inherent_role, override_access='full_dept_admin')
+
+
+def requires_shifts_admin(func=None, inherent_role=None):
+    return requires_admin(func, inherent_role, override_access='full_shifts_admin')
 
 
 def csrf_protected(func):
@@ -239,7 +275,9 @@ def ajax_gettable(func):
 
 
 def multifile_zipfile(func):
-    func.site_mappable = True
+    parameters = inspect.getargspec(func)
+    if len(parameters[0]) == 3:
+        func.site_mappable = True
 
     @wraps(func)
     def zipfile_out(self, session, **kwargs):
@@ -347,15 +385,10 @@ def check_shutdown(func):
 
 def credit_card(func):
     @wraps(func)
-    def charge(self, session, payment_id=None, stripeToken=None, stripeEmail='ignored', **ignored):
-        log.debug('PAYMENT: payment_id={}, stripeToken={}', payment_id or 'NONE', stripeToken or 'NONE')
-
-        if ignored:
-            log.debug('PAYMENT: received unexpected stripe parameters: {}', ignored)
-
+    def charge(self, session, id=None, **kwargs):
         try:
             try:
-                return func(self, session=session, payment_id=payment_id, stripeToken=stripeToken)
+                return func(self, session=session, id=id, **kwargs)
             except HTTPRedirect:
                 # Paranoia: we want to try commiting while we're INSIDE of the
                 # @credit_card decorator to ensure that we catch any database
@@ -369,11 +402,10 @@ def credit_card(func):
             raise
         except Exception:
             error_text = \
-                'Got an error while calling charge' \
-                '(self, payment_id={!r}, stripeToken={!r}, ignored={}):\n{}\n\n' \
-                'IMPORTANT: This could have resulted in an attendee paying and not being ' \
-                'marked as paid in the database. Definitely double check this.'\
-                .format(payment_id, stripeToken, ignored, traceback.format_exc())
+                'Got an error while calling charge:\n{}\n\n' \
+                'IMPORTANT: This is likely preventing someone from paying for' \
+                ' something with no error on their end. Look into this ASAP.'\
+                .format(traceback.format_exc())
 
             report_critical_exception(msg=error_text, subject='ERROR: MAGFest Stripe error (Automated Message)')
             return traceback.format_exc()
@@ -560,11 +592,11 @@ def renderable(func):
         except CSRFException as e:
             message = "Your CSRF token is invalid. Please go back and try again."
             uber.server.log_exception_with_verbose_context(msg=str(e))
-            raise HTTPRedirect("../common/invalid?message={}", message)
+            raise HTTPRedirect("../landing/invalid?message={}", message)
         except (AssertionError, ValueError) as e:
             message = str(e)
             uber.server.log_exception_with_verbose_context(msg=message)
-            raise HTTPRedirect("../common/invalid?message={}", message)
+            raise HTTPRedirect("../landing/invalid?message={}", message)
         except TypeError as e:
             # Very restrictive pattern so we don't accidentally match legit errors
             pattern = r"^{}\(\) missing 1 required positional argument: '\S*?id'$".format(func.__name__)
@@ -572,7 +604,7 @@ def renderable(func):
                 # NOTE: We are NOT logging the exception if the user entered an invalid URL
                 message = 'Looks like you tried to access a page without all the query parameters. '\
                           'Please go back and try again.'
-                raise HTTPRedirect("../common/invalid?message={}", message)
+                raise HTTPRedirect("../landing/invalid?message={}", message)
             else:
                 raise
 
@@ -600,68 +632,80 @@ def renderable(func):
     return with_rendering
 
 
-def unrestricted(func):
-    func.restricted = False
+def public(func):
+    func.public = True
     return func
 
+def attendee_view(func):
+    func.public = True
+    @wraps(func)
+    def with_check(*args, **kwargs):
+        if cherrypy.session.get('account_id') is None:
+            raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
+            
+        if kwargs.get('id') != "None":
+            with uber.models.Session() as session:
+                attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
+                if not session.admin_attendee_max_access(attendee):
+                    return "<div id='attendeeData' style='padding: 10px;'>" \
+                           "You are not allowed to view this attendee. If you think this is an error, " \
+                           "please email us at {}.</div>".format(cgi.escape(c.DEVELOPER_EMAIL))
+        return func(*args, **kwargs)
+    return with_check
+
+def schedule_view(func):
+    func.public = True
+    @wraps(func)
+    def with_check(*args, **kwargs):
+        if c.HIDE_SCHEDULE and not c.HAS_READ_ACCESS:
+            return "The {} schedule is being developed and will be made public " \
+                   "when it's closer to being finalized.".format(c.EVENT_NAME)
+        return func(*args, **kwargs)
+    return with_check
 
 def restricted(func):
     @wraps(func)
     def with_restrictions(*args, **kwargs):
-        if func.restricted:
-            if func.restricted == (c.SIGNUPS,):
+        if not func.public:
+            if c.PATH == 'staffing':
                 if not cherrypy.session.get('staffer_id'):
-                    raise HTTPRedirect('../signups/login?message=You+are+not+logged+in', save_location=True)
+                    raise HTTPRedirect('../staffing/login?message=You+are+not+logged+in', save_location=True)
 
             elif cherrypy.session.get('account_id') is None:
                 raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
 
-            else:
-                access = uber.models.AdminAccount.access_set()
-                if not c.AT_THE_CON:
-                    access.discard(c.REG_AT_CON)
+            elif c.PATH == 'mivs_judging':
+                if not uber.models.AdminAccount.is_mivs_judge_or_admin:
+                    return 'You need to be a MIVS Judge or have access for either {} or {}'.format(c.PATH, c.PAGE_PATH)
 
-                if not set(func.restricted).intersection(access):
-                    if len(func.restricted) == 1:
-                        return 'You need {} access for this page'.format(dict(c.ACCESS_OPTS)[func.restricted[0]])
-                    else:
-                        return ('You need at least one of the following access levels to view this page: '
-                                + ', '.join(dict(c.ACCESS_OPTS)[r] for r in func.restricted))
+            else:
+                if not c.has_section_or_page_access(include_read_only=True):
+                    return 'You need access for either {} or {}.'.format(c.PATH, c.PAGE_PATH)
 
         return func(*args, **kwargs)
     return with_restrictions
 
 
-def set_renderable(func, access):
+def set_renderable(func, public):
     """
     Return a function that is flagged correctly and is ready to be called by cherrypy as a request
     """
-    func.restricted = getattr(func, 'restricted', access)
+    func.public = getattr(func, 'public', public)
     new_func = profile(timed(cached_page(sessionized(restricted(renderable(func))))))
     new_func.exposed = True
     return new_func
 
 
-def renderable_override(*needs_access):
-    """
-    Like all_renderable, but works on a single method.
-
-    Overrides access settings on a class also decorated with all_renderable.
-    """
-    def _decorator(func):
-        func.restricted = needs_access
-        return func
-    return _decorator
-
-
 class all_renderable:
-    def __init__(self, *needs_access):
-        self.needs_access = needs_access
+    def __init__(self, public=False):
+        self.public = public
 
     def __call__(self, klass):
+        if self.public:
+            klass = public(klass)
         for name, func in klass.__dict__.items():
             if hasattr(func, '__call__'):
-                new_func = set_renderable(func, self.needs_access)
+                new_func = set_renderable(func, self.public)
                 setattr(klass, name, new_func)
         return klass
 
@@ -720,13 +764,13 @@ class cost_property(property):
     """
 
 
-def create_redirect(url, access=[c.PEOPLE]):
+def create_redirect(url, public=False):
     """
     Return a function which redirects to the given url when called.
     """
     def redirect(self):
         raise HTTPRedirect(url)
-    renderable_func = set_renderable(redirect, access)
+    renderable_func = set_renderable(redirect, public)
     return renderable_func
 
 

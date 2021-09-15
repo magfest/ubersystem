@@ -1,14 +1,15 @@
 import cherrypy
+from six import string_types
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, render, credit_card
+from uber.decorators import ajax, all_renderable, render, credit_card, requires_account
 from uber.errors import HTTPRedirect
 from uber.models import MarketplaceApplication
 from uber.tasks.email import send_email
 from uber.utils import Charge, check
 
 
-@all_renderable()
+@all_renderable(public=True)
 class Root:
     def index(self, session, message='', **params):
         attendee = None
@@ -57,15 +58,16 @@ class Root:
             'app': app,
             'attendee': attendee,
             'attendee_id': app.attendee_id or params.get('attendee_id', ''),
+            'logged_in_account': session.current_attendee_account(),
             'new_badge': params.get('new_badge', '')
         }
 
+    @requires_account(MarketplaceApplication)
     def edit(self, session, message='', **params):
         app = session.marketplace_application(params, restricted=True,
                                               ignore_csrf=True)
-        return_to = params['return_to'] \
-            if 'return_to' in params else '/marketplace/edit'
-        if 'id' not in params:
+        return_to = params.get('return_to', '/marketplace/edit?id={}'.format(app.id))
+        if not params.get('id'):
             message = 'Invalid marketplace application ID. ' \
                       'Please try going back in your browser.'
 
@@ -76,7 +78,7 @@ class Root:
                 session.commit()  # Make sure we update the DB or the email will be wrong!
                 send_email.delay(
                     c.MARKETPLACE_APP_EMAIL,
-                    app.email,
+                    app.email_to_address,
                     'Marketplace Application Updated',
                     render('emails/marketplace/appchange_notification.html',
                            {'app': app}, encoding=None), 'html',
@@ -89,48 +91,52 @@ class Root:
         return {
             'message': message,
             'app': app,
-            'return_to': 'edit',
-            'charge': Charge(app.attendee)
+            'account': session.one_badge_attendee_account(app.attendee),
+            'return_to': 'edit?id={}'.format(app.id),
         }
 
     def confirmation(self, session, id):
         return {'app': session.marketplace_application(id)}
 
+    @ajax
     @credit_card
-    def process_marketplace_payment(self, session, payment_id, stripeToken):
-        charge = Charge.get(payment_id)
-        [attendee] = charge.attendees
-        attendee = session.merge(attendee)
-        apps = attendee.marketplace_applications
+    def process_marketplace_payment(self, session, id):
+        attendee = session.attendee(id)
+        charge = Charge(attendee, description="Marketplace application payment")
 
-        message = charge.charge_cc(session, stripeToken)
+        stripe_intent = charge.create_stripe_intent(session)
+        message = stripe_intent if isinstance(stripe_intent, string_types) else ''
         if message:
-            raise HTTPRedirect('edit?id={}&message={}',
-                               apps[0].id, message)
+            return {'error': message}
         else:
-            attendee_payment = charge.dollar_amount
             if attendee.marketplace_cost:
                 for app in attendee.marketplace_applications:
-                    attendee_payment -= app.amount_unpaid
+                    cancel_amt = app.amount_unpaid
                     app.amount_paid += app.amount_unpaid
-            attendee.amount_paid += attendee_payment
+                    send_email.delay(
+                        c.ADMIN_EMAIL,
+                        c.MARKETPLACE_APP_EMAIL,
+                        'Marketplace Payment Received',
+                        render('emails/marketplace/payment_notification.txt',
+                            {'app': app}, encoding=None),
+                        model=app.to_dict('id'))
+                    send_email.delay(
+                        c.MARKETPLACE_APP_EMAIL,
+                        app.email_to_address,
+                        'Marketplace Payment Received',
+                        render('emails/marketplace/payment_confirmation.txt',
+                            {'app': app}, encoding=None),
+                        model=app.to_dict('id'))
+            
             if attendee.paid == c.NOT_PAID:
                 attendee.paid = c.HAS_PAID
+            session.add(session.create_receipt_item(attendee, charge.amount, "Marketplace payment", charge.stripe_transaction))
         session.add(attendee)
-        send_email.delay(
-            c.ADMIN_EMAIL,
-            c.MARKETPLACE_APP_EMAIL,
-            'Marketplace Payment Received',
-            render('emails/marketplace/payment_notification.txt',
-                   {'app': app}, encoding=None),
-            model=app.to_dict('id'))
-        send_email.delay(
-            c.MARKETPLACE_APP_EMAIL,
-            app.email,
-            'Marketplace Payment Received',
-            render('emails/marketplace/payment_confirmation.txt',
-                   {'app': app}, encoding=None),
-            model=app.to_dict('id'))
-        raise HTTPRedirect('edit?id={}&message={}',
-                           app.id,
-                           'Your payment has been accepted!')
+        session.commit()
+        
+        return {'stripe_intent': stripe_intent,
+                'success_url': 'edit?id={}&message={}'.format(attendee.marketplace_applications[0].id,
+                                                              'Your payment has been accepted'),
+                'cancel_url': '../preregistration/cancel_payment?model_id={}&cancel_amt={}'.format(
+                        attendee.marketplace_applications[0].id, cancel_amt
+                )}

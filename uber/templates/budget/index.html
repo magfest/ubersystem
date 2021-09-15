@@ -10,44 +10,83 @@
 </style>
 
 <div class="jumbotron">
-    <h1 class="text-center">(${{ total }} total)</h1>
+    <h1 class="text-center">({{ (total / 100)|format_currency }} total)</h1>
 </div>
 
-{% macro table_entry(label, value) -%}
-  <tr>
-    <td>{{ label }}</td>
-    <td>${{ value }}</td>
-  </tr>
-{%- endmacro %}
-
 <div class="panel panel-default">
-  <table class="table table-striped datatable">
+<h3 class="center">Refund Receipt Items</h3>
+  <table class="table table-striped export-datatable">
     <thead>
       <tr>
-        <th>Name</th>
+        <th>Attendee</th>
+        <th>Item Type</th>
         <th>Amount</th>
+        <th>Description</th>
       </tr>
     </thead>
     <tbody>
-      {{ table_entry('Attendee Badges', preregs.Attendee) }}
-      {{ table_entry('Extra Payments (Kickins, Shirts, Food, anything else)', preregs.extra) }}
-      {{ table_entry('Group Badges', preregs.group_badges) }}
-      {{ table_entry('Dealer Badges', preregs.dealer_badges) }}
-      {{ table_entry('Staff Badges', preregs.Staff) }}
-      {{ table_entry('Single Day Badges', preregs.OneDay) }}
-
-      {% for what, total in sales.items() %}
-        {{ table_entry(what, total) }}
-      {% endfor %}
-
-      {% for item in credits %}
-        <tr>
-          <td><a href="form?id={{ item.id }}">{{ item.name }}</a></td>
-          <td>${{ item.amount }}</td>
-        </tr>
-      {% endfor %}
+    {% for item in receipt_items %}
+      <tr>
+        <td>{{ item.attendee|form_link }}</td>
+        <td>{{ item.item_type_label }}</td>
+        <td>{{ '-' if item.txn_type == c.REFUND else '' }}{{ (item.amount / 100)|format_currency }}</td>
+        <td>{{ item.desc }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <h3 class="center">Sales</h3>
+  <table class="table table-striped export-datatable">
+    <thead>
+      <tr>
+        <th>Amount</th>
+        <th>Item</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for sale in sales %}
+      <tr>
+        <td>{{ sale.cash|format_currency }}</td>
+        <td>{{ sale.what }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <h3 class="center">Arbitrary Charges</h3>
+  <table class="table table-striped export-datatable">
+    <thead>
+      <tr>
+        <th>Amount</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for charge in arbitrary_charges %}
+      <tr>
+        <td>{{ charge.amount|format_currency }}</td>
+        <td>{{ charge.what }}</td>
+      </tr>
+    {% endfor %}
     </tbody>
   </table>
 </div>
-
+<script type="text/javascript" src="https://cdn.datatables.net/buttons/1.5.2/js/dataTables.buttons.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/buttons/1.5.2/js/buttons.html5.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/1.5.2/css/buttons.dataTables.min.css">
+<script type="text/javascript">
+$().ready(function() {
+  var dtable = $('.export-datatable').DataTable({
+      dom: 'Bfrtipl',
+      buttons: [
+          {
+              extend: 'excelHtml5',
+              exportOptions: {
+                  columns: ':visible'
+              }
+          },
+      ]
+  });
+});
+</script>
 {% endblock %}

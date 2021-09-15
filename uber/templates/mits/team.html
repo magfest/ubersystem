@@ -1,0 +1,116 @@
+{% extends "mits_base.html" %}
+{% block body %}
+
+<script>
+    showOrHideAddress = function () {
+        setVisible('#address-row', $.field('want_to_sell').is(':checked'));
+    };
+    $(function () {
+        showOrHideAddress();
+        $.field('want_to_sell').on('click', showOrHideAddress);
+    });
+</script>
+
+{% if not team.can_save %}
+    <h2>The MITS application deadline has passed!</h2>
+    Unfortunately, it's too late to apply to the MAGFest Indie Tabletop Showcase this year.  We hope you see you next year!
+{% else %}
+    {% if team.is_new %}
+        <h2>MAGFest Indie Tabletop Showcase Application</h2>
+        Have you already filled this out? If so, click <a href="../mits/check_if_applied">here</a>. <br/><br/>
+    {% else %}
+        <h2>Edit Your Team Information</h2>
+    {% endif %}
+    <div class="form-group">
+        <p class="text-center help-block">
+            By submitting this form you agree that MAGFest INC will store the personal information you provide for the limited purposes of contacting you and your team about your MITS application.
+        </p>
+    </div>
+
+    <form method="post" action="team" class="form-horizontal" role="form">
+        {{ csrf_token() }}
+
+        <div class="form-group">
+            <label class="col-sm-3 control-label">Production Team Name</label>
+            <div class="col-sm-6">
+                <input class="form-control focus" type="text" name="name" value="{{ team.name }}" />
+            </div>
+            <p class="help-block col-sm-9 col-sm-offset-3">
+                This is what we'll use on guidebook, the website, and signs or schedules that are posted anywhere.
+            </p>
+        </div>
+
+        <div class="form-group">
+            <label class="col-sm-3 control-label">Want to sell?</label>
+            <div class="col-sm-6">
+                {{ macros.checkbox(team, 'want_to_sell', label="We allow a limited number of production teams to pay for the right to sell their games and related merchandise at the tables you use to demo your games.  Please check this box if you're interested in doing this.") }}
+            </div>
+        </div>
+
+        <div class="form-group" id="address-row" style="display:none">
+            <label class="col-sm-3 control-label">Address</label>
+            <div class="col-sm-6">
+                <textarea class="form-control" name="address" rows="4">{{ team.address }}</textarea>
+            </div>
+            <p class="help-block col-sm-9 col-sm-offset-3">
+                Please enter your <strong>business</strong> address, i.e. the address you use for tax purposes.
+            </p>
+        </div>
+
+        {% if team.is_new %}
+            <div class="form-group">
+                <label class="col-sm-3 control-label">First Name</label>
+                <div class="col-sm-6">
+                    <input class="form-control focus" type="text" name="first_name" value="{{ applicant.first_name }}" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="col-sm-3 control-label">Last Name</label>
+                <div class="col-sm-6">
+                    <input class="form-control focus" type="text" name="last_name" value="{{ applicant.last_name }}" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="col-sm-3 control-label">Email Address</label>
+                <div class="col-sm-6">
+                    <input class="form-control focus" type="text" name="email" value="{{ applicant.email }}" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="col-sm-3 control-label">Cellphone Number</label>
+                <div class="col-sm-6">
+                    <input class="form-control focus" type="text" name="cellphone" value="{{ applicant.cellphone }}" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="col-sm-3 control-label">Preferred Contact Method</label>
+                <div class="col-sm-6">
+                    <select name="contact_method" class="form-control">
+                        {{ options(c.MITS_CONTACT_OPTS, applicant.contact_method) }}
+                    </select>
+                </div>
+                <p class="help-block col-sm-9 col-sm-offset-3">
+                    If we need to get in touch with you during the event, which method of contact do you prefer?
+                </p>
+            </div>
+        {% endif %}
+
+        <div class="form-group">
+            <div class="col-sm-6 col-sm-offset-3">
+                <button type="submit" class="btn btn-primary">{% if team.is_new %}Register Your Team{% else %}Upload Changes{% endif %}</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <p class="text-center help-block">
+                If you have any questions, please email us at {{ c.MITS_EMAIL|email_to_link }}.
+            </p>
+        </div>
+    </form>
+{% endif %}
+
+{% endblock %}

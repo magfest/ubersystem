@@ -9,6 +9,7 @@ import six
 from cherrypy import HTTPError
 from dateutil import parser as dateparser
 from pockets import unwrap
+from time import mktime
 from residue import UTCDateTime
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import subqueryload
@@ -20,9 +21,9 @@ from uber.config import c
 from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
 from uber.models import AdminAccount, ApiToken, Attendee, Department, DeptMembership, DeptMembershipRequest, \
-    IndieStudio, Job, Session, Shift, GuestGroup
+    Event, IndieStudio, Job, Session, Shift, GuestGroup, Room, HotelRequests, RoomAssignment
 from uber.server import register_jsonrpc
-from uber.utils import check, check_csrf, normalize_newlines
+from uber.utils import check, check_csrf, normalize_email, normalize_newlines
 
 
 __version__ = '1.0'
@@ -106,11 +107,8 @@ def auth_by_token(required_access):
             return (403, 'Auth token not recognized: {}'.format(token))
         if api_token.revoked_time:
             return (403, 'Revoked auth token: {}'.format(token))
-        if not required_access.issubset(set(api_token.access_ints)):
-            # If the API call requires extra access, like c.ADMIN, check if the
-            # associated admin account has the required access.
-            extra_required_access = required_access.difference(set(c.API_ACCESS.keys()))
-            if not extra_required_access or not extra_required_access.issubset(api_token.admin_account.access_ints):
+        for access_level in required_access:
+            if not getattr(api_token, access_level, None):
                 return (403, 'Insufficient access for auth token: {}'.format(token))
         cherrypy.session['account_id'] = api_token.admin_account_id
     return None
@@ -121,15 +119,16 @@ def auth_by_session(required_access):
         check_csrf()
     except CSRFException:
         return (403, 'Your CSRF token is invalid. Please go back and try again.')
-    admin_account_id = cherrypy.session.get('account_id', None)
+    admin_account_id = cherrypy.session.get('account_id')
     if not admin_account_id:
         return (403, 'Missing admin account in session')
     with Session() as session:
         admin_account = session.query(AdminAccount).filter_by(id=admin_account_id).first()
         if not admin_account:
             return (403, 'Invalid admin account in session')
-        if not required_access.issubset(set(admin_account.access_ints)):
-            return (403, 'Insufficient access for admin account')
+        for access_level in required_access:
+            if not getattr(admin_account, access_level, None):
+                return (403, 'Insufficient access for admin account')
     return None
 
 
@@ -167,7 +166,7 @@ class all_api_auth:
         return cls
 
 
-@all_api_auth(c.API_READ)
+@all_api_auth('api_read')
 class GuestLookup:
     fields = {
         'group_id': True,
@@ -218,7 +217,7 @@ class GuestLookup:
             return [guest.to_dict(self.fields) for guest in query]
 
 
-@all_api_auth(c.API_READ)
+@all_api_auth('api_read')
 class MivsLookup:
     fields = {
         'name': True,
@@ -262,7 +261,7 @@ class MivsLookup:
             return [mivs.to_dict(self.fields) for mivs in query]
 
 
-@all_api_auth(c.API_READ)
+@all_api_auth('api_read')
 class AttendeeLookup:
     fields = {
         'full_name': True,
@@ -303,7 +302,7 @@ class AttendeeLookup:
             'worked_label': True,
             'job': [
                 'type_label', 'department_name', 'name', 'description',
-                'start_time', 'end_time', 'extra15'
+                'start_time', 'end_time', 'extra15', 'weight'
             ]
         },
         'group': {
@@ -346,6 +345,29 @@ class AttendeeLookup:
             attendee_query = session.search(query)
             fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
             return [a.to_dict(fields) for a in attendee_query.limit(100)]
+        
+    @api_auth('api_update')
+    def update(self, **kwargs):
+        """
+        Updates an existing attendee record. "id" parameter is required and
+        sets the attendee to be updated. All other fields are taken as changes
+        to the attendee.
+        
+        Returns the updated attendee.
+        """
+        if not 'id' in kwargs:
+            return HTTPError(400, 'You must provide the id of the attendee.')
+        with Session() as session:
+            attendee = session.query(Attendee).filter(Attendee.id == kwargs['id']).one()
+            if not attendee:
+                return HTTPError(404, 'Attendee {} not found.'.format(kwargs['id']))
+            for key, val in kwargs.items():
+                if not hasattr(Attendee, key):
+                    return HTTPError(400, 'Attendee has no field {}'.format(key))
+                setattr(attendee, key, val)
+            session.add(attendee)
+            session.commit()
+            return attendee.to_dict(self.fields)
 
     def login(self, first_name, last_name, email, zip_code):
         """
@@ -353,10 +375,10 @@ class AttendeeLookup:
         """
         #this code largely copied from above with different fields
         with Session() as session:
-            attendee_query = session.query(Attendee).filter_by(first_name=first_name,
-                                                               last_name=last_name,
-                                                               email=email,
-                                                               zip_code=zip_code)
+            attendee_query = session.query(Attendee).filter(Attendee.first_name.ilike(first_name),
+                                                               Attendee.last_name.ilike(last_name),
+                                                               Attendee.email.ilike(email),
+                                                               Attendee.zip_code.ilike(zip_code))
             fields, attendee_query = _attendee_fields_and_query(False, attendee_query)
             try:
                 attendee = attendee_query.one()
@@ -395,14 +417,14 @@ class AttendeeLookup:
                 match = _re_name_email.match(q)
                 if match:
                     name = match.group(1)
-                    email = Attendee.normalize_email(match.group(2))
+                    email = normalize_email(match.group(2))
                     if name:
                         first, last = (_re_whitespace.split(name.lower(), 1) + [''])[0:2]
                         names_and_emails[(first, last, email)] = q
                     else:
                         emails[email] = q
                 else:
-                    emails[Attendee.normalize_email(q)] = q
+                    emails[normalize_email(q)] = q
             elif q:
                 try:
                     ids.add(str(uuid.UUID(q)))
@@ -525,31 +547,32 @@ class AttendeeLookup:
                 'attendees': attendees,
             }
 
-    @api_auth(c.API_CREATE)
+    @api_auth('api_create')
     def create(self, first_name, last_name, email, params):
         """
         Create an attendee with at least a first name, last name, and email. Prevents duplicate attendees.
 
-        `params` should be a dictionary with column name: value to set other values.
+        `params` should be a dictionary with column name: value to set other values, or a falsey value.
         Use labels for Choice and MultiChoice columns, and a string like "no" or "yes" for Boolean columns.
         Date and DateTime columns should be parsed correctly as long as they follow a standard format.
 
-        Example:
-        <pre>{"legal_name": "First Last", "cellphone": "5555555555", "can_work_setup": "yes"}</pre>
+        Example `params` dictionary for setting extra parameters:
+        <pre>{"placeholder": "yes", "legal_name": "First Last", "cellphone": "5555555555"}</pre>
         """
         with Session() as session:
-            attendee_query = session.query(Attendee).filter_by(first_name=first_name,
-                                                               last_name=last_name,
-                                                               email=email)
+            attendee_query = session.query(Attendee).filter(Attendee.first_name.ilike("first_name"),
+                                                            Attendee.last_name.ilike("last_name"),
+                                                            Attendee.email.ilike("email@example.com"))
 
             if attendee_query.first():
                 raise HTTPError(400, 'An attendee with this name and email address already exists')
 
             attendee = Attendee(first_name=first_name, last_name=last_name, email=email)
 
-            for key, val in params.items():
-                params[key] = _parse_if_datetime(key, val)
-                params[key] = _parse_if_boolean(key, val)
+            if params:
+                for key, val in params.items():
+                    params[key] = _parse_if_datetime(key, val)
+                    params[key] = _parse_if_boolean(key, val)
 
             attendee.apply(params, restricted=False)
             session.add(attendee)
@@ -567,7 +590,7 @@ class AttendeeLookup:
 
             return attendee.id
 
-    @api_auth(c.API_UPDATE)
+    @api_auth('api_update')
     def update(self, id, params):
         """
         Update an attendee using their unique ID, returned by our lookup functions.
@@ -577,13 +600,16 @@ class AttendeeLookup:
         Date and DateTime columns should be parsed correctly as long as they follow a standard format.
 
         Example:
-        <pre>{"first_name": "First", "paid": "doesn't need to", "ribbons": "Staff, Panelist"}</pre>
+        <pre>{"first_name": "First", "paid": "doesn't need to", "ribbon": "Volunteer, Panelist"}</pre>
         """
         with Session() as session:
             attendee = session.attendee(id, allow_invalid=True)
 
             if not attendee:
                 raise HTTPError(404, 'No attendee found with this ID')
+            
+            if not params:
+                raise HTTPError(400, 'Please provide parameters to update')
 
             for key, val in params.items():
                 params[key] = _parse_if_datetime(key, val)
@@ -603,7 +629,7 @@ class AttendeeLookup:
             return attendee.id
 
 
-@all_api_auth(c.API_UPDATE)
+@all_api_auth('api_update')
 class JobLookup:
     fields = {
         'name': True,
@@ -628,7 +654,7 @@ class JobLookup:
     }
 
     @department_id_adapter
-    @api_auth(c.API_READ)
+    @api_auth('api_read')
     def lookup(self, department_id, start_time=None, end_time=None):
         """
         Returns a list of all shifts for the given department.
@@ -732,7 +758,7 @@ class JobLookup:
             return session.job(shift.job_id).to_dict(self.fields)
 
 
-@all_api_auth(c.API_READ)
+@all_api_auth('api_read')
 class DepartmentLookup:
     def list(self):
         """
@@ -741,7 +767,7 @@ class DepartmentLookup:
         return c.DEPARTMENTS
 
     @department_id_adapter
-    @api_auth(c.API_READ)
+    @api_auth('api_read')
     def jobs(self, department_id):
         """
         Returns a list of all roles and jobs for the given department.
@@ -761,7 +787,7 @@ class DepartmentLookup:
                 'is_shiftless': True,
                 'is_setup_approval_exempt': True,
                 'is_teardown_approval_exempt': True,
-                'max_consecutive_hours': 0,
+                'max_consecutive_minutes': True,
                 'jobs': {
                     'id': True,
                     'type': True,
@@ -783,7 +809,7 @@ class DepartmentLookup:
             })
 
 
-@all_api_auth(c.API_READ)
+@all_api_auth('api_read')
 class ConfigLookup:
     fields = [
         'EVENT_NAME',
@@ -793,6 +819,7 @@ class ConfigLookup:
         'ESCHATON',
         'EVENT_VENUE',
         'EVENT_VENUE_ADDRESS',
+        'EVENT_TIMEZONE',
         'AT_THE_CON',
         'POST_CON',
         'URL_BASE',
@@ -811,8 +838,8 @@ class ConfigLookup:
 
         # This is to allow backward compatibility with pre 1.0 code
         output['YEAR'] = c.EVENT_YEAR
-
         output['API_VERSION'] = __version__
+        output['EVENT_TIMEZONE'] = str(output['EVENT_TIMEZONE'])
         return output
 
     def lookup(self, field):
@@ -826,8 +853,121 @@ class ConfigLookup:
         else:
             raise HTTPError(404, 'Config field not found: {}'.format(field))
 
+@all_api_auth('api_read')
+class HotelLookup:
+    def eligible_attendees(self):
+        """
+        Returns a list of hotel eligible attendees
+        """
+        with Session() as session:
+            attendees = session.query(Attendee.id).filter(Attendee.hotel_eligible == True).all()
+            return [x.id for x in attendees]
+    
+    @api_auth('api_update')
+    def update_room(self, id=None, **kwargs):
+        """
+        Create or update a hotel room. If the id of an existing room is
+        supplied then it will attempt to update an existing room.
+        Possible attributes are notes, message, locked_in, nights, and created.
 
-@all_api_auth(c.API_READ)
+        Returns the created room, with its id.
+        """
+        with Session() as session:
+            if id:
+                room = session.query(Room).filter(Room.id == id).one_or_none()
+                if not room:
+                    return HTTPError(404, "Could not locate room {}".format(id))
+            else:
+                room = Room()
+            for attr in ['notes', 'message', 'locked_in', 'nights', 'created']:
+                if attr in kwargs:
+                    setattr(room, attr, kwargs[attr])
+            session.add(room)
+            session.commit()
+            return room.to_dict()
+
+    @api_auth('api_update')
+    def update_request(self, id=None, **kwargs):
+        """
+        Create or update a hotel request. If the id is supplied then it will
+        attempt to update the given request.
+        Possible attributes are attendee_id, nights, wanted_roommates, unwanted_roommates, special_needs, and approved.
+
+        Returns the created or updated request.
+        """
+        with Session() as session:
+            if id:
+                hotel_request = session.query(HotelRequests).filter(HotelRequests.id == id).one_or_none()
+                if not hotel_request:
+                    return HTTPError(404, "Could not locate request {}".format(id))
+            else:
+                hotel_request = HotelRequests()
+            for attr in ['attendee_id', 'nights', 'wanted_roommates', 'unwanted_roommates', 'special_needs', 'approved']:
+                if attr in kwargs:
+                    setattr(hotel_request, attr, kwargs[attr])
+            session.add(hotel_request)
+            session.commit()
+            return hotel_request.to_dict()
+
+    @api_auth('api_update')
+    def update_assignment(self, id=None, **kwargs):
+        """
+        Create or update a hotel room assignment. If the id is supplied then it will
+        attempt to update the given request. Otherwise a new one is created.
+        Possible attributes are room_id, and attendee_id.
+
+        Returns the created or updated assignment.
+        """
+        with Session() as session:
+            if id:
+                assignment = session.query(RoomAssignment).filter(RoomAssignment.id == id).one_or_none()
+                if not assignment:
+                    return HTTPError(404, "Could not locate room assignment {}".format(id))
+            else:
+                assignment = RoomAssignment()
+            for attr in ['room_id', 'attendee_id']:
+                if attr in kwargs:
+                    setattr(assignment, attr, kwargs[attr])
+            session.add(assignment)
+            session.commit()
+            return assignment.to_dict()
+
+    def nights(self):
+        """
+        Returns the available room nights.
+        """
+        return {
+            "core_nights": c.CORE_NIGHTS,
+            "setup_nights": c.SETUP_NIGHTS,
+            "teardown_nights": c.TEARDOWN_NIGHTS,
+            "dates": c.NIGHT_DATES,
+            "order": c.NIGHT_DISPLAY_ORDER,
+            "names": c.NIGHT_NAMES
+        }
+    
+@all_api_auth('api_read')
+class ScheduleLookup:
+    def schedule(self):
+        """
+        Returns the entire schedule in machine parseable format.
+        """
+        with Session() as session:
+            return [
+                {
+                    'name': event.name,
+                    'location': event.location_label,
+                    'start': event.start_time_local.strftime('%I%p %a').lstrip('0'),
+                    'end': event.end_time_local.strftime('%I%p %a').lstrip('0'),
+                    'start_unix': int(mktime(event.start_time.utctimetuple())),
+                    'end_unix': int(mktime(event.end_time.utctimetuple())),
+                    'duration': event.minutes,
+                    'description': event.description,
+                    'panelists': [panelist.attendee.full_name for panelist in event.assigned_panelists]
+                }
+                for event in sorted(session.query(Event).all(), key=lambda e: [e.start_time, e.location_label])
+            ]
+
+@all_api_auth('api_read')
 class BarcodeLookup:
     def lookup_attendee_from_barcode(self, barcode_value, full=False):
         """
@@ -878,3 +1018,5 @@ if c.API_ENABLED:
     register_jsonrpc(BarcodeLookup(), 'barcode')
     register_jsonrpc(GuestLookup(), 'guest')
     register_jsonrpc(MivsLookup(), 'mivs')
+    register_jsonrpc(HotelLookup(), 'hotel')
+    register_jsonrpc(ScheduleLookup(), 'schedule')

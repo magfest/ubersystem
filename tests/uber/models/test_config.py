@@ -203,8 +203,8 @@ class TestBadgeOpts:
         assert c.PREREG_BADGE_TYPES == [c.ATTENDEE_BADGE, c.PSEUDO_DEALER_BADGE]
 
     def test_prereg_badge_opts_with_extra(self, monkeypatch):
-        monkeypatch.setattr(c, 'BADGE_TYPE_PRICES', {c.SUPPORTER_BADGE: 55})
-        assert c.PREREG_BADGE_TYPES == [c.ATTENDEE_BADGE, c.PSEUDO_DEALER_BADGE, c.SUPPORTER_BADGE]
+        monkeypatch.setattr(c, 'BADGE_TYPE_PRICES', {c.CONTRACTOR_BADGE: 55})
+        assert c.PREREG_BADGE_TYPES == [c.ATTENDEE_BADGE, c.PSEUDO_DEALER_BADGE, c.CONTRACTOR_BADGE]
 
     def test_at_door_badge_opts_plain(self, monkeypatch):
         monkeypatch.setattr(c, 'ONE_DAYS_ENABLED', False)
@@ -221,8 +221,8 @@ class TestBadgeOpts:
         assert dict(c.AT_THE_DOOR_BADGE_OPTS).keys() == {c.ATTENDEE_BADGE, c.FRIDAY, c.SATURDAY, c.SUNDAY}
 
     def test_at_door_badge_opts_with_extra(self, monkeypatch):
-        monkeypatch.setattr(c, 'BADGE_TYPE_PRICES', {c.SUPPORTER_BADGE: 55})
-        assert dict(c.AT_THE_DOOR_BADGE_OPTS).keys() == {c.ATTENDEE_BADGE, c.ONE_DAY_BADGE, c.SUPPORTER_BADGE}
+        monkeypatch.setattr(c, 'BADGE_TYPE_PRICES', {c.CONTRACTOR_BADGE: 55})
+        assert dict(c.AT_THE_DOOR_BADGE_OPTS).keys() == {c.ATTENDEE_BADGE, c.ONE_DAY_BADGE, c.CONTRACTOR_BADGE}
 
 
 class TestStaffGetFood:

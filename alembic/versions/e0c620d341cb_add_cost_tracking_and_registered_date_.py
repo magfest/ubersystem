@@ -1,7 +1,7 @@
 """Add cost tracking and registered date for promo code groups
 
 Revision ID: e0c620d341cb
-Revises: e372e4daf771
+Revises: 523e3d243395
 Create Date: 2019-03-07 03:00:57.592885
 
 """
@@ -9,9 +9,8 @@ Create Date: 2019-03-07 03:00:57.592885
 
 # revision identifiers, used by Alembic.
 revision = 'e0c620d341cb'
-down_revision = 'e372e4daf771'
+down_revision = '523e3d243395'
 branch_labels = None
-depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
