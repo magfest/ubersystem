@@ -527,7 +527,7 @@ def ensure_csrf_token_exists():
         cherrypy.session['csrf_token'] = uuid4().hex
 
 
-def genpasswd():
+def genpasswd(short=False):
     """
     Admin accounts have passwords auto-generated; this function tries to combine
     three random dictionary words but returns a string of 8 random characters if
@@ -540,7 +540,7 @@ def genpasswd():
     for word_list in word_lists:
         words.extend(open(word_list).read().strip().split(','))
     else:
-        if words:
+        if words and not short:
             words = [s.strip() for s in words if "'" not in s and s.islower() and 3 < len(s) < 8]
             return ' '.join(random.choice(words) for i in range(4))
         characters = string.ascii_letters + string.digits

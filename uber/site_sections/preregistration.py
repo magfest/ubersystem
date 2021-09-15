@@ -1057,7 +1057,7 @@ class Root:
         if not attendee.email:
             message = "This attendee needs an email address to set up a new account."
         if not message:
-            token = genpasswd()
+            token = genpasswd(short=True)
             account = session.query(AttendeeAccount).filter_by(email=attendee.email).first()
             if account:
                 if account.password_reset:
@@ -1179,7 +1179,7 @@ class Root:
                 session.delete(account.password_reset)
                 session.commit()
 
-            token = genpasswd()
+            token = genpasswd(short=True)
             session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token, bcrypt.gensalt())))
 
             body = render('emails/accounts/password_reset.html', {
