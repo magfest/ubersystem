@@ -191,7 +191,7 @@ def requires_account(model=None):
                     if model == Attendee:
                         attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
                     elif model == Group:
-                        attendee = session.query(model).filter_by(id=kwargs.get('id')).first().leader
+                        attendee = session.query(model).filter_by(id=kwargs.get('group_id', kwargs.get('id'))).first().leader
                     else:
                         attendee = session.query(model).filter_by(id=kwargs.get('id')).first().attendee
                     

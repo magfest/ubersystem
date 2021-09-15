@@ -705,10 +705,12 @@ class Root:
         return {
             'group':   group,
             'account': session.one_badge_attendee_account(group.leader),
+            'current_account': session.current_attendee_account(),
             'upgraded_badges': len([a for a in group.attendees if a.badge_type in c.BADGE_TYPE_PRICES]),
             'message': message
         }
 
+    @requires_account(Group)
     def register_group_member(self, session, group_id, message='', **params):
         # Safe to ignore csrf tokens here, because an attacker would need to know the group id a priori
         group = session.group(group_id, ignore_csrf=True)
@@ -750,7 +752,9 @@ class Root:
 
                 attendee.apply(params, restricted=True)
 
-                # Free group badges are considered registered' when they are actually claimed.
+                session.add_attendee_to_account(attendee, session.current_attendee_account())
+
+                # Free group badges are considered 'registered' when they are actually claimed.
                 if group.cost == 0:
                     attendee.registered = localized_now()
 
@@ -797,6 +801,7 @@ class Root:
             return {'stripe_intent': stripe_intent,
                     'success_url': 'group_members?id={}&message={}'.format(group.id, 'Your payment has been accepted')}
 
+    @requires_account(Attendee)
     @csrf_protected
     def unset_group_member(self, session, id):
         attendee = session.attendee(id)
@@ -824,6 +829,7 @@ class Root:
             attendee.group_id,
             'Attendee unset; you may now assign their badge to someone else')
 
+    @requires_account(Group)
     def add_group_members(self, session, id, count):
         group = session.group(id)
         if int(count) < group.min_badges_addable and not group.is_in_grace_period:
@@ -932,7 +938,7 @@ class Root:
         return {'attendee': session.attendee(id, allow_invalid=True), 'message': message}
 
     def not_found(self, id, message=''):
-        return
+        return {'id': id, 'message': message}
 
     @requires_account(Attendee)
     def abandon_badge(self, session, id):

@@ -117,7 +117,7 @@
         <td><ul style="margin: 5px 0; padding-right: 0"><li></li></ul></td>
         {% if attendee.first_name %}
             <td style="padding-right: 10px">
-                {% if attendee.is_group_leader %}
+                {% if attendee.is_group_leader or c.ATTENDEE_ACCOUNTS_ENABLED and attendee in current_account.attendees %}
                   <a href="confirm?id={{ attendee.id }}">{{ attendee.full_name }}</a>
                 {% else %}{{ attendee.full_name }}{% endif %}
             </td>
