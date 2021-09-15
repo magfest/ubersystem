@@ -100,6 +100,7 @@ def add_to_new_or_existing_account(session, attendee, **params):
     if not message:
         new_account = session.create_attendee_account(account_email, account_password)
         session.add_attendee_to_account(attendee, new_account)
+        cherrypy.session['attendee_account_id'] = new_account.id
     return message
 
 
@@ -559,7 +560,9 @@ class Root:
             raise HTTPRedirect('index')
         else:
             Charge.pending_preregs.clear()
-            Charge.attendee_account_id = ''
+            if Charge.attendee_account_id:
+                cherrypy.session['attendee_account_id'] = Charge.attendee_account_id
+                Charge.attendee_account_id = ''
             preregs = [session.merge(Charge.from_sessionized(d)) for d in Charge.paid_preregs]
             for prereg in preregs:
                 try:
