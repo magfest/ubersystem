@@ -246,7 +246,7 @@ class Root:
             updater_account = session.admin_account(cherrypy.session.get('account_id'))
             if not new_password:
                 message = 'New password is required'
-            elif not bcrypt.hashpw(updater_password, updater_account.hashed) == updater_account.hashed:
+            elif not valid_password(updater_password, updater_account):
                 message = 'Your password is incorrect'
             elif new_password != confirm_new_password:
                 message = 'Passwords do not match'
