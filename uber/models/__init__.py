@@ -663,7 +663,10 @@ class Session(SessionManager):
 
         def current_attendee_account(self):
             if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id'):
-                return self.attendee_account(cherrypy.session.get('attendee_account_id'))
+                try:
+                    return self.attendee_account(cherrypy.session.get('attendee_account_id'))
+                except sqlalchemy.orm.exc.NoResultFound:
+                    cherrypy.session['attendee_account_id'] = ''
         
         def one_badge_attendee_account(self, attendee):
             logged_in_account = self.current_attendee_account()

@@ -80,12 +80,19 @@ def rollback_prereg_session(session):
         Charge.pending_preregs.clear()
     session.commit()
 
-def check_account(session, email, password, confirm_password, new_account_only=True, update_password=True):
-    if session.current_attendee_account() and new_account_only:
+def check_account(session, email, password, confirm_password, skip_if_logged_in=True, update_password=True, old_email=None):
+    logged_in_account = session.current_attendee_account()
+    if logged_in_account and skip_if_logged_in:
         return
 
     if valid_email(email):
         return valid_email(email)
+
+    existing_account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(email)).first()
+    if existing_account and (old_email and existing_account.normalized_email != old_email 
+            or logged_in_account and logged_in_account.normalized_email != existing_account.normalized_email
+            or not old_email and not logged_in_account):
+        return "There's already an account with that email address"
     
     if update_password:
         if password and password != confirm_password:
@@ -283,7 +290,7 @@ class Root:
 
             if not message:
                 if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
-                    add_to_new_or_existing_account(session, attendee, **params)
+                    message = add_to_new_or_existing_account(session, attendee, **params)
 
                     if not message:
                         attendee.paid = c.PAID_BY_GROUP
@@ -435,6 +442,11 @@ class Root:
         message = check_account(session, account_email, account_password, params.get('confirm_password'))
         if message:
             return {'error': message}
+
+        new_or_existing_account = session.current_attendee_account()
+        if not new_or_existing_account:
+            new_or_existing_account = session.create_attendee_account(account_email, account_password)
+        cherrypy.session['attendee_account_id'] = new_or_existing_account.id
         
         charge = Charge(listify(Charge.unpaid_preregs.values()))
         if charge.total_cost <= 0:
@@ -446,7 +458,7 @@ class Root:
                     session.rollback()
                     raise HTTPRedirect('index?message={}', message)
                 else:
-                    add_to_new_or_existing_account(session, attendee, **params)
+                    session.add_attendee_to_account(attendee, new_or_existing_account)
 
             for group in charge.groups:
                 session.add(group)
@@ -1157,7 +1169,8 @@ class Root:
             else:
                 new_password = params.get('new_password')
                 confirm_password = params.get('confirm_new_password')
-            message = check_account(session, params.get('account_email'), new_password, confirm_password, False, new_password)
+            message = check_account(session, params.get('account_email'), new_password, confirm_password, 
+                                    False, new_password, account.normalized_email)
 
         if not message:
             if new_password:
@@ -1169,7 +1182,7 @@ class Root:
     def reset_password(self, session, **params):
         if 'account_email' in params:
             account_email = params['account_email']
-            account = session.query(AttendeeAccount).filter_by(email=account_email).first()
+            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(account_email)).first()
             if 'is_admin' in params:
                 success_url = "../reg_admin/attendee_accounts?message=Password reset email sent."
             else:
@@ -1198,7 +1211,10 @@ class Root:
         return {}
 
     def new_password_setup(self, session, account_email, token, message='', **params):
-        account = session.query(AttendeeAccount).filter_by(email=account_email).first()
+        if 'id' in params:
+            account = session.attendee_account(params['id'])
+        else:
+            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(account_email)).first()
         if not account or not account.password_reset:
             message = 'Invalid link. This link may have already been used or replaced.'
         elif account.password_reset.is_expired:
@@ -1211,7 +1227,8 @@ class Root:
         
         if cherrypy.request.method == 'POST':
             account_password = params.get('account_password')
-            message = check_account(session, account_email, account_password, params.get('confirm_password'), False)
+            message = check_account(session, account_email, account_password, 
+                                    params.get('confirm_password'), False, True, account.normalized_email)
 
             if not message:
                 account.email = account_email
@@ -1228,7 +1245,8 @@ class Root:
             'is_new': account.hashed == '',
             'message': message,
             'token': token,
-            'account_email': params.get('account_email', account_email),
+            'id': account.id,
+            'account_email': account_email,
         }
 
     @id_required(Attendee)
