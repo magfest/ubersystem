@@ -62,20 +62,22 @@ def check_prereg_promo_code(session, attendee):
         session.commit()
         return "The promo code you're using for {} has been used too many times.".format(attendee.full_name)
 
-def rollback_prereg_session(session, stripe_intent_id, account_id=None):
-    if stripe_intent_id:
-        log.debug("Rolling back Stripe ID " + stripe_intent_id)
-        session.delete_txn_by_stripe_id(stripe_intent_id)
-    if account_id:
-        log.debug("Deleting attendee account ID " + account_id)
-        account = session.query(AttendeeAccount).get(account_id)
+def rollback_prereg_session(session):
+    attendee_account_id = cherrypy.session.get('attendee_account_id')
+    if Charge.stripe_intent_id:
+        log.debug("Rolling back Stripe ID " + Charge.stripe_intent_id)
+        session.delete_txn_by_stripe_id(Charge.stripe_intent_id)
+    if attendee_account_id and cherrypy.session.get('new_account'):
+        log.debug("Deleting attendee account ID " + attendee_account_id)
+        account = session.query(AttendeeAccount).get(attendee_account_id)
         session.delete(account)
-    cherrypy.session['attendee_account_id'] = ''
-    cherrypy.session['paid_preregs'] = []
-    if cherrypy.session.get('pending_preregs'):
+        cherrypy.session['new_account'] = False
+        cherrypy.session['attendee_account_id'] = ''
+    Charge.paid_preregs.clear()
+    if Charge.pending_preregs:
         log.debug("Rolling back pending preregistrations")
-        cherrypy.session['unpaid_preregs'] = cherrypy.session.get('pending_preregs').copy()
-        cherrypy.session['pending_preregs'].clear()
+        cherrypy.session['unpaid_preregs'] = Charge.pending_preregs.copy()
+        Charge.pending_preregs.clear()
     session.commit()
 
 def check_account(session, email, password, confirm_password, new_account_only=True, update_password=True):
@@ -155,8 +157,8 @@ class Root:
 
     @check_if_can_reg
     def index(self, session, message='', account_email='', account_password=''):
-        if cherrypy.session.get('pending_preregs'):
-            rollback_prereg_session(session, Charge.stripe_intent_id, Charge.attendee_account_id)
+        if Charge.pending_preregs:
+            rollback_prereg_session(session)
             raise HTTPRedirect('index')
 
         if not Charge.unpaid_preregs:
@@ -204,7 +206,6 @@ class Root:
         valid session cookie. Thus, this page is also exposed as "post_form".
         """
         params['id'] = 'None'   # security!
-        Charge.attendee_account_id = ''
         group = Group()
 
         if edit_id is not None:
@@ -453,7 +454,6 @@ class Root:
             else:
                 Charge.unpaid_preregs.clear()
                 Charge.paid_preregs.extend(charge.targets)
-                Charge.attendee_account_id = ''
                 raise HTTPRedirect('paid_preregistrations?total_cost={}', charge.dollar_amount)
         else:
             message = "These badges aren't free! Please pay for them."
@@ -488,7 +488,7 @@ class Root:
         new_or_existing_account = session.current_attendee_account()
         if not new_or_existing_account:
             new_or_existing_account = session.create_attendee_account(account_email, account_password)
-        Charge.attendee_account_id = new_or_existing_account.id
+        cherrypy.session['attendee_account_id'] = new_or_existing_account.id
 
         for attendee in charge.attendees:
             pending_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
@@ -531,17 +531,17 @@ class Root:
 
         Charge.unpaid_preregs.clear()
         Charge.paid_preregs.extend(charge.targets)
-        Charge.stripe_intent_id = stripe_intent.id
+        cherrypy.session['stripe_intent_id'] = stripe_intent.id
         session.commit()
 
         return {'stripe_intent': stripe_intent,
                 'success_url': 'paid_preregistrations?total_cost={}&message={}'.format(
                     charge.dollar_amount, 'Payment accepted!'),
-                'cancel_url': 'cancel_prereg_payment?account_id={}'.format(new_or_existing_account.id)}
+                'cancel_url': 'cancel_prereg_payment'}
 
     @ajax
     def cancel_prereg_payment(self, session, stripe_id=None, account_id=None):
-        rollback_prereg_session(session, stripe_id, account_id)
+        rollback_prereg_session(session)
         return {'message': 'Payment cancelled.'}
     
     @ajax
@@ -561,11 +561,7 @@ class Root:
         if not Charge.paid_preregs:
             raise HTTPRedirect('index')
         else:
-            if cherrypy.session.get('pending_preregs'):
-                cherrypy.session['pending_preregs'].clear()
-            if Charge.attendee_account_id:
-                cherrypy.session['attendee_account_id'] = Charge.attendee_account_id
-                Charge.attendee_account_id = ''
+            Charge.pending_preregs.clear()
             preregs = [session.merge(Charge.from_sessionized(d)) for d in Charge.paid_preregs]
             for prereg in preregs:
                 try:
@@ -1041,6 +1037,9 @@ class Root:
 
         account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id'))
 
+        if not account:
+            raise HTTPRedirect('../landing/index')
+
         if account.has_only_one_badge:
             if account.attendees[0].is_group_leader:
                 raise HTTPRedirect('group_members?id={}&message={}', account.attendees[0].group.id, message)
@@ -1085,7 +1084,7 @@ class Root:
                 'An email has been sent to {} to set up their account.'.format(attendee.email))
     
     def logout(self, return_to=''):
-        cherrypy.session.pop('attendee_account_id', None)
+        cherrypy.session.pop('attendee_account_id')
         return_to = return_to or '/preregistration/login'
         raise HTTPRedirect('..{}?message={}', return_to, 'You have been logged out.')
 
