@@ -70,10 +70,12 @@ def rollback_prereg_session(session, stripe_intent_id, account_id=None):
         log.debug("Deleting attendee account ID " + account_id)
         account = session.query(AttendeeAccount).get(account_id)
         session.delete(account)
-    Charge.attendee_account_id = ''
-    Charge.paid_preregs.clear()
-    Charge.unpaid_preregs = Charge.pending_preregs.copy()
-    Charge.pending_preregs.clear()
+    cherrypy.session['attendee_account_id'] = ''
+    cherrypy.session['paid_preregs'] = []
+    if cherrypy.session.get('pending_preregs'):
+        log.debug("Rolling back pending preregistrations")
+        cherrypy.session['unpaid_preregs'] = cherrypy.session.get('pending_preregs').copy()
+        cherrypy.session['pending_preregs'].clear()
     session.commit()
 
 def check_account(session, email, password, confirm_password, new_account_only=True, update_password=True):
@@ -153,7 +155,7 @@ class Root:
 
     @check_if_can_reg
     def index(self, session, message='', account_email='', account_password=''):
-        if Charge.pending_preregs:
+        if cherrypy.session.get('pending_preregs'):
             rollback_prereg_session(session, Charge.stripe_intent_id, Charge.attendee_account_id)
             raise HTTPRedirect('index')
 
@@ -520,7 +522,7 @@ class Root:
 
                 attendee.amount_paid_override = attendee.total_cost
 
-        Charge.pending_preregs = Charge.unpaid_preregs.copy()
+        cherrypy.session['pending_preregs'] = Charge.unpaid_preregs.copy()
 
         session.commit() # save PromoCodeGroup to the database to generate receipt items correctly
         for attendee in charge.attendees:
@@ -559,7 +561,8 @@ class Root:
         if not Charge.paid_preregs:
             raise HTTPRedirect('index')
         else:
-            Charge.pending_preregs.clear()
+            if cherrypy.session.get('pending_preregs'):
+                cherrypy.session['pending_preregs'].clear()
             if Charge.attendee_account_id:
                 cherrypy.session['attendee_account_id'] = Charge.attendee_account_id
                 Charge.attendee_account_id = ''

@@ -918,10 +918,6 @@ class Charge:
         return cherrypy.session.setdefault('unpaid_preregs', OrderedDict())
     
     @classproperty
-    def pending_preregs(cls):
-        return cherrypy.session.get('pending_preregs', OrderedDict())
-
-    @classproperty
     def stripe_intent_id(cls):
         return cherrypy.session.get('stripe_intent_id', '')
 
