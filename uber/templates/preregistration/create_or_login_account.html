@@ -4,7 +4,7 @@ Your {{ 'registration(s)' if c.PAGE_PATH in ['/preregistration/form', '/preregis
 <a href="../preregistration/logout?return_to={{ c.PAGE_PATH }}" class="btn btn-sm btn-danger">Logout</a></div>
 {% else %}
 <ul class="nav nav-tabs" role="tablist">
-  <li role="presentation" class="active"><a href="#create" aria-controls="create" role="tab" data-toggle="tab">Create Account</a></li>
+  <li role="presentation" class="active"><a href="#create" id="create-tab" aria-controls="create" role="tab" data-toggle="tab">Create Account</a></li>
   <li role="presentation"><a href="#login" aria-controls="login" role="tab" data-toggle="tab">Log In</a></li>
 </ul>
 <div class="tab-content">
@@ -23,8 +23,12 @@ Your {{ 'registration(s)' if c.PAGE_PATH in ['/preregistration/form', '/preregis
 
   <script type="text/javascript">
     function validateAndIncludeAccountFields(params_list) {
-      if($(".account-form-input")[0].form.checkValidity()) {
-          $(".account-form-input").each(function( index ) {
+      var create_account_fields = $(".account-form-input");
+      if (create_account_fields.is(":hidden")) {
+        $('#create-tab').click();
+      }
+      if(create_account_fields[0].form.checkValidity()) {
+        create_account_fields.each(function( index ) {
             var account_input = $(this);
             if(typeof params_list !== 'undefined') {
               params_list[account_input.attr("name")] = account_input.val();
@@ -36,7 +40,7 @@ Your {{ 'registration(s)' if c.PAGE_PATH in ['/preregistration/form', '/preregis
             });
           });
       } else {
-          $(".account-form-input")[0].form.reportValidity();
+        create_account_fields[0].form.reportValidity();
           event.preventDefault();
           return false;
       }

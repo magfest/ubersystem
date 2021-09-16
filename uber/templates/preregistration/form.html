@@ -24,7 +24,7 @@
 {% if not logged_in_account %}
 <script type="text/javascript">
 $(document).ready(function() {
-  $("form").submit(function () { validateAndIncludeAccountFields(); });
+  $("#prereg_form").submit(function () { validateAndIncludeAccountFields(); });
 })
 </script>
 {% endif %}
@@ -41,7 +41,7 @@ $(document).ready(function() {
 
 {#- The action is set to "post_form" or "post_dealer" in order to bypass the NGINX cache. -#}
 {% set post_action = 'post_dealer' if attendee.is_dealer else 'post_form' %}
-<form method="post" action="{{ post_action }}" class="form-horizontal" role="form">
+<form method="post" id="prereg_form" action="{{ post_action }}" class="form-horizontal" role="form">
 {% if is_prereg_dealer %}
 <input type="hidden" name="account_email" class="copy-from-account-input"/>
 <input type="hidden" name="account_password" class="copy-from-account-input"/>
