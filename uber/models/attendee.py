@@ -1937,6 +1937,16 @@ class AttendeeAccount(MagModel):
     def has_only_one_badge(self):
         return len(self.attendees) == 1
 
+    @property
+    def valid_attendees(self):
+        return [attendee for attendee in self.attendees 
+                if attendee.badge_status not in [c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS]]
+
+    @property
+    def refunded_deferred_attendees(self):
+        return [attendee for attendee in self.attendees 
+                if attendee.badge_status in [c.REFUNDED_STATUS, c.DEFERRED_STATUS]]
+
     @hybrid_property
     def normalized_email(self):
         return normalize_email(self.email)

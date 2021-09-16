@@ -1040,7 +1040,7 @@ class Root:
         if not account:
             raise HTTPRedirect('../landing/index')
 
-        if account.has_only_one_badge:
+        if account.has_only_one_badge and account.attendees[0].badge_status != c.INVALID_STATUS:
             if account.attendees[0].is_group_leader:
                 raise HTTPRedirect('group_members?id={}&message={}', account.attendees[0].group.id, message)
             else:
