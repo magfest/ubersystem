@@ -1070,9 +1070,11 @@ class Root:
             message = "Something went wrong. Please try again."
         if not attendee.email:
             message = "This attendee needs an email address to set up a new account."
+        if normalize_email(attendee.email) == session.current_attendee_account().normalized_email:
+            message = "You cannot grant an account to someone with the same email address as your account."
         if not message:
             token = genpasswd(short=True)
-            account = session.query(AttendeeAccount).filter_by(email=attendee.email).first()
+            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(attendee.email)).first()
             if account:
                 if account.password_reset:
                     session.delete(account.password_reset)
