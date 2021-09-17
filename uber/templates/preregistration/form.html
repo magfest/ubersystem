@@ -41,9 +41,19 @@ $(document).ready(function() {
 {% else %}
 <div class="panel panel-default">
   <div class="panel-body">
+    <div id="login-link" class="text-center">
+      Already have an account? <a href="#" class="btn btn-xs btn-primary" id="show-login-form">Log in</a>
+    </div>
     {% include 'preregistration/login.html' %}
   </div>
 </div>
+<script type="text/javascript">
+  $('#login-form').hide();
+  $('#show-login-form').on('click', function() {
+    $('#login-form').show();
+    $('#login-link').hide();
+  });
+</script>
 {% endif %}
 <div class="panel panel-default">
   <div class="panel-body">
