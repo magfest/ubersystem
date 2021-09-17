@@ -19,7 +19,7 @@
     <tr>
         <td style="white-space:nowrap">{{ email.when|datetime_local("%x %X") }}</td>
         <td>{{ email.subject }}</td>
-        <td><a href="sent?to={{ email.to }}">{{ email.to }}</a></td>
+        <td><a href="sent?to={{ email.to|urlencode }}">{{ email.to }}</a></td>
         <td>
             <form method="post" action="resend_email" id="resend_email_{{ email.id }}">
                 {{ csrf_token() }}
