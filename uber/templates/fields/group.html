@@ -106,23 +106,26 @@
 
 {% set badges_dropdown %}
 {% set read_only = badges_ro or page_ro %}
+{% set min_badges = 1 if attendee_or_group.is_dealer else c.MIN_GROUP_SIZE %}
+{% set max_badges = c.MAX_DEALERS if not admin_area and attendee_or_group.is_dealer else c.MAX_GROUP_SIZE %}
 {% if not c.MAX_DEALERS %}
   <script type="text/javascript">
   updateBadgeMax = function() {
       var new_badge_max = Math.ceil(parseFloat($("select[name=tables]").val())) + 1;
       var curr_badge_max = parseInt($('select[name=badges] option:last').val()) || 0;
-      if (curr_badge_max > new_badge_max) {
-          $("select[name=badges] option").slice(new_badge_max, curr_badge_max).remove();
+      if (new_badge_max && curr_badge_max > new_badge_max) {
+          $("select[name=badges] option").slice(new_badge_max+1, curr_badge_max+1).remove();
       } else {
-          for (i = curr_badge_max+1; i < new_badge_max+1; i++) {
-              $("select[name=badges]").append('<option value="'+i+'">'+i+'</option>');
-          }
+        if (new_badge_max == 0) { new_badge_max = {{ max_badges }}; }
+        for (i = curr_badge_max+1; i < new_badge_max+1; i++) {
+            $("select[name=badges]").append('<option value="'+i+'">'+i+'</option>');
+        }
       }
   };
   $(function() {
       $("select[name=tables]").on('change', updateBadgeMax);
       updateBadgeMax();
-      let badges = parseInt("{{ group.badges }}") || 0
+      let badges = parseInt("{{ badges }}") || 0
       let lastBadge = parseInt($('select[name=badges] option:last').val()) || 0
       var selectedBadge = Math.min(badges, lastBadge);
       $('select[name=badges] option[value="' + selectedBadge + '"]').prop('selected', true);
@@ -140,9 +143,6 @@
   ({{ c.GROUP_PRICE|format_currency }} each)
 {% endif %}
 {% endset %}
-
-{% set min_badges = 1 if attendee_or_group.is_dealer else c.MIN_GROUP_SIZE %}
-{% set max_badges = c.MAX_DEALERS if not admin_area and attendee_or_group.is_dealer else c.MAX_GROUP_SIZE %}
 
 <div class="group_fields">
   <div class="form-group">
