@@ -711,7 +711,7 @@ class Session(SessionManager):
                 return True
             
             return admin.full_shifts_admin if attendee.badge_type == c.STAFF_BADGE else \
-                self.admin_attendee_max_access >= AccessGroup.DEPT
+                self.admin_attendee_max_access(attendee) >= AccessGroup.DEPT
         
         def viewable_groups(self):
             from uber.models import Attendee, DeptMembership, Group, GuestGroup
