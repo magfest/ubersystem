@@ -122,7 +122,9 @@
   $(function() {
       $("select[name=tables]").on('change', updateBadgeMax);
       updateBadgeMax();
-      var selectedBadge = Math.min({{ badges }}, $('select[name=badges] option:last').val());
+      let badges = parseInt("{{ group.badges }}") || 0
+      let lastBadge = parseInt($('select[name=badges] option:last').val()) || 0
+      var selectedBadge = Math.min(badges, lastBadge);
       $('select[name=badges] option[value="' + selectedBadge + '"]').prop('selected', true);
   });
 
