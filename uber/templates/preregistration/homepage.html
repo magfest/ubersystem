@@ -3,6 +3,8 @@
 {% block content %}
 {% include 'prereg_masthead.html' %}
 {% include 'preregistration/update_account.html' %}
+{% for attendee in account.valid_attendees %}
+{% if loop.first %}
 <div class="panel panel-default">
     <div class="panel-heading">
         Registrations
@@ -11,6 +13,7 @@
         <table class="table table-striped datatable">
         <thead>
             <tr>
+            <th>Status</th>
             <th>Registration</th>
             <th>Art Show</th>
             <th>Marketplace</th>
@@ -18,8 +21,9 @@
             </tr>
         </thead>
         <tbody>
-        {% for attendee in account.attendees %}
+        {% endif %}
             <tr id="{{ account.email|idize }}">
+            <td>{{ attendee.badge_status_label }}</td>
             <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
                 <a href="../preregistration/confirm?id={{ attendee.id }}" target="_blank">{{ attendee.full_name }}</a>
                 {% if attendee.group %}({% if attendee.group.leader in account.attendees %}<a href="../preregistration/group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>{% else %}{{ attendee.group.name }}{% endif %}){% endif %}
@@ -57,11 +61,53 @@
                 
             </td>
             </tr>
-        {% endfor %}
+        {% if loop.last %}
         </tbody>
         </table>
     </div>
 </div>
+{% endif %}
+{% endfor %}
+{% for attendee in account.refunded_deferred_attendees %}
+{% if loop.first %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+        Cancelled Registrations
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped datatable">
+        <thead>
+            <tr>
+            <th>Status</th>
+            <th>Registration</th>
+            <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% endif %}
+            <tr id="{{ account.email|idize }}">
+            <td>{{ attendee.badge_status_label }}</td>
+            <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
+                {{ attendee.full_name }}
+                {% if attendee.group %}({% if attendee.group.leader in account.attendees %}<a href="../preregistration/group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>{% else %}{{ attendee.group.name }}{% endif %}){% endif %}
+            </td>
+            <td>
+                {% if attendee.badge_status == c.REFUNDED_STATUS %}
+                <form method="post" action="repurchase" class="form-horizontal">
+                  {{ csrf_token() }}
+                  <input type="hidden" name="id" value="{{ attendee.id }}" />
+                  <button type="submit" class="btn btn-primary" value="Repurchase">Repurchase</button>
+                </form>
+                {% endif %}
+            </td>
+            </tr>
+        {% if loop.last %}
+        </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
 <script type="text/javascript">
     $(function() {
       $('.new-account-form').on('submit', function(event) {

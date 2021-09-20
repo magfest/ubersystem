@@ -663,7 +663,10 @@ class Session(SessionManager):
 
         def current_attendee_account(self):
             if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id'):
-                return self.attendee_account(cherrypy.session.get('attendee_account_id'))
+                try:
+                    return self.attendee_account(cherrypy.session.get('attendee_account_id'))
+                except sqlalchemy.orm.exc.NoResultFound:
+                    cherrypy.session['attendee_account_id'] = ''
         
         def one_badge_attendee_account(self, attendee):
             logged_in_account = self.current_attendee_account()
@@ -708,7 +711,7 @@ class Session(SessionManager):
                 return True
             
             return admin.full_shifts_admin if attendee.badge_type == c.STAFF_BADGE else \
-                self.admin_attendee_max_access >= AccessGroup.DEPT
+                self.admin_attendee_max_access(attendee) >= AccessGroup.DEPT
         
         def viewable_groups(self):
             from uber.models import Attendee, DeptMembership, Group, GuestGroup
@@ -1055,6 +1058,7 @@ class Session(SessionManager):
 
             new_account = AttendeeAccount(email=email, hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
             self.add(new_account)
+            cherrypy.session['new_account'] = True
             return new_account
 
         def add_attendee_to_account(self, attendee, account):

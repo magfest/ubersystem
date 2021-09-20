@@ -1043,6 +1043,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
                     selector='.address_details' + attendee_address_suffix,
                     label='Use my business address for my personal address.',
                     suffix=attendee_address_suffix,
+                    required_selector='.address_details' + attendee_address_suffix + ' .form-control',
                     name='copy_address',
                     checked=copy_address) }}
       </div>
