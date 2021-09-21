@@ -16,6 +16,16 @@ from uber.tasks.email import send_email
 from uber.utils import check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd
 
 
+def valid_password(password, account):
+    pr = account.password_reset
+    if pr and pr.is_expired:
+        account.session.delete(pr)
+        pr = None
+
+    all_hashed = [account.hashed] + ([pr.hashed] if pr else [])
+    return any(bcrypt.hashpw(password, hashed) == hashed for hashed in all_hashed)
+
+
 @all_renderable()
 class Root:
     def index(self, session, message=''):
@@ -147,7 +157,7 @@ class Root:
         if 'email' in params:
             try:
                 account = session.get_account_by_email(params['email'])
-                if not bcrypt.hashpw(params.get('password', ''), account.hashed) == account.hashed:
+                if not valid_password(params.get('password'), account):
                     message = 'Incorrect password'
             except NoResultFound:
                 message = 'No account exists for that email address'
@@ -236,7 +246,7 @@ class Root:
             updater_account = session.admin_account(cherrypy.session.get('account_id'))
             if not new_password:
                 message = 'New password is required'
-            elif not bcrypt.hashpw(updater_password, updater_account.hashed) == updater_account.hashed:
+            elif not valid_password(updater_password, updater_account):
                 message = 'Your password is incorrect'
             elif new_password != confirm_new_password:
                 message = 'Passwords do not match'
@@ -269,7 +279,7 @@ class Root:
             account = session.admin_account(cherrypy.session.get('account_id'))
             if not new_password:
                 message = 'New password is required'
-            elif not bcrypt.hashpw(old_password, account.hashed) == account.hashed:
+            elif not valid_password(old_password, account):
                 message = 'Incorrect old password; please try again'
             elif new_password != confirm_new_password:
                 message = 'Passwords do not match'

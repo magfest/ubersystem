@@ -62,26 +62,37 @@ def check_prereg_promo_code(session, attendee):
         session.commit()
         return "The promo code you're using for {} has been used too many times.".format(attendee.full_name)
 
-def rollback_prereg_session(session, stripe_intent_id, account_id=None):
-    if stripe_intent_id:
-        log.debug("Rolling back Stripe ID " + stripe_intent_id)
-        session.delete_txn_by_stripe_id(stripe_intent_id)
-    if account_id:
-        log.debug("Deleting attendee account ID " + account_id)
-        account = session.query(AttendeeAccount).get(account_id)
+def rollback_prereg_session(session):
+    attendee_account_id = cherrypy.session.get('attendee_account_id')
+    if Charge.stripe_intent_id:
+        log.debug("Rolling back Stripe ID " + Charge.stripe_intent_id)
+        session.delete_txn_by_stripe_id(Charge.stripe_intent_id)
+    if attendee_account_id and cherrypy.session.get('new_account'):
+        log.debug("Deleting attendee account ID " + attendee_account_id)
+        account = session.query(AttendeeAccount).get(attendee_account_id)
         session.delete(account)
-    Charge.attendee_account_id = ''
+        cherrypy.session['new_account'] = False
+        cherrypy.session['attendee_account_id'] = ''
     Charge.paid_preregs.clear()
-    Charge.unpaid_preregs = Charge.pending_preregs.copy()
-    Charge.pending_preregs.clear()
+    if Charge.pending_preregs:
+        log.debug("Rolling back pending preregistrations")
+        cherrypy.session['unpaid_preregs'] = Charge.pending_preregs.copy()
+        Charge.pending_preregs.clear()
     session.commit()
 
-def check_account(session, email, password, confirm_password, new_account_only=True, update_password=True):
-    if session.current_attendee_account() and new_account_only:
+def check_account(session, email, password, confirm_password, skip_if_logged_in=True, update_password=True, old_email=None):
+    logged_in_account = session.current_attendee_account()
+    if logged_in_account and skip_if_logged_in:
         return
 
     if valid_email(email):
         return valid_email(email)
+
+    existing_account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(email)).first()
+    if existing_account and (old_email and existing_account.normalized_email != old_email 
+            or logged_in_account and logged_in_account.normalized_email != existing_account.normalized_email
+            or not old_email and not logged_in_account):
+        return "There's already an account with that email address"
     
     if update_password:
         if password and password != confirm_password:
@@ -154,7 +165,7 @@ class Root:
     @check_if_can_reg
     def index(self, session, message='', account_email='', account_password=''):
         if Charge.pending_preregs:
-            rollback_prereg_session(session, Charge.stripe_intent_id, Charge.attendee_account_id)
+            rollback_prereg_session(session)
             raise HTTPRedirect('index')
 
         if not Charge.unpaid_preregs:
@@ -202,7 +213,6 @@ class Root:
         valid session cookie. Thus, this page is also exposed as "post_form".
         """
         params['id'] = 'None'   # security!
-        Charge.attendee_account_id = ''
         group = Group()
 
         if edit_id is not None:
@@ -280,7 +290,7 @@ class Root:
 
             if not message:
                 if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
-                    add_to_new_or_existing_account(session, attendee, **params)
+                    message = add_to_new_or_existing_account(session, attendee, **params)
 
                     if not message:
                         attendee.paid = c.PAID_BY_GROUP
@@ -432,6 +442,11 @@ class Root:
         message = check_account(session, account_email, account_password, params.get('confirm_password'))
         if message:
             return {'error': message}
+
+        new_or_existing_account = session.current_attendee_account()
+        if not new_or_existing_account:
+            new_or_existing_account = session.create_attendee_account(account_email, account_password)
+        cherrypy.session['attendee_account_id'] = new_or_existing_account.id
         
         charge = Charge(listify(Charge.unpaid_preregs.values()))
         if charge.total_cost <= 0:
@@ -443,7 +458,7 @@ class Root:
                     session.rollback()
                     raise HTTPRedirect('index?message={}', message)
                 else:
-                    add_to_new_or_existing_account(session, attendee, **params)
+                    session.add_attendee_to_account(attendee, new_or_existing_account)
 
             for group in charge.groups:
                 session.add(group)
@@ -451,7 +466,6 @@ class Root:
             else:
                 Charge.unpaid_preregs.clear()
                 Charge.paid_preregs.extend(charge.targets)
-                Charge.attendee_account_id = ''
                 raise HTTPRedirect('paid_preregistrations?total_cost={}', charge.dollar_amount)
         else:
             message = "These badges aren't free! Please pay for them."
@@ -486,7 +500,7 @@ class Root:
         new_or_existing_account = session.current_attendee_account()
         if not new_or_existing_account:
             new_or_existing_account = session.create_attendee_account(account_email, account_password)
-        Charge.attendee_account_id = new_or_existing_account.id
+        cherrypy.session['attendee_account_id'] = new_or_existing_account.id
 
         for attendee in charge.attendees:
             pending_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
@@ -520,7 +534,7 @@ class Root:
 
                 attendee.amount_paid_override = attendee.total_cost
 
-        Charge.pending_preregs = Charge.unpaid_preregs.copy()
+        cherrypy.session['pending_preregs'] = Charge.unpaid_preregs.copy()
 
         session.commit() # save PromoCodeGroup to the database to generate receipt items correctly
         for attendee in charge.attendees:
@@ -529,17 +543,17 @@ class Root:
 
         Charge.unpaid_preregs.clear()
         Charge.paid_preregs.extend(charge.targets)
-        Charge.stripe_intent_id = stripe_intent.id
+        cherrypy.session['stripe_intent_id'] = stripe_intent.id
         session.commit()
 
         return {'stripe_intent': stripe_intent,
                 'success_url': 'paid_preregistrations?total_cost={}&message={}'.format(
                     charge.dollar_amount, 'Payment accepted!'),
-                'cancel_url': 'cancel_prereg_payment?account_id={}'.format(new_or_existing_account.id)}
+                'cancel_url': 'cancel_prereg_payment'}
 
     @ajax
     def cancel_prereg_payment(self, session, stripe_id=None, account_id=None):
-        rollback_prereg_session(session, stripe_id, account_id)
+        rollback_prereg_session(session)
         return {'message': 'Payment cancelled.'}
     
     @ajax
@@ -560,9 +574,6 @@ class Root:
             raise HTTPRedirect('index')
         else:
             Charge.pending_preregs.clear()
-            if Charge.attendee_account_id:
-                cherrypy.session['attendee_account_id'] = Charge.attendee_account_id
-                Charge.attendee_account_id = ''
             preregs = [session.merge(Charge.from_sessionized(d)) for d in Charge.paid_preregs]
             for prereg in preregs:
                 try:
@@ -705,10 +716,12 @@ class Root:
         return {
             'group':   group,
             'account': session.one_badge_attendee_account(group.leader),
+            'current_account': session.current_attendee_account(),
             'upgraded_badges': len([a for a in group.attendees if a.badge_type in c.BADGE_TYPE_PRICES]),
             'message': message
         }
 
+    @requires_account(Group)
     def register_group_member(self, session, group_id, message='', **params):
         # Safe to ignore csrf tokens here, because an attacker would need to know the group id a priori
         group = session.group(group_id, ignore_csrf=True)
@@ -750,7 +763,9 @@ class Root:
 
                 attendee.apply(params, restricted=True)
 
-                # Free group badges are considered registered' when they are actually claimed.
+                session.add_attendee_to_account(attendee, session.current_attendee_account())
+
+                # Free group badges are considered 'registered' when they are actually claimed.
                 if group.cost == 0:
                     attendee.registered = localized_now()
 
@@ -797,6 +812,7 @@ class Root:
             return {'stripe_intent': stripe_intent,
                     'success_url': 'group_members?id={}&message={}'.format(group.id, 'Your payment has been accepted')}
 
+    @requires_account(Attendee)
     @csrf_protected
     def unset_group_member(self, session, id):
         attendee = session.attendee(id)
@@ -824,6 +840,7 @@ class Root:
             attendee.group_id,
             'Attendee unset; you may now assign their badge to someone else')
 
+    @requires_account(Group)
     def add_group_members(self, session, id, count):
         group = session.group(id)
         if int(count) < group.min_badges_addable and not group.is_in_grace_period:
@@ -932,7 +949,7 @@ class Root:
         return {'attendee': session.attendee(id, allow_invalid=True), 'message': message}
 
     def not_found(self, id, message=''):
-        return
+        return {'id': id, 'message': message}
 
     @requires_account(Attendee)
     def abandon_badge(self, session, id):
@@ -1032,7 +1049,10 @@ class Root:
 
         account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id'))
 
-        if account.has_only_one_badge:
+        if not account:
+            raise HTTPRedirect('../landing/index')
+
+        if account.has_only_one_badge and account.attendees[0].badge_status != c.INVALID_STATUS:
             if account.attendees[0].is_group_leader:
                 raise HTTPRedirect('group_members?id={}&message={}', account.attendees[0].group.id, message)
             else:
@@ -1050,9 +1070,11 @@ class Root:
             message = "Something went wrong. Please try again."
         if not attendee.email:
             message = "This attendee needs an email address to set up a new account."
+        if normalize_email(attendee.email) == session.current_attendee_account().normalized_email:
+            message = "You cannot grant an account to someone with the same email address as your account."
         if not message:
-            token = genpasswd()
-            account = session.query(AttendeeAccount).filter_by(email=attendee.email).first()
+            token = genpasswd(short=True)
+            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(attendee.email)).first()
             if account:
                 if account.password_reset:
                     session.delete(account.password_reset)
@@ -1076,7 +1098,7 @@ class Root:
                 'An email has been sent to {} to set up their account.'.format(attendee.email))
     
     def logout(self, return_to=''):
-        cherrypy.session.pop('attendee_account_id', None)
+        cherrypy.session.pop('attendee_account_id')
         return_to = return_to or '/preregistration/login'
         raise HTTPRedirect('..{}?message={}', return_to, 'You have been logged out.')
 
@@ -1149,7 +1171,8 @@ class Root:
             else:
                 new_password = params.get('new_password')
                 confirm_password = params.get('confirm_new_password')
-            message = check_account(session, params.get('account_email'), new_password, confirm_password, False, new_password)
+            message = check_account(session, params.get('account_email'), new_password, confirm_password, 
+                                    False, new_password, account.normalized_email)
 
         if not message:
             if new_password:
@@ -1161,7 +1184,7 @@ class Root:
     def reset_password(self, session, **params):
         if 'account_email' in params:
             account_email = params['account_email']
-            account = session.query(AttendeeAccount).filter_by(email=account_email).first()
+            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(account_email)).first()
             if 'is_admin' in params:
                 success_url = "../reg_admin/attendee_accounts?message=Password reset email sent."
             else:
@@ -1173,7 +1196,7 @@ class Root:
                 session.delete(account.password_reset)
                 session.commit()
 
-            token = genpasswd()
+            token = genpasswd(short=True)
             session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token, bcrypt.gensalt())))
 
             body = render('emails/accounts/password_reset.html', {
@@ -1190,7 +1213,10 @@ class Root:
         return {}
 
     def new_password_setup(self, session, account_email, token, message='', **params):
-        account = session.query(AttendeeAccount).filter_by(email=account_email).first()
+        if 'id' in params:
+            account = session.attendee_account(params['id'])
+        else:
+            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(account_email)).first()
         if not account or not account.password_reset:
             message = 'Invalid link. This link may have already been used or replaced.'
         elif account.password_reset.is_expired:
@@ -1203,7 +1229,8 @@ class Root:
         
         if cherrypy.request.method == 'POST':
             account_password = params.get('account_password')
-            message = check_account(session, account_email, account_password, params.get('confirm_password'), False)
+            message = check_account(session, account_email, account_password, 
+                                    params.get('confirm_password'), False, True, account.normalized_email)
 
             if not message:
                 account.email = account_email
@@ -1220,7 +1247,8 @@ class Root:
             'is_new': account.hashed == '',
             'message': message,
             'token': token,
-            'account_email': params.get('account_email', account_email),
+            'id': account.id,
+            'account_email': account_email,
         }
 
     @id_required(Attendee)

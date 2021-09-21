@@ -102,7 +102,7 @@ class Root:
             'message': message,
             'group': group,
             'group_type': params.get('group_type', ''),
-            'badges': params.get('badges', ''),
+            'badges': params.get('badges', group.badges if group else 0),
             'first_name': params.get('first_name', ''),
             'last_name': params.get('last_name', ''),
             'email': params.get('email', ''),

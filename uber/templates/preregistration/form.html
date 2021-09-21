@@ -24,16 +24,36 @@
 {% if not logged_in_account %}
 <script type="text/javascript">
 $(document).ready(function() {
-  $("form").submit(function () { validateAndIncludeAccountFields(); });
+  $("#account-form").submit(function () { $("#prereg-form").submit(); });
+  $("#prereg-form").submit(function () { 
+    var success = validateAndIncludeAccountFields();
+        if (!success) {
+          return false;
+        }
+        if(!$(this)[0].checkValidity()) {
+          $(this)[0].reportValidity();
+          return false;
+        }
+      });
 })
 </script>
 {% endif %}
 {% else %}
 <div class="panel panel-default">
   <div class="panel-body">
+    <div id="login-link" class="text-center">
+      Already have an account? <a href="#" class="btn btn-xs btn-primary" id="show-login-form">Log in</a>
+    </div>
     {% include 'preregistration/login.html' %}
   </div>
 </div>
+<script type="text/javascript">
+  $('#login-form').hide();
+  $('#show-login-form').on('click', function() {
+    $('#login-form').show();
+    $('#login-link').hide();
+  });
+</script>
 {% endif %}
 <div class="panel panel-default">
   <div class="panel-body">
@@ -41,7 +61,7 @@ $(document).ready(function() {
 
 {#- The action is set to "post_form" or "post_dealer" in order to bypass the NGINX cache. -#}
 {% set post_action = 'post_dealer' if attendee.is_dealer else 'post_form' %}
-<form method="post" action="{{ post_action }}" class="form-horizontal" role="form">
+<form method="post" id="prereg-form" action="{{ post_action }}" class="form-horizontal" role="form">
 {% if is_prereg_dealer %}
 <input type="hidden" name="account_email" class="copy-from-account-input"/>
 <input type="hidden" name="account_password" class="copy-from-account-input"/>

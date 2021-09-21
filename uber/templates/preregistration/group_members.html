@@ -75,6 +75,7 @@
         {{ group_fields.special_needs }}
         {{ group_fields.website }}
         {{ group_fields.address }}
+        {% include "groupextra.html" %}
         {% if not page_ro %}
         <button type="submit" class="btn btn-primary" value="Update Application">Update Application</button>
         <button type="submit" class="btn btn-danger" value="Cancel {{ c.DEALER_APP_TERM|title }}" form="cancel_dealer">Cancel Application</button>
@@ -117,7 +118,7 @@
         <td><ul style="margin: 5px 0; padding-right: 0"><li></li></ul></td>
         {% if attendee.first_name %}
             <td style="padding-right: 10px">
-                {% if attendee.is_group_leader %}
+                {% if attendee.is_group_leader or c.ATTENDEE_ACCOUNTS_ENABLED and attendee in current_account.attendees %}
                   <a href="confirm?id={{ attendee.id }}">{{ attendee.full_name }}</a>
                 {% else %}{{ attendee.full_name }}{% endif %}
             </td>

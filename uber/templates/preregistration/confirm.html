@@ -59,7 +59,7 @@
         </div>
       {% endif %}
 
-      {% if attendee.is_dealer %}
+      {% if attendee.is_dealer and attendee.is_group_leader %}
       {% if attendee.group.status == c.DECLINED %}
         {% set bg_class = 'danger' %}
       {% elif attendee.group.status == c.APPROVED %}
@@ -72,7 +72,7 @@
         <div class="alert alert-{{ bg_class }}">
           Your group "<a href="group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>"
           is currently {{ attendee.group.status_label }}.
-          {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE %}
+          {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and attendee.group.status not in [c.APPROVED, c.CANCELLED] %}
           <br/><br/>If you would like, you may instead
           <a href="../marketplace/index?attendee_id={{ attendee.id }}" target="_blank">apply for a table in the Marketplace.</a>{% endif %}
         </div>
