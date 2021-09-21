@@ -34,6 +34,8 @@
         We expect many requests being sent in and will be unable to accept them
         all. We WILL be contacting potential panelists for more information as necessary.
         To increase your odds of acceptance, fill this form out accurately and keep an eye out for communication from us.
+        <br/><br/>
+        Please review the MAGFest COVID policy at <a href="https://super.magfest.org/covid" target="_blank">https://super.magfest.org/covid</a>.
         <br/> <br/>
         Panel requests are due by {{ c.PANELS_DEADLINE|datetime_local('%-I:%M%p %Z on %A, %B %-e') }}.
         <br/> <br/>
@@ -144,6 +146,14 @@
                 selections for {{ c.EVENT_NAME_AND_YEAR }}. My information will not be shared with any outside parties.
               </label>
             <p class="help-block">For more information on our privacy practices please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a>.</p>
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="col-sm-9 col-sm-offset-3">
+              <label class="checkbox-label" style="font-weight: normal;">
+                <input type="checkbox" name="covid_agreement"{% if covid_agreement %} checked{% endif %} />
+                I understand and agree with the {{ macros.popup_link("https://super.magfest.org/covid", "Super MAGFest 2022 COVID Policy") }}.
+              </label>
             </div>
           </div>
 
