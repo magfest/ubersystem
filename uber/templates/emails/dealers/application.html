@@ -5,12 +5,13 @@
 Your group ({{ group.name }}) has successfully submitted a {{ c.DEALER_APP_TERM }} for {{ c.EVENT_NAME }}
 this coming {{ event_dates() }}. Below is a copy of your application. You may
 <a href="{{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}">update it here</a> or
-<a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ group.leader.id }}">view your badge here</a>.
+<a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ group.leader.id }}">view your badge here</a>{% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+after logging into your account{% endif %}.
 <ul>
     <li><strong>Table Name</strong>: {{ group.name }}</li>
-    <li><strong>Tables</strong>: {{ group.tables }} table{{ group.tables|pluralize }} (${{ '%0.2f' % group.table_cost }}) </li>
-    <li><strong>Badges</strong>: {{ group.badges }} badge{{ group.badges|pluralize }} (${{ '%0.2f' % group.badge_cost }}) </li>
-    <li><strong>Total Price</strong> ${{ '%0.2f' % group.cost }}</li>
+    <li><strong>Tables</strong>: {{ group.tables }} table{{ group.tables|pluralize }} ({{ group.table_cost|format_currency }}) </li>
+    <li><strong>Badges</strong>: {{ group.badges }} badge{{ group.badges|pluralize }} ({{ group.badge_cost|format_currency }}) </li>
+    <li><strong>Total Price</strong> {{ group.cost|format_currency }}</li>
     <li><strong>What do you sell?</strong> {{ group.wares }}</li>
     <li><strong>Description</strong>: {{ group.description }}</li>
     {% if group.special_needs %}<li><strong>Table Requests and Special Requests</strong>: {{ group.special_needs }}</li>{% endif %}
@@ -28,7 +29,7 @@ you will receive a waitlist or declined email.
 {% endif %}
 
 <br/><br/>{{ c.DEALER_APP_TERM|capitalize }}s automatically reserve the ability to purchase badges for you and the number of assistants on the
-application at the pre-registration price of ${{ c.BADGE_PRICE }}, if the application is not approved. PLEASE DO NOT BUY A BADGE
+application at the pre-registration price of {{ c.BADGE_PRICE|format_currency }}, if the application is not approved. PLEASE DO NOT BUY A BADGE
 IF YOU APPLIED FOR A MARKETPLACE SPOT. Your ability to purchase the badges will happen after the waitlist is exhausted if you are
 not approved to vend.
 

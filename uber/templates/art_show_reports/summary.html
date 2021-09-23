@@ -4,24 +4,24 @@
 <h3 align="center">Grand Summary Report -- {{ now|datetime("%m/%d/%Y, %-I:%M%p") }}</h3>
 <table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
   <tr>
-    <td colspan="2"><strong>Total Sales</strong></td><td width="75%">${{ '%0.2f' % (general_sales_sum + mature_sales_sum) }}</td>
+    <td colspan="2"><strong>Total Sales</strong></td><td width="75%">{{ (general_sales_sum + mature_sales_sum)|format_currency }}</td>
   </tr>
   <tr>
-    <td></td><td>General</td><td>${{ '%0.2f' % general_sales_sum }}</td>
+    <td></td><td>General</td><td>{{ general_sales_sum|format_currency }}</td>
   </tr>
   <tr>
-    <td></td><td>Mature</td><td>${{ '%0.2f' % mature_sales_sum }}</td>
+    <td></td><td>Mature</td><td>{{ mature_sales_sum|format_currency }}</td>
   </tr>
   <tr></tr>
   <tr>
-    <td colspan="2"><strong>Total Taxes</strong></td><td>${{ '%0.2f' % ((general_sales_sum + mature_sales_sum) * (c.SALES_TAX / 10000)) }}</td>
+    <td colspan="2"><strong>Total Taxes</strong></td><td>{{ ((general_sales_sum + mature_sales_sum) * (c.SALES_TAX / 10000))|format_currency }}</td>
   </tr>
   <tr>
     <td colspan="2"><strong>Tax % Charged</strong></td><td>{{ c.SALES_TAX / 100 }}%</td>
   </tr>
   <tr></tr>
   <tr>
-    <td colspan="2"><strong>Total Commission</strong></td><td>{{ '%0.2f' % ((general_sales_sum + mature_sales_sum) * (c.COMMISSION_PCT / 10000)) }}</td>
+    <td colspan="2"><strong>Total Commission</strong></td><td>{{ ((general_sales_sum + mature_sales_sum) * (c.COMMISSION_PCT / 10000))|format_currency }}</td>
   </tr>
   <tr>
     <td colspan="2"><strong>Commission % Charged</strong></td><td>{{ c.COMMISSION_PCT / 100 }}%</td>
@@ -72,16 +72,16 @@
   </tr>
   <tr></tr>
   <tr>
-    <td colspan="2"><strong>Panel Fee</strong></td><td>${{ c.COST_PER_PANEL }}</td>
+    <td colspan="2"><strong>Panel Fee</strong></td><td>{{ c.COST_PER_PANEL|format_currency }}</td>
   </tr>
   <tr>
-    <td colspan="2"><strong>Total Panel Fees</strong></td><td>${{ '%0.2f' % ((general_panels_count + mature_panels_count) * c.COST_PER_PANEL) }}</td>
+    <td colspan="2"><strong>Total Panel Fees</strong></td><td>{{ ((general_panels_count + mature_panels_count) * c.COST_PER_PANEL)|format_currency }}</td>
   </tr>
   <tr>
-    <td></td><td>General</td><td>${{ '%0.2f' % (general_panels_count * c.COST_PER_PANEL) }}</td>
+    <td></td><td>General</td><td>{{ (general_panels_count * c.COST_PER_PANEL)|format_currency }}</td>
   </tr>
   <tr>
-    <td></td><td>Mature</td><td>${{ '%0.2f' % (mature_panels_count * c.COST_PER_PANEL) }}</td>
+    <td></td><td>Mature</td><td>{{ (mature_panels_count * c.COST_PER_PANEL)|format_currency }}</td>
   </tr>
   <tr></tr>
   <tr>
@@ -95,16 +95,16 @@
   </tr>
   <tr></tr>
   <tr>
-    <td colspan="2"><strong>Table Fee</strong></td><td>${{ c.COST_PER_TABLE }}</td>
+    <td colspan="2"><strong>Table Fee</strong></td><td>{{ c.COST_PER_TABLE|format_currency }}</td>
   </tr>
   <tr>
-    <td colspan="2"><strong>Total Table Fees</strong></td><td>${{ '%0.2f' % ((general_tables_count + mature_tables_count) * c.COST_PER_TABLE) }}</td>
+    <td colspan="2"><strong>Total Table Fees</strong></td><td>{{ ((general_tables_count + mature_tables_count) * c.COST_PER_TABLE)|format_currency }}</td>
   </tr>
   <tr>
-    <td></td><td>General</td><td>${{ '%0.2f' % (general_tables_count * c.COST_PER_TABLE) }}</td>
+    <td></td><td>General</td><td>{{ (general_tables_count * c.COST_PER_TABLE)|format_currency }}</td>
   </tr>
   <tr>
-    <td></td><td>Mature</td><td>${{ '%0.2f' % (mature_tables_count * c.COST_PER_TABLE) }}</td>
+    <td></td><td>Mature</td><td>{{ (mature_tables_count * c.COST_PER_TABLE)|format_currency }}</td>
   </tr>
 </table>
 {% endblock %}

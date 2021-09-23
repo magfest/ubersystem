@@ -46,7 +46,7 @@
         <td>{{ app.tables }}</td>
         <td>{{ app.panels_ad }}</td>
         <td>{{ app.tables_ad }}</td>
-        <td>${{ app.potential_cost }}</td>
+        <td>{{ app.potential_cost|format_currency }}</td>
         <td>{{ app.admin_notes }}</td>
     </tr>
 {% endfor %}

@@ -1,4 +1,4 @@
-{% set page_ro = c.HAS_READ_ACCESS and not c.HAS_ACCESS %}
+{% set page_ro = page_ro or c.HAS_READ_ACCESS and not c.HAS_ACCESS %}
 {% import 'macros.html' as macros with context %}
 
 {%- set attendee_or_group = attendee if attendee else group -%}
@@ -37,14 +37,14 @@
       <br/><br/>Here is your group's cost breakdown:
       <ul>
         {% if group.auto_recalc %}
-          <li>${{ '%0.2f' % group.table_cost }} for {{ group.tables }} table{{ group.tables|pluralize }}</li>
-          <li>${{ '%0.2f' % group.badge_cost }} for {{ group.badges_purchased }} badge{{ group.badges_purchased|pluralize }}
+          <li>{{ group.table_cost|format_currency }} for {{ group.tables }} table{{ group.tables|pluralize }}</li>
+          <li>{{ group.badge_cost|format_currency }} for {{ group.badges_purchased }} badge{{ group.badges_purchased|pluralize }}
             {% if upgraded_badges %}(including {{ upgraded_badges }} upgraded badge{{ upgraded_badges|pluralize }}){% endif %}</li>
         {% else %}
-          <li>${{ '%0.2f' % group.cost }} total cost</li>
+          <li>{{ group.cost|format_currency }} total cost</li>
         {% endif %}
-        <li>${{ '%0.2f' % (group.amount_paid / 100) }} paid{% if group.amount_unpaid %} so far</li>
-          <li>${{ '%0.2f' % group.amount_unpaid }} unpaid</li>
+        <li>{{ ((group.amount_paid + group.amount_pending) / 100)|format_currency or '$0' }} paid{% if group.amount_unpaid %} so far</li>
+          <li>{{ group.amount_unpaid|format_currency }} unpaid</li>
           </ul>
           <br/>{{ stripe_form('process_group_payment',group) }}
         {% else %}
@@ -106,23 +106,28 @@
 
 {% set badges_dropdown %}
 {% set read_only = badges_ro or page_ro %}
+{% set min_badges = 1 if attendee_or_group.is_dealer else c.MIN_GROUP_SIZE %}
+{% set max_badges = c.MAX_DEALERS if not admin_area and attendee_or_group.is_dealer else c.MAX_GROUP_SIZE %}
 {% if not c.MAX_DEALERS %}
   <script type="text/javascript">
   updateBadgeMax = function() {
       var new_badge_max = Math.ceil(parseFloat($("select[name=tables]").val())) + 1;
       var curr_badge_max = parseInt($('select[name=badges] option:last').val()) || 0;
-      if (curr_badge_max > new_badge_max) {
-          $("select[name=badges] option").slice(new_badge_max, curr_badge_max).remove();
+      if (new_badge_max && curr_badge_max > new_badge_max) {
+          $("select[name=badges] option").slice(new_badge_max+1, curr_badge_max+1).remove();
       } else {
-          for (i = curr_badge_max+1; i < new_badge_max+1; i++) {
-              $("select[name=badges]").append('<option value="'+i+'">'+i+'</option>');
-          }
+        if (new_badge_max == 0) { new_badge_max = {{ max_badges }}; }
+        for (i = curr_badge_max+1; i < new_badge_max+1; i++) {
+            $("select[name=badges]").append('<option value="'+i+'">'+i+'</option>');
+        }
       }
   };
   $(function() {
       $("select[name=tables]").on('change', updateBadgeMax);
       updateBadgeMax();
-      var selectedBadge = Math.min({{ badges }}, $('select[name=badges] option:last').val());
+      let badges = parseInt("{{ badges }}") || 0
+      let lastBadge = parseInt($('select[name=badges] option:last').val()) || 0
+      var selectedBadge = Math.min(badges, lastBadge);
       $('select[name=badges] option[value="' + selectedBadge + '"]').prop('selected', true);
   });
 
@@ -131,16 +136,13 @@
 
 {% set post_text %}
 {% if attendee_or_group.is_dealer and not admin_area %}
-  ${{ c.DEALER_BADGE_PRICE }} per badge
+  {{ c.DEALER_BADGE_PRICE|format_currency }} per badge
 {% elif admin_area and not group.is_new %}
   [{{ group.badges_purchased }} badge{{ group.badges_purchased|pluralize }} purchased]
 {% elif not admin_area %}
-  (${{ c.GROUP_PRICE }} each)
+  ({{ c.GROUP_PRICE|format_currency }} each)
 {% endif %}
 {% endset %}
-
-{% set min_badges = 1 if attendee_or_group.is_dealer else c.MIN_GROUP_SIZE %}
-{% set max_badges = c.MAX_DEALERS if not admin_area and attendee_or_group.is_dealer else c.MAX_GROUP_SIZE %}
 
 <div class="group_fields">
   <div class="form-group">
@@ -331,7 +333,7 @@
 <div class="form-group">
   <label class="col-sm-3 control-label">Amount Paid</label>
   <div class="col-sm-6 form-control-static">
-    ${{ '%0.2f' % (group.amount_paid / 100) }}
+    {{ (group.amount_paid / 100)|format_currency }}
   </div>
 </div>
 {% endset %}
@@ -363,7 +365,7 @@
 <div class="form-group">
   <label class="col-sm-3 control-label">Amount Refunded</label>
   <div class="col-sm-6 form-control-static">
-    ${{ '%0.2f' % (group.amount_refunded / 100) if group.amount_refunded else '0' }}
+    {{ (group.amount_refunded / 100)|format_currency if group.amount_refunded else '0' }}
   </div>
 </div>
 {% endset %}

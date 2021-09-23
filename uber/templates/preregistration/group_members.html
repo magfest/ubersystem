@@ -1,12 +1,7 @@
-{% extends "./preregistration/preregbase.html" %}
+{% extends "preregistration/preregbase.html" %}
 {% set page_ro = True if group.status in [c.APPROVED, c.CANCELLED, c.DECLINED] else False %}
 {% import "fields/group.html" as group_fields with context %}
 {% block title %}Group Members{% endblock %}
-{% block backlink %}
-    {% if c.HAS_GROUP_ADMIN_ACCESS %}
-        <a href="../group_admin/form?id={{ group.id }}" style="float:right">Return to Group Admin Form</a>
-    {% endif %}
-{% endblock %}
 {% block content %}
 <script type="text/javascript">
     $().ready(function() {
@@ -59,8 +54,15 @@
 </script>
 
 {% include 'prereg_masthead.html' %}
+{% if account %}
+  {% include 'preregistration/update_account.html' %}
+{% endif %}
 <div class="panel panel-default">
   <div class="panel-body">
+    {% if group.leader %}
+    {% set attendee = group.leader %}
+    {% include 'confirm_tabs.html' with context %}
+    {% endif %}
     {% if group.is_dealer %}
       {{ group_fields.status }}
       <h2>"{{ group.name }}" Information</h2>
@@ -73,6 +75,7 @@
         {{ group_fields.special_needs }}
         {{ group_fields.website }}
         {{ group_fields.address }}
+        {% include "groupextra.html" %}
         {% if not page_ro %}
         <button type="submit" class="btn btn-primary" value="Update Application">Update Application</button>
         <button type="submit" class="btn btn-danger" value="Cancel {{ c.DEALER_APP_TERM|title }}" form="cancel_dealer">Cancel Application</button>
@@ -115,7 +118,7 @@
         <td><ul style="margin: 5px 0; padding-right: 0"><li></li></ul></td>
         {% if attendee.first_name %}
             <td style="padding-right: 10px">
-                {% if attendee.is_group_leader %}
+                {% if attendee.is_group_leader or c.ATTENDEE_ACCOUNTS_ENABLED and attendee in current_account.attendees %}
                   <a href="confirm?id={{ attendee.id }}">{{ attendee.full_name }}</a>
                 {% else %}{{ attendee.full_name }}{% endif %}
             </td>
@@ -141,7 +144,7 @@
                 {% elif attendee.is_transferable and attendee.total_donation %}
                   <form method="get" action="transfer_badge">
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
-                    <b> Added on an extra ${{ '%0.2f' % attendee.total_donation }}! </b>
+                    <b> Added on an extra {{ attendee.total_donation|format_currency }}! </b>
                     <input type="submit" value="Transfer Registration" />
                   </form>
                 {% endif %}

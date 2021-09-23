@@ -4,13 +4,23 @@
 {% block content %}
 <script type="text/javascript">{% include "region_opts.html" %}</script>
 <div class="masthead"></div>
+{% set attendee = app.attendee %}
+{% if account %}
+  {% include 'preregistration/update_account.html' %}
+{% endif %}
 <div class="panel panel-default">
+  <div class="panel-heading">
+    Application Information
+  </div>
   <div class="panel-body">
+    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_applications %}
+      {% include 'confirm_tabs.html' with context %}
+    {% endif %}
     <h2>{{ c.EVENT_NAME }} Art Show Application</h2>
-      {% if app.status in [c.APPROVED, c.PAID] %}
+      {% if app.status == c.APPROVED %}
       {% if app.status == c.APPROVED %}Congratulations, your application has been approved!{% endif %}
         {% if not app.incomplete_reason and app.is_unpaid %}
-          In order to complete your application, please pay ${{ '%0.2f' % app.attendee.amount_unpaid }} using the button below.
+          In order to complete your application, please pay {{ app.attendee.amount_unpaid|format_currency }} using the button below.
           {% if app.attendee.badge_cost %}This total includes the cost of your badge, if you have not paid for it
           already.{% endif %}<br/><br/>
           <div style="text-align:center">

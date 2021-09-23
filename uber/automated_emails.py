@@ -20,9 +20,9 @@ from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
 from uber import decorators
-from uber.models import AdminAccount, Attendee, ArtShowApplication, AutomatedEmail, Department, Group, GuestGroup, \
-    IndieGame, IndieJudge, IndieStudio, MarketplaceApplication, MITSTeam, MITSApplicant, PanelApplication, PanelApplicant, \
-    PromoCodeGroup, Room, RoomAssignment, Shift
+from uber.models import AdminAccount, Attendee, AttendeeAccount, ArtShowApplication, AutomatedEmail, Department, Group, \
+    GuestGroup, IndieGame, IndieJudge, IndieStudio, MarketplaceApplication, MITSTeam, MITSApplicant, PanelApplication, \
+    PanelApplicant, PromoCodeGroup, Room, RoomAssignment, Shift
 from uber.utils import after, before, days_after, days_before, localized_now, DeptChecklistConf
 
 
@@ -47,6 +47,8 @@ class AutomatedEmailFixture:
             subqueryload(Attendee.depts_where_working),
             subqueryload(Attendee.hotel_requests),
             subqueryload(Attendee.assigned_panelists)),
+        AttendeeAccount: lambda session: session.query(AttendeeAccount).options(
+            subqueryload(AttendeeAccount.attendees)),
         Group: lambda session: session.query(Group).options(
             subqueryload(Group.attendees)).order_by(Group.id),
         PromoCodeGroup: lambda session: session.query(PromoCodeGroup).options(
@@ -152,6 +154,15 @@ AutomatedEmailFixture(
     ident='attendee_badge_confirmed')
 
 AutomatedEmailFixture(
+    AttendeeAccount,
+    '{EVENT_NAME} account creation confirmed',
+    'reg_workflow/account_confirmation.html',
+    lambda x: True,
+    needs_approval=False,
+    allow_at_the_con=True,
+    ident='attendee_account_confirmed')
+
+AutomatedEmailFixture(
     PromoCodeGroup,
     '{EVENT_NAME} group registration successful',
     'reg_workflow/promo_code_group_confirmation.html',
@@ -164,7 +175,7 @@ AutomatedEmailFixture(
     Group,
     '{EVENT_NAME} group payment received',
     'reg_workflow/group_confirmation.html',
-    lambda g: (g.amount_paid / 100) == g.cost and g.cost != 0 and g.leader_id,
+    lambda g: g.amount_paid == g.cost * 100 and g.cost != 0 and g.leader_id,
     # query=and_(Group.amount_paid >= Group.cost, Group.cost > 0, Group.leader_id != None),
     needs_approval=False,
     ident='group_payment_received')

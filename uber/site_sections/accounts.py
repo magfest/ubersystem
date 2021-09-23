@@ -157,7 +157,7 @@ class Root:
         if 'email' in params:
             try:
                 account = session.get_account_by_email(params['email'])
-                if not valid_password(params['password'], account):
+                if not valid_password(params.get('password'), account):
                     message = 'Incorrect password'
             except NoResultFound:
                 message = 'No account exists for that email address'

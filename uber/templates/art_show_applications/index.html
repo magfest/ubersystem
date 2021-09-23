@@ -5,7 +5,7 @@
 <script type="text/javascript">
     var showOrHideNewBadge = function() {
         var noBadgeChecked = $.field("new_badge").prop('checked');
-        setVisible($('#new-badge'), noBadgeChecked);
+        setVisible($('.new-badge'), noBadgeChecked);
         $.field("attendee_id").prop('disabled', noBadgeChecked);
         setVisible($.field('attendee_id').parents('.form-group'), !noBadgeChecked);
     };
@@ -15,6 +15,15 @@
     });
 </script>
 <div class="masthead"></div>
+<div class="panel panel-default">
+  <div class="panel-body">
+    {% if logged_in_account %}
+    {% include 'preregistration/create_or_login_account.html' %}
+    {% else %}
+    {% include 'preregistration/login.html' %}
+    {% endif %}
+  </div>
+</div>
 <div class="panel panel-default">
   <div class="panel-body">
     <h2>{{ c.EVENT_NAME }} Art Show Application</h2>
@@ -51,6 +60,11 @@
             I don't have a badge for {{ c.EVENT_NAME }}.
           </label>
         </div>
+        <div class="clearfix"></div>
+        <p class="help-block col-sm-6 col-sm-offset-3 new-badge">
+          A new badge will be created for you, and you'll have the
+          opportunity to complete your registration after submitting your application.
+        </p>
       </div>
       <div class="form-group">
         <label for="attendee_id" class="col-sm-3 control-label">Confirmation Number</label>
@@ -62,13 +76,11 @@
         <p class="help-block col-sm-6 col-sm-offset-3">The confirmation number you received when you registered.</p>
       </div>
 
-      <div id="new-badge">
-        <div class="form-group">
-          <div class="col-sm-9 col-sm-offset-3">
-            <p class="help-block form-control-static">A new badge will be created for you, and you'll have the
-              opportunity to complete your registration after submitting your application.</p>
-          </div>
-        </div>
+      <div class="new-badge">
+        {% if not logged_in_account %}
+        {% set no_email = True %}
+        {% include 'preregistration/create_account_fields.html' %}
+        {% endif %}
         {% include 'art_show_applications/new_attendee_fields.html' %}
       </div>
 

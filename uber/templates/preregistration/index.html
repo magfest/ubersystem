@@ -46,23 +46,7 @@
     {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_OPEN) }}
 
       {% if charge.attendees or charge.groups %}
-        <div class="row">
-            <div class="col-sm-8 col-sm-offset-2">
-            <div class="col-sm-5 text-center">
-                {% if charge.total_cost > 0 %}
-                    {{ stripe_form('prereg_payment') }}
-                {% else %}
-                    <a href="process_free_prereg">{{ macros.stripe_button("Complete Registration!") }}</a>
-                {% endif %}
-            </div>
-            <div class="col-sm-2 text-center">
-                or
-            </div>
-            <div class="col-sm-5 text-center">
-                <a href="form">{{ macros.stripe_button("Add Another Prereg") }}</a>
-            </div>
-        </div>
-    </div>
+        {% include 'preregistration/index_payment_form.html' %}
   </div>
 
   <table class="charge table table-striped">
@@ -88,7 +72,7 @@
               {% if not attendee.badge_cost and attendee.age_discount and not attendee.promo_code_id %}
                 <li>Attendees who are {{ attendee.age_group_conf.desc|lower }} get in for free!</li>
               {% elif attendee.age_discount and attendee.age_group_conf.discount != 0 %}
-                <li>${{ attendee.age_group_conf.discount }} discount for attendees who are {{ attendee.age_group_conf.desc|lower }}.</li>
+                <li>{{ attendee.age_group_conf.discount|format_currency }} discount for attendees who are {{ attendee.age_group_conf.desc|lower }}.</li>
               {% endif %}
               {% for swag in attendee.donation_swag|list + attendee.addons|list %}
                 <li>{{ swag }}</li>
@@ -104,9 +88,9 @@
           </td>
           <td>
             {% if attendee.badges %}
-              ${{ '%0.2f' % (attendee.amount_extra_unpaid + (attendee.badges|int * c.GROUP_PRICE)) }}
+              {{ (attendee.amount_extra_unpaid + (attendee.badges|int * c.GROUP_PRICE))|format_currency }}
             {% else %}
-              ${{ '%0.2f' % attendee.total_cost }}
+              {{ attendee.total_cost|format_currency }}
             {% endif %}
           </td>
           <td>
@@ -129,7 +113,7 @@
               {% endfor %}
             </ul>
           </td>
-          <td>${{ '%0.2f' % group.default_cost }}</td>
+          <td>{{ group.default_cost|format_currency }}</td>
           <td>
             <a href="form?edit_id={{ group.id }}">Edit</a> /
             <a href="delete?id={{ group.id }}">Delete</a>
@@ -142,7 +126,7 @@
         <tr>
           <th></th>
           <th style="text-align:right;"><i>Total:</i></th>
-          <th><b>${{ '%0.2f' % charge.dollar_amount }}</b></th>
+          <th><b>{{ charge.dollar_amount|format_currency }}</b></th>
           <th></th>
         </tr>
       </tfoot>

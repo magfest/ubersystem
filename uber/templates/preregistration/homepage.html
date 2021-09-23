@@ -1,0 +1,135 @@
+{% extends "preregistration/preregbase.html" %}
+{% block title %}Manage Your Registrations{% endblock %}
+{% block content %}
+{% include 'prereg_masthead.html' %}
+{% include 'preregistration/update_account.html' %}
+{% for attendee in account.valid_attendees %}
+{% if loop.first %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+        Registrations
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped datatable">
+        <thead>
+            <tr>
+            <th>Status</th>
+            <th>Registration</th>
+            <th>Art Show</th>
+            <th>Marketplace</th>
+            <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% endif %}
+            <tr id="{{ account.email|idize }}">
+            <td>{{ attendee.badge_status_label }}</td>
+            <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
+                <a href="../preregistration/confirm?id={{ attendee.id }}" target="_blank">{{ attendee.full_name }}</a>
+                {% if attendee.group %}({% if attendee.group.leader in account.attendees %}<a href="../preregistration/group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>{% else %}{{ attendee.group.name }}{% endif %}){% endif %}
+            </td>
+            <td>
+                {% for app in attendee.art_show_applications %}
+                <a href="../art_show_applications/edit?id={{ app.id }}" target="_blank">View Application</a>
+                {% else %}
+                    {% if c.ART_SHOW_OPEN %}
+                    <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-info" target="_blank">Apply for Art Show</a>
+                    {% else %}
+                    N/A
+                    {% endif %}
+                {% endfor %}
+            </td>
+            <td>
+                {% for app in attendee.marketplace_applications %}
+                <a href="../marketplace/edit?id={{ app.id }}" target="_blank">View Application</a>
+                {% else %}
+                    {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE %}
+                    <a href="../marketplace/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-default" target="_blank">Apply for Marketplace</a>
+                    {% else %}
+                    N/A
+                    {% endif %}
+                {% endfor %}
+            </td>
+            <td>
+                <form class="form new-account-form" method="post" action="grant_account">
+                <input type="hidden" name="id" value="{{ attendee.id }}" />
+                {{ csrf_token() }}
+                <button type="submit" class="btn btn-sm btn-primary btn-primary">
+                    <span class="glyphicon glyphicon-plus"></span> Create Account
+                </button>
+                </form>
+                
+            </td>
+            </tr>
+        {% if loop.last %}
+        </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+{% for attendee in account.refunded_deferred_attendees %}
+{% if loop.first %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+        Cancelled Registrations
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped datatable">
+        <thead>
+            <tr>
+            <th>Status</th>
+            <th>Registration</th>
+            <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% endif %}
+            <tr id="{{ account.email|idize }}">
+            <td>{{ attendee.badge_status_label }}</td>
+            <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
+                {{ attendee.full_name }}
+                {% if attendee.group %}({% if attendee.group.leader in account.attendees %}<a href="../preregistration/group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>{% else %}{{ attendee.group.name }}{% endif %}){% endif %}
+            </td>
+            <td>
+                {% if attendee.badge_status == c.REFUNDED_STATUS %}
+                <form method="post" action="repurchase" class="form-horizontal">
+                  {{ csrf_token() }}
+                  <input type="hidden" name="id" value="{{ attendee.id }}" />
+                  <button type="submit" class="btn btn-primary" value="Repurchase">Repurchase</button>
+                </form>
+                {% endif %}
+            </td>
+            </tr>
+        {% if loop.last %}
+        </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+<script type="text/javascript">
+    $(function() {
+      $('.new-account-form').on('submit', function(event) {
+        event.preventDefault();
+        var $toSubmit = $(this);
+        bootbox.confirm({
+          backdrop: true,
+          message: '<p>Are you sure you want to create a new account for this person?</p>' +
+            'They\'ll receive an email at the address on their registration. ' +
+            'Once they create their account, you will no longer be able to manage their' +
+            ' registration for them.',
+          buttons: {
+            confirm: { label: '<span class="glyphicon glyphicon-plus"></span> Create Account', className: 'btn-success' },
+            cancel: { label: 'Nevermind', className: 'btn-default' }
+          },
+          callback: function (result) {
+            if (result) {
+              $toSubmit[0].submit();
+            }
+          }
+        });
+      });
+    });
+  </script>
+{% endblock %}

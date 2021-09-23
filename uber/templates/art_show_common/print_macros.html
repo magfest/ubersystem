@@ -28,23 +28,23 @@
     </td>
     <td> {{ piece.media }} </td>
     <td> {{ piece.app.display_name }} </td>
-    <td> ${{ '%0.2f' % piece.sale_price }}
+    <td> {{ piece.sale_price|format_currency }}
     </td>
   </tr>
   {% endfor %}
   <tr><td colspan="6"></td></tr>
-  <tr><td colspan="4"></td><td><strong>TOTAL Pretax</strong></td><td>${{ '%0.2f' % (receipt.subtotal / 100) }}</td></tr>
-  <tr><td colspan="4"></td><td><strong>Tax</strong></td><td>${{ '%0.2f' % (receipt.tax / 100) }}</td></tr>
-  <tr><td colspan="4"></td><td><strong>Grand Total</strong></td><td>${{ '%0.2f' % (receipt.total / 100) }}</td></tr>
+  <tr><td colspan="4"></td><td><strong>TOTAL Pretax</strong></td><td>{{ (receipt.subtotal / 100)|format_currency }}</td></tr>
+  <tr><td colspan="4"></td><td><strong>Tax</strong></td><td>{{ (receipt.tax / 100)|format_currency }}</td></tr>
+  <tr><td colspan="4"></td><td><strong>Grand Total</strong></td><td>{{ (receipt.total / 100)|format_currency }}</td></tr>
   <tr></tr>
   {% for payment in receipt.stripe_payments %}
   <tr>
-    <td colspan="4"></td><td><strong>Total Card {{ loop.index }}</strong></td><td>${{ '%0.2f' % (payment.amount / 100) }}</td>
+    <td colspan="4"></td><td><strong>Total Card {{ loop.index }}</strong></td><td>{{ (payment.amount / 100)|format_currency }}</td>
   </tr>
   {% endfor %}
-  <tr><td colspan="4"></td><td><strong>Total Paid Credit</strong></td><td>${{ '%0.2f' % (receipt.stripe_total / 100) }}</td></tr>
-  <tr><td colspan="4"></td><td><strong>Total Paid Cash</strong></td><td>${{ '%0.2f' % (receipt.cash_total / 100) }}</td></tr>
-  <tr><td colspan="4"></td><td><strong>Amount Due:</strong></td><td>${{ '%0.2f' % (receipt.owed / 100) }}</td></tr>
+  <tr><td colspan="4"></td><td><strong>Total Paid Credit</strong></td><td>{{ (receipt.stripe_total / 100)|format_currency }}</td></tr>
+  <tr><td colspan="4"></td><td><strong>Total Paid Cash</strong></td><td>{{ (receipt.cash_total / 100)|format_currency }}</td></tr>
+  <tr><td colspan="4"></td><td><strong>Amount Due:</strong></td><td>{{ (receipt.owed / 100)|format_currency }}</td></tr>
 </table>
 {%- endmacro -%}
 
@@ -77,37 +77,37 @@
     <td> {{ piece.artist_and_piece_id }} </td>
     <td> {{ piece.name|wordwrap(25, wrapstring="<br />"|safe) }} </td>
     <td> {% if piece.voice_auctioned %}Auction{% elif piece.winning_bid %}Bid Sheet{% elif piece.valid_quick_sale %}QuickSale{% endif %} </td>
-    <td> ${{ piece.opening_bid }} </td>
-    <td> ${{ '%0.2f' % piece.sale_price }} </td>
+    <td> {{ piece.opening_bid|format_currency }} </td>
+    <td> {{ piece.sale_price|format_currency }} </td>
   </tr>
   {% endif %}
   {% endfor %}
   <tr><td colspan="5"></td></tr>
-  <tr><td colspan="4"><strong>Total Payment from Bids</strong></td><td>${{ '%0.2f' % (app.total_sales / 100) }}</td></tr>
+  <tr><td colspan="4"><strong>Total Payment from Bids</strong></td><td>{{ (app.total_sales / 100)|format_currency }}</td></tr>
 </table>
 <table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
   <tr><td width="25%"><strong>Fees</strong></td></tr>
   <tr>
     <td>Panels</td><td>{{ app.panels + app.panels_ad }}</td>
-    <td>Panel Cost</td><td>${{ c.COST_PER_PANEL }}</td>
-    <td>Total Panel Fee</td><td>${{ '%0.2f' % ((app.panels + app.panels_ad) * c.COST_PER_PANEL) }}</td>
+    <td>Panel Cost</td><td>{{ c.COST_PER_PANEL|format_currency }}</td>
+    <td>Total Panel Fee</td><td>{{ ((app.panels + app.panels_ad) * c.COST_PER_PANEL)|format_currency }}</td>
   </tr>
   <tr>
     <td>Tables</td><td>{{ app.tables + app.tables_ad }}</td>
-    <td>Table Cost</td><td>${{ c.COST_PER_TABLE }}</td>
-    <td>Total Table Fee</td><td>${{ '%0.2f' % ((app.tables + app.tables_ad) * c.COST_PER_TABLE) }}</td>
+    <td>Table Cost</td><td>{{ c.COST_PER_TABLE|format_currency }}</td>
+    <td>Total Table Fee</td><td>{{ ((app.tables + app.tables_ad) * c.COST_PER_TABLE)|format_currency }}</td>
   </tr>
-  {% if app.delivery_method == c.BY_MAIL %}<tr><td colspan="4"></td><td>Total Mail-In Fee</td><td>${{ '%0.2f' % c.ART_MAILING_FEE }}</td></tr>{% endif %}
-  <tr><td colspan="4"></td><td><strong>Total Fees</strong></td><td>${{ '%0.2f' % app.total_cost }}</td></tr>
-  <tr><td colspan="4"></td><td>Prepaid</td><td>${{ '%0.2f' % app.amount_paid }}</td></tr>
+  {% if app.delivery_method == c.BY_MAIL %}<tr><td colspan="4"></td><td>Total Mail-In Fee</td><td>{{ c.ART_MAILING_FEE|format_currency }}</td></tr>{% endif %}
+  <tr><td colspan="4"></td><td><strong>Total Fees</strong></td><td>{{ app.total_cost|format_currency }}</td></tr>
+  <tr><td colspan="4"></td><td>Prepaid</td><td>{{ app.amount_paid|format_currency }}</td></tr>
 </table>
 <table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
   <tr>
     <td width="25%"><strong>Commission Rate</strong></td><td>{{ c.COMMISSION_PCT / 100 }}%</td>
-    <td><strong>Commission</strong></td><td>${{ '%0.2f' % (app.commission / 100) }}</td>
+    <td><strong>Commission</strong></td><td>{{ (app.commission / 100)|format_currency }}</td>
   </tr>
   <tr><td><strong>Name on Check</strong></td><td>{{ app.check_payable or app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name }}</td></tr>
-  <tr><td><strong>Check Total</strong></td><td>${{ '%0.2f' % (app.check_total / 100) }}</td></tr>
+  <tr><td><strong>Check Total</strong></td><td>{{ (app.check_total / 100|format_currency) }}</td></tr>
 </table>
 <div class="form-group">
   <label class="col-sm-3 control-label optional-field">Artist Signature</label>

@@ -1,12 +1,10 @@
-{% extends "base.html" %}
+{% extends "preregistration/preregbase.html" %}
 {% set name_ro = not attendee.placeholder %}
 {% set assigned_depts_ro = True %}
 {% import "fields/attendee.html" as attendee_fields with context %}
 {% block title %}Confirm Your Details{% endblock %}
 {% block backlink %}
-    {% if c.HAS_REGISTRATION_ACCESS %}
-        <a href="../registration/form?id={{ attendee.id }}" style="float:right">Return to Attendee Admin Form</a>
-    {% endif %}
+{{ super() }}
 {% endblock %}
 {% block content %}
 
@@ -28,9 +26,15 @@
 </script>
 
 {% include 'prereg_masthead.html' %}
+{% if account %}
+  {% include 'preregistration/update_account.html' %}
+{% endif %}
 <div class="panel panel-default">
+  <div class="panel-heading">
+    Registration Information
+  </div>
   <div class="panel-body">
-    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups %}
+    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_applications or attendee.is_group_leader %}
       {% include 'confirm_tabs.html' with context %}
     {% endif %}
     {% block panel_top %}{% endblock %}
@@ -43,11 +47,11 @@
 
       {% block form_top %}{% endblock %}
 
-      {% if attendee.amount_unpaid and c.HTTP_METHOD == 'GET' and 'attendee_donation_form' in attendee.payment_page %}
+      {% if not attendee.placeholder and attendee.amount_unpaid and c.HTTP_METHOD == 'GET' and 'attendee_donation_form' in attendee.payment_page %}
         <br/>
         <div class="form-group">
           <div class="col-sm-9 col-sm-offset-3 warning">
-            You currently have an outstanding balance of ${{ '%0.2f' % attendee.amount_unpaid }}{% if attendee.amount_extra %} due to having requested
+            You currently have an outstanding balance of {{ attendee.amount_unpaid|format_currency }}{% if attendee.amount_extra %} due to having requested
             registration add-ons and then not completing the payment form{% endif %}.  Please either
             <a href="attendee_donation_form?id={{ attendee.id }}">click here</a> to pay, or alter your registration below to
             eliminate whichever addons you've decided not to select.
@@ -55,7 +59,7 @@
         </div>
       {% endif %}
 
-      {% if attendee.is_dealer %}
+      {% if attendee.is_dealer and attendee.is_group_leader %}
       {% if attendee.group.status == c.DECLINED %}
         {% set bg_class = 'danger' %}
       {% elif attendee.group.status == c.APPROVED %}
@@ -68,7 +72,7 @@
         <div class="alert alert-{{ bg_class }}">
           Your group "<a href="group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>"
           is currently {{ attendee.group.status_label }}.
-          {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE %}
+          {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and attendee.group.status not in [c.APPROVED, c.CANCELLED] %}
           <br/><br/>If you would like, you may instead
           <a href="../marketplace/index?attendee_id={{ attendee.id }}" target="_blank">apply for a table in the Marketplace.</a>{% endif %}
         </div>

@@ -3,6 +3,7 @@
 {%- set is_prereg_dealer = c.PAGE_PATH in ['/preregistration/dealer_registration', 'preregistration/post_dealer'] or attendee and attendee.badge_type == c.PSEUDO_DEALER_BADGE -%}
 {% import "fields/attendee.html" as attendee_fields with context %}
 {% import "fields/group.html" as group_fields with context %}
+{% import "fields/account.html" as account_fields with context %}
 {% block title %}Preregistration{% endblock %}
 {% block content %}
   {% if is_prereg_attendee %}
@@ -13,14 +14,59 @@
     </script>
   {% endif %}
 {% include 'prereg_masthead.html' %}
+{% set original_location = ".." ~ c.PAGE_PATH %}
+{% if is_prereg_dealer or logged_in_account %}
+<div class="panel panel-default">
+  <div class="panel-body">
+    {% include 'preregistration/create_or_login_account.html' %}
+  </div>
+</div>
+{% if not logged_in_account %}
+<script type="text/javascript">
+$(document).ready(function() {
+  $("#account-form").submit(function () { $("#prereg-form").submit(); });
+  $("#prereg-form").submit(function () { 
+    var success = validateAndIncludeAccountFields();
+        if (!success) {
+          return false;
+        }
+        if(!$(this)[0].checkValidity()) {
+          $(this)[0].reportValidity();
+          return false;
+        }
+      });
+})
+</script>
+{% endif %}
+{% else %}
+<div class="panel panel-default">
+  <div class="panel-body">
+    <div id="login-link" class="text-center">
+      Already have an account? <a href="#" class="btn btn-xs btn-primary" id="show-login-form">Log in</a>
+    </div>
+    {% include 'preregistration/login.html' %}
+  </div>
+</div>
+<script type="text/javascript">
+  $('#login-form').hide();
+  $('#show-login-form').on('click', function() {
+    $('#login-form').show();
+    $('#login-link').hide();
+  });
+</script>
+{% endif %}
 <div class="panel panel-default">
   <div class="panel-body">
   {{ attendee_fields.prereg_intro }}
 
 {#- The action is set to "post_form" or "post_dealer" in order to bypass the NGINX cache. -#}
 {% set post_action = 'post_dealer' if attendee.is_dealer else 'post_form' %}
-<form method="post" action="{{ post_action }}" class="form-horizontal" role="form">
-
+<form method="post" id="prereg-form" action="{{ post_action }}" class="form-horizontal" role="form">
+{% if is_prereg_dealer %}
+<input type="hidden" name="account_email" class="copy-from-account-input"/>
+<input type="hidden" name="account_password" class="copy-from-account-input"/>
+<input type="hidden" name="confirm_password" class="copy-from-account-input"/>
+{% endif %}
 {% if edit_id %}
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}

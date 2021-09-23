@@ -18,17 +18,17 @@ from urllib.request import urlopen
 
 import cherrypy
 import phonenumbers
-from email_validator import validate_email, EmailNotValidError
 from pockets.autolog import log
 
 from uber.config import c
+from uber.custom_tags import format_currency
 from uber.decorators import prereg_validation, validation
 from uber.models import AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowApplication, ArtShowPiece, \
-    AttendeeTournament, Attraction, AttractionFeature, Department, DeptRole, Event, Group, \
+    AttendeeAccount, AttendeeTournament, Attraction, AttractionFeature, Department, DeptRole, Event, Group, \
     IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio, Job, MarketplaceApplication, \
     MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam, PanelApplicant, PanelApplication, \
     PromoCode, PromoCodeGroup, Sale, Session, WatchList
-from uber.utils import localized_now, Charge
+from uber.utils import localized_now, Charge, valid_email
 
 
 AccessGroup.required = [('name', 'Name')]
@@ -227,14 +227,15 @@ def total_cost_over_paid(attendee):
                 and attendee.age_group_conf['val'] in [c.UNDER_6, c.UNDER_13]:
             return 'The date of birth you entered incurs a discount; ' \
                 'please email {} to change your badge and receive a refund'.format(c.REGDESK_EMAIL)
-        return 'You have already paid ${}, you cannot reduce your extras below that.'.format(attendee.amount_paid / 100)
+        return 'You have already paid {}, you cannot reduce your extras below that.'.format(
+            format_currency(attendee.amount_paid / 100))
 
 
 @validation.Attendee
 def reasonable_total_cost(attendee):
     if attendee.total_cost >= 999999:
-        return 'We cannot charge ${:,.2f}. Please reduce extras so the total is below $999,999.'.format(
-            attendee.total_cost)
+        return 'We cannot charge ${}. Please reduce extras so the total is below $999,999.'.format(
+            format_currency(attendee.total_cost))
 
 
 @prereg_validation.Attendee
@@ -312,21 +313,15 @@ def allowed_to_register(attendee):
 
 @validation.Attendee
 @ignore_unassigned_and_placeholders
-def email(attendee):
-    if len(attendee.email) > 255:
-        return 'Email addresses cannot be longer than 255 characters.'
-    elif not attendee.email:
+def has_email(attendee):
+    if not attendee.email:
         return 'Please enter an email address.'
 
 
 @validation.Attendee
 def attendee_email_valid(attendee):
     if attendee.email and attendee.orig_value_of('email') != attendee.email:
-        try:
-            validate_email(attendee.email)
-        except EmailNotValidError as e:
-            message = str(e)
-            return 'Enter a valid email address. ' + message
+        return valid_email(attendee.email)
 
 
 @validation.Attendee
@@ -901,10 +896,7 @@ def must_select_copyright(game):
 
 @validation.MITSApplicant
 def mits_applicant_email_valid(applicant):
-    try:
-        validate_email(applicant.email)
-    except EmailNotValidError as e:
-        return 'Enter a valid email address. ' + str(e)
+    return valid_email(applicant.email)
 
 
 @validation.MITSApplicant

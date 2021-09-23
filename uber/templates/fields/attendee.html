@@ -139,15 +139,16 @@
         selector: '.badge-type-selector',
         options: [],
     };
-    {% if not attendee or attendee.is_new or attendee.badge_type not in c.BADGE_TYPE_PRICES %}
+    {% set downgrading = not attendee.placeholder and not attendee.is_new and attendee.amount_unpaid and 'attendee_donation_form' in attendee.payment_page %}
+    {% if not attendee or attendee.is_new or (attendee.badge_type not in c.BADGE_TYPE_PRICES or (downgrading and attendee.badge_cost - c.BADGE_PRICE <= attendee.amount_unpaid)) %}
         BADGE_TYPES.options.push({
-            title: '{% if is_prereg_attendee or is_prereg_dealer or undoing_extra %}Attending{% elif attendee %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
+            title: '{% if is_prereg_attendee or is_prereg_dealer or downgrading %}Attending{% elif attendee %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
             description: 'Allows access to the convention for its duration.',
             extra: 0,
             badge_type: '{{ c.ATTENDEE_BADGE }}',
 
-            price: {{ badge_cost if badge_cost is defined else c.BADGE_PRICE }},
-            {% if c.BADGE_TYPE_PRICES and (attendee.is_new or attendee.badge_type == c.ATTENDEE_BADGE) %}
+            price: {{ badge_cost if badge_cost is defined and not downgrading else c.BADGE_PRICE }},
+            {% if c.BADGE_TYPE_PRICES and (attendee.is_new or attendee.badge_type == c.ATTENDEE_BADGE or downgrading) %}
             onClick: function () {
                 $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
             }
@@ -180,9 +181,8 @@
     {% endif %}
 
     {% for badge_type in c.BADGE_TYPE_PRICES %}
-
         {% if badge_type != c.ATTENDEE_BADGE %}
-            {% if (badge_type != c.SPONSOR_BADGE or c.SPONSOR_BADGE_AVAILABLE) and (badge_type != c.SHINY_BADGE or c.SHINY_BADGE_AVAILABLE) %}
+            {% if (not attendee.is_new and attendee.badge_type == badge_type) or ((badge_type != c.SPONSOR_BADGE or c.SPONSOR_BADGE_AVAILABLE) and (badge_type != c.SHINY_BADGE or c.SHINY_BADGE_AVAILABLE)) %}
                 BADGE_TYPES.options.push({
                     title: '{{ c.BADGES[badge_type] }}',
                     description: 'Donate extra to get an upgraded badge with perks.',
@@ -244,6 +244,8 @@
         // badge types for upgrades. We thus want to hide any badge buttons with a unique badge type if the attendee
         // is a dealer or group leader.
         if ($(BADGE_TYPES.row).size()) {
+            // Actually, don't show any buttons at all for dealers
+            $(BADGE_TYPES.row).toggle($.field('badge_type').val() != '{{ c.PSEUDO_DEALER_BADGE }}')
             $.each(BADGE_TYPES.options, function (i, badgeType) {
                 if (badgeType.badge_type && badgeType.badge_type != {{ c.ATTENDEE_BADGE }}) {
                     var current_button = $(BADGE_TYPES.selector).slice(i, 1+i);
@@ -316,7 +318,7 @@
                     setBadge(REG_TYPES, $.field('name') && $.val('name') ? 1 : 0);  // default to attendee or group
                 }
             {% endif %}
-            makeBadgeMatchExtra();
+            {% if not is_prereg_dealer %}makeBadgeMatchExtra(){% endif %};
             if ($.field('amount_extra')) {
                 {% if not c.PREREG_DONATION_DESCRIPTIONS %}
                     $.field('amount_extra').parents('.form-group').hide();
@@ -343,6 +345,15 @@
     };
   toggleBadgeNumField = function () {
     $("input[name='badge_num']").prop("disabled", ($("input[name='no_badge_num']").prop('checked')));
+  }
+  toggleStaffingField = function () {
+    if ($.field('staffing') && $.field('staffing').length) {
+      var changeToStaffing = ($.val("badge_type") == {{ c.STAFF_BADGE }} && $.field('staffing').prop('checked', false));
+      var changeFromStaffing = ($.val("badge_type") != {{ c.STAFF_BADGE }} && $.field('staffing').prop('checked', true));
+      if (changeToStaffing || changeFromStaffing) {
+        $.field('staffing').click();
+      }
+    }
   }
   var setBadgeNum = function () {
     var badgeNumOptField = $("input[name='no_badge_num']");
@@ -376,7 +387,7 @@
     <label class="col-sm-3 control-label">Badge Type</label>
     {% call macros.read_only_if(read_only, attendee.badge_type_label) %}
     <div class="col-sm-3">
-        <select name="badge_type" class="form-control" onChange="boldOrRegular(); setBadgeNum();">
+        <select name="badge_type" class="form-control" onChange="boldOrRegular(); setBadgeNum(); toggleStaffingField();">
           {{ options(c.BADGE_OPTS, attendee.badge_type) }}
         </select>
     </div>
@@ -621,7 +632,7 @@
                                               src="{{ tier.icon }}"
                                               width="50px"
                                               alt="">
-                                      + ${{ tier.price }}
+                                      + {{ tier.price|format_currency }}
                                     </span>
                     {% endif %}
                   </div>
@@ -1032,12 +1043,13 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
                     selector='.address_details' + attendee_address_suffix,
                     label='Use my business address for my personal address.',
                     suffix=attendee_address_suffix,
+                    required_selector='.address_details' + attendee_address_suffix + ' .form-control',
                     name='copy_address',
                     checked=copy_address) }}
       </div>
     </div>
   {% endif %}
-  <div class="row"><label class="col-sm-6 col-sm-offset-3">Mailing Address</label></div>
+  <div class="row"><label class="col-sm-6 col-sm-offset-3 address_details{{ attendee_address_suffix }}">Mailing Address</label></div>
   {{ macros.address_form(attendee, update_international=True, is_required=(not admin_area)) }}
 
   <div class="checkbox col-sm-6 col-sm-offset-3">
@@ -1532,7 +1544,7 @@ $(window).on("runJavaScript", function(){
         This attendee is the buyer/group leader for <strong><a href="../registration/promo_code_group_form?id={{ group.id }}" target="_blank">{{ group.name }}</a></strong>.
       {% endfor %}
       {% if attendee.promo_code and attendee.promo_code.group %}
-        This attendee used promo code <strong>{{ attendee.promo_code.code }}</strong> to claim a ${{ '%0.2f' % attendee.promo_code.cost }} badge in promo code group <strong><a href="../registration/promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a></strong>.
+        This attendee used promo code <strong>{{ attendee.promo_code.code }}</strong> to claim a {{ attendee.promo_code.cost|format_currency }} badge in promo code group <strong><a href="../registration/promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a></strong>.
       {% endif %}
     </div>
   </div>
@@ -1638,7 +1650,7 @@ $(window).on("runJavaScript", function(){
   <label class="col-sm-3 control-label">Paid</label>
   <div class="col-sm-6">
   {% if read_only %}
-    <p class="form-control-static">This attendee's paid status is <strong>{{ attendee.paid_label }}</strong>. They have given us ${{ '%0.2f' % (attendee.amount_paid / 100) }} and been refunded ${{ '%0.2f' % (attendee.amount_refunded / 100) }}.</p>
+    <p class="form-control-static">This attendee's paid status is <strong>{{ attendee.paid_label }}</strong>. They have given us {{ (attendee.amount_paid / 100)|format_currency }} and been refunded {{ (attendee.amount_refunded / 100)|format_currency }}.</p>
     {% else %}
     <div class="form-inline">
       <select name="paid" class="form-control">
@@ -1646,11 +1658,11 @@ $(window).on("runJavaScript", function(){
       </select>
       &nbsp;&nbsp;&nbsp;
       <span id="amount_paid">
-            Paid: ${{ '%0.2f' % (attendee.amount_paid / 100) }}
+            Paid: {{ (attendee.amount_paid / 100)|format_currency }}
         </span>
       &nbsp;&nbsp;&nbsp;
       <span id="amount_refunded">
-            Refunded: ${{ '%0.2f' % (attendee.amount_refunded / 100) }}
+            Refunded: {{ (attendee.amount_refunded / 100)|format_currency }}
         </span>
       {% if not read_only and c.HAS_REG_ADMIN_ACCESS %}
         [<a href="../reg_admin/receipt_items?id={{ attendee.id }}" target="_blank">Manage Payments</a>]

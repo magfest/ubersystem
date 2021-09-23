@@ -2,13 +2,14 @@ import cherrypy
 from six import string_types
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, render, credit_card
+from uber.decorators import ajax, all_renderable, render, credit_card, requires_account
 from uber.errors import HTTPRedirect
+from uber.models import ArtShowApplication
 from uber.tasks.email import send_email
 from uber.utils import Charge, check
 
 
-@all_renderable()
+@all_renderable(public=True)
 class Root:
     def index(self, session, message='', **params):
         app = session.art_show_application(params, restricted=True,
@@ -30,7 +31,6 @@ class Root:
         if cherrypy.request.method == 'POST':
             attendee, message = session.attendee_from_art_show_app(**params)
 
-            # We do an extra check here to handle new attendees
             if attendee and attendee.badge_status == c.NOT_ATTENDING \
                     and app.delivery_method == c.BRINGING_IN:
                 message = 'You cannot bring your own art ' \
@@ -58,16 +58,17 @@ class Root:
             'app': app,
             'attendee': attendee,
             'attendee_id': app.attendee_id or params.get('attendee_id', ''),
+            'logged_in_account': session.current_attendee_account(),
             'not_attending': params.get('not_attending', ''),
             'new_badge': params.get('new_badge', '')
         }
 
+    @requires_account(ArtShowApplication)
     def edit(self, session, message='', **params):
         app = session.art_show_application(params, restricted=True,
                                            ignore_csrf=True)
-        return_to = params['return_to'] \
-            if 'return_to' in params else '/art_show_applications/edit'
-        if 'id' not in params:
+        return_to = params.get('return_to', '/art_show_applications/edit?id={}'.format(app.id))
+        if not params.get('id'):
             message = 'Invalid art show application ID. ' \
                       'Please try going back in your browser.'
 
@@ -78,10 +79,11 @@ class Root:
                 session.commit() # Make sure we update the DB or the email will be wrong!
                 send_email.delay(
                     c.ART_SHOW_EMAIL,
-                    app.email,
+                    app.email_to_address,
                     'Art Show Application Updated',
                     render('emails/art_show/appchange_notification.html',
-                           {'app': app}, encoding=None), 'html',
+                           {'app': app}, encoding=None),
+                    format='html',
                     model=app.to_dict('id'))
                 raise HTTPRedirect('..{}?id={}&message={}', return_to, app.id,
                                    'Your application has been updated')
@@ -91,7 +93,8 @@ class Root:
         return {
             'message': message,
             'app': app,
-            'return_to': 'edit',
+            'account': session.one_badge_attendee_account(app.attendee),
+            'return_to': 'edit?id={}'.format(app.id),
         }
 
     @ajax
@@ -136,7 +139,7 @@ class Root:
         if cherrypy.request.method == 'POST':
             send_email.delay(
                 c.ART_SHOW_EMAIL,
-                app.email,
+                app.email_to_address,
                 'Art Show Pieces Updated',
                 render('emails/art_show/pieces_confirmation.html',
                        {'app': app}, encoding=None), 'html',
@@ -191,7 +194,7 @@ class Root:
             message='Agent removed and code updated'
             send_email.delay(
                 c.ART_SHOW_EMAIL,
-                [app.agent.email, app.attendee.email],
+                [app.agent.email_to_address, app.attendee.email_to_address],
                 '{} Art Show Agent Removed'.format(c.EVENT_NAME),
                 render('emails/art_show/agent_removed.html',
                        {'app': app}, encoding=None), 'html',
@@ -200,7 +203,7 @@ class Root:
 
         send_email.delay(
             c.ART_SHOW_EMAIL,
-            app.attendee.email,
+            app.attendee.email_to_address,
             'New Agent Code for the {} Art Show'.format(c.EVENT_NAME),
             render('emails/art_show/agent_code.html',
                    {'app': app}, encoding=None), 'html',
@@ -242,8 +245,10 @@ class Root:
         if message:
             return {'error': message}
         else:
+            cancel_amt = 0
             for app in attendee.art_show_applications:
-                app.status = c.PAID  # This needs to accommodate payment cancellations
+                cancel_amt = app.amount_unpaid
+                app.amount_paid += app.amount_unpaid
                 send_email.delay(
                     c.ADMIN_EMAIL,
                     c.ART_SHOW_EMAIL,
@@ -253,7 +258,7 @@ class Root:
                     model=app.to_dict('id'))
                 send_email.delay(
                     c.ART_SHOW_EMAIL,
-                    app.email,
+                    app.email_to_address,
                     'Art Show Payment Received',
                     render('emails/art_show/payment_confirmation.txt',
                         {'app': app}, encoding=None),
@@ -266,4 +271,7 @@ class Root:
             
             return {'stripe_intent': stripe_intent,
                     'success_url': 'edit?id={}&message={}'.format(attendee.art_show_applications[0].id,
-                                                                  'Your payment has been accepted')}
+                                                                  'Your payment has been accepted'),
+                    'cancel_url': '../preregistration/cancel_payment?model_id={}&cancel_amt={}'.format(
+                            attendee.art_show_applications[0].id, cancel_amt
+                    )}

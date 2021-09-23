@@ -75,7 +75,7 @@
       </td>
       {% if c.PREASSIGNED_BADGE_TYPES %}<td>{{ attendee.badge_printed_name }}</td>{% endif %}
       {% if c.NUMBERED_BADGES %}<td>{{ attendee.badge_num }}</td>{% endif %}
-      <td>{{ '$%0.2f' % (attendee.art_show_receipt.owed / 100) if attendee.art_show_receipt else 'N/A' }}</td>
+      <td>{{ (attendee.art_show_receipt.owed / 100)|format_currency if attendee.art_show_receipt else 'N/A' }}</td>
       <td>{{ attendee.art_show_receipt.pieces|length }}</td>
       <td><a class="btn btn-primary" target="_sale" href="pieces_bought?id={{ attendee.id }}">
         {% if attendee.art_show_receipt and attendee.art_show_receipt.pieces %}Process Sale{% else %}Quick Sale{% endif %}</a></td>

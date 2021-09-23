@@ -123,6 +123,10 @@ def normalize_newlines(text):
         return ''
 
 
+def normalize_email(email):
+    return email.strip().lower().replace('.', '')
+
+
 def convert_to_absolute_url(relative_uber_page_url):
     """
     In ubersystem, we always use relative url's of the form
@@ -523,7 +527,7 @@ def ensure_csrf_token_exists():
         cherrypy.session['csrf_token'] = uuid4().hex
 
 
-def genpasswd():
+def genpasswd(short=False):
     """
     Admin accounts have passwords auto-generated; this function tries to combine
     three random dictionary words but returns a string of 8 random characters if
@@ -536,10 +540,11 @@ def genpasswd():
     for word_list in word_lists:
         words.extend(open(word_list).read().strip().split(','))
     else:
-        if words:
+        if words and not short:
             words = [s.strip() for s in words if "'" not in s and s.islower() and 3 < len(s) < 8]
             return ' '.join(random.choice(words) for i in range(4))
-        return ''.join(chr(randrange(33, 127)) for i in range(8))
+        characters = string.ascii_letters + string.digits
+        return ''.join(random.choice(characters) for i in range(8))
 
 
 # ======================================================================
@@ -571,6 +576,40 @@ def redirect_to_allowed_dept(session, department_id, page):
         if department_id == c.DEFAULT_DEPARTMENT_ID:
             raise HTTPRedirect('../accounts/homepage?message={}', error_msg)
         raise HTTPRedirect('{}?department_id={}', page, c.DEFAULT_DEPARTMENT_ID)
+
+
+def valid_email(email):
+    from email_validator import validate_email, EmailNotValidError
+    if len(email) > 255:
+        return 'Email addresses cannot be longer than 255 characters.'
+    elif not email:
+        return 'Please enter an email address.'
+    
+    try:
+        validate_email(email)
+    except EmailNotValidError as e:
+        message = str(e)
+        return 'Enter a valid email address. ' + message
+
+
+def valid_password(password):
+    import re
+
+    if not password:
+        return 'Please enter a password.'
+
+    if len(password) < c.MINIMUM_PASSWORD_LENGTH:
+        return 'Password must be at least {} characters long.'.format(c.MINIMUM_PASSWORD_LENGTH)
+    if re.search("[^a-zA-Z0-9{}]".format(c.PASSWORD_SPECIAL_CHARS), password):
+        return 'Password must contain only letters, numbers, and the following symbols: {}'.format(c.PASSWORD_SPECIAL_CHARS)
+    if 'lowercase_char' in c.PASSWORD_CONDITIONS and not re.search("[a-z]", password):
+        return 'Password must contain at least one lowercase letter.'
+    if 'uppercase_char' in c.PASSWORD_CONDITIONS and not re.search("[A-Z]", password):
+        return 'Password must contain at least one uppercase letter.'
+    if 'number' in c.PASSWORD_CONDITIONS and not re.search("[0-9]", password):
+        return 'Password must contain at least one number.'
+    if 'special_char' in c.PASSWORD_CONDITIONS and not re.search("[{}]".format(c.PASSWORD_SPECIAL_CHARS), password):
+        return 'Password must contain at least one of the following symbols: {}'.format(c.PASSWORD_SPECIAL_CHARS)
 
 
 class Order:
@@ -877,11 +916,11 @@ class Charge:
     @classproperty
     def unpaid_preregs(cls):
         return cherrypy.session.setdefault('unpaid_preregs', OrderedDict())
-    
+
     @classproperty
     def pending_preregs(cls):
-        return cherrypy.session.get('pending_preregs', OrderedDict())
-
+        return cherrypy.session.setdefault('pending_preregs', OrderedDict())
+    
     @classproperty
     def stripe_intent_id(cls):
         return cherrypy.session.get('stripe_intent_id', '')

@@ -1,8 +1,10 @@
 from itertools import chain
+from uber.models.attendee import AttendeeAccount
 
 import cherrypy
 from pockets import groupify, listify
 from sqlalchemy import and_, or_, func
+from sqlalchemy.orm import joinedload, raiseload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c, _config
@@ -10,7 +12,7 @@ from uber.custom_tags import pluralize
 from uber.decorators import all_renderable
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, DeptMembership, DeptMembershipRequest
-from uber.utils import get_api_service_from_server
+from uber.utils import get_api_service_from_server, normalize_email
 
 
 @all_renderable()
@@ -87,6 +89,20 @@ class Root:
         attendee.badge_status = c.NEW_STATUS
         raise HTTPRedirect('../registration/form?id={}&message={}', id, "Promo code removed.")
 
+    def attendee_accounts(self, session, message=''):
+        return {
+            'message': message,
+            'accounts': session.query(AttendeeAccount).options(joinedload(AttendeeAccount.attendees), raiseload('*')).all(),
+        }
+
+    def delete_attendee_account(self, session, id, message='', **params):
+        account = session.attendee_account(id)
+        if not account:
+            message = "No account found!"
+        else:
+            session.delete(account)
+        raise HTTPRedirect('attendee_accounts?message={}', message or 'Account deleted.')
+
     def import_attendees(self, session, target_server='', api_token='', query='', message=''):
         service, service_message, target_url = get_api_service_from_server(target_server, api_token)
         message = message or service_message
@@ -108,7 +124,7 @@ class Root:
                 attendees_by_name_email = groupify(attendees, lambda a: (
                     a['first_name'].lower(),
                     a['last_name'].lower(),
-                    Attendee.normalize_email(a['email']),
+                    normalize_email(a['email']),
                 ))
 
                 filters = [

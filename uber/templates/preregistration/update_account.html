@@ -1,0 +1,61 @@
+{% import "fields/account.html" as account_fields with context %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+        Account Information
+    </div>
+    <div class="panel-body">
+        <form method="post" action="update_account" class="form-horizontal">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ account.id }}" />
+            <div class="form-group">
+                <label for="current_password" class="col-sm-3 control-label">Current Password</label>
+                <div class="col-sm-6">
+                    <input type="password" name="current_password" id="current_password" value="" class="form-control" placeholder="Enter account password to make changes" required>
+                </div>
+            </div>
+            <hr>
+            <div class="form-group">
+                <label for="email" class="col-sm-3 control-label">Account Email</label>
+                <div class="col-sm-6">
+                    <input type="email" name="account_email" id="account_email" value="{{ account.email }}" class="form-control" placeholder="Account email address" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="new_password" class="col-sm-3 control-label">New Password</label>
+                <div class="col-sm-6">
+                    <input type="password" name="new_password" id="new_password" value="" class="form-control" placeholder="Leave blank to keep current password">
+                </div>
+                {{ account_fields.password_help }}
+            </div>
+            <div class="form-group">
+                <label for="confirm_new_password" class="col-sm-3 control-label">Confirm New Password</label>
+                <div class="col-sm-6">
+                    <input type="password" name="confirm_new_password" id="confirm_new_password" value="" class="form-control" placeholder="Leave blank to keep current password">
+                </div>
+            </div>
+            <div class="col-sm-9 col-sm-offset-3">
+                <button type="submit" class="btn btn-primary" id="accountUpdateButton">
+                Update Account Info
+                </button>
+            </div>
+        </form>
+    </div>
+    <div class="panel-footer">
+        <div class="btn-group">
+            <a href="../preregistration/form" class="btn btn-primary" target="_blank">Add Registration(s)</a>
+            {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN and (not group or not group.is_dealer) and (not attendee or not attendee.is_dealer) %}
+            <a href="../preregistration/dealer_registration" class="btn btn-success" target="_blank">Apply as Dealer</a>
+            {% endif %}
+            {% if attendee %}
+                {% if c.ART_SHOW_OPEN and not attendee.art_show_applications %}
+                <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-info" target="_blank">Apply for Art Show</a>
+                {% endif %}
+                {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and not attendee.marketplace_applications %}
+                <a href="../marketplace/index?attendee_id={{ attendee.id }}" class="btn btn-default" target="_blank">Apply for Marketplace</a>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{{ account_fields.new_password_validation }}

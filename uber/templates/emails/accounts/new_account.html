@@ -1,0 +1,15 @@
+<html>
+<head></head>
+<body>
+<p>You've been invited to create a new account for {{ c.EVENT_NAME_AND_YEAR }}!</p>
+
+<p>Once you create an account, you will be able to manage the registration for {{ attendee.full_name }} and add new registrations.</p>
+
+<p>Use the link below to set up your account. 
+    This link will expire in {{ c.PASSWORD_RESET_HOURS }} hours or when used, after which you will need to 
+    use the "Forgot password" link on <a href="{{ c.URL_BASE }}/landing" target="_blank">our landing page</a> to receive another link.</p>
+
+<p><a href="{{ c.URL_BASE }}/preregistration/new_password_setup?account_email={{ attendee.email|urlencode }}&token={{ token }}" target="_blank">{{ c.URL_BASE }}/preregistration/new_password_setup?account_email={{ attendee.email }}&token={{ token }}</a></p>
+
+</body>
+</html>

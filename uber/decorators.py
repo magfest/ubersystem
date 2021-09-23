@@ -173,6 +173,44 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
     return check_can_edit_dept(session, department_id, inherent_role, override_access='full_dept_admin')
 
 
+def requires_account(model=None):
+    from uber.models import Attendee, AttendeeAccount, Group
+    def model_requires_account(func):
+        @wraps(func)
+        def protected(*args, **kwargs):
+            if not c.ATTENDEE_ACCOUNTS_ENABLED:
+                return func(*args, **kwargs)
+            with uber.models.Session() as session:
+                admin_account_id = cherrypy.session.get('account_id')
+                attendee_account_id = cherrypy.session.get('attendee_account_id')
+                message = ''
+                if attendee_account_id is None and admin_account_id is None:
+                    message = 'You are not logged in'
+                elif kwargs.get('id') and model:
+                    check_id_for_model(model, **kwargs)
+                    if model == Attendee:
+                        attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
+                    elif model == Group:
+                        attendee = session.query(model).filter_by(id=kwargs.get('group_id', kwargs.get('id'))).first().leader
+                    else:
+                        attendee = session.query(model).filter_by(id=kwargs.get('id')).first().attendee
+                    
+                    # Admin account override
+                    if session.admin_attendee_max_access(attendee):
+                        return func(*args, **kwargs)
+                    
+                    account = session.query(AttendeeAccount).get(attendee_account_id)
+                    
+                    if account not in attendee.managers:
+                        message = 'You do not have permission to view this page'
+
+                if message:
+                    raise HTTPRedirect('../preregistration/login?message={}'.format(message), save_location=True)
+            return func(*args, **kwargs)
+        return protected
+    return model_requires_account
+
+
 def requires_admin(func=None, inherent_role=None, override_access=None):
     def _decorator(func, inherent_role=inherent_role):
         @wraps(func)
@@ -603,7 +641,7 @@ def attendee_view(func):
     @wraps(func)
     def with_check(*args, **kwargs):
         if cherrypy.session.get('account_id') is None:
-                raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
+            raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
             
         if kwargs.get('id') != "None":
             with uber.models.Session() as session:

@@ -196,7 +196,7 @@
                         <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
                     {% else %}
                       {% if not reg_station and attendee.amount_unpaid %}
-                        <td>Can't checkin (Attendee owes ${{ '%0.2f' % attendee.amount_unpaid }})</td>
+                        <td>Can't checkin (Attendee owes {{ attendee.amount_unpaid|format_currency }})</td>
                       {% else %}
                         <td id="cin_{{ attendee.id }}">
                             <button class="attendee-checkin btn-sm btn-success" data-attendee-id="{{ attendee.id }}" onClick="loadCheckInModal('{{ attendee.id }}')">Check In</button>
