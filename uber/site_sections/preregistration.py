@@ -290,7 +290,8 @@ class Root:
 
             if not message:
                 if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
-                    message = add_to_new_or_existing_account(session, attendee, **params)
+                    if c.ATTENDEE_ACCOUNTS_ENABLED:
+                        message = add_to_new_or_existing_account(session, attendee, **params)
 
                     if not message:
                         attendee.paid = c.PAID_BY_GROUP
@@ -439,14 +440,16 @@ class Root:
 
     def process_free_prereg(self, session, message='', **params):
         account_email, account_password = params.get('account_email'), params.get('account_password')
-        message = check_account(session, account_email, account_password, params.get('confirm_password'))
-        if message:
-            return {'error': message}
+        
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            message = check_account(session, account_email, account_password, params.get('confirm_password'))
+            if message:
+                return {'error': message}
 
-        new_or_existing_account = session.current_attendee_account()
-        if not new_or_existing_account:
-            new_or_existing_account = session.create_attendee_account(account_email, account_password)
-        cherrypy.session['attendee_account_id'] = new_or_existing_account.id
+            new_or_existing_account = session.current_attendee_account()
+            if not new_or_existing_account:
+                new_or_existing_account = session.create_attendee_account(account_email, account_password)
+            cherrypy.session['attendee_account_id'] = new_or_existing_account.id
         
         charge = Charge(listify(Charge.unpaid_preregs.values()))
         if charge.total_cost <= 0:
@@ -457,7 +460,7 @@ class Root:
                 if message:
                     session.rollback()
                     raise HTTPRedirect('index?message={}', message)
-                else:
+                elif c.ATTENDEE_ACCOUNTS_ENABLED:
                     session.add_attendee_to_account(attendee, new_or_existing_account)
 
             for group in charge.groups:
@@ -492,15 +495,16 @@ class Root:
         if message:
             return {'error': message}
 
-        account_email, account_password = params.get('account_email'), params.get('account_password')
-        message = check_account(session, account_email, account_password, params.get('confirm_password'))
-        if message:
-            return {'error': message}
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            account_email, account_password = params.get('account_email'), params.get('account_password')
+            message = check_account(session, account_email, account_password, params.get('confirm_password'))
+            if message:
+                return {'error': message}
 
-        new_or_existing_account = session.current_attendee_account()
-        if not new_or_existing_account:
-            new_or_existing_account = session.create_attendee_account(account_email, account_password)
-        cherrypy.session['attendee_account_id'] = new_or_existing_account.id
+            new_or_existing_account = session.current_attendee_account()
+            if not new_or_existing_account:
+                new_or_existing_account = session.create_attendee_account(account_email, account_password)
+            cherrypy.session['attendee_account_id'] = new_or_existing_account.id
 
         for attendee in charge.attendees:
             pending_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
@@ -521,12 +525,14 @@ class Root:
                     session.delete(receipt_item)
                 
                 pending_attendee.amount_paid_override = pending_attendee.total_cost
-                session.add_attendee_to_account(pending_attendee, new_or_existing_account)
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    session.add_attendee_to_account(pending_attendee, new_or_existing_account)
             else:
                 attendee.badge_status = c.PENDING_STATUS
                 attendee.paid = c.PENDING
                 session.add(attendee)
-                session.add_attendee_to_account(attendee, new_or_existing_account)
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    session.add_attendee_to_account(attendee, new_or_existing_account)
                 
                 if attendee.badges:
                     pc_group = session.create_promo_code_group(attendee, attendee.name, int(attendee.badges) - 1)
@@ -763,7 +769,8 @@ class Root:
 
                 attendee.apply(params, restricted=True)
 
-                session.add_attendee_to_account(attendee, session.current_attendee_account())
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    session.add_attendee_to_account(attendee, session.current_attendee_account())
 
                 # Free group badges are considered 'registered' when they are actually claimed.
                 if group.cost == 0:
