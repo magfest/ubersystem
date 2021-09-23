@@ -15,6 +15,7 @@
     });
 </script>
 <div class="masthead"></div>
+{% if c.ATTENDEE_ACCOUNTS_ENABLED %}
 <div class="panel panel-default">
   <div class="panel-body">
     {% if logged_in_account %}
@@ -24,6 +25,7 @@
     {% endif %}
   </div>
 </div>
+{% endif %}
 <div class="panel panel-default">
   <div class="panel-body">
     <h2>{{ c.EVENT_NAME }} Art Show Application</h2>

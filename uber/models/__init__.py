@@ -670,6 +670,9 @@ class Session(SessionManager):
         
         def one_badge_attendee_account(self, attendee):
             logged_in_account = self.current_attendee_account()
+            if not logged_in_account:
+                return
+            
             attendee_accounts = attendee.managers
             if logged_in_account in attendee_accounts:
                 account = logged_in_account
