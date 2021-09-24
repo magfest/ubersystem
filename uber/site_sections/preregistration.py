@@ -186,8 +186,8 @@ class Root:
             }
 
     @check_if_can_reg
-    def dealer_registration(self, message=''):
-        return self.form(badge_type=c.PSEUDO_DEALER_BADGE, message=message)
+    def dealer_registration(self, message='', invite_code=''):
+        return self.form(badge_type=c.PSEUDO_DEALER_BADGE, message=message, invite_code=invite_code)
 
     @check_if_can_reg
     def repurchase(self, session, id, **params):
@@ -225,10 +225,6 @@ class Root:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
 
             if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
-                if not c.DEALER_REG_OPEN:
-                    return render('static_views/dealer_reg_closed.html') if c.AFTER_DEALER_REG_START \
-                        else render('static_views/dealer_reg_not_open.html')
-
                 # Both the Attendee class and Group class have identically named
                 # address fields. In order to distinguish the two sets of address
                 # fields in the params, the Group fields are prefixed with "group_"
@@ -248,6 +244,17 @@ class Root:
             attendee.badge_type = c.PSEUDO_DEALER_BADGE
         elif not attendee.badge_type:
             attendee.badge_type = c.ATTENDEE_BADGE
+
+        if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
+            if not c.DEALER_REG_OPEN:
+                return render('static_views/dealer_reg_closed.html') if c.AFTER_DEALER_REG_START \
+                    else render('static_views/dealer_reg_not_open.html')
+            
+            if c.DEALER_INVITE_CODE:
+                if not params.get('invite_code'):
+                    raise HTTPRedirect("form?message={}s must have an invite code to register.".format(c.DEALER_TERM.capitalize()))
+                elif params.get('invite_code') != c.DEALER_INVITE_CODE:
+                    raise HTTPRedirect("form?message=Incorrect {} invite code.".format(c.DEALER_REG_TERM))
 
         if cherrypy.request.method == 'POST' or edit_id is not None:
             message = check_pii_consent(params, attendee) or message
@@ -274,6 +281,7 @@ class Root:
                 'pii_consent': params.get('pii_consent'),
                 'name': params.get('name', ''),
                 'badges': params.get('badges', 0),
+                'invite_code': params.get('invite_code', ''),
             }
 
         if 'first_name' in params:
@@ -382,6 +390,7 @@ class Root:
             'copy_address': params.get('copy_address'),
             'promo_code_code': params.get('promo_code', ''),
             'pii_consent': params.get('pii_consent'),
+            'invite_code': params.get('invite_code', ''),
         }
 
     @redirect_if_at_con_to_kiosk

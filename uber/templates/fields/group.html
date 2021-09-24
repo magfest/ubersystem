@@ -498,3 +498,8 @@
   </div>
 {% endif %}
 {% endset %}
+
+
+{% set invite_code_field %}
+<input type="hidden" name="invite_code" value="{{ invite_code or '' }}" />
+{% endset %}
