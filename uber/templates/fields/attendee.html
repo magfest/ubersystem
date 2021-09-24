@@ -320,12 +320,17 @@
             {% endif %}
             {% if not is_prereg_dealer %}makeBadgeMatchExtra(){% endif %};
             if ($.field('amount_extra')) {
-                {% if not c.PREREG_DONATION_DESCRIPTIONS %}
+                {% if not c.PREREG_DONATION_DESCRIPTIONS or is_prereg_dealer %}
                     $.field('amount_extra').parents('.form-group').hide();
                 {% else %}
                     $.field('amount_extra').on('change', makeBadgeMatchExtra);
                 {% endif %}
             }
+            {% if is_prereg_dealer %}
+            if ($.field('extra_donation')) {
+              $.field('extra_donation').parents('.form-group').hide();
+            }
+            {% endif %}
         }
         togglePrices();
     });
