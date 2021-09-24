@@ -1,5 +1,5 @@
 <html><head></head><body style='text-align:center'>
-    {{ c.DEALER_APP_TERM }}s for {{ c.EVENT_NAME_AND_YEAR }} ({{ c.EVENT_MONTH }} {{ c.EVENT_YEAR }}) are now closed.<br/>
+    {{ c.DEALER_APP_TERM|capitalize }}s for {{ c.EVENT_NAME_AND_YEAR }} ({{ c.EVENT_MONTH }} {{ c.EVENT_YEAR }}) are now closed.<br/>
     {% if c.AFTER_DEALER_REG_DEADLINE %}
       <br/>
       The deadline for {{ c.DEALER_REG_TERM }} was {{ c.DEALER_REG_DEADLINE|datetime_local }}.
