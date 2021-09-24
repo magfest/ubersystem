@@ -111,6 +111,7 @@ class PanelApplication(MagModel):
     tables_desc = Column(UnicodeText)
     has_cost = Column(Boolean, default=False)
     is_loud = Column(Boolean, default=False)
+    tabletop = Column(Boolean, default=False)
     cost_desc = Column(UnicodeText)
     livestream = Column(Choice(c.LIVESTREAM_OPTS), default=c.OPT_IN)
     panelist_bringing = Column(UnicodeText)
