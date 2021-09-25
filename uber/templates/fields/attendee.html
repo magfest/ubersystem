@@ -562,6 +562,7 @@
             {% else %}
                 setVisible('.badge-row', $.val('amount_extra') >= {{ c.SUPPORTER_LEVEL }});
             {% endif %}
+                setVisible('.season-row', $.val('amount_extra') >= {{ c.SEASON_LEVEL }});
             $.each($("input:radio[name='amount_extra']"), function() {
                 $(this).parents('.btn').removeClass('active btn-primary');
                 $(this).parents('.btn').addClass('btn-default');
@@ -684,7 +685,7 @@
         <option value="" selected="selected"></option>
       </select>
     </div>
-    {{ macros.popup_link("../static_views/affiliates.html", "What's an affiliate?") }}
+    <div class="form-control-static">{{ macros.popup_link("../static_views/affiliates.html", "What's an affiliate?") }}</div>
   </div>
 {% endif %}
 {% if admin_area %}
