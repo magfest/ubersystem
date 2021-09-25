@@ -70,6 +70,24 @@ class Root:
             'Contact Phone #',
             'Physical Address']
         out.writerows(header_row, rows)
+
+    @xlsx_file
+    def seller_applications(self, out, session):
+        dealer_groups = session.query(Group).filter(Group.is_dealer).all()
+
+        header_row = [
+            'id',
+            'name',
+            'registered',
+            '']
+        out.writerow(header_row)
+
+        for group in dealer_groups:
+            out.writecell(group.id)
+            out.writecell(group.name)
+            out.writecell(group.registered.replace(tzinfo=None), format={'num_format': 'dd/mm/yy hh:mm'})
+            out.writecell(group.name, url="{}/group_admin/form?id={}".format(c.URL_BASE, group.id), last_cell=True)
+            
         
     @xlsx_file
     def waitlisted_group_info(self, out, session):
