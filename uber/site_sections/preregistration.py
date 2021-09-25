@@ -64,21 +64,17 @@ def check_prereg_promo_code(session, attendee):
 
 def rollback_prereg_session(session):
     if Charge.stripe_intent_id:
-        log.debug("Rolling back Stripe ID " + Charge.stripe_intent_id)
         session.delete_txn_by_stripe_id(Charge.stripe_intent_id)
     Charge.paid_preregs.clear()
     if Charge.pending_preregs:
         cherrypy.session['unpaid_preregs'] = Charge.pending_preregs.copy()
 
         attendee = session.attendee(Charge.pending_preregs.popitem()[0])
-        log.debug(attendee)
         account = attendee.managers[0]
         if account and not any(attendee.badge_status != c.PENDING_STATUS for attendee in account.attendees):
-            log.debug("Deleting attendee account ID " + account.id)
             session.delete(account)
             cherrypy.session['attendee_account_id'] = ''
 
-        log.debug("Rolling back pending preregistrations")
         Charge.pending_preregs.clear()
     session.commit()
 
