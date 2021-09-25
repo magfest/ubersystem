@@ -9,7 +9,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c, _config
 from uber.custom_tags import pluralize
-from uber.decorators import all_renderable
+from uber.decorators import all_renderable, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, DeptMembership, DeptMembershipRequest
 from uber.utils import get_api_service_from_server, normalize_email
@@ -102,6 +102,28 @@ class Root:
         else:
             session.delete(account)
         raise HTTPRedirect('attendee_accounts?message={}', message or 'Account deleted.')
+
+    @site_mappable
+    def orphaned_attendees(self, session, message='', **params):
+        if cherrypy.request.method == 'POST':
+            if 'account_email' not in params:
+                message = "Please enter an account email to assign to this attendee."
+            else:
+                attendee = session.attendee(params.get('id'))
+                account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(params.get('account_email'))).first()
+                if not attendee:
+                    message = "Attendee not found!"
+                elif not account:
+                    message = "No attendee account matches that email address."
+                else:
+                    session.add_attendee_to_account(session.attendee(params.get('id')), account)
+                    session.commit()
+                    message = "{} is now being managed by account {}.".format(attendee.full_name, account.email)
+
+        return {
+            'message': message,
+            'attendees': session.query(Attendee).filter(~Attendee.managers.any()).options(raiseload('*')).all(),
+        }
 
     def import_attendees(self, session, target_server='', api_token='', query='', message=''):
         service, service_message, target_url = get_api_service_from_server(target_server, api_token)
