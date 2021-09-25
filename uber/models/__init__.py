@@ -1058,7 +1058,6 @@ class Session(SessionManager):
 
             new_account = AttendeeAccount(email=email, hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
             self.add(new_account)
-            cherrypy.session['new_account'] = True
             return new_account
 
         def add_attendee_to_account(self, attendee, account):
