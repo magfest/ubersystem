@@ -890,8 +890,11 @@ class ExcelWorksheetStreamWriter:
 
         self.next_row += 1
 
-    def writecell(self, data, format={}, last_cell=False):
-        self.worksheet.write(self.next_row, self.next_col, data, self.workbook.add_format(format))
+    def writecell(self, data, url=None, format={}, last_cell=False):
+        if url:
+            self.worksheet.write_url(self.next_row, self.next_col, url, self.workbook.add_format(format), data)
+        else:
+            self.worksheet.write(self.next_row, self.next_col, data, self.workbook.add_format(format))
 
         if last_cell:
             self.next_col = 0
