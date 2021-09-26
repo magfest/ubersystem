@@ -308,7 +308,7 @@ def age(attendee):
 def allowed_to_register(attendee):
     if not attendee.age_group_conf['can_register']:
         return 'Attendees {} years of age do not need to register, ' \
-            'but MUST be accompanied by a parent at all times!'.format(attendee.age_group_conf['desc'])
+            'but MUST be accompanied by a parent at all times!'.format(attendee.age_group_conf['desc'].lower())
 
 
 @validation.Attendee
