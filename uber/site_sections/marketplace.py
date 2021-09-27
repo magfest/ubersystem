@@ -102,7 +102,7 @@ class Root:
     @credit_card
     def process_marketplace_payment(self, session, id):
         attendee = session.attendee(id)
-        charge = Charge(attendee, description="Marketplace application payment")
+        charge = Charge(attendee, description="Marketplace application payment for {}".format(attendee.full_name))
 
         stripe_intent = charge.create_stripe_intent(session)
         message = stripe_intent if isinstance(stripe_intent, string_types) else ''

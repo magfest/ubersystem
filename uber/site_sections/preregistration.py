@@ -1309,7 +1309,8 @@ class Root:
         charge = Charge(
                 attendee,
                 amount=attendee.amount_unpaid * 100,
-                description='{}'.format('Badge' if attendee.overridden_price else 'Registration extras')
+                description='{} for {}'.format(
+                            'Badge' if attendee.overridden_price else 'Registration extras', attendee.full_name)
             )
         stripe_intent = charge.create_stripe_intent(session)
         message = stripe_intent if isinstance(stripe_intent, string_types) else ''
