@@ -1286,7 +1286,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         if num_staff_shirts_owed > 0:
             staff_shirts = '{} Staff Shirt{}'.format(num_staff_shirts_owed, 's' if num_staff_shirts_owed > 1 else '')
             if self.shirt_size_marked:
-                staff_shirts += ' [{}]'.format(c.SHIRTS[self.shirt])
+                try:
+                    staff_shirts += ' [{}]'.format(c.SHIRTS[self.shirt])
+                except KeyError:
+                    staff_shirts += ' [{}]'.format(c.SHIRTS[c.SIZE_UNKNOWN])
             merch.append(staff_shirts)
 
         if self.staffing:
