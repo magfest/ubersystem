@@ -1147,8 +1147,12 @@ class Charge:
 
     @staticmethod
     def mark_paid_from_stripe_id(stripe_id):
+        from uber.tasks.email import send_email
+        from uber.decorators import render
+        
         with uber.models.Session() as session:
             matching_stripe_txns = session.query(uber.models.StripeTransaction).filter_by(stripe_id=stripe_id)
+            dealers_paid = []
 
             for txn in matching_stripe_txns:
                 txn.type = c.PAYMENT
@@ -1163,6 +1167,8 @@ class Charge:
                     if not group.amount_pending:
                         group.paid = c.HAS_PAID
                         session.add(group)
+                        if group.is_dealer:
+                            dealers_paid.append(group)
 
                 for attendee_log in txn.attendees:
                     attendee = attendee_log.attendee
@@ -1174,4 +1180,16 @@ class Charge:
                         session.add(attendee)
 
             session.commit()
+
+            for group in dealers_paid:
+                try:
+                    send_email.delay(
+                        c.MARKETPLACE_EMAIL,
+                        c.MARKETPLACE_EMAIL,
+                        '{} Payment Completed'.format(c.DEALER_TERM.title()),
+                        render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
+                        model=group.to_dict('id'))
+                except Exception:
+                    log.error('unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
+
             return matching_stripe_txns

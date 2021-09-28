@@ -814,16 +814,6 @@ class Root:
 
             session.merge(group)
             session.commit()
-            if group.is_dealer:
-                try:
-                    send_email.delay(
-                        c.MARKETPLACE_EMAIL,
-                        c.MARKETPLACE_EMAIL,
-                        '{} Payment Completed'.format(c.DEALER_TERM.title()),
-                        render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
-                        model=group.to_dict('id'))
-                except Exception:
-                    log.error('unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
                     
             return {'stripe_intent': stripe_intent,
                     'success_url': 'group_members?id={}&message={}'.format(group.id, 'Your payment has been accepted')}
@@ -899,13 +889,6 @@ class Root:
             )
             session.merge(group)
             session.commit()
-            if group.is_dealer:
-                send_email.delay(
-                    c.MARKETPLACE_EMAIL,
-                    c.MARKETPLACE_EMAIL,
-                    '{} Paid for Extra Members'.format(c.DEALER_TERM.title()),
-                    render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
-                    model=group.to_dict('id'))
             
             return {'stripe_intent': stripe_intent,
                     'success_url': 'group_members?id={}&message={}'.format(
