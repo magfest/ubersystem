@@ -1,0 +1,48 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Attendees Without Accounts{% endblock %}
+{% block content %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <h3 class="panel-title">Attendees Without Accounts</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped datatable">
+        <thead>
+            <tr>
+            <th>Attendee</th>
+            <th>Badge Status</th>
+            <th>Add Account</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for attendee in attendees %}
+        <tr id="{{ attendee.full_name }}">
+            <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
+                {{ attendee|form_link }}
+            </td>
+            <td>
+                {{ attendee.badge_status_label }}
+            </td>
+            <td>
+                <form class="form form-inline" method="post" action="orphaned_attendees">
+                <input type="hidden" name="id" value="{{ attendee.id }}" />
+                {{ csrf_token() }}
+                <div class="row">
+                <div class="input-group col-sm-9">
+                    <input type="email" name="account_email" class="form-control" placeholder="Account Email Address" required />
+                    <span class="input-group-btn">
+                        <button type="submit" class="btn btn-primary">
+                            <span class="glyphicon glyphicon-plus"></span> Add Account
+                        </button>
+                    </span>
+                </div>
+                </div>
+                </form>
+            </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -15,7 +15,7 @@
   {% endif %}
 {% include 'prereg_masthead.html' %}
 {% set original_location = ".." ~ c.PAGE_PATH %}
-{% if is_prereg_dealer or logged_in_account %}
+{% if (is_prereg_dealer or logged_in_account) and c.ATTENDEE_ACCOUNTS_ENABLED %}
 <div class="panel panel-default">
   <div class="panel-body">
     {% include 'preregistration/create_or_login_account.html' %}
@@ -38,7 +38,7 @@ $(document).ready(function() {
 })
 </script>
 {% endif %}
-{% else %}
+{% elif c.ATTENDEE_ACCOUNTS_ENABLED %}
 <div class="panel panel-default">
   <div class="panel-body">
     <div id="login-link" class="text-center">
@@ -81,6 +81,7 @@ $(document).ready(function() {
     {{ group_fields.special_needs }}
     {{ group_fields.website }}
     {{ group_fields.address }}
+    {{ group_fields.invite_code_field }}
   {% endif %}
   {{ group_fields.explanation }}
   {{ attendee_fields.group_fields }}

@@ -96,6 +96,7 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='Access Groups', href='../accounts/access_groups'),
         MenuItem(name='API Access', href='../api/'),
         MenuItem(name='Pending Emails', href='../email_admin/pending'),
+        MenuItem(name='Sent Emails', href='../email_admin/'),
         MenuItem(name='Feed of Database Changes', href='../registration/feed'),
         MenuItem(name='Watchlist', href='../security_admin/index'),
     ]),
@@ -126,8 +127,8 @@ c.MENU = MenuItem(name='Root', submenu=[
     ]),
 
     MenuItem(name='Statistics', submenu=[
-        MenuItem(name='Summary', href='../reg_reports/'),
-        MenuItem(name='Badges Sold Graph', href='../reg_reports/badges_sold'),
+        MenuItem(name='Summary', href='../statistics/'),
+        MenuItem(name='Badges Sold Graph', href='../statistics/badges_sold'),
     ]),
 ])
 

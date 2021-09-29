@@ -166,11 +166,11 @@ class Root:
             for item in checklist:
                 checklist_item = dept.checklist_item_for_slug(item.slug)
                 if checklist_item:
-                    out.writecell('', {'bg_color': 'green'})
+                    out.writecell('', format={'bg_color': 'green'})
                 elif days_before(7, item.deadline)():
-                    out.writecell('', {'bg_color': 'orange'})
+                    out.writecell('', format={'bg_color': 'orange'})
                 elif item.deadline < datetime.now(UTC):
-                    out.writecell('', {'bg_color': 'red'})
+                    out.writecell('', format={'bg_color': 'red'})
                 else:
                     out.writecell('')
 

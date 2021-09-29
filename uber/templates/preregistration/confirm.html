@@ -48,15 +48,17 @@
       {% block form_top %}{% endblock %}
 
       {% if not attendee.placeholder and attendee.amount_unpaid and c.HTTP_METHOD == 'GET' and 'attendee_donation_form' in attendee.payment_page %}
-        <br/>
-        <div class="form-group">
-          <div class="col-sm-9 col-sm-offset-3 warning">
-            You currently have an outstanding balance of {{ attendee.amount_unpaid|format_currency }}{% if attendee.amount_extra %} due to having requested
+          <div class="alert alert-danger">
+            You currently have an outstanding balance of <strong>{{ attendee.amount_unpaid|format_currency }}</strong>{% if attendee.amount_extra %} due to having requested
             registration add-ons and then not completing the payment form{% endif %}.  Please either
             <a href="attendee_donation_form?id={{ attendee.id }}">click here</a> to pay, or alter your registration below to
             eliminate whichever addons you've decided not to select.
           </div>
-        </div>
+      {% elif attendee.badge_status == c.PENDING_STATUS %}
+          <div class="alert alert-warning">
+            Your registration has not finished processing, likely because we don't have a verified completed payment. 
+            Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if this issue persists or if you have any questions.
+          </div>
       {% endif %}
 
       {% if attendee.is_dealer and attendee.is_group_leader %}

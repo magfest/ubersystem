@@ -63,20 +63,18 @@ def check_prereg_promo_code(session, attendee):
         return "The promo code you're using for {} has been used too many times.".format(attendee.full_name)
 
 def rollback_prereg_session(session):
-    attendee_account_id = cherrypy.session.get('attendee_account_id')
     if Charge.stripe_intent_id:
-        log.debug("Rolling back Stripe ID " + Charge.stripe_intent_id)
         session.delete_txn_by_stripe_id(Charge.stripe_intent_id)
-    if attendee_account_id and cherrypy.session.get('new_account'):
-        log.debug("Deleting attendee account ID " + attendee_account_id)
-        account = session.query(AttendeeAccount).get(attendee_account_id)
-        session.delete(account)
-        cherrypy.session['new_account'] = False
-        cherrypy.session['attendee_account_id'] = ''
     Charge.paid_preregs.clear()
     if Charge.pending_preregs:
-        log.debug("Rolling back pending preregistrations")
         cherrypy.session['unpaid_preregs'] = Charge.pending_preregs.copy()
+
+        attendee = session.attendee(Charge.pending_preregs.popitem()[0])
+        account = attendee.managers[0]
+        if account and not any(attendee.badge_status != c.PENDING_STATUS for attendee in account.attendees):
+            session.delete(account)
+            cherrypy.session['attendee_account_id'] = ''
+
         Charge.pending_preregs.clear()
     session.commit()
 
@@ -186,8 +184,8 @@ class Root:
             }
 
     @check_if_can_reg
-    def dealer_registration(self, message=''):
-        return self.form(badge_type=c.PSEUDO_DEALER_BADGE, message=message)
+    def dealer_registration(self, message='', invite_code=''):
+        return self.form(badge_type=c.PSEUDO_DEALER_BADGE, message=message, invite_code=invite_code)
 
     @check_if_can_reg
     def repurchase(self, session, id, **params):
@@ -225,10 +223,6 @@ class Root:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
 
             if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
-                if not c.DEALER_REG_OPEN:
-                    return render('static_views/dealer_reg_closed.html') if c.AFTER_DEALER_REG_START \
-                        else render('static_views/dealer_reg_not_open.html')
-
                 # Both the Attendee class and Group class have identically named
                 # address fields. In order to distinguish the two sets of address
                 # fields in the params, the Group fields are prefixed with "group_"
@@ -248,6 +242,17 @@ class Root:
             attendee.badge_type = c.PSEUDO_DEALER_BADGE
         elif not attendee.badge_type:
             attendee.badge_type = c.ATTENDEE_BADGE
+
+        if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
+            if not c.DEALER_REG_OPEN:
+                return render('static_views/dealer_reg_closed.html') if c.AFTER_DEALER_REG_START \
+                    else render('static_views/dealer_reg_not_open.html')
+            
+            if c.DEALER_INVITE_CODE:
+                if not params.get('invite_code'):
+                    raise HTTPRedirect("form?message={}s must have an invite code to register.".format(c.DEALER_TERM.capitalize()))
+                elif params.get('invite_code') != c.DEALER_INVITE_CODE:
+                    raise HTTPRedirect("form?message=Incorrect {} invite code.".format(c.DEALER_REG_TERM))
 
         if cherrypy.request.method == 'POST' or edit_id is not None:
             message = check_pii_consent(params, attendee) or message
@@ -274,6 +279,7 @@ class Root:
                 'pii_consent': params.get('pii_consent'),
                 'name': params.get('name', ''),
                 'badges': params.get('badges', 0),
+                'invite_code': params.get('invite_code', ''),
             }
 
         if 'first_name' in params:
@@ -290,7 +296,8 @@ class Root:
 
             if not message:
                 if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
-                    message = add_to_new_or_existing_account(session, attendee, **params)
+                    if c.ATTENDEE_ACCOUNTS_ENABLED:
+                        message = add_to_new_or_existing_account(session, attendee, **params)
 
                     if not message:
                         attendee.paid = c.PAID_BY_GROUP
@@ -381,6 +388,7 @@ class Root:
             'copy_address': params.get('copy_address'),
             'promo_code_code': params.get('promo_code', ''),
             'pii_consent': params.get('pii_consent'),
+            'invite_code': params.get('invite_code', ''),
         }
 
     @redirect_if_at_con_to_kiosk
@@ -439,14 +447,16 @@ class Root:
 
     def process_free_prereg(self, session, message='', **params):
         account_email, account_password = params.get('account_email'), params.get('account_password')
-        message = check_account(session, account_email, account_password, params.get('confirm_password'))
-        if message:
-            return {'error': message}
+        
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            message = check_account(session, account_email, account_password, params.get('confirm_password'))
+            if message:
+                return {'error': message}
 
-        new_or_existing_account = session.current_attendee_account()
-        if not new_or_existing_account:
-            new_or_existing_account = session.create_attendee_account(account_email, account_password)
-        cherrypy.session['attendee_account_id'] = new_or_existing_account.id
+            new_or_existing_account = session.current_attendee_account()
+            if not new_or_existing_account:
+                new_or_existing_account = session.create_attendee_account(account_email, account_password)
+            cherrypy.session['attendee_account_id'] = new_or_existing_account.id
         
         charge = Charge(listify(Charge.unpaid_preregs.values()))
         if charge.total_cost <= 0:
@@ -457,7 +467,7 @@ class Root:
                 if message:
                     session.rollback()
                     raise HTTPRedirect('index?message={}', message)
-                else:
+                elif c.ATTENDEE_ACCOUNTS_ENABLED:
                     session.add_attendee_to_account(attendee, new_or_existing_account)
 
             for group in charge.groups:
@@ -492,15 +502,16 @@ class Root:
         if message:
             return {'error': message}
 
-        account_email, account_password = params.get('account_email'), params.get('account_password')
-        message = check_account(session, account_email, account_password, params.get('confirm_password'))
-        if message:
-            return {'error': message}
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            account_email, account_password = params.get('account_email'), params.get('account_password')
+            message = check_account(session, account_email, account_password, params.get('confirm_password'))
+            if message:
+                return {'error': message}
 
-        new_or_existing_account = session.current_attendee_account()
-        if not new_or_existing_account:
-            new_or_existing_account = session.create_attendee_account(account_email, account_password)
-        cherrypy.session['attendee_account_id'] = new_or_existing_account.id
+            new_or_existing_account = session.current_attendee_account()
+            if not new_or_existing_account:
+                new_or_existing_account = session.create_attendee_account(account_email, account_password)
+            cherrypy.session['attendee_account_id'] = new_or_existing_account.id
 
         for attendee in charge.attendees:
             pending_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
@@ -521,12 +532,14 @@ class Root:
                     session.delete(receipt_item)
                 
                 pending_attendee.amount_paid_override = pending_attendee.total_cost
-                session.add_attendee_to_account(pending_attendee, new_or_existing_account)
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    session.add_attendee_to_account(pending_attendee, new_or_existing_account)
             else:
                 attendee.badge_status = c.PENDING_STATUS
                 attendee.paid = c.PENDING
                 session.add(attendee)
-                session.add_attendee_to_account(attendee, new_or_existing_account)
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    session.add_attendee_to_account(attendee, new_or_existing_account)
                 
                 if attendee.badges:
                     pc_group = session.create_promo_code_group(attendee, attendee.name, int(attendee.badges) - 1)
@@ -763,7 +776,8 @@ class Root:
 
                 attendee.apply(params, restricted=True)
 
-                session.add_attendee_to_account(attendee, session.current_attendee_account())
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    session.add_attendee_to_account(attendee, session.current_attendee_account())
 
                 # Free group badges are considered 'registered' when they are actually claimed.
                 if group.cost == 0:
@@ -798,16 +812,6 @@ class Root:
 
             session.merge(group)
             session.commit()
-            if group.is_dealer:
-                try:
-                    send_email.delay(
-                        c.MARKETPLACE_EMAIL,
-                        c.MARKETPLACE_EMAIL,
-                        '{} Payment Completed'.format(c.DEALER_TERM.title()),
-                        render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
-                        model=group.to_dict('id'))
-                except Exception:
-                    log.error('unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
                     
             return {'stripe_intent': stripe_intent,
                     'success_url': 'group_members?id={}&message={}'.format(group.id, 'Your payment has been accepted')}
@@ -883,13 +887,6 @@ class Root:
             )
             session.merge(group)
             session.commit()
-            if group.is_dealer:
-                send_email.delay(
-                    c.MARKETPLACE_EMAIL,
-                    c.MARKETPLACE_EMAIL,
-                    '{} Paid for Extra Members'.format(c.DEALER_TERM.title()),
-                    render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
-                    model=group.to_dict('id'))
             
             return {'stripe_intent': stripe_intent,
                     'success_url': 'group_members?id={}&message={}'.format(
@@ -1293,7 +1290,8 @@ class Root:
         charge = Charge(
                 attendee,
                 amount=attendee.amount_unpaid * 100,
-                description='{}'.format('Badge' if attendee.overridden_price else 'Registration extras')
+                description='{} for {}'.format(
+                            'Badge' if attendee.overridden_price else 'Registration extras', attendee.full_name)
             )
         stripe_intent = charge.create_stripe_intent(session)
         message = stripe_intent if isinstance(stripe_intent, string_types) else ''

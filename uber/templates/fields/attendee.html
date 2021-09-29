@@ -320,12 +320,17 @@
             {% endif %}
             {% if not is_prereg_dealer %}makeBadgeMatchExtra(){% endif %};
             if ($.field('amount_extra')) {
-                {% if not c.PREREG_DONATION_DESCRIPTIONS %}
+                {% if not c.PREREG_DONATION_DESCRIPTIONS or is_prereg_dealer %}
                     $.field('amount_extra').parents('.form-group').hide();
                 {% else %}
                     $.field('amount_extra').on('change', makeBadgeMatchExtra);
                 {% endif %}
             }
+            {% if is_prereg_dealer %}
+            if ($.field('extra_donation')) {
+              $.field('extra_donation').parents('.form-group').hide();
+            }
+            {% endif %}
         }
         togglePrices();
     });
@@ -557,6 +562,7 @@
             {% else %}
                 setVisible('.badge-row', $.val('amount_extra') >= {{ c.SUPPORTER_LEVEL }});
             {% endif %}
+                setVisible('.season-row', $.val('amount_extra') >= {{ c.SEASON_LEVEL }});
             $.each($("input:radio[name='amount_extra']"), function() {
                 $(this).parents('.btn').removeClass('active btn-primary');
                 $(this).parents('.btn').addClass('btn-default');
@@ -679,7 +685,7 @@
         <option value="" selected="selected"></option>
       </select>
     </div>
-    {{ macros.popup_link("../static_views/affiliates.html", "What's an affiliate?") }}
+    <div class="form-control-static">{{ macros.popup_link("../static_views/affiliates.html", "What's an affiliate?") }}</div>
   </div>
 {% endif %}
 {% if admin_area %}
