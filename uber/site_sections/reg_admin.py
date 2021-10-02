@@ -111,7 +111,7 @@ class Root:
             if 'account_email' not in params:
                 message = "Please enter an account email to assign to this attendee."
             else:
-                account_email = params.get('account_email')
+                account_email = params.get('account_email').strip()
                 attendee = session.attendee(params.get('id'))
                 account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(account_email)).first()
                 if not attendee:

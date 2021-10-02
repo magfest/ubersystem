@@ -1933,6 +1933,10 @@ class AttendeeAccount(MagModel):
 
     email_model_name = 'account'
 
+    @presave_adjustment
+    def strip_email(self):
+        self.email = self.email.strip()
+
     @property
     def has_only_one_badge(self):
         return len(self.attendees) == 1
