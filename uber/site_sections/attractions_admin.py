@@ -7,7 +7,7 @@ from pockets import listify, sluggify
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, Attraction, AttractionFeature, AttractionEvent, AttractionSignup, \
     utcmin
@@ -17,6 +17,7 @@ from uber.utils import check, filename_safe
 
 @all_renderable()
 class Root:
+    @site_mappable
     def index(self, session, filtered=False, message='', **params):
         admin_account = session.current_admin_account()
         if filtered:
@@ -289,6 +290,7 @@ class Root:
         }
 
     @csrf_protected
+    @not_site_mappable
     def edit_event_gap(self, session, id=None, gap=0):
         if not id or id == 'None':
             raise HTTPRedirect('index')

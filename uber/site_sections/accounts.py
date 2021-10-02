@@ -9,7 +9,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
-                             department_id_adapter, render, site_mappable, public)
+                             department_id_adapter, not_site_mappable, render, site_mappable, public)
 from uber.errors import HTTPRedirect
 from uber.models import AccessGroup, AdminAccount, Attendee, PasswordReset
 from uber.tasks.email import send_email
@@ -184,6 +184,7 @@ class Root:
             }
         
     @public
+    @not_site_mappable
     def attendees(self, session, query=''):
         if not cherrypy.session.get('account_id'):
             raise HTTPRedirect('login?message={}', 'You are not logged in')
