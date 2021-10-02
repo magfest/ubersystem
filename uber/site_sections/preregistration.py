@@ -63,20 +63,18 @@ def check_prereg_promo_code(session, attendee):
         return "The promo code you're using for {} has been used too many times.".format(attendee.full_name)
 
 def rollback_prereg_session(session):
-    attendee_account_id = cherrypy.session.get('attendee_account_id')
     if Charge.stripe_intent_id:
-        log.debug("Rolling back Stripe ID " + Charge.stripe_intent_id)
         session.delete_txn_by_stripe_id(Charge.stripe_intent_id)
-    if attendee_account_id and cherrypy.session.get('new_account'):
-        log.debug("Deleting attendee account ID " + attendee_account_id)
-        account = session.query(AttendeeAccount).get(attendee_account_id)
-        session.delete(account)
-        cherrypy.session['new_account'] = False
-        cherrypy.session['attendee_account_id'] = ''
     Charge.paid_preregs.clear()
     if Charge.pending_preregs:
-        log.debug("Rolling back pending preregistrations")
         cherrypy.session['unpaid_preregs'] = Charge.pending_preregs.copy()
+
+        attendee = session.attendee(Charge.pending_preregs.popitem()[0])
+        account = attendee.managers[0]
+        if account and not any(attendee.badge_status != c.PENDING_STATUS for attendee in account.attendees):
+            session.delete(account)
+            cherrypy.session['attendee_account_id'] = ''
+
         Charge.pending_preregs.clear()
     session.commit()
 
@@ -814,16 +812,6 @@ class Root:
 
             session.merge(group)
             session.commit()
-            if group.is_dealer:
-                try:
-                    send_email.delay(
-                        c.MARKETPLACE_EMAIL,
-                        c.MARKETPLACE_EMAIL,
-                        '{} Payment Completed'.format(c.DEALER_TERM.title()),
-                        render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
-                        model=group.to_dict('id'))
-                except Exception:
-                    log.error('unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
                     
             return {'stripe_intent': stripe_intent,
                     'success_url': 'group_members?id={}&message={}'.format(group.id, 'Your payment has been accepted')}
@@ -899,13 +887,6 @@ class Root:
             )
             session.merge(group)
             session.commit()
-            if group.is_dealer:
-                send_email.delay(
-                    c.MARKETPLACE_EMAIL,
-                    c.MARKETPLACE_EMAIL,
-                    '{} Paid for Extra Members'.format(c.DEALER_TERM.title()),
-                    render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
-                    model=group.to_dict('id'))
             
             return {'stripe_intent': stripe_intent,
                     'success_url': 'group_members?id={}&message={}'.format(
