@@ -1289,7 +1289,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 try:
                     staff_shirts += ' [{}]'.format(c.SHIRTS[self.shirt])
                 except KeyError:
-                    staff_shirts += ' [{}]'.format(c.SHIRTS[c.SIZE_UNKNOWN])
+                    staff_shirts += ' [{}]'.format("Size unknown")
             merch.append(staff_shirts)
 
         if self.staffing:
