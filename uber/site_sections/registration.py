@@ -15,7 +15,7 @@ from sqlalchemy.orm import joinedload
 from uber.config import c
 from uber.custom_tags import format_currency
 from uber.decorators import ajax, all_renderable, attendee_view, check_for_encrypted_badge_num, check_if_can_reg, credit_card, \
-    csrf_protected, department_id_adapter, log_pageview, render, site_mappable, public
+    csrf_protected, department_id_adapter, log_pageview, not_site_mappable, render, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, Email, Group, Job, PageViewTracking, PromoCode, PromoCodeGroup, Sale, \
     Session, Shift, Tracking, WatchList
@@ -563,6 +563,7 @@ class Root:
             'Charge': Charge
         }  # noqa: E711
 
+    @not_site_mappable
     def set_reg_station(self, reg_station='', message=''):
         if not reg_station:
             message = "Please enter a number for this reg station"

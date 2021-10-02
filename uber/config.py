@@ -745,8 +745,9 @@ class Config(_Overridable):
                 if getattr(method, 'exposed', False):
                     spec = inspect.getfullargspec(unwrap(method))
                     has_defaults = len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or [])
-                    if not getattr(method, 'ajax', False) and (getattr(method, 'site_mappable', False)
-                                                               or has_defaults and not spec.varkw):
+                    if not getattr(method, 'ajax', False) and (getattr(method, 'site_mappable', False) 
+                                                               or has_defaults and not spec.varkw) \
+                        and not getattr(method, 'not_site_mappable', False):
                         pages[module_name].append({
                             'name': name.replace('_', ' ').title(),
                             'path': '/{}/{}'.format(module_name, name)

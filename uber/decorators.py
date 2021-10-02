@@ -120,6 +120,11 @@ def site_mappable(func):
     return func
 
 
+def not_site_mappable(func):
+    func.not_site_mappable = True
+    return func
+
+
 def suffix_property(func):
     func._is_suffix_property = True
     return func
