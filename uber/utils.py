@@ -1184,7 +1184,7 @@ class Charge:
                     if not attendee.amount_pending:
                         if attendee.badge_status == c.PENDING_STATUS:
                             attendee.badge_status = c.NEW_STATUS
-                        if attendee.paid == c.NOT_PAID:
+                        if attendee.paid in [c.NOT_PAID, c.PENDING]:
                             attendee.paid = c.HAS_PAID
                         session.add(attendee)
 
