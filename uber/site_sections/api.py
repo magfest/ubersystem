@@ -10,7 +10,7 @@ from pockets.autolog import log
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, public
+from uber.decorators import ajax, all_renderable, not_site_mappable, public, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiToken
 from uber.utils import Charge, check
@@ -18,7 +18,7 @@ from uber.utils import Charge, check
 
 @all_renderable()
 class Root:
-
+    @site_mappable
     def index(self, session, show_revoked=False, message='', **params):
         admin_account = session.current_admin_account()
         api_tokens = session.query(ApiToken)
@@ -98,6 +98,7 @@ class Root:
             'index?message={}', 'Successfully revoked API token')
 
     @public
+    @not_site_mappable
     def stripe_webhook_handler(self):
         if not cherrypy.request or not cherrypy.request.body:
             cherrypy.response.status = 400

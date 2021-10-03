@@ -9,7 +9,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c, _config
 from uber.custom_tags import pluralize
-from uber.decorators import all_renderable, site_mappable
+from uber.decorators import all_renderable, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, DeptMembership, DeptMembershipRequest
 from uber.utils import get_api_service_from_server, normalize_email
@@ -82,6 +82,7 @@ class Root:
         
         raise HTTPRedirect('receipt_items?id={}&message={}', model.id, "Refunded item removed")
 
+    @not_site_mappable
     def remove_promo_code(self, session, id=''):
         attendee = session.attendee(id)
         attendee.paid = c.NOT_PAID
