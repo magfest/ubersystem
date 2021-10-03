@@ -6,14 +6,21 @@
 
 {% for section, pagelist in pages %}
 <div class="panel panel-default">
-  <div class="panel-heading"><a href="../{{ section }}/index">{{ section|replace("_", " ")|title }}</a></div>
+  <div class="panel-heading">
+    {% if pagelist|selectattr("name", "equalto", "Index")|list %}<a href="../{{ section }}/index">{{ section|replace("_", " ")|title }}</a>{% else %}
+    {{ section|replace("_", " ")|title }}{% endif %}
+  </div>
+  {% if pagelist|rejectattr("name", "equalto", "Index")|list %}
   <div class="panel-body">
     <ul class="nav nav-pills">
     {% for page in pagelist %}
+      {% if page.name != "Index" %}
       <li><a href="..{{ page.path }}">{{ page.name }}</a></li>
+      {% endif %}
     {% endfor %}
     </ul>
   </div>
+  {% endif %}
 </div>
 {% endfor %}
 

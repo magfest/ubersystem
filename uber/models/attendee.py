@@ -1286,7 +1286,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         if num_staff_shirts_owed > 0:
             staff_shirts = '{} Staff Shirt{}'.format(num_staff_shirts_owed, 's' if num_staff_shirts_owed > 1 else '')
             if self.shirt_size_marked:
-                staff_shirts += ' [{}]'.format(c.SHIRTS[self.shirt])
+                try:
+                    staff_shirts += ' [{}]'.format(c.SHIRTS[self.shirt])
+                except KeyError:
+                    staff_shirts += ' [{}]'.format("Size unknown")
             merch.append(staff_shirts)
 
         if self.staffing:
@@ -1932,6 +1935,10 @@ class AttendeeAccount(MagModel):
         secondary='attendee_attendee_account')
 
     email_model_name = 'account'
+
+    @presave_adjustment
+    def strip_email(self):
+        self.email = self.email.strip()
 
     @property
     def has_only_one_badge(self):

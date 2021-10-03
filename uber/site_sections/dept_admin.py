@@ -5,7 +5,7 @@ from datetime import timedelta
 from uber.config import c
 from uber.custom_tags import pluralize, yesno
 from uber.decorators import all_renderable, ajax, check_dept_admin, csrf_protected, csv_file, department_id_adapter, \
-    requires_dept_admin
+    requires_dept_admin, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, Department, DeptMembership, DeptRole, Shift
 from uber.utils import check
@@ -13,6 +13,7 @@ from uber.utils import check
 
 @all_renderable()
 class Root:
+    @site_mappable
     def index(self, session, filtered=False, message='', **params):
         if filtered:
             admin_account_id = cherrypy.session.get('account_id')

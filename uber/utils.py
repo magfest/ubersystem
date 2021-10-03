@@ -905,7 +905,7 @@ class ExcelWorksheetStreamWriter:
 
 class Charge:
 
-    def __init__(self, targets=(), amount=None, description=None, receipt_email=None):
+    def __init__(self, targets=(), amount=None, description=None, receipt_email=''):
         self._targets = listify(targets)
         self._amount = amount
         self._description = description
@@ -1102,11 +1102,26 @@ class Charge:
     def create_stripe_intent(self, session):
         log.debug('Creating Stripe Intent to charge {} cents for {}', self.amount, self.description)
         try:
+            if self.receipt_email:
+                customer_list = stripe.Customer.list(
+                    email=self.receipt_email,
+                    limit=1,
+                )
+                if customer_list:
+                    customer = customer_list.data[0]
+                else:
+                    customer = stripe.Customer.create(
+                        description=self.receipt_email,
+                        email=self.receipt_email,
+                    )
+
             stripe_intent = stripe.PaymentIntent.create(
                 payment_method_types=['card'],
                 amount=self.amount,
                 currency='usd',
                 description=self.description,
+                receipt_email=customer.email,
+                customer=customer.id,
             )
 
             if self.models:
@@ -1175,7 +1190,7 @@ class Charge:
                     if not attendee.amount_pending:
                         if attendee.badge_status == c.PENDING_STATUS:
                             attendee.badge_status = c.NEW_STATUS
-                        if attendee.paid == c.NOT_PAID:
+                        if attendee.paid in [c.NOT_PAID, c.PENDING]:
                             attendee.paid = c.HAS_PAID
                         session.add(attendee)
 
