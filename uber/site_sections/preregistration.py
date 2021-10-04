@@ -70,10 +70,11 @@ def rollback_prereg_session(session):
         cherrypy.session['unpaid_preregs'] = Charge.pending_preregs.copy()
 
         attendee = session.attendee(Charge.pending_preregs.popitem()[0])
-        account = attendee.managers[0]
-        if account and not any(attendee.badge_status != c.PENDING_STATUS for attendee in account.attendees):
-            session.delete(account)
-            cherrypy.session['attendee_account_id'] = ''
+        if attendee.managers:
+            account = attendee.managers[0]
+            if account and not any(attendee.badge_status != c.PENDING_STATUS for attendee in account.attendees):
+                session.delete(account)
+                cherrypy.session['attendee_account_id'] = ''
 
         Charge.pending_preregs.clear()
     session.commit()
