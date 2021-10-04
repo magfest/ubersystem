@@ -1,7 +1,7 @@
 import math
 
 from uber.config import c
-from uber.decorators import all_renderable
+from uber.decorators import all_renderable, not_site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import Attendee
 from uber.utils import localized_now
@@ -85,6 +85,7 @@ class Root:
             'numberOfPrinters': numberOfPrinters
         }
 
+    @not_site_mappable
     def reprint_fee(self, session, attendee_id=None, message='',
                     fee_amount=0, reprint_reason='', refund=''):
         attendee = session.attendee(attendee_id)
