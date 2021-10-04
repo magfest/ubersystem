@@ -648,7 +648,7 @@ def attendee_view(func):
         if cherrypy.session.get('account_id') is None:
             raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
             
-        if kwargs.get('id') != "None":
+        if kwargs.get('id') and str(kwargs.get('id')) != "None":
             with uber.models.Session() as session:
                 attendee = session.attendee(kwargs.get('id'), allow_invalid=True)
                 if not session.admin_attendee_max_access(attendee):
