@@ -234,7 +234,7 @@ def total_cost_over_paid(attendee):
 @validation.Attendee
 def reasonable_total_cost(attendee):
     if attendee.total_cost >= 999999:
-        return 'We cannot charge ${}. Please reduce extras so the total is below $999,999.'.format(
+        return 'We cannot charge {}. Please reduce extras so the total is below $999,999.'.format(
             format_currency(attendee.total_cost))
 
 
