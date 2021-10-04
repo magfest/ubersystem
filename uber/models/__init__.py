@@ -700,10 +700,12 @@ class Session(SessionManager):
             if not admin:
                 return
                 
-            if admin.full_registration_admin or attendee.creator == admin.attendee or attendee == admin.attendee:
+            if admin.full_registration_admin or attendee.creator == admin.attendee or \
+                                                attendee == admin.attendee or attendee.is_new:
                 return AccessGroup.FULL
             
-            return max([admin.max_level_access(section, read_only=read_only) for section in attendee.access_sections])
+            if attendee.access_sections:
+                return max([admin.max_level_access(section, read_only=read_only) for section in attendee.access_sections])
 
         def admin_can_create_attendee(self, attendee):
             admin = self.current_admin_account()
