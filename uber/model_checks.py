@@ -1245,7 +1245,8 @@ def agent_code_already_used(attendee):
     if attendee.promo_code:
         with Session() as session:
             apps_with_code = session.lookup_agent_code(attendee.promo_code.code)
-            for app in apps_with_code:
-                if not app.agent_id or app.agent_id == attendee.id:
-                    return
-            return "That agent code has already been used."
+            if apps_with_code:
+                for app in apps_with_code:
+                    if not app.agent_id or app.agent_id == attendee.id:
+                        return
+                return "That agent code has already been used."
