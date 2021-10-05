@@ -428,7 +428,11 @@ class Config(_Overridable):
                 links = item[1].split('|')
                 entry[1]['all_descriptions'] += list(zip(descriptions, links))
 
-        return [dict(tier[1]) for tier in donation_list]
+        donation_list = [dict(tier[1]) for tier in donation_list]
+        return [tier for tier in donation_list if 
+                (tier['price'] >= c.SHIRT_LEVEL and tier['price'] < c.SUPPORTER_LEVEL and c.BEFORE_SHIRT_DEADLINE) or 
+                (tier['price'] >= c.SUPPORTER_LEVEL and c.BEFORE_SUPPORTER_DEADLINE) or 
+                tier['price'] < c.SHIRT_LEVEL]
 
     @property
     def PREREG_DONATION_TIERS(self):

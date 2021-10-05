@@ -497,6 +497,9 @@ class Root:
                     message = check_prereg_promo_code(session, attendee)
             
             if not message:
+                message = check(attendee, prereg=True)
+            
+            if not message:
                 stripe_intent = charge.create_stripe_intent(session)
                 message = stripe_intent if isinstance(stripe_intent, string_types) else ''
 
