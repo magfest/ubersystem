@@ -155,7 +155,7 @@
             {% endif %}
         });
     {% endif %}
-    {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and c.SHIRT_AVAILABLE %}
+    {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and c.SHIRT_AVAILABLE and c.BEFORE_SHIRT_DEADLINE %}
         BADGE_TYPES.options.push({
             title: 'Add a tshirt',
             description: 'Add a {{ c.EVENT_NAME }} themed t-shirt to your registration.',
@@ -163,7 +163,7 @@
             price: {{ c.BADGE_PRICE }}
         });
     {% endif %}
-    {% if c.SUPPORTER_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
+    {% if c.SUPPORTER_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE and c.BEFORE_SUPPORTER_DEADLINE %}
         BADGE_TYPES.options.push({
             title: 'Supporter',
             description: 'Donate extra and get more swag with your registration.',
@@ -171,7 +171,7 @@
             price: {{ c.BADGE_PRICE }}
         });
     {% endif %}
-    {% if c.SEASON_LEVEL in c.PREREG_DONATION_TIERS and c.SEASON_AVAILABLE %}
+    {% if c.SEASON_LEVEL in c.PREREG_DONATION_TIERS and c.SEASON_AVAILABLE and c.BEFORE_SUPPORTER_DEADLINE %}
         BADGE_TYPES.options.push({
             title: 'Super Supporter',
             description: 'Donate even more and get exclusive swag!',
