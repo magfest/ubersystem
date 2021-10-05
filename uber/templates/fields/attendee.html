@@ -615,7 +615,7 @@
         {{ macros.popup_link("../static_views/givingExtra.html", "Why do this?") }}
       </label>
       <div class="col-sm-9">
-        {% if c.AFTER_SUPPORTER_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL or c.AFTER_SHIRT_DEADLINE and attendee.amount_extra >= c.SHIRT_LEVEL %}
+        {% if c.AFTER_SUPPORTER_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL or c.AFTER_SHIRT_DEADLINE and attendee.amount_extra >= c.SHIRT_LEVEL and attendee.amount_extra < c.SUPPORTER_LEVEL %}
           {{ attendee.amount_extra_label }}
           <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
         {% else %}
@@ -623,7 +623,7 @@
 
             <div data-toggle="buttons" class="btn-group-inline">
               {% for tier in c.PREREG_DONATION_DESCRIPTIONS %}
-
+              {% if (tier.price >= c.SHIRT_LEVEL and tier.price < c.SUPPORTER_LEVEL and c.BEFORE_SHIRT_DEADLINE) or (tier.price >= c.SUPPORTER_LEVEL and c.BEFORE_SUPPORTER_DEADLINE) or tier.price < c.SHIRT_LEVEL %}
                 <label class="btn btn-default btn-inline">
                   <input type="radio"
                          name="amount_extra"
@@ -654,6 +654,7 @@
                     {% endfor %}
                   </ul>
                 </label>
+                {% endif %}
               {% endfor %}
             </div>
 
