@@ -547,7 +547,9 @@ class Session(SessionManager):
     # a value of -1, they are not added to the keyword args.
     _engine_kwargs = dict((k, v) for (k, v) in [
         ('pool_size', c.SQLALCHEMY_POOL_SIZE),
-        ('max_overflow', c.SQLALCHEMY_MAX_OVERFLOW)] if v > -1)
+        ('max_overflow', c.SQLALCHEMY_MAX_OVERFLOW),
+        ('pool_pre_ping', True),
+        ('pool_recycle', c.SQLALCHEMY_POOL_RECYCLE)] if v > -1)
     engine = sqlalchemy.create_engine(c.SQLALCHEMY_URL, **_engine_kwargs)
 
     @classmethod

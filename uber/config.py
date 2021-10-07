@@ -900,6 +900,9 @@ if "sqlite" in _config['secret']['sqlalchemy_url']:
     c.SQLALCHEMY_POOL_SIZE = -1
     c.SQLALCHEMY_MAX_OVERFLOW = -1
 
+## Set database connections to recycle after 10 minutes
+c.SQLALCHEMY_POOL_RECYCLE = 3600
+
 c.PRICE_BUMPS = {}
 c.PRICE_LIMITS = {}
 for _opt, _val in c.BADGE_PRICES['attendee'].items():
