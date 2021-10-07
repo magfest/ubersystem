@@ -350,6 +350,9 @@ class MagModel:
             log.debug('{} is not an int. Did we forget to migrate data for {} during a DB migration?', val, name)
             return ''
 
+        if val == -1:
+            return "Unknown"
+
         label = self.get_field(name).type.choices.get(val)
         if not label:
             log.debug('{} does not have a label for {}, check your enum generating code', name, val)
