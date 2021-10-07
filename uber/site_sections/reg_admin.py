@@ -231,6 +231,7 @@ class Root:
             })
             del d['id']
             del d['all_years']
+            del d['shirt']
 
             if badge_type != c.STAFF_BADGE:
                 attendee = Attendee().apply(d, restricted=False)
