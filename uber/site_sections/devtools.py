@@ -101,6 +101,9 @@ class Root:
                     # otherwise, make a new one and add it to the session for when we commit
                     model_instance = model()
                     session.add(model_instance)
+            else:
+                model_instance = model()
+                session.add(model_instance)
 
             for colname, val in row.items():
                 col = cols[colname]
