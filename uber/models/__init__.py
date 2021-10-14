@@ -356,6 +356,7 @@ class MagModel:
         label = self.get_field(name).type.choices.get(val)
         if not label:
             log.debug('{} does not have a label for {}, check your enum generating code', name, val)
+            return ''
         return label
 
     @suffix_property
