@@ -113,6 +113,28 @@ def add_to_new_or_existing_account(session, attendee, **params):
         cherrypy.session['attendee_account_id'] = new_account.id
     return message
 
+def set_up_new_account(session, attendee, email=None):
+    email = email or attendee.email
+    token = genpasswd(short=True)
+    account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(email)).first()
+    if account:
+        if account.password_reset:
+            session.delete(account.password_reset)
+            session.commit()
+    else:
+        account = session.create_attendee_account(email)
+        session.add_attendee_to_account(attendee, account)
+    session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token, bcrypt.gensalt())))
+
+    body = render('emails/accounts/new_account.html', {
+            'attendee': attendee, 'account_email': email, 'token': token}, encoding=None)
+    send_email.delay(
+        c.ADMIN_EMAIL,
+        email,
+        c.EVENT_NAME + ' Account Setup',
+        body,
+        format='html',
+        model=account.to_dict('id'))
 
 @all_renderable(public=True)
 @check_post_con
@@ -1074,26 +1096,7 @@ class Root:
         if normalize_email(attendee.email) == session.current_attendee_account().normalized_email:
             message = "You cannot grant an account to someone with the same email address as your account."
         if not message:
-            token = genpasswd(short=True)
-            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(attendee.email)).first()
-            if account:
-                if account.password_reset:
-                    session.delete(account.password_reset)
-                    session.commit()
-            else:
-                account = session.create_attendee_account(attendee.email)
-                session.add_attendee_to_account(attendee, account)
-            session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token, bcrypt.gensalt())))
-
-            body = render('emails/accounts/new_account.html', {
-                    'attendee': attendee, 'token': token}, encoding=None)
-            send_email.delay(
-                c.ADMIN_EMAIL,
-                account.email_to_address,
-                c.EVENT_NAME + ' Account Setup',
-                body,
-                format='html',
-                model=account.to_dict('id'))
+            set_up_new_account(session, attendee)
         
         raise HTTPRedirect('homepage?message={}', message or 
                 'An email has been sent to {} to set up their account.'.format(attendee.email))

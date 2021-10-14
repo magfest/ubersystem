@@ -10,6 +10,9 @@
         <thead>
             <tr>
             <th>Attendee</th>
+            <th>Email</th>
+            <th>Badge Type</th>
+            <th>Ribbons</th>
             <th>Badge Status</th>
             <th>Add Account</th>
             </tr>
@@ -19,6 +22,15 @@
         <tr id="{{ attendee.full_name }}">
             <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
                 {{ attendee|form_link }}
+            </td>
+            <td>
+                {{ attendee.email }}
+            </td>
+            <td>
+                {{ attendee.badge_type_label }}
+            </td>
+            <td>
+                {{ attendee.ribbon_labels|join(', ') }}
             </td>
             <td>
                 {{ attendee.badge_status_label }}

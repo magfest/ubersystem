@@ -9,7 +9,7 @@
     This link will expire in {{ c.PASSWORD_RESET_HOURS }} hours or when used, after which you will need to 
     use the "Forgot password" link on <a href="{{ c.URL_BASE }}/landing" target="_blank">our landing page</a> to receive another link.</p>
 
-<p><a href="{{ c.URL_BASE }}/preregistration/new_password_setup?account_email={{ attendee.email|urlencode }}&token={{ token }}" target="_blank">{{ c.URL_BASE }}/preregistration/new_password_setup?account_email={{ attendee.email }}&token={{ token }}</a></p>
+<p><a href="{{ c.URL_BASE }}/preregistration/new_password_setup?account_email={{ account_email|urlencode }}&token={{ token }}" target="_blank">{{ c.URL_BASE }}/preregistration/new_password_setup?account_email={{ account_email }}&token={{ token }}</a></p>
 
 </body>
 </html>
