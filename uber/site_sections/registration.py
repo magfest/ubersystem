@@ -946,7 +946,8 @@ class Root:
     
     def pending_badges(self, session, message=''):
         return {
-            'pending_badges': session.query(Attendee).filter_by(badge_status=c.PENDING_STATUS),
+            'pending_badges': session.query(Attendee)\
+                .filter_by(badge_status=c.PENDING_STATUS).filter(Attendee.paid != c.PENDING),
             'message': message,
         }
 
