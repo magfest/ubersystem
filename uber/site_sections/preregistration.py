@@ -492,6 +492,8 @@ class Root:
                     raise HTTPRedirect('index?message={}', message)
                 elif c.ATTENDEE_ACCOUNTS_ENABLED:
                     session.add_attendee_to_account(attendee, new_or_existing_account)
+                else:
+                    session.add(attendee)
 
             for group in charge.groups:
                 session.add(group)
