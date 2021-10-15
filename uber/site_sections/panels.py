@@ -43,12 +43,14 @@ def check_extra_verifications(**params):
         return 'You must accept our Terms of Accommodation'
 
 
-def compile_other_panelists_from_params(app, **params):
+def compile_other_panelists_from_params(session, app, **params):
     # Turns form fields into a list of dicts of extra panelists on a panel application.
     other_panelists = []
     for i in range(1, int(params.get('other_panelists', 0)) + 1):
         applicant = {attr: params.get('{}_{}'.format(attr, i)) for attr in OTHER_PANELISTS_FIELDS}
-        other_panelists.append(PanelApplicant(application=app, **applicant))
+        panelist = session.panel_applicant(
+            applicant, checkgroups=PanelApplicant.all_checkgroups, restricted=True, ignore_csrf=True)
+        other_panelists.append(panelist)
     return other_panelists
 
 
@@ -73,7 +75,7 @@ class Root:
 
         panelist.application = app
         panelist.submitter = True
-        other_panelists = compile_other_panelists_from_params(app, **params)
+        other_panelists = compile_other_panelists_from_params(session, app, **params)
 
         if cherrypy.request.method == 'POST':
             message = check(panelist) or check_extra_verifications(**params)
@@ -121,7 +123,7 @@ class Root:
             email=attendee.email,
             cellphone=attendee.cellphone
         )
-        other_panelists = compile_other_panelists_from_params(app, **params)
+        other_panelists = compile_other_panelists_from_params(session, app, **params)
         go_to = return_to if 'ignore_return_to' not in params and return_to \
             else 'guest?poc_id=' + poc_id + '&return_to=' + return_to
 
@@ -148,6 +150,8 @@ def process_panel_app(session, app, panelist, other_panelists_compiled, **params
 
     message = check(app) or check_other_panelists(other_panelists_compiled) or ''
     if not message:
+        for panelist in other_panelists_compiled:
+            panelist.app_id = app.id
         session.add_all([app, panelist] + other_panelists_compiled)
 
     return message
