@@ -40,11 +40,11 @@
     <p>
         As staff, you receive two complimentary shirts, and since you'll be potentially wearing the staff shirt a substantial
         portion of the event, we give you the option for both of them to be the staff shirt design.
-        {% if c.AFTER_SHIRT_DEADLINE %}
+        {% if c.AFTER_VOLUNTEER_SHIRT_DEADLINE %}
             <b>Because we are past the deadline, your choice has been locked in.</b>
         {% endif %}
-        <br/> <input type="radio" name="num_event_shirts" value="0" {% if attendee.num_event_shirts == 0 %}checked{% endif %} {% if c.AFTER_SHIRT_DEADLINE %}disabled{% endif %} /> I'd like {{ c.SHIRTS_PER_STAFFER }} staff shirts, to help keep them fresh through the event.
-        <br/> <input type="radio" name="num_event_shirts" value="1" {% if attendee.num_event_shirts == 1 %}checked{% endif %} {% if c.AFTER_SHIRT_DEADLINE %}disabled{% endif %} /> I'd like {{ c.SHIRTS_PER_STAFFER - 1 }} staff shirt{{ (c.SHIRTS_PER_STAFFER - 1)|pluralize }}, and 1 standard event-themed swag shirt. <i>I can keep a staff shirt fresh through the event.</i>
+        <br/> <input type="radio" name="num_event_shirts" value="0" {% if attendee.num_event_shirts == 0 %}checked{% endif %} {% if c.AFTER_VOLUNTEER_SHIRT_DEADLINE %}disabled{% endif %} /> I'd like {{ c.SHIRTS_PER_STAFFER }} staff shirts, to help keep them fresh through the event.
+        <br/> <input type="radio" name="num_event_shirts" value="1" {% if attendee.num_event_shirts == 1 %}checked{% endif %} {% if c.AFTER_VOLUNTEER_SHIRT_DEADLINE %}disabled{% endif %} /> I'd like {{ c.SHIRTS_PER_STAFFER - 1 }} staff shirt{{ (c.SHIRTS_PER_STAFFER - 1)|pluralize }}, and 1 standard event-themed swag shirt. <i>I can keep a staff shirt fresh through the event.</i>
     </p>
 {% endif %}
 <p>
