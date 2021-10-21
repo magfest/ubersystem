@@ -616,11 +616,13 @@ class Config(_Overridable):
 
         with Session() as session:
             query = session.query(Department).order_by(Department.name)
-            current_admin = session.admin_attendee()
-            if getattr(current_admin.admin_account, 'full_shifts_admin', None):
+            if not query.first():
+                return [(-1, -1)]
+            current_admin = session.current_admin_account()
+            if current_admin.full_shifts_admin:
                 return [(d.id, d.name) for d in query]
             else:
-                return [(d.id, d.name) for d in query if d.id in current_admin.assigned_depts_ids]
+                return [(d.id, d.name) for d in query if d.id in current_admin.attendee.assigned_depts_ids]
 
     @request_cached_property
     @dynamic
