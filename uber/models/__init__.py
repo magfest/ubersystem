@@ -694,8 +694,12 @@ class Session(SessionManager):
             return self.attendee(cherrypy.session.get('staffer_id'))
 
         def admin_has_staffer_access(self, staffer, access="view"):
+            admin = self.current_admin_account()
+            if admin.full_shifts_admin:
+                return True
+            
             dept_ids_with_inherent_role = [dept_m.department_id for dept_m in 
-                                           self.admin_attendee().dept_memberships_with_inherent_role]
+                                           admin.attendee.dept_memberships_with_inherent_role]
             return set(staffer.assigned_depts_ids).intersection(dept_ids_with_inherent_role)
 
         def admin_can_see_guest_group(self, guest):
