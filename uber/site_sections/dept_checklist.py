@@ -233,6 +233,10 @@ class Root:
     @department_id_adapter
     def logistics(self, session, department_id=None, submitted=None, csrf_token=None):
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'logistics')
+
+    @department_id_adapter
+    def ppe_requests(self, session, department_id=None, submitted=None, csrf_token=None):
+        return _submit_checklist_item(session, department_id, submitted, csrf_token, 'ppe_requests')
     
     @department_id_adapter
     def printed_signs(self, session, department_id=None, submitted=None, csrf_token=None):
