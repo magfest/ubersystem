@@ -1006,7 +1006,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def can_abandon_badge(self):
         return not self.amount_paid and (
-            (not self.paid == c.NEED_NOT_PAY or self.in_promo_code_group) or self.badge_type == c.STAFF_BADGE
+            not self.paid == c.NEED_NOT_PAY or self.in_promo_code_group
         ) and not self.is_group_leader and not self.checked_in
 
     @property

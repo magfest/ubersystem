@@ -13,6 +13,8 @@
             As a leader of a group, you cannot abandon your badge.
         {% elif attendee.amount_paid %}
             We cannot automatically refund your badge at the moment due to technical difficulties.
+        {% elif attendee.badge_type == c.STAFF_BADGE %}
+            Please contact {{ c.STAFF_EMAIL|email_only }} to cancel or defer your badge.
         {% elif attendee.paid == c.NEED_NOT_PAY %}
             You cannot abandon a comped badge.
         {% elif attendee.checked_in %}
