@@ -1,7 +1,7 @@
 """Add inappropriate content column
 
 Revision ID: 938e21c8c260
-Revises: 826e6c309c31
+Revises: 4947b38a18b1
 Create Date: 2017-08-31 16:17:50.420672
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-08-31 16:17:50.420672
 
 # revision identifiers, used by Alembic.
 revision = '938e21c8c260'
-down_revision = '5c14f5a350dd'
+down_revision = '4947b38a18b1'
 branch_labels = None
 depends_on = None
 

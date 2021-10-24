@@ -3,9 +3,8 @@
 
 <h2>MAGFest Indie Tabletop Showcase Application</h2>
 
-This is your application for the MAGFest Indie Tabletop Showcase for your production team
-<a href="team">{{ team.name }}</a>.  If you are not a member of {{ team.name }} then please
-<a href="logout">log out</a>.
+This is your application for the MAGFest Indie Tabletop Showcase for your production team {{ team.name }}.
+If you are not a member of {{ team.name }} then please <a href="logout">log out</a>.
 
 {% if team.status == c.CANCELLED %}
   {% if c.HAS_MITS_ADMIN_ACCESS %}
@@ -29,7 +28,22 @@ This is your application for the MAGFest Indie Tabletop Showcase for your produc
 
 
 <h3>Manage Your Team</h3>
-
+<p>{% if not team.days_available %}Please submit your team's availability information using the form below.
+{% else %}You have already submitted your team's availability information, but you can update it below.{% endif %}</p>
+<form method="post" action="index" role="form" class="form-horizontal">
+<input type="hidden" name="id" value="{{ team.id }}" />
+{{ macros.form_group(team, 'name', is_required=True)}}
+{{ csrf_token() }}
+{{ macros.form_group(team, 'days_available', type='number', placeholder="3 days minimum", is_required=True, help="How many days can you present?")}}
+{{ macros.form_group(team, 'hours_available', type='number', placeholder="4 hours per day minimum", is_required=True, help="How many hours each day can you present?")}}
+{{ macros.form_group(team, 'concurrent_attendees', type='number', is_required=True, help="How many attendees can you run games for at once?")}}
+<div class="form-group">
+  <div class="col-sm-6 col-sm-offset-3">
+    <button type="submit" class="btn btn-primary">
+    {% if not team.days_available %}Submit{% else %}Update{% endif %} Team Availability</button>
+  </div>
+</div>
+</form>
 <p>
     We offer up to {{ c.MITS_BADGES_PER_TEAM }} complementary badges to each accepted team; each team member must
     commit to spending <b>at least {{ c.MITS_HOUR_REQUIREMENT }} running games</b> at the table space we provide.
@@ -76,10 +90,8 @@ This is your application for the MAGFest Indie Tabletop Showcase for your produc
 {% endif %}
 </table>
 
-
-
+{% if team.steps_completed >= 2 %}
 <h3>Manage Your Games</h3>
-
 <table>
 {% for game in team.games|sort(attribute='name') %}
     <tr>
@@ -97,57 +109,9 @@ This is your application for the MAGFest Indie Tabletop Showcase for your produc
 {% endfor %}
 <tr><td></td><td colspan="3"><a class="btn btn-success" href="game?id=None">Add a Game</a></td></tr>
 </table>
-
-
-{% if team.steps_completed >= 2 %}
-    <h3>Manage Your Pictures</h3>
-    We require applicants to upload pictures of their games to help us assess their current state of development.
-
-    <table>
-    {% for picture in team.pictures|sort(attribute='filename') %}
-        <tr>
-            <td><ul><li></li></ul></td>
-            <td><h4><a target="_blank" href="{{ picture.url }}" title="{{ picture.description }}">{{ picture.filename }}</a></h4></td>
-            <td>
-                <form method="post" action="delete_picture">
-                    {{ csrf_token() }}
-                    <input type="hidden" name="id" value="{{ picture.id }}" />
-                    <button class="btn btn-danger" type="submit">Delete</button>
-                </form>
-            </td>
-            <td>
-              {% if picture.is_header %}<em>Header</em>{% endif %}
-              {% if picture.is_thumbnail %}<em>Thumbnail</em>{% endif %}
-            </td>
-        </tr>
-    {% endfor %}
-    <tr><td></td><td colspan="3"><a class="btn btn-success" href="picture?id=None">Add a Picture</a></td></tr>
-    </table>
-
-    <h3>Manage Your Documents</h3>
-    <p>While you are <b>required</b> to upload at least one picture of your game, you may also optionally upload
-      other documents such as rulebooks to assist our judges.  We can even include links to these documents on our
-      website to help promote your game if you specifically request that we do so.</p>
-
-    <table>
-    {% for doc in team.documents|sort(attribute='filename') %}
-        <tr>
-            <td><ul><li></li></ul></td>
-            <td><h4><a target="_blank" href="{{ doc.url }}" title="{{ doc.description }}">{{ doc.filename }}</a></h4></td>
-            <td>
-                <form method="post" action="delete_document">
-                    {{ csrf_token() }}
-                    <input type="hidden" name="id" value="{{ doc.id }}" />
-                    <button class="btn btn-danger" type="submit">Delete</button>
-                </form>
-            </td>
-        </tr>
-    {% endfor %}
-    <tr><td></td><td colspan="2"><a class="btn btn-success" href="document?id=None">Add a Document</a></td></tr>
-    </table>
 {% endif %}
 
-{% if team.steps_completed >= 3 %}
+{% if team.steps_completed >= 10 %}
     <h3>Panel Submission</h3>
     <p>If you are interested in participating in or running a panel, let us know the details using the button below. Applying for a panel is optional.</p>
 
@@ -174,7 +138,7 @@ This is your application for the MAGFest Indie Tabletop Showcase for your produc
     </td></tr></table>
 {% endif %}
 
-{% if team.steps_completed >= 4 %}
+{% if team.steps_completed >= 10 %}
     <h3>MITS Showcase</h3>
 
     <p>MITS has added a new showcase available to a subset of accepted presenters.
@@ -236,7 +200,7 @@ This is your application for the MAGFest Indie Tabletop Showcase for your produc
     </td></tr></table>
 {% endif %}
 
-{% if team.steps_completed == 6 %}
+{% if team.steps_completed == 3 %}
     <h3>Submit Your Application</h3>
     <p>
         Now that you've filled out all of your information above, the only remaining step is to formally submit this

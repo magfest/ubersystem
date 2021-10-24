@@ -1,5 +1,7 @@
 from collections import Mapping, OrderedDict
 from datetime import datetime, time, timedelta
+from dateutil.parser import parse
+import re
 
 import pytz
 from pockets import camel, fieldify, listify
@@ -185,6 +187,7 @@ class Choice(TypeDecorator):
 
     def process_bind_param(self, value, dialect):
         if value is not None:
+            value = self.convert_if_label(value)
             try:
                 assert self.allow_unspecified or int(value) in self.choices
             except Exception:
@@ -192,6 +195,25 @@ class Choice(TypeDecorator):
                     value, self.choices))
             else:
                 return int(value)
+
+    def process_result_value(self, value, dialect):
+        """
+        We allow inserting and updating Choice columns using a label (str), rather than the
+        literal value (int). However, in some cases we access the value from the database
+        BEFORE the label is converted into the value, so we must also convert it here.
+        """
+        if value is not None:
+            value = self.convert_if_label(value)
+        return value
+
+    def convert_if_label(self, value):
+        try:
+            int(value)
+        except ValueError:
+            # This is a string, is it the label?
+            label_lookup = {val: key for key, val in self.choices.items()}
+            return label_lookup[value]
+        return int(value)
 
 
 class MultiChoice(TypeDecorator):
@@ -220,6 +242,30 @@ class MultiChoice(TypeDecorator):
         a list of integers.
         """
         return ','.join(map(str, list(set(listify(value))))) if value else ''
+
+    def process_result_value(self, value, dialect):
+        """
+        We allow inserting and updating MultiChoice columns using a set of labels (str), rather than the
+        literal values. However, in some cases we access the value from the database
+        BEFORE the labels are converted into the values, so we must also convert them here.
+        """
+        if value is not None:
+            value = self.convert_if_labels(value)
+        return value
+
+    def convert_if_labels(self, value):
+        try:
+            int(listify(value)[0])
+        except ValueError:
+            # This is a string list, is it the labels?
+            label_lookup = {val: key for key, val in self.choices}
+            try:
+                vals = [label_lookup[label] for label in re.split('; |, |\*|\n| / ',value)]
+            except KeyError:
+                # It's probably just a string list of the int values
+                return value
+            value = ','.join(map(str, vals))
+        return value
 
 
 def JSONColumnMixin(column_name, fields, admin_only=False):

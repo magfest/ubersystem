@@ -1,0 +1,6 @@
+{{ app.attendee.first_name }},
+Thank you for applying to be in the Marketplace at {{ c.EVENT_NAME }} this year. We regret to inform you that your application has been declined.
+{% if app.attendee.badge_status == c.NEW_STATUS %}
+Your registration is unaffected by the state of your application, so if you have not yet paid for your badge, we encourage you to do so. Your badge price will reflect the price at the time you applied for the Marketplace. You may update and pay for your badge here: {{ c.URL_BASE }}/preregistration/confirm?id={{ app.attendee_id }}
+{% endif %}
+{{ c.MARKETPLACE_APP_SIGNATURE }}

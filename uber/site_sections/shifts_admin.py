@@ -56,6 +56,9 @@ class Root:
     @requires_shifts_admin
     def index(self, session, department_id=None, message='', time=None):
         redirect_to_allowed_dept(session, department_id, 'index')
+        initial_date = max(datetime.now(c.EVENT_TIMEZONE), c.SHIFTS_START_DAY)
+        if time:
+            initial_date = max(initial_date, datetime.strptime(time, "%Y-%m-%dT%H:%M:%S%z"))
 
         department_id = None if department_id == 'All' else department_id
         department = session.query(Department).get(department_id) if department_id else None
@@ -75,6 +78,7 @@ class Root:
             'times': [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)],
             'jobs': jobs,
             'message': message,
+            'initial_date': initial_date,
         }
 
     @department_id_adapter
@@ -127,7 +131,7 @@ class Root:
             else [Attendee.dept_memberships.any(department_id=department_id)]
         attendees = session.staffers(pending=True).filter(*dept_filter).all()
         for attendee in attendees:
-            if session.admin_can_see_staffer(attendee) or department_id:
+            if session.admin_has_staffer_access(attendee) or department_id:
                 attendee.is_dept_head_here = attendee.is_dept_head_of(department_id) if department_id \
                     else attendee.is_dept_head
                 attendee.trusted_here = attendee.trusted_in(department_id) if department_id \
@@ -157,12 +161,9 @@ class Root:
     @ajax
     def update_nonshift(self, session, id, nonshift_hours):
         attendee = session.attendee(id, allow_invalid=True)
-        if not re.match('^[0-9]+$', nonshift_hours):
-            return { 'success': False, 'message': 'Invalid integer' }
-        else:
-            attendee.nonshift_hours = int(nonshift_hours)
-            session.commit()
-            return { 'success': True, 'message': 'Non-shift hours updated' }
+        attendee.nonshift_minutes = int(float(nonshift_hours or 0) * 60)
+        session.commit()
+        return { 'success': True, 'message': 'Non-shift hours updated' }
 
     @ajax
     def update_notes(self, session, id, admin_notes, for_review=None):
@@ -202,6 +203,7 @@ class Root:
             allowed=['department_id', 'start_time', 'type'] + list(defaults.keys()))
 
         if cherrypy.request.method == 'POST':
+            job.duration = int(params.get('duration_hours', 0)) * 60 + int(params.get('duration_minutes', 0))
             message = check(job)
             if not message:
                 session.add(job)
@@ -209,7 +211,7 @@ class Root:
                     defaults = cherrypy.session.get('job_defaults', defaultdict(dict))
                     defaults[params['department_id']] = {field: getattr(job, field) for field in c.JOB_DEFAULTS}
                     cherrypy.session['job_defaults'] = defaults
-                tgt_start_time = str(job.start_time_local).replace(" ", "T")
+                tgt_start_time = job.start_time_local.strftime("%Y-%m-%dT%H:%M:%S%z")
                 raise HTTPRedirect('index?department_id={}&time={}', job.department_id, tgt_start_time)
 
         if 'start_time' in params and 'type' not in params:
@@ -255,12 +257,16 @@ class Root:
 
         message = check_can_edit_dept(session, job.department, override_access='full_shifts_admin')
         if message:
-            raise HTTPRedirect('index?department_id={}#{}&message={}', job.department_id, job.start_time, message)
+            raise HTTPRedirect('index?department_id={}&time={}&message={}', 
+                               job.department_id, job.start_time_local.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                               message)
 
         for shift in job.shifts:
             session.delete(shift)
         session.delete(job)
-        raise HTTPRedirect('index?department_id={}#{}', job.department_id, job.start_time)
+        raise HTTPRedirect('index?department_id={}&time={}',
+                           job.department_id, 
+                           job.start_time_local.strftime("%Y-%m-%dT%H:%M:%S%z"))
 
     @csrf_protected
     def assign_from_job(self, session, job_id, staffer_id):

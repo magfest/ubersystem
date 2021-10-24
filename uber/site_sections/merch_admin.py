@@ -1,5 +1,6 @@
 import cherrypy
 from pockets import listify
+from six import string_types
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, credit_card, public
@@ -15,14 +16,14 @@ class Root:
     
     @public
     def arbitrary_charge_form(self, message='', amount=None, description='', sale_id=None):
-        charge = None
+        charge = False
         if amount is not None:
             if not amount.isdigit() or not (1 <= int(amount) <= 999):
                 message = 'Amount must be a dollar amount between $1 and $999'
             elif not description:
                 message = "You must enter a brief description of what's being sold"
             else:
-                charge = Charge(amount=100 * int(amount), description=description)
+                charge = True
 
         return {
             'charge': charge,
@@ -31,21 +32,31 @@ class Root:
             'description': description,
             'sale_id': sale_id
         }
-        
+    
     @public
+    @ajax
+    def cancel_arbitrary_charge(self, session, stripe_id):
+        # Arbitrary charges have no stripe ID yet and so can't actually be cancelled
+        return {'message': 'Payment cancelled.'}
+    
+    @public
+    @ajax
     @credit_card
-    def arbitrary_charge(self, session, payment_id, stripeToken, return_to='arbitrary_charge_form'):
-        charge = Charge.get(payment_id)
-        message = charge.charge_cc(session, stripeToken)
+    def arbitrary_charge(self, session, id, amount, description, return_to='arbitrary_charge_form'):
+        charge = Charge(amount=100 * int(amount), description=description)
+        stripe_intent = charge.create_stripe_intent(session)
+        message = stripe_intent if isinstance(stripe_intent, string_types) else ''
         if message:
-            raise HTTPRedirect('arbitrary_charge_form?message={}', message)
+            return {'error': message}
         else:
             session.add(ArbitraryCharge(
                 amount=charge.dollar_amount,
                 what=charge.description,
                 reg_station=cherrypy.session.get('reg_station')
             ))
-            raise HTTPRedirect('{}?message={}', return_to, 'Charge successfully processed')
+            return {'stripe_intent': stripe_intent,
+                    'success_url': '{}?message={}'.format(return_to, 'Charge successfully processed'),
+                    'cancel_url': 'cancel_arbitrary_charge'}
 
     def multi_merch_pickup(self, session, message="", csrf_token=None, picker_upper=None, badges=(), **shirt_sizes):
         picked_up = []

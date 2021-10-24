@@ -1,0 +1,122 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Marketplace Form{% endblock %}
+{% block content %}
+
+{{ macros.nav_menu(
+app, c.PAGE_PATH,
+"form?id={id}", "App Form", True,
+"history?id={id}", "History", True,
+"index", "Return to App List", True
+) }}
+
+<div class="panel panel-default">
+
+  <h2>Marketplace Application Form{% if app.attendee %} for {{ app.attendee|form_link }}{% endif %}</a></h2>
+
+  <div class="panel-body">
+    <form method="post" id="new_agent" action="../marketplace/new_agent" role="form">
+      <input type="hidden" name="admin" value="1" />
+    </form>
+    <form method="post" action="form" class="form-horizontal" role="form">
+      {% if new_app %}
+      <input type="hidden" name="new_app" value="{{ new_app }}" />
+      {% else %}
+      <input type="hidden" name="id" value="{{ app.id }}" />
+      {% endif %}
+
+      {{ csrf_token() }}
+
+      {% if new_app or c.HAS_MARKETPLACE_ADMIN_ACCESS %}
+      <div class="form-group">
+        <label for="attendee" class="col-sm-3 control-label">Attendee</label>
+        <div class="col-sm-6">
+          <select class="form-control" id="attendee_id" name="attendee_id" required="true">
+            <option value="" selected="selected">Select an attendee</option>
+            {{ options(all_attendees, attendee_id) }}
+          </select>
+        </div>
+      </div>
+      {% else %}
+      <div class="form-group">
+        <label for="attendee" class="col-sm-3 control-label">Attendee Badge Status</label>
+        <div class="col-sm-6">
+          <select class="form-control" id="badge_status" name="badge_status">
+            {{ options(c.BADGE_STATUS_OPTS, app.attendee.badge_status) }}
+          </select>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="form-group">
+        <label for="status" class="col-sm-3 control-label">Application Status</label>
+        <div class="col-sm-6">
+          <select class="form-control" name="status">
+            {{ options(c.MARKETPLACE_STATUS_OPTS, app.status) }}
+          </select>
+        </div>
+        <div class="clearfix"></div>
+        <p class="help-block col-sm-6 col-sm-offset-3">Changing this may trigger an email to the attendee.</p>
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Paid?</label>
+        <div class="col-sm-6">
+          {% if app.status == c.APPROVED %}
+          <div class="form-inline">
+          <span id="amount_paid">
+            <div class="input-group">
+              <span class="input-group-addon">$</span><input type="text" class="form-control" name="amount_paid" value="{{ app.amount_paid }}" />
+            </div>
+          </span>
+          </div>
+          {% else %}
+          <p class="form-control-static">
+            N/A
+          </p>
+          {% endif %}
+        </div>
+        {% if not app.is_new %}
+        <div class="clearfix"></div>
+          <p class="help-block col-sm-6 col-sm-offset-3">
+            <a href="../marketplace/edit?id={{ app.id }}">View this application</a>{% if app.status == c.APPROVED and app.amount_unpaid %} for the payment button{% endif %}.
+          </p>
+        {% endif %}
+      </div>
+
+
+      {% include 'marketplace/marketplace_form.html' %}
+
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Discounted Price</label>
+        <div class="col-sm-2">
+          <input type="text" class="form-control" name="overridden_price"
+                 value="{{ app.overridden_price if app.overridden_price != None else '' }}" />
+        </div>
+        <span class="col-sm-4 form-control-static">
+          (Base Price: ${{ app.base_price|default(app.potential_cost) }})
+        </span>
+        <div class="clearfix"></div>
+        <p class="help-block col-sm-6 col-sm-offset-3">Change this to set an override on the application price, or leave
+          it blank to use the base price.
+          {% if app.status != c.APPROVED %}<br/>Attendees are only asked to pay once their applications are approved.
+          {% endif %}</p>
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Admin Notes</label>
+        <div class="col-sm-6">
+          <textarea name="admin_notes" class="form-control" rows="4">{{ app.admin_notes }}</textarea>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-3">
+          <button type="submit" name="save" class="btn btn-primary" value="save_return_to_search">Save + return to search</button>
+          <button type="submit" name="save" class="btn btn-primary" value="save">Save</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

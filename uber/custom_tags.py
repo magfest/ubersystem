@@ -12,6 +12,7 @@ import json
 import math
 import os
 import re
+import sys
 from datetime import datetime, timedelta
 from urllib.parse import quote_plus
 from uuid import uuid4
@@ -19,7 +20,7 @@ from uuid import uuid4
 import cherrypy
 import jinja2
 from dateutil.relativedelta import relativedelta
-from markupsafe import text_type, Markup
+from markupsafe import Markup
 from pockets import fieldify, unfieldify, listify, readable_join
 from sideboard.lib import serializer
 
@@ -28,6 +29,10 @@ from uber.decorators import render
 from uber.jinja import JinjaEnv
 from uber.utils import ensure_csrf_token_exists, hour_day_format, localized_now, normalize_newlines
 
+# This used to be available as markupsafe.text_type, but that was removed in version 1.1.0
+text_type = str
+if sys.version_info[0] == 2:
+    text_type = unicode
 
 def safe_string(text):
     if isinstance(text, Markup):
@@ -335,7 +340,7 @@ def email_only(email):
     former to be used in our text-only emails.  This filter takes an email which
     can be in either format and spits out just the email address portion.
     """
-    return re.search(c.EMAIL_RE.lstrip('^').rstrip('$'), email).group()
+    return re.search(c.EMAIL_RE.lstrip('^').rstrip('$'), email).group() if email else ''
 
 
 @JinjaEnv.jinja_export
@@ -599,33 +604,14 @@ def csrf_token():
 
 
 @JinjaEnv.jinja_export
-def stripe_form(action, charge):
-    payment_id = uuid4().hex
-    cherrypy.session[payment_id] = charge.to_dict()
+def stripe_form(action, model=None, **params):
+    new_params = {'params': {}}
+    for key, val in params.items():
+        new_params['params'][key] = val
+    new_params['action'] = action
+    new_params['id'] = model.id if model else None
 
-    email = None
-    if charge.models and charge.models[0].email:
-        email = charge.models[0].email[:255]
-
-    if not charge.models:
-        if c.AT_THE_CON:
-            regtext = 'On-Site Charge'
-        else:
-            regtext = 'Charge'
-    elif c.AT_THE_CON:
-        regtext = 'Registration'
-    else:
-        regtext = 'Preregistration'
-
-    params = {
-        'action': action,
-        'regtext': regtext,
-        'email': email,
-        'payment_id': payment_id,
-        'charge': charge
-    }
-
-    return safe_string(render('preregistration/stripeForm.html', params).decode('utf-8'))
+    return safe_string(render('preregistration/stripeForm.html', new_params).decode('utf-8'))
 
 
 @JinjaEnv.jinja_export

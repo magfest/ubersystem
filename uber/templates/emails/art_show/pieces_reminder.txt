@@ -1,0 +1,12 @@
+Dear {{ app.attendee.first_name }},
+
+Looking forward to having your Art in the Midwest FurFest Art Show.
+At this time, we do not see that you have entered any pieces on your application. We highly recommend you do so as soon as possible to speed your check in to the art show and allow us to print your bidder sheets prior to the convention.
+
+We will be able to do onsite corrections, but would rather you enter as much as possible ahead of time. Use this link to access your application and start entering today: {{ c.URL_BASE }}/art_show_applications/edit?id={{ app.id }}
+
+Remember check in starts at 9 AM on Friday morning in our new location on the second floor of the Convention Center, right next to Artist Alley. If you are around on Thursday we are hoping to allow earlier setup as well but that is dependent on how fast we can get our prep done, feel free to stop by and volunteer.
+
+Thank you,
+Hugmonster
+Art Show Director

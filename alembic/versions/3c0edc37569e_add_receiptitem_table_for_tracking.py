@@ -1,7 +1,7 @@
 """Add ReceiptItem table for tracking
 
 Revision ID: 3c0edc37569e
-Revises: 739fe558fde9
+Revises: 9e721eb0b45c
 Create Date: 2019-08-28 16:50:28.789965
 
 """
@@ -9,7 +9,7 @@ Create Date: 2019-08-28 16:50:28.789965
 
 # revision identifiers, used by Alembic.
 revision = '3c0edc37569e'
-down_revision = '739fe558fde9'
+down_revision = '9e721eb0b45c'
 branch_labels = None
 depends_on = None
 

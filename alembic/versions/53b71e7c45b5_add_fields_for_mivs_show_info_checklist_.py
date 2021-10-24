@@ -1,7 +1,7 @@
 """Add fields for MIVS show_info checklist item
 
 Revision ID: 53b71e7c45b5
-Revises: e822b20093c1
+Revises: ad26fcaafb78
 Create Date: 2019-11-25 19:37:15.322579
 
 """
@@ -9,7 +9,7 @@ Create Date: 2019-11-25 19:37:15.322579
 
 # revision identifiers, used by Alembic.
 revision = '53b71e7c45b5'
-down_revision = 'e822b20093c1'
+down_revision = 'ad26fcaafb78'
 branch_labels = None
 depends_on = None
 

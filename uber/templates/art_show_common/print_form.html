@@ -1,0 +1,43 @@
+{% import 'art_show_common/bidder_signup_macros.html' as bidder_signup_macros with context %}
+{% import 'art_show_common/artist_checkin_macros.html' as artist_checkin_macros with context %}
+
+<html moznomarginboxes><head>
+  {% if not no_print %}
+  <script type="text/javascript">
+    window.self.onload = function() {
+      setTimeout(function () {
+        window.focus();
+        window.print();
+          window.close();
+      }, 250);
+    };
+  </script>
+  {% endif %}
+  <script type="text/javascript">{% include "region_opts.html" %}</script>
+  <link rel="stylesheet" href="{{ c.URL_BASE }}/static/styles/bootstrap.min.css" />
+  <style>
+  @media print {
+    .panel-body, .pull-left .pull-right { margin: 0 !important; padding: 0 !important; }
+    @page { margin: 1.6cm; }
+    .col-sm-3, .col-sm-6, .col-sm-9 { float: left; } .control-label { text-align: right; }
+    .col-sm-9 { width: 75%; } .col-sm-6 { width: 50%; } .col-sm-3 { width: 30%; }
+    .no-print, .no-print * { display: none !important; }
+    .pagebreak { page-break-before: always; }
+  } </style>
+</head><body>
+<div class="no-print panel-body">
+  {% block noprint %}
+  {% endblock %}
+</div>
+<div class="panel-body">
+  <div class="form-horizontal">
+    {% block printform %}
+    {% if type == "bidder" %}
+      {{ bidder_signup_macros.sign_up_form(model, True) }}
+    {% elif type == "artist" %}
+      {{ artist_checkin_macros.check_in_form(model, True) }}
+    {% endif %}
+    {% endblock %}
+  </div>
+</div>
+</body></html>

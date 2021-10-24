@@ -1,0 +1,116 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Watchlist Entry Form{% endblock %}
+{% block content %}
+{% if entry.is_new %}
+{{ macros.nav_menu(
+  entry, c.PAGE_PATH,
+  "../security_admin/watchlist_form", "Create Watchlist Entry", True,
+  "../security_admin/index" ~ return_to_hash, "Return to Watchlist Overview", True
+) }}
+{% else %}
+{{ macros.nav_menu(
+  entry, c.PAGE_PATH,
+  "../security_admin/watchlist_form?id={id}", "Watchlist Entry", True,
+  "../security_admin/index" ~ return_to_hash, "Return to Watchlist Overview", True
+) }}
+{% endif %}
+
+  {% if not entry.is_new %}
+    <div role="tabpanel">
+    <ul class="nav nav-tabs" role="tablist">
+    <li role="presentation">
+    <a href="#info" aria-controls="info" role="tab" data-toggle="tab">
+    <span class="glyphicon glyphicon-list"></span>&nbsp;Watchlist Entry
+    </a>
+    </li>
+    {% set attendees = entry.attendees + entry.attendee_guesses %}
+    {% if attendees %}
+      <li role="presentation">
+      <a href="#attendees" aria-controls="attendees" role="tab" data-toggle="tab">
+      <span class="glyphicon glyphicon-user"></span>&nbsp;Matching Attendees
+      </a>
+      </li>
+    {% endif %}
+    </ul>
+    </div>
+
+    <div class="tab-content">
+    <div class="row" style="padding: 10px;"></div>
+    <div role="tabpanel" class="tab-pane" id="info">
+  {% else %}
+    <div>
+    <h3>Watchlist Entry Info</h3>
+  {% endif %}
+  <form method="post" action="watchlist_form" class="form-horizontal">
+    {{ csrf_token() }}
+    <input type="hidden" name="id" value="{{ entry.db_id }}" />
+
+    {{ macros.form_group(entry, "first_names", placeholder="Use commas to separate possible first names.") }}
+    {{ macros.form_group(entry, "last_name") }}
+    {{ macros.form_group(entry, "email") }}
+
+    <div class="form-group">
+    <label for="birthdate" class="col-sm-3 control-label">Date of Birth</label>
+    <div class="col-sm-6">
+      <input type='text' class="form-control date" name="birthdate" value="{{ entry.birthdate|datetime("%Y-%m-%d") }}"/>
+    </div>
+  </div>
+
+    {{ macros.form_group(entry, "reason", type="textarea", help="The reason this attendee is on the watchlist.") }}
+    {{ macros.form_group(entry, "action", type="textarea", help="What, if anything, the attendee should do before checking in.") }}
+    <div class="form-group" id="audio_needs">
+      <label class="col-sm-3 control-label">Active?</label>
+      <div class="col-sm-9 checkbox">
+        {{ macros.checkbox(entry, "active", label="This entry will automatically place matching attendees in the On Hold status")}}
+      </div>
+    </div>
+    
+
+    {% if not page_ro %}
+      <div class="form-entry">
+        <div class="col-sm-6 col-sm-offset-3">
+          <button type="submit" class="btn btn-primary" value="Upload">Save</button>
+        </div>
+      </div>
+      </form>
+
+      {% if not entry.is_new %}
+        <form method="post" action="delete" id="delete">
+          {{ csrf_token() }}
+          <input type="hidden" name="id" value="{{ entry.id }}" />
+        </form>
+      {% endif %}
+    {% else %}
+      </form>
+    {% endif %}
+
+    {% if not entry.is_new and attendees %}
+    </div>
+    <div role="tabpanel" class="tab-pane" id="attendees">
+      <table class="table datatable table-striped">
+      <thead>
+      <tr>
+        <th>Confirmed?</th>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Paid</th>
+        <th>Badge Type</th>
+      </tr>
+      </thead>
+      <tbody>
+      {% for attendee in attendees %}
+        <tr>
+          <td>{{ (attendee in entry.attendees)|yesno("Y,N") }}</td>
+          <td style="padding:15px;"> <a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
+          <td>{{ attendee.badge_status_label }}</td>
+          <td>{{ attendee.paid_label }}</td>
+          <td>{{ attendee.badge_type_label }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+      </table>
+    
+    {% endif %}
+    </div>
+<script src="../static/js/window-hash-tabload.js" type="text/javascript"></script>
+{% endblock %}

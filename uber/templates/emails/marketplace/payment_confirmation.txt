@@ -1,0 +1,5 @@
+{{ app.attendee.first_name }},
+
+Your payment of ${{ app.total_cost }} for space in the {{ c.EVENT_NAME }} Marketplace has been received. The Marketplace director will continue to be in touch with you to keep you informed of Marketplace rules and procedures.
+
+{{ c.MARKETPLACE_APP_SIGNATURE }}

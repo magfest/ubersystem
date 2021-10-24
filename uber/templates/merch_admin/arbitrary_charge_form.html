@@ -13,7 +13,7 @@
 {% if charge %}
     <h2>${{ '%0.2f' % amount|float }}: {{ description }}</h2>
     <div class="center">
-        {{ stripe_form('arbitrary_charge',charge) }}
+        {{ stripe_form('arbitrary_charge',None,amount=amount,description=description) }}
         {% if sale_id %}<a href="#" onClick="undoSale('{{ sale_id }}'); return false">Undo</a>{% endif %}
     </div>
 {% else %}

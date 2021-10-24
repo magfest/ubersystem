@@ -1,4 +1,5 @@
 import os
+import json
 import shlex
 import subprocess
 import csv
@@ -7,6 +8,7 @@ import six
 from datetime import datetime
 
 from sideboard.debugging import register_diagnostics_status_function, gather_diagnostics_status_information
+from sqlalchemy.dialects.postgresql.json import JSONB
 from pockets.autolog import log
 from pytz import UTC
 from sqlalchemy.types import Date, Boolean, Integer
@@ -111,18 +113,6 @@ class Root:
                         val = val.strip().lower() not in ('f', 'false', 'n', 'no', '0')
                     else:
                         val = bool(val)
-                elif isinstance(col.type, Choice):
-                    # the export has labels, and we want to convert those back into their
-                    # integer values, so let's look that up (note: we could theoretically
-                    # modify the Choice class to do this automatically in the future)
-                    label_lookup = {val: key for key, val in col.type.choices.items()}
-                    val = label_lookup[val]
-                elif isinstance(col.type, MultiChoice):
-                    # the export has labels separated by ' / ' and we want to convert that
-                    # back into a comma-separate list of integers
-                    label_lookup = {val: key for key, val in col.type.choices}
-                    vals = [label_lookup[label] for label in val.split(' / ')]
-                    val = ','.join(map(str, vals))
                 elif isinstance(col.type, UTCDateTime):
                     # we'll need to make sure we use whatever format string we used to
                     # export this date in the first place
@@ -134,6 +124,9 @@ class Root:
                     val = datetime.strptime(val, date_format).date()
                 elif isinstance(col.type, Integer):
                     val = int(val)
+                elif isinstance(col.type, JSONB):
+                    val = val.replace("'", '"') # Temporary fix for Access Groups -- remove after SuperMAG 2021
+                    val = json.loads(val)
 
                 # now that we've converted val to whatever it actually needs to be, we
                 # can just set it on the model
@@ -150,7 +143,7 @@ class Root:
 
         all_instances = session.query(model).filter(model.id.in_(id_list)).all() if id_list else None
 
-        return self.index(message, all_instances)
+        return self.csv_import(message, all_instances)
 
     @site_mappable
     def csv_export(self, message='', **params):
@@ -187,6 +180,8 @@ class Root:
                     # Also you should fill in whatever actual format you want.
                     val = getattr(attendee, col.name)
                     row.append(val.strftime('%Y-%m-%d %H:%M:%S') if val else '')
+                elif isinstance(col.type, JSONB):
+                    row.append(json.dumps(getattr(attendee, col.name)))
                 else:
                     # For everything else we'll just dump the value, although we might
                     # consider adding more special cases for things like foreign keys.

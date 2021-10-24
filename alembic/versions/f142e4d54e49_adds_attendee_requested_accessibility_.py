@@ -1,7 +1,7 @@
 """Adds attendee.requested_accessibility_services
 
 Revision ID: f142e4d54e49
-Revises: 651b1ea070d4
+Revises: 116e5aad3a5c
 Create Date: 2018-08-28 05:47:57.413039
 
 """
@@ -9,7 +9,7 @@ Create Date: 2018-08-28 05:47:57.413039
 
 # revision identifiers, used by Alembic.
 revision = 'f142e4d54e49'
-down_revision = '651b1ea070d4'
+down_revision = '116e5aad3a5c'
 branch_labels = None
 depends_on = None
 

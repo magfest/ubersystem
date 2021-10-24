@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Volunteer Agreement{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+
+<h1>Name in Credits</h1>
+
+<p>
+We wish to run a credits roll for our amazing volunteers. Enter your name below to be in a public credits roll alongside other volunteers, or leave it blank to opt out.
+</p>
+
+
+<form method="post" action="credits">
+    {{ csrf_token() }}
+    <input type="text" name="name_in_credits" value="{{ attendee.name_in_credits or '' }}" placeholder="N/A" />
+    <span class="help-block">By entering a name I acknowledge that if I give an inappropriate name, my first and last name will be used instead.</span><br/>
+    <input class="btn btn-primary" type="submit" value="Save" />
+</form>
+
+{% endblock %}

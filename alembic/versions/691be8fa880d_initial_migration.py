@@ -1,7 +1,7 @@
 """Initial migration
 
 Revision ID: 691be8fa880d
-Revises: 416eb615ff1a
+Revises: 826e6c309c31
 Create Date: 2017-04-24 09:40:57.929468
 
 """
@@ -9,8 +9,8 @@ Create Date: 2017-04-24 09:40:57.929468
 
 # revision identifiers, used by Alembic.
 revision = '691be8fa880d'
-down_revision = '416eb615ff1a'
-branch_labels = ('tabletop',)
+down_revision = '826e6c309c31'
+branch_labels = None
 depends_on = None
 
 from alembic import op

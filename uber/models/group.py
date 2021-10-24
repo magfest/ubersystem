@@ -6,12 +6,14 @@ from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, exists, or_, case, func, select
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer, Numeric
 
 from uber.config import c
-from uber.decorators import cost_property, presave_adjustment, receipt_item
+from uber.decorators import cost_property, presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, TakesPaymentMixin
@@ -41,6 +43,8 @@ class Group(MagModel, TakesPaymentMixin):
     amount_paid_override = Column(Integer, default=0, index=True, admin_only=True)
     amount_refunded_override = Column(Integer, default=0, admin_only=True)
     cost = Column(Integer, default=0, admin_only=True)
+    purchased_items = Column(MutableDict.as_mutable(JSONB), default={}, server_default='{}')
+    refunded_items = Column(MutableDict.as_mutable(JSONB), default={}, server_default='{}')
     auto_recalc = Column(Boolean, default=True, admin_only=True)
     stripe_txn_share_logs = relationship('StripeTransactionGroup',
                                          backref='group')
@@ -82,6 +86,47 @@ class Group(MagModel, TakesPaymentMixin):
         if not self.is_unpaid:
             for a in self.attendees:
                 a.presave_adjustments()
+                
+    @presave_adjustment
+    def update_purchased_items(self):
+        if self.cost == self.orig_value_of('cost') and self.tables == self.orig_value_of('tables'):
+            return
+        
+        self.purchased_items.clear()
+        self.purchaed_items = self.current_purchased_items
+        
+    @property
+    def current_purchased_items(self):
+        purchased_items = {}
+        if not self.auto_recalc:
+            # ¯\_(ツ)_/¯
+            if self.cost:
+                purchased_items['group_total'] = self.cost
+        else:
+            # Groups tables and paid-by-group badges by cost
+            table_count = int(float(self.tables))
+            default_price = c.TABLE_PRICES['default_price']
+            more_tables = {default_price: 0}
+            for i in range(table_count):
+                if c.TABLE_PRICES[i] == default_price:
+                    more_tables[default_price] += 1
+                else:
+                    purchased_items['table_' + str(i) + '_cost'] = c.TABLE_PRICES[i]
+            if more_tables[default_price]:
+                cost_label = str(more_tables[default_price]) + '_extra_table{}_($'.format(
+                    's' if more_tables[default_price] > 1 else '') + str(default_price) + '_each)_cost'
+                purchased_items[cost_label] = default_price * more_tables[default_price]
+            
+            badges_by_cost = {}
+            for attendee in self.attendees:
+                if attendee.paid == c.PAID_BY_GROUP:
+                    badges_by_cost[attendee.badge_cost] = bool(badges_by_cost.get(attendee.badge_cost)) + 1
+            for cost in badges_by_cost:
+                cost_label = str(badges_by_cost[cost]) + '_badge{}_($'.format(
+                    's' if badges_by_cost[cost] > 1 else '') + str(cost) + '_each)_cost'
+                purchased_items[cost_label] = cost * badges_by_cost[cost]
+        
+        return purchased_items
                 
     @presave_adjustment
     def assign_creator(self):
@@ -215,9 +260,13 @@ class Group(MagModel, TakesPaymentMixin):
     @property
     def amount_unpaid(self):
         if self.registered:
-            return max(0, ((self.cost * 100) - self.amount_paid) / 100)
+            return max(0, ((self.cost * 100) - self.amount_paid - self.amount_pending) / 100)
         else:
             return self.total_cost
+        
+    @property
+    def amount_pending(self):
+        return sum([item.amount for item in self.receipt_items if item.txn_type == c.PENDING])
 
     @hybrid_property
     def amount_paid(self):
@@ -257,75 +306,6 @@ class Group(MagModel, TakesPaymentMixin):
     @property
     def itemized_refunds(self):
         return [(item.item_type, item.amount) for item in self.receipt_items if item.txn_type == c.REFUND]
-
-    @receipt_item
-    def badge_cost_receipt_item(self):
-        item_type = c.BADGE
-        badge_balance = self.balance_by_item_type(item_type)
-        
-        if not self.badge_cost or badge_balance >= (self.badge_cost * 100):
-            return None, None, None
-
-        paid_badges = badge_balance / (self.new_badge_cost * 100)
-        new_badge_count = int(self.badges_purchased - paid_badges)
-
-        return (self.badge_cost * 100) - badge_balance, \
-               "{} badge{} (${} each)".format(new_badge_count,
-                                             "s" if new_badge_count > 1 else "",
-                                             self.new_badge_cost), item_type
-
-    @receipt_item
-    def table_receipt_item_1st(self):
-        item_type = c.TABLE
-        table_balance = self.balance_by_item_type(item_type)
-
-        if not self.tables or table_balance >= c.TABLE_PRICES[1]:
-            return None, None, None
-
-        return c.TABLE_PRICES[1] * 100, "First table", item_type
-
-    @receipt_item
-    def table_receipt_item_2nd(self):
-        item_type = c.TABLE
-        table_balance = self.balance_by_item_type(item_type)
-
-        if self.tables < 2 or table_balance >= sum(c.TABLE_PRICES[i] for i in range(1, 3)):
-            return None, None, None
-
-        return c.TABLE_PRICES[2] * 100, "Second table", item_type
-
-    @receipt_item
-    def table_receipt_item_3rd(self):
-        item_type = c.TABLE
-        table_balance = self.balance_by_item_type(item_type)
-
-        if self.tables < 3 or table_balance >= sum(c.TABLE_PRICES[i] for i in range(1, 4)):
-            return None, None, None
-
-        return c.TABLE_PRICES[3] * 100, "Third table", item_type
-
-    @receipt_item
-    def table_receipt_item_4th(self):
-        item_type = c.TABLE
-        table_balance = self.balance_by_item_type(item_type)
-
-        if self.tables < 4 or table_balance >= sum(c.TABLE_PRICES[i] for i in range(1, 5)):
-            return None, None, None
-
-        return c.TABLE_PRICES[4] * 100, "Fourth table", item_type
-
-    @receipt_item
-    def table_receipt_item_more(self):
-        table_count = int(float(self.tables))
-        item_type = c.TABLE
-        table_balance = self.balance_by_item_type(item_type)
-
-        if self.tables < 5 or table_balance >= sum(c.TABLE_PRICES[i] for i in range(1, 1 + table_count)):
-            return None, None, None
-
-        return sum(c.TABLE_PRICES[i] for i in range(5, 1 + table_count)) * 100, \
-               "{} more table{}".format(self.tables - 4, "s" if self.tables > 1 else ""), \
-               item_type
 
     @property
     def dealer_max_badges(self):

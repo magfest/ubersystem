@@ -8,6 +8,7 @@ from io import BytesIO
 import cherrypy
 import treepoem
 from pytz import UTC
+from six import string_types
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import joinedload
 
@@ -500,35 +501,37 @@ class Root:
     @check_atd
     def pay(self, session, id, message=''):
         attendee = session.attendee(id)
-        if attendee.paid != c.NOT_PAID:
+        if not attendee.amount_unpaid:
             raise HTTPRedirect(
                 'register?message={}', c.AT_DOOR_NOPAY_MSG)
         else:
             return {
                 'message': message,
                 'attendee': attendee,
-                'charge': Charge(attendee, description=attendee.full_name)
             }
 
     @public
     @check_atd
+    @ajax
     @credit_card
-    def take_payment(self, session, payment_id, stripeToken):
-        charge = Charge.get(payment_id)
-        [attendee] = charge.attendees
-        message = charge.charge_cc(session, stripeToken)
+    def take_payment(self, session, id):
+        attendee = session.attendee(id)
+        charge = Charge(attendee, amount=attendee.amount_unpaid * 100)
+        stripe_intent = charge.create_stripe_intent(session)
+        message = stripe_intent if isinstance(stripe_intent, string_types) else ''
+        
         if message:
-            raise HTTPRedirect('pay?id={}&message={}', attendee.id, message)
+            return {'error': message}
         else:
             db_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
             if db_attendee:
                 attendee = db_attendee
-            attendee.paid = c.HAS_PAID
-            session.add_receipt_items_by_model(charge, attendee)
-            attendee.amount_paid_override = attendee.total_cost
+            session.add(session.create_receipt_item(attendee, charge.amount,
+                                                    "At-door kiosk payment", charge.stripe_transaction))
             session.add(attendee)
-            raise HTTPRedirect(
-                'register?message={}', c.AT_DOOR_PREPAID_MSG)
+            session.commit()
+            return {'stripe_intent': stripe_intent,
+                    'success_url': 'register?message={}'.format(c.AT_DOOR_PREPAID_MSG)}
 
     def comments(self, session, order='last_name'):
         return {
@@ -583,27 +586,30 @@ class Root:
             attendee.for_review += "Automated message: Stripe payment manually verified by admin."
         attendee.payment_method = payment_method
         attendee.amount_paid_override = attendee.total_cost
-        session.add_receipt_items_by_model(None, attendee, payment_method)
+        session.add(session.create_receipt_item(attendee, attendee.total_cost * 100,
+                                                        "At-door marked as paid", txn_type=c.PAYMENT, payment_method=payment_method))
         attendee.reg_station = cherrypy.session.get('reg_station')
         session.commit()
         return {'success': True, 'message': 'Attendee marked as paid.', 'id': attendee.id}
 
     @ajax
     @credit_card
-    def manual_reg_charge(self, session, payment_id, stripeToken):
-        charge = Charge.get(payment_id)
-        [attendee] = charge.attendees
-        message = charge.charge_cc(session, stripeToken)
+    def manual_reg_charge(self, session, id):
+        attendee = session.attendee(id)
+        charge = Charge(attendee, amount=attendee.amount_unpaid * 100)
+        stripe_intent = charge.create_stripe_intent(session)
+        message = stripe_intent if isinstance(stripe_intent, string_types) else ''
+        
         if message:
-            return {'success': False, 'message': 'Error processing card: {}'.format(message)}
+            return {'error': message}
         else:
-            attendee.paid = c.HAS_PAID
             attendee.payment_method = c.MANUAL
-            session.add_receipt_items_by_model(charge, attendee)
-            attendee.amount_paid_override = attendee.total_cost
+            session.add(session.create_receipt_item(attendee, charge.amount,
+                                                    "At-door desk payment", charge.stripe_transaction))
+            
             session.merge(attendee)
             session.commit()
-            return {'success': True, 'message': 'Payment accepted.', 'id': attendee.id}
+            return {'stripe_intent': stripe_intent, 'success_url': ''}
 
     @check_for_encrypted_badge_num
     @csrf_protected
@@ -744,7 +750,7 @@ class Root:
         return {
             'order': Order(order),
             'message': message,
-            'taken_hours': sum([s.weighted_hours - s.nonshift_hours for s in staffers], 0.0),
+            'taken_hours': sum([s.weighted_hours - s.nonshift_minutes / 60 for s in staffers], 0.0),
             'total_hours': sum([j.weighted_hours * j.slots for j in session.query(Job).all()], 0.0),
             'staffers': sorted(staffers, reverse=order.startswith('-'), key=lambda s: getattr(s, order.lstrip('-')))
         }
@@ -843,7 +849,7 @@ class Root:
     def attendee_shifts(self, session, id, **params):
         attendee = session.attendee(id, allow_invalid=True)
         attrs = Shift.to_dict_default_attrs + ['worked_label']
-        
+
         return_dict = {
             'attendee': attendee,
             'message': params.get('message', ''),
@@ -851,24 +857,29 @@ class Root:
             'jobs': [
                 (job.id, '({}) [{}] {}'.format(job.timespan(), job.department_name, job.name))
                 for job in attendee.available_jobs
-                if job.start_time + timedelta(hours=job.duration + 2) > localized_now()],
+                if job.start_time + timedelta(minutes=job.duration + 120) > localized_now()],
         }
-        
+
         if 'attendee_shifts' in cherrypy.url():
             return return_dict
         else:
             return render('registration/shifts.html', return_dict)
-    
-    @log_pageview
+
     @attendee_view
+    @cherrypy.expose(['watchlist'])
     def attendee_watchlist(self, session, id, **params):
         attendee = session.attendee(id, allow_invalid=True)
-        return {
+        return_dict = {
             'attendee': attendee,
             'active_entries': session.guess_attendee_watchentry(attendee, active=True),
             'inactive_entries': session.guess_attendee_watchentry(attendee, active=False),
         }
-    
+
+        if 'attendee_watchlist' in cherrypy.url():
+            return return_dict
+        else:
+            return render('registration/watchlist.html', return_dict)
+
     @ajax
     @attendee_view
     def update_attendee(self, session, message='', success=False, **params):

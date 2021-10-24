@@ -38,7 +38,7 @@
       <ul>
         {% if group.auto_recalc %}
           <li>${{ '%0.2f' % group.table_cost }} for {{ group.tables }} table{{ group.tables|pluralize }}</li>
-          <li>${{ '%0.2f' % group.badge_cost }} for {{ group.badges }} badge{{ group.badges|pluralize }}
+          <li>${{ '%0.2f' % group.badge_cost }} for {{ group.badges_purchased }} badge{{ group.badges_purchased|pluralize }}
             {% if upgraded_badges %}(including {{ upgraded_badges }} upgraded badge{{ upgraded_badges|pluralize }}){% endif %}</li>
         {% else %}
           <li>${{ '%0.2f' % group.cost }} total cost</li>
@@ -46,7 +46,7 @@
         <li>${{ '%0.2f' % (group.amount_paid / 100) }} paid{% if group.amount_unpaid %} so far</li>
           <li>${{ '%0.2f' % group.amount_unpaid }} unpaid</li>
           </ul>
-          <br/>{{ stripe_form('process_group_payment',charge) }}
+          <br/>{{ stripe_form('process_group_payment',group) }}
         {% else %}
           </li></ul>
         {% endif %}
@@ -58,6 +58,9 @@
   {% else %}
     <div class="alert alert-{{ 'danger' if group.status == c.DECLINED else 'warning' }}">
     Your {{ c.DEALER_APP_TERM }} {{ 'is' if group.status == c.UNAPPROVED else 'has been' }} <strong>{{ group.status_label }}</strong>.
+      {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and group.leader %}
+      <br/><br/>If you would like, you may instead
+      <a href="../marketplace/index?attendee_id={{ group.leader.id }}" target="_blank">apply for a table in the Marketplace.</a>{% endif %}
   {% endif %}
 </div>
 {% endif %}
@@ -137,7 +140,7 @@
 {% endset %}
 
 {% set min_badges = 1 if attendee_or_group.is_dealer else c.MIN_GROUP_SIZE %}
-{% set max_badges = c.MAX_DEALERS if attendee_or_group.is_dealer else c.MAX_GROUP_SIZE %}
+{% set max_badges = c.MAX_DEALERS if not admin_area and attendee_or_group.is_dealer else c.MAX_GROUP_SIZE %}
 
 <div class="group_fields">
   <div class="form-group">
@@ -192,7 +195,7 @@
 {% set read_only = categories_ro or page_ro %}
 <div class="form-group">
   <label for="categories" class="col-sm-3 control-label">What kinds of things do you sell?</label>
-  {% call macros.read_only_if(read_only, group.categories_labels, post_text=("/ " if group.categories_labels else "") + "Other: "+group.categories_text if group.categories_text) %}
+  {% call macros.read_only_if(read_only, group.categories_labels, post_text=("Other: " if not group.categories_labels else ":") + group.categories_text if group.categories_text) %}
     <div class="checkbox col-sm-9">
       {{ macros.checkgroup(group, 'categories') }}
     </div>
@@ -360,7 +363,7 @@
 <div class="form-group">
   <label class="col-sm-3 control-label">Amount Refunded</label>
   <div class="col-sm-6 form-control-static">
-    ${{ '%0.2f' % (group.amount_refunded / 100) }}
+    ${{ '%0.2f' % (group.amount_refunded / 100) if group.amount_refunded else '0' }}
   </div>
 </div>
 {% endset %}
@@ -395,7 +398,7 @@
   <label class="col-sm-3 control-label">Badge Type</label>
   <div class="col-sm-6">
     <select name="badge_type" class="form-control">
-      {{ options(c.BADGE_OPTS,group.leader.badge_type) }}
+      {{ options(c.BADGE_OPTS,group.leader.badge_type if group.leader else c.ATTENDEE_BADGE) }}
     </select>
   </div>
   {% if not group.is_new %}
@@ -428,11 +431,12 @@
 
 {% set guest_group_type %}
 <div class="form-group">
+{% set default_group_type = group.guest.group_type if group.guest else '' %}
   <label class="col-sm-3 control-label" for="group_type">Checklist Type</label>
   <div class="col-sm-6">
     <select class="form-control" id="group_type" name="group_type">
       <option value="">N/A</option>
-      {{ options(c.GROUP_TYPE_OPTS, group.guest.group_type or group_type) }}
+      {{ options(c.GROUP_TYPE_OPTS, default_group_type or group_type) }}
     </select>
   </div>
 </div>
@@ -446,21 +450,21 @@
   <div class="form-group">
     <label class="col-sm-3 control-label leader_info" for="first_name">First Name</label>
     <div class="col-sm-6">
-      <input class="form-control" type="text" id="first_name" name="first_name" value="{{ group.leader.first_name or first_name }}" />
+      <input class="form-control" type="text" id="first_name" name="first_name" value="{{ first_name }}" />
     </div>
   </div>
 
   <div class="form-group">
     <label class="col-sm-3 control-label leader_info" for="last_name">Last Name</label>
     <div class="col-sm-6">
-      <input class="form-control" type="text" id="last_name" name="last_name" value="{{ group.leader.last_name or last_name }}" />
+      <input class="form-control" type="text" id="last_name" name="last_name" value="{{ last_name }}" />
     </div>
   </div>
 
   <div class="form-group">
     <label class="col-sm-3 control-label leader_info" for="email">Email</label>
     <div class="col-sm-6">
-      <input class="form-control" type="text" id="email" name="email" value="{{ group.leader.email or email }}" />
+      <input class="form-control" type="text" id="email" name="email" value="{{ email }}" />
     </div>
   </div>
 

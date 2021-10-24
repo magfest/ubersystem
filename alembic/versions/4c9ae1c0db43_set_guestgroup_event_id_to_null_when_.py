@@ -1,7 +1,7 @@
 """Set GuestGroup event ID to null when their Event is deleted
 
 Revision ID: 4c9ae1c0db43
-Revises: 61734fcb2e72
+Revises: e0c620d341cb
 Create Date: 2019-04-29 16:27:19.146652
 
 """
@@ -9,7 +9,7 @@ Create Date: 2019-04-29 16:27:19.146652
 
 # revision identifiers, used by Alembic.
 revision = '4c9ae1c0db43'
-down_revision = '61734fcb2e72'
+down_revision = 'e0c620d341cb'
 branch_labels = None
 depends_on = None
 

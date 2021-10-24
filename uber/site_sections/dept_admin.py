@@ -41,6 +41,7 @@ class Root:
                 params,
                 bools=Department.all_bools,
                 checkgroups=Department.all_checkgroups)
+            department.max_consecutive_minutes = int(float(params.get('max_consecutive_hours', 0) or 0) * 60)
             message = check(department)
             if not message:
                 session.add(department)
@@ -97,6 +98,7 @@ class Root:
         if cherrypy.request.method == 'POST':
             message = check_dept_admin(session)
             if not message:
+                department.max_consecutive_minutes = int(float(params.get('max_consecutive_hours', 0) or 0) * 60)
                 message = check(department)
             if not message:
                 attendee = session.admin_attendee()
@@ -194,39 +196,39 @@ class Root:
 
     @csv_file
     def overworked_attendees(self, out, session):
-        def single_sequence(attendee, start_hour, hour_map):
+        def single_sequence(attendee, start_minute, minute_map):
             all_depts_limit = 1000
-            hours_worked = 0
-            current_hour = start_hour
-            while current_hour in hour_map:
-                dept_limit = hour_map[current_hour].max_consecutive_hours
+            minutes_worked = 0
+            current_minute = start_minute
+            while current_minute in minute_map:
+                dept_limit = minute_map[current_minute].max_consecutive_minutes
                 if dept_limit > 0:
                     all_depts_limit = min(all_depts_limit, dept_limit)
-                hours_worked += 1
-                current_hour = current_hour + timedelta(hours=1)
+                minutes_worked += 1
+                current_minute = current_minute + timedelta(minutes=1)
 
-            if hours_worked > all_depts_limit:
+            if minutes_worked > all_depts_limit:
                 # reiterate over to gather department names
-                current_hour = start_hour
+                current_minute = start_minute
                 departments_overworked = set()
-                while current_hour in hour_map:
-                    dept_limit = hour_map[current_hour].max_consecutive_hours
-                    if dept_limit > 0 and hours_worked > dept_limit:
-                        departments_overworked.add(hour_map[current_hour].department_name)
-                    current_hour = current_hour + timedelta(hours=1)
+                while current_minute in minute_map:
+                    dept_limit = minute_map[current_minute].max_consecutive_minutes
+                    if dept_limit > 0 and minutes_worked > dept_limit:
+                        departments_overworked.add(minute_map[current_minute].department_name)
+                    current_minute = current_minute + timedelta(minutes=1)
                 out.writerow([attendee.full_name,
-                              start_hour.astimezone(c.EVENT_TIMEZONE),
-                              hours_worked] +
+                              start_minute.astimezone(c.EVENT_TIMEZONE),
+                              minutes_worked] +
                              list(departments_overworked))
 
         out.writerow(["Attendee name", "Start of overworked shift sequence",
                       "Length of shift sequence", "Departments overworked in"])
         for attendee in session.query(Attendee).filter(Attendee.staffing == True).all():  # noqa: E712
-            hour_map = attendee.hour_map
-            for start_hour in hour_map:
-                # only look at start-of-sequence hours
-                if start_hour - timedelta(hours=1) not in hour_map:
-                    single_sequence(attendee, start_hour, hour_map)
+            minute_map = attendee.shift_minute_map
+            for start_minute in minute_map:
+                # only look at start-of-sequence minutes
+                if start_minute - timedelta(minutes=1) not in minute_map:
+                    single_sequence(attendee, start_minute, minute_map)
 
     @department_id_adapter
     def role(self, session, department_id=None, message='', **params):

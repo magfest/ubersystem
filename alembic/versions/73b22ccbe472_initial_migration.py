@@ -1,7 +1,7 @@
 """Initial migration
 
 Revision ID: 73b22ccbe472
-Revises: 1ed43776064f
+Revises: fc791d73e762
 Create Date: 2017-04-24 09:08:30.923731
 
 """
@@ -9,8 +9,8 @@ Create Date: 2017-04-24 09:08:30.923731
 
 # revision identifiers, used by Alembic.
 revision = '73b22ccbe472'
-down_revision = '1ed43776064f'
-branch_labels = ('attendee_tournaments',)
+down_revision = 'fc791d73e762'
+branch_labels = None
 depends_on = None
 
 from alembic import op

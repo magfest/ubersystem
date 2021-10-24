@@ -1,7 +1,7 @@
 """Adds fields to panel_applicant
 
 Revision ID: a3d71270256c
-Revises: 3733faf640e9
+Revises: d0c15c44a031
 Create Date: 2017-08-03 15:42:52.406397
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-08-03 15:42:52.406397
 
 # revision identifiers, used by Alembic.
 revision = 'a3d71270256c'
-down_revision = '3733faf640e9'
+down_revision = 'd0c15c44a031'
 branch_labels = None
 depends_on = None
 

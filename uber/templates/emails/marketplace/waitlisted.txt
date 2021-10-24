@@ -1,0 +1,5 @@
+{{ app.attendee.first_name }},
+Thank you for applying to be in the Marketplace at {{ c.EVENT_NAME }} this year. Unfortunately, we have had so many submissions that we cannot fulfill them all this year, and as such, you have been placed on the waitlist. If space becomes available for you, we will notify you via email and you may pay for your space at that time.
+{% if app.attendee.badge_status == c.NEW_STATUS %}
+Your registration is unaffected by the state of your application, so if you have not yet paid for your badge, we encourage you to do so. Your badge price will reflect the price at the time you applied for the Marketplace, and you will be able to pay for your Marketplace space later if you are approved. You may update and pay for your badge here: {{ c.URL_BASE }}/preregistration/confirm?id={{ app.attendee_id }}{% endif %}
+{{ c.MARKETPLACE_APP_SIGNATURE }}

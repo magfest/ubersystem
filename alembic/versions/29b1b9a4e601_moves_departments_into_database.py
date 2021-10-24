@@ -1,7 +1,7 @@
 """Moves departments into database
 
 Revision ID: 29b1b9a4e601
-Revises: 4947b38a18b1
+Revises: e4d09d36083d
 Create Date: 2017-10-17 15:27:08.947357
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-10-17 15:27:08.947357
 
 # revision identifiers, used by Alembic.
 revision = '29b1b9a4e601'
-down_revision = '4947b38a18b1'
+down_revision = 'e4d09d36083d'
 branch_labels = None
 depends_on = None
 

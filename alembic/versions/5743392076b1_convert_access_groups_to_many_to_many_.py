@@ -1,7 +1,7 @@
 """Convert access groups to many-to-many relationship
 
 Revision ID: 5743392076b1
-Revises: 739fe558fde9
+Revises: 8888a0f4c1ef
 Create Date: 2019-09-05 23:48:21.292758
 
 """
@@ -9,7 +9,7 @@ Create Date: 2019-09-05 23:48:21.292758
 
 # revision identifiers, used by Alembic.
 revision = '5743392076b1'
-down_revision = '739fe558fde9'
+down_revision = '8888a0f4c1ef'
 branch_labels = None
 depends_on = None
 

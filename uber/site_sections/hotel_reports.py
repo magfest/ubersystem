@@ -91,11 +91,11 @@ def _hours_vs_rooms(session):
     for report in attendee_hotel_nights:
         attendee = report['attendee']
         report.update(
-            weighted_hours=attendee.weighted_hours - attendee.nonshift_hours,
-            worked_hours=attendee.worked_hours - attendee.nonshift_hours,
-            unweighted_hours=attendee.unweighted_hours - attendee.nonshift_hours,
-            unweighted_worked_hours=attendee.unweighted_worked_hours - attendee.nonshift_hours,
-            nonshift_hours=attendee.nonshift_hours,
+            weighted_hours=attendee.weighted_hours - attendee.nonshift_minutes / 60,
+            worked_hours=attendee.worked_hours - attendee.nonshift_minutes / 60,
+            unweighted_hours=attendee.unweighted_hours - attendee.nonshift_minutes / 60,
+            unweighted_worked_hours=attendee.unweighted_worked_hours - attendee.nonshift_minutes / 60,
+            nonshift_hours=attendee.nonshift_minutes / 60,
         )
     return attendee_hotel_nights
 
@@ -121,7 +121,7 @@ def _hours_vs_rooms_by_dept(session):
                 worked_hours=attendee.worked_hours_in(dept),
                 unweighted_hours=attendee.unweighted_hours_in(dept),
                 unweighted_worked_hours=attendee.unweighted_worked_hours_in(dept),
-                nonshift_hours=attendee.nonshift_hours,
+                nonshift_hours=attendee.nonshift_minutes / 60,
             )
 
             dept_report = departments[dept]

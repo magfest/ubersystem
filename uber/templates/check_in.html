@@ -16,6 +16,9 @@ var loadCheckInModal = function (attendeeID) {
                 field_order: 'MDY',
                 show_tooltips: false
             });
+            checkInModal.on('hidden.bs.modal', function (e) {
+                $('#stripeModal').remove();
+            });
         } else {
             toastr.error("Form loading failed.");
             checkInModal.modal('hide');
@@ -42,7 +45,7 @@ var checkIn = function (attendeeID) {
             var message = json.message;
             if (json.success) {
                 message += ' &nbsp; <a href="#" onClick="undoCheckIn(\'' + attendeeID + '\', ' + json.pre_badge + ') ; return false">Undo</a>';
-                $('#paattendeeID_' + attendeeID).html(json.paid);
+                $('#paid_' + attendeeID).html(json.paid);
                 $('#cin_' + attendeeID).html(json.checked_in);
                 $('#age_' + attendeeID).parent().html(json.age_group);
                 $('#num_' + attendeeID).parent().html(json.badge);

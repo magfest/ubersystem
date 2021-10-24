@@ -122,8 +122,8 @@ class Root:
         untaken = defaultdict(lambda: defaultdict(list))
         for job in session.jobs():
             if job.restricted and job.slots_taken < job.slots:
-                for hour in job.hours:
-                    untaken[job.department_id][hour].append(job)
+                for minute in job.minutes:
+                    untaken[job.department_id][minute].append(job)
         flagged = []
         for attendee in session.staffers():
             if not attendee.is_dept_head:
@@ -131,20 +131,20 @@ class Root:
                 for shift in attendee.shifts:
                     if not shift.job.restricted:
                         for dept in attendee.assigned_depts:
-                            for hour in shift.job.hours:
-                                if attendee.trusted_in(dept) and hour in untaken[dept]:
-                                    overlapping[shift.job].update(untaken[dept][hour])
+                            for minute in shift.job.minutes:
+                                if attendee.trusted_in(dept) and minute in untaken[dept]:
+                                    overlapping[shift.job].update(untaken[dept][minute])
                 if overlapping:
                     flagged.append([attendee, sorted(overlapping.items(), key=lambda tup: tup[0].start_time)])
         return {'flagged': flagged}
 
     def consecutive_threshold(self, session):
         def exceeds_threshold(start_time, attendee):
-            time_slice = [start_time + timedelta(hours=i) for i in range(18)]
-            return len([h for h in attendee.hours if h in time_slice]) >= 12
+            time_slice = (start_time, start_time + timedelta(hours=18))
+            return len([h for h in attendee.shift_minutes if time_slice[0] < h < time_slice[1]]) >= 13 * 60
         flagged = []
         for attendee in session.staffers():
-            if attendee.staffing and attendee.weighted_hours >= 12:
+            if attendee.staffing and attendee.unweighted_hours >= 12:
                 for start_time, desc in c.START_TIME_OPTS[::6]:
                     if exceeds_threshold(start_time, attendee):
                         flagged.append(attendee)
@@ -195,3 +195,10 @@ class Root:
 
     def volunteer_checklists(self, session):
         return volunteer_checklists(session)
+    
+    @csv_file
+    def name_in_credits(self, out, session):
+        out.writerow(["Name submitted for credits"])
+        for attendee in session.all_attendees():
+            if attendee.name_in_credits:
+                out.writerow([attendee.name_in_credits])

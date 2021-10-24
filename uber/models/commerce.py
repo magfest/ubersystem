@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Integer
 
@@ -76,7 +76,7 @@ class Sale(MagModel):
 
 class StripeTransaction(MagModel):
     stripe_id = Column(UnicodeText, nullable=True)
-    type = Column(Choice(c.TRANSACTION_TYPE_OPTS), default=c.PAYMENT)
+    type = Column(Choice(c.TRANSACTION_TYPE_OPTS), default=c.PENDING)
     amount = Column(Integer)
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     who = Column(UnicodeText)
@@ -110,13 +110,11 @@ class ReceiptItem(MagModel):
     stripe_transaction = relationship(
         StripeTransaction, backref='receipt_items',
         foreign_keys=txn_id, cascade='save-update,merge,refresh-expire,expunge')
-
-    fk_id = Column(UUID, nullable=True)
-    model = Column(UnicodeText)
-    txn_type = Column(Choice(c.TRANSACTION_TYPE_OPTS), default=c.PAYMENT)
+    txn_type = Column(Choice(c.TRANSACTION_TYPE_OPTS), default=c.PENDING)
     payment_method = Column(Choice(c.PAYMENT_METHOD_OPTS), default=c.STRIPE)
-    item_type = Column(Choice(c.RECEIPT_ITEM_OPTS), default=c.OTHER)
     amount = Column(Integer)
     when = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     who = Column(UnicodeText)
     desc = Column(UnicodeText)
+    cost_snapshot = Column(JSON, default={}, server_default='{}')
+    refund_snapshot = Column(JSON, default={}, server_default='{}')

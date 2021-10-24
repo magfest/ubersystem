@@ -1,7 +1,7 @@
 """Remove MIVS video review columns
 
 Revision ID: fa869546b8ca
-Revises: 6c5cf22429e2
+Revises: 2cd71c52889e
 Create Date: 2019-08-23 07:31:38.374122
 
 """
@@ -9,7 +9,7 @@ Create Date: 2019-08-23 07:31:38.374122
 
 # revision identifiers, used by Alembic.
 revision = 'fa869546b8ca'
-down_revision = '6c5cf22429e2'
+down_revision = '2cd71c52889e'
 branch_labels = None
 depends_on = None
 

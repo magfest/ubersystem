@@ -1,7 +1,7 @@
 """Add MIVS Judge status and game submission tracker
 
 Revision ID: 6c5cf22429e2
-Revises: 5c14f5a350dd
+Revises: e372e4daf771
 Create Date: 2018-09-21 22:25:24.475167
 
 """
@@ -9,7 +9,7 @@ Create Date: 2018-09-21 22:25:24.475167
 
 # revision identifiers, used by Alembic.
 revision = '6c5cf22429e2'
-down_revision = '5c14f5a350dd'
+down_revision = 'e372e4daf771'
 branch_labels = None
 depends_on = None
 

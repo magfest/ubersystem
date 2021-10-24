@@ -1,7 +1,7 @@
 """Adds more band info columns
 
 Revision ID: 6aef7396c197
-Revises: edd7b60ea4b4
+Revises: a3d71270256c
 Create Date: 2017-08-05 18:22:17.589936
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-08-05 18:22:17.589936
 
 # revision identifiers, used by Alembic.
 revision = '6aef7396c197'
-down_revision = 'edd7b60ea4b4'
+down_revision = 'a3d71270256c'
 branch_labels = None
 depends_on = None
 

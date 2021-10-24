@@ -1,7 +1,7 @@
 """Adds attendee.hotel_pin field
 
 Revision ID: 5dced3c6ef91
-Revises: 771555241255
+Revises: adf30f2f47d5
 Create Date: 2017-09-13 14:28:17.567037
 
 """
@@ -9,7 +9,7 @@ Create Date: 2017-09-13 14:28:17.567037
 
 # revision identifiers, used by Alembic.
 revision = '5dced3c6ef91'
-down_revision = '771555241255'
+down_revision = 'adf30f2f47d5'
 branch_labels = None
 depends_on = None
 

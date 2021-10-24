@@ -30,7 +30,7 @@
     </td>
     <td>{{ job.department_name }}</td>
     <td>{{ job.start_time_local|hourDay }}</td>
-    <td>{{ job.duration }} hours<span ng-if="job.extra15">, 15 minutes</span></td>
+    <td>{{ (job.duration / 60)|int }} hours{% if job.duration % 60 %}, {{ job.duration % 60 }} minutes{% endif %}</span></td>
     <td>x{{ job.weight }}</td>
     <td>
         <span ng-if="job.taken">

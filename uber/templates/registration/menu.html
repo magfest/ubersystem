@@ -4,7 +4,7 @@
     "../registration/shifts?id={id}&return_to=../registration/index", "Shifts", attendee.staffing and c.HAS_SHIFTS_ADMIN_ACCESS,
     "../registration/history?id={id}", "History", True,
     "../reg_admin/receipt_items?id={id}", "Receipt Items", c.HAS_REG_ADMIN_ACCESS,
-    "../security_admin/watchlist?attendee_id={id}", "Watch List Entry", attendee.banned and c.HAS_SECURITY_ADMIN_ACCESS,
+    "../registration/watchlist?id={id}", "Watch List Entry", attendee.banned and c.HAS_SECURITY_ADMIN_ACCESS,
     "../registration/index", "Return to Attendee List", c.PRE_CON,
     "../registration/index?search_text={id}", "Return to Attendee List", c.AT_THE_CON,
     "../registration/index", "Return to Attendee List", c.POST_CON

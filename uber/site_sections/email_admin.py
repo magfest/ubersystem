@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from pockets import groupify, listify
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
@@ -44,14 +44,13 @@ class Root:
             'automated_emails': emails_by_sender,
         }
 
-    def pending_examples(self, session, ident):
+    def pending_examples(self, session, ident, message=''):
         email = session.query(AutomatedEmail).filter_by(ident=ident).first()
         examples = []
         model = email.model_class
         query = AutomatedEmailFixture.queries.get(model)(session).order_by(model.id)
-        limit = 100
-        offset = 0
-        for model_instance in query.limit(limit).offset(offset):
+        limit = 1000
+        for model_instance in query.order_by(func.random()).limit(limit):
             if email.would_send_if_approved(model_instance):
                 # These examples are never added to the session or saved to the database.
                 # They are only used to render an example of the automated email.
@@ -69,13 +68,20 @@ class Root:
                 )
                 examples.append((model_instance, example))
                 example_count = len(examples)
-                if example_count > 1 or (example_count == 1 and offset > 0):
+                if example_count > 10:
                     break
-            offset += limit
         return {
             'email': email,
             'examples': examples,
+            'message': message,
         }
+    
+    def update_dates(self, session, ident, **params):
+        email = session.query(AutomatedEmail).filter_by(ident=ident).first()
+        email.apply(params, restricted=False)
+        session.add(email)
+        session.commit()
+        raise HTTPRedirect('pending_examples?ident={}&message={}', ident, 'Email send dates updated')
 
     def test_email(self, session, subject=None, body=None, from_address=None, to_address=None, **params):
         """
@@ -137,7 +143,9 @@ class Root:
             automated_email.approved = True
             raise HTTPRedirect(
                 'pending?message={}',
-                '"{}" approved and will be sent out shortly'.format(automated_email.subject))
+                '"{}" approved and will be sent out {}'.format(automated_email.subject, 
+                                                               "shortly" if not automated_email.active_when_label
+                                                               else automated_email.active_when_label))
         raise HTTPRedirect('pending?message={}{}', 'Unknown automated email: ', ident)
 
     @csrf_protected

@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 import cherrypy
 from pockets import classproperty, listify
+from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.dialects.postgresql.json import JSONB
@@ -9,12 +10,11 @@ from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Date
-from sqlalchemy.sql import and_, or_
 
 from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column, MultiChoice
+from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column
 
 
 __all__ = ['AccessGroup', 'AdminAccount', 'PasswordReset', 'WatchList']
@@ -189,8 +189,10 @@ class AdminAccount(MagModel):
     def full_registration_admin(self):
         return any([group.has_full_access('registration') for group in self.access_groups])
 
-    def has_dept_level_access(self, site_section_or_page):
-        return any([group.has_access_level(site_section_or_page, AccessGroup.DEPT) for group in self.access_groups])
+    def max_level_access(self, site_section_or_page, read_only=False):
+        write_access_list = [int(group.access.get(site_section_or_page, 0)) for group in self.access_groups]
+        read_access_list = [int(group.read_only_access.get(site_section_or_page, 0)) for group in self.access_groups]
+        return max(write_access_list + read_access_list) if read_only else max(write_access_list)
 
     @presave_adjustment
     def disable_api_access(self):
@@ -265,12 +267,18 @@ class AccessGroup(MagModel):
     def has_any_access(self, access_to, read_only=False):
         return self.has_access_level(access_to, self.LIMITED, read_only)
 
-    def has_access_level(self, access_to, access_level, read_only=False):
-        if read_only:
-            return int(self.access.get(access_to, 0)) >= access_level \
-                   or int(self.read_only_access.get(access_to, 0)) >= access_level
+    def has_access_level(self, access_to, access_level, read_only=False, max_level=False):
+        import operator
+        if max_level:
+            compare = operator.eq
+        else:
+            compare = operator.ge
 
-        return int(self.access.get(access_to, 0)) >= access_level
+        if read_only:
+            return compare(int(self.access.get(access_to, 0)), access_level) \
+                   or compare(int(self.read_only_access.get(access_to, 0)), access_level)
+
+        return compare(int(self.access.get(access_to, 0)), access_level)
 
 
 class WatchList(MagModel):
@@ -287,10 +295,15 @@ class WatchList(MagModel):
     def full_name(self):
         return '{} {}'.format(self.first_names, self.last_name).strip() or 'Unknown'
 
+    @property
+    def first_name_list(self):
+        return [name.strip().lower() for name in self.first_names.split(',')]
+
     @presave_adjustment
     def _fix_birthdate(self):
         if self.birthdate == '':
             self.birthdate = None
+
 
 c.ACCESS_GROUP_WRITE_LEVEL_OPTS = AccessGroup.WRITE_LEVEL_OPTS
 c.ACCESS_GROUP_READ_LEVEL_OPTS = AccessGroup.READ_LEVEL_OPTS
