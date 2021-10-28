@@ -1066,7 +1066,8 @@ class Charge:
 
     @cached_property
     def receipt_email(self):
-        return self.models[0].email if self.models and self.models[0].email else self._receipt_email
+        email = self.models[0].email if self.models and self.models[0].email else self._receipt_email
+        return email[0] if isinstance(email, list) else email   
 
     @cached_property
     def names(self):
