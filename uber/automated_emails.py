@@ -874,14 +874,7 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieJudge,
-        'MIVS Judging and {EVENT_NAME} Staffing',
-        'mivs/judge_staffers.txt',
-        lambda judge: judge.status == c.CONFIRMED,
-        ident='mivs_judge_staffers')
-
-    MIVSEmailFixture(
-        IndieJudge,
-        'MIVS Judge badge information',
+        'MIVS Judging survey and {EVENT_NAME} badge information',
         'mivs/judge_badge_info.txt',
         lambda judge: judge.status == c.CONFIRMED,
         ident='mivs_judge_badge_info')
