@@ -21,9 +21,13 @@
 .shift_available {
   background-color:#305fc9;
 }
-.fc-list-item-title .shift_button {
+.fc-list-event-title .btn.shift_button {
+  margin-top: -20px;
   color:white;
-  float:right;
+}
+.fc-event-title .btn.shift_button {
+  margin-top: -15px;
+  margin-right: 5px;
 }
 .text-public {
   color: #40c000;
@@ -110,6 +114,13 @@
   var shiftList = new Array();
   var publicEventList = new Array();
 
+  removeEventSources = function(array) {
+    var len = array.length;
+    for (var i = 0; i < len; i++) { 
+        array[i].remove(); 
+    } 
+  }
+
     $(document).ready(function() {
         {% for job in jobs %}
             {% if job.taken %}
@@ -150,18 +161,23 @@
             }
         {% endfor %}
 
-        $('#shift_cal').fullCalendar({
-            header: {
+        shiftCal = new FullCalendar.Calendar(document.getElementById('shift_cal'), {
+            headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
                 right: 'agendaDay,agendaConWeek,listConDuration'
             },
             views: {
-                agendaDay: { buttonText: 'Day' },
+                agendaDay: {
+                  type: 'timeGridDay',
+                  buttonText: 'Day',
+                  eventMaxStack: true, // allow "more" link when too many events
+                },
                 agendaConWeek: {
-                    type: 'agenda',
+                    type: 'timeGridWeek',
                     duration: { days: {{ cal_length }} },
-                    buttonText: 'Calendar'
+                    buttonText: 'Calendar',
+                    eventMaxStack: true, // allow "more" link when too many events
                 },
                 listConDuration: {
                     type: 'list',
@@ -169,36 +185,38 @@
                     buttonText: 'List'
                 }
             },
-            defaultView: 'listConDuration',
-            defaultDate: '{{ start_day.strftime('%Y-%m-%d') }}',
+            initialView: 'listConDuration',
+            initialDate: '{{ start_day.strftime('%Y-%m-%d') }}',
             slotDuration: '00:30:00',
             allDaySlot: false,
-            eventLimit: true, // allow "more" link when too many events
             slotEventOverlap: false,
             events: eventList,
-            eventRender: function(event, element, view) {
+            eventDidMount: function(arg) {
+                var event = arg.event;
+                var element = $(arg.el);
+                var view = arg.view;
                 var eventDesc = "";
-                if (event.description) {
-                    eventDesc += "<br/>" + event.description;
+                if (event.extendedProps.description) {
+                    eventDesc += "<br/>" + event.extendedProps.description;
                 }
-                if (event.extra15) {
+                if (event.extendedProps.extra15) {
                     eventDesc += " + 15 minute end-time."
                 }
-                var buttonTag = '<a class="btn shift_button ';
-                if (view.name !== 'listConDuration') {
+                var buttonTag = '<a class="btn shift_button pull-right ';
+                if (view.type !== 'listConDuration') {
                     buttonTag += 'btn-xs ';
                 }
-                if (event.taken) {
+                if (event.extendedProps.taken) {
                     buttonTag += 'btn-warning"';
                 } else {
                     buttonTag += 'btn-primary"';
                 }
 
-                buttonTag += "onclick=\"click_shift('" + event.taken + "','" + event.id + "','" +
-                moment(event.start).toISOString() + "','" + $('<div/>').text(event.title).html() + "')\"";
+                buttonTag += "onclick=\"click_shift('" + event.extendedProps.taken + "','" + event.id + "','" +
+                moment(event.extendedProps.start).toISOString() + "','" + $('<div/>').text(event.title).html() + "')\"";
 
                 buttonTag += '>';
-                if(event.taken) {
+                if(event.extendedProps.taken) {
                     buttonTag += 'Drop';
                 } else {
                     buttonTag += 'Sign up';
@@ -206,55 +224,56 @@
                 buttonTag += '</a>';
 
                 {% if c.AFTER_DROP_SHIFTS_DEADLINE %}
-                if (event.taken) {
+                if (event.extendedProps.taken) {
                   buttonTag = ''
                 }
                 {% endif %}
 
-                if(event.is_public_to_volunteer) {
-                  element.find('.fc-list-item-title').append($('<sup class="text-public"> public</sup>'));
+                if(event.extendedProps.is_public_to_volunteer) {
+                  element.find('.fc-list-event-title').append($('<sup class="text-public"> public</sup>'));
                   element.find('.fc-title').append($('<sup class="text-public"> public</sup>'));
                 }
-                element.find('.fc-list-item-title').append(eventDesc + buttonTag);
+                element.find('.fc-list-event-title').append(eventDesc + buttonTag);
+                element.find('.fc-event-title').append(eventDesc + buttonTag);
                 element.find('.fc-title').append(" " + buttonTag + '<br/>' + eventDesc);
             }
         });
         {% if view %}
             // Keep the view they were on when they added or dropped a shift
-            $('#shift_cal').fullCalendar('changeView', '{{ view }}');
+            shiftCal.changeView('{{ view }}');
             {% if start %}
-                $('#shift_cal').fullCalendar('gotoDate', '{{ start }}');
+                shiftCal.gotoDate('{{ start }}');
             {% endif %}
         {% endif %}
 
       $(".toggle-cal").click(function() {
-        $("#shift_cal").fullCalendar('removeEventSources');
+        removeEventSources(shiftCal.getEventSources());
         if ($(this).attr('state')=='all') {
-          $("#shift_cal").fullCalendar('addEventSource', shiftList);
+          shiftCal.addEventSource(shiftList);
           $(this).attr('state', 'shift');
         } else {
           var isPublic = $(".toggle-is_public").attr('state') == 'public';
-          $("#shift_cal").fullCalendar('addEventSource', isPublic ? publicEventList : eventList);
+          shiftCal.addEventSource(isPublic ? publicEventList : eventList);
           $(this).attr('state', 'all');
         }
-        $("#shift_cal").fullCalendar('refetchEvents');
+        shiftCal.refetchEvents();
         $(".state-text").toggleClass('hidden');
       });
 
       $(".toggle-is_public").click(function() {
         var isShifts = $(".toggle-cal").attr('state') == 'shift';
-        $("#shift_cal").fullCalendar('removeEventSources');
+        removeEventSources(shiftCal.getEventSources());
         if ($(this).attr('state')=='public') {
-          $("#shift_cal").fullCalendar('addEventSource', isShifts ? shiftList: eventList);
+          shiftCal.addEventSource(isShifts ? shiftList: eventList);
           $(this).attr('state', 'nonpublic');
         } else {
-          $("#shift_cal").fullCalendar('addEventSource', isShifts ? shiftList: publicEventList);
+          shiftCal.addEventSource(isShifts ? shiftList: publicEventList);
           $(this).attr('state', 'public');
         }
-        $("#shift_cal").fullCalendar('refetchEvents');
+        shiftCal.refetchEvents();
         $(".is_public-state-text").toggleClass('hidden');
       });
-
+      shiftCal.render();
     });
 
     function click_shift(taken,id,start,title) {
@@ -276,8 +295,8 @@
                 tgtShiftURL = "drop?job_id=" + id;
             }
             $.post( tgtShiftURL,postData,function( data,status ) {
-                var view = $('#shift_cal').fullCalendar('getView');
-                window.location.href = window.location.pathname + "?view=" + view.name + "&start=" + view.start.toISOString();
+                var view = shiftCal.view;
+                window.location.href = window.location.pathname + "?view=" + view.type + "&start=" + view.currentStart.toISOString();
             });
         }
     }
