@@ -43,7 +43,7 @@ class Root:
     @check_shutdown
     def shirt_size(self, session, message='', shirt=None, staff_shirt=None, num_event_shirts=None, csrf_token=None):
         attendee = session.logged_in_volunteer()
-        if shirt is not None:
+        if shirt is not None or staff_shirt is not None:
             check_csrf(csrf_token)
             if not int(shirt) or (attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS and not int(staff_shirt)):
                 message = 'You must select a shirt size'
