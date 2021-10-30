@@ -745,7 +745,7 @@
   {% set warn_on_change = c.PREREG_SHIRTS and not admin_area and attendee.shirt not in c.PREREG_SHIRTS.keys() %}
   {% if not admin_area %}
     <div class="shirt-row extra-row form-group" style="display:none">
-  {% elif attendee.num_event_shirts or attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS %}
+  {% elif attendee.num_event_shirts_owed or attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS %}
     <div class="form-group">
   {% endif %}
 <label for="shirt" class="col-sm-3 control-label">
