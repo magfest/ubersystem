@@ -50,6 +50,7 @@
 {% endif %}
 <form method="post" action="shirt_size" id="shirt_size" class="form-inline">
     {{ csrf_token() }}
+    {% if c.STAFF_EVENT_SHIRT_OPTS or attendee.num_event_shirts_owed %}
     <div class="form-group" id="event_shirt">
         <label class="control-label">
             {% if attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS %}Event {% endif %}Shirt Size
@@ -59,6 +60,7 @@
         {{ options(c.SHIRT_OPTS[1:], attendee.shirt) }}
         </select>
     </div>
+    {% endif %}
     {% if attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS %}
     &nbsp;<div class="form-group" id="staff_shirt">
         <label class="control-label">
