@@ -59,7 +59,7 @@
     You are assigned to the following department{{ assigned_depts_labels|length|pluralize }}: {{ assigned_depts_labels|join(' / ') }}.
     <br>
     {% if c.AFTER_DROP_SHIFTS_DEADLINE %}
-    You can <b>no longer drop shifts</b>, as the deadline for doing so has passed.
+    After {{ c.DROP_SHIFTS_DEADLINE|datetime_local }}, you must contact {{ c.STAFF_EMAIL|email_only|email_to_link }} to drop shifts. You may continue to add shifts through the event.
     <br/>
     {% else %}
     You can drop shifts until <b>{{ c.DROP_SHIFTS_DEADLINE|datetime_local }}</b>. <br/>
