@@ -4,7 +4,7 @@
 
 <h2>Office Supplies for {{ department.name }}</h2>
 
-<h3><a href="{{ c.OFFICE_SUPPLIES_FORM_URL }}">{{ c.EVENT_NAME }} Office Supplies Form</a></h3>
+<h3><a href="{{ c.OFFICE_SUPPLIES_FORM_URL }}" target="_blank">{{ c.EVENT_NAME }} Office Supplies Form</a></h3>
 
 <form method="post" action="office_supplies">
 {{ csrf_token() }}
