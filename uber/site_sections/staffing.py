@@ -41,14 +41,16 @@ class Root:
         }
 
     @check_shutdown
-    def shirt_size(self, session, message='', shirt=None, num_event_shirts=None, csrf_token=None):
+    def shirt_size(self, session, message='', shirt=None, staff_shirt=None, num_event_shirts=None, csrf_token=None):
         attendee = session.logged_in_volunteer()
         if shirt is not None:
             check_csrf(csrf_token)
-            if not shirt:
+            if not int(shirt) or (attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS and not int(staff_shirt)):
                 message = 'You must select a shirt size'
             else:
                 attendee.shirt = int(shirt)
+                if staff_shirt:
+                    attendee.staff_shirt = int(staff_shirt)
                 if c.STAFF_EVENT_SHIRT_OPTS and c.BEFORE_VOLUNTEER_SHIRT_DEADLINE and num_event_shirts:
                     attendee.num_event_shirts = int(num_event_shirts)
                 raise HTTPRedirect('index?message={}', 'Shirt info uploaded')

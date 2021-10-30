@@ -217,8 +217,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     affiliate = Column(UnicodeText)
 
-    # attendee shirt size for both swag and staff shirts
+    # If [[staff_shirt]] is the same as [[shirt]], we only use the shirt column
     shirt = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)
+    staff_shirt = Column(Choice(c.STAFF_SHIRT_OPTS), default=c.NO_SHIRT)
     num_event_shirts = Column(Choice(c.STAFF_EVENT_SHIRT_OPTS, allow_unspecified=True), default=-1)
     can_spam = Column(Boolean, default=False)
     regdesk_info = Column(UnicodeText, admin_only=True)
@@ -1025,7 +1026,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def shirt_size_marked(self):
-        return self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN]
+        if c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS:
+            return self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN]
+        else:
+            return (not self.num_event_shirts_owed or self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN]) and (
+                    not self.gets_staff_shirt or self.staff_shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN])
 
     @property
     def shirt_info_marked(self):
@@ -1288,7 +1293,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             staff_shirts = '{} Staff Shirt{}'.format(num_staff_shirts_owed, 's' if num_staff_shirts_owed > 1 else '')
             if self.shirt_size_marked:
                 try:
-                    staff_shirts += ' [{}]'.format(c.SHIRTS[self.shirt])
+                    if c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS:
+                        staff_shirts += ' [{}]'.format(c.STAFF_SHIRTS[self.staff_shirt])
+                    else:
+                        staff_shirts += ' [{}]'.format(c.SHIRTS[self.shirt])
                 except KeyError:
                     staff_shirts += ' [{}]'.format("Size unknown")
             merch.append(staff_shirts)

@@ -3,9 +3,6 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-<form method="post" action="shirt_size">
-{{ csrf_token() }}
-
 <h2> Tell Us Your Shirt Size </h2>
 
 <p>One of the perks of volunteering is a tshirt for anyone who takes at least {{ c.HOURS_FOR_SHIRT }} weighted hours worth of shifts.</p>
@@ -43,16 +40,48 @@
         {% if c.AFTER_VOLUNTEER_SHIRT_DEADLINE %}
             <b>Because we are past the deadline, your choice has been locked in.</b>
         {% endif %}
-        <br/> <input type="radio" name="num_event_shirts" value="0" {% if attendee.num_event_shirts == 0 %}checked{% endif %} {% if c.AFTER_VOLUNTEER_SHIRT_DEADLINE %}disabled{% endif %} /> I'd like {{ c.SHIRTS_PER_STAFFER }} staff shirts, to help keep them fresh through the event.
-        <br/> <input type="radio" name="num_event_shirts" value="1" {% if attendee.num_event_shirts == 1 %}checked{% endif %} {% if c.AFTER_VOLUNTEER_SHIRT_DEADLINE %}disabled{% endif %} /> I'd like {{ c.SHIRTS_PER_STAFFER - 1 }} staff shirt{{ (c.SHIRTS_PER_STAFFER - 1)|pluralize }}, and 1 standard event-themed swag shirt. <i>I can keep a staff shirt fresh through the event.</i>
+        <div class="input-group">
+        {% for num, label in c.STAFF_EVENT_SHIRT_OPTS|sort %}
+            <label class="checkbox-label"><input type="radio" form="shirt_size" name="num_event_shirts" value="{{ num }}" {% if attendee.num_event_shirts == num %}checked{% endif %} {% if c.AFTER_VOLUNTEER_SHIRT_DEADLINE %}disabled{% endif %} /> {{ label }}
+            {% if num > 0 %}<i> I can keep a staff shirt fresh through the event.</i>{% endif %}</label><br/>
+        {% endfor %}
+        </div>
     </p>
 {% endif %}
-<p>
-    <select name="shirt">
-        {{ options(opts, attendee.shirt) }}
-    </select>
-    <input type="submit" value="Save" />
-</p>
+<form method="post" action="shirt_size" id="shirt_size" class="form-inline">
+    {{ csrf_token() }}
+    <div class="form-group" id="event_shirt">
+        <label class="control-label">
+            {% if attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS %}Event {% endif %}Shirt Size
+        </label>
+        <select class="form-control" name="shirt">
+        <option value="{{ c.NO_SHIRT }}">Select a size</option>
+        {{ options(c.SHIRT_OPTS[1:], attendee.shirt) }}
+        </select>
+    </div>
+    {% if attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS %}
+    &nbsp;<div class="form-group" id="staff_shirt">
+        <label class="control-label">
+            Staff Shirt Size
+        </label>
+        <select class="form-control" name="staff_shirt">
+        <option value="{{ c.NO_SHIRT }}">Select a size</option>
+        {{ options(c.STAFF_SHIRT_OPTS[1:], attendee.staff_shirt) }}
+        </select>
+    </div>
+    {% endif %}
+    <button type="submit" class="btn btn-primary">Save</button>
 </form>
-
+<script type="text/javascript">
+if($.field('num_event_shirts')) {
+    showOrHideSizeOpts = function() {
+        if($('#staff_shirt').length) {
+            $('#staff_shirt').toggle($('input[name="num_event_shirts"]:checked').val() < {{ c.SHIRTS_PER_STAFFER }});
+        }
+        $('#event_shirt').toggle($('input[name="num_event_shirts"]:checked').val() > 0 || {{ (c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS)|lower }});
+    }
+    showOrHideSizeOpts();
+    $('input[name="num_event_shirts"]').bind('change',showOrHideSizeOpts);
+}
+</script>
 {% endblock %}
