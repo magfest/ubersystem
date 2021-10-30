@@ -5,7 +5,7 @@
 <h2>{{ conf.name }} for {{ department.name }}</h2>
 
 <form method="post" action="form" class="center">
-{{ conf.full_description|default(conf.description)|safe }}
+{{ conf.full_description|default(conf.description, true)|safe }}
 <br/> <br/>
 <input type="hidden" name="department_id" value="{{ department.id }}" />
 <input type="hidden" name="slug" value="{{ item.slug }}" />

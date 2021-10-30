@@ -239,6 +239,10 @@ class Root:
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'ppe_requests')
     
     @department_id_adapter
+    def office_supplies(self, session, department_id=None, submitted=None, csrf_token=None):
+        return _submit_checklist_item(session, department_id, submitted, csrf_token, 'office_supplies')
+    
+    @department_id_adapter
     def printed_signs(self, session, department_id=None, submitted=None, csrf_token=None):
         # We actually submit from this page to `form`, this just lets us render a custom page
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'printed_signs')
