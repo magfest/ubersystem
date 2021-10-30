@@ -5,7 +5,7 @@
 <h2>Bulk PPE requests for {{ department.name }}</h2>
 
 Please fill out the form below so that we can bulk order the appropriate amount of PPE for the event:
-<h3><a href="{{ c.PPE_FORM_URL }}">{{ c.EVENT_NAME }} PPE Request Form</a></h3>
+<h3><a href="{{ c.PPE_FORM_URL }}" target="_blank">{{ c.EVENT_NAME }} PPE Request Form</a></h3>
 
 <form method="post" action="ppe_requests">
 {{ csrf_token() }}
