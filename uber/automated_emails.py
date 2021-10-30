@@ -878,6 +878,14 @@ if c.MIVS_ENABLED:
         'mivs/judge_badge_info.txt',
         lambda judge: judge.status == c.CONFIRMED,
         ident='mivs_judge_badge_info')
+	
+    MIVSEmailFixture(
+        IndieGame,
+        'MIVS: Tournaments and Leaderboard Challenges',
+        'mivs/2020/tournaments_2020.txt',
+        lambda game: game.confirmed,
+        ident='mivs_tournaments'
+    )
 
     MIVSGuestEmailFixture(
         '{EVENT_NAME} MIVS Checklist',
@@ -961,40 +969,12 @@ if c.MIVS_ENABLED:
         'MIVS {EVENT_NAME}: Load-In @ MAGFest',
         'mivs/At-Con/LoadIn.txt',
         lambda game: game.confirmed,
-        ident='mivs_2020_LoadIn.txt'
+        ident='mivs_LoadIn.txt'
     )
 
-    # start year specific MIVS Emails
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS: Participating in MAGFest Versus and an Indie Game Preservation Panel',
-        'mivs/2020/strong_versus_2020.txt',
-        lambda game: game.confirmed,
-        ident='mivs_2020_versus'
-    )
-    
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS: Tournaments and Leaderboard Challenges',
-        'mivs/2020/tournaments_2020.txt',
-        lambda game: game.confirmed,
-        ident='mivs_2020_tournaments'
-    )
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS {EVENT_NAME}: Reminder for IGDA Meetup tonight',
-        'mivs/2020/igda_reminder.txt',
-        lambda game: game.confirmed,
-        ident='mivs_2020_igda_reminder'
-    )
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS {EVENT_NAME}: Reminder for MIVS Indie Mixer happening Tonight',
-        'mivs/2020/mixer_reminder.txt',
-        lambda game: game.confirmed,
-        ident='mivs_2020_mixer_reminder'
-    )
-
+    # start year specific MIVS Emails    
+	
+    #post con emails
     MIVSEmailFixture(
         IndieGame,
         'MIVS {EVENT_NAME}: Request for Feedback',
