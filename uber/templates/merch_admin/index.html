@@ -15,6 +15,11 @@
         $shirtOpts.append($('<option/>').val(size[0]).text(size[1]));
     });
 
+    var $staffShirtOpts = $('<select/>').attr('id', 'staff-shirt');
+    $.each({{ c.MERCH_STAFF_SHIRT_OPTS|jsonize }}, function(i,size) {
+        $staffShirtOpts.append($('<option/>').val(size[0]).text(size[1]));
+    });
+
     /**
      * Given the list of items returned by Attendee.merch_list, return a nested
      * list of those items for display when that attendee's merch is checked.
@@ -222,9 +227,13 @@
                         $('#give').empty().append(
                             createMerchList(resp.message, resp.merch_items)
                         );
-                        if (resp.shirt != {{ c.NO_SHIRT }}) {
+                        if (resp.shirt != {{ c.NO_SHIRT }} && !staffMerch) {
                             $('#give').append('Choose a shirt size:').append($shirtOpts);
-                            $('#give select').val(resp.shirt);
+                            $('#give #shirt').val(resp.shirt);
+                        }
+                        if (resp.staff_shirt != {{ c.NO_SHIRT }} && staffMerch) {
+                            $('#give').append('Choose staff shirt size:').append($staffShirtOpts);
+                            $('#give #staff-shirt').val(resp.shirt);
                         }
 
                         if (resp.swadges_available || !resp.gets_swadge) {
