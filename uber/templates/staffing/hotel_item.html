@@ -36,7 +36,7 @@
             {{ macros.checklist_image(attendee.hotel_requests) }}
                 Tell us
             {% endif %}
-            whether you want hotel room space no later than <b>{{ c.ROOM_DEADLINE|datetime_local }}</b>
+            whether you want hotel room space no later than <b>{{ c.ROOM_DEADLINE|datetime_local }}</b>.{% if c.STAFF_ROOM_FAQ_URL %} Please <a href="{{ c.STAFF_ROOM_FAQ_URL }}" target="_blank">review our FAQ</a> first.{% endif %}
             {% if attendee.hotel_requests %}
                 {% if c.HOTEL_REQUESTS_URL %}
                     (you may <a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/request?id={{ attendee.id }}">edit your request</a> until then).
