@@ -49,7 +49,8 @@ class Root:
                 attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS and not int(staff_shirt)):
                 message = 'You must select a shirt size'
             else:
-                attendee.shirt = int(shirt)
+                if shirt:
+                    attendee.shirt = int(shirt)
                 if staff_shirt:
                     attendee.staff_shirt = int(staff_shirt)
                 if c.STAFF_EVENT_SHIRT_OPTS and c.BEFORE_VOLUNTEER_SHIRT_DEADLINE and num_event_shirts:
