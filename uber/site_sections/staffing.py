@@ -45,7 +45,8 @@ class Root:
         attendee = session.logged_in_volunteer()
         if shirt is not None or staff_shirt is not None:
             check_csrf(csrf_token)
-            if not int(shirt) or (attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS and not int(staff_shirt)):
+            if (shirt and not int(shirt)) or (
+                attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS and not int(staff_shirt)):
                 message = 'You must select a shirt size'
             else:
                 attendee.shirt = int(shirt)
