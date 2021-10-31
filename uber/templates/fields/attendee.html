@@ -554,7 +554,7 @@
     <script type="text/javascript">
         var donationChanged = function () {
             setVisible('.affiliate-row', $.val('amount_extra') > 0);
-            {% if attendee.gets_any_kind_of_shirt %}
+            {% if attendee.num_event_shirts_owed or attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS %}
                 setVisible('.shirt-row', true);
             {% else %}
                 setVisible('.shirt-row', $.val('amount_extra') >= {{ c.SHIRT_LEVEL }});
@@ -740,12 +740,12 @@
 
 {% set shirt_size %}
 {% set read_only = shirt_size_ro or page_ro %}
-{% if not admin_area or attendee.gets_any_kind_of_shirt %}
+{% if not admin_area or attendee.num_event_shirts_owed or attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS %}
   {% set shirt_opts = c.PREREG_SHIRT_OPTS if not admin_area else c.SHIRT_OPTS %}
   {% set warn_on_change = c.PREREG_SHIRTS and not admin_area and attendee.shirt not in c.PREREG_SHIRTS.keys() %}
   {% if not admin_area %}
     <div class="shirt-row extra-row form-group" style="display:none">
-  {% elif attendee.num_event_shirts_owed or attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS %}
+  {% else %}
     <div class="form-group">
   {% endif %}
 <label for="shirt" class="col-sm-3 control-label">
@@ -776,7 +776,7 @@
   <select name="staff_shirt" class="form-control">
     {% if warn_on_change %}<option value="{{ attendee.staff_shirt }}">{{ attendee.staff_shirt_label }}</option>{% endif %}
     {% if not admin_area %}<option value="{{ c.NO_SHIRT }}">Select a shirt size</option>{% endif %}
-    {{ options(c.STAFF_SHIRT_OPTS[1:],attendee.staff_shirt) }}
+    {{ options(c.STAFF_SHIRT_OPTS,attendee.staff_shirt) }}
   </select>
 </div>
 {% if warn_on_change %}
