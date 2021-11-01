@@ -60,7 +60,7 @@ class Root:
         def status(got_merch):
             return 'picked_up' if got_merch else 'outstanding'
 
-        sales_by_week = OrderedDict([(i, 0) for i in range(50)])
+        sales_by_week = OrderedDict([(i, 0) for i in range(52)])
 
         for attendee in session.all_attendees():
             shirt_label = attendee.shirt_label or 'size unknown'
@@ -73,7 +73,8 @@ class Root:
             counts['free_event_shirts'][label(shirt_label)][status(attendee.got_merch)] += attendee.num_free_event_shirts
             if attendee.paid_for_a_shirt:
                 counts['paid_event_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
-                sales_by_week[(min(datetime.now(UTC), c.ESCHATON) - attendee.registered).days // 7] += 1
+                sale_week = (min(datetime.now(UTC), c.ESCHATON) - attendee.registered).days // 7
+                sales_by_week[min(sale_week, 52)] += 1
 
         for week in range(48, -1, -1):
             sales_by_week[week] += sales_by_week[week + 1]

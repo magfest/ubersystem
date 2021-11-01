@@ -28,6 +28,8 @@
             <li>
                 {% if weeks_ago == 0 %}
                     We have currently sold {{ count }} shirts.
+                {% elif weeks_age == 52 %}
+                    <b>{{ weeks_ago }} week{{ weeks_ago|pluralize }} or more ago:</b> {{ count }} shirt{{ count|pluralize }}
                 {% else %}
                     <b>{{ weeks_ago }} week{{ weeks_ago|pluralize }} ago:</b> {{ count }} shirt{{ count|pluralize }}
                 {% endif %}
