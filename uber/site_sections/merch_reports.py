@@ -60,7 +60,7 @@ class Root:
         def status(got_merch):
             return 'picked_up' if got_merch else 'outstanding'
 
-        sales_by_week = OrderedDict([(i, 0) for i in range(52)])
+        sales_by_week = OrderedDict([(i, 0) for i in range(53)])
 
         for attendee in session.all_attendees():
             shirt_label = attendee.shirt_label or 'size unknown'
