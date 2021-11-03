@@ -67,7 +67,7 @@ class Root:
     def edit(self, session, message='', **params):
         app = session.art_show_application(params, restricted=True,
                                            ignore_csrf=True)
-        return_to = params.get('return_to', '/art_show_applications/edit?id={}'.format(app.id))
+        return_to = params.get('return_to', '/art_show_applications/edit')
         if not params.get('id'):
             message = 'Invalid art show application ID. ' \
                       'Please try going back in your browser.'
