@@ -547,6 +547,35 @@ class AttendeeLookup:
                 'attendees': attendees,
             }
 
+    @api_auth('api_read')
+    def printable(self):
+        """
+        Returns all attendees whose badges are ready to print.
+
+        Results are returned in JSON.
+        """
+
+        with Session() as session:
+            printable_attendees = session.query(Attendee).filter_by(print_pending=True).all()
+
+            fields = [
+                'first_name',
+                'last_name',
+                'badge_printed_name',
+                'badge_num',
+                'badge_type_label',
+                'ribbon_labels',
+                'staffing',
+            ]
+
+            attendees = []
+            for a in printable_attendees:
+                attendees.append(a.to_dict(fields))
+
+            return {
+                'attendees': attendees,
+            }
+
     @api_auth('api_create')
     def create(self, first_name, last_name, email, params):
         """
