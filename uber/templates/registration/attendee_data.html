@@ -82,6 +82,7 @@ if($.field('return_to')) {
     {{ attendee_fields.badge_type }}
     {{ attendee_fields.ribbons }}
     {{ attendee_fields.name }}
+    {{ attendee_fields.age }}
     {{ attendee_fields.email }}
     {{ attendee_fields.paid }}
     {{ attendee_fields.admin_notes }}
@@ -93,7 +94,6 @@ if($.field('return_to')) {
     {{ attendee_fields.is_placeholder }}
     {{ attendee_fields.badge_status }}
     {{ attendee_fields.print_pending }}
-    {{ attendee_fields.reprint_fee }}
     {% if c.HAS_ACCOUNTS_ACCESS %}
       {{ attendee_fields.admin_access }}
     {% endif %}
@@ -118,6 +118,9 @@ if($.field('return_to')) {
     {{ attendee_fields.admin_notes }}
   {% endif %}
 </form>
+{% if not attendee.is_new %}
+{{ attendee_fields.print_badge }}
+{% endif %}
 <div class="modal-footer">
   <div class="form-group">
   {% if not attendee.is_new %}
