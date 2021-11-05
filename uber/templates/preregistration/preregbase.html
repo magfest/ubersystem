@@ -10,10 +10,10 @@
     {% elif c.HAS_GROUP_ADMIN_ACCESS and group %}
     <a class="btn btn-default" href="../group_admin/form?id={{ group.id }}">Admin Form</a>
     {% endif %}
-    {% if c.ATTENDEE_ACCOUNTS_ENABLED and not account and c.PAGE_PATH != '/preregistration/homepage' %}
+    {% if c.ATTENDEE_ACCOUNTS_ENABLED and logged_in_account and not account and c.PAGE_PATH != '/preregistration/homepage' %}
     <a class="btn btn-info" href="../preregistration/homepage">Homepage</a>
     {% endif %}
-    {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+    {% if c.ATTENDEE_ACCOUNTS_ENABLED and logged_in_account %}
     <a class="btn btn-danger" href="../preregistration/logout">Logout</a>
     {% endif %}
 </div>
