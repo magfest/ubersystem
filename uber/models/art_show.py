@@ -126,6 +126,8 @@ class ArtShowApplication(MagModel):
         if self.delivery_method == c.BY_MAIL \
                 and not self.address1:
             return "Mailing address required"
+        if not self.attendee:
+            return "No attendee assigned to application"
         if self.attendee.placeholder and self.attendee.badge_status != c.NOT_ATTENDING:
             return "Missing registration info"
 
