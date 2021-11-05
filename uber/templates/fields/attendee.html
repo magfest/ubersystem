@@ -481,25 +481,23 @@
 
 {% set name %}
 {% set read_only = name_ro or (page_ro and not (limited_write or contact_write)) %}
-{% if not admin_area %}
-  <script type="text/javascript">
-      var sameLegalNameChecked = function () {
-          if ($("#same_legal_name").prop('checked')) {
-              $.field('legal_name').prop('readonly', true).val('').prop('required', false).valid();
-              $("label[for='legal_name']").addClass('optional-field');
-          } else if ($("#same_legal_name").length) {
-              $.field('legal_name').prop('readonly', false).prop('required', true);
-              $("label[for='legal_name']").removeClass('optional-field');
-          }
-      };
-      $(window).on("runJavaScript", function () {
-          if ($('#same_legal_name').length) {
-              sameLegalNameChecked();
-              $('#same_legal_name').change(sameLegalNameChecked);
-          }
-      })
-  </script>
-{% endif %}
+<script type="text/javascript">
+    var sameLegalNameChecked = function () {
+        if ($("#same_legal_name").prop('checked')) {
+            $.field('legal_name').prop('readonly', true).val('').prop('required', false).valid();
+            $("label[for='legal_name']").addClass('optional-field');
+        } else if ($("#same_legal_name").length) {
+            $.field('legal_name').prop('readonly', false).prop('required', true);
+            $("label[for='legal_name']").removeClass('optional-field');
+        }
+    };
+    $(window).on("runJavaScript", function () {
+        if ($('#same_legal_name').length) {
+            sameLegalNameChecked();
+            $('#same_legal_name').change(sameLegalNameChecked);
+        }
+    })
+</script>
 <div class="form-group">
   <label for="first_name" class="col-sm-3 control-label">Name</label>
   {% call macros.read_only_if(read_only, attendee.masked_name if limited_read else attendee.full_name) %}
@@ -516,12 +514,12 @@
   {% endcall %}
 </div>
 
-{% if not admin_area and not read_only %}
+{% if not read_only %}
   <div class="form-group">
     <div class="col-sm-9 col-sm-offset-3">
       <label for="same_legal_name" class="checkbox-label">
         <input type="checkbox" name="same_legal_name" id="same_legal_name" value="1" {% if attendee.first_name != '' and attendee.legal_name == '' %}checked="checked"{% endif %} />
-        The above name is exactly what appears on my Legal Photo ID
+        The above name is exactly what appears on {{ "my" if not admin_area else "their" }} Legal Photo ID
       </label>
     </div>
   </div>
@@ -1837,10 +1835,9 @@ $(window).on("runJavaScript", function(){
 {% endset %}
 
 
-{% set reprint_fee %}
+{% set print_badge %}
 {% if c.BADGE_REPRINT_FEE %}
-{# This field currently breaks the page flow and should be replaced with an AJAX call. #}
-<div class="form-group">
+<div class="form-group" id="reprint_fee">
   <label class="col-sm-3 control-label">Reprint Badge</label>
   <div class="col-sm-6">
       <form role="form" method="post" action="../badge_printing/reprint_fee">
@@ -1852,6 +1849,10 @@ $(window).on("runJavaScript", function(){
       </form>
   </div>
 </div>
+
+<script type="text/javascript">
+  $('#reprint_fee').insertAfter($.field('badge_status').parents('.form-group'));
+</script>
 {% endif %}
 {% endset %}
 {% endif %}
