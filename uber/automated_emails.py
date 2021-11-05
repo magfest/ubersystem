@@ -299,21 +299,21 @@ if c.ART_SHOW_ENABLED:
     ArtShowAppEmailFixture(
         '{EVENT_NAME} Art Show piece entry needed',
         'art_show/pieces_reminder.txt',
-        lambda a: a.status == c.PAID and not a.art_show_pieces,
+        lambda a: not a.is_unpaid and not a.art_show_pieces,
         when=days_before(15, c.EPOCH),
         ident='art_show_pieces_reminder')
 
     ArtShowAppEmailFixture(
         'Reminder to assign an agent for your {EVENT_NAME} Art Show application',
         'art_show/agent_reminder.html',
-        lambda a: a.status == c.PAID and not a.agent,
+        lambda a: not a.is_unpaid and not a.agent,
         when=after(c.EVENT_TIMEZONE.localize(datetime(int(c.EVENT_YEAR), 11, 1))),
         ident='art_show_agent_reminder')
 
     ArtShowAppEmailFixture(
         '{EVENT_NAME} Art Show MAIL IN Instructions',
         'art_show/mailing_in.html',
-        lambda a: a.status == c.PAID and a.delivery_method == c.BY_MAIL,
+        lambda a: not a.is_unpaid and a.delivery_method == c.BY_MAIL,
         when=days_before(40, c.ART_SHOW_DEADLINE),
         ident='art_show_mail_in')
 

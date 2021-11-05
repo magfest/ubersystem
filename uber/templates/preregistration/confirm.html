@@ -39,6 +39,10 @@
     {% endif %}
     {% block panel_top %}{% endblock %}
 
+    {% if c.ART_SHOW_ENABLED and not attendee.is_new %}
+      {% include 'art_show_common/art_show_agent.html' %}
+    {% endif %}
+
     <form method="post" action="confirm" class="form-horizontal">
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ attendee.id }}" />
