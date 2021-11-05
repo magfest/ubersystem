@@ -228,12 +228,21 @@
                 hideMethod: "fadeOut",
                 onShown: function() {
                   replaceQueryParamInUrl('message');
+                  replaceQueryParamInUrl('error_message');
                 }
             };
-            var message = '{{ message }}';
-            var error_message = '{{ error_message }}';
+            var message = '{{ message|safe }}';
+            var error_message = '{{ error_message|safe }}';
             if (error_message.length) {
-                toastr.error(error_message);
+                if (error_message.startsWith("ERROR: ")) {
+                    toastr.error(error_message.substr(7));
+                } else {
+                    toastr.error(error_message);
+                }
+            } else if (message.length && message.startsWith("ERROR: ")) {
+                toastr.error(message.substr(7));
+            } else if (message.length && message.startsWith("SUCCESS: ")) {
+                toastr.success(message.substr(9));
             } else if (message.length) {
                 toastr.info(message);
             }
