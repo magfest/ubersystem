@@ -1068,7 +1068,7 @@ class PrintJobLookup:
             return job.id
 
     @api_auth('api_update')
-    def print_job_complete(self, job_ids, complete_all=False):
+    def print_job_complete(self, job_ids=None, complete_all=False):
         """
         Marks print jobs as printed.
 
@@ -1081,11 +1081,11 @@ class PrintJobLookup:
         """
         with Session() as session:
             base_query = session.query(PrintJob).filter_by(printed=None)
-            job_ids = [id.strip() for id in job_ids.split(',')]
 
             if complete_all:
                 jobs = base_query.all()
             else:
+                job_ids = [id.strip() for id in job_ids.split(',')]
                 jobs = base_query.filter(PrintJob.id.in_(job_ids)).all()
 
             if not jobs:
