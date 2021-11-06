@@ -509,6 +509,7 @@ class MagModel:
 from uber.models.admin import *  # noqa: F401,E402,F403
 from uber.models.promo_code import *  # noqa: F401,E402,F403
 from uber.models.attendee import *  # noqa: F401,E402,F403
+from uber.models.badge_printing import *  # noqa: F401,E402,F403
 from uber.models.commerce import *  # noqa: F401,E402,F403
 from uber.models.department import *  # noqa: F401,E402,F403
 from uber.models.email import *  # noqa: F401,E402,F403
@@ -1215,6 +1216,50 @@ class Session(SessionManager):
                 code = codes.pop()
                 self.delete(code)
                 pc_group.promo_codes.remove(code)
+
+        def add_to_print_queue(self, attendee, printer_id, reg_station):
+            from uber.models import PrintJob
+            fields = [
+                    'badge_printed_name',
+                    'badge_num',
+                    'badge_type_label',
+                    'ribbon_labels',
+                    ]
+            
+            errors = []
+            if not printer_id:
+                errors.append("Printer ID not set.")
+
+            if not reg_station:
+                errors.append("Reg station number not set.")
+            
+            if not attendee.birthdate or attendee.age_group_conf['val'] == c.AGE_UNKNOWN:
+                errors.append("Age group not recognized.")
+
+            if self.query(PrintJob).filter_by(attendee_id=attendee.id, printed=None, errors="").first():
+                errors.append("Badge is already queued to print.")
+
+            if errors:
+                return errors
+
+            queue_entry = PrintJob(attendee_id = attendee.id, 
+                                     admin_id = self.current_admin_account().id,
+                                     admin_name = self.admin_attendee().full_name,
+                                     printer_id = printer_id,
+                                     reg_station = reg_station)
+
+            if attendee.age_group_conf['val'] in [c.UNDER_21, c.OVER_21]:
+                queue_entry.is_minor = False
+            else:
+                queue_entry.is_minor = True
+            
+            json_data = attendee.to_dict(fields)
+            del json_data['_model']
+            json_data['id'] = queue_entry.id
+            queue_entry.json_data = json_data
+            
+            self.add(queue_entry)
+            self.commit()
 
         def get_next_badge_num(self, badge_type):
             """

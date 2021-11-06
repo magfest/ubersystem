@@ -8,6 +8,7 @@
 
 <div class="panel panel-default">
 <div class="panel-body">
+    {% include 'registration/queue_badge.html' %}
 <form method="post" action="form" class="form-horizontal">
 {{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />

@@ -892,7 +892,7 @@ class Root:
                 params[key] = True
             if params[key] == "null":
                 params[key] = ""
-                
+
         attendee = session.attendee(params, allow_invalid=True)
 
         if attendee.is_new and (not attendee.first_name or not attendee.last_name):

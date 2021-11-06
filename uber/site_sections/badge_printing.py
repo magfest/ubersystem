@@ -1,9 +1,13 @@
+import cherrypy
 import math
 
+from datetime import datetime
+
 from uber.config import c
-from uber.decorators import all_renderable
+from uber.custom_tags import time_day_local
+from uber.decorators import ajax, ajax_gettable, all_renderable
 from uber.errors import HTTPRedirect
-from uber.models import Attendee
+from uber.models import Attendee, PrintJob
 from uber.utils import localized_now
 
 
@@ -140,3 +144,76 @@ class Root:
 
         raise HTTPRedirect('../registration/form?id={}&message={}',
                            attendee_id, message)
+
+    def queued_badges(self, session):
+        return {
+            'badges': session.query(PrintJob).all(),
+        }
+
+    @ajax
+    def add_job_to_queue(self, session, id, printer_id=0):
+        errors = session.add_to_print_queue(session.attendee(id), printer_id, cherrypy.session.get('reg_station'))
+        if errors:
+            return {'success': False, 'message': "<br>".join(errors)}
+
+        return {'success': True, 'message': 'Print job created!'}
+
+    @ajax_gettable
+    def mark_as_unsent(self, session, id):
+        job = session.print_job(id)
+        if not job.queued:
+            success = False
+            message = "Job hasn't yet been sent to printer."
+        else:
+            success = True
+            message = "Job marked as unsent to printer."
+            job.queued = None
+            session.add(job)
+            session.commit()
+        
+        return {
+            'success': success,
+            'message': message,
+            'id': job.id,
+            'queued': "No"
+        }
+
+    @ajax_gettable
+    def mark_as_printed(self, session, id):
+        job = session.print_job(id)
+        if job.printed:
+            success = False
+            message = "Job already marked as printed."
+        else:
+            success = True
+            message = "Job marked as printed."
+            job.printed = datetime.utcnow()
+            session.add(job)
+            session.commit()
+        
+        return {
+            'success': success,
+            'message': message,
+            'id': job.id,
+            'printed': time_day_local(job.printed)
+        }
+    
+    @ajax_gettable
+    def mark_as_invalid(self, session, id):
+        job = session.print_job(id)
+        if job.errors:
+            success = False
+            message = "Job is already invalid."
+        else:
+            success = True
+            message = "Job marked as invalid."
+            job.errors = "Marked invalid by {}".format(session.admin_attendee().full_name)
+            session.add(job)
+            session.commit()
+        
+        return {
+            'success': success,
+            'message': message,
+            'id': job.id,
+            'errors': job.errors
+        }
