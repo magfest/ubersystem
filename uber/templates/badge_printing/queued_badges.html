@@ -34,16 +34,16 @@
     <td id="printed_{{ badge.id }}" data-order="{{ badge.printed }}">{{ badge.printed|time_day_local|default("No", true) }}</td>
     <td id="errors_{{ badge.id }}">{{ badge.errors }}</td>
     <td>
-        {% if badge.queued %}
-        <a class="btn btn-info ajax-link" href="mark_as_unsent?id={{ badge.id }}">Mark as Unsent</a>
-        {% endif %}
         {% if not badge.printed %}
-        <a class="btn btn-success ajax-link" href="mark_as_printed?id={{ badge.id }}">Mark as Printed</a>
-        {% endif %}
-        {% if not badge.printed and not badge.errors %}
-        <a id="errors_{{ badge.id }}_link" class="btn btn-danger ajax-link" href="mark_as_invalid?id={{ badge.id }}">
-            Mark as Invalid
-        </a>
+            {% if badge.queued and not badge.errors %}
+            <a id="queued_{{ badge.id }}_link" class="btn btn-info ajax-link" href="mark_as_unsent?id={{ badge.id }}">Mark as Unsent</a>
+            {% endif %}
+            <a class="btn btn-success ajax-link" href="mark_as_printed?id={{ badge.id }}">Mark as Printed</a>
+            {% if not badge.errors %}
+            <a class="btn btn-danger ajax-link" href="mark_as_invalid?id={{ badge.id }}">
+                Mark as Invalid
+            </a>
+            {% endif %}
         {% endif %}
     </td>
     </tr>
@@ -71,10 +71,11 @@
                 }
                 if (json.printed) {
                     $('#printed_' + json.id).html(json.printed);
-                    $('#errors_' + json.id + '_link').hide()
+                    $link.parent('td').children().hide();
                 }
                 if (json.errors) {
                     $('#errors_' + json.id).html(json.errors);
+                    $('#queued_' + json.id + '_link').hide()
                 }
             },
             error: function () {
