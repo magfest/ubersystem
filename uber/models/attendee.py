@@ -423,6 +423,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     # =========================
     times_printed = Column(Integer, default=0)
     print_pending = Column(Boolean, default=False)
+    print_requests = relationship('PrintJob', backref='attendee')
     
     # =========================
     # art show

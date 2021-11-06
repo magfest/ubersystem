@@ -22,6 +22,7 @@ from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
 from uber.models import AdminAccount, ApiToken, Attendee, Department, DeptMembership, DeptMembershipRequest, \
     Event, IndieStudio, Job, Session, Shift, GuestGroup, Room, HotelRequests, RoomAssignment
+from uber.models.badge_printing import PrintJob
 from uber.server import register_jsonrpc
 from uber.utils import check, check_csrf, normalize_email, normalize_newlines
 
@@ -547,35 +548,6 @@ class AttendeeLookup:
                 'attendees': attendees,
             }
 
-    @api_auth('api_read')
-    def printable(self):
-        """
-        Returns all attendees whose badges are ready to print.
-
-        Results are returned in JSON.
-        """
-
-        with Session() as session:
-            printable_attendees = session.query(Attendee).filter_by(print_pending=True).all()
-
-            fields = [
-                'first_name',
-                'last_name',
-                'badge_printed_name',
-                'badge_num',
-                'badge_type_label',
-                'ribbon_labels',
-                'staffing',
-            ]
-
-            attendees = []
-            for a in printable_attendees:
-                attendees.append(a.to_dict(fields))
-
-            return {
-                'attendees': attendees,
-            }
-
     @api_auth('api_create')
     def create(self, first_name, last_name, email, params):
         """
@@ -1038,6 +1010,97 @@ class BarcodeLookup:
         except Exception as e:
             raise HTTPError(500, "Couldn't look up barcode value: " + str(e))
 
+class PrintJobLookup:
+    @api_auth('api_read')
+    def pending_jobs(self, restart=False, dry_run=False):
+        """
+        Returns pending print jobs' `json_data`.
+
+        Takes the boolean `restart` as the first parameter.
+        If true, pulls any print job that's not marked as printed or invalid.
+        Otherwise, only print jobs not marked as sent to printer are returned.
+
+        Takes the boolean `dry_run` as the second parameter.
+        If true, pulls print jobs without marking them as sent to printer.
+
+        Returns a dictionary of jobs' `json_data`, keyed by job ID.
+        """
+
+        with Session() as session:
+            filters = [PrintJob.printed == None, PrintJob.errors == '']
+            if not restart:
+                filters += [PrintJob.queued == None]
+            print_jobs = session.query(PrintJob).filter(*filters).all()
+
+            results = {}
+            for job in print_jobs:
+                results[job.id] = job.json_data
+                if not dry_run:
+                    job.queued = datetime.utcnow()
+                    session.add(job)
+                    session.commit()
+
+        return results
+
+    @api_auth('api_update')
+    def print_job_error(self, id, error):
+        """
+        Adds an error message to a print job, effectively marking it invalid or appending
+        the new error if the job already has errors recorded.
+
+        Takes the print job ID as the first parameter.
+
+        Takes the error message as the second parameter.
+
+        Returns either the job ID or an error message.
+        """
+        with Session() as session:
+            job = session.query(PrintJob).filter_by(id=id).first()
+
+            if not job:
+                return "Job ID {} not found.".format(id)
+
+            if job.errors:
+                job.errors += "; " + error
+            session.add(job)
+            session.commit()
+
+            return job.id
+
+    @api_auth('api_update')
+    def print_job_complete(self, job_ids, complete_all=False):
+        """
+        Marks print jobs as printed.
+
+        Takes either a single job ID string or a list of comma-separated job IDs as the first parameter.
+
+        Takes the boolean `complete_all` as the second parameter.
+        If true, all pending print jobs are marked as printed.
+
+        Returns a list of jobs marked printed or an error message.
+        """
+        with Session() as session:
+            base_query = session.query(PrintJob).filter_by(printed=None)
+            job_ids = [id.strip() for id in job_ids.split(',')]
+
+            if complete_all:
+                jobs = base_query.all()
+            else:
+                jobs = base_query.filter(PrintJob.id.in_(job_ids)).all()
+
+            if not jobs:
+                return "No jobs found with those IDs."
+
+            changed_job_ids = []
+
+            for job in jobs:
+                changed_job_ids.append(job.id)
+                job.printed = datetime.utcnow()
+                session.add(job)
+                session.commit()
+
+            return changed_job_ids
+
 
 if c.API_ENABLED:
     register_jsonrpc(AttendeeLookup(), 'attendee')
@@ -1049,3 +1112,4 @@ if c.API_ENABLED:
     register_jsonrpc(MivsLookup(), 'mivs')
     register_jsonrpc(HotelLookup(), 'hotel')
     register_jsonrpc(ScheduleLookup(), 'schedule')
+    register_jsonrpc(PrintJobLookup(), 'print_job')

@@ -348,7 +348,7 @@
     <div class="row">
       <div class="col-sm-6 prose-column">
         {% if loop.first %}<h1>Live Examples</h1>{% endif %}
-        <h2>{{ service.name|title }} Service</h2>
+        <h2>{{ service.name|replace('_', ' ')|title }} Service</h2>
       </div>
     </div>
     <div class="row">
