@@ -87,7 +87,7 @@ class ArtShowApplication(MagModel):
 
             if not code_candidate:
                 # We're out of manual alternatives, time for a random code
-                code_candidates = ''.join([random.choices(string.ascii_uppercase, 3) for _ in range(100)])
+                code_candidates = [''.join(random.choices(string.ascii_uppercase, k=3)) for _ in range(100)]
                 for code_candidate in code_candidates:
                     if code_candidate not in old_codes:
                         break
