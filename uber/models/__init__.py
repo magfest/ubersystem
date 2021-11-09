@@ -1236,6 +1236,13 @@ class Session(SessionManager):
             if not attendee.birthdate or attendee.age_group_conf['val'] == c.AGE_UNKNOWN:
                 errors.append("Age group not recognized.")
 
+            fields = ['badge_num', 'badge_type_label', 'badge_printed_name']
+            attendee_fields = attendee.to_dict(fields)
+
+            for field in fields:
+                if not attendee_fields.get(field):
+                    errors.append("Field missing: {}.".format(field))
+
             if self.query(PrintJob).filter_by(attendee_id=attendee.id, printed=None, errors="").first():
                 errors.append("Badge is already queued to print.")
 
@@ -1255,11 +1262,42 @@ class Session(SessionManager):
             
             json_data = attendee.to_dict(fields)
             del json_data['_model']
-            json_data['id'] = queue_entry.id
+            json_data['attendee_id'] = json_data.pop('id')
             queue_entry.json_data = json_data
             
             self.add(queue_entry)
             self.commit()
+
+        def update_badge_print_job(self, id):
+            job = self.print_job(id)
+            attendee = job.attendee
+
+            errors = []
+
+            if attendee.age_group_conf['val'] == c.AGE_UNKNOWN:
+                errors.append("Attendee no longer has an age group.")
+            else:
+                attendee_is_minor = attendee.age_group_conf['val'] not in [c.UNDER_21, c.OVER_21]
+
+                if attendee_is_minor and not job.is_minor:
+                    errors.append("Attendee is now under 18, please requeue badge.")
+                if not attendee_is_minor and job.is_minor:
+                    errors.append("Attendee is no longer under 18, please requeue badge.")
+            
+            fields = ['badge_num', 'badge_type_label', 'ribbon_labels', 'badge_printed_name']
+            attendee_fields = attendee.to_dict(fields)
+
+            for field in fields:
+                if not attendee_fields.get(field) and field != 'ribbon_labels':
+                    errors.append("Field missing: {}.".format(field))
+                elif attendee_fields.get(field) != job.json_data.get(field):
+                    job.json_data[field] = attendee_fields.get(field)
+
+            if not errors:
+                self.add(job)
+                self.commit()
+
+            return errors
 
         def get_next_badge_num(self, badge_type):
             """
