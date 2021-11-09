@@ -720,8 +720,7 @@
     </div>
   {% endif %}
 {% else %}
-  {% if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or attendee.amount_extra >= c.SUPPORTER_LEVEL %}
-    <div class="form-group">
+    <div class="form-group badge-row"{% if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES and attendee.amount_extra < c.SUPPORTER_LEVEL %} style="display:none"{% endif %}>
       <label for="badge_printed_name" class="col-sm-3 control-label">Name Printed on Badge</label>
       {% call macros.read_only_if(read_only, attendee.badge_printed_name) %}
         <div class="col-sm-6">
@@ -730,7 +729,6 @@
       {% endcall %}
     </div>
   {% endif %}
-{% endif %}
 {% endif %}
 {% endset %}
 
