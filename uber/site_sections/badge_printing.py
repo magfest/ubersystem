@@ -152,7 +152,7 @@ class Root:
 
     @ajax
     def add_job_to_queue(self, session, id, printer_id=0):
-        errors = session.add_to_print_queue(session.attendee(id), printer_id, cherrypy.session.get('reg_station'))
+        print_id, errors = session.add_to_print_queue(session.attendee(id), printer_id, cherrypy.session.get('reg_station'))
         if errors:
             return {'success': False, 'message': "<br>".join(errors)}
 

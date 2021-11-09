@@ -1012,7 +1012,7 @@ class BarcodeLookup:
 
 class PrintJobLookup:
     @api_auth('api_read')
-    def pending_jobs(self, printer_ids='', restart=False, dry_run=False):
+    def get_pending(self, printer_ids='', restart=False, dry_run=False):
         """
         Returns pending print jobs' `json_data`.
 
@@ -1060,8 +1060,34 @@ class PrintJobLookup:
 
         return results
 
+    @api_auth('api_create')
+    def create(self, attendee_id, printer_id, reg_station):
+        """
+        Create a new print job for a specified badge.
+        
+        Takes the attendee ID as the first parameter, the printer ID as the second parameter,
+        and the reg station number as the third parameter.
+
+        Returns the new print job's ID.
+        """
+        with Session() as session:
+            try:
+                reg_station = int(reg_station)
+            except ValueError:
+                raise HTTPError(400, "Reg station must be an integer.")
+
+            attendee = session.query(Attendee).filter_by(id=attendee_id).first()
+            if not attendee:
+                raise HTTPError(404, "Attendee not found.")
+            
+            print_id, errors = session.add_to_print_queue(attendee, printer_id, reg_station)
+            if errors:
+                raise HTTPError(424, "Attendee not ready to print. Error(s): {}".format("; ".join(errors)))
+            
+            return print_id
+
     @api_auth('api_update')
-    def print_job_error(self, job_ids, error):
+    def add_error(self, job_ids, error):
         """
         Adds an error message to a print job, effectively marking it invalid or appending
         the new error if the job already has errors recorded.
@@ -1070,14 +1096,14 @@ class PrintJobLookup:
 
         Takes the error message as the second parameter.
 
-        Returns a list of changed jobs or an error message.
+        Returns a list of changed jobs.
         """
         with Session() as session:
             job_ids = [id.strip() for id in job_ids.split(',')]
             jobs = session.query(PrintJob).filter(PrintJob.id.in_(job_ids)).all()
 
             if not jobs:
-                return "No jobs found with those IDs."
+                raise HTTPError(404, '"No jobs found with those IDs."')
 
             changed_job_ids = []
 
@@ -1093,7 +1119,7 @@ class PrintJobLookup:
             return changed_job_ids
 
     @api_auth('api_update')
-    def print_job_complete(self, job_ids='', complete_all=False):
+    def mark_complete(self, job_ids='', complete_all=False):
         """
         Marks print jobs as printed.
 
@@ -1102,7 +1128,7 @@ class PrintJobLookup:
         Takes the boolean `complete_all` as the second parameter.
         If true, all pending print jobs are marked as printed.
 
-        Returns a list of jobs marked printed or an error message.
+        Returns a list of jobs marked printed.
         """
         with Session() as session:
             base_query = session.query(PrintJob).filter_by(printed=None)
@@ -1110,13 +1136,13 @@ class PrintJobLookup:
             if complete_all:
                 jobs = base_query.all()
             elif not job_ids:
-                return "You must provide at least one job ID or set complete_all to True."
+                raise HTTPError(400, "You must provide at least one job ID or set complete_all to True.")
             else:
                 job_ids = [id.strip() for id in job_ids.split(',')]
                 jobs = base_query.filter(PrintJob.id.in_(job_ids)).all()
 
             if not jobs:
-                return "No jobs found with those IDs."
+                raise HTTPError(404, '"No jobs found with those IDs."')
 
             changed_job_ids = []
 
