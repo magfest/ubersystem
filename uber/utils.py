@@ -717,6 +717,12 @@ def mount_site_sections(module_root):
         setattr(Root, site_section, module.Root())
 
 
+def get_static_file_path(filename):
+    for item in cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].config:
+        if filename in item:
+            return cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].config[item]['tools.staticfile.filename']
+
+
 def add_opt(opts, other):
     """
     Add an option to an integer or list of integers, converting it to a comma-separated string.

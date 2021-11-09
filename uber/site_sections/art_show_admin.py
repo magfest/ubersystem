@@ -14,7 +14,7 @@ from uber.decorators import ajax, all_renderable, credit_card, public
 from uber.errors import HTTPRedirect
 from uber.models import ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, \
                         Attendee, Tracking, ArbitraryCharge
-from uber.utils import Charge, check, localized_now, Order
+from uber.utils import Charge, check, get_static_file_path, localized_now, Order
 
 
 @all_renderable()
@@ -402,7 +402,7 @@ class Root:
             pieces = app.art_show_pieces
 
         pdf = fpdf.FPDF(unit='pt', format='letter')
-        pdf.add_font('3of9', '', os.path.join(c.MODULE_ROOT, 'static/fonts/free3of9.ttf'), uni=True)
+        pdf.add_font('3of9', '', get_static_file_path('free3of9.ttf'), uni=True)
         
         def set_fitted_font_size(text, font_size=12, max_size=160):
             pdf.set_font_size(size=font_size)
@@ -421,7 +421,7 @@ class Root:
                 yplus = 396
 
             # Location, Piece ID, and barcode
-            pdf.image(os.path.join(c.MODULE_ROOT, 'static/images/bidsheet.png'), x=0 + xplus, y=0 + yplus, w=306)
+            pdf.image(get_static_file_path('bidsheet.png'), x=0 + xplus, y=0 + yplus, w=306)
             pdf.set_font("Arial", size=10)
             pdf.set_xy(81 + xplus, 27 + yplus)
             pdf.cell(80, 16, txt=piece.app.locations, ln=1, align="C")
