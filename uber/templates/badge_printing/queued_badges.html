@@ -25,7 +25,7 @@
         <a href="../registration/form?id={{ badge.attendee.id }}">{{ badge.attendee.full_name }}</a>
     </td>
     <td>
-        {{ badge.attendee.badge_printed_name }}
+        {{ badge.json_data['badge_printed_name'] }}
     </td>
     <td>{{ badge.admin_name }}</td>
     <td>{{ badge.printer_id }}</td>
