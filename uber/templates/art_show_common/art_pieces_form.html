@@ -121,6 +121,9 @@
       {{ macros.form_group(app, 'hotel_room_num', label="Room Number", is_readonly=readonly) }}
 
       {% if app.delivery_method == c.BY_MAIL %}
+      {% if c.BY_MAIL_US_ONLY and not admin_area %}
+      <input type="hidden" name="us_only" value="{{ app.us_only|yesno("1,0") }}" />
+      {% endif %}
       {{ macros.form_group(app, 'business_name', label="Mailing Business Name", placeholder=app.attendee.full_name, is_readonly=readonly) }}
       {{ macros.address_form(app, label_prefix="Mailing", is_readonly=readonly) }}
       {% endif %}
