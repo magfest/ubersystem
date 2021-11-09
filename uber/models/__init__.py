@@ -1247,26 +1247,28 @@ class Session(SessionManager):
                 errors.append("Badge is already queued to print.")
 
             if errors:
-                return errors
+                return None, errors
 
-            queue_entry = PrintJob(attendee_id = attendee.id, 
+            print_job = PrintJob(attendee_id = attendee.id, 
                                      admin_id = self.current_admin_account().id,
                                      admin_name = self.admin_attendee().full_name,
                                      printer_id = printer_id,
                                      reg_station = reg_station)
 
             if attendee.age_group_conf['val'] in [c.UNDER_21, c.OVER_21]:
-                queue_entry.is_minor = False
+                print_job.is_minor = False
             else:
-                queue_entry.is_minor = True
+                print_job.is_minor = True
             
             json_data = attendee.to_dict(fields)
             del json_data['_model']
             json_data['attendee_id'] = json_data.pop('id')
-            queue_entry.json_data = json_data
+            print_job.json_data = json_data
             
-            self.add(queue_entry)
+            self.add(print_job)
             self.commit()
+
+            return print_job.id, None
 
         def update_badge_print_job(self, id):
             job = self.print_job(id)
