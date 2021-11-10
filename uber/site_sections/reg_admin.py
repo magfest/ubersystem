@@ -9,7 +9,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c, _config
 from uber.custom_tags import pluralize
-from uber.decorators import all_renderable, not_site_mappable, site_mappable
+from uber.decorators import ajax, all_renderable, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, DeptMembership, DeptMembershipRequest
 from uber.utils import get_api_service_from_server, normalize_email
@@ -130,6 +130,27 @@ class Root:
             'message': message,
             'attendees': session.query(Attendee).filter(~Attendee.managers.any()).options(raiseload('*')).all(),
         }
+
+    def payment_pending_attendees(self, session):
+        possibles = session.possible_match_list()
+        attendees = []
+        pending = session.query(Attendee).filter_by(paid=c.PENDING).filter(Attendee.badge_status != c.INVALID_STATUS)
+        for attendee in pending:
+            attendees.append([attendee, set(possibles[attendee.email.lower()] + 
+                                            possibles[attendee.first_name, attendee.last_name])])
+        return {
+            'attendees': attendees,
+        }
+    
+    @ajax
+    def invalidate_badge(self, session, id):
+        attendee = session.attendee(id)
+        attendee.badge_status = c.INVALID_STATUS
+        session.add(attendee)
+
+        session.commit()
+
+        return {'invalidated': id}
 
     def import_attendees(self, session, target_server='', api_token='', query='', message=''):
         service, service_message, target_url = get_api_service_from_server(target_server, api_token)

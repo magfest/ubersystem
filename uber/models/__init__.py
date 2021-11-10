@@ -945,6 +945,13 @@ class Session(SessionManager):
                     self.delete(receipt_item)
                 self.delete(stripe_txn)
 
+        def possible_match_list(self):
+            possibles = defaultdict(list)
+            for a in self.valid_attendees():
+                possibles[a.email.lower()].append(a)
+                possibles[a.first_name, a.last_name].append(a)
+            return possibles
+
         def guess_attendee_watchentry(self, attendee, active=True):
             """
             Finds all watchlist entries that match a given attendee.
@@ -1381,7 +1388,7 @@ class Session(SessionManager):
             return attendee
 
         def valid_attendees(self):
-            return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)
+            return self.query(Attendee).filter(not_(Attendee.badge_status.in_([c.PENDING_STATUS, c.INVALID_STATUS])))
 
         def attendees_with_badges(self):
             return self.query(Attendee).filter(not_(Attendee.badge_status.in_(
