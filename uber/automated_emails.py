@@ -882,7 +882,7 @@ if c.MIVS_ENABLED:
     MIVSEmailFixture(
         IndieGame,
         'MIVS: Tournaments and Leaderboard Challenges',
-        'mivs/2020/tournaments_2020.txt',
+        'mivs/confirmed/tournaments.txt',
         lambda game: game.confirmed,
         ident='mivs_tournaments'
     )
