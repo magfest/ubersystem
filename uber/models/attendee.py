@@ -990,6 +990,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.badge_status not in [c.COMPLETED_STATUS, c.NEW_STATUS]:
             return "Badge status is {}".format(self.badge_status_label)
+
+        if self.group and self.group.is_dealer and self.group.status != c.APPROVED:
+            return "Unapproved dealer"
         
         if self.placeholder:
             return "Placeholder badge"
