@@ -15,6 +15,7 @@
             <th>Badge Type</th>
             <th>Purchased Items</th>
             <th>Amount Unpaid</th>
+            <th>Amount Pending</th>
             <th>Receipt Items</th>
             </tr>
         </thead>
@@ -41,6 +42,9 @@
             </td>
             <td>
                 {{ attendee.amount_unpaid|format_currency }}
+            </td>
+            <td>
+                {{ attendee.amount_pending|format_currency }}
             </td>
             <td>
                 <a class="btn btn-success" href="receipt_items?id={{ attendee.id }}" target="_blank">View Receipt Items</a>
