@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Art Show Pieces Bought - {{ receipt.attendee.full_name }}{% endblock %}
 {% block content %}
-<h3>Art Show Purchases for {{ receipt.attendee|form_link }}</h3>
+<h3>Art Show Purchases for {{ receipt.attendee|form_link }} <a href="../art_show_admin/sales_search" class="btn btn-default pull-right">Return to Search</a></h3>
 {% for receipt_iter in receipt.attendee.art_show_receipts %}
 {% if receipt_iter.id != receipt.id %}
 <a href="pieces_bought?id={{ receipt_iter.id }}">(Invoice #{{ receipt_iter.invoice_num }})</a>
