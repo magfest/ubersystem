@@ -1389,6 +1389,29 @@ $(window).on("runJavaScript", function () {
 {% endset %}
 
 
+{% set attendee_account %}
+{% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+<div class="form-group">
+  <label class="col-sm-3 control-label">Account Email{{ attendee.managers|length|pluralize }}</label>
+  <div class="col-sm-6 form-control-static">
+    {% for manager in attendee.managers %}
+      {% if not loop.first %} / {% endif %}{{ manager.email }}
+      {% if manager.attendees|length > 1 %}
+      ({%- for managed_attendee in manager.attendees -%}
+          {%- if managed_attendee.id != attendee.id -%}
+          {{ managed_attendee|form_link }}{% if not loop.last %} / {% endif %}
+          {%- endif -%}
+        {%- endfor -%})
+      {% endif %}
+    {% else %}
+      This attendee has no attendee accounts.
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endset %}
+
+
 {% set is_placeholder %}
 {% set read_only = is_placeholder_ro or page_ro %}
 <script type="text/javascript">
