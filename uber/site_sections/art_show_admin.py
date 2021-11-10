@@ -731,10 +731,10 @@ class Root:
 
         if type == str(c.CASH):
             amount = amount or receipt.owed
-            message = 'Cash payment of ${} recorded'.format(format_currency(amount / 100))
+            message = 'Cash payment of {} recorded'.format(format_currency(amount / 100))
         else:
             amount = amount or receipt.paid
-            message = 'Refund of ${} recorded'.format(format_currency(amount / 100))
+            message = 'Refund of {} recorded'.format(format_currency(amount / 100))
 
         session.add(ArtShowPayment(
             receipt=receipt,
