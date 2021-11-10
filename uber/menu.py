@@ -149,7 +149,7 @@ if c.BADGE_PRINTING_ENABLED:
 if c.ART_SHOW_ENABLED:
     c.MENU.append_menu_item(MenuItem(name='Art Show', submenu=[
         MenuItem(name='Applications', href='../art_show_admin/'),
-        MenuItem(name='Link to Apply', href='../art_show_applications/'),
+        MenuItem(name='Link to Apply', href='../art_show_applications/', access_override='art_show_admin'),
         MenuItem(name='At-Con Operations', href='../art_show_admin/ops'),
         MenuItem(name='Reports', href='../art_show_reports/index'),
         MenuItem(name='Sales Charge Form', href='../art_show_admin/sales_charge_form'),
