@@ -59,7 +59,8 @@ class Root:
         return {
             'message': message,
             'won_pieces': session.query(ArtShowPiece).join(ArtShowPiece.buyer).join(Attendee.art_show_bidder)
-                .filter(ArtShowPiece.winning_bid.isnot(None), ArtShowPiece.status == c.SOLD),
+                .filter(ArtShowPiece.winning_bid.isnot(None), ArtShowPiece.status == c.SOLD)
+                .order_by(ArtShowBidder.bidder_num, ArtShowPiece.piece_id, ArtShowPiece.name),
             'admin_report': admin_report,
             'now': localized_now(),
         }
