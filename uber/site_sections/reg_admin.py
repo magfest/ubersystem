@@ -152,6 +152,12 @@ class Root:
 
         return {'invalidated': id}
 
+    def attendees_who_owe_money(self, session):
+        unpaid_attendees = [attendee for attendee in session.attendees_with_badges() if attendee.amount_unpaid]
+        return {
+            'attendees': unpaid_attendees,
+        }
+
     def import_attendees(self, session, target_server='', api_token='', query='', message=''):
         service, service_message, target_url = get_api_service_from_server(target_server, api_token)
         message = message or service_message
