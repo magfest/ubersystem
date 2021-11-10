@@ -891,7 +891,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             personal_cost = max(0, self.total_cost - self.badge_cost)
         else:
             personal_cost = self.total_cost
-        return max(0, ((personal_cost * 100) - self.amount_paid - self.amount_pending) / 100)
+        return max(0, ((personal_cost * 100) - self.amount_paid) / 100)
 
     @property
     def paid_for_badge(self):
