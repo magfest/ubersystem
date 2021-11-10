@@ -4,7 +4,7 @@
 
 <h3>Payment Pending Attendees</h3>
 
-The following is a list of attendees whose initial payments were never completed.
+<p>The following is a list of attendees whose initial payments were never completed. Pending attendees with upgrades still count against stocks.</p>
 
 <table class="table table-striped datatable">
 <thead>
@@ -12,6 +12,7 @@ The following is a list of attendees whose initial payments were never completed
         <th>Registered</th>
         <th>Attendee</th>
         <th>Email</th>
+        <th>Upgrade</th>
         <th>Possible Matches</th>
         <th></th>
     </tr>
@@ -21,7 +22,8 @@ The following is a list of attendees whose initial payments were never completed
     <tr id="{{ attendee.id }}">
         <td>{{ attendee.created.when|datetime_local }}</td>
         <td>{{ attendee|form_link("true") }}</td>
-        <td>{{ attendee.email|email_to_link }}</td>
+        <td>{{ attendee.email }}</td>
+        <td>{{ attendee.amount_extra_label }}</td>
         <td>
             {% for match in matches|selectattr('id','!=',attendee.id) %}
                 <p>
