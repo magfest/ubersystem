@@ -1,0 +1,56 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Payment Pending Attendees{% endblock %}}
+{% block content %}
+
+<h3>Payment Pending Attendees</h3>
+
+The following is a list of attendees whose initial payments were never completed.
+
+<table class="table table-striped datatable">
+<thead>
+    <tr>
+        <th>Registered</th>
+        <th>Attendee</th>
+        <th>Email</th>
+        <th>Possible Matches</th>
+        <th></th>
+    </tr>
+</thead>
+<tbody>
+{% for attendee, matches in attendees %}
+    <tr id="{{ attendee.id }}">
+        <td>{{ attendee.created.when|datetime_local }}</td>
+        <td>{{ attendee|form_link }}</td>
+        <td>{{ attendee.email|email_to_link }}</td>
+        <td>
+            {% for match in matches|selectattr('id','!=',attendee.id) %}
+                <p>
+                    {{ match|form_link }} [{{ match.badge_status_label }}] ({{ match.email }})
+                </p>
+            {% else %}
+                (no matching attendees)
+            {% endfor %}
+        </td>
+        <td><button class="btn btn-danger" onClick="invalidate('{{ attendee.id }}')">Invalidate</button></td>
+    </tr>
+{% endfor %}
+</tbody>
+</table>
+
+<script>
+    var hideRows = function (id) {
+        $('#' + id).hide('slow');
+    };
+    var invalidate = function (attendeeId) {
+        $.post('invalidate_badge', {csrf_token: csrf_token, id: attendeeId}, function (response) {
+            if (response.error) {
+                toastr.error(response.error);
+            } else {
+                toastr.info('Invalidated badge');
+                hideRows(response.invalidated);
+            }
+        }, 'json');
+    };
+</script>
+
+{% endblock %}
