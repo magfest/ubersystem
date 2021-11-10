@@ -728,7 +728,9 @@ class Root:
             # rename all the "group_" fields.
             group_params = dict(params)
             for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city']:
-                group_params[field_name] = params.get('group_{}'.format(field_name), '')
+                group_field_name = 'group_{}'.format(field_name)
+                if group_field_name in params:
+                    group_params[field_name] = params.get(group_field_name, '')
 
             group.apply(group_params, restricted=True)
             message = check(group, prereg=True)
