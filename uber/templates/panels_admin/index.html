@@ -17,6 +17,7 @@
         <th>Status</th>
         <th>Point of Contact</th>
         <th>Guest?</th>
+        <th>Tabletop?</th>
     </tr>
 </thead>
 <tbody>
@@ -39,6 +40,7 @@
             {% endif %}
         </td>
         <td>{% if app.poc and app.poc.guest_group %}{{ app.poc.guest_group.group_type_label }} "{{ app.poc.group|form_link }}"{% else %}No{% endif %}</td>
+        <td>{{ app.tabletop|yesno("Yes,No") }}</td>
     </tr>
 {% endfor %}
 </tbody>
