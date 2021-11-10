@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Art Show Pieces Bought - {{ receipt.attendee.full_name }}{% endblock %}
 {% block content %}
-<h3>Art Show Purchases for {{ receipt.attendee|form_link }}</h3>
+<h3>Art Show Purchases for {{ receipt.attendee|form_link }} <a href="../art_show_admin/sales_search" class="btn btn-default pull-right">Return to Search</a></h3>
 {% for receipt_iter in receipt.attendee.art_show_receipts %}
 {% if receipt_iter.id != receipt.id %}
 <a href="pieces_bought?id={{ receipt_iter.id }}">(Invoice #{{ receipt_iter.invoice_num }})</a>
@@ -60,10 +60,11 @@ Invoice #{{ receipt.invoice_num }}
       <thead>
       <tr>
         {% if receipt_open %}<th>Unclaim Piece</th>{% endif %}
-        <th>ID</th>
+        <th>Piece ID</th>
         <th>Status</th>
-        <th>Name</th>
+        <th>Piece Title</th>
         <th>Media</th>
+        <th>Artist Name</th>
         <th>Gallery</th>
         <th>Type</th>
         <th class="text-right">Price</th>
@@ -88,6 +89,7 @@ Invoice #{{ receipt.invoice_num }}
         <td>{{ piece.status_label }}</td>
         <td> {{ piece.name|wordwrap(25, wrapstring="<br />"|safe) }} </td>
         <td> {{ piece.media }} </td>
+        <td> <a href="../art_show_admin/form?id={{ piece.app.id }}" target="_blank">{{ piece.app.display_name }}</a></td>
         <td> {{ piece.gallery_label }} </td>
         <td> {{ piece.type_label }}
           {% if piece.print_run_num and piece.type == c.PRINT %}({{ piece.print_run_num }} of {{ piece.print_run_total }}){% endif %}
@@ -97,14 +99,14 @@ Invoice #{{ receipt.invoice_num }}
       </tr>
       {% endfor %}
       {% if receipt.pieces %}
-      <tr><td colspan="8" class="text-right">Subtotal: {{ (receipt.subtotal / 100)|format_currency }}</td></tr>
-      <tr><td colspan="8" class="text-right">Sales Tax ({{ c.SALES_TAX / 100 }}%): {{ (receipt.tax / 100)|format_currency }}</td></tr>
-      <tr><td colspan="8" class="text-right">Total Cost: {{ (receipt.total / 100)|format_currency }}</td></tr>
-      <tr><td colspan="8" class="text-right">Total Paid: {{ (receipt.paid / 100)|format_currency }}</td></tr>
-      <tr><td colspan="8"></td></tr>
+      <tr><td colspan="9" class="text-right">Subtotal: {{ (receipt.subtotal / 100)|format_currency }}</td></tr>
+      <tr><td colspan="9" class="text-right">Sales Tax ({{ c.SALES_TAX / 100 }}%): {{ (receipt.tax / 100)|format_currency }}</td></tr>
+      <tr><td colspan="9" class="text-right">Total Cost: {{ (receipt.total / 100)|format_currency }}</td></tr>
+      <tr><td colspan="9" class="text-right">Total Paid: {{ (receipt.paid / 100)|format_currency }}</td></tr>
+      <tr><td colspan="9"></td></tr>
       {% if receipt.owed and receipt_open %}
-      <tr><td colspan="8" class="text-right">Owed: {{ (receipt.owed / 100)|format_currency }}</td></tr>
-      <tr><td colspan="8" class="text-right">
+      <tr><td colspan="9" class="text-right">Owed: {{ (receipt.owed / 100)|format_currency }}</td></tr>
+      <tr><td colspan="9" class="text-right">
         <form role="form" method="post" class="form form-inline" action="record_payment">
           <input type="hidden" name="id" value="{{ receipt.id }}" />
           <input type="hidden" name="type" value="{{ c.CASH }}" />
@@ -114,7 +116,7 @@ Invoice #{{ receipt.invoice_num }}
           <button type="submit" class="btn btn-success">Record Cash Payment</button>
         </form>
       </td></tr>
-      <tr><td colspan="8" class="text-right">
+      <tr><td colspan="9" class="text-right">
       <div class="form form-inline">
           <div class="input-group">
             <span class="input-group-addon">$</span><input type="text" class="form-control" id="stripe_amount" placeholder="{{ (receipt.owed / 100)|format_currency }}" />
@@ -123,7 +125,7 @@ Invoice #{{ receipt.invoice_num }}
       </div>
       </td></tr>
       {% endif %}
-      <tr><td colspan="8" class="text-right">
+      <tr><td colspan="9" class="text-right">
         <form role="form" method="post" class="form form-inline" action="record_payment">
           <input type="hidden" name="id" value="{{ receipt.id }}" />
           <input type="hidden" name="type" value="{{ c.REFUND }}" />
@@ -134,10 +136,10 @@ Invoice #{{ receipt.invoice_num }}
         </form>
       </td></tr>
       {% if not receipt.owed %}
-      <tr><td colspan="8" class="text-right"><button class="btn btn-primary" id="print_receipt">Print{% if receipt_open %} & Close Out{% endif %} Receipt</button></td></tr>
+      <tr><td colspan="9" class="text-right"><button class="btn btn-primary" id="print_receipt">Print{% if receipt_open %} & Close Out{% endif %} Receipt</button></td></tr>
       {% endif %}
       {% for payment in receipt.art_show_payments %}
-      <tr><td colspan="8" class="text-right">
+      <tr><td colspan="9" class="text-right">
         <form role="form" method="post" action="undo_payment">
           {%- set payment_desc -%}
           {%- if payment.type == c.REFUND -%}
