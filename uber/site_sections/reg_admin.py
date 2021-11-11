@@ -153,7 +153,8 @@ class Root:
         return {'invalidated': id}
 
     def attendees_who_owe_money(self, session):
-        unpaid_attendees = [attendee for attendee in session.attendees_with_badges() if attendee.amount_unpaid]
+        unpaid_attendees = [attendee for attendee in session.attendees_with_badges() 
+                            if attendee.total_purchased_cost > attendee.amount_paid]
         return {
             'attendees': unpaid_attendees,
         }

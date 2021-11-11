@@ -894,6 +894,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         return max(0, ((personal_cost * 100) - self.amount_paid) / 100)
 
     @property
+    def total_purchased_cost(self):
+        return sum([self.purchased_items[item] for item in self.purchased_items])
+
+    @property
     def paid_for_badge(self):
         return self.paid == c.HAS_PAID or \
                 self.paid == c.PAID_BY_GROUP and self.group and self.group.amount_paid or \
