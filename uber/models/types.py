@@ -212,6 +212,7 @@ class Choice(TypeDecorator):
         except ValueError:
             # This is a string, is it the label?
             label_lookup = {val: key for key, val in self.choices.items()}
+            label_lookup['Unknown'] = -1
             return label_lookup[value]
         return int(value)
 
@@ -259,6 +260,7 @@ class MultiChoice(TypeDecorator):
         except ValueError:
             # This is a string list, is it the labels?
             label_lookup = {val: key for key, val in self.choices}
+            label_lookup['Unknown'] = -1
             try:
                 vals = [label_lookup[label] for label in re.split('; |, |\*|\n| / ',value)]
             except KeyError:
