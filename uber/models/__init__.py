@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import uuid
@@ -18,6 +19,7 @@ from pytz import UTC
 from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
 from sideboard.lib import on_startup, stopped
 from sqlalchemy import and_, func, or_, not_
+from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Query, joinedload, subqueryload, aliased
@@ -178,9 +180,9 @@ class MagModel:
             try:
                 value = getattr(self, name, 'ATTRIBUTE NOT FOUND')
                 values.append(int(value))
-            except Exception:
+            except Exception as e:
                 log.error('Error calculating cost property {}: "{}"'.format(name, value))
-                log.exception(ex)
+                log.exception(e)
         return max(0, sum(values))
 
     @property
@@ -426,8 +428,15 @@ class MagModel:
                             value = ','.join(map(lambda x: str(x).strip(), value))
                         else:
                             value = str(value).strip()
+                        value = column.type.convert_if_labels(value)
 
-                    elif isinstance(column.type, (Choice, Integer)):
+                    elif isinstance(column.type, Choice):
+                        if value == '':
+                            value = None
+                        else:
+                            value = column.type.convert_if_label(value)
+
+                    elif isinstance(column.type, Integer):
                         if value == '':
                             value = None
                         else:
@@ -451,6 +460,9 @@ class MagModel:
                         except ValueError:
                             value = dateparser.parse(value)
                         value = value.date()
+
+                    elif isinstance(column.type, JSONB) and isinstance(value, str):
+                        value = json.loads(value)
 
                 except Exception as error:
                     log.debug(

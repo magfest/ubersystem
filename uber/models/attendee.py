@@ -835,7 +835,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def total_cost(self):
-        return self.default_cost + self.amount_extra
+        return self.default_cost + (self.amount_extra or 0)
 
     @property
     def total_donation(self):

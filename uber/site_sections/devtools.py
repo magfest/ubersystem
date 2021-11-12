@@ -125,7 +125,6 @@ class Root:
                 elif isinstance(col.type, Integer):
                     val = int(val)
                 elif isinstance(col.type, JSONB):
-                    val = val.replace("'", '"') # Temporary fix for Access Groups -- remove after SuperMAG 2021
                     val = json.loads(val)
 
                 # now that we've converted val to whatever it actually needs to be, we

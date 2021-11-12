@@ -561,9 +561,9 @@ class AttendeeLookup:
         <pre>{"placeholder": "yes", "legal_name": "First Last", "cellphone": "5555555555"}</pre>
         """
         with Session() as session:
-            attendee_query = session.query(Attendee).filter(Attendee.first_name.ilike("first_name"),
-                                                            Attendee.last_name.ilike("last_name"),
-                                                            Attendee.email.ilike("email@example.com"))
+            attendee_query = session.query(Attendee).filter(Attendee.first_name.ilike(first_name),
+                                                            Attendee.last_name.ilike(last_name),
+                                                            Attendee.email.ilike(email))
 
             if attendee_query.first():
                 raise HTTPError(400, 'An attendee with this name and email address already exists')
@@ -572,22 +572,21 @@ class AttendeeLookup:
 
             if params:
                 for key, val in params.items():
-                    params[key] = _parse_if_datetime(key, val)
-                    params[key] = _parse_if_boolean(key, val)
+                    if val != "":
+                        params[key] = _parse_if_datetime(key, val)
+                        params[key] = _parse_if_boolean(key, val)
 
             attendee.apply(params, restricted=False)
             session.add(attendee)
+
+            # Staff (not volunteers) also almost never need to pay by default
+            if (attendee.staffing and c.VOLUNTEER_RIBBON not in attendee.ribbon_ints) and 'paid' not in params:
+                attendee.paid = c.NEED_NOT_PAY
 
             message = check(attendee)
             if message:
                 session.rollback()
                 raise HTTPError(400, message)
-
-            # Duplicates functionality on the admin form that makes placeholder badges need not pay
-            # Staff (not volunteers) also almost never need to pay by default
-            if (attendee.placeholder or
-                    attendee.staffing and c.VOLUNTEER_RIBBON not in attendee.ribbon_ints) and 'paid' not in params:
-                attendee.paid = c.NEED_NOT_PAY
 
             return attendee.id
 
