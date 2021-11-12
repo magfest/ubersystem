@@ -306,7 +306,7 @@ if c.ART_SHOW_ENABLED:
     ArtShowAppEmailFixture(
         'Reminder to assign an agent for your {EVENT_NAME} Art Show application',
         'art_show/agent_reminder.html',
-        lambda a: not a.is_unpaid and not a.agent,
+        lambda a: not a.is_unpaid and a.delivery_method == c.AGENT and not a.agent,
         when=after(c.EVENT_TIMEZONE.localize(datetime(int(c.EVENT_YEAR), 11, 1))),
         ident='art_show_agent_reminder')
 

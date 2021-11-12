@@ -228,14 +228,29 @@
                 hideMethod: "fadeOut",
                 onShown: function() {
                   replaceQueryParamInUrl('message');
+                  replaceQueryParamInUrl('error_message');
                 }
             };
-            var message = '{{ message }}';
-            var error_message = '{{ error_message }}';
+
+            // This nonsense is so we can have line breaks AND unescaped quotes in our messages
+            var message = '{{ message|tojson|safe if message else "" }}';
+            var error_message = '{{ error_message|tojson|safe if error_message else "" }}';
             if (error_message.length) {
-                toastr.error(error_message);
+                error_message = error_message.slice(1,-1)
+                if (error_message.startsWith("ERROR: ")) {
+                    toastr.error(error_message.substr(7));
+                } else {
+                    toastr.error(error_message);
+                }
             } else if (message.length) {
-                toastr.info(message);
+                message = message.slice(1,-1)
+                if (message.startsWith("ERROR: ")) {
+                    toastr.error(message.substr(7));
+                } else if (message.startsWith("SUCCESS: ")) {
+                    toastr.success(message.substr(9));
+                } else {
+                    toastr.info(message);
+                }
             }
 
             /*

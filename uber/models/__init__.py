@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import uuid
@@ -18,6 +19,7 @@ from pytz import UTC
 from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
 from sideboard.lib import on_startup, stopped
 from sqlalchemy import and_, func, or_, not_
+from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Query, joinedload, subqueryload, aliased
@@ -178,9 +180,9 @@ class MagModel:
             try:
                 value = getattr(self, name, 'ATTRIBUTE NOT FOUND')
                 values.append(int(value))
-            except Exception:
+            except Exception as e:
                 log.error('Error calculating cost property {}: "{}"'.format(name, value))
-                log.exception(ex)
+                log.exception(e)
         return max(0, sum(values))
 
     @property
@@ -426,8 +428,15 @@ class MagModel:
                             value = ','.join(map(lambda x: str(x).strip(), value))
                         else:
                             value = str(value).strip()
+                        value = column.type.convert_if_labels(value)
 
-                    elif isinstance(column.type, (Choice, Integer)):
+                    elif isinstance(column.type, Choice):
+                        if value == '':
+                            value = None
+                        else:
+                            value = column.type.convert_if_label(value)
+
+                    elif isinstance(column.type, Integer):
                         if value == '':
                             value = None
                         else:
@@ -451,6 +460,9 @@ class MagModel:
                         except ValueError:
                             value = dateparser.parse(value)
                         value = value.date()
+
+                    elif isinstance(column.type, JSONB) and isinstance(value, str):
+                        value = json.loads(value)
 
                 except Exception as error:
                     log.debug(
@@ -509,6 +521,7 @@ class MagModel:
 from uber.models.admin import *  # noqa: F401,E402,F403
 from uber.models.promo_code import *  # noqa: F401,E402,F403
 from uber.models.attendee import *  # noqa: F401,E402,F403
+from uber.models.badge_printing import *  # noqa: F401,E402,F403
 from uber.models.commerce import *  # noqa: F401,E402,F403
 from uber.models.department import *  # noqa: F401,E402,F403
 from uber.models.email import *  # noqa: F401,E402,F403
@@ -1215,6 +1228,90 @@ class Session(SessionManager):
                 code = codes.pop()
                 self.delete(code)
                 pc_group.promo_codes.remove(code)
+
+        def add_to_print_queue(self, attendee, printer_id, reg_station):
+            from uber.models import PrintJob
+            fields = [
+                    'badge_printed_name',
+                    'badge_num',
+                    'badge_type_label',
+                    'ribbon_labels',
+                    ]
+            
+            errors = []
+            if not printer_id:
+                errors.append("Printer ID not set.")
+
+            if not reg_station:
+                errors.append("Reg station number not set.")
+            
+            if not attendee.birthdate or attendee.age_group_conf['val'] == c.AGE_UNKNOWN:
+                errors.append("Age group not recognized.")
+
+            fields = ['badge_num', 'badge_type_label', 'badge_printed_name']
+            attendee_fields = attendee.to_dict(fields)
+
+            for field in fields:
+                if not attendee_fields.get(field):
+                    errors.append("Field missing: {}.".format(field))
+
+            if self.query(PrintJob).filter_by(attendee_id=attendee.id, printed=None, errors="").first():
+                errors.append("Badge is already queued to print.")
+
+            if errors:
+                return None, errors
+
+            print_job = PrintJob(attendee_id = attendee.id, 
+                                     admin_id = self.current_admin_account().id,
+                                     admin_name = self.admin_attendee().full_name,
+                                     printer_id = printer_id,
+                                     reg_station = reg_station)
+
+            if attendee.age_group_conf['val'] in [c.UNDER_21, c.OVER_21]:
+                print_job.is_minor = False
+            else:
+                print_job.is_minor = True
+            
+            json_data = attendee.to_dict(fields)
+            del json_data['_model']
+            json_data['attendee_id'] = json_data.pop('id')
+            print_job.json_data = json_data
+            
+            self.add(print_job)
+            self.commit()
+
+            return print_job.id, None
+
+        def update_badge_print_job(self, id):
+            job = self.print_job(id)
+            attendee = job.attendee
+
+            errors = []
+
+            if attendee.age_group_conf['val'] == c.AGE_UNKNOWN:
+                errors.append("Attendee no longer has an age group.")
+            else:
+                attendee_is_minor = attendee.age_group_conf['val'] not in [c.UNDER_21, c.OVER_21]
+
+                if attendee_is_minor and not job.is_minor:
+                    errors.append("Attendee is now under 18, please requeue badge.")
+                if not attendee_is_minor and job.is_minor:
+                    errors.append("Attendee is no longer under 18, please requeue badge.")
+            
+            fields = ['badge_num', 'badge_type_label', 'ribbon_labels', 'badge_printed_name']
+            attendee_fields = attendee.to_dict(fields)
+
+            for field in fields:
+                if not attendee_fields.get(field) and field != 'ribbon_labels':
+                    errors.append("Field missing: {}.".format(field))
+                elif attendee_fields.get(field) != job.json_data.get(field):
+                    job.json_data[field] = attendee_fields.get(field)
+
+            if not errors:
+                self.add(job)
+                self.commit()
+
+            return errors
 
         def get_next_badge_num(self, badge_type):
             """

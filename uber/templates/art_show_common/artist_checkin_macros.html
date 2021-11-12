@@ -5,7 +5,21 @@
 .dataTables_filter {
 display: none; 
 }
+.dataTables_length {
+  display: none;
+}
 </style>
+<script type="text/javascript">
+$(document).ready(function() {
+  $('.datatable').each(function() {
+    var table = $(this).DataTable({
+      retrieve: true,
+      paging: false,
+    });
+  });
+} );
+</script>
+{% set datatable_page_view = -1 %}
 {% set printable = not admin_area if not printable else printable %}
 <div class="modal fade" id="app_{{ app.id }}" role="dialog" tabindex="-1">
   <div class="modal-dialog modal-lg" role="document">

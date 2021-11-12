@@ -22,6 +22,7 @@ from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
 from uber.models import AdminAccount, ApiToken, Attendee, Department, DeptMembership, DeptMembershipRequest, \
     Event, IndieStudio, Job, Session, Shift, GuestGroup, Room, HotelRequests, RoomAssignment
+from uber.models.badge_printing import PrintJob
 from uber.server import register_jsonrpc
 from uber.utils import check, check_csrf, normalize_email, normalize_newlines
 
@@ -547,35 +548,6 @@ class AttendeeLookup:
                 'attendees': attendees,
             }
 
-    @api_auth('api_read')
-    def printable(self):
-        """
-        Returns all attendees whose badges are ready to print.
-
-        Results are returned in JSON.
-        """
-
-        with Session() as session:
-            printable_attendees = session.query(Attendee).filter_by(print_pending=True).all()
-
-            fields = [
-                'first_name',
-                'last_name',
-                'badge_printed_name',
-                'badge_num',
-                'badge_type_label',
-                'ribbon_labels',
-                'staffing',
-            ]
-
-            attendees = []
-            for a in printable_attendees:
-                attendees.append(a.to_dict(fields))
-
-            return {
-                'attendees': attendees,
-            }
-
     @api_auth('api_create')
     def create(self, first_name, last_name, email, params):
         """
@@ -589,9 +561,9 @@ class AttendeeLookup:
         <pre>{"placeholder": "yes", "legal_name": "First Last", "cellphone": "5555555555"}</pre>
         """
         with Session() as session:
-            attendee_query = session.query(Attendee).filter(Attendee.first_name.ilike("first_name"),
-                                                            Attendee.last_name.ilike("last_name"),
-                                                            Attendee.email.ilike("email@example.com"))
+            attendee_query = session.query(Attendee).filter(Attendee.first_name.ilike(first_name),
+                                                            Attendee.last_name.ilike(last_name),
+                                                            Attendee.email.ilike(email))
 
             if attendee_query.first():
                 raise HTTPError(400, 'An attendee with this name and email address already exists')
@@ -600,22 +572,21 @@ class AttendeeLookup:
 
             if params:
                 for key, val in params.items():
-                    params[key] = _parse_if_datetime(key, val)
-                    params[key] = _parse_if_boolean(key, val)
+                    if val != "":
+                        params[key] = _parse_if_datetime(key, val)
+                        params[key] = _parse_if_boolean(key, val)
 
             attendee.apply(params, restricted=False)
             session.add(attendee)
+
+            # Staff (not volunteers) also almost never need to pay by default
+            if (attendee.staffing and c.VOLUNTEER_RIBBON not in attendee.ribbon_ints) and 'paid' not in params:
+                attendee.paid = c.NEED_NOT_PAY
 
             message = check(attendee)
             if message:
                 session.rollback()
                 raise HTTPError(400, message)
-
-            # Duplicates functionality on the admin form that makes placeholder badges need not pay
-            # Staff (not volunteers) also almost never need to pay by default
-            if (attendee.placeholder or
-                    attendee.staffing and c.VOLUNTEER_RIBBON not in attendee.ribbon_ints) and 'paid' not in params:
-                attendee.paid = c.NEED_NOT_PAY
 
             return attendee.id
 
@@ -1038,6 +1009,150 @@ class BarcodeLookup:
         except Exception as e:
             raise HTTPError(500, "Couldn't look up barcode value: " + str(e))
 
+class PrintJobLookup:
+    @api_auth('api_read')
+    def get_pending(self, printer_ids='', restart=False, dry_run=False):
+        """
+        Returns pending print jobs' `json_data`.
+
+        Takes either a single printer ID or a comma-separated list of printer IDs as the first parameter.
+        If this is set, only the print jobs whose printer_id match one of those in the list are returned.
+
+        Takes the boolean `restart` as the second parameter.
+        If true, pulls any print job that's not marked as printed or invalid.
+        Otherwise, only print jobs not marked as sent to printer are returned.
+
+        Takes the boolean `dry_run` as the third parameter.
+        If true, pulls print jobs without marking them as sent to printer.
+
+        Returns a dictionary of jobs' `json_data`, keyed by job ID.
+        Also includes each job's printer_id, reg_station, and admin_name.
+        """
+
+        with Session() as session:
+            filters = [PrintJob.printed == None, PrintJob.errors == '']
+            if printer_ids:
+                printer_ids = [id.strip() for id in printer_ids.split(',')]
+                filters += [PrintJob.printer_id.in_(printer_ids)]
+            if not restart:
+                filters += [PrintJob.queued == None]
+            print_jobs = session.query(PrintJob).filter(*filters).all()
+
+            results = {}
+            for job in print_jobs:
+                if restart:
+                    errors = session.update_badge_print_job(job.id)
+                    if errors:
+                        if job.errors:
+                            job.errors += "; "
+                        job.errors += "; ".join(errors)
+                if not restart or not errors:
+                    result_json = job.json_data
+                    result_json['admin_name'] = job.admin_name
+                    result_json['printer_id'] = job.printer_id
+                    result_json['reg_station'] = job.reg_station
+                    results[job.id] = result_json
+                    if not dry_run:
+                        job.queued = datetime.utcnow()
+                        session.add(job)
+                        session.commit()
+
+        return results
+
+    @api_auth('api_create')
+    def create(self, attendee_id, printer_id, reg_station):
+        """
+        Create a new print job for a specified badge.
+        
+        Takes the attendee ID as the first parameter, the printer ID as the second parameter,
+        and the reg station number as the third parameter.
+
+        Returns the new print job's ID.
+        """
+        with Session() as session:
+            try:
+                reg_station = int(reg_station)
+            except ValueError:
+                raise HTTPError(400, "Reg station must be an integer.")
+
+            attendee = session.query(Attendee).filter_by(id=attendee_id).first()
+            if not attendee:
+                raise HTTPError(404, "Attendee not found.")
+            
+            print_id, errors = session.add_to_print_queue(attendee, printer_id, reg_station)
+            if errors:
+                raise HTTPError(424, "Attendee not ready to print. Error(s): {}".format("; ".join(errors)))
+            
+            return print_id
+
+    @api_auth('api_update')
+    def add_error(self, job_ids, error):
+        """
+        Adds an error message to a print job, effectively marking it invalid or appending
+        the new error if the job already has errors recorded.
+
+        Takes either a single job ID or a comma-seperated list of job IDs as the first parameter.
+
+        Takes the error message as the second parameter.
+
+        Returns a list of changed jobs.
+        """
+        with Session() as session:
+            job_ids = [id.strip() for id in job_ids.split(',')]
+            jobs = session.query(PrintJob).filter(PrintJob.id.in_(job_ids)).all()
+
+            if not jobs:
+                raise HTTPError(404, '"No jobs found with those IDs."')
+
+            changed_job_ids = []
+
+            for job in jobs:
+                changed_job_ids.append(job.id)
+                if job.errors:
+                    job.errors += "; " + error
+                else:
+                    job.errors = error
+                session.add(job)
+                session.commit()
+
+            return changed_job_ids
+
+    @api_auth('api_update')
+    def mark_complete(self, job_ids='', complete_all=False):
+        """
+        Marks print jobs as printed.
+
+        Takes either a single job ID or a comma-separated list of job IDs as the first parameter.
+
+        Takes the boolean `complete_all` as the second parameter.
+        If true, all pending print jobs are marked as printed.
+
+        Returns a list of jobs marked printed.
+        """
+        with Session() as session:
+            base_query = session.query(PrintJob).filter_by(printed=None)
+
+            if complete_all:
+                jobs = base_query.all()
+            elif not job_ids:
+                raise HTTPError(400, "You must provide at least one job ID or set complete_all to True.")
+            else:
+                job_ids = [id.strip() for id in job_ids.split(',')]
+                jobs = base_query.filter(PrintJob.id.in_(job_ids)).all()
+
+            if not jobs:
+                raise HTTPError(404, '"No jobs found with those IDs."')
+
+            changed_job_ids = []
+
+            for job in jobs:
+                changed_job_ids.append(job.id)
+                job.printed = datetime.utcnow()
+                session.add(job)
+                session.commit()
+
+            return changed_job_ids
+
 
 if c.API_ENABLED:
     register_jsonrpc(AttendeeLookup(), 'attendee')
@@ -1049,3 +1164,4 @@ if c.API_ENABLED:
     register_jsonrpc(MivsLookup(), 'mivs')
     register_jsonrpc(HotelLookup(), 'hotel')
     register_jsonrpc(ScheduleLookup(), 'schedule')
+    register_jsonrpc(PrintJobLookup(), 'print_job')
