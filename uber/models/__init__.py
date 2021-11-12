@@ -1245,14 +1245,15 @@ class Session(SessionManager):
             if not reg_station:
                 errors.append("Reg station number not set.")
             
-            if not attendee.birthdate or attendee.age_group_conf['val'] == c.AGE_UNKNOWN:
+            if not attendee.birthdate:
+                errors.append("Attendee is missing a date of birth.")
+            elif attendee.age_group_conf['val'] == c.AGE_UNKNOWN:
                 errors.append("Age group not recognized.")
 
-            fields = ['badge_num', 'badge_type_label', 'badge_printed_name']
             attendee_fields = attendee.to_dict(fields)
 
             for field in fields:
-                if not attendee_fields.get(field):
+                if not attendee_fields.get(field) and field != 'ribbon_labels':
                     errors.append("Field missing: {}.".format(field))
 
             if self.query(PrintJob).filter_by(attendee_id=attendee.id, printed=None, errors="").first():
@@ -1262,17 +1263,17 @@ class Session(SessionManager):
                 return None, errors
 
             print_job = PrintJob(attendee_id = attendee.id, 
-                                     admin_id = self.current_admin_account().id,
-                                     admin_name = self.admin_attendee().full_name,
-                                     printer_id = printer_id,
-                                     reg_station = reg_station)
+                                 admin_id = self.current_admin_account().id,
+                                 admin_name = self.admin_attendee().full_name,
+                                 printer_id = printer_id,
+                                 reg_station = reg_station)
 
             if attendee.age_group_conf['val'] in [c.UNDER_21, c.OVER_21]:
                 print_job.is_minor = False
             else:
                 print_job.is_minor = True
             
-            json_data = attendee.to_dict(fields)
+            json_data = attendee_fields
             del json_data['_model']
             json_data['attendee_id'] = json_data.pop('id')
             print_job.json_data = json_data
