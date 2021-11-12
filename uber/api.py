@@ -579,7 +579,6 @@ class AttendeeLookup:
             attendee.apply(params, restricted=False)
             session.add(attendee)
 
-            # Duplicates functionality on the admin form that makes staff badges need not pay
             # Staff (not volunteers) also almost never need to pay by default
             if (attendee.staffing and c.VOLUNTEER_RIBBON not in attendee.ribbon_ints) and 'paid' not in params:
                 attendee.paid = c.NEED_NOT_PAY
