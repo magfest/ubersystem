@@ -1,87 +1,30 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Badge Printing{% endblock %}
+{% block title %}Print Jobs{% endblock %}
 {% block content %}
-
-<div class="panel panel-default">
-    <table class="table table-striped datatable">
-    <thead><tr>
-        <th>Created</th>
-        <th>Job ID</th>
-        <th>Full Name</th>
-        <th>Badge Name</th>
-        <th>Admin</th>
-        <th>Printer ID</th>
-        <th>Reg Station</th>
-        <th>Queued</th>
-        <th>Printed</th>
-        <th>Errors</th>
-        <th></th>
-    </tr></thead>
-    {% for badge in badges %}
-    <tr>
-    <td data-order="{{ badge.created.when }}">{{ badge.created.when|time_day_local }}</td>
-    <td>{{ badge.id }}</td>
-    <td data-order="{{ badge.attendee.full_name }}" data-search="{{ badge.attendee.full_name }}">
-        <a href="../registration/form?id={{ badge.attendee.id }}">{{ badge.attendee.full_name }}</a>
-    </td>
-    <td>
-        {{ badge.json_data['badge_printed_name'] }}
-    </td>
-    <td>{{ badge.admin_name }}</td>
-    <td>{{ badge.printer_id }}</td>
-    <td>{{ badge.reg_station }}</td>
-    <td id="queued_{{ badge.id }}" data-order="{{ badge.queued }}">{{ badge.queued|time_day_local|default("No", true) }}</td>
-    <td id="printed_{{ badge.id }}" data-order="{{ badge.printed }}">{{ badge.printed|time_day_local|default("No", true) }}</td>
-    <td id="errors_{{ badge.id }}">{{ badge.errors }}</td>
-    <td>
-        {% if not badge.printed %}
-            {% if badge.queued and not badge.errors %}
-            <a id="queued_{{ badge.id }}_link" class="btn btn-info ajax-link" href="mark_as_unsent?id={{ badge.id }}">Mark as Unsent</a>
-            {% endif %}
-            <a class="btn btn-success ajax-link" href="mark_as_printed?id={{ badge.id }}">Mark as Printed</a>
-            {% if not badge.errors %}
-            <a class="btn btn-danger ajax-link" href="mark_as_invalid?id={{ badge.id }}">
-                Mark as Invalid
-            </a>
-            {% endif %}
-        {% endif %}
-    </td>
-    </tr>
-    {% endfor %}
-</table>
+<strong>View print jobs:</strong>
+<div class="btn-group" style="padding-bottom:10px;">
+<button class="btn btn-default job-types" id="pending" onClick="loadPrintJobs('pending')">Pending</button>
+<button class="btn btn-default job-types" id="not_printed" onClick="loadPrintJobs('not_printed')">Waiting to Print</button>
+<button class="btn btn-default job-types" id="errors" onClick="loadPrintJobs('errors')">With Errors</button>
+<button class="btn btn-default job-types" id="created" onClick="loadPrintJobs('created')">Created By You</button>
+<button class="btn btn-default job-types" id="printed" onClick="loadPrintJobs('printed')">Printed</button>
 </div>
-
+<div id="print_jobs"></div>
 <script type="text/javascript">
-    $('.ajax-link').on('click', function (event) {
-        var $link = $(this);
-        event.preventDefault();
-        toastr.clear();
-        $.ajax({
-            method: 'GET',
-            url: $link.attr('href'),
-            success: function (json) {
-                if (json.success) {
-                    toastr.success(json.message);
-                } else {
-                    toastr.error(json.message);
-                }
-                $link.hide()
-                if (json.queued) {
-                    $('#queued_' + json.id).html(json.queued);
-                }
-                if (json.printed) {
-                    $('#printed_' + json.id).html(json.printed);
-                    $link.parent('td').children().hide();
-                }
-                if (json.errors) {
-                    $('#errors_' + json.id).html(json.errors);
-                    $('#queued_' + json.id + '_link').hide()
-                }
-            },
-            error: function () {
-                toastr.error('Unable to connect to server, please try again.');
-            }
-        });
-    });
+var loadPrintJobs = function(flag) {
+  $('.job-types').removeClass('btn-primary btn-default').addClass('btn-default');
+  $('#' + flag).addClass('btn-primary').removeClass('btn-default');
+    $('#print_jobs').load('../badge_printing/print_jobs?flag=' + flag, function(){
+      if ($('#print_jobs').length) {
+          $(window).trigger( 'runJavaScript' );
+      } else {
+          // We got redirected -- likely to the login page -- so load it properly
+          toastr.error("Loading failed.");
+          window.location.hash = ""; // prevent refresh loops
+          window.location.reload();
+      }
+      });
+    }
+$('#pending').click();
 </script>
 {% endblock %}

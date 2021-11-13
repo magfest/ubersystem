@@ -5,7 +5,7 @@ from datetime import datetime
 
 from uber.config import c
 from uber.custom_tags import time_day_local
-from uber.decorators import ajax, ajax_gettable, all_renderable
+from uber.decorators import ajax, ajax_gettable, all_renderable, not_site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, PrintJob
 from uber.utils import localized_now
@@ -148,6 +148,26 @@ class Root:
     def queued_badges(self, session):
         return {
             'badges': session.query(PrintJob).all(),
+        }
+
+    @not_site_mappable
+    def print_jobs(self, session, flag):
+        filters = []
+        if flag == 'pending':
+            filters = [PrintJob.queued == None, PrintJob.printed == None]
+        elif flag == 'not_printed':
+            filters = [PrintJob.queued != None, PrintJob.printed == None]
+        elif flag == 'errors':
+            filters = [PrintJob.errors != '']
+        elif flag == 'created':
+            filters = [PrintJob.admin_id == cherrypy.session.get('account_id')]
+        elif flag == 'printed':
+            filters = [PrintJob.printed != None]
+
+        badges = session.query(PrintJob).filter(*filters).limit(c.ROW_LOAD_LIMIT).all()
+
+        return {
+            'badges': badges,
         }
 
     @ajax
