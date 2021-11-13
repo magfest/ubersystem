@@ -1247,8 +1247,8 @@ class Session(SessionManager):
             
             if not attendee.birthdate:
                 errors.append("Attendee is missing a date of birth.")
-            elif attendee.age_group_conf['val'] == c.AGE_UNKNOWN:
-                errors.append("Age group not recognized.")
+            elif not attendee.age_now_or_at_con:
+                errors.append("Attendee's date of birth is not recognized as a date.")
 
             attendee_fields = attendee.to_dict(fields)
 
@@ -1268,7 +1268,7 @@ class Session(SessionManager):
                                  printer_id = printer_id,
                                  reg_station = reg_station)
 
-            if attendee.age_group_conf['val'] in [c.UNDER_21, c.OVER_21]:
+            if attendee.age_now_or_at_con >= 18:
                 print_job.is_minor = False
             else:
                 print_job.is_minor = True

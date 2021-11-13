@@ -14,24 +14,20 @@ from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.custom_tags import format_currency
-from uber.decorators import ajax, all_renderable, attendee_view, check_for_encrypted_badge_num, check_if_can_reg, credit_card, \
+from uber.decorators import ajax, ajax_gettable, all_renderable, attendee_view, check_for_encrypted_badge_num, check_if_can_reg, credit_card, \
     csrf_protected, department_id_adapter, log_pageview, not_site_mappable, render, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, Email, Group, Job, PageViewTracking, PromoCode, PromoCodeGroup, Sale, \
     Session, Shift, Tracking, WatchList
+from uber.models.badge_printing import PrintJob
 from uber.utils import add_opt, check, check_csrf, check_pii_consent, Charge, get_page, hour_day_format, \
     localized_now, Order
 
 
 def pre_checkin_check(attendee, group):
     if c.NUMBERED_BADGES:
-        min_badge, max_badge = c.BADGE_RANGES[attendee.badge_type]
         if not attendee.badge_num:
             return 'Badge number is required'
-        elif not (min_badge <= int(attendee.badge_num) <= max_badge):
-            return ('{a.full_name} has a {a.badge_type_label} badge, but '
-                    '{a.badge_num} is not a valid number for '
-                    '{a.badge_type_label} badges').format(a=attendee)
 
     if c.COLLECT_EXACT_BIRTHDATE:
         if not attendee.birthdate:
@@ -111,6 +107,8 @@ class Root:
             'checkin_count':  session.query(Attendee).filter(Attendee.checked_in != None).count(),
             'attendee':       session.attendee(uploaded_id, allow_invalid=True) if uploaded_id else None,
             'reg_station':    cherrypy.session.get('reg_station', ''),
+            'printer_default_id': cherrypy.session.get('printer_default_id', ''),
+            'printer_minor_id': cherrypy.session.get('printer_minor_id', ''),
         }  # noqa: E711
 
     @log_pageview
@@ -372,6 +370,87 @@ class Root:
         
         q_or_a = '?' if '?' not in return_to else '&'
         raise HTTPRedirect(return_to + ('' if return_to[-1] == '?' else q_or_a) + 'message={}', message)
+
+    def printer_id_form(self, session, id):
+        return {
+            'reg_station':    cherrypy.session.get('reg_station', ''),
+            'printer_default_id': cherrypy.session.get('printer_default_id', ''),
+            'printer_minor_id': cherrypy.session.get('printer_minor_id', ''),
+            'attendee_id': id,
+        }
+
+    @ajax
+    def set_printer_ids(self, session, **params):
+        if not params.get('reg_station') or not params.get('printer_default_id') or not params.get('printer_minor_id'):
+            return {'success': False, 'message': "Please set reg station number, default printer ID, and default minor printer ID."}
+        
+        try:
+            cherrypy.session['reg_station'] = int(params.get('reg_station'))
+        except Exception:
+            return {'success': False, 'message': "Reg station must be a number."}
+
+        if cherrypy.session['reg_station'] == 0:
+            return {'success': False, 'message': "Reg station cannot be 0."}
+        
+        cherrypy.session['printer_default_id'] = params.get('printer_default_id')
+        cherrypy.session['printer_minor_id'] = params.get('printer_minor_id')
+        return {
+            'success': True,
+            'message': "Printer IDs set!",
+            'reg_station':    cherrypy.session.get('reg_station', ''),
+            'printer_default_id': cherrypy.session.get('printer_default_id', ''),
+            'printer_minor_id': cherrypy.session.get('printer_minor_id', ''),
+        }
+
+    @check_for_encrypted_badge_num
+    @ajax
+    def print_badge(self, session, message='', group_id='', **params):
+        bools = ['got_merch'] if c.MERCH_AT_CHECKIN else []
+        attendee = session.attendee(params, allow_invalid=True, bools=bools)
+        group = attendee.group or (session.group(group_id) if group_id else None)
+
+        message = pre_checkin_check(attendee, group)
+        if not message and group_id:
+            message = session.match_to_group(attendee, group)
+
+        if not message and attendee.paid == c.PAID_BY_GROUP and not attendee.group_id:
+            message = 'You must select a group for this attendee.'
+
+        if not message and not params.get('printer_id'):
+            message = 'You must set a printer ID.'
+
+        if message:
+            return {'success': False, 'message': message}
+        
+        session.commit()
+        if attendee.age_now_or_at_con < 18 and params['printer_id'] == cherrypy.session.get('printer_default_id'):
+            if session.query(PrintJob).filter(PrintJob.printer_id == params['printer_id'],
+                                              PrintJob.printed == None,
+                                              PrintJob.errors == '').all():
+                return {'success': False,
+                        'message': "This is a minor badge and there are still standard badges waiting to print on this printer. \
+                                    Please try again soon or set a different printer ID."}
+            else:
+                return {'success': True, 'minor_check': True}
+        else:
+            print_id, errors = session.add_to_print_queue(attendee, params['printer_id'], cherrypy.session.get('reg_station'))
+            if errors:
+                return {'success': False, 'message': "<br>".join(errors)}
+            return {'success': True, 'message': 'Print job created!'}
+
+    def minor_check_form(self, session, attendee_id, printer_id):
+        return {
+            'attendee_id': attendee_id,
+            'printer_id': printer_id,
+        }
+
+    @ajax_gettable
+    def complete_minor_check(self, session, attendee_id, printer_id):
+        attendee = session.attendee(attendee_id)
+        print_id, errors = session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'))
+        if errors:
+            return {'success': False, 'message': "<br>".join(errors)}
+        return {'success': True, 'message': 'Print job created!'}
 
     def check_in_form(self, session, id):
         attendee = session.attendee(id)

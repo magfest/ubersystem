@@ -66,7 +66,7 @@ $("form[action='mark_as_paid']").submit(function (e) {
             toastr.clear();
             var message = json.message;
             if (json.success) {
-                toastr.info(message);
+                toastr.success(message);
                 loadCheckInForm();
             } else {
                 toastr.error(message);
@@ -85,7 +85,7 @@ $('#stripe_frame').load(function() {
         toastr.clear();
         var response = $.parseJSON(responseText);
         if (response['success'] == true) {
-            toastr.info(response['message']);
+            toastr.success(response['message']);
             loadCheckInForm();
         } else {
             toastr.error('', response['message'], {timeOut: 1000});
@@ -240,12 +240,21 @@ $().ready(function() {
         <div class="col-sm-6"><label style="font-weight:normal;"><input type="checkbox" name="got_merch" value="1" /> Yes, this attendee has received their merch</label></div>
       </div>
     {% endif %}
+    {% if c.BADGE_PRINTING_ENABLED %}
+      <div class="form-group">
+        <label for="printer_id" class="col-sm-3 control-label"><strong>Printer ID</strong></label>
+        <div class="col-sm-6"><input type="text" class="form-control" name="printer_id" /></div>
+      </div>
+    {% endif %}
     {% endblock checkin_fields %}
 </form>
 </div>
 <div class="modal-footer">
   <div class="form-group">
   <div class="pull-right">
+        {% if c.BADGE_PRINTING_ENABLED %}
+        <button type="button" onClick="printBadge('{{ attendee.id }}')" class="btn btn-success">Save & Print Badge</button>
+        {% endif %}
       <button type="button" onClick="checkIn('{{ attendee.id }}')" class="btn btn-primary">Save & Check In</button>
 {% endif %}
    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
@@ -254,3 +263,49 @@ $().ready(function() {
   </div>
  
 </div>
+{% if c.BADGE_PRINTING_ENABLED %}
+<script type="text/javascript">
+    loadMinorCheckForm = function (attendeeID, printerID) {
+        $('#checkin_modal .modal-content').load(
+            '../registration/minor_check_form?attendee_id=' + attendeeID + '&printer_id=' + printerID, function() {
+        if ($('.minor-check-id').length) {
+        } else {
+            toastr.error("Form loading failed.");
+            loadCheckInFormModal(attendeeID);
+        }
+        });
+    }
+    var printBadge = function (attendeeID) {
+        $.ajax({
+            method: 'POST',
+            url: '../registration/print_badge',
+            dataType: 'json',
+            data: $("#check_in_form_" + attendeeID).serialize(),
+            success: function (json) {
+                toastr.clear();
+                var message = json.message;
+                if (json.success) {
+                    if (json.minor_check) {
+                        loadMinorCheckForm(attendeeID, $.val('printer_id'));
+                    } else {
+                        toastr.success(message);
+                        loadCheckInFormModal(attendeeID);
+                    }
+                } else {
+                    toastr.error(message);
+                }
+            },
+            error: function () {
+                toastr.error('Unable to connect to server, please try again.');
+            }
+        });
+    };
+
+    age = {{ attendee.age_now_or_at_con|default(0, true)}};
+    if (age < 18) {
+        $.field('printer_id').val(printer_minor_id);
+    } else if (age >= 18) {
+        $.field('printer_id').val(printer_default_id);
+    }
+</script>
+{% endif %}

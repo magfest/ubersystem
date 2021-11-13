@@ -1,0 +1,58 @@
+<div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal">&times;</button>
+    <h4 class="modal-title">Please Set Default Printer IDs</h4>
+    </div>
+    <div class="modal-body">
+  <form action="/" id="printer_id_form" role="form" class="form-horizontal printer-id">
+        {{ csrf_token() }}
+        <div class="form-group">
+            <label for="reg_station" class="col-sm-3 control-label">Reg Station #</label>
+            <div class="col-sm-6"><input type="number" class="form-control" value="{{ reg_station }}" name="reg_station" /></div>
+        </div>
+        <div class="form-group">
+            <label for="printer_default_id" class="col-sm-3 control-label">Default Printer ID</label>
+            <div class="col-sm-6"><input type="text" class="form-control" value="{{ printer_default_id }}" name="printer_default_id" /></div>
+        </div>
+        <div class="form-group">
+            <label for="printer_minor_id" class="col-sm-3 control-label">Default Minor Printer ID</label>
+            <div class="col-sm-6"><input type="text" class="form-control" value="{{ printer_minor_id }}" name="printer_minor_id" /></div>
+        </div>
+  </form>
+  </div>
+  <div class="modal-footer">
+    <div class="form-group">
+    <div class="pull-right">
+        <button type="button" onClick="setPrinterIDs('{{ attendee_id }}')" class="btn btn-primary">Set Printer IDs</button>
+     <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+    </div>
+    </div>
+    </div>
+   
+  </div>
+  
+<script type="text/javascript">
+    var setPrinterIDs = function (attendeeID) {
+        $.ajax({
+            method: 'POST',
+            url: '../registration/set_printer_ids',
+            dataType: 'json',
+            data: $("#printer_id_form").serialize(),
+            success: function (json) {
+                toastr.clear();
+                var message = json.message;
+                if (json.success) {
+                    toastr.success(message);
+                    reg_station = json.reg_station;
+                    printer_default_id = json.printer_default_id;
+                    printer_minor_id = json.printer_minor_id;
+                    loadCheckInFormModal(attendeeID);
+                } else {
+                    toastr.error(message);
+                }
+            },
+            error: function () {
+                toastr.error('Unable to connect to server, please try again.');
+            }
+        });
+    };
+</script>
