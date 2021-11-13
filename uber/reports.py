@@ -1,3 +1,4 @@
+from sqlalchemy import not_
 from uber.barcode import generate_barcode_from_badge_num
 from uber.config import c
 from uber.models.attendee import Attendee
@@ -18,15 +19,6 @@ class ReportBase:
 
 
 class PersonalizedBadgeReport(ReportBase):
-    """
-    Generate a CSV file which contains personalized badges with custom printed_names on them
-
-    Deferred badges probably should be printed, since in theory a Deferred badge might be checked in.
-    For example, a badge might be marked as Deferred if the attendee name matches a name on our watch list,
-    but we might find at the event that they're just a different person with the same name.
-
-    see discussion: https://github.com/magfest/ubersystem/issues/1648
-    """
     def __init__(self, include_badge_nums=True):
         self._include_badge_nums = include_badge_nums
 
@@ -34,7 +26,8 @@ class PersonalizedBadgeReport(ReportBase):
         badge_nums_seen = []
 
         for a in (session.query(Attendee)
-                         .filter(Attendee.badge_status != c.INVALID_STATUS, *filters)
+                         .filter(not_(Attendee.badge_status.in_(
+                                [c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS])), *filters)
                          .order_by(order_by).all()):
 
             # sanity check no duplicate badges
@@ -58,7 +51,7 @@ class PersonalizedBadgeReport(ReportBase):
             else:
                 printed_name = a.badge_printed_name or a.full_name
 
-            row += [badge_type_label, printed_name]
+            row += [badge_type_label, printed_name, a.placeholder]
             self.write_row(row, out)
 
 
@@ -78,4 +71,4 @@ class PrintedBadgeReport(ReportBase):
         empty_customized_name = ''
 
         for badge_num in range(min_badge_num, max_badge_num):
-            self.write_row([badge_num, self._badge_type_name, empty_customized_name], out)
+            self.write_row([badge_num, self._badge_type_name, empty_customized_name, ''], out)
