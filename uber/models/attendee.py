@@ -1114,7 +1114,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def gets_emails(self):
-        return self.badge_status in [c.NEW_STATUS, c.COMPLETED_STATUS]
+        return self.badge_status in [c.NEW_STATUS, c.COMPLETED_STATUS] and (
+                                    not self.is_dealer or self.group and self.group.status not in [c.DECLINED, c.CANCELLED])
 
     @property
     def watchlist_guess(self):
