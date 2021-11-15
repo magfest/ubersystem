@@ -1397,10 +1397,8 @@ $(window).on("runJavaScript", function () {
     {% for manager in attendee.managers %}
       {% if not loop.first %} / {% endif %}{{ manager.email }}
       {% if manager.attendees|length > 1 %}
-      ({%- for managed_attendee in manager.attendees -%}
-          {%- if managed_attendee.id != attendee.id -%}
-          {{ managed_attendee|form_link }}{% if not loop.last %} / {% endif %}
-          {%- endif -%}
+      ({%- for managed_attendee in manager.attendees|selectattr('id','!=',attendee.id) -%}
+        {% if not loop.first %} / {% endif %}{{ managed_attendee|form_link }}
         {%- endfor -%})
       {% endif %}
     {% else %}
