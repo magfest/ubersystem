@@ -564,9 +564,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         old_type = self.orig_value_of('badge_type')
         old_num = self.orig_value_of('badge_num')
 
-        if not needs_badge_num(self) and not c.AT_THE_CON:
-            self.badge_num = None
-
         if old_type != self.badge_type or old_num != self.badge_num:
             self.session.update_badge(self, old_type, old_num)
         elif needs_badge_num(self) and not self.badge_num:
