@@ -109,6 +109,15 @@
             $('#app_'+id).find('.address_suffixes').each(function() {
                 eval("regionChange" + $(this).val() + "()");
             })
+
+            $('#datatable_'+id).each(function() {
+              var table = $(this).DataTable({
+                    paging: false,
+                    stateSave: true,
+                    searching: false,
+                    info: false
+                });
+            });
         };
 
         $(document).ready(function() {
@@ -167,5 +176,5 @@
             });
 
         });
-    </script>
+  </script>
     {% endblock %}
