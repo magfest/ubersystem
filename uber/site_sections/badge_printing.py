@@ -146,13 +146,13 @@ class Root:
                            attendee_id, message)
 
     def queued_badges(self, session):
-        return {
-            'badges': session.query(PrintJob).all(),
-        }
+        return {}
 
     @not_site_mappable
     def print_jobs(self, session, flag):
-        filters = []
+        from uber.models import Tracking
+
+        filters = [Tracking.action == c.CREATED]
         if flag == 'pending':
             filters = [PrintJob.queued == None, PrintJob.printed == None]
         elif flag == 'not_printed':
@@ -164,7 +164,8 @@ class Root:
         elif flag == 'printed':
             filters = [PrintJob.printed != None]
 
-        badges = session.query(PrintJob).filter(*filters).limit(c.ROW_LOAD_LIMIT).all()
+        badges = session.query(PrintJob).join(Tracking, PrintJob.id == Tracking.fk_id).filter(
+                 *filters).order_by(Tracking.when.desc()).limit(c.ROW_LOAD_LIMIT).all()
 
         return {
             'badges': badges,
