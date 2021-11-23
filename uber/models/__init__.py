@@ -2008,7 +2008,8 @@ def _attendee_validity_check():
     def with_validity_check(self, *args, **kwargs):
         allow_invalid = kwargs.pop('allow_invalid', False)
         attendee = orig_getter(self, *args, **kwargs)
-        if not allow_invalid and not attendee.is_new and attendee.badge_status == c.INVALID_STATUS:
+        if not allow_invalid and not attendee.is_new and \
+           not self.current_admin_account and not attendee.badge_status == c.INVALID_STATUS:
             raise HTTPRedirect('../preregistration/invalid_badge?id={}', attendee.id)
         else:
             return attendee
