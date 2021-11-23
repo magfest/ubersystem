@@ -89,6 +89,14 @@ class Root:
             'numberOfPrinters': numberOfPrinters
         }
 
+    def attendee_print_jobs(self, session, id):
+        attendee = session.attendee(id)
+
+        return {
+            'attendee': attendee,
+            'jobs': attendee.print_requests,
+        }
+
     def reprint_fee(self, session, attendee_id=None, message='',
                     fee_amount=0, reprint_reason='', refund=''):
         attendee = session.attendee(attendee_id)
@@ -145,7 +153,7 @@ class Root:
         raise HTTPRedirect('../registration/form?id={}&message={}',
                            attendee_id, message)
 
-    def queued_badges(self, session):
+    def print_jobs_list(self, session):
         return {}
 
     @not_site_mappable
@@ -164,11 +172,11 @@ class Root:
         elif flag == 'printed':
             filters = [PrintJob.printed != None]
 
-        badges = session.query(PrintJob).join(Tracking, PrintJob.id == Tracking.fk_id).filter(
+        jobs = session.query(PrintJob).join(Tracking, PrintJob.id == Tracking.fk_id).filter(
                  *filters).order_by(Tracking.when.desc()).limit(c.ROW_LOAD_LIMIT).all()
 
         return {
-            'badges': badges,
+            'jobs': jobs,
         }
 
     @ajax

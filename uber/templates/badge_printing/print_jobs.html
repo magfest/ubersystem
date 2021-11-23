@@ -1,4 +1,4 @@
-{% if badges|length == c.ROW_LOAD_LIMIT %}
+{% if jobs|length == c.ROW_LOAD_LIMIT %}
 <div class="panel panel-body">
 There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view. Please use another view to see complete print jobs.
 </div>
@@ -9,7 +9,7 @@ There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view.
     <thead><tr>
         <th>Created</th>
         <th>Job ID</th>
-        <th>Full Name</th>
+        {% if not attendee %}<th>Full Name</th>{% endif %}
         <th>Badge Name</th>
         <th>Admin</th>
         <th>Printer ID</th>
@@ -19,30 +19,32 @@ There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view.
         <th>Errors</th>
         <th></th>
     </tr></thead>
-    {% for badge in badges %}
+    {% for job in jobs %}
     <tr>
-    <td data-order="{{ badge.created.when }}">{{ badge.created.when|time_day_local }}</td>
-    <td>{{ badge.id }}</td>
-    <td data-order="{{ badge.attendee.full_name }}" data-search="{{ badge.attendee.full_name }}">
-        <a href="../registration/form?id={{ badge.attendee.id }}">{{ badge.attendee.full_name }}</a>
+    <td data-order="{{ job.created.when }}">{{ job.created.when|time_day_local }}</td>
+    <td>{{ job.id }}</td>
+    {% if not attendee %}
+    <td data-order="{{ job.attendee.full_name }}" data-search="{{ job.attendee.full_name }}">
+        <a href="../registration/form?id={{ job.attendee.id }}">{{ job.attendee.full_name }}</a>
     </td>
+    {% endif %}
     <td>
-        {{ badge.json_data['badge_printed_name'] }}
+        {{ job.json_data['badge_printed_name'] }}
     </td>
-    <td>{{ badge.admin_name }}</td>
-    <td>{{ badge.printer_id }}</td>
-    <td>{{ badge.reg_station }}</td>
-    <td id="queued_{{ badge.id }}" data-order="{{ badge.queued }}">{{ badge.queued|time_day_local|default("No", true) }}</td>
-    <td id="printed_{{ badge.id }}" data-order="{{ badge.printed }}">{{ badge.printed|time_day_local|default("No", true) }}</td>
-    <td id="errors_{{ badge.id }}">{{ badge.errors }}</td>
+    <td>{{ job.admin_name }}</td>
+    <td>{{ job.printer_id }}</td>
+    <td>{{ job.reg_station }}</td>
+    <td id="queued_{{ job.id }}" data-order="{{ job.queued }}">{{ job.queued|time_day_local|default("No", true) }}</td>
+    <td id="printed_{{ job.id }}" data-order="{{ job.printed }}">{{ job.printed|time_day_local|default("No", true) }}</td>
+    <td id="errors_{{ job.id }}">{{ job.errors }}</td>
     <td>
-        {% if not badge.printed %}
-            {% if badge.queued and not badge.errors %}
-            <a id="queued_{{ badge.id }}_link" class="btn btn-info ajax-link" href="mark_as_unsent?id={{ badge.id }}">Mark as Unsent</a>
+        {% if not job.printed %}
+            {% if job.queued and not job.errors %}
+            <a id="queued_{{ job.id }}_link" class="btn btn-info ajax-link" href="mark_as_unsent?id={{ job.id }}">Mark as Unsent</a>
             {% endif %}
-            <a class="btn btn-success ajax-link" href="mark_as_printed?id={{ badge.id }}">Mark as Printed</a>
-            {% if not badge.errors %}
-            <a class="btn btn-danger ajax-link" href="mark_as_invalid?id={{ badge.id }}">
+            <a class="btn btn-success ajax-link" href="mark_as_printed?id={{ job.id }}">Mark as Printed</a>
+            {% if not job.errors %}
+            <a class="btn btn-danger ajax-link" href="mark_as_invalid?id={{ job.id }}">
                 Mark as Invalid
             </a>
             {% endif %}
