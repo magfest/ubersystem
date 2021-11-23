@@ -1051,6 +1051,7 @@ class PrintJobLookup:
                     result_json['admin_name'] = job.admin_name
                     result_json['printer_id'] = job.printer_id
                     result_json['reg_station'] = job.reg_station
+                    result_json['is_minor'] = job.is_minor
                     results[job.id] = result_json
                     if not dry_run:
                         job.queued = datetime.utcnow()
