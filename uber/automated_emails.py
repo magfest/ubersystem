@@ -915,6 +915,13 @@ if c.MIVS_ENABLED:
         ident='mivs_checklist_update_selling_information'
     )
 
+    MIVSGuestEmailFixture(
+        'New {EVENT_NAME} MIVS Checklist Item: Hotel Signups',
+        'mivs/checklist/new_update_hotel_information.txt',
+        lambda mg: True,
+        ident='mivs_checklist_update_hotel_information'
+    )
+
 
     MIVSGuestEmailFixture(
         'New {EVENT_NAME} MIVS Checklist Item: MIVS Training',
