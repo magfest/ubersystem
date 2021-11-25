@@ -193,6 +193,7 @@
             events: eventList,
             eventDidMount: function(arg) {
                 var event = arg.event;
+                console.log(event.extendedProps);
                 var element = $(arg.el);
                 var view = arg.view;
                 var eventDesc = "";
@@ -213,7 +214,7 @@
                 }
 
                 buttonTag += "onclick=\"click_shift('" + event.extendedProps.taken + "','" + event.id + "','" +
-                moment(event.extendedProps.start).toISOString() + "','" + $('<div/>').text(event.title).html() + "')\"";
+                moment(event.start).toISOString() + "','" + $('<div/>').text(event.title).html() + "')\"";
 
                 buttonTag += '>';
                 if(event.extendedProps.taken) {
