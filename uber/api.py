@@ -3,6 +3,8 @@ import uuid
 from datetime import datetime
 from functools import wraps
 
+from sqlalchemy.sql import base
+
 import cherrypy
 import pytz
 import six
@@ -1010,6 +1012,15 @@ class BarcodeLookup:
             raise HTTPError(500, "Couldn't look up barcode value: " + str(e))
 
 class PrintJobLookup:
+    def _build_job_json_data(self, job):
+        result_json = job.json_data
+        result_json['admin_name'] = job.admin_name
+        result_json['printer_id'] = job.printer_id
+        result_json['reg_station'] = job.reg_station
+        result_json['is_minor'] = job.is_minor
+
+        return result_json
+
     @api_auth('api_read')
     def get_pending(self, printer_ids='', restart=False, dry_run=False):
         """
@@ -1025,8 +1036,7 @@ class PrintJobLookup:
         Takes the boolean `dry_run` as the third parameter.
         If true, pulls print jobs without marking them as sent to printer.
 
-        Returns a dictionary of jobs' `json_data`, keyed by job ID.
-        Also includes each job's printer_id, reg_station, and admin_name.
+        Returns a dictionary of pending jobs' `json_data` plus job metadata, keyed by job ID.
         """
 
         with Session() as session:
@@ -1047,11 +1057,7 @@ class PrintJobLookup:
                             job.errors += "; "
                         job.errors += "; ".join(errors)
                 if not restart or not errors:
-                    result_json = job.json_data
-                    result_json['admin_name'] = job.admin_name
-                    result_json['printer_id'] = job.printer_id
-                    result_json['reg_station'] = job.reg_station
-                    results[job.id] = result_json
+                    results[job.id] = self._build_job_json_data(job)
                     if not dry_run:
                         job.queued = datetime.utcnow()
                         session.add(job)
@@ -1067,7 +1073,7 @@ class PrintJobLookup:
         Takes the attendee ID as the first parameter, the printer ID as the second parameter,
         and the reg station number as the third parameter.
 
-        Returns the new print job's ID.
+        Returns a dictionary of the new job's `json_data` plus job metadata, keyed by job ID.
         """
         with Session() as session:
             try:
@@ -1083,31 +1089,33 @@ class PrintJobLookup:
             if errors:
                 raise HTTPError(424, "Attendee not ready to print. Error(s): {}".format("; ".join(errors)))
             
-            return print_id
+            return {print_id: self._build_job_json_data(session.print_job(print_id))}
 
     @api_auth('api_update')
     def add_error(self, job_ids, error):
         """
-        Adds an error message to a print job, effectively marking it invalid or appending
-        the new error if the job already has errors recorded.
+        Adds an error message to a print job, effectively marking it invalid.
 
         Takes either a single job ID or a comma-seperated list of job IDs as the first parameter.
 
         Takes the error message as the second parameter.
 
-        Returns a list of changed jobs.
+        Returns a dictionary of changed jobs' `json_data` plus job metadata, keyed by job ID.
         """
         with Session() as session:
+            if not job_ids:
+                raise HTTPError(400, "You must provide at least one job ID.")
+
             job_ids = [id.strip() for id in job_ids.split(',')]
             jobs = session.query(PrintJob).filter(PrintJob.id.in_(job_ids)).all()
 
             if not jobs:
                 raise HTTPError(404, '"No jobs found with those IDs."')
 
-            changed_job_ids = []
+            results = {}
 
             for job in jobs:
-                changed_job_ids.append(job.id)
+                results[job.id] = self._build_job_json_data(job)
                 if job.errors:
                     job.errors += "; " + error
                 else:
@@ -1115,43 +1123,88 @@ class PrintJobLookup:
                 session.add(job)
                 session.commit()
 
-            return changed_job_ids
+            return results
 
     @api_auth('api_update')
-    def mark_complete(self, job_ids='', complete_all=False):
+    def mark_complete(self, job_ids=''):
         """
         Marks print jobs as printed.
 
         Takes either a single job ID or a comma-separated list of job IDs as the first parameter.
 
-        Takes the boolean `complete_all` as the second parameter.
-        If true, all pending print jobs are marked as printed.
-
-        Returns a list of jobs marked printed.
+        Returns a dictionary of changed jobs' `json_data` plus job metadata, keyed by job ID.
         """
         with Session() as session:
             base_query = session.query(PrintJob).filter_by(printed=None)
 
-            if complete_all:
-                jobs = base_query.all()
-            elif not job_ids:
-                raise HTTPError(400, "You must provide at least one job ID or set complete_all to True.")
-            else:
-                job_ids = [id.strip() for id in job_ids.split(',')]
-                jobs = base_query.filter(PrintJob.id.in_(job_ids)).all()
+            if not job_ids:
+                raise HTTPError(400, "You must provide at least one job ID.")
+
+            job_ids = [id.strip() for id in job_ids.split(',')]
+            jobs = base_query.filter(PrintJob.id.in_(job_ids)).all()
 
             if not jobs:
                 raise HTTPError(404, '"No jobs found with those IDs."')
 
-            changed_job_ids = []
+            results = {}
 
             for job in jobs:
-                changed_job_ids.append(job.id)
+                results[job.id] = self._build_job_json_data(job)
                 job.printed = datetime.utcnow()
+                if job.attendee:
+                    job.attendee.times_printed += 1
                 session.add(job)
                 session.commit()
 
-            return changed_job_ids
+            return results
+
+    @api_auth('api_update')
+    def clear_jobs(self, printer_ids='', all=False, invalidate=False, error=''):
+        """
+        Marks all pending print jobs as either printed or invalid, effectively clearing them from the queue.
+
+        Takes either a single printer ID, comma-separated list of printer IDs, or empty string as the first parameter.
+        If this is set, only the print jobs whose printer_id match one of those in the list are cleared.
+
+        Takes the boolean `all` as the second parameter.
+        If true, all jobs are cleared. Otherwise, at least one printer_id is required.
+
+        Takes the boolean `invalidate` as the third parameter.
+        If true, cleared jobs are marked invalid instead of printed (the default), marked with the parameter `error`.
+
+        Returns a dictionary of changed jobs' `json_data` plus job metadata, keyed by job ID.
+        """
+        with Session() as session:
+            filters = [PrintJob.printed == None, PrintJob.errors == '']
+
+            if printer_ids:
+                printer_ids = [id.strip() for id in printer_ids.split(',')]
+                filters += [PrintJob.printer_id.in_(printer_ids)]
+            elif not all:
+                raise HTTPError(400, "You must provide at least one printer ID or set all to true.")
+            
+            jobs = session.query(PrintJob).filter(*filters).all()
+
+            if invalidate and not error:
+                raise HTTPError(400, "You must provide an error message to invalidate jobs.")
+
+            results = {}
+
+            for job in jobs:
+                results[job.id] = self._build_job_json_data(job)
+                if invalidate:
+                    if job.errors:
+                        job.errors += "; " + error
+                    else:
+                        job.errors = error
+                else:
+                    job.printed = datetime.utcnow()
+                    if job.attendee:
+                        job.attendee.times_printed += 1
+                session.add(job)
+                session.commit()
+
+            return results
 
 
 if c.API_ENABLED:

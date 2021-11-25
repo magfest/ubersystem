@@ -13,29 +13,13 @@ from uber.utils import localized_now
 
 @all_renderable()
 class Root:
-    def index(self, session, page='1', message='', id=None, pending='',
-              reprint_reason=''):
-        if id:
-            attendee = session.attendee(id)
-            attendee.badge_status = c.COMPLETED_STATUS
-            attendee.for_review += \
-                "Automated message: " \
-                "Badge marked for free reprint by {} on {}. Reason: {}"\
-                .format(session.admin_attendee().full_name, localized_now()
-                        .strftime('%m/%d, %H:%M'), reprint_reason)
-            session.add(attendee)
-            session.commit()
-            message = "Badge marked for re-print!"
+    def index(self, session, page='1', message='', pending=''):
+        base_query = session.query(Attendee).join(Attendee.print_requests)
 
         if pending:
-            badges = session.query(Attendee)\
-                .filter(Attendee.print_pending)\
-                .filter(Attendee.badge_status == c.COMPLETED_STATUS)\
-                .order_by(Attendee.badge_num).all()
+            badges = base_query.filter(PrintJob.printed == None, PrintJob.errors == '').order_by(PrintJob.queued.desc()).all()
         else:
-            badges = session.query(Attendee)\
-                .filter(not Attendee.print_pending)\
-                .order_by(Attendee.badge_num).all()
+            badges = base_query.filter(PrintJob.printed != None).order_by(PrintJob.printed.desc()).all()
 
         page = int(page)
         count = len(badges)
@@ -50,10 +34,12 @@ class Root:
             'pending':  pending
         }
 
-    def print_next_badge(self, session, minor='', printerNumber='', numberOfPrinters=''):
-        attendee = session.get_next_badge_to_print(minor=minor, printerNumber=printerNumber, numberOfPrinters=numberOfPrinters)
-        if not attendee:
-            raise HTTPRedirect('badge_waiting?minor={}&printerNumber={}&numberOfPrinters={}'.format(minor, printerNumber, numberOfPrinters))
+    def print_next_badge(self, session, printer_id=''):
+        badge = session.get_next_badge_to_print(printer_id=printer_id)
+        if not badge:
+            raise HTTPRedirect('badge_waiting?printer_id={}'.format(printer_id))
+
+        attendee = badge.attendee
 
         badge_type = attendee.badge_type_label
 
@@ -65,8 +51,9 @@ class Root:
 
         ribbon = ' / '.join(attendee.ribbon_labels) if attendee.ribbon else ''
 
+        badge.queued = datetime.utcnow()
+        badge.printed = datetime.utcnow()
         attendee.times_printed += 1
-        attendee.print_pending = False
         session.add(attendee)
         session.commit()
 
@@ -76,17 +63,21 @@ class Root:
             'badge_num': attendee.badge_num,
             'badge_name': attendee.badge_printed_name,
             'badge': True,
-            'minor': minor,
-            'printerNumber': printerNumber,
-            'numberOfPrinters': numberOfPrinters
+            'printer_id': printer_id,
         }
 
-    def badge_waiting(self, message='', minor='', printerNumber='', numberOfPrinters=''):
+    def badge_waiting(self, message='', printer_id=''):
         return {
             'message': message,
-            'minor': minor,
-            'printerNumber': printerNumber,
-            'numberOfPrinters': numberOfPrinters
+            'printer_id': printer_id,
+        }
+
+    def attendee_print_jobs(self, session, id):
+        attendee = session.attendee(id)
+
+        return {
+            'attendee': attendee,
+            'jobs': attendee.print_requests,
         }
 
     def reprint_fee(self, session, attendee_id=None, message='',
@@ -108,7 +99,6 @@ class Root:
                             localized_now().strftime('%m/%d, %H:%M'),
                             " Reason: " + reprint_reason if reprint_reason else '')
                 message = 'Free reprint recorded and badge sent to printer.'
-                attendee.print_pending = True
             elif refund:
                 attendee.paid = c.REFUNDED
                 session.add(session.create_receipt_item(attendee, 
@@ -140,19 +130,18 @@ class Root:
                             " Reason: " + reprint_reason if reprint_reason else '')
                 message = 'Reprint fee of ${} charged. Badge sent to printer.'\
                     .format(fee_amount)
-                attendee.print_pending = True
 
         raise HTTPRedirect('../registration/form?id={}&message={}',
                            attendee_id, message)
 
-    def queued_badges(self, session):
-        return {
-            'badges': session.query(PrintJob).all(),
-        }
+    def print_jobs_list(self, session):
+        return {}
 
     @not_site_mappable
     def print_jobs(self, session, flag):
-        filters = []
+        from uber.models import Tracking
+
+        filters = [Tracking.action == c.CREATED]
         if flag == 'pending':
             filters = [PrintJob.queued == None, PrintJob.printed == None]
         elif flag == 'not_printed':
@@ -164,10 +153,11 @@ class Root:
         elif flag == 'printed':
             filters = [PrintJob.printed != None]
 
-        badges = session.query(PrintJob).filter(*filters).limit(c.ROW_LOAD_LIMIT).all()
+        jobs = session.query(PrintJob).join(Tracking, PrintJob.id == Tracking.fk_id).filter(
+                 *filters).order_by(Tracking.when.desc()).limit(c.ROW_LOAD_LIMIT).all()
 
         return {
-            'badges': badges,
+            'jobs': jobs,
         }
 
     @ajax
@@ -208,6 +198,7 @@ class Root:
             success = True
             message = "Job marked as printed."
             job.printed = datetime.utcnow()
+            job.attendee.times_printed += 1
             session.add(job)
             session.commit()
         

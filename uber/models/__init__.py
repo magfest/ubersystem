@@ -1292,11 +1292,9 @@ class Session(SessionManager):
             if attendee.age_group_conf['val'] == c.AGE_UNKNOWN:
                 errors.append("Attendee no longer has an age group.")
             else:
-                attendee_is_minor = attendee.age_group_conf['val'] not in [c.UNDER_21, c.OVER_21]
-
-                if attendee_is_minor and not job.is_minor:
+                if attendee.age_now_or_at_con < 18 and not job.is_minor:
                     errors.append("Attendee is now under 18, please requeue badge.")
-                if not attendee_is_minor and job.is_minor:
+                if attendee.age_now_or_at_con >= 18 and job.is_minor:
                     errors.append("Attendee is no longer under 18, please requeue badge.")
             
             fields = ['badge_num', 'badge_type_label', 'ribbon_labels', 'badge_printed_name']
@@ -1444,30 +1442,13 @@ class Session(SessionManager):
 
             return True
         
-        def get_next_badge_to_print(self, minor='', printerNumber='', numberOfPrinters=''):
-            badge_list = self.query(Attendee) \
-                .filter(
-                Attendee.print_pending,
-                Attendee.birthdate != None,
-                Attendee.badge_num != None).order_by(Attendee.badge_num).all()
+        def get_next_badge_to_print(self, printer_id=''):
+            query = self.query(PrintJob).join(Tracking, PrintJob.id == Tracking.fk_id).filter(
+                    PrintJob.printed == None, PrintJob.errors == '', PrintJob.printer_id == printer_id)
 
-            try:
-                if minor:
-                    attendee = next(badge for badge
-                                    in badge_list
-                                    if badge.age_now_or_at_con < 18)
-                elif printerNumber != "" and numberOfPrinters != "": 
-                    attendee = next(badge for badge
-                                    in badge_list
-                                    if badge.age_now_or_at_con >= 18 and badge.badge_num % int(numberOfPrinters) == (int(printerNumber) - 1))
-                else:
-                    attendee = next(badge for badge
-                                    in badge_list
-                                    if badge.age_now_or_at_con >= 18)
-            except StopIteration:
-                return None
+            badge = query.order_by(Tracking.when.desc()).with_for_update().first()
 
-            return attendee
+            return badge
 
         def valid_attendees(self):
             return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)
