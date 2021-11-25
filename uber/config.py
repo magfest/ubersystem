@@ -392,23 +392,15 @@ class Config(_Overridable):
             return self.DONATION_TIER_OPTS
 
     @property
-    def PREREG_DONATION_DESCRIPTIONS(self):
-        # include only the items that are actually available for purchase
-        if not self.SHARED_KICKIN_STOCKS:
-            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
-                             if tier[1]['price'] not in self.kickin_availability_matrix
-                             or self.kickin_availability_matrix[tier[1]['price']]]
-        elif self.BEFORE_SHIRT_DEADLINE and not self.SHIRT_AVAILABLE:
-            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
-                             if tier[1]['price'] < self.SHIRT_LEVEL]
-        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
-            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
-                             if tier[1]['price'] < self.SUPPORTER_LEVEL]
-        elif self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
-            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
-                             if tier[1]['price'] < self.SEASON_LEVEL]
-        else:
-            donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
+    def FORMATTED_DONATION_DESCRIPTIONS(self):
+        """
+        A list of the donation descriptions, formatted for use on attendee-facing pages.
+        
+        This does NOT filter out unavailable kick-ins so we can use it on attendees' confirmation pages
+        to show unavailable kick-ins they've already purchased. To show only available kick-ins, use
+        PREREG_DONATION_DESCRIPTIONS.
+        """
+        donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
 
         donation_list = sorted(donation_list, key=lambda tier: tier[1]['price'])
 
@@ -428,7 +420,24 @@ class Config(_Overridable):
                 links = item[1].split('|')
                 entry[1]['all_descriptions'] += list(zip(descriptions, links))
 
-        donation_list = [dict(tier[1]) for tier in donation_list]
+        return [dict(tier[1]) for tier in donation_list]
+
+    @property
+    def PREREG_DONATION_DESCRIPTIONS(self):
+        donation_list = self.FORMATTED_DONATION_DESCRIPTIONS
+
+        # include only the items that are actually available for purchase
+        if not self.SHARED_KICKIN_STOCKS:
+            donation_list = [tier for tier in donation_list
+                             if tier['price'] not in self.kickin_availability_matrix
+                             or self.kickin_availability_matrix[tier['price']]]
+        elif self.BEFORE_SHIRT_DEADLINE and not self.SHIRT_AVAILABLE:
+            donation_list = [tier for tier in donation_list if tier['price'] < self.SHIRT_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
+            donation_list = [tier for tier in donation_list if tier['price'] < self.SUPPORTER_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
+            donation_list = [tier for tier in donation_list if tier['price'] < self.SEASON_LEVEL]
+
         return [tier for tier in donation_list if 
                 (tier['price'] >= c.SHIRT_LEVEL and tier['price'] < c.SUPPORTER_LEVEL and c.BEFORE_SHIRT_DEADLINE) or 
                 (tier['price'] >= c.SUPPORTER_LEVEL and c.BEFORE_SUPPORTER_DEADLINE) or 
