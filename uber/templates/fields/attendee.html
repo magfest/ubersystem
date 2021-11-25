@@ -615,20 +615,17 @@
         {{ macros.popup_link("../static_views/givingExtra.html", "Why do this?") }}
       </label>
       <div class="col-sm-9">
-        {% if not attendee.is_new and (c.AFTER_SUPPORTER_DEADLINE or not c.SEASON_AVAILABLE) and attendee.amount_extra > c.SUPPORTER_LEVEL or (c.AFTER_SUPPORTER_DEADLINE or not c.SUPPORTER_AVAILABLE) and attendee.amount_extra == c.SUPPORTER_LEVEL or (c.AFTER_SHIRT_DEADLINE or not c.SHIRT_AVAILABLE) and attendee.amount_extra >= c.SHIRT_LEVEL and attendee.amount_extra < c.SUPPORTER_LEVEL %}
-          {{ attendee.amount_extra_label }}
-          <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
-        {% else %}
-          {% if c.PREREG_DONATION_DESCRIPTIONS %}
-            <div data-toggle="buttons" class="btn-group-inline">
-              {% for tier in c.PREREG_DONATION_DESCRIPTIONS %}
+        {% if c.PREREG_DONATION_DESCRIPTIONS or c.FORMATTED_DONATION_DESCRIPTIONS and not attendee.is_new and attendee.amount_extra %}
+          <div data-toggle="buttons" class="btn-group-inline">
+            {% for tier in c.FORMATTED_DONATION_DESCRIPTIONS %}
+              {% if tier in c.PREREG_DONATION_DESCRIPTIONS or attendee.amount_extra == tier.price %}
                 <label class="btn btn-default btn-inline">
                   <input type="radio"
-                         name="amount_extra"
-                         autocomplete="off"
-                         value="{{ tier.price }}"
-                         onchange="donationChanged();"
-                         {% if attendee.amount_extra == tier.price %}checked{% endif %} />
+                        name="amount_extra"
+                        autocomplete="off"
+                        value="{{ tier.price }}"
+                        onchange="donationChanged();"
+                        {% if attendee.amount_extra == tier.price %}checked{% endif %} />
                   <div class="title">
                     <h4>{{ tier.name }}</h4>
                     {% if tier.price %}
@@ -652,8 +649,9 @@
                     {% endfor %}
                   </ul>
                 </label>
-              {% endfor %}
-            </div>
+              {% endif %}
+            {% endfor %}
+          </div>
 
 
           {% else %}
@@ -661,7 +659,6 @@
               {{ options(c.PREREG_DONATION_OPTS, attendee.amount_extra) }}
             </select>
           {% endif %}
-        {% endif %}
       </div>
 
       <p class="help-block col-sm-offset-3 col-sm-9">
