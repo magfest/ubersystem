@@ -1388,11 +1388,10 @@ class Session(SessionManager):
             return attendee
 
         def valid_attendees(self):
-            return self.query(Attendee).filter(not_(Attendee.badge_status.in_([c.PENDING_STATUS, c.INVALID_STATUS])))
+            return self.query(Attendee).filter(Attendee.is_valid == True)
 
         def attendees_with_badges(self):
-            return self.query(Attendee).filter(not_(Attendee.badge_status.in_(
-                [c.PENDING_STATUS, c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS])))
+            return self.query(Attendee).filter(Attendee.has_badge == True)
 
         def all_attendees(self, only_staffing=False, pending=False):
             """

@@ -26,8 +26,7 @@ class PersonalizedBadgeReport(ReportBase):
         badge_nums_seen = []
 
         for a in (session.query(Attendee)
-                         .filter(not_(Attendee.badge_status.in_(
-                                [c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS])), *filters)
+                         .filter(Attendee.has_badge == True, *filters)
                          .order_by(order_by).all()):
 
             # sanity check no duplicate badges
