@@ -224,6 +224,7 @@ class GuestInfo(MagModel):
 class GuestBio(MagModel):
     guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
     desc = Column(UnicodeText)
+    member_info = Column(UnicodeText)
     website = Column(UnicodeText)
     facebook = Column(UnicodeText)
     twitter = Column(UnicodeText)
