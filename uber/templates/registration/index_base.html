@@ -156,6 +156,8 @@
                 <td id="group_{{ attendee.id }}">
                     {% if attendee.group %}
                     <a href="../group_admin/form?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>
+                    {% elif attendee.group_name %}
+                    {{ attendee.group_name }}
                     {% endif %}
                 </td>
                   <td id="promo_code_group_{{ attendee.id }}">
