@@ -54,7 +54,7 @@ sqlite_reflect_kwargs = {
 def upgrade():
     op.drop_column('attendee', 'print_pending')
     op.drop_column('attendee', 'times_printed')
-    op.add_column('print_job', sa.Column('print_fee', sa.Integer(), server_default='5', nullable=False))
+    op.add_column('print_job', sa.Column('print_fee', sa.Integer(), server_default='0', nullable=False))
 
 
 def downgrade():
