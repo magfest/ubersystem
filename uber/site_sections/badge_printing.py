@@ -170,7 +170,7 @@ class Root:
         except Exception:
             return {'success': False, 'message': "What you entered for Reprint Fee ({}) isn't even a number".format(fee_amount)}
         
-        if not fee_amount and not reprint_reason and c.BADGE_REPRINT_FEE:
+        if not fee_amount and not reprint_reason and c.BADGE_REPRINT_FEE and attendee.times_printed > 0:
             return {'success': False, 'message': "You must set a fee or enter a reason for a free reprint!"}
         
         print_id, errors = session.add_to_print_queue(attendee, printer_id, params.get('reg_station'), fee_amount)
@@ -178,14 +178,15 @@ class Root:
             return {'success': False, 'message': "<br>".join(errors)}
 
         if not fee_amount:
-            if c.BADGE_REPRINT_FEE:
+            if c.BADGE_REPRINT_FEE and attendee.times_printed > 0:
                 attendee.for_review += \
                     "Automated message: " \
                     "Badge marked for free reprint by {} on {}.{}"\
                     .format(session.admin_attendee().full_name,
                             localized_now().strftime('%m/%d, %H:%M'),
                             " Reason: " + reprint_reason if reprint_reason else '')
-            message = '{}adge sent to printer.'.format("B" if not c.BADGE_REPRINT_FEE else "Free reprint recorded and b")
+            message = '{}adge sent to printer.'.format("B" if not c.BADGE_REPRINT_FEE or attendee.times_printed == 0
+                                                        else "Free reprint recorded and b")
         else:
             message = 'Badge sent to printer with reprint fee of ${}.'.format(fee_amount)
 
