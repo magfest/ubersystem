@@ -1840,27 +1840,3 @@ $(window).on("runJavaScript", function(){
   </div>
 </div>
 {% endset %}
-
-
-{% if c.BADGE_PRINTING_ENABLED %}
-{% set print_badge %}
-{% if c.BADGE_REPRINT_FEE %}
-<div class="form-group" id="reprint_fee">
-  <label class="col-sm-3 control-label">Reprint Badge</label>
-  <div class="col-sm-6">
-      <form role="form" method="post" action="../badge_printing/reprint_fee">
-          <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
-          $<input type="text" style="width:4em" name="fee_amount" value="{{ c.BADGE_REPRINT_FEE }}" />
-          <span id="reprint_reason">Reason: <input type="text" name="reprint_reason" style="width:20em" placeholder="Reason for reprinting." /></span>
-          <button class="btn btn-warning" type="submit">Record Reprint</button>
-          <button class="btn btn-success" type="submit" name="refund" value="True">Refund Reprint Fee</button>
-      </form>
-  </div>
-</div>
-
-<script type="text/javascript">
-  $('#reprint_fee').insertAfter($.field('badge_status').parents('.form-group'));
-</script>
-{% endif %}
-{% endset %}
-{% endif %}

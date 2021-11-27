@@ -53,7 +53,6 @@ class Root:
 
         badge.queued = datetime.utcnow()
         badge.printed = datetime.utcnow()
-        attendee.times_printed += 1
         session.add(attendee)
         session.commit()
 
@@ -143,15 +142,15 @@ class Root:
 
         filters = [Tracking.action == c.CREATED]
         if flag == 'pending':
-            filters = [PrintJob.queued == None, PrintJob.printed == None]
+            filters += [PrintJob.queued == None, PrintJob.printed == None, PrintJob.errors == '']
         elif flag == 'not_printed':
-            filters = [PrintJob.queued != None, PrintJob.printed == None]
+            filters += [PrintJob.queued != None, PrintJob.printed == None, PrintJob.errors == '']
         elif flag == 'errors':
-            filters = [PrintJob.errors != '']
+            filters += [PrintJob.errors != '']
         elif flag == 'created':
-            filters = [PrintJob.admin_id == cherrypy.session.get('account_id')]
+            filters += [PrintJob.admin_id == cherrypy.session.get('account_id')]
         elif flag == 'printed':
-            filters = [PrintJob.printed != None]
+            filters += [PrintJob.printed != None]
 
         jobs = session.query(PrintJob).join(Tracking, PrintJob.id == Tracking.fk_id).filter(
                  *filters).order_by(Tracking.when.desc()).limit(c.ROW_LOAD_LIMIT).all()
@@ -161,12 +160,40 @@ class Root:
         }
 
     @ajax
-    def add_job_to_queue(self, session, id, printer_id=0):
-        print_id, errors = session.add_to_print_queue(session.attendee(id), printer_id, cherrypy.session.get('reg_station'))
+    def add_job_to_queue(self, session, id, printer_id='', **params):
+        attendee = session.attendee(id)
+        fee_amount = params.get('fee_amount', 0)
+        reprint_reason = params.get('reprint_reason')
+
+        try:
+            fee_amount = int(fee_amount)
+        except Exception:
+            return {'success': False, 'message': "What you entered for Reprint Fee ({}) isn't even a number".format(fee_amount)}
+        
+        if not fee_amount and not reprint_reason and c.BADGE_REPRINT_FEE and attendee.times_printed > 0:
+            return {'success': False, 'message': "You must set a fee or enter a reason for a free reprint!"}
+        
+        print_id, errors = session.add_to_print_queue(attendee, printer_id, params.get('reg_station'), fee_amount)
         if errors:
             return {'success': False, 'message': "<br>".join(errors)}
 
-        return {'success': True, 'message': 'Print job created!'}
+        if not fee_amount:
+            if c.BADGE_REPRINT_FEE and attendee.times_printed > 0:
+                attendee.for_review += \
+                    "Automated message: " \
+                    "Badge marked for free reprint by {} on {}.{}"\
+                    .format(session.admin_attendee().full_name,
+                            localized_now().strftime('%m/%d, %H:%M'),
+                            " Reason: " + reprint_reason if reprint_reason else '')
+            message = '{}adge sent to printer.'.format("B" if not c.BADGE_REPRINT_FEE or attendee.times_printed == 0
+                                                        else "Free reprint recorded and b")
+        else:
+            message = 'Badge sent to printer with reprint fee of ${}.'.format(fee_amount)
+
+        session.add(attendee)
+        session.commit()
+
+        return {'success': True, 'message': message}
 
     @ajax_gettable
     def mark_as_unsent(self, session, id):
@@ -198,7 +225,6 @@ class Root:
             success = True
             message = "Job marked as printed."
             job.printed = datetime.utcnow()
-            job.attendee.times_printed += 1
             session.add(job)
             session.commit()
         

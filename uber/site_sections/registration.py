@@ -189,6 +189,9 @@ class Root:
                 for group_id, unassigned in session.query(Attendee.group_id, func.count('*')).filter(
                     Attendee.group_id != None, Attendee.first_name == '').group_by(Attendee.group_id).all()},
             'Charge': Charge if cherrypy.session.get('reg_station') else None,
+            'reg_station': cherrypy.session.get('reg_station', ''),
+            'printer_default_id': cherrypy.session.get('printer_default_id', ''),
+            'printer_minor_id': cherrypy.session.get('printer_minor_id', ''),
         }  # noqa: E711
 
     def change_badge(self, session, id, message='', **params):

@@ -1066,12 +1066,15 @@ class PrintJobLookup:
         return results
 
     @api_auth('api_create')
-    def create(self, attendee_id, printer_id, reg_station):
+    def create(self, attendee_id, printer_id, reg_station, print_fee=None):
         """
         Create a new print job for a specified badge.
         
         Takes the attendee ID as the first parameter, the printer ID as the second parameter,
         and the reg station number as the third parameter.
+        
+        Takes a print_fee as an optional fourth parameter. If this is not specified, attendees
+        are charged c.BADGE_REPRINT_FEE unless this is the first time their badge is being printed.
 
         Returns a dictionary of the new job's `json_data` plus job metadata, keyed by job ID.
         """
@@ -1085,7 +1088,7 @@ class PrintJobLookup:
             if not attendee:
                 raise HTTPError(404, "Attendee not found.")
             
-            print_id, errors = session.add_to_print_queue(attendee, printer_id, reg_station)
+            print_id, errors = session.add_to_print_queue(attendee, printer_id, reg_station, print_fee)
             if errors:
                 raise HTTPError(424, "Attendee not ready to print. Error(s): {}".format("; ".join(errors)))
             
@@ -1151,8 +1154,6 @@ class PrintJobLookup:
             for job in jobs:
                 results[job.id] = self._build_job_json_data(job)
                 job.printed = datetime.utcnow()
-                if job.attendee:
-                    job.attendee.times_printed += 1
                 session.add(job)
                 session.commit()
 
@@ -1199,8 +1200,6 @@ class PrintJobLookup:
                         job.errors = error
                 else:
                     job.printed = datetime.utcnow()
-                    if job.attendee:
-                        job.attendee.times_printed += 1
                 session.add(job)
                 session.commit()
 

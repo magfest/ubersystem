@@ -1229,7 +1229,7 @@ class Session(SessionManager):
                 self.delete(code)
                 pc_group.promo_codes.remove(code)
 
-        def add_to_print_queue(self, attendee, printer_id, reg_station):
+        def add_to_print_queue(self, attendee, printer_id, reg_station, print_fee=None):
             from uber.models import PrintJob
             fields = [
                     'badge_printed_name',
@@ -1244,6 +1244,9 @@ class Session(SessionManager):
 
             if not reg_station:
                 errors.append("Reg station number not set.")
+
+            if print_fee is None:
+                print_fee = c.BADGE_REPRINT_FEE if attendee.times_printed > 0 else 0
             
             if not attendee.birthdate:
                 errors.append("Attendee is missing a date of birth.")
@@ -1266,7 +1269,8 @@ class Session(SessionManager):
                                  admin_id = self.current_admin_account().id,
                                  admin_name = self.admin_attendee().full_name,
                                  printer_id = printer_id,
-                                 reg_station = reg_station)
+                                 reg_station = reg_station,
+                                 print_fee = print_fee)
 
             if attendee.age_now_or_at_con >= 18:
                 print_job.is_minor = False

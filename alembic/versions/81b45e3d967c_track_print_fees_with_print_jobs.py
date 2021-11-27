@@ -1,14 +1,14 @@
-"""Remove print_pending from attendees
+"""Track print fees with print jobs
 
-Revision ID: 4f534df62c80
+Revision ID: 81b45e3d967c
 Revises: 40ec91ad7a74
-Create Date: 2021-11-24 06:55:07.597340
+Create Date: 2021-11-27 00:42:34.973833
 
 """
 
 
 # revision identifiers, used by Alembic.
-revision = '4f534df62c80'
+revision = '81b45e3d967c'
 down_revision = '40ec91ad7a74'
 branch_labels = None
 depends_on = None
@@ -53,7 +53,11 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.drop_column('attendee', 'print_pending')
+    op.drop_column('attendee', 'times_printed')
+    op.add_column('print_job', sa.Column('print_fee', sa.Integer(), server_default='0', nullable=False))
 
 
 def downgrade():
+    op.drop_column('print_job', 'print_fee')
+    op.add_column('attendee', sa.Column('times_printed', sa.INTEGER(), server_default=sa.text('0'), autoincrement=False, nullable=False))
     op.add_column('attendee', sa.Column('print_pending', sa.BOOLEAN(), server_default=sa.text('false'), autoincrement=False, nullable=False))

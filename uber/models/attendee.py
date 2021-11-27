@@ -421,7 +421,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     # =========================
     # badge printing
     # =========================
-    times_printed = Column(Integer, default=0)
     print_requests = relationship('PrintJob', backref='attendee')
     
     # =========================
@@ -618,9 +617,21 @@ class Attendee(MagModel, TakesPaymentMixin):
                 if not self.amount_unpaid:
                     self.badge_num = self.session.get_next_badge_num(self.badge_type)
 
+    @hybrid_property
+    def times_printed(self):
+        return len([job.id for job in self.print_requests if job.printed])
+
+    @times_printed.expression
+    def times_printed(cls):
+        from uber.models import PrintJob
+
+        return select([func.count(PrintJob.id)]
+                      ).where(and_(PrintJob.attendee_id == cls.id,
+                                   PrintJob.printed != None)).label('times_printed')
+
     @cost_property
-    def reprint_cost(self):
-        return c.BADGE_REPRINT_FEE or 0
+    def badge_reprints_cost(self):
+        return sum([job.print_fee for job in self.print_requests if job.printed])
 
     @property
     def age_now_or_at_con(self):
