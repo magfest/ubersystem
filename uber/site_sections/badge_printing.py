@@ -142,15 +142,15 @@ class Root:
 
         filters = [Tracking.action == c.CREATED]
         if flag == 'pending':
-            filters = [PrintJob.queued == None, PrintJob.printed == None]
+            filters += [PrintJob.queued == None, PrintJob.printed == None, PrintJob.errors == '']
         elif flag == 'not_printed':
-            filters = [PrintJob.queued != None, PrintJob.printed == None]
+            filters += [PrintJob.queued != None, PrintJob.printed == None, PrintJob.errors == '']
         elif flag == 'errors':
-            filters = [PrintJob.errors != '']
+            filters += [PrintJob.errors != '']
         elif flag == 'created':
-            filters = [PrintJob.admin_id == cherrypy.session.get('account_id')]
+            filters += [PrintJob.admin_id == cherrypy.session.get('account_id')]
         elif flag == 'printed':
-            filters = [PrintJob.printed != None]
+            filters += [PrintJob.printed != None]
 
         jobs = session.query(PrintJob).join(Tracking, PrintJob.id == Tracking.fk_id).filter(
                  *filters).order_by(Tracking.when.desc()).limit(c.ROW_LOAD_LIMIT).all()
