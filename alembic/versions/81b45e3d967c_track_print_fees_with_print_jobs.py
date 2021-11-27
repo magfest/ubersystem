@@ -1,7 +1,7 @@
 """Track print fees with print jobs
 
 Revision ID: 81b45e3d967c
-Revises: 70920586fdee
+Revises: 40ec91ad7a74
 Create Date: 2021-11-27 00:42:34.973833
 
 """
@@ -9,7 +9,7 @@ Create Date: 2021-11-27 00:42:34.973833
 
 # revision identifiers, used by Alembic.
 revision = '81b45e3d967c'
-down_revision = '70920586fdee'
+down_revision = '40ec91ad7a74'
 branch_labels = None
 depends_on = None
 
