@@ -1151,8 +1151,6 @@ class PrintJobLookup:
             for job in jobs:
                 results[job.id] = self._build_job_json_data(job)
                 job.printed = datetime.utcnow()
-                if job.attendee:
-                    job.attendee.times_printed += 1
                 session.add(job)
                 session.commit()
 
@@ -1199,8 +1197,6 @@ class PrintJobLookup:
                         job.errors = error
                 else:
                     job.printed = datetime.utcnow()
-                    if job.attendee:
-                        job.attendee.times_printed += 1
                 session.add(job)
                 session.commit()
 

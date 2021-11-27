@@ -5,7 +5,7 @@ There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view.
 {% endif %}
 
 <div class="panel panel-default">
-    <table class="table table-striped datatable">
+    <table class="table table-striped datatable" data-order="[[ 0, &quot;desc&quot; ]]">
     <thead><tr>
         <th>Created</th>
         <th>Job ID</th>
@@ -14,6 +14,7 @@ There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view.
         <th>Admin</th>
         <th>Printer ID</th>
         <th>Reg Station</th>
+        <th>Print Fee</th>
         <th>Queued</th>
         <th>Printed</th>
         <th>Errors</th>
@@ -34,6 +35,7 @@ There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view.
     <td>{{ job.admin_name }}</td>
     <td>{{ job.printer_id }}</td>
     <td>{{ job.reg_station }}</td>
+    <td>{{ job.print_fee|format_currency }}</td>
     <td id="queued_{{ job.id }}" data-order="{{ job.queued }}">{{ job.queued|time_day_local|default("No", true) }}</td>
     <td id="printed_{{ job.id }}" data-order="{{ job.printed }}">{{ job.printed|time_day_local|default("No", true) }}</td>
     <td id="errors_{{ job.id }}">{{ job.errors }}</td>
