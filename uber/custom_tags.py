@@ -267,7 +267,7 @@ def form_link(model, new_window=False):
     site_section = site_sections.get(cls, form_link_site_sections.get(cls))
     name = getattr(model, 'name', getattr(model, 'full_name', model))
 
-    if site_section:
+    if site_section or cls == Attendee and page == '#attendee_form':
         return safe_string('<a href="{}{}?id={}"{}>{}</a>'.format(
                                                            site_section, 
                                                            page, 
