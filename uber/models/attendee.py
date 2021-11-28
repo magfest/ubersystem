@@ -719,6 +719,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             section_list.append('mits_admin')
         if self.group and self.group.guest and self.group.guest.group_type == c.MIVS:
             section_list.append('mivs_admin')
+        if self.art_show_applications or self.art_show_bidder or self.art_show_purchases:
+            section_list.append('art_show_admin')
+        if self.marketplace_applications:
+            section_list.append('marketplace_admin')
         return section_list
 
     def admin_read_access(self):
