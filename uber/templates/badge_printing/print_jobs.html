@@ -26,7 +26,7 @@ There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view.
     <td>{{ job.id }}</td>
     {% if not attendee %}
     <td data-order="{{ job.attendee.full_name }}" data-search="{{ job.attendee.full_name }}">
-        <a href="../registration/form?id={{ job.attendee.id }}">{{ job.attendee.full_name }}</a>
+        {{ job.attendee|form_link }}
     </td>
     {% endif %}
     <td>
