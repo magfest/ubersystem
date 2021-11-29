@@ -42,7 +42,8 @@
         dataType: 'json',
         data: {
             attendee_id: attendeeID,
-            printer_id: $.val('printer_id')
+            printer_id: $.val('printer_id'),
+            reprint_fee: {{ reprint_fee|default("''", true) }}
         },
         success: function (json) {
             toastr.clear();

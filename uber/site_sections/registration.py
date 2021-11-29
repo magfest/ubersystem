@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from functools import wraps
 from io import BytesIO
 
+from pockets.autolog import log
+
 import cherrypy
 import treepoem
 from pytz import UTC
@@ -20,7 +22,7 @@ from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, Email, Group, Job, PageViewTracking, PromoCode, PromoCodeGroup, Sale, \
     Session, Shift, Tracking, WatchList
 from uber.models.badge_printing import PrintJob
-from uber.utils import add_opt, check, check_csrf, check_pii_consent, Charge, get_page, hour_day_format, \
+from uber.utils import add_opt, check, check_pii_consent, Charge, get_page, hour_day_format, \
     localized_now, Order
 
 
@@ -407,7 +409,9 @@ class Root:
 
     @check_for_encrypted_badge_num
     @ajax
-    def print_badge(self, session, message='', group_id='', **params):
+    def print_badge(self, session, message='', group_id='', printer_id='', **params):
+        from uber.site_sections.badge_printing import pre_print_check
+
         bools = ['got_merch'] if c.MERCH_AT_CHECKIN else []
         attendee = session.attendee(params, allow_invalid=True, bools=bools)
         group = attendee.group or (session.group(group_id) if group_id else None)
@@ -419,15 +423,17 @@ class Root:
         if not message and attendee.paid == c.PAID_BY_GROUP and not attendee.group_id:
             message = 'You must select a group for this attendee.'
 
-        if not message and not params.get('printer_id'):
+        if not message and not printer_id:
             message = 'You must set a printer ID.'
 
-        if message:
+        success, message = pre_print_check(session, attendee, printer_id, dry_run=True, **params)
+
+        if not success:
             return {'success': False, 'message': message}
         
         session.commit()
-        if attendee.age_now_or_at_con < 18 and params['printer_id'] == cherrypy.session.get('printer_default_id'):
-            if session.query(PrintJob).filter(PrintJob.printer_id == params['printer_id'],
+        if attendee.age_now_or_at_con < 18 and printer_id == cherrypy.session.get('printer_default_id'):
+            if session.query(PrintJob).filter(PrintJob.printer_id == printer_id,
                                               PrintJob.printed == None,
                                               PrintJob.errors == '').all():
                 return {'success': False,
@@ -436,21 +442,20 @@ class Root:
             else:
                 return {'success': True, 'minor_check': True}
         else:
-            print_id, errors = session.add_to_print_queue(attendee, params['printer_id'], cherrypy.session.get('reg_station'))
-            if errors:
-                return {'success': False, 'message': "<br>".join(errors)}
+            session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'), params.get('fee_amount'))
             return {'success': True, 'message': 'Print job created!'}
 
-    def minor_check_form(self, session, attendee_id, printer_id):
+    def minor_check_form(self, session, attendee_id, printer_id, reprint_fee):
         return {
             'attendee_id': attendee_id,
             'printer_id': printer_id,
+            'reprint_fee': reprint_fee,
         }
 
     @ajax_gettable
-    def complete_minor_check(self, session, attendee_id, printer_id):
+    def complete_minor_check(self, session, attendee_id, printer_id, reprint_fee):
         attendee = session.attendee(attendee_id)
-        print_id, errors = session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'))
+        print_id, errors = session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'), reprint_fee)
         if errors:
             return {'success': False, 'message': "<br>".join(errors)}
         return {'success': True, 'message': 'Print job created!', 'printer_id': printer_id}

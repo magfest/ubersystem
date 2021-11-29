@@ -1073,8 +1073,8 @@ class PrintJobLookup:
         Takes the attendee ID as the first parameter, the printer ID as the second parameter,
         and the reg station number as the third parameter.
         
-        Takes a print_fee as an optional fourth parameter. If this is not specified, attendees
-        are charged c.BADGE_REPRINT_FEE unless this is the first time their badge is being printed.
+        Takes a print_fee as an optional fourth parameter. If this is not specified, an error
+        is returned unless this is the first time this attendee's badge is being printed.
 
         Returns a dictionary of the new job's `json_data` plus job metadata, keyed by job ID.
         """
