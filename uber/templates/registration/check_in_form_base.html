@@ -205,6 +205,7 @@ $().ready(function() {
                     {{ attendee.badge_num }}
                     <input type="hidden" id="checkin-badge" name="badge_num" value="{{ attendee.badge_num }}" />
                     </div>
+                </div>
                 {% else %}
                 <div class="col-sm-6">
                   # <input class="num" id="checkin-badge" name="badge_num" type="text" size="10" />
@@ -231,7 +232,6 @@ $().ready(function() {
                     focusBadgeNum();
                 </script>
                 {% endif %}
-            </div>
         </div>
     {% endif %}
     {% if attendee.amount_extra and c.MERCH_AT_CHECKIN %}
