@@ -453,7 +453,7 @@ class Root:
         print_id, errors = session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'))
         if errors:
             return {'success': False, 'message': "<br>".join(errors)}
-        return {'success': True, 'message': 'Print job created!'}
+        return {'success': True, 'message': 'Print job created!', 'printer_id': printer_id}
 
     def check_in_form(self, session, id):
         attendee = session.attendee(id)
