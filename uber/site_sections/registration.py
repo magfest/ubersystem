@@ -33,9 +33,9 @@ def pre_checkin_check(attendee, group):
 
     if c.COLLECT_EXACT_BIRTHDATE:
         if not attendee.birthdate:
-            return 'You may not check someone in without a valid date of birth.'
+            return 'Invalid date of birth'
     elif not attendee.age_group or attendee.age_group == c.AGE_UNKNOWN:
-        return 'You may not check someone in without confirming their age.'
+        return 'Invalid age group'
 
     if attendee.checked_in:
         return attendee.full_name + ' was already checked in!'
@@ -44,7 +44,7 @@ def pre_checkin_check(attendee, group):
         return 'This attendee\'s group has an outstanding balance of ${}'.format(format_currency(group.amount_unpaid))
 
     if attendee.paid == c.NOT_PAID:
-        return 'You cannot check in an attendee that has not paid.'
+        return 'This attendee has not paid.'
 
     return check(attendee)
 
@@ -426,6 +426,9 @@ class Root:
         if not message and not printer_id:
             message = 'You must set a printer ID.'
 
+        if message:
+            return {'success': False, 'message': message}
+        
         success, message = pre_print_check(session, attendee, printer_id, dry_run=True, **params)
 
         if not success:
