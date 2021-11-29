@@ -1,3 +1,4 @@
+{% if not attendee.is_new and c.BADGE_PRINTING_ENABLED %}
 <div class="panel">
 <form class="print-badge form-horizontal" method="post">
     {{ csrf_token() }}
@@ -65,3 +66,4 @@ $('.print-badge').on('submit', function (event) {
     });
 });
 </script>
+{% endif %}
