@@ -5,11 +5,11 @@
     <input type="hidden" name="id" value="{{ attendee.id }}">
     <div class="form-group">
         <label for="printer_id" class="col-sm-3 control-label">Printer ID and Reg Station #</label>
-        <div class="col-sm-2">
+        <div class="col-sm-4">
             <input type="text" name="printer_id" class="form-control" value="{{ printer_id }}" placeholder="Printer ID" />
         </div>
-        <div class="col-sm-1">
-            <input type="text" name="reg_station" class="form-control" value="{{ reg_station }}" placeholder="Station #" />
+        <div class="col-sm-2">
+            <input type="number" name="reg_station" class="form-control" value="{{ reg_station }}" placeholder="Station #" />
         </div>
     </div>
 
@@ -17,14 +17,14 @@
         <div class="form-group">
             <label for="fee_amount" class="col-sm-3 control-label">Reprint {% if c.BADGE_REPRINT_FEE %}Fee and {% endif %}Reason</label>
             {% if c.BADGE_REPRINT_FEE %}
-            <div class="col-xs-1">
+            <div class="col-sm-2">
                 <div class="input-group">
                     <span class="input-group-addon">$</span>
                     <input type="number" class="form-control" name="fee_amount" value="{{ c.BADGE_REPRINT_FEE }}" />
                 </div>
             </div>
             {% endif %}
-            <div class="col-sm-{% if c.BADGE_REPRINT_FEE %}2{% else %}3{% endif %}">
+            <div class="col-sm-{% if c.BADGE_REPRINT_FEE %}4{% else %}6{% endif %}">
                 <input type="text" class="form-control" name="reprint_reason" placeholder="Reason for reprinting." />
             </div>
         </div>
