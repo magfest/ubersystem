@@ -100,6 +100,7 @@ $().ready(function() {
 })
 </script>
 {% else %}
+{% include 'registration/attendee_pending_warning.html' %}
 <form action="/" id="check_in_form_{{ attendee.id }}" role="form" class="form-horizontal check-in">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ attendee.id }}" />
@@ -207,8 +208,11 @@ $().ready(function() {
                     </div>
                 </div>
                 {% else %}
-                <div class="col-sm-6">
-                  # <input class="num" id="checkin-badge" name="badge_num" type="text" size="10" />
+                <div class="col-sm-3">
+                    <div class="input-group">
+                        <span class="input-group-addon">#</span>
+                        <input class="num form-control" id="checkin-badge" name="badge_num" type="text" size="10" />
+                    </div>
                 </div>
                 <script>
                     /**
