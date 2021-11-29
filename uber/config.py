@@ -971,6 +971,10 @@ c.TABLE_PRICES = defaultdict(lambda: _config['table_prices']['default_price'],
 c.PREREG_TABLE_OPTS = list(range(1, c.MAX_TABLES + 1))
 c.ADMIN_TABLE_OPTS = [decimal.Decimal(x) for x in range(0, 9)]
 
+# Let admins remove door payment methods by making their label blank
+c.DOOR_PAYMENT_METHOD_OPTS = [opt for opt in c.DOOR_PAYMENT_METHOD_OPTS if opt[1]]
+c.DOOR_PAYMENT_METHODS = {key: val for key, val in c.DOOR_PAYMENT_METHODS.items() if val}
+
 c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
 c.DISCOUNTABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.DISCOUNTABLE_BADGE_TYPES]
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
