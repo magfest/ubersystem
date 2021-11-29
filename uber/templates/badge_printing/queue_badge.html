@@ -1,14 +1,15 @@
+{% if not attendee.is_new and c.BADGE_PRINTING_ENABLED %}
 <div class="panel">
 <form class="print-badge form-horizontal" method="post">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ attendee.id }}">
     <div class="form-group">
         <label for="printer_id" class="col-sm-3 control-label">Printer ID and Reg Station #</label>
-        <div class="col-sm-2">
+        <div class="col-sm-4">
             <input type="text" name="printer_id" class="form-control" value="{{ printer_id }}" placeholder="Printer ID" />
         </div>
-        <div class="col-sm-1">
-            <input type="text" name="reg_station" class="form-control" value="{{ reg_station }}" placeholder="Station #" />
+        <div class="col-sm-2">
+            <input type="number" name="reg_station" class="form-control" value="{{ reg_station }}" placeholder="Station #" />
         </div>
     </div>
 
@@ -16,14 +17,14 @@
         <div class="form-group">
             <label for="fee_amount" class="col-sm-3 control-label">Reprint {% if c.BADGE_REPRINT_FEE %}Fee and {% endif %}Reason</label>
             {% if c.BADGE_REPRINT_FEE %}
-            <div class="col-xs-1">
+            <div class="col-sm-2">
                 <div class="input-group">
                     <span class="input-group-addon">$</span>
                     <input type="number" class="form-control" name="fee_amount" value="{{ c.BADGE_REPRINT_FEE }}" />
                 </div>
             </div>
             {% endif %}
-            <div class="col-sm-{% if c.BADGE_REPRINT_FEE %}2{% else %}3{% endif %}">
+            <div class="col-sm-{% if c.BADGE_REPRINT_FEE %}4{% else %}6{% endif %}">
                 <input type="text" class="form-control" name="reprint_reason" placeholder="Reason for reprinting." />
             </div>
         </div>
@@ -39,15 +40,14 @@
 
 <script type="text/javascript">
 age = {{ attendee.age_now_or_at_con|default(0, true)}};
+
 if (age < 18) {
     $.field('printer_id').val(printer_minor_id);
 } else if (age >= 18) {
     $.field('printer_id').val(printer_default_id);
 }
-$('.print-badge').on('submit', function (event) {
-    var $form = $(this);
-    event.preventDefault();
-    toastr.clear();
+
+printBadge = function ($form) {
     $.ajax({
         method: 'POST',
         url: '../badge_printing/add_job_to_queue',
@@ -63,5 +63,31 @@ $('.print-badge').on('submit', function (event) {
             toastr.error('Unable to connect to server, please try again.');
         }
     });
+}
+
+$('.print-badge').on('submit', function (event) {
+    var $form = $(this);
+    event.preventDefault();
+    toastr.clear();
+    if($.val('printer_id') == printer_default_id && age < 18) {
+        bootbox.confirm({
+            backdrop: true,
+            title: 'Please Load Minor Badge Stock',
+            message: '<p>Please take a moment to load a blank badge from the minor badge stock' +
+            ' onto printer "' + $.val('printer_id') + '" before printing this badge.</p>',
+            buttons: {
+            confirm: { label: 'I\'ve Loaded the Minor Badge Stock', className: 'btn-success' },
+            cancel: { label: 'Nevermind', className: 'btn-default' }
+            },
+            callback: function (result) {
+            if (result) {
+                printBadge($form);
+            }
+            }
+        });
+    } else {
+        printBadge($form);
+    }
 });
 </script>
+{% endif %}

@@ -1,8 +1,8 @@
 <div class="modal-header">
   <button type="button" class="close" data-dismiss="modal">&times;</button>
   <h4 class="modal-title">Attendee Check-In{% if attendee.first_name %} - {{ attendee.full_name }}{% endif %}</h4>
-  </div>
-  <div class="modal-body">
+</div>
+<div class="modal-body">
 {% if attendee.amount_unpaid %}
 <div class="center text-center check-in">
 <h4>{{ attendee.full_name }} currently owes <strong>{{ attendee.amount_unpaid|format_currency }}</strong>.</h4>
@@ -100,6 +100,7 @@ $().ready(function() {
 })
 </script>
 {% else %}
+{% include 'registration/attendee_pending_warning.html' %}
 <form action="/" id="check_in_form_{{ attendee.id }}" role="form" class="form-horizontal check-in">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ attendee.id }}" />
@@ -207,8 +208,11 @@ $().ready(function() {
                     </div>
                 </div>
                 {% else %}
-                <div class="col-sm-6">
-                  # <input class="num" id="checkin-badge" name="badge_num" type="text" size="10" />
+                <div class="col-sm-3">
+                    <div class="input-group">
+                        <span class="input-group-addon">#</span>
+                        <input class="num form-control" id="checkin-badge" name="badge_num" type="text" size="10" />
+                    </div>
                 </div>
                 <script>
                     /**
@@ -245,11 +249,30 @@ $().ready(function() {
         <label for="printer_id" class="col-sm-3 control-label"><strong>Printer ID</strong></label>
         <div class="col-sm-6"><input type="text" class="form-control" name="printer_id" /></div>
       </div>
+      {% if attendee.times_printed > 0 %}
+      <div class="form-group">
+        <label for="fee_amount" class="col-sm-3 control-label">Reprint {% if c.BADGE_REPRINT_FEE %}Fee and {% endif %}Reason</label>
+        {% if c.BADGE_REPRINT_FEE %}
+        <div class="col-sm-2">
+            <div class="input-group">
+                <span class="input-group-addon">$</span>
+                <input type="number" class="form-control" name="fee_amount" value="{{ c.BADGE_REPRINT_FEE }}" />
+            </div>
+        </div>
+        {% endif %}
+        <div class="col-sm-{% if c.BADGE_REPRINT_FEE %}4{% else %}6{% endif %}">
+            <input type="text" class="form-control" name="reprint_reason" placeholder="Reason for reprinting." />
+        </div>
+    </div>
+      {% endif %}
     {% endif %}
     {% endblock checkin_fields %}
 </form>
 </div>
 <div class="modal-footer">
+    <button class='btn btn-default btn-sm pull-left' onClick="refreshModal('{{ attendee.id }}')">
+        <span class="glyphicon glyphicon-refresh"></span>
+      </button>
   <div class="form-group">
   <div class="pull-right">
         {% if c.BADGE_PRINTING_ENABLED %}
@@ -265,9 +288,12 @@ $().ready(function() {
 </div>
 {% if c.BADGE_PRINTING_ENABLED %}
 <script type="text/javascript">
-    loadMinorCheckForm = function (attendeeID, printerID) {
+    refreshModal = function (attendeeID) {
+        loadCheckInFormModal(attendeeID);
+    }
+    loadMinorCheckForm = function (attendeeID, printerID, reprintFee) {
         $('#checkin_modal .modal-content').load(
-            '../registration/minor_check_form?attendee_id=' + attendeeID + '&printer_id=' + printerID, function() {
+            '../registration/minor_check_form?attendee_id=' + attendeeID + '&printer_id=' + printerID + '&reprint_fee=' + reprintFee, function() {
         if ($('.minor-check-id').length) {
         } else {
             toastr.error("Form loading failed.");
@@ -286,7 +312,7 @@ $().ready(function() {
                 var message = json.message;
                 if (json.success) {
                     if (json.minor_check) {
-                        loadMinorCheckForm(attendeeID, $.val('printer_id'));
+                        loadMinorCheckForm(attendeeID, $.val('printer_id'), $.val('fee_amount'));
                     } else {
                         toastr.success(message);
                         loadCheckInFormModal(attendeeID);

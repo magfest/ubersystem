@@ -1,9 +1,12 @@
+import bcrypt
 import json
 import math
 import re
 from datetime import datetime, timedelta
 from functools import wraps
 from io import BytesIO
+
+from pockets.autolog import log
 
 import cherrypy
 import treepoem
@@ -17,11 +20,11 @@ from uber.custom_tags import format_currency
 from uber.decorators import ajax, ajax_gettable, all_renderable, attendee_view, check_for_encrypted_badge_num, check_if_can_reg, credit_card, \
     csrf_protected, department_id_adapter, log_pageview, not_site_mappable, render, site_mappable, public
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Department, Email, Group, Job, PageViewTracking, PromoCode, PromoCodeGroup, Sale, \
-    Session, Shift, Tracking, WatchList
-from uber.models.badge_printing import PrintJob
-from uber.utils import add_opt, check, check_csrf, check_pii_consent, Charge, get_page, hour_day_format, \
-    localized_now, Order
+from uber.models import Attendee, AttendeeAccount, Department, Email, Group, Job, PageViewTracking, PrintJob, PromoCode, \
+    PromoCodeGroup, Sale, Session, Shift, Tracking, WatchList
+from uber.site_sections.preregistration import check_account
+from uber.utils import add_opt, check, check_pii_consent, Charge, get_page, hour_day_format, \
+    localized_now, Order, normalize_email
 
 
 def pre_checkin_check(attendee, group):
@@ -31,9 +34,9 @@ def pre_checkin_check(attendee, group):
 
     if c.COLLECT_EXACT_BIRTHDATE:
         if not attendee.birthdate:
-            return 'You may not check someone in without a valid date of birth.'
+            return 'Invalid date of birth'
     elif not attendee.age_group or attendee.age_group == c.AGE_UNKNOWN:
-        return 'You may not check someone in without confirming their age.'
+        return 'Invalid age group'
 
     if attendee.checked_in:
         return attendee.full_name + ' was already checked in!'
@@ -42,7 +45,7 @@ def pre_checkin_check(attendee, group):
         return 'This attendee\'s group has an outstanding balance of ${}'.format(format_currency(group.amount_unpaid))
 
     if attendee.paid == c.NOT_PAID:
-        return 'You cannot check in an attendee that has not paid.'
+        return 'This attendee has not paid.'
 
     return check(attendee)
 
@@ -407,7 +410,9 @@ class Root:
 
     @check_for_encrypted_badge_num
     @ajax
-    def print_badge(self, session, message='', group_id='', **params):
+    def print_badge(self, session, message='', group_id='', printer_id='', **params):
+        from uber.site_sections.badge_printing import pre_print_check
+
         bools = ['got_merch'] if c.MERCH_AT_CHECKIN else []
         attendee = session.attendee(params, allow_invalid=True, bools=bools)
         group = attendee.group or (session.group(group_id) if group_id else None)
@@ -419,15 +424,20 @@ class Root:
         if not message and attendee.paid == c.PAID_BY_GROUP and not attendee.group_id:
             message = 'You must select a group for this attendee.'
 
-        if not message and not params.get('printer_id'):
+        if not message and not printer_id:
             message = 'You must set a printer ID.'
 
         if message:
             return {'success': False, 'message': message}
         
+        success, message = pre_print_check(session, attendee, printer_id, dry_run=True, **params)
+
+        if not success:
+            return {'success': False, 'message': message}
+        
         session.commit()
-        if attendee.age_now_or_at_con < 18 and params['printer_id'] == cherrypy.session.get('printer_default_id'):
-            if session.query(PrintJob).filter(PrintJob.printer_id == params['printer_id'],
+        if attendee.age_now_or_at_con < 18 and printer_id == cherrypy.session.get('printer_default_id'):
+            if session.query(PrintJob).filter(PrintJob.printer_id == printer_id,
                                               PrintJob.printed == None,
                                               PrintJob.errors == '').all():
                 return {'success': False,
@@ -436,24 +446,23 @@ class Root:
             else:
                 return {'success': True, 'minor_check': True}
         else:
-            print_id, errors = session.add_to_print_queue(attendee, params['printer_id'], cherrypy.session.get('reg_station'))
-            if errors:
-                return {'success': False, 'message': "<br>".join(errors)}
-            return {'success': True, 'message': 'Print job created!'}
+            session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'), params.get('fee_amount'))
+            return {'success': True, 'message': message}
 
-    def minor_check_form(self, session, attendee_id, printer_id):
+    def minor_check_form(self, session, attendee_id, printer_id, reprint_fee):
         return {
             'attendee_id': attendee_id,
             'printer_id': printer_id,
+            'reprint_fee': reprint_fee,
         }
 
     @ajax_gettable
-    def complete_minor_check(self, session, attendee_id, printer_id):
+    def complete_minor_check(self, session, attendee_id, printer_id, reprint_fee):
         attendee = session.attendee(attendee_id)
-        print_id, errors = session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'))
+        print_id, errors = session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'), reprint_fee)
         if errors:
             return {'success': False, 'message': "<br>".join(errors)}
-        return {'success': True, 'message': 'Print job created!'}
+        return {'success': True, 'message': 'Print job created!', 'printer_id': printer_id}
 
     def check_in_form(self, session, id):
         attendee = session.attendee(id)
@@ -544,21 +553,56 @@ class Root:
     @check_if_can_reg
     def register(self, session, message='', error_message='', **params):
         params['id'] = 'None'
+        login_email = None
+
+        if 'kiosk_mode' in params:
+            cherrypy.session['kiosk_mode'] = True
+
+        in_kiosk_mode = cherrypy.session.get('kiosk_mode')
+        if in_kiosk_mode:
+            cherrypy.session['attendee_account_id'] = None
+        
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            account_email, account_password = params.get('account_email'), params.get('account_password')
+            login_email, login_password = params.get('login_email'), params.get('login_password')
+
         attendee = session.attendee(params, restricted=True, ignore_csrf=True)
-        error_message = check_pii_consent(params, attendee) or error_message
+        error_message = error_message or check_pii_consent(params, attendee)
         if not error_message and 'first_name' in params:
-            if not attendee.payment_method and (not c.BADGE_PRICE_WAIVED or c.BEFORE_BADGE_PRICE_WAIVED):
-                error_message = 'Please select a payment type'
-            elif attendee.payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
-                error_message = 'Email address is required to pay with a credit card at our registration desk'
-            elif attendee.badge_type not in [badge for badge, desc in c.AT_THE_DOOR_BADGE_OPTS]:
-                error_message = 'No hacking allowed!'
-            else:
-                error_message = check(attendee)
+            if c.ATTENDEE_ACCOUNTS_ENABLED:
+                if login_email:
+                    account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(login_email)).first()
+                    if not account:
+                        error_message = 'No account exists for that email address'
+                    elif not bcrypt.hashpw(login_password, account.hashed) == account.hashed:
+                        error_message = 'Incorrect password'
+                    else:
+                        new_or_existing_account = account
+                else:
+                    error_message = check_account(session, account_email, account_password, params.get('confirm_password'))
+            
+            if not error_message:
+                if not attendee.payment_method and (not c.BADGE_PRICE_WAIVED or c.BEFORE_BADGE_PRICE_WAIVED):
+                    error_message = 'Please select a payment type'
+                elif attendee.payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
+                    error_message = 'Email address is required to pay with a credit card at our registration desk'
+                elif attendee.badge_type not in [badge for badge, desc in c.AT_THE_DOOR_BADGE_OPTS]:
+                    error_message = 'No hacking allowed!'
+                else:
+                    error_message = check(attendee)
 
             if not error_message and c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
                 error_message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
             if not error_message:
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    if not login_email:
+                        new_or_existing_account = session.current_attendee_account()
+                    if not new_or_existing_account:
+                        new_or_existing_account = session.create_attendee_account(account_email, account_password)
+                    session.add_attendee_to_account(attendee, new_or_existing_account)
+                    if not in_kiosk_mode:
+                        cherrypy.session['attendee_account_id'] = new_or_existing_account.id
+
                 session.add(attendee)
                 session.commit()
                 if c.AFTER_BADGE_PRICE_WAIVED:
@@ -578,6 +622,10 @@ class Root:
             'error_message':  error_message,
             'attendee': attendee,
             'promo_code': params.get('promo_code', ''),
+            'logged_in_account': session.current_attendee_account(),
+            'original_location': '../registration/register',
+            'kiosk_mode': in_kiosk_mode,
+            'logging_in': bool(login_email),
         }
 
     @public

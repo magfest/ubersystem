@@ -114,32 +114,52 @@
             <div class="row-fluid">
                 <div class="col-xs-12">
                     <h1 class="text-center">{{ c.EVENT_NAME_AND_YEAR }} Registration<br><br></h1>
-                    {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
-                    {% if logged_in_account %}
+                    {% if kiosk_mode %}
                     <div class="text-center">
-                        <a class="btn btn-info btn-xl" href="../preregistration/homepage" role="button">Continue to Homepage</a>
+                        <a class="btn btn-success btn-xl" href="../preregistration/form" role="button">Register for {{ c.EVENT_NAME_AND_YEAR }}</a>
                     </div>
                     {% else %}
-                    <div class="col-sm-6 col-sm-offset-3">
-                        <h2>Log in</h2>
-                    </div>
-                        {% include 'preregistration/login.html' %}
-                    {% endif %}
-                        <br><h2 class="text-center">or</h2><br/>
-                    {% endif %}
-                    <div class="text-center">
-                        <div class="btn-group">
-                        <a class="btn btn-primary btn-lg" href="../preregistration/form" role="button">
-                            {% if c.ATTENDEE_ACCOUNTS_ENABLED and logged_in_account %}Add New Registration{% elif c.ATTENDEE_ACCOUNTS_ENABLED %}Create New Account{% else %}Register for {{ c.EVENT_NAME_AND_YEAR }}{% endif %}
-                        </a>
-                        {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
-                        <a class="btn btn-success btn-lg" href="../preregistration/dealer_registration" role="button">
-                            Register as Dealer
-                        </a>
-                        {% endif %}
+                    {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+                        {% if logged_in_account %}
+                        <div class="text-center">
+                            <a class="btn btn-info btn-xl" href="../preregistration/homepage" role="button">Continue to Homepage</a>
                         </div>
-                        <br><br>
-                    </div>
+                        {% else %}
+                        <div class="col-sm-6 col-sm-offset-3">
+                            <h2>Log in</h2>
+                        </div>
+                            {% include 'preregistration/login.html' %}
+                        {% endif %}
+                            <br><h2 class="text-center">or</h2><br/>
+                    {% endif %}
+                        <div class="text-center">
+                            <div class="btn-group">
+                            <a class="btn btn-primary btn-lg" href="../preregistration/form" role="button">
+                                {% if c.ATTENDEE_ACCOUNTS_ENABLED and logged_in_account %}Add New Registration{% elif c.ATTENDEE_ACCOUNTS_ENABLED %}Create New Account{% else %}Register for {{ c.EVENT_NAME_AND_YEAR }}{% endif %}
+                            </a>
+                            {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
+                            <a class="btn btn-success btn-lg" href="../preregistration/dealer_registration" role="button">
+                                Register as Dealer
+                            </a>
+                            {% endif %}
+                            </div>
+                            <br><br>
+                        </div>
+                    {% endif %}
+                    {% endif %}
+                    {% if kiosk_mode %}
+                    <p class="text-right">
+                        <a class="btn btn-link btn-lg" href="../landing/index?exit_kiosk=True" role="button">
+                            Exit Kiosk Mode
+                        </a>
+                    </p>
+                    {% elif c.AT_THE_CON and c.ATTENDEE_ACCOUNTS_ENABLED %}
+                    <p class="text-right">
+                        <a class="btn btn-link btn-lg" href="../registration/register?kiosk_mode=True" role="button">
+                            Enter Kiosk Mode
+                        </a>
+                    </p>
+                    {% endif %}
                     <p class="text-right">
                         <a class="btn btn-link btn-lg" href="../accounts/homepage" role="button">
                             Admin Login

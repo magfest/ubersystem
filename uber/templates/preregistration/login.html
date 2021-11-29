@@ -6,18 +6,22 @@
     <div class="form-group">
         <label class="col-sm-3 control-label">Email</label>
         <div class="col-sm-6">
-            <input type="email" class="form-control" placeholder="Email address" name="email"
+            <input type="email" class="form-control login-form-input" placeholder="Email address" name="login_email"
     value="{{ email }}" required autofocus />
         </div>
     </div>
     <div class="form-group">
         <label class="col-sm-3 control-label">Password</label>
         <div class="col-sm-6">
-            <input type="password" class="form-control" placeholder="Password" name="password" required />
+            <input type="password" class="form-control login-form-input" placeholder="Password" name="login_password" required />
         </div>
     </div>
+    {% if kiosk_mode %}
+    <input type="submit" class="hidden" />
+    {% else %}
     <div class="col-sm-3 col-sm-offset-3">
         <button class="btn btn-success" type="submit">Log in</button>
     </div>
     <div class="col-sm-3 text-right"><a href="../preregistration/reset_password" target="_blank">Forgot your password?</a></div>
+    {% endif %}
 </form>

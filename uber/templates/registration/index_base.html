@@ -93,7 +93,10 @@
 <div class="row" style="margin-top: 15px;">
     <div class="col-xs-12">
         <span style="margin-right: 15px;">{{ attendee_count }} Attendee{{ attendee_count|pluralize }}</span>
-        <span><span id="checkin_count">{{ checkin_count }}</span> Checked In</span>
+        <span style="margin-right: 15px;"><span id="checkin_count">{{ checkin_count }}</span> Checked In</span>
+        {% if printer_minor_id %}<span class="pull-right">Minor Printer: {{ printer_minor_id }}</span>{% endif %}
+        {% if printer_default_id %}<span class="pull-right" style="margin-right: 15px;">Standard Printer: {{ printer_default_id }}</span>{% endif %}
+        {% if reg_station %}<span class="pull-right" style="margin-right: 15px;">Reg station #: {{ reg_station }}</span>{% endif %}
         {% if c.HAS_REG_ADMIN_ACCESS %}
         {% block badge_counts %}
         <span class="badge_count btn" data-warning-threshold="1500" data-danger-thresold="250">{{ c.ATTENDEE_BADGE_STOCK - c.ATTENDEE_BADGE_COUNT }} Attendee badges left</span>

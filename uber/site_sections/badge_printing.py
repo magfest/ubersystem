@@ -11,6 +11,41 @@ from uber.models import Attendee, PrintJob
 from uber.utils import localized_now
 
 
+def pre_print_check(session, attendee, printer_id, dry_run=False, **params):
+    fee_amount = params.get('fee_amount', 0)
+    reprint_reason = params.get('reprint_reason')
+
+    try:
+        fee_amount = int(fee_amount)
+    except Exception:
+        return False, "What you entered for Reprint Fee ({}) isn't even a number".format(fee_amount)
+    
+    if not fee_amount and not reprint_reason and c.BADGE_REPRINT_FEE and attendee.times_printed > 0:
+        return False, "You must set a fee or enter a reason for a free reprint!"
+    
+    print_id, errors = session.add_to_print_queue(attendee,
+                                                  printer_id,
+                                                  params.get('reg_station', cherrypy.session.get('reg_station')),
+                                                  fee_amount,
+                                                  dry_run)
+    if errors:
+        return False, "<br>".join(errors)
+
+    if not fee_amount:
+        if c.BADGE_REPRINT_FEE and attendee.times_printed > 0:
+            attendee.for_review += \
+                "Automated message: " \
+                "Badge marked for free reprint by {} on {}.{}"\
+                .format(session.admin_attendee().full_name,
+                        localized_now().strftime('%m/%d, %H:%M'),
+                        " Reason: " + reprint_reason if reprint_reason else '')
+            return True, '{}adge sent to printer.'.format("B" if not c.BADGE_REPRINT_FEE or attendee.times_printed == 0
+                                                    else "Free reprint recorded and b")
+    else:
+        return True, 'Badge sent to printer with reprint fee of ${}.'.format(fee_amount)
+    return True, 'Badge sent to printer.'
+
+
 @all_renderable()
 class Root:
     def index(self, session, page='1', message='', pending=''):
@@ -108,38 +143,13 @@ class Root:
     @ajax
     def add_job_to_queue(self, session, id, printer_id='', **params):
         attendee = session.attendee(id)
-        fee_amount = params.get('fee_amount', 0)
-        reprint_reason = params.get('reprint_reason')
+        success, message = pre_print_check(session, attendee, printer_id, dry_run=False, **params)
 
-        try:
-            fee_amount = int(fee_amount)
-        except Exception:
-            return {'success': False, 'message': "What you entered for Reprint Fee ({}) isn't even a number".format(fee_amount)}
-        
-        if not fee_amount and not reprint_reason and c.BADGE_REPRINT_FEE and attendee.times_printed > 0:
-            return {'success': False, 'message': "You must set a fee or enter a reason for a free reprint!"}
-        
-        print_id, errors = session.add_to_print_queue(attendee, printer_id, params.get('reg_station'), fee_amount)
-        if errors:
-            return {'success': False, 'message': "<br>".join(errors)}
+        if success:
+            session.add(attendee)
+            session.commit()
 
-        if not fee_amount:
-            if c.BADGE_REPRINT_FEE and attendee.times_printed > 0:
-                attendee.for_review += \
-                    "Automated message: " \
-                    "Badge marked for free reprint by {} on {}.{}"\
-                    .format(session.admin_attendee().full_name,
-                            localized_now().strftime('%m/%d, %H:%M'),
-                            " Reason: " + reprint_reason if reprint_reason else '')
-            message = '{}adge sent to printer.'.format("B" if not c.BADGE_REPRINT_FEE or attendee.times_printed == 0
-                                                        else "Free reprint recorded and b")
-        else:
-            message = 'Badge sent to printer with reprint fee of ${}.'.format(fee_amount)
-
-        session.add(attendee)
-        session.commit()
-
-        return {'success': True, 'message': message}
+        return {'success': success, 'message': message}
 
     @ajax_gettable
     def mark_as_unsent(self, session, id):
