@@ -40,15 +40,14 @@
 
 <script type="text/javascript">
 age = {{ attendee.age_now_or_at_con|default(0, true)}};
+
 if (age < 18) {
     $.field('printer_id').val(printer_minor_id);
 } else if (age >= 18) {
     $.field('printer_id').val(printer_default_id);
 }
-$('.print-badge').on('submit', function (event) {
-    var $form = $(this);
-    event.preventDefault();
-    toastr.clear();
+
+printBadge = function ($form) {
     $.ajax({
         method: 'POST',
         url: '../badge_printing/add_job_to_queue',
@@ -64,6 +63,31 @@ $('.print-badge').on('submit', function (event) {
             toastr.error('Unable to connect to server, please try again.');
         }
     });
+}
+
+$('.print-badge').on('submit', function (event) {
+    var $form = $(this);
+    event.preventDefault();
+    toastr.clear();
+    if($.val('printer_id') == printer_default_id && age < 18) {
+        bootbox.confirm({
+            backdrop: true,
+            title: 'Please Load Minor Badge Stock',
+            message: '<p>Please take a moment to load a blank badge from the minor badge stock' +
+            ' onto printer "' + $.val('printer_id') + '" before printing this badge.</p>',
+            buttons: {
+            confirm: { label: 'I\'ve Loaded the Minor Badge Stock', className: 'btn-success' },
+            cancel: { label: 'Nevermind', className: 'btn-default' }
+            },
+            callback: function (result) {
+            if (result) {
+                printBadge($form);
+            }
+            }
+        });
+    } else {
+        printBadge($form);
+    }
 });
 </script>
 {% endif %}
