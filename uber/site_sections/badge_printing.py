@@ -43,7 +43,7 @@ def pre_print_check(session, attendee, printer_id, dry_run=False, **params):
                                                     else "Free reprint recorded and b")
     else:
         return True, 'Badge sent to printer with reprint fee of ${}.'.format(fee_amount)
-    return True, ''
+    return True, 'Badge sent to printer.'
 
 
 @all_renderable()

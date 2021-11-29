@@ -447,7 +447,7 @@ class Root:
                 return {'success': True, 'minor_check': True}
         else:
             session.add_to_print_queue(attendee, printer_id, cherrypy.session.get('reg_station'), params.get('fee_amount'))
-            return {'success': True, 'message': 'Print job created!'}
+            return {'success': True, 'message': message}
 
     def minor_check_form(self, session, attendee_id, printer_id, reprint_fee):
         return {
