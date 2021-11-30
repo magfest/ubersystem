@@ -315,7 +315,11 @@ $().ready(function() {
                 var message = json.message;
                 if (json.success) {
                     if (json.minor_check) {
-                        loadMinorCheckForm(attendeeID, $.val('printer_id'), $.val('fee_amount'));
+                        if ($.field('fee_amount')) {
+                            loadMinorCheckForm(attendeeID, $.val('printer_id'), $.val('fee_amount'));
+                        } else {
+                            loadMinorCheckForm(attendeeID, $.val('printer_id'), 0);
+                        }
                     } else {
                         toastr.success(message);
                         loadCheckInFormModal(attendeeID);
