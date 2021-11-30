@@ -40,6 +40,7 @@ loadCheckInForm = function () {
     $('#checkin_modal').modal('show');
     $('#checkin_modal .modal-content').load('check_in_form?id={{ attendee.id }}', function () {
         createDateTextEntries();
+        $('#pending_paid_warning').hide();
     });
 }
 var resumeStripeAction = callStripeAction;
