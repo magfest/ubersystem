@@ -198,7 +198,7 @@
                     {% elif attendee.is_not_ready_to_checkin %}
                         <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
                     {% else %}
-                      {% if not reg_station and attendee.amount_unpaid %}
+                      {% if not reg_station and not c.BADGE_PRINTING_ENABLED and attendee.amount_unpaid %}
                         <td>Can't checkin (Attendee owes {{ attendee.amount_unpaid|format_currency }})</td>
                       {% else %}
                         <td id="cin_{{ attendee.id }}">
