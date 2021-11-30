@@ -62,7 +62,7 @@ def check_atd(func):
 
 @all_renderable()
 class Root:
-    def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first', invalid=''):
+    def index(self, session, message='', page='0', search_text='', uploaded_id='', order='last_first', invalid='', reset_printers=False):
         # DEVELOPMENT ONLY: it's an extremely convenient shortcut to show the first page
         # of search results when doing testing. it's too slow in production to do this by
         # default due to the possibility of large amounts of reg stations accessing this
@@ -96,6 +96,11 @@ class Root:
 
         pages = range(1, int(math.ceil(count / 100)) + 1)
         attendees = attendees[-100 + 100*page: 100*page] if page else []
+
+        if reset_printers:
+            cherrypy.session['printer_default_id'] = ''
+            cherrypy.session['printer_minor_id'] = ''
+            message = "Default Printer IDs reset."
 
         return {
             'message':        message if isinstance(message, str) else message[-1],

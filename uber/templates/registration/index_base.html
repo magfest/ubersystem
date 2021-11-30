@@ -94,7 +94,8 @@
     <div class="col-xs-12">
         <span style="margin-right: 15px;">{{ attendee_count }} Attendee{{ attendee_count|pluralize }}</span>
         <span style="margin-right: 15px;"><span id="checkin_count">{{ checkin_count }}</span> Checked In</span>
-        {% if printer_minor_id %}<span class="pull-right">Minor Printer: {{ printer_minor_id }}</span>{% endif %}
+        {% if c.BADGE_PRINTING_ENABLED %}<span class="pull-right" style="margin-right: 15px;"><a href="index?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode }}&reset_printers=True">Reset Default Printer IDs</a></span>{% endif %}
+        {% if printer_minor_id %}<span class="pull-right" style="margin-right: 15px;">Minor Printer: {{ printer_minor_id }}</span>{% endif %}
         {% if printer_default_id %}<span class="pull-right" style="margin-right: 15px;">Standard Printer: {{ printer_default_id }}</span>{% endif %}
         {% if reg_station %}<span class="pull-right" style="margin-right: 15px;">Reg station #: {{ reg_station }}</span>{% endif %}
         {% if c.HAS_REG_ADMIN_ACCESS %}
