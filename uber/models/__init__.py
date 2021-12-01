@@ -1229,7 +1229,7 @@ class Session(SessionManager):
                 self.delete(code)
                 pc_group.promo_codes.remove(code)
 
-        def add_to_print_queue(self, attendee, printer_id, reg_station):
+        def add_to_print_queue(self, attendee, printer_id, reg_station, print_fee=None, dry_run=False):
             from uber.models import PrintJob
             fields = [
                     'badge_printed_name',
@@ -1244,15 +1244,19 @@ class Session(SessionManager):
 
             if not reg_station:
                 errors.append("Reg station number not set.")
-            
-            if not attendee.birthdate or attendee.age_group_conf['val'] == c.AGE_UNKNOWN:
-                errors.append("Age group not recognized.")
 
-            fields = ['badge_num', 'badge_type_label', 'badge_printed_name']
+            if print_fee is None and attendee.times_printed > 0:
+                errors.append("Please specify what reprint fee to charge this attendee, including $0.")
+            
+            if not attendee.birthdate:
+                errors.append("Attendee is missing a date of birth.")
+            elif not attendee.age_now_or_at_con:
+                errors.append("Attendee's date of birth is not recognized as a date.")
+
             attendee_fields = attendee.to_dict(fields)
 
             for field in fields:
-                if not attendee_fields.get(field):
+                if not attendee_fields.get(field) and field != 'ribbon_labels':
                     errors.append("Field missing: {}.".format(field))
 
             if self.query(PrintJob).filter_by(attendee_id=attendee.id, printed=None, errors="").first():
@@ -1261,18 +1265,22 @@ class Session(SessionManager):
             if errors:
                 return None, errors
 
-            print_job = PrintJob(attendee_id = attendee.id, 
-                                     admin_id = self.current_admin_account().id,
-                                     admin_name = self.admin_attendee().full_name,
-                                     printer_id = printer_id,
-                                     reg_station = reg_station)
+            if dry_run:
+                return None, None
 
-            if attendee.age_group_conf['val'] in [c.UNDER_21, c.OVER_21]:
+            print_job = PrintJob(attendee_id = attendee.id, 
+                                 admin_id = self.current_admin_account().id,
+                                 admin_name = self.admin_attendee().full_name,
+                                 printer_id = printer_id,
+                                 reg_station = reg_station,
+                                 print_fee = print_fee)
+
+            if attendee.age_now_or_at_con >= 18:
                 print_job.is_minor = False
             else:
                 print_job.is_minor = True
             
-            json_data = attendee.to_dict(fields)
+            json_data = attendee_fields
             del json_data['_model']
             json_data['attendee_id'] = json_data.pop('id')
             print_job.json_data = json_data
@@ -1291,11 +1299,9 @@ class Session(SessionManager):
             if attendee.age_group_conf['val'] == c.AGE_UNKNOWN:
                 errors.append("Attendee no longer has an age group.")
             else:
-                attendee_is_minor = attendee.age_group_conf['val'] not in [c.UNDER_21, c.OVER_21]
-
-                if attendee_is_minor and not job.is_minor:
+                if attendee.age_now_or_at_con < 18 and not job.is_minor:
                     errors.append("Attendee is now under 18, please requeue badge.")
-                if not attendee_is_minor and job.is_minor:
+                if attendee.age_now_or_at_con >= 18 and job.is_minor:
                     errors.append("Attendee is no longer under 18, please requeue badge.")
             
             fields = ['badge_num', 'badge_type_label', 'ribbon_labels', 'badge_printed_name']
@@ -1443,30 +1449,13 @@ class Session(SessionManager):
 
             return True
         
-        def get_next_badge_to_print(self, minor='', printerNumber='', numberOfPrinters=''):
-            badge_list = self.query(Attendee) \
-                .filter(
-                Attendee.print_pending,
-                Attendee.birthdate != None,
-                Attendee.badge_num != None).order_by(Attendee.badge_num).all()
+        def get_next_badge_to_print(self, printer_id=''):
+            query = self.query(PrintJob).join(Tracking, PrintJob.id == Tracking.fk_id).filter(
+                    PrintJob.printed == None, PrintJob.errors == '', PrintJob.printer_id == printer_id)
 
-            try:
-                if minor:
-                    attendee = next(badge for badge
-                                    in badge_list
-                                    if badge.age_now_or_at_con < 18)
-                elif printerNumber != "" and numberOfPrinters != "": 
-                    attendee = next(badge for badge
-                                    in badge_list
-                                    if badge.age_now_or_at_con >= 18 and badge.badge_num % int(numberOfPrinters) == (int(printerNumber) - 1))
-                else:
-                    attendee = next(badge for badge
-                                    in badge_list
-                                    if badge.age_now_or_at_con >= 18)
-            except StopIteration:
-                return None
+            badge = query.order_by(Tracking.when.desc()).with_for_update().first()
 
-            return attendee
+            return badge
 
         def valid_attendees(self):
             return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)
@@ -2007,7 +1996,8 @@ def _attendee_validity_check():
     def with_validity_check(self, *args, **kwargs):
         allow_invalid = kwargs.pop('allow_invalid', False)
         attendee = orig_getter(self, *args, **kwargs)
-        if not allow_invalid and not attendee.is_new and attendee.badge_status == c.INVALID_STATUS:
+        if not allow_invalid and not attendee.is_new and \
+           not self.current_admin_account and not attendee.badge_status == c.INVALID_STATUS:
             raise HTTPRedirect('../preregistration/invalid_badge?id={}', attendee.id)
         else:
             return attendee

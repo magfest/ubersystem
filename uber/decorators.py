@@ -204,12 +204,14 @@ def requires_account(model=None):
                     if session.admin_attendee_max_access(attendee):
                         return func(*args, **kwargs)
                     
-                    account = session.query(AttendeeAccount).get(attendee_account_id)
+                    account = session.query(AttendeeAccount).get(attendee_account_id) if attendee_account_id else None
                     
-                    if account not in attendee.managers:
+                    if not account or account not in attendee.managers:
                         message = 'You do not have permission to view this page'
 
                 if message:
+                    if admin_account_id:
+                        raise HTTPRedirect('../accounts/homepage?message={}'.format(message))
                     raise HTTPRedirect('../preregistration/login?message={}'.format(message), save_location=True)
             return func(*args, **kwargs)
         return protected

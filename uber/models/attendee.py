@@ -421,8 +421,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     # =========================
     # badge printing
     # =========================
-    times_printed = Column(Integer, default=0)
-    print_pending = Column(Boolean, default=False)
     print_requests = relationship('PrintJob', backref='attendee')
     
     # =========================
@@ -564,9 +562,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         old_type = self.orig_value_of('badge_type')
         old_num = self.orig_value_of('badge_num')
 
-        if not needs_badge_num(self) and not c.AT_THE_CON:
-            self.badge_num = None
-
         if old_type != self.badge_type or old_num != self.badge_num:
             self.session.update_badge(self, old_type, old_num)
         elif needs_badge_num(self) and not self.badge_num:
@@ -622,23 +617,21 @@ class Attendee(MagModel, TakesPaymentMixin):
                 if not self.amount_unpaid:
                     self.badge_num = self.session.get_next_badge_num(self.badge_type)
 
-    @presave_adjustment
-    def print_ready_before_event(self):
-        if c.PRE_CON:
-            if self.badge_status == c.COMPLETED_STATUS\
-                    and not self.is_not_ready_to_checkin\
-                    and self.times_printed < 1:
-                self.print_pending = True
+    @hybrid_property
+    def times_printed(self):
+        return len([job.id for job in self.print_requests if job.printed])
 
-    @presave_adjustment
-    def print_ready_at_event(self):
-        if c.AT_THE_CON:
-            if self.checked_in and self.times_printed < 1:
-                self.print_pending = True
-                
+    @times_printed.expression
+    def times_printed(cls):
+        from uber.models import PrintJob
+
+        return select([func.count(PrintJob.id)]
+                      ).where(and_(PrintJob.attendee_id == cls.id,
+                                   PrintJob.printed != None)).label('times_printed')
+
     @cost_property
-    def reprint_cost(self):
-        return c.BADGE_REPRINT_FEE or 0
+    def badge_reprints_cost(self):
+        return sum([job.print_fee for job in self.print_requests if job.printed])
 
     @property
     def age_now_or_at_con(self):
@@ -726,6 +719,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             section_list.append('mits_admin')
         if self.group and self.group.guest and self.group.guest.group_type == c.MIVS:
             section_list.append('mivs_admin')
+        if self.art_show_applications or self.art_show_bidder or self.art_show_purchases:
+            section_list.append('art_show_admin')
+        if self.marketplace_applications:
+            section_list.append('marketplace_admin')
         return section_list
 
     def admin_read_access(self):

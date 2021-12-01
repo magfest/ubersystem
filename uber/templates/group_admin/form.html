@@ -157,7 +157,7 @@
                   <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
                 {% else %}
                   <td id="cin_{{ attendee.id }}">
-                    <button class="attendee-checkin" data-attendee-id="{{ attendee.id }}">Check In</button>
+                    <button class="attendee-checkin btn btn-sm btn-success" data-attendee-id="{{ attendee.id }}">Check In</button>
                   </td>
                 {% endif %}
               {% endif %}

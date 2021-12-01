@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Print Jobs - {{ attendee.full_name }}{% endblock %}
+{% block content %}
+{% include "registration/menu.html" %}
+{% include "badge_printing/print_jobs.html" %}
+{% endblock content %}

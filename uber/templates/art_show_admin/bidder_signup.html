@@ -69,10 +69,10 @@
         {% endif %}
       </td>
       <td>
-        <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a>
+        {{ attendee.full_name }}
       </td>
       <td>
-        <a href="../registration/form?id={{ attendee.id }}">{{ attendee.legal_name }}</a>
+        {{ attendee.legal_name }}
       </td>
       {% if c.PREASSIGNED_BADGE_TYPES %}<td>{{ attendee.badge_printed_name }}</td>{% endif %}
       {% if c.NUMBERED_BADGES %}<td>{{ attendee.badge_num }}</td>{% endif %}

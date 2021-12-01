@@ -1,6 +1,6 @@
 {{ account.attendee.full_name }},
 
-{{ creator }} has created an admin account for you on the {{ c.EVENT_NAME }} ubersystem at {{ c.URL_BASE }}.
+{{ creator }} has created an admin account for you on the {{ c.EVENT_NAME }} registration system at {{ c.URL_BASE }}/accounts.
 
 {% if account.write_access_set %}This account grants you read/write access to:
 {% for access in account.write_access_set %}

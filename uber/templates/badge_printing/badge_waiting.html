@@ -1,8 +1,22 @@
+
 <html>
+{% if not printer_id %}
+<body>
+    No printer ID provided. <strong>IF YOU DO NOT HAVE A PRINTER SERVER</strong>, enter an ID to start printing: 
+    <form onsubmit="return setPrinterID();"><input type="text" id="printer_id" /> <button type="submit">Submit</button></form>
+</body>
 <script type="text/javascript">
-    setTimeout(function() {window.location = "print_next_badge?minor={{ minor }}&printerNumber={{ printerNumber }}&numberOfPrinters={{ numberOfPrinters }}";}, 15000);
+    var setPrinterID = function() {
+        window.location = "print_next_badge?printer_id=" + document.getElementById("printer_id").value;
+        return false;
+    }
+</script>
+{% else %}
+<script type="text/javascript">
+    setTimeout(function() {window.location = "print_next_badge?printer_id={{ printer_id }}";}, 15000);
 </script>
 <body>
 No badges currently waiting to print. Checking again in 15 seconds...
 </body>
+{% endif %}
 </html>

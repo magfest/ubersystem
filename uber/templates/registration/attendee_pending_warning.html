@@ -1,0 +1,13 @@
+{% if not attendee.amount_unpaid and attendee.paid in [c.NOT_PAID, c.PENDING] %}
+<div class="alert alert-warning" id="pending_paid_warning">
+    <p><strong>This attendee is not marked as paid.</strong></p>
+    <p>This could be because:
+        <ul>
+            <li>They did not finish filling in their payment information.</li>
+            <li>You are on a test system that is not hooked up to Stripe.</li>
+            <li>A technical error occurred during their payment.</li>
+        </ul>
+    </p>
+    <p>Please send the attendee to the help desk to resolve this issue.</p>
+</div>
+{% endif %}

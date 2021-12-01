@@ -22,6 +22,7 @@ class PrintJob(MagModel):
     admin_name = Column(UnicodeText) # Preserve admin's name in case their account is removed
     printer_id = Column(UnicodeText)
     reg_station = Column(Integer, nullable=True)
+    print_fee = Column(Integer, default=0)
     queued = Column(UTCDateTime, nullable=True, default=None)
     printed = Column(UTCDateTime, nullable=True, default=None)
     errors = Column(UnicodeText)

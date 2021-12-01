@@ -1,28 +1,10 @@
 {% import 'macros.html' as macros with context %}
 
 {%- macro check_in_modal(app) -%}
-<style type="text/css">
-.dataTables_filter {
-display: none; 
-}
-.dataTables_length {
-  display: none;
-}
-</style>
-<script type="text/javascript">
-$(document).ready(function() {
-  $('.datatable').each(function() {
-    var table = $(this).DataTable({
-      retrieve: true,
-      paging: false,
-    });
-  });
-} );
-</script>
 {% set datatable_page_view = -1 %}
 {% set printable = not admin_area if not printable else printable %}
 <div class="modal fade" id="app_{{ app.id }}" role="dialog" tabindex="-1">
-  <div class="modal-dialog modal-lg" role="document">
+  <div class="modal-dialog modal-lg" style="width:75%" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
@@ -208,7 +190,7 @@ $(document).ready(function() {
 {% endif %}
 <br/>
 <div class="table-responsive">
-  <table class="table table-striped{% if not printable %} datatable {% endif %}">
+  <table class="table table-striped"{% if not printable %} id="datatable_{{ app.id }}" {% endif %}>
     <thead>
     <tr>
       <th>ID</th>
@@ -222,7 +204,7 @@ $(document).ready(function() {
     <tbody>
     {% for piece in app.art_show_pieces|sort(attribute='piece_id')|sort(attribute='gallery_label') %}
     <tr class="piece-row" data-piece_id="{{ piece.piece_id }}">
-      <td> {{ piece.artist_and_piece_id }} <input type="hidden" name="piece_ids{{ app.id }}" value="{{ piece.id }}" /> </td>
+      <td data-order="{{ piece.piece_id|int }}"> {{ piece.artist_and_piece_id }} <input type="hidden" name="piece_ids{{ app.id }}" value="{{ piece.id }}" /> </td>
       <td data-order="{{ piece.status_label }}">
         {% if printable %}{{ piece.status_label }} {% else %}
         <select name="status{{ piece.id }}" class="form-control">
@@ -230,7 +212,7 @@ $(document).ready(function() {
         </select>
         {% endif %}
       </td>
-      <td data-order="{{ piece.gallery_label }}"> {% if printable %}{{ piece.gallery_label }}{% else %}{{ macros.buttongroup(piece, 'gallery', suffix=piece.id) }}{% endif %} </td>
+      <td width="115px" data-order="{{ piece.gallery_label }}"> {% if printable %}{{ piece.gallery_label }}{% else %}{{ macros.buttongroup(piece, 'gallery', suffix=piece.id) }}{% endif %} </td>
       <td data-order="{{ piece.name }}"> {% if printable %}{{ piece.name|wordwrap(25, wrapstring="<br />"|safe) }}{% else %}<input type="text" class="form-control" name="name{{ piece.id }}" value="{{ piece.name }}" />{% endif %}</td>
       <td data-order="{{ piece.opening_bid }}"> {% if printable %}{{ '$' ~ piece.opening_bid if piece.valid_for_sale else "N/A" }}
         {% else %}<input type="text" class="form-control" size="10" placeholder="N/A" name="opening_bid{{ piece.id }}" value="{{ piece.opening_bid if piece.valid_for_sale else '' }}" />{% endif %}</td>

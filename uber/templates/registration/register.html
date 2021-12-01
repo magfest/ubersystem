@@ -5,10 +5,45 @@
 {% block content %}
 
   {% include 'prereg_masthead.html' %}
+  {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
   <div class="panel panel-default">
     <div class="panel-body">
-      <form method="post" action="register" autocomplete="off" class="form-horizontal">
+      {% include 'preregistration/create_or_login_account.html' %}
+    </div>
+  </div>
+  {% if not logged_in_account %}
+  <script type="text/javascript">
+  $(document).ready(function() {
+    $("#account-form").submit(function () { $("#reg-form").submit(); });
+    {% if kiosk_mode %}$("#login-form").submit(function () { $("#reg-form").submit(); });{% endif %}
+    {% if logging_in %}$('#login-tab').click();{% endif %}
+    $("#reg-form").submit(function () { 
+      var success = validateAndIncludeAccountFields();
+          if (!success) {
+            return false;
+          }
+          if(!$(this)[0].checkValidity()) {
+            $(this)[0].reportValidity();
+            return false;
+          }
+        });
+  })
+  </script>
+  {% endif %}
+  {% endif %}
+  <div class="panel panel-default">
+    <div class="panel-body">
+      <form method="post" action="register" id="reg-form" autocomplete="off" class="form-horizontal">
         {{ csrf_token() }}
+        {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+          <input type="hidden" name="account_email" class="copy-from-account-input"/>
+          <input type="hidden" name="account_password" class="copy-from-account-input"/>
+          <input type="hidden" name="confirm_password" class="copy-from-account-input"/>
+          {% if kiosk_mode %}
+          <input type="hidden" name="login_email" class="copy-from-account-input"/>
+          <input type="hidden" name="login_password" class="copy-from-account-input"/>
+          {% endif %}
+        {% endif %}
 
         {{ attendee_fields.prereg_intro }}
         {{ attendee_fields.payment_method }}

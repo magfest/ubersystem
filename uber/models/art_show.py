@@ -123,11 +123,11 @@ class ArtShowApplication(MagModel):
     def incomplete_reason(self):
         if self.status != c.APPROVED:
             return self.status_label
-        if self.delivery_method == c.BY_MAIL \
-                and not self.address1:
-            return "Mailing address required"
         if not self.attendee:
             return "No attendee assigned to application"
+        if self.delivery_method == c.BY_MAIL \
+                and not self.address1 and not self.attendee.address1:
+            return "Mailing address required"
         if self.attendee.placeholder and self.attendee.badge_status != c.NOT_ATTENDING:
             return "Missing registration info"
 
@@ -171,7 +171,7 @@ class ArtShowApplication(MagModel):
 
     @property
     def is_unpaid(self):
-        return not self.amount_paid
+        return not self.amount_paid and self.potential_cost
 
     @property
     def amount_unpaid(self):

@@ -1049,11 +1049,13 @@ class Root:
         from uber.utils import create_valid_user_supplied_redirect_url, ensure_csrf_token_exists
         original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
 
-        if 'email' in params:
-            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(params.get('email', ''))).first()
+        if 'email' or 'login_email' in params:
+            email = params.get('login_email', params.get('email', ''))
+            password = params.get('login_password', params.get('password', ''))
+            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(email)).first()
             if not account:
                 message = 'No account exists for that email address'
-            elif not bcrypt.hashpw(params.get('password', ''), account.hashed) == account.hashed:
+            elif not bcrypt.hashpw(password, account.hashed) == account.hashed:
                 message = 'Incorrect password'
 
             if not message:
