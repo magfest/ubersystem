@@ -125,14 +125,20 @@ def resave_all_attendees_and_groups():
     with Session() as session:
         print("Re-saving all attendees....")
         for a in session.valid_attendees():
-            a.presave_adjustments()
-            session.add(a)
-            session.commit()
+            try:
+                a.presave_adjustments()
+                session.add(a)
+                session.commit()
+            except Exception:
+                pass
         print("Re-saving all groups....")
         for g in session.query(Group).all():
-            g.presave_adjustments()
-            session.add(g)
-            session.commit()
+            try:
+                g.presave_adjustments()
+                session.add(g)
+                session.commit()
+            except Exception:
+                pass
     print("Done!")
 
 
