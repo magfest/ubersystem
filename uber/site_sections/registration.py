@@ -90,7 +90,7 @@ class Root:
             page = page or 1
             if search_text and count == total_count:
                 message = 'No matches found'
-            elif search_text and count == 1 and (not c.AT_THE_CON or search_text.isdigit()):
+            elif search_text and count == 1 and not c.AT_THE_CON:
                 raise HTTPRedirect(
                     'form?id={}&message={}', attendees.one().id, 'This attendee was the only search result')
 
@@ -201,23 +201,6 @@ class Root:
             'printer_default_id': cherrypy.session.get('printer_default_id', ''),
             'printer_minor_id': cherrypy.session.get('printer_minor_id', ''),
         }  # noqa: E711
-
-    def change_badge(self, session, id, message='', **params):
-        attendee = session.attendee(id, allow_invalid=True)
-        if 'badge_type' in params:
-            from uber.badge_funcs import reset_badge_if_unchanged
-            old_badge_type, old_badge_num = attendee.badge_type, attendee.badge_num
-            attendee.badge_type = int(params['badge_type'])
-            try:
-                attendee.badge_num = int(params['badge_num'])
-            except ValueError:
-                attendee.badge_num = None
-
-            message = check(attendee)
-
-            if not message:
-                message = reset_badge_if_unchanged(attendee, old_badge_type, old_badge_num) or "Badge updated."
-                raise HTTPRedirect('form?id={}&message={}', attendee.id, message or '')
 
         return {
             'message':  message,
