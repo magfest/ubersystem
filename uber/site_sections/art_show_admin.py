@@ -778,7 +778,7 @@ class Root:
         charge = Charge(attendee,
                         amount=amount,
                         description='{}ayment for {}\'s art show purchases'.format(
-                            'P' if int(amount) == receipt.total else 'Partial p',
+                            'P' if int(float(amount)) == receipt.total else 'Partial p',
                             attendee.full_name))
         stripe_intent = charge.create_stripe_intent(session)
         message = stripe_intent if isinstance(stripe_intent, string_types) else ''
