@@ -776,7 +776,7 @@ class Root:
         receipt = session.art_show_receipt(receipt_id)
         attendee = session.attendee(id)
         charge = Charge(attendee,
-                        amount=amount,
+                        amount=int(float(amount)),
                         description='{}ayment for {}\'s art show purchases'.format(
                             'P' if int(float(amount)) == receipt.total else 'Partial p',
                             attendee.full_name))
