@@ -115,7 +115,7 @@ class Root:
 
             if not data_error:
                 piece = session.query(ArtShowPiece).join(ArtShowPiece.app).filter(
-                    ArtShowApplication.artist_id.ilike('%{}%'.format(artist_id)),
+                    ArtShowApplication.artist_id == artist_id.upper(),
                     ArtShowPiece.piece_id == piece_id
                 )
                 if not piece.count():
