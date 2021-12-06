@@ -26,7 +26,7 @@
     <div class="form-group">
       <div class="col-sm-9 col-sm-offset-3">
         <p id="selling_link">
-          You will need to fill out the <a href="https://docs.google.com/forms/d/e/1FAIpQLSfxVM_ymIfWbetRfPkLiJmFuIbq-Ap0-W5Xt4xBRxJkHeIMuQ/viewform" target="_blank">MAGFest Maryland Tax Info Collection google form</a>.
+          You will need to fill out the <a href="{{ c.MIVS_SELLING_URL }}" target="_blank">MAGFest Maryland Tax Info Collection google form</a>.
         <label for="confirm_checkbox">
           <input type="checkbox" name="confirm_checkbox" id="confirm_checkbox" value="1"{% if guest.group.studio.selling_at_event %} checked{% endif %}>
           I have filled out the "Maryland Tax Info Collection" google form.
