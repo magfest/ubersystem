@@ -29,10 +29,10 @@ def check_post_con(klass):
             if c.POST_CON:  # TODO: replace this with a template and make that suitably generic
                 return """
                 <html><head></head><body style='text-align:center'>
-                    <h2 style='color:red'>Hope you had a great {event}!</h2>
-                    Preregistration for {event} {year} will open in a few months.
+                    <h2 style='color:red'>We hope you enjoyed {event} {current_year}!</h2>
+                    We look forward to seeing you in {next_year}! Watch our website (<a href="https://www.furfest.org">https://www.furfest.org</a>) and our Twitter (<a href="https://twitter.com/Furfest">@Furfest</a>) for announcements.
                 </body></html>
-                """.format(event=c.EVENT_NAME, year=(1 + int(c.EVENT_YEAR)) if c.EVENT_YEAR else '')
+                """.format(event=c.EVENT_NAME, current_year=c.EVENT_YEAR, next_year=(1 + int(c.EVENT_YEAR)) if c.EVENT_YEAR else '')
             else:
                 return func(self, *args, **kwargs)
         return wrapped
