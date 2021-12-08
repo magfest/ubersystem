@@ -470,8 +470,8 @@ def no_more_custom_badges(attendee):
     if (attendee.badge_type != attendee.orig_value_of('badge_type') or attendee.is_new) \
             and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
         with Session() as session:
-            required_depts = [c.DEFAULT_REGDESK_INT, c.DEFAULT_STOPS_INT]
-            if all(not session.admin_attendee().is_dept_head_of(d) for d in required_depts):
+            admin = session.current_admin_account()
+            if not admin.full_registration_admin and not admin.full_shifts_admin:
                 return 'Custom badges have already been ordered so you cannot use this badge type'
 
 
