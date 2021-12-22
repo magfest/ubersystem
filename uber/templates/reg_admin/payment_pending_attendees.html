@@ -27,7 +27,7 @@
         <td>
             {% for match in matches|selectattr('id','!=',attendee.id) %}
                 <p>
-                    {{ match|form_link("true") }} [{{ match.badge_status_label }}] ({{ match.email }}){% if match.amount_extra %}Upgrade: {{ match.amount_extra_label }}{% endif %}
+                    {{ match|form_link("true") }} [{{ match.badge_status_label }}] ({{ match.email }}){% if match.amount_extra %} Upgrade: {{ match.amount_extra_label }}{% endif %}
                 </p>
             {% else %}
                 (no matching attendees)
