@@ -3,7 +3,7 @@ Ahoy {{ guest.group.studio.primary_contact_first_names }},
 
 There is a new checklist item available to be completed:
 
-Update Studio and Game Information
+MIVS Training
 
 You can get to your checklist using this link: {{ c.URL_BASE }}/guests/index?id={{ guest.id }}
 
