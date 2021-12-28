@@ -416,12 +416,13 @@ class Root:
             message = 'You must select a group for this attendee.'
 
         if not message:
-            message = ''
-            success = True
             attendee.checked_in = localized_now()
-            session.commit()
-            increment = True
-            message += '{} checked in as {}{}'.format(attendee.full_name, attendee.badge, attendee.accoutrements)
+            message = check(attendee)
+            if not message:
+                success = True
+                session.commit()
+                increment = True
+                message = '{} checked in as {}{}'.format(attendee.full_name, attendee.badge, attendee.accoutrements)
 
         return {
             'success':    success,
