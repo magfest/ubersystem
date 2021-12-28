@@ -52,7 +52,7 @@ MIVS Checklist
 
 You may have seen emails from us about your MIVS checklist.  Even if you are not taking advantage of items such as selling or hotels, (or they are past the deadline) we still need you to complete them. Doing so will prevent a MIVS volunteer from sending you an email asking for you to finish them.
 
-You can view your checklist at {{ c.URL_BASE }}/guests/index?id={{ guest.id }}
+You can view your checklist at {{ c.URL_BASE }}/guests/index?id={{ game.studio.group.guest.id }}
 
 Thanks to all of you who have already completed your checklists ahead of time!
 
