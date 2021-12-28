@@ -980,6 +980,13 @@ if c.MIVS_ENABLED:
     )
 
     # start year specific MIVS Emails    
+    MIVSEmailFixture(
+        IndieGame,
+        'MIVS December Update',
+        'mivs/2022/december_update.txt',
+        lambda game: game.confirmed,
+        ident='mivs_december_update.txt'
+    )
 	
     #post con emails
     MIVSEmailFixture(
