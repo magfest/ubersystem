@@ -28,7 +28,7 @@
                 <input type="submit" value="Get Basic CSV">
             </form>
             <br>
-            <p>Current Zip: {{ center.zipcode }}</p>
+            <p>Current Zip: {{ center.Zipcode }}</p>
             <form id="set_center">
                 <input type="text" id="zip" placeholder="New Zip Code..." required><input type="submit" value="Set Center">
             </form>
@@ -88,8 +88,8 @@
     };
 
     var center = {
-        "lat": {{ center.lat }},
-        "lng": {{ center.lng }}
+        "lat": {{ center.Latitude }},
+        "lng": {{ center.Longitude }}
     };
     var map;
     function initMap() {
@@ -102,15 +102,15 @@
         var markers = [];
 
         windows[0] = new google.maps.InfoWindow({
-                content: "{{ center.city }}, {{ center.state }} - {{ center.zipcode }} - Event city"
+                content: "{{ center.City }}, {{ center.State }} - {{ center.Zipcode }} - Event City"
             });
         markers[0] = new google.maps.Marker({
             position: {
-                "lat": {{ center.lat }},
-                "lng": {{ center.lng }}
+                "lat": {{ center.Latitude }},
+                "lng": {{ center.Longitude }}
             },
             map: map,
-            title: '{{ center.city }}, {{ center.state }} - {{ center.zipcode }}'
+            title: '{{ center.City }}, {{ center.State }} - {{ center.Zipcode }}'
         });
         markers[0].addListener('click', function () {
             windows[0].open(map, markers[0]);
@@ -118,15 +118,15 @@
 
         {% for key, value in zips.items() %}
             windows[{{ loop.index }}] = new google.maps.InfoWindow({
-                content: "{{ value.city }}, {{ value.state }} - {{ value.zipcode }} - {{ zip_counts|get_count(key) }}"
+                content: "{{ value.City }}, {{ value.State }} - {{ value.Zipcode }} - {{ zip_counts|get_count(key) }}"
             });
             markers[{{ loop.index }}] = new google.maps.Marker({
                 position: {
-                    "lat": {{ value.lat }},
-                    "lng": {{ value.lng }}
+                    "lat": {{ value.Latitude }},
+                    "lng": {{ value.Longitude }}
                 },
                 map: map,
-                title: '{{ value.city }}, {{ value.state }} - {{ value.zipcode }}'
+                title: '{{ value.City }}, {{ value.State }} - {{ value.Zipcode }}'
             });
             markers[{{ loop.index }}].addListener('click', function () {
                 windows[{{ loop.index }}].open(map, markers[{{ loop.index }}]);
