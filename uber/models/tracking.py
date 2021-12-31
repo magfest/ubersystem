@@ -151,7 +151,9 @@ class Tracking(MagModel):
 
         links = ', '.join(
             '{}({})'.format(list(column.foreign_keys)[0].column.table.name, getattr(instance, name))
-            for name, column in instance.__table__.columns.items() if column.foreign_keys and getattr(instance, name))
+            for name, column in instance.__table__.columns.items() if column.foreign_keys
+                                                                   and 'creator' not in str(column)
+                                                                   and getattr(instance, name))
 
         if sys.argv == ['']:
             who = 'server admin'

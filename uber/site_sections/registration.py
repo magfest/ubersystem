@@ -331,10 +331,10 @@ class Root:
                                 .filter(or_(Email.to == attendee.email,
                                             and_(Email.model == 'Attendee', Email.fk_id == id)))
                                 .order_by(Email.when).all(),
-            'changes':   session.query(Tracking)
-                                .filter(or_(Tracking.links.like('%attendee({})%'.format(id)),
-                                            and_(Tracking.model == 'Attendee', Tracking.fk_id == id)))
-                                .order_by(Tracking.when).all(),
+            # TODO: Remove `, Tracking.model != 'Attendee'` for next event
+            'changes': session.query(Tracking).filter(
+                or_(and_(Tracking.links.like('%attendee({})%'.format(id)), Tracking.model != 'Attendee'),
+                    and_(Tracking.model == 'Attendee', Tracking.fk_id == id))).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Attendee id={}".format(id))
         }
 
@@ -841,8 +841,9 @@ class Root:
             'emails': session.query(Email).filter(
                 or_(Email.to == attendee.email,
                     and_(Email.model == 'Attendee', Email.fk_id == id))).order_by(Email.when).all(),
+            # TODO: Remove `, Tracking.model != 'Attendee'` for next event
             'changes': session.query(Tracking).filter(
-                or_(Tracking.links.like('%attendee({})%'.format(id)),
+                or_(and_(Tracking.links.like('%attendee({})%'.format(id)), Tracking.model != 'Attendee'),
                     and_(Tracking.model == 'Attendee', Tracking.fk_id == id))).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Attendee id={}".format(id)),
         }
