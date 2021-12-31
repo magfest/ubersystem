@@ -338,7 +338,7 @@ def xlsx_file(func):
         if set_headers:
             cherrypy.response.headers['Content-Type'] = \
                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            _set_response_filename(func.__name__ + '.xlsx')
+            _set_response_filename(func.__name__ + datetime.now().strftime('%Y%m%d') + '.xlsx')
 
         return output
     return xlsx_out
@@ -360,7 +360,7 @@ def csv_file(func):
         # set headers last in case there were errors, so end user still see error page
         if set_headers:
             cherrypy.response.headers['Content-Type'] = 'application/csv'
-            _set_response_filename(func.__name__ + '.csv')
+            _set_response_filename(func.__name__ + datetime.now().strftime('%Y%m%d') + '.csv')
 
         return output
     return csvout
