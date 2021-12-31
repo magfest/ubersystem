@@ -52,7 +52,7 @@ class Root:
         minimum_extra_amount = c.BLANK_STAFF_BADGES
 
         max_badges = max(c.BADGE_RANGES[c.STAFF_BADGE][1], c.BADGE_RANGES[c.CONTRACTOR_BADGE][1])
-        last_taken_badge = session.query(Attendee).order_by(Attendee.badge_num.desc()).first().badge_num
+        last_taken_badge = session.query(Attendee).filter(Attendee.badge_num < max_badges).order_by(Attendee.badge_num.desc()).first().badge_num
         last_taken_badge = last_taken_badge or 0
         start_badge = max(last_taken_badge, max_badges - minimum_extra_amount + 1)
         end_badge = max_badges
