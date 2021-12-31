@@ -11,7 +11,7 @@ class ReportBase:
     def write_row(self, row, out):
         if self._include_badge_nums:
             # add in the barcodes here
-            badge_num = row[0]
+            badge_num = row[1]
             barcode = generate_barcode_from_badge_num(badge_num)
             row.append(barcode)
 
@@ -23,20 +23,12 @@ class PersonalizedBadgeReport(ReportBase):
         self._include_badge_nums = include_badge_nums
 
     def run(self, out, session, *filters, order_by=None, badge_type_override=None):
-        badge_nums_seen = []
-
         for a in (session.query(Attendee)
                          .filter(Attendee.has_badge == True, *filters)
                          .order_by(order_by).all()):
 
-            # sanity check no duplicate badges
-            if a.badge_num:
-                if a.badge_num in badge_nums_seen:
-                    raise ValueError("duplicate badge number detected: %s" % a.badge_num)
-                badge_nums_seen += [a.badge_num]
-
             # write the actual data
-            row = [a.badge_num] if self._include_badge_nums else []
+            row = [a.id, a.badge_num] if self._include_badge_nums else [a.id]
             if badge_type_override:
                 if callable(badge_type_override):
                     badge_type_label = badge_type_override(a)
@@ -70,4 +62,4 @@ class PrintedBadgeReport(ReportBase):
         empty_customized_name = ''
 
         for badge_num in range(min_badge_num, max_badge_num):
-            self.write_row([badge_num, self._badge_type_name, empty_customized_name, ''], out)
+            self.write_row(['', badge_num, self._badge_type_name, empty_customized_name, ''], out)
