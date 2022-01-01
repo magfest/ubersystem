@@ -67,8 +67,11 @@ class Root:
         if params.get('item_name') and params.get('item_val'):
             model.refunded_items[params.get('item_name')] = params.get('item_val')
             session.add(model)
+            message = "Item marked as refunded"
+        else:
+            message = "ERROR: Item not found"
         
-        raise HTTPRedirect('receipt_items?id={}&message={}', model.id, "Item marked as refunded")
+        raise HTTPRedirect('receipt_items?id={}&message={}', model.id, message)
     
     def remove_refund_item(self, session, id='', **params):
         try:
@@ -77,10 +80,13 @@ class Root:
             model = session.group(id)
         
         if params.get('item_name') and params.get('item_val'):
-            model.refunded_items[params.get('item_name')] = params.get('item_val')
+            del model.refunded_items[params.get('item_name')]
             session.add(model)
+            message = "Refunded item removed"
+        else:
+            message = "ERROR: Refund item not found"
         
-        raise HTTPRedirect('receipt_items?id={}&message={}', model.id, "Refunded item removed")
+        raise HTTPRedirect('receipt_items?id={}&message={}', model.id, message)
 
     @not_site_mappable
     def remove_promo_code(self, session, id=''):
