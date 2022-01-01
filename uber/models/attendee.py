@@ -1466,8 +1466,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @classproperty
     def searchable_bools(cls):
-        return ['placeholder', 'requested_accessibility_services', 'can_spam', 
-                'got_merch', 'got_staff_merch', 'confirmed', 'checked_in', 'staffing', 
+        return ['placeholder', 'can_spam', 'got_merch', 'got_staff_merch', 'confirmed', 'checked_in', 'staffing', 
                 'agreed_to_volunteer_agreement', 'reviewed_emergency_procedures', 'walk_on_volunteer', 
                 'can_work_setup', 'can_work_teardown', 'hotel_eligible', 'attractions_opt_out']
     
