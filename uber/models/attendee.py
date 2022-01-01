@@ -1474,7 +1474,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def searchable_choices(cls):
         return ['age_group', 'badge_type', 'badge_status', 'paid', 'amount_extra']
 
-    @class_property
+    @classproperty
     def checkin_bools(self):
         return ['got_merch'] if c.MERCH_AT_CHECKIN else []
 
