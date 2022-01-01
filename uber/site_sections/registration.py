@@ -403,7 +403,7 @@ class Root:
     @check_for_encrypted_badge_num
     @ajax
     def check_in(self, session, message='', group_id='', **params):
-        bools = ['got_merch'] if c.MERCH_AT_CHECKIN else []
+        bools = Attendee.checkin_bools
         attendee = session.attendee(params, allow_invalid=True, bools=bools)
         group = attendee.group or (session.group(group_id) if group_id else None)
 
