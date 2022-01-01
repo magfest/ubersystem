@@ -1542,22 +1542,29 @@ class Session(SessionManager):
                         Attendee.public_id == search_uuid,
                         Group.public_id == search_uuid))
 
+            or_checks = []
+            and_checks = []
+
+            def check_text_fields(search_text):
+                check_list = [
+                    Group.name.ilike('%' + text + '%'),
+                    aliased_pcg.name.ilike('%' + text + '%')
+                ]
+
+                for attr in Attendee.searchable_fields:
+                    check_list.append(getattr(Attendee, attr).ilike('%' + text + '%'))
+                
+                return check_list
+
             if ':' in text:
                 delimited_text = text.replace('AND', 'AND,').replace('OR', 'OR,')
                 list_of_attr_searches = delimited_text.split(',')
-                or_checks = []
-                and_checks = []
                 last_term = None
 
                 for search_text in list_of_attr_searches:
                     if ':' not in search_text:
-                        or_checks.append([
-                            Group.name.ilike('%' + text + '%'),
-                            aliased_pcg.name.ilike('%' + text + '%')
-                        ])
-
-                        for attr in Attendee.searchable_fields:
-                            or_checks.append(getattr(Attendee, attr).ilike('%' + text + '%'))
+                        search_text = search_text.replace('AND', '').replace('OR', '').strip()
+                        or_checks.extend(check_text_fields(search_text))
                     else:
                         target, term = search_text.split(':', 1)
                         target, term = target.strip(), term.strip()
@@ -1598,9 +1605,16 @@ class Session(SessionManager):
                         else:
                             and_checks.append(attr_search_filter)
 
-                    last_term = term
-
-            return attendees.filter(or_(or_(*or_checks), and_(*and_checks))), ''
+                        last_term = term
+            else:
+                or_checks.extend(check_text_fields(text))
+            
+            if or_checks and and_checks:
+                return attendees.filter(and_(or_(*or_checks), and_(*and_checks))), ''
+            elif or_checks:
+                return attendees.filter(or_(*or_checks)), ''
+            else:
+                return attendees.filter(and_(*and_checks)), ''
 
         def delete_from_group(self, attendee, group):
             """
