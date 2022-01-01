@@ -78,7 +78,9 @@ class Root:
         count = 0
         search_text = search_text.strip()
         if search_text:
-            attendees = session.search(search_text) if invalid else session.search(search_text, filter)
+            search_results, message = session.search(search_text) if invalid else session.search(search_text, filter)
+            if search_results:
+                attendees = search_results
             count = attendees.count()
         if not count:
             attendees = attendees.options(joinedload(Attendee.group))
@@ -89,7 +91,7 @@ class Root:
         page = int(page)
         if search_text:
             page = page or 1
-            if search_text and count == total_count:
+            if search_text and count == total_count and not message:
                 message = 'No matches found'
             elif search_text and count == 1 and (not c.AT_THE_CON or search_text.isdigit()):
                 raise HTTPRedirect(

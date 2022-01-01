@@ -9,9 +9,10 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c, _config
 from uber.custom_tags import pluralize
-from uber.decorators import ajax, all_renderable, not_site_mappable, site_mappable
+from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, DeptMembership, DeptMembershipRequest
+from uber.site_sections import devtools
 from uber.utils import get_api_service_from_server, normalize_email
 
 
@@ -164,6 +165,24 @@ class Root:
         return {
             'attendees': unpaid_attendees,
         }
+
+    @csv_file
+    @not_site_mappable
+    def attendee_search_export(self, out, session, search_text='', order='last_first', invalid=''):
+        filter = Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS, c.WATCHED_STATUS]) if not invalid else None
+        
+        search_text = search_text.strip()
+        if search_text:
+            attendees, error = session.search(search_text) if invalid else session.search(search_text, filter)
+
+        if error:
+            raise HTTPRedirect('../registration/index?search_text={}&order={}&invalid={}&message={}'
+                              ).format(search_text, order, invalid, error)
+        attendees = attendees.order(order)
+
+        rows = devtools.prepare_model_export(Attendee, filtered_models=attendees)
+        for row in rows:
+            out.writerow(row)
 
     def import_attendees(self, session, target_server='', api_token='', query='', message=''):
         service, service_message, target_url = get_api_service_from_server(target_server, api_token)

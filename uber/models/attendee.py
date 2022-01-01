@@ -1458,6 +1458,22 @@ class Attendee(MagModel, TakesPaymentMixin):
     def _extra_apply_attrs_restricted(cls):
         return set(['requested_depts_ids'])
 
+    @classproperty
+    def searchable_attrs(cls):
+        # List of fields for the attendee search to check search terms against
+        return ['first_name', 'last_name', 'legal_name', 'badge_printed_name',
+                'email', 'comments', 'admin_notes', 'for_review', 'promo_code_group_name']
+
+    @classproperty
+    def searchable_bools(cls):
+        return ['placeholder', 'can_spam', 'got_merch', 'got_staff_merch', 'confirmed', 'checked_in', 'staffing', 
+                'agreed_to_volunteer_agreement', 'reviewed_emergency_procedures', 'walk_on_volunteer', 
+                'can_work_setup', 'can_work_teardown', 'hotel_eligible', 'attractions_opt_out']
+    
+    @classproperty
+    def searchable_choices(cls):
+        return ['age_group', 'badge_type', 'badge_status', 'paid', 'amount_extra']
+
     @property
     def assigned_depts_labels(self):
         return [d.name for d in self.assigned_depts]
