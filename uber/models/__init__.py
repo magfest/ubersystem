@@ -1498,13 +1498,6 @@ class Session(SessionManager):
                                 joinedload(Attendee.promo_code).joinedload(PromoCode.group)
                             ).filter(*filters)
 
-            if ':' in text:
-                target, term = text.split(':', 1)
-                if target == 'email':
-                    return attendees.icontains(Attendee.normalized_email, normalize_email(term))
-                elif target == 'group':
-                    return attendees.icontains(Group.name, term.strip())
-
             terms = text.split()
             if len(terms) == 2:
                 first, last = terms
@@ -1549,17 +1542,48 @@ class Session(SessionManager):
                         Attendee.public_id == search_uuid,
                         Group.public_id == search_uuid))
 
-            checks = [
-                Group.name.ilike('%' + text + '%'),
-                aliased_pcg.name.ilike('%' + text + '%')
-            ]
-            check_attrs = [
-                'first_name', 'last_name', 'legal_name', 'badge_printed_name',
-                'email', 'comments', 'admin_notes', 'for_review', 'promo_code_group_name']
+            if ':' in text:
+                delimited_text = text.replace('AND', 'AND,').replace('OR', 'OR,')
+                list_of_attr_searches = delimited_text.split(',')
+                or_checks = []
+                and_checks = []
+                last_term = None
 
-            for attr in check_attrs:
-                checks.append(getattr(Attendee, attr).ilike('%' + text + '%'))
-            return attendees.filter(or_(*checks))
+                for search_text in list_of_attr_searches:
+                    if ':' not in search_text:
+                        or_checks.append([
+                            Group.name.ilike('%' + text + '%'),
+                            aliased_pcg.name.ilike('%' + text + '%')
+                        ])
+
+                        for attr in Attendee.searchable_fields:
+                            or_checks.append(getattr(Attendee, attr).ilike('%' + text + '%'))
+                    else:
+                        target, term = search_text.strip().split(':', 1)
+                        if target == 'email':
+                            attr_search_filter = Attendee.icontains(Attendee.normalized_email, normalize_email(term))
+                        elif target == 'group':
+                            attr_search_filter = Attendee.icontains(Group.name, term.strip())
+                        elif target == 'has_ribbon':
+                            attr_search_filter = Attendee.ribbon == Attendee.ribbon.type.convert_if_labels(term.title())
+                        elif target in Attendee.searchable_bools:
+                            t_or_f = term.strip().lower() not in ('f', 'false', 'n', 'no', '0', 'none')
+                            attr_search_filter = getattr(Attendee,target) == t_or_f
+                            if not isinstance(getattr(Attendee, target).type, Boolean):
+                                attr_search_filter = getattr(Attendee,target) != None \
+                                    if t_or_f == True else getattr(Attendee,target) == None
+                        elif target in Attendee.searchable_choices:
+                            real_search_term = getattr(Attendee,target).type.convert_if_label(term.title())
+                            attr_search_filter = getattr(Attendee,target) == real_search_term
+                        
+                        if term.endswith(' OR') or last_term and last_term.endswith(' OR'):
+                            or_checks.append(attr_search_filter)
+                        else:
+                            and_checks.append(attr_search_filter)
+
+                    last_term = term
+
+            return attendees.filter(or_(or_(*or_checks), and_(*and_checks)))
 
         def delete_from_group(self, attendee, group):
             """

@@ -36,6 +36,39 @@ def run_git_cmd(cmd):
     return run_shell_cmd(git + " " + cmd, working_dir=uber_base_dir)
 
 
+def prepare_model_export(model, filtered_models=None):
+    rows = []
+
+    cols = [getattr(model, col.name) for col in model.__table__.columns]
+    rows.append([col.name for col in cols])
+
+    for model in filtered_models:
+        row = []
+        for col in cols:
+            if isinstance(col.type, Choice):
+                # Choice columns are integers with a single value with an automatic
+                # _label property, e.g. the "shirt" column has a "shirt_label"
+                # property, so we'll use that.
+                row.append(getattr(model, col.name + '_label'))
+            elif isinstance(col.type, MultiChoice):
+                # MultiChoice columns are comma-separated integer lists with an
+                # automatic _labels property which is a list of string labels.
+                # So we'll get that and then separate the labels with slashes.
+                row.append(' / '.join(getattr(model, col.name + '_labels')))
+            elif isinstance(col.type, UTCDateTime):
+                # Use the empty string if this is null, otherwise use strftime.
+                # Also you should fill in whatever actual format you want.
+                val = getattr(model, col.name)
+                row.append(val.strftime('%Y-%m-%d %H:%M:%S') if val else '')
+            elif isinstance(col.type, JSONB):
+                row.append(json.dumps(getattr(model, col.name)))
+            else:
+                # For everything else we'll just dump the value, although we might
+                # consider adding more special cases for things like foreign keys.
+                row.append(getattr(model, col.name))
+        rows.append(row)
+    return rows
+
 @all_renderable()
 class Root:
     def index(self):
@@ -161,34 +194,8 @@ class Root:
     @csv_file
     def export_model(self, out, session, selected_model=''):
         model = Session.resolve_model(selected_model)
-
-        cols = [getattr(model, col.name) for col in model.__table__.columns]
-        out.writerow([col.name for col in cols])
-
-        for attendee in session.query(model).all():
-            row = []
-            for col in cols:
-                if isinstance(col.type, Choice):
-                    # Choice columns are integers with a single value with an automatic
-                    # _label property, e.g. the "shirt" column has a "shirt_label"
-                    # property, so we'll use that.
-                    row.append(getattr(attendee, col.name + '_label'))
-                elif isinstance(col.type, MultiChoice):
-                    # MultiChoice columns are comma-separated integer lists with an
-                    # automatic _labels property which is a list of string labels.
-                    # So we'll get that and then separate the labels with slashes.
-                    row.append(' / '.join(getattr(attendee, col.name + '_labels')))
-                elif isinstance(col.type, UTCDateTime):
-                    # Use the empty string if this is null, otherwise use strftime.
-                    # Also you should fill in whatever actual format you want.
-                    val = getattr(attendee, col.name)
-                    row.append(val.strftime('%Y-%m-%d %H:%M:%S') if val else '')
-                elif isinstance(col.type, JSONB):
-                    row.append(json.dumps(getattr(attendee, col.name)))
-                else:
-                    # For everything else we'll just dump the value, although we might
-                    # consider adding more special cases for things like foreign keys.
-                    row.append(getattr(attendee, col.name))
+        rows = prepare_model_export(selected_model, filtered_models=session.query(model).all())
+        for row in rows:
             out.writerow(row)
 
 
