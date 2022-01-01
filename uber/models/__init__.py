@@ -1559,22 +1559,39 @@ class Session(SessionManager):
                         for attr in Attendee.searchable_fields:
                             or_checks.append(getattr(Attendee, attr).ilike('%' + text + '%'))
                     else:
-                        target, term = search_text.strip().split(':', 1)
+                        target, term = search_text.split(':', 1)
+                        target, term = target.strip(), term.strip()
+                        search_term = term.replace('AND', '').replace('OR', '').strip()
                         if target == 'email':
-                            attr_search_filter = Attendee.icontains(Attendee.normalized_email, normalize_email(term))
+                            attr_search_filter = Attendee.icontains(Attendee.normalized_email, normalize_email(search_term))
                         elif target == 'group':
-                            attr_search_filter = Attendee.icontains(Group.name, term.strip())
+                            attr_search_filter = Attendee.icontains(Group.name, search_term.strip())
                         elif target == 'has_ribbon':
-                            attr_search_filter = Attendee.ribbon == Attendee.ribbon.type.convert_if_labels(term.title())
+                            attr_search_filter = Attendee.ribbon == Attendee.ribbon.type.convert_if_labels(search_term.title())
                         elif target in Attendee.searchable_bools:
-                            t_or_f = term.strip().lower() not in ('f', 'false', 'n', 'no', '0', 'none')
+                            t_or_f = search_term.strip().lower() not in ('f', 'false', 'n', 'no', '0', 'none')
                             attr_search_filter = getattr(Attendee,target) == t_or_f
                             if not isinstance(getattr(Attendee, target).type, Boolean):
                                 attr_search_filter = getattr(Attendee,target) != None \
                                     if t_or_f == True else getattr(Attendee,target) == None
                         elif target in Attendee.searchable_choices:
-                            real_search_term = getattr(Attendee,target).type.convert_if_label(term.title())
-                            attr_search_filter = getattr(Attendee,target) == real_search_term
+                            if target == 'amount_extra':
+                                # Allow searching kick-in by dollar value and not just the label
+                                try:
+                                    search_term = search_term.replace('$','')
+                                    attr_search_filter = getattr(Attendee,target) == int(search_term)
+                                except:
+                                    pass
+                            if not attr_search_filter:
+                                try:
+                                    search_term = getattr(Attendee,target).type.convert_if_label(search_term)
+                                except KeyError:
+                                    # A lot of our labels are title-cased
+                                    try:
+                                        search_term = getattr(Attendee,target).type.convert_if_label(search_term.title())
+                                    except KeyError:
+                                        return None, 'ERROR: {} is not a valid option for {}'.format(search_term, target)
+                                attr_search_filter = getattr(Attendee,target) == search_term
                         
                         if term.endswith(' OR') or last_term and last_term.endswith(' OR'):
                             or_checks.append(attr_search_filter)
@@ -1583,7 +1600,7 @@ class Session(SessionManager):
 
                     last_term = term
 
-            return attendees.filter(or_(or_(*or_checks), and_(*and_checks)))
+            return attendees.filter(or_(or_(*or_checks), and_(*and_checks))), ''
 
         def delete_from_group(self, attendee, group):
             """

@@ -167,8 +167,11 @@ class Root:
         
         search_text = search_text.strip()
         if search_text:
-            attendees = session.search(search_text) if invalid else session.search(search_text, filter)
+            attendees, error = session.search(search_text) if invalid else session.search(search_text, filter)
 
+        if error:
+            raise HTTPRedirect('../registration/index?search_text={}&order={}&invalid={}&message={}'
+                              ).format(search_text, order, invalid, error)
         attendees = attendees.order(order)
 
         rows = devtools.prepare_model_export(Attendee, filtered_models=attendees)
