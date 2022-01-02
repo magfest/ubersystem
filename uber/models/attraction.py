@@ -75,6 +75,7 @@ class Attraction(MagModel):
     advance_notices = Column(JSON, default=[], server_default='[]')
     advance_checkin = Column(Integer, default=0)  # In seconds
     restriction = Column(Choice(_RESTRICTION_OPTS), default=_NONE)
+    badge_num_required = Column(Boolean, default=False)
     department_id = Column(UUID, ForeignKey('department.id'), nullable=True)
     owner_id = Column(UUID, ForeignKey('admin_account.id'))
 
@@ -218,6 +219,7 @@ class AttractionFeature(MagModel):
     slug = Column(UnicodeText)
     description = Column(UnicodeText)
     is_public = Column(Boolean, default=False)
+    badge_num_required = Column(Boolean, default=False)
     attraction_id = Column(UUID, ForeignKey('attraction.id'))
 
     events = relationship(
@@ -297,6 +299,7 @@ class AttractionEvent(MagModel):
     start_time = Column(UTCDateTime, default=c.EPOCH)
     duration = Column(Integer, default=900)  # In seconds
     slots = Column(Integer, default=1)
+    signups_open = Column(Boolean, default=True)
 
     signups = relationship('AttractionSignup', backref='event', order_by='AttractionSignup.checkin_time')
 

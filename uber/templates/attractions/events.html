@@ -70,7 +70,7 @@
           eventId = $event.data('eventId'),
           isSoldout = $event.hasClass('soldout');
 
-      if (isSoldout) {
+      if (isSoldout || $event.hasClass('unavailable')) {
         return;
       }
 
@@ -247,8 +247,7 @@
         {{ attractions_macros.badge_num_form('All we need is your badge number!') }}
       </div>
       <div class="modal-footer">
-        {# Signups with a badge number during the event is a hard requirement for Autographs #}
-        {% if c.BEFORE_EPOCH %}
+        {% if not feature.badge_num_required %}
           <button class="btn btn-default btn-lg btn-xl modal-form-switch">Sign up without badge #</button>
         {% endif %}
         <button class="btn btn-default btn-lg btn-xl" data-dismiss="modal">Nevermind</button>
@@ -398,7 +397,8 @@
           <h2 id="{{ day }}">{{ day }}</h2>
           {% for event in events %}
             {%- set is_soldout = event.is_sold_out -%}
-            <div class="event hover-btn{% if is_soldout %} soldout{% endif %}"
+            {%- set is_unavailable = not event.signups_open -%}
+            <div class="event hover-btn{% if is_soldout %} soldout{% endif %}{% if is_unavailable %} unavailable{% endif %}"
                 id="{{ event.id }}"
                 data-event-id="{{ event.id }}"
                 data-event-name="{{ event.name }}"
@@ -426,10 +426,16 @@
                     <em class="slots">{{ event.slots }}</em>
                     slot{{ event.slots|pluralize }} taken
                   </span>
+                  {% if event.signups_open %}
                   <span class="hidden-soldout">
                     <em class="slots remaining-slots">{{ event.remaining_slots }}</em> out of
                     <em class="slots total-slots">{{ event.slots }}</em> slot{{ event.slots|pluralize }} available
                   </span>
+                  {% else %}
+                  <span class="hidden-soldout">
+                    <em>This event is not open for signups right now.</em>
+                  </span>
+                  {% endif %}
                 </p>
                 <p class="visible-signedup-inline"><em class="text-success">You are signed up for this event!</em></p>
               </div>
