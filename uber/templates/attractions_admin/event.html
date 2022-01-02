@@ -145,6 +145,14 @@
     </div>
   </div>
   <div class="form-group">
+    <label class="col-sm-3 control-label optional-field">Signups Open</label>
+    <div class="checkbox col-sm-6">
+        <label class="checkbox-label">
+        {{ macros.checkbox(event, 'signups_open', is_readonly=read_only, clientside_bool=clientside_bool) }}
+        Attendees can currently sign up for this event.
+    </div>
+  </div>
+  <div class="form-group">
     <label class="col-sm-3 control-label">Location</label>
     <div class="col-sm-6">
       <select name="location" class="form-control">
