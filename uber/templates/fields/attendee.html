@@ -1052,7 +1052,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
           countryName = $.field('country').val();
           if(countryName == 'United States') {
               $.field('international').prop('checked', false);
-          } else {
+          } else if (countryName != '') {
               $.field('international').prop('checked', true);
           }
       };
