@@ -1600,7 +1600,9 @@ class Session(SessionManager):
                                         return None, 'ERROR: {} is not a valid option for {}'.format(search_term, target)
                             attr_search_filter = getattr(Attendee,target) == search_term
                         else:
-                            if not getattr(Attendee,target):
+                            try:
+                                getattr(Attendee,target)
+                            except AttributeError:
                                 return None, 'ERROR: {} is not a valid attribute'.format(target)
                             attr_search_filter = getattr(Attendee,target) == search_term
                         
