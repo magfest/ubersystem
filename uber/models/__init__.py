@@ -1586,11 +1586,10 @@ class Session(SessionManager):
                             if target == 'amount_extra':
                                 # Allow searching kick-in by dollar value and not just the label
                                 try:
-                                    search_term = search_term.replace('$','')
-                                    attr_search_filter = getattr(Attendee,target) == int(search_term)
+                                    search_term = int(search_term.replace('$',''))
                                 except:
                                     pass
-                            if not attr_search_filter:
+                            else:
                                 try:
                                     search_term = getattr(Attendee,target).type.convert_if_label(search_term)
                                 except KeyError:
@@ -1599,7 +1598,7 @@ class Session(SessionManager):
                                         search_term = getattr(Attendee,target).type.convert_if_label(search_term.title())
                                     except KeyError:
                                         return None, 'ERROR: {} is not a valid option for {}'.format(search_term, target)
-                                attr_search_filter = getattr(Attendee,target) == search_term
+                            attr_search_filter = getattr(Attendee,target) == search_term
                         
                         if term.endswith(' OR') or last_term and last_term.endswith(' OR'):
                             or_checks.append(attr_search_filter)
