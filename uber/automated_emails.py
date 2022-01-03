@@ -973,11 +973,20 @@ if c.MIVS_ENABLED:
     # At-Con MIVS Emails
     MIVSEmailFixture(
         IndieGame,
-        'MIVS {EVENT_NAME}: Load-In @ MAGFest',
+        '{EVENT_NAME} MIVS {EVENT_YEAR}: Wednesday Setup',
         'mivs/At-Con/LoadIn.txt',
         lambda game: game.confirmed,
         ident='mivs_LoadIn.txt'
     )
+	
+    MIVSEmailFixture(
+        IndieGame,
+        '{EVENT_NAME} MIVS {EVENT_YEAR}: Thursday, Day 1',
+        'mivs/At-Con/Day1.txt',
+        lambda game: game.confirmed,
+        ident='mivs_Day1.txt'
+    )
+
 
     # start year specific MIVS Emails    
     MIVSEmailFixture(
@@ -991,7 +1000,7 @@ if c.MIVS_ENABLED:
     #post con emails
     MIVSEmailFixture(
         IndieGame,
-        'MIVS {EVENT_NAME}: Request for Feedback',
+        '{EVENT_NAME} MIVS {EVENT_YEAR}: Request for Feedback',
         'mivs/feedback/indie_survey.txt',
         lambda game: game.confirmed,
         ident='mivs_feedback_survey',
