@@ -1599,6 +1599,10 @@ class Session(SessionManager):
                                     except KeyError:
                                         return None, 'ERROR: {} is not a valid option for {}'.format(search_term, target)
                             attr_search_filter = getattr(Attendee,target) == search_term
+                        else:
+                            if not getattr(Attendee,target):
+                                return None, 'ERROR: {} is not a valid attribute'.format(target)
+                            attr_search_filter = getattr(Attendee,target) == search_term
                         
                         if term.endswith(' OR') or last_term and last_term.endswith(' OR'):
                             or_checks.append(attr_search_filter)
