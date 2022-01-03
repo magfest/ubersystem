@@ -1459,7 +1459,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         return set(['requested_depts_ids'])
 
     @classproperty
-    def searchable_attrs(cls):
+    def searchable_fields(cls):
         # List of fields for the attendee search to check search terms against
         return ['first_name', 'last_name', 'legal_name', 'badge_printed_name',
                 'email', 'comments', 'admin_notes', 'for_review', 'promo_code_group_name']
