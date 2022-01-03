@@ -342,7 +342,9 @@ class AttendeeLookup:
         restrictions.
         """
         with Session() as session:
-            attendee_query = session.search(query)
+            attendee_query, error = session.search(query)
+            if error:
+                raise HTTPError(400, error)
             fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
             return [a.to_dict(fields) for a in attendee_query.limit(100)]
         
