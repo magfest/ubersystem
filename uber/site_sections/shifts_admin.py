@@ -83,21 +83,22 @@ class Root:
 
     @department_id_adapter
     @requires_shifts_admin
-    def signups(self, session, department_id=None, message=''):
-        redirect_to_allowed_dept(session, department_id, 'signups')
-        department_id = None if department_id == 'All' else department_id
+    def signups(self, session, department_id=None, message='', toggle_filter=''):
+        if not toggle_filter:
+            redirect_to_allowed_dept(session, department_id, 'signups')
+        department_id = None if department_id == 'All' or department_id == 'None' else department_id
         cherrypy.session['prev_department_id'] = department_id
 
-        return {
-            'message': message,
-            'department_id': department_id,
-            'attendees': session.staffers_for_dropdown(),
-            'jobs': [job_dict(job) for job in session.jobs(department_id)],
-            'checklist': department_id and session.checklist_status('postcon_hours', department_id)
-        }
+        if toggle_filter:
+            cherrypy.session[toggle_filter] = not cherrypy.session.get(toggle_filter)
 
-    def everywhere(self, session, message='', show_restricted='', show_nonpublic=''):
-        job_filters = [Job.start_time > localized_now() - timedelta(hours=2)]
+        show_past_shifts = cherrypy.session.get('signups_show_past_shifts', True)
+        show_restricted = cherrypy.session.get('signups_show_restricted', True)
+        show_nonpublic = cherrypy.session.get('signups_show_nonpublic', True)
+
+        job_filters = [Job.department_id == department_id] if department_id else []
+        if not show_past_shifts:
+            job_filters.append(Job.start_time > localized_now() - timedelta(hours=2))
         if not show_restricted:
             job_filters.append(Job.restricted == False)  # noqa: E712
         if not show_nonpublic:
@@ -109,10 +110,56 @@ class Root:
 
         return {
             'message': message,
+            'department_id': department_id,
+            'show_past_shifts': show_past_shifts,
+            'show_restricted': show_restricted,
+            'show_nonpublic': show_nonpublic,
+            'hide_filled': cherrypy.session.get('signups_hide_filled'),
+            'attendees': session.staffers_for_dropdown(),
+            'jobs': [job_dict(job) for job in jobs],
+            'checklist': department_id and session.checklist_status('postcon_hours', department_id)
+        }
+
+    @department_id_adapter
+    @requires_shifts_admin
+    def unfilled_shifts(self, session, department_id=None, message='', toggle_filter=''):
+        """
+        This page is very similar to the signups view, but this is for STOPS to assign on-call 
+        volunteers to shifts onsite, so all the default values need to be the exact opposite.
+
+        We also don't want the filters to interfere with the signups view so we store them separately.
+        """
+        if not toggle_filter:
+            redirect_to_allowed_dept(session, department_id, 'unfilled_shifts')
+        department_id = None if department_id == 'All' or department_id == 'None' else department_id
+
+        if toggle_filter:
+            cherrypy.session[toggle_filter] = not cherrypy.session.get(toggle_filter)
+
+        show_past_shifts = cherrypy.session.get('unfilled_show_past_shifts')
+        show_restricted = cherrypy.session.get('unfilled_show_restricted')
+        show_nonpublic = cherrypy.session.get('unfilled_show_nonpublic')
+
+        job_filters = [Job.department_id == department_id] if department_id else []
+        if not show_past_shifts:
+            job_filters.append(Job.start_time > localized_now() - timedelta(hours=2))
+        if not show_restricted:
+            job_filters.append(Job.restricted == False)  # noqa: E712
+        if not show_nonpublic:
+            job_filters.append(Job.department_id.in_(
+                select([Department.id]).where(
+                    Department.solicits_volunteers == True)))  # noqa: E712
+
+        jobs = session.jobs().filter(*job_filters)
+
+        return {
+            'message': message,
+            'department_id': department_id,
+            'show_past_shifts': show_past_shifts,
             'show_restricted': show_restricted,
             'show_nonpublic': show_nonpublic,
             'attendees': session.staffers_for_dropdown(),
-            'jobs': [job_dict(job) for job in jobs]
+            'jobs': [job_dict(job) for job in jobs],
         }
 
     @department_id_adapter
