@@ -6,7 +6,7 @@
 <div class="panel panel-default">
   <div class="panel-body">
     {% if attendee.paid == c.NOT_PAID %}
-      <h2> Badge Payment for {{ attendee.full_name }} </h2>
+      <h3> Badge Payment for {{ attendee.full_name }} </h3>
 
       You've registered for {{ c.EVENT_NAME }} at a {% if attendee.overridden_price %}discounted{% endif %} price of {{ attendee.badge_cost|format_currency }}{% if attendee.amount_extra %} and you've also kicked in {{ attendee.amount_extra|format_currency }}{% endif %}; your total outstanding balance is {{ attendee.amount_unpaid|format_currency }}.
 
@@ -30,8 +30,18 @@
           <input type="hidden" name="id" value="{{ attendee.id }}"/>
         </form>
       {% endif %}
-    {% else %}
-      <h2> Extra Payment for {{ attendee.full_name }} </h2>
+    {% elif payment_label %}
+      <h3>{{ payment_label|replace('_', ' ')|title }} Payment for {{ attendee.full_name }}</h3>
+      <p>Please pay {{ attendee.amount_unpaid|format_currency }} for your {{ payment_label|replace('_', ' ') }} below.</p>
+      <table style="width:auto ; margin-left:auto ; margin-right: auto">
+        <tr class="stripe_form">
+          <td>{{ stripe_form('process_attendee_donation', attendee) }}</td>
+          <td style="width:100px ; text-align:center">or</td>
+          <td><a href="undo_attendee_donation?id={{ attendee.id }}">{{ macros.stripe_button("Nevermind") }}</a></td>
+        </tr>
+      </table>
+    {% elif attendee.amount_extra %}
+      <h3> Extra Payment for {{ attendee.full_name }} </h3>
 
       Thanks for offering to kick in money to help make {{ c.EVENT_NAME }} better.  As thanks, your total donation (of which {{ attendee.amount_unpaid|format_currency }} is outstanding) entitles you to the following:
       <ul>
@@ -40,6 +50,16 @@
         {% endfor %}
       </ul>
 
+      <table style="width:auto ; margin-left:auto ; margin-right: auto">
+        <tr class="stripe_form">
+          <td>{{ stripe_form('process_attendee_donation', attendee) }}</td>
+          <td style="width:100px ; text-align:center">or</td>
+          <td><a href="undo_attendee_donation?id={{ attendee.id }}">{{ macros.stripe_button("Nevermind") }}</a></td>
+        </tr>
+      </table>
+    {% else %}
+      <h3>Payment for {{ attendee.full_name }}</h3>
+      <p>Please pay {{ attendee.amount_unpaid|format_currency }} below.</p>
       <table style="width:auto ; margin-left:auto ; margin-right: auto">
         <tr class="stripe_form">
           <td>{{ stripe_form('process_attendee_donation', attendee) }}</td>

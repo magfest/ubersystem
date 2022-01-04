@@ -812,7 +812,7 @@ class Root:
                     attendee.registered = localized_now()
 
                 if attendee.amount_unpaid:
-                    raise HTTPRedirect('attendee_donation_form?id={}', attendee.id)
+                    raise HTTPRedirect(attendee.payment_page)
                 else:
                     raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Badge registered successfully')
 
@@ -955,7 +955,7 @@ class Root:
                     log.error('unable to send badge change email', exc_info=True)
 
                 if attendee.amount_unpaid:
-                    raise HTTPRedirect('attendee_donation_form?id={}', attendee.id)
+                    raise HTTPRedirect(attendee.payment_page)
                 else:
                     raise HTTPRedirect(
                         'badge_updated?id={}&message={}', attendee.id, 'Your registration has been transferred')
@@ -968,6 +968,33 @@ class Root:
             'attendee': attendee,
             'message':  message,
             'affiliates': session.affiliates()
+        }
+
+    @id_required(Attendee)
+    @requires_account(Attendee)
+    @log_pageview
+    def defer_badge(self, session, message='', **params):
+        attendee = session.attendee(params)
+
+        assert attendee.can_defer_badge, 'You cannot defer your badge at this time.'
+
+        if cherrypy.request.method == 'POST':
+            message = check(attendee)
+
+            if not message:
+                attendee.badge_status = c.DEFERRED_STATUS
+                session.add(attendee)
+                session.commit()
+
+                if attendee.amount_unpaid:
+                    raise HTTPRedirect(attendee.payment_page + '&payment_label=merch_shipping_fee')
+                else:
+                    raise HTTPRedirect(
+                        'badge_updated?id={}&message={}', attendee.id, 'Your registration has been deferred')
+
+        return {
+            'attendee': attendee,
+            'message':  message,
         }
 
     def invalid_badge(self, session, id, message=''):
@@ -1131,18 +1158,18 @@ class Root:
 
                 page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
                 if attendee.amount_unpaid:
-                    raise HTTPRedirect('attendee_donation_form?id={}', attendee.id)
+                    raise HTTPRedirect(attendee.payment_page)
                 else:
                     raise HTTPRedirect(page + 'message=' + message)
 
         elif attendee.amount_unpaid and attendee.zip_code and not undoing_extra and cherrypy.request.method == 'POST':
             # Don't skip to payment until the form is filled out
-            raise HTTPRedirect('attendee_donation_form?id={}&message={}', attendee.id, message)
+            raise HTTPRedirect('{}&message={}', attendee.payment_page, message)
 
         attendee.placeholder = placeholder
         if not message and attendee.placeholder:
             message = 'You are not yet registered!  You must fill out this form to complete your registration.'
-        elif not message and not c.ATTENDEE_ACCOUNTS_ENABLED:
+        elif not message and not c.ATTENDEE_ACCOUNTS_ENABLED and attendee.badge_status == c.COMPLETED_STATUS:
             message = 'You are already registered but you may update your information with this form.'
 
         return {
@@ -1267,7 +1294,7 @@ class Root:
 
     @id_required(Attendee)
     @requires_account(Attendee)
-    def attendee_donation_form(self, session, id, message=''):
+    def attendee_donation_form(self, session, id, message='', payment_label=''):
         attendee = session.attendee(id)
         if attendee.amount_unpaid <= 0:
             raise HTTPRedirect('confirm?id={}', id)
@@ -1277,6 +1304,7 @@ class Root:
         return {
             'message': message,
             'attendee': attendee,
+            'payment_label': payment_label,
         }
 
     @requires_account(Attendee)

@@ -139,7 +139,7 @@ class Root:
             raise HTTPRedirect('index')
         if attendee.amount_unpaid:
             raise HTTPRedirect(
-                '../preregistration/attendee_donation_form?id={}', attendee.id)
+                '{}?id={}', attendee.payment_page, attendee.id)
         return {
             'attractions': session.query(Attraction).order_by('name').all(),
             'attendee': attendee,

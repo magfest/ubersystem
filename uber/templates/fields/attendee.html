@@ -549,7 +549,7 @@
 
 {% set amount_extra %}
 {% set read_only = amount_extra_ro or page_ro %}
-{% if c.DONATIONS_ENABLED and not admin_area %}
+{% if c.DONATIONS_ENABLED and not admin_area and not read_only %}
   {% if c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 or attendee.amount_extra or attendee.gets_any_kind_of_shirt %}
     <script type="text/javascript">
         var donationChanged = function () {
@@ -685,7 +685,7 @@
     <div class="form-control-static">{{ macros.popup_link("../static_views/affiliates.html", "What's an affiliate?") }}</div>
   </div>
 {% endif %}
-{% if admin_area %}
+{% if admin_area or read_only %}
   <div class="form-group">
     <label class="col-sm-3 control-label">Kick-in/Upgrade</label>
     {% call macros.read_only_if(read_only, attendee.amount_extra_label or "None") %}
@@ -1044,7 +1044,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 
 {% set address %}
 {% set read_only = address_ro or page_ro %}
-{% if c.COLLECT_FULL_ADDRESS %}
+{% if c.COLLECT_FULL_ADDRESS or attendee.shipping_fee_cost %}
   <script type="text/javascript">
       {% include "region_opts.html" %}
 
