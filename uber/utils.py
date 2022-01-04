@@ -1105,6 +1105,7 @@ class Charge:
     def create_stripe_intent(self, session):
         log.debug('Creating Stripe Intent to charge {} cents for {}', self.amount, self.description)
         try:
+            customer = None
             if self.receipt_email:
                 customer_list = stripe.Customer.list(
                     email=self.receipt_email,
@@ -1123,8 +1124,8 @@ class Charge:
                 amount=self.amount,
                 currency='usd',
                 description=self.description,
-                receipt_email=customer.email,
-                customer=customer.id,
+                receipt_email=customer.email if self.receipt_email else None,
+                customer=customer.id if customer else None,
             )
 
             if self.models:
