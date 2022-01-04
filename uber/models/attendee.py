@@ -689,7 +689,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             for app in self.art_show_applications:
                 if app.total_cost and app.status != c.PAID:
                     return '../art_show_applications/edit?id={}'.format(app.id)
-        return 'attendee_donation_form?id={}'.format(self.id)
+        return '../preregistration/attendee_donation_form?id={}'.format(self.id)
 
     def unset_volunteering(self):
         self.staffing = False
@@ -854,6 +854,15 @@ class Attendee(MagModel, TakesPaymentMixin):
     @cost_property
     def marketplace_cost(self):
         return sum(app.total_cost - app.amount_paid for app in self.marketplace_applications)
+
+    @cost_property
+    def shipping_fee_cost(self):
+        return self.calculate_shipping_fee_cost() if self.badge_status == c.DEFERRED_STATUS and self.amount_extra else 0
+    
+    def calculate_shipping_fee_cost(self):
+        # For plugins to override with custom shipping fee logic
+        # Also so we can display the potential shipping fee cost to attendees
+        return c.MERCH_SHIPPING_FEE
 
     @property
     def amount_extra_unpaid(self):
@@ -1044,6 +1053,14 @@ class Attendee(MagModel, TakesPaymentMixin):
                and c.SELF_SERVICE_REFUNDS_OPEN
 
     @property
+    def can_defer_badge(self):
+        return not self.can_abandon_badge and not self.checked_in \
+               and not self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] \
+               and not self.group and not self.in_promo_code_group \
+               and self.badge_status == c.COMPLETED_STATUS and not self.amount_unpaid \
+               and c.SELF_SERVICE_DEFERRALS_OPEN
+
+    @property
     def needs_pii_consent(self):
         return self.is_new or self.placeholder or not self.first_name
 
@@ -1167,7 +1184,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def is_transferable(self):
-        return not self.is_new \
+        return self.badge_status == c.COMPLETED_STATUS \
             and not self.checked_in \
             and (self.paid in [c.HAS_PAID, c.PAID_BY_GROUP] or self.in_promo_code_group) \
             and self.badge_type in c.TRANSFERABLE_BADGE_TYPES \

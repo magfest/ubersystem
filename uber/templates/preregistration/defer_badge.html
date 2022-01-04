@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% import "fields/attendee.html" as attendee_fields with context %}
+{% block backlink %}{% endblock %}
+{% block title %}Defer Your {{ c.EVENT_NAME }} Registration{% endblock %}
+{% block content %}
+
+{% include 'prereg_masthead.html' %}
+<div class="panel panel-default">
+  <div class="panel-body">
+    <h3> Defer {{ attendee.full_name }}'s Registration </h3>
+
+    <p>
+      Are you sure you want to defer your {{ c.EVENT_NAME_AND_YEAR }} registration
+      to a {{ c.EVENT_NAME }} {{ c.EVENT_YEAR|int + 1 }} registration?
+      {% if attendee.calculate_shipping_fee_cost() %}
+        Your badge and kick-in merch will be shipped to you after the event for a 
+        ${{ attendee.calculate_shipping_fee_cost() }} fee. You will receive a tracking number
+        via {{ attendee.email }} by the end of {{ c.EVENT_MONTH }}.
+      {% else %}
+        You will no longer have a badge for {{ c.EVENT_NAME_AND_YEAR }}.
+      {% endif %}
+      <strong>This cannot be undone!</strong>
+    </p>
+
+    <form method="post" action="defer_badge" class="form-horizontal">
+      {{ csrf_token() }}
+      <input type="hidden" name="id" value="{{ attendee.id }}" />
+      {% if attendee.calculate_shipping_fee_cost() %}
+      <div class="row"><label class="col-sm-6 col-sm-offset-3">Mailing Address</label></div>
+      {{ macros.address_form(attendee, is_required=True) }}
+      {% endif %}
+
+      <div class="form-group">
+        <div class="col-sm-6 col-sm-offset-3">
+          <button type="submit" class="btn btn-warning">Yes, Defer My Badge to {{ c.EVENT_NAME }} {{ c.EVENT_YEAR|int + 1 }}</button>
+        
+          <a href="confirm?id={{ attendee.id }}" class="btn btn-default">Nevermind</a>
+        </div>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,6 +1,7 @@
 {% extends "preregistration/preregbase.html" %}
 {% set name_ro = not attendee.placeholder %}
 {% set assigned_depts_ro = True %}
+{% set amount_extra_ro = True if attendee.badge_status == c.DEFERRED_STATUS else False %}
 {% import "fields/attendee.html" as attendee_fields with context %}
 {% block title %}Confirm Your Details{% endblock %}
 {% block backlink %}
@@ -47,11 +48,11 @@
 
       {% block form_top %}{% endblock %}
 
-      {% if not attendee.placeholder and attendee.amount_unpaid and c.HTTP_METHOD == 'GET' and 'attendee_donation_form' in attendee.payment_page %}
+      {% if not attendee.placeholder and (attendee.amount_unpaid - attendee.amount_pending) > 0 and c.HTTP_METHOD == 'GET' and 'attendee_donation_form' in attendee.payment_page %}
           <div class="alert alert-danger">
             You currently have an outstanding balance of <strong>{{ attendee.amount_unpaid|format_currency }}</strong>{% if attendee.amount_extra %} due to having requested
             registration add-ons and then not completing the payment form{% endif %}.  Please either
-            <a href="attendee_donation_form?id={{ attendee.id }}">click here</a> to pay, or alter your registration below to
+            <a href="{{ attendee.payment_page }}">click here</a> to pay, or alter your registration below to
             eliminate whichever addons you've decided not to select.
           </div>
       {% elif attendee.badge_status == c.PENDING_STATUS %}
@@ -59,6 +60,14 @@
             Your registration has not finished processing, likely because we don't have a verified completed payment. 
             Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if this issue persists or if you have any questions.
           </div>
+      {% endif %}
+      {% if attendee.badge_status == c.DEFERRED_STATUS %}
+        <div class="alert alert-warning">
+          Your registration has been deferred to {{ c.EVENT_NAME }} {{ c.EVENT_YEAR|int + 1 }}.
+          You can {% if attendee.shipping_fee_cost %}update your mailing address
+          for your badge and kick-in merch below{% else %}update your information below for next year{% endif %}.
+          Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you have any questions.
+        </div>
       {% endif %}
 
       {% if attendee.is_dealer and attendee.is_group_leader %}
@@ -117,9 +126,12 @@
             {% if attendee.placeholder %}Register{% else %}Update My Info{% endif %}
           </button>
           {% if attendee.is_transferable %}
-            <button type="button" class="btn btn-primary" onClick='location.href="transfer_badge?id={{ attendee.id }}"'>Transfer my Badge</button>
+            <a href="transfer_badge?id={{ attendee.id }}" class="btn btn-primary">Transfer my Badge</a>
           {% endif %}
           {% include '/preregistration/badge_refund.html' %}
+          {% if attendee.can_defer_badge %}
+          <a href="defer_badge?id={{ attendee.id }}" class="btn btn-warning">Defer my Badge</a>
+          {% endif %}
         </div>
       </div>
 
