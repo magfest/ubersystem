@@ -15,7 +15,7 @@ class Root:
         return {'message': message}
     
     @public
-    def arbitrary_charge_form(self, message='', amount=None, description='', sale_id=None):
+    def arbitrary_charge_form(self, message='', amount=None, description='', email='', sale_id=None):
         charge = False
         if amount is not None:
             if not amount.isdigit() or not (1 <= int(amount) <= 999):
@@ -29,6 +29,7 @@ class Root:
             'charge': charge,
             'message': message,
             'amount': amount,
+            'email': email,
             'description': description,
             'sale_id': sale_id
         }
@@ -42,8 +43,8 @@ class Root:
     @public
     @ajax
     @credit_card
-    def arbitrary_charge(self, session, id, amount, description, return_to='arbitrary_charge_form'):
-        charge = Charge(amount=100 * int(amount), description=description)
+    def arbitrary_charge(self, session, id, amount, description, email, return_to='arbitrary_charge_form'):
+        charge = Charge(amount=100 * int(amount), description=description, receipt_email=email)
         stripe_intent = charge.create_stripe_intent(session)
         message = stripe_intent if isinstance(stripe_intent, string_types) else ''
         if message:
