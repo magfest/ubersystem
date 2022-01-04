@@ -1,6 +1,6 @@
 Ahoy {{ game.studio.primary_contact_first_names }},
 
-Today is the first day of {EVENT_NAME} {EVENT_YEAR}!
+Today is the first day of {{c.EVENT_NAME}} {{c.EVENT_YEAR}}!
 
 If you have not come by the MIVS Operations table to get your booth placement, you can come by from 10am to 10:30am or after 11:30am.  (MIVS Volunteer training will be happening between 10:30 and 11:30)
 
