@@ -165,10 +165,16 @@ class Root:
                         stay_on_form = True
                     else:
                         attendee.checked_in = localized_now()
-                        session.commit()
-                        message = '{} saved and checked in as {}{}'.format(
-                            attendee.full_name, attendee.badge, attendee.accoutrements)
-                        stay_on_form = False
+                        message = check(attendee)
+                        if message:
+                            message = "Attendee saved, but they cannot check in. Reason: {}".format(message)
+                            attendee.checked_in = None
+                            stay_on_form = True
+                        else:
+                            session.commit()
+                            message = '{} saved and checked in as {}{}'.format(
+                                attendee.full_name, attendee.badge, attendee.accoutrements)
+                            stay_on_form = False
                         
                 if stay_on_form:
                     raise HTTPRedirect('form?id={}&message={}&return_to={}', attendee.id, message, return_to)
