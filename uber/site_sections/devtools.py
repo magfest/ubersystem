@@ -194,7 +194,7 @@ class Root:
     @csv_file
     def export_model(self, out, session, selected_model=''):
         model = Session.resolve_model(selected_model)
-        rows = prepare_model_export(selected_model, filtered_models=session.query(model).all())
+        rows = prepare_model_export(model, filtered_models=session.query(model).all())
         for row in rows:
             out.writerow(row)
 
