@@ -109,6 +109,7 @@ class Root:
             'search_results': bool(search_text),
             'attendees':      attendees,
             'order':          Order(order),
+            'search_count':   count,
             'attendee_count': total_count,
             'checkin_count':  session.query(Attendee).filter(Attendee.checked_in != None).count(),
             'attendee':       session.attendee(uploaded_id, allow_invalid=True) if uploaded_id else None,
