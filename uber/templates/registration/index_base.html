@@ -242,6 +242,10 @@
       </div>
     {% endif %}
 </div>
+{% if attendees %}
+{% set start_attendee_num = (page * 100) - 100 + 1 %}
+<div>Showing {{ start_attendee_num }} to {{ start_attendee_num + attendees|length - 1 }} out of {{ search_count }} attendees</div>
+{% endif %}
 {% if attendees|length > 15 %}
 <ul class="pagination{% if not page %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
 {% for pagenum in pages %}
