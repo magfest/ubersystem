@@ -260,7 +260,10 @@ class Root:
 
     zips_counter = Counter()
     zips = {}
-    center = SearchEngine(db_file_dir="/tmp").by_zipcode(20745)
+    try:
+        center = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(20745)
+    except Exception as e:
+        log.error("Error calling SearchEngine: " + e)
 
     def map(self):
         return {
@@ -279,9 +282,13 @@ class Root:
                 self.zips_counter[person.zip_code] += 1
 
         for z in self.zips_counter.keys():
-            found = SearchEngine(db_file_dir="/tmp").by_zipcode(int(z))
-            if found.zipcode:
-                zips[z] = found
+            try:
+                found = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(int(z))
+            except Exception as e:
+                log.error("Error calling SearchEngine: " + e)
+            else:
+                if found.zipcode:
+                    zips[z] = found
 
         self.zips = zips
         return True
@@ -290,38 +297,49 @@ class Root:
     @not_site_mappable
     def radial_zip_data(self, out, session, **params):
         if params.get('radius'):
-            res = SearchEngine(db_file_dir="/tmp").by_coordinates(
-                self.center.lat, self.center.lng, radius=int(params['radius']), returns=None)
-
-            out.writerow(['# of Attendees', 'City', 'State', 'Zipcode', 'Miles from Event', '% of Total Attendees'])
-            if len(res) > 0:
-                keys = self.zips.keys()
-                center_coord = (self.center.lat, self.center.lng)
-                total_count = session.attendees_with_badges().count()
-                for x in res:
-                    if x.zipcode in keys:
-                        out.writerow([self.zips_counter[x.zipcode], x.city, x.state, x.zipcode,
-                                      VincentyDistance((x.lat, x.lng), center_coord).miles,
-                                      "%.2f" % float(self.zips_counter[x.zipcode] / total_count * 100)])
+            try:
+                res = SearchEngine(db_file_dir="/srv/reggie/data").by_coordinates(
+                    self.center.lat, self.center.lng, radius=int(params['radius']), returns=None)
+            except Exception as e:
+                log.error("Error calling SearchEngine: " + e)
+            else:
+                out.writerow(['# of Attendees', 'City', 'State', 'Zipcode', 'Miles from Event', '% of Total Attendees'])
+                if len(res) > 0:
+                    keys = self.zips.keys()
+                    center_coord = (self.center.lat, self.center.lng)
+                    total_count = session.attendees_with_badges().count()
+                    for x in res:
+                        if x.zipcode in keys:
+                            out.writerow([self.zips_counter[x.zipcode], x.city, x.state, x.zipcode,
+                                        VincentyDistance((x.lat, x.lng), center_coord).miles,
+                                        "%.2f" % float(self.zips_counter[x.zipcode] / total_count * 100)])
 
     @ajax
     def set_center(self, session, **params):
         if params.get("zip"):
-            self.center = SearchEngine(db_file_dir="/tmp").by_zipcode(int(params["zip"]))
-            return "Set to %s, %s - %s" % (self.center.city, self.center.state, self.center.zipcode)
+            try:
+                self.center = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(int(params["zip"]))
+            except Exception as e:
+                log.error("Error calling SearchEngine: " + e)
+            else:
+                return "Set to %s, %s - %s" % (self.center.city, self.center.state, self.center.zipcode)
         return False
 
     @csv_file
     def attendees_by_state(self, out, session):
-        # Result of set(map(lambda x: x.state, SearchEngine(db_file_dir="/tmp").ses.query(SimpleZipcode))) -- literally all the states uszipcode knows about
+        # Result of set(map(lambda x: x.state, SearchEngine(db_file_dir="/srv/reggie/data").ses.query(SimpleZipcode))) -- literally all the states uszipcode knows about
         states = ['SD', 'IL', 'WY', 'NV', 'NJ', 'NM', 'UT', 'OR', 'TX', 'NE', 'MS', 'FL', 'VA', 'HI', 'KY', 'MO', 'NY', 'WV', 'DC', 'AR', 'MT', 'MD', 'SC', 'NC', 'KS', 'OH', 'PR', 'CO', 'IN', 'VT', 'LA', 'ND', 'AZ', 'AK', 'AL', 'CT', 'TN', 'PA', 'IA', 'WA', 'ME', 'NH', 'MA', 'ID', 'OK', 'WI', 'GA', 'CA', 'DE', 'MN', 'MI', 'RI']
         total_count = session.attendees_with_badges().count()
 
         out.writerow(['# of Attendees', 'State', '% of Total Attendees'])
 
         for state in states:
-            zip_codes = list(map(lambda x: x.zipcode, SearchEngine(db_file_dir="/tmp").by_state(state, returns=None)))
-            current_count = session.attendees_with_badges().filter(Attendee.zip_code.in_(zip_codes)).count()
-            if current_count:
-                out.writerow([current_count, state, "%.2f" % float(current_count / total_count * 100)])
+            try:
+                zip_codes = list(map(lambda x: x.zipcode, SearchEngine(db_file_dir="/srv/reggie/data").by_state(state, returns=None)))
+            except Exception as e:
+                log.error("Error calling SearchEngine: " + e)
+            else:
+                current_count = session.attendees_with_badges().filter(Attendee.zip_code.in_(zip_codes)).count()
+                if current_count:
+                    out.writerow([current_count, state, "%.2f" % float(current_count / total_count * 100)])
 
