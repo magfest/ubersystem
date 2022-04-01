@@ -64,19 +64,23 @@ class Root:
         }
 
     @check_shutdown
-    def volunteer_agreement(self, session, message='', agreed_to_terms=None, csrf_token=None):
+    def volunteer_agreement(self, session, message='', agreed_to_terms_1=None, agreed_to_terms_2=None, csrf_token=None):
         attendee = session.logged_in_volunteer()
         if csrf_token is not None:
             check_csrf(csrf_token)
-            if agreed_to_terms:
+            if agreed_to_terms_1 and agreed_to_terms_2:
                 attendee.agreed_to_volunteer_agreement = True
                 raise HTTPRedirect('index?message={}', 'Agreement received')
-
-            message = "You must agree to the terms of the agreement"
+            elif not agreed_to_terms_1:
+                message = "You must agree to the terms of the agreement"
+            elif not agreed_to_terms_2:
+                message = "You must acknowledge the volunteering policies and guidelines"
 
         return {
             'message': message,
             'attendee': attendee,
+            'agreed_to_terms_1': agreed_to_terms_1,
+            'agreed_to_terms_2': agreed_to_terms_2,
             'agreement_end_date': c.ESCHATON.date() + timedelta(days=31),
         }
         
