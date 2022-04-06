@@ -18,7 +18,7 @@ The following are actions we’re taking to maintain a safe environment during M
     * a digital vaccination record issued by a government body, healthcare provider, etc.
     * a third-party app that validates your vaccination record
 
-You can read the full extent of MAGFest’s COVID information and policies at https://super.magfest.org/covid
+You can read the full extent of MAGFest’s COVID information and policies at {{ c.COVID_POLICIES_URL }}
 
 If you have questions or concerns about COVID and MAGFest we encourage you to reach out to us at mivs@magfest.org
 
