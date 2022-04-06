@@ -13,7 +13,7 @@ at the bottom of this page.
 
 <br/> </br>
 
-<form method="post" action="index">
+<form method="post" action="hotel">
 {{ csrf_token() }}
 <input type="hidden" name="id" value="{{ requests.db_id }}" />
 <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />

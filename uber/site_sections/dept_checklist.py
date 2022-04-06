@@ -286,7 +286,7 @@ class Root:
 
     @department_id_adapter
     def hotel_requests(self, session, department_id=None):
-        redirect_to_allowed_dept(session, department_id, 'index')
+        redirect_to_allowed_dept(session, department_id, 'hotel_requests')
 
         if department_id == 'All':
             department_id = None
