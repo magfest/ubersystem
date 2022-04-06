@@ -14,9 +14,9 @@
             {{ macros.checklist_image(attendee.hotel_requests) }}
             The deadline for editing hotel requests has passed, but as a STOPS admin, you can still
             {% if attendee.hotel_requests %}
-                <a href="../hotel">edit</a>
+                <a href="hotel">edit</a>
             {% else %}
-                <a href="../hotel">fill out</a>
+                <a href="hotel">fill out</a>
             {% endif %}
         {% endif %}
         this staffer's hotel room space requests.
@@ -30,7 +30,7 @@
                     <a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/request?id={{ attendee.id }}" target="_blank">Tell us</a>
                 {% else %}
                     {{ macros.checklist_image(attendee.hotel_requests) }}
-                    <a href="../hotel">Tell us</a>
+                    <a href="hotel">Tell us</a>
                 {% endif %}
             {% else %}
             {{ macros.checklist_image(attendee.hotel_requests) }}
@@ -41,7 +41,7 @@
                 {% if c.HOTEL_REQUESTS_URL %}
                     (you may <a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/request?id={{ attendee.id }}">edit your request</a> until then).
                 {% else %}
-                    (you may <a href="../hotel">edit your request</a> until then).
+                    (you may <a href="hotel">edit your request</a> until then).
                 {% endif %}
             {% endif %}
         </li>

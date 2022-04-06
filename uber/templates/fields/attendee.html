@@ -1808,7 +1808,7 @@ $(window).on("runJavaScript", function(){
   <label class="col-sm-3 control-label">Reviewed Emergency Procedures</label>
   <div class="col-sm-9">
     <div class="form-control-static">
-      {% if c.VOLUNTEER_AGREEMENT_ENABLED and admin_area %}{{ attendee.reviewed_emergency_procedures|yesno("Yes,No") }}{% endif %}
+      {% if c.EMERGENCY_PROCEDURES_ENABLED and admin_area %}{{ attendee.reviewed_emergency_procedures|yesno("Yes,No") }}{% endif %}
       <input type="hidden" name="reviewed_emergency_procedures" value="{{ attendee.reviewed_emergency_procedures|yesno("1,0") }}" />
     </div>
   </div>
