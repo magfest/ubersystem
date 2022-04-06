@@ -15,7 +15,7 @@ If you cannot make MAGFest, please decline ASAP so that we can contact the next 
 You may have some questions about showing at MIVS.  Here's a quick FAQ, more detailed information will come after you accept:
 
 Q: What is the covid policy for {{ c.ESCHATON.year }}?
-A: The Covid policy is outlined at https://super.magfest.org/covid - By Accepting your spot in MIVS, you are agreeing to the COVID policy.
+A: The Covid policy is outlined at {{ c.COVID_POLICIES_URL }} - By Accepting your spot in MIVS, you are agreeing to the COVID policy.
 
 Q: What's required of me and my team?
 A: You will be required to have yourself or someone from your team in your booth during MAGFest, from 10am to 6pm from Thursday to Saturday, and 10am to 3pm Sunday.
