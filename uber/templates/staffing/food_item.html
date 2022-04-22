@@ -2,7 +2,7 @@
 {% if c.HOURS_FOR_FOOD %}
 <li>
     {{ macros.checklist_image(attendee.food_restrictions) }}
-    {% if (not c.VOLUNTEER_AGREEMENT_ENABLED or attendee.agreed_to_volunteer_agreement) and not attendee.placeholder %}
+    {% if not attendee.placeholder %}
         <a href="food_restrictions">Let us know</a>
     {% else %}
         Let us know
