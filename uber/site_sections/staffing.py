@@ -64,17 +64,17 @@ class Root:
         }
 
     @check_shutdown
-    def volunteer_agreement(self, session, message='', agreed_to_terms_1=None, agreed_to_terms_2=None, csrf_token=None):
+    def volunteer_agreement(self, session, message='', agreed_to_terms=None, agreed_to_terms_1=None, agreed_to_terms_2=None, csrf_token=None):
         attendee = session.logged_in_volunteer()
         if csrf_token is not None:
             check_csrf(csrf_token)
-            if agreed_to_terms_1 and agreed_to_terms_2:
+            if agreed_to_terms or (agreed_to_terms_1 and agreed_to_terms_2):
                 attendee.agreed_to_volunteer_agreement = True
                 raise HTTPRedirect('index?message={}', 'Agreement received')
-            elif not agreed_to_terms_1:
+            elif agreed_to_terms_1 or agreed_to_terms_2:
+                message = "You must agree to both the terms of the agreement and the volunteering policies and guidelines"
+            else:
                 message = "You must agree to the terms of the agreement"
-            elif not agreed_to_terms_2:
-                message = "You must acknowledge the volunteering policies and guidelines"
 
         return {
             'message': message,
