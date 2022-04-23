@@ -152,7 +152,7 @@
             <div class="col-sm-9 col-sm-offset-3">
               <label class="checkbox-label" style="font-weight: normal;">
                 <input type="checkbox" name="covid_agreement"{% if covid_agreement %} checked{% endif %} />
-                I understand and agree with the {{ macros.popup_link("{{ c.COVID_POLICIES_URL }}", "{{ c.EVENT_NAME_AND_YEAR }} COVID Policy") }}.
+                I understand and agree with the {{ macros.popup_link(c.COVID_POLICIES_URL, c.EVENT_NAME_AND_YEAR ~ " COVID Policy") }}.
               </label>
             </div>
           </div>
