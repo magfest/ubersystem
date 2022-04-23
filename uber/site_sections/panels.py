@@ -33,7 +33,7 @@ def check_extra_verifications(**params):
     elif 'data_agreement' not in params:
         return 'You must check the box to agree for your information to be used for determining panels selection'
     elif 'covid_agreement' not in params:
-        return 'You must check the box to agree to the Super MAGFest 2022 COVID Policy'
+        return 'You must check the box to agree to the {} COVID Policy'.format(c.EVENT_NAME_AND_YEAR)
     elif 'verify_unavailable' not in params:
         return 'You must check the box to confirm that you are only unavailable at the specified times'
     elif 'verify_waiting' not in params:
