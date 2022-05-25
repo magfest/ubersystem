@@ -207,6 +207,9 @@ class Config(_Overridable):
 
         if section_and_page in access or section in access:
             return True
+        
+        if section == 'group_admin' and any(x in access for x in ['dealer_admin', 'guest_admin', 'band_admin', 'mivs_admin']):
+            return True
 
     @property
     def DEALER_REG_OPEN(self):
