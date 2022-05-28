@@ -211,6 +211,29 @@ def group_leader_under_13(attendee):
 
 
 @prereg_validation.Attendee
+def child_badge_over_13(attendee):
+    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.is_new and attendee.badge_type == c.CHILD_BADGE \
+            and attendee.age_now_or_at_con and attendee.age_now_or_at_con >= 13:
+        return "If you will be 13 or older at the start of {}, " \
+            "please select an Attendee badge instead of a 12 and Under badge.".format(c.EVENT_NAME)
+
+
+@prereg_validation.Attendee
+def attendee_badge_under_13(attendee):
+    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.is_new and attendee.badge_type == c.ATTENDEE_BADGE \
+            and attendee.age_now_or_at_con and attendee.age_now_or_at_con < 13:
+        return "If you will be 12 or younger at the start of {}, " \
+            "please select the 12 and Under badge instead of an Attendee badge.".format(c.EVENT_NAME)
+
+           
+@validation.Attendee
+def no_more_child_badges(attendee):
+    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.is_new and attendee.age_now_or_at_con and attendee.age_now_or_at_con < 18 \
+            and not c.CHILD_BADGE_AVAILABLE:
+        return "Unfortunately, we are sold out of badges for attendees under 18."
+
+
+@prereg_validation.Attendee
 def upgrade_sold_out(attendee):
     currently_available_upgrades = [tier['price'] for tier in c.PREREG_DONATION_DESCRIPTIONS]
     if (attendee.is_new or attendee.orig_value_of('amount_extra') != attendee.amount_extra) \

@@ -134,6 +134,24 @@
             }
         });
     {% endif %}
+    {% if attendee.is_new and not group_id and c.CHILD_BADGE in c.PREREG_BADGE_TYPES %}
+        if (window.REG_TYPES) {
+            REG_TYPES.options.push({
+                title: '12 and Under: $' + Math.floor({{ c.BADGE_PRICE }} / 2),
+                description: '<p class="list-group-item-text">Attendees 12 and younger must be accompanied by an adult with a valid Attendee badge.</p>' +
+            '<span class="prereg-price-notice">Price is always half that of the Single Attendee badge price.</span>',
+                onClick: function () {
+                    $('.group_fields').addClass('hide');
+                    $('.non_group_fields').removeClass('hide');
+                    if ($.field('first_name')) {
+                        $('#bold-field-message').insertBefore($.field('first_name').parents('.form-group'));
+                    }
+                    $('input[name="badge_type"]').val('{{ c.CHILD_BADGE }}');
+                    togglePrices();
+                }
+            });
+        }
+    {% endif %}
     var BADGE_TYPES = {
         row: '#badge-types',
         selector: '.badge-type-selector',
@@ -466,6 +484,15 @@
                   });
               }
           });
+      {% endif %}
+      // This auto-selects the Child badge when the user is, e.g., editing their registration before paying
+      {% if attendee.badge_type == c.CHILD_BADGE %}
+      $(window).on("runJavaScript", function () {
+          if (window.REG_TYPES && $(REG_TYPES.row).size()) {
+              {% set child_badge_index = 2 if c.GROUPS_ENABLED else 1 %}
+              setBadge(REG_TYPES, {{ child_badge_index }});  // default to child badge when appropriate
+          }
+        });
       {% endif %}
   </script>
   {% if not attendee.is_new %}
@@ -1633,6 +1660,19 @@ $(window).on("runJavaScript", function(){
     </div>
   {% endcall %}
   </div>
+  {% if c.CHILD_BADGE in c.PREREG_BADGE_TYPES %}
+  <div class="form-group">
+      <p class="help-block col-sm-9 col-sm-offset-3">
+      {% if c.CHILD_BADGE_AVAILABLE %}
+        Badges for attendees under 13 are half-price. <br/>
+        Attendees under 6 enter free. <br/>
+        All attendees under 13 must be accompanied by an adult with a valid Attendee badge.
+    {% else %}
+    <span class="text-danger">Unfortunately, we are sold out of badges for attendees under 18.</span>
+    {% endif %}
+      </p>
+    </div>
+  {% endif %}
 {% elif not admin_area and c.AT_THE_CON %}
   <script type="text/javascript">
       var maybeBold = function() {
