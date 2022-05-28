@@ -22,7 +22,7 @@ from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
 from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
-from uber.models import AdminAccount, ApiToken, Attendee, Department, DeptMembership, DeptMembershipRequest, \
+from uber.models import AdminAccount, ApiToken, Attendee, AttendeeAccount, Department, DeptMembership, DeptMembershipRequest, \
     Event, IndieStudio, Job, Session, Shift, GuestGroup, Room, HotelRequests, RoomAssignment
 from uber.models.badge_printing import PrintJob
 from uber.server import register_jsonrpc
@@ -63,6 +63,37 @@ def _attendee_fields_and_query(full, query):
         fields = AttendeeLookup.fields
         query = query.options(subqueryload(Attendee.dept_memberships))
     return (fields, query)
+
+def _query_to_names_emails_ids(query):
+    _re_name_email = re.compile(r'^\s*(.*?)\s*<\s*(.*?@.*?)\s*>\s*$')
+    _re_sep = re.compile(r'[\n,]')
+    _re_whitespace = re.compile(r'\s+')
+    queries = [s.strip() for s in _re_sep.split(normalize_newlines(query)) if s.strip()]
+
+    names = dict()
+    emails = dict()
+    names_and_emails = dict()
+    ids = set()
+    for q in queries:
+        if '@' in q:
+            match = _re_name_email.match(q)
+            if match:
+                name = match.group(1)
+                email = normalize_email(match.group(2))
+                if name:
+                    first, last = (_re_whitespace.split(name.lower(), 1) + [''])[0:2]
+                    names_and_emails[(first, last, email)] = q
+                else:
+                    emails[email] = q
+            else:
+                emails[normalize_email(q)] = q
+        elif q:
+            try:
+                ids.add(str(uuid.UUID(q)))
+            except Exception:
+                first, last = (_re_whitespace.split(q.lower(), 1) + [''])[0:2]
+                names[(first, last)] = q
+    return names, emails, names_and_emails, ids
 
 
 def _parse_datetime(d):
@@ -313,6 +344,26 @@ class AttendeeLookup:
         },
     })
 
+    attendee_import_fields = [
+        'first_name',
+        'last_name',
+        'birthdate',
+        'email',
+        'zip_code',
+        'birthdate',
+        'international',
+        'ec_name',
+        'ec_phone',
+        'cellphone',
+        'badge_printed_name',
+        'found_how',
+        'comments',
+        'admin_notes',
+        'all_years',
+        'badge_status',
+        'badge_status_label',
+    ]
+
     def lookup(self, badge_num, full=False):
         """
         Returns a single attendee by badge number.
@@ -404,36 +455,9 @@ class AttendeeLookup:
         <pre>Merrium Webster, only.email@example.com, John Doe &lt;jdoe@example.com&gt;</pre>
 
         Results are returned in the format expected by
-        <a href="../import/staff">the staff importer</a>.
+        <a href="../reg_admin/import_attendees">the attendee importer</a>.
         """
-        _re_name_email = re.compile(r'^\s*(.*?)\s*<\s*(.*?@.*?)\s*>\s*$')
-        _re_sep = re.compile(r'[\n,]')
-        _re_whitespace = re.compile(r'\s+')
-        queries = [s.strip() for s in _re_sep.split(normalize_newlines(query)) if s.strip()]
-
-        names = dict()
-        emails = dict()
-        names_and_emails = dict()
-        ids = set()
-        for q in queries:
-            if '@' in q:
-                match = _re_name_email.match(q)
-                if match:
-                    name = match.group(1)
-                    email = normalize_email(match.group(2))
-                    if name:
-                        first, last = (_re_whitespace.split(name.lower(), 1) + [''])[0:2]
-                        names_and_emails[(first, last, email)] = q
-                    else:
-                        emails[email] = q
-                else:
-                    emails[normalize_email(q)] = q
-            elif q:
-                try:
-                    ids.add(str(uuid.UUID(q)))
-                except Exception:
-                    first, last = (_re_whitespace.split(q.lower(), 1) + [''])[0:2]
-                    names[(first, last)] = q
+        names, emails, names_and_emails, ids = _query_to_names_emails_ids(query)
 
         with Session() as session:
             if full:
@@ -491,25 +515,7 @@ class AttendeeLookup:
                 a for a in (id_attendees + email_attendees + name_attendees + name_and_email_attendees)
                 if a.id not in seen and not seen.add(a.id)]
 
-            fields = [
-                'first_name',
-                'last_name',
-                'birthdate',
-                'email',
-                'zip_code',
-                'birthdate',
-                'international',
-                'ec_name',
-                'ec_phone',
-                'cellphone',
-                'badge_printed_name',
-                'found_how',
-                'comments',
-                'admin_notes',
-                'all_years',
-                'badge_status',
-                'badge_status_label',
-            ]
+            fields = AttendeeLookup.attendee_import_fields
             if full:
                 fields.extend(['shirt'])
 
@@ -548,6 +554,94 @@ class AttendeeLookup:
                 'unknown_names': unknown_names,
                 'unknown_names_and_emails': unknown_names_and_emails,
                 'attendees': attendees,
+            }
+
+    def export_from_account(self, id, full=False):
+        """
+        Searches for attendees by either email, "first last" name, or
+        "first last &lt;email&gt;" combinations.
+
+        `query` should be a comma or newline separated list of email/name
+        queries.
+
+        Example:
+        <pre>Merrium Webster, only.email@example.com, John Doe &lt;jdoe@example.com&gt;</pre>
+
+        Results are returned in the format expected by
+        <a href="../reg_admin/import_attendees">the attendee importer</a>.
+        """
+        with Session() as session:
+            account = session.attendee_account(id)
+
+            if not account:
+                raise HTTPError(404, 'No attendee account found with this ID')
+
+            fields = AttendeeLookup.attendee_import_fields
+            
+            if full:
+                fields.extend(['shirt'])
+
+            attendees = []
+            for a in account.attendees:
+                d = a.to_dict(fields)
+                
+                attendees.append(d)
+            return {
+                'attendees': attendees,
+            }
+
+    def export_accounts(self, query):
+        """
+        Searches for attendee accounts by either email or id.
+
+        `query` should be a comma or newline separated list of email/id
+        queries.
+
+        Example:
+        <pre>account.email@example.com, e3a670c4-8f7e-4d62-841d-49f73f58d8b1</pre>
+        """
+        names, emails, names_and_emails, ids = _query_to_names_emails_ids(query)
+
+        with Session() as session:
+            
+            email_accounts = []
+            if emails:
+                email_accounts = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email.in_(list(emails.keys()))) \
+                    .options(subqueryload(AttendeeAccount.attendees)).order_by(AttendeeAccount.email, AttendeeAccount.id).all()
+
+            known_emails = set(a.normalized_email for a in email_accounts)
+            unknown_emails = sorted([raw for normalized, raw in emails.items() if normalized not in known_emails])
+
+            id_accounts = []
+            if ids:
+                id_accounts = session.query(AttendeeAccount).filter(AttendeeAccount.id.in_(ids)) \
+                    .options(subqueryload(AttendeeAccount.attendees)).order_by(AttendeeAccount.email, AttendeeAccount.id).all()
+
+            known_ids = set(str(a.id) for a in id_accounts)
+            unknown_ids = sorted([i for i in ids if i not in known_ids])
+
+            seen = set()
+            all_accounts = [
+                a for a in (id_accounts + email_accounts)
+                if a.id not in seen and not seen.add(a.id)]
+
+            accounts = []
+            for a in all_accounts:
+                d = a.to_dict(['id', 'email'])
+
+                attendees = {}
+                for attendee in a.attendees:
+                    attendees[attendee.id] = attendee.full_name + " <{}>".format(attendee.email)
+                    
+                d.update({
+                    'attendees': attendees,
+                })
+                accounts.append(d)
+
+            return {
+                'unknown_ids': unknown_ids,
+                'unknown_emails': unknown_emails,
+                'accounts': accounts,
             }
 
     @api_auth('api_create')
