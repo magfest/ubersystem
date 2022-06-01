@@ -767,8 +767,10 @@ def _server_to_url(server):
         return 'https://{}/reggie'.format(host)
     elif path.startswith('uber'):
         return 'https://{}/uber'.format(host)
-    elif c.PATH == '/uber':
-        return 'https://{}{}'.format(host, c.PATH)
+    elif path == 'uber':
+        return 'https://{}/{}'.format(host, path)
+    elif path == 'rams':
+        return 'https://{}/{}'.format(host, path)
     return 'https://{}'.format(host)
 
 
