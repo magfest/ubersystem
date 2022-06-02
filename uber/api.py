@@ -590,7 +590,7 @@ class AttendeeLookup:
                 'attendees': attendees,
             }
 
-    def export_accounts(self, query):
+    def export_accounts(self, query, all=False):
         """
         Searches for attendee accounts by either email or id.
 
@@ -601,29 +601,33 @@ class AttendeeLookup:
         <pre>account.email@example.com, e3a670c4-8f7e-4d62-841d-49f73f58d8b1</pre>
         """
         names, emails, names_and_emails, ids = _query_to_names_emails_ids(query)
+        unknown_emails = []
+        unknown_ids = []
 
         with Session() as session:
-            
-            email_accounts = []
-            if emails:
-                email_accounts = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email.in_(list(emails.keys()))) \
-                    .options(subqueryload(AttendeeAccount.attendees)).order_by(AttendeeAccount.email, AttendeeAccount.id).all()
+            if all:
+                all_accounts = session.query(AttendeeAccount).all()
+            else:
+                email_accounts = []
+                if emails:
+                    email_accounts = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email.in_(list(emails.keys()))) \
+                        .options(subqueryload(AttendeeAccount.attendees)).order_by(AttendeeAccount.email, AttendeeAccount.id).all()
 
-            known_emails = set(a.normalized_email for a in email_accounts)
-            unknown_emails = sorted([raw for normalized, raw in emails.items() if normalized not in known_emails])
+                known_emails = set(a.normalized_email for a in email_accounts)
+                unknown_emails = sorted([raw for normalized, raw in emails.items() if normalized not in known_emails])
 
-            id_accounts = []
-            if ids:
-                id_accounts = session.query(AttendeeAccount).filter(AttendeeAccount.id.in_(ids)) \
-                    .options(subqueryload(AttendeeAccount.attendees)).order_by(AttendeeAccount.email, AttendeeAccount.id).all()
+                id_accounts = []
+                if ids:
+                    id_accounts = session.query(AttendeeAccount).filter(AttendeeAccount.id.in_(ids)) \
+                        .options(subqueryload(AttendeeAccount.attendees)).order_by(AttendeeAccount.email, AttendeeAccount.id).all()
 
-            known_ids = set(str(a.id) for a in id_accounts)
-            unknown_ids = sorted([i for i in ids if i not in known_ids])
+                known_ids = set(str(a.id) for a in id_accounts)
+                unknown_ids = sorted([i for i in ids if i not in known_ids])
 
-            seen = set()
-            all_accounts = [
-                a for a in (id_accounts + email_accounts)
-                if a.id not in seen and not seen.add(a.id)]
+                seen = set()
+                all_accounts = [
+                    a for a in (id_accounts + email_accounts)
+                    if a.id not in seen and not seen.add(a.id)]
 
             accounts = []
             for a in all_accounts:
