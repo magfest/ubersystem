@@ -11,7 +11,7 @@ from uber.config import c, _config
 from uber.custom_tags import pluralize
 from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Department, DeptMembership, DeptMembershipRequest
+from uber.models import ApiJob, Attendee, Department, DeptMembership, DeptMembershipRequest
 from uber.site_sections import devtools
 from uber.utils import get_api_service_from_server, normalize_email
 
@@ -243,103 +243,45 @@ class Root:
                                api_token,
                                query)
 
-        service, message, target_url = get_api_service_from_server(target_server, api_token)
+        admin_id = cherrypy.session.get('account_id')
+        admin_name = session.admin_attendee().full_name
+        already_queued = 0
 
-        try:
-            results = service.attendee.export(query=','.join(listify(attendee_ids)), full=True)
-        except Exception as ex:
-            raise HTTPRedirect(
-                'import_attendees?target_server={}&api_token={}&query={}&message={}',
-                target_server, remote_api_token, query, str(ex))
-
-        depts = {}
-
-        def _guess_dept(id_name):
-            id, name = id_name
-            if id in depts:
-                return (id, depts[id])
-
-            dept = session.query(Department).filter(or_(
-                Department.id == id,
-                Department.normalized_name == Department.normalize_name(name))).first()
-
-            if dept:
-                depts[id] = dept
-                return (id, dept)
-            return None
-
-        badge_type = int(badge_type)
-        badge_label = c.BADGES[badge_type].lower()
-
-        attendees = results.get('attendees', [])
-        for d in attendees:
-            import_from_url = '{}/registration/form?id={}\n\n'.format(target_url, d['id'])
-            new_admin_notes = '{}\n\n'.format(admin_notes) if admin_notes else ''
-            old_admin_notes = 'Old Admin Notes:\n{}\n'.format(d['admin_notes']) if d['admin_notes'] else ''
-
-            d.update({
-                'badge_type': badge_type,
-                'badge_status': c.NEW_STATUS,
-                'paid': c.NEED_NOT_PAY,
-                'placeholder': True,
-                'requested_hotel_info': True,
-                'admin_notes': 'Imported {} from {}{}{}'.format(
-                    badge_label, import_from_url, new_admin_notes, old_admin_notes),
-                'past_years': d['all_years'],
-            })
-            del d['id']
-            del d['all_years']
-            del d['shirt']
-
-            if badge_type != c.STAFF_BADGE:
-                attendee = Attendee().apply(d, restricted=False)
-
+        for id in attendee_ids:
+            existing_import = session.query(ApiJob).filter(ApiJob.job_name == "attendee_import",
+                                            ApiJob.query == id,
+                                            ApiJob.cancelled == None,
+                                            ApiJob.errors == '').count()
+            if existing_import:
+                already_queued += 1
             else:
-                assigned_depts = {d[0]: d[1] for d in map(_guess_dept, d.pop('assigned_depts', {}).items()) if d}
-                checklist_admin_depts = d.pop('checklist_admin_depts', {})
-                dept_head_depts = d.pop('dept_head_depts', {})
-                poc_depts = d.pop('poc_depts', {})
-                requested_depts = d.pop('requested_depts', {})
+                session.add(ApiJob(
+                    admin_id = admin_id,
+                    admin_name = admin_name,
+                    job_name = "attendee_import",
+                    target_server = target_server,
+                    api_token = api_token,
+                    query = id,
+                    json_data = {'badge_type': badge_type, 'admin_notes': admin_notes, 'full': True}
+                ))
+            session.commit()
 
-                d.update({
-                    'staffing': True,
-                    'ribbon': str(c.DEPT_HEAD_RIBBON) if dept_head_depts else '',
-                })
+        attendee_count = len(attendee_ids) - already_queued
+        badge_label = c.BADGES[int(badge_type)].lower()
 
-                attendee = Attendee().apply(d, restricted=False)
+        if len(attendee_ids) > 100:
+            query = '' # Clear very large queries to prevent 502 errors
 
-                for id, dept in assigned_depts.items():
-                    attendee.dept_memberships.append(DeptMembership(
-                        department=dept,
-                        attendee=attendee,
-                        is_checklist_admin=bool(id in checklist_admin_depts),
-                        is_dept_head=bool(id in dept_head_depts),
-                        is_poc=bool(id in poc_depts),
-                    ))
-
-                requested_anywhere = requested_depts.pop('All', False)
-                requested_depts = {d[0]: d[1] for d in map(_guess_dept, requested_depts.items()) if d}
-
-                if requested_anywhere:
-                    attendee.dept_membership_requests.append(DeptMembershipRequest(attendee=attendee))
-                for id, dept in requested_depts.items():
-                    attendee.dept_membership_requests.append(DeptMembershipRequest(
-                        department=dept,
-                        attendee=attendee,
-                    ))
-
-            session.add(attendee)
-
-        attendee_count = len(attendees)
         raise HTTPRedirect(
             'import_attendees?target_server={}&api_token={}&query={}&message={}',
             target_server,
             api_token,
             query,
-            '{count} attendee{s} imported with {a}{badge_label} badge{s}'.format(
+            '{count} attendee{s} imported with {a}{badge_label} badge{s}.{queued}'.format(
                 count=attendee_count,
                 s=pluralize(attendee_count),
                 a=pluralize(attendee_count, singular='an ' if badge_label.startswith('a') else 'a ', plural=''),
                 badge_label=badge_label,
+                queued='' if not already_queued else '{} badges are already queued for import.'.format(already_queued),
             )
         )

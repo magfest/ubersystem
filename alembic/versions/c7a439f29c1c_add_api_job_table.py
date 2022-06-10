@@ -1,15 +1,15 @@
-"""Add print queue table
+"""Add API Job table
 
-Revision ID: 40ec91ad7a74
-Revises: cc0f9e9861cd
-Create Date: 2021-11-04 03:38:08.816882
+Revision ID: c7a439f29c1c
+Revises: 81b45e3d967c
+Create Date: 2022-06-09 02:26:35.790794
 
 """
 
 
 # revision identifiers, used by Alembic.
-revision = '40ec91ad7a74'
-down_revision = 'cc0f9e9861cd'
+revision = 'c7a439f29c1c'
+down_revision = '81b45e3d967c'
 branch_labels = None
 depends_on = None
 
@@ -53,23 +53,23 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.create_table('print_job',
+    op.create_table('api_job',
     sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=False),
     sa.Column('admin_id', residue.UUID(), nullable=False),
     sa.Column('admin_name', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('printer_id', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('reg_station', sa.Integer(), nullable=True),
     sa.Column('queued', residue.UTCDateTime(), nullable=True),
-    sa.Column('printed', residue.UTCDateTime(), nullable=True),
+    sa.Column('completed', residue.UTCDateTime(), nullable=True),
+    sa.Column('cancelled', residue.UTCDateTime(), nullable=True),
+    sa.Column('job_name', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('target_server', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('query', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('api_token', sa.Unicode(), server_default='', nullable=False),
     sa.Column('errors', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('is_minor', sa.Boolean(), nullable=False),
     sa.Column('json_data', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-    sa.ForeignKeyConstraint(['admin_id'], ['admin_account.id'], name=op.f('fk_print_queue_admin_id_admin_account')),
-    sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_print_queue_attendee_id_attendee')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_print_queue'))
+    sa.ForeignKeyConstraint(['admin_id'], ['admin_account.id'], name=op.f('fk_api_job_admin_id_admin_account')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_api_job'))
     )
 
 
 def downgrade():
-    op.drop_table('print_job')
+    op.drop_table('api_job')
