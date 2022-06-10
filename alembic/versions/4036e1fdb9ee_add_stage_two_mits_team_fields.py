@@ -1,7 +1,7 @@
 """Add stage two MITS team fields
 
 Revision ID: 4036e1fdb9ee
-Revises: fa3b09b82899
+Revises: 26bc228319d2
 Create Date: 2020-04-14 22:59:59.346742
 
 """
@@ -9,7 +9,7 @@ Create Date: 2020-04-14 22:59:59.346742
 
 # revision identifiers, used by Alembic.
 revision = '4036e1fdb9ee'
-down_revision = 'fa3b09b82899'
+down_revision = '26bc228319d2'
 branch_labels = None
 depends_on = None
 
