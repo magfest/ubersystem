@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import uuid
@@ -18,6 +19,7 @@ from pytz import UTC
 from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
 from sideboard.lib import on_startup, stopped
 from sqlalchemy import and_, func, or_, not_
+from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Query, joinedload, subqueryload, aliased
@@ -178,9 +180,9 @@ class MagModel:
             try:
                 value = getattr(self, name, 'ATTRIBUTE NOT FOUND')
                 values.append(int(value))
-            except Exception:
+            except Exception as e:
                 log.error('Error calculating cost property {}: "{}"'.format(name, value))
-                log.exception(ex)
+                log.exception(e)
         return max(0, sum(values))
 
     @property
@@ -427,8 +429,15 @@ class MagModel:
                             value = ','.join(map(lambda x: str(x).strip(), value))
                         else:
                             value = str(value).strip()
+                        value = column.type.convert_if_labels(value)
 
-                    elif isinstance(column.type, (Choice, Integer)):
+                    elif isinstance(column.type, Choice):
+                        if value == '':
+                            value = None
+                        else:
+                            value = column.type.convert_if_label(value)
+
+                    elif isinstance(column.type, Integer):
                         if value == '':
                             value = None
                         else:
@@ -452,6 +461,9 @@ class MagModel:
                         except ValueError:
                             value = dateparser.parse(value)
                         value = value.date()
+
+                    elif isinstance(column.type, JSONB) and isinstance(value, str):
+                        value = json.loads(value)
 
                 except Exception as error:
                     log.debug(
@@ -510,6 +522,7 @@ class MagModel:
 from uber.models.admin import *  # noqa: F401,E402,F403
 from uber.models.promo_code import *  # noqa: F401,E402,F403
 from uber.models.attendee import *  # noqa: F401,E402,F403
+from uber.models.badge_printing import *  # noqa: F401,E402,F403
 from uber.models.commerce import *  # noqa: F401,E402,F403
 from uber.models.department import *  # noqa: F401,E402,F403
 from uber.models.email import *  # noqa: F401,E402,F403
@@ -1232,6 +1245,96 @@ class Session(SessionManager):
                 self.delete(code)
                 pc_group.promo_codes.remove(code)
 
+        def add_to_print_queue(self, attendee, printer_id, reg_station, print_fee=None, dry_run=False):
+            from uber.models import PrintJob
+            fields = [
+                    'badge_printed_name',
+                    'badge_num',
+                    'badge_type_label',
+                    'ribbon_labels',
+                    ]
+            
+            errors = []
+            if not printer_id:
+                errors.append("Printer ID not set.")
+
+            if not reg_station:
+                errors.append("Reg station number not set.")
+
+            if print_fee is None and attendee.times_printed > 0:
+                errors.append("Please specify what reprint fee to charge this attendee, including $0.")
+            
+            if not attendee.birthdate:
+                errors.append("Attendee is missing a date of birth.")
+            elif not attendee.age_now_or_at_con:
+                errors.append("Attendee's date of birth is not recognized as a date.")
+
+            attendee_fields = attendee.to_dict(fields)
+
+            for field in fields:
+                if not attendee_fields.get(field) and field != 'ribbon_labels':
+                    errors.append("Field missing: {}.".format(field))
+
+            if self.query(PrintJob).filter_by(attendee_id=attendee.id, printed=None, errors="").first():
+                errors.append("Badge is already queued to print.")
+
+            if errors:
+                return None, errors
+
+            if dry_run:
+                return None, None
+
+            print_job = PrintJob(attendee_id = attendee.id, 
+                                 admin_id = self.current_admin_account().id,
+                                 admin_name = self.admin_attendee().full_name,
+                                 printer_id = printer_id,
+                                 reg_station = reg_station,
+                                 print_fee = print_fee)
+
+            if attendee.age_now_or_at_con >= 18:
+                print_job.is_minor = False
+            else:
+                print_job.is_minor = True
+            
+            json_data = attendee_fields
+            del json_data['_model']
+            json_data['attendee_id'] = json_data.pop('id')
+            print_job.json_data = json_data
+            
+            self.add(print_job)
+            self.commit()
+
+            return print_job.id, None
+
+        def update_badge_print_job(self, id):
+            job = self.print_job(id)
+            attendee = job.attendee
+
+            errors = []
+
+            if attendee.age_group_conf['val'] == c.AGE_UNKNOWN:
+                errors.append("Attendee no longer has an age group.")
+            else:
+                if attendee.age_now_or_at_con < 18 and not job.is_minor:
+                    errors.append("Attendee is now under 18, please requeue badge.")
+                if attendee.age_now_or_at_con >= 18 and job.is_minor:
+                    errors.append("Attendee is no longer under 18, please requeue badge.")
+            
+            fields = ['badge_num', 'badge_type_label', 'ribbon_labels', 'badge_printed_name']
+            attendee_fields = attendee.to_dict(fields)
+
+            for field in fields:
+                if not attendee_fields.get(field) and field != 'ribbon_labels':
+                    errors.append("Field missing: {}.".format(field))
+                elif attendee_fields.get(field) != job.json_data.get(field):
+                    job.json_data[field] = attendee_fields.get(field)
+
+            if not errors:
+                self.add(job)
+                self.commit()
+
+            return errors
+
         def get_next_badge_num(self, badge_type):
             """
             Returns the next badge available for a given badge type. This is
@@ -1362,30 +1465,13 @@ class Session(SessionManager):
 
             return True
         
-        def get_next_badge_to_print(self, minor='', printerNumber='', numberOfPrinters=''):
-            badge_list = self.query(Attendee) \
-                .filter(
-                Attendee.print_pending,
-                Attendee.birthdate != None,
-                Attendee.badge_num != None).order_by(Attendee.badge_num).all()
+        def get_next_badge_to_print(self, printer_id=''):
+            query = self.query(PrintJob).join(Tracking, PrintJob.id == Tracking.fk_id).filter(
+                    PrintJob.printed == None, PrintJob.errors == '', PrintJob.printer_id == printer_id)
 
-            try:
-                if minor:
-                    attendee = next(badge for badge
-                                    in badge_list
-                                    if badge.age_now_or_at_con < 18)
-                elif printerNumber != "" and numberOfPrinters != "": 
-                    attendee = next(badge for badge
-                                    in badge_list
-                                    if badge.age_now_or_at_con >= 18 and badge.badge_num % int(numberOfPrinters) == (int(printerNumber) - 1))
-                else:
-                    attendee = next(badge for badge
-                                    in badge_list
-                                    if badge.age_now_or_at_con >= 18)
-            except StopIteration:
-                return None
+            badge = query.order_by(Tracking.when.desc()).with_for_update().first()
 
-            return attendee
+            return badge
 
         def valid_attendees(self):
             return self.query(Attendee).filter(Attendee.is_valid == True)
@@ -1988,7 +2074,8 @@ def _attendee_validity_check():
     def with_validity_check(self, *args, **kwargs):
         allow_invalid = kwargs.pop('allow_invalid', False)
         attendee = orig_getter(self, *args, **kwargs)
-        if not allow_invalid and not attendee.is_new and attendee.badge_status == c.INVALID_STATUS:
+        if not allow_invalid and not attendee.is_new and \
+           not self.current_admin_account and not attendee.badge_status == c.INVALID_STATUS:
             raise HTTPRedirect('../preregistration/invalid_badge?id={}', attendee.id)
         else:
             return attendee

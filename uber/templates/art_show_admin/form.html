@@ -10,10 +10,9 @@ app, c.PAGE_PATH,
 "index", "Return to App List", True
 ) }}
 
+<h2>Art Show Application Form{% if app.attendee %} for {{ app.attendee|form_link }}{% endif %}</h2>
+
 <div class="panel panel-default">
-
-  <h2>Art Show Application Form{% if app.attendee %} for {{ app.attendee|form_link }}{% endif %}</a></h2>
-
   <div class="panel-body">
     <form method="post" id="new_agent" action="../art_show_applications/new_agent" role="form">
       <input type="hidden" name="admin" value="1" />
@@ -79,7 +78,7 @@ app, c.PAGE_PATH,
         {% if not app.is_new %}
         <div class="clearfix"></div>
           <p class="help-block col-sm-6 col-sm-offset-3">
-            <a href="../art_show_applications/edit?id={{ app.id }}">View this application</a> for the payment button.
+            <a href="../art_show_applications/edit?id={{ app.id }}" target="_blank">View this application</a> for the payment button.
           </p>
         {% endif %}
       </div>

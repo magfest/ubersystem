@@ -1,0 +1,92 @@
+{% if jobs|length == c.ROW_LOAD_LIMIT %}
+<div class="panel panel-body">
+There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view. Please use another view to see complete print jobs.
+</div>
+{% endif %}
+
+<div class="panel panel-default">
+    <table class="table table-striped datatable" data-order="[[ 0, &quot;desc&quot; ]]">
+    <thead><tr>
+        <th>Created</th>
+        <th>Job ID</th>
+        {% if not attendee %}<th>Full Name</th>{% endif %}
+        <th>Badge Name</th>
+        <th>Admin</th>
+        <th>Printer ID</th>
+        <th>Reg Station</th>
+        <th>Print Fee</th>
+        <th>Queued</th>
+        <th>Printed</th>
+        <th>Errors</th>
+        <th></th>
+    </tr></thead>
+    {% for job in jobs %}
+    <tr>
+    <td data-order="{{ job.created.when }}">{{ job.created.when|time_day_local }}</td>
+    <td>{{ job.id }}</td>
+    {% if not attendee %}
+    <td data-order="{{ job.attendee.full_name }}" data-search="{{ job.attendee.full_name }}">
+        {{ job.attendee|form_link }}
+    </td>
+    {% endif %}
+    <td>
+        {{ job.json_data['badge_printed_name'] }}
+    </td>
+    <td>{{ job.admin_name }}</td>
+    <td>{{ job.printer_id }}</td>
+    <td>{{ job.reg_station }}</td>
+    <td>{{ job.print_fee|format_currency }}</td>
+    <td id="queued_{{ job.id }}" data-order="{{ job.queued }}">{{ job.queued|time_day_local|default("No", true) }}</td>
+    <td id="printed_{{ job.id }}" data-order="{{ job.printed }}">{{ job.printed|time_day_local|default("No", true) }}</td>
+    <td id="errors_{{ job.id }}">{{ job.errors }}</td>
+    <td>
+        {% if not job.printed %}
+            {% if job.queued and not job.errors %}
+            <a id="queued_{{ job.id }}_link" class="btn btn-info ajax-link" href="mark_as_unsent?id={{ job.id }}">Mark as Unsent</a>
+            {% endif %}
+            <a class="btn btn-success ajax-link" href="mark_as_printed?id={{ job.id }}">Mark as Printed</a>
+            {% if not job.errors %}
+            <a class="btn btn-danger ajax-link" href="mark_as_invalid?id={{ job.id }}">
+                Mark as Invalid
+            </a>
+            {% endif %}
+        {% endif %}
+    </td>
+    </tr>
+    {% endfor %}
+</table>
+</div>
+
+<script type="text/javascript">
+    $('.ajax-link').on('click', function (event) {
+        var $link = $(this);
+        event.preventDefault();
+        toastr.clear();
+        $.ajax({
+            method: 'GET',
+            url: $link.attr('href'),
+            success: function (json) {
+                if (json.success) {
+                    toastr.success(json.message);
+                } else {
+                    toastr.error(json.message);
+                }
+                $link.hide()
+                if (json.queued) {
+                    $('#queued_' + json.id).html(json.queued);
+                }
+                if (json.printed) {
+                    $('#printed_' + json.id).html(json.printed);
+                    $link.parent('td').children().hide();
+                }
+                if (json.errors) {
+                    $('#errors_' + json.id).html(json.errors);
+                    $('#queued_' + json.id + '_link').hide()
+                }
+            },
+            error: function () {
+                toastr.error('Unable to connect to server, please try again.');
+            }
+        });
+    });
+</script>

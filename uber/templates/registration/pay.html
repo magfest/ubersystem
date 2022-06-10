@@ -12,9 +12,11 @@
 
   <div class="center">
     {{ stripe_form('take_payment',attendee) }}
-    {% if not c.ONLY_PREPAY_AT_DOOR %}
+    {% if c.CASH in c.DOOR_PAYMENT_METHODS %}
       <br/><br/>
       <a href="register?message=Please+queue+in+the+cash+line+and+have+your+photo+ID+and+cash+ready.">{{ macros.stripe_button("Nevermind, I'll Pay Cash") }}</a>
+    {% endif %}
+    {% if c.MANUAL in c.DOOR_PAYMENT_METHODS %}
       <br/> <br/>
       <a href="register?message=Please+queue+in+the+credit+card+line+and+have+your+photo+ID+and+credit+card+ready.">{{ macros.stripe_button("Nevermind, I'll Use My Credit Card at the Desk") }}</a>
     {% endif %}

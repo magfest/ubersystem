@@ -1,0 +1,63 @@
+<div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal">&times;</button>
+    <h4 class="modal-title">Please Load Minor Badge Stock</h4>
+    Please take a moment to load a blank badge from the minor badge stock onto printer "{{ printer_id }}" before printing this badge.
+</div>
+<div class="modal-body">
+        <form action="/" role="form" class="form-horizontal minor-check-id">
+        <div class="form-group">
+            <label for="printer_id" class="col-sm-3 control-label">Printer ID</label>
+            <div class="col-sm-6"><input type="text" class="form-control" onKeyUp="changeButtonLabel()" value="{{ printer_id }}" name="printer_id" /></div>
+        </div>
+  </form>
+</div>
+<div class="modal-footer">
+    <div class="form-group">
+    <div class="pull-right">
+     <button type="button" id="completeMinorCheckButton" onClick="completeMinorCheck('{{ attendee_id }}')" class="btn"></button>
+     <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+    </div>
+    </div>
+</div>
+  
+<script type="text/javascript">
+    var changeButtonLabel = function () {
+        var old_printer_id = "{{ printer_id }}";
+        if ($.val('printer_id') != old_printer_id) {
+            $('#completeMinorCheckButton')[0].innerHTML = "Switch Badge Printers Instead";
+            $('#completeMinorCheckButton').removeClass('btn-success');
+            $('#completeMinorCheckButton').addClass('btn-warning');
+        } else {
+            $('#completeMinorCheckButton')[0].innerHTML = "I've Loaded the Minor Badge Stock";
+            $('#completeMinorCheckButton').removeClass('btn-warning');
+            $('#completeMinorCheckButton').addClass('btn-success');
+        }
+    }
+    changeButtonLabel();
+    var completeMinorCheck = function (attendeeID) {
+        loadCheckInFormModal(attendeeID, $.val('printer_id'));
+        $.ajax({
+        method: 'GET',
+        url: '../registration/complete_minor_check',
+        dataType: 'json',
+        data: {
+            attendee_id: attendeeID,
+            printer_id: $.val('printer_id'),
+            reprint_fee: {{ reprint_fee|default("''", true) }}
+        },
+        success: function (json) {
+            toastr.clear();
+            var message = json.message;
+            if (json.success) {
+                toastr.success(message);
+                loadCheckInFormModal(attendeeID, json.printer_id);
+            } else {
+                toastr.error(message);
+            }
+        },
+        error: function () {
+            toastr.error('Unable to connect to server, please try again.');
+        }
+        });
+    };
+</script>

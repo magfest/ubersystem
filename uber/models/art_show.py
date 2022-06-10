@@ -87,7 +87,7 @@ class ArtShowApplication(MagModel):
 
             if not code_candidate:
                 # We're out of manual alternatives, time for a random code
-                code_candidates = ''.join([random.choice(string.ascii_uppercase) for _ in range(100)])
+                code_candidates = [''.join(random.choices(string.ascii_uppercase, k=3)) for _ in range(100)]
                 for code_candidate in code_candidates:
                     if code_candidate not in old_codes:
                         break
@@ -123,8 +123,10 @@ class ArtShowApplication(MagModel):
     def incomplete_reason(self):
         if self.status != c.APPROVED:
             return self.status_label
+        if not self.attendee:
+            return "No attendee assigned to application"
         if self.delivery_method == c.BY_MAIL \
-                and not self.address1:
+                and not self.address1 and not self.attendee.address1:
             return "Mailing address required"
         if self.attendee.placeholder and self.attendee.badge_status != c.NOT_ATTENDING:
             return "Missing registration info"
@@ -169,7 +171,7 @@ class ArtShowApplication(MagModel):
 
     @property
     def is_unpaid(self):
-        return not self.amount_paid
+        return not self.amount_paid and self.potential_cost
 
     @property
     def amount_unpaid(self):

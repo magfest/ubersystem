@@ -451,9 +451,10 @@ def check(model, *, prereg=False):
     Returns:
         str: None for success, or a failure message if validation fails.
     """
+    errors = []
     for field, name in model.required:
         if not str(getattr(model, field)).strip():
-            return name + ' is a required field'
+            errors.append(name + ' is a required field')
 
     validations = [uber.model_checks.validation.validations]
     prereg_validations = [uber.model_checks.prereg_validation.validations] if prereg else []
@@ -461,7 +462,8 @@ def check(model, *, prereg=False):
         for validator in v[model.__class__.__name__].values():
             message = validator(model)
             if message:
-                return message
+                errors.append(message)
+    return "ERROR: " + "<br>".join(errors) if errors else None
 
 
 def check_all(models, *, prereg=False):
@@ -717,6 +719,12 @@ def mount_site_sections(module_root):
         setattr(Root, site_section, module.Root())
 
 
+def get_static_file_path(filename):
+    for item in cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].config:
+        if filename in item:
+            return cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].config[item]['tools.staticfile.filename']
+
+
 def add_opt(opts, other):
     """
     Add an option to an integer or list of integers, converting it to a comma-separated string.
@@ -761,8 +769,10 @@ def _server_to_url(server):
         return 'https://{}/reggie'.format(host)
     elif path.startswith('uber'):
         return 'https://{}/uber'.format(host)
-    elif c.PATH == '/uber':
-        return 'https://{}{}'.format(host, c.PATH)
+    elif path == 'uber':
+        return 'https://{}/{}'.format(host, path)
+    elif path == 'rams':
+        return 'https://{}/{}'.format(host, path)
     return 'https://{}'.format(host)
 
 

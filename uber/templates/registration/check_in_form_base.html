@@ -2,8 +2,8 @@
 <div class="modal-header">
   <button type="button" class="close" data-dismiss="modal">&times;</button>
   <h4 class="modal-title">Attendee Check-In{% if attendee.first_name %} - {{ attendee.full_name }}{% endif %}</h4>
-  </div>
-  <div class="modal-body">
+</div>
+<div class="modal-body">
 {% if attendee.amount_unpaid %}
 <div class="center text-center check-in">
 <h4>{{ attendee.full_name }} currently owes <strong>{{ attendee.amount_unpaid|format_currency }}</strong>.</h4>
@@ -41,6 +41,9 @@ loadCheckInForm = function () {
     $('#checkin_modal').modal('show');
     $('#checkin_modal .modal-content').load('check_in_form?id={{ attendee.id }}', function () {
         createDateTextEntries();
+        if ($('#pending_paid_warning').length) {
+            $('#pending_paid_warning').hide();
+        }
     });
 }
 var resumeStripeAction = callStripeAction;
@@ -67,7 +70,7 @@ $("form[action='mark_as_paid']").submit(function (e) {
             toastr.clear();
             var message = json.message;
             if (json.success) {
-                toastr.info(message);
+                toastr.success(message);
                 loadCheckInForm();
             } else {
                 toastr.error(message);
@@ -86,7 +89,7 @@ $('#stripe_frame').load(function() {
         toastr.clear();
         var response = $.parseJSON(responseText);
         if (response['success'] == true) {
-            toastr.info(response['message']);
+            toastr.success(response['message']);
             loadCheckInForm();
         } else {
             toastr.error('', response['message'], {timeOut: 1000});
@@ -101,6 +104,7 @@ $().ready(function() {
 })
 </script>
 {% else %}
+{% include 'registration/attendee_pending_warning.html' %}
 <form action="/" id="check_in_form_{{ attendee.id }}" role="form" class="form-horizontal check-in">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ attendee.id }}" />
@@ -208,8 +212,11 @@ $().ready(function() {
                     </div>
                 </div>
                 {% else %}
-                <div class="col-sm-6">
-                  # <input class="num" id="checkin-badge" name="badge_num" type="text" size="10" />
+                <div class="col-sm-3">
+                    <div class="input-group">
+                        <span class="input-group-addon">#</span>
+                        <input class="num form-control" id="checkin-badge" name="badge_num" type="text" size="10" />
+                    </div>
                 </div>
                 <script>
                     /**
@@ -241,12 +248,40 @@ $().ready(function() {
         <div class="col-sm-6"><label style="font-weight:normal;"><input type="checkbox" name="got_merch" value="1" /> Yes, this attendee has received their merch</label></div>
       </div>
     {% endif %}
+    {% if c.BADGE_PRINTING_ENABLED %}
+      <div class="form-group">
+        <label for="printer_id" class="col-sm-3 control-label"><strong>Printer ID</strong></label>
+        <div class="col-sm-6"><input type="text" class="form-control" name="printer_id" /></div>
+      </div>
+      {% if attendee.times_printed > 0 %}
+      <div class="form-group">
+        <label for="fee_amount" class="col-sm-3 control-label">Reprint {% if c.BADGE_REPRINT_FEE %}Fee and {% endif %}Reason</label>
+        {% if c.BADGE_REPRINT_FEE %}
+        <div class="col-sm-2">
+            <div class="input-group">
+                <span class="input-group-addon">$</span>
+                <input type="number" class="form-control" name="fee_amount" value="{{ c.BADGE_REPRINT_FEE }}" />
+            </div>
+        </div>
+        {% endif %}
+        <div class="col-sm-{% if c.BADGE_REPRINT_FEE %}4{% else %}6{% endif %}">
+            <input type="text" class="form-control" name="reprint_reason" placeholder="Reason for reprinting." />
+        </div>
+    </div>
+      {% endif %}
+    {% endif %}
     {% endblock checkin_fields %}
 </form>
 </div>
 <div class="modal-footer">
+    <button class='btn btn-default btn-sm pull-left' onClick="refreshModal('{{ attendee.id }}')">
+        <span class="glyphicon glyphicon-refresh"></span>
+      </button>
   <div class="form-group">
   <div class="pull-right">
+        {% if c.BADGE_PRINTING_ENABLED %}
+        <button type="button" onClick="printBadge('{{ attendee.id }}')" class="btn btn-success">Save & Print Badge</button>
+        {% endif %}
       <button type="button" onClick="checkIn('{{ attendee.id }}')" class="btn btn-primary">Save & Check In</button>
 {% endif %}
    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
@@ -255,3 +290,56 @@ $().ready(function() {
   </div>
  
 </div>
+{% if c.BADGE_PRINTING_ENABLED %}
+<script type="text/javascript">
+    refreshModal = function (attendeeID) {
+        loadCheckInFormModal(attendeeID);
+    }
+    loadMinorCheckForm = function (attendeeID, printerID, reprintFee) {
+        $('#checkin_modal .modal-content').load(
+            '../registration/minor_check_form?attendee_id=' + attendeeID + '&printer_id=' + printerID + '&reprint_fee=' + reprintFee, function() {
+        if ($('.minor-check-id').length) {
+        } else {
+            toastr.error("Form loading failed.");
+            loadCheckInFormModal(attendeeID);
+        }
+        });
+    }
+    var printBadge = function (attendeeID) {
+        $.ajax({
+            method: 'POST',
+            url: '../registration/print_badge',
+            dataType: 'json',
+            data: $("#check_in_form_" + attendeeID).serialize(),
+            success: function (json) {
+                toastr.clear();
+                var message = json.message;
+                if (json.success) {
+                    if (json.minor_check) {
+                        if ($.field('fee_amount')) {
+                            loadMinorCheckForm(attendeeID, $.val('printer_id'), $.val('fee_amount'));
+                        } else {
+                            loadMinorCheckForm(attendeeID, $.val('printer_id'), 0);
+                        }
+                    } else {
+                        toastr.success(message);
+                        loadCheckInFormModal(attendeeID);
+                    }
+                } else {
+                    toastr.error(message);
+                }
+            },
+            error: function () {
+                toastr.error('Unable to connect to server, please try again.');
+            }
+        });
+    };
+
+    age = {{ attendee.age_now_or_at_con|default(0, true)}};
+    if (age < 18) {
+        $.field('printer_id').val(printer_minor_id);
+    } else if (age >= 18) {
+        $.field('printer_id').val(printer_default_id);
+    }
+</script>
+{% endif %}
