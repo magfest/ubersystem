@@ -576,8 +576,53 @@ class AttendeeLookup:
         Results are returned in the format expected by
         <a href="../reg_admin/import_attendees">the attendee importer</a>.
         """
+        # If we add API classes for these models later, please move the field lists accordingly
+        art_show_import_fields = [
+            'artist_name',
+            'artist_id',
+            'banner_name',
+            'description',
+            'business_name',
+            'zip_code',
+            'address1',
+            'address2',
+            'city',
+            'region',
+            'country',
+            'paypal_address',
+            'website',
+            'special_needs',
+            'admin_notes',
+        ]
+        marketplace_import_fields = [
+            'business_name',
+            'categories',
+            'categories_text',
+            'description',
+            'special_needs',
+            'admin_notes',
+        ]
+        dealer_group_import_fields = [
+            'name',
+            'tables',
+            'wares',
+            'description',
+            'zip_code',
+            'address1',
+            'address2',
+            'city',
+            'region',
+            'country',
+            'website',
+            'special_needs',
+            'categories',
+            'categories_text',
+            'admin_notes',
+        ]
+        
+
         with Session() as session:
-            account = session.attendee_account(id)
+            account = session.query(AttendeeAccount).filter(AttendeeAccount.id == id).first()
 
             if not account:
                 raise HTTPError(404, 'No attendee account found with this ID')
@@ -590,6 +635,13 @@ class AttendeeLookup:
             attendees = []
             for a in account.attendees:
                 d = a.to_dict(fields)
+                if full:
+                    if a.art_show_applications:
+                        d['art_show_app'] = a.art_show_applications[0].to_dict(art_show_import_fields)
+                    if a.marketplace_applications:
+                        d['marketplace_app'] = a.marketplace_applications[0].to_dict(marketplace_import_fields)
+                    if a.is_dealer and a.is_group_leader:
+                        d['dealer_group'] = a.group.to_dict(dealer_group_import_fields)
                 
                 attendees.append(d)
             return {
