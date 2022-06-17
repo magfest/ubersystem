@@ -18,6 +18,7 @@ from uuid import uuid4
 import cherrypy
 import phonenumbers
 import stripe
+from authlib.integrations.requests_client import OAuth2Session
 from phonenumbers import PhoneNumberFormat
 from pockets import cached_property, classproperty, floor_datetime, is_listy, listify
 from pockets.autolog import log
@@ -911,6 +912,20 @@ class ExcelWorksheetStreamWriter:
             self.next_row += 1
         else:
             self.next_col += 1
+
+
+class OAuthRequest:
+
+    def __init__(self, scope='openid profile email', state=None):
+        redirect_uri = "https://009c-24-163-100-126.ngrok.io/rams/accounts/process_login"
+        self.client = OAuth2Session(c.AUTH_CLIENT_ID, c.AUTH_CLIENT_SECRET, scope=scope, state=state, redirect_uri=redirect_uri)
+        self.state = state if state else None
+
+    def set_auth_url(self):
+        self.auth_uri, self.state = self.client.create_authorization_url("https://" + c.AUTH_DOMAIN + "/authorize", self.state)
+
+    def get_token(self, code, state):
+        return self.client.fetch_token("https://{}/oauth/token".format(c.AUTH_DOMAIN), code=code, state=state)
 
 
 class Charge:
