@@ -3,6 +3,7 @@ from collections import defaultdict
 
 import bcrypt
 import cherrypy
+from pockets.autolog import log
 from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload
 from sqlalchemy.orm.exc import NoResultFound
@@ -13,7 +14,7 @@ from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
 from uber.errors import HTTPRedirect
 from uber.models import AccessGroup, AdminAccount, Attendee, PasswordReset
 from uber.tasks.email import send_email
-from uber.utils import check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd
+from uber.utils import check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd, OAuthRequest
 
 
 def valid_password(password, account):
@@ -167,11 +168,36 @@ class Root:
                 ensure_csrf_token_exists()
                 raise HTTPRedirect(original_location)
 
+        if c.AUTH_DOMAIN:
+            try:
+                request = OAuthRequest()
+                request.set_auth_url()
+            except Exception as ex:
+                log.error("Third-party OAuth failed: " + str(ex))
+                message = "OAuth Server is not working."
+            else:
+                cherrypy.session['oauth_state'] = request.state
+                raise HTTPRedirect(request.auth_uri)
+
         return {
             'message': message,
             'email':   params.get('email', ''),
             'original_location': original_location,
         }
+
+    @public
+    def process_login(self, code, state):
+        if not cherrypy.session.get('oauth_state'):
+            raise HTTPRedirect('login?message={}', 'Authentication session expired')
+
+        try:
+            request = OAuthRequest(state=cherrypy.session['oauth_state'])
+        except Exception as ex:
+            log.error("Processing third-party OAuth login failed: " + str(ex))
+        else:
+            log.debug(request.get_token(code, state))
+        
+        raise HTTPRedirect('../landing/index?message={}', 'Test complete!')
 
     @public
     def homepage(self, session, message=''):
