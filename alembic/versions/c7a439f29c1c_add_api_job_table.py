@@ -1,21 +1,22 @@
-"""Add stage two MITS team fields
+"""Add API Job table
 
-Revision ID: 4036e1fdb9ee
-Revises: 26bc228319d2
-Create Date: 2020-04-14 22:59:59.346742
+Revision ID: c7a439f29c1c
+Revises: 81b45e3d967c
+Create Date: 2022-06-09 02:26:35.790794
 
 """
 
 
 # revision identifiers, used by Alembic.
-revision = '4036e1fdb9ee'
-down_revision = '26bc228319d2'
+revision = 'c7a439f29c1c'
+down_revision = '81b45e3d967c'
 branch_labels = None
 depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-
+from sqlalchemy.dialects import postgresql
+import residue
 
 
 try:
@@ -52,12 +53,23 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('mits_team', sa.Column('concurrent_attendees', sa.Integer(), nullable=True))
-    op.add_column('mits_team', sa.Column('days_available', sa.Integer(), nullable=True))
-    op.add_column('mits_team', sa.Column('hours_available', sa.Integer(), nullable=True))
+    op.create_table('api_job',
+    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('admin_id', residue.UUID(), nullable=False),
+    sa.Column('admin_name', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('queued', residue.UTCDateTime(), nullable=True),
+    sa.Column('completed', residue.UTCDateTime(), nullable=True),
+    sa.Column('cancelled', residue.UTCDateTime(), nullable=True),
+    sa.Column('job_name', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('target_server', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('query', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('api_token', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('errors', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('json_data', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+    sa.ForeignKeyConstraint(['admin_id'], ['admin_account.id'], name=op.f('fk_api_job_admin_id_admin_account')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_api_job'))
+    )
 
 
 def downgrade():
-    op.drop_column('mits_team', 'hours_available')
-    op.drop_column('mits_team', 'days_available')
-    op.drop_column('mits_team', 'concurrent_attendees')
+    op.drop_table('api_job')

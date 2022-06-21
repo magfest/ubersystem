@@ -65,15 +65,15 @@ class Root:
 
     @requires_account(ArtShowApplication)
     def edit(self, session, message='', **params):
-        app = session.art_show_application(params, restricted=True,
+        return_to = params.get('return_to', '/art_show_applications/edit')
+        app = session.art_show_application(params, restricted='art_show_applications' in return_to,
                                            ignore_csrf=True)
-        return_to = params.get('return_to', '/art_show_applications/edit?id={}'.format(app.id))
         if not params.get('id'):
             message = 'Invalid art show application ID. ' \
                       'Please try going back in your browser.'
 
         if cherrypy.request.method == 'POST':
-            message = check(app, prereg=True)
+            message = check(app, prereg='art_show_applications' in return_to)
             if not message:
                 session.add(app)
                 session.commit() # Make sure we update the DB or the email will be wrong!
@@ -89,6 +89,7 @@ class Root:
                                    'Your application has been updated')
             else:
                 session.rollback()
+                raise HTTPRedirect('..{}?id={}&message={}', return_to, app.id, message)
 
         return {
             'message': message,

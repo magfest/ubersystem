@@ -59,7 +59,8 @@ class Root:
         return {
             'message': message,
             'won_pieces': session.query(ArtShowPiece).join(ArtShowPiece.buyer).join(Attendee.art_show_bidder)
-                .filter(ArtShowPiece.winning_bid.isnot(None), ArtShowPiece.status == c.SOLD),
+                .filter(ArtShowPiece.winning_bid.isnot(None), ArtShowPiece.status == c.SOLD)
+                .order_by(ArtShowBidder.bidder_num, ArtShowPiece.piece_id, ArtShowPiece.name),
             'admin_report': admin_report,
             'now': localized_now(),
         }
@@ -181,7 +182,7 @@ class Root:
             else:
                 paid = "N/A"
 
-            if app.delivery_method == c.BY_MAIL:
+            if app.address1 or not app.attendee:
                 address_model = app
             else:
                 address_model = app.attendee
@@ -189,7 +190,7 @@ class Root:
             out.writerow([app.status_label,
                           paid,
                           app.artist_name,
-                          app.attendee.full_name,
+                          app.attendee.full_name if app.attendee else 'N/A',
                           app.delivery_method_label,
                           app.panels,
                           app.tables,
@@ -202,10 +203,10 @@ class Root:
                           app.admin_notes,
                           app.display_name,
                           len(app.art_show_pieces),
-                          app.attendee.badge_status_label,
-                          app.attendee.badge_printed_name,
-                          app.attendee.email,
-                          app.attendee.cellphone,
+                          app.attendee.badge_status_label if app.attendee else 'N/A',
+                          app.attendee.badge_printed_name if app.attendee else 'N/A',
+                          app.attendee.email if app.attendee else 'N/A',
+                          app.attendee.cellphone if app.attendee else 'N/A',
                           address_model.address1,
                           address_model.address2,
                           address_model.city,
@@ -251,6 +252,7 @@ class Root:
         out.writerow(["Bidder Number",
                       "Full Name",
                       "Badge Name",
+                      "Email Address",
                       "Address 1",
                       "Address 2",
                       "City",
@@ -272,6 +274,7 @@ class Root:
             out.writerow([bidder.bidder_num,
                           bidder.attendee.full_name,
                           bidder.attendee.badge_printed_name,
+                          bidder.attendee.email,
                           address_model.address1,
                           address_model.address2,
                           address_model.city,

@@ -29,10 +29,10 @@ def check_post_con(klass):
             if c.POST_CON:  # TODO: replace this with a template and make that suitably generic
                 return """
                 <html><head></head><body style='text-align:center'>
-                    <h2 style='color:red'>Hope you had a great {event}!</h2>
-                    Preregistration for {event} {year} will open in a few months.
+                    <h2 style='color:red'>We hope you enjoyed {event} {current_year}!</h2>
+                    We look forward to seeing you in {next_year}! Watch our website (<a href="https://www.furfest.org">https://www.furfest.org</a>) and our Twitter (<a href="https://twitter.com/Furfest">@Furfest</a>) for announcements.
                 </body></html>
-                """.format(event=c.EVENT_NAME, year=(1 + int(c.EVENT_YEAR)) if c.EVENT_YEAR else '')
+                """.format(event=c.EVENT_NAME, current_year=c.EVENT_YEAR, next_year=(1 + int(c.EVENT_YEAR)) if c.EVENT_YEAR else '')
             else:
                 return func(self, *args, **kwargs)
         return wrapped
@@ -734,7 +734,9 @@ class Root:
             # rename all the "group_" fields.
             group_params = dict(params)
             for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city']:
-                group_params[field_name] = params.get('group_{}'.format(field_name), '')
+                group_field_name = 'group_{}'.format(field_name)
+                if group_field_name in params:
+                    group_params[field_name] = params.get(group_field_name, '')
 
             group.apply(group_params, restricted=True)
             message = check(group, prereg=True)
@@ -1080,11 +1082,13 @@ class Root:
         from uber.utils import create_valid_user_supplied_redirect_url, ensure_csrf_token_exists
         original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
 
-        if 'email' in params:
-            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(params.get('email', ''))).first()
+        if 'email' or 'login_email' in params:
+            email = params.get('login_email', params.get('email', ''))
+            password = params.get('login_password', params.get('password', ''))
+            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(email)).first()
             if not account:
                 message = 'No account exists for that email address'
-            elif not bcrypt.hashpw(params.get('password', ''), account.hashed) == account.hashed:
+            elif not bcrypt.hashpw(password, account.hashed) == account.hashed:
                 message = 'Incorrect password'
 
             if not message:

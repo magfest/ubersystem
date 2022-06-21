@@ -443,7 +443,7 @@
       };
       $(window).on("runJavaScript", function () {
           {% if c.AT_THE_DOOR_BADGE_OPTS %}
-              $('#bold-field-message').detach().prependTo('.form-horizontal');
+              $('#bold-field-message').detach().prependTo('.panel-body > .form-horizontal');
               $.field('badge_type').on('change', maybeWarn);
               maybeWarn();
           {% else %}
@@ -510,25 +510,23 @@
 
 {% set name %}
 {% set read_only = name_ro or (page_ro and not (limited_write or contact_write)) %}
-{% if not admin_area %}
-  <script type="text/javascript">
-      var sameLegalNameChecked = function () {
-          if ($("#same_legal_name").prop('checked')) {
-              $.field('legal_name').prop('readonly', true).val('').prop('required', false).valid();
-              $("label[for='legal_name']").addClass('optional-field');
-          } else if ($("#same_legal_name").length) {
-              $.field('legal_name').prop('readonly', false).prop('required', true);
-              $("label[for='legal_name']").removeClass('optional-field');
-          }
-      };
-      $(window).on("runJavaScript", function () {
-          if ($('#same_legal_name').length) {
-              sameLegalNameChecked();
-              $('#same_legal_name').change(sameLegalNameChecked);
-          }
-      })
-  </script>
-{% endif %}
+<script type="text/javascript">
+    var sameLegalNameChecked = function () {
+        if ($("#same_legal_name").prop('checked')) {
+            $.field('legal_name').prop('readonly', true).val('').prop('required', false).valid();
+            $("label[for='legal_name']").addClass('optional-field');
+        } else if ($("#same_legal_name").length) {
+            $.field('legal_name').prop('readonly', false).prop('required', true);
+            $("label[for='legal_name']").removeClass('optional-field');
+        }
+    };
+    $(window).on("runJavaScript", function () {
+        if ($('#same_legal_name').length) {
+            sameLegalNameChecked();
+            $('#same_legal_name').change(sameLegalNameChecked);
+        }
+    })
+</script>
 <div class="form-group">
   <label for="first_name" class="col-sm-3 control-label">Name</label>
   {% call macros.read_only_if(read_only, attendee.masked_name if limited_read else attendee.full_name) %}
@@ -545,12 +543,12 @@
   {% endcall %}
 </div>
 
-{% if not admin_area and not read_only %}
+{% if not read_only %}
   <div class="form-group">
     <div class="col-sm-9 col-sm-offset-3">
       <label for="same_legal_name" class="checkbox-label">
         <input type="checkbox" name="same_legal_name" id="same_legal_name" value="1" {% if attendee.first_name != '' and attendee.legal_name == '' %}checked="checked"{% endif %} />
-        The above name is exactly what appears on my Legal Photo ID
+        The above name is exactly what appears on {{ "my" if not admin_area else "their" }} Legal Photo ID
       </label>
     </div>
   </div>
@@ -746,8 +744,7 @@
     </div>
   {% endif %}
 {% else %}
-  {% if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES or attendee.amount_extra >= c.SUPPORTER_LEVEL %}
-    <div class="form-group">
+    <div class="form-group badge-row"{% if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES and attendee.amount_extra < c.SUPPORTER_LEVEL %} style="display:none"{% endif %}>
       <label for="badge_printed_name" class="col-sm-3 control-label">Name Printed on Badge</label>
       {% call macros.read_only_if(read_only, attendee.badge_printed_name) %}
         <div class="col-sm-6">
@@ -756,7 +753,6 @@
       {% endcall %}
     </div>
   {% endif %}
-{% endif %}
 {% endif %}
 {% endset %}
 
@@ -1439,6 +1435,27 @@ $(window).on("runJavaScript", function () {
 {% endset %}
 
 
+{% set attendee_account %}
+{% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+<div class="form-group">
+  <label class="col-sm-3 control-label">Account Email{{ attendee.managers|length|pluralize }}</label>
+  <div class="col-sm-6 form-control-static">
+    {% for manager in attendee.managers %}
+      {% if not loop.first %} / {% endif %}{{ manager.email }}
+      {% if manager.attendees|length > 1 %}
+      ({%- for managed_attendee in manager.attendees|selectattr('id','!=',attendee.id) -%}
+        {% if not loop.first %} / {% endif %}{{ managed_attendee|form_link }}
+        {%- endfor -%})
+      {% endif %}
+    {% else %}
+      This attendee has no attendee accounts.
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endset %}
+
+
 {% set is_placeholder %}
 {% set read_only = is_placeholder_ro or page_ro %}
 <script type="text/javascript">
@@ -1882,35 +1899,3 @@ $(window).on("runJavaScript", function(){
   </div>
 </div>
 {% endset %}
-
-
-{% if c.BADGE_PRINTING_ENABLED %}
-{% set print_pending %}
-{% set read_only = print_pending_ro or page_ro %}
-<div class="form-group">
-    <label class="col-sm-3 control-label">Ready to Print</label>
-    <div class="checkbox col-sm-6">
-        {{ macros.checkbox(attendee, 'print_pending', label='Yes', is_readonly=read_only, clientside_bool=clientside_bool) }}
-    </div>
-</div>
-{% endset %}
-
-
-{% set reprint_fee %}
-{% if c.BADGE_REPRINT_FEE %}
-{# This field currently breaks the page flow and should be replaced with an AJAX call. #}
-<div class="form-group">
-  <label class="col-sm-3 control-label">Reprint Badge</label>
-  <div class="col-sm-6">
-      <form role="form" method="post" action="../badge_printing/reprint_fee">
-          <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
-          $<input type="text" style="width:4em" name="fee_amount" value="{{ c.BADGE_REPRINT_FEE }}" />
-          <span id="reprint_reason">Reason: <input type="text" name="reprint_reason" style="width:20em" placeholder="Reason for reprinting." /></span>
-          <button class="btn btn-warning" type="submit">Record Reprint</button>
-          <button class="btn btn-success" type="submit" name="refund" value="True">Refund Reprint Fee</button>
-      </form>
-  </div>
-</div>
-{% endif %}
-{% endset %}
-{% endif %}

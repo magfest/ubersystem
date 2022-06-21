@@ -12,7 +12,7 @@ from sqlalchemy.orm import subqueryload
 from uber.config import c
 from uber.decorators import ajax, all_renderable, not_site_mappable, public, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, ApiToken
+from uber.models import AdminAccount, ApiJob, ApiToken
 from uber.utils import Charge, check
 
 
@@ -96,6 +96,34 @@ class Root:
         api_token.revoked_time = datetime.now(pytz.UTC)
         raise HTTPRedirect(
             'index?message={}', 'Successfully revoked API token')
+
+    def api_jobs(self, session, message=''):
+        return {
+            'jobs': session.query(ApiJob).filter(ApiJob.cancelled == None).limit(5000).all(),
+            'message': message,
+        }
+    
+    def delete_api_job(self, session, id, message='', **params):
+        api_job = session.api_job(id)
+        if not api_job:
+            message = "No job found!"
+        elif api_job.cancelled:
+            message = "This job has already been deleted."
+        else:
+            api_job.cancelled = datetime.now()
+        raise HTTPRedirect('api_jobs?message={}', message or 'API job deleted.')
+
+    def requeue_incomplete_jobs(self, session, message='', **params):
+        to_requeue = session.query(ApiJob).filter(ApiJob.cancelled == None,
+                                                  ApiJob.completed == None,
+                                                  ApiJob.queued != None)
+        for job in to_requeue:
+            job.queued = None
+            job.errors = ''
+            session.add(job)
+        session.commit()
+
+        raise HTTPRedirect('api_jobs?message={}', message or 'Incomplete API jobs requeued.')
 
     @public
     @not_site_mappable

@@ -13,54 +13,76 @@
 </div>
 
 <br/>
-<div class="panel panel-default">
+<ul class="pagination{% if not page %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
     {% for pagenum in pages %}
         {% if pagenum == page %}
-            {{ pagenum }}
+        <li class="page-item active">
+            <a class="page-link" href="#">{{ pagenum }}</a>
+        </li>
         {% else %}
-            <a href="index?pending={{ pending }}&page={{ pagenum }}">{{ pagenum }}</a>
+        <li class="page-item">
+            <a class="page-link" href="index?pending={{ pending }}&page={{ pagenum }}">{{ pagenum }}</a>
         {% endif %}
+        </li>
     {% endfor %}
+</ul>
+<div class="panel panel-default">
 {% if page %}
-<table class="table footable" data-page-size="9999999">
+<table class="table table-striped" data-page-size="9999999">
 <thead><tr>
     <th>Full Name</th>
     <th>Badge Type</th>
     <th>Badge Number</th>
     <th>Badge Name</th>
-    <th>Kickin Level</th>
     <th>Ribbon</th>
-    {% if not pending %}<th></th>{% endif %}
+    {% if pending %}<th>Last Queued</th>
+    <th>Error</th>
+    {% else %}<th>Last Printed</th>{% endif %}
 </tr></thead>
-{% set row_color = cycler('#FFFFFF', '#DDDDDD') %}
 {% for attendee in badges %}
-    <tr bgcolor="{{ row_color.next() }}">
+    {% if pending %}
+    {% set latest_print_job = attendee.print_requests|sort(reverse=true, attribute="created.when")|first %}
+    {% else %}
+    {% set latest_print_job = attendee.print_requests|selectattr("printed")|sort(reverse=true, attribute="printed")|first %}
+    {% endif %}
+    <tr>
         <td id="name_{{ attendee.id }}" style="text-align:left">
-            <a href="../registration/form?id={{ attendee.id }}">{{ attendee.last_first }}</a>
+            <a href="../badge_printing/attendee_print_jobs?id={{ attendee.id }}">{{ attendee.last_first }}</a>
         </td>
-        <td><nobr>{{ attendee.badge_type_label }}</nobr></td>
-        <td>{{ attendee.badge_num }}</td>
+        <td><nobr>{{ latest_print_job.json_data['badge_type_label'] }}</nobr></td>
+        <td>{{ latest_print_job.json_data['badge_num'] }}</td>
         <td>
-            {{ attendee.badge_printed_name }}
+            {{ latest_print_job.json_data['badge_printed_name'] }}
         </td>
-        <td id="amount_extra_{{ attendee.id }}">
-            {% if attendee.donation_tier != NO_DONATION %}
-                {{ attendee.donation_tier_label }} (Comped) <br/>
+        <td id="ribbon_{{ attendee.id }}">{{ latest_print_job.json_data['ribbon_labels']|join(' / ') }}</td>
+        <td>
+            {% if pending %}
+            {{ latest_print_job.queued|time_day_local|default("N/A", true) }}
             {% else %}
-                {{ attendee.amount_extra_label }}
+            {{ latest_print_job.printed|time_day_local }}
             {% endif %}
         </td>
-        <td id="ribbon_{{ attendee.id }}">{{ attendee.ribbon_label }}</td>
-        {% if not pending %}<form method="post" action="printed_badges">
+        {% if pending %}
         <td>
-            <input type="hidden" name="id" value="{{ attendee.id }}" />
-            <input type="text" name="reprint_reason" placeholder="Reason for free reprint" />
-            <input type="submit" value="Mark for Reprint" {% if attendee.paid == NOT_PAID %}disabled{% endif %} />
+            {{ latest_print_job.errors }}
         </td>
-        </form>{% endif %}
+        {% endif %}
     </tr>
 {% endfor %}
 </table>
-    {% endif %}
-
+{% endif %}
+</div>
+<ul class="pagination{% if not page %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
+    {% for pagenum in pages %}
+        {% if pagenum == page %}
+        <li class="page-item active">
+            <a class="page-link" href="#">{{ pagenum }}</a>
+        </li>
+        {% else %}
+        <li class="page-item">
+            <a class="page-link" href="index?pending={{ pending }}&page={{ pagenum }}">{{ pagenum }}</a>
+        {% endif %}
+        </li>
+    {% endfor %}
+</ul>
 {% endblock %}

@@ -1,21 +1,22 @@
-"""Add stage two MITS team fields
+"""Add print queue table
 
-Revision ID: 4036e1fdb9ee
-Revises: 26bc228319d2
-Create Date: 2020-04-14 22:59:59.346742
+Revision ID: 40ec91ad7a74
+Revises: cc0f9e9861cd
+Create Date: 2021-11-04 03:38:08.816882
 
 """
 
 
 # revision identifiers, used by Alembic.
-revision = '4036e1fdb9ee'
-down_revision = '26bc228319d2'
+revision = '40ec91ad7a74'
+down_revision = 'cc0f9e9861cd'
 branch_labels = None
 depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-
+from sqlalchemy.dialects import postgresql
+import residue
 
 
 try:
@@ -52,12 +53,23 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('mits_team', sa.Column('concurrent_attendees', sa.Integer(), nullable=True))
-    op.add_column('mits_team', sa.Column('days_available', sa.Integer(), nullable=True))
-    op.add_column('mits_team', sa.Column('hours_available', sa.Integer(), nullable=True))
+    op.create_table('print_job',
+    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('attendee_id', residue.UUID(), nullable=False),
+    sa.Column('admin_id', residue.UUID(), nullable=False),
+    sa.Column('admin_name', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('printer_id', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('reg_station', sa.Integer(), nullable=True),
+    sa.Column('queued', residue.UTCDateTime(), nullable=True),
+    sa.Column('printed', residue.UTCDateTime(), nullable=True),
+    sa.Column('errors', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('is_minor', sa.Boolean(), nullable=False),
+    sa.Column('json_data', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+    sa.ForeignKeyConstraint(['admin_id'], ['admin_account.id'], name=op.f('fk_print_queue_admin_id_admin_account')),
+    sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_print_queue_attendee_id_attendee')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_print_queue'))
+    )
 
 
 def downgrade():
-    op.drop_column('mits_team', 'hours_available')
-    op.drop_column('mits_team', 'days_available')
-    op.drop_column('mits_team', 'concurrent_attendees')
+    op.drop_table('print_job')

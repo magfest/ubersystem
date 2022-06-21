@@ -15,7 +15,7 @@
     <th><nobr>Piece ID</nobr></th>
     <th>Piece Title</th>
     <th>Type</th>
-    <th>Medium</th>
+    <th>Media</th>
     <th>Artist Name</th>
     <th><nobr>Sale Price</nobr></th>
   </tr>
@@ -107,7 +107,7 @@
     <td><strong>Commission</strong></td><td>{{ (app.commission / 100)|format_currency }}</td>
   </tr>
   <tr><td><strong>Name on Check</strong></td><td>{{ app.check_payable or app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name }}</td></tr>
-  <tr><td><strong>Check Total</strong></td><td>{{ (app.check_total / 100|format_currency) }}</td></tr>
+  <tr><td><strong>Check Total</strong></td><td>{{ (app.check_total / 100)|format_currency }}</td></tr>
 </table>
 <div class="form-group">
   <label class="col-sm-3 control-label optional-field">Artist Signature</label>

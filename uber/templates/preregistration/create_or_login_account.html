@@ -1,11 +1,10 @@
 {% if logged_in_account %}
 <div class="text-center">You are currently logged in as <strong>{{ logged_in_account.email }}</strong>.
-Your {{ 'registration(s)' if c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form', '/preregistration/index'] else 'application' }} will be added to your account.
-<a href="../preregistration/logout?return_to={{ c.PAGE_PATH }}" class="btn btn-sm btn-danger">Logout</a></div>
+Your {{ 'registration(s)' if c.PAGE_PATH in ['/registration/register', '/preregistration/form', '/preregistration/post_form', '/preregistration/index'] else 'application' }} will be added to your account. <a href="../preregistration/logout?return_to={{ c.PAGE_PATH }}" class="btn btn-sm btn-danger">Logout</a></div>
 {% else %}
 <ul class="nav nav-tabs" role="tablist">
   <li role="presentation" class="active"><a href="#create" id="create-tab" aria-controls="create" role="tab" data-toggle="tab">Create Account</a></li>
-  <li role="presentation"><a href="#login" aria-controls="login" role="tab" data-toggle="tab">Log In</a></li>
+  <li role="presentation"><a href="#login" id="login-tab" aria-controls="login" role="tab" data-toggle="tab">Log In</a></li>
 </ul>
 <div class="tab-content">
   <div role="tabpanel" class="tab-pane active" id="create">
@@ -24,10 +23,18 @@ Your {{ 'registration(s)' if c.PAGE_PATH in ['/preregistration/form', '/preregis
 
   <script type="text/javascript">
     function validateAndIncludeAccountFields(params_list) {
+      {% if kiosk_mode %}
+        if ($(".account-form-input").is(":visible")) {
+          var create_account_fields = $(".account-form-input");
+        } else {
+          var create_account_fields = $(".login-form-input");
+        }
+      {% else %}
       var create_account_fields = $(".account-form-input");
       if (create_account_fields.is(":hidden")) {
         $('#create-tab').click();
       }
+      {% endif %}
       if(create_account_fields[0].form.checkValidity()) {
         create_account_fields.each(function( index ) {
             var account_input = $(this);

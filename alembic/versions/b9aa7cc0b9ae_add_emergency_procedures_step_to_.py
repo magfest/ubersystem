@@ -1,7 +1,7 @@
 """Add emergency procedures step to volunteer checklist
 
 Revision ID: b9aa7cc0b9ae
-Revises: 739fe558fde9
+Revises: a9b36ffb5ff7
 Create Date: 2019-10-26 02:55:26.293925
 
 """

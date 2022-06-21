@@ -451,9 +451,10 @@ def check(model, *, prereg=False):
     Returns:
         str: None for success, or a failure message if validation fails.
     """
+    errors = []
     for field, name in model.required:
         if not str(getattr(model, field)).strip():
-            return name + ' is a required field'
+            errors.append(name + ' is a required field')
 
     validations = [uber.model_checks.validation.validations]
     prereg_validations = [uber.model_checks.prereg_validation.validations] if prereg else []
@@ -461,7 +462,8 @@ def check(model, *, prereg=False):
         for validator in v[model.__class__.__name__].values():
             message = validator(model)
             if message:
-                return message
+                errors.append(message)
+    return "ERROR: " + "<br>".join(errors) if errors else None
 
 
 def check_all(models, *, prereg=False):
@@ -717,6 +719,12 @@ def mount_site_sections(module_root):
         setattr(Root, site_section, module.Root())
 
 
+def get_static_file_path(filename):
+    for item in cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].config:
+        if filename in item:
+            return cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].config[item]['tools.staticfile.filename']
+
+
 def add_opt(opts, other):
     """
     Add an option to an integer or list of integers, converting it to a comma-separated string.
@@ -761,8 +769,10 @@ def _server_to_url(server):
         return 'https://{}/reggie'.format(host)
     elif path.startswith('uber'):
         return 'https://{}/uber'.format(host)
-    elif c.PATH == '/uber':
-        return 'https://{}{}'.format(host, c.PATH)
+    elif path == 'uber':
+        return 'https://{}/{}'.format(host, path)
+    elif path == 'rams':
+        return 'https://{}/{}'.format(host, path)
     return 'https://{}'.format(host)
 
 
@@ -1212,3 +1222,133 @@ class Charge:
                     log.error('unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
 
             return matching_stripe_txns
+
+
+class TaskUtils:
+    """
+    Utility functions for use in celery tasks.
+    """
+    @staticmethod
+    def _guess_dept(session, id_name):
+        from uber.models import Department
+        from sqlalchemy import or_
+
+        id, name = id_name
+        dept = session.query(Department).filter(or_(
+            Department.id == id,
+            Department.normalized_name == Department.normalize_name(name))).first()
+
+        if dept:
+            return (id, dept)
+        return None
+
+    @staticmethod
+    def import_attendee(attendee_import_job):
+        from uber.models import Attendee, DeptMembership, DeptMembershipRequest
+        from functools import partial
+
+        with uber.models.Session() as session:
+            service, message, target_url = get_api_service_from_server(attendee_import_job.target_server,
+                                                                       attendee_import_job.api_token)
+
+            attendee_import_job.queued = datetime.now()
+            session.commit()
+
+            errors = []
+            badge_type = int(attendee_import_job.json_data.get('badge_type', 0))
+            extra_admin_notes = attendee_import_job.json_data.get('admin_notes', '')
+
+            if not badge_type:
+                errors.append("ERROR: Attendee does not have a badge type.")
+            elif badge_type not in c.BADGES:
+                errors.append("ERROR: Attendee badge type not recognized: " + str(badge_type))
+
+            try:
+                results = service.attendee.export(attendee_import_job.query, True)
+            except Exception as ex:
+                errors.append(str(ex))
+            else:
+                num_attendees = len(results.get('attendees', []))
+                if num_attendees != 1:
+                    errors.append("ERROR: We expected one attendee for this query, but got " + str(num_attendees) + " instead.")
+            
+            if errors:
+                attendee_import_job.errors += "; {}".format("; ".join(errors)) if attendee_import_job.errors else "; ".join(errors)
+                session.commit()
+                return
+            
+            attendee_to_import = results.get('attendees', [])[0]
+            badge_label = c.BADGES[badge_type].lower()
+
+            if badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
+                paid = c.NEED_NOT_PAY
+            else:
+                paid = c.UNPAID
+        
+            import_from_url = '{}/registration/form?id={}\n\n'.format(attendee_import_job.target_server, attendee_to_import['id'])
+            new_admin_notes = '{}\n\n'.format(extra_admin_notes) if extra_admin_notes else ''
+            old_admin_notes = 'Old Admin Notes:\n{}\n'.format(attendee_to_import['admin_notes']) if attendee_to_import['admin_notes'] else ''
+
+            attendee_to_import.update({
+                'badge_type': badge_type,
+                'badge_status': c.IMPORTED_STATUS,
+                'paid': paid,
+                'placeholder': True,
+                'requested_hotel_info': True,
+                'admin_notes': 'Imported {} from {}{}{}'.format(
+                    badge_label, import_from_url, new_admin_notes, old_admin_notes),
+                'past_years': attendee_to_import['all_years'],
+            })
+            if attendee_to_import['shirt'] not in c.SHIRT_OPTS:
+                del attendee_to_import['shirt']
+                
+            del attendee_to_import['id']
+            del attendee_to_import['all_years']
+
+            if badge_type != c.STAFF_BADGE:
+                attendee = Attendee().apply(attendee_to_import, restricted=False)
+            else:
+                assigned_depts = {attendee_to_import[0]: 
+                                    attendee_to_import[1] for attendee_to_import in map(partial(TaskUtils._guess_dept, session),
+                                    attendee_to_import.pop('assigned_depts', {}).items()) if attendee_to_import}
+                checklist_admin_depts = attendee_to_import.pop('checklist_admin_depts', {})
+                dept_head_depts = attendee_to_import.pop('dept_head_depts', {})
+                poc_depts = attendee_to_import.pop('poc_depts', {})
+                requested_depts = attendee_to_import.pop('requested_depts', {})
+
+                attendee_to_import.update({
+                    'staffing': True,
+                    'ribbon': str(c.DEPT_HEAD_RIBBON) if dept_head_depts else '',
+                })
+
+                attendee = Attendee().apply(attendee_to_import, restricted=False)
+
+                for id, dept in assigned_depts.items():
+                    attendee.dept_memberships.append(DeptMembership(
+                        department=dept,
+                        attendee=attendee,
+                        is_checklist_admin=bool(id in checklist_admin_depts),
+                        is_dept_head=bool(id in dept_head_depts),
+                        is_poc=bool(id in poc_depts),
+                    ))
+
+                requested_anywhere = requested_depts.pop('All', False)
+                requested_depts = {d[0]: d[1] for d in map(partial(TaskUtils._guess_dept, session), requested_depts.items()) if d}
+
+                if requested_anywhere:
+                    attendee.dept_membership_requests.append(DeptMembershipRequest(attendee=attendee))
+                for id, dept in requested_depts.items():
+                    attendee.dept_membership_requests.append(DeptMembershipRequest(
+                        department=dept,
+                        attendee=attendee,
+                    ))
+
+            session.add(attendee)
+
+            try:
+                session.commit()
+            except Exception as ex:
+                attendee_import_job.errors += "; {}".format(str(ex)) if attendee_import_job.errors else str(ex)
+                session.rollback()
+            else:
+                attendee_import_job.completed = datetime.now()
