@@ -228,6 +228,10 @@ class GuestBio(MagModel):
     website = Column(UnicodeText)
     facebook = Column(UnicodeText)
     twitter = Column(UnicodeText)
+    instagram = Column(UnicodeText)
+    twitch = Column(UnicodeText)
+    bandcamp = Column(UnicodeText)
+    discord = Column(UnicodeText)
     other_social_media = Column(UnicodeText)
     teaser_song_url = Column(UnicodeText)
 
