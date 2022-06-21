@@ -21,7 +21,7 @@
     </td>
   </tr>
 {% else %}
-  <h2>{% block form_title %}Bio Info for {{ guest.group.name }}{% endblock %}</h2>
+  <h2>{% block form_title %}Social Media Info for {{ guest.group.name }}{% endblock %}</h2>
   {% block form_desc %}
     Please provide a short bio for our website.  Everything else is optional, but if you provide a picture and any social media
     information, we'll include that as well.
@@ -68,6 +68,34 @@
     </div>
 
     <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Instagram</label>
+      <div class="col-sm-6">
+        <input type="text" class="form-control" name="instagram" value="{{ guest_bio.instagram }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Twitch</label>
+      <div class="col-sm-6">
+        <input type="text" class="form-control" name="twitch" value="{{ guest_bio.twitch }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Bandcamp</label>
+      <div class="col-sm-6">
+        <input type="text" class="form-control" name="bandcamp" value="{{ guest_bio.bandcamp }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-3 control-label optional-field">Discord</label>
+      <div class="col-sm-6">
+        <input type="text" class="form-control" name="discord" value="{{ guest_bio.discord }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
       <label class="col-sm-3 control-label optional-field">Other Social Media</label>
       <div class="col-sm-6">
         <input type="text" class="form-control" name="other_social_media" value="{{ guest_bio.other_social_media }}" />
@@ -98,7 +126,7 @@
 
     <div class="form-group">
       <div class="col-sm-6 col-sm-offset-3">
-        <button type="submit" class="btn btn-primary">Upload Bio Info</button>
+        <button type="submit" class="btn btn-primary">Upload Info</button>
       </div>
     </div>
   </form>
