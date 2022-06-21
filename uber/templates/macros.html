@@ -136,7 +136,7 @@
   {%- set defaults = model[field_name] if not defaults and not is_class else '' -%}
   {%- set defaults = defaults.split(",") if defaults else [] -%}
   {%- set choices = model.get_field(field_name).type.choices -%}
-  {{ checkgroup_opts(field_name, choices, suffix, defaults, is_readonly) }}
+  {{ checkgroup_opts(field_name, choices, suffix=suffix, defaults=defaults, is_readonly=is_readonly) }}
 {%- endmacro %}
 
 
