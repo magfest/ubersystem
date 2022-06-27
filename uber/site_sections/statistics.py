@@ -1,6 +1,6 @@
 from collections import Counter, defaultdict, OrderedDict
 
-from geopy.distance import VincentyDistance
+from geopy.distance import geodesic
 from pockets.autolog import log
 from pytz import UTC
 import six

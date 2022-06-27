@@ -1,4 +1,5 @@
-from collections import Mapping, OrderedDict
+from collections.abc import Mapping
+from collections import OrderedDict
 from datetime import datetime, time, timedelta
 from dateutil.parser import parse
 import re
