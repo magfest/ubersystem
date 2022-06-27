@@ -1,4 +1,5 @@
 from collections import Counter, defaultdict, OrderedDict
+from os.path import exists
 
 from geopy.distance import geodesic
 from pockets.autolog import log
@@ -260,8 +261,13 @@ class Root:
 
     zips_counter = Counter()
     zips = {}
+    center = None
+
+    # TODO: use lazy loading instead of doing this here so it's only accessed on the first try.
+    # if /srv/reggie/data/ doesn't exist, this will barf loudly at startup.
     try:
-        center = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(20745)
+        if exists("/srv/reggie/data"):
+            center = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(20745)
     except Exception as e:
         log.error("Error calling SearchEngine: " + e)
 
