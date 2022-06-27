@@ -6,9 +6,8 @@ if __name__ == '__main__':
         name='uber',
         packages=['uber'],
         version=__version__,
-        author='Eli Courtwright',
-        author_email='eli@courtwright.org',
-        description='The MAGFest Ubersystem',
-        url='https://github.com/EliAndrewC/magfest',
-        install_requires=open('requirements.txt').readlines()
+        author='Eli Courtwright and others',
+        author_email='code@magfest.org',
+        description='The MAGFest Ubersystem - Ticket/Management platform',
+        url='https://github.com/magfest/ubersystem',
     )
