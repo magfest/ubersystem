@@ -670,15 +670,25 @@ def schedule_view(func):
         return func(*args, **kwargs)
     return with_check
 
+
+def cherrypy_session_get(key):
+    try:
+        session = cherrypy.session
+    except AttributeError:
+        return None
+
+    return session.get(key)
+
+
 def restricted(func):
     @wraps(func)
     def with_restrictions(*args, **kwargs):
         if not func.public:
             if c.PATH == 'staffing':
-                if not cherrypy.session.get('staffer_id'):
+                if not cherrypy_session_get('staffer_id'):
                     raise HTTPRedirect('../staffing/login?message=You+are+not+logged+in', save_location=True)
 
-            elif cherrypy.session.get('account_id') is None:
+            elif cherrypy_session_get('account_id') is None:
                 raise HTTPRedirect('../accounts/login?message=You+are+not+logged+in', save_location=True)
 
             elif c.PATH == 'mivs_judging':
