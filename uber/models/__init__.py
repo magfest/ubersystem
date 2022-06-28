@@ -527,6 +527,7 @@ from uber.models.commerce import *  # noqa: F401,E402,F403
 from uber.models.department import *  # noqa: F401,E402,F403
 from uber.models.email import *  # noqa: F401,E402,F403
 from uber.models.group import *  # noqa: F401,E402,F403
+from uber.models.legal import * # noqa: F401,E402,F403
 from uber.models.tracking import *  # noqa: F401,E402,F403
 from uber.models.types import *  # noqa: F401,E402,F403
 from uber.models.api import *  # noqa: F401,E402,F403
