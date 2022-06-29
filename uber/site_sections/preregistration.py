@@ -141,7 +141,7 @@ def dealer_tc_sign_link(group, document_id=''):
 
     if 'error' in access_token:
         log.error("Error getting access token from SignNow: " + access_token['error'])
-        return
+        return None, None
     
     if not document_id:
         # Create a document from the template
@@ -150,17 +150,26 @@ def dealer_tc_sign_link(group, document_id=''):
                                                         "Dealer T&C for {}".format(group.name))
         if 'error' in document_request:
             log.error("Error creating document from template: " + document_request['error'])
-            return
+            return None, None
+
+        document_id = document_request.get('id', '')
+
+        if c.SIGNNOW_DEALER_FOLDER_ID:
+            result = c.SIGNNOW_SDK.Document.move(access_token['access_token'],
+                                                    document_id,
+                                                    c.SIGNNOW_DEALER_FOLDER_ID)
+            if 'error' in result:
+                log.error("Error moving document into folder: " + result['error'])
     
     # Create the signing link for a document.
     signing_request = c.signnow_create_link(access_token['access_token'],
-                                            document_id or document_request.get('id', ''),
+                                            document_id,
                                             group.leader.first_name,
                                             group.leader.last_name,
                                             c.URL_BASE + '/preregistration/dealer_confirmation?id={}'
                                             .format(group.id))
 
-    return document_id or document_request.get('id', ''), signing_request.get('url_no_signup')
+    return document_id, signing_request.get('url_no_signup')
 
 @all_renderable(public=True)
 @check_post_con
