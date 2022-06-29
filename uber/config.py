@@ -63,6 +63,11 @@ class _Overridable:
         if 'data_dirs' in plugin_config:
             self.make_data_dirs(plugin_config['data_dirs'])
 
+        if 'secret' in plugin_config:
+            for attr, val in plugin_config['secret'].items():
+                if not isinstance(val, dict):
+                    setattr(self, attr.upper(), val)
+
     def make_dates(self, config_section):
         """
         Plugins can define a [dates] section in their config to create their
@@ -867,7 +872,7 @@ class SecretConfig(_Overridable):
     @property
     def SQLALCHEMY_URL(self):
         """
-        support reading the DB connection info from an environment var (used with Docker containers)
+        Support reading the DB connection info from an environment var (used with Docker containers)
         DB_CONNECTION_STRING should contain the full Postgres URI
         """
         db_connection_string = os.environ.get('DB_CONNECTION_STRING')
@@ -877,6 +882,40 @@ class SecretConfig(_Overridable):
         else:
             return _config['secret']['sqlalchemy_url']
 
+    @request_cached_property
+    def SIGNNOW_SDK(self):
+        import signnow_python_sdk
+
+        signnow_python_sdk.Config(client_id=c.SIGNNOW_CLIENT_ID,
+                              client_secret=c.SIGNNOW_CLIENT_SECRET,
+                              environment=c.SIGNNOW_ENV)
+
+        return signnow_python_sdk
+
+    # The two static methods below are based on SignNow's Python SDK, which is horribly out of date.
+    @staticmethod
+    def signnow_create_link(access_token, document_id, first_name="", last_name="", redirect_uri=""):
+        from requests import post
+        from json import dumps, loads
+        """Creates shortened signing link urls that can be clicked be opened in a browser to sign the document
+        Args:
+            access_token (str): The access token of an account that has access to the document.
+            document_id (str): The unique id of the document you want to create the links for.
+            redirect_uri (str): The URL to redirect the user when they are done signing the document.
+        Returns:
+            dict: A dictionary representing the JSON response containing the signing links for the document.
+        """
+        response = post(c.SIGNNOW_SDK.Config().get_base_url() + '/link', headers={
+            "Authorization": "Bearer " + access_token,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }, data=dumps({
+            "document_id": document_id,
+            "firstname": first_name,
+            "lastname": last_name,
+            "redirect_uri": redirect_uri
+        }))
+        return loads(response.content)
 
 c = Config()
 _secret = SecretConfig()
