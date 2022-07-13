@@ -16,7 +16,7 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, PromoCode, PromoCodeGroup, Tracking
+from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, PromoCode, PromoCodeGroup, SignedDocument, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, genpasswd, valid_email, \
     valid_password, Charge
@@ -134,6 +134,42 @@ def set_up_new_account(session, attendee, email=None):
         body,
         format='html',
         model=account.to_dict('id'))
+
+def dealer_tc_sign_link(group, document_id=''):
+    # Create access_token for the user
+    access_token = c.SIGNNOW_SDK.OAuth2.request_token(c.SIGNNOW_USERNAME, c.SIGNNOW_PASSWORD, '*')
+
+    if 'error' in access_token:
+        log.error("Error getting access token from SignNow: " + access_token['error'])
+        return None, None
+    
+    if not document_id:
+        # Create a document from the template
+        document_request = c.SIGNNOW_SDK.Template.copy(access_token['access_token'],
+                                                        c.SIGNNOW_DEALER_TEMPLATE_ID,
+                                                        "Dealer T&C for {}".format(group.name))
+        if 'error' in document_request:
+            log.error("Error creating document from template: " + document_request['error'])
+            return None, None
+
+        document_id = document_request.get('id', '')
+
+        if c.SIGNNOW_DEALER_FOLDER_ID:
+            result = c.SIGNNOW_SDK.Document.move(access_token['access_token'],
+                                                    document_id,
+                                                    c.SIGNNOW_DEALER_FOLDER_ID)
+            if 'error' in result:
+                log.error("Error moving document into folder: " + result['error'])
+    
+    # Create the signing link for a document.
+    signing_request = c.signnow_create_link(access_token['access_token'],
+                                            document_id,
+                                            group.leader.first_name,
+                                            group.leader.last_name,
+                                            c.URL_BASE + '/preregistration/dealer_confirmation?id={}'
+                                            .format(group.id))
+
+    return document_id, signing_request.get('url_no_signup')
 
 @all_renderable(public=True)
 @check_post_con
@@ -626,8 +662,31 @@ class Root:
         raise HTTPRedirect('index?message={}', message)
 
     @id_required(Group)
-    def dealer_confirmation(self, session, id):
-        return {'group': session.group(id)}
+    def dealer_confirmation(self, session, id, document_id=''):
+        group = session.group(id)
+        if c.SIGNNOW_DEALER_TEMPLATE_ID:
+            existing_doc = session.query(SignedDocument).filter_by(model="Group", fk_id=group.id).first()
+            if document_id:
+                if not existing_doc:
+                    new_doc = SignedDocument(fk_id=group.id,
+                                             model="Group",
+                                             document_id=document_id,
+                                             ident="terms_and_conditions",
+                                             signed=localized_now())
+                    session.add(new_doc)
+                elif not existing_doc.signed:
+                    existing_doc.signed = localized_now()
+                    session.add(existing_doc)
+            elif existing_doc and existing_doc.signed:
+                pass
+            else:
+                document = existing_doc or SignedDocument(fk_id=group.id, model="Group", ident="terms_and_conditions")
+                session.add(document)
+                document.document_id, redirect_link = dealer_tc_sign_link(group, document.document_id)
+                if redirect_link:
+                    raise HTTPRedirect(redirect_link)
+            session.commit()
+        return {'group': group}
 
     @id_required(PromoCodeGroup)
     def group_promo_codes(self, session, id, message='', **params):

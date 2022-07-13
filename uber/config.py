@@ -54,11 +54,19 @@ class _Overridable:
         if 'enums' in plugin_config:
             self.make_enums(plugin_config['enums'])
 
+        if 'integer_enums' in plugin_config:
+            self.make_integer_enums(plugin_config['integer_enums'])
+
         if 'dates' in plugin_config:
             self.make_dates(plugin_config['dates'])
 
         if 'data_dirs' in plugin_config:
             self.make_data_dirs(plugin_config['data_dirs'])
+
+        if 'secret' in plugin_config:
+            for attr, val in plugin_config['secret'].items():
+                if not isinstance(val, dict):
+                    setattr(self, attr.upper(), val)
 
     def make_dates(self, config_section):
         """
@@ -96,6 +104,29 @@ class _Overridable:
         """
         for name, subsection in config_section.items():
             self.make_enum(name, subsection)
+
+    def make_integer_enums(self, config_section):
+        def is_intstr(s):
+            if s and s[0] in ('-', '+'):
+                return str(s[1:]).isdigit()
+            return str(s).isdigit()
+
+        for name, val in config_section.items():
+            if isinstance(val, int):
+                setattr(c, name.upper(), val)
+
+        for name, section in config_section.items():
+            if isinstance(section, dict):
+                interpolated = OrderedDict()
+                for desc, val in section.items():
+                    if is_intstr(val):
+                        price = int(val)
+                    else:
+                        price = getattr(c, val.upper())
+
+                    interpolated[desc] = price
+
+                c.make_enum(name, interpolated, prices=name.endswith('_price'))
 
     def make_enum(self, enum_name, section, prices=False):
         """
@@ -841,7 +872,7 @@ class SecretConfig(_Overridable):
     @property
     def SQLALCHEMY_URL(self):
         """
-        support reading the DB connection info from an environment var (used with Docker containers)
+        Support reading the DB connection info from an environment var (used with Docker containers)
         DB_CONNECTION_STRING should contain the full Postgres URI
         """
         db_connection_string = os.environ.get('DB_CONNECTION_STRING')
@@ -851,6 +882,40 @@ class SecretConfig(_Overridable):
         else:
             return _config['secret']['sqlalchemy_url']
 
+    @request_cached_property
+    def SIGNNOW_SDK(self):
+        import signnow_python_sdk
+
+        signnow_python_sdk.Config(client_id=c.SIGNNOW_CLIENT_ID,
+                              client_secret=c.SIGNNOW_CLIENT_SECRET,
+                              environment=c.SIGNNOW_ENV)
+
+        return signnow_python_sdk
+
+    # The two static methods below are based on SignNow's Python SDK, which is horribly out of date.
+    @staticmethod
+    def signnow_create_link(access_token, document_id, first_name="", last_name="", redirect_uri=""):
+        from requests import post
+        from json import dumps, loads
+        """Creates shortened signing link urls that can be clicked be opened in a browser to sign the document
+        Args:
+            access_token (str): The access token of an account that has access to the document.
+            document_id (str): The unique id of the document you want to create the links for.
+            redirect_uri (str): The URL to redirect the user when they are done signing the document.
+        Returns:
+            dict: A dictionary representing the JSON response containing the signing links for the document.
+        """
+        response = post(c.SIGNNOW_SDK.Config().get_base_url() + '/link', headers={
+            "Authorization": "Bearer " + access_token,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }, data=dumps({
+            "document_id": document_id,
+            "firstname": first_name,
+            "lastname": last_name,
+            "redirect_uri": redirect_uri
+        }))
+        return loads(response.content)
 
 c = Config()
 _secret = SecretConfig()
@@ -911,12 +976,6 @@ for _opt, _val in c.BADGE_PRICES['attendee'].items():
 c.ORDERED_PRICE_LIMITS = sorted([val for key, val in c.PRICE_LIMITS.items()])
 
 
-def _is_intstr(s):
-    if s and s[0] in ('-', '+'):
-        return s[1:].isdigit()
-    return s.isdigit()
-
-
 # Under certain conditions, we want to completely remove certain payment options from the system.
 # However, doing so cleanly also risks an exception being raised if these options are referenced elsewhere in the code
 # (i.e., c.STRIPE). So we create an enum val to allow code to check for these variables without exceptions.
@@ -932,22 +991,7 @@ if c.ONLY_PREPAY_AT_DOOR:
 
 c.make_enums(_config['enums'])
 
-for _name, _val in _config['integer_enums'].items():
-    if isinstance(_val, int):
-        setattr(c, _name.upper(), _val)
-
-for _name, _section in _config['integer_enums'].items():
-    if isinstance(_section, dict):
-        _interpolated = OrderedDict()
-        for _desc, _val in _section.items():
-            if _is_intstr(_val):
-                _price = int(_val)
-            else:
-                _price = getattr(c, _val.upper())
-
-            _interpolated[_desc] = _price
-
-        c.make_enum(_name, _interpolated, prices=_name.endswith('_price'))
+c.make_integer_enums(_config['integer_enums'])
 
 c.BADGE_RANGES = {}
 for _badge_type, _range in _config['badge_ranges'].items():

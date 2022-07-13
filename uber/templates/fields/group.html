@@ -94,7 +94,7 @@
 <div class="group_fields">
   <div class="form-group">
     <label for="name" class="col-sm-3 control-label">{{ "Table" if attendee_or_group.is_dealer else "Group" }} Name</label>
-    {% call macros.read_only_if(read_only, attendee_or_group.name) %}
+    {% call macros.read_only_if(read_only, attendee_or_group.name, check_dealer_editable=(group, 'name')) %}
       <div class="col-sm-6">
         <input type="text" name="name" class="form-control" value="{{ name|default(attendee_or_group.name) }}" maxlength="40" />
       </div>
@@ -197,7 +197,10 @@
 {% set read_only = categories_ro or page_ro %}
 <div class="form-group">
   <label for="categories" class="col-sm-3 control-label">What kinds of things do you sell?</label>
-  {% call macros.read_only_if(read_only, group.categories_labels, post_text=("Other: " if not group.categories_labels else ":") + group.categories_text if group.categories_text) %}
+  {% call macros.read_only_if(read_only, 
+                              group.categories_labels, 
+                              post_text=("Other: " if not group.categories_labels else ":") + group.categories_text if group.categories_text,
+                              check_dealer_editable=(group, 'categories')) %}
     <div class="checkbox col-sm-9">
       {{ macros.checkgroup(group, 'categories') }}
     </div>
@@ -224,7 +227,7 @@
 {% set read_only = wares_ro or page_ro %}
 <div class="form-group">
   <label for="wares" class="col-sm-3 control-label">What do you sell?</label>
-  {% call macros.read_only_if(read_only, group.wares) %}
+  {% call macros.read_only_if(read_only, group.wares, check_dealer_editable=(group, 'wares')) %}
     <div class="col-sm-6">
       <textarea class="form-control" name="wares" rows="4">{{ group.wares }}</textarea>
     </div>
@@ -240,7 +243,7 @@
 {% set read_only = description_ro or page_ro %}
 <div class="form-group">
   <label for="description" class="col-sm-3 control-label">Description</label>
-  {% call macros.read_only_if(read_only, group.description) %}
+  {% call macros.read_only_if(read_only, group.description, check_dealer_editable=(group, 'description')) %}
     <div class="col-sm-6">
       <textarea class="form-control" name="description" rows="4" maxlength="400">{{ group.description }}</textarea>
     </div>
@@ -256,7 +259,7 @@
 {% set read_only = special_needs_ro or page_ro %}
 <div class="form-group">
   <label for="special_needs" class="col-sm-3 control-label optional-field">Table Requests and Special Requests</label>
-  {% call macros.read_only_if(read_only, group.special_needs) %}
+  {% call macros.read_only_if(read_only, group.special_needs, check_dealer_editable=(group, 'special_needs')) %}
     <div class="col-sm-6">
       <textarea class="form-control" name="special_needs" rows="4" placeholder="E.g., specific table, who you would like to sit near, who you would not like to sit near.">{{ group.special_needs }}</textarea>
     </div>
@@ -272,7 +275,7 @@
 {% set read_only = website_ro or page_ro %}
 <div class="form-group">
   <label for="website" class="col-sm-3 control-label">Website URL</label>
-  {% call macros.read_only_if(read_only, group.website) %}
+  {% call macros.read_only_if(read_only, group.website, check_dealer_editable=(group, 'website')) %}
     <div class="col-sm-6">
       <input class="form-control" type="text" name="website" value="{{ group.website }}" size="40" />
     </div>
@@ -304,7 +307,7 @@
   {% endif %}
 {% endif %}
 
-{{ macros.address_form(group, name_prefix='group_', is_readonly=read_only, is_required=required) }}
+{{ macros.address_form(group, name_prefix='group_', is_readonly=read_only, is_required=required, check_dealer_editable=(group, 'address')) }}
 {% endset %}
 
 
