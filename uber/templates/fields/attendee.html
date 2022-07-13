@@ -16,6 +16,7 @@
 {%- set is_prereg_confirm_email_enabled = attendee.is_new and c.PREREG_CONFIRM_EMAIL_ENABLED -%}
 {%- set is_after_request_hotel = c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE -%}
 {%- set is_after_hotel_email = c.AFTER_PREREG_HOTEL_INFO_EMAIL_DATE -%}
+{%- set group_id = group_id or attendee.group_id -%}
 
 {% set prereg_intro %}
 {% if is_prereg_dealer %}
@@ -1441,7 +1442,7 @@ $(window).on("runJavaScript", function () {
   <label class="col-sm-3 control-label">Account Email{{ attendee.managers|length|pluralize }}</label>
   <div class="col-sm-6 form-control-static">
     {% for manager in attendee.managers %}
-      {% if not loop.first %} / {% endif %}{{ manager.email }}
+      {% if not loop.first %} / {% endif %}{{ manager|form_link(true) }}
       {% if manager.attendees|length > 1 %}
       ({%- for managed_attendee in manager.attendees|selectattr('id','!=',attendee.id) -%}
         {% if not loop.first %} / {% endif %}{{ managed_attendee|form_link }}
