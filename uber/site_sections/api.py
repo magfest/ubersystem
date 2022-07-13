@@ -113,6 +113,26 @@ class Root:
             api_job.cancelled = datetime.now()
         raise HTTPRedirect('api_jobs?message={}', message or 'API job deleted.')
 
+    def rerun_api_job(self, session, id, message='', **params):
+        api_job = session.api_job(id)
+        if not api_job:
+            message = "No job found!"
+        elif api_job.cancelled:
+            message = "This job has already been deleted."
+        elif not api_job.completed:
+            api_job.queued = None
+            message = "API job requeued."
+        else:
+            new_job = ApiJob().apply(api_job.to_dict())
+            new_job.completed = None
+            new_job.queued = None
+            new_job.errors = ''
+            new_job.admin_id = cherrypy.session.get('account_id')
+            new_job.admin_name = session.admin_attendee().full_name
+            session.add(new_job)
+            message = "API job duplicated."
+        raise HTTPRedirect('api_jobs?message={}', message)
+
     def requeue_incomplete_jobs(self, session, message='', **params):
         to_requeue = session.query(ApiJob).filter(ApiJob.cancelled == None,
                                                   ApiJob.completed == None,
