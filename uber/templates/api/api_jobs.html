@@ -51,7 +51,14 @@
                     <input type="hidden" name="id" value="{{ job.id }}" />
                     {{ csrf_token() }}
                     &nbsp;<button type="submit" class="btn btn-sm btn-danger">
-                        <span class="glyphicon glyphicon-remove"></span> Delete
+                        <span class="glyphicon glyphicon-remove"></span>
+                    </button>
+                </form>
+                <form class="form rerun-form form-inline" method="post" action="rerun_api_job">
+                    <input type="hidden" name="id" value="{{ job.id }}" />
+                    {{ csrf_token() }}
+                    &nbsp;<button type="submit" class="btn btn-sm btn-info">
+                        <span class="glyphicon glyphicon-refresh"></span>
                     </button>
                 </form>
             </td>

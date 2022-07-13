@@ -245,7 +245,7 @@ def form_link(model, new_window=False):
     if not model:
         return ''
 
-    from uber.models import Attendee, Attraction, Department, Group, Job, PanelApplication
+    from uber.models import Attendee, AttendeeAccount, Attraction, Department, Group, Job, PanelApplication
     
     page = 'form'
         
@@ -255,8 +255,12 @@ def form_link(model, new_window=False):
         attendee_section = ''
         page = '#attendee_form' if isinstance(model, Attendee) else page
 
+    if isinstance(model, AttendeeAccount):
+        page = 'attendee_account_form'
+
     site_sections = {
         Attendee: attendee_section,
+        AttendeeAccount: '../reg_admin/',
         Attraction: '../attractions_admin/',
         Department: '../dept_admin/',
         Group: '../group_admin/',
@@ -265,7 +269,7 @@ def form_link(model, new_window=False):
 
     cls = model.__class__
     site_section = site_sections.get(cls, form_link_site_sections.get(cls))
-    name = getattr(model, 'name', getattr(model, 'full_name', model))
+    name = getattr(model, 'name', getattr(model, 'full_name', getattr(model, 'email', model)))
 
     if site_section or cls == Attendee and page == '#attendee_form':
         return safe_string('<a href="{}{}?id={}"{}>{}</a>'.format(

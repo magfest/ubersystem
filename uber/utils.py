@@ -1243,20 +1243,20 @@ class TaskUtils:
         return None
 
     @staticmethod
-    def import_attendee(attendee_import_job):
+    def attendee_import(import_job):
         from uber.models import Attendee, DeptMembership, DeptMembershipRequest
         from functools import partial
 
         with uber.models.Session() as session:
-            service, message, target_url = get_api_service_from_server(attendee_import_job.target_server,
-                                                                       attendee_import_job.api_token)
+            service, message, target_url = get_api_service_from_server(import_job.target_server,
+                                                                       import_job.api_token)
 
-            attendee_import_job.queued = datetime.now()
+            import_job.queued = datetime.now()
             session.commit()
 
             errors = []
-            badge_type = int(attendee_import_job.json_data.get('badge_type', 0))
-            extra_admin_notes = attendee_import_job.json_data.get('admin_notes', '')
+            badge_type = int(import_job.json_data.get('badge_type', 0))
+            extra_admin_notes = import_job.json_data.get('admin_notes', '')
 
             if not badge_type:
                 errors.append("ERROR: Attendee does not have a badge type.")
@@ -1264,7 +1264,7 @@ class TaskUtils:
                 errors.append("ERROR: Attendee badge type not recognized: " + str(badge_type))
 
             try:
-                results = service.attendee.export(attendee_import_job.query, True)
+                results = service.attendee.export(import_job.query, True)
             except Exception as ex:
                 errors.append(str(ex))
             else:
@@ -1273,11 +1273,11 @@ class TaskUtils:
                     errors.append("ERROR: We expected one attendee for this query, but got " + str(num_attendees) + " instead.")
             
             if errors:
-                attendee_import_job.errors += "; {}".format("; ".join(errors)) if attendee_import_job.errors else "; ".join(errors)
+                import_job.errors += "; {}".format("; ".join(errors)) if import_job.errors else "; ".join(errors)
                 session.commit()
                 return
             
-            attendee_to_import = results.get('attendees', [])[0]
+            attendee = results.get('attendees', [])[0]
             badge_label = c.BADGES[badge_type].lower()
 
             if badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
@@ -1285,11 +1285,11 @@ class TaskUtils:
             else:
                 paid = c.UNPAID
         
-            import_from_url = '{}/registration/form?id={}\n\n'.format(attendee_import_job.target_server, attendee_to_import['id'])
+            import_from_url = '{}/registration/form?id={}\n\n'.format(import_job.target_server, attendee['id'])
             new_admin_notes = '{}\n\n'.format(extra_admin_notes) if extra_admin_notes else ''
-            old_admin_notes = 'Old Admin Notes:\n{}\n'.format(attendee_to_import['admin_notes']) if attendee_to_import['admin_notes'] else ''
+            old_admin_notes = 'Old Admin Notes:\n{}\n'.format(attendee['admin_notes']) if attendee['admin_notes'] else ''
 
-            attendee_to_import.update({
+            attendee.update({
                 'badge_type': badge_type,
                 'badge_status': c.IMPORTED_STATUS,
                 'paid': paid,
@@ -1297,31 +1297,31 @@ class TaskUtils:
                 'requested_hotel_info': True,
                 'admin_notes': 'Imported {} from {}{}{}'.format(
                     badge_label, import_from_url, new_admin_notes, old_admin_notes),
-                'past_years': attendee_to_import['all_years'],
+                'past_years': attendee['all_years'],
             })
-            if attendee_to_import['shirt'] not in c.SHIRT_OPTS:
-                del attendee_to_import['shirt']
+            if attendee['shirt'] not in c.SHIRT_OPTS:
+                del attendee['shirt']
                 
-            del attendee_to_import['id']
-            del attendee_to_import['all_years']
+            del attendee['id']
+            del attendee['all_years']
 
             if badge_type != c.STAFF_BADGE:
-                attendee = Attendee().apply(attendee_to_import, restricted=False)
+                attendee = Attendee().apply(attendee, restricted=False)
             else:
-                assigned_depts = {attendee_to_import[0]: 
-                                    attendee_to_import[1] for attendee_to_import in map(partial(TaskUtils._guess_dept, session),
-                                    attendee_to_import.pop('assigned_depts', {}).items()) if attendee_to_import}
-                checklist_admin_depts = attendee_to_import.pop('checklist_admin_depts', {})
-                dept_head_depts = attendee_to_import.pop('dept_head_depts', {})
-                poc_depts = attendee_to_import.pop('poc_depts', {})
-                requested_depts = attendee_to_import.pop('requested_depts', {})
+                assigned_depts = {attendee[0]: 
+                                    attendee[1] for attendee in map(partial(TaskUtils._guess_dept, session),
+                                    attendee.pop('assigned_depts', {}).items()) if attendee}
+                checklist_admin_depts = attendee.pop('checklist_admin_depts', {})
+                dept_head_depts = attendee.pop('dept_head_depts', {})
+                poc_depts = attendee.pop('poc_depts', {})
+                requested_depts = attendee.pop('requested_depts', {})
 
-                attendee_to_import.update({
+                attendee.update({
                     'staffing': True,
                     'ribbon': str(c.DEPT_HEAD_RIBBON) if dept_head_depts else '',
                 })
 
-                attendee = Attendee().apply(attendee_to_import, restricted=False)
+                attendee = Attendee().apply(attendee, restricted=False)
 
                 for id, dept in assigned_depts.items():
                     attendee.dept_memberships.append(DeptMembership(
@@ -1348,7 +1348,183 @@ class TaskUtils:
             try:
                 session.commit()
             except Exception as ex:
-                attendee_import_job.errors += "; {}".format(str(ex)) if attendee_import_job.errors else str(ex)
                 session.rollback()
+                import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
             else:
-                attendee_import_job.completed = datetime.now()
+                import_job.completed = datetime.now()
+    
+    @staticmethod
+    def get_attendee_account_by_id(account_id, service):
+        from uber.models import AttendeeAccount
+
+        try:
+            results = service.attendee_account.export(account_id, False)
+        except Exception as ex:
+            raise ex
+        else:
+            num_accounts = len(results.get('accounts', []))
+            if num_accounts != 1:
+                raise Exception("ERROR: We expected one account for this query, but got " + str(num_accounts) + " instead.")
+        
+        return results.get('accounts', [])[0]
+
+    @staticmethod
+    def basic_attendee_import(attendee):
+        from uber.models import Attendee
+        attendee.update({
+            'badge_status': c.IMPORTED_STATUS,
+            'requested_hotel_info': True,
+            'past_years': attendee['all_years'],
+        })
+        if attendee.get('shirt', '') and attendee['shirt'] not in c.SHIRT_OPTS:
+            del attendee['shirt']
+            
+        del attendee['id']
+        del attendee['all_years']
+
+        return Attendee().apply(attendee, restricted=False)
+
+    @staticmethod
+    def attendee_account_import(import_job):
+        from uber.models import Attendee, AttendeeAccount
+
+        with uber.models.Session() as session:
+            service, message, target_url = get_api_service_from_server(import_job.target_server,
+                                                                       import_job.api_token)
+
+            import_job.queued = datetime.now()
+            session.commit()
+
+            errors = []
+
+            try:
+                account_to_import = TaskUtils.get_attendee_account_by_id(import_job.query, service)
+            except Exception as ex:
+                import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
+                session.commit()
+                return
+
+            account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email(account_to_import['email']))
+            if not account:
+                del account_to_import['id']
+                account = AttendeeAccount().apply(account_to_import, restricted=False)
+                session.add(account)
+
+            try:
+                session.commit()
+            except Exception as ex:
+                session.rollback()
+                import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
+                return
+            else:
+                import_job.completed = datetime.now()
+
+            account_attendees = {}
+
+            try:
+                account_attendees = service.attendee_account.export_attendees(import_job.query, True)['attendees']
+            except Exception as ex:
+                pass
+
+            for attendee in account_attendees:
+                new_attendee = TaskUtils.basic_attendee_import(attendee)
+                new_attendee.paid = c.NOT_PAID
+                
+                new_attendee.managers.append(account)
+                session.add(new_attendee)
+
+                try:
+                    session.commit()
+                except Exception as ex:
+                    log.error("Error when importing attendee from account: " + str(ex))
+                    session.rollback()
+
+    @staticmethod
+    def group_import(import_job):
+        # Import groups, then their attendees, then those attendee's accounts
+
+        from uber.models import Attendee, AttendeeAccount, Group
+
+        with uber.models.Session() as session:
+            service, message, target_url = get_api_service_from_server(import_job.target_server,
+                                                                       import_job.api_token)
+
+            import_job.queued = datetime.now()
+            session.commit()
+
+            errors = []
+
+            try:
+                results = service.group.export(import_job.query, import_job.json_data.get('all', True))
+            except Exception as ex:
+                errors.append(str(ex))
+            else:
+                num_groups = len(results.get('groups', []))
+                if num_groups != 1:
+                    errors.append("ERROR: We expected one group for this query, but got " + str(num_groups) + " instead.")
+            
+            if errors:
+                import_job.errors += "; {}".format("; ".join(errors)) if import_job.errors else "; ".join(errors)
+                session.commit()
+                return
+            
+            group_to_import = results.get('groups', [])[0]
+            group_attendees = {}
+
+            try:
+                group_results = service.group.export_attendees(group_to_import['id'], True)
+                group_attendees = group_results['attendees']
+            except Exception as ex:
+                attendee_warning = "Could not import attendees: {}".format(str(ex))
+                import_job.errors += "; {}".format(attendee_warning) if import_job.errors else attendee_warning
+
+            # Remove categories that don't exist this year
+            current_categories = group_to_import.get('categories', '')
+            if current_categories:
+                for i, category in enumerate(current_categories.split(',')):
+                    if int(category) not in c.DEALER_WARES.keys():
+                        del group_to_import['categories'][int(i)]
+
+            group_to_import['status'] = c.IMPORTED
+
+            new_group = Group().apply(group_to_import, restricted=False)
+            session.add(new_group)
+            try:
+                session.commit()
+            except Exception as ex:
+                session.rollback()
+                import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
+                return
+            else:
+                import_job.completed = datetime.now()
+
+            for attendee in group_attendees:
+                is_leader = attendee['id'] == group_results['group_leader_id']
+                new_attendee = TaskUtils.basic_attendee_import(attendee)
+                new_attendee.group = new_group
+                if is_leader:
+                    new_group.leader = new_attendee
+                
+                for id in attendee.get('attendee_account_ids', ''):
+                    try:
+                        account_to_import = TaskUtils.get_attendee_account_by_id(id, service)
+                    except Exception as ex:
+                        import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
+
+                    account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email(account_to_import['email'])).first()
+                    if not account:
+                        del account_to_import['id']
+                        account = AttendeeAccount().apply(account_to_import, restricted=False)
+                        session.add(account)
+                    new_attendee.managers.append(account)
+
+                session.add(new_attendee)
+
+                try:
+                    session.commit()
+                except Exception as ex:
+                    log.error("Error when importing attendee from group: " + str(ex))
+                    session.rollback()
+
+            session.assign_badges(new_group, group_to_import['badges'], group_results['unassigned_badge_type'], group_results['unassigned_ribbon'])
+            session.commit()

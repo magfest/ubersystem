@@ -18,15 +18,15 @@
         {% for account in accounts %}
             <tr id="{{ account.email|idize }}">
             <td data-order="{{ account.email }}" data-search="{{ account.email }}">
-                {{ account.email|email_to_link }}
+                {{ account|form_link }}
             </td>
             <td> {% for attendee in account.attendees %} 
                 <nobr>{%- if not loop.first -%}/ {% endif %}<a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a></nobr>
                 {% endfor %} </td>
             <td>
-                <form class="form reset-form form-inline" method="post" action="../preregistration/reset_password">
+                <form class="pull-left form reset-form form-inline" method="post" action="../preregistration/reset_password">
                     <input type="hidden" name="account_email" value="{{ account.email }}" />
-                    <input type="hidden" name="is_admin" value=1 />
+                    <input type="hidden" name="admin_url" value="reg_admin/attendee_accounts?" />
                     {{ csrf_token() }}
                     <button type="submit" class="btn btn-sm btn-warning">
                         <span class="glyphicon glyphicon-repeat"></span> Reset Password
@@ -35,7 +35,7 @@
                 <form class="form delete-form form-inline" method="post" action="delete_attendee_account">
                     <input type="hidden" name="id" value="{{ account.id }}" />
                     {{ csrf_token() }}
-                    <button type="submit" class="btn btn-sm btn-danger">
+                    &nbsp;<button type="submit" class="btn btn-sm btn-danger">
                         <span class="glyphicon glyphicon-remove"></span> Delete Account
                     </button>
                 </form>

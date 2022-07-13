@@ -165,12 +165,20 @@ def check_missed_stripe_payments():
 
 
 @celery.schedule(timedelta(minutes=10))
-def import_attendees_from_queue():
+def process_api_queue():
+    known_job_names = ['attendee_account_import', 'attendee_import', 'group_import']
+    safety_limit = 1000
+    jobs_processed = 0
+
     with Session() as session:
-        attendees_to_import = session.query(ApiJob).filter(ApiJob.job_name == 'attendee_import', ApiJob.queued == None).limit(1000)
+        for job_name in known_job_names:
+            jobs_to_run = session.query(ApiJob).filter(ApiJob.job_name == job_name, ApiJob.queued == None).limit(1000)
 
-        for attendee in attendees_to_import:
-            TaskUtils.import_attendee(attendee)
-            session.commit()
+            for job in jobs_to_run:
+                getattr(TaskUtils, job_name)(job)
+                session.commit()
+                jobs_processed += 1
 
+            if jobs_processed >= safety_limit:
+                return None
     return None
