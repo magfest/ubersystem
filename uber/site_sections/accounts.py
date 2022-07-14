@@ -186,18 +186,31 @@ class Root:
         }
 
     @public
-    def process_login(self, code, state):
+    def process_login(self, session, code, state, original_location=None):
+        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
         if not cherrypy.session.get('oauth_state'):
             raise HTTPRedirect('login?message={}', 'Authentication session expired')
 
+        message = ''
         try:
             request = OAuthRequest(state=cherrypy.session['oauth_state'])
         except Exception as ex:
             log.error("Processing third-party OAuth login failed: " + str(ex))
+            message = "There was a problem logging in. Try again or contact your administrator."
         else:
-            log.debug(request.get_token(code, state))
+            request.set_token(code, state)
+            try:
+                account = session.get_account_by_email(request.get_email())
+            except NoResultFound:
+                message = 'Could not find your account. Please contact your administrator.'
         
-        raise HTTPRedirect('../landing/index?message={}', 'Test complete!')
+        if not message:
+            cherrypy.session['account_id'] = account.id
+            cherrypy.session['oauth_state'] = None
+            ensure_csrf_token_exists()
+            raise HTTPRedirect(original_location)
+        
+        raise HTTPRedirect('../landing/index?message={}', message)
 
     @public
     def homepage(self, session, message=''):
@@ -226,7 +239,19 @@ class Root:
         for key in list(cherrypy.session.keys()):
             if key not in ['preregs', 'paid_preregs', 'job_defaults', 'prev_location']:
                 cherrypy.session.pop(key)
+        
+        if c.AUTH_DOMAIN:
+            raise HTTPRedirect(OAuthRequest().logout_uri)
+
         raise HTTPRedirect('login?message={}', 'You have been logged out')
+        
+    @public
+    def process_logout(self):
+        # We shouldn't need this, but Auth0 is throwing errors
+        # when I try to include a message to the redirect url
+        # so here we are
+
+        raise HTTPRedirect('../landing/index?message={}', 'You have been logged out')
 
     @public
     def reset(self, session, message='', email=None):
