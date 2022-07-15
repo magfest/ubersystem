@@ -975,20 +975,20 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def is_valid(self):
-        return self.badge_status not in [c.PENDING_STATUS, c.INVALID_STATUS]
+        return self.badge_status not in [c.PENDING_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS]
 
     @is_valid.expression
     def is_valid(cls):
-        return not_(cls.badge_status.in_([c.PENDING_STATUS, c.INVALID_STATUS]))
+        return not_(cls.badge_status.in_([c.PENDING_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS]))
 
     @hybrid_property
     def has_badge(self):
-        return self.badge_status not in [c.PENDING_STATUS, c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS, c.NOT_ATTENDING]
+        return self.badge_status not in [c.PENDING_STATUS, c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS, c.NOT_ATTENDING, c.IMPORTED_STATUS]
 
     @has_badge.expression
     def has_badge(cls):
         return not_(cls.badge_status.in_(
-                [c.PENDING_STATUS, c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS, c.NOT_ATTENDING]))
+                [c.PENDING_STATUS, c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS, c.NOT_ATTENDING, c.IMPORTED_STATUS]))
 
     @property
     def volunteering_badge_or_ribbon(self):
@@ -2034,6 +2034,14 @@ class AttendeeAccount(MagModel):
     @presave_adjustment
     def strip_email(self):
         self.email = self.email.strip()
+    
+    @hybrid_property
+    def normalized_email(self):
+        return normalize_email(self.email)
+
+    @normalized_email.expression
+    def normalized_email(cls):
+        return func.replace(func.lower(func.trim(cls.email)), '.', '')
 
     @property
     def has_only_one_badge(self):
@@ -2041,8 +2049,15 @@ class AttendeeAccount(MagModel):
 
     @property
     def valid_attendees(self):
-        return [attendee for attendee in self.attendees 
-                if attendee.badge_status not in [c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS]]
+        return [attendee for attendee in self.attendees if attendee.is_valid or attendee.badge_status == c.PENDING_STATUS]
+
+    @property
+    def imported_attendees(self):
+        return [attendee for attendee in self.attendees if attendee.badge_status == c.IMPORTED_STATUS]
+
+    @property
+    def invalid_attendees(self):
+        return [attendee for attendee in self.attendees if not attendee.is_valid and attendee.badge_status != c.PENDING_STATUS]
 
     @property
     def refunded_deferred_attendees(self):

@@ -247,14 +247,14 @@ class Root:
         return self.form(badge_type=c.PSEUDO_DEALER_BADGE, message=message, invite_code=invite_code)
 
     @check_if_can_reg
-    def repurchase(self, session, id, **params):
-        if 'csrf_token' in params:
+    def repurchase(self, session, id, skip_confirm=False, **params):
+        if skip_confirm or 'csrf_token' in params:
             old_attendee = session.attendee(id).to_dict(c.UNTRANSFERABLE_ATTRS)
             del old_attendee['id']
             new_attendee = Attendee(**old_attendee)
             Charge.unpaid_preregs[new_attendee.id] = Charge.to_sessionized(new_attendee)
             Tracking.track(c.UNPAID_PREREG, new_attendee)
-            raise HTTPRedirect("form?edit_id={}", new_attendee.id)
+            raise HTTPRedirect("form?edit_id={}&repurchase=1", new_attendee.id)
         return {
             'id': id
         }
@@ -277,7 +277,8 @@ class Root:
                 edit_id,
                 if_not_found=HTTPRedirect('form?message={}', 'That preregistration has already been finalized'))
             attendee.apply(params, restricted=True)
-            params.setdefault('pii_consent', True)
+            if not params.get('repurchase'):
+                params.setdefault('pii_consent', True)
         else:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
 
@@ -1144,7 +1145,7 @@ class Root:
         from uber.utils import create_valid_user_supplied_redirect_url, ensure_csrf_token_exists
         original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
 
-        if 'email' or 'login_email' in params:
+        if 'email' in params or 'login_email' in params:
             email = params.get('login_email', params.get('email', ''))
             password = params.get('login_password', params.get('password', ''))
             account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(email)).first()
@@ -1170,11 +1171,6 @@ class Root:
         if not account:
             raise HTTPRedirect('../landing/index')
 
-        if account.has_only_one_badge and account.attendees[0].badge_status != c.INVALID_STATUS:
-            if account.attendees[0].is_group_leader:
-                raise HTTPRedirect('group_members?id={}&message={}', account.attendees[0].group.id, message)
-            else:
-                raise HTTPRedirect('confirm?id={}&message={}', account.attendees[0].id, message)
         return {
             'message': message,
             'account': account,
@@ -1284,8 +1280,8 @@ class Root:
         if 'account_email' in params:
             account_email = params['account_email']
             account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(account_email)).first()
-            if 'is_admin' in params:
-                success_url = "../reg_admin/attendee_accounts?message=Password reset email sent."
+            if 'admin_url' in params:
+                success_url = "../{}message=Password reset email sent.".format(params['admin_url'])
             else:
                 success_url = "../landing/index?message=Check your email for a password reset link."
             if not account:

@@ -192,6 +192,7 @@ class Root:
             'account': account,
         }
 
+    @site_mappable
     def import_attendees(self, session, target_server='', api_token='', query='', message='', which_import='', **params):
         service, service_message, target_url = get_api_service_from_server(target_server, api_token)
         message = message or service_message
