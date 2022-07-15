@@ -1,8 +1,12 @@
 {% import "fields/account.html" as account_fields with context %}
-<div class="panel panel-default">
-    <div class="panel-heading">
-        Account Information
-    </div>
+<div class="panel panel-heading">
+<button class="btn btn-info" type="button" data-toggle="collapse" data-target="#update-account" aria-expanded="false" aria-controls="update-account">
+    <span class="glyphicon glyphicon-cog"></span> Account Settings
+</button>
+<a href="../preregistration/logout" class="btn btn-danger pull-right">
+    <span class="glyphicon glyphicon-log-out"></span> Log Out
+</a>
+<div class="collapse" id="update-account">
     <div class="panel-body">
         <form method="post" action="update_account" class="form-horizontal">
             {{ csrf_token() }}
@@ -40,22 +44,7 @@
             </div>
         </form>
     </div>
-    <div class="panel-footer">
-        <div class="btn-group">
-            <a href="../preregistration/form" class="btn btn-primary" target="_blank">Add Registration(s)</a>
-            {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN and (not group or not group.is_dealer) and (not attendee or not attendee.is_dealer) %}
-            <a href="../preregistration/dealer_registration" class="btn btn-success" target="_blank">Apply as Dealer</a>
-            {% endif %}
-            {% if attendee %}
-                {% if c.ART_SHOW_OPEN and not attendee.art_show_applications %}
-                <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-info" target="_blank">Apply for Art Show</a>
-                {% endif %}
-                {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and not attendee.marketplace_applications %}
-                <a href="../marketplace/index?attendee_id={{ attendee.id }}" class="btn btn-default" target="_blank">Apply for Marketplace</a>
-                {% endif %}
-            {% endif %}
-        </div>
-    </div>
+</div>
 </div>
 
 {{ account_fields.new_password_validation }}

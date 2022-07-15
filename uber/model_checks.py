@@ -237,7 +237,7 @@ def no_more_child_badges(attendee):
 def upgrade_sold_out(attendee):
     currently_available_upgrades = [tier['price'] for tier in c.PREREG_DONATION_DESCRIPTIONS]
     if (attendee.is_new or attendee.orig_value_of('amount_extra') != attendee.amount_extra) \
-        and attendee.amount_extra not in currently_available_upgrades:
+        and attendee.amount_extra and attendee.amount_extra not in currently_available_upgrades:
         return "The upgrade you have selected is sold out."
 
 

@@ -1,8 +1,6 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}{{ account.email }} Attendee Account{% endblock %}
 {% block content %}
-{% for attendee in account.valid_attendees %}
-{% if loop.first %}
 <h3>{{ account.email }} Attendee Account</h3>
 <form class="form reset-form form-inline pull-left" method="post" action="../preregistration/reset_password">
     <input type="hidden" name="account_email" value="{{ account.email }}" />
@@ -18,8 +16,9 @@
     &nbsp;<button type="submit" class="btn btn-sm btn-danger">
         <span class="glyphicon glyphicon-remove"></span> Delete Account
     </button>
-</form>
-<br/>
+</form><br/>
+{% for attendee in account.valid_attendees %}
+{% if loop.first %}
 <div class="panel panel-default">
     <div class="panel-heading">
         Registrations
@@ -59,6 +58,45 @@
             </td>
             <td>
                 
+            </td>
+            </tr>
+        {% if loop.last %}
+        </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+{% for attendee in account.imported_attendees %}
+{% if loop.first %}
+<div class="panel panel-info">
+    <div class="panel-heading">
+        Last Year's Registrations
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped datatable">
+        <thead>
+            <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% endif %}
+            <tr id="{{ account.email|idize }}">
+            <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
+                {{ attendee.full_name }}
+            </td>
+            <td>{{ attendee.email }}</td>
+            <td>
+                <form method="post" action="repurchase" class="form-horizontal">
+                {{ csrf_token() }}
+                <input type="hidden" name="id" value="{{ attendee.id }}" />
+                <button type="submit" class="btn btn-sm btn-info" value="Import">
+                    <span class="glyphicon glyphicon-download"></span> Purchase
+                </button>
+                </form>
             </td>
             </tr>
         {% if loop.last %}

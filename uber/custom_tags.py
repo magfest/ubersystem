@@ -19,8 +19,10 @@ from uuid import uuid4
 
 import cherrypy
 import jinja2
+import phonenumbers
 from dateutil.relativedelta import relativedelta
 from markupsafe import Markup
+from phonenumbers import PhoneNumberFormat
 from pockets import fieldify, unfieldify, listify, readable_join
 from sideboard.lib import serializer
 
@@ -92,6 +94,9 @@ def timedelta_filter(dt, *args, **kwargs):
 def full_datetime_local(dt):
     return '' if not dt else dt.astimezone(c.EVENT_TIMEZONE).strftime('%H:%M on %B %d %Y')
 
+@JinjaEnv.jinja_filter
+def full_date_local(dt):
+    return '' if not dt else dt.astimezone(c.EVENT_TIMEZONE).strftime('%m/%d/%Y')
 
 @JinjaEnv.jinja_export
 def now():
@@ -158,6 +163,40 @@ def yesno(value, arg=None):
     if value:
         return yes
     return no
+
+
+@JinjaEnv.jinja_filter
+def icon_yesno(value, icon=None, color=None):
+    """
+    A version of the yesno filter that allows easier use of glyphicons.
+    First set of args should be the glyphicon name (e.g., remove-sign for glyphicon-remove-sign)
+    Second set is a Bootstrap text name, e.g., success, danger
+    """
+    icon = icon or 'ok-sign,remove-sign,question-sign'
+    color = color or 'success,danger,info'
+    icon_opts, color_opts = icon.split(','), color.split(',')
+    html = "<span class='glyphicon glyphicon-{} text-{}'></span>"
+    if len(icon_opts) < 2 or len(color_opts) < 2:
+        return value  # Invalid arg.
+    try:
+        yesicon, noicon, maybeicon = icon_opts
+        yescolor, nocolor, maybecolor = color_opts
+    except ValueError:
+        # Unpack list of wrong size (no "maybe" value provided).
+        yesicon, noicon, maybeicon = icon_opts[0], icon_opts[1], icon_opts[1]
+        yescolor, nocolor, maybecolor = color_opts[0], color_opts[1], color_opts[1]
+    if value is None:
+        return safe_string(html.format(maybeicon, maybecolor))
+    if value:
+        return safe_string(html.format(yesicon, yescolor))
+    return safe_string(html.format(noicon, nocolor))
+
+
+@JinjaEnv.jinja_filter
+def format_phone(val, country='US'):
+    return phonenumbers.format_number(
+        phonenumbers.parse(val, country),
+        PhoneNumberFormat.NATIONAL)
 
 
 @JinjaEnv.jinja_filter

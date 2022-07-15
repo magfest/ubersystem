@@ -3,12 +3,51 @@
 {% block content %}
 {% include 'prereg_masthead.html' %}
 {% include 'preregistration/update_account.html' %}
+<div class="panel panel-primary">
+    <div class="panel-heading">
+        <h4 class="panel-title">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h4>
+    </div>
+{% if not account.valid_attendees %}
+    <div class="panel-body text-center">
+        <h2 class="text-uppercase">You have no current registrations</h2>
+        <a href="../preregistration/form" class="btn btn-primary" target="_blank">Add a registration</a>
+        {% if account.imported_attendees %}
+        or
+            {% if account.imported_attendees|length == 1 %}
+                <a href="../preregistration/repurchase?id={{ account.imported_attendees[0].id }}&skip_confirm=true" class="btn btn-info" target ="_blank"> Import last year's registration</a>
+            {% else %}
+                select a registration to import below.
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+<!---<div class="btn-group">
+    <a href="../preregistration/form" class="btn btn-primary" target="_blank">Add Registration(s)</a>
+    {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN and (not group or not group.is_dealer) and (not attendee or not attendee.is_dealer) %}
+    <a href="../preregistration/dealer_registration" class="btn btn-success" target="_blank">Apply as Dealer</a>
+    {% endif %}
+    {% if attendee %}
+        {% if c.ART_SHOW_OPEN and not attendee.art_show_applications %}
+        <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-info" target="_blank">Apply for Art Show</a>
+        {% endif %}
+        {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and not attendee.marketplace_applications %}
+        <a href="../marketplace/index?attendee_id={{ attendee.id }}" class="btn btn-default" target="_blank">Apply for Marketplace</a>
+        {% endif %}
+    {% endif %}
+</div>--->
 {% for attendee in account.valid_attendees %}
 {% if loop.first %}
-<div class="panel panel-default">
-    <div class="panel-heading">
-        Registrations
-    </div>
+    <div class="panel-body">
+{% endif %}
+<div class="row">
+    {% include "preregistration/attendee_card.html" %}
+</div>
+{% if loop.last %}
+</div>
+</div>
+{% endif %}
+<!--{% if loop.first %}
     <div class="table-responsive">
         <table class="table table-striped datatable">
         <thead>
@@ -54,7 +93,7 @@
                 <form class="form new-account-form" method="post" action="grant_account">
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
                 {{ csrf_token() }}
-                <button type="submit" class="btn btn-sm btn-primary btn-primary">
+                <button type="submit" class="btn btn-sm btn-primary">
                     <span class="glyphicon glyphicon-plus"></span> Create Account
                 </button>
                 </form>
@@ -65,14 +104,29 @@
         </tbody>
         </table>
     </div>
+{% endif %}-->
+{% endfor %}
+{% for attendee in account.imported_attendees %}
+{% if loop.first %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <h4 class="panel-title">Past Registrations</h4>
+    </div>
+    <div class="panel-footer">
+{% endif %}
+<div class="row">
+    {% include "preregistration/attendee_card.html" %}
+</div>
+{% if loop.last %}
+</div>
 </div>
 {% endif %}
 {% endfor %}
 {% for attendee in account.refunded_deferred_attendees %}
 {% if loop.first %}
-<div class="panel panel-default">
+<div class="panel panel-danger">
     <div class="panel-heading">
-        Cancelled Registrations
+        <h4 class="panel-title">Cancelled Registrations</h4>
     </div>
     <div class="table-responsive">
         <table class="table table-striped datatable">

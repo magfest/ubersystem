@@ -764,14 +764,12 @@ def remove_opt(opts, other):
 def _server_to_url(server):
     if not server:
         return ''
-    host, _, path = urllib.parse.unquote(server).replace('http://', '').replace('https://', '').partition('/')
+    host, _, path = urllib.parse.unquote(server).replace('http://', '').replace('https://', '').rstrip('/').partition('/')
     if path.startswith('reggie'):
         return 'https://{}/reggie'.format(host)
     elif path.startswith('uber'):
         return 'https://{}/uber'.format(host)
-    elif path == 'uber':
-        return 'https://{}/{}'.format(host, path)
-    elif path == 'rams':
+    elif path in ['uber', 'rams']:
         return 'https://{}/{}'.format(host, path)
     return 'https://{}'.format(host)
 
@@ -1244,7 +1242,7 @@ class TaskUtils:
 
     @staticmethod
     def attendee_import(import_job):
-        from uber.models import Attendee, DeptMembership, DeptMembershipRequest
+        from uber.models import Attendee, AttendeeAccount, DeptMembership, DeptMembershipRequest
         from functools import partial
 
         with uber.models.Session() as session:
@@ -1283,7 +1281,7 @@ class TaskUtils:
             if badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
                 paid = c.NEED_NOT_PAY
             else:
-                paid = c.UNPAID
+                paid = c.NOT_PAID
         
             import_from_url = '{}/registration/form?id={}\n\n'.format(import_job.target_server, attendee['id'])
             new_admin_notes = '{}\n\n'.format(extra_admin_notes) if extra_admin_notes else ''
@@ -1304,6 +1302,8 @@ class TaskUtils:
                 
             del attendee['id']
             del attendee['all_years']
+
+            account_ids = attendee.get('attendee_account_ids', [])
 
             if badge_type != c.STAFF_BADGE:
                 attendee = Attendee().apply(attendee, restricted=False)
@@ -1345,6 +1345,19 @@ class TaskUtils:
 
             session.add(attendee)
 
+            for id in account_ids:
+                try:
+                    account_to_import = TaskUtils.get_attendee_account_by_id(id, service)
+                except Exception as ex:
+                    import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
+
+                account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email(account_to_import['email'])).first()
+                if not account:
+                    del account_to_import['id']
+                    account = AttendeeAccount().apply(account_to_import, restricted=False)
+                    session.add(account)
+                attendee.managers.append(account)
+
             try:
                 session.commit()
             except Exception as ex:
@@ -1352,6 +1365,7 @@ class TaskUtils:
                 import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
             else:
                 import_job.completed = datetime.now()
+            session.commit()
     
     @staticmethod
     def get_attendee_account_by_id(account_id, service):
@@ -1404,7 +1418,7 @@ class TaskUtils:
                 session.commit()
                 return
 
-            account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email(account_to_import['email']))
+            account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email(account_to_import['email'])).first()
             if not account:
                 del account_to_import['id']
                 account = AttendeeAccount().apply(account_to_import, restricted=False)
@@ -1436,8 +1450,9 @@ class TaskUtils:
                 try:
                     session.commit()
                 except Exception as ex:
-                    log.error("Error when importing attendee from account: " + str(ex))
+                    import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
                     session.rollback()
+                session.commit()
 
     @staticmethod
     def group_import(import_job):
@@ -1481,9 +1496,11 @@ class TaskUtils:
             # Remove categories that don't exist this year
             current_categories = group_to_import.get('categories', '')
             if current_categories:
-                for i, category in enumerate(current_categories.split(',')):
+                current_categories = current_categories.split(',')
+                for category in current_categories:
                     if int(category) not in c.DEALER_WARES.keys():
-                        del group_to_import['categories'][int(i)]
+                        current_categories.remove(category)
+                group_to_import['categories'] = ','.join(current_categories)
 
             group_to_import['status'] = c.IMPORTED
 
@@ -1523,7 +1540,7 @@ class TaskUtils:
                 try:
                     session.commit()
                 except Exception as ex:
-                    log.error("Error when importing attendee from group: " + str(ex))
+                    import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
                     session.rollback()
 
             session.assign_badges(new_group, group_to_import['badges'], group_results['unassigned_badge_type'], group_results['unassigned_ribbon'])
