@@ -17,7 +17,7 @@
 <div class="form-group">
     <label class="col-sm-3 control-label">Confirm Password</label>
     <div class="col-sm-6">
-    <input id="confirm_new_password" type="password" class="form-control account-form-input" name="confirm_password" value="" placeholder="Confirm Password" required />
+    <input id="confirm_new_password" type="password" class="form-control account-form-input" name="confirm_password" value="{{ confirm_password or '' }}" placeholder="Confirm Password" required />
     </div>
 </div>
 {% if post_to %}
