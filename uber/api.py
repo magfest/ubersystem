@@ -386,6 +386,11 @@ class AttendeeLookup:
         'legal_name': True,
         'email': True,
         'zip_code': True,
+        'address1': True,
+        'address2': True,
+        'city': True,
+        'region': True,
+        'country': True,
         'cellphone': True,
         'ec_name': True,
         'ec_phone': True,
@@ -429,9 +434,15 @@ class AttendeeLookup:
     attendee_import_fields = [
         'first_name',
         'last_name',
+        'legal_name',
         'birthdate',
         'email',
         'zip_code',
+        'address1',
+        'address2',
+        'city',
+        'region',
+        'country',
         'birthdate',
         'international',
         'ec_name',
@@ -608,7 +619,7 @@ class AttendeeLookup:
             if full:
                 fields.extend(['shirt'])
 
-            attendees = _prepare_attendees_export(all_attendees, include_depts=full)
+            attendees = _prepare_attendees_export(all_attendees, include_depts=full, include_account_ids=full)
 
             return {
                 'unknown_ids': unknown_ids,
