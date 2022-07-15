@@ -2,10 +2,19 @@
 {% block title %}Recent Preregs{% endblock %}}
 {% block content %}
 
-<table>
-{% for attendee in attendees %}
+<table class="table">
+    <thead>
+        <tr>
+            <th>Registered</th>
+            <th>Name</th>
+            <th>Badge Type</th>
+            <th>Paid Type</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for attendee in attendees %}
     <tr>
-        <td> {{ attendee.registered }} </td>
+        <td> {{ attendee.registered|datetime_local }} </td>
         <td> <a href="form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
         <td>
             {{ attendee.badge_type_label }}
@@ -15,7 +24,8 @@
         </td>
         <td> paid: {{ attendee.paid_label }} </td>
     </tr>
-{% endfor %}
+    {% endfor %}
+    </tbody>
 </table>
 
 {% endblock %}

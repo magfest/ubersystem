@@ -496,7 +496,9 @@ class AttendeeLookup:
         restrictions.
         """
         with Session() as session:
-            attendee_query = session.search(query)
+            attendee_query, error = session.search(query)
+            if error:
+                raise HTTPError(400, error)
             fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
             return [a.to_dict(fields) for a in attendee_query.limit(100)]
         
@@ -1114,6 +1116,31 @@ class DepartmentLookup:
         Returns a list of department ids and names.
         """
         return c.DEPARTMENTS
+    
+    @department_id_adapter
+    @api_auth('api_read')
+    def members(self, department_id):
+        """
+        Returns an object with all members of this department broken down by their roles.
+        
+        Takes the department id as the only parameter.
+        """
+        with Session() as session:
+            department = session.query(Department).filter_by(id=department_id).first()
+            if not department:
+                raise HTTPError(404, 'Department id not found: {}'.format(department_id))
+            return department.to_dict({
+                'id': True,
+                'name': True,
+                'description': True,
+                'dept_roles': True,
+                'dept_heads': True,
+                'checklist_admins': True,
+                'members_with_inherent_role': True,
+                'members_who_can_admin_checklist': True,
+                'pocs': True,
+                'members': True
+            })
 
     @department_id_adapter
     @api_auth('api_read')

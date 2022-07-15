@@ -5,7 +5,7 @@
 <h2>Treasury Needs for {{ department.name }}</h2>
 
 Do you need cash or Mpoints for your department? Please fill out the following form:
-<h3><a href="{{ c.TREASURY_DEPT_CHECKLIST_FORM_URL }}">{{ c.EVENT_NAME_AND_YEAR }} MPoints/Cash Form</a></h3>
+<h3><a href="{{ c.TREASURY_DEPT_CHECKLIST_FORM_URL }}" target="_blank">{{ c.EVENT_NAME_AND_YEAR }} MPoints/Cash Form</a></h3>
 
 <form method="post" action="treasury">
 {{ csrf_token() }}

@@ -4,6 +4,8 @@ import re
 from datetime import date, datetime, timedelta
 from uuid import uuid4
 
+from sqlalchemy.sql.elements import not_
+
 from pockets import cached_property, classproperty, groupify, listify, is_listy, readable_join
 from pockets.autolog import log
 from pytz import UTC
@@ -217,8 +219,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     affiliate = Column(UnicodeText)
 
-    # attendee shirt size for both swag and staff shirts
+    # If [[staff_shirt]] is the same as [[shirt]], we only use the shirt column
     shirt = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)
+    staff_shirt = Column(Choice(c.STAFF_SHIRT_OPTS), default=c.NO_SHIRT)
     num_event_shirts = Column(Choice(c.STAFF_EVENT_SHIRT_OPTS, allow_unspecified=True), default=-1)
     can_spam = Column(Boolean, default=False)
     regdesk_info = Column(UnicodeText, admin_only=True)
@@ -654,6 +657,29 @@ class Attendee(MagModel, TakesPaymentMixin):
             for app in art_apps:
                 app.agent_id = self.id
 
+    @presave_adjustment
+    def child_badge(self):
+        if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
+            if self.age_now_or_at_con and self.age_now_or_at_con < 18 and self.badge_type == c.ATTENDEE_BADGE:
+                self.badge_type = c.CHILD_BADGE
+                if self.age_now_or_at_con < 13:
+                    self.ribbon = add_opt(self.ribbon_ints, c.UNDER_13)
+
+    @presave_adjustment
+    def child_ribbon_or_not(self):
+        if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
+            if self.age_now_or_at_con and self.age_now_or_at_con < 13:
+                self.ribbon = add_opt(self.ribbon_ints, c.UNDER_13)
+            elif c.UNDER_13 in self.ribbon_ints and self.age_now_or_at_con and self.age_now_or_at_con >= 13:
+                self.ribbon = remove_opt(self.ribbon_ints, c.UNDER_13)
+
+    @presave_adjustment
+    def child_to_attendee(self):
+        if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
+            if self.badge_type == c.CHILD_BADGE and self.age_now_or_at_con and self.age_now_or_at_con >= 18:
+                self.badge_type = c.ATTENDEE_BADGE
+                self.ribbon = remove_opt(self.ribbon_ints, c.UNDER_13)
+
     @cost_property
     def art_show_app_cost(self):
         cost = 0
@@ -680,7 +706,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             for app in self.art_show_applications:
                 if app.total_cost and app.status != c.PAID:
                     return '../art_show_applications/edit?id={}'.format(app.id)
-        return 'attendee_donation_form?id={}'.format(self.id)
+        return '../preregistration/attendee_donation_form?id={}'.format(self.id)
 
     def unset_volunteering(self):
         self.staffing = False
@@ -811,7 +837,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         # We dynamically calculate the age discount to be half the
         # current badge price. If for some reason the default discount
         # (if it exists) is greater than half off, we use that instead.
-        if self.age_group_conf.get('val') == c.UNDER_13:
+        import math
+        if self.age_now_or_at_con and self.age_now_or_at_con < 13:
             half_off = math.ceil(c.BADGE_PRICE / 2)
             if not self.age_group_conf['discount'] or self.age_group_conf['discount'] < half_off:
                 return -half_off
@@ -849,6 +876,15 @@ class Attendee(MagModel, TakesPaymentMixin):
     @cost_property
     def marketplace_cost(self):
         return sum(app.total_cost - app.amount_paid for app in self.marketplace_applications)
+
+    @cost_property
+    def shipping_fee_cost(self):
+        return self.calculate_shipping_fee_cost() if self.badge_status == c.DEFERRED_STATUS and self.amount_extra else 0
+    
+    def calculate_shipping_fee_cost(self):
+        # For plugins to override with custom shipping fee logic
+        # Also so we can display the potential shipping fee cost to attendees
+        return c.MERCH_SHIPPING_FEE
 
     @property
     def amount_extra_unpaid(self):
@@ -888,7 +924,11 @@ class Attendee(MagModel, TakesPaymentMixin):
             personal_cost = max(0, self.total_cost - self.badge_cost)
         else:
             personal_cost = self.total_cost
-        return max(0, ((personal_cost * 100) - self.amount_paid - self.amount_pending) / 100)
+        return max(0, ((personal_cost * 100) - self.amount_paid) / 100)
+
+    @property
+    def total_purchased_cost(self):
+        return sum([self.purchased_items[item] for item in self.purchased_items])
 
     @property
     def paid_for_badge(self):
@@ -932,6 +972,23 @@ class Attendee(MagModel, TakesPaymentMixin):
     @is_unassigned.expression
     def is_unassigned(cls):
         return cls.first_name == ''
+
+    @hybrid_property
+    def is_valid(self):
+        return self.badge_status not in [c.PENDING_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS]
+
+    @is_valid.expression
+    def is_valid(cls):
+        return not_(cls.badge_status.in_([c.PENDING_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS]))
+
+    @hybrid_property
+    def has_badge(self):
+        return self.badge_status not in [c.PENDING_STATUS, c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS, c.NOT_ATTENDING, c.IMPORTED_STATUS]
+
+    @has_badge.expression
+    def has_badge(cls):
+        return not_(cls.badge_status.in_(
+                [c.PENDING_STATUS, c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS, c.NOT_ATTENDING, c.IMPORTED_STATUS]))
 
     @property
     def volunteering_badge_or_ribbon(self):
@@ -1007,7 +1064,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def can_abandon_badge(self):
         return not self.amount_paid and (
-            (not self.paid == c.NEED_NOT_PAY or self.in_promo_code_group) or self.badge_type == c.STAFF_BADGE
+            not self.paid == c.NEED_NOT_PAY or self.in_promo_code_group
         ) and not self.is_group_leader and not self.checked_in
 
     @property
@@ -1021,16 +1078,29 @@ class Attendee(MagModel, TakesPaymentMixin):
                and c.SELF_SERVICE_REFUNDS_OPEN
 
     @property
+    def can_defer_badge(self):
+        return not self.can_abandon_badge and not self.checked_in \
+               and not self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] \
+               and not self.group and not self.in_promo_code_group \
+               and self.badge_status == c.COMPLETED_STATUS and not self.amount_unpaid \
+               and c.SELF_SERVICE_DEFERRALS_OPEN
+
+    @property
     def needs_pii_consent(self):
         return self.is_new or self.placeholder or not self.first_name
 
     @property
     def shirt_size_marked(self):
-        return self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN]
+        if c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS:
+            return self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN]
+        else:
+            return (not self.num_event_shirts_owed or self.shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN]) and (
+                    not self.gets_staff_shirt or self.staff_shirt not in [c.NO_SHIRT, c.SIZE_UNKNOWN])
 
     @property
     def shirt_info_marked(self):
-        return not c.HOURS_FOR_SHIRT or (self.shirt_size_marked and (self.num_event_shirts != -1 or not c.EVENT_SHIRT_OPTS))
+        return not c.HOURS_FOR_SHIRT or (self.shirt_size_marked and (
+                self.num_event_shirts != -1 or not self.gets_staff_shirt or not c.STAFF_EVENT_SHIRT_OPTS))
 
     @property
     def is_group_leader(self):
@@ -1105,7 +1175,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def gets_emails(self):
-        return self.badge_status in [c.NEW_STATUS, c.COMPLETED_STATUS]
+        return self.badge_status in [c.NEW_STATUS, c.COMPLETED_STATUS] and (
+                                    not self.is_dealer or self.group and self.group.status not in [c.DECLINED, c.CANCELLED])
 
     @property
     def watchlist_guess(self):
@@ -1138,7 +1209,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def is_transferable(self):
-        return not self.is_new \
+        return self.badge_status == c.COMPLETED_STATUS \
             and not self.checked_in \
             and (self.paid in [c.HAS_PAID, c.PAID_BY_GROUP] or self.in_promo_code_group) \
             and self.badge_type in c.TRANSFERABLE_BADGE_TYPES \
@@ -1288,7 +1359,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             staff_shirts = '{} Staff Shirt{}'.format(num_staff_shirts_owed, 's' if num_staff_shirts_owed > 1 else '')
             if self.shirt_size_marked:
                 try:
-                    staff_shirts += ' [{}]'.format(c.SHIRTS[self.shirt])
+                    if c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS:
+                        staff_shirts += ' [{}]'.format(c.STAFF_SHIRTS[self.staff_shirt])
+                    else:
+                        staff_shirts += ' [{}]'.format(c.SHIRTS[self.shirt])
                 except KeyError:
                     staff_shirts += ' [{}]'.format("Size unknown")
             merch.append(staff_shirts)
@@ -1425,6 +1499,26 @@ class Attendee(MagModel, TakesPaymentMixin):
     @classproperty
     def _extra_apply_attrs_restricted(cls):
         return set(['requested_depts_ids'])
+
+    @classproperty
+    def searchable_fields(cls):
+        # List of fields for the attendee search to check search terms against
+        return ['first_name', 'last_name', 'legal_name', 'badge_printed_name',
+                'email', 'comments', 'admin_notes', 'for_review', 'promo_code_group_name']
+
+    @classproperty
+    def searchable_bools(cls):
+        return ['placeholder', 'can_spam', 'got_merch', 'got_staff_merch', 'confirmed', 'checked_in', 'staffing', 
+                'agreed_to_volunteer_agreement', 'reviewed_emergency_procedures', 'walk_on_volunteer', 
+                'can_work_setup', 'can_work_teardown', 'hotel_eligible', 'attractions_opt_out']
+    
+    @classproperty
+    def searchable_choices(cls):
+        return ['age_group', 'badge_type', 'badge_status', 'paid', 'amount_extra']
+
+    @classproperty
+    def checkin_bools(self):
+        return ['got_merch'] if c.MERCH_AT_CHECKIN else []
 
     @property
     def assigned_depts_labels(self):
@@ -1940,21 +2034,7 @@ class AttendeeAccount(MagModel):
     @presave_adjustment
     def strip_email(self):
         self.email = self.email.strip()
-
-    @property
-    def has_only_one_badge(self):
-        return len(self.attendees) == 1
-
-    @property
-    def valid_attendees(self):
-        return [attendee for attendee in self.attendees 
-                if attendee.badge_status not in [c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS]]
-
-    @property
-    def refunded_deferred_attendees(self):
-        return [attendee for attendee in self.attendees 
-                if attendee.badge_status in [c.REFUNDED_STATUS, c.DEFERRED_STATUS]]
-
+    
     @hybrid_property
     def normalized_email(self):
         return normalize_email(self.email)
@@ -1962,6 +2042,27 @@ class AttendeeAccount(MagModel):
     @normalized_email.expression
     def normalized_email(cls):
         return func.replace(func.lower(func.trim(cls.email)), '.', '')
+
+    @property
+    def has_only_one_badge(self):
+        return len(self.attendees) == 1
+
+    @property
+    def valid_attendees(self):
+        return [attendee for attendee in self.attendees if attendee.is_valid or attendee.badge_status == c.PENDING_STATUS]
+
+    @property
+    def imported_attendees(self):
+        return [attendee for attendee in self.attendees if attendee.badge_status == c.IMPORTED_STATUS]
+
+    @property
+    def invalid_attendees(self):
+        return [attendee for attendee in self.attendees if not attendee.is_valid and attendee.badge_status != c.PENDING_STATUS]
+
+    @property
+    def refunded_deferred_attendees(self):
+        return [attendee for attendee in self.attendees 
+                if attendee.badge_status in [c.REFUNDED_STATUS, c.DEFERRED_STATUS]]
 
 
 class FoodRestrictions(MagModel):

@@ -10,10 +10,10 @@ from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import render
-from uber.models import Attendee, Email, Session, StripeTransaction
+from uber.models import ApiJob, Attendee, Email, Session, StripeTransaction
 from uber.tasks.email import send_email
 from uber.tasks import celery
-from uber.utils import Charge, localized_now
+from uber.utils import Charge, localized_now, TaskUtils
 
 
 __all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_unassigned_volunteers',
@@ -162,3 +162,23 @@ def check_missed_stripe_payments():
         if payment_intent.id in pending_ids:
             log.debug('Charge is pending, intent ID is {}', payment_intent.id)
             Charge.mark_paid_from_stripe_id(payment_intent.id)
+
+
+@celery.schedule(timedelta(minutes=10))
+def process_api_queue():
+    known_job_names = ['attendee_account_import', 'attendee_import', 'group_import']
+    safety_limit = 1000
+    jobs_processed = 0
+
+    with Session() as session:
+        for job_name in known_job_names:
+            jobs_to_run = session.query(ApiJob).filter(ApiJob.job_name == job_name, ApiJob.queued == None).limit(1000)
+
+            for job in jobs_to_run:
+                getattr(TaskUtils, job_name)(job)
+                session.commit()
+                jobs_processed += 1
+
+            if jobs_processed >= safety_limit:
+                return None
+    return None

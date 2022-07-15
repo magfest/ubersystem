@@ -358,6 +358,7 @@ class MagModel:
         label = self.get_field(name).type.choices.get(val)
         if not label:
             log.debug('{} does not have a label for {}, check your enum generating code', name, val)
+            return ''
         return label
 
     @suffix_property
@@ -564,7 +565,9 @@ class Session(SessionManager):
     # a value of -1, they are not added to the keyword args.
     _engine_kwargs = dict((k, v) for (k, v) in [
         ('pool_size', c.SQLALCHEMY_POOL_SIZE),
-        ('max_overflow', c.SQLALCHEMY_MAX_OVERFLOW)] if v > -1)
+        ('max_overflow', c.SQLALCHEMY_MAX_OVERFLOW),
+        ('pool_pre_ping', True),
+        ('pool_recycle', c.SQLALCHEMY_POOL_RECYCLE)] if v > -1)
     engine = sqlalchemy.create_engine(c.SQLALCHEMY_URL, **_engine_kwargs)
 
     @classmethod
@@ -705,8 +708,12 @@ class Session(SessionManager):
             return self.attendee(cherrypy.session.get('staffer_id'))
 
         def admin_has_staffer_access(self, staffer, access="view"):
+            admin = self.current_admin_account()
+            if admin.full_shifts_admin:
+                return True
+            
             dept_ids_with_inherent_role = [dept_m.department_id for dept_m in 
-                                           self.admin_attendee().dept_memberships_with_inherent_role]
+                                           admin.attendee.dept_memberships_with_inherent_role]
             return set(staffer.assigned_depts_ids).intersection(dept_ids_with_inherent_role)
 
         def admin_can_see_guest_group(self, guest):
@@ -717,10 +724,12 @@ class Session(SessionManager):
             if not admin:
                 return
                 
-            if admin.full_registration_admin or attendee.creator == admin.attendee or attendee == admin.attendee:
+            if admin.full_registration_admin or attendee.creator == admin.attendee or \
+                                                attendee == admin.attendee or attendee.is_new:
                 return AccessGroup.FULL
             
-            return max([admin.max_level_access(section, read_only=read_only) for section in attendee.access_sections])
+            if attendee.access_sections:
+                return max([admin.max_level_access(section, read_only=read_only) for section in attendee.access_sections])
 
         def admin_can_create_attendee(self, attendee):
             admin = self.current_admin_account()
@@ -949,6 +958,13 @@ class Session(SessionManager):
                         return # Don't delete a transaction if it has completed receipt items
                     self.delete(receipt_item)
                 self.delete(stripe_txn)
+
+        def possible_match_list(self):
+            possibles = defaultdict(list)
+            for a in self.valid_attendees():
+                possibles[a.email.lower()].append(a)
+                possibles[a.first_name, a.last_name].append(a)
+            return possibles
 
         def guess_attendee_watchentry(self, attendee, active=True):
             """
@@ -1459,11 +1475,10 @@ class Session(SessionManager):
             return badge
 
         def valid_attendees(self):
-            return self.query(Attendee).filter(Attendee.badge_status != c.INVALID_STATUS)
+            return self.query(Attendee).filter(Attendee.is_valid == True)
 
         def attendees_with_badges(self):
-            return self.query(Attendee).filter(not_(Attendee.badge_status.in_(
-                [c.PENDING_STATUS, c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS])))
+            return self.query(Attendee).filter(Attendee.has_badge == True)
 
         def all_attendees(self, only_staffing=False, pending=False):
             """
@@ -1570,13 +1585,6 @@ class Session(SessionManager):
                                 joinedload(Attendee.promo_code).joinedload(PromoCode.group)
                             ).filter(*filters)
 
-            if ':' in text:
-                target, term = text.split(':', 1)
-                if target == 'email':
-                    return attendees.icontains(Attendee.normalized_email, normalize_email(term))
-                elif target == 'group':
-                    return attendees.icontains(Group.name, term.strip())
-
             terms = text.split()
             if len(terms) == 2:
                 first, last = terms
@@ -1587,22 +1595,22 @@ class Session(SessionManager):
                 first_name_cond = attendees.icontains_condition(first_name=terms)
                 last_name_cond = attendees.icontains_condition(last_name=terms)
                 if attendees.filter(or_(name_cond, legal_name_cond, first_name_cond, last_name_cond)).first():
-                    return attendees.filter(or_(name_cond, legal_name_cond, first_name_cond, last_name_cond))
+                    return attendees.filter(or_(name_cond, legal_name_cond, first_name_cond, last_name_cond)), ''
 
             elif len(terms) == 1 and terms[0].endswith(','):
                 last = terms[0].rstrip(',')
                 name_cond = attendees.icontains_condition(last_name=last)
                 # Known issue: search includes first name if legal name is set
                 legal_cond = attendees.icontains_condition(legal_name=last)
-                return attendees.filter(or_(name_cond, legal_cond))
+                return attendees.filter(or_(name_cond, legal_cond)), ''
 
             elif len(terms) == 1 and terms[0].isdigit():
                 if len(terms[0]) == 10:
-                    return attendees.filter(or_(Attendee.ec_phone == terms[0], Attendee.cellphone == terms[0]))
+                    return attendees.filter(or_(Attendee.ec_phone == terms[0], Attendee.cellphone == terms[0])), ''
                 elif int(terms[0]) <= sorted(
                         c.BADGE_RANGES.items(),
                         key=lambda badge_range: badge_range[1][0])[-1][1][1]:
-                    return attendees.filter(Attendee.badge_num == terms[0])
+                    return attendees.filter(Attendee.badge_num == terms[0]), ''
 
             elif len(terms) == 1 \
                     and re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', terms[0]):
@@ -1612,26 +1620,96 @@ class Session(SessionManager):
                     Attendee.public_id == terms[0],
                     aliased_pcg.id == terms[0],
                     Group.id == terms[0],
-                    Group.public_id == terms[0]))
+                    Group.public_id == terms[0])), ''
 
             elif len(terms) == 1 and terms[0].startswith(c.EVENT_QR_ID):
                 search_uuid = terms[0][len(c.EVENT_QR_ID):]
                 if re.match('^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$', search_uuid):
                     return attendees.filter(or_(
                         Attendee.public_id == search_uuid,
-                        Group.public_id == search_uuid))
+                        Group.public_id == search_uuid)), ''
 
-            checks = [
-                Group.name.ilike('%' + text + '%'),
-                aliased_pcg.name.ilike('%' + text + '%')
-            ]
-            check_attrs = [
-                'first_name', 'last_name', 'legal_name', 'badge_printed_name',
-                'email', 'comments', 'admin_notes', 'for_review', 'promo_code_group_name']
+            or_checks = []
+            and_checks = []
 
-            for attr in check_attrs:
-                checks.append(getattr(Attendee, attr).ilike('%' + text + '%'))
-            return attendees.filter(or_(*checks))
+            def check_text_fields(search_text):
+                check_list = [
+                    Group.name.ilike('%' + search_text + '%'),
+                    aliased_pcg.name.ilike('%' + search_text + '%')
+                ]
+
+                for attr in Attendee.searchable_fields:
+                    check_list.append(getattr(Attendee, attr).ilike('%' + search_text + '%'))
+                
+                return check_list
+
+            if ':' in text:
+                delimited_text = text.replace('AND', 'AND,').replace('OR', 'OR,')
+                list_of_attr_searches = delimited_text.split(',')
+                last_term = None
+
+                for search_text in list_of_attr_searches:
+                    if ':' not in search_text:
+                        last_term = search_text
+                        search_text = search_text.replace('AND', '').replace('OR', '').strip()
+                        or_checks.extend(check_text_fields(search_text))
+                    else:
+                        target, term = search_text.split(':', 1)
+                        target, term = target.strip(), term.strip()
+                        search_term = term.replace('AND', '').replace('OR', '').strip()
+                        if target == 'email':
+                            attr_search_filter = Attendee.icontains(Attendee.normalized_email, normalize_email(search_term))
+                        elif target == 'group':
+                            attr_search_filter = Attendee.icontains(Group.name, search_term.strip())
+                        elif target == 'has_ribbon':
+                            attr_search_filter = Attendee.ribbon == Attendee.ribbon.type.convert_if_labels(search_term.title())
+                        elif target in Attendee.searchable_bools:
+                            t_or_f = search_term.strip().lower() not in ('f', 'false', 'n', 'no', '0', 'none')
+                            attr_search_filter = getattr(Attendee,target) == t_or_f
+                            if not isinstance(getattr(Attendee, target).type, Boolean):
+                                attr_search_filter = getattr(Attendee,target) != None \
+                                    if t_or_f == True else getattr(Attendee,target) == None
+                        elif target in Attendee.searchable_choices:
+                            if target == 'amount_extra':
+                                # Allow searching kick-in by dollar value and not just the label
+                                try:
+                                    search_term = int(search_term.replace('$',''))
+                                except:
+                                    pass
+                            else:
+                                try:
+                                    search_term = getattr(Attendee,target).type.convert_if_label(search_term)
+                                except KeyError:
+                                    # A lot of our labels are title-cased
+                                    try:
+                                        search_term = getattr(Attendee,target).type.convert_if_label(search_term.title())
+                                    except KeyError:
+                                        return None, 'ERROR: {} is not a valid option for {}'.format(search_term, target)
+                            attr_search_filter = getattr(Attendee,target) == search_term
+                        else:
+                            try:
+                                getattr(Attendee,target)
+                            except AttributeError:
+                                return None, 'ERROR: {} is not a valid attribute'.format(target)
+                            attr_search_filter = getattr(Attendee,target) == search_term
+                        
+                        if term.endswith(' OR') or last_term and last_term.endswith(' OR'):
+                            or_checks.append(attr_search_filter)
+                        else:
+                            and_checks.append(attr_search_filter)
+
+                        last_term = term
+            else:
+                or_checks.extend(check_text_fields(text))
+            
+            if or_checks and and_checks:
+                return attendees.filter(or_(*or_checks), and_(*and_checks)), ''
+            elif or_checks:
+                return attendees.filter(or_(*or_checks)), ''
+            elif and_checks:
+                return attendees.filter(and_(*and_checks)), ''
+            else:
+                return attendees, ''
 
         def delete_from_group(self, attendee, group):
             """

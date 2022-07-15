@@ -48,6 +48,18 @@
     </div>
   </div>
   <div class="form-group">
+    <div class="col-sm-offset-3 col-sm-9">
+      <label class="checkbox-label">
+        <input type="checkbox" name="badge_num_required" value="1"
+            {%- if (not is_class and feature.badge_num_required) or attraction.badge_num_required %} checked="checked"{% endif %}/>
+        Require badge number for signups
+      </label>
+      <p class="help-block">
+        The events in this feature will require a badge number to sign up.
+      </p>
+    </div>
+  </div>
+  <div class="form-group">
     <div class="col-sm-9 col-sm-offset-3">
       <input type="submit" name="save" class="btn btn-primary" value="Save">
       <a href="form?id={{ attraction.id }}" type="button" class="btn btn-default">Cancel</a>

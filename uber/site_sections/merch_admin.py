@@ -15,7 +15,7 @@ class Root:
         return {'message': message}
     
     @public
-    def arbitrary_charge_form(self, message='', amount=None, description='', sale_id=None):
+    def arbitrary_charge_form(self, message='', amount=None, description='', email='', sale_id=None):
         charge = False
         if amount is not None:
             if not amount.isdigit() or not (1 <= int(amount) <= 999):
@@ -29,6 +29,7 @@ class Root:
             'charge': charge,
             'message': message,
             'amount': amount,
+            'email': email,
             'description': description,
             'sale_id': sale_id
         }
@@ -42,8 +43,8 @@ class Root:
     @public
     @ajax
     @credit_card
-    def arbitrary_charge(self, session, id, amount, description, return_to='arbitrary_charge_form'):
-        charge = Charge(amount=100 * int(amount), description=description)
+    def arbitrary_charge(self, session, id, amount, description, email, return_to='arbitrary_charge_form'):
+        charge = Charge(amount=100 * int(amount), description=description, receipt_email=email)
         stripe_intent = charge.create_stripe_intent(session)
         message = stripe_intent if isinstance(stripe_intent, string_types) else ''
         if message:
@@ -109,6 +110,11 @@ class Root:
                     got_merch = attendee.got_staff_merch
                 else:
                     merch, got_merch = attendee.merch, attendee.got_merch
+                
+                if staff_merch and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS:
+                    shirt_size = c.STAFF_SHIRTS[attendee.staff_shirt]
+                else:
+                    shirt_size = c.SHIRTS[attendee.shirt]
 
                 if not merch:
                     message = '{a.full_name} ({a.badge}) has no merch'.format(a=attendee)
@@ -116,7 +122,7 @@ class Root:
                     if not (not staff_merch and attendee.gets_swadge
                             and not attendee.got_swadge):
                         message = '{a.full_name} ({a.badge}) already got {merch}. Their shirt size is {shirt}'.format(
-                            a=attendee, merch=merch, shirt=c.SHIRTS[attendee.shirt])
+                            a=attendee, merch=merch, shirt=shirt_size)
                     else:
                         id = attendee.id
                         gets_swadge = True
@@ -134,7 +140,10 @@ class Root:
 
                     if (staff_merch and attendee.num_staff_shirts_owed) or \
                             (not staff_merch and attendee.num_event_shirts_owed):
-                        shirt = attendee.shirt or c.SIZE_UNKNOWN
+                        if staff_merch and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS:
+                            shirt = attendee.staff_shirt or c.SIZE_UNKNOWN
+                        else:
+                            shirt = attendee.shirt or c.SIZE_UNKNOWN
                     else:
                         shirt = c.NO_SHIRT
 
@@ -187,7 +196,10 @@ class Root:
             if give_swadge:
                 attendee.got_swadge = True
             if shirt_size:
-                attendee.shirt = shirt_size
+                if staff_merch and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS:
+                    attendee.staff_shirt = shirt_size
+                else:
+                    attendee.shirt = shirt_size
             if no_shirt:
                 session.add(NoShirt(attendee=attendee))
             success = True

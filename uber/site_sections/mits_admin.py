@@ -68,10 +68,7 @@ class Root:
         }
 
     def badges(self, session):
-        possibles = defaultdict(list)
-        for a in session.valid_attendees():
-            possibles[a.email.lower()].append(a)
-            possibles[a.first_name, a.last_name].append(a)
+        possibles = session.possible_match_list()
 
         applicants = []
         for team in session.mits_teams():

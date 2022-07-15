@@ -129,10 +129,7 @@ class Root:
         }
 
     def badges(self, session):
-        possibles = defaultdict(list)
-        for a in session.valid_attendees():
-            possibles[a.email.lower()].append(a)
-            possibles[a.first_name, a.last_name].append(a)
+        possibles = session.possible_match_list()
 
         applicants = []
         for pa in session.panel_applicants():
@@ -263,6 +260,7 @@ class Root:
             'Past Attendance',
             'Affiliations',
             'Type of Panel',
+            'Tabletop?',
             'Technical Needs',
             'Applied',
             'Panelists'])
@@ -283,6 +281,7 @@ class Root:
                 app.past_attendance,
                 app.affiliations,
                 app.other_presentation if app.presentation == c.OTHER else app.presentation_label,
+                app.tabletop,
                 ' / '.join(app.tech_needs_labels) + (' / ' if app.other_tech_needs else '') + app.other_tech_needs,
                 app.applied.strftime('%Y-%m-%d')
             ] + panelists)

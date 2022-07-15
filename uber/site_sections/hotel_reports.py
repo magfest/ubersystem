@@ -501,7 +501,7 @@ class Root:
             )
 
         hotel_query = session.query(Attendee).filter(*eligibility_filters).filter(
-            Attendee.badge_status.notin_([c.INVALID_STATUS, c.REFUNDED_STATUS]),
+            Attendee.badge_status.notin_([c.INVALID_STATUS, c.REFUNDED_STATUS, c.PENDING_STATUS]),
             Attendee.email != '',
         )  # noqa: E712
 

@@ -1,6 +1,6 @@
 {{ attendee.first_name }},
 
-You still haven't told us whether or not you want space in one of our volunteer hotel room at the upcoming {{ c.EVENT_NAME }}.  If you accept, you'll be assigned to a hotel room with 3 - 4 other volunteers.  You can accept or decline this offer as part of our volunteer checklist at {{ c.URL_BASE }}/staffing/login?first_name={{ attendee.first_name|urlencode }}&last_name={{ attendee.last_name|urlencode }}&email={{ attendee.email|urlencode }}&zip_code={{ attendee.zip_code|urlencode }}
+You still haven't told us whether or not you want space in one of our volunteer hotel room at the upcoming {{ c.EVENT_NAME }}.  If you accept, you'll be assigned to a hotel room with up to 3 other volunteers.  You can accept or decline this offer as part of our volunteer checklist at {{ c.URL_BASE }}/staffing/login?first_name={{ attendee.first_name|urlencode }}&last_name={{ attendee.last_name|urlencode }}&email={{ attendee.email|urlencode }}&zip_code={{ attendee.zip_code|urlencode }}
 
 If you don't sign up by {{ c.ROOM_DEADLINE|datetime_local }} then you will not receive hotel room space.
 

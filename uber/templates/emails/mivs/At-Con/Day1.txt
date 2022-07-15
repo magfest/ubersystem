@@ -1,0 +1,12 @@
+Ahoy {{ game.studio.primary_contact_first_names }},
+
+Today is the first day of {{c.EVENT_NAME}} {{c.EVENT_YEAR}}!
+
+If you have not come by the MIVS Operations table to get your booth placement, you can come by from 10am to 10:30am or after 11:30am.  (MIVS Volunteer training will be happening between 10:30 and 11:30)
+
+Please Check-in today before 12:45pm
+Today's Core Hours are from 1pm-7pm
+Check-out today is from 7pm-7:45pm
+
+Forever your Fan,
+The MIVS Team

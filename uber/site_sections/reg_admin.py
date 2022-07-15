@@ -4,14 +4,15 @@ from uber.models.attendee import AttendeeAccount
 import cherrypy
 from pockets import groupify, listify
 from sqlalchemy import and_, or_, func
-from sqlalchemy.orm import joinedload, raiseload
+from sqlalchemy.orm import joinedload, raiseload, subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c, _config
 from uber.custom_tags import pluralize
-from uber.decorators import all_renderable, not_site_mappable, site_mappable
+from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Department, DeptMembership, DeptMembershipRequest
+from uber.models import ApiJob, Attendee, Department, DeptMembership, DeptMembershipRequest, Group
+from uber.site_sections import devtools
 from uber.utils import get_api_service_from_server, normalize_email
 
 
@@ -67,8 +68,11 @@ class Root:
         if params.get('item_name') and params.get('item_val'):
             model.refunded_items[params.get('item_name')] = params.get('item_val')
             session.add(model)
+            message = "Item marked as refunded"
+        else:
+            message = "ERROR: Item not found"
         
-        raise HTTPRedirect('receipt_items?id={}&message={}', model.id, "Item marked as refunded")
+        raise HTTPRedirect('receipt_items?id={}&message={}', model.id, message)
     
     def remove_refund_item(self, session, id='', **params):
         try:
@@ -77,10 +81,13 @@ class Root:
             model = session.group(id)
         
         if params.get('item_name') and params.get('item_val'):
-            model.refunded_items[params.get('item_name')] = params.get('item_val')
+            del model.refunded_items[params.get('item_name')]
             session.add(model)
+            message = "Refunded item removed"
+        else:
+            message = "ERROR: Refund item not found"
         
-        raise HTTPRedirect('receipt_items?id={}&message={}', model.id, "Refunded item removed")
+        raise HTTPRedirect('receipt_items?id={}&message={}', model.id, message)
 
     @not_site_mappable
     def remove_promo_code(self, session, id=''):
@@ -131,24 +138,98 @@ class Root:
             'attendees': session.query(Attendee).filter(~Attendee.managers.any()).options(raiseload('*')).all(),
         }
 
-    def import_attendees(self, session, target_server='', api_token='', query='', message=''):
+    def payment_pending_attendees(self, session):
+        possibles = session.possible_match_list()
+        attendees = []
+        pending = session.query(Attendee).filter_by(paid=c.PENDING).filter(Attendee.badge_status != c.INVALID_STATUS)
+        for attendee in pending:
+            attendees.append([attendee, set(possibles[attendee.email.lower()] + 
+                                            possibles[attendee.first_name, attendee.last_name])])
+        return {
+            'attendees': attendees,
+        }
+    
+    @ajax
+    def invalidate_badge(self, session, id):
+        attendee = session.attendee(id)
+        attendee.badge_status = c.INVALID_STATUS
+        session.add(attendee)
+
+        session.commit()
+
+        return {'invalidated': id}
+
+    def attendees_who_owe_money(self, session):
+        unpaid_attendees = [attendee for attendee in session.attendees_with_badges() 
+                            if attendee.total_purchased_cost > attendee.amount_paid]
+        return {
+            'attendees': unpaid_attendees,
+        }
+
+    @csv_file
+    @not_site_mappable
+    def attendee_search_export(self, out, session, search_text='', order='last_first', invalid=''):
+        filter = Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS, c.WATCHED_STATUS]) if not invalid else None
+        
+        search_text = search_text.strip()
+        if search_text:
+            attendees, error = session.search(search_text) if invalid else session.search(search_text, filter)
+
+        if error:
+            raise HTTPRedirect('../registration/index?search_text={}&order={}&invalid={}&message={}'
+                              ).format(search_text, order, invalid, error)
+        attendees = attendees.order(order)
+
+        rows = devtools.prepare_model_export(Attendee, filtered_models=attendees)
+        for row in rows:
+            out.writerow(row)
+
+    def attendee_account_form(self, session, id, message=''):
+        account = session.attendee_account(id)
+
+        return {
+            'message': message,
+            'account': account,
+        }
+
+    @site_mappable
+    def import_attendees(self, session, target_server='', api_token='', query='', message='', which_import='', **params):
         service, service_message, target_url = get_api_service_from_server(target_server, api_token)
         message = message or service_message
 
         attendees, existing_attendees, results = {}, {}, {}
+        accounts, existing_accounts = {}, {}
+        groups, existing_groups = {}, {}
+        results_name, href_base = '', ''
 
-        if service:
+        if service and which_import:
             try:
-                results = service.attendee.export(query=query)
+                if which_import == 'attendees':
+                    results = service.attendee.export(query=query)
+                    results_name = 'attendees'
+                    href_base = '{}/reg_admin/attendee_account_form?id={}'
+                elif which_import == 'accounts':
+                    results = service.attendee_account.export(query=query, all=params.get('all', False))
+                    results_name = 'accounts'
+                    href_base = '{}/registration/form?id={}'
+                elif which_import == 'groups':
+                    if params.get('dealers', ''):
+                        results = service.group.dealers(status=params.get('status', None))
+                    else:
+                        results = service.group.export(query=query)
+                    results_name = 'groups'
+                    href_base = '{}/group_admin/form?id={}'
+
             except Exception as ex:
                 message = str(ex)
 
         if cherrypy.request.method == 'POST' and not message:
-            attendees = results.get('attendees', [])
-            for attendee in attendees:
-                attendee['href'] = '{}/registration/form?id={}'.format(target_url, attendee['id'])
+            models = results.get(results_name, [])
+            for model in models:
+                model['href'] = href_base.format(target_url, model['id'])
 
-            if attendees:
+            if models and which_import == 'attendees':
+                attendees = models
                 attendees_by_name_email = groupify(attendees, lambda a: (
                     a['first_name'].lower(),
                     a['last_name'].lower(),
@@ -170,17 +251,45 @@ class Root:
                     attendees_by_name_email.pop(existing_key, {})
                 attendees = list(chain(*attendees_by_name_email.values()))
 
+            if models and which_import == 'accounts':
+                accounts = models
+                accounts_by_email = groupify(accounts, lambda a: normalize_email(a['email']))
+
+                existing_accounts = session.query(AttendeeAccount).filter(
+                    AttendeeAccount.normalized_email.in_(accounts_by_email.keys())) \
+                    .options(subqueryload(AttendeeAccount.attendees)).all()
+                for account in existing_accounts:
+                    existing_key = account.normalized_email
+                    accounts_by_email.pop(existing_key, {})
+                accounts = list(chain(*accounts_by_email.values()))
+
+            if models and which_import == 'groups':
+                groups = models
+                groups_by_name = groupify(groups, lambda g: g['name'])
+
+                """existing_groups = session.query(Group).filter(Group.name.in_(groups_by_name.keys())) \
+                    .options(subqueryload(Group.attendees)).all()
+                for group in existing_groups:
+                    existing_key = group.name
+                    groups_by_name.pop(existing_key, {})"""
+                groups = list(chain(*groups_by_name.values()))
+
         return {
             'target_server': target_server,
             'api_token': api_token,
             'query': query,
             'message': message,
+            'which_import': which_import,
             'unknown_ids': results.get('unknown_ids', []),
             'unknown_emails': results.get('unknown_emails', []),
             'unknown_names': results.get('unknown_names', []),
             'unknown_names_and_emails': results.get('unknown_names_and_emails', []),
             'attendees': attendees,
             'existing_attendees': existing_attendees,
+            'accounts': accounts,
+            'existing_accounts': existing_accounts,
+            'groups': groups,
+            'existing_groups': existing_groups,
         }
 
     def confirm_import_attendees(self, session, badge_type, admin_notes, target_server, api_token, query, attendee_ids):
@@ -190,102 +299,148 @@ class Root:
                                api_token,
                                query)
 
-        service, message, target_url = get_api_service_from_server(target_server, api_token)
+        admin_id = cherrypy.session.get('account_id')
+        admin_name = session.admin_attendee().full_name
+        already_queued = 0
+        attendee_ids = attendee_ids if isinstance(attendee_ids, list) else [attendee_ids]
 
-        try:
-            results = service.attendee.export(query=','.join(listify(attendee_ids)), full=True)
-        except Exception as ex:
-            raise HTTPRedirect(
-                'import_attendees?target_server={}&api_token={}&query={}&message={}',
-                target_server, remote_api_token, query, str(ex))
-
-        depts = {}
-
-        def _guess_dept(id_name):
-            id, name = id_name
-            if id in depts:
-                return (id, depts[id])
-
-            dept = session.query(Department).filter(or_(
-                Department.id == id,
-                Department.normalized_name == Department.normalize_name(name))).first()
-
-            if dept:
-                depts[id] = dept
-                return (id, dept)
-            return None
-
-        badge_type = int(badge_type)
-        badge_label = c.BADGES[badge_type].lower()
-
-        attendees = results.get('attendees', [])
-        for d in attendees:
-            import_from_url = '{}/registration/form?id={}\n\n'.format(target_url, d['id'])
-            new_admin_notes = '{}\n\n'.format(admin_notes) if admin_notes else ''
-            old_admin_notes = 'Old Admin Notes:\n{}\n'.format(d['admin_notes']) if d['admin_notes'] else ''
-
-            d.update({
-                'badge_type': badge_type,
-                'badge_status': c.NEW_STATUS,
-                'paid': c.NEED_NOT_PAY,
-                'placeholder': True,
-                'requested_hotel_info': True,
-                'admin_notes': 'Imported {} from {}{}{}'.format(
-                    badge_label, import_from_url, new_admin_notes, old_admin_notes),
-                'past_years': d['all_years'],
-            })
-            del d['id']
-            del d['all_years']
-
-            if badge_type != c.STAFF_BADGE:
-                attendee = Attendee().apply(d, restricted=False)
-
+        for id in attendee_ids:
+            existing_import = session.query(ApiJob).filter(ApiJob.job_name == "attendee_import",
+                                            ApiJob.query == id,
+                                            ApiJob.cancelled == None,
+                                            ApiJob.errors == '').count()
+            if existing_import:
+                already_queued += 1
             else:
-                assigned_depts = {d[0]: d[1] for d in map(_guess_dept, d.pop('assigned_depts', {}).items()) if d}
-                checklist_admin_depts = d.pop('checklist_admin_depts', {})
-                dept_head_depts = d.pop('dept_head_depts', {})
-                poc_depts = d.pop('poc_depts', {})
-                requested_depts = d.pop('requested_depts', {})
+                session.add(ApiJob(
+                    admin_id = admin_id,
+                    admin_name = admin_name,
+                    job_name = "attendee_import",
+                    target_server = target_server,
+                    api_token = api_token,
+                    query = id,
+                    json_data = {'badge_type': badge_type, 'admin_notes': admin_notes, 'full': True}
+                ))
+            session.commit()
 
-                d.update({
-                    'staffing': True,
-                    'ribbon': str(c.DEPT_HEAD_RIBBON) if dept_head_depts else '',
-                })
+        attendee_count = len(attendee_ids) - already_queued
+        badge_label = c.BADGES[int(badge_type)].lower()
 
-                attendee = Attendee().apply(d, restricted=False)
+        if len(attendee_ids) > 100:
+            query = '' # Clear very large queries to prevent 502 errors
 
-                for id, dept in assigned_depts.items():
-                    attendee.dept_memberships.append(DeptMembership(
-                        department=dept,
-                        attendee=attendee,
-                        is_checklist_admin=bool(id in checklist_admin_depts),
-                        is_dept_head=bool(id in dept_head_depts),
-                        is_poc=bool(id in poc_depts),
-                    ))
-
-                requested_anywhere = requested_depts.pop('All', False)
-                requested_depts = {d[0]: d[1] for d in map(_guess_dept, requested_depts.items()) if d}
-
-                if requested_anywhere:
-                    attendee.dept_membership_requests.append(DeptMembershipRequest(attendee=attendee))
-                for id, dept in requested_depts.items():
-                    attendee.dept_membership_requests.append(DeptMembershipRequest(
-                        department=dept,
-                        attendee=attendee,
-                    ))
-
-            session.add(attendee)
-
-        attendee_count = len(attendees)
         raise HTTPRedirect(
             'import_attendees?target_server={}&api_token={}&query={}&message={}',
             target_server,
             api_token,
             query,
-            '{count} attendee{s} imported with {a}{badge_label} badge{s}'.format(
+            '{count} attendee{s} imported with {a}{badge_label} badge{s}.{queued}'.format(
                 count=attendee_count,
                 s=pluralize(attendee_count),
                 a=pluralize(attendee_count, singular='an ' if badge_label.startswith('a') else 'a ', plural=''),
                 badge_label=badge_label,
+                queued='' if not already_queued else ' {} badges are already queued for import.'.format(already_queued),
             )
+        )
+
+    def confirm_import_attendee_accounts(self, session, target_server, api_token, query, account_ids):
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('import_attendees?target_server={}&api_token={}&query={}&which_import={}',
+                               target_server,
+                               api_token,
+                               query,
+                               'accounts')
+
+        admin_id = cherrypy.session.get('account_id')
+        admin_name = session.admin_attendee().full_name
+        already_queued = 0
+        account_ids = account_ids if isinstance(account_ids, list) else [account_ids]
+
+        for id in account_ids:
+            existing_import = session.query(ApiJob).filter(ApiJob.job_name == "attendee_account_import",
+                                            ApiJob.query == id,
+                                            ApiJob.completed == None,
+                                            ApiJob.cancelled == None,
+                                            ApiJob.errors == '').count()
+            if existing_import:
+                already_queued += 1
+            else:
+                session.add(ApiJob(
+                    admin_id = admin_id,
+                    admin_name = admin_name,
+                    job_name = "attendee_account_import",
+                    target_server = target_server,
+                    api_token = api_token,
+                    query = id,
+                    json_data = {'all': False}
+                ))
+            session.commit()
+
+        attendee_count = len(account_ids) - already_queued
+
+        if len(account_ids) > 100:
+            query = '' # Clear very large queries to prevent 502 errors
+
+        raise HTTPRedirect(
+            'import_attendees?target_server={}&api_token={}&query={}&message={}&which_import={}',
+            target_server,
+            api_token,
+            query,
+            '{count} attendee account{s} queued for import.{queued}'.format(
+                count=attendee_count,
+                s=pluralize(attendee_count),
+                queued='' if not already_queued else ' {} accounts are already queued for import.'.format(already_queued),
+            ),
+            'accounts',
+        )
+    
+    def confirm_import_groups(self, session, target_server, api_token, query, group_ids):
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('import_attendees?target_server={}&api_token={}&query={}&which_import={}',
+                               target_server,
+                               api_token,
+                               query,
+                               'groups')
+
+        admin_id = cherrypy.session.get('account_id')
+        admin_name = session.admin_attendee().full_name
+        already_queued = 0
+        group_ids = group_ids if isinstance(group_ids, list) else [group_ids]
+
+        for id in group_ids:
+            existing_import = session.query(ApiJob).filter(ApiJob.job_name == "group_import",
+                                            ApiJob.query == id,
+                                            ApiJob.completed == None,
+                                            ApiJob.cancelled == None,
+                                            ApiJob.errors == '').count()
+            if existing_import:
+                already_queued += 1
+            else:
+                session.add(ApiJob(
+                    admin_id = admin_id,
+                    admin_name = admin_name,
+                    job_name = "group_import",
+                    target_server = target_server,
+                    api_token = api_token,
+                    query = id,
+                    json_data = {'all': True}
+                ))
+            session.commit()
+
+        attendee_count = len(group_ids) - already_queued
+
+        if len(group_ids) > 100:
+            query = '' # Clear very large queries to prevent 502 errors
+
+        raise HTTPRedirect(
+            'import_attendees?target_server={}&api_token={}&query={}&message={}&which_import={}',
+            target_server,
+            api_token,
+            query,
+            '{count} group{s} queued for import.{queued}'.format(
+                count=attendee_count,
+                s=pluralize(attendee_count),
+                queued='' if not already_queued else ' {} groups are already queued for import.'.format(already_queued),
+            ),
+            'groups',
         )

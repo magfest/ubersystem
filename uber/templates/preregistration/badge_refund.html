@@ -13,14 +13,16 @@
             As a leader of a group, you cannot abandon your badge.
         {% elif attendee.amount_paid %}
             We cannot automatically refund your badge at the moment due to technical difficulties.
+        {% elif attendee.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] %}
+            Please contact {{ c.STAFF_EMAIL|email_only }} to cancel or defer your badge.
         {% elif attendee.paid == c.NEED_NOT_PAY %}
             You cannot abandon a comped badge.
         {% elif attendee.checked_in %}
             This badge has already been picked up.
         {% endif %}
-    {% if not c.BEFORE_REFUND_CUTOFF %}Please {% if attendee.is_transferable %}transfer your badge instead or
-    {% endif %}contact us at {{ c.REGDESK_EMAIL|email_only }}{% if c.SELF_SERVICE_REFUNDS_OPEN %} to make sure your refund gets processed.{% endif %}
-    {% endif %}
+        {% if attendee.badge_type not in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] and not c.BEFORE_REFUND_CUTOFF %}Please {% if attendee.is_transferable %}transfer your badge instead or
+        {% endif %}contact us at {{ c.REGDESK_EMAIL|email_only }}{% if c.SELF_SERVICE_REFUNDS_OPEN %} to make sure your refund gets processed.{% endif %}
+        {% endif %}
     {% endset %}
     <span class="tooltip-wrapper" tabindex="0" data-toggle="tooltip" data-placement="top"{% if must_keep %} title="{{ abandon_hover_text }}"{% endif %}>
     {% endif %}

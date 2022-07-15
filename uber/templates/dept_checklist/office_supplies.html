@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Department Checklist - Office Supplies{% endblock %}
+{% block content %}
+
+<h2>Office Supplies for {{ department.name }}</h2>
+
+<h3><a href="{{ c.OFFICE_SUPPLIES_FORM_URL }}" target="_blank">{{ c.EVENT_NAME }} Office Supplies Form</a></h3>
+
+<form method="post" action="office_supplies">
+{{ csrf_token() }}
+<input type="hidden" name="department_id" value="{{ department.id }}" />
+Once you've filled out the form above, or if your department doesn't
+need any office supplies, please click the button below.<br/>
+<br/>
+<input type="submit" name="submitted" value="I Have Filled out the Office Supplies Request Form" />
+</form>
+
+{% endblock %}

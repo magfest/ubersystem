@@ -233,6 +233,14 @@ class Root:
     @department_id_adapter
     def logistics(self, session, department_id=None, submitted=None, csrf_token=None):
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'logistics')
+
+    @department_id_adapter
+    def ppe_requests(self, session, department_id=None, submitted=None, csrf_token=None):
+        return _submit_checklist_item(session, department_id, submitted, csrf_token, 'ppe_requests')
+    
+    @department_id_adapter
+    def office_supplies(self, session, department_id=None, submitted=None, csrf_token=None):
+        return _submit_checklist_item(session, department_id, submitted, csrf_token, 'office_supplies')
     
     @department_id_adapter
     def printed_signs(self, session, department_id=None, submitted=None, csrf_token=None):
@@ -278,7 +286,7 @@ class Root:
 
     @department_id_adapter
     def hotel_requests(self, session, department_id=None):
-        redirect_to_allowed_dept(session, department_id, 'index')
+        redirect_to_allowed_dept(session, department_id, 'hotel_requests')
 
         if department_id == 'All':
             department_id = None

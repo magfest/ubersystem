@@ -1,0 +1,46 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}All Shifts{% endblock %}
+{% block content %}
+{% include "shifts_admin/main_menu.html" %}
+
+<style type="text/css">
+  h2 {
+    margin-bottom: 40px;
+  }
+
+  #jobs-container #volunteers {
+    top: 65px;
+  }
+</style>
+
+<p>
+  <a href="unfilled_shifts?department_id={{ department_id }}&toggle_filter=unfilled_show_past_shifts" class="btn btn-xs 
+          {% if show_past_shifts %}btn-plain{% else %}btn-default{% endif %}">
+    <span class="glyphicon glyphicon-filter"></span>
+    Show Past Shifts
+  </a>
+
+  <a href="unfilled_shifts?department_id={{ department_id }}&toggle_filter=unfilled_show_restricted" class="btn btn-xs 
+          {% if show_restricted %}btn-plain{% else %}btn-default{% endif %}">
+    <span class="glyphicon glyphicon-filter"></span>
+    Show Restricted
+  </a>
+
+  <a href="unfilled_shifts?department_id={{ department_id }}&toggle_filter=unfilled_show_nonpublic" class="btn btn-xs 
+          {% if show_nonpublic %}btn-plain{% else %}btn-default{% endif %}">
+    <span class="glyphicon glyphicon-filter"></span>
+    Show Non Public
+  </a>
+</p>
+
+<script type="text/javascript">
+SHOW_FULL_JOBS = false;
+$().ready(function() {
+  replaceQueryParamInUrl('toggle_filter'); // prevent re-toggling filter on refresh
+});
+</script>
+<div id="jobs-container">
+{% include "shifts_admin/job_renderer.html" %}
+</div>
+
+{% endblock %}

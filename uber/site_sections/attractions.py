@@ -139,7 +139,7 @@ class Root:
             raise HTTPRedirect('index')
         if attendee.amount_unpaid:
             raise HTTPRedirect(
-                '../preregistration/attendee_donation_form?id={}', attendee.id)
+                '{}?id={}', attendee.payment_page, attendee.id)
         return {
             'attractions': session.query(Attraction).order_by('name').all(),
             'attendee': attendee,
@@ -167,9 +167,11 @@ class Root:
     @ajax
     def signup_for_event(self, session, id, badge_num='', first_name='',
                          last_name='', email='', zip_code='', **params):
+        event = _model_for_id(session, AttractionEvent, id)
+        if not event:
+            return {'error': 'Unrecognized event id: {}'.format(id)}
 
-        # Badge number during the event is a hard requirement for Autographs
-        if badge_num or c.AFTER_EPOCH:
+        if badge_num or event.feature.badge_num_required:
             attendee = _attendee_for_badge_num(session, badge_num)
             if not attendee:
                 return {
@@ -187,10 +189,6 @@ class Root:
         if attendee.attractions_opt_out:
             return {'error': 'That attendee has disabled attraction signups'}
 
-        event = _model_for_id(session, AttractionEvent, id)
-        if not event:
-            return {'error': 'Unrecognized event id: {}'.format(id)}
-
         old_remaining_slots = event.remaining_slots
 
         if event not in attendee.attraction_events:
@@ -206,6 +204,9 @@ class Root:
 
             if event.is_sold_out:
                 return {'error': '{} is already sold out'.format(event.label)}
+            
+            if not event.signups_open:
+                return {'error': '{} is not yet available for signups'.format(event.label)}
 
             event.attendee_signups.append(attendee)
             session.commit()

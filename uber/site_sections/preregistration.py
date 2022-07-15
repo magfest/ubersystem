@@ -70,10 +70,11 @@ def rollback_prereg_session(session):
         cherrypy.session['unpaid_preregs'] = Charge.pending_preregs.copy()
 
         attendee = session.attendee(Charge.pending_preregs.popitem()[0])
-        account = attendee.managers[0]
-        if account and not any(attendee.badge_status != c.PENDING_STATUS for attendee in account.attendees):
-            session.delete(account)
-            cherrypy.session['attendee_account_id'] = ''
+        if attendee.managers:
+            account = attendee.managers[0]
+            if account and not any(attendee.badge_status != c.PENDING_STATUS for attendee in account.attendees):
+                session.delete(account)
+                cherrypy.session['attendee_account_id'] = ''
 
         Charge.pending_preregs.clear()
     session.commit()
@@ -246,14 +247,14 @@ class Root:
         return self.form(badge_type=c.PSEUDO_DEALER_BADGE, message=message, invite_code=invite_code)
 
     @check_if_can_reg
-    def repurchase(self, session, id, **params):
-        if 'csrf_token' in params:
+    def repurchase(self, session, id, skip_confirm=False, **params):
+        if skip_confirm or 'csrf_token' in params:
             old_attendee = session.attendee(id).to_dict(c.UNTRANSFERABLE_ATTRS)
             del old_attendee['id']
             new_attendee = Attendee(**old_attendee)
             Charge.unpaid_preregs[new_attendee.id] = Charge.to_sessionized(new_attendee)
             Tracking.track(c.UNPAID_PREREG, new_attendee)
-            raise HTTPRedirect("form?edit_id={}", new_attendee.id)
+            raise HTTPRedirect("form?edit_id={}&repurchase=1", new_attendee.id)
         return {
             'id': id
         }
@@ -276,7 +277,8 @@ class Root:
                 edit_id,
                 if_not_found=HTTPRedirect('form?message={}', 'That preregistration has already been finalized'))
             attendee.apply(params, restricted=True)
-            params.setdefault('pii_consent', True)
+            if not params.get('repurchase'):
+                params.setdefault('pii_consent', True)
         else:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
 
@@ -530,6 +532,8 @@ class Root:
                     raise HTTPRedirect('index?message={}', message)
                 elif c.ATTENDEE_ACCOUNTS_ENABLED:
                     session.add_attendee_to_account(attendee, new_or_existing_account)
+                else:
+                    session.add(attendee)
 
             for group in charge.groups:
                 session.add(group)
@@ -555,6 +559,9 @@ class Root:
             for attendee in charge.attendees:
                 if not message and attendee.promo_code_id:
                     message = check_prereg_promo_code(session, attendee)
+            
+            if not message:
+                message = check(attendee, prereg=True)
             
             if not message:
                 stripe_intent = charge.create_stripe_intent(session)
@@ -870,7 +877,7 @@ class Root:
                     attendee.registered = localized_now()
 
                 if attendee.amount_unpaid:
-                    raise HTTPRedirect('attendee_donation_form?id={}', attendee.id)
+                    raise HTTPRedirect(attendee.payment_page)
                 else:
                     raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Badge registered successfully')
 
@@ -1013,7 +1020,7 @@ class Root:
                     log.error('unable to send badge change email', exc_info=True)
 
                 if attendee.amount_unpaid:
-                    raise HTTPRedirect('attendee_donation_form?id={}', attendee.id)
+                    raise HTTPRedirect(attendee.payment_page)
                 else:
                     raise HTTPRedirect(
                         'badge_updated?id={}&message={}', attendee.id, 'Your registration has been transferred')
@@ -1026,6 +1033,33 @@ class Root:
             'attendee': attendee,
             'message':  message,
             'affiliates': session.affiliates()
+        }
+
+    @id_required(Attendee)
+    @requires_account(Attendee)
+    @log_pageview
+    def defer_badge(self, session, message='', **params):
+        attendee = session.attendee(params)
+
+        assert attendee.can_defer_badge, 'You cannot defer your badge at this time.'
+
+        if cherrypy.request.method == 'POST':
+            message = check(attendee)
+
+            if not message:
+                attendee.badge_status = c.DEFERRED_STATUS
+                session.add(attendee)
+                session.commit()
+
+                if attendee.amount_unpaid:
+                    raise HTTPRedirect(attendee.payment_page + '&payment_label=merch_shipping_fee')
+                else:
+                    raise HTTPRedirect(
+                        'badge_updated?id={}&message={}', attendee.id, 'Your registration has been deferred')
+
+        return {
+            'attendee': attendee,
+            'message':  message,
         }
 
     def invalid_badge(self, session, id, message=''):
@@ -1111,7 +1145,7 @@ class Root:
         from uber.utils import create_valid_user_supplied_redirect_url, ensure_csrf_token_exists
         original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
 
-        if 'email' or 'login_email' in params:
+        if 'email' in params or 'login_email' in params:
             email = params.get('login_email', params.get('email', ''))
             password = params.get('login_password', params.get('password', ''))
             account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(email)).first()
@@ -1137,11 +1171,6 @@ class Root:
         if not account:
             raise HTTPRedirect('../landing/index')
 
-        if account.has_only_one_badge and account.attendees[0].badge_status != c.INVALID_STATUS:
-            if account.attendees[0].is_group_leader:
-                raise HTTPRedirect('group_members?id={}&message={}', account.attendees[0].group.id, message)
-            else:
-                raise HTTPRedirect('confirm?id={}&message={}', account.attendees[0].id, message)
         return {
             'message': message,
             'account': account,
@@ -1191,18 +1220,18 @@ class Root:
 
                 page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
                 if attendee.amount_unpaid:
-                    raise HTTPRedirect('attendee_donation_form?id={}', attendee.id)
+                    raise HTTPRedirect(attendee.payment_page)
                 else:
                     raise HTTPRedirect(page + 'message=' + message)
 
         elif attendee.amount_unpaid and attendee.zip_code and not undoing_extra and cherrypy.request.method == 'POST':
             # Don't skip to payment until the form is filled out
-            raise HTTPRedirect('attendee_donation_form?id={}&message={}', attendee.id, message)
+            raise HTTPRedirect('{}&message={}', attendee.payment_page, message)
 
         attendee.placeholder = placeholder
         if not message and attendee.placeholder:
             message = 'You are not yet registered!  You must fill out this form to complete your registration.'
-        elif not message and not c.ATTENDEE_ACCOUNTS_ENABLED:
+        elif not message and not c.ATTENDEE_ACCOUNTS_ENABLED and attendee.badge_status == c.COMPLETED_STATUS:
             message = 'You are already registered but you may update your information with this form.'
 
         return {
@@ -1251,8 +1280,8 @@ class Root:
         if 'account_email' in params:
             account_email = params['account_email']
             account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(account_email)).first()
-            if 'is_admin' in params:
-                success_url = "../reg_admin/attendee_accounts?message=Password reset email sent."
+            if 'admin_url' in params:
+                success_url = "../{}message=Password reset email sent.".format(params['admin_url'])
             else:
                 success_url = "../landing/index?message=Check your email for a password reset link."
             if not account:
@@ -1327,7 +1356,7 @@ class Root:
 
     @id_required(Attendee)
     @requires_account(Attendee)
-    def attendee_donation_form(self, session, id, message=''):
+    def attendee_donation_form(self, session, id, message='', payment_label=''):
         attendee = session.attendee(id)
         if attendee.amount_unpaid <= 0:
             raise HTTPRedirect('confirm?id={}', id)
@@ -1337,6 +1366,7 @@ class Root:
         return {
             'message': message,
             'attendee': attendee,
+            'payment_label': payment_label,
         }
 
     @requires_account(Attendee)

@@ -34,7 +34,7 @@
             <td>{{ shift.job.department_name }}</td>
             <td>{{ hour_day_local(shift.job.start_time) }}</td>
             <td>{% if shift.job.is_setup or shift.job.is_teardown %}__________
-                {% else %}{{ shift.job.duration }}{% endif %}</td>
+                {% else %}{{ (shift.job.duration / 60)|int }}{% endif %}</td>
             <td>(x{{ shift.job.weight }})</td>
             <td>__________</td>
         </tr>

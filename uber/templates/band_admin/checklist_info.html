@@ -86,6 +86,18 @@
   {{ macros.form_group(guest.charity, 'donating_label', label='Charity', is_readonly=True) }}
   {{ macros.form_group(guest.charity, 'desc', label='Donation', is_readonly=True) }}
 
+  {% if guest.autograph.num %}
+    <div class="form-group">
+    <label class="col-sm-3 control-label">Autographs</label>
+    <div class="col-sm-6">
+      <div class="form-control-static">
+        This guest has expressed interest in running {{ guest.autograph.num }} autograph
+        session{{ guest.autograph.num|pluralize }} of {{ guest.autograph.length//60 }} hours.
+      </div>
+    </div>
+    </div>
+  {% endif %}
+
   {{ macros.form_group(guest, 'payment', type='number',
         help="""The number of dollars we're paying the band.  If you leave this
         at zero, then no mention of payment will be made in their performance contract,

@@ -142,7 +142,7 @@ class Tracking(MagModel):
         elif action == c.UPDATED:
             diff = cls.differences(instance)
             data = cls.format(diff)
-            if len(diff) == 1 and 'badge_num' in diff:
+            if len(diff) == 1 and 'badge_num' in diff and c.SHIFT_CUSTOM_BADGES:
                 action = c.AUTO_BADGE_SHIFT
             elif not data:
                 return
@@ -151,7 +151,9 @@ class Tracking(MagModel):
 
         links = ', '.join(
             '{}({})'.format(list(column.foreign_keys)[0].column.table.name, getattr(instance, name))
-            for name, column in instance.__table__.columns.items() if column.foreign_keys and getattr(instance, name))
+            for name, column in instance.__table__.columns.items() if column.foreign_keys
+                                                                   and 'creator' not in str(column)
+                                                                   and getattr(instance, name))
 
         if sys.argv == ['']:
             who = 'server admin'

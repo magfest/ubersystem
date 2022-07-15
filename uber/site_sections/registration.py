@@ -77,7 +77,9 @@ class Root:
         count = 0
         search_text = search_text.strip()
         if search_text:
-            attendees = session.search(search_text) if invalid else session.search(search_text, filter)
+            search_results, message = session.search(search_text) if invalid else session.search(search_text, filter)
+            if search_results:
+                attendees = search_results
             count = attendees.count()
         if not count:
             attendees = attendees.options(joinedload(Attendee.group))
@@ -88,7 +90,7 @@ class Root:
         page = int(page)
         if search_text:
             page = page or 1
-            if search_text and count == total_count:
+            if search_text and count == total_count and not message:
                 message = 'No matches found'
             elif search_text and count == 1 and not c.AT_THE_CON:
                 raise HTTPRedirect(
@@ -111,6 +113,7 @@ class Root:
             'search_results': bool(search_text),
             'attendees':      attendees,
             'order':          Order(order),
+            'search_count':   count,
             'attendee_count': total_count,
             'checkin_count':  session.query(Attendee).filter(Attendee.checked_in != None).count(),
             'attendee':       session.attendee(uploaded_id, allow_invalid=True) if uploaded_id else None,
@@ -169,10 +172,16 @@ class Root:
                         stay_on_form = True
                     else:
                         attendee.checked_in = localized_now()
-                        session.commit()
-                        message = '{} saved and checked in as {}{}'.format(
-                            attendee.full_name, attendee.badge, attendee.accoutrements)
-                        stay_on_form = False
+                        message = check(attendee)
+                        if message:
+                            message = "Attendee saved, but they cannot check in. Reason: {}".format(message)
+                            attendee.checked_in = None
+                            stay_on_form = True
+                        else:
+                            session.commit()
+                            message = '{} saved and checked in as {}{}'.format(
+                                attendee.full_name, attendee.badge, attendee.accoutrements)
+                            stay_on_form = False
                         
                 if stay_on_form:
                     raise HTTPRedirect('form?id={}&message={}&return_to={}', attendee.id, message, return_to)
@@ -323,10 +332,10 @@ class Root:
                                 .filter(or_(Email.to == attendee.email,
                                             and_(Email.model == 'Attendee', Email.fk_id == id)))
                                 .order_by(Email.when).all(),
-            'changes':   session.query(Tracking)
-                                .filter(or_(Tracking.links.like('%attendee({})%'.format(id)),
-                                            and_(Tracking.model == 'Attendee', Tracking.fk_id == id)))
-                                .order_by(Tracking.when).all(),
+            # TODO: Remove `, Tracking.model != 'Attendee'` for next event
+            'changes': session.query(Tracking).filter(
+                or_(and_(Tracking.links.like('%attendee({})%'.format(id)), Tracking.model != 'Attendee'),
+                    and_(Tracking.model == 'Attendee', Tracking.fk_id == id))).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Attendee id={}".format(id))
         }
 
@@ -480,7 +489,7 @@ class Root:
     @check_for_encrypted_badge_num
     @ajax
     def check_in(self, session, message='', group_id='', **params):
-        bools = ['got_merch'] if c.MERCH_AT_CHECKIN else []
+        bools = Attendee.checkin_bools
         attendee = session.attendee(params, allow_invalid=True, bools=bools)
         group = attendee.group or (session.group(group_id) if group_id else None)
 
@@ -495,12 +504,13 @@ class Root:
             message = 'You must select a group for this attendee.'
 
         if not message:
-            message = ''
-            success = True
             attendee.checked_in = localized_now()
-            session.commit()
-            increment = True
-            message += '{} checked in as {}{}'.format(attendee.full_name, attendee.badge, attendee.accoutrements)
+            message = check(attendee)
+            if not message:
+                success = True
+                session.commit()
+                increment = True
+                message = '{} checked in as {}{}'.format(attendee.full_name, attendee.badge, attendee.accoutrements)
 
         return {
             'success':    success,
@@ -958,8 +968,9 @@ class Root:
             'emails': session.query(Email).filter(
                 or_(Email.to == attendee.email,
                     and_(Email.model == 'Attendee', Email.fk_id == id))).order_by(Email.when).all(),
+            # TODO: Remove `, Tracking.model != 'Attendee'` for next event
             'changes': session.query(Tracking).filter(
-                or_(Tracking.links.like('%attendee({})%'.format(id)),
+                or_(and_(Tracking.links.like('%attendee({})%'.format(id)), Tracking.model != 'Attendee'),
                     and_(Tracking.model == 'Attendee', Tracking.fk_id == id))).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.what == "Attendee id={}".format(id)),
         }
@@ -1064,7 +1075,8 @@ class Root:
     
     def pending_badges(self, session, message=''):
         return {
-            'pending_badges': session.query(Attendee).filter_by(badge_status=c.PENDING_STATUS),
+            'pending_badges': session.query(Attendee)\
+                .filter_by(badge_status=c.PENDING_STATUS).filter(Attendee.paid != c.PENDING),
             'message': message,
         }
 

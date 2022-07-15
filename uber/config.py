@@ -238,6 +238,9 @@ class Config(_Overridable):
 
         if section_and_page in access or section in access:
             return True
+        
+        if section == 'group_admin' and any(x in access for x in ['dealer_admin', 'guest_admin', 'band_admin', 'mivs_admin']):
+            return True
 
     @property
     def DEALER_REG_OPEN(self):
@@ -343,6 +346,8 @@ class Config(_Overridable):
     @property
     def PREREG_BADGE_TYPES(self):
         types = [self.ATTENDEE_BADGE, self.PSEUDO_DEALER_BADGE]
+        if c.AGE_GROUP_CONFIGS[c.UNDER_13]['can_register']:
+            types.append(self.CHILD_BADGE)
         for reg_open, badge_type in [(self.BEFORE_GROUP_PREREG_TAKEDOWN, self.PSEUDO_GROUP_BADGE)]:
             if reg_open:
                 types.append(badge_type)
@@ -423,23 +428,15 @@ class Config(_Overridable):
             return self.DONATION_TIER_OPTS
 
     @property
-    def PREREG_DONATION_DESCRIPTIONS(self):
-        # include only the items that are actually available for purchase
-        if not self.SHARED_KICKIN_STOCKS:
-            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
-                             if tier[1]['price'] not in self.kickin_availability_matrix
-                             or self.kickin_availability_matrix[tier[1]['price']]]
-        elif self.BEFORE_SHIRT_DEADLINE and not self.SHIRT_AVAILABLE:
-            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
-                             if tier[1]['price'] < self.SHIRT_LEVEL]
-        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
-            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
-                             if tier[1]['price'] < self.SUPPORTER_LEVEL]
-        elif self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
-            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
-                             if tier[1]['price'] < self.SEASON_LEVEL]
-        else:
-            donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
+    def FORMATTED_DONATION_DESCRIPTIONS(self):
+        """
+        A list of the donation descriptions, formatted for use on attendee-facing pages.
+        
+        This does NOT filter out unavailable kick-ins so we can use it on attendees' confirmation pages
+        to show unavailable kick-ins they've already purchased. To show only available kick-ins, use
+        PREREG_DONATION_DESCRIPTIONS.
+        """
+        donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
 
         donation_list = sorted(donation_list, key=lambda tier: tier[1]['price'])
 
@@ -460,6 +457,27 @@ class Config(_Overridable):
                 entry[1]['all_descriptions'] += list(zip(descriptions, links))
 
         return [dict(tier[1]) for tier in donation_list]
+
+    @property
+    def PREREG_DONATION_DESCRIPTIONS(self):
+        donation_list = self.FORMATTED_DONATION_DESCRIPTIONS
+
+        # include only the items that are actually available for purchase
+        if not self.SHARED_KICKIN_STOCKS:
+            donation_list = [tier for tier in donation_list
+                             if tier['price'] not in self.kickin_availability_matrix
+                             or self.kickin_availability_matrix[tier['price']]]
+        elif self.BEFORE_SHIRT_DEADLINE and not self.SHIRT_AVAILABLE:
+            donation_list = [tier for tier in donation_list if tier['price'] < self.SHIRT_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
+            donation_list = [tier for tier in donation_list if tier['price'] < self.SUPPORTER_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
+            donation_list = [tier for tier in donation_list if tier['price'] < self.SEASON_LEVEL]
+
+        return [tier for tier in donation_list if 
+                (tier['price'] >= c.SHIRT_LEVEL and tier['price'] < c.SUPPORTER_LEVEL and c.BEFORE_SHIRT_DEADLINE) or 
+                (tier['price'] >= c.SUPPORTER_LEVEL and c.BEFORE_SUPPORTER_DEADLINE) or 
+                tier['price'] < c.SHIRT_LEVEL]
 
     @property
     def PREREG_DONATION_TIERS(self):
@@ -643,24 +661,18 @@ class Config(_Overridable):
 
         with Session() as session:
             query = session.query(Department).order_by(Department.name)
-            current_admin = session.admin_attendee()
-            if getattr(current_admin.admin_account, 'full_shifts_admin', None):
+            if not query.first():
+                return [(-1, -1)]
+            current_admin = session.current_admin_account()
+            if current_admin.full_shifts_admin:
                 return [(d.id, d.name) for d in query]
             else:
-                return [(d.id, d.name) for d in query if d.id in current_admin.assigned_depts_ids]
+                return [(d.id, d.name) for d in query if d.id in current_admin.attendee.assigned_depts_ids]
 
     @request_cached_property
     @dynamic
     def DEFAULT_DEPARTMENT_ID(self):
         return list(c.ADMIN_DEPARTMENTS.keys())[0] if c.ADMIN_DEPARTMENTS else 0
-
-    @property
-    def DEFAULT_REGDESK_INT(self):
-        return getattr(self, 'REGDESK', getattr(self, 'REGISTRATION', 177161930))
-
-    @property
-    def DEFAULT_STOPS_INT(self):
-        return getattr(self, 'STOPS', 29995679)
 
     @property
     def HTTP_METHOD(self):
@@ -961,6 +973,9 @@ if "sqlite" in _config['secret']['sqlalchemy_url']:
     c.SQLALCHEMY_POOL_SIZE = -1
     c.SQLALCHEMY_MAX_OVERFLOW = -1
 
+## Set database connections to recycle after 10 minutes
+c.SQLALCHEMY_POOL_RECYCLE = 3600
+
 c.PRICE_BUMPS = {}
 c.PRICE_LIMITS = {}
 for _opt, _val in c.BADGE_PRICES['attendee'].items():
@@ -1075,7 +1090,7 @@ c.JOB_LOCATION_OPTS.sort(key=lambda tup: tup[1])
 c.JOB_PAGE_OPTS = (
     ('index',    'Calendar View'),
     ('signups',  'Signups View'),
-    ('staffers', 'Staffer Summary')
+    ('staffers', 'Staffer Summary'),
 )
 c.WEIGHT_OPTS = (
     ('0.5', 'x0.5'),
@@ -1086,7 +1101,9 @@ c.WEIGHT_OPTS = (
 c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'visibility', 'required_roles_ids', 'extra15']
 
 c.PREREG_SHIRT_OPTS = sorted(c.PREREG_SHIRT_OPTS if c.PREREG_SHIRT_OPTS else c.SHIRT_OPTS)[1:]
+c.STAFF_SHIRT_OPTS = sorted(c.STAFF_SHIRT_OPTS if len(c.STAFF_SHIRT_OPTS) > 1 else c.SHIRT_OPTS)
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + sorted(list(c.SHIRT_OPTS))
+c.MERCH_STAFF_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + sorted(list(c.STAFF_SHIRT_OPTS))
 c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
 
 c.DONATION_TIER_ITEMS = {}

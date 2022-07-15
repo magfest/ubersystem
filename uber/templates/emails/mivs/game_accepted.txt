@@ -1,18 +1,21 @@
 {{ game.studio.primary_contact_first_names }},
 
-Congratulations!  Your game submission ({{ game.title }}) for the {{ c.ESCHATON.year }} MAGFest Indie Videogame Showcase (MIVS) is one of the games that have been accepted into the showcase.
+Congratulations!  Your game submission ({{ game.title }}) has been chosen to be part of the {{ c.ESCHATON.year }} MAGFest Indie Videogame Showcase (MIVS)
 
-*** YOU NEED TO CONFIRM YOUR ACCEPTANCE! ***
+*** You now need to either CONFIRM or DECLINE your acceptance! ***
 
-Please confirm that you are coming OR let us know that you are declining your space at {{ c.URL_BASE }}/mivs/continue_app?id={{ game.studio.id }}
+Please confirm your spot OR decline it at {{ c.URL_BASE }}/mivs/continue_app?id={{ game.studio.id }}
 
 You have until {{ game.studio.confirm_deadline|datetime_local }} to confirm (or decline).
 
-If you cannot make MAGFest, please decline as soon as you know so that we can contact indies who are waitlisted. Not Confirming or Declining your space by the given deadling is rude to the others waiting and may be taken into account for future events. 
+If you cannot make MAGFest, please decline ASAP so that we can contact the next game on our wait-list. Failure to either Confirm or Decline your game by the deadline is rude to others waiting and can be taken into account for future events. 
 
-***
+*** FAQ
 
-You may have some questions about showing at MIVS.  Here's a quick FAQ with more detailed information to come after your acceptance:
+You may have some questions about showing at MIVS.  Here's a quick FAQ, more detailed information will come after you accept:
+
+Q: What is the covid policy for {{ c.ESCHATON.year }}?
+A: The Covid policy is outlined at {{ c.COVID_POLICIES_URL }} - By Accepting your spot in MIVS, you are agreeing to the COVID policy.
 
 Q: What's required of me and my team?
 A: You will be required to have yourself or someone from your team in your booth during MAGFest, from 10am to 6pm from Thursday to Saturday, and 10am to 3pm Sunday.
@@ -21,14 +24,15 @@ Q: Will I be able to get a room at the Gaylord?
 A: You will have the chance to purchase a room at the Gaylord for use by your team.
 
 Q: What will I have for setup?
-A: You will have access to a 10’x10’ space, 2 badges to MAGFest, 2 tables, 2 chairs, and power. 
+A: You will have 2 badges, 2 tables, 2 chairs, and power. The exact space each team has is still being analyzed, but will be larger than 10’x10’
 
-We ask that you hold off on non-pertinent questions until after you accept and information has a chance to be distributed to you. If you have a question who's answer is required to determine if you will accept or not, please email {{ c.MIVS_EMAIL|email_only }}
 
-***
+We ask that you hold off on questions until after you Accept and information has had a chance to be distributed to you. If you need something answered to determine your participation, please email {{ c.MIVS_EMAIL|email_only }}
 
-We understand that things may come up which may prevent your team from showing at MAGFest after you accept your space.  If this is the case, please contact us ASAP as this will allow one of our many wait-listed entries to participate, and will leave you on good terms with the MIVS Volunteer Staff.  Being a No-Show at MAGFest without talking to us will impact you at future events. 
+*** Dropping Out
 
-Please Confirm or Decline by {{ game.studio.confirm_deadline|datetime_local }}.
+After Acepting your spot, we understand something may happen which may prevent you or your team from participating at at the event.  If this happens, please contact us ASAP so we can allow one of our many wait-listed teams to participate. Telling us will leave you on good terms with the MIVS Volunteer Staff.  Just Deciding to not show up at MAGFest without contacting us will impact you at future events.
+
+Please Confirm or Decline at {{ c.URL_BASE }}/mivs/continue_app?id={{ game.studio.id }} by {{ game.studio.confirm_deadline|datetime_local }}.
 
 {{ c.MIVS_EMAIL_SIGNATURE }}

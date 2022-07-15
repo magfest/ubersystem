@@ -16,6 +16,7 @@
 {%- set is_prereg_confirm_email_enabled = attendee.is_new and c.PREREG_CONFIRM_EMAIL_ENABLED -%}
 {%- set is_after_request_hotel = c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE -%}
 {%- set is_after_hotel_email = c.AFTER_PREREG_HOTEL_INFO_EMAIL_DATE -%}
+{%- set group_id = group_id or attendee.group_id -%}
 
 {% set prereg_intro %}
 {% if is_prereg_dealer %}
@@ -134,6 +135,24 @@
             }
         });
     {% endif %}
+    {% if attendee.is_new and not group_id and c.CHILD_BADGE in c.PREREG_BADGE_TYPES %}
+        if (window.REG_TYPES) {
+            REG_TYPES.options.push({
+                title: '12 and Under: $' + Math.floor({{ c.BADGE_PRICE }} / 2),
+                description: '<p class="list-group-item-text">Attendees 12 and younger must be accompanied by an adult with a valid Attendee badge.</p>' +
+            '<span class="prereg-price-notice">Price is always half that of the Single Attendee badge price.</span>',
+                onClick: function () {
+                    $('.group_fields').addClass('hide');
+                    $('.non_group_fields').removeClass('hide');
+                    if ($.field('first_name')) {
+                        $('#bold-field-message').insertBefore($.field('first_name').parents('.form-group'));
+                    }
+                    $('input[name="badge_type"]').val('{{ c.CHILD_BADGE }}');
+                    togglePrices();
+                }
+            });
+        }
+    {% endif %}
     var BADGE_TYPES = {
         row: '#badge-types',
         selector: '.badge-type-selector',
@@ -155,7 +174,7 @@
             {% endif %}
         });
     {% endif %}
-    {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and c.SHIRT_AVAILABLE %}
+    {% if c.SHIRT_LEVEL in c.PREREG_DONATION_TIERS and c.SHIRT_AVAILABLE and c.BEFORE_SHIRT_DEADLINE %}
         BADGE_TYPES.options.push({
             title: 'Add a tshirt',
             description: 'Add a {{ c.EVENT_NAME }} themed t-shirt to your registration.',
@@ -163,7 +182,7 @@
             price: {{ c.BADGE_PRICE }}
         });
     {% endif %}
-    {% if c.SUPPORTER_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE %}
+    {% if c.SUPPORTER_LEVEL in c.PREREG_DONATION_TIERS and c.SUPPORTER_AVAILABLE and c.BEFORE_SUPPORTER_DEADLINE %}
         BADGE_TYPES.options.push({
             title: 'Supporter',
             description: 'Donate extra and get more swag with your registration.',
@@ -171,7 +190,7 @@
             price: {{ c.BADGE_PRICE }}
         });
     {% endif %}
-    {% if c.SEASON_LEVEL in c.PREREG_DONATION_TIERS and c.SEASON_AVAILABLE %}
+    {% if c.SEASON_LEVEL in c.PREREG_DONATION_TIERS and c.SEASON_AVAILABLE and c.BEFORE_SUPPORTER_DEADLINE %}
         BADGE_TYPES.options.push({
             title: 'Super Supporter',
             description: 'Donate even more and get exclusive swag!',
@@ -245,7 +264,9 @@
         // is a dealer or group leader.
         if ($(BADGE_TYPES.row).size()) {
             // Actually, don't show any buttons at all for dealers
-            $(BADGE_TYPES.row).toggle($.field('badge_type').val() != '{{ c.PSEUDO_DEALER_BADGE }}')
+            if ($.field('badge_type').val() != '{{ c.PSEUDO_DEALER_BADGE }}') {
+              $("#badge-types").hide();
+            }
             $.each(BADGE_TYPES.options, function (i, badgeType) {
                 if (badgeType.badge_type && badgeType.badge_type != {{ c.ATTENDEE_BADGE }}) {
                     var current_button = $(BADGE_TYPES.selector).slice(i, 1+i);
@@ -465,6 +486,15 @@
               }
           });
       {% endif %}
+      // This auto-selects the Child badge when the user is, e.g., editing their registration before paying
+      {% if attendee.badge_type == c.CHILD_BADGE %}
+      $(window).on("runJavaScript", function () {
+          if (window.REG_TYPES && $(REG_TYPES.row).size()) {
+              {% set child_badge_index = 2 if c.GROUPS_ENABLED else 1 %}
+              setBadge(REG_TYPES, {{ child_badge_index }});  // default to child badge when appropriate
+          }
+        });
+      {% endif %}
   </script>
   {% if not attendee.is_new %}
     <div class="form-group">
@@ -545,12 +575,12 @@
 
 {% set amount_extra %}
 {% set read_only = amount_extra_ro or page_ro %}
-{% if c.DONATIONS_ENABLED and not admin_area %}
+{% if c.DONATIONS_ENABLED and not admin_area and not read_only %}
   {% if c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 or attendee.amount_extra or attendee.gets_any_kind_of_shirt %}
     <script type="text/javascript">
         var donationChanged = function () {
             setVisible('.affiliate-row', $.val('amount_extra') > 0);
-            {% if attendee.gets_any_kind_of_shirt %}
+            {% if attendee.num_event_shirts_owed or attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS %}
                 setVisible('.shirt-row', true);
             {% else %}
                 setVisible('.shirt-row', $.val('amount_extra') >= {{ c.SHIRT_LEVEL }});
@@ -611,22 +641,17 @@
         {{ macros.popup_link("../static_views/givingExtra.html", "Why do this?") }}
       </label>
       <div class="col-sm-9">
-        {% if c.AFTER_SUPPORTER_DEADLINE and attendee.amount_extra >= c.SUPPORTER_LEVEL or c.AFTER_SHIRT_DEADLINE and attendee.amount_extra >= c.SHIRT_LEVEL %}
-          {{ attendee.amount_extra_label }}
-          <input type="hidden" name="amount_extra" value="{{ attendee.amount_extra }}" />
-        {% else %}
-          {% if c.PREREG_DONATION_DESCRIPTIONS %}
-
-            <div data-toggle="buttons" class="btn-group-inline">
-              {% for tier in c.PREREG_DONATION_DESCRIPTIONS %}
-
+        {% if c.PREREG_DONATION_DESCRIPTIONS or c.FORMATTED_DONATION_DESCRIPTIONS and not attendee.is_new and attendee.amount_extra %}
+          <div data-toggle="buttons" class="btn-group-inline">
+            {% for tier in c.FORMATTED_DONATION_DESCRIPTIONS %}
+              {% if tier in c.PREREG_DONATION_DESCRIPTIONS or attendee.amount_extra == tier.price %}
                 <label class="btn btn-default btn-inline">
                   <input type="radio"
-                         name="amount_extra"
-                         autocomplete="off"
-                         value="{{ tier.price }}"
-                         onchange="donationChanged();"
-                         {% if attendee.amount_extra == tier.price %}checked{% endif %} />
+                        name="amount_extra"
+                        autocomplete="off"
+                        value="{{ tier.price }}"
+                        onchange="donationChanged();"
+                        {% if attendee.amount_extra == tier.price %}checked{% endif %} />
                   <div class="title">
                     <h4>{{ tier.name }}</h4>
                     {% if tier.price %}
@@ -650,8 +675,9 @@
                     {% endfor %}
                   </ul>
                 </label>
-              {% endfor %}
-            </div>
+              {% endif %}
+            {% endfor %}
+          </div>
 
 
           {% else %}
@@ -659,7 +685,6 @@
               {{ options(c.PREREG_DONATION_OPTS, attendee.amount_extra) }}
             </select>
           {% endif %}
-        {% endif %}
       </div>
 
       <p class="help-block col-sm-offset-3 col-sm-9">
@@ -686,7 +711,7 @@
     <div class="form-control-static">{{ macros.popup_link("../static_views/affiliates.html", "What's an affiliate?") }}</div>
   </div>
 {% endif %}
-{% if admin_area %}
+{% if admin_area or read_only %}
   <div class="form-group">
     <label class="col-sm-3 control-label">Kick-in/Upgrade</label>
     {% call macros.read_only_if(read_only, attendee.amount_extra_label or "None") %}
@@ -735,21 +760,43 @@
 
 {% set shirt_size %}
 {% set read_only = shirt_size_ro or page_ro %}
-{% if not admin_area or attendee.gets_any_kind_of_shirt %}
+{% if not admin_area or attendee.num_event_shirts_owed or attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS %}
   {% set shirt_opts = c.PREREG_SHIRT_OPTS if not admin_area else c.SHIRT_OPTS %}
   {% set warn_on_change = c.PREREG_SHIRTS and not admin_area and attendee.shirt not in c.PREREG_SHIRTS.keys() %}
   {% if not admin_area %}
     <div class="shirt-row extra-row form-group" style="display:none">
-  {% elif attendee.gets_any_kind_of_shirt %}
+  {% else %}
     <div class="form-group">
   {% endif %}
-<label for="shirt" class="col-sm-3 control-label">Shirt Size</label>
+<label for="shirt" class="col-sm-3 control-label">
+  {% if attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS %}Event {% endif %}Shirt Size
+  </label>
   {% call macros.read_only_if(read_only, attendee.shirt_label) %}
 <div class="col-sm-{{ "3" if admin_area else "6" }}">
   <select name="shirt" class="form-control">
     {% if warn_on_change %}<option value="{{ attendee.shirt }}">{{ attendee.shirt_label }}</option>{% endif %}
     {% if not admin_area %}<option value="{{ c.NO_SHIRT }}">Select a shirt size</option>{% endif %}
     {{ options(shirt_opts,attendee.shirt) }}
+  </select>
+</div>
+{% if warn_on_change %}
+<p class="help-block col-sm-9 col-sm-offset-3">
+  <strong>Your shirt size has been reserved for you and is no longer available for pre-order.</strong>
+  <br/>If you change your selection now you will not be able to change it back.
+</p>
+{% endif %}
+  {% endcall %}
+</div>
+{% endif %}
+{% if attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS %}
+<div class="form-group">
+<label for="staff_shirt" class="col-sm-3 control-label">Staff Shirt Size</label>
+  {% call macros.read_only_if(read_only, attendee.staff_shirt_label) %}
+<div class="col-sm-{{ "3" if admin_area else "6" }}">
+  <select name="staff_shirt" class="form-control">
+    {% if warn_on_change %}<option value="{{ attendee.staff_shirt }}">{{ attendee.staff_shirt_label }}</option>{% endif %}
+    {% if not admin_area %}<option value="{{ c.NO_SHIRT }}">Select a shirt size</option>{% endif %}
+    {{ options(c.STAFF_SHIRT_OPTS,attendee.staff_shirt) }}
   </select>
 </div>
 {% if warn_on_change %}
@@ -1021,7 +1068,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 
 {% set address %}
 {% set read_only = address_ro or page_ro %}
-{% if c.COLLECT_FULL_ADDRESS %}
+{% if c.COLLECT_FULL_ADDRESS or attendee.shipping_fee_cost %}
   <script type="text/javascript">
       {% include "region_opts.html" %}
 
@@ -1029,7 +1076,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
           countryName = $.field('country').val();
           if(countryName == 'United States') {
               $.field('international').prop('checked', false);
-          } else {
+          } else if (countryName != '') {
               $.field('international').prop('checked', true);
           }
       };
@@ -1395,7 +1442,7 @@ $(window).on("runJavaScript", function () {
   <label class="col-sm-3 control-label">Account Email{{ attendee.managers|length|pluralize }}</label>
   <div class="col-sm-6 form-control-static">
     {% for manager in attendee.managers %}
-      {% if not loop.first %} / {% endif %}{{ manager.email }}
+      {% if not loop.first %} / {% endif %}{{ manager|form_link(true) }}
       {% if manager.attendees|length > 1 %}
       ({%- for managed_attendee in manager.attendees|selectattr('id','!=',attendee.id) -%}
         {% if not loop.first %} / {% endif %}{{ managed_attendee|form_link }}
@@ -1631,6 +1678,19 @@ $(window).on("runJavaScript", function(){
     </div>
   {% endcall %}
   </div>
+  {% if c.CHILD_BADGE in c.PREREG_BADGE_TYPES %}
+  <div class="form-group">
+      <p class="help-block col-sm-9 col-sm-offset-3">
+      {% if c.CHILD_BADGE_AVAILABLE %}
+        Badges for attendees under 13 are half-price. <br/>
+        Attendees under 6 enter free. <br/>
+        All attendees under 13 must be accompanied by an adult with a valid Attendee badge.
+    {% else %}
+    <span class="text-danger">Unfortunately, we are sold out of badges for attendees under 18.</span>
+    {% endif %}
+      </p>
+    </div>
+  {% endif %}
 {% elif not admin_area and c.AT_THE_CON %}
   <script type="text/javascript">
       var maybeBold = function() {
@@ -1806,7 +1866,7 @@ $(window).on("runJavaScript", function(){
   <label class="col-sm-3 control-label">Reviewed Emergency Procedures</label>
   <div class="col-sm-9">
     <div class="form-control-static">
-      {% if c.VOLUNTEER_AGREEMENT_ENABLED and admin_area %}{{ attendee.reviewed_emergency_procedures|yesno("Yes,No") }}{% endif %}
+      {% if c.EMERGENCY_PROCEDURES_ENABLED and admin_area %}{{ attendee.reviewed_emergency_procedures|yesno("Yes,No") }}{% endif %}
       <input type="hidden" name="reviewed_emergency_procedures" value="{{ attendee.reviewed_emergency_procedures|yesno("1,0") }}" />
     </div>
   </div>

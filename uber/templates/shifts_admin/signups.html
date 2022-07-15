@@ -27,7 +27,41 @@
   </div>
 {% endif %}
 
-<script>SHOW_FULL_JOBS = true;</script>
+<a href="signups?department_id={{ department_id }}&toggle_filter=signups_hide_filled" class="btn btn-xs 
+        {% if hide_filled %}btn-plain{% else %}btn-default{% endif %}">
+  <span class="glyphicon glyphicon-filter"></span>
+  Hide Filled Shifts
+</a>
+
+<a href="signups?department_id={{ department_id }}&toggle_filter=signups_show_past_shifts" class="btn btn-xs 
+        {% if show_past_shifts %}btn-plain{% else %}btn-default{% endif %}">
+  <span class="glyphicon glyphicon-filter"></span>
+  Show Past Shifts
+</a>
+
+<a href="signups?department_id={{ department_id }}&toggle_filter=signups_show_restricted" class="btn btn-xs 
+        {% if show_restricted %}btn-plain{% else %}btn-default{% endif %}">
+  <span class="glyphicon glyphicon-filter"></span>
+  Show Restricted
+</a>
+
+<a href="signups?department_id={{ department_id }}&toggle_filter=signups_show_nonpublic" class="btn btn-xs 
+        {% if show_nonpublic %}btn-plain{% else %}btn-default{% endif %}">
+  <span class="glyphicon glyphicon-filter"></span>
+  Show Non Public
+</a>
+<br/><br/>
+
+<script type="text/javascript">
+  {% if hide_filled %}
+  SHOW_FULL_JOBS = false;
+  {% else %}
+  SHOW_FULL_JOBS = true;
+  {% endif %}
+  $().ready(function() {
+    replaceQueryParamInUrl('toggle_filter'); // prevent re-toggling filter on refresh
+  });
+  </script>
 <div id="jobs-container">
 {% include "shifts_admin/job_renderer.html" %}
 </div>
