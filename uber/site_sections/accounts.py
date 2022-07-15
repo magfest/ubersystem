@@ -51,11 +51,12 @@ class Root:
         account = session.admin_account(params)
 
         if account.is_new:
-            if c.AT_OR_POST_CON and not password:
-                message = 'You must enter a password'
-            else:
-                password = password if c.AT_OR_POST_CON else genpasswd()
-                account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+            if not c.AUTH_DOMAIN:
+                if c.AT_OR_POST_CON and not password:
+                    message = 'You must enter a password'
+                else:
+                    password = password if c.AT_OR_POST_CON else genpasswd()
+                    account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
 
         message = message or check(account)
         if not message:
@@ -64,6 +65,7 @@ class Root:
             account.attendee = attendee
             session.add(account)
             if account.is_new and not c.AT_OR_POST_CON:
+                message = 'Account created'
                 session.commit()
                 body = render('emails/accounts/new_account.txt', {
                     'account': account,
@@ -73,7 +75,7 @@ class Root:
                 send_email.delay(
                     c.ADMIN_EMAIL,
                     attendee.email,
-                    'New ' + c.EVENT_NAME + ' Ubersystem Account',
+                    'New ' + c.EVENT_NAME + ' Admin Account',
                     body,
                     model=attendee.to_dict('id'))
         else:
@@ -385,18 +387,19 @@ class Root:
                 if match:
                     account = session.admin_account(params)
                     if account.is_new:
-                        password = genpasswd()
-                        account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+                        if not c.AUTH_DOMAIN:
+                            password = genpasswd()
+                            account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
                         account.attendee = match
                         session.add(account)
                         body = render('emails/accounts/new_account.txt', {
                             'account': account,
-                            'password': password
+                            'password': password if not c.AUTH_DOMAIN else ''
                         }, encoding=None)
                         send_email.delay(
                             c.ADMIN_EMAIL,
                             match.email,
-                            'New ' + c.EVENT_NAME + ' Ubersystem Account',
+                            'New ' + c.EVENT_NAME + ' Admin Account',
                             body,
                             model=match.to_dict('id'))
 

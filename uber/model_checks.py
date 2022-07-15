@@ -49,9 +49,10 @@ def read_only_makes_sense(group):
 
 AdminAccount.required = [
     ('attendee', 'Attendee'),
-    ('hashed', 'Password'),
 ]
 
+if not c.AUTH_DOMAIN:
+    AdminAccount.required.append(('hashed', 'Password'))
 
 @validation.AdminAccount
 def duplicate_admin(account):
