@@ -17,6 +17,7 @@ from uber.models import MagModel
 from uber.models.admin import AdminAccount
 from uber.models.email import Email
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
+from uber.utils import SignNowDocument
 
 __all__ = ['SignedDocument']
 
@@ -28,3 +29,17 @@ class SignedDocument(MagModel):
     ident = Column(UnicodeText)
     signed = Column(UTCDateTime, nullable=True, default=None)
     declined = Column(UTCDateTime, nullable=True, default=None)
+
+    def get_dealer_signing_link(self, group):
+        d = SignNowDocument()
+        
+        if not self.document_id:
+            self.document_id = d.create_document(template_id=c.SIGNNOW_DEALER_TEMPLATE_ID,
+                                                 doc_title="Dealer T&C for {}".format(group.name),
+                                                 folder_id=c.SIGNNOW_DEALER_FOLDER_ID)
+        if not self.signed:
+            return d.get_signing_link(self.document_id,
+                                      group.leader.first_name,
+                                      group.leader.last_name,
+                                      c.URL_BASE + '/preregistration/dealer_confirmation?id={}'
+                                      .format(group.id))

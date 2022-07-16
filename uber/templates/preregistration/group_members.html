@@ -65,6 +65,7 @@
     {% endif %}
     {% if group.is_dealer %}
       {{ group_fields.status }}
+      {{ group_fields.signed_document }}
       <h2>"{{ group.name }}" Information</h2>
       <form method="post" action="group_members" class="form-horizontal" role="form">
         <input type="hidden" name="id" value="{{ group.id }}" />
