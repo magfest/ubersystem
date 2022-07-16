@@ -8,13 +8,13 @@
 
     {% if not group.is_new %} 
     <h1>
-    <a class="btn btn-primary" href="../preregistration/group_members?id={{ group.id }}">Assign Badges</a>
+    <a class="btn btn-primary" href="../preregistration/group_members?id={{ group.id }}">View as Attendee</a>
     {% if group.guest %} 
     <a class="btn btn-info" href="../guests/index?id={{ group.guest.id }}">{{ group.guest.group_type_label }} Checklist</a>
     {% endif %}
     </h1> 
     {% endif %}
-
+<div class="panel panel-body">
   {% if not group.is_new %}
     <div role="tabpanel">
     <ul class="nav nav-tabs" role="tablist">
@@ -168,6 +168,7 @@
         </div>
         {% endif %}
         </div>
+      </div>
 <script src="../static/js/window-hash-tabload.js" type="text/javascript"></script>
 {% if group.is_new %}
 <script type="text/javascript">
