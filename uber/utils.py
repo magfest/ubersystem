@@ -26,7 +26,7 @@ from sideboard.lib import threadlocal
 from pytz import UTC
 
 import uber
-from uber.config import c, _config
+from uber.config import c, _config, signnow_sdk
 from uber.errors import CSRFException, HTTPRedirect
 
 
@@ -1252,85 +1252,86 @@ class Charge:
             return matching_stripe_txns
 
 
-class AWSSecretFetcher:
-    """
-    This class manages fetching secrets from AWS. Some secrets only need to be
-    fetched once, while others may be re-fetched to refresh tokens.
-    """
-
+class SignNowDocument:    
     def __init__(self):
-        import boto3
-        aws_session = boto3.session.Session(
-            aws_access_key_id=c.AWS_ACCESS_KEY,
-            aws_secret_access_key=c.AWS_SECRET_KEY
-        )
+        self.access_token = None
+        self.error_message = ''
+        self.set_access_token()
 
-        self.client = aws_session.client(
-            service_name=c.AWS_SECRET_SERVICE_NAME,
-            region_name=c.AWS_REGION
-        )
+    def set_access_token(self, refresh=False):
+        from uber.config import aws_secrets_client
 
-    def get_secret(self, secret_name):
-        import json
-        from botocore.exceptions import ClientError
+        self.access_token = c.SIGNNOW_ACCESS_TOKEN
 
-        try:
-            get_secret_value_response = self.client.get_secret_value(
-                SecretId=secret_name
-            )
-        except ClientError as e:
-            if e.response['Error']['Code'] == 'DecryptionFailureException':
-                # Secrets Manager can't decrypt the protected secret text using the provided KMS key.
-                log.error("Retrieving secret error: Wrong KMS key ({}).".format(str(e)))
-                return
-            elif e.response['Error']['Code'] == 'InternalServiceErrorException':
-                # An error occurred on the server side.
-                log.error("Retrieving secret error: Server error ({}).".format(str(e)))
-                return
-            elif e.response['Error']['Code'] == 'InvalidParameterException':
-                # You provided an invalid value for a parameter.
-                log.error("Retrieving secret error: Invalid parameter ({}).".format(str(e)))
-                return
-            elif e.response['Error']['Code'] == 'InvalidRequestException':
-                # You provided a parameter value that is not valid for the current state of the resource.
-                log.error("Retrieving secret error: Invalid parameter ({}).".format(str(e)))
-                return
-            elif e.response['Error']['Code'] == 'ResourceNotFoundException':
-                # We can't find the resource that you asked for.
-                log.error("Retrieving secret error: Resource not found ({}).".format(str(e)))
-                return
+        if not self.access_token and c.DEV_BOX and c.SIGNNOW_USERNAME and c.SIGNNOW_PASSWORD:
+            access_request = signnow_sdk.OAuth2.request_token(c.SIGNNOW_USERNAME, c.SIGNNOW_PASSWORD, '*')
+            if 'error' in access_request:
+                self.error_message = "Error getting access token from SignNow: " + access_request['error']
+            else:
+                self.access_token = access_request['access_token']
+            
+        elif (not self.access_token or refresh) and aws_secrets_client:
+            aws_secrets_client.get_signnow_secret()
+            self.access_token = c.SIGNNOW_ACCESS_TOKEN
+
+    def create_document(self, template_id, doc_title, folder_id=''):
+        self.set_access_token(refresh=True)
+        document_request = signnow_sdk.Template.copy(self.access_token, template_id, doc_title)
         
-        # Decrypts secret using the associated KMS key.
-        if 'SecretString' in get_secret_value_response:
-            secret = json.loads(get_secret_value_response['SecretString'])
+        if 'error' in document_request:
+            self.error_message = "Error creating document from template: " + document_request['error']
+            return None
+
+        if folder_id:
+            result = signnow_sdk.Document.move(self.access_token,
+                                               document_request.get('id', ''),
+                                               folder_id)
+            if 'error' in result:
+                self.error_message = "Error moving document into folder: " + result['error']
+                # Give the document request back anyway
+        
+        return document_request.get('id')
+    
+    def get_signing_link(self, document_id, first_name="", last_name="", redirect_uri=""):
+        from requests import post
+        from json import dumps, loads
+
+        """Creates shortened signing link urls that can be clicked be opened in a browser to sign the document
+        Based on SignNow's Python SDK, which is horribly out of date.
+        Args:
+            access_token (str): The access token of an account that has access to the document.
+            document_id (str): The unique id of the document you want to create the links for.
+            redirect_uri (str): The URL to redirect the user when they are done signing the document.
+        Returns:
+            dict: A dictionary representing the JSON response containing the signing links for the document.
+        """
+
+        self.set_access_token(refresh=True)
+
+        response = post(signnow_sdk.Config().get_base_url() + '/link', headers={
+            "Authorization": "Bearer " + self.access_token,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }, data=dumps({
+            "document_id": document_id,
+            "firstname": first_name,
+            "lastname": last_name,
+            "redirect_uri": redirect_uri
+        }))
+        signing_request = loads(response.content)
+        if 'errors' in signing_request:
+            self.error_message = "Error getting signing link: " + '; '.join([e['message'] for e in signing_request['errors']])
         else:
-            return
+            return signing_request.get('url_no_signup')
 
-        return secret
+    def get_download_link(self, document_id):
+        self.set_access_token(refresh=True)
+        download_request = signnow_sdk.Document.download_link(self.access_token, document_id)
 
-    def get_all_secrets(self):
-        self.get_auth0_secret()
-        self.get_signnow_secret()
-
-    def get_auth0_secret(self):
-        auth0_secret = self.client.get_secret(c.AWS_AUTH0_SECRET_NAME)
-        if auth0_secret:
-            c.AUTH_DOMAIN = auth0_secret('AUTH0_DOMAIN', '') or c.AUTH_DOMAIN
-            c.AUTH_CLIENT_ID = auth0_secret('CLIENT_ID', '') or c.AUTH_CLIENT_ID
-            c.AUTH_CLIENT_SECRET = auth0_secret('CLIENT_SECRET', '') or c.AUTH_CLIENT_SECRET
+        if 'error' in download_request:
+            self.error_message = "Error getting download link: " + download_request['error']
         else:
-            log.error("Error getting Auth0 secret: {}".format(auth0_secret))
-
-    def get_signnow_secret(self):
-        signnow_secret = self.client.get_secret(c.AWS_SIGNNOW_SECRET_NAME)
-        if signnow_secret:
-            c.SIGNNOW_ACCESS_TOKEN = signnow_secret.get('username', '') or c.SIGNNOW_ACCESS_TOKEN
-            c.SIGNNOW_CLIENT_ID = signnow_secret.get('client_id', '') or c.SIGNNOW_CLIENT_ID
-            c.SIGNNOW_CLIENT_SECRET = signnow_secret.get('client_secret', '') or c.SIGNNOW_CLIENT_SECRET
-            c.SIGNNOW_DEALER_TEMPLATE_ID = signnow_secret.get('dealer_template_id') or c.SIGNNOW_DEALER_TEMPLATE_ID
-            c.SIGNNOW_DEALER_FOLDER_ID = signnow_secret.get('dealer_folder_id') or c.SIGNNOW_DEALER_FOLDER_ID
-        else:
-            log.error("Error getting SignNow secret: {}".format(signnow_secret))
+            return download_request.get('link')
 
 
 class TaskUtils:
