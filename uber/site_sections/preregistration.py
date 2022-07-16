@@ -137,33 +137,34 @@ def set_up_new_account(session, attendee, email=None):
         model=account.to_dict('id'))
 
 def dealer_tc_sign_link(group, document_id=''):
-    # Create access_token for the user
-    access_token = c.SIGNNOW_SDK.OAuth2.request_token(c.SIGNNOW_USERNAME, c.SIGNNOW_PASSWORD, '*')
+    from uber.config import aws_secrets_client
 
-    if 'error' in access_token:
-        log.error("Error getting access token from SignNow: " + access_token['error'])
-        return None, None
-    
     if not document_id:
         # Create a document from the template
-        document_request = c.SIGNNOW_SDK.Template.copy(access_token['access_token'],
-                                                        c.SIGNNOW_DEALER_TEMPLATE_ID,
-                                                        "Dealer T&C for {}".format(group.name))
+        document_request = c.SIGNNOW_SDK.Template.copy(c.SIGNNOW_ACCESS_TOKEN,
+                                                       c.SIGNNOW_DEALER_TEMPLATE_ID,
+                                                       "Dealer T&C for {}".format(group.name))
         if 'error' in document_request:
-            log.error("Error creating document from template: " + document_request['error'])
-            return None, None
+            if document_request['error'] == 'invalid_token':
+                aws_secrets_client.get_signnow_secret() # Refreshes the access token
+                document_request = c.SIGNNOW_SDK.Template.copy(c.SIGNNOW_ACCESS_TOKEN,
+                                                               c.SIGNNOW_DEALER_TEMPLATE_ID,
+                                                               "Dealer T&C for {}".format(group.name))
+                if 'error' in document_request:
+                    log.error("Error creating document from template: " + document_request['error'])
+                    return None, None
 
         document_id = document_request.get('id', '')
 
         if c.SIGNNOW_DEALER_FOLDER_ID:
-            result = c.SIGNNOW_SDK.Document.move(access_token['access_token'],
+            result = c.SIGNNOW_SDK.Document.move(c.SIGNNOW_ACCESS_TOKEN,
                                                     document_id,
                                                     c.SIGNNOW_DEALER_FOLDER_ID)
             if 'error' in result:
                 log.error("Error moving document into folder: " + result['error'])
     
     # Create the signing link for a document.
-    signing_request = c.signnow_create_link(access_token['access_token'],
+    signing_request = c.signnow_create_link(c.SIGNNOW_ACCESS_TOKEN,
                                             document_id,
                                             group.leader.first_name,
                                             group.leader.last_name,

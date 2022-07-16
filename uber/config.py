@@ -931,6 +931,8 @@ class SecretConfig(_Overridable):
 
 c = Config()
 _secret = SecretConfig()
+aws_secrets_client = uber.utils.AWSSecretFetcher()
+aws_secrets_client.get_all_secrets()
 
 _config = parse_config(__file__)  # outside this module, we use the above c global instead of using this directly
 
