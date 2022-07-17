@@ -264,7 +264,7 @@
         // is a dealer or group leader.
         if ($(BADGE_TYPES.row).size()) {
             // Actually, don't show any buttons at all for dealers
-            if ($.field('badge_type').val() != '{{ c.PSEUDO_DEALER_BADGE }}') {
+            if ($.field('badge_type').val() == '{{ c.PSEUDO_DEALER_BADGE }}') {
               $("#badge-types").hide();
             }
             $.each(BADGE_TYPES.options, function (i, badgeType) {
