@@ -3,6 +3,9 @@
 <button class="btn btn-info" type="button" data-toggle="collapse" data-target="#update-account" aria-expanded="false" aria-controls="update-account">
     <span class="glyphicon glyphicon-cog"></span> Account Settings
 </button>
+{% if c.PAGE_PATH != '/preregistration/homepage' %}
+<a href="../preregistration/homepage" class="btn btn-primary">Go to Homepage</a>
+{% endif %}
 <a href="../preregistration/logout" class="btn btn-danger pull-right">
     <span class="glyphicon glyphicon-log-out"></span> Log Out
 </a>
