@@ -26,7 +26,7 @@ from sideboard.lib import threadlocal
 from pytz import UTC
 
 import uber
-from uber.config import c, _config
+from uber.config import c, _config, signnow_sdk
 from uber.errors import CSRFException, HTTPRedirect
 
 
@@ -1250,6 +1250,88 @@ class Charge:
                     log.error('unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
 
             return matching_stripe_txns
+
+
+class SignNowDocument:    
+    def __init__(self):
+        self.access_token = None
+        self.error_message = ''
+        self.set_access_token()
+
+    def set_access_token(self, refresh=False):
+        from uber.config import aws_secrets_client
+
+        self.access_token = c.SIGNNOW_ACCESS_TOKEN
+
+        if not self.access_token and c.DEV_BOX and c.SIGNNOW_USERNAME and c.SIGNNOW_PASSWORD:
+            access_request = signnow_sdk.OAuth2.request_token(c.SIGNNOW_USERNAME, c.SIGNNOW_PASSWORD, '*')
+            if 'error' in access_request:
+                self.error_message = "Error getting access token from SignNow: " + access_request['error']
+            else:
+                self.access_token = access_request['access_token']
+            
+        elif (not self.access_token or refresh) and aws_secrets_client:
+            aws_secrets_client.get_signnow_secret()
+            self.access_token = c.SIGNNOW_ACCESS_TOKEN
+
+    def create_document(self, template_id, doc_title, folder_id=''):
+        self.set_access_token(refresh=True)
+        document_request = signnow_sdk.Template.copy(self.access_token, template_id, doc_title)
+        
+        if 'error' in document_request:
+            self.error_message = "Error creating document from template: " + document_request['error']
+            return None
+
+        if folder_id:
+            result = signnow_sdk.Document.move(self.access_token,
+                                               document_request.get('id', ''),
+                                               folder_id)
+            if 'error' in result:
+                self.error_message = "Error moving document into folder: " + result['error']
+                # Give the document request back anyway
+        
+        return document_request.get('id')
+    
+    def get_signing_link(self, document_id, first_name="", last_name="", redirect_uri=""):
+        from requests import post
+        from json import dumps, loads
+
+        """Creates shortened signing link urls that can be clicked be opened in a browser to sign the document
+        Based on SignNow's Python SDK, which is horribly out of date.
+        Args:
+            access_token (str): The access token of an account that has access to the document.
+            document_id (str): The unique id of the document you want to create the links for.
+            redirect_uri (str): The URL to redirect the user when they are done signing the document.
+        Returns:
+            dict: A dictionary representing the JSON response containing the signing links for the document.
+        """
+
+        self.set_access_token(refresh=True)
+
+        response = post(signnow_sdk.Config().get_base_url() + '/link', headers={
+            "Authorization": "Bearer " + self.access_token,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }, data=dumps({
+            "document_id": document_id,
+            "firstname": first_name,
+            "lastname": last_name,
+            "redirect_uri": redirect_uri
+        }))
+        signing_request = loads(response.content)
+        if 'errors' in signing_request:
+            self.error_message = "Error getting signing link: " + '; '.join([e['message'] for e in signing_request['errors']])
+        else:
+            return signing_request.get('url_no_signup')
+
+    def get_download_link(self, document_id):
+        self.set_access_token(refresh=True)
+        download_request = signnow_sdk.Document.download_link(self.access_token, document_id)
+
+        if 'error' in download_request:
+            self.error_message = "Error getting download link: " + download_request['error']
+        else:
+            return download_request.get('link')
 
 
 class TaskUtils:

@@ -19,7 +19,7 @@ from uber.errors import HTTPRedirect
 from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, PromoCode, PromoCodeGroup, SignedDocument, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, genpasswd, valid_email, \
-    valid_password, Charge
+    valid_password, Charge, SignNowDocument
 
 
 def check_post_con(klass):
@@ -135,42 +135,6 @@ def set_up_new_account(session, attendee, email=None):
         body,
         format='html',
         model=account.to_dict('id'))
-
-def dealer_tc_sign_link(group, document_id=''):
-    # Create access_token for the user
-    access_token = c.SIGNNOW_SDK.OAuth2.request_token(c.SIGNNOW_USERNAME, c.SIGNNOW_PASSWORD, '*')
-
-    if 'error' in access_token:
-        log.error("Error getting access token from SignNow: " + access_token['error'])
-        return None, None
-    
-    if not document_id:
-        # Create a document from the template
-        document_request = c.SIGNNOW_SDK.Template.copy(access_token['access_token'],
-                                                        c.SIGNNOW_DEALER_TEMPLATE_ID,
-                                                        "Dealer T&C for {}".format(group.name))
-        if 'error' in document_request:
-            log.error("Error creating document from template: " + document_request['error'])
-            return None, None
-
-        document_id = document_request.get('id', '')
-
-        if c.SIGNNOW_DEALER_FOLDER_ID:
-            result = c.SIGNNOW_SDK.Document.move(access_token['access_token'],
-                                                    document_id,
-                                                    c.SIGNNOW_DEALER_FOLDER_ID)
-            if 'error' in result:
-                log.error("Error moving document into folder: " + result['error'])
-    
-    # Create the signing link for a document.
-    signing_request = c.signnow_create_link(access_token['access_token'],
-                                            document_id,
-                                            group.leader.first_name,
-                                            group.leader.last_name,
-                                            c.URL_BASE + '/preregistration/dealer_confirmation?id={}'
-                                            .format(group.id))
-
-    return document_id, signing_request.get('url_no_signup')
 
 @all_renderable(public=True)
 @check_post_con
@@ -692,10 +656,14 @@ class Root:
             else:
                 document = existing_doc or SignedDocument(fk_id=group.id, model="Group", ident="terms_and_conditions")
                 session.add(document)
-                document.document_id, redirect_link = dealer_tc_sign_link(group, document.document_id)
+                redirect_link = document.get_dealer_signing_link(group)
                 if redirect_link:
                     raise HTTPRedirect(redirect_link)
             session.commit()
+            if group.status != c.UNAPPROVED:
+                # Dealers always hit this page after signing their terms and conditions
+                # We want new dealers to see the confirmation page, and everyone else to go to their group page
+                raise HTTPRedirect('group_members?id={}&message={}', group.id, "Thank you for signing the terms and conditions!")
         return {'group': group}
 
     @id_required(PromoCodeGroup)
@@ -788,6 +756,22 @@ class Root:
     @log_pageview
     def group_members(self, session, id, message='', **params):
         group = session.group(id)
+
+        if group.is_dealer:
+            signnow_document = session.query(SignedDocument).filter_by(model="Group", fk_id=group.id).first() \
+                                        or SignedDocument(fk_id=group.id,
+                                                            model="Group",
+                                                            ident="terms_and_conditions")
+            signnow_link = ''
+
+            if signnow_document.signed:
+                d = SignNowDocument()
+                signnow_link = d.get_download_link(signnow_document.document_id)
+                if d.error_message:
+                    log.error(d.error_message)
+            else:
+                signnow_link = signnow_document.get_dealer_signing_link(group)
+
         if cherrypy.request.method == 'POST':
             # Both the Attendee class and Group class have identically named
             # address fields. In order to distinguish the two sets of address
@@ -824,6 +808,8 @@ class Root:
             'account': session.one_badge_attendee_account(group.leader),
             'current_account': session.current_attendee_account(),
             'upgraded_badges': len([a for a in group.attendees if a.badge_type in c.BADGE_TYPE_PRICES]),
+            'signnow_document': signnow_document,
+            'signnow_link': signnow_link,
             'message': message
         }
 
