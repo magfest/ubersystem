@@ -688,21 +688,16 @@ class Session(SessionManager):
                 except sqlalchemy.orm.exc.NoResultFound:
                     cherrypy.session['attendee_account_id'] = ''
         
-        def one_badge_attendee_account(self, attendee):
+        def get_attendee_account_by_attendee(self, attendee):
             logged_in_account = self.current_attendee_account()
             if not logged_in_account:
                 return
             
             attendee_accounts = attendee.managers
             if logged_in_account in attendee_accounts:
-                account = logged_in_account
+                return logged_in_account
             elif len(attendee.managers) == 1:
-                account = attendee.managers[0]
-            else:
-                return
-
-            if account and account.has_only_one_badge:
-                return account
+                return attendee.managers[0]
 
         def logged_in_volunteer(self):
             return self.attendee(cherrypy.session.get('staffer_id'))

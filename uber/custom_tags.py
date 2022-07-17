@@ -194,6 +194,9 @@ def icon_yesno(value, icon=None, color=None):
 
 @JinjaEnv.jinja_filter
 def format_phone(val, country='US'):
+    if not val:
+        return
+        
     return phonenumbers.format_number(
         phonenumbers.parse(val, country),
         PhoneNumberFormat.NATIONAL)

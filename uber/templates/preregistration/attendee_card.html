@@ -66,6 +66,19 @@
 {% include 'attendee_card_extra.html' %}
 
 <div class="well {% if attendee.is_valid %}well-active {% endif %}col-sm-10 col-sm-offset-1">
+    {% if attendee.group %}
+    <row>
+        <div class="col-sm-12 text-center">
+            <h4>
+                {% if attendee == attendee.group.leader %}Leader{% else %}Member{% endif %} of "{{ attendee.group.name }}"
+                {% if attendee == attendee.group.leader and attendee.group.status != c.IMPORTED %}
+                <span class="badge">{{ attendee.group.status_label }}</span>
+                <a href="group_members?id={{ attendee.group.id }}" class="btn btn-primary btn-xs"><span class="glyphicon glyphicon-pencil"></span>&nbsp;Edit</a>
+                {% endif %}
+            </h4>
+        </div>
+    </row>
+    {% endif %}
     <row>
         <div class="col-sm-3 text-center well {% if attendee.is_valid %}inner-well-active {% endif %}">
             {{ mini_card }}
@@ -77,23 +90,25 @@
             </row>
             {% endfor %}
             <row>
-                <div class="col-sm-6">&nbsp;</div>
-                {% if attendee.badge_status == c.IMPORTED_STATUS %}
-                <div class="col-sm-6">
-                    <a href="../preregistration/repurchase?id={{ account.imported_attendees[0].id }}&skip_confirm=true" class="btn btn-info" target ="_blank">
+                <div class="col-sm-12">
+                {% if attendee.badge_status == c.IMPORTED_STATUS and not attendee.current_attendee %}
+                    <div class="pull-right">
+                    {% if attendee.group and attendee == attendee.group.leader and dealer_reg_open %}
+                    <a href="../preregistration/reapply?id={{ attendee.id }}" class="btn btn-success" target ="_blank">
+                        Reapply as Dealer &nbsp;<span class="glyphicon glyphicon-plus"></span>
+                    </a>
+                    {% elif not prereg_message %}
+                    <a href="../preregistration/repurchase?id={{ attendee.id }}&skip_confirm=true" class="btn btn-info" target ="_blank">
                         Register With This Info &nbsp;<span class="glyphicon glyphicon-plus"></span>
                     </a>
-                </div>
+                    {% endif %}
+                    </div>
                 {% elif attendee.is_valid or attendee.badge_status == c.PENDING_STATUS %}
-                <div class="col-sm-6">&nbsp;</div>
-            </row>
-            <row>
-                <div class="col-sm-9 col-sm-offset-3">
                     {% set multiple_buttons = c.ART_SHOW_OPEN or c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE or attendee.art_show_applications or attendee.marketplace_applications %}
                     {% if multiple_buttons %}
                     <div class="btn-group pull-right" role="group" aria-label="...">
                     {% endif %}
-                    <a href="confirm?id={{ attendee.id }}" target="_blank" class="btn btn-sm btn-info" value="Edit">
+                    <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-info" value="Edit">
                         <span class="glyphicon glyphicon-pencil"></span> Edit Details
                     </a>
                     {% if c.ART_SHOW_OPEN %}
