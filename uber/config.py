@@ -961,7 +961,7 @@ class AWSSecretFetcher:
             self.get_signnow_secret()
 
     def get_auth0_secret(self):
-        auth0_secret = self.client.get_secret(c.AWS_AUTH0_SECRET_NAME)
+        auth0_secret = self.get_secret(c.AWS_AUTH0_SECRET_NAME)
         if auth0_secret:
             c.AUTH_DOMAIN = auth0_secret('AUTH0_DOMAIN', '') or c.AUTH_DOMAIN
             c.AUTH_CLIENT_ID = auth0_secret('CLIENT_ID', '') or c.AUTH_CLIENT_ID
@@ -970,7 +970,7 @@ class AWSSecretFetcher:
             log.error("Error getting Auth0 secret: {}".format(auth0_secret))
 
     def get_signnow_secret(self):
-        signnow_secret = self.client.get_secret(c.AWS_SIGNNOW_SECRET_NAME)
+        signnow_secret = self.get_secret(c.AWS_SIGNNOW_SECRET_NAME)
         if signnow_secret:
             c.SIGNNOW_ACCESS_TOKEN = signnow_secret.get('username', '') or c.SIGNNOW_ACCESS_TOKEN
             c.SIGNNOW_CLIENT_ID = signnow_secret.get('client_id', '') or c.SIGNNOW_CLIENT_ID
