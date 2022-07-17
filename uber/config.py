@@ -904,6 +904,8 @@ class AWSSecretFetcher:
 
     def __init__(self):
         import boto3
+
+        region_name = "us-east-2"
         
         aws_session = boto3.session.Session(
             aws_access_key_id=c.AWS_ACCESS_KEY,
@@ -912,7 +914,7 @@ class AWSSecretFetcher:
 
         self.client = aws_session.client(
             service_name=c.AWS_SECRET_SERVICE_NAME,
-            region_name=c.AWS_REGION or 'us-east-2'
+            region_name=region_name
         )
 
     def get_secret(self, secret_name):
@@ -963,9 +965,9 @@ class AWSSecretFetcher:
     def get_auth0_secret(self):
         auth0_secret = self.get_secret(c.AWS_AUTH0_SECRET_NAME)
         if auth0_secret:
-            c.AUTH_DOMAIN = auth0_secret('AUTH0_DOMAIN', '') or c.AUTH_DOMAIN
-            c.AUTH_CLIENT_ID = auth0_secret('CLIENT_ID', '') or c.AUTH_CLIENT_ID
-            c.AUTH_CLIENT_SECRET = auth0_secret('CLIENT_SECRET', '') or c.AUTH_CLIENT_SECRET
+            c.AUTH_DOMAIN = auth0_secret.get('AUTH0_DOMAIN', '') or c.AUTH_DOMAIN
+            c.AUTH_CLIENT_ID = auth0_secret.get('CLIENT_ID', '') or c.AUTH_CLIENT_ID
+            c.AUTH_CLIENT_SECRET = auth0_secret.get('CLIENT_SECRET', '') or c.AUTH_CLIENT_SECRET
         else:
             log.error("Error getting Auth0 secret: {}".format(auth0_secret))
 
