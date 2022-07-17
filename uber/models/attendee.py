@@ -159,7 +159,17 @@ class Attendee(MagModel, TakesPaymentMixin):
     creator_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
     creator = relationship(
         'Attendee',
+        foreign_keys='Attendee.creator_id',
         backref=backref('created_badges', order_by='Attendee.full_name', cascade='all,delete-orphan'),
+        cascade='save-update,merge,refresh-expire,expunge',
+        remote_side='Attendee.id',
+        single_parent=True)
+
+    current_attendee_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
+    current_attendee = relationship(
+        'Attendee',
+        foreign_keys='Attendee.current_attendee_id',
+        backref=backref('old_badges', order_by='Attendee.badge_status', cascade='all,delete-orphan'),
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='Attendee.id',
         single_parent=True)
@@ -2049,11 +2059,27 @@ class AttendeeAccount(MagModel):
 
     @property
     def valid_attendees(self):
-        return [attendee for attendee in self.attendees if attendee.is_valid or attendee.badge_status == c.PENDING_STATUS]
+        return [attendee for attendee in self.attendees if attendee.is_valid]
+
+    @property
+    def valid_single_badges(self):
+        return [attendee for attendee in self.valid_attendees if not attendee.group]
+
+    @property
+    def valid_group_badges(self):
+        return [attendee for attendee in self.valid_attendees if attendee.group]
 
     @property
     def imported_attendees(self):
         return [attendee for attendee in self.attendees if attendee.badge_status == c.IMPORTED_STATUS]
+
+    @property
+    def imported_single_badges(self):
+        return [attendee for attendee in self.imported_attendees if not attendee.group]
+
+    @property
+    def imported_group_badges(self):
+        return [attendee for attendee in self.imported_attendees if attendee.group]
 
     @property
     def invalid_attendees(self):

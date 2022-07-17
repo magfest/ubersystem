@@ -211,11 +211,34 @@ class Root:
         return self.form(badge_type=c.PSEUDO_DEALER_BADGE, message=message, invite_code=invite_code)
 
     @check_if_can_reg
+    def reapply(self, session, id, **params):
+        old_attendee = session.attendee(id)
+        old_attendee_dict = old_attendee.to_dict(c.UNTRANSFERABLE_ATTRS)
+        del old_attendee_dict['id']
+
+        new_attendee = Attendee(**old_attendee_dict)
+        
+        new_attendee_dict = Charge.to_sessionized(new_attendee)
+        new_attendee_dict['badge_type'] = c.PSEUDO_DEALER_BADGE
+
+        cherrypy.session.setdefault('imported_attendee_ids', {})[new_attendee.id] = id
+
+        Charge.unpaid_preregs[new_attendee.id] = new_attendee_dict
+        Tracking.track(c.UNPAID_PREREG, new_attendee)
+        raise HTTPRedirect("form?edit_id={}&repurchase=1&old_group_id={}", new_attendee.id, old_attendee.group.id)
+        
+
+    @check_if_can_reg
     def repurchase(self, session, id, skip_confirm=False, **params):
         if skip_confirm or 'csrf_token' in params:
-            old_attendee = session.attendee(id).to_dict(c.UNTRANSFERABLE_ATTRS)
-            del old_attendee['id']
-            new_attendee = Attendee(**old_attendee)
+            old_attendee = session.attendee(id)
+            old_attendee_dict = old_attendee.to_dict(c.UNTRANSFERABLE_ATTRS)
+            del old_attendee_dict['id']
+
+            new_attendee = Attendee(**old_attendee_dict)
+
+            cherrypy.session.setdefault('imported_attendee_ids', {})[new_attendee.id] = id
+
             Charge.unpaid_preregs[new_attendee.id] = Charge.to_sessionized(new_attendee)
             Tracking.track(c.UNPAID_PREREG, new_attendee)
             raise HTTPRedirect("form?edit_id={}&repurchase=1", new_attendee.id)
@@ -235,32 +258,44 @@ class Root:
         """
         params['id'] = 'None'   # security!
         group = Group()
+        badges = params.get('badges', 0)
+        name = params.get('name', '')
 
         if edit_id is not None:
             attendee = self._get_unsaved(
                 edit_id,
                 if_not_found=HTTPRedirect('form?message={}', 'That preregistration has already been finalized'))
-            attendee.apply(params, restricted=True)
-            if not params.get('repurchase'):
-                params.setdefault('pii_consent', True)
         else:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
 
-            if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
-                # Both the Attendee class and Group class have identically named
-                # address fields. In order to distinguish the two sets of address
-                # fields in the params, the Group fields are prefixed with "group_"
-                # when the form is submitted. To prevent instantiating the Group object
-                # with the Attendee's address fields, we must clone the params and
-                # rename all the "group_" fields.
-                group_params = dict(params)
-                for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city']:
-                    group_params[field_name] = params.get('group_{}'.format(field_name), '')
-                    if params.get('copy_address'):
-                        params[field_name] = group_params[field_name]
-                        attendee.apply(params)
-
+        if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
+            # Both the Attendee class and Group class have identically named
+            # address fields. In order to distinguish the two sets of address
+            # fields in the params, the Group fields are prefixed with "group_"
+            # when the form is submitted. To prevent instantiating the Group object
+            # with the Attendee's address fields, we must clone the params and
+            # rename all the "group_" fields.
+            group_params = dict(params)
+            for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city']:
+                group_params[field_name] = params.get('group_{}'.format(field_name), '')
+                if params.get('copy_address'):
+                    params[field_name] = group_params[field_name]
+                    attendee.apply(params)
+            if not params.get('old_group_id'):
                 group = session.group(group_params, ignore_csrf=True, restricted=True)
+
+        if edit_id is not None:
+            attendee.apply(params, restricted=True)
+            if not params.get('repurchase'):
+                params.setdefault('pii_consent', True)
+            if params.get('old_group_id'):
+                old_group = session.group(params['old_group_id'])
+                old_group_dict = session.group(params['old_group_id']).to_dict(c.GROUP_REAPPLY_ATTRS)
+                group.apply(old_group_dict, ignore_csrf=True, restricted=True)
+                name = old_group.name
+                badges = old_group.badges_purchased
+        else:
+            attendee = session.attendee(params, ignore_csrf=True, restricted=True)
 
         if c.PAGE == 'post_dealer':
             attendee.badge_type = c.PSEUDO_DEALER_BADGE
@@ -301,8 +336,8 @@ class Root:
                 'copy_address': params.get('copy_address'),
                 'promo_code_code': params.get('promo_code', ''),
                 'pii_consent': params.get('pii_consent'),
-                'name': params.get('name', ''),
-                'badges': params.get('badges', 0),
+                'name': name,
+                'badges': badges,
                 'invite_code': params.get('invite_code', ''),
             }
 
@@ -324,6 +359,12 @@ class Root:
                         message = add_to_new_or_existing_account(session, attendee, **params)
 
                     if not message:
+                        if attendee.id in cherrypy.session.setdefault('imported_attendee_ids', {}):
+                            old_attendee = session.attendee(cherrypy.session['imported_attendee_ids'][attendee.id])
+                            old_attendee.current_attendee = attendee
+                            session.add(old_attendee)
+                            del cherrypy.session['imported_attendee_ids'][attendee.id]
+
                         attendee.paid = c.PAID_BY_GROUP
                         group.attendees = [attendee]
                         session.assign_badges(group, params['badges'])
@@ -404,8 +445,8 @@ class Root:
             'account_email': params.get('account_email', ''),
             'account_password': params.get('account_password', ''),
             'confirm_password': params.get('confirm_password', ''),
-            'badges': params.get('badges', 0),
-            'name': params.get('name', ''),
+            'badges': badges,
+            'name': name,
             'group':      group,
             'promo_code_group': promo_code_group,
             'edit_id':    edit_id,
@@ -488,6 +529,12 @@ class Root:
         charge = Charge(listify(Charge.unpaid_preregs.values()))
         if charge.total_cost <= 0:
             for attendee in charge.attendees:
+                if attendee.id in cherrypy.session.setdefault('imported_attendee_ids', {}):
+                    old_attendee = session.attendee(cherrypy.session['imported_attendee_ids'][attendee.id])
+                    old_attendee.current_attendee = attendee
+                    session.add(old_attendee)
+                    del cherrypy.session['imported_attendee_ids'][attendee.id]
+
                 if attendee.promo_code_id:
                     message = check_prereg_promo_code(session, attendee)
                 
@@ -567,6 +614,12 @@ class Root:
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
                     session.add_attendee_to_account(pending_attendee, new_or_existing_account)
             else:
+                if attendee.id in cherrypy.session.setdefault('imported_attendee_ids', {}):
+                    old_attendee = session.attendee(cherrypy.session['imported_attendee_ids'][attendee.id])
+                    old_attendee.current_attendee = attendee
+                    session.add(old_attendee)
+                    del cherrypy.session['imported_attendee_ids'][attendee.id]
+
                 attendee.badge_status = c.PENDING_STATUS
                 attendee.paid = c.PENDING
                 session.add(attendee)
@@ -805,7 +858,7 @@ class Root:
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
         return {
             'group':   group,
-            'account': session.one_badge_attendee_account(group.leader),
+            'account': session.get_attendee_account_by_attendee(group.leader),
             'current_account': session.current_attendee_account(),
             'upgraded_badges': len([a for a in group.attendees if a.badge_type in c.BADGE_TYPE_PRICES]),
             'signnow_document': signnow_document,
@@ -1224,7 +1277,7 @@ class Root:
             'undoing_extra': undoing_extra,
             'return_to':     return_to,
             'attendee':      attendee,
-            'account':       session.one_badge_attendee_account(attendee),
+            'account':       session.get_attendee_account_by_attendee(attendee),
             'message':       message,
             'affiliates':    session.affiliates(),
             'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
