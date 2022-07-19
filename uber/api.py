@@ -84,6 +84,7 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
         'special_needs',
         'admin_notes',
     ]
+    
     marketplace_import_fields = [
         'business_name',
         'categories',
@@ -459,7 +460,7 @@ class AttendeeLookup:
         'all_years',
         'badge_status',
         'badge_status_label',
-    ]
+    ] + Attendee.import_fields
 
     group_attendee_import_fields = [
         'placeholder',
@@ -739,7 +740,7 @@ class AttendeeAccountLookup:
             if not account:
                 raise HTTPError(404, 'No attendee account found with this ID')
 
-            attendees_to_export = account.attendees if include_group else [a for a in account.attendees if not a.group]
+            attendees_to_export = account.valid_attendees if include_group else [a for a in account.attendees if not a.group]
 
             attendees = _prepare_attendees_export(attendees_to_export, include_apps=full)
             return {
@@ -965,7 +966,7 @@ class GroupLookup:
         'admin_notes',
         'badges',
         'can_add',
-    ]
+    ] + Group.import_fields
 
     dealer_import_fields = [
         'tables',
@@ -1034,7 +1035,7 @@ class GroupLookup:
             if not group:
                 raise HTTPError(404, 'No group found with this ID')
 
-            attendees_to_export = [a for a in group.attendees if not a.is_unassigned]
+            attendees_to_export = [a for a in group.attendees if not a.is_unassigned and a.is_valid]
             attendees = _prepare_attendees_export(attendees_to_export, include_account_ids=True, include_apps=full, is_group_attendee=True)
 
             if group.unassigned:
