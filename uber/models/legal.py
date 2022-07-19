@@ -41,5 +41,5 @@ class SignedDocument(MagModel):
             return d.get_signing_link(self.document_id,
                                       group.leader.first_name,
                                       group.leader.last_name,
-                                      c.URL_BASE + '/preregistration/dealer_confirmation?id={}'
+                                      (c.REDIRECT_URL_BASE or c.URL_BASE) + '/preregistration/dealer_confirmation?id={}'
                                       .format(group.id))
