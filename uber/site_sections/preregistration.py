@@ -823,7 +823,16 @@ class Root:
                 if d.error_message:
                     log.error(d.error_message)
             else:
-                signnow_link = signnow_document.get_dealer_signing_link(group)
+                signed = signnow_document.get_doc_signed_timestamp()
+                if signed:
+                    signnow_document.signed = signed
+                    session.add(signnow_document)
+                    d = SignNowDocument()
+                    signnow_link = d.get_download_link(signnow_document.document_id)
+                    if d.error_message:
+                        log.error(d.error_message)
+                else:
+                    signnow_link = signnow_document.get_dealer_signing_link(group)
 
         if cherrypy.request.method == 'POST':
             # Both the Attendee class and Group class have identically named
