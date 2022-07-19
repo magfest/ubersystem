@@ -223,6 +223,13 @@ class MagModel:
         """
         return {colname for colname in cls.all_checkgroups if colname in cls.unrestricted}
 
+    @cached_classproperty
+    def import_fields(cls):
+        """
+        Allows event plugins to inject extra import fields for the API export.
+        """
+        return []
+
     @classproperty
     def _extra_apply_attrs(cls):
         """
