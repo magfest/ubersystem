@@ -94,7 +94,7 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
         'admin_notes',
     ]
 
-    fields = AttendeeLookup.attendee_import_fields
+    fields = AttendeeLookup.attendee_import_fields + Attendee.import_fields
             
     if include_depts or include_apps:
         fields.extend(['shirt'])
@@ -456,7 +456,7 @@ class AttendeeLookup:
         'all_years',
         'badge_status',
         'badge_status_label',
-    ] + Attendee.import_fields
+    ]
 
     group_attendee_import_fields = [
         'placeholder',
@@ -618,7 +618,7 @@ class AttendeeLookup:
                 a for a in (id_attendees + email_attendees + name_attendees + name_and_email_attendees)
                 if a.id not in seen and not seen.add(a.id)]
 
-            fields = AttendeeLookup.attendee_import_fields
+            fields = AttendeeLookup.attendee_import_fields + Attendee.import_fields
             if full:
                 fields.extend(['shirt'])
 
@@ -962,7 +962,7 @@ class GroupLookup:
         'admin_notes',
         'badges',
         'can_add',
-    ] + Group.import_fields
+    ]
 
     dealer_import_fields = [
         'tables',
@@ -996,7 +996,7 @@ class GroupLookup:
             groups = []
 
             for g in query.all():
-                d = g.to_dict(['id'] + GroupLookup.group_import_fields + GroupLookup.dealer_import_fields)
+                d = g.to_dict(['id'] + GroupLookup.group_import_fields + Group.import_fields + GroupLookup.dealer_import_fields)
 
                 attendees = {}
                 for attendee in g.attendees:
@@ -1084,7 +1084,7 @@ class GroupLookup:
                 a for a in (id_groups + name_groups)
                 if a.id not in seen and not seen.add(a.id)]
 
-            fields = GroupLookup.group_import_fields
+            fields = GroupLookup.group_import_fields + Group.import_fields
 
             groups = []
             for g in all_groups:
