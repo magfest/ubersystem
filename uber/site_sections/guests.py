@@ -182,9 +182,9 @@ class Root:
                     for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city']:
                         group_params[field_name] = params.get(field_name, '')
 
-                    if not guest.info and not guest_merch.tax_phone:
+                    if c.GUEST_INFO_DEADLINE and not guest.info and not guest_merch.tax_phone:
                         message = 'You must provide a phone number for tax purposes.'
-                    elif not (params.get('country')
+                    elif c.GUEST_INFO_DEADLINE and not (params.get('country')
                               and params.get('region')
                               and params.get('zip_code')
                               and params.get('address1')
