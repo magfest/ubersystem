@@ -1733,7 +1733,7 @@ $(window).on("runJavaScript", function(){
   <label class="col-sm-3 control-label">Paid</label>
   <div class="col-sm-6">
   {% if read_only %}
-    <p class="form-control-static">This attendee's paid status is <strong>{{ attendee.paid_label }}</strong>. They have given us {{ (attendee.amount_paid / 100)|format_currency }} and been refunded {{ (attendee.amount_refunded / 100)|format_currency }}.</p>
+    <p class="form-control-static">This attendee's paid status is <strong>{{ attendee.paid_label }}</strong>.</p>
     {% else %}
     <div class="form-inline">
       <select name="paid" class="form-control">
@@ -1741,11 +1741,11 @@ $(window).on("runJavaScript", function(){
       </select>
       &nbsp;&nbsp;&nbsp;
       <span id="amount_paid">
-            Paid: {{ (attendee.amount_paid / 100)|format_currency }}
+            Paid: 
         </span>
       &nbsp;&nbsp;&nbsp;
       <span id="amount_refunded">
-            Refunded: {{ (attendee.amount_refunded / 100)|format_currency }}
+            Refunded: 
         </span>
       {% if not read_only and c.HAS_REG_ADMIN_ACCESS %}
         [<a href="../reg_admin/receipt_items?id={{ attendee.id }}" target="_blank">Manage Payments</a>]

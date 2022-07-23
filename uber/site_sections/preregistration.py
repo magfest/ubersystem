@@ -1,5 +1,5 @@
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import wraps
 from uber.models.admin import PasswordReset
 from uber.models.marketplace import MarketplaceApplication
@@ -16,7 +16,8 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, PromoCode, PromoCodeGroup, SignedDocument, Tracking
+from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, ModelReceipt, PromoCode, PromoCodeGroup, \
+                        ReceiptTransaction, SignedDocument, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, genpasswd, valid_email, \
     valid_password, Charge, SignNowDocument
@@ -62,29 +63,12 @@ def check_prereg_promo_code(session, attendee):
         session.commit()
         return "The promo code you're using for {} has been used too many times.".format(attendee.full_name)
 
-def rollback_prereg_session(session):
-    if Charge.stripe_intent_id:
-        session.delete_txn_by_stripe_id(Charge.stripe_intent_id)
-    Charge.paid_preregs.clear()
-    if Charge.pending_preregs:
-        cherrypy.session['unpaid_preregs'] = Charge.pending_preregs.copy()
-
-        attendee = session.attendee(Charge.pending_preregs.popitem()[0])
-        if attendee.managers:
-            account = attendee.managers[0]
-            if account and not any(attendee.badge_status != c.PENDING_STATUS for attendee in account.attendees):
-                session.delete(account)
-                cherrypy.session['attendee_account_id'] = ''
-
-        Charge.pending_preregs.clear()
-    session.commit()
-
 def check_account(session, email, password, confirm_password, skip_if_logged_in=True, update_password=True, old_email=None):
     logged_in_account = session.current_attendee_account()
     if logged_in_account and skip_if_logged_in:
         return
 
-    if valid_email(email):
+    if email and valid_email(email):
         return valid_email(email)
 
     existing_account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(email)).first()
@@ -185,14 +169,11 @@ class Root:
 
     @check_if_can_reg
     def index(self, session, message='', account_email='', account_password=''):
-        if Charge.pending_preregs:
-            rollback_prereg_session(session)
-            raise HTTPRedirect('index')
-
         if not Charge.unpaid_preregs:
             raise HTTPRedirect('form?message={}', message) if message else HTTPRedirect('form')
         else:
             charge = Charge(listify(Charge.unpaid_preregs.values()))
+            charge.set_total_cost()
             for attendee in charge.attendees:
                 if attendee.promo_code:
                     real_code = session.query(PromoCode).filter_by(code=attendee.promo_code.code).first()
@@ -527,6 +508,7 @@ class Root:
             cherrypy.session['attendee_account_id'] = new_or_existing_account.id
         
         charge = Charge(listify(Charge.unpaid_preregs.values()))
+        charge.set_total_cost()
         if charge.total_cost <= 0:
             for attendee in charge.attendees:
                 if attendee.id in cherrypy.session.setdefault('imported_attendee_ids', {}):
@@ -548,11 +530,10 @@ class Root:
 
             for group in charge.groups:
                 session.add(group)
-                
-            else:
-                Charge.unpaid_preregs.clear()
-                Charge.paid_preregs.extend(charge.targets)
-                raise HTTPRedirect('paid_preregistrations?total_cost={}', charge.dollar_amount)
+        
+            Charge.unpaid_preregs.clear()
+            Charge.paid_preregs.extend(charge.targets)
+            raise HTTPRedirect('paid_preregistrations?total_cost={}', charge.dollar_amount)
         else:
             message = "These badges aren't free! Please pay for them."
             raise HTTPRedirect('index?message={}', message)
@@ -561,36 +542,76 @@ class Root:
     @credit_card
     def prereg_payment(self, session, message='', **params):
         charge = Charge(listify(Charge.unpaid_preregs.values()))
+        charge.set_total_cost()
         if not charge.total_cost:
+            if not charge.models:
+                HTTPRedirect('form?message={}', 'Your preregistration has already been finalized')
             message = 'Your total cost was $0. Your credit card has not been charged.'
-        elif charge.amount != charge.total_cost:
-            message = 'Our preregistration price has gone up; ' \
-                'please fill out the payment form again at the higher price'
         else:
             for attendee in charge.attendees:
                 if not message and attendee.promo_code_id:
                     message = check_prereg_promo_code(session, attendee)
             
             if not message:
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    account_email, account_password = params.get('account_email'), params.get('account_password')
+                    message = check_account(session, account_email, account_password, params.get('confirm_password'))
+                    if message:
+                        return {'error': message}
+
+                    new_or_existing_account = session.current_attendee_account()
+                    if not new_or_existing_account:
+                        new_or_existing_account = session.create_attendee_account(account_email, account_password)
+                    cherrypy.session['attendee_account_id'] = new_or_existing_account.id
                 message = check(attendee, prereg=True)
             
             if not message:
-                stripe_intent = charge.create_stripe_intent(session)
-                message = stripe_intent if isinstance(stripe_intent, string_types) else ''
+                if cherrypy.session.get('receipt_id'):
+                    # Something unusual happened during the prereg payment flow
+                    # Try to pick up where we left off or bounce the attendee back to the main form
+                    receipt = session.query(ModelReceipt).filter(ModelReceipt.id == cherrypy.session['receipt_id'],
+                                                                 ModelReceipt.closed == None).first()
+                    if not receipt:
+                        cherrypy.session['receipt_id'] = None
+                    elif receipt.receipt_txns and len(receipt.receipt_txns) > len(receipt.cancelled_txns):
+                        Charge.pending_preregs.clear()
+                        cherrypy.session['receipt_id'] = None
+                        HTTPRedirect('form?message={}', 'Your preregistration has already been finalized')
+                    elif receipt.owner_model == "AttendeeAccount":
+                        receipt.owner_id = cherrypy.session.get('attendee_account_id', '')
+
+                if not cherrypy.session.get('receipt_id'):
+                    # If there are multiple attendees/groups on this receipt, make the account the receipt owner
+                    if len(charge.models) > 1:
+                        payment_account_id = cherrypy.session.get('attendee_account_id', '')
+                    else:
+                        payment_account_id = ''
+
+                    receipt, receipt_items = charge.create_prereg_receipt(payment_account_id)
+                    session.add(receipt)
+                    cherrypy.session['receipt_id'] = receipt.id
+                    for item in receipt_items:
+                        session.add(item)
+                    session.commit()
+                else:
+                    if receipt.current_amount_owed != charge.total_cost:
+                        message = 'Our preregistration price has gone up; ' \
+                                  'please fill out the payment form again at the higher price.'
+                        receipt.closed = datetime.now()
+                        session.add(receipt)
+
+                if not message:
+                    stripe_intent = Charge.create_stripe_intent(receipt, charge.description)
+                    if not stripe_intent:
+                        message = "We're having trouble contacting Stripe, please try again later or contact the administrator."
+                    elif isinstance(stripe_intent, string_types):
+                        message = stripe_intent
 
         if message:
             return {'error': message}
 
-        if c.ATTENDEE_ACCOUNTS_ENABLED:
-            account_email, account_password = params.get('account_email'), params.get('account_password')
-            message = check_account(session, account_email, account_password, params.get('confirm_password'))
-            if message:
-                return {'error': message}
-
-            new_or_existing_account = session.current_attendee_account()
-            if not new_or_existing_account:
-                new_or_existing_account = session.create_attendee_account(account_email, account_password)
-            cherrypy.session['attendee_account_id'] = new_or_existing_account.id
+        receipt_txn = Charge.create_receipt_transaction(receipt, charge.description, stripe_intent.id)
+        session.add(receipt_txn)
 
         for attendee in charge.attendees:
             pending_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
@@ -606,11 +627,7 @@ class Root:
                         session.add_codes_to_pc_group(pc_group, pc_codes - pending_codes)
                     elif pc_codes < pending_codes:
                         session.remove_codes_from_pc_group(pc_group, pending_codes - pc_codes)
-
-                for receipt_item in pending_attendee.receipt_items:
-                    session.delete(receipt_item)
                 
-                pending_attendee.amount_paid_override = pending_attendee.total_cost
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
                     session.add_attendee_to_account(pending_attendee, new_or_existing_account)
             else:
@@ -630,14 +647,7 @@ class Root:
                     pc_group = session.create_promo_code_group(attendee, attendee.name, int(attendee.badges) - 1)
                     session.add(pc_group)
 
-                attendee.amount_paid_override = attendee.total_cost
-
         cherrypy.session['pending_preregs'] = Charge.unpaid_preregs.copy()
-
-        session.commit() # save PromoCodeGroup to the database to generate receipt items correctly
-        for attendee in charge.attendees:
-            session.add(session.create_receipt_item(attendee, attendee.total_cost * 100,
-                                                    "Prereg payment", charge.stripe_transaction))
 
         Charge.unpaid_preregs.clear()
         Charge.paid_preregs.extend(charge.targets)
@@ -650,20 +660,31 @@ class Root:
                 'cancel_url': 'cancel_prereg_payment'}
 
     @ajax
-    def cancel_prereg_payment(self, session, stripe_id=None, account_id=None):
-        rollback_prereg_session(session)
+    def cancel_prereg_payment(self, session, stripe_id):
+        receipt_txn = session.query(ReceiptTransaction).filter_by(stripe_id=stripe_id).first()
+        if receipt_txn and receipt_txn.type == c.PENDING:
+            receipt_txn.type = c.CANCELLED
+            session.add(receipt_txn)
+
+        account = session.current_attendee_account()
+        if account and not any(attendee.badge_status != c.PENDING_STATUS for attendee in account.attendees) \
+                   and len(account.attendees) == len(Charge.pending_preregs):
+            session.delete(account)
+            cherrypy.session['attendee_account_id'] = ''
+
+        Charge.paid_preregs.clear()
+        if Charge.pending_preregs:
+            cherrypy.session['unpaid_preregs'] = Charge.pending_preregs.copy()
+            Charge.pending_preregs.clear()
+        session.commit()
         return {'message': 'Payment cancelled.'}
     
     @ajax
-    def cancel_payment(self, session, stripe_id, model_id=None, cancel_amt=0):
-        session.delete_txn_by_stripe_id(stripe_id)
-        if model_id and cancel_amt:
-            for model in [ArtShowApplication, MarketplaceApplication]:
-                app = session.query(model).filter_by(id=model_id).first()
-                if app:
-                    app.amount_paid -= int(cancel_amt)
-                    session.add(app)
-        session.commit()
+    def cancel_payment(self, session, stripe_id):
+        receipt_txn = session.query(ReceiptTransaction).filter_by(stripe_id=stripe_id).first()
+        if receipt_txn and receipt_txn.type == c.PENDING:
+            receipt_txn.type == c.CANCELLED
+            session.add(receipt_txn)
         
         return {'message': 'Payment cancelled.'}
 
@@ -672,6 +693,7 @@ class Root:
             raise HTTPRedirect('index')
         else:
             Charge.pending_preregs.clear()
+            cherrypy.session['receipt_id'] = None
             preregs = [session.merge(Charge.from_sessionized(d)) for d in Charge.paid_preregs]
             for prereg in preregs:
                 try:

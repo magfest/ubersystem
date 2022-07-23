@@ -7,7 +7,7 @@ from pytz import UTC
 
 from uber.config import c
 from uber.models import MagModel
-from uber.decorators import cost_property, presave_adjustment
+from uber.decorators import presave_adjustment
 from uber.models.types import Choice, DefaultColumn as Column, default_relationship as relationship
 
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
@@ -58,16 +58,12 @@ class ArtShowApplication(MagModel):
     delivery_method = Column(Choice(c.ART_SHOW_DELIVERY_OPTS), default=c.BRINGING_IN)
     us_only = Column(Boolean, default=False)
     admin_notes = Column(UnicodeText, admin_only=True)
-    base_price = Column(Integer, default=0, admin_only=True)
     overridden_price = Column(Integer, nullable=True, admin_only=True)
-    amount_paid = Column(Integer, default=0, index=True, admin_only=True)
 
     email_model_name = 'app'
 
     @presave_adjustment
     def _cost_adjustments(self):
-        self.base_price = self.default_cost
-
         if self.overridden_price == '':
             self.overridden_price = None
 
@@ -148,26 +144,6 @@ class ArtShowApplication(MagModel):
     @property
     def email(self):
         return self.attendee.email
-
-    @cost_property
-    def panels_cost(self):
-        return self.panels * c.COST_PER_PANEL
-
-    @cost_property
-    def tables_cost(self):
-        return self.tables * c.COST_PER_TABLE
-
-    @cost_property
-    def panels_ad_cost(self):
-        return self.panels_ad * c.COST_PER_PANEL
-
-    @cost_property
-    def tables_ad_cost(self):
-        return self.tables_ad * c.COST_PER_TABLE
-
-    @cost_property
-    def mailing_fee(self):
-        return c.ART_MAILING_FEE if self.delivery_method == c.BY_MAIL else 0
 
     @property
     def is_unpaid(self):

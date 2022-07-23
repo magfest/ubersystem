@@ -137,6 +137,4 @@ class Root:
         return {'stripe_intent': stripe_intent,
                 'success_url': 'edit?id={}&message={}'.format(attendee.marketplace_applications[0].id,
                                                               'Your payment has been accepted'),
-                'cancel_url': '../preregistration/cancel_payment?model_id={}&cancel_amt={}'.format(
-                        attendee.marketplace_applications[0].id, cancel_amt
-                )}
+                'cancel_url': '../preregistration/cancel_payment'}

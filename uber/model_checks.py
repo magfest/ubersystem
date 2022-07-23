@@ -254,6 +254,7 @@ def extra_donation_valid(attendee):
 
 @prereg_validation.Attendee
 def total_cost_over_paid(attendee):
+    return
     if (attendee.total_cost * 100) < attendee.amount_paid:
         if (not attendee.orig_value_of('birthdate') or attendee.orig_value_of('birthdate') < attendee.birthdate) \
                 and attendee.age_group_conf['val'] in [c.UNDER_6, c.UNDER_13]:
@@ -265,6 +266,7 @@ def total_cost_over_paid(attendee):
 
 @validation.Attendee
 def reasonable_total_cost(attendee):
+    return
     if attendee.total_cost >= 999999:
         return 'We cannot charge {}. Please reduce extras so the total is below $999,999.'.format(
             format_currency(attendee.total_cost))

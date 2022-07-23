@@ -13,7 +13,7 @@ from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer, Numeric
 
 from uber.config import c
-from uber.decorators import cost_property, presave_adjustment
+from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, TakesPaymentMixin
@@ -46,9 +46,7 @@ class Group(MagModel, TakesPaymentMixin):
     purchased_items = Column(MutableDict.as_mutable(JSONB), default={}, server_default='{}')
     refunded_items = Column(MutableDict.as_mutable(JSONB), default={}, server_default='{}')
     auto_recalc = Column(Boolean, default=True, admin_only=True)
-    stripe_txn_share_logs = relationship('StripeTransactionGroup',
-                                         backref='group')
-
+    
     can_add = Column(Boolean, default=False, admin_only=True)
     admin_notes = Column(UnicodeText, admin_only=True)
     status = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
@@ -178,12 +176,11 @@ class Group(MagModel, TakesPaymentMixin):
             self.tables
             and self.tables != '0'
             and self.tables != '0.0'
-            and (not self.registered or self.amount_paid or self.cost
-                 or self.status != c.UNAPPROVED))
+            and (not self.registered or self.status != c.UNAPPROVED))
 
     @is_dealer.expression
     def is_dealer(cls):
-        return and_(cls.tables > 0, or_(cls.amount_paid > 0, cls.cost > 0, cls.status != c.UNAPPROVED))
+        return and_(cls.tables > 0, or_(cls.status != c.UNAPPROVED))
 
     @hybrid_property
     def is_unpaid(self):
@@ -229,22 +226,9 @@ class Group(MagModel, TakesPaymentMixin):
         from uber.models import Attendee
         return exists().where(and_(Attendee.group_id == cls.id, Attendee.first_name == ''))
 
-    @cost_property
-    def table_cost(self):
-        table_count = int(float(self.tables))
-        return sum(c.TABLE_PRICES[i] for i in range(1, 1 + table_count))
-
     @property
     def new_badge_cost(self):
         return c.DEALER_BADGE_PRICE if self.is_dealer else c.get_group_price()
-
-    @cost_property
-    def badge_cost(self):
-        total = 0
-        for attendee in self.attendees:
-            if attendee.paid == c.PAID_BY_GROUP:
-                total += attendee.badge_cost
-        return total
 
     @property
     def amount_extra(self):
