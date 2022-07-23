@@ -52,12 +52,10 @@ class Root:
                     if params.get('badge_status', ''):
                         attendee.badge_status = params['badge_status']
                     if 'app_paid' in params \
-                            and int(params['app_paid']) != app_paid \
-                            and int(params['app_paid']) > 0:
-                        attendee.amount_paid_override -= app_paid
-                        attendee.amount_paid_override += int(params['app_paid'])
-                    session.add(attendee)
-                    app.attendee = attendee
+                                and int(params['app_paid']) != app_paid \
+                                and int(params['app_paid']) > 0:
+                        session.add(attendee)
+                        app.attendee = attendee
 
                 session.add(app)
                 if params.get('save') == 'save_return_to_search':

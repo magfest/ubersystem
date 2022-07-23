@@ -190,8 +190,8 @@ class MagModel:
         """
         Returns all logged Stripe transactions with this model's ID.
         """
-        from uber.models.commerce import StripeTransaction
-        return self.session.query(StripeTransaction).filter_by(fk_id=self.id).all()
+        from uber.models.commerce import ReceiptTransaction
+        return self.session.query(ReceiptTransaction).filter_by(fk_id=self.id).all()
 
     @cached_classproperty
     def unrestricted(cls):
@@ -871,8 +871,7 @@ class Session(SessionManager):
             """
             import stripe
             from pockets.autolog import log
-            from uber.models.commerce import StripeTransaction, \
-                StripeTransactionAttendee, StripeTransactionGroup
+            from uber.models.commerce import ReceiptTransaction
 
             txn = stripe_log.stripe_transaction
             response = None
@@ -899,7 +898,7 @@ class Session(SessionManager):
                         subject='ERROR: MAGFest Stripe invalid request error')
                     return 'An unexpected problem occurred: ' + str(e), None
 
-                refund_txn = StripeTransaction(
+                refund_txn = ReceiptTransaction(
                     stripe_id=response.id or None,
                     amount=response.amount,
                     desc=txn.desc,
@@ -907,20 +906,6 @@ class Session(SessionManager):
                     who=AdminAccount.admin_name() or 'non-admin')
 
                 self.add(refund_txn)
-
-                if isinstance(model, Attendee):
-                    self.add(StripeTransactionAttendee(
-                        txn_id=refund_txn.id,
-                        attendee_id=model.id,
-                        share=stripe_log.share
-                    ))
-
-                elif isinstance(model, Group):
-                    self.add(StripeTransactionGroup(
-                        txn_id=refund_txn.id,
-                        group_id=model.id,
-                        share=stripe_log.share
-                    ))
 
                 return '', response, refund_txn
 
@@ -941,18 +926,6 @@ class Session(SessionManager):
                 item.group_id = getattr(model, 'id', None)
 
             return item
-        
-        def delete_txn_by_stripe_id(self, stripe_id):
-            stripe_txn = self.query(StripeTransaction).filter_by(stripe_id=stripe_id).first()
-            if stripe_txn:
-                if stripe_txn.type != c.PENDING:
-                    return # Don't delete completed transactions
-                receipt_items = self.query(ReceiptItem).filter_by(txn_id=stripe_txn.id).all()
-                for receipt_item in receipt_items:
-                    if receipt_item.txn_type != c.PENDING:
-                        return # Don't delete a transaction if it has completed receipt items
-                    self.delete(receipt_item)
-                self.delete(stripe_txn)
 
         def possible_match_list(self):
             possibles = defaultdict(list)

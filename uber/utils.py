@@ -5,6 +5,7 @@ import random
 import re
 import string
 import traceback
+from typing import Iterable
 import urllib
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, timedelta
@@ -945,12 +946,11 @@ class OAuthRequest:
 
 class Charge:
 
-    def __init__(self, targets=(), amount=None, description=None, receipt_email=''):
+    def __init__(self, targets=(), description=None, receipt_email=''):
         self._targets = listify(targets)
-        self._amount = amount
         self._description = description
         self._receipt_email = receipt_email
-        self._stripe_transaction = None
+        self._current_cost = 0
 
     @classproperty
     def paid_preregs(cls):
@@ -1066,13 +1066,177 @@ class Charge:
         else:
             raise HTTPRedirect('../preregistration/credit_card_retry')
 
-    def to_dict(self):
-        return {
-            'targets': self.targets,
-            'amount': self.amount,
-            'description': self.description,
-            'receipt_email': self.receipt_email
-        }
+    @classmethod
+    def get_all_receipt_items(cls, model, items=None):
+        """
+        Iterates through the cost_calculations for this model and returns a list containing all non-null cost and credit items.
+        This function is for use with new models to grab all their initial costs for creating or previewing a receipt.
+        """
+        if not items:
+            items = [uber.receipt_items.cost_calculation.items] + [uber.receipt_items.credit_calculation.items]
+        receipt_items = []
+        
+        for i in items:
+            for calculation in i[model.__class__.__name__].values():
+                item = calculation(model)
+                if item:
+                    receipt_items.append(item)
+        
+        return receipt_items
+
+    @classmethod
+    def process_receipt_item(cls, item, receipt=None):
+        """
+        Unpacks the items from get_all_receipt_items. If a ModelReceipt is provided, new ReceiptItems are created.
+        Otherwise, the raw values are returned so attendees can preview their receipts.
+
+        Returns a list containing either:
+            - A single ReceiptItem
+            - A single tuple (desc, cost, count)
+            - Multiple ReceiptItems
+            - Multiple tuples (desc, cost, count)
+        """
+        from uber.models import AdminAccount, ReceiptItem
+        try:
+            desc, cost, count = item
+        except ValueError:
+            # Unpack list of wrong size (no quantity provided).
+            desc, cost = item
+            count = 1
+        if isinstance(cost, Iterable):
+            # A list of the same item at different prices, e.g., group badges
+            receipt_items = []
+            for price in cost:
+                if receipt:
+                    receipt_items.append(ReceiptItem(receipt_id=receipt.id,
+                                                     desc=desc,
+                                                     amount=cost,
+                                                     count=count,
+                                                     who=AdminAccount.admin_name() or 'non-admin'
+                                                    ))
+                else:
+                    receipt_items.append(desc, price, count)
+            return receipt_items
+        if receipt:
+            return [ReceiptItem(receipt_id=receipt.id,
+                                desc=desc,
+                                amount=cost,
+                                count=count,
+                                who=AdminAccount.admin_name() or 'non-admin'
+                            )]
+        else:
+            return [(desc, cost, count)]
+
+    @classmethod
+    def create_model_receipt(cls, model):
+        from uber.models import ModelReceipt
+
+        receipt = ModelReceipt(owner_id=model.id, owner_model=model.__class__.__name__)
+        receipt_items = []
+
+        for item in cls.get_all_receipt_items(model):
+            receipt_items.extend(cls.process_receipt_item(item, receipt))
+        
+        return receipt, receipt_items
+
+    @classmethod
+    def process_receipt_upgrade_item(cls, model, key, receipt=None, count=1, **kwargs):
+        """
+        Finds the cost of a receipt item to add to an existing receipt.
+        This uses the cost_changes dictionary defined on each model in receipt_items.py,
+        calling it with the extra keyword arguments provided.
+        
+        If a ModelReceipt is provided, a new ReceiptItem is created and returned.
+        Otherwise, the raw values are returned so attendees can preview their receipt 
+        changes. If there's no matching key in the model's cost_changes, or if not enough
+        keyword arguments were provided for the cost change function, we log an error and
+        return None.
+        """
+        from uber.models import AdminAccount, ReceiptItem
+        cost_change_tuple = model.cost_changes.get(key)
+        if cost_change_tuple:
+            cost_change_func = cost_change_tuple[2]
+
+            try:
+                cost_change = cost_change_func(kwargs)
+            except TypeError as e:
+                log.error(str(e))
+                return
+
+            if receipt:
+                return ReceiptItem(receipt_id=receipt.id,
+                                   desc=cost_change_tuple[0] if cost_change > 0 else cost_change_tuple[1],
+                                   amount=cost_change,
+                                   count=count,
+                                   who=AdminAccount.admin_name() or 'non-admin'
+                                )
+            else:
+                return (cost_change_tuple[0] if cost_change > 0 else cost_change_tuple[1],
+                        cost_change,
+                        count)
+        else:
+            log.error("ERROR: Cost change function {} does not exist on model type {}!".format(key, model.__class__.__name__))
+
+    def prereg_receipt_preview(self):
+        """
+        Returns a list of tuples where tuple[0] is the name of a group of items,
+        and tuple[1] is a list of cost item tuples from process_receipt_item
+        
+        This lets us show the attendee a nice display of what they're buying
+        """
+        items_preview = []
+        for model in self.models:
+            if getattr(model, 'badges', None) and getattr(model, 'name') and isinstance(model, uber.models.Attendee):
+                items_group = ("{} plus {} badges ({})".format(getattr(model, 'full_name', None), int(model.badges) - 1, model.name), [])
+            else:
+                group_name = getattr(model, 'name', None)
+                items_group = (group_name or getattr(model, 'full_name', None), [])
+            
+            for item in Charge.get_all_receipt_items(model):
+                items_group[1].extend(Charge.process_receipt_item(item))
+            
+            items_preview.append(items_group)
+
+        return items_preview
+
+    def create_prereg_receipt(self, account_id=""):
+        # Creates a special receipt for prereg that covers multiple models
+        from uber.models import ModelReceipt
+
+        if account_id:
+            model_id = account_id
+            model_type = "AttendeeAccount"
+        elif isinstance(self.models[0], uber.models.Group):
+            model_id = self.models[0].leader.id
+            model_type = "Attendee"
+        else:
+            model_id = self.models[0].id
+            model_type = "Attendee"
+
+        receipt = ModelReceipt(owner_id=model_id, owner_model=model_type)
+        receipt_items = []
+        receipt_attendees = []
+        receipt_groups = []
+
+        for model in self.models:
+            if model.id != model_id:
+                if isinstance(model, uber.models.Attendee):
+                    receipt_attendees.append(model.id)
+                elif isinstance(model, uber.models.Group):
+                    receipt_groups.append(model.id)
+
+            for item in Charge.get_all_receipt_items(model):
+                receipt_items.extend(Charge.process_receipt_item(item, receipt))
+        
+        receipt.attendee_ids = ",".join(receipt_attendees)
+        receipt.group_ids = ",".join(receipt_groups)
+
+        return receipt, receipt_items
+
+    def set_total_cost(self):
+        preview_receipt_groups = self.prereg_receipt_preview()
+        for group in preview_receipt_groups:
+            self._current_cost += sum([item[1] for item in group[1]])
 
     @property
     def has_targets(self):
@@ -1080,32 +1244,15 @@ class Charge:
 
     @cached_property
     def total_cost(self):
-        costs = []
-
-        for m in self.models:
-            if isinstance(m, uber.models.Attendee) and getattr(m, 'badges', None):
-                costs.append(c.get_group_price() * int(m.badges))
-                costs.append(m.amount_extra_unpaid)
-            else:
-                costs.append(m.amount_unpaid)
-        return 100 * sum(costs)
+        return self._current_cost
 
     @cached_property
     def dollar_amount(self):
-        return self.amount // 100
-
-    @cached_property
-    def amount(self):
-        return int(self._amount or self.total_cost or 0)
+        return self.total_cost // 100
 
     @cached_property
     def description(self):
         return self._description or self.names
-
-    @cached_property
-    def receipt_email(self):
-        email = self.models[0].email if self.models and self.models[0].email else self._receipt_email
-        return email[0] if isinstance(email, list) else email   
 
     @cached_property
     def names(self):
@@ -1136,42 +1283,44 @@ class Charge:
     def groups(self):
         return [m for m in self.models if isinstance(m, uber.models.Group)]
 
-    @property
-    def stripe_transaction(self):
-        return self._stripe_transaction
+    @classmethod
+    def create_stripe_intent(cls, receipt, description):
+        """
+        Creates a Stripe Intent, which is what Stripe uses to process payments.
+        After calling this, call create_receipt_transaction with the Stripe Intent's ID
+        and the receipt to add the new transaction to the receipt.
+        """
+        amount = receipt.current_amount_owed
+        receipt_email = receipt.get_owner_email()
 
-    def create_stripe_intent(self, session):
-        log.debug('Creating Stripe Intent to charge {} cents for {}', self.amount, self.description)
+        if not amount or amount <= 0:
+            log.error('Was asked for a Stripe Intent but the currently owed amount is invalid: {}'.format(amount))
+            return
+
+        log.debug('Creating Stripe Intent to charge {} cents for {}', amount, description)
         try:
             customer = None
-            if self.receipt_email:
+            if receipt_email:
                 customer_list = stripe.Customer.list(
-                    email=self.receipt_email,
+                    email=receipt_email,
                     limit=1,
                 )
                 if customer_list:
                     customer = customer_list.data[0]
                 else:
                     customer = stripe.Customer.create(
-                        description=self.receipt_email,
-                        email=self.receipt_email,
+                        description=receipt_email,
+                        email=receipt_email,
                     )
 
             stripe_intent = stripe.PaymentIntent.create(
                 payment_method_types=['card'],
-                amount=self.amount,
+                amount=amount,
                 currency='usd',
-                description=self.description,
-                receipt_email=customer.email if self.receipt_email else None,
+                description=description,
+                receipt_email=customer.email if receipt_email else None,
                 customer=customer.id if customer else None,
             )
-
-            if self.models:
-                self._stripe_transaction = self.stripe_transaction_from_charge(stripe_intent.id)
-                session.add(self._stripe_transaction)
-                for model in self.models:
-                    multi = len(self.models) > 1
-                    session.add(self.stripe_transaction_for_model(model, self._stripe_transaction, multi))
 
             return stripe_intent
         except Exception as e:
@@ -1179,28 +1328,17 @@ class Charge:
             report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
             return 'An unexpected problem occurred while setting up payment: ' + str(e)
 
-    def stripe_transaction_from_charge(self, stripe_id='', type=c.PENDING):
-        return uber.models.StripeTransaction(
+    @classmethod
+    def create_receipt_transaction(self, receipt, desc='', stripe_id='', type=c.PENDING):
+
+        return uber.models.ReceiptTransaction(
+            receipt_id=receipt.id,
             stripe_id=stripe_id,
-            amount=self.amount,
-            desc=self.description,
+            amount=receipt.current_amount_owed,
+            desc=desc,
             type=type,
             who=uber.models.AdminAccount.admin_name() or 'non-admin'
         )
-
-    def stripe_transaction_for_model(self, model, txn, multi=False):
-        if model.__class__.__name__ == "Attendee":
-            return uber.models.commerce.StripeTransactionAttendee(
-                txn_id=txn.id,
-                attendee_id=model.id,
-                share=self.amount if not multi else model.amount_unpaid * 100
-            )
-        elif model.__class__.__name__ == "Group":
-            return uber.models.commerce.StripeTransactionGroup(
-                txn_id=txn.id,
-                group_id=model.id,
-                share=self.amount if not multi else model.amount_unpaid * 100
-            )
 
     @staticmethod
     def mark_paid_from_stripe_id(stripe_id):
@@ -1208,48 +1346,38 @@ class Charge:
         from uber.decorators import render
         
         with uber.models.Session() as session:
-            matching_stripe_txns = session.query(uber.models.StripeTransaction).filter_by(stripe_id=stripe_id)
-            dealers_paid = []
+            txn = session.query(uber.models.ReceiptTransaction).filter_by(stripe_id=stripe_id).first()
 
-            for txn in matching_stripe_txns:
-                txn.type = c.PAYMENT
-                session.add(txn)
+            txn.type = c.PAYMENT
+            session.add(txn)
 
-                for item in txn.receipt_items:
-                    item.txn_type = c.PAYMENT
+            for item in txn.receipt.open_receipt_items:
+                if item.added < txn.added:
+                    item.closed = datetime.now()
                     session.add(item)
-
-                for group_log in txn.groups:
-                    group = group_log.group
-                    if not group.amount_pending:
-                        group.paid = c.HAS_PAID
-                        session.add(group)
-                        if group.is_dealer:
-                            dealers_paid.append(group)
-
-                for attendee_log in txn.attendees:
-                    attendee = attendee_log.attendee
-                    if not attendee.amount_pending:
-                        if attendee.badge_status == c.PENDING_STATUS:
-                            attendee.badge_status = c.NEW_STATUS
-                        if attendee.paid in [c.NOT_PAID, c.PENDING]:
-                            attendee.paid = c.HAS_PAID
-                        session.add(attendee)
 
             session.commit()
 
-            for group in dealers_paid:
-                try:
-                    send_email.delay(
-                        c.MARKETPLACE_EMAIL,
-                        c.MARKETPLACE_EMAIL,
-                        '{} Payment Completed'.format(c.DEALER_TERM.title()),
-                        render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
-                        model=group.to_dict('id'))
-                except Exception:
-                    log.error('unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
+            if txn.receipt.owner_model == "AttendeeAccount" and not txn.receipt.open_receipt_items:
+                # Prereg receipts are closed when fully paid for
+                txn.closed = datetime.now()
+                session.add(txn)
+                session.commit()
 
-            return matching_stripe_txns
+            if txn.receipt.owner_model == "Group":
+                group = session.query(uber.models.Group).filter_by(id=txn.receipt.owner_id)
+                if group and group.is_dealer and not txn.receipt.open_receipt_items:
+                    try:
+                        send_email.delay(
+                            c.MARKETPLACE_EMAIL,
+                            c.MARKETPLACE_EMAIL,
+                            '{} Payment Completed'.format(c.DEALER_TERM.title()),
+                            render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
+                            model=group.to_dict('id'))
+                    except Exception:
+                        log.error('unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
+
+            return txn
 
 
 class SignNowDocument:    

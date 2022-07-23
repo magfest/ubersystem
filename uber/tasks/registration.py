@@ -10,7 +10,7 @@ from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import render
-from uber.models import ApiJob, Attendee, Email, Session, StripeTransaction
+from uber.models import ApiJob, Attendee, Email, Session, ReceiptTransaction
 from uber.tasks.email import send_email
 from uber.tasks import celery
 from uber.utils import Charge, localized_now, TaskUtils
@@ -147,7 +147,7 @@ def check_near_cap():
 def check_missed_stripe_payments():
     pending_ids = []
     with Session() as session:
-        pending_payments = session.query(StripeTransaction).filter_by(type=c.PENDING)
+        pending_payments = session.query(ReceiptTransaction).filter_by(type=c.PENDING)
         for payment in pending_payments:
             pending_ids.append(payment.stripe_id)
 
