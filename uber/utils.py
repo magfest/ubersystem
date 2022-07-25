@@ -917,7 +917,7 @@ class ExcelWorksheetStreamWriter:
 class OAuthRequest:
 
     def __init__(self, scope='openid profile email', state=None):
-        self.redirect_uri = (c.REDIRECT_URL_BASE or c.URL_BASE) + "/rams/accounts/"
+        self.redirect_uri = (c.REDIRECT_URL_BASE or c.URL_BASE) + "/accounts/"
         self.client = OAuth2Session(c.AUTH_CLIENT_ID, c.AUTH_CLIENT_SECRET, scope=scope, state=state, redirect_uri=self.redirect_uri + "process_login")
         self.state = state if state else None
 
