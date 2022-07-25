@@ -912,7 +912,7 @@ class AWSSecretFetcher:
 
         self.client = aws_session.client(
             service_name=c.AWS_SECRET_SERVICE_NAME,
-            region_name=c.AWS_REGION or 'us-east-2'
+            region_name=c.AWS_REGION
         )
 
     def get_secret(self, secret_name):
@@ -944,14 +944,16 @@ class AWSSecretFetcher:
                 # We can't find the resource that you asked for.
                 log.error("Retrieving secret error: Resource not found ({}).".format(str(e)))
                 return
-        
-        # Decrypts secret using the associated KMS key.
-        if 'SecretString' in get_secret_value_response:
-            secret = json.loads(get_secret_value_response['SecretString'])
         else:
-            return
+            # Decrypts secret using the associated KMS key.
+            if 'SecretString' in get_secret_value_response:
+                secret = json.loads(get_secret_value_response['SecretString'])
+            else:
+                log.error("Could not retrieve secret from AWS, instead we got: {}".format(str(secret)))
+                return
 
-        return secret
+            return secret
+        log.error("Could not retrieve secret from AWS. Is the secret name (\"{}\") correct?".format(secret_name))
 
     def get_all_secrets(self):
         if c.AWS_AUTH0_SECRET_NAME:
@@ -961,24 +963,20 @@ class AWSSecretFetcher:
             self.get_signnow_secret()
 
     def get_auth0_secret(self):
-        auth0_secret = self.client.get_secret(c.AWS_AUTH0_SECRET_NAME)
+        auth0_secret = self.get_secret(c.AWS_AUTH0_SECRET_NAME)
         if auth0_secret:
-            c.AUTH_DOMAIN = auth0_secret('AUTH0_DOMAIN', '') or c.AUTH_DOMAIN
-            c.AUTH_CLIENT_ID = auth0_secret('CLIENT_ID', '') or c.AUTH_CLIENT_ID
-            c.AUTH_CLIENT_SECRET = auth0_secret('CLIENT_SECRET', '') or c.AUTH_CLIENT_SECRET
-        else:
-            log.error("Error getting Auth0 secret: {}".format(auth0_secret))
+            c.AUTH_DOMAIN = auth0_secret.get('AUTH0_DOMAIN', '') or c.AUTH_DOMAIN
+            c.AUTH_CLIENT_ID = auth0_secret.get('CLIENT_ID', '') or c.AUTH_CLIENT_ID
+            c.AUTH_CLIENT_SECRET = auth0_secret.get('CLIENT_SECRET', '') or c.AUTH_CLIENT_SECRET
 
     def get_signnow_secret(self):
-        signnow_secret = self.client.get_secret(c.AWS_SIGNNOW_SECRET_NAME)
+        signnow_secret = self.get_secret(c.AWS_SIGNNOW_SECRET_NAME)
         if signnow_secret:
             c.SIGNNOW_ACCESS_TOKEN = signnow_secret.get('username', '') or c.SIGNNOW_ACCESS_TOKEN
             c.SIGNNOW_CLIENT_ID = signnow_secret.get('client_id', '') or c.SIGNNOW_CLIENT_ID
             c.SIGNNOW_CLIENT_SECRET = signnow_secret.get('client_secret', '') or c.SIGNNOW_CLIENT_SECRET
             c.SIGNNOW_DEALER_TEMPLATE_ID = signnow_secret.get('dealer_template_id') or c.SIGNNOW_DEALER_TEMPLATE_ID
             c.SIGNNOW_DEALER_FOLDER_ID = signnow_secret.get('dealer_folder_id') or c.SIGNNOW_DEALER_FOLDER_ID
-        else:
-            log.error("Error getting SignNow secret: {}".format(signnow_secret))
 
 
 c = Config()
