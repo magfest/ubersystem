@@ -1332,6 +1332,15 @@ class SignNowDocument:
             self.error_message = "Error getting download link: " + download_request['error']
         else:
             return download_request.get('link')
+    
+    def get_document_details(self, document_id):
+        self.set_access_token(refresh=True)
+        document_request = signnow_sdk.Document.get(self.access_token, document_id)
+
+        if 'error' in document_request:
+            self.error_message = "Error getting document: " + document_request['error']
+        else:
+            return document_request
 
 
 class TaskUtils:

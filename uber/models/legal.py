@@ -30,6 +30,17 @@ class SignedDocument(MagModel):
     signed = Column(UTCDateTime, nullable=True, default=None)
     declined = Column(UTCDateTime, nullable=True, default=None)
 
+    def get_doc_signed_timestamp(self, document_id=""):
+        d = SignNowDocument()
+        document_id = document_id or self.document_id
+
+        if not document_id:
+            return
+        
+        document = d.get_document_details(document_id)
+        if document.get('signatures'):
+            return document['signatures'][0].get('created')
+
     def get_dealer_signing_link(self, group):
         d = SignNowDocument()
         
