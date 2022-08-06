@@ -28,7 +28,7 @@
   background-color: #fefde5 !important;
 }
 </style>
-<button class="btn btn-info" onClick="callStripeAction();">
+<button class="btn btn-info stripe-btn" onClick="callStripeAction();">
 <span class="display: block; min-height: 30px;">Pay with Card</span>
 </button>
 <div id="stripeModal" class="modal" style="color:black;" tabindex="-1" role="dialog" data-backdrop="static">
@@ -61,9 +61,11 @@
 <script type="text/javascript">
 stripe_action_params = {id: '{{ id }}'};
 
-var callStripeAction = function () {
-    var $btn = $(this);
-    $btn.prop('disabled', true);
+var callStripeAction = function (autoTrigger=false) {
+    if (autoTrigger == false) {
+        var $btn = $(this);
+        $btn.prop('disabled', true);
+    }
     {% for key, val in params.items() %}
         stripe_action_params['{{ key }}'] = '{{ val }}';
     {% endfor %}
@@ -76,7 +78,7 @@ var callStripeAction = function () {
     stripe_action_params.csrf_token = csrf_token;
     $.post('{{ action }}', stripe_action_params, 
     function(result) {
-        $btn.prop('disabled', false);
+        if (autoTrigger == false) { $btn.prop('disabled', false); }
         if (result.error) {
             toastr.error(result.error);
         } else if (result.stripe_intent) {

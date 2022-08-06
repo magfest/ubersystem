@@ -946,11 +946,11 @@ class OAuthRequest:
 
 class Charge:
 
-    def __init__(self, targets=(), description=None, receipt_email=''):
+    def __init__(self, targets=(), amount=0, description=None, receipt_email=''):
         self._targets = listify(targets)
         self._description = description
         self._receipt_email = receipt_email
-        self._current_cost = 0
+        self._current_cost = amount
 
     @classproperty
     def paid_preregs(cls):
@@ -1140,42 +1140,74 @@ class Charge:
         return receipt, receipt_items
 
     @classmethod
-    def process_receipt_upgrade_item(cls, model, key, receipt=None, count=1, **kwargs):
+    def calc_simple_cost_change(cls, model, col_name, new_val):
+        """
+        Takes an instance of a model and attempts to calculate a simple cost change
+        based on a column name. Used for columns where the cost is the column, e.g.,
+        extra_donation and amount_extra.
+        """
+        model_dict = model.to_dict()
+
+        if not model_dict.get(col_name):
+            return
+        
+        return (model_dict[col_name], int(new_val) - model_dict[col_name])
+
+    @classmethod
+    def process_receipt_upgrade_item(cls, model, col_name, new_val, receipt=None, count=1):
         """
         Finds the cost of a receipt item to add to an existing receipt.
         This uses the cost_changes dictionary defined on each model in receipt_items.py,
-        calling it with the extra keyword arguments provided.
+        calling it with the extra keyword arguments provided. If no function is specified,
+        we use calc_simple_cost_change instead.
         
         If a ModelReceipt is provided, a new ReceiptItem is created and returned.
         Otherwise, the raw values are returned so attendees can preview their receipt 
-        changes. If there's no matching key in the model's cost_changes, or if not enough
-        keyword arguments were provided for the cost change function, we log an error and
-        return None.
+        changes.
         """
         from uber.models import AdminAccount, ReceiptItem
-        cost_change_tuple = model.cost_changes.get(key)
-        if cost_change_tuple:
-            cost_change_func = cost_change_tuple[2]
+        from uber.models.types import Choice
 
-            try:
-                cost_change = cost_change_func(kwargs)
-            except TypeError as e:
-                log.error(str(e))
-                return
-
-            if receipt:
-                return ReceiptItem(receipt_id=receipt.id,
-                                   desc=cost_change_tuple[0] if cost_change > 0 else cost_change_tuple[1],
-                                   amount=cost_change,
-                                   count=count,
-                                   who=AdminAccount.admin_name() or 'non-admin'
-                                )
-            else:
-                return (cost_change_tuple[0] if cost_change > 0 else cost_change_tuple[1],
-                        cost_change,
-                        count)
+        if isinstance(model.__table__.columns.get(col_name).type, Choice):
+            increase_term, decrease_term = "Upgrading", "Downgrading"
         else:
-            log.error("ERROR: Cost change function {} does not exist on model type {}!".format(key, model.__class__.__name__))
+            increase_term, decrease_term = "Increasing", "Decreasing"
+
+        cost_change_tuple = model.cost_changes.get(col_name)
+        if not cost_change_tuple:
+            cost_change_name = col_name.replace('_', ' ').title()
+            old_cost, cost_change = cls.calc_simple_cost_change(model, col_name, new_val)
+        else:
+            cost_change_name = cost_change_tuple[0]
+            cost_change_func = cost_change_tuple[1]
+            if len(cost_change_tuple) > 2:
+                cost_change_name = cost_change_name.format(*[getattr(model, var) for var in cost_change_tuple[2:]])
+            
+            try:
+                change_func = getattr(model, cost_change_func)
+                old_cost, cost_change = change_func(col_name=new_val)
+            except AttributeError:
+                old_cost, cost_change = cls.calc_simple_cost_change(model, col_name, new_val)
+
+        if not old_cost:
+            cost_desc = "Adding {}".format(cost_change_name)
+        elif cost_change * -1 == old_cost: # We're crediting the full amount of the item
+            cost_desc = "Removing {}".format(cost_change_name)
+        elif cost_change > 0:
+            cost_desc = "{} {}".format(increase_term, cost_change_name)
+        else:
+            cost_desc = "{} {}".format(decrease_term, cost_change_name)
+
+        if receipt:
+            return ReceiptItem(receipt_id=receipt.id,
+                                desc=cost_desc,
+                                amount=cost_change,
+                                count=count,
+                                who=AdminAccount.admin_name() or 'non-admin',
+                                revert_change={col_name: getattr(model, col_name)},
+                            )
+        else:
+            return (cost_desc, cost_change, count)
 
     def prereg_receipt_preview(self):
         """
@@ -1183,6 +1215,7 @@ class Charge:
         and tuple[1] is a list of cost item tuples from process_receipt_item
         
         This lets us show the attendee a nice display of what they're buying
+        ... whenever we get around to actually using it that way
         """
         items_preview = []
         for model in self.models:
@@ -1198,40 +1231,6 @@ class Charge:
             items_preview.append(items_group)
 
         return items_preview
-
-    def create_prereg_receipt(self, account_id=""):
-        # Creates a special receipt for prereg that covers multiple models
-        from uber.models import ModelReceipt
-
-        if account_id:
-            model_id = account_id
-            model_type = "AttendeeAccount"
-        elif isinstance(self.models[0], uber.models.Group):
-            model_id = self.models[0].leader.id
-            model_type = "Attendee"
-        else:
-            model_id = self.models[0].id
-            model_type = "Attendee"
-
-        receipt = ModelReceipt(owner_id=model_id, owner_model=model_type)
-        receipt_items = []
-        receipt_attendees = []
-        receipt_groups = []
-
-        for model in self.models:
-            if model.id != model_id:
-                if isinstance(model, uber.models.Attendee):
-                    receipt_attendees.append(model.id)
-                elif isinstance(model, uber.models.Group):
-                    receipt_groups.append(model.id)
-
-            for item in Charge.get_all_receipt_items(model):
-                receipt_items.extend(Charge.process_receipt_item(item, receipt))
-        
-        receipt.attendee_ids = ",".join(receipt_attendees)
-        receipt.group_ids = ",".join(receipt_groups)
-
-        return receipt, receipt_items
 
     def set_total_cost(self):
         preview_receipt_groups = self.prereg_receipt_preview()
@@ -1253,6 +1252,11 @@ class Charge:
     @cached_property
     def description(self):
         return self._description or self.names
+
+    @cached_property
+    def receipt_email(self):
+        email = self.models[0].email if self.models and self.models[0].email else self._receipt_email
+        return email[0] if isinstance(email, list) else email  
 
     @cached_property
     def names(self):
@@ -1283,19 +1287,24 @@ class Charge:
     def groups(self):
         return [m for m in self.models if isinstance(m, uber.models.Group)]
 
-    @classmethod
-    def create_stripe_intent(cls, receipt, description):
+    def create_stripe_intent(self, amount=0, receipt_email='', description=''):
         """
         Creates a Stripe Intent, which is what Stripe uses to process payments.
         After calling this, call create_receipt_transaction with the Stripe Intent's ID
         and the receipt to add the new transaction to the receipt.
         """
-        amount = receipt.current_amount_owed
-        receipt_email = receipt.get_owner_email()
+        from uber.custom_tags import format_currency
+
+        amount = amount or self.total_cost
+        receipt_email = receipt_email or self.receipt_email
+        description = description or self.description
 
         if not amount or amount <= 0:
             log.error('Was asked for a Stripe Intent but the currently owed amount is invalid: {}'.format(amount))
-            return
+            return "There was an error calculating the amount. Please refresh the page or contact the system admin."
+
+        if amount > 999999:
+            return "We cannot charge {}. Please make sure your total is below $999,999.".format(format_currency(amount / 100))
 
         log.debug('Creating Stripe Intent to charge {} cents for {}', amount, description)
         try:
@@ -1329,53 +1338,63 @@ class Charge:
             return 'An unexpected problem occurred while setting up payment: ' + str(e)
 
     @classmethod
-    def create_receipt_transaction(self, receipt, desc='', stripe_id='', type=c.PENDING):
-
+    def create_receipt_transaction(self, receipt, desc='', intent_id=''):
         return uber.models.ReceiptTransaction(
             receipt_id=receipt.id,
-            stripe_id=stripe_id,
+            intent_id=intent_id,
             amount=receipt.current_amount_owed,
             desc=desc,
-            type=type,
             who=uber.models.AdminAccount.admin_name() or 'non-admin'
         )
 
     @staticmethod
-    def mark_paid_from_stripe_id(stripe_id):
+    def mark_paid_from_intent_id(intent_id, charge_id):
         from uber.tasks.email import send_email
         from uber.decorators import render
         
         with uber.models.Session() as session:
-            txn = session.query(uber.models.ReceiptTransaction).filter_by(stripe_id=stripe_id).first()
+            matching_txns = session.query(uber.models.ReceiptTransaction).filter_by(intent_id=intent_id).all()
 
-            txn.type = c.PAYMENT
-            session.add(txn)
-
-            for item in txn.receipt.open_receipt_items:
-                if item.added < txn.added:
-                    item.closed = datetime.now()
-                    session.add(item)
-
-            session.commit()
-
-            if txn.receipt.owner_model == "AttendeeAccount" and not txn.receipt.open_receipt_items:
-                # Prereg receipts are closed when fully paid for
-                txn.closed = datetime.now()
+            for txn in matching_txns:
+                txn.charge_id = charge_id
                 session.add(txn)
+                txn_receipt = txn.receipt
+
+                for item in txn_receipt.open_receipt_items:
+                    if item.added < txn.added:
+                        item.closed = datetime.now()
+                        session.add(item)
+
                 session.commit()
 
-            if txn.receipt.owner_model == "Group":
-                group = session.query(uber.models.Group).filter_by(id=txn.receipt.owner_id)
-                if group and group.is_dealer and not txn.receipt.open_receipt_items:
-                    try:
-                        send_email.delay(
-                            c.MARKETPLACE_EMAIL,
-                            c.MARKETPLACE_EMAIL,
-                            '{} Payment Completed'.format(c.DEALER_TERM.title()),
-                            render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
-                            model=group.to_dict('id'))
-                    except Exception:
-                        log.error('unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
+                if txn_receipt.owner_model == "AttendeeAccount" and not txn_receipt.open_receipt_items:
+                    # We can't leave AttendeeAccount receipts open because of the prereg flow
+                    original_receipt = session.query(uber.models.ModelReceipt
+                                                    ).filter(uber.models.ModelReceipt.owner_id == txn_receipt.owner_id,
+                                                             uber.models.ModelReceipt.owner_model == "AttendeeAccount",
+                                                             uber.models.ModelReceipt.closed != None).first()
+                    if original_receipt:
+                        # Merge this receipt with the Attendee Account's original prereg receipt
+                        for item in txn_receipt.all_sorted_items_and_txns:
+                            if item != txn:
+                                item.receipt_id = original_receipt
+                                session.add(item)
+                        txn.receipt_id = original_receipt
+                        session.delete(txn_receipt)
+                        session.commit()
+
+                if txn.receipt.owner_model == "Group":
+                    group = session.query(uber.models.Group).filter_by(id=txn.receipt.owner_id)
+                    if group and group.is_dealer and not txn.receipt.open_receipt_items:
+                        try:
+                            send_email.delay(
+                                c.MARKETPLACE_EMAIL,
+                                c.MARKETPLACE_EMAIL,
+                                '{} Payment Completed'.format(c.DEALER_TERM.title()),
+                                render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
+                                model=group.to_dict('id'))
+                        except Exception:
+                            log.error('unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
 
             return txn
 

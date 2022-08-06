@@ -78,14 +78,12 @@ class Sale(MagModel):
 
 """
 Attendees and groups have a running receipt that has items and transactions added to it dynamically.
-Each receipt is owned by an attendee, group, or attendee account. Accounts own receipts bought during
-prereg, which often cover multiple attendees. If attendee accounts are turned off, receipts are instead
-owned by the first attendee listed on the receipt.
 
 Receipt items can be purchases or credits added to the receipt. They do not involve money changing hands.
 
 Receipt transactions keep track of payments and refunds, along with the method (e.g., cash, Stripe, Square)
-and, if applicable, the Stripe ID for that transaction.
+and, if applicable, the Stripe ID for that transaction. In some cases, such as during prereg or when an attendee
+pays for their art show application and badge at the same time, there may be multiple receipt transactions for one Stripe ID.
 
 
 
@@ -108,10 +106,13 @@ class ModelReceipt(MagModel):
     owner_id = Column(UUID, index=True)
     owner_model = Column(UnicodeText)
     closed = Column(UTCDateTime, nullable=True)
-    
-    # If the receipt covers attendees/groups besides the owner, they're tracked here
-    attendee_ids = Column(UnicodeText)
-    group_ids = Column(UnicodeText)
+
+    def get_open_receipt_items_before_datetime(self, dt):
+        return [item for item in self.open_receipt_items if item.added < dt]
+
+    @property
+    def all_sorted_items_and_txns(self):
+        return sorted(self.receipt_items + self.receipt_txns, key=lambda x: x.added)
 
     @property
     def open_receipt_items(self):
@@ -122,36 +123,33 @@ class ModelReceipt(MagModel):
         return [item for item in self.receipt_items if item.closed]
 
     @property
-    def pending_txns(self):
-        return [txn for txn in self.receipt_txns if txn.type == c.PENDING]
-
-    @property
-    def payment_txns(self):
-        return [txn for txn in self.receipt_txns if txn.type == c.PAYMENT]
-
-    @property
-    def refund_txns(self):
-        return [txn for txn in self.receipt_txns if txn.type == c.REFUND]
-
-    @property
     def cancelled_txns(self):
-        return [txn for txn in self.receipt_txns if txn.type == c.CANCELLED]
+        return [txn for txn in self.receipt_txns if txn.cancelled]
+
+    @property
+    def pending_total(self):
+        return sum([txn.amount for txn in self.receipt_txns if txn.intent_id and not txn.charge_id and not txn.cancelled])
+
+    @property
+    def payment_total(self):
+        return sum([txn.amount for txn in self.receipt_txns if txn.charge_id or txn.method != c.STRIPE and txn.amount > 0])
+
+    @property
+    def refund_total(self):
+        return sum([txn.amount for txn in self.receipt_txns if txn.refund_id or txn.amount < 0])
 
     @property
     def current_amount_owed(self):
         return sum([item.amount for item in self.open_receipt_items])
 
-    def get_owner_email(self):
-        from uber.models import Session
-        with Session() as session:
-            if self.owner_model == "Attendee":
-                model = session.query(Attendee).filter_by(id=self.owner_id).first()
-            elif self.owner_model == "Group":
-                model = session.query(Group).filter_by(id=self.owner_id).first()
-            elif self.owner_model == "AttendeeAccount":
-                model = session.query(AttendeeAccount).filter_by(id=self.owner_id).first()
-            
-            return model.email if model else ''
+    @property
+    def item_total(self):
+        # This counts ALL purchases/credits, not just open ones
+        return sum([item.amount for item in self.receipt_items])
+
+    @property
+    def txn_total(self):
+        return self.payment_total + self.refund_total
 
 
 class ReceiptTransaction(MagModel):
@@ -159,13 +157,24 @@ class ReceiptTransaction(MagModel):
     receipt = relationship('ModelReceipt', foreign_keys=receipt_id,
                            cascade='save-update, merge',
                            backref=backref('receipt_txns', cascade='save-update, merge'))
-    stripe_id = Column(UnicodeText, nullable=True)
-    type = Column(Choice(c.TRANSACTION_TYPE_OPTS), default=c.PENDING)
-    txn_method = Column(Choice(c.PAYMENT_METHOD_OPTS), default=c.STRIPE)
+    intent_id = Column(UnicodeText)
+    charge_id = Column(UnicodeText)
+    refund_id = Column(UnicodeText)
+    method = Column(Choice(c.PAYMENT_METHOD_OPTS), default=c.STRIPE)
     amount = Column(Integer)
     added = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    cancelled = Column(UTCDateTime, nullable=True)
     who = Column(UnicodeText)
     desc = Column(UnicodeText)
+
+    @property
+    def is_pending_charge(self):
+        return self.intent_id and not self.charge_id and not self.cancelled
+
+    @property
+    def stripe_id(self):
+        # Return the most relevant Stripe ID for admins
+        return self.refund_id or self.charge_id or self.intent_id
 
 
 class ReceiptItem(MagModel):
@@ -181,5 +190,6 @@ class ReceiptItem(MagModel):
     desc = Column(UnicodeText)
     fk_id = Column(UUID, index=True, nullable=True)
     fk_model = Column(UnicodeText)
+    revert_change = Column(JSON, default={}, server_default='{}')
 
 

@@ -1077,6 +1077,9 @@ class Session(SessionManager):
             if attendee not in account.attendees:
                 account.attendees.append(attendee)
 
+        def get_receipt_by_model(self, model):
+            return self.query(ModelReceipt).filter_by(owner_id=model.id, owner_model=model.__class__.__name__, closed=None).first()
+
         def attendee_from_marketplace_app(self, **params):
             attendee, message = self.create_or_find_attendee_by_id(**params)
             if message:

@@ -18,6 +18,64 @@
 {%- set is_after_hotel_email = c.AFTER_PREREG_HOTEL_INFO_EMAIL_DATE -%}
 {%- set group_id = group_id or attendee.group_id -%}
 
+{% macro upgrade_button(upgrade_btn_id, text="Upgrade") %}
+{% if receipt and receipt.current_amount_owed <= 0 %}
+  <a class="btn btn-sm btn-success" id="upgrade-{{ upgrade_btn_id }}-btn" data-toggle="modal" data-target="#upgradeModal">
+    <span class="glyphicon glyphicon-circle-arrow-up"></span> {{ text }}
+  </a>
+{% endif %}
+{% endmacro %}
+
+{% set receipt_modal %}
+{% if receipt and not admin_area %}
+<div class="modal fade" id="receiptModal" tabindex="-1" role="dialog" aria-labelledby="receiptTitle">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="receiptTitle">Receipt</h4>
+      </div>
+      <div class="modal-body">
+          <table class="table table-striped" id="upgrade-preview">
+              <tbody>
+                {% for item in receipt.all_sorted_items_and_txns|rejectattr("cancelled") %}
+                <tr>
+                  <td><span class='pull-right'>{{ item.desc }}{{ ": " if item.desc else "" }}</span></td>
+                  <td>
+                    {% if item.method %}
+                    {{ (item.amount / 100)|abs|format_currency }} {{ "Paid" if item.amount > 0 else "Refunded" }} ({{ item.method_label }})
+                    {% else %}
+                    {{ "-" if item.amount < 0 else "" }}{{ (item.amount / 100)|abs|format_currency }}
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+                {% if receipt.current_amount_owed %}
+                <tr><td colspan="2"></td></tr>
+                <tr>
+                  <td colspan="2">
+                    <span class='pull-right'>
+                      <strong>Total: {{ (receipt.current_amount_owed / 100)|format_currency }}
+                        {% if receipt.pending_total %}({{ (receipt.pending_total / 100)|format_currency }} pending){% endif %}
+                      </strong>
+                    </span>
+                  </td>
+                </tr>
+                {% endif %}
+              </tbody>
+          </table>
+          <p>If something here does not look right, please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        {% if not receipt.pending_total %}{{ stripe_form('process_upgrade_payment', attendee, receipt_id=receipt.id) }}{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endset %}
+
 {% set prereg_intro %}
 {% if is_prereg_dealer %}
   <h2 class="text-center">{{ c.DEALER_APP_TERM|title }}</h2>
@@ -147,7 +205,7 @@
                     if ($.field('first_name')) {
                         $('#bold-field-message').insertBefore($.field('first_name').parents('.form-group'));
                     }
-                    $('input[name="badge_type"]').val('{{ c.CHILD_BADGE }}');
+                    $('input[name="badge_type"]').val('{{ c.CHILD_BADGE }}').trigger('change');
                     togglePrices();
                 }
             });
@@ -158,18 +216,20 @@
         selector: '.badge-type-selector',
         options: [],
     };
-    {% set downgrading = not attendee.placeholder and not attendee.is_new and attendee.amount_unpaid and 'attendee_donation_form' in attendee.payment_page %}
-    {% if not attendee or attendee.is_new or (attendee.badge_type not in c.BADGE_TYPE_PRICES or (downgrading and attendee.badge_cost - c.BADGE_PRICE <= attendee.amount_unpaid)) %}
+    {% if not attendee or attendee.is_new or attendee.badge_type not in c.BADGE_TYPE_PRICES %}
         BADGE_TYPES.options.push({
-            title: '{% if is_prereg_attendee or is_prereg_dealer or downgrading %}Attending{% elif attendee %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
+            title: '{% if is_prereg_attendee or is_prereg_dealer %}Attending{% elif attendee %}{{ attendee.ribbon_and_or_badge }}{% endif %}',
             description: 'Allows access to the convention for its duration.',
             extra: 0,
             badge_type: '{{ c.ATTENDEE_BADGE }}',
 
-            price: {{ badge_cost if badge_cost is defined and not downgrading else c.BADGE_PRICE }},
-            {% if c.BADGE_TYPE_PRICES and (attendee.is_new or attendee.badge_type == c.ATTENDEE_BADGE or downgrading) %}
+            price: {{ badge_cost if badge_cost is defined else c.BADGE_PRICE }},
+            {% if c.BADGE_TYPE_PRICES and (attendee.is_new or attendee.badge_type == c.ATTENDEE_BADGE) %}
             onClick: function () {
-                $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}');
+                $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}').trigger('change');
+                {% if money_fields_ro %}
+                updateReceiptPreview('badge_type', '{{ c.ATTENDEE_BADGE }}');
+                {% endif %}
             }
             {% endif %}
         });
@@ -210,6 +270,9 @@
                     badge_type: '{{ badge_type }}',
                     onClick: function () {
                         $('input[name="badge_type"]').val('{{ badge_type }}');
+                        {% if money_fields_ro %}
+                        updateReceiptPreview('badge_type', '{{ badge_type }}');
+                        {% endif %}
                     }
                 });
             {% endif %}
@@ -499,7 +562,10 @@
   {% if not attendee.is_new %}
     <div class="form-group">
       <label for="badge_type" class="col-sm-3 control-label">Badge Type</label>
-      <div class="col-sm-6 form-control-static">{{ attendee.badge_type_label }}</div>
+      <div class="col-sm-6 form-control-static">
+        {{ attendee.badge_type_label }}
+        {{ upgrade_button('badge-type') }}
+      </div>
     </div>
   {% endif %}
   {% if '/registration/' not in c.PAGE_PATH or not attendee.is_new %}
@@ -572,69 +638,72 @@
 {% endif %}
 {% endset %}
 
+{% set amount_extra_js %}
+<script type="text/javascript">
+  var donationChanged = function (formId) {
+    if(formId != '') {
+      formId = '#' + formId + ' '
+    }
+    setVisible(formId + '.affiliate-row', $.val('amount_extra') > 0);
+    {% if attendee.num_event_shirts_owed or attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS %}
+        setVisible(formId + '.shirt-row', true);
+    {% else %}
+        setVisible(formId + '.shirt-row', $.val('amount_extra') >= {{ c.SHIRT_LEVEL }});
+    {% endif %}
+    {% if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES %}
+        setVisible(formId + '.badge-row', true);
+    {% else %}
+        setVisible(formId + '.badge-row', $.val('amount_extra') >= {{ c.SUPPORTER_LEVEL }});
+    {% endif %}
+        setVisible(formId + '.season-row', $.val('amount_extra') >= {{ c.SEASON_LEVEL }});
+    $.each($(formId + "input:radio[name='amount_extra']"), function() {
+        $(this).parents('.btn').removeClass('active btn-primary');
+        $(this).parents('.btn').addClass('btn-default');
+        if ($(this).val() == $.val('amount_extra')) {
+            $(this).parents('.btn').removeClass('btn-default');
+            $(this).parents('.btn').addClass('active btn-primary');
+        }
+    });
+  };
+  $(window).on("runJavaScript", function(){
+      if ($.field('amount_extra')) {
+          donationChanged();
+          if ($.field('amount_extra').is('select')) {
+              $.field('amount_extra').select2({
+                  formatResult: function (opt) { return opt.text; },
+                  formatSelection: function (opt) { return opt.text; },
+                  minimumResultsForSearch: 99,
+                  escapeMarkup: function (m) { return m; },
+                  width: '100%',
+              }).select2('val', {{ attendee.amount_extra }});
+          }
+          if ($.field('affiliate')) {
+              $.field('affiliate').select2({
+                  placeholder: "I don't care about this",
+                  allowClear: true,
+                  tags: true,
+                  data: {{ affiliates|jsonize }},
+                  width: '100%',
+                  createTag: function(params) {
+                      var term = $.trim(params.term);
 
-{% set amount_extra %}
-{% set read_only = amount_extra_ro or page_ro %}
+                      if (params.term === '') return null;
+
+                      return {
+                          id: params.term,
+                          text: params.term + ' (Add new)'
+                      }
+                  }
+              }).val({{ attendee.affiliate|default('', boolean=True)|jsonize }}).trigger('change');
+          }
+      }
+  });
+</script>
+{% endset %}
+
+{% macro amount_extra(form="", read_only=(amount_extra_ro or money_fields_ro or page_ro)) %}
 {% if c.DONATIONS_ENABLED and not admin_area and not read_only %}
   {% if c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 or attendee.amount_extra or attendee.gets_any_kind_of_shirt %}
-    <script type="text/javascript">
-        var donationChanged = function () {
-            setVisible('.affiliate-row', $.val('amount_extra') > 0);
-            {% if attendee.num_event_shirts_owed or attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS %}
-                setVisible('.shirt-row', true);
-            {% else %}
-                setVisible('.shirt-row', $.val('amount_extra') >= {{ c.SHIRT_LEVEL }});
-            {% endif %}
-            {% if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES %}
-                setVisible('.badge-row', true);
-            {% else %}
-                setVisible('.badge-row', $.val('amount_extra') >= {{ c.SUPPORTER_LEVEL }});
-            {% endif %}
-                setVisible('.season-row', $.val('amount_extra') >= {{ c.SEASON_LEVEL }});
-            $.each($("input:radio[name='amount_extra']"), function() {
-                $(this).parents('.btn').removeClass('active btn-primary');
-                $(this).parents('.btn').addClass('btn-default');
-                if ($(this).val() == $.val('amount_extra')) {
-                    $(this).parents('.btn').removeClass('btn-default');
-                    $(this).parents('.btn').addClass('active btn-primary');
-                }
-            });
-        };
-        $(window).on("runJavaScript", function(){
-            if ($.field('amount_extra')) {
-                donationChanged();
-                if ($.field('amount_extra').is('select')) {
-                    $.field('amount_extra').select2({
-                        formatResult: function (opt) { return opt.text; },
-                        formatSelection: function (opt) { return opt.text; },
-                        minimumResultsForSearch: 99,
-                        escapeMarkup: function (m) { return m; },
-                        width: '100%',
-                    }).select2('val', {{ attendee.amount_extra }});
-                }
-                if ($.field('affiliate')) {
-                    $.field('affiliate').select2({
-                        placeholder: "I don't care about this",
-                        allowClear: true,
-                        tags: true,
-                        data: {{ affiliates|jsonize }},
-                        width: '100%',
-                        createTag: function(params) {
-                            var term = $.trim(params.term);
-
-                            if (params.term === '') return null;
-
-                            return {
-                                id: params.term,
-                                text: params.term + ' (Add new)'
-                            }
-                        }
-                    }).val({{ attendee.affiliate|default('', boolean=True)|jsonize }}).trigger('change');
-                }
-            }
-        });
-    </script>
-
     <div class="extra-row form-group">
       <label for="amount_extra" class="col-sm-3 control-label">Want to kick in extra?
         <br>
@@ -650,7 +719,7 @@
                         name="amount_extra"
                         autocomplete="off"
                         value="{{ tier.price }}"
-                        onchange="donationChanged();"
+                        onchange="donationChanged({{ form }});"
                         {% if attendee.amount_extra == tier.price %}checked{% endif %} />
                   <div class="title">
                     <h4>{{ tier.name }}</h4>
@@ -681,7 +750,7 @@
 
 
           {% else %}
-            <select name="amount_extra" class="form-control" onchange="donationChanged();">
+            <select name="amount_extra" class="form-control" onchange="donationChanged({{ form }});">
               {{ options(c.PREREG_DONATION_OPTS, attendee.amount_extra) }}
             </select>
           {% endif %}
@@ -711,19 +780,22 @@
     <div class="form-control-static">{{ macros.popup_link("../static_views/affiliates.html", "What's an affiliate?") }}</div>
   </div>
 {% endif %}
-{% if admin_area or read_only %}
+{% if c.DONATIONS_ENABLED and (admin_area or read_only) %}
   <div class="form-group">
-    <label class="col-sm-3 control-label">Kick-in/Upgrade</label>
-    {% call macros.read_only_if(read_only, attendee.amount_extra_label or "None") %}
+    <label class="col-sm-3 control-label">
+      Kick-in/Upgrade
+    </label>
+    {% call macros.read_only_if(read_only, attendee.amount_extra_label or "None", post_text=upgrade_button('amount-extra')) %}
     <div class="col-sm-3">
       <select name="amount_extra" class="form-control">
         {{ options(c.DONATION_TIER_OPTS,attendee.amount_extra) }}
       </select>
+      {% if upgrade_button('amount-extra') %}<span class="form-control-static">{{ upgrade_button('amount-extra') }}</span>{% endif %}
     </div>
     {% endcall %}
   </div>
 {% endif %}
-{% endset %}
+{% endmacro %}
 
 
 {% set badge_printed_name %}
@@ -811,8 +883,7 @@
 {% endset %}
 
 
-{% set extra_donation %}
-{% set read_only = extra_donation_ro or page_ro %}
+{% macro extra_donation(read_only=extra_donation_ro or money_fields_ro or page_ro) %}
 {% if c.COLLECT_EXTRA_DONATION or c.EXTRA_DONATION_URL %}
 <div id="extra_donation">
   <div class="form-group">
@@ -842,7 +913,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 {% endif %}
 </div>
 {% endif %}
-{% endset %}
+{% endmacro %}
 
 
 {% set staffing %}
@@ -894,6 +965,9 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
         {% else %}
           </label>
           <a href='../shifts_admin/goto_volunteer_checklist?id={{ attendee.id }}' target="_blank">{{ (c.VOLUNTEER_RIBBON|string in attendee.ribbon_ints|string)|yesno("volunteering,staffing") }}</a>
+        {% endif %}
+        {% if c.AT_THE_CON and attendee.staffing %}
+          ({{ attendee.worked_hours }} out of {{ attendee.weighted_hours }} hours worked)
         {% endif %}
       {% else %}
         {% if attendee.badge_type == c.STAFF_BADGE %} Yes, I want to staff {{ c.EVENT_NAME }}. {% else %} Sign me up! {% endif %}
@@ -1724,39 +1798,6 @@ $(window).on("runJavaScript", function(){
     </div>
   </div>
 {% endif %}
-{% endset %}
-
-
-{% set paid %}
-{% set read_only = paid_ro or page_ro %}
-<div class="form-group">
-  <label class="col-sm-3 control-label">Paid</label>
-  <div class="col-sm-6">
-  {% if read_only %}
-    <p class="form-control-static">This attendee's paid status is <strong>{{ attendee.paid_label }}</strong>.</p>
-    {% else %}
-    <div class="form-inline">
-      <select name="paid" class="form-control">
-        {{ options(c.PAYMENT_OPTS,attendee.paid) }}
-      </select>
-      &nbsp;&nbsp;&nbsp;
-      <span id="amount_paid">
-            Paid: 
-        </span>
-      &nbsp;&nbsp;&nbsp;
-      <span id="amount_refunded">
-            Refunded: 
-        </span>
-      {% if not read_only and c.HAS_REG_ADMIN_ACCESS %}
-        [<a href="../reg_admin/receipt_items?id={{ attendee.id }}" target="_blank">Manage Payments</a>]
-      {% endif %}
-      {% if c.AT_THE_CON and attendee.staffing %}
-        <br/> ({{ attendee.worked_hours }} out of {{ attendee.weighted_hours }} hours worked)
-      {% endif %}
-    </div>
-  {% endif %}
-  </div>
-</div>
 {% endset %}
 
 

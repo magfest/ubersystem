@@ -276,21 +276,6 @@ class Group(MagModel, TakesPaymentMixin):
                       ).where(and_(ReceiptItem.group_id == cls.id,
                                    ReceiptItem.txn_type == c.REFUND)).label('amount_refunded')
 
-    def balance_by_item_type(self, item_type):
-        """
-        Return a sum of all the receipt item payments, minus the refunds, for this model by item type
-        """
-        return sum([amt for type, amt in self.itemized_payments if type == item_type]) \
-               - sum([amt for type, amt in self.itemized_refunds if type == item_type])
-
-    @property
-    def itemized_payments(self):
-        return [(item.item_type, item.amount) for item in self.receipt_items if item.txn_type == c.PAYMENT]
-
-    @property
-    def itemized_refunds(self):
-        return [(item.item_type, item.amount) for item in self.receipt_items if item.txn_type == c.REFUND]
-
     @property
     def dealer_max_badges(self):
         return c.MAX_DEALERS or math.ceil(self.tables) + 1
