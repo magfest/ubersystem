@@ -778,7 +778,7 @@ class Root:
                         description='{}ayment for {}\'s art show purchases'.format(
                             'P' if int(float(amount)) == receipt.total else 'Partial p',
                             attendee.full_name))
-        stripe_intent = charge.create_stripe_intent(session)
+        stripe_intent = charge.create_stripe_intent()
         message = stripe_intent if isinstance(stripe_intent, string_types) else ''
         if message:
             return {'error': message}
@@ -816,7 +816,7 @@ class Root:
     @credit_card
     def sales_charge(self, session, id, amount, description):
         charge = Charge(amount=100 * float(amount), description=description)
-        stripe_intent = charge.create_stripe_intent(session)
+        stripe_intent = charge.create_stripe_intent()
         message = stripe_intent if isinstance(stripe_intent, string_types) else ''
         if message:
             return {'error': message}

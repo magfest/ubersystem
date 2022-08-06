@@ -147,9 +147,10 @@ def check_near_cap():
 def check_missed_stripe_payments():
     pending_ids = []
     with Session() as session:
-        pending_payments = session.query(ReceiptTransaction).filter_by(type=c.PENDING)
+        pending_payments = session.query(ReceiptTransaction).filter(ReceiptTransaction.intent_id != '',
+                                                                    ReceiptTransaction.charge_ids == '')
         for payment in pending_payments:
-            pending_ids.append(payment.stripe_id)
+            pending_ids.append(payment.intent_id)
 
     events = stripe.Event.list(type='payment_intent.succeeded', created={
         # Check for events created in the last hour.
@@ -161,7 +162,7 @@ def check_missed_stripe_payments():
         log.debug('Processing Payment Intent ID {}', payment_intent.id)
         if payment_intent.id in pending_ids:
             log.debug('Charge is pending, intent ID is {}', payment_intent.id)
-            Charge.mark_paid_from_stripe_id(payment_intent.id)
+            Charge.mark_paid_from_stripe_id(payment_intent.id, payment_intent.charges.data[0].id)
 
 
 @celery.schedule(timedelta(minutes=10))

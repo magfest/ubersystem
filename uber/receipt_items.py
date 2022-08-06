@@ -11,7 +11,7 @@ an existing receipt. The two descriptions correspond to what the receipt item wi
 e.g.:
 
     Attendee.cost_changes = {
-        'key': ('Upgrade', 'Downgrade', function)
+        'key': ('Label', 'cost_change_func_name', 'extra_formatting_attr')
     }
 """
 import re
@@ -65,22 +65,46 @@ def mailing_fee(app):
     return ("Mailing fee", c.ART_MAILING_FEE * 100) if app.delivery_method == c.BY_MAIL else None
 
 
+Attendee.cost_changes = {
+    'overridden_price': ('Custom Badge Price', "calc_badge_cost_change"),
+    'badge_type': ('Badge ({})', "calc_badge_cost_change", "badge_type_label"),
+    'amount_extra': ('Kickin ({})', None, "amount_extra_label"),
+    'extra_donation': ('Extra Donation', None),
+}
+
+Attendee.credit_changes = {
+    'paid': ('Badge Comp', "calc_badge_comp_change"),
+    'birthdate': ('Age Discount', "calc_age_discount_change"),
+    'promo_code': ('Promo Code'), # TODO
+}
+
 @cost_calculation.Attendee
 def badge_cost(attendee):
-    return ("Badge", attendee.calculate_badge_cost() * 100)
+    return ("{} badge for {}".format(attendee.badge_type_label, attendee.full_name), attendee.calculate_badge_cost() * 100)
 
 @cost_calculation.Attendee
 def shipping_fee_cost(attendee):
     if attendee.badge_status == c.DEFERRED_STATUS and attendee.amount_extra:
-        return ("Merch shipping fee", attendee.calculate_shipping_fee_cost() * 100)
+        return ("Merch Shipping Fee", attendee.calculate_shipping_fee_cost() * 100)
 
 @cost_calculation.Attendee
 def donation_cost(attendee):
-    return ("Extra donation", attendee.extra_donation * 100) if attendee.extra_donation else None
+    return ("Extra Donation", attendee.extra_donation * 100) if attendee.extra_donation else None
 
 @cost_calculation.Attendee
 def kickin_cost(attendee):
-    return (c.DONATION_TIERS[attendee.amount_extra], attendee.amount_extra * 100) if attendee.amount_extra else None
+    return ("Kickin ({})".format(attendee.amount_extra_label), attendee.amount_extra * 100) if attendee.amount_extra else None
+
+@credit_calculation.Attendee
+def age_discount(attendee):
+    if attendee.qualifies_for_discounts:
+        return ("Age Discount", attendee.age_discount * 100) if attendee.age_discount else None
+
+@credit_calculation.Attendee
+def group_discount(attendee):
+    if attendee.qualifies_for_discounts and not attendee.age_discount and (
+                attendee.promo_code_groups or attendee.group and attendee.paid == c.PAID_BY_GROUP):
+        return ("Group discount", c.GROUP_DISCOUNT * 100)
 
 
 @cost_calculation.Group
@@ -97,7 +121,7 @@ def badge_cost(group):
         if attendee.paid == c.PAID_BY_GROUP:
             cost_table[attendee.badge_cost * 100] += 1
 
-    return ("Badge", cost_table)
+    return ("Group badge ({})".format(group.name), cost_table)
 
 
 @cost_calculation.PrintJob
@@ -112,15 +136,10 @@ def cost(group):
     for code in group.promo_codes:
         cost_table[code.cost * 100] += 1
 
-    return ("Group badge", cost_table)
+    return ("Group badge ({}'s group)".format(), cost_table)
 
 @cost_calculation.PromoCode
 def code_cost(code):
     return ("Promo code group badge", code.cost * 100) if code.cost else None
-
-
-@credit_calculation.Attendee
-def read_only_makes_sense(group):
-    pass
 
 

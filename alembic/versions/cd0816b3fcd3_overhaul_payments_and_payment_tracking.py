@@ -59,8 +59,6 @@ def upgrade():
     sa.Column('owner_id', residue.UUID(), nullable=False),
     sa.Column('owner_model', sa.Unicode(), server_default='', nullable=False),
     sa.Column('closed', residue.UTCDateTime(), nullable=True),
-    sa.Column('attendee_ids', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('group_ids', sa.Unicode(), server_default='', nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_model_receipt'))
     )
     op.create_index(op.f('ix_model_receipt_owner_id'), 'model_receipt', ['owner_id'], unique=False)
@@ -76,6 +74,7 @@ def upgrade():
     sa.Column('desc', sa.Unicode(), server_default='', nullable=False),
     sa.Column('fk_id', residue.UUID(), nullable=True),
     sa.Column('fk_model', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('revert_change', residue.JSON(), server_default='{}', nullable=False),
     sa.ForeignKeyConstraint(['receipt_id'], ['model_receipt.id'], name=op.f('fk_receipt_item_receipt_id_model_receipt'), ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_receipt_item'))
     )
@@ -83,11 +82,13 @@ def upgrade():
     op.create_table('receipt_transaction',
     sa.Column('id', residue.UUID(), nullable=False),
     sa.Column('receipt_id', residue.UUID(), nullable=True),
-    sa.Column('stripe_id', sa.Unicode(), server_default='', nullable=True),
-    sa.Column('type', sa.Integer(), server_default='196944751', nullable=False),
-    sa.Column('txn_method', sa.Integer(), server_default='180350097', nullable=False),
+    sa.Column('intent_id', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('charge_id', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('refund_id', sa.Unicode(), server_default='', nullable=False),
+    sa.Column('method', sa.Integer(), server_default='180350097', nullable=False),
     sa.Column('amount', sa.Integer(), nullable=False),
     sa.Column('added', residue.UTCDateTime(), nullable=False),
+    sa.Column('cancelled', residue.UTCDateTime(), nullable=True),
     sa.Column('who', sa.Unicode(), server_default='', nullable=False),
     sa.Column('desc', sa.Unicode(), server_default='', nullable=False),
     sa.ForeignKeyConstraint(['receipt_id'], ['model_receipt.id'], name=op.f('fk_receipt_transaction_receipt_id_model_receipt'), ondelete='SET NULL'),
@@ -101,9 +102,9 @@ def upgrade():
     op.drop_column('attendee', 'purchased_items')
     op.drop_column('attendee', 'payment_method')
     op.drop_column('attendee', 'amount_paid_override')
-    op.drop_column('attendee', 'base_badge_price')
     op.drop_column('attendee', 'amount_refunded_override')
     op.drop_column('attendee', 'refunded_items')
+    op.alter_column('attendee', 'base_badge_price', new_column_name='initial_badge_cost')
     op.drop_index('ix_marketplace_application_amount_paid', table_name='marketplace_application')
     op.drop_column('marketplace_application', 'amount_paid')
     op.drop_column('marketplace_application', 'base_price')
@@ -115,10 +116,10 @@ def downgrade():
     op.create_index('ix_marketplace_application_amount_paid', 'marketplace_application', ['amount_paid'], unique=False)
     op.add_column('attendee', sa.Column('refunded_items', postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'::jsonb"), autoincrement=False, nullable=False))
     op.add_column('attendee', sa.Column('amount_refunded_override', sa.INTEGER(), server_default=sa.text('0'), autoincrement=False, nullable=False))
-    op.add_column('attendee', sa.Column('base_badge_price', sa.INTEGER(), server_default=sa.text('0'), autoincrement=False, nullable=False))
     op.add_column('attendee', sa.Column('amount_paid_override', sa.INTEGER(), server_default=sa.text('0'), autoincrement=False, nullable=False))
     op.add_column('attendee', sa.Column('payment_method', sa.INTEGER(), autoincrement=False, nullable=True))
     op.add_column('attendee', sa.Column('purchased_items', postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'::jsonb"), autoincrement=False, nullable=False))
+    op.alter_column('attendee', 'initial_badge_cost', new_column_name='base_badge_price')
     op.add_column('art_show_application', sa.Column('base_price', sa.INTEGER(), server_default=sa.text('0'), autoincrement=False, nullable=False))
     op.add_column('art_show_application', sa.Column('amount_paid', sa.INTEGER(), server_default=sa.text('0'), autoincrement=False, nullable=False))
     op.create_table('stripe_transaction',

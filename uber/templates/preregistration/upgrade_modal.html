@@ -1,0 +1,110 @@
+
+<div class="modal fade" id="upgradeModal" tabindex="-1" role="dialog" aria-labelledby="upgradeTitle">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <h4 class="modal-title" id="upgradeTitle">Add Upgrades</h4>
+        </div>
+        <div class="modal-body">
+            <form method="post" action="purchase_upgrades" id="purchase-upgrades" class="form-horizontal">
+                {{ csrf_token() }}
+                <input type="hidden" name="id" value="{{ attendee.id }}" />
+                <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
+                <input type="hidden" name="receipt_id" value="{{ receipt.id }}" />
+                {{ attendee_fields.badge_buttons }}
+                {{ attendee_fields.amount_extra(read_only=False, form="upgrade") }}
+                {% if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES and attendee.amount_extra < c.SUPPORTER_LEVEL %}
+                    {{ attendee_fields.badge_printed_name }}
+                {% endif %}
+                {% if not attendee.num_event_shirts_owed %}
+                    {{ attendee_fields.shirt_size }}
+                {% endif %}
+                {{ attendee_fields.extra_donation(read_only=False) }}
+            </form>
+            <table class="table table-striped" id="upgrade-preview">
+                <tbody></tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          <button type="submit" id="upgrade-purchase" form="purchase-upgrades" type="button" class="btn btn-success">Purchase<span id="upgrade-preview-total"></span></button>
+        </div>
+      </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    var costChangeDict = {};
+    var updateReceiptPreview = function(colName, val=0) {
+        if (colName == "" || val == "") {
+            return
+        }
+        existing_row = $('td#' + colName + ' > span');
+        $.post("get_receipt_preview", {
+            csrf_token: csrf_token,
+            id: "{{ attendee.id }}",
+            col_name: colName,
+            val: val
+        },
+        function(result) {
+          if (result.error) {
+            toastr.error(result.error);
+          } else {
+            change_str = result.change > 0 ? "$" + result.change / 100 : "-$" + result.change * -1 / 100;
+            costChangeDict[colName] = result.change;
+            if (result.change == 0) {
+                if (existing_row.length) {
+                    existing_row.parents('tr').remove();
+                }
+            } else if (existing_row.length) {
+                existing_row.text(result.desc + ": " + change_str);
+            } else {
+                new_row = "<tr><td id='" + colName + "'>" +
+                    "<span class='pull-right'>" + result.desc + ": " + change_str +
+                    "</span></td></tr>";
+                $('#upgrade-preview > tbody:last-child').append(new_row);
+            }
+
+            var upgradePreviewTotal = 0;
+            for (var col in costChangeDict) {
+                upgradePreviewTotal += costChangeDict[col];
+            }
+            if (upgradePreviewTotal > 0) {
+                $('#upgrade-purchase').prop('disabled', false);
+                $('#upgrade-preview-total').text(' for $' + upgradePreviewTotal / 100);
+            } else {
+                $('#upgrade-purchase').prop('disabled', true);
+                $('#upgrade-preview-total').text('');
+            }
+          }
+        });
+    };
+    $().ready(function() {
+        // Badge type changes call updateReceiptPreview in the BADGE_TYPES array
+        // Need to add amount_extra and extra_donation triggers here
+        $("form[action='purchase_upgrades']").submit(function(event){
+        var $form = $(this);
+        $btn = $form.find('button[type=submit]');
+        event.preventDefault();
+        $btn.prop('disabled', true);
+        $.post('purchase_upgrades', $form.serialize(), function(result) {
+            $btn.prop('disabled', false);
+            if (result.error) {
+                toastr.error(result.error);
+            } else if (result.success) {
+                $('#upgradeModal').modal('toggle');
+                callStripeAction();
+            }
+        });
+        });
+
+        // Hide upgrade buttons for badge type and amount extra if there's nothing to upgrade to
+        if (_(BADGE_TYPES.options).size() == 1) {
+            $('#upgrade-badge-type-btn').hide();
+        }
+        if($('input:radio[name=amount_extra]').size() == 1) {
+            $('#upgrade-amount-extra-btn').hide();
+        }
+    });
+</script>

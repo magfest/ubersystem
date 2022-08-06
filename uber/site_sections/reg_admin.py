@@ -2,19 +2,41 @@ from itertools import chain
 from uber.models.attendee import AttendeeAccount
 
 import cherrypy
+from datetime import datetime
 from pockets import groupify, listify
 from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import joinedload, raiseload, subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c, _config
-from uber.custom_tags import pluralize
+from uber.custom_tags import datetime_local_filter, pluralize
 from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import ApiJob, Attendee, Department, DeptMembership, DeptMembershipRequest, Group
+from uber.models import AdminAccount, ApiJob, Attendee, ModelReceipt, ReceiptItem, ReceiptTransaction
 from uber.site_sections import devtools
 from uber.utils import get_api_service_from_server, normalize_email
 
+def check_custom_receipt_item_txn(params, is_txn=False):
+    if not params.get('amount'):
+        return "You must enter a positive or negative amount."
+    
+    try:
+        amount = int(params['amount'])
+    except Exception:
+        return "The amount must be a number."
+
+    if amount > 999999 or amount < -999999:
+        return "Please enter a realistic number for the amount."
+    if amount == 0:
+        return "You cannot enter an amount of 0."
+
+    if is_txn:
+        if not params.get('method'):
+            return "You must choose a payment method."
+        if int(params['amount']) < 0 and not params.get('desc'):
+            return "You must enter a description when adding a refund."
+    elif not params.get('desc'):
+        return "You must describe the item you are adding or crediting."
 
 @all_renderable()
 class Root:
@@ -24,40 +46,104 @@ class Root:
         except NoResultFound:
             model = session.group(id)
 
+        receipt = session.query(ModelReceipt).filter_by(owner_id=id, owner_model=model.__class__.__name__, closed=None).first()
+
+        other_receipts = set()
+        other_receipt_items = session.query(ReceiptItem).filter_by(fk_id=model.id, fk_model=model.__class__.__name__)
+        for item in other_receipt_items:
+            other_receipts.add(item.receipt)
+            
         return {
             'attendee': model if isinstance(model, Attendee) else None,
             'group': model,
+            'receipt': receipt,
+            'other_receipts': other_receipts,
+            'closed_receipts': session.query(ModelReceipt).filter(ModelReceipt.owner_id == id,
+                                                                  ModelReceipt.owner_model == model.__class__.__name__,
+                                                                  ModelReceipt.closed != None).all(),
             'message': message,
-            'stripe_txn_opts': [(txn.stripe_transaction.id, txn.stripe_transaction.stripe_id)
-                                for txn in model.stripe_txn_share_logs],
         }
 
+    @ajax
     def add_receipt_item(self, session, id='', **params):
+        receipt = session.model_receipt(id)
+
+        message = check_custom_receipt_item_txn(params)
+        if message:
+            return {'error': message}
+
+        count = params.get('count')
+        if count:
+            try:
+                count = int(params['count'])
+            except Exception:
+                return {'error': "The count must be a number."}
+
+        session.add(ReceiptItem(receipt_id=receipt.id,
+                                desc=params['desc'],
+                                amount=int(params.get('amount', 0)) * 100,
+                                count=int(count or 1),
+                                who=AdminAccount.admin_name() or 'non-admin'
+                            ))
+
         try:
-            model = session.attendee(id)
-        except NoResultFound:
-            model = session.group(id)
-            
-        stripe_txn_id = params.get('stripe_txn_id', '')
-        if stripe_txn_id:
-            stripe_txn = session.stripe_transaction(stripe_txn_id)
+            session.commit()
+        except Exception:
+            return {'error': "Encountered an exception while trying to save item."}
 
-        session.add(session.create_receipt_item(
-            model, float(params.get('amount')) * 100, params.get('desc'), stripe_txn if stripe_txn_id else None,
-            params.get('txn_type')))
+        return {'success': True}
 
-        item_type = "Payment" if params.get('txn_type') == c.PAYMENT else "Refund"
-
-        raise HTTPRedirect('receipt_items?id={}&message={}', model.id, "{} added".format(item_type))
-
+    @ajax
     def remove_receipt_item(self, session, id='', **params):
-        item = session.receipt_item(id)
-        item_type = "Payment" if item.txn_type == c.PAYMENT else "Refund"
+        try:
+            item = session.receipt_item(id)
+        except NoResultFound:
+            item = session.receipt_transaction(id)
         
-        attendee_or_group = item.attendee if item.attendee_id else item.group
         session.delete(item)
+        session.commit()
 
-        raise HTTPRedirect('receipt_items?id={}&message={}', attendee_or_group.id, "{} deleted".format(item_type))
+        return {'removed': id}
+
+    @ajax
+    def add_receipt_txn(self, session, id='', **params):
+        receipt = session.model_receipt(id)
+
+        message = check_custom_receipt_item_txn(params, is_txn=True)
+        if message:
+            return {'error': message}
+
+        session.add(ReceiptTransaction(receipt_id=receipt.id,
+                                       amount=int(params.get('amount', 0)) * 100,
+                                       method=params.get('method'),
+                                       desc=params['desc'],
+                                       who=AdminAccount.admin_name() or 'non-admin'
+                                    ))
+
+        try:
+            session.commit()
+        except Exception:
+            session.rollback()
+            return {'error': "Encountered an exception while trying to save transaction."}
+
+        if (receipt.item_total - receipt.txn_total) <= 0:
+            for item in receipt.open_receipt_items:
+                item.closed = datetime.now()
+                session.add(item)
+
+            session.commit()
+
+        return {'success': True}
+        
+    @ajax
+    def cancel_receipt_transaction(self, session, id='', **params):
+        txn = session.receipt_transaction(id)
+        
+        txn.cancelled = datetime.now()
+        session.add(txn)
+        session.commit()
+
+        return {'cancelled': id, 'time': datetime_local_filter(txn.cancelled)}
     
     def add_refund_item(self, session, id='', **params):
         try:

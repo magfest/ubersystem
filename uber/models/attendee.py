@@ -246,6 +246,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     checked_in = Column(UTCDateTime, nullable=True)
 
     paid = Column(Choice(c.PAYMENT_OPTS), default=c.NOT_PAID, index=True, admin_only=True)
+    initial_badge_cost = Column(Integer, default=0, admin_only=True)
     overridden_price = Column(Integer, nullable=True, admin_only=True)
     amount_extra = Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True), default=0)
     extra_donation = Column(Integer, default=0)
@@ -658,14 +659,6 @@ class Attendee(MagModel, TakesPaymentMixin):
                     self.region or self.country not in ['United States', 'Canada']) and self.address1:
             return True
 
-    @property
-    def payment_page(self):
-        if self.art_show_applications:
-            for app in self.art_show_applications:
-                if app.total_cost and app.status != c.PAID:
-                    return '../art_show_applications/edit?id={}'.format(app.id)
-        return '../preregistration/attendee_donation_form?id={}'.format(self.id)
-
     def unset_volunteering(self):
         self.staffing = False
         self.dept_membership_requests = []
@@ -737,20 +730,12 @@ class Attendee(MagModel, TakesPaymentMixin):
         return self.calculate_badge_cost(use_promo_code=False)
 
     def calculate_badge_cost(self, use_promo_code=True):
-        registered = self.registered_local if self.registered else None
-        base_badge_price = c.get_attendee_price(registered)
-
         if self.paid == c.NEED_NOT_PAY:
             return 0
         elif self.overridden_price is not None:
             return self.overridden_price
         elif self.is_dealer:
             return c.DEALER_BADGE_PRICE
-        elif self.badge_type in c.DISCOUNTABLE_BADGE_TYPES and self.age_discount != 0:
-            return max(0, base_badge_price + self.age_discount)
-        elif self.badge_type in c.DISCOUNTABLE_BADGE_TYPES and (
-                self.promo_code_groups or self.group and self.paid == c.PAID_BY_GROUP):
-            return base_badge_price - c.GROUP_DISCOUNT
         else:
             cost = self.new_badge_cost
 
@@ -758,6 +743,9 @@ class Attendee(MagModel, TakesPaymentMixin):
             return self.promo_code.calculate_discounted_price(cost)
         else:
             return cost
+
+    def qualifies_for_discounts(self):
+        return self.paid != c.NEED_NOT_PAY and self.overridden_price is None and not self.is_dealer
 
     @property
     def new_badge_cost(self):
@@ -862,20 +850,27 @@ class Attendee(MagModel, TakesPaymentMixin):
     def is_unpaid(cls):
         return cls.paid == c.NOT_PAID
 
-    def balance_by_item_type(self, item_type):
-        """
-        Return a sum of all the receipt item payments, minus the refunds, for this model by item type
-        """
-        return sum([amt for type, amt in self.itemized_payments if type == item_type]) \
-                        - sum([amt for type, amt in self.itemized_refunds if type == item_type])
+    def calc_badge_cost_change(self, **kwargs):
+        preview_attendee = Attendee(**self.to_dict())
+        if 'overridden_price' in kwargs:
+            preview_attendee.overridden_price = int(kwargs['overridden_price'])
+        if 'badge_type' in kwargs:
+            preview_attendee.badge_type = int(kwargs['badge_type'])
+        if 'ribbon' in kwargs:
+            add_opt(preview_attendee.ribbon_ints, int(kwargs['ribbon']))
+        if 'paid' in kwargs:
+            preview_attendee.paid = int(kwargs['paid'])
 
-    @property
-    def itemized_payments(self):
-        return [(item.item_type, item.amount) for item in self.receipt_items if item.txn_type == c.PAYMENT]
+        current_cost = self.calculate_badge_cost() * 100
 
-    @property
-    def itemized_refunds(self):
-        return [(item.item_type, item.amount) for item in self.receipt_items if item.txn_type == c.REFUND]
+        return current_cost, (preview_attendee.calculate_badge_cost() * 100) - current_cost
+
+    def calc_age_discount_change(self, birthdate):
+        preview_attendee = Attendee(**self.to_dict())
+        preview_attendee.birthdate = birthdate
+        current_discount = self.age_discount() * 100
+
+        return current_discount, (preview_attendee.age_discount() * 100) - current_discount
 
     @hybrid_property
     def is_unassigned(self):

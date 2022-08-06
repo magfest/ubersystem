@@ -2,6 +2,8 @@
 {% set name_ro = not attendee.placeholder %}
 {% set assigned_depts_ro = True %}
 {% set amount_extra_ro = True if attendee.badge_status == c.DEFERRED_STATUS else False %}
+{% set money_fields_ro = True if receipt and receipt.closed_receipt_items else False %}
+{% set money_fields_ro = True %}
 {% import "fields/attendee.html" as attendee_fields with context %}
 {% block title %}Confirm Your Details{% endblock %}
 {% block backlink %}
@@ -10,21 +12,22 @@
 {% block content %}
 
 <script type="text/javascript">
-    $(function(){
-        {% if attendee.has_personalized_badge %}
-            $('.badge-row').show();
-        {% endif %}
-        {% if attendee.amount_extra and not attendee.amount_unpaid %}
-            setTimeout(function () {  // make sure this happens after jQuery.select2
-                $.field('amount_extra').find('option').each(function(){
-                    if ($(this).val() < {{ attendee.amount_extra }}) {
-                        $(this).remove();
-                    }
-                });
-            }, 1);
-        {% endif %}
-    });
+  $(function(){
+      {% if attendee.has_personalized_badge %}
+          $('.badge-row').show();
+      {% endif %}
+      {% if attendee.amount_extra and not attendee.amount_unpaid %}
+          setTimeout(function () {  // make sure this happens after jQuery.select2
+              $.field('amount_extra').find('option').each(function(){
+                  if ($(this).val() < {{ attendee.amount_extra }}) {
+                      $(this).remove();
+                  }
+              });
+          }, 1);
+      {% endif %}
+  });
 </script>
+{{ attendee_fields.amount_extra_js }}
 
 {% include 'prereg_masthead.html' %}
 {% if account %}
@@ -44,23 +47,19 @@
       {% include 'art_show_common/art_show_agent.html' %}
     {% endif %}
 
-    <form method="post" action="confirm" class="form-horizontal">
-      {{ csrf_token() }}
-      <input type="hidden" name="id" value="{{ attendee.id }}" />
-      <input type="hidden" name="return_to" value="{{ return_to }}" />
-      <input type="hidden" name="undoing_extra" value="{{ undoing_extra }}" />
-
-      {% block form_top %}{% endblock %}
-
-      {% if not attendee.placeholder and ((attendee.amount_unpaid * 100) - attendee.amount_pending) > 0 and c.HTTP_METHOD == 'GET' and 'attendee_donation_form' in attendee.payment_page %}
-          <div class="alert alert-danger">
-            You currently have an outstanding balance of <strong>{{ attendee.amount_unpaid|format_currency }}</strong>
-            {% if attendee.shipping_fee_cost %}for shipping your badge and kick-in merch{% elif attendee.amount_extra %}
-            due to having requested registration add-ons and then not completing the payment form{% endif %}.
-            Please either <a href="{{ attendee.payment_page }}">click here</a> to pay,
-            {% if attendee.shipping_fee_cost %}or simply ignore this message if you do not want your merch shipped to you{% else %}
-            or alter your registration below to eliminate whichever addons you've decided not to select{% endif %}.
+      {% if not attendee.placeholder and receipt.current_amount_owed %}
+          {% if receipt.pending_total %}
+          <div class="alert alert-warning">
+            You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
+            with pending payments of {{ (receipt.pending_total / 100)|format_currency }}.
+            Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if this issue persists or if you have any questions.
           </div>
+          {% else %}
+          <div class="alert alert-danger">
+            You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
+            Please <a href="" data-toggle="modal" data-target="#receiptModal">check your receipt here</a> to pay for your extra items.
+          </div>
+          {% endif %}
       {% elif attendee.badge_status == c.PENDING_STATUS %}
           <div class="alert alert-warning">
             Your registration has not finished processing, likely because we don't have a verified completed payment. 
@@ -95,14 +94,27 @@
         </div>
       {% endif %}
 
-      {{ attendee_fields.badge_buttons }}
+      {% if money_fields_ro %}
+        {% include 'preregistration/upgrade_modal.html' %}
+      {% endif %}
+      {{ attendee_fields.receipt_modal }}
+
+      <form method="post" action="confirm" id="confirm" class="form-horizontal">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ attendee.id }}" />
+        <input type="hidden" name="return_to" value="{{ return_to }}" />
+        <input type="hidden" name="undoing_extra" value="{{ undoing_extra }}" />
+  
+        {% block form_top %}{% endblock %}
+
+      {% if not money_fields_ro %}{{ attendee_fields.badge_buttons }}{% endif %}
       {{ attendee_fields.prereg_intro }}
       {{ attendee_fields.name }}
       {{ attendee_fields.badge_type }}
-      {{ attendee_fields.amount_extra }}
+      {{ attendee_fields.amount_extra(form="confirm") }}
       {{ attendee_fields.badge_printed_name }}
       {{ attendee_fields.shirt_size }}
-      {{ attendee_fields.extra_donation }}
+      {{ attendee_fields.extra_donation() }}
       {{ attendee_fields.staffing }}
       {{ attendee_fields.job_interests }}
       {{ attendee_fields.assigned_depts }}
@@ -137,6 +149,11 @@
           {% include '/preregistration/badge_refund.html' %}
           {% if attendee.can_defer_badge %}
           <a href="defer_badge?id={{ attendee.id }}" class="btn btn-warning">Defer my Badge</a>
+          {% endif %}
+          {% if receipt %}
+            <a class="btn btn-info" data-toggle="modal" data-target="#receiptModal">
+              <span class="glyphicon glyphicon-list-alt"></span> Receipt
+            </a>
           {% endif %}
         </div>
       </div>
