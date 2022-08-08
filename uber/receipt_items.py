@@ -3,32 +3,12 @@ When an attendee or group preregisters or changes their registration, we want a 
 credits to add to their receipt. These items are defined here. Each cost/credit should return None if there is no applicable 
 charge for that model or a tuple of the cost description, the cost price, and (optionally) the number of items. If the cost 
 price is 0, the item is printed as "Free" on the receipt. All cost prices should be in cents.
-
-Each model can also have a cost_changes dict, where each entry is a tuple containing two descriptions and the
-calculation function on the model. These functions are called through the add_receipt_upgrade_item function on the Charge
-class and they return a negative or positive number representing how much we should charge or credit an attendee/group with
-an existing receipt. The two descriptions correspond to what the receipt item will say if the number is positive or negative,
-e.g.:
-
-    Attendee.cost_changes = {
-        'key': ('Label', 'cost_change_func_name', 'extra_formatting_attr')
-    }
 """
-import re
 from collections import defaultdict
-from datetime import date
-from functools import wraps
-from urllib.request import urlopen
-
-import cherrypy
-import phonenumbers
-from pockets.autolog import log
 
 from uber.config import c
-from uber.custom_tags import format_currency
 from uber.decorators import cost_calculation, credit_calculation
-from uber.models import Attendee, ArtShowApplication, Group, PrintJob, PromoCodeGroup, Session
-from uber.utils import localized_now, Charge, valid_email
+from uber.models import Attendee
 
 
 
