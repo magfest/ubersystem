@@ -28,7 +28,7 @@
   background-color: #fefde5 !important;
 }
 </style>
-<button class="btn btn-info stripe-btn" onClick="callStripeAction();">
+<button class="btn btn-info stripe-btn"{% if 'stripe_button_id' in params %} id="{{ params['stripe_button_id'] }}"{% endif %} onClick="callStripeAction();">
 <span class="display: block; min-height: 30px;">Pay with Card</span>
 </button>
 <div id="stripeModal" class="modal" style="color:black;" tabindex="-1" role="dialog" data-backdrop="static">

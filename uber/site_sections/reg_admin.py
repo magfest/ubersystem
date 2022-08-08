@@ -4,12 +4,13 @@ from uber.models.attendee import AttendeeAccount
 import cherrypy
 from datetime import datetime
 from pockets import groupify, listify
+from six import string_types
 from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import joinedload, raiseload, subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c, _config
-from uber.custom_tags import datetime_local_filter, pluralize
+from uber.custom_tags import datetime_local_filter, pluralize, format_currency
 from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiJob, Attendee, ModelReceipt, ReceiptItem, ReceiptTransaction
@@ -46,12 +47,12 @@ class Root:
         except NoResultFound:
             model = session.group(id)
 
-        receipt = session.query(ModelReceipt).filter_by(owner_id=id, owner_model=model.__class__.__name__, closed=None).first()
+        receipt = session.get_receipt_by_model(model)
 
         other_receipts = set()
-        other_receipt_items = session.query(ReceiptItem).filter_by(fk_id=model.id, fk_model=model.__class__.__name__)
-        for item in other_receipt_items:
-            other_receipts.add(item.receipt)
+        if isinstance(model, Attendee):
+            for app in model.art_show_applications:
+                other_receipts.add(session.get_receipt_by_model(app))
             
         return {
             'attendee': model if isinstance(model, Attendee) else None,
@@ -136,7 +137,7 @@ class Root:
         return {'success': True}
         
     @ajax
-    def cancel_receipt_transaction(self, session, id='', **params):
+    def cancel_receipt_txn(self, session, id='', **params):
         txn = session.receipt_transaction(id)
         
         txn.cancelled = datetime.now()
@@ -145,35 +146,37 @@ class Root:
 
         return {'cancelled': id, 'time': datetime_local_filter(txn.cancelled)}
     
-    def add_refund_item(self, session, id='', **params):
-        try:
-            model = session.attendee(id)
-        except NoResultFound:
-            model = session.group(id)
+    def process_full_refund(self, session, id='', attendee_id='', group_id=''):
+        receipt = session.model_receipt(id)
+        refund_total = 0
+        for txn in receipt.receipt_txns:
+            if not txn.refund_id and txn.stripe_id:
+                response = session.process_refund(txn)
+                if response:
+                    if isinstance(response, string_types):
+                        raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', attendee_id or group_id, response)
+                    refund_total += response.amount
+
+        receipt.closed = datetime.now()
+        session.add(receipt)
+
+        if attendee_id:
+            model = session.attendee(attendee_id)
+            model.badge_status = c.REFUNDED_STATUS
+            model.paid = c.REFUNDED
+
+        if group_id:
+            model = session.group(group_id)
+            model.status = c.CANCELLED
         
-        if params.get('item_name') and params.get('item_val'):
-            model.refunded_items[params.get('item_name')] = params.get('item_val')
-            session.add(model)
-            message = "Item marked as refunded"
-        else:
-            message = "ERROR: Item not found"
+        session.add(model)
         
-        raise HTTPRedirect('receipt_items?id={}&message={}', model.id, message)
-    
-    def remove_refund_item(self, session, id='', **params):
-        try:
-            model = session.attendee(id)
-        except NoResultFound:
-            model = session.group(id)
-        
-        if params.get('item_name') and params.get('item_val'):
-            del model.refunded_items[params.get('item_name')]
-            session.add(model)
-            message = "Refunded item removed"
-        else:
-            message = "ERROR: Refund item not found"
-        
-        raise HTTPRedirect('receipt_items?id={}&message={}', model.id, message)
+        session.commit()
+        raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
+                           attendee_id or group_id,
+                           "{}'s registration has been cancelled and they have been refunded {}.".format(
+                            getattr(model, 'full_name', None) or model.name, format_currency(refund_total / 100)
+                           ))
 
     @not_site_mappable
     def remove_promo_code(self, session, id=''):
@@ -246,6 +249,7 @@ class Root:
         return {'invalidated': id}
 
     def attendees_who_owe_money(self, session):
+        # TODO: Use receipts here instead of attendees
         unpaid_attendees = [attendee for attendee in session.attendees_with_badges() 
                             if attendee.total_purchased_cost > attendee.amount_paid]
         return {

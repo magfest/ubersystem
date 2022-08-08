@@ -1,4 +1,4 @@
-
+{{ stripe_form('process_upgrade_payment', attendee, receipt_id=receipt.id, stripe_button_id="upgrade-stripe-btn") }}
 <div class="modal fade" id="upgradeModal" tabindex="-1" role="dialog" aria-labelledby="upgradeTitle">
     <div class="modal-dialog" role="document">
       <div class="modal-content">
@@ -94,7 +94,7 @@
                 toastr.error(result.error);
             } else if (result.success) {
                 $('#upgradeModal').modal('toggle');
-                callStripeAction();
+                callStripeAction(autoTrigger=true);
             }
         });
         });
@@ -106,5 +106,8 @@
         if($('input:radio[name=amount_extra]').size() == 1) {
             $('#upgrade-amount-extra-btn').hide();
         }
+
+        // Always hide the button we use for the upgrade modal
+        $("#upgrade-stripe-btn").hide();
     });
 </script>

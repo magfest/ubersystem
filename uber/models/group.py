@@ -17,7 +17,7 @@ from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, TakesPaymentMixin
-from uber.utils import add_opt
+from uber.utils import add_opt, Charge
 
 
 __all__ = ['Group']
@@ -40,11 +40,7 @@ class Group(MagModel, TakesPaymentMixin):
     description = Column(UnicodeText)
     special_needs = Column(UnicodeText)
 
-    amount_paid_override = Column(Integer, default=0, index=True, admin_only=True)
-    amount_refunded_override = Column(Integer, default=0, admin_only=True)
     cost = Column(Integer, default=0, admin_only=True)
-    purchased_items = Column(MutableDict.as_mutable(JSONB), default={}, server_default='{}')
-    refunded_items = Column(MutableDict.as_mutable(JSONB), default={}, server_default='{}')
     auto_recalc = Column(Boolean, default=True, admin_only=True)
     
     can_add = Column(Boolean, default=False, admin_only=True)
@@ -84,14 +80,6 @@ class Group(MagModel, TakesPaymentMixin):
         if not self.is_unpaid:
             for a in self.attendees:
                 a.presave_adjustments()
-                
-    @presave_adjustment
-    def update_purchased_items(self):
-        if self.cost == self.orig_value_of('cost') and self.tables == self.orig_value_of('tables'):
-            return
-        
-        self.purchased_items.clear()
-        self.purchased_items = self.current_purchased_items
         
     @property
     def current_purchased_items(self):
@@ -176,11 +164,12 @@ class Group(MagModel, TakesPaymentMixin):
             self.tables
             and self.tables != '0'
             and self.tables != '0.0'
-            and (not self.registered or self.status != c.UNAPPROVED))
+            and (not self.registered or self.cost
+                or self.status != c.UNAPPROVED))
 
     @is_dealer.expression
     def is_dealer(cls):
-        return and_(cls.tables > 0, or_(cls.status != c.UNAPPROVED))
+        return and_(cls.tables > 0, or_(cls.cost > 0, cls.status != c.UNAPPROVED))
 
     @hybrid_property
     def is_unpaid(self):
@@ -239,6 +228,8 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def total_cost(self):
+        if self.active_receipt:
+            return self.active_receipt['current_amount_owed']
         return self.default_cost + self.amount_extra
 
     @property
@@ -247,34 +238,32 @@ class Group(MagModel, TakesPaymentMixin):
             return max(0, ((self.cost * 100) - self.amount_paid - self.amount_pending) / 100)
         else:
             return self.total_cost
-        
+
     @property
     def amount_pending(self):
-        return sum([item.amount for item in self.receipt_items if item.txn_type == c.PENDING])
+        return self.active_receipt.get('pending_total', 0)
 
     @hybrid_property
     def amount_paid(self):
-        return sum([item.amount for item in self.receipt_items if item.txn_type == c.PAYMENT])
+        return self.active_receipt.get('payment_total', 0)
 
     @amount_paid.expression
     def amount_paid(cls):
-        from uber.models import ReceiptItem
+        # TODO: Fix this
+        from uber.models import ReceiptTransaction, ModelReceipt
 
-        return select([func.sum(ReceiptItem.amount)]
-                      ).where(and_(ReceiptItem.group_id == cls.id,
-                                   ReceiptItem.txn_type == c.PAYMENT)).label('amount_paid')
+        receipt_id = select(ModelReceipt.id).where(and_(ModelReceipt.owner_id == cls.id,
+                                        ModelReceipt.owner_model =="Group",
+                                        ModelReceipt.closed == None)).scalar_subquery()
 
-    @hybrid_property
+        return select([func.sum(ReceiptTransaction.amount)]
+                     ).where(and_(ReceiptTransaction.receipt_id == receipt_id,
+                             or_(ReceiptTransaction.charge_id,
+                                 and_(ReceiptTransaction.method != c.STRIPE, ReceiptTransaction.amount > 0)))).label('amount_paid')
+
+    @property
     def amount_refunded(self):
-        return sum([item.amount for item in self.receipt_items if item.txn_type == c.REFUND])
-
-    @amount_refunded.expression
-    def amount_refunded(cls):
-        from uber.models import ReceiptItem
-
-        return select([func.sum(ReceiptItem.amount)]
-                      ).where(and_(ReceiptItem.group_id == cls.id,
-                                   ReceiptItem.txn_type == c.REFUND)).label('amount_refunded')
+        return self.active_receipt.get('refund_total', 0)
 
     @property
     def dealer_max_badges(self):

@@ -43,9 +43,9 @@
                   <td><span class='pull-right'>{{ item.desc }}{{ ": " if item.desc else "" }}</span></td>
                   <td>
                     {% if item.method %}
-                    {{ (item.amount / 100)|abs|format_currency }} {{ "Paid" if item.amount > 0 else "Refunded" }} ({{ item.method_label }})
+                    {{ (item.amount / 100)|format_currency(true) }} {{ "Paid" if item.amount > 0 else "Refunded" }} ({{ item.method_label }})
                     {% else %}
-                    {{ "-" if item.amount < 0 else "" }}{{ (item.amount / 100)|abs|format_currency }}
+                    {{ (item.amount / 100)|format_currency }}
                     {% endif %}
                   </td>
                 </tr>
@@ -68,11 +68,18 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-        {% if not receipt.pending_total %}{{ stripe_form('process_upgrade_payment', attendee, receipt_id=receipt.id) }}{% endif %}
+        {% if receipt.current_amount_owed and not receipt.pending_total %}{{ stripe_form('process_upgrade_payment', attendee, receipt_id=receipt.id, stripe_button_id="receipt-stripe-btn") }}{% endif %}
       </div>
     </div>
   </div>
 </div>
+<script type="text/javascript">
+$().ready(function() {
+  $('#receipt-stripe-btn').click(function() {
+    $('#receiptModal').modal('toggle');
+  })
+});
+</script>
 {% endif %}
 {% endset %}
 
@@ -1801,6 +1808,39 @@ $(window).on("runJavaScript", function(){
 {% endset %}
 
 
+{% set paid %}
+{% set read_only = paid_ro or page_ro %}
+<div class="form-group">
+  <label class="col-sm-3 control-label">Paid</label>
+  <div class="col-sm-6">
+  {% if read_only %}
+    <p class="form-control-static">This attendee's paid status is <strong>{{ attendee.paid_label }}</strong>.</p>
+    {% else %}
+    <div class="form-inline">
+      <select name="paid" class="form-control">
+        {{ options(c.PAYMENT_OPTS,attendee.paid) }}
+      </select>
+      &nbsp;&nbsp;&nbsp;
+      <span id="amount_paid">
+            Paid: {{ (attendee.amount_paid / 100)|format_currency }}
+        </span>
+      &nbsp;&nbsp;&nbsp;
+      <span id="amount_refunded">
+            Refunded: {{ (attendee.amount_refunded / 100)|format_currency }}
+        </span>
+      {% if not read_only and c.HAS_REG_ADMIN_ACCESS %}
+        [<a href="../reg_admin/receipt_items?id={{ attendee.id }}" target="_blank">Manage Payments</a>]
+      {% endif %}
+      {% if c.AT_THE_CON and attendee.staffing %}
+        <br/> ({{ attendee.worked_hours }} out of {{ attendee.weighted_hours }} hours worked)
+      {% endif %}
+    </div>
+  {% endif %}
+  </div>
+</div>
+{% endset %}
+
+
 {% set merch %}
 {% set read_only = merch_ro or page_ro %}
 <div class="form-group">
@@ -1824,7 +1864,6 @@ $(window).on("runJavaScript", function(){
   </div>
 </div>
 {% endif %}
-
 {% endset %}
 
 

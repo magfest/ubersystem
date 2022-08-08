@@ -132,6 +132,8 @@ class ArtShowApplication(MagModel):
         if self.status != c.APPROVED:
             return 0
         else:
+            if self.active_receipt:
+                return self.active_receipt['current_amount_owed']
             return self.potential_cost
 
     @property
@@ -139,7 +141,7 @@ class ArtShowApplication(MagModel):
         if self.overridden_price is not None:
             return self.overridden_price
         else:
-            return self.base_price or self.default_cost or 0
+            return self.default_cost or 0
 
     @property
     def email(self):
@@ -152,6 +154,18 @@ class ArtShowApplication(MagModel):
     @property
     def amount_unpaid(self):
         return max(0, self.total_cost - self.amount_paid)
+
+    @property
+    def amount_pending(self):
+        return self.active_receipt.get('pending_total', 0)
+
+    @property
+    def amount_paid(self):
+        return self.active_receipt.get('payment_total', 0)
+
+    @property
+    def amount_refunded(self):
+        return self.active_receipt.get('refund_total', 0)
 
     @property
     def has_general_space(self):
