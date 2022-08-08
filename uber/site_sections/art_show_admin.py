@@ -72,6 +72,7 @@ class Root:
             'attendee_id': app.attendee_id or params.get('attendee_id', ''),
             'all_attendees': sorted(attendees, key=lambda tup: tup[1]),
             'new_app': new_app,
+            'receipt_items': Charge.get_all_receipt_items(app),
         }
 
     def pieces(self, session, id, message=''):

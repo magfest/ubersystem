@@ -15,7 +15,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.dialects.postgresql.json import JSONB
-from sqlalchemy.orm import backref, subqueryload
+from sqlalchemy.orm import backref, column_property, subqueryload
 from sqlalchemy.schema import Column as SQLAlchemyColumn, ForeignKey, Index, Table, UniqueConstraint
 from sqlalchemy.types import Boolean, Date, Integer
 
@@ -246,7 +246,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     checked_in = Column(UTCDateTime, nullable=True)
 
     paid = Column(Choice(c.PAYMENT_OPTS), default=c.NOT_PAID, index=True, admin_only=True)
-    initial_badge_cost = Column(Integer, default=0, admin_only=True)
+    badge_cost = Column(Integer, nullable=True, admin_only=True)
     overridden_price = Column(Integer, nullable=True, admin_only=True)
     amount_extra = Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True), default=0)
     extra_donation = Column(Integer, default=0)
@@ -478,6 +478,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if not self.gets_any_kind_of_shirt:
             self.shirt = c.NO_SHIRT
+
+        if self.badge_cost == None:
+            self.badge_cost = self.calculate_badge_cost()
 
         if self.badge_cost == 0 and self.paid in [c.NOT_PAID, c.PAID_BY_GROUP]:
             self.paid = c.NEED_NOT_PAY
@@ -799,6 +802,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def total_cost(self):
+        if self.active_receipt:
+            return self.active_receipt['current_amount_owed']
         return self.default_cost + (self.amount_extra or 0)
 
     @property
@@ -816,8 +821,36 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def amount_pending(self):
-        return sum([item.amount for item in self.receipt_items if item.txn_type == c.PENDING])
+        return self.active_receipt.get('pending_total', 0)
 
+    @property
+    def amount_paid(self):
+        return self.active_receipt.get('payment_total', 0)
+    """
+    @amount_paid.expression
+    def amount_paid(cls):
+        # TODO: Fix this
+        from uber.models import ReceiptTransaction, ModelReceipt
+
+        return select([func.sum(ReceiptTransaction.amount)]
+                     ).where(and_(ReceiptTransaction.receipt_id == select(ModelReceipt.id).where(
+                                                                          ModelReceipt.owner_id == cls.id,
+                                                                          ModelReceipt.owner_model == "Attendee"),
+                             or_(ReceiptTransaction.charge_id,
+                                 and_(ReceiptTransaction.method != c.STRIPE, ReceiptTransaction.amount > 0)))).label('amount_paid')
+    """
+    @property
+    def amount_refunded(self):
+        return self.active_receipt.get('refund_total', 0)
+    """
+    @amount_refunded.expression
+    def amount_refunded(cls):
+        from uber.models import ReceiptItem
+
+        return select([func.sum(ReceiptItem.amount)]
+                      ).where(and_(ReceiptItem.attendee_id == cls.id,
+                                   ReceiptItem.txn_type == c.REFUND)).label('amount_refunded')
+    """
     @property
     def amount_unpaid(self):
         if self.paid == c.PAID_BY_GROUP:
@@ -825,10 +858,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         else:
             personal_cost = self.total_cost
         return max(0, ((personal_cost * 100) - self.amount_paid) / 100)
-
-    @property
-    def total_purchased_cost(self):
-        return sum([self.purchased_items[item] for item in self.purchased_items])
 
     @property
     def paid_for_badge(self):
@@ -952,7 +981,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_status not in [c.COMPLETED_STATUS, c.NEW_STATUS]:
             return "Badge status is {}".format(self.badge_status_label)
 
-        if self.group and self.group.is_dealer and self.group.status != c.APPROVED:
+        if self.group and self.paid == c.PAID_BY_GROUP and self.group.is_dealer and self.group.status != c.APPROVED:
             return "Unapproved dealer"
         
         if self.placeholder:
@@ -1190,10 +1219,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def donation_tier_label(self):
         return c.DONATION_TIERS[self.donation_tier]
-
-    @property
-    def donation_tier_paid(self):
-        return self.amount_unpaid <= 0
 
     @property
     def merch_items(self):

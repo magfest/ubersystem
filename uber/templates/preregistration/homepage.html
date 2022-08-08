@@ -45,6 +45,21 @@
 </div>
 {% else %}
 <div class="panel-body">
+    {{ attendees_with_amount_paid }}
+    {% for attendee, money_owed in attendees_who_owe_money.items() %}
+    {% if loop.first %}
+    <div class="alert alert-warning">
+        The following attendees on your account have outstanding balances:
+        <ul>
+    {% endif %}
+    <li>{{ attendee }} owes {{ (money_owed / 100)|format_currency }}</li>
+    {% if loop.last %}
+    </ul>
+    Please click "Edit Details" on the appropriate attendee below to view and pay for their registration.
+    If this doesn't look right, please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.
+    </div>
+    {% endif %}
+    {% endfor %}
     <div class="text-center">
         {% if not prereg_message or dealer_reg_open %}
         <div class="btn-group">

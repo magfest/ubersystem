@@ -63,10 +63,8 @@ app, c.PAGE_PATH,
         <div class="col-sm-6">
           {% if app.status == c.APPROVED %}
           <div class="form-inline">
-          <span id="amount_paid">
-            <div class="input-group">
-              <span class="input-group-addon">$</span><input type="text" class="form-control" name="amount_paid" value="{{ app.amount_paid }}" />
-            </div>
+          <span id="amount_paid" class="form-control-static">
+            {{ (app.amount_paid / 100)|format_currency }}
           </span>
           </div>
           {% else %}

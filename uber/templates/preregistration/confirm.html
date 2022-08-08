@@ -3,7 +3,6 @@
 {% set assigned_depts_ro = True %}
 {% set amount_extra_ro = True if attendee.badge_status == c.DEFERRED_STATUS else False %}
 {% set money_fields_ro = True if receipt and receipt.closed_receipt_items else False %}
-{% set money_fields_ro = True %}
 {% import "fields/attendee.html" as attendee_fields with context %}
 {% block title %}Confirm Your Details{% endblock %}
 {% block backlink %}
@@ -76,22 +75,31 @@
       {% endif %}
 
       {% if attendee.is_dealer and attendee.is_group_leader %}
-      {% if attendee.group.status == c.DECLINED %}
-        {% set bg_class = 'danger' %}
-      {% elif attendee.group.status == c.APPROVED %}
-        {% set bg_class = 'success' %}
-      {% elif attendee.group.status == c.WAITLISTED %}
-        {% set bg_class = 'warning' %}
-      {% else %}
-        {% set bg_class = 'info' %}
-      {% endif %}
+        {% if attendee.group.status == c.DECLINED %}
+          {% set bg_class = 'danger' %}
+        {% elif attendee.group.status == c.APPROVED %}
+          {% set bg_class = 'success' %}
+        {% elif attendee.group.status == c.WAITLISTED %}
+          {% set bg_class = 'warning' %}
+        {% else %}
+          {% set bg_class = 'info' %}
+        {% endif %}
         <div class="alert alert-{{ bg_class }}">
           Your group "<a href="group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>"
           is currently {{ attendee.group.status_label }}.
           {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and attendee.group.status not in [c.APPROVED, c.CANCELLED] %}
           <br/><br/>If you would like, you may instead
           <a href="../marketplace/index?attendee_id={{ attendee.id }}" target="_blank">apply for a table in the Marketplace.</a>{% endif %}
-        </div>
+          {% if attendee.group.status != c.APPROVED and attendee.paid == c.PAID_BY_GROUP and attendee.calculate_badge_cost() == attendee.new_badge_cost and not money_fields_ro %}
+            <br/><br/>You may also pay {{ (attendee.total_cost - attendee_group_discount)|format_currency }} for your individual registration using the button below.
+            {% if attendee_group_discount %}<br/>This does not include your current group discount of {{ attendee_group_discount|format_currency(true) }}.{% endif %}
+            <br/>{{ stripe_form('buy_own_group_badge', attendee) }}
+          {% elif attendee.group.status != c.APPROVED and not attendee.is_not_ready_to_checkin %}
+            <p><br/>
+            {% if attendee.amount_unpaid %}Once you have paid your outstanding balance of {{ (attendee.amount_unpaid / 100)|format_currency }}, y{% else %}Y{% endif %}ou 
+            will be able to check in regardless of whether or not your group is approved.</p>
+          {% endif %}
+        </div> 
       {% endif %}
 
       {% if money_fields_ro %}

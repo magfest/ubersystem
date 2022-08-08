@@ -13,6 +13,7 @@ from six import string_types
 from sqlalchemy import func
 from sqlalchemy.orm.exc import NoResultFound
 
+from uber import receipt_items
 from uber.config import c
 from uber.custom_tags import email_only
 from uber.decorators import ajax, all_renderable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
@@ -176,7 +177,7 @@ class Root:
             if not existing_model:
                 existing_model = session.query(Group).filter_by(id=removed_id).first()
             if existing_model:
-                existing_receipt = session.query(ModelReceipt).filter_by(owner_id=removed_id, owner_model=existing_model.__class__.__name__).first()
+                existing_receipt = session.get_receipt_by_model(existing_model)
                 existing_model.badge_status = c.INVALID_STATUS
                 existing_receipt.closed = datetime.now()
                 session.add(existing_receipt)
@@ -597,9 +598,7 @@ class Root:
                 receipts = []
                 for model in charge.models:
                     charge_receipt, charge_receipt_items = Charge.create_model_receipt(model)
-                    existing_receipt = session.query(ModelReceipt).filter_by(owner_id=model.id,
-                                                                             owner_model=model.__class__.__name__,
-                                                                             closed=None).first()
+                    existing_receipt = session.get_receipt_by_model(model)
                     if existing_receipt:
                         # If their registration costs changed, close their old receipt
                         compare_fields = ['amount', 'count', 'desc']
@@ -1263,12 +1262,19 @@ class Root:
 
         account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id'))
 
+        attendees_who_owe_money = {}
+        for attendee in account.attendees:
+            receipt = session.get_receipt_by_model(attendee)
+            if receipt and receipt.current_amount_owed > 0:
+                attendees_who_owe_money[attendee.full_name] = receipt.current_amount_owed
+
         if not account:
             raise HTTPRedirect('../landing/index')
 
         return {
             'message': message,
             'account': account,
+            'attendees_who_owe_money': attendees_who_owe_money,
         }
 
     @requires_account()
@@ -1322,6 +1328,8 @@ class Root:
         elif not message and not c.ATTENDEE_ACCOUNTS_ENABLED and attendee.badge_status == c.COMPLETED_STATUS:
             message = 'You are already registered but you may update your information with this form.'
 
+        group_credit = receipt_items.credit_calculation.items['Attendee']['group_discount'](attendee)
+
         return {
             'undoing_extra': undoing_extra,
             'return_to':     return_to,
@@ -1332,6 +1340,7 @@ class Root:
             'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
             'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
             'receipt':       session.get_receipt_by_model(attendee),
+            'attendee_group_discount': (group_credit[1] / 100) if group_credit else 0,
         }
 
     @ajax
@@ -1375,10 +1384,11 @@ class Root:
 
     @ajax
     @credit_card
+    @requires_account(Attendee)
     def process_upgrade_payment(self, session, id, receipt_id, message='', **params):
         receipt = session.model_receipt(receipt_id)
         attendee = session.attendee(id)
-        charge_desc = ", ".join([item.desc for item in receipt.open_receipt_items if item.amount > 0])
+        charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = Charge(attendee, amount=receipt.current_amount_owed, description=charge_desc)
 
         stripe_intent = charge.create_stripe_intent()
@@ -1393,6 +1403,45 @@ class Root:
         return {'stripe_intent': stripe_intent,
                 'success_url': 'confirm?id={}&message={}'.format(id, 'Thank you for your purchase!'),
                 'cancel_url': 'cancel_payment'}
+
+    @ajax
+    @credit_card
+    @requires_account(Attendee)
+    def buy_own_group_badge(self, session, id):
+        attendee = session.attendee(id)
+        if attendee.paid != c.PAID_BY_GROUP:
+            return {'error': 'You should already have an individual badge. Please refresh the page.'}
+        
+        attendee.paid = c.NOT_PAID
+        session.add(attendee)
+        session.commit()
+
+        if session.get_receipt_by_model(attendee):
+            return {'error': 'You have outstanding purchases. Please refresh the page to pay for them.'}
+        
+        receipt, receipt_items = Charge.create_model_receipt(attendee)
+        session.add(receipt)
+        for item in receipt_items:
+            session.add(item)
+
+        session.commit()
+
+        charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
+        charge = Charge(attendee, amount=receipt.current_amount_owed, description=charge_desc)
+
+        stripe_intent = charge.create_stripe_intent()
+        if isinstance(stripe_intent, string_types):
+            return {'error': stripe_intent}
+
+        receipt_txn = Charge.create_receipt_transaction(receipt, charge_desc, stripe_intent.id)
+        session.add(receipt_txn)
+
+        session.commit()
+
+        return {'stripe_intent': stripe_intent,
+                'success_url': 'confirm?id={}&message={}'.format(id, 'Thank you for your purchase!'),
+                'cancel_url': 'cancel_payment'}
+
 
     @requires_account()
     def update_account(self, session, id, **params):
@@ -1502,43 +1551,6 @@ class Root:
         assert attendee.badge_type == c.GUEST_BADGE, 'This form is for guests only'
         cherrypy.session['staffer_id'] = attendee.id
         raise HTTPRedirect('../staffing/food_restrictions')
-
-    @ajax
-    @credit_card
-    @requires_account(Attendee)
-    def process_attendee_donation(self, session, id):
-        attendee = session.attendee(id)
-        charge = Charge(
-                attendee,
-                amount=attendee.amount_unpaid * 100,
-                description='{} for {}'.format(
-                            'Badge' if attendee.overridden_price else 'Registration extras', attendee.full_name)
-            )
-        stripe_intent = charge.create_stripe_intent()
-        message = stripe_intent if isinstance(stripe_intent, string_types) else ''
-        
-        if message:
-            return {'error': message}
-        else:
-            # It's safe to assume the attendee exists in the database already.
-            # The only path to reach this method requires the attendee to have
-            # already paid for their registration, thus the attendee has been
-            # saved to the database.
-            attendee = session.query(Attendee).get(attendee.id)
-            
-            attendee_payment = charge.dollar_amount
-            if attendee.marketplace_cost:
-                for app in attendee.marketplace_applications:
-                    attendee_payment -= app.amount_unpaid
-                    app.amount_paid += app.amount_unpaid
-                
-            session.add(session.create_receipt_item(attendee, charge.amount, 
-                                                    "Extra payment via confirmation page", 
-                                                    charge.stripe_transaction))
-            session.commit()
-            
-            return {'stripe_intent': stripe_intent,
-                    'success_url': 'badge_updated?id={}&message={}'.format(attendee.id, 'Your payment has been accepted')}
 
     def credit_card_retry(self):
         return {}

@@ -33,7 +33,7 @@ from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
-from uber.utils import check_csrf, normalize_email, normalize_phone, DeptChecklistConf, report_critical_exception, \
+from uber.utils import Charge, check_csrf, normalize_email, normalize_phone, DeptChecklistConf, report_critical_exception, \
     valid_email, valid_password
 
 
@@ -169,21 +169,16 @@ class MagModel:
     @property
     def default_cost(self):
         """
-        Returns the sum of all @cost_property values for this model instance.
+        Returns the sum of all cost and credit receipt items for this model instance.
 
         Because things like discounts exist, we ensure default_cost will never
         return a negative value.
         """
-        values = []
-        for name in self.cost_property_names:
-            value = 'ATTRIBUTE NOT FOUND'
-            try:
-                value = getattr(self, name, 'ATTRIBUTE NOT FOUND')
-                values.append(int(value))
-            except Exception as e:
-                log.error('Error calculating cost property {}: "{}"'.format(name, value))
-                log.exception(e)
-        return max(0, sum(values))
+        receipt_items = []
+        for item in Charge.get_all_receipt_items(self):
+            receipt_items.extend(Charge.process_receipt_item(item))
+            
+        return max(0, sum([(cost * count) for desc, cost, count in receipt_items]) / 100)
 
     @property
     def stripe_transactions(self):
@@ -192,6 +187,23 @@ class MagModel:
         """
         from uber.models.commerce import ReceiptTransaction
         return self.session.query(ReceiptTransaction).filter_by(fk_id=self.id).all()
+
+    @property
+    def active_receipt(self):
+        """
+        Returns a dictionary of this object's current active receipt, if there is one.
+        This lets us access various properties of the receipt as if they were directly
+        tied to the model without having to have an extra active Session().
+        """
+        from uber.models import Session, ModelReceipt
+        receipt_dict = {}
+        with Session() as session:
+            receipt = session.get_receipt_by_model(self)
+            if receipt:
+                receipt_dict = receipt.to_dict()
+                for property in ['item_total', 'txn_total', 'current_amount_owed', 'pending_total', 'payment_total', 'refund_total']:
+                    receipt_dict[property] = getattr(receipt, property)
+        return receipt_dict
 
     @cached_classproperty
     def unrestricted(cls):
@@ -869,52 +881,44 @@ class Session(SessionManager):
                 job.to_dict(fields)
                 for job in jobs if (job.required_roles or frozenset(job.minutes) not in restricted_minutes)]
 
-        def process_refund(self, stripe_log, model=Attendee):
+        def process_refund(self, txn):
             """
             Attempts to refund a given Stripe transaction
-            Returns:
-                error: an error message
-                response: a Stripe Refund() object, or None
+            Returns either an error message, a Stripe Refund() object, or None if the transaction had no successful charges
             """
             import stripe
             from pockets.autolog import log
-            from uber.models.commerce import ReceiptTransaction
 
-            txn = stripe_log.stripe_transaction
-            response = None
-            if txn.type != c.PAYMENT:
-                return 'This is not a payment and cannot be refunded.', None
-            else:
-                log.debug(
-                    'REFUND: attempting to refund stripeID {} {} cents for {}',
-                    txn.stripe_id, stripe_log.share, txn.desc)
-                try:
-                    if txn.stripe_id.startswith('pi_'):
-                        payment_intent = stripe.PaymentIntent.retrieve(txn.stripe_id)
-                        for charge in payment_intent.charges:
-                            response = stripe.Refund.create(
-                                charge=charge.id, amount=stripe_log.share, reason='requested_by_customer')
-                    elif txn.stripe_id.startswith('ch_'):
+            if txn.refund_id:
+                return 'This charge has already been refunded'
+            if not txn.charge_id and not txn.intent_id:
+                return 'Cannot refund a transaction without a Stripe ID'
+
+            log.debug('REFUND: attempting to refund Stripe transaction with ID {} {} cents for {}',
+                      txn.stripe_id, txn.amount, txn.desc)
+
+            try:
+                if txn.charge_id:
+                    response = stripe.Refund.create(charge=txn.charge_id, amount=txn.amount, reason='requested_by_customer')
+                else:
+                    payment_intent = stripe.PaymentIntent.retrieve(txn.intent_id)
+                    if not payment_intent.charges:
+                        # Nothing to refund
+                        return
+                    for charge in payment_intent.charges:
                         response = stripe.Refund.create(
-                            charge=txn.stripe_id, amount=stripe_log.share, reason='requested_by_customer')
-                except Exception as e:
-                    error_txt = 'Error while calling process_refund' \
-                                '(self, stripeID={!r})'.format(txn.stripe_id)
-                    report_critical_exception(
-                        msg=error_txt,
-                        subject='ERROR: MAGFest Stripe invalid request error')
-                    return 'An unexpected problem occurred: ' + str(e), None
-
-                refund_txn = ReceiptTransaction(
-                    stripe_id=response.id or None,
-                    amount=response.amount,
-                    desc=txn.desc,
-                    type=c.REFUND,
-                    who=AdminAccount.admin_name() or 'non-admin')
-
-                self.add(refund_txn)
-
-                return '', response, refund_txn
+                                    charge=charge.id, amount=txn.amount, reason='requested_by_customer')
+            except Exception as e:
+                error_txt = 'Error while calling process_refund' \
+                            '(self, stripeID={!r})'.format(txn.stripe_id)
+                report_critical_exception(
+                    msg=error_txt,
+                    subject='ERROR: MAGFest Stripe invalid request error')
+                return 'An unexpected problem occurred: ' + str(e)
+            else:
+                txn.refund_id = response.id
+                self.add(txn)
+                return response
 
         def create_receipt_item(self, model, amount, desc, 
                                 stripe_txn=None, txn_type=c.PENDING, payment_method=c.STRIPE):
@@ -1077,8 +1081,16 @@ class Session(SessionManager):
             if attendee not in account.attendees:
                 account.attendees.append(attendee)
 
-        def get_receipt_by_model(self, model):
-            return self.query(ModelReceipt).filter_by(owner_id=model.id, owner_model=model.__class__.__name__, closed=None).first()
+        def get_receipt_by_model(self, model, include_closed=False):
+            receipt_select = self.query(ModelReceipt).filter_by(owner_id=model.id, owner_model=model.__class__.__name__)
+            if not include_closed:
+                return receipt_select.filter(ModelReceipt.closed == None).first()
+            return receipt_select.first()
+
+        def get_model_by_receipt(self, receipt):
+            cls = getattr(uber.models, receipt.owner_model)
+            if cls:
+                return self.query(cls).filter_by(id=receipt.owner_id).first()
 
         def attendee_from_marketplace_app(self, **params):
             attendee, message = self.create_or_find_attendee_by_id(**params)
@@ -1531,7 +1543,7 @@ class Session(SessionManager):
                         attendee.badge_num, attendee.badge_type_label, group.name)
             else:
                 # First preserve the attributes to copy to the new group member
-                attrs = matching[0].to_dict(attrs=['group', 'group_id', 'paid', 'amount_paid_override', 'ribbon'])
+                attrs = matching[0].to_dict(attrs=['group', 'group_id', 'paid', 'ribbon'])
 
                 # Then delete the old unassigned group member
                 self.delete(matching[0])

@@ -36,13 +36,13 @@ from uber.utils import localized_now, Charge, valid_email
 @cost_calculation.MarketplaceApplication
 def app_cost(app):
     if app.status == c.APPROVED:
-        return ("Marketplace application", app.overridden_price * 100 or c.MARKETPLACE_FEE * 100 or 0)
+        return ("Marketplace Application Fee", app.overridden_price * 100 or c.MARKETPLACE_FEE * 100 or 0)
 
 
 @cost_calculation.ArtShowApplication
 def overridden_app_cost(app):
     if app.status == c.APPROVED and app.overridden_price != None:
-        return ("Art Show application", app.overridden_price * 100)
+        return ("Art Show Application (Custom Price)", app.overridden_price * 100)
 
 @cost_calculation.ArtShowApplication
 def panel_cost(app):
@@ -67,8 +67,8 @@ def mailing_fee(app):
 
 Attendee.cost_changes = {
     'overridden_price': ('Custom Badge Price', "calc_badge_cost_change"),
-    'badge_type': ('Badge ({})', "calc_badge_cost_change", "badge_type_label"),
-    'amount_extra': ('Kickin ({})', None, "amount_extra_label"),
+    'badge_type': ('Badge ({})', "calc_badge_cost_change", c.BADGES),
+    'amount_extra': ('Kickin ({})', None, c.DONATION_TIERS),
     'extra_donation': ('Extra Donation', None),
 }
 
@@ -104,7 +104,7 @@ def age_discount(attendee):
 def group_discount(attendee):
     if attendee.qualifies_for_discounts and not attendee.age_discount and (
                 attendee.promo_code_groups or attendee.group and attendee.paid == c.PAID_BY_GROUP):
-        return ("Group discount", c.GROUP_DISCOUNT * 100)
+        return ("Group Discount", c.GROUP_DISCOUNT * 100 * -1)
 
 
 @cost_calculation.Group

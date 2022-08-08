@@ -1115,7 +1115,7 @@ class Charge:
                                                      who=AdminAccount.admin_name() or 'non-admin'
                                                     ))
                 else:
-                    receipt_items.append(desc, price, count)
+                    receipt_items.append((desc, price, count))
             return receipt_items
         if receipt:
             return [ReceiptItem(receipt_id=receipt.id,
@@ -1151,7 +1151,7 @@ class Charge:
         if not model_dict.get(col_name):
             return
         
-        return (model_dict[col_name], int(new_val) - model_dict[col_name])
+        return (model_dict[col_name], new_val - model_dict[col_name])
 
     @classmethod
     def process_receipt_upgrade_item(cls, model, col_name, new_val, receipt=None, count=1):
@@ -1168,6 +1168,11 @@ class Charge:
         from uber.models import AdminAccount, ReceiptItem
         from uber.models.types import Choice
 
+        try:
+            new_val = int(new_val)
+        except Exception:
+            pass # It's fine if this is not a number
+
         if isinstance(model.__table__.columns.get(col_name).type, Choice):
             increase_term, decrease_term = "Upgrading", "Downgrading"
         else:
@@ -1181,11 +1186,11 @@ class Charge:
             cost_change_name = cost_change_tuple[0]
             cost_change_func = cost_change_tuple[1]
             if len(cost_change_tuple) > 2:
-                cost_change_name = cost_change_name.format(*[getattr(model, var) for var in cost_change_tuple[2:]])
+                cost_change_name = cost_change_name.format(*[dictionary.get(new_val) for dictionary in cost_change_tuple[2:]])
             
             try:
                 change_func = getattr(model, cost_change_func)
-                old_cost, cost_change = change_func(col_name=new_val)
+                old_cost, cost_change = change_func(**{col_name: new_val})
             except AttributeError:
                 old_cost, cost_change = cls.calc_simple_cost_change(model, col_name, new_val)
 
@@ -1235,7 +1240,7 @@ class Charge:
     def set_total_cost(self):
         preview_receipt_groups = self.prereg_receipt_preview()
         for group in preview_receipt_groups:
-            self._current_cost += sum([item[1] for item in group[1]])
+            self._current_cost += sum([(item[1] * item[2]) for item in group[1]])
 
     @property
     def has_targets(self):
@@ -1349,10 +1354,11 @@ class Charge:
 
     @staticmethod
     def mark_paid_from_intent_id(intent_id, charge_id):
+        from uber.models import Attendee, Group, Session
         from uber.tasks.email import send_email
         from uber.decorators import render
         
-        with uber.models.Session() as session:
+        with Session() as session:
             matching_txns = session.query(uber.models.ReceiptTransaction).filter_by(intent_id=intent_id).all()
 
             for txn in matching_txns:
@@ -1367,32 +1373,27 @@ class Charge:
 
                 session.commit()
 
-                if txn_receipt.owner_model == "AttendeeAccount" and not txn_receipt.open_receipt_items:
-                    # We can't leave AttendeeAccount receipts open because of the prereg flow
-                    original_receipt = session.query(uber.models.ModelReceipt
-                                                    ).filter(uber.models.ModelReceipt.owner_id == txn_receipt.owner_id,
-                                                             uber.models.ModelReceipt.owner_model == "AttendeeAccount",
-                                                             uber.models.ModelReceipt.closed != None).first()
-                    if original_receipt:
-                        # Merge this receipt with the Attendee Account's original prereg receipt
-                        for item in txn_receipt.all_sorted_items_and_txns:
-                            if item != txn:
-                                item.receipt_id = original_receipt
-                                session.add(item)
-                        txn.receipt_id = original_receipt
-                        session.delete(txn_receipt)
-                        session.commit()
+                model = session.get_model_by_receipt(txn_receipt)
+                if isinstance(model, Attendee) and not model.amount_pending:
+                    if model.badge_status == c.PENDING_STATUS:
+                        model.badge_status = c.NEW_STATUS
+                    if model.paid in [c.NOT_PAID, c.PENDING]:
+                        model.paid = c.HAS_PAID
+                if isinstance(model, Group) and not model.amount_pending:
+                    model.paid = c.HAS_PAID
+                session.add(model)
 
-                if txn.receipt.owner_model == "Group":
-                    group = session.query(uber.models.Group).filter_by(id=txn.receipt.owner_id)
-                    if group and group.is_dealer and not txn.receipt.open_receipt_items:
+                session.commit()
+
+                if isinstance(model, Group):
+                    if model and model.is_dealer and not txn.receipt.open_receipt_items:
                         try:
                             send_email.delay(
                                 c.MARKETPLACE_EMAIL,
                                 c.MARKETPLACE_EMAIL,
                                 '{} Payment Completed'.format(c.DEALER_TERM.title()),
-                                render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
-                                model=group.to_dict('id'))
+                                render('emails/dealers/payment_notification.txt', {'group': model}, encoding=None),
+                                model=model.to_dict('id'))
                         except Exception:
                             log.error('unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
 

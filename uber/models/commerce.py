@@ -123,6 +123,10 @@ class ModelReceipt(MagModel):
         return [item for item in self.receipt_items if item.closed]
 
     @property
+    def charge_description_list(self):
+        return ", ".join([item.desc + " x" + str(item.count) for item in self.open_receipt_items if item.amount > 0])
+
+    @property
     def cancelled_txns(self):
         return [txn for txn in self.receipt_txns if txn.cancelled]
 
@@ -140,12 +144,12 @@ class ModelReceipt(MagModel):
 
     @property
     def current_amount_owed(self):
-        return sum([item.amount for item in self.open_receipt_items])
+        return sum([(item.amount * item.count) for item in self.open_receipt_items])
 
     @property
     def item_total(self):
         # This counts ALL purchases/credits, not just open ones
-        return sum([item.amount for item in self.receipt_items])
+        return sum([(item.amount * item.count) for item in self.receipt_items])
 
     @property
     def txn_total(self):
@@ -162,6 +166,7 @@ class ReceiptTransaction(MagModel):
     refund_id = Column(UnicodeText)
     method = Column(Choice(c.PAYMENT_METHOD_OPTS), default=c.STRIPE)
     amount = Column(Integer)
+    refunded = Column(Integer, nullable=True)
     added = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     cancelled = Column(UTCDateTime, nullable=True)
     who = Column(UnicodeText)
@@ -188,8 +193,6 @@ class ReceiptItem(MagModel):
     closed = Column(UTCDateTime, nullable=True)
     who = Column(UnicodeText)
     desc = Column(UnicodeText)
-    fk_id = Column(UUID, index=True, nullable=True)
-    fk_model = Column(UnicodeText)
     revert_change = Column(JSON, default={}, server_default='{}')
 
 

@@ -407,7 +407,6 @@ class AttendeeLookup:
         'amount_unpaid': True,
         'donation_tier': True,
         'donation_tier_label': True,
-        'donation_tier_paid': True,
         'staffing': True,
         'is_dept_head': True,
         'ribbon_labels': True,
