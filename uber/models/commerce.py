@@ -84,22 +84,6 @@ Receipt items can be purchases or credits added to the receipt. They do not invo
 Receipt transactions keep track of payments and refunds, along with the method (e.g., cash, Stripe, Square)
 and, if applicable, the Stripe ID for that transaction. In some cases, such as during prereg or when an attendee
 pays for their art show application and badge at the same time, there may be multiple receipt transactions for one Stripe ID.
-
-
-
-Right now we have a bunch of cost properties, hardcoded config, and some date-based functions for returning
-cost. The most complex cost is the base badge price. This price includes:
-- a base price per badge type
-- early bird discounts (either by date or by quantity)
-- late bird discounts (rolling badge prices)
-- a promo code discount
-- an age group discount
-- a group discount
-- a special price for dealer badges
-
-If the badge price is set by an admin, nothing else applies. Dealer badges don't get any discounts either.
-Age discounts are prioritized over group discounts. If none of these other credits apply, a promo code can be used.
-This logic can all be changed in plugins.
 """
 class ModelReceipt(MagModel):
     invoice_num = Column(Integer, default=0)
