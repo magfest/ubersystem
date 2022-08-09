@@ -68,13 +68,13 @@
         {% else %}
           <li>{{ group.cost|format_currency }} total cost</li>
         {% endif %}
-        <li>{{ ((group.amount_paid + group.amount_pending) / 100)|format_currency or '$0' }} paid{% if group.amount_unpaid %} so far</li>
+        <!--<li>{{ ((group.amount_paid + group.amount_pending) / 100)|format_currency or '$0' }} paid{% if group.amount_unpaid %} so far</li>
           <li>{{ group.amount_unpaid|format_currency }} unpaid</li>
           </ul>
           <br/>{{ stripe_form('process_group_payment',group) }}
         {% else %}
           </li></ul>
-        {% endif %}
+        {% endif %}-->
     {% endif %}
   {% elif group.status == c.CANCELLED %}
     <div class="alert alert-info">
@@ -361,7 +361,7 @@
 <div class="form-group">
   <label class="col-sm-3 control-label">Amount Paid</label>
   <div class="col-sm-6 form-control-static">
-    {{ (group.amount_paid / 100)|format_currency }}
+    
   </div>
 </div>
 {% endset %}

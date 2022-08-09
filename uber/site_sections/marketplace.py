@@ -104,7 +104,7 @@ class Root:
         attendee = session.attendee(id)
         charge = Charge(attendee, description="Marketplace application payment for {}".format(attendee.full_name))
 
-        stripe_intent = charge.create_stripe_intent(session)
+        stripe_intent = charge.create_stripe_intent()
         message = stripe_intent if isinstance(stripe_intent, string_types) else ''
         if message:
             return {'error': message}
@@ -137,6 +137,4 @@ class Root:
         return {'stripe_intent': stripe_intent,
                 'success_url': 'edit?id={}&message={}'.format(attendee.marketplace_applications[0].id,
                                                               'Your payment has been accepted'),
-                'cancel_url': '../preregistration/cancel_payment?model_id={}&cancel_amt={}'.format(
-                        attendee.marketplace_applications[0].id, cancel_amt
-                )}
+                'cancel_url': '../preregistration/cancel_payment'}

@@ -45,7 +45,7 @@ class Root:
     @credit_card
     def arbitrary_charge(self, session, id, amount, description, email, return_to='arbitrary_charge_form'):
         charge = Charge(amount=100 * int(amount), description=description, receipt_email=email)
-        stripe_intent = charge.create_stripe_intent(session)
+        stripe_intent = charge.create_stripe_intent()
         message = stripe_intent if isinstance(stripe_intent, string_types) else ''
         if message:
             return {'error': message}

@@ -209,6 +209,7 @@ class Root:
             'reg_station': cherrypy.session.get('reg_station', ''),
             'printer_default_id': cherrypy.session.get('printer_default_id', ''),
             'printer_minor_id': cherrypy.session.get('printer_minor_id', ''),
+            'receipt': session.get_receipt_by_model(attendee),
         }  # noqa: E711
 
         return {
@@ -358,7 +359,7 @@ class Root:
                 message = 'Unassigned badge removed.'
             else:
                 replacement_attendee = Attendee(**{attr: getattr(attendee, attr) for attr in [
-                    'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_paid_override', 'amount_extra'
+                    'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_extra'
                 ]})
                 if replacement_attendee.group and replacement_attendee.group.is_dealer:
                     replacement_attendee.ribbon = add_opt(replacement_attendee.ribbon_ints, c.DEALER_RIBBON)
@@ -646,7 +647,7 @@ class Root:
     def take_payment(self, session, id):
         attendee = session.attendee(id)
         charge = Charge(attendee, amount=attendee.amount_unpaid * 100)
-        stripe_intent = charge.create_stripe_intent(session)
+        stripe_intent = charge.create_stripe_intent()
         message = stripe_intent if isinstance(stripe_intent, string_types) else ''
         
         if message:
@@ -715,7 +716,7 @@ class Root:
         if int(payment_method) == c.STRIPE_ERROR:
             attendee.for_review += "Automated message: Stripe payment manually verified by admin."
         attendee.payment_method = payment_method
-        attendee.amount_paid_override = attendee.total_cost
+
         session.add(session.create_receipt_item(attendee, attendee.total_cost * 100,
                                                         "At-door marked as paid", txn_type=c.PAYMENT, payment_method=payment_method))
         attendee.reg_station = cherrypy.session.get('reg_station')
@@ -727,7 +728,7 @@ class Root:
     def manual_reg_charge(self, session, id):
         attendee = session.attendee(id)
         charge = Charge(attendee, amount=attendee.amount_unpaid * 100)
-        stripe_intent = charge.create_stripe_intent(session)
+        stripe_intent = charge.create_stripe_intent()
         message = stripe_intent if isinstance(stripe_intent, string_types) else ''
         
         if message:

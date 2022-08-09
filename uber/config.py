@@ -184,7 +184,7 @@ class Config(_Overridable):
 
     def get_attendee_price(self, dt=None):
         price = self.INITIAL_ATTENDEE
-        if self.PRICE_BUMPS_ENABLED:
+        """if self.PRICE_BUMPS_ENABLED:
             localized_now = uber.utils.localized_now()
             for day, bumped_price in sorted(self.PRICE_BUMPS.items()):
                 if (dt or localized_now) >= day:
@@ -197,7 +197,7 @@ class Config(_Overridable):
 
                 for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
                     if badges_sold >= badge_cap and bumped_price > price:
-                        price = bumped_price
+                        price = bumped_price"""
         return price
 
     def get_group_price(self, dt=None):

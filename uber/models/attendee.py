@@ -15,14 +15,14 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.dialects.postgresql.json import JSONB
-from sqlalchemy.orm import backref, subqueryload
+from sqlalchemy.orm import backref, column_property, subqueryload
 from sqlalchemy.schema import Column as SQLAlchemyColumn, ForeignKey, Index, Table, UniqueConstraint
 from sqlalchemy.types import Boolean, Date, Integer
 
 import uber
 from uber.config import c
 from uber.custom_tags import safe_string, time_day_local
-from uber.decorators import cost_property, department_id_adapter, predelete_adjustment, presave_adjustment, \
+from uber.decorators import department_id_adapter, predelete_adjustment, presave_adjustment, \
     render
 from uber.models import MagModel
 from uber.models.group import Group
@@ -246,16 +246,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     checked_in = Column(UTCDateTime, nullable=True)
 
     paid = Column(Choice(c.PAYMENT_OPTS), default=c.NOT_PAID, index=True, admin_only=True)
+    badge_cost = Column(Integer, nullable=True, admin_only=True)
     overridden_price = Column(Integer, nullable=True, admin_only=True)
-    base_badge_price = Column(Integer, default=0, admin_only=True)
-    amount_paid_override = Column(Integer, default=0, admin_only=True)
     amount_extra = Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True), default=0)
     extra_donation = Column(Integer, default=0)
-    payment_method = Column(Choice(c.PAYMENT_METHOD_OPTS), nullable=True)
-    amount_refunded_override = Column(Integer, default=0, admin_only=True)
-    stripe_txn_share_logs = relationship('StripeTransactionAttendee', backref='attendee')
-    purchased_items = Column(MutableDict.as_mutable(JSONB), default={}, server_default='{}')
-    refunded_items = Column(MutableDict.as_mutable(JSONB), default={}, server_default='{}')
 
     badge_printed_name = Column(UnicodeText)
 
@@ -485,11 +479,11 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not self.gets_any_kind_of_shirt:
             self.shirt = c.NO_SHIRT
 
+        if self.badge_cost == None:
+            self.badge_cost = self.calculate_badge_cost()
+
         if self.badge_cost == 0 and self.paid in [c.NOT_PAID, c.PAID_BY_GROUP]:
             self.paid = c.NEED_NOT_PAY
-
-        if not self.base_badge_price:
-            self.base_badge_price = self.new_badge_cost
 
         if c.AT_THE_CON and self.badge_num and not self.checked_in and self.is_new \
                 and self.badge_type not in c.PREASSIGNED_BADGE_TYPES:
@@ -587,36 +581,6 @@ class Attendee(MagModel, TakesPaymentMixin):
                 self.overridden_price = self.badge_cost
             else:
                 self.paid = c.NEED_NOT_PAY
-                
-    @presave_adjustment
-    def update_purchased_items(self):
-        self.purchased_items.clear()
-        self.purchased_items = self.current_purchased_items
-    
-    @property
-    def current_purchased_items(self):
-        purchased_items = {}
-        for name in self.cost_property_names:
-            value = getattr(self, name, 0)
-            if value:
-                purchased_items[name] = value
-        if self.amount_extra:
-            purchased_items['kick_in_cost'] = self.amount_extra
-        if self.promo_code_groups or self.paid == c.PAID_BY_GROUP and purchased_items['badge_cost']:
-            del purchased_items['badge_cost']
-        if self.marketplace_applications:
-            for app in self.marketplace_applications:
-                purchased_items['marketplace_application_cost'] = app.total_cost
-        if self.art_show_applications:
-            for app in self.art_show_applications:
-                purchased_items['art_show_application_cost'] = app.total_cost
-        
-        return purchased_items
-    
-    @presave_adjustment
-    def set_payment_method(self):
-        if not self.payment_method and self.stripe_txn_share_logs:
-            self.payment_method = c.STRIPE
 
     @presave_adjustment
     def assign_creator(self):
@@ -641,10 +605,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         return select([func.count(PrintJob.id)]
                       ).where(and_(PrintJob.attendee_id == cls.id,
                                    PrintJob.printed != None)).label('times_printed')
-
-    @cost_property
-    def badge_reprints_cost(self):
-        return sum([job.print_fee for job in self.print_requests if job.printed])
 
     @property
     def age_now_or_at_con(self):
@@ -690,14 +650,6 @@ class Attendee(MagModel, TakesPaymentMixin):
                 self.badge_type = c.ATTENDEE_BADGE
                 self.ribbon = remove_opt(self.ribbon_ints, c.UNDER_13)
 
-    @cost_property
-    def art_show_app_cost(self):
-        cost = 0
-        if self.art_show_applications:
-            for app in self.art_show_applications:
-                cost += app.total_cost
-        return cost
-
     @property
     def art_show_receipt(self):
         open_receipts = [receipt for receipt in self.art_show_receipts if not receipt.closed]
@@ -709,14 +661,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.country and self.city and (
                     self.region or self.country not in ['United States', 'Canada']) and self.address1:
             return True
-
-    @property
-    def payment_page(self):
-        if self.art_show_applications:
-            for app in self.art_show_applications:
-                if app.total_cost and app.status != c.PAID:
-                    return '../art_show_applications/edit?id={}'.format(app.id)
-        return '../preregistration/attendee_donation_form?id={}'.format(self.id)
 
     def unset_volunteering(self):
         self.staffing = False
@@ -784,31 +728,17 @@ class Attendee(MagModel, TakesPaymentMixin):
     def badge_type_real(self):
         return uber.badge_funcs.get_real_badge_type(self.badge_type)
 
-    @cost_property
-    def badge_cost(self):
-        return self.calculate_badge_cost()
-
     @property
     def badge_cost_without_promo_code(self):
         return self.calculate_badge_cost(use_promo_code=False)
 
     def calculate_badge_cost(self, use_promo_code=True):
-        registered = self.registered_local if self.registered else None
-        base_badge_price = self.base_badge_price or c.get_attendee_price(registered)
-
         if self.paid == c.NEED_NOT_PAY:
             return 0
         elif self.overridden_price is not None:
             return self.overridden_price
         elif self.is_dealer:
             return c.DEALER_BADGE_PRICE
-        elif self.badge_type in c.DISCOUNTABLE_BADGE_TYPES and self.age_discount != 0:
-            return max(0, base_badge_price + self.age_discount)
-        elif self.badge_type in c.DISCOUNTABLE_BADGE_TYPES and (
-                self.promo_code_groups or self.group and self.paid == c.PAID_BY_GROUP):
-            return base_badge_price - c.GROUP_DISCOUNT
-        elif self.base_badge_price:
-            cost = base_badge_price
         else:
             cost = self.new_badge_cost
 
@@ -816,6 +746,9 @@ class Attendee(MagModel, TakesPaymentMixin):
             return self.promo_code.calculate_discounted_price(cost)
         else:
             return cost
+
+    def qualifies_for_discounts(self):
+        return self.paid != c.NEED_NOT_PAY and self.overridden_price is None and not self.is_dealer
 
     @property
     def new_badge_cost(self):
@@ -869,27 +802,13 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def total_cost(self):
+        if self.active_receipt:
+            return self.active_receipt['current_amount_owed']
         return self.default_cost + (self.amount_extra or 0)
 
     @property
     def total_donation(self):
         return self.total_cost - self.badge_cost
-
-    @cost_property
-    def donation_cost(self):
-        return self.extra_donation or 0
-
-    @cost_property
-    def promo_code_group_cost(self):
-        return sum(group.total_cost for group in self.promo_code_groups)
-
-    @cost_property
-    def marketplace_cost(self):
-        return sum(app.total_cost - app.amount_paid for app in self.marketplace_applications)
-
-    @cost_property
-    def shipping_fee_cost(self):
-        return self.calculate_shipping_fee_cost() if self.badge_status == c.DEFERRED_STATUS and self.amount_extra else 0
     
     def calculate_shipping_fee_cost(self):
         # For plugins to override with custom shipping fee logic
@@ -902,24 +821,28 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def amount_pending(self):
-        return sum([item.amount for item in self.receipt_items if item.txn_type == c.PENDING])
+        return self.active_receipt.get('pending_total', 0)
 
-    @hybrid_property
+    @property
     def amount_paid(self):
-        return sum([item.amount for item in self.receipt_items if item.txn_type == c.PAYMENT])
-
+        return self.active_receipt.get('payment_total', 0)
+    """
     @amount_paid.expression
     def amount_paid(cls):
-        from uber.models import ReceiptItem
+        # TODO: Fix this
+        from uber.models import ReceiptTransaction, ModelReceipt
 
-        return select([func.sum(ReceiptItem.amount)]
-                      ).where(and_(ReceiptItem.attendee_id == cls.id,
-                                   ReceiptItem.txn_type == c.PAYMENT)).label('amount_paid')
-
-    @hybrid_property
+        return select([func.sum(ReceiptTransaction.amount)]
+                     ).where(and_(ReceiptTransaction.receipt_id == select(ModelReceipt.id).where(
+                                                                          ModelReceipt.owner_id == cls.id,
+                                                                          ModelReceipt.owner_model == "Attendee"),
+                             or_(ReceiptTransaction.charge_id,
+                                 and_(ReceiptTransaction.method != c.STRIPE, ReceiptTransaction.amount > 0)))).label('amount_paid')
+    """
+    @property
     def amount_refunded(self):
-        return sum([item.amount for item in self.receipt_items if item.txn_type == c.REFUND])
-
+        return self.active_receipt.get('refund_total', 0)
+    """
     @amount_refunded.expression
     def amount_refunded(cls):
         from uber.models import ReceiptItem
@@ -927,7 +850,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         return select([func.sum(ReceiptItem.amount)]
                       ).where(and_(ReceiptItem.attendee_id == cls.id,
                                    ReceiptItem.txn_type == c.REFUND)).label('amount_refunded')
-
+    """
     @property
     def amount_unpaid(self):
         if self.paid == c.PAID_BY_GROUP:
@@ -935,10 +858,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         else:
             personal_cost = self.total_cost
         return max(0, ((personal_cost * 100) - self.amount_paid) / 100)
-
-    @property
-    def total_purchased_cost(self):
-        return sum([self.purchased_items[item] for item in self.purchased_items])
 
     @property
     def paid_for_badge(self):
@@ -960,20 +879,27 @@ class Attendee(MagModel, TakesPaymentMixin):
     def is_unpaid(cls):
         return cls.paid == c.NOT_PAID
 
-    def balance_by_item_type(self, item_type):
-        """
-        Return a sum of all the receipt item payments, minus the refunds, for this model by item type
-        """
-        return sum([amt for type, amt in self.itemized_payments if type == item_type]) \
-                        - sum([amt for type, amt in self.itemized_refunds if type == item_type])
+    def calc_badge_cost_change(self, **kwargs):
+        preview_attendee = Attendee(**self.to_dict())
+        if 'overridden_price' in kwargs:
+            preview_attendee.overridden_price = int(kwargs['overridden_price'])
+        if 'badge_type' in kwargs:
+            preview_attendee.badge_type = int(kwargs['badge_type'])
+        if 'ribbon' in kwargs:
+            add_opt(preview_attendee.ribbon_ints, int(kwargs['ribbon']))
+        if 'paid' in kwargs:
+            preview_attendee.paid = int(kwargs['paid'])
 
-    @property
-    def itemized_payments(self):
-        return [(item.item_type, item.amount) for item in self.receipt_items if item.txn_type == c.PAYMENT]
+        current_cost = self.calculate_badge_cost() * 100
 
-    @property
-    def itemized_refunds(self):
-        return [(item.item_type, item.amount) for item in self.receipt_items if item.txn_type == c.REFUND]
+        return current_cost, (preview_attendee.calculate_badge_cost() * 100) - current_cost
+
+    def calc_age_discount_change(self, birthdate):
+        preview_attendee = Attendee(**self.to_dict())
+        preview_attendee.birthdate = birthdate
+        current_discount = self.age_discount() * 100
+
+        return current_discount, (preview_attendee.age_discount() * 100) - current_discount
 
     @hybrid_property
     def is_unassigned(self):
@@ -1055,7 +981,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_status not in [c.COMPLETED_STATUS, c.NEW_STATUS]:
             return "Badge status is {}".format(self.badge_status_label)
 
-        if self.group and self.group.is_dealer and self.group.status != c.APPROVED:
+        if self.group and self.paid == c.PAID_BY_GROUP and self.group.is_dealer and self.group.status != c.APPROVED:
             return "Unapproved dealer"
         
         if self.placeholder:
@@ -1293,10 +1219,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def donation_tier_label(self):
         return c.DONATION_TIERS[self.donation_tier]
-
-    @property
-    def donation_tier_paid(self):
-        return self.amount_unpaid <= 0
 
     @property
     def merch_items(self):
