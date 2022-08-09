@@ -98,7 +98,7 @@ def badge_cost(group):
     cost_table = defaultdict(int)
 
     for attendee in group.attendees:
-        if attendee.paid == c.PAID_BY_GROUP:
+        if attendee.paid == c.PAID_BY_GROUP and attendee.badge_cost:
             cost_table[attendee.badge_cost * 100] += 1
 
     return ("Group badge ({})".format(group.name), cost_table)
