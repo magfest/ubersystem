@@ -246,24 +246,28 @@ class Group(MagModel, TakesPaymentMixin):
     @hybrid_property
     def amount_paid(self):
         return self.active_receipt.get('payment_total', 0)
-
+    
     @amount_paid.expression
     def amount_paid(cls):
-        # TODO: Fix this
-        from uber.models import ReceiptTransaction, ModelReceipt
+        from uber.models import ModelReceipt
 
-        receipt_id = select(ModelReceipt.id).where(and_(ModelReceipt.owner_id == cls.id,
-                                        ModelReceipt.owner_model =="Group",
-                                        ModelReceipt.closed == None)).scalar_subquery()
-
-        return select([func.sum(ReceiptTransaction.amount)]
-                     ).where(and_(ReceiptTransaction.receipt_id == receipt_id,
-                             or_(ReceiptTransaction.charge_id,
-                                 and_(ReceiptTransaction.method != c.STRIPE, ReceiptTransaction.amount > 0)))).label('amount_paid')
-
-    @property
+        return select([ModelReceipt.payment_total]
+                     ).where(and_(ModelReceipt.owner_id == cls.id,
+                                  ModelReceipt.owner_model == "Group")
+                     ).label('amount_paid')
+    
+    @hybrid_property
     def amount_refunded(self):
         return self.active_receipt.get('refund_total', 0)
+    
+    @amount_refunded.expression
+    def amount_refunded(cls):
+        from uber.models import ModelReceipt
+
+        return select([ModelReceipt.refund_total]
+                     ).where(and_(ModelReceipt.owner_id == cls.id,
+                                  ModelReceipt.owner_model == "Group")
+                     ).label('amount_refunded')
 
     @property
     def dealer_max_badges(self):

@@ -1820,6 +1820,9 @@ $(window).on("runJavaScript", function(){
       <select name="paid" class="form-control">
         {{ options(c.PAYMENT_OPTS,attendee.paid) }}
       </select>
+      {% if attendee.badge_status == c.REFUNDED_STATUS %}
+      This attendee has been fully refunded.
+      {% else %}
       &nbsp;&nbsp;&nbsp;
       <span id="amount_paid">
             Paid: {{ (attendee.amount_paid / 100)|format_currency }}
@@ -1828,8 +1831,9 @@ $(window).on("runJavaScript", function(){
       <span id="amount_refunded">
             Refunded: {{ (attendee.amount_refunded / 100)|format_currency }}
         </span>
+        {% endif %}
       {% if not read_only and c.HAS_REG_ADMIN_ACCESS %}
-        [<a href="../reg_admin/receipt_items?id={{ attendee.id }}" target="_blank">Manage Payments</a>]
+        [<a href="../reg_admin/receipt_items?id={{ attendee.id }}" target="_blank">View Receipt(s)</a>]
       {% endif %}
       {% if c.AT_THE_CON and attendee.staffing %}
         <br/> ({{ attendee.worked_hours }} out of {{ attendee.weighted_hours }} hours worked)
