@@ -23,10 +23,18 @@
 
       {% if c.AFTER_PANELS_DEADLINE and not c.HAS_PANELS_ADMIN_ACCESS %}
         Unfortunately, the deadline for panel applications has passed and we are no longer accepting panel submissions.
+      {% elif c.BEFORE_PANELS_START and not c.HAS_PANELS_ADMIN_ACCESS %}
+        Panel applications will open {{ c.PANELS_START|datetime_local }}.
       {% else %}
         {% if c.AFTER_PANELS_DEADLINE and c.HAS_PANELS_ADMIN_ACCESS %}
           <span style="color:red">
             Panel applications have closed, but because you are a logged in
+            administrator you can submit a new application using this form.
+          </span>
+          <br/> <br/>
+        {% elif c.BEFORE_PANELS_START and c.HAS_PANELS_ADMIN_ACCESS %}
+          <span style="color:red">
+            Panel applications open {{ c.PANELS_START|datetime_local }}, but because you are a logged in
             administrator you can submit a new application using this form.
           </span>
           <br/> <br/>
