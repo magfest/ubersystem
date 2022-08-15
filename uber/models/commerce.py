@@ -2,9 +2,11 @@ from datetime import datetime
 
 from pytz import UTC
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
+from sqlalchemy import and_, func, or_, select
+
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Integer
-
 from sqlalchemy.orm import backref
 
 from uber.config import c
@@ -118,13 +120,27 @@ class ModelReceipt(MagModel):
     def pending_total(self):
         return sum([txn.amount for txn in self.receipt_txns if txn.intent_id and not txn.charge_id and not txn.cancelled])
 
-    @property
+    @hybrid_property
     def payment_total(self):
         return sum([txn.amount for txn in self.receipt_txns if txn.charge_id or txn.method != c.STRIPE and txn.amount > 0])
+    
+    @payment_total.expression
+    def payment_total(cls):
+        return select([func.sum(ReceiptTransaction.amount)]
+                     ).where(ReceiptTransaction.receipt_id == cls.id
+                     ).where(or_(ReceiptTransaction.charge_id != None,
+                                and_(ReceiptTransaction.method != c.STRIPE, ReceiptTransaction.amount > 0))
+                     ).label('payment_total')
 
-    @property
+    @hybrid_property
     def refund_total(self):
-        return sum([txn.amount for txn in self.receipt_txns if txn.refund_id or txn.amount < 0])
+        return sum([txn.amount for txn in self.receipt_txns if txn.amount < 0]) * -1
+
+    @refund_total.expression
+    def refund_total(cls):
+        return select([func.sum(ReceiptTransaction.amount) * -1]
+                     ).where(and_(ReceiptTransaction.amount < 0, ReceiptTransaction.receipt_id == cls.id)
+                     ).label('refund_total')
 
     @property
     def current_amount_owed(self):
@@ -137,7 +153,7 @@ class ModelReceipt(MagModel):
 
     @property
     def txn_total(self):
-        return self.payment_total + self.refund_total
+        return self.payment_total - self.refund_total
 
 
 class ReceiptTransaction(MagModel):

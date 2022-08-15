@@ -440,8 +440,10 @@ class MagModel:
                     elif isinstance(column.type, Numeric):
                         if value == '':
                             value = None
-                        elif value.endswith('.0'):
+                        elif isinstance(value, six.string_types) and value.endswith('.0'):
                             value = int(value[:-2])
+                        else:
+                            value = int(float(value))
 
                     elif isinstance(column.type, (MultiChoice)):
                         if isinstance(value, list):
@@ -916,6 +918,15 @@ class Session(SessionManager):
                     subject='ERROR: MAGFest Stripe invalid request error')
                 return 'An unexpected problem occurred: ' + str(e)
             else:
+                self.add(ReceiptTransaction(
+                    receipt_id=txn.receipt.id,
+                    refund_id=response.id,
+                    amount=txn.amount * -1,
+                    desc="Automatic refund of Stripe transaction " + txn.stripe_id,
+                    who=uber.models.AdminAccount.admin_name() or 'non-admin'
+                ))
+
+                # Also add refund ID to the original transaction to help admins
                 txn.refund_id = response.id
                 self.add(txn)
                 return response
