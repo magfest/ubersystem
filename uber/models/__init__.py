@@ -440,8 +440,10 @@ class MagModel:
                     elif isinstance(column.type, Numeric):
                         if value == '':
                             value = None
-                        elif value.endswith('.0'):
+                        elif isinstance(value, six.string_types) and value.endswith('.0'):
                             value = int(value[:-2])
+                        else:
+                            value = int(float(value))
 
                     elif isinstance(column.type, (MultiChoice)):
                         if isinstance(value, list):
