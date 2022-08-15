@@ -786,7 +786,7 @@ def agree_to_coc(dev):
 @validation.IndieDeveloper
 def agree_to_data_policy(dev):
     if not dev.agreed_data_policy:
-        return 'You must agree to for your information to be used for determining showcase selection.'
+        return 'You must agree for your information to be used for determining showcase selection.'
 
 
 @validation.IndieDeveloper
