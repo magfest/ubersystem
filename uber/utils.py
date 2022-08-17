@@ -1406,6 +1406,17 @@ class SignNowDocument:
         self.error_message = ''
         self.set_access_token()
 
+    @property
+    def api_call_headers(self):
+        """
+        SignNow's Python SDK is very limited, so we often have to make our own calls instead.
+        """
+        return {
+                "Authorization": "Bearer " + self.access_token,
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+
     def set_access_token(self, refresh=False):
         from uber.config import aws_secrets_client
 
@@ -1422,13 +1433,39 @@ class SignNowDocument:
             aws_secrets_client.get_signnow_secret()
             self.access_token = c.SIGNNOW_ACCESS_TOKEN
 
-    def create_document(self, template_id, doc_title, folder_id=''):
+    def create_document(self, template_id, doc_title, folder_id='', uneditable_texts_list=None, fields={}):
+        from requests import post, put
+        from json import dumps, loads
+
         self.set_access_token(refresh=True)
         document_request = signnow_sdk.Template.copy(self.access_token, template_id, doc_title)
         
         if 'error' in document_request:
             self.error_message = "Error creating document from template: " + document_request['error']
             return None
+        
+        if uneditable_texts_list:
+            response = put(signnow_sdk.Config().get_base_url() + '/document/' + document_request.get('id'), headers=self.api_call_headers,
+            data=dumps({
+                "texts": uneditable_texts_list,
+            }))
+            edit_request = loads(response.content)
+
+            if 'errors' in edit_request:
+                self.error_message = "Error setting up uneditable text fields: " + '; '.join([e['message'] for e in edit_request['errors']])
+                return None
+        
+        if fields:
+            response = put(signnow_sdk.Config().get_base_url() + '/v2/documents/' + document_request.get('id') + '/prefill-texts', headers=self.api_call_headers,
+            data=dumps({
+                "fields": [{"field_name": field, "prefilled_text": name} for field, name in fields.items()],
+            }))
+            if response.status_code != 204:
+                fields_request = response.json()
+
+                if 'errors' in fields_request:
+                    self.error_message = "Error setting up text fields: " + '; '.join([e['message'] for e in fields_request['errors']])
+                    return None
 
         if folder_id:
             result = signnow_sdk.Document.move(self.access_token,
@@ -1456,11 +1493,8 @@ class SignNowDocument:
 
         self.set_access_token(refresh=True)
 
-        response = post(signnow_sdk.Config().get_base_url() + '/link', headers={
-            "Authorization": "Bearer " + self.access_token,
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }, data=dumps({
+        response = post(signnow_sdk.Config().get_base_url() + '/link', headers=self.api_call_headers,
+        data=dumps({
             "document_id": document_id,
             "firstname": first_name,
             "lastname": last_name,

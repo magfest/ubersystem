@@ -75,7 +75,7 @@ def check_account(session, email, password, confirm_password, skip_if_logged_in=
         return valid_email(email)
 
     existing_account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(email)).first()
-    if existing_account and (old_email and existing_account.normalized_email != old_email 
+    if existing_account and (old_email and existing_account.normalized_email != normalize_email(old_email)
             or logged_in_account and logged_in_account.normalized_email != existing_account.normalized_email
             or not old_email and not logged_in_account):
         return "There's already an account with that email address"
@@ -856,12 +856,16 @@ class Root:
     def group_members(self, session, id, message='', **params):
         group = session.group(id)
 
-        if group.is_dealer:
-            signnow_document = session.query(SignedDocument).filter_by(model="Group", fk_id=group.id).first() \
-                                        or SignedDocument(fk_id=group.id,
-                                                            model="Group",
-                                                            ident="terms_and_conditions")
+        if group.is_dealer and c.SIGNNOW_DEALER_TEMPLATE_ID:
+            signnow_document = session.query(SignedDocument).filter_by(model="Group", fk_id=group.id).first()
             signnow_link = ''
+
+            if not signnow_document:
+                signnow_document = SignedDocument(fk_id=group.id,
+                                                  model="Group",
+                                                  ident="terms_and_conditions")
+                session.add(signnow_document)
+                session.commit()
 
             if signnow_document.signed:
                 d = SignNowDocument()
@@ -871,8 +875,9 @@ class Root:
             else:
                 signed = signnow_document.get_doc_signed_timestamp()
                 if signed:
-                    signnow_document.signed = signed
+                    signnow_document.signed = datetime.fromtimestamp(int(signed))
                     session.add(signnow_document)
+                    session.commit()
                     d = SignNowDocument()
                     signnow_link = d.get_download_link(signnow_document.document_id)
                     if d.error_message:
