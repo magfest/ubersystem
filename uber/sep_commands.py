@@ -214,6 +214,7 @@ def send_automated_emails():
     if results:
         print('Unapproved email counts:\n{}'.format(dumps(results, indent=2, sort_keys=True)))
 
+
 @entry_point
 def check_stripe_payments():
     from uber.tasks.registration import check_missed_stripe_payments
@@ -221,6 +222,7 @@ def check_stripe_payments():
     results = timed(check_missed_stripe_payments)()
     if results:
         print('Marked the following payment intents as paid: {}'.format(", ".join(results)))
+
 
 @entry_point
 def process_api_queue():
