@@ -972,11 +972,9 @@ class AWSSecretFetcher:
     def get_signnow_secret(self):
         signnow_secret = self.get_secret(c.AWS_SIGNNOW_SECRET_NAME)
         if signnow_secret:
-            c.SIGNNOW_ACCESS_TOKEN = signnow_secret.get('username', '') or c.SIGNNOW_ACCESS_TOKEN
-            c.SIGNNOW_CLIENT_ID = signnow_secret.get('client_id', '') or c.SIGNNOW_CLIENT_ID
-            c.SIGNNOW_CLIENT_SECRET = signnow_secret.get('client_secret', '') or c.SIGNNOW_CLIENT_SECRET
-            c.SIGNNOW_DEALER_TEMPLATE_ID = signnow_secret.get('dealer_template_id') or c.SIGNNOW_DEALER_TEMPLATE_ID
-            c.SIGNNOW_DEALER_FOLDER_ID = signnow_secret.get('dealer_folder_id') or c.SIGNNOW_DEALER_FOLDER_ID
+            c.SIGNNOW_ACCESS_TOKEN = signnow_secret.get('ACCESS_TOKEN', '') or c.SIGNNOW_ACCESS_TOKEN
+            c.SIGNNOW_CLIENT_ID = signnow_secret.get('CLIENT_ID', '') or c.SIGNNOW_CLIENT_ID
+            c.SIGNNOW_CLIENT_SECRET = signnow_secret.get('CLIENT_SECRET', '') or c.SIGNNOW_CLIENT_SECRET
 
 
 c = Config()
