@@ -38,19 +38,26 @@ class SignedDocument(MagModel):
             return
         
         document = d.get_document_details(document_id)
-        if document.get('signatures'):
+        if document and document.get('signatures'):
             return document['signatures'][0].get('created')
 
     def get_dealer_signing_link(self, group):
         d = SignNowDocument()
+
+        first_name = group.leader.first_name if group.leader else ''
+        last_name = group.leader.last_name if group.leader else ''
         
         if not self.document_id:
             self.document_id = d.create_document(template_id=c.SIGNNOW_DEALER_TEMPLATE_ID,
-                                                 doc_title="Dealer T&C for {}".format(group.name),
-                                                 folder_id=c.SIGNNOW_DEALER_FOLDER_ID)
-        if not self.signed:
+                                                 doc_title="MFF {} Dealer Terms - {}".format(c.EVENT_YEAR, group.name),
+                                                 folder_id=c.SIGNNOW_DEALER_FOLDER_ID,
+                                                 uneditable_texts_list=group.signnow_texts_list,
+                                                 fields={'printed_name': first_name + " " + last_name})
+            if d.error_message:
+                log.error(d.error_message)
+        if self.document_id and not self.signed:
             return d.get_signing_link(self.document_id,
-                                      group.leader.first_name,
-                                      group.leader.last_name,
+                                      first_name,
+                                      last_name,
                                       (c.REDIRECT_URL_BASE or c.URL_BASE) + '/preregistration/dealer_confirmation?id={}'
                                       .format(group.id))

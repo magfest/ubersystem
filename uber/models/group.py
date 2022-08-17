@@ -118,6 +118,45 @@ class Group(MagModel, TakesPaymentMixin):
     def assign_creator(self):
         if self.is_new and not self.creator_id:
             self.creator_id = self.session.admin_attendee().id if self.session.admin_attendee() else None
+    
+    @property
+    def signnow_texts_list(self):
+        """
+        Returns a list of JSON representing uneditable texts fields to use for this group's document in SignNow. 
+        """
+        page_number = 2
+        textFont = 'Arial'
+        textLineHeight = 12
+        textSize = 10
+
+        texts_config = [(self.name, 73, 392), (self.email, 73, 436), (self.id, 200, 748)]
+
+        texts = []
+
+        for field, x, y in texts_config:
+            texts.append({
+                "page_number": page_number,
+                "data":        field,
+                "x":           x,
+                "y":           y,
+                "font":        textFont,
+                "line_height": textLineHeight,
+                "size":        6 if field == self.id else textSize,
+            })
+
+        return texts
+
+    @property
+    def signnow_document_signed(self):
+        from uber.models import Session, SignedDocument
+
+        signed = False
+        with Session() as session:
+            document = session.query(SignedDocument).filter_by(model="Group", fk_id=self.id).first()
+            if document and document.signed:
+                signed = True
+
+        return signed
 
     @property
     def sorted_attendees(self):
