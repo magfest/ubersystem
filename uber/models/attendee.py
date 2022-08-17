@@ -1978,6 +1978,10 @@ class AttendeeAccount(MagModel):
         return len(self.attendees) == 1
 
     @property
+    def has_dealer(self):
+        return any([a.is_dealer for a in self.valid_attendees + self.imported_attendees])
+
+    @property
     def valid_attendees(self):
         return [attendee for attendee in self.attendees if attendee.is_valid]
 

@@ -1581,7 +1581,7 @@ class TaskUtils:
             attendee = results.get('attendees', [])[0]
             badge_label = c.BADGES[badge_type].lower()
 
-            if badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
+            if badge_type == c.STAFF_BADGE:
                 paid = c.NEED_NOT_PAY
             else:
                 paid = c.NOT_PAID
@@ -1592,7 +1592,7 @@ class TaskUtils:
 
             attendee.update({
                 'badge_type': badge_type,
-                'badge_status': c.IMPORTED_STATUS,
+                'badge_status': c.NEW_STATUS if badge_type == c.STAFF_BADGE else c.IMPORTED_STATUS,
                 'paid': paid,
                 'placeholder': True,
                 'requested_hotel_info': True,
@@ -1612,8 +1612,8 @@ class TaskUtils:
                 attendee = Attendee().apply(attendee, restricted=False)
             else:
                 assigned_depts = {attendee[0]: 
-                                    attendee[1] for attendee in map(partial(TaskUtils._guess_dept, session),
-                                    attendee.pop('assigned_depts', {}).items()) if attendee}
+                                  attendee[1] for attendee in map(partial(TaskUtils._guess_dept, session),
+                                  attendee.pop('assigned_depts', {}).items()) if attendee}
                 checklist_admin_depts = attendee.pop('checklist_admin_depts', {})
                 dept_head_depts = attendee.pop('dept_head_depts', {})
                 poc_depts = attendee.pop('poc_depts', {})
@@ -1690,6 +1690,7 @@ class TaskUtils:
         from uber.models import Attendee
         attendee.update({
             'badge_status': c.IMPORTED_STATUS,
+            'badge_num': None,
             'requested_hotel_info': True,
             'past_years': attendee['all_years'],
         })
@@ -1821,6 +1822,8 @@ class TaskUtils:
             for attendee in group_attendees:
                 is_leader = attendee['id'] == group_results['group_leader_id']
                 new_attendee = TaskUtils.basic_attendee_import(attendee)
+                if not new_attendee.paid == c.PAID_BY_GROUP:
+                    new_attendee.paid = c.NOT_PAID
                 new_attendee.group = new_group
                 if is_leader:
                     new_group.leader = new_attendee

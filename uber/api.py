@@ -453,6 +453,7 @@ class AttendeeLookup:
         'ec_phone',
         'cellphone',
         'badge_printed_name',
+        'badge_num',
         'found_how',
         'comments',
         'admin_notes',

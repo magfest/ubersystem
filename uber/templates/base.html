@@ -347,7 +347,7 @@
             }
             // prevent people from paying after prereg closes
             {% if c.PRE_CON %}
-                if ($('form.stripe').size()) {
+                if ($('#stripeModal').size()) {
                     var prevHour = new Date().getHours();
                     var checkHour = function() {
                         var currHour = new Date().getHours();
