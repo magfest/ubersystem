@@ -271,6 +271,10 @@ def reasonable_total_cost(attendee):
 
 @prereg_validation.Attendee
 def promo_code_is_useful(attendee):
+    with Session() as session:
+        if session.lookup_agent_code(attendee.promo_code.code):
+            return
+
     if attendee.is_new and attendee.promo_code:
         if not attendee.is_unpaid:
             return "You can't apply a promo code after you've paid or if you're in a group."
@@ -1255,20 +1259,6 @@ def check_in_gallery(piece):
 def media_max_length(piece):
     if len(piece.media) > 15:
         return "The description of the piece's media must be 15 characters or fewer."
-
-
-@prereg_validation.Attendee
-def promo_code_is_useful(attendee):
-    if attendee.promo_code:
-        with Session() as session:
-            if session.lookup_agent_code(attendee.promo_code.code):
-                return
-        if not attendee.is_unpaid:
-            return "You can't apply a promo code after you've paid or if you're in a group."
-        elif attendee.overridden_price:
-            return "You already have a special badge price, you can't use a promo code on top of that."
-        elif attendee.badge_cost >= attendee.badge_cost_without_promo_code:
-            return "That promo code doesn't make your badge any cheaper. You may already have other discounts."
 
 
 @prereg_validation.Attendee
