@@ -49,7 +49,8 @@ class AdminAccount(MagModel):
                     'ApiToken.revoked_time == None)')
 
     judge = relationship('IndieJudge', uselist=False, backref='admin_account')
-    print_requests = relationship('PrintJob', backref='admin_account')
+    print_requests = relationship('PrintJob', backref='admin_account', cascade='save-update,merge,refresh-expire,expunge')
+    api_jobs = relationship('ApiJob', backref='admin_account', cascade='save-update,merge,refresh-expire,expunge')
 
     def __repr__(self):
         return '<{}>'.format(self.attendee.full_name)
