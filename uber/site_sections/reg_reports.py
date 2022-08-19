@@ -2,7 +2,7 @@ from sqlalchemy import or_
 
 from uber.config import c
 from uber.decorators import all_renderable, log_pageview
-from uber.models import Attendee, Group, PromoCode, StripeTransaction
+from uber.models import Attendee, Group, PromoCode, ReceiptTransaction
 
 
 @all_renderable()
@@ -35,7 +35,7 @@ class Root:
 
     @log_pageview
     def self_service_refunds(self, session):
-        refunds = session.query(StripeTransaction).filter_by(type=c.REFUND)
+        refunds = session.query(ReceiptTransaction).filter_by(type=c.REFUND)
 
         refund_attendees = {}
         for refund in refunds:

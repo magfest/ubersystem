@@ -1,0 +1,144 @@
+
+<style>
+    .well-active {
+        background: rgb(245, 245, 245);
+    }
+    .inner-well-active {
+        background: rgb(227, 227, 227);
+    }
+</style>
+{# To change this card in an event plugin, pick a row below and redefine it in a top-level template 'attendee_card_extra.html' #}
+{# You can also change the mini-card below or add more rows by changing rows #}
+
+{% set mini_card %}
+<h4>{{ attendee.first_name }} {{ attendee.last_name }}</h4>
+<p>"{{ attendee.badge_printed_name }}"</p>
+<p class="text-uppercase">{{ attendee.badge_type_label }}</p>
+{% endset %}
+
+{% set row1 %}
+<div class="col-sm-6">
+    <strong>Name:</strong> {{ attendee.first_name }} {{ attendee.last_name }}
+</div>
+<div class="col-sm-6">
+    <strong>Emergency Contact:</strong> {{ attendee.ec_name }}
+</div>
+{% endset %}
+
+{% set row2 %}
+<div class="col-sm-6">
+    <strong>Badge Type:</strong> {{ attendee.badge_type_label }}
+</div>
+<div class="col-sm-6">
+    <strong>Emergency Phone:</strong> {{ attendee.ec_phone|format_phone }}
+</div>
+{% endset %}
+
+{% set row3 %}
+<div class="col-sm-6">
+    <strong>Name on Badge:</strong> {{ attendee.badge_printed_name }}
+</div>
+<div class="col-sm-6">
+    <strong>Purchased:</strong> {{ attendee.purchased|full_date_local }}
+</div>
+{% endset %}
+
+{% set row4 %}
+<div class="col-sm-6">
+    <strong>Email:</strong> {{ attendee.email }}
+</div>
+<div class="col-sm-6">
+    <strong>Volunteer?</strong> {{ attendee.staffing|icon_yesno("ok-sign,remove-sign","success,danger") }}</span>
+</div>
+{% endset %}
+
+{% set row5 %}
+<div class="col-sm-6">
+    <strong>Phone:</strong> {{ attendee.cellphone }}
+</div>
+<div class="col-sm-6">
+    <strong>DOB:</strong> {{ attendee.birthdate|datetime('%m/%d/%Y') }}
+</div>
+{% endset %}
+
+{% set rows = [row1,row2,row3,row4,row5] %}
+
+{% include 'attendee_card_extra.html' %}
+
+<div class="well {% if attendee.is_valid %}well-active {% endif %}col-sm-10 col-sm-offset-1">
+    {% if attendee.group %}
+    <row>
+        <div class="col-sm-12 text-center">
+            <h4>
+                {% if attendee == attendee.group.leader %}Leader{% else %}Member{% endif %} of "{{ attendee.group.name }}"
+                {% if attendee == attendee.group.leader and attendee.group.status != c.IMPORTED %}
+                <span class="badge">{{ attendee.group.status_label }}</span>
+                <a href="group_members?id={{ attendee.group.id }}" class="btn btn-primary btn-xs"><span class="glyphicon glyphicon-pencil"></span>&nbsp;Edit</a>
+                {% endif %}
+            </h4>
+        </div>
+    </row>
+    {% endif %}
+    <row>
+        <div class="col-sm-3 text-center well {% if attendee.is_valid %}inner-well-active {% endif %}">
+            {{ mini_card }}
+        </div>
+        <div class="col-sm-9">
+            {% for row in rows %}
+            <row>
+              {{ row }}
+            </row>
+            {% endfor %}
+            <row>
+                <div class="col-sm-12">
+                {% if attendee.badge_status == c.IMPORTED_STATUS and not attendee.current_attendee %}
+                    <div class="pull-right">
+                    {% if attendee.group and attendee == attendee.group.leader and dealer_reg_open %}
+                    <a href="../preregistration/reapply?id={{ attendee.id }}" class="btn btn-success" target ="_blank">
+                        Reapply as Dealer &nbsp;<span class="glyphicon glyphicon-plus"></span>
+                    </a>
+                    {% elif not prereg_message %}
+                    <a href="../preregistration/repurchase?id={{ attendee.id }}&skip_confirm=true" class="btn btn-info" target ="_blank">
+                        Register With This Info &nbsp;<span class="glyphicon glyphicon-plus"></span>
+                    </a>
+                    {% endif %}
+                    </div>
+                {% elif attendee.is_valid or attendee.badge_status == c.PENDING_STATUS %}
+                    {% set multiple_buttons = c.ART_SHOW_OPEN or c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE or attendee.art_show_applications or attendee.marketplace_applications %}
+                    {% if multiple_buttons %}
+                    <div class="btn-group pull-right" role="group" aria-label="...">
+                    {% endif %}
+                    <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-info" value="Edit">
+                        <span class="glyphicon glyphicon-pencil"></span> Edit Details
+                    </a>
+                    {% if c.ART_SHOW_OPEN %}
+                    {% if not attendee.art_show_applications %}
+                    <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-warning" target="_blank">
+                        <span class="glyphicon glyphicon-tags"></span>&nbsp; Apply for Art Show
+                    </a>
+                    {% else %}
+                    <a href="../art_show_applications/edit?id={{ attendee.art_show_applications[0].id }}" class="btn btn-sm btn-warning" target="_blank">
+                        <span class="glyphicon glyphicon-tags"></span>&nbsp; View Art Show App
+                    </a>
+                    {% endif %}
+                    {% endif %}
+                    {% if c.AFTER_MARKETPLACE_REG_START %}
+                    {% if c.BEFORE_MARKETPLACE_DEADLINE and not attendee.marketplace_applications %}
+                    <a href="../marketplace/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-success" target="_blank">
+                        <span class="glyphicon glyphicon-shopping-cart"></span> Apply for Marketplace
+                    </a>
+                    {% elif attendee.marketplace_applications %}
+                    <a href="../marketplace/edit?id={{ attendee.marketplace_applications[0].id }}" class="btn btn-sm btn-success" target="_blank">
+                        <span class="glyphicon glyphicon-shopping-cart"></span> View Marketplace App
+                    </a>
+                    {% endif %}
+                    {% endif %}
+                    {% if multiple_buttons %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </row>
+        </div>
+    </row>
+</div>

@@ -52,12 +52,10 @@ class Root:
                     if params.get('badge_status', ''):
                         attendee.badge_status = params['badge_status']
                     if 'app_paid' in params \
-                            and int(params['app_paid']) != app_paid \
-                            and int(params['app_paid']) > 0:
-                        attendee.amount_paid_override -= app_paid
-                        attendee.amount_paid_override += int(params['app_paid'])
-                    session.add(attendee)
-                    app.attendee = attendee
+                                and int(params['app_paid']) != app_paid \
+                                and int(params['app_paid']) > 0:
+                        session.add(attendee)
+                        app.attendee = attendee
 
                 session.add(app)
                 if params.get('save') == 'save_return_to_search':
@@ -74,6 +72,7 @@ class Root:
             'attendee_id': app.attendee_id or params.get('attendee_id', ''),
             'all_attendees': sorted(attendees, key=lambda tup: tup[1]),
             'new_app': new_app,
+            'receipt_items': Charge.get_all_receipt_items(app),
         }
 
     def pieces(self, session, id, message=''):
@@ -780,7 +779,7 @@ class Root:
                         description='{}ayment for {}\'s art show purchases'.format(
                             'P' if int(float(amount)) == receipt.total else 'Partial p',
                             attendee.full_name))
-        stripe_intent = charge.create_stripe_intent(session)
+        stripe_intent = charge.create_stripe_intent()
         message = stripe_intent if isinstance(stripe_intent, string_types) else ''
         if message:
             return {'error': message}
@@ -818,7 +817,7 @@ class Root:
     @credit_card
     def sales_charge(self, session, id, amount, description):
         charge = Charge(amount=100 * float(amount), description=description)
-        stripe_intent = charge.create_stripe_intent(session)
+        stripe_intent = charge.create_stripe_intent()
         message = stripe_intent if isinstance(stripe_intent, string_types) else ''
         if message:
             return {'error': message}

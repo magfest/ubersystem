@@ -18,14 +18,19 @@
     {% endif %}
     <h2>{{ c.EVENT_NAME }} Art Show Application</h2>
       {% if app.status == c.APPROVED %}
-      {% if app.status == c.APPROVED %}Congratulations, your application has been approved!{% endif %}
+      Congratulations, your application has been approved!
         {% if not app.incomplete_reason and app.is_unpaid %}
-          In order to complete your application, please pay {{ app.attendee.amount_unpaid|format_currency }} using the button below.
-          {% if app.attendee.badge_cost %}This total includes the cost of your badge, if you have not paid for it
-          already.{% endif %}<br/><br/>
+          {% if receipt.pending_total %}
+          You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
+            with pending payments of {{ (receipt.pending_total / 100)|format_currency }}.
+            Please contact us at {{ c.ART_SHOW_EMAIL|email_only|email_to_link }} if this issue persists or if you have any questions.
+          {% else %}
+          In order to complete your application, please pay {{ app.amount_unpaid|format_currency }} using the button below.
+          <br/><br/>
           <div style="text-align:center">
-              {{ stripe_form('process_art_show_payment', app.attendee) }}
+              {{ stripe_form('process_art_show_payment', app) }}
           </div><br/><br/>
+          {% endif %}
         {% elif app.attendee.placeholder and app.attendee.badge_status != c.NOT_ATTENDING %}
           Before completing your application, please finish filling out your information
           <a href="../preregistration/confirm?id={{ app.attendee_id }}" target="_blank">here</a>. Afterwards, you will
