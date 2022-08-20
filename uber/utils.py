@@ -1745,11 +1745,25 @@ class TaskUtils:
                 pass
 
             for attendee in account_attendees:
-                new_attendee = TaskUtils.basic_attendee_import(attendee)
-                new_attendee.paid = c.NOT_PAID
-                
-                new_attendee.managers.append(account)
-                session.add(new_attendee)
+                # Try to match staff to their existing badge, which would be newer than the one we're importing
+                if attendee.get('badge_num', 0) in range(c.BADGE_RANGES[c.STAFF_BADGE][0], c.BADGE_RANGES[c.STAFF_BADGE][1]):
+                    old_badge_num = attendee['badge_num']
+                    existing_staff = session.query(Attendee).filter_by(badge_num=old_badge_num).first()
+                    if existing_staff:
+                        existing_staff.managers.append(account)
+                        session.add(existing_staff)
+                    else:
+                        new_staff = TaskUtils.basic_attendee_import(attendee)
+                        new_staff.badge_num = old_badge_num
+                        new_staff.managers.append(account)
+                        session.add(new_staff)
+                        log.debug(new_staff.badge_num)
+                else:
+                    new_attendee = TaskUtils.basic_attendee_import(attendee)
+                    new_attendee.paid = c.NOT_PAID
+                    
+                    new_attendee.managers.append(account)
+                    session.add(new_attendee)
 
                 try:
                     session.commit()
