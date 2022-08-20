@@ -94,11 +94,11 @@
                 {% if attendee.badge_status == c.IMPORTED_STATUS and not attendee.current_attendee %}
                     <div class="pull-right">
                     {% if attendee.group and attendee == attendee.group.leader and dealer_reg_open %}
-                    <a href="../preregistration/reapply?id={{ attendee.id }}" class="btn btn-success" target ="_blank">
+                    <a href="../preregistration/reapply?id={{ attendee.id }}" class="btn btn-success">
                         Reapply as Dealer &nbsp;<span class="glyphicon glyphicon-plus"></span>
                     </a>
                     {% elif not prereg_message %}
-                    <a href="../preregistration/repurchase?id={{ attendee.id }}&skip_confirm=true" class="btn btn-info" target ="_blank">
+                    <a href="../preregistration/repurchase?id={{ attendee.id }}&skip_confirm=true" class="btn btn-info">
                         Register With This Info &nbsp;<span class="glyphicon glyphicon-plus"></span>
                     </a>
                     {% endif %}
@@ -113,22 +113,22 @@
                     </a>
                     {% if c.ART_SHOW_OPEN %}
                     {% if not attendee.art_show_applications %}
-                    <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-warning" target="_blank">
+                    <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-warning">
                         <span class="glyphicon glyphicon-tags"></span>&nbsp; Apply for Art Show
                     </a>
                     {% else %}
-                    <a href="../art_show_applications/edit?id={{ attendee.art_show_applications[0].id }}" class="btn btn-sm btn-warning" target="_blank">
+                    <a href="../art_show_applications/edit?id={{ attendee.art_show_applications[0].id }}" class="btn btn-sm btn-warning">
                         <span class="glyphicon glyphicon-tags"></span>&nbsp; View Art Show App
                     </a>
                     {% endif %}
                     {% endif %}
                     {% if c.AFTER_MARKETPLACE_REG_START %}
                     {% if c.BEFORE_MARKETPLACE_DEADLINE and not attendee.marketplace_applications %}
-                    <a href="../marketplace/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-success" target="_blank">
+                    <a href="../marketplace/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-success">
                         <span class="glyphicon glyphicon-shopping-cart"></span> Apply for Marketplace
                     </a>
                     {% elif attendee.marketplace_applications %}
-                    <a href="../marketplace/edit?id={{ attendee.marketplace_applications[0].id }}" class="btn btn-sm btn-success" target="_blank">
+                    <a href="../marketplace/edit?id={{ attendee.marketplace_applications[0].id }}" class="btn btn-sm btn-success">
                         <span class="glyphicon glyphicon-shopping-cart"></span> View Marketplace App
                     </a>
                     {% endif %}
