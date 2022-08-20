@@ -178,7 +178,7 @@
         </thead>
         <tbody>
           {% for attendee in attendees %}
-            <tr {% if attendee.badge_status == c.INVALID_STATUS %}class="danger"{% endif %}>
+            <tr {% if attendee.badge_status == c.INVALID_STATUS or attendee.badge_status == c.IMPORTED_STATUS %}class="danger"{% endif %}>
                 {% block tablerows scoped %}
                 <td id="group_{{ attendee.id }}">
                     {% if attendee.group %}

@@ -3,6 +3,7 @@
 {% set assigned_depts_ro = True %}
 {% set amount_extra_ro = True if attendee.badge_status == c.DEFERRED_STATUS else False %}
 {% set money_fields_ro = True if receipt and receipt.closed_receipt_items else False %}
+{% set page_ro = not attendee.is_valid %}
 {% import "fields/attendee.html" as attendee_fields with context %}
 {% block title %}Confirm Your Details{% endblock %}
 {% block backlink %}
@@ -46,60 +47,67 @@
       {% include 'art_show_common/art_show_agent.html' %}
     {% endif %}
 
-      {% if not attendee.placeholder and receipt.current_amount_owed %}
-          {% if receipt.pending_total %}
-          <div class="alert alert-warning">
-            You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
-            with pending payments of {{ (receipt.pending_total / 100)|format_currency }}.
-            Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if this issue persists or if you have any questions.
-          </div>
-          {% else %}
-          <div class="alert alert-danger">
-            You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
-            Please <a href="" data-toggle="modal" data-target="#receiptModal">check your receipt here</a> to pay for your extra items.
-          </div>
-          {% endif %}
-      {% elif attendee.badge_status == c.PENDING_STATUS %}
-          <div class="alert alert-warning">
-            Your registration has not finished processing, likely because we don't have a verified completed payment. 
-            Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if this issue persists or if you have any questions.
-          </div>
-      {% endif %}
-      {% if attendee.badge_status == c.DEFERRED_STATUS %}
-        <div class="alert alert-warning">
-          Your registration has been deferred to {{ c.EVENT_NAME }} {{ c.EVENT_YEAR|int + 1 }}.
-          You can {% if attendee.shipping_fee_cost %}update your mailing address
-          for your badge and kick-in merch below{% else %}update your information below for next year{% endif %}.
-          Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you have any questions.
-        </div>
-      {% endif %}
-
-      {% if attendee.is_dealer and attendee.is_group_leader %}
-        {% if attendee.group.status == c.DECLINED %}
-          {% set bg_class = 'danger' %}
-        {% elif attendee.group.status == c.APPROVED %}
-          {% set bg_class = 'success' %}
-        {% elif attendee.group.status == c.WAITLISTED %}
-          {% set bg_class = 'warning' %}
-        {% else %}
-          {% set bg_class = 'info' %}
+      {% if not attendee.is_valid %}
+      <div class="alert alert-danger">
+        Your registration is currently marked as <strong>{{ attendee.badge_status_label }}</strong>
+        and is not considered a valid registration. Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you have any questions.
+      </div>
+      {% else %}
+        {% if not attendee.placeholder and receipt.current_amount_owed %}
+            {% if receipt.pending_total %}
+            <div class="alert alert-warning">
+              You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
+              with pending payments of {{ (receipt.pending_total / 100)|format_currency }}.
+              Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if this issue persists or if you have any questions.
+            </div>
+            {% else %}
+            <div class="alert alert-danger">
+              You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
+              Please <a href="" data-toggle="modal" data-target="#receiptModal">check your receipt here</a> to pay for your extra items.
+            </div>
+            {% endif %}
+        {% elif attendee.badge_status == c.PENDING_STATUS %}
+            <div class="alert alert-warning">
+              Your registration has not finished processing, likely because we don't have a verified completed payment. 
+              Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if this issue persists or if you have any questions.
+            </div>
         {% endif %}
-        <div class="alert alert-{{ bg_class }}">
-          Your group "<a href="group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>"
-          is currently {{ attendee.group.status_label }}.
-          {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and attendee.group.status not in [c.APPROVED, c.CANCELLED] %}
-          <br/><br/>If you would like, you may instead
-          <a href="../marketplace/index?attendee_id={{ attendee.id }}" target="_blank">apply for a table in the Marketplace.</a>{% endif %}
-          {% if attendee.group.status != c.APPROVED and attendee.paid == c.PAID_BY_GROUP and attendee.calculate_badge_cost() == attendee.new_badge_cost and not money_fields_ro %}
-            <br/><br/>You may also pay {{ (attendee.total_cost - attendee_group_discount)|format_currency }} for your individual registration using the button below.
-            {% if attendee_group_discount %}<br/>This does not include your current group discount of {{ attendee_group_discount|format_currency(true) }}.{% endif %}
-            <br/>{{ stripe_form('buy_own_group_badge', attendee) }}
-          {% elif attendee.group.status != c.APPROVED and not attendee.is_not_ready_to_checkin %}
-            <p><br/>
-            {% if attendee.amount_unpaid %}Once you have paid your outstanding balance of {{ (attendee.amount_unpaid / 100)|format_currency }}, y{% else %}Y{% endif %}ou 
-            will be able to check in regardless of whether or not your group is approved.</p>
+        {% if attendee.badge_status == c.DEFERRED_STATUS %}
+          <div class="alert alert-warning">
+            Your registration has been deferred to {{ c.EVENT_NAME }} {{ c.EVENT_YEAR|int + 1 }}.
+            You can {% if attendee.shipping_fee_cost %}update your mailing address
+            for your badge and kick-in merch below{% else %}update your information below for next year{% endif %}.
+            Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you have any questions.
+          </div>
+        {% endif %}
+
+        {% if attendee.is_dealer and attendee.is_group_leader %}
+          {% if attendee.group.status == c.DECLINED %}
+            {% set bg_class = 'danger' %}
+          {% elif attendee.group.status == c.APPROVED %}
+            {% set bg_class = 'success' %}
+          {% elif attendee.group.status == c.WAITLISTED %}
+            {% set bg_class = 'warning' %}
+          {% else %}
+            {% set bg_class = 'info' %}
           {% endif %}
-        </div> 
+          <div class="alert alert-{{ bg_class }}">
+            Your group "<a href="group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>"
+            is currently {{ attendee.group.status_label }}.
+            {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and attendee.group.status not in [c.APPROVED, c.CANCELLED] %}
+            <br/><br/>If you would like, you may instead
+            <a href="../marketplace/index?attendee_id={{ attendee.id }}" target="_blank">apply for a table in the Marketplace.</a>{% endif %}
+            {% if attendee.group.status != c.APPROVED and attendee.paid == c.PAID_BY_GROUP and attendee.calculate_badge_cost() == attendee.new_badge_cost and not money_fields_ro %}
+              <br/><br/>You may also pay {{ (attendee.total_cost - attendee_group_discount)|format_currency }} for your individual registration using the button below.
+              {% if attendee_group_discount %}<br/>This does not include your current group discount of {{ attendee_group_discount|format_currency(true) }}.{% endif %}
+              <br/>{{ stripe_form('buy_own_group_badge', attendee) }}
+            {% elif attendee.group.status != c.APPROVED and not attendee.is_not_ready_to_checkin %}
+              <p><br/>
+              {% if attendee.amount_unpaid %}Once you have paid your outstanding balance of {{ (attendee.amount_unpaid / 100)|format_currency }}, y{% else %}Y{% endif %}ou 
+              will be able to check in regardless of whether or not your group is approved.</p>
+            {% endif %}
+          </div> 
+        {% endif %}
       {% endif %}
 
       {% if money_fields_ro %}
@@ -148,6 +156,7 @@
 
       <div class="form-group">
         <div class="col-sm-9 col-sm-offset-3">
+          {% if not page_ro %}
           <button type="submit" class="btn btn-primary" id="updateButton">
             {% if attendee.placeholder %}Register{% else %}Update My Info{% endif %}
           </button>
@@ -158,6 +167,7 @@
           {% if attendee.can_defer_badge %}
           <a href="defer_badge?id={{ attendee.id }}" class="btn btn-warning">Defer my Badge</a>
           {% endif %}
+          {% endif %}
           {% if receipt %}
             <a class="btn btn-info" data-toggle="modal" data-target="#receiptModal">
               <span class="glyphicon glyphicon-list-alt"></span> Receipt
@@ -166,7 +176,7 @@
         </div>
       </div>
 
-      {% if not attendee.is_not_ready_to_checkin and c.USE_CHECKIN_BARCODE %}
+      {% if not page_ro and not attendee.is_not_ready_to_checkin and c.USE_CHECKIN_BARCODE %}
         <div class="form-group">
         <label class="col-sm-3 control-label">Check-in Barcode</label>
           <div class="col-sm-6">
@@ -181,7 +191,7 @@
       {% endif %}
     </form>
 
-    {% if attendee.can_abandon_badge or attendee.can_self_service_refund_badge %}
+    {% if not page_ro and attendee.can_abandon_badge or attendee.can_self_service_refund_badge %}
       <form method="post" action="abandon_badge" id="abandon_badge">
         <input type="hidden" name="id" value="{{ attendee.id }}"/>
       </form>
