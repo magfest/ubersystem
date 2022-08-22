@@ -404,6 +404,20 @@ class MagModel:
 
         if name.startswith('is_'):
             return self.__class__.__name__.lower() == name[3:]
+        
+        if name.startswith('default_') and name.endswith('_cost'):
+            if self.active_receipt:
+                log.error('Cost property {} was called for object {}, which has an active receipt. This may cause problems.'.format(name, self))
+
+            receipt_items = uber.receipt_items.cost_calculation.items
+            try:
+                cost_calc = receipt_items[self.__class__.__name__][name[8:]](self)[1]
+                try:
+                    return sum(cost_calc) / 100
+                except TypeError:
+                    return cost_calc / 100
+            except Exception:
+                pass
 
         raise AttributeError(self.__class__.__name__ + '.' + name)
 
