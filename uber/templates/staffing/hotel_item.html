@@ -14,9 +14,9 @@
             {{ macros.checklist_image(attendee.hotel_requests) }}
             The deadline for editing hotel requests has passed, but as a STOPS admin, you can still
             {% if attendee.hotel_requests %}
-                <a href="../hotel">edit</a>
+                <a href="hotel">edit</a>
             {% else %}
-                <a href="../hotel">fill out</a>
+                <a href="hotel">fill out</a>
             {% endif %}
         {% endif %}
         this staffer's hotel room space requests.
@@ -24,24 +24,24 @@
 {% elif c.ROOM_DEADLINE and attendee.hotel_eligible and attendee.registered < c.ROOM_DEADLINE %}
     {% if c.BEFORE_ROOM_DEADLINE %}
         <li>
-            {% if not attendee.placeholder and (attendee.agreed_to_volunteer_agreement or not c.VOLUNTEER_AGREEMENT_ENABLED) and not attendee.hotel_requests %}
+            {% if not attendee.placeholder and not attendee.hotel_requests %}
                 {% if c.HOTEL_REQUESTS_URL %}
-                    <img src="{{ c.HOTEL_REQUESTS_URL }}/hotels/request_complete.png?id={{ attendee.id }}" style="vertical-align:top ; margin-right:5px" height="20" width="20" />
-                    <a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/request?id={{ attendee.id }}">Tell us</a>
+                    <img src="{{ c.HOTEL_REQUESTS_URL }}/hotels/request_complete.png?id={{ attendee.id }}&seed={{ range(65536) | random }}" style="vertical-align:top ; margin-right:5px" height="20" width="20" />
+                    <a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/request?id={{ attendee.id }}" target="_blank">Tell us</a>
                 {% else %}
                     {{ macros.checklist_image(attendee.hotel_requests) }}
-                    <a href="../hotel">Tell us</a>
+                    <a href="hotel">Tell us</a>
                 {% endif %}
             {% else %}
             {{ macros.checklist_image(attendee.hotel_requests) }}
                 Tell us
             {% endif %}
-            whether you want hotel room space no later than <b>{{ c.ROOM_DEADLINE|datetime_local }}</b>
+            whether you want hotel room space no later than <b>{{ c.ROOM_DEADLINE|datetime_local }}</b>.{% if c.STAFF_ROOM_FAQ_URL %} Please <a href="{{ c.STAFF_ROOM_FAQ_URL }}" target="_blank">review our FAQ</a> first.{% endif %}
             {% if attendee.hotel_requests %}
                 {% if c.HOTEL_REQUESTS_URL %}
                     (you may <a href="{{ c.HOTEL_REQUESTS_URL }}/hotels/request?id={{ attendee.id }}">edit your request</a> until then).
                 {% else %}
-                    (you may <a href="../hotel">edit your request</a> until then).
+                    (you may <a href="hotel">edit your request</a> until then).
                 {% endif %}
             {% endif %}
         </li>

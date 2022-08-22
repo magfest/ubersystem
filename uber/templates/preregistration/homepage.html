@@ -3,76 +3,135 @@
 {% block content %}
 {% include 'prereg_masthead.html' %}
 {% include 'preregistration/update_account.html' %}
-{% for attendee in account.valid_attendees %}
+{% set dealer_reg_open = c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
+{% set prereg_message %}
+    {% if c.BEFORE_PREREG_OPEN %}
+        Preregistration will open {{ c.PREREG_OPEN|datetime_local }}.
+    {% elif c.AFTER_PREREG_TAKEDOWN %}
+        Preregistration has closed for the year.
+    {% elif not c.ATTENDEE_BADGE_AVAILABLE %}
+        Preregistration has sold out!
+    {% endif %}
+{% endset %}
+<div class="panel panel-primary">
+    <div class="panel-heading">
+        <h4 class="panel-title">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h4>
+    </div>
+{% if not account.valid_attendees %}
+    <div class="panel-body text-center">
+        <h2 class="text-uppercase">You have no current registrations</h2>
+        <p>{{ prereg_message }}</p>
+        <p>
+        {% if account.imported_single_badges and not prereg_message %}
+            {% if account.imported_attendees|length == 1 %}
+            <a href="../preregistration/repurchase?id={{ account.imported_attendees[0].id }}&skip_confirm=true" class="btn btn-info"> Import last year's registration</a>
+            {% else %}
+                Select a registration to import below.
+            {% endif %}
+        {% elif not prereg_message %}
+            <a href="../preregistration/form" class="btn btn-primary">Register Now!</a>
+        {% endif %}
+        </p>
+        {% if account.imported_group_badges and dealer_reg_open %}
+            {% if account.imported_attendees|length == 1 and account.imported_attendees[0].is_group_leader %}
+                <a href="../preregistration/reapply?id={{ account.imported_attendees[0].id }}" class="btn btn-success">Reapply with last year's dealer application</a>
+            {% else %}
+                Select a registration to import below. If you were a dealer assistant last year, ask the dealer to reapply.
+            {% endif %}
+        {% elif dealer_reg_open %}
+            <a href="../preregistration/dealer_registration" class="btn btn-success">Apply as Dealer</a>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="panel-body">
+    {{ attendees_with_amount_paid }}
+    {% for attendee, money_owed in attendees_who_owe_money.items() %}
+    {% if loop.first %}
+    <div class="alert alert-warning">
+        The following attendees on your account have outstanding balances:
+        <ul>
+    {% endif %}
+    <li>{{ attendee }} owes {{ (money_owed / 100)|format_currency }}</li>
+    {% if loop.last %}
+    </ul>
+    Please click "Edit Details" on the appropriate attendee below to view and pay for their registration.
+    If this doesn't look right, please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.
+    </div>
+    {% endif %}
+    {% endfor %}
+    <div class="text-center">
+        {% if not prereg_message or dealer_reg_open %}
+        <div class="btn-group">
+            {% if not prereg_message %}
+            <a href="../preregistration/form" class="btn btn-primary">Add Registration(s)</a>
+            {% endif %}
+            {% if dealer_reg_open %}
+            <a href="../preregistration/dealer_registration" class="btn btn-success">Apply as Dealer</a>
+            {% endif %}
+        </div>
+        {% else %}
+        {{ prereg_message }}
+        {% endif %}
+    </div>
+    {% if account.valid_single_badges and account.valid_group_badges %}
+    <ul class="nav nav-pills" role="tablist">
+        <li role="presentation" class="active"><a href="#single" aria-controls="home" role="tab" data-toggle="tab">Registrations</a></li>
+        <li role="presentation"><a href="#group" aria-controls="profile" role="tab" data-toggle="tab">Group Registrations</a></li>
+    </ul>
+    {% endif %}
+<div class="tab-content">
+    <div class="tab-pane{% if account.valid_single_badges %} active{% endif %}" id="single" role="tabpanel">
+    {% for attendee in account.valid_single_badges %}
+    {% if loop.first %}
+    <div class="panel-body">
+    {% endif %}
+    <div class="row">
+        {% include "preregistration/attendee_card.html" %}
+    </div>
+    {% if loop.last %}
+    </div>
+    {% endif %}
+    {% endfor %}
+    </div>
+    <div class="tab-pane{% if account.valid_group_badges %} active{% endif %}" id="group" role="tabpanel">
+    {% for attendee in account.valid_group_badges %}
+    {% if loop.first %}
+    <div class="panel-body">
+    {% endif %}
+    <div class="row">
+        {% include "preregistration/attendee_card.html" %}
+    </div>
+    {% if loop.last %}
+    </div>
+    {% endif %}
+    {% endfor %}
+    </div>
+</div>
+</div>
+</div>
+{% endif %}
+{% for attendee in account.imported_attendees %}
 {% if loop.first %}
 <div class="panel panel-default">
     <div class="panel-heading">
-        Registrations
+        <h4 class="panel-title">Past Registrations</h4>
     </div>
-    <div class="table-responsive">
-        <table class="table table-striped datatable">
-        <thead>
-            <tr>
-            <th>Status</th>
-            <th>Registration</th>
-            <th>Art Show</th>
-            <th>Marketplace</th>
-            <th></th>
-            </tr>
-        </thead>
-        <tbody>
-        {% endif %}
-            <tr id="{{ account.email|idize }}">
-            <td>{{ attendee.badge_status_label }}</td>
-            <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
-                <a href="../preregistration/confirm?id={{ attendee.id }}" target="_blank">{{ attendee.full_name }}</a>
-                {% if attendee.group %}({% if attendee.group.leader in account.attendees %}<a href="../preregistration/group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>{% else %}{{ attendee.group.name }}{% endif %}){% endif %}
-            </td>
-            <td>
-                {% for app in attendee.art_show_applications %}
-                <a href="../art_show_applications/edit?id={{ app.id }}" target="_blank">View Application</a>
-                {% else %}
-                    {% if c.ART_SHOW_OPEN %}
-                    <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-info" target="_blank">Apply for Art Show</a>
-                    {% else %}
-                    N/A
-                    {% endif %}
-                {% endfor %}
-            </td>
-            <td>
-                {% for app in attendee.marketplace_applications %}
-                <a href="../marketplace/edit?id={{ app.id }}" target="_blank">View Application</a>
-                {% else %}
-                    {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE %}
-                    <a href="../marketplace/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-default" target="_blank">Apply for Marketplace</a>
-                    {% else %}
-                    N/A
-                    {% endif %}
-                {% endfor %}
-            </td>
-            <td>
-                <form class="form new-account-form" method="post" action="grant_account">
-                <input type="hidden" name="id" value="{{ attendee.id }}" />
-                {{ csrf_token() }}
-                <button type="submit" class="btn btn-sm btn-primary btn-primary">
-                    <span class="glyphicon glyphicon-plus"></span> Create Account
-                </button>
-                </form>
-                
-            </td>
-            </tr>
-        {% if loop.last %}
-        </tbody>
-        </table>
-    </div>
+    <div class="panel-footer">
+{% endif %}
+<div class="row">
+    {% include "preregistration/attendee_card.html" %}
+</div>
+{% if loop.last %}
+</div>
 </div>
 {% endif %}
 {% endfor %}
 {% for attendee in account.refunded_deferred_attendees %}
 {% if loop.first %}
-<div class="panel panel-default">
+<div class="panel panel-danger">
     <div class="panel-heading">
-        Cancelled Registrations
+        <h4 class="panel-title">Cancelled Registrations</h4>
     </div>
     <div class="table-responsive">
         <table class="table table-striped datatable">
@@ -89,7 +148,7 @@
             <td>{{ attendee.badge_status_label }}</td>
             <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
                 {{ attendee.full_name }}
-                {% if attendee.group %}({% if attendee.group.leader in account.attendees %}<a href="../preregistration/group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>{% else %}{{ attendee.group.name }}{% endif %}){% endif %}
+                {% if attendee.group %}({% if attendee.group.leader in account.attendees %}<a href="../preregistration/group_members?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>{% else %}{{ attendee.group.name }}{% endif %}){% endif %}
             </td>
             <td>
                 {% if attendee.badge_status == c.REFUNDED_STATUS %}

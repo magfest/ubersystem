@@ -19,8 +19,10 @@ from uuid import uuid4
 
 import cherrypy
 import jinja2
+import phonenumbers
 from dateutil.relativedelta import relativedelta
 from markupsafe import Markup
+from phonenumbers import PhoneNumberFormat
 from pockets import fieldify, unfieldify, listify, readable_join
 from sideboard.lib import serializer
 
@@ -92,6 +94,9 @@ def timedelta_filter(dt, *args, **kwargs):
 def full_datetime_local(dt):
     return '' if not dt else dt.astimezone(c.EVENT_TIMEZONE).strftime('%H:%M on %B %d %Y')
 
+@JinjaEnv.jinja_filter
+def full_date_local(dt):
+    return '' if not dt else dt.astimezone(c.EVENT_TIMEZONE).strftime('%m/%d/%Y')
 
 @JinjaEnv.jinja_export
 def now():
@@ -161,6 +166,43 @@ def yesno(value, arg=None):
 
 
 @JinjaEnv.jinja_filter
+def icon_yesno(value, icon=None, color=None):
+    """
+    A version of the yesno filter that allows easier use of glyphicons.
+    First set of args should be the glyphicon name (e.g., remove-sign for glyphicon-remove-sign)
+    Second set is a Bootstrap text name, e.g., success, danger
+    """
+    icon = icon or 'ok-sign,remove-sign,question-sign'
+    color = color or 'success,danger,info'
+    icon_opts, color_opts = icon.split(','), color.split(',')
+    html = "<span class='glyphicon glyphicon-{} text-{}'></span>"
+    if len(icon_opts) < 2 or len(color_opts) < 2:
+        return value  # Invalid arg.
+    try:
+        yesicon, noicon, maybeicon = icon_opts
+        yescolor, nocolor, maybecolor = color_opts
+    except ValueError:
+        # Unpack list of wrong size (no "maybe" value provided).
+        yesicon, noicon, maybeicon = icon_opts[0], icon_opts[1], icon_opts[1]
+        yescolor, nocolor, maybecolor = color_opts[0], color_opts[1], color_opts[1]
+    if value is None:
+        return safe_string(html.format(maybeicon, maybecolor))
+    if value:
+        return safe_string(html.format(yesicon, yescolor))
+    return safe_string(html.format(noicon, nocolor))
+
+
+@JinjaEnv.jinja_filter
+def format_phone(val, country='US'):
+    if not val:
+        return
+        
+    return phonenumbers.format_number(
+        phonenumbers.parse(val, country),
+        PhoneNumberFormat.NATIONAL)
+
+
+@JinjaEnv.jinja_filter
 def jsonize(x):
     is_empty = x is None or isinstance(x, jinja2.runtime.Undefined)
     return safe_string('{}' if is_empty else html.escape(json.dumps(x, cls=serializer), quote=False))
@@ -224,12 +266,20 @@ def percent_of(numerator, denominator):
 
 
 @JinjaEnv.jinja_filter
-def format_currency(value):
+def format_currency(value, show_abs=False):
     if value or value == 0:
         value = float(value)
+        if show_abs:
+            value = abs(value)
+
+        if value < 0:
+            sign = "-$"
+        else:
+            sign = "$"
+
         if int(value) != value:
-            return "${:,.2f}".format(value)
-        return "${:,}".format(int(value))
+            return "{}{:,.2f}".format(sign, value)
+        return "{}{:,}".format(sign, int(value))
 
 
 @JinjaEnv.jinja_filter
@@ -245,7 +295,7 @@ def form_link(model, new_window=False):
     if not model:
         return ''
 
-    from uber.models import Attendee, Attraction, Department, Group, Job, PanelApplication
+    from uber.models import Attendee, AttendeeAccount, Attraction, Department, Group, Job, PanelApplication
     
     page = 'form'
         
@@ -255,8 +305,12 @@ def form_link(model, new_window=False):
         attendee_section = ''
         page = '#attendee_form' if isinstance(model, Attendee) else page
 
+    if isinstance(model, AttendeeAccount):
+        page = 'attendee_account_form'
+
     site_sections = {
         Attendee: attendee_section,
+        AttendeeAccount: '../reg_admin/',
         Attraction: '../attractions_admin/',
         Department: '../dept_admin/',
         Group: '../group_admin/',
@@ -265,7 +319,7 @@ def form_link(model, new_window=False):
 
     cls = model.__class__
     site_section = site_sections.get(cls, form_link_site_sections.get(cls))
-    name = getattr(model, 'name', getattr(model, 'full_name', model))
+    name = getattr(model, 'name', getattr(model, 'full_name', getattr(model, 'email', model)))
 
     if site_section or cls == Attendee and page == '#attendee_form':
         return safe_string('<a href="{}{}?id={}"{}>{}</a>'.format(

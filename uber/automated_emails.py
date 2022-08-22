@@ -157,7 +157,8 @@ AutomatedEmailFixture(
     AttendeeAccount,
     '{EVENT_NAME} account creation confirmed',
     'reg_workflow/account_confirmation.html',
-    lambda a: not a.password_reset,
+    lambda a: not a.password_reset and (
+              a.created.when_local > c.PREREG_OPEN or a.has_dealer and a.created.when_local > c.DEALER_REG_START),
     needs_approval=False,
     allow_at_the_con=True,
     ident='attendee_account_confirmed')
@@ -873,17 +874,18 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieJudge,
-        'MIVS Judging and {EVENT_NAME} Staffing',
-        'mivs/judge_staffers.txt',
-        lambda judge: judge.status == c.CONFIRMED,
-        ident='mivs_judge_staffers')
-
-    MIVSEmailFixture(
-        IndieJudge,
-        'MIVS Judge badge information',
+        'MIVS Judging survey and {EVENT_NAME} badge information',
         'mivs/judge_badge_info.txt',
         lambda judge: judge.status == c.CONFIRMED,
         ident='mivs_judge_badge_info')
+	
+    MIVSEmailFixture(
+        IndieGame,
+        'MIVS: Tournaments and Leaderboard Challenges',
+        'mivs/confirmed/tournaments.txt',
+        lambda game: game.confirmed,
+        ident='mivs_tournaments'
+    )
 
     MIVSGuestEmailFixture(
         '{EVENT_NAME} MIVS Checklist',
@@ -911,6 +913,13 @@ if c.MIVS_ENABLED:
         'mivs/checklist/new_update_selling_information.txt',
         lambda mg: True,
         ident='mivs_checklist_update_selling_information'
+    )
+
+    MIVSGuestEmailFixture(
+        'New {EVENT_NAME} MIVS Checklist Item: Hotel Signups',
+        'mivs/checklist/new_update_hotel_information.txt',
+        lambda mg: True,
+        ident='mivs_checklist_update_hotel_information'
     )
 
 
@@ -964,46 +973,34 @@ if c.MIVS_ENABLED:
     # At-Con MIVS Emails
     MIVSEmailFixture(
         IndieGame,
-        'MIVS {EVENT_NAME}: Load-In @ MAGFest',
+        '{EVENT_NAME} MIVS {EVENT_YEAR}: Wednesday Setup',
         'mivs/At-Con/LoadIn.txt',
         lambda game: game.confirmed,
-        ident='mivs_2020_LoadIn.txt'
+        ident='mivs_LoadIn.txt'
+    )
+	
+    MIVSEmailFixture(
+        IndieGame,
+        '{EVENT_NAME} MIVS {EVENT_YEAR}: Thursday, Day 1',
+        'mivs/At-Con/Day1.txt',
+        lambda game: game.confirmed,
+        ident='mivs_Day1.txt'
     )
 
-    # start year specific MIVS Emails
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS: Participating in MAGFest Versus and an Indie Game Preservation Panel',
-        'mivs/2020/strong_versus_2020.txt',
-        lambda game: game.confirmed,
-        ident='mivs_2020_versus'
-    )
-    
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS: Tournaments and Leaderboard Challenges',
-        'mivs/2020/tournaments_2020.txt',
-        lambda game: game.confirmed,
-        ident='mivs_2020_tournaments'
-    )
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS {EVENT_NAME}: Reminder for IGDA Meetup tonight',
-        'mivs/2020/igda_reminder.txt',
-        lambda game: game.confirmed,
-        ident='mivs_2020_igda_reminder'
-    )
-    MIVSEmailFixture(
-        IndieGame,
-        'MIVS {EVENT_NAME}: Reminder for MIVS Indie Mixer happening Tonight',
-        'mivs/2020/mixer_reminder.txt',
-        lambda game: game.confirmed,
-        ident='mivs_2020_mixer_reminder'
-    )
 
+    # start year specific MIVS Emails    
     MIVSEmailFixture(
         IndieGame,
-        'MIVS {EVENT_NAME}: Request for Feedback',
+        'MIVS December Update',
+        'mivs/2022/december_update.txt',
+        lambda game: game.confirmed,
+        ident='mivs_december_update.txt'
+    )
+	
+    #post con emails
+    MIVSEmailFixture(
+        IndieGame,
+        '{EVENT_NAME} MIVS {EVENT_YEAR}: Request for Feedback',
         'mivs/feedback/indie_survey.txt',
         lambda game: game.confirmed,
         ident='mivs_feedback_survey',

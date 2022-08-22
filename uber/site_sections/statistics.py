@@ -7,10 +7,9 @@ import six
 from sqlalchemy import and_, func
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import literal
-from uszipcode import ZipcodeSearchEngine
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csv_file
+from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable
 from uber.jinja import JinjaEnv
 from uber.models import Attendee, Group, PromoCode
 
@@ -258,57 +257,90 @@ class Root:
             'current_registrations': graph_data_current_year.dump_data(),
         }
 
-    zips_counter = Counter()
-    zips = {}
-    center = ZipcodeSearchEngine().by_zipcode("20745")
-
-    def map(self):
-        return {
-            'zip_counts': self.zips_counter,
-            'center': self.center,
-            'zips': self.zips
-        }
-
-    @ajax
-    def refresh(self, session, **params):
+    if c.MAPS_ENABLED:
+        from uszipcode import SearchEngine
+        zips_counter = Counter()
         zips = {}
-        self.zips_counter = Counter()
-        attendees = session.query(Attendee).all()
-        for person in attendees:
-            if person.zip_code:
-                self.zips_counter[person.zip_code] += 1
+        try:
+            center = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(20745)
+        except Exception as e:
+            log.error("Error calling SearchEngine: " + e)
 
-        for z in self.zips_counter.keys():
-            found = ZipcodeSearchEngine().by_zipcode(z)
-            if found.Zipcode:
-                zips[z] = found
+        def map(self):
+            return {
+                'zip_counts': self.zips_counter,
+                'center': self.center,
+                'zips': self.zips
+            }
 
-        self.zips = zips
-        return True
+        @ajax
+        def refresh(self, session, **params):
+            zips = {}
+            self.zips_counter = Counter()
+            attendees = session.query(Attendee).all()
+            for person in attendees:
+                if person.zip_code:
+                    self.zips_counter[person.zip_code] += 1
 
-    @csv_file
-    def radial_zip_data(self, out, session, **params):
-        if params.get('radius'):
-            res = ZipcodeSearchEngine().by_coordinate(
-                self.center["Latitude"], self.center["Longitude"], radius=int(params['radius']), returns=0)
+            for z in self.zips_counter.keys():
+                try:
+                    found = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(int(z))
+                except Exception as e:
+                    log.error("Error calling SearchEngine: " + e)
+                else:
+                    if found.zipcode:
+                        zips[z] = found
 
-            out.writerow(['# of Attendees', 'City', 'State', 'Zipcode', 'Miles from Event', '% of Total Attendees'])
-            if len(res) > 0:
-                keys = self.zips.keys()
-                center_coord = (self.center["Latitude"], self.center["Longitude"])
-                filter = Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])
-                attendees = session.query(Attendee).filter(filter)
-                total_count = attendees.count()
-                for x in res:
-                    if x['Zipcode'] in keys:
-                        out.writerow([self.zips_counter[x['Zipcode']], x['City'], x['State'], x['Zipcode'],
-                                      VincentyDistance((x["Latitude"], x["Longitude"]), center_coord).miles,
-                                      "%.2f" % float(self.zips_counter[x['Zipcode']] / total_count * 100)])
+            self.zips = zips
+            return True
 
-    @ajax
-    def set_center(self, session, **params):
-        if params.get("zip"):
-            self.center = ZipcodeSearchEngine().by_zipcode(params["zip"])
-            return "Set to %s, %s - %s" % (self.center["City"], self.center["State"], self.center["Zipcode"])
-        return False
+        @csv_file
+        @not_site_mappable
+        def radial_zip_data(self, out, session, **params):
+            if params.get('radius'):
+                try:
+                    res = SearchEngine(db_file_dir="/srv/reggie/data").by_coordinates(
+                        self.center.lat, self.center.lng, radius=int(params['radius']), returns=None)
+                except Exception as e:
+                    log.error("Error calling SearchEngine: " + e)
+                else:
+                    out.writerow(['# of Attendees', 'City', 'State', 'Zipcode', 'Miles from Event', '% of Total Attendees'])
+                    if len(res) > 0:
+                        keys = self.zips.keys()
+                        center_coord = (self.center.lat, self.center.lng)
+                        total_count = session.attendees_with_badges().count()
+                        for x in res:
+                            if x.zipcode in keys:
+                                out.writerow([self.zips_counter[x.zipcode], x.city, x.state, x.zipcode,
+                                            VincentyDistance((x.lat, x.lng), center_coord).miles,
+                                            "%.2f" % float(self.zips_counter[x.zipcode] / total_count * 100)])
+
+        @ajax
+        def set_center(self, session, **params):
+            if params.get("zip"):
+                try:
+                    self.center = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(int(params["zip"]))
+                except Exception as e:
+                    log.error("Error calling SearchEngine: " + e)
+                else:
+                    return "Set to %s, %s - %s" % (self.center.city, self.center.state, self.center.zipcode)
+            return False
+
+        @csv_file
+        def attendees_by_state(self, out, session):
+            # Result of set(map(lambda x: x.state, SearchEngine(db_file_dir="/srv/reggie/data").ses.query(SimpleZipcode))) -- literally all the states uszipcode knows about
+            states = ['SD', 'IL', 'WY', 'NV', 'NJ', 'NM', 'UT', 'OR', 'TX', 'NE', 'MS', 'FL', 'VA', 'HI', 'KY', 'MO', 'NY', 'WV', 'DC', 'AR', 'MT', 'MD', 'SC', 'NC', 'KS', 'OH', 'PR', 'CO', 'IN', 'VT', 'LA', 'ND', 'AZ', 'AK', 'AL', 'CT', 'TN', 'PA', 'IA', 'WA', 'ME', 'NH', 'MA', 'ID', 'OK', 'WI', 'GA', 'CA', 'DE', 'MN', 'MI', 'RI']
+            total_count = session.attendees_with_badges().count()
+
+            out.writerow(['# of Attendees', 'State', '% of Total Attendees'])
+
+            for state in states:
+                try:
+                    zip_codes = list(map(lambda x: x.zipcode, SearchEngine(db_file_dir="/srv/reggie/data").by_state(state, returns=None)))
+                except Exception as e:
+                    log.error("Error calling SearchEngine: " + e)
+                else:
+                    current_count = session.attendees_with_badges().filter(Attendee.zip_code.in_(zip_codes)).count()
+                    if current_count:
+                        out.writerow([current_count, state, "%.2f" % float(current_count / total_count * 100)])
 

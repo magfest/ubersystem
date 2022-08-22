@@ -10,7 +10,7 @@ We want to know if you would like to run a Leaderboard Challenge or Tournament a
 
 There will be time slots for each game, but a tournament can go past your slotted time. We will be entering these times into Guidebook which attendees will be able to see at the event. 
 
-If you are interested, please email mivs@magfest.org ASAP. 
+If you are interested, please email mivs@magfest.org 
 
 Forever your Fan,
-The MIVS Team
+{{ c.MIVS_EMAIL_SIGNATURE }}

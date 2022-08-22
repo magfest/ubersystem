@@ -283,7 +283,7 @@ class Department(MagModel):
 
     @property
     def member_emails(self):
-        return [a.email for a in self.members if a.email]
+        return [a.email for a in self.members if a.email and (a.has_badge or a.weighted_hours_in(self) > 0)]
 
     @property
     def members_with_shifts_emails(self):

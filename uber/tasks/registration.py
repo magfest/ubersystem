@@ -10,10 +10,10 @@ from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import render
-from uber.models import Attendee, Email, Session, StripeTransaction
+from uber.models import ApiJob, Attendee, Email, Session, ReceiptTransaction
 from uber.tasks.email import send_email
 from uber.tasks import celery
-from uber.utils import Charge, localized_now
+from uber.utils import Charge, localized_now, TaskUtils
 
 
 __all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_unassigned_volunteers',
@@ -146,10 +146,12 @@ def check_near_cap():
 @celery.schedule(timedelta(minutes=30))
 def check_missed_stripe_payments():
     pending_ids = []
+    paid_ids = []
     with Session() as session:
-        pending_payments = session.query(StripeTransaction).filter_by(type=c.PENDING)
+        pending_payments = session.query(ReceiptTransaction).filter(ReceiptTransaction.intent_id != '',
+                                                                    ReceiptTransaction.charge_id == '')
         for payment in pending_payments:
-            pending_ids.append(payment.stripe_id)
+            pending_ids.append(payment.intent_id)
 
     events = stripe.Event.list(type='payment_intent.succeeded', created={
         # Check for events created in the last hour.
@@ -158,7 +160,30 @@ def check_missed_stripe_payments():
 
     for event in events.auto_paging_iter():
         payment_intent = event.data.object
-        log.debug('Processing Payment Intent ID {}', payment_intent.id)
         if payment_intent.id in pending_ids:
-            log.debug('Charge is pending, intent ID is {}', payment_intent.id)
-            Charge.mark_paid_from_stripe_id(payment_intent.id)
+            paid_ids.append(payment_intent.id)
+            Charge.mark_paid_from_intent_id(payment_intent.id, payment_intent.charges.data[0].id)
+    return paid_ids
+
+
+@celery.schedule(timedelta(minutes=10))
+def process_api_queue():
+    known_job_names = ['attendee_account_import', 'attendee_import', 'group_import']
+    completed_jobs = {}
+    safety_limit = 1000
+    jobs_processed = 0
+
+    with Session() as session:
+        for job_name in known_job_names:
+            jobs_to_run = session.query(ApiJob).filter(ApiJob.job_name == job_name, ApiJob.queued == None).limit(1000)
+            completed_jobs[job_name] = 0
+
+            for job in jobs_to_run:
+                getattr(TaskUtils, job_name)(job)
+                session.commit()
+                completed_jobs[job_name] += 1
+                jobs_processed += 1
+
+            if jobs_processed >= safety_limit:
+                return completed_jobs
+    return completed_jobs

@@ -1,7 +1,7 @@
 """Add print queue table
 
 Revision ID: 40ec91ad7a74
-Revises: 3589a98a0c28
+Revises: cc0f9e9861cd
 Create Date: 2021-11-04 03:38:08.816882
 
 """
@@ -9,7 +9,7 @@ Create Date: 2021-11-04 03:38:08.816882
 
 # revision identifiers, used by Alembic.
 revision = '40ec91ad7a74'
-down_revision = '3589a98a0c28'
+down_revision = 'cc0f9e9861cd'
 branch_labels = None
 depends_on = None
 

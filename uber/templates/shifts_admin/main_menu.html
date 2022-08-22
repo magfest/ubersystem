@@ -40,11 +40,14 @@
       {{ options(c.ADMIN_DEPARTMENT_OPTS, department_id) }}
     </select>
   </div>
-
+  {% if 'unfilled_shifts' in c.PAGE_PATH %}
+  <input type="hidden" id="page" value="unfilled_shifts" />
+  {% else %}
   <div class="page-group form-group">
     <label for="page">View</label>
     <select id="page" onChange="mainMenuDropdownChanged()" class="form-control">
       {{ options(c.JOB_PAGE_OPTS, c.PAGE) }}
     </select>
   </div>
+  {% endif %}
 </div>

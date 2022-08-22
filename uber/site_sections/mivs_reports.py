@@ -96,7 +96,8 @@ class Root:
             if studio.discussion_emails:
                 emails.extend(studio.discussion_emails_list)
             row.append(emails)
-            row.append(studio.discussion_emails_last_updated.astimezone(c.EVENT_TIMEZONE))
+            row.append(studio.discussion_emails_last_updated.astimezone(c.EVENT_TIMEZONE)
+                       if studio.discussion_emails_last_updated else 'N/A')
 
             out.writerow(row)
 

@@ -12,6 +12,7 @@ from hashlib import sha512
 from itertools import chain
 
 import cherrypy
+import signnow_python_sdk
 import stripe
 from pockets import keydefaultdict, nesteddefaultdict, unwrap
 from pockets.autolog import log
@@ -54,11 +55,19 @@ class _Overridable:
         if 'enums' in plugin_config:
             self.make_enums(plugin_config['enums'])
 
+        if 'integer_enums' in plugin_config:
+            self.make_integer_enums(plugin_config['integer_enums'])
+
         if 'dates' in plugin_config:
             self.make_dates(plugin_config['dates'])
 
         if 'data_dirs' in plugin_config:
             self.make_data_dirs(plugin_config['data_dirs'])
+
+        if 'secret' in plugin_config:
+            for attr, val in plugin_config['secret'].items():
+                if not isinstance(val, dict):
+                    setattr(self, attr.upper(), val)
 
     def make_dates(self, config_section):
         """
@@ -96,6 +105,29 @@ class _Overridable:
         """
         for name, subsection in config_section.items():
             self.make_enum(name, subsection)
+
+    def make_integer_enums(self, config_section):
+        def is_intstr(s):
+            if s and s[0] in ('-', '+'):
+                return str(s[1:]).isdigit()
+            return str(s).isdigit()
+
+        for name, val in config_section.items():
+            if isinstance(val, int):
+                setattr(c, name.upper(), val)
+
+        for name, section in config_section.items():
+            if isinstance(section, dict):
+                interpolated = OrderedDict()
+                for desc, val in section.items():
+                    if is_intstr(val):
+                        price = int(val)
+                    else:
+                        price = getattr(c, val.upper())
+
+                    interpolated[desc] = price
+
+                c.make_enum(name, interpolated, prices=name.endswith('_price'))
 
     def make_enum(self, enum_name, section, prices=False):
         """
@@ -152,7 +184,7 @@ class Config(_Overridable):
 
     def get_attendee_price(self, dt=None):
         price = self.INITIAL_ATTENDEE
-        if self.PRICE_BUMPS_ENABLED:
+        """if self.PRICE_BUMPS_ENABLED:
             localized_now = uber.utils.localized_now()
             for day, bumped_price in sorted(self.PRICE_BUMPS.items()):
                 if (dt or localized_now) >= day:
@@ -165,7 +197,7 @@ class Config(_Overridable):
 
                 for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
                     if badges_sold >= badge_cap and bumped_price > price:
-                        price = bumped_price
+                        price = bumped_price"""
         return price
 
     def get_group_price(self, dt=None):
@@ -206,6 +238,9 @@ class Config(_Overridable):
             section_and_page += "_index"
 
         if section_and_page in access or section in access:
+            return True
+        
+        if section == 'group_admin' and any(x in access for x in ['dealer_admin', 'guest_admin', 'band_admin', 'mivs_admin']):
             return True
 
     @property
@@ -312,6 +347,8 @@ class Config(_Overridable):
     @property
     def PREREG_BADGE_TYPES(self):
         types = [self.ATTENDEE_BADGE, self.PSEUDO_DEALER_BADGE]
+        if c.AGE_GROUP_CONFIGS[c.UNDER_13]['can_register']:
+            types.append(self.CHILD_BADGE)
         for reg_open, badge_type in [(self.BEFORE_GROUP_PREREG_TAKEDOWN, self.PSEUDO_GROUP_BADGE)]:
             if reg_open:
                 types.append(badge_type)
@@ -392,23 +429,15 @@ class Config(_Overridable):
             return self.DONATION_TIER_OPTS
 
     @property
-    def PREREG_DONATION_DESCRIPTIONS(self):
-        # include only the items that are actually available for purchase
-        if not self.SHARED_KICKIN_STOCKS:
-            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
-                             if tier[1]['price'] not in self.kickin_availability_matrix
-                             or self.kickin_availability_matrix[tier[1]['price']]]
-        elif self.BEFORE_SHIRT_DEADLINE and not self.SHIRT_AVAILABLE:
-            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
-                             if tier[1]['price'] < self.SHIRT_LEVEL]
-        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
-            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
-                             if tier[1]['price'] < self.SUPPORTER_LEVEL]
-        elif self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
-            donation_list = [tier for tier in c.DONATION_TIER_DESCRIPTIONS.items()
-                             if tier[1]['price'] < self.SEASON_LEVEL]
-        else:
-            donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
+    def FORMATTED_DONATION_DESCRIPTIONS(self):
+        """
+        A list of the donation descriptions, formatted for use on attendee-facing pages.
+        
+        This does NOT filter out unavailable kick-ins so we can use it on attendees' confirmation pages
+        to show unavailable kick-ins they've already purchased. To show only available kick-ins, use
+        PREREG_DONATION_DESCRIPTIONS.
+        """
+        donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
 
         donation_list = sorted(donation_list, key=lambda tier: tier[1]['price'])
 
@@ -429,6 +458,27 @@ class Config(_Overridable):
                 entry[1]['all_descriptions'] += list(zip(descriptions, links))
 
         return [dict(tier[1]) for tier in donation_list]
+
+    @property
+    def PREREG_DONATION_DESCRIPTIONS(self):
+        donation_list = self.FORMATTED_DONATION_DESCRIPTIONS
+
+        # include only the items that are actually available for purchase
+        if not self.SHARED_KICKIN_STOCKS:
+            donation_list = [tier for tier in donation_list
+                             if tier['price'] not in self.kickin_availability_matrix
+                             or self.kickin_availability_matrix[tier['price']]]
+        elif self.BEFORE_SHIRT_DEADLINE and not self.SHIRT_AVAILABLE:
+            donation_list = [tier for tier in donation_list if tier['price'] < self.SHIRT_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
+            donation_list = [tier for tier in donation_list if tier['price'] < self.SUPPORTER_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
+            donation_list = [tier for tier in donation_list if tier['price'] < self.SEASON_LEVEL]
+
+        return [tier for tier in donation_list if 
+                (tier['price'] >= c.SHIRT_LEVEL and tier['price'] < c.SUPPORTER_LEVEL and c.BEFORE_SHIRT_DEADLINE) or 
+                (tier['price'] >= c.SUPPORTER_LEVEL and c.BEFORE_SUPPORTER_DEADLINE) or 
+                tier['price'] < c.SHIRT_LEVEL]
 
     @property
     def PREREG_DONATION_TIERS(self):
@@ -612,24 +662,18 @@ class Config(_Overridable):
 
         with Session() as session:
             query = session.query(Department).order_by(Department.name)
-            current_admin = session.admin_attendee()
-            if getattr(current_admin.admin_account, 'full_shifts_admin', None):
+            if not query.first():
+                return [(-1, -1)]
+            current_admin = session.current_admin_account()
+            if current_admin.full_shifts_admin:
                 return [(d.id, d.name) for d in query]
             else:
-                return [(d.id, d.name) for d in query if d.id in current_admin.assigned_depts_ids]
+                return [(d.id, d.name) for d in query if d.id in current_admin.attendee.assigned_depts_ids]
 
     @request_cached_property
     @dynamic
     def DEFAULT_DEPARTMENT_ID(self):
         return list(c.ADMIN_DEPARTMENTS.keys())[0] if c.ADMIN_DEPARTMENTS else 0
-
-    @property
-    def DEFAULT_REGDESK_INT(self):
-        return getattr(self, 'REGDESK', getattr(self, 'REGISTRATION', 177161930))
-
-    @property
-    def DEFAULT_STOPS_INT(self):
-        return getattr(self, 'STOPS', 29995679)
 
     @property
     def HTTP_METHOD(self):
@@ -841,7 +885,7 @@ class SecretConfig(_Overridable):
     @property
     def SQLALCHEMY_URL(self):
         """
-        support reading the DB connection info from an environment var (used with Docker containers)
+        Support reading the DB connection info from an environment var (used with Docker containers)
         DB_CONNECTION_STRING should contain the full Postgres URI
         """
         db_connection_string = os.environ.get('DB_CONNECTION_STRING')
@@ -852,10 +896,101 @@ class SecretConfig(_Overridable):
             return _config['secret']['sqlalchemy_url']
 
 
+class AWSSecretFetcher:
+    """
+    This class manages fetching secrets from AWS. Some secrets only need to be
+    fetched once, while others may be re-fetched to refresh tokens.
+    """
+
+    def __init__(self):
+        import boto3
+        
+        aws_session = boto3.session.Session(
+            aws_access_key_id=c.AWS_ACCESS_KEY,
+            aws_secret_access_key=c.AWS_SECRET_KEY
+        )
+
+        self.client = aws_session.client(
+            service_name=c.AWS_SECRET_SERVICE_NAME,
+            region_name=c.AWS_REGION
+        )
+
+    def get_secret(self, secret_name):
+        import json
+        from botocore.exceptions import ClientError
+
+        try:
+            get_secret_value_response = self.client.get_secret_value(
+                SecretId=secret_name
+            )
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'DecryptionFailureException':
+                # Secrets Manager can't decrypt the protected secret text using the provided KMS key.
+                log.error("Retrieving secret error: Wrong KMS key ({}).".format(str(e)))
+                return
+            elif e.response['Error']['Code'] == 'InternalServiceErrorException':
+                # An error occurred on the server side.
+                log.error("Retrieving secret error: Server error ({}).".format(str(e)))
+                return
+            elif e.response['Error']['Code'] == 'InvalidParameterException':
+                # You provided an invalid value for a parameter.
+                log.error("Retrieving secret error: Invalid parameter ({}).".format(str(e)))
+                return
+            elif e.response['Error']['Code'] == 'InvalidRequestException':
+                # You provided a parameter value that is not valid for the current state of the resource.
+                log.error("Retrieving secret error: Invalid parameter ({}).".format(str(e)))
+                return
+            elif e.response['Error']['Code'] == 'ResourceNotFoundException':
+                # We can't find the resource that you asked for.
+                log.error("Retrieving secret error: Resource not found ({}).".format(str(e)))
+                return
+        else:
+            # Decrypts secret using the associated KMS key.
+            if 'SecretString' in get_secret_value_response:
+                secret = json.loads(get_secret_value_response['SecretString'])
+            else:
+                log.error("Could not retrieve secret from AWS, instead we got: {}".format(str(secret)))
+                return
+
+            return secret
+        log.error("Could not retrieve secret from AWS. Is the secret name (\"{}\") correct?".format(secret_name))
+
+    def get_all_secrets(self):
+        if c.AWS_AUTH0_SECRET_NAME:
+            self.get_auth0_secret()
+
+        if c.AWS_SIGNNOW_SECRET_NAME:
+            self.get_signnow_secret()
+
+    def get_auth0_secret(self):
+        auth0_secret = self.get_secret(c.AWS_AUTH0_SECRET_NAME)
+        if auth0_secret:
+            c.AUTH_DOMAIN = auth0_secret.get('AUTH0_DOMAIN', '') or c.AUTH_DOMAIN
+            c.AUTH_CLIENT_ID = auth0_secret.get('CLIENT_ID', '') or c.AUTH_CLIENT_ID
+            c.AUTH_CLIENT_SECRET = auth0_secret.get('CLIENT_SECRET', '') or c.AUTH_CLIENT_SECRET
+
+    def get_signnow_secret(self):
+        signnow_secret = self.get_secret(c.AWS_SIGNNOW_SECRET_NAME)
+        if signnow_secret:
+            c.SIGNNOW_ACCESS_TOKEN = signnow_secret.get('ACCESS_TOKEN', '') or c.SIGNNOW_ACCESS_TOKEN
+            c.SIGNNOW_CLIENT_ID = signnow_secret.get('CLIENT_ID', '') or c.SIGNNOW_CLIENT_ID
+            c.SIGNNOW_CLIENT_SECRET = signnow_secret.get('CLIENT_SECRET', '') or c.SIGNNOW_CLIENT_SECRET
+
+
 c = Config()
 _secret = SecretConfig()
-
 _config = parse_config(__file__)  # outside this module, we use the above c global instead of using this directly
+
+if c.AWS_SECRET_SERVICE_NAME:
+    aws_secrets_client = AWSSecretFetcher()
+    aws_secrets_client.get_all_secrets()
+else:
+    aws_secrets_client = None
+
+signnow_python_sdk.Config(client_id=c.SIGNNOW_CLIENT_ID,
+                          client_secret=c.SIGNNOW_CLIENT_SECRET,
+                          environment=c.SIGNNOW_ENV)
+signnow_sdk = signnow_python_sdk
 
 
 def _unrepr(d):
@@ -896,6 +1031,9 @@ if "sqlite" in _config['secret']['sqlalchemy_url']:
     c.SQLALCHEMY_POOL_SIZE = -1
     c.SQLALCHEMY_MAX_OVERFLOW = -1
 
+## Set database connections to recycle after 10 minutes
+c.SQLALCHEMY_POOL_RECYCLE = 3600
+
 c.PRICE_BUMPS = {}
 c.PRICE_LIMITS = {}
 for _opt, _val in c.BADGE_PRICES['attendee'].items():
@@ -909,12 +1047,6 @@ for _opt, _val in c.BADGE_PRICES['attendee'].items():
     else:
         c.PRICE_BUMPS[date] = _val
 c.ORDERED_PRICE_LIMITS = sorted([val for key, val in c.PRICE_LIMITS.items()])
-
-
-def _is_intstr(s):
-    if s and s[0] in ('-', '+'):
-        return s[1:].isdigit()
-    return s.isdigit()
 
 
 # Under certain conditions, we want to completely remove certain payment options from the system.
@@ -932,22 +1064,7 @@ if c.ONLY_PREPAY_AT_DOOR:
 
 c.make_enums(_config['enums'])
 
-for _name, _val in _config['integer_enums'].items():
-    if isinstance(_val, int):
-        setattr(c, _name.upper(), _val)
-
-for _name, _section in _config['integer_enums'].items():
-    if isinstance(_section, dict):
-        _interpolated = OrderedDict()
-        for _desc, _val in _section.items():
-            if _is_intstr(_val):
-                _price = int(_val)
-            else:
-                _price = getattr(c, _val.upper())
-
-            _interpolated[_desc] = _price
-
-        c.make_enum(_name, _interpolated, prices=_name.endswith('_price'))
+c.make_integer_enums(_config['integer_enums'])
 
 c.BADGE_RANGES = {}
 for _badge_type, _range in _config['badge_ranges'].items():
@@ -1031,7 +1148,7 @@ c.JOB_LOCATION_OPTS.sort(key=lambda tup: tup[1])
 c.JOB_PAGE_OPTS = (
     ('index',    'Calendar View'),
     ('signups',  'Signups View'),
-    ('staffers', 'Staffer Summary')
+    ('staffers', 'Staffer Summary'),
 )
 c.WEIGHT_OPTS = (
     ('0.5', 'x0.5'),
@@ -1042,7 +1159,9 @@ c.WEIGHT_OPTS = (
 c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'visibility', 'required_roles_ids', 'extra15']
 
 c.PREREG_SHIRT_OPTS = sorted(c.PREREG_SHIRT_OPTS if c.PREREG_SHIRT_OPTS else c.SHIRT_OPTS)[1:]
+c.STAFF_SHIRT_OPTS = sorted(c.STAFF_SHIRT_OPTS if len(c.STAFF_SHIRT_OPTS) > 1 else c.SHIRT_OPTS)
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + sorted(list(c.SHIRT_OPTS))
+c.MERCH_STAFF_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + sorted(list(c.STAFF_SHIRT_OPTS))
 c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
 
 c.DONATION_TIER_ITEMS = {}

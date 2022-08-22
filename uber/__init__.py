@@ -19,6 +19,7 @@ def on_load():
     from uber import menu  # noqa: F401
     from uber import models  # noqa: F401
     from uber import model_checks  # noqa: F401
+    from uber import receipt_items  # noqa: F401
     from uber import sep_commands  # noqa: F401
     from uber import server  # noqa: F401
     from uber import tasks  # noqa: F401

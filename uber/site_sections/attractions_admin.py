@@ -1,3 +1,4 @@
+from re import T
 import uuid
 from datetime import datetime, timedelta
 
@@ -77,6 +78,32 @@ class Root:
             'message': message,
             'attraction': attraction
         }
+
+    @ajax
+    def open_signups(self, session, **params):
+        feature = session.attraction_feature(params.get('feature_id'))
+        if not feature:
+            return {'error': 'Feature not found!'}
+
+        for event in feature.events_by_location_by_day[int(params.get('location'))][params.get('day')]:
+            event.signups_open = True
+            session.add(event)
+        
+        session.commit()
+        return {'success': True}
+
+    @ajax
+    def close_signups(self, session, **params):
+        feature = session.attraction_feature(params.get('feature_id'))
+        if not feature:
+            return {'error': 'Feature not found!'}
+
+        for event in feature.events_by_location_by_day[int(params.get('location'))][params.get('day')]:
+            event.signups_open = False
+            session.add(event)
+        
+        session.commit()
+        return {'success': True}
 
     def new(self, session, message='', **params):
         if params.get('id', 'None') != 'None':

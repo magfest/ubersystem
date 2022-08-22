@@ -106,6 +106,62 @@ class Root:
             'printer_id': printer_id,
         }
 
+    @not_site_mappable
+    def reprint_fee(self, session, attendee_id=None, message='',
+                    fee_amount=0, reprint_reason='', refund=''):
+        attendee = session.attendee(attendee_id)
+        fee_amount = int(fee_amount)
+        if not fee_amount and not reprint_reason:
+            message = "You must charge a fee " \
+                      "or enter a reason for a free reprint!"
+        if not fee_amount and refund:
+            message = "You can't refund a fee of $0!"
+
+        if not message:
+            if not fee_amount:
+                attendee.for_review += \
+                    "Automated message: " \
+                    "Badge marked for free reprint by {} on {}.{}"\
+                    .format(session.admin_attendee().full_name,
+                            localized_now().strftime('%m/%d, %H:%M'),
+                            " Reason: " + reprint_reason if reprint_reason else '')
+                message = 'Free reprint recorded and badge sent to printer.'
+                attendee.print_pending = True
+            elif refund:
+                attendee.paid = c.REFUNDED
+                session.add(session.create_receipt_item(attendee, 
+                    fee_amount * 100,
+                    "Badge reprint fee refund",
+                    txn_type=c.REFUND,
+                    payment_method=c.CASH))
+                attendee.for_review += \
+                    "Automated message: " \
+                    "Reprint fee of ${} refunded by {} on {}.{}"\
+                    .format(fee_amount,
+                            session.admin_attendee().full_name,
+                            localized_now().strftime('%m/%d, %H:%M'),
+                            " Reason: " + reprint_reason if reprint_reason else '')
+                message = 'Reprint fee of ${} refunded.'.format(fee_amount)
+            else:
+                session.add(session.create_receipt_item(
+                    attendee, 
+                    fee_amount * 100, 
+                    "Badge reprint fee", 
+                    txn_type=c.PAYMENT, 
+                    payment_method=c.CASH))
+                attendee.for_review += \
+                    "Automated message: " \
+                    "Reprint fee of ${} charged by {} on {}.{}"\
+                    .format(fee_amount,
+                            session.admin_attendee().full_name,
+                            localized_now().strftime('%m/%d, %H:%M'),
+                            " Reason: " + reprint_reason if reprint_reason else '')
+                message = 'Reprint fee of ${} charged. Badge sent to printer.'\
+                    .format(fee_amount)
+                attendee.print_pending = True
+
+        raise HTTPRedirect('../registration/form?id={}&message={}',
+                           attendee_id, message)
     def attendee_print_jobs(self, session, id):
         attendee = session.attendee(id)
 

@@ -22,8 +22,8 @@ from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
 from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
-from uber.models import AdminAccount, ApiToken, Attendee, Department, DeptMembership, DeptMembershipRequest, \
-    Event, IndieStudio, Job, Session, Shift, GuestGroup, Room, HotelRequests, RoomAssignment
+from uber.models import AdminAccount, ApiToken, Attendee, AttendeeAccount, Department, DeptMembership, DeptMembershipRequest, \
+    Event, IndieStudio, Job, Session, Shift, Group, GuestGroup, Room, HotelRequests, RoomAssignment
 from uber.models.badge_printing import PrintJob
 from uber.server import register_jsonrpc
 from uber.utils import check, check_csrf, normalize_email, normalize_newlines
@@ -63,6 +63,120 @@ def _attendee_fields_and_query(full, query):
         fields = AttendeeLookup.fields
         query = query.options(subqueryload(Attendee.dept_memberships))
     return (fields, query)
+
+
+def _prepare_attendees_export(attendees, include_account_ids=False, include_apps=False, include_depts=False, is_group_attendee=False):
+    # If we add API classes for these models later, please move the field lists accordingly
+    art_show_import_fields = [
+        'artist_name',
+        'artist_id',
+        'banner_name',
+        'description',
+        'business_name',
+        'zip_code',
+        'address1',
+        'address2',
+        'city',
+        'region',
+        'country',
+        'paypal_address',
+        'website',
+        'special_needs',
+        'admin_notes',
+    ]
+    
+    marketplace_import_fields = [
+        'business_name',
+        'categories',
+        'categories_text',
+        'description',
+        'special_needs',
+        'admin_notes',
+    ]
+
+    fields = AttendeeLookup.attendee_import_fields + Attendee.import_fields
+            
+    if include_depts or include_apps:
+        fields.extend(['shirt'])
+
+    if is_group_attendee:
+        fields.extend(AttendeeLookup.group_attendee_import_fields)
+
+    attendee_list = []
+    for a in attendees:
+        d = a.to_dict(fields)
+
+        if include_account_ids and a.managers:
+            d['attendee_account_ids'] = [m.id for m in a.managers]
+
+        if include_apps:
+            if a.art_show_applications:
+                d['art_show_app'] = a.art_show_applications[0].to_dict(art_show_import_fields)
+            if a.marketplace_applications:
+                d['marketplace_app'] = a.marketplace_applications[0].to_dict(marketplace_import_fields)
+        
+        if include_depts:
+            assigned_depts = {}
+            checklist_admin_depts = {}
+            dept_head_depts = {}
+            poc_depts = {}
+            for membership in a.dept_memberships:
+                assigned_depts[membership.department_id] = membership.department.name
+                if membership.is_checklist_admin:
+                    checklist_admin_depts[membership.department_id] = membership.department.name
+                if membership.is_dept_head:
+                    dept_head_depts[membership.department_id] = membership.department.name
+                if membership.is_poc:
+                    poc_depts[membership.department_id] = membership.department.name
+
+            d.update({
+                'assigned_depts': assigned_depts,
+                'checklist_admin_depts': checklist_admin_depts,
+                'dept_head_depts': dept_head_depts,
+                'poc_depts': poc_depts,
+                'requested_depts': {
+                    (m.department_id if m.department_id else 'All'):
+                    (m.department.name if m.department_id else 'Anywhere')
+                    for m in a.dept_membership_requests},
+            })
+        
+        attendee_list.append(d)
+    return attendee_list
+
+
+def _query_to_names_emails_ids(query, split_names=True):
+    _re_name_email = re.compile(r'^\s*(.*?)\s*<\s*(.*?@.*?)\s*>\s*$')
+    _re_sep = re.compile(r'[\n,]')
+    _re_whitespace = re.compile(r'\s+')
+    queries = [s.strip() for s in _re_sep.split(normalize_newlines(query)) if s.strip()]
+
+    names = dict()
+    emails = dict()
+    names_and_emails = dict()
+    ids = set()
+    for q in queries:
+        if '@' in q:
+            match = _re_name_email.match(q)
+            if match:
+                name = match.group(1)
+                email = normalize_email(match.group(2))
+                if name:
+                    first, last = (_re_whitespace.split(name.lower(), 1) + [''])[0:2]
+                    names_and_emails[(first, last, email)] = q
+                else:
+                    emails[email] = q
+            else:
+                emails[normalize_email(q)] = q
+        elif q:
+            try:
+                ids.add(str(uuid.UUID(q)))
+            except Exception:
+                if split_names:
+                    first, last = (_re_whitespace.split(q.lower(), 1) + [''])[0:2]
+                    names[(first, last)] = q
+                else:
+                    names[q] = q
+    return names, emails, names_and_emails, ids
 
 
 def _parse_datetime(d):
@@ -273,6 +387,11 @@ class AttendeeLookup:
         'legal_name': True,
         'email': True,
         'zip_code': True,
+        'address1': True,
+        'address2': True,
+        'city': True,
+        'region': True,
+        'country': True,
         'cellphone': True,
         'ec_name': True,
         'ec_phone': True,
@@ -284,7 +403,6 @@ class AttendeeLookup:
         'amount_unpaid': True,
         'donation_tier': True,
         'donation_tier_label': True,
-        'donation_tier_paid': True,
         'staffing': True,
         'is_dept_head': True,
         'ribbon_labels': True,
@@ -312,6 +430,40 @@ class AttendeeLookup:
             'name': True,
         },
     })
+
+    attendee_import_fields = [
+        'first_name',
+        'last_name',
+        'legal_name',
+        'birthdate',
+        'email',
+        'zip_code',
+        'address1',
+        'address2',
+        'city',
+        'region',
+        'country',
+        'birthdate',
+        'international',
+        'ec_name',
+        'ec_phone',
+        'cellphone',
+        'badge_printed_name',
+        'badge_num',
+        'found_how',
+        'comments',
+        'admin_notes',
+        'all_years',
+        'badge_status',
+        'badge_status_label',
+    ]
+
+    group_attendee_import_fields = [
+        'placeholder',
+        'paid',
+        'badge_type',
+        'ribbon',
+    ]
 
     def lookup(self, badge_num, full=False):
         """
@@ -345,7 +497,9 @@ class AttendeeLookup:
         restrictions.
         """
         with Session() as session:
-            attendee_query = session.search(query)
+            attendee_query, error = session.search(query)
+            if error:
+                raise HTTPError(400, error)
             fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
             return [a.to_dict(fields) for a in attendee_query.limit(100)]
         
@@ -404,36 +558,9 @@ class AttendeeLookup:
         <pre>Merrium Webster, only.email@example.com, John Doe &lt;jdoe@example.com&gt;</pre>
 
         Results are returned in the format expected by
-        <a href="../import/staff">the staff importer</a>.
+        <a href="../reg_admin/import_attendees">the attendee importer</a>.
         """
-        _re_name_email = re.compile(r'^\s*(.*?)\s*<\s*(.*?@.*?)\s*>\s*$')
-        _re_sep = re.compile(r'[\n,]')
-        _re_whitespace = re.compile(r'\s+')
-        queries = [s.strip() for s in _re_sep.split(normalize_newlines(query)) if s.strip()]
-
-        names = dict()
-        emails = dict()
-        names_and_emails = dict()
-        ids = set()
-        for q in queries:
-            if '@' in q:
-                match = _re_name_email.match(q)
-                if match:
-                    name = match.group(1)
-                    email = normalize_email(match.group(2))
-                    if name:
-                        first, last = (_re_whitespace.split(name.lower(), 1) + [''])[0:2]
-                        names_and_emails[(first, last, email)] = q
-                    else:
-                        emails[email] = q
-                else:
-                    emails[normalize_email(q)] = q
-            elif q:
-                try:
-                    ids.add(str(uuid.UUID(q)))
-                except Exception:
-                    first, last = (_re_whitespace.split(q.lower(), 1) + [''])[0:2]
-                    names[(first, last)] = q
+        names, emails, names_and_emails, ids = _query_to_names_emails_ids(query)
 
         with Session() as session:
             if full:
@@ -491,56 +618,11 @@ class AttendeeLookup:
                 a for a in (id_attendees + email_attendees + name_attendees + name_and_email_attendees)
                 if a.id not in seen and not seen.add(a.id)]
 
-            fields = [
-                'first_name',
-                'last_name',
-                'birthdate',
-                'email',
-                'zip_code',
-                'birthdate',
-                'international',
-                'ec_name',
-                'ec_phone',
-                'cellphone',
-                'badge_printed_name',
-                'found_how',
-                'comments',
-                'admin_notes',
-                'all_years',
-                'badge_status',
-                'badge_status_label',
-            ]
+            fields = AttendeeLookup.attendee_import_fields + Attendee.import_fields
             if full:
                 fields.extend(['shirt'])
 
-            attendees = []
-            for a in all_attendees:
-                d = a.to_dict(fields)
-                if full:
-                    assigned_depts = {}
-                    checklist_admin_depts = {}
-                    dept_head_depts = {}
-                    poc_depts = {}
-                    for membership in a.dept_memberships:
-                        assigned_depts[membership.department_id] = membership.department.name
-                        if membership.is_checklist_admin:
-                            checklist_admin_depts[membership.department_id] = membership.department.name
-                        if membership.is_dept_head:
-                            dept_head_depts[membership.department_id] = membership.department.name
-                        if membership.is_poc:
-                            poc_depts[membership.department_id] = membership.department.name
-
-                    d.update({
-                        'assigned_depts': assigned_depts,
-                        'checklist_admin_depts': checklist_admin_depts,
-                        'dept_head_depts': dept_head_depts,
-                        'poc_depts': poc_depts,
-                        'requested_depts': {
-                            (m.department_id if m.department_id else 'All'):
-                            (m.department.name if m.department_id else 'Anywhere')
-                            for m in a.dept_membership_requests},
-                    })
-                attendees.append(d)
+            attendees = _prepare_attendees_export(all_attendees, include_depts=full, include_account_ids=full)
 
             return {
                 'unknown_ids': unknown_ids,
@@ -630,6 +712,96 @@ class AttendeeLookup:
 
             return attendee.id
 
+
+@all_api_auth('api_read')
+class AttendeeAccountLookup:
+    def export_attendees(self, id, full=False, include_group=False):
+        """
+        Exports attendees by their attendee account ID.
+
+        `id` is the UUID of the account.
+        
+        `full` includes the attendee's individual applications, such as art show.
+
+        `include_group` exports attendees in groups. This should be done rarely, as
+        you should be importing groups with their attendees before importing accounts.
+
+        Results are returned in the format expected by
+        <a href="../reg_admin/import_attendees">the attendee importer</a>.
+        """
+
+        with Session() as session:
+            account = session.query(AttendeeAccount).filter(AttendeeAccount.id == id).first()
+
+            if not account:
+                raise HTTPError(404, 'No attendee account found with this ID')
+
+            attendees_to_export = account.valid_attendees if include_group else [a for a in account.attendees if not a.group]
+
+            attendees = _prepare_attendees_export(attendees_to_export, include_apps=full)
+            return {
+                'attendees': attendees,
+            }
+
+    def export(self, query, all=False):
+        """
+        Searches for attendee accounts by either email or id.
+
+        `query` should be a comma or newline separated list of email/id
+        queries.
+
+        `all` ignores the query and returns all attendee accounts.
+
+        Example:
+        <pre>account.email@example.com, e3a670c4-8f7e-4d62-841d-49f73f58d8b1</pre>
+        """
+        names, emails, names_and_emails, ids = _query_to_names_emails_ids(query)
+        unknown_emails = []
+        unknown_ids = []
+
+        with Session() as session:
+            if all:
+                all_accounts = session.query(AttendeeAccount).all()
+            else:
+                email_accounts = []
+                if emails:
+                    email_accounts = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email.in_(list(emails.keys()))) \
+                        .options(subqueryload(AttendeeAccount.attendees)).order_by(AttendeeAccount.email, AttendeeAccount.id).all()
+
+                known_emails = set(a.normalized_email for a in email_accounts)
+                unknown_emails = sorted([raw for normalized, raw in emails.items() if normalized not in known_emails])
+
+                id_accounts = []
+                if ids:
+                    id_accounts = session.query(AttendeeAccount).filter(AttendeeAccount.id.in_(ids)) \
+                        .options(subqueryload(AttendeeAccount.attendees)).order_by(AttendeeAccount.email, AttendeeAccount.id).all()
+
+                known_ids = set(str(a.id) for a in id_accounts)
+                unknown_ids = sorted([i for i in ids if i not in known_ids])
+
+                seen = set()
+                all_accounts = [
+                    a for a in (id_accounts + email_accounts)
+                    if a.id not in seen and not seen.add(a.id)]
+
+            accounts = []
+            for a in all_accounts:
+                d = a.to_dict(['id', 'email', 'hashed'])
+
+                attendees = {}
+                for attendee in a.attendees:
+                    attendees[attendee.id] = attendee.full_name + " <{}>".format(attendee.email)
+                    
+                d.update({
+                    'attendees': attendees,
+                })
+                accounts.append(d)
+
+            return {
+                'unknown_ids': unknown_ids,
+                'unknown_emails': unknown_emails,
+                'accounts': accounts,
+            }
 
 @all_api_auth('api_update')
 class JobLookup:
@@ -761,12 +933,215 @@ class JobLookup:
 
 
 @all_api_auth('api_read')
+class GroupLookup:
+    fields = {
+        'name': True,
+        'badges': True,
+        'admin_notes': True,
+        'can_add': True,
+    }
+
+    dealer_fields = dict(fields, **{
+        'tables': True,
+        'wares': True,
+        'description': True,
+        'zip_code': True,
+        'address1': True,
+        'address2': True,
+        'city': True,
+        'region': True,
+        'country': True,
+        'website': True,
+        'special_needs': True,
+        'categories': True,
+        'categories_text': True,
+    })
+
+    group_import_fields = [
+        'name',
+        'admin_notes',
+        'badges',
+        'can_add',
+    ]
+
+    dealer_import_fields = [
+        'tables',
+        'wares',
+        'description',
+        'zip_code',
+        'address1',
+        'address2',
+        'city',
+        'region',
+        'country',
+        'website',
+        'special_needs',
+        'categories',
+        'categories_text',
+    ]
+
+    def dealers(self, status=None):
+        """
+        Returns a list of Groups that are also dealers.
+
+        Optionally, `status` may be passed to limit the results to dealers with a specific
+        status.
+
+        """
+        with Session() as session:
+            filters = [Group.is_dealer == True]
+            if status and status.upper() in c.DEALER_STATUS_VARS:
+                filters += [Group.status == getattr(c, status.upper())]
+            query = session.query(Group).filter(*filters)
+            groups = []
+
+            for g in query.all():
+                d = g.to_dict(['id'] + GroupLookup.group_import_fields + Group.import_fields + GroupLookup.dealer_import_fields)
+
+                attendees = {}
+                for attendee in g.attendees:
+                    if not attendee.is_unassigned:
+                        attendees[attendee.id] = attendee.full_name + " <{}>".format(attendee.email)
+                    
+                d.update({
+                    'assigned_attendees': attendees,
+                })
+                groups.append(d)
+
+            return { 'groups': groups, }
+
+    def export_attendees(self, id, full=False):
+        """
+        Exports attendees by their group ID. Excludes unassigned attendees.
+
+        `id` is the UUID of the group.
+        
+        `full` includes the attendee's individual applications, such as art show.
+
+        Results are returned in the format expected by
+        <a href="../reg_admin/import_attendees">the attendee importer</a>.
+        
+        Attendee account IDs are also included so that group members can be imported 
+        with their accounts.
+        """
+
+        with Session() as session:
+            group = session.query(Group).filter(Group.id == id).first()
+
+            if not group:
+                raise HTTPError(404, 'No group found with this ID')
+
+            attendees_to_export = [a for a in group.attendees if not a.is_unassigned and a.is_valid]
+            attendees = _prepare_attendees_export(attendees_to_export, include_account_ids=True, include_apps=full, is_group_attendee=True)
+
+            if group.unassigned:
+                unassigned_badge_type = group.unassigned[0].badge_type
+                unassigned_ribbon = group.unassigned[0].ribbon
+            else:
+                unassigned_badge_type, unassigned_ribbon = c.ATTENDEE_BADGE, None
+
+            return {
+                'attendees': attendees,
+                'group_leader_id': group.leader.id,
+                'unassigned_badge_type': unassigned_badge_type,
+                'unassigned_ribbon': unassigned_ribbon,
+            }
+
+    def export(self, query, full=False):
+        """
+        Searches for groups by group name or ID.
+
+        `query` should be a comma or newline separated list of ID/name
+        queries.
+
+        Example:
+        <pre>Group Name, 962f1d9d-0799-4a4a-a346-7ab9e737f0a4</pre>
+
+        Results are returned in the format expected by
+        <a href="../reg_admin/import_groups">the group importer</a>.
+        """
+        names, emails, names_and_emails, ids = _query_to_names_emails_ids(query, split_names=False)
+
+        with Session() as session:
+            name_groups = []
+            if names:
+                name_groups = session.query(Group).filter(Group.name.in_(names)) \
+                    .order_by(Group.name).all()
+
+            known_names = set(str(a.name) for a in name_groups)
+            unknown_names = sorted([n for n in names if n not in known_names])
+
+            id_groups = []
+            if ids:
+                id_groups = session.query(Group).filter(Group.id.in_(ids)) \
+                    .order_by(Group.name).all()
+
+            known_ids = set(str(a.id) for a in id_groups)
+            unknown_ids = sorted([i for i in ids if i not in known_ids])
+
+            seen = set()
+            all_groups = [
+                a for a in (id_groups + name_groups)
+                if a.id not in seen and not seen.add(a.id)]
+
+            fields = GroupLookup.group_import_fields + Group.import_fields
+
+            groups = []
+            for g in all_groups:
+                if full and g.is_dealer:
+                    d = g.to_dict(fields + GroupLookup.dealer_import_fields)
+                else:
+                    d = g.to_dict(fields)
+
+                attendees = {}
+                for attendee in g.attendees:
+                    if not attendee.is_unassigned:
+                        attendees[attendee.id] = attendee.full_name + " <{}>".format(attendee.email)
+                    
+                d.update({
+                    'assigned_attendees': attendees,
+                })
+
+                groups.append(d)
+
+            return {
+                'unknown_ids': unknown_ids,
+                'unknown_names': unknown_names,
+                'groups': groups,
+            }
+
+@all_api_auth('api_read')
 class DepartmentLookup:
     def list(self):
         """
         Returns a list of department ids and names.
         """
         return c.DEPARTMENTS
+    
+    @department_id_adapter
+    @api_auth('api_read')
+    def members(self, department_id):
+        """
+        Returns an object with all members of this department broken down by their roles.
+        
+        Takes the department id as the only parameter.
+        """
+        with Session() as session:
+            department = session.query(Department).filter_by(id=department_id).first()
+            if not department:
+                raise HTTPError(404, 'Department id not found: {}'.format(department_id))
+            return department.to_dict({
+                'id': True,
+                'name': True,
+                'description': True,
+                'dept_roles': True,
+                'dept_heads': True,
+                'checklist_admins': True,
+                'members_with_inherent_role': True,
+                'members_who_can_admin_checklist': True,
+                'pocs': True,
+                'members': True
+            })
 
     @department_id_adapter
     @api_auth('api_read')
@@ -1208,6 +1583,8 @@ class PrintJobLookup:
 
 if c.API_ENABLED:
     register_jsonrpc(AttendeeLookup(), 'attendee')
+    register_jsonrpc(AttendeeAccountLookup(), 'attendee_account')
+    register_jsonrpc(GroupLookup(), 'group')
     register_jsonrpc(JobLookup(), 'shifts')
     register_jsonrpc(DepartmentLookup(), 'dept')
     register_jsonrpc(ConfigLookup(), 'config')

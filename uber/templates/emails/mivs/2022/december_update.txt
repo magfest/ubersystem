@@ -1,0 +1,66 @@
+Ahoy {{ game.studio.primary_contact_first_names }},
+
+Here is a December update with new information for the upcoming 2022 MAGFest Indie Video Game Showcase!
+
+=====
+Covid Safety and Information
+=====
+
+Covid Safety is something both our MIVS volunteer staff and MAGFest is taking seriously.  
+
+The following are actions we’re taking to maintain a safe environment during MAGFest 2022:
+
+* We’ve increased spacing around all indie booths and the walkways between groups of booths.
+* MIVS Volunteers will be cleaning common areas at regular intervals (Indies are still responsible for cleaning their areas)
+* Requiring masks for everyone at the event
+* Requiring proof of vaccination from all attendees, with proof accepted in one of the following forms:
+    * original physical vaccination card (no photos or copies)
+    * a digital vaccination record issued by a government body, healthcare provider, etc.
+    * a third-party app that validates your vaccination record
+
+You can read the full extent of MAGFest’s COVID information and policies at {{ c.COVID_POLICIES_URL }}
+
+If you have questions or concerns about COVID and MAGFest we encourage you to reach out to us at mivs@magfest.org
+
+===
+Cancellations
+===
+
+We understand that things happen and you may be prevented from participating at MIVS this year.  If so, we ask you to contact us ASAP so we can allow one of our wait-listed teams to participate. Letting us know ahead of time leaves you on good terms with the MIVS team.  Being a No-show at the event places a lot of work on the volunteer staff and may prevent you from being part of MIVS in the future.
+
+====
+Discord Server
+====
+
+All your team members should be part of our MIVS 2022 google email group. We also have a private discord server which helps us disseminate quick communications, reminders, etc.  Unlike google groups, we can’t invite you by your email address, you have to click a link to join.  
+
+Q: How do I know if I’m in or on the right Discord server?
+
+A:  Check if see a server named “MIVS” AND that you can see the channel #devs on it. If not, see below to join:
+
+If you’re new to MIVS: use the following link: https://discord.gg/WK7F6DH7Ng After joining, follow the instructions on the #rules page to get set up as a dev for 2022! After joining, please be sure you change your name in the server to the following format: Your Name (The Name of Your Game) 
+
+If you are alumni already in the MIVS Server: please post in #dev-alumni letting us know you’re showcasing for 2022, and we’ll set up your permissions asap.
+
+For discord help, reach out to Kpawlowski@Magfest.org or contact either Hurricanes#2729 (Kat) or JDViper5#8200 (John) on Discord and we’ll help you out. 
+
+We recommend downloading the Discord App to have on your mobile device during MAGFest.
+
+====
+MIVS Checklist
+====
+
+You may have seen emails from us about your MIVS checklist.  Even if you are not taking advantage of items such as selling or hotels, (or they are past the deadline) we still need you to complete them. Doing so will prevent a MIVS volunteer from sending you an email asking for you to finish them.
+
+You can view your checklist at {{ c.URL_BASE }}/guests/index?id={{ game.studio.group.guest.id }}
+
+Thanks to all of you who have already completed your checklists ahead of time!
+
+====
+Other Questions
+====
+
+If you have questions, you can always contact us by emailing mivs@magfest.org
+
+Forever Your Fan,
+-The MIVS Team

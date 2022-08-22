@@ -5,6 +5,7 @@ import random
 import re
 import string
 import traceback
+from typing import Iterable
 import urllib
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, timedelta
@@ -18,6 +19,7 @@ from uuid import uuid4
 import cherrypy
 import phonenumbers
 import stripe
+from authlib.integrations.requests_client import OAuth2Session
 from phonenumbers import PhoneNumberFormat
 from pockets import cached_property, classproperty, floor_datetime, is_listy, listify
 from pockets.autolog import log
@@ -25,7 +27,7 @@ from sideboard.lib import threadlocal
 from pytz import UTC
 
 import uber
-from uber.config import c, _config
+from uber.config import c, _config, signnow_sdk
 from uber.errors import CSRFException, HTTPRedirect
 
 
@@ -557,6 +559,8 @@ def redirect_to_allowed_dept(session, department_id, page):
     error_msg = 'You have been given admin access to this page, but you are not in any departments that you can admin. ' \
                 'Please contact STOPS to remedy this.'
                 
+    if c.DEFAULT_DEPARTMENT_ID == -1:
+        raise HTTPRedirect('../accounts/homepage?message={}', "Please add at least one department to manage staffers.")
     if c.DEFAULT_DEPARTMENT_ID == 0:
         raise HTTPRedirect('../accounts/homepage?message={}', error_msg)
     
@@ -762,13 +766,13 @@ def remove_opt(opts, other):
 def _server_to_url(server):
     if not server:
         return ''
-    host, _, path = urllib.parse.unquote(server).replace('http://', '').replace('https://', '').partition('/')
+    host, _, path = urllib.parse.unquote(server).replace('http://', '').replace('https://', '').rstrip('/').partition('/')
     if path.startswith('reggie'):
         return 'https://{}/reggie'.format(host)
     elif path.startswith('uber'):
         return 'https://{}/uber'.format(host)
-    elif c.PATH == '/uber':
-        return 'https://{}{}'.format(host, c.PATH)
+    elif path in ['uber', 'rams']:
+        return 'https://{}/{}'.format(host, path)
     return 'https://{}'.format(host)
 
 
@@ -911,14 +915,42 @@ class ExcelWorksheetStreamWriter:
             self.next_col += 1
 
 
+class OAuthRequest:
+
+    def __init__(self, scope='openid profile email', state=None):
+        self.redirect_uri = (c.REDIRECT_URL_BASE or c.URL_BASE) + "/accounts/"
+        self.client = OAuth2Session(c.AUTH_CLIENT_ID, c.AUTH_CLIENT_SECRET, scope=scope, state=state, redirect_uri=self.redirect_uri + "process_login")
+        self.state = state if state else None
+
+    def set_auth_url(self):
+        self.auth_uri, self.state = self.client.create_authorization_url("https://{}/authorize".format(c.AUTH_DOMAIN), self.state)
+
+    def set_token(self, code, state):
+        self.auth_token = self.client.fetch_token("https://{}/oauth/token".format(c.AUTH_DOMAIN), code=code, state=state).get('access_token')
+
+    def get_email(self):
+        profile = self.client.get("https://{}/userinfo".format(c.AUTH_DOMAIN)).json()
+        log.debug(str(profile))
+        if not profile.get('email', ''):
+            log.error("Tried to authenticate a user but we couldn't retrieve their email. Did we use the right scope?")
+        else:
+            return profile['email']
+
+    @property
+    def logout_uri(self):
+        return "https://{}/v2/logout?client_id={}&returnTo={}".format(
+                    c.AUTH_DOMAIN,
+                    c.AUTH_CLIENT_ID,
+                    self.redirect_uri + "process_logout")
+
+
 class Charge:
 
-    def __init__(self, targets=(), amount=None, description=None, receipt_email=''):
+    def __init__(self, targets=(), amount=0, description=None, receipt_email=''):
         self._targets = listify(targets)
-        self._amount = amount
         self._description = description
         self._receipt_email = receipt_email
-        self._stripe_transaction = None
+        self._current_cost = amount
 
     @classproperty
     def paid_preregs(cls):
@@ -1034,13 +1066,181 @@ class Charge:
         else:
             raise HTTPRedirect('../preregistration/credit_card_retry')
 
-    def to_dict(self):
-        return {
-            'targets': self.targets,
-            'amount': self.amount,
-            'description': self.description,
-            'receipt_email': self.receipt_email
-        }
+    @classmethod
+    def get_all_receipt_items(cls, model, items=None):
+        """
+        Iterates through the cost_calculations for this model and returns a list containing all non-null cost and credit items.
+        This function is for use with new models to grab all their initial costs for creating or previewing a receipt.
+        """
+        if not items:
+            items = [uber.receipt_items.cost_calculation.items] + [uber.receipt_items.credit_calculation.items]
+        receipt_items = []
+        
+        for i in items:
+            for calculation in i[model.__class__.__name__].values():
+                item = calculation(model)
+                if item:
+                    receipt_items.append(item)
+        
+        return receipt_items
+
+    @classmethod
+    def process_receipt_item(cls, item, receipt=None):
+        """
+        Unpacks the items from get_all_receipt_items. If a ModelReceipt is provided, new ReceiptItems are created.
+        Otherwise, the raw values are returned so attendees can preview their receipts.
+
+        Returns a list containing either:
+            - A single ReceiptItem
+            - A single tuple (desc, cost, count)
+            - Multiple ReceiptItems
+            - Multiple tuples (desc, cost, count)
+        """
+        from uber.models import AdminAccount, ReceiptItem
+        try:
+            desc, cost, count = item
+        except ValueError:
+            # Unpack list of wrong size (no quantity provided).
+            desc, cost = item
+            count = 1
+        if isinstance(cost, Iterable):
+            # A list of the same item at different prices, e.g., group badges
+            receipt_items = []
+            for price in cost:
+                if receipt:
+                    receipt_items.append(ReceiptItem(receipt_id=receipt.id,
+                                                     desc=desc,
+                                                     amount=cost,
+                                                     count=count,
+                                                     who=AdminAccount.admin_name() or 'non-admin'
+                                                    ))
+                else:
+                    receipt_items.append((desc, price, count))
+            return receipt_items
+        if receipt:
+            return [ReceiptItem(receipt_id=receipt.id,
+                                desc=desc,
+                                amount=cost,
+                                count=count,
+                                who=AdminAccount.admin_name() or 'non-admin'
+                            )]
+        else:
+            return [(desc, cost, count)]
+
+    @classmethod
+    def create_model_receipt(cls, model):
+        from uber.models import ModelReceipt
+
+        receipt = ModelReceipt(owner_id=model.id, owner_model=model.__class__.__name__)
+        receipt_items = []
+
+        for item in cls.get_all_receipt_items(model):
+            receipt_items.extend(cls.process_receipt_item(item, receipt))
+        
+        return receipt, receipt_items
+
+    @classmethod
+    def calc_simple_cost_change(cls, model, col_name, new_val):
+        """
+        Takes an instance of a model and attempts to calculate a simple cost change
+        based on a column name. Used for columns where the cost is the column, e.g.,
+        extra_donation and amount_extra.
+        """
+        model_dict = model.to_dict()
+
+        if not model_dict.get(col_name):
+            return
+        
+        return (model_dict[col_name], new_val - model_dict[col_name])
+
+    @classmethod
+    def process_receipt_upgrade_item(cls, model, col_name, new_val, receipt=None, count=1):
+        """
+        Finds the cost of a receipt item to add to an existing receipt.
+        This uses the cost_changes dictionary defined on each model in receipt_items.py,
+        calling it with the extra keyword arguments provided. If no function is specified,
+        we use calc_simple_cost_change instead.
+        
+        If a ModelReceipt is provided, a new ReceiptItem is created and returned.
+        Otherwise, the raw values are returned so attendees can preview their receipt 
+        changes.
+        """
+        from uber.models import AdminAccount, ReceiptItem
+        from uber.models.types import Choice
+
+        try:
+            new_val = int(new_val)
+        except Exception:
+            pass # It's fine if this is not a number
+
+        if isinstance(model.__table__.columns.get(col_name).type, Choice):
+            increase_term, decrease_term = "Upgrading", "Downgrading"
+        else:
+            increase_term, decrease_term = "Increasing", "Decreasing"
+
+        cost_change_tuple = model.cost_changes.get(col_name)
+        if not cost_change_tuple:
+            cost_change_name = col_name.replace('_', ' ').title()
+            old_cost, cost_change = cls.calc_simple_cost_change(model, col_name, new_val)
+        else:
+            cost_change_name = cost_change_tuple[0]
+            cost_change_func = cost_change_tuple[1]
+            if len(cost_change_tuple) > 2:
+                cost_change_name = cost_change_name.format(*[dictionary.get(new_val) for dictionary in cost_change_tuple[2:]])
+            
+            try:
+                change_func = getattr(model, cost_change_func)
+                old_cost, cost_change = change_func(**{col_name: new_val})
+            except AttributeError:
+                old_cost, cost_change = cls.calc_simple_cost_change(model, col_name, new_val)
+
+        if not old_cost:
+            cost_desc = "Adding {}".format(cost_change_name)
+        elif cost_change * -1 == old_cost: # We're crediting the full amount of the item
+            cost_desc = "Removing {}".format(cost_change_name)
+        elif cost_change > 0:
+            cost_desc = "{} {}".format(increase_term, cost_change_name)
+        else:
+            cost_desc = "{} {}".format(decrease_term, cost_change_name)
+
+        if receipt:
+            return ReceiptItem(receipt_id=receipt.id,
+                                desc=cost_desc,
+                                amount=cost_change,
+                                count=count,
+                                who=AdminAccount.admin_name() or 'non-admin',
+                                revert_change={col_name: getattr(model, col_name)},
+                            )
+        else:
+            return (cost_desc, cost_change, count)
+
+    def prereg_receipt_preview(self):
+        """
+        Returns a list of tuples where tuple[0] is the name of a group of items,
+        and tuple[1] is a list of cost item tuples from process_receipt_item
+        
+        This lets us show the attendee a nice display of what they're buying
+        ... whenever we get around to actually using it that way
+        """
+        items_preview = []
+        for model in self.models:
+            if getattr(model, 'badges', None) and getattr(model, 'name') and isinstance(model, uber.models.Attendee):
+                items_group = ("{} plus {} badges ({})".format(getattr(model, 'full_name', None), int(model.badges) - 1, model.name), [])
+            else:
+                group_name = getattr(model, 'name', None)
+                items_group = (group_name or getattr(model, 'full_name', None), [])
+            
+            for item in Charge.get_all_receipt_items(model):
+                items_group[1].extend(Charge.process_receipt_item(item))
+            
+            items_preview.append(items_group)
+
+        return items_preview
+
+    def set_total_cost(self):
+        preview_receipt_groups = self.prereg_receipt_preview()
+        for group in preview_receipt_groups:
+            self._current_cost += sum([(item[1] * item[2]) for item in group[1]])
 
     @property
     def has_targets(self):
@@ -1048,23 +1248,11 @@ class Charge:
 
     @cached_property
     def total_cost(self):
-        costs = []
-
-        for m in self.models:
-            if isinstance(m, uber.models.Attendee) and getattr(m, 'badges', None):
-                costs.append(c.get_group_price() * int(m.badges))
-                costs.append(m.amount_extra_unpaid)
-            else:
-                costs.append(m.amount_unpaid)
-        return 100 * sum(costs)
+        return self._current_cost
 
     @cached_property
     def dollar_amount(self):
-        return self.amount // 100
-
-    @cached_property
-    def amount(self):
-        return int(self._amount or self.total_cost or 0)
+        return self.total_cost // 100
 
     @cached_property
     def description(self):
@@ -1072,7 +1260,8 @@ class Charge:
 
     @cached_property
     def receipt_email(self):
-        return self.models[0].email if self.models and self.models[0].email else self._receipt_email
+        email = self.models[0].email if self.models and self.models[0].email else self._receipt_email
+        return email[0] if isinstance(email, list) else email  
 
     @cached_property
     def names(self):
@@ -1103,41 +1292,49 @@ class Charge:
     def groups(self):
         return [m for m in self.models if isinstance(m, uber.models.Group)]
 
-    @property
-    def stripe_transaction(self):
-        return self._stripe_transaction
+    def create_stripe_intent(self, amount=0, receipt_email='', description=''):
+        """
+        Creates a Stripe Intent, which is what Stripe uses to process payments.
+        After calling this, call create_receipt_transaction with the Stripe Intent's ID
+        and the receipt to add the new transaction to the receipt.
+        """
+        from uber.custom_tags import format_currency
 
-    def create_stripe_intent(self, session):
-        log.debug('Creating Stripe Intent to charge {} cents for {}', self.amount, self.description)
+        amount = amount or self.total_cost
+        receipt_email = receipt_email or self.receipt_email
+        description = description or self.description
+
+        if not amount or amount <= 0:
+            log.error('Was asked for a Stripe Intent but the currently owed amount is invalid: {}'.format(amount))
+            return "There was an error calculating the amount. Please refresh the page or contact the system admin."
+
+        if amount > 999999:
+            return "We cannot charge {}. Please make sure your total is below $999,999.".format(format_currency(amount / 100))
+
+        log.debug('Creating Stripe Intent to charge {} cents for {}', amount, description)
         try:
-            if self.receipt_email:
+            customer = None
+            if receipt_email:
                 customer_list = stripe.Customer.list(
-                    email=self.receipt_email,
+                    email=receipt_email,
                     limit=1,
                 )
                 if customer_list:
                     customer = customer_list.data[0]
                 else:
                     customer = stripe.Customer.create(
-                        description=self.receipt_email,
-                        email=self.receipt_email,
+                        description=receipt_email,
+                        email=receipt_email,
                     )
 
             stripe_intent = stripe.PaymentIntent.create(
                 payment_method_types=['card'],
-                amount=self.amount,
+                amount=amount,
                 currency='usd',
-                description=self.description,
-                receipt_email=customer.email,
-                customer=customer.id,
+                description=description,
+                receipt_email=customer.email if receipt_email else None,
+                customer=customer.id if customer else None,
             )
-
-            if self.models:
-                self._stripe_transaction = self.stripe_transaction_from_charge(stripe_intent.id)
-                session.add(self._stripe_transaction)
-                for model in self.models:
-                    multi = len(self.models) > 1
-                    session.add(self.stripe_transaction_for_model(model, self._stripe_transaction, multi))
 
             return stripe_intent
         except Exception as e:
@@ -1145,74 +1342,526 @@ class Charge:
             report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
             return 'An unexpected problem occurred while setting up payment: ' + str(e)
 
-    def stripe_transaction_from_charge(self, stripe_id='', type=c.PENDING):
-        return uber.models.StripeTransaction(
-            stripe_id=stripe_id,
-            amount=self.amount,
-            desc=self.description,
-            type=type,
+    @classmethod
+    def create_receipt_transaction(self, receipt, desc='', intent_id=''):
+        return uber.models.ReceiptTransaction(
+            receipt_id=receipt.id,
+            intent_id=intent_id,
+            amount=receipt.current_amount_owed,
+            desc=desc,
             who=uber.models.AdminAccount.admin_name() or 'non-admin'
         )
 
-    def stripe_transaction_for_model(self, model, txn, multi=False):
-        if model.__class__.__name__ == "Attendee":
-            return uber.models.commerce.StripeTransactionAttendee(
-                txn_id=txn.id,
-                attendee_id=model.id,
-                share=self.amount if not multi else model.amount_unpaid * 100
-            )
-        elif model.__class__.__name__ == "Group":
-            return uber.models.commerce.StripeTransactionGroup(
-                txn_id=txn.id,
-                group_id=model.id,
-                share=self.amount if not multi else model.amount_unpaid * 100
-            )
-
     @staticmethod
-    def mark_paid_from_stripe_id(stripe_id):
+    def mark_paid_from_intent_id(intent_id, charge_id):
+        from uber.models import Attendee, Group, Session
         from uber.tasks.email import send_email
         from uber.decorators import render
         
-        with uber.models.Session() as session:
-            matching_stripe_txns = session.query(uber.models.StripeTransaction).filter_by(stripe_id=stripe_id)
-            dealers_paid = []
+        with Session() as session:
+            matching_txns = session.query(uber.models.ReceiptTransaction).filter_by(intent_id=intent_id).all()
 
-            for txn in matching_stripe_txns:
-                txn.type = c.PAYMENT
+            for txn in matching_txns:
+                txn.charge_id = charge_id
                 session.add(txn)
+                txn_receipt = txn.receipt
 
-                for item in txn.receipt_items:
-                    item.txn_type = c.PAYMENT
-                    session.add(item)
+                for item in txn_receipt.open_receipt_items:
+                    if item.added < txn.added:
+                        item.closed = datetime.now()
+                        session.add(item)
 
-                for group_log in txn.groups:
-                    group = group_log.group
-                    if not group.amount_pending:
-                        group.paid = c.HAS_PAID
-                        session.add(group)
-                        if group.is_dealer:
-                            dealers_paid.append(group)
+                session.commit()
 
-                for attendee_log in txn.attendees:
-                    attendee = attendee_log.attendee
-                    if not attendee.amount_pending:
-                        if attendee.badge_status == c.PENDING_STATUS:
-                            attendee.badge_status = c.NEW_STATUS
-                        if attendee.paid in [c.NOT_PAID, c.PENDING]:
-                            attendee.paid = c.HAS_PAID
-                        session.add(attendee)
+                model = session.get_model_by_receipt(txn_receipt)
+                if isinstance(model, Attendee) and not model.amount_pending:
+                    if model.badge_status == c.PENDING_STATUS:
+                        model.badge_status = c.NEW_STATUS
+                    if model.paid in [c.NOT_PAID, c.PENDING]:
+                        model.paid = c.HAS_PAID
+                if isinstance(model, Group) and not model.amount_pending:
+                    model.paid = c.HAS_PAID
+                session.add(model)
 
+                session.commit()
+
+                if isinstance(model, Group):
+                    if model and model.is_dealer and not txn.receipt.open_receipt_items:
+                        try:
+                            send_email.delay(
+                                c.MARKETPLACE_EMAIL,
+                                c.MARKETPLACE_EMAIL,
+                                '{} Payment Completed'.format(c.DEALER_TERM.title()),
+                                render('emails/dealers/payment_notification.txt', {'group': model}, encoding=None),
+                                model=model.to_dict('id'))
+                        except Exception:
+                            log.error('unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
+
+            return txn
+
+
+class SignNowDocument:    
+    def __init__(self):
+        self.access_token = None
+        self.error_message = ''
+        self.set_access_token()
+
+    @property
+    def api_call_headers(self):
+        """
+        SignNow's Python SDK is very limited, so we often have to make our own calls instead.
+        """
+        return {
+                "Authorization": "Bearer " + self.access_token,
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+
+    def set_access_token(self, refresh=False):
+        from uber.config import aws_secrets_client
+
+        self.access_token = c.SIGNNOW_ACCESS_TOKEN
+
+        if not self.access_token and c.DEV_BOX and c.SIGNNOW_USERNAME and c.SIGNNOW_PASSWORD:
+            access_request = signnow_sdk.OAuth2.request_token(c.SIGNNOW_USERNAME, c.SIGNNOW_PASSWORD, '*')
+            if 'error' in access_request:
+                self.error_message = "Error getting access token from SignNow: " + access_request['error']
+            else:
+                self.access_token = access_request['access_token']
+            
+        elif (not self.access_token or refresh) and aws_secrets_client:
+            aws_secrets_client.get_signnow_secret()
+            self.access_token = c.SIGNNOW_ACCESS_TOKEN
+
+    def create_document(self, template_id, doc_title, folder_id='', uneditable_texts_list=None, fields={}):
+        from requests import post, put
+        from json import dumps, loads
+
+        self.set_access_token(refresh=True)
+        document_request = signnow_sdk.Template.copy(self.access_token, template_id, doc_title)
+        
+        if 'error' in document_request:
+            self.error_message = "Error creating document from template: " + document_request['error']
+            return None
+        
+        if uneditable_texts_list:
+            response = put(signnow_sdk.Config().get_base_url() + '/document/' + document_request.get('id'), headers=self.api_call_headers,
+            data=dumps({
+                "texts": uneditable_texts_list,
+            }))
+            edit_request = loads(response.content)
+
+            if 'errors' in edit_request:
+                self.error_message = "Error setting up uneditable text fields: " + '; '.join([e['message'] for e in edit_request['errors']])
+                return None
+        
+        if fields:
+            response = put(signnow_sdk.Config().get_base_url() + '/v2/documents/' + document_request.get('id') + '/prefill-texts', headers=self.api_call_headers,
+            data=dumps({
+                "fields": [{"field_name": field, "prefilled_text": name} for field, name in fields.items()],
+            }))
+            if response.status_code != 204:
+                fields_request = response.json()
+
+                if 'errors' in fields_request:
+                    self.error_message = "Error setting up text fields: " + '; '.join([e['message'] for e in fields_request['errors']])
+                    return None
+
+        if folder_id:
+            result = signnow_sdk.Document.move(self.access_token,
+                                               document_request.get('id', ''),
+                                               folder_id)
+            if 'error' in result:
+                self.error_message = "Error moving document into folder: " + result['error']
+                # Give the document request back anyway
+        
+        return document_request.get('id')
+    
+    def get_signing_link(self, document_id, first_name="", last_name="", redirect_uri=""):
+        from requests import post
+        from json import dumps, loads
+
+        """Creates shortened signing link urls that can be clicked be opened in a browser to sign the document
+        Based on SignNow's Python SDK, which is horribly out of date.
+        Args:
+            access_token (str): The access token of an account that has access to the document.
+            document_id (str): The unique id of the document you want to create the links for.
+            redirect_uri (str): The URL to redirect the user when they are done signing the document.
+        Returns:
+            dict: A dictionary representing the JSON response containing the signing links for the document.
+        """
+
+        self.set_access_token(refresh=True)
+
+        response = post(signnow_sdk.Config().get_base_url() + '/link', headers=self.api_call_headers,
+        data=dumps({
+            "document_id": document_id,
+            "firstname": first_name,
+            "lastname": last_name,
+            "redirect_uri": redirect_uri
+        }))
+        signing_request = loads(response.content)
+        if 'errors' in signing_request:
+            self.error_message = "Error getting signing link: " + '; '.join([e['message'] for e in signing_request['errors']])
+        else:
+            return signing_request.get('url_no_signup')
+
+    def get_download_link(self, document_id):
+        self.set_access_token(refresh=True)
+        download_request = signnow_sdk.Document.download_link(self.access_token, document_id)
+
+        if 'error' in download_request:
+            self.error_message = "Error getting download link: " + download_request['error']
+        else:
+            return download_request.get('link')
+    
+    def get_document_details(self, document_id):
+        self.set_access_token(refresh=True)
+        document_request = signnow_sdk.Document.get(self.access_token, document_id)
+
+        if 'error' in document_request:
+            self.error_message = "Error getting document: " + document_request['error']
+        else:
+            return document_request
+
+
+class TaskUtils:
+    """
+    Utility functions for use in celery tasks.
+    """
+    @staticmethod
+    def _guess_dept(session, id_name):
+        from uber.models import Department
+        from sqlalchemy import or_
+
+        id, name = id_name
+        dept = session.query(Department).filter(or_(
+            Department.id == id,
+            Department.normalized_name == Department.normalize_name(name))).first()
+
+        if dept:
+            return (id, dept)
+        return None
+
+    @staticmethod
+    def attendee_import(import_job):
+        from uber.models import Attendee, AttendeeAccount, DeptMembership, DeptMembershipRequest
+        from functools import partial
+
+        with uber.models.Session() as session:
+            service, message, target_url = get_api_service_from_server(import_job.target_server,
+                                                                       import_job.api_token)
+
+            import_job.queued = datetime.now()
             session.commit()
 
-            for group in dealers_paid:
-                try:
-                    send_email.delay(
-                        c.MARKETPLACE_EMAIL,
-                        c.MARKETPLACE_EMAIL,
-                        '{} Payment Completed'.format(c.DEALER_TERM.title()),
-                        render('emails/dealers/payment_notification.txt', {'group': group}, encoding=None),
-                        model=group.to_dict('id'))
-                except Exception:
-                    log.error('unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
+            errors = []
+            badge_type = int(import_job.json_data.get('badge_type', 0))
+            extra_admin_notes = import_job.json_data.get('admin_notes', '')
 
-            return matching_stripe_txns
+            if not badge_type:
+                errors.append("ERROR: Attendee does not have a badge type.")
+            elif badge_type not in c.BADGES:
+                errors.append("ERROR: Attendee badge type not recognized: " + str(badge_type))
+
+            try:
+                results = service.attendee.export(import_job.query, True)
+            except Exception as ex:
+                errors.append(str(ex))
+            else:
+                num_attendees = len(results.get('attendees', []))
+                if num_attendees != 1:
+                    errors.append("ERROR: We expected one attendee for this query, but got " + str(num_attendees) + " instead.")
+            
+            if errors:
+                import_job.errors += "; {}".format("; ".join(errors)) if import_job.errors else "; ".join(errors)
+                session.commit()
+                return
+            
+            attendee = results.get('attendees', [])[0]
+            badge_label = c.BADGES[badge_type].lower()
+
+            if badge_type == c.STAFF_BADGE:
+                paid = c.NEED_NOT_PAY
+            else:
+                paid = c.NOT_PAID
+        
+            import_from_url = '{}/registration/form?id={}\n\n'.format(import_job.target_server, attendee['id'])
+            new_admin_notes = '{}\n\n'.format(extra_admin_notes) if extra_admin_notes else ''
+            old_admin_notes = 'Old Admin Notes:\n{}\n'.format(attendee['admin_notes']) if attendee['admin_notes'] else ''
+
+            attendee.update({
+                'badge_type': badge_type,
+                'badge_status': c.NEW_STATUS if badge_type == c.STAFF_BADGE else c.IMPORTED_STATUS,
+                'paid': paid,
+                'placeholder': True,
+                'requested_hotel_info': True,
+                'admin_notes': 'Imported {} from {}{}{}'.format(
+                    badge_label, import_from_url, new_admin_notes, old_admin_notes),
+                'past_years': attendee['all_years'],
+            })
+            if attendee['shirt'] not in c.SHIRT_OPTS:
+                del attendee['shirt']
+                
+            del attendee['id']
+            del attendee['all_years']
+
+            account_ids = attendee.get('attendee_account_ids', [])
+
+            if badge_type != c.STAFF_BADGE:
+                attendee = Attendee().apply(attendee, restricted=False)
+            else:
+                assigned_depts = {attendee[0]: 
+                                  attendee[1] for attendee in map(partial(TaskUtils._guess_dept, session),
+                                  attendee.pop('assigned_depts', {}).items()) if attendee}
+                checklist_admin_depts = attendee.pop('checklist_admin_depts', {})
+                dept_head_depts = attendee.pop('dept_head_depts', {})
+                poc_depts = attendee.pop('poc_depts', {})
+                requested_depts = attendee.pop('requested_depts', {})
+
+                attendee.update({
+                    'staffing': True,
+                    'ribbon': str(c.DEPT_HEAD_RIBBON) if dept_head_depts else '',
+                })
+
+                attendee = Attendee().apply(attendee, restricted=False)
+
+                for id, dept in assigned_depts.items():
+                    attendee.dept_memberships.append(DeptMembership(
+                        department=dept,
+                        attendee=attendee,
+                        is_checklist_admin=bool(id in checklist_admin_depts),
+                        is_dept_head=bool(id in dept_head_depts),
+                        is_poc=bool(id in poc_depts),
+                    ))
+
+                requested_anywhere = requested_depts.pop('All', False)
+                requested_depts = {d[0]: d[1] for d in map(partial(TaskUtils._guess_dept, session), requested_depts.items()) if d}
+
+                if requested_anywhere:
+                    attendee.dept_membership_requests.append(DeptMembershipRequest(attendee=attendee))
+                for id, dept in requested_depts.items():
+                    attendee.dept_membership_requests.append(DeptMembershipRequest(
+                        department=dept,
+                        attendee=attendee,
+                    ))
+
+            session.add(attendee)
+
+            for id in account_ids:
+                try:
+                    account_to_import = TaskUtils.get_attendee_account_by_id(id, service)
+                except Exception as ex:
+                    import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
+
+                account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email(account_to_import['email'])).first()
+                if not account:
+                    del account_to_import['id']
+                    account = AttendeeAccount().apply(account_to_import, restricted=False)
+                    session.add(account)
+                attendee.managers.append(account)
+
+            try:
+                session.commit()
+            except Exception as ex:
+                session.rollback()
+                import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
+            else:
+                import_job.completed = datetime.now()
+            session.commit()
+    
+    @staticmethod
+    def get_attendee_account_by_id(account_id, service):
+        from uber.models import AttendeeAccount
+
+        try:
+            results = service.attendee_account.export(account_id, False)
+        except Exception as ex:
+            raise ex
+        else:
+            num_accounts = len(results.get('accounts', []))
+            if num_accounts != 1:
+                raise Exception("ERROR: We expected one account for this query, but got " + str(num_accounts) + " instead.")
+        
+        return results.get('accounts', [])[0]
+
+    @staticmethod
+    def basic_attendee_import(attendee):
+        from uber.models import Attendee
+        attendee.update({
+            'badge_status': c.IMPORTED_STATUS,
+            'badge_num': None,
+            'requested_hotel_info': True,
+            'past_years': attendee['all_years'],
+        })
+        if attendee.get('shirt', '') and attendee['shirt'] not in c.SHIRT_OPTS:
+            del attendee['shirt']
+            
+        del attendee['id']
+        del attendee['all_years']
+
+        return Attendee().apply(attendee, restricted=False)
+
+    @staticmethod
+    def attendee_account_import(import_job):
+        from uber.models import Attendee, AttendeeAccount
+
+        with uber.models.Session() as session:
+            service, message, target_url = get_api_service_from_server(import_job.target_server,
+                                                                       import_job.api_token)
+
+            import_job.queued = datetime.now()
+            session.commit()
+
+            errors = []
+
+            try:
+                account_to_import = TaskUtils.get_attendee_account_by_id(import_job.query, service)
+            except Exception as ex:
+                import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
+                session.commit()
+                return
+
+            account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email(account_to_import['email'])).first()
+            if not account:
+                del account_to_import['id']
+                account = AttendeeAccount().apply(account_to_import, restricted=False)
+                session.add(account)
+
+            try:
+                session.commit()
+            except Exception as ex:
+                session.rollback()
+                import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
+                return
+            else:
+                import_job.completed = datetime.now()
+
+            account_attendees = {}
+
+            try:
+                account_attendees = service.attendee_account.export_attendees(import_job.query, True)['attendees']
+            except Exception as ex:
+                pass
+
+            for attendee in account_attendees:
+                # Try to match staff to their existing badge, which would be newer than the one we're importing
+                if attendee.get('badge_num', 0) in range(c.BADGE_RANGES[c.STAFF_BADGE][0], c.BADGE_RANGES[c.STAFF_BADGE][1]):
+                    old_badge_num = attendee['badge_num']
+                    existing_staff = session.query(Attendee).filter_by(badge_num=old_badge_num).first()
+                    if existing_staff:
+                        existing_staff.managers.append(account)
+                        session.add(existing_staff)
+                    else:
+                        new_staff = TaskUtils.basic_attendee_import(attendee)
+                        new_staff.badge_num = old_badge_num
+                        new_staff.managers.append(account)
+                        session.add(new_staff)
+                        log.debug(new_staff.badge_num)
+                else:
+                    new_attendee = TaskUtils.basic_attendee_import(attendee)
+                    new_attendee.paid = c.NOT_PAID
+                    
+                    new_attendee.managers.append(account)
+                    session.add(new_attendee)
+
+                try:
+                    session.commit()
+                except Exception as ex:
+                    import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
+                    session.rollback()
+                session.commit()
+
+    @staticmethod
+    def group_import(import_job):
+        # Import groups, then their attendees, then those attendee's accounts
+
+        from uber.models import Attendee, AttendeeAccount, Group
+
+        with uber.models.Session() as session:
+            service, message, target_url = get_api_service_from_server(import_job.target_server,
+                                                                       import_job.api_token)
+
+            import_job.queued = datetime.now()
+            session.commit()
+
+            errors = []
+
+            try:
+                results = service.group.export(import_job.query, import_job.json_data.get('all', True))
+            except Exception as ex:
+                errors.append(str(ex))
+            else:
+                num_groups = len(results.get('groups', []))
+                if num_groups != 1:
+                    errors.append("ERROR: We expected one group for this query, but got " + str(num_groups) + " instead.")
+            
+            if errors:
+                import_job.errors += "; {}".format("; ".join(errors)) if import_job.errors else "; ".join(errors)
+                session.commit()
+                return
+            
+            group_to_import = results.get('groups', [])[0]
+            group_attendees = {}
+
+            try:
+                group_results = service.group.export_attendees(group_to_import['id'], True)
+                group_attendees = group_results['attendees']
+            except Exception as ex:
+                attendee_warning = "Could not import attendees: {}".format(str(ex))
+                import_job.errors += "; {}".format(attendee_warning) if import_job.errors else attendee_warning
+
+            # Remove categories that don't exist this year
+            current_categories = group_to_import.get('categories', '')
+            if current_categories:
+                current_categories = current_categories.split(',')
+                for category in current_categories:
+                    if int(category) not in c.DEALER_WARES.keys():
+                        current_categories.remove(category)
+                group_to_import['categories'] = ','.join(current_categories)
+
+            group_to_import['status'] = c.IMPORTED
+
+            new_group = Group().apply(group_to_import, restricted=False)
+            session.add(new_group)
+            try:
+                session.commit()
+            except Exception as ex:
+                session.rollback()
+                import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
+                return
+            else:
+                import_job.completed = datetime.now()
+
+            for attendee in group_attendees:
+                is_leader = attendee['id'] == group_results['group_leader_id']
+                new_attendee = TaskUtils.basic_attendee_import(attendee)
+                if not new_attendee.paid == c.PAID_BY_GROUP:
+                    new_attendee.paid = c.NOT_PAID
+                new_attendee.group = new_group
+                if is_leader:
+                    new_group.leader = new_attendee
+                
+                for id in attendee.get('attendee_account_ids', ''):
+                    try:
+                        account_to_import = TaskUtils.get_attendee_account_by_id(id, service)
+                    except Exception as ex:
+                        import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
+
+                    account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email(account_to_import['email'])).first()
+                    if not account:
+                        del account_to_import['id']
+                        account = AttendeeAccount().apply(account_to_import, restricted=False)
+                        session.add(account)
+                    new_attendee.managers.append(account)
+
+                session.add(new_attendee)
+
+                try:
+                    session.commit()
+                except Exception as ex:
+                    import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
+                    session.rollback()
+
+            session.assign_badges(new_group, group_to_import['badges'], group_results['unassigned_badge_type'], group_results['unassigned_ribbon'])
+            session.commit()

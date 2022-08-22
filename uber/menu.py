@@ -105,7 +105,7 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='Staffers', href='../shifts_admin/staffers'),
         MenuItem(name='Pending Staffers', href='../staffing_admin/pending_badges'),
         MenuItem(name='View/Edit Shift Schedule', href='../shifts_admin/'),
-        MenuItem(name='All Unfilled Shifts', href='../shifts_admin/everywhere'),
+        MenuItem(name='Unfilled Shifts', href='../shifts_admin/unfilled_shifts'),
         MenuItem(name='Departments', href='../dept_admin/'),
         MenuItem(name='Department Checklists', href='../dept_checklist/overview'),
     ]),

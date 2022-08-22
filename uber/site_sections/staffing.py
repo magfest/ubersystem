@@ -41,15 +41,19 @@ class Root:
         }
 
     @check_shutdown
-    def shirt_size(self, session, message='', shirt=None, num_event_shirts=None, csrf_token=None):
+    def shirt_size(self, session, message='', shirt=None, staff_shirt=None, num_event_shirts=None, csrf_token=None):
         attendee = session.logged_in_volunteer()
-        if shirt is not None:
+        if shirt is not None or staff_shirt is not None:
             check_csrf(csrf_token)
-            if not shirt:
+            if (shirt and not int(shirt)) or (
+                attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS and not int(staff_shirt)):
                 message = 'You must select a shirt size'
             else:
-                attendee.shirt = int(shirt)
-                if c.STAFF_EVENT_SHIRT_OPTS and c.BEFORE_SHIRT_DEADLINE and num_event_shirts:
+                if shirt:
+                    attendee.shirt = int(shirt)
+                if staff_shirt:
+                    attendee.staff_shirt = int(staff_shirt)
+                if c.STAFF_EVENT_SHIRT_OPTS and c.BEFORE_VOLUNTEER_SHIRT_DEADLINE and num_event_shirts:
                     attendee.num_event_shirts = int(num_event_shirts)
                 raise HTTPRedirect('index?message={}', 'Shirt info uploaded')
 
@@ -60,19 +64,23 @@ class Root:
         }
 
     @check_shutdown
-    def volunteer_agreement(self, session, message='', agreed_to_terms=None, csrf_token=None):
+    def volunteer_agreement(self, session, message='', agreed_to_terms=None, agreed_to_terms_1=None, agreed_to_terms_2=None, csrf_token=None):
         attendee = session.logged_in_volunteer()
         if csrf_token is not None:
             check_csrf(csrf_token)
-            if agreed_to_terms:
+            if agreed_to_terms or (agreed_to_terms_1 and agreed_to_terms_2):
                 attendee.agreed_to_volunteer_agreement = True
                 raise HTTPRedirect('index?message={}', 'Agreement received')
-
-            message = "You must agree to the terms of the agreement"
+            elif agreed_to_terms_1 or agreed_to_terms_2:
+                message = "You must agree to both the terms of the agreement and the volunteering policies and guidelines"
+            else:
+                message = "You must agree to the terms of the agreement"
 
         return {
             'message': message,
             'attendee': attendee,
+            'agreed_to_terms_1': agreed_to_terms_1,
+            'agreed_to_terms_2': agreed_to_terms_2,
             'agreement_end_date': c.ESCHATON.date() + timedelta(days=31),
         }
         

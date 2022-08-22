@@ -357,7 +357,7 @@
       });
     };
 
-    $('.room-col').on('click', '.btn-danger', function(event) {
+    $('.room-col').on('click', '.delete-event', function(event) {
       event.preventDefault();
       var $button = $(this);
           eventId = $button.data('eventId'),
@@ -410,6 +410,87 @@
         }
       });
     };
+
+    openSignups = function(featureId, location, day) {
+      bootbox.confirm({
+        backdrop: true,
+        message: '<p><strong>Open ' + features[featureId] + ' signups in ' + allLocations[location] + ' for ' + day + '?</strong></p>' +
+                 'This will allow attendees to sign up for all the events in this location on this day' +
+                 '{% if not attraction.is_public %} once this attraction is made public and{% endif %}'+ 
+                 ' as long as this feature is open to the public.',
+        buttons: {
+          confirm: { label: 'Open Signups', className: 'btn-success' },
+          cancel: { label: 'Nevermind', className: 'btn-default' }
+        },
+        callback: function(result) {
+          if (result) {
+            $.ajax({
+              method: 'POST',
+              url: 'open_signups',
+              data: {
+                feature_id: featureId,
+                location: location,
+                day: day,
+                csrf_token: csrf_token
+              },
+              success: function(response, status) {
+                if (response['error']) {
+                    toastr.error('There was an error opening signups: ' + response['error']);
+                } else {
+                    toastr.success('Signups for all ' + features[featureId] + ' events on ' + day + ' opened!', {timeOut: 2000});
+                    $('#' + featureId + '_' + location + '_' + day + ' .open-signups').hide();
+                    $('#' + featureId + '_' + location + '_' + day + ' .close-signups').show();
+                }
+              },
+              error: function(response, status) {
+                toastr.error(response);
+              }
+          });
+          }
+        }
+      });
+      return false;
+    }
+
+    closeSignups = function(featureId, location, day) {
+      bootbox.confirm({
+        backdrop: true,
+        message: '<p><strong>Close ' + features[featureId] + ' signups in ' + allLocations[location] + ' for ' + day + '?</strong></p>' +
+                 'This will allow attendees to see the events but not sign up for them.' + 
+                 ' Events are automatically closed to signups when the event starts or when check-in closes.',
+        buttons: {
+          confirm: { label: 'Close Signups', className: 'btn-danger' },
+          cancel: { label: 'Nevermind', className: 'btn-default' }
+        },
+        callback: function(result) {
+          if (result) {
+            $.ajax({
+              method: 'POST',
+              url: 'close_signups',
+              data: {
+                feature_id: featureId,
+                location: location,
+                day: day,
+                csrf_token: csrf_token
+              },
+              success: function(response, status) {
+                if (response['error']) {
+                    toastr.error('There was an error closing signups: ' + response['error']);
+                } else {
+                    toastr.success('Signups for all ' + features[featureId] + ' events on ' + day + ' closed!', {timeOut: 2000});
+                    $('#' + featureId + '_' + location + '_' + day + ' .close-signups').hide();
+                    $('#' + featureId + '_' + location + '_' + day + ' .open-signups').show();
+                }
+              },
+              error: function(response, status) {
+                toastr.error(response);
+              }
+          });
+          }
+        }
+      });
+      return false;
+    }
 
     $('.room-title > select').on('change', function(event) {
       var $select = $(this);
@@ -631,6 +712,9 @@
       <b>NOT</b> open to the public.
     {% endif %}
   </p>
+  {% if attraction.badge_num_required %}
+  <p>Features will require a badge number by default.</p>
+  {% endif %}
   {% if attraction.department_id -%}
     <p class="help-block">
       <em>The {{ attraction.name }} attraction belongs to the {{ attraction.department|form_link }} department.</em>
@@ -721,6 +805,13 @@
                     <b>NOT</b> open to the public.
                   {% endif %}
                 </p>
+                <p>
+                  {% if feature.badge_num_required %}
+                  Attendees <b>MUST</b> sign up with their badge number.
+                  {% else %}
+                  Attendees may sign up with a badge number or their personal information.
+                  {% endif %}
+                </p>
               </div>
               {%- set events_by_location_by_day = feature.events_by_location_by_day -%}
               {% if events_by_location_by_day %}
@@ -758,7 +849,16 @@
                                 {% endfor %}
                               </div>
                             {% endif %}
-                            <h2 id="{{ feature.id }}_{{ location }}_{{ day }}">{{ day }}</h2>
+                            <h2 id="{{ feature.id }}_{{ location }}_{{ day }}">{{ day }} 
+                                <button class="btn btn-sm btn-success open-signups" 
+                                        onClick="openSignups('{{ feature.id }}', '{{ location }}', '{{ day }}')"
+                                        {% if events|rejectattr("signups_open")|list %}{% else %}style="display:none"{% endif %}>
+                                        Open Signups for This Day's Events</button>
+                                <button class="btn btn-sm btn-danger close-signups"
+                                        onClick="closeSignups('{{ feature.id }}', '{{ location }}', '{{ day }}')"
+                                        {% if feature.is_public and events|selectattr("signups_open")|list and not events|selectattr("signups")|list %}{% else %}style="display:none"{% endif %}>
+                                        Close Signups for This Day's Events</button>
+                            </h2>
                             {% for event in events %}
                               <div class="event {% if event.remaining_slots > 0 %} info-block{% else %} success-block{% endif%}"
                                   style="min-height: {{ (event.duration // 90) - 6 }}px">
@@ -769,7 +869,7 @@
                                         href="event?id={{ event.id }}">
                                       <span class="glyphicon glyphicon-cog"></span>
                                     </a>
-                                    <button type="submit" class="btn btn-xs btn-danger btn-fade" data-event-id="{{ event.id }}" data-event-label="{{ feature.name }} at {{ event.start_time_label }}">
+                                    <button type="submit" class="btn btn-xs btn-danger btn-fade delete-event" data-event-id="{{ event.id }}" data-event-label="{{ feature.name }} at {{ event.start_time_label }}">
                                       <span class="glyphicon glyphicon-remove"></span>
                                     </button>
                                   </div>

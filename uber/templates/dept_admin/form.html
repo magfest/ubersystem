@@ -453,7 +453,7 @@
               </tr>
             </thead>
             <tbody>
-              {% for attendee in department.members %}
+              {% for attendee in department.members|selectattr("has_badge") %}
                 {%- set hours_here = attendee.weighted_hours_in(department) -%}
                 {%- set weighted_hours = attendee.weighted_hours -%}
                 <tr>

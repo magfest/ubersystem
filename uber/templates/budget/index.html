@@ -29,7 +29,7 @@
       <tr>
         <td>{{ item.attendee|form_link }}</td>
         <td>{{ item.item_type_label }}</td>
-        <td>{{ '-' if item.txn_type == c.REFUND else '' }}{{ (item.amount / 100)|format_currency }}</td>
+        <td>{{ (item.amount / 100)|format_currency }}</td>
         <td>{{ item.desc }}</td>
       </tr>
     {% endfor %}

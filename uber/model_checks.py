@@ -49,9 +49,10 @@ def read_only_makes_sense(group):
 
 AdminAccount.required = [
     ('attendee', 'Attendee'),
-    ('hashed', 'Password'),
 ]
 
+if not c.AUTH_DOMAIN:
+    AdminAccount.required.append(('hashed', 'Password'))
 
 @validation.AdminAccount
 def duplicate_admin(account):
@@ -210,6 +211,37 @@ def group_leader_under_13(attendee):
         return "Children under 13 cannot be group leaders."
 
 
+@prereg_validation.Attendee
+def child_badge_over_13(attendee):
+    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.is_new and attendee.badge_type == c.CHILD_BADGE \
+            and attendee.age_now_or_at_con and attendee.age_now_or_at_con >= 13:
+        return "If you will be 13 or older at the start of {}, " \
+            "please select an Attendee badge instead of a 12 and Under badge.".format(c.EVENT_NAME)
+
+
+@prereg_validation.Attendee
+def attendee_badge_under_13(attendee):
+    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.is_new and attendee.badge_type == c.ATTENDEE_BADGE \
+            and attendee.age_now_or_at_con and attendee.age_now_or_at_con < 13:
+        return "If you will be 12 or younger at the start of {}, " \
+            "please select the 12 and Under badge instead of an Attendee badge.".format(c.EVENT_NAME)
+
+           
+@validation.Attendee
+def no_more_child_badges(attendee):
+    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.is_new and attendee.age_now_or_at_con and attendee.age_now_or_at_con < 18 \
+            and not c.CHILD_BADGE_AVAILABLE:
+        return "Unfortunately, we are sold out of badges for attendees under 18."
+
+
+@prereg_validation.Attendee
+def upgrade_sold_out(attendee):
+    currently_available_upgrades = [tier['price'] for tier in c.PREREG_DONATION_DESCRIPTIONS]
+    if (attendee.is_new or attendee.orig_value_of('amount_extra') != attendee.amount_extra) \
+        and attendee.amount_extra and attendee.amount_extra not in currently_available_upgrades:
+        return "The upgrade you have selected is sold out."
+
+
 @validation.Attendee
 def extra_donation_valid(attendee):
     try:
@@ -222,6 +254,7 @@ def extra_donation_valid(attendee):
 
 @prereg_validation.Attendee
 def total_cost_over_paid(attendee):
+    return
     if (attendee.total_cost * 100) < attendee.amount_paid:
         if (not attendee.orig_value_of('birthdate') or attendee.orig_value_of('birthdate') < attendee.birthdate) \
                 and attendee.age_group_conf['val'] in [c.UNDER_6, c.UNDER_13]:
@@ -229,13 +262,6 @@ def total_cost_over_paid(attendee):
                 'please email {} to change your badge and receive a refund'.format(c.REGDESK_EMAIL)
         return 'You have already paid {}, you cannot reduce your extras below that.'.format(
             format_currency(attendee.amount_paid / 100))
-
-
-@validation.Attendee
-def reasonable_total_cost(attendee):
-    if attendee.total_cost >= 999999:
-        return 'We cannot charge ${}. Please reduce extras so the total is below $999,999.'.format(
-            format_currency(attendee.total_cost))
 
 
 @prereg_validation.Attendee
@@ -462,8 +488,8 @@ def no_more_custom_badges(attendee):
     if (attendee.badge_type != attendee.orig_value_of('badge_type') or attendee.is_new) \
             and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
         with Session() as session:
-            required_depts = [c.DEFAULT_REGDESK_INT, c.DEFAULT_STOPS_INT]
-            if all(not session.admin_attendee().is_dept_head_of(d) for d in required_depts):
+            admin = session.current_admin_account()
+            if not admin.full_registration_admin and not admin.full_shifts_admin:
                 return 'Custom badges have already been ordered so you cannot use this badge type'
 
 
@@ -1245,7 +1271,8 @@ def agent_code_already_used(attendee):
     if attendee.promo_code:
         with Session() as session:
             apps_with_code = session.lookup_agent_code(attendee.promo_code.code)
-            for app in apps_with_code:
-                if not app.agent_id or app.agent_id == attendee.id:
-                    return
-            return "That agent code has already been used."
+            if apps_with_code:
+                for app in apps_with_code:
+                    if not app.agent_id or app.agent_id == attendee.id:
+                        return
+                return "That agent code has already been used."

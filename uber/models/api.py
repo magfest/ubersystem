@@ -4,13 +4,15 @@ from datetime import datetime
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.schema import ForeignKey
+from sqlalchemy.dialects.postgresql.json import JSONB
+from sqlalchemy.ext.mutable import MutableDict
 
 from uber.config import c
 from uber.models import MagModel
 from uber.models.types import DefaultColumn as Column, MultiChoice
 
 
-__all__ = ['ApiToken']
+__all__ = ['ApiToken', 'ApiJob']
 
 
 class ApiToken(MagModel):
@@ -37,3 +39,17 @@ class ApiToken(MagModel):
     @property
     def api_delete(self):
         return c.API_DELETE in self.access_ints
+
+
+class ApiJob(MagModel):
+    admin_id = Column(UUID, ForeignKey('admin_account.id'))
+    admin_name = Column(UnicodeText) # Preserve admin's name in case their account is removed
+    queued = Column(UTCDateTime, nullable=True, default=None)
+    completed = Column(UTCDateTime, nullable=True, default=None)
+    cancelled = Column(UTCDateTime, nullable=True, default=None)
+    job_name = Column(UnicodeText)
+    target_server = Column(UnicodeText)
+    query = Column(UnicodeText)
+    api_token = Column(UnicodeText)
+    errors = Column(UnicodeText)
+    json_data = Column(MutableDict.as_mutable(JSONB), default={})
