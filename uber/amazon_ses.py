@@ -40,7 +40,6 @@ class AmazonSES:
             message_dict['Html'] = {'Charset': message['charset'] or 'UTF-8', 'Data': message['bodyHtml']}
 
         try:
-            log.debug("Really sending email...")
             response = self._client.send_email(
                 Source=source,
                 Destination=destinations,
@@ -55,10 +54,8 @@ class AmazonSES:
             )
             log.debug("Sent email. Response: " + str(response))
         except ClientError as e:
-            log.debug("Error:" + str(e))
             return e.response['Error']['Message']
         except Exception as e:
-            log.debug("Error:" + str(e))
             return e
 
 email_sender = AmazonSES(c.AWS_REGION_EMAIL)
