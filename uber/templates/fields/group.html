@@ -4,6 +4,7 @@
 {%- set attendee_or_group = attendee if attendee else group -%}
 
 {% set signed_document %}
+{% if false %}
 {% if c.SIGNNOW_DEALER_TEMPLATE_ID and signnow_link %}
   {% if signnow_document and signnow_document.signed %}
   <span id="tc-link">
@@ -25,6 +26,7 @@
     <p>Make sure to click "DONE" in the top right to confirm your signature.</p>
   </div>
   {% endif %}
+{% endif %}
 {% endif %}
 {% endset %}
 
