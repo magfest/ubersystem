@@ -24,22 +24,22 @@
         <p>
         {% if account.imported_single_badges and not prereg_message %}
             {% if account.imported_attendees|length == 1 %}
-            <a href="../preregistration/repurchase?id={{ account.imported_attendees[0].id }}&skip_confirm=true" class="btn btn-info" target ="_blank"> Import last year's registration</a>
+            <a href="../preregistration/repurchase?id={{ account.imported_attendees[0].id }}&skip_confirm=true" class="btn btn-info"> Import last year's registration</a>
             {% else %}
                 Select a registration to import below.
             {% endif %}
         {% elif not prereg_message %}
-            <a href="../preregistration/form" class="btn btn-primary" target="_blank">Register Now!</a>
+            <a href="../preregistration/form" class="btn btn-primary">Register Now!</a>
         {% endif %}
         </p>
         {% if account.imported_group_badges and dealer_reg_open %}
             {% if account.imported_attendees|length == 1 and account.imported_attendees[0].is_group_leader %}
-                <a href="../preregistration/reapply?id={{ account.imported_attendees[0].id }}" class="btn btn-success" target ="_blank">Reapply with last year's dealer application</a>
+                <a href="../preregistration/reapply?id={{ account.imported_attendees[0].id }}" class="btn btn-success">Reapply with last year's dealer application</a>
             {% else %}
                 Select a registration to import below. If you were a dealer assistant last year, ask the dealer to reapply.
             {% endif %}
         {% elif dealer_reg_open %}
-            <a href="../preregistration/dealer_registration" class="btn btn-success" target="_blank">Apply as Dealer</a>
+            <a href="../preregistration/dealer_registration" class="btn btn-success">Apply as Dealer</a>
         {% endif %}
     </div>
 </div>
@@ -64,10 +64,10 @@
         {% if not prereg_message or dealer_reg_open %}
         <div class="btn-group">
             {% if not prereg_message %}
-            <a href="../preregistration/form" class="btn btn-primary" target="_blank">Add Registration(s)</a>
+            <a href="../preregistration/form" class="btn btn-primary">Add Registration(s)</a>
             {% endif %}
             {% if dealer_reg_open %}
-            <a href="../preregistration/dealer_registration" class="btn btn-success" target="_blank">Apply as Dealer</a>
+            <a href="../preregistration/dealer_registration" class="btn btn-success">Apply as Dealer</a>
             {% endif %}
         </div>
         {% else %}
@@ -148,7 +148,7 @@
             <td>{{ attendee.badge_status_label }}</td>
             <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
                 {{ attendee.full_name }}
-                {% if attendee.group %}({% if attendee.group.leader in account.attendees %}<a href="../preregistration/group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>{% else %}{{ attendee.group.name }}{% endif %}){% endif %}
+                {% if attendee.group %}({% if attendee.group.leader in account.attendees %}<a href="../preregistration/group_members?id={{ attendee.group.id }}">{{ attendee.group.name }}</a>{% else %}{{ attendee.group.name }}{% endif %}){% endif %}
             </td>
             <td>
                 {% if attendee.badge_status == c.REFUNDED_STATUS %}

@@ -9,6 +9,7 @@ import os
 
 from botocore.exceptions import ClientError
 from datetime import datetime
+from pockets.autolog import log
 from xml.etree.ElementTree import XML
 
 from uber.config import c
@@ -51,9 +52,10 @@ class AmazonSES:
                 },
                 ReturnPath=returnPath or source,
             )
+            log.debug("Sent email. Response: " + str(response))
         except ClientError as e:
             return e.response['Error']['Message']
         except Exception as e:
             return e
 
-email_sender = AmazonSES(c.AWS_REGION)
+email_sender = AmazonSES(c.AWS_REGION_EMAIL)
