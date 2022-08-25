@@ -8,11 +8,7 @@
 {% block content %}
   {% if is_prereg_attendee or is_prereg_dealer %}
     <script type="text/javascript">
-      {% if edit_id %}
-      var disclaimersConfirmed = true;
-      {% else %}
       var disclaimersConfirmed = false;
-      {% endif %}
       var confirmDisclaimers = function () {
         disclaimersConfirmed = true;
         $("#prereg-form").submit();
@@ -145,9 +141,9 @@ $(document).ready(function() {
 <div class="form-group">
     <div class="col-sm-9 col-sm-offset-3">
         {% if attendee.is_dealer %}
-            <button type="submit" class="btn btn-primary" value="Submit Application">Submit Application</button>
+            <button type="button" onClick="openDisclaimersModal()" class="btn btn-primary" value="Submit Application">Submit Application</button>
         {% elif not edit_id %}
-            <button type="submit" class="btn btn-primary" value="Add to Cart">Add to Cart</button>
+            <button type="button" onClick="openDisclaimersModal()" class="btn btn-primary" value="Add to Cart">Add to Cart</button>
         {% else %}
             <button type="submit" class="btn btn-primary" value="Update">Update</button>
         {% endif %}
