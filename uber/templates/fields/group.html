@@ -62,8 +62,8 @@
       <br/><br/>Here is your group's cost breakdown:
       <ul>
         {% if group.auto_recalc %}
-          <li>{{ group.table_cost|format_currency }} for {{ group.tables }} table{{ group.tables|pluralize }}</li>
-          <li>{{ group.badge_cost|format_currency }} for {{ group.badges_purchased }} badge{{ group.badges_purchased|pluralize }}
+          <li>{{ group.default_table_cost|format_currency }} for {{ group.tables }} table{{ group.tables|pluralize }}</li>
+          <li>{{ group.default_badge_cost|format_currency }} for {{ group.badges_purchased }} badge{{ group.badges_purchased|pluralize }}
             {% if upgraded_badges %}(including {{ upgraded_badges }} upgraded badge{{ upgraded_badges|pluralize }}){% endif %}</li>
         {% else %}
           <li>{{ group.cost|format_currency }} total cost</li>
