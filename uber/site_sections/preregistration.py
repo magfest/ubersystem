@@ -921,8 +921,8 @@ class Root:
             'account': session.get_attendee_account_by_attendee(group.leader),
             'current_account': session.current_attendee_account(),
             'upgraded_badges': len([a for a in group.attendees if a.badge_type in c.BADGE_TYPE_PRICES]),
-            'signnow_document': signnow_document,
-            'signnow_link': signnow_link,
+            'signnow_document': signnow_document if c.SIGNNOW_DEALER_TEMPLATE_ID else None,
+            'signnow_link': signnow_link if c.SIGNNOW_DEALER_TEMPLATE_ID else None,
             'message': message
         }
 
