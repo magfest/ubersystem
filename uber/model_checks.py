@@ -149,6 +149,18 @@ def dealer_region(group):
             'state' if group.country == 'United States' else 'province or region')
 
 
+@prereg_validation.Group
+def dealer_email(group):
+    if group.is_dealer and not group.email_address:
+        return 'Please enter your business email address'
+
+
+@prereg_validation.Group
+def dealer_phone(group):
+    if group.is_dealer and not group.phone:
+        return 'Please enter your business\' phone number'
+
+
 @validation.Group
 def group_money(group):
     if not group.auto_recalc:
