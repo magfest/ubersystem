@@ -33,6 +33,8 @@ class Group(MagModel, TakesPaymentMixin):
     city = Column(UnicodeText)
     region = Column(UnicodeText)
     country = Column(UnicodeText)
+    email_address = Column(UnicodeText)
+    phone = Column(UnicodeText)
     website = Column(UnicodeText)
     wares = Column(UnicodeText)
     categories = Column(MultiChoice(c.DEALER_WARES_OPTS))
@@ -220,6 +222,8 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def email(self):
+        if self.email_address:
+            return self.email_address
         if self.studio and self.studio.email:
             return self.studio.email
         elif self.leader and self.leader.email:

@@ -291,6 +291,17 @@ class Root:
                 if params.get('copy_address'):
                     params[field_name] = group_params[field_name]
                     attendee.apply(params)
+                    
+            group_params['phone'] = params.get('group_phone', '')
+            if params.get('copy_phone'):
+                params['cellphone'] = group_params['phone']
+                attendee.apply(params)
+            
+            group_params['email_address'] = params.get('group_email_address', '')
+            if params.get('copy_email'):
+                params['email'] = group_params['email_address']
+                attendee.apply(params)
+
             if not params.get('old_group_id'):
                 group = session.group(group_params, ignore_csrf=True, restricted=True)
 
@@ -344,6 +355,8 @@ class Root:
                 'affiliates': session.affiliates(),
                 'cart_not_empty': Charge.unpaid_preregs,
                 'copy_address': params.get('copy_address'),
+                'copy_email': params.get('copy_email'),
+                'copy_phone': params.get('copy_phone'),
                 'promo_code_code': params.get('promo_code', ''),
                 'pii_consent': params.get('pii_consent'),
                 'name': name,
@@ -464,6 +477,8 @@ class Root:
             'cart_not_empty': Charge.unpaid_preregs,
             'same_legal_name': params.get('same_legal_name'),
             'copy_address': params.get('copy_address'),
+            'copy_email': params.get('copy_email'),
+            'copy_phone': params.get('copy_phone'),
             'promo_code_code': params.get('promo_code', ''),
             'pii_consent': params.get('pii_consent'),
             'invite_code': params.get('invite_code', ''),
