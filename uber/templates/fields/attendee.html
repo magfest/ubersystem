@@ -1462,6 +1462,20 @@ $(window).on("runJavaScript", function () {
 {% endset %}
 
 
+{% set panel_interest %}
+{% set read_only = panel_interest_ro or page_ro %}
+{% if c.BEFORE_PANELS_DEADLINE %}
+<div class="form-group">
+  <label for="panel_interest" class="col-sm-3 control-label optional-field">Panel Interest</label>
+  <div class="checkbox col-sm-9">
+    {{ macros.checkbox(attendee, 'panel_interest', label='I plan to apply for a panel this year.', is_readonly=read_only, clientside_bool=clientside_bool) }}<br/>
+    {% if not admin_area and c.AFTER_PANELS_START %}<a href="../panels/" target="_blank">Apply for a panel here</a>!{% endif %}
+  </div>
+</div>
+{% endif %}
+{% endset %}
+
+
 {% set pii_consent_checkbox %}
 {% set read_only = pii_consent_ro or page_ro %}
 <div class="form-group">
