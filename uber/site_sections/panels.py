@@ -1,5 +1,7 @@
 import cherrypy
 
+from datetime import datetime
+
 from uber.config import c
 from uber.decorators import all_renderable
 from uber.errors import HTTPRedirect
@@ -139,6 +141,16 @@ class Root:
             'poc_id': poc_id,
             'other_panelists': other_panelists,
             'return_to': return_to
+        }
+
+    def confirm_panel(self, session, id):
+        app = session.panel_application(id)
+        app.confirmed = datetime.now()
+        session.add(app)
+        session.commit()
+
+        return {
+            'app': app,
         }
 
 

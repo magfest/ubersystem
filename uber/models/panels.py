@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
@@ -103,8 +103,10 @@ class PanelApplication(MagModel):
     available = Column(UnicodeText)
     affiliations = Column(UnicodeText)
     past_attendance = Column(UnicodeText)
+    department = Column(Choice(c.PANEL_DEPT_OPTS), default=c.PANELS)
     presentation = Column(Choice(c.PRESENTATION_OPTS))
     other_presentation = Column(UnicodeText)
+    noise_level = Column(Choice(c.NOISE_LEVEL_OPTS))
     tech_needs = Column(MultiChoice(c.TECH_NEED_OPTS))
     other_tech_needs = Column(UnicodeText)
     need_tables = Column(Boolean, default=False)
@@ -117,8 +119,11 @@ class PanelApplication(MagModel):
     panelist_bringing = Column(UnicodeText)
     extra_info = Column(UnicodeText)
     applied = Column(UTCDateTime, server_default=utcnow())
+    accepted = Column(UTCDateTime, nullable=True)
+    confirmed = Column(UTCDateTime, nullable=True)
     status = Column(Choice(c.PANEL_APP_STATUS_OPTS), default=c.PENDING, admin_only=True)
     comments = Column(UnicodeText, admin_only=True)
+    track = Column(UnicodeText, admin_only=True)
 
     applicants = relationship('PanelApplicant', backref='application')
 
@@ -146,6 +151,16 @@ class PanelApplication(MagModel):
     @property
     def unmatched_applicants(self):
         return [a for a in self.applicants if not a.attendee_id]
+    
+    @property
+    def confirm_deadline(self):
+        if self.accepted and c.PANELS_CONFIRM_DEADLINE:
+            confirm_deadline = timedelta(days=c.PANELS_CONFIRM_DEADLINE)
+            return self.accepted + confirm_deadline
+
+    @property
+    def after_confirm_deadline(self):
+        return self.confirm_deadline and self.confirm_deadline < datetime.now()
 
     @hybrid_property
     def has_been_accepted(self):
