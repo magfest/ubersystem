@@ -10,6 +10,7 @@
 <table class="table datatable" data-page-length="-1">
 <thead>
     <tr>
+        <th>Department</th>
         <th>Panel Name</th>
         <th>Panel Type</th>
         <th>Track</th>
@@ -24,6 +25,7 @@
 <tbody>
 {% for app in apps %}
     <tr>
+        <td>{{ app.department_label }}</td>
         <td><a href="app?id={{ app.id }}">{{ app.name }}</a></td>
         <td>{{ app.presentation_label }}</td>
         <td>{{ app.track }}</td>

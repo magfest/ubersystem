@@ -76,7 +76,11 @@ class Event(MagModel):
 
     @property
     def guidebook_location(self):
-        return self.event.location_label
+        return self.location_label
+    
+    @property
+    def guidebook_track(self):
+        return self.applications[0].track if self.applications else ''
 
 
 class AssignedPanelist(MagModel):
