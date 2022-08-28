@@ -455,7 +455,7 @@ def check(model, *, prereg=False):
     """
     errors = []
     for field, name in model.required:
-        if not str(getattr(model, field)).strip():
+        if not getattr(model, field) or not str(getattr(model, field)).strip():
             errors.append(name + ' is a required field')
 
     validations = [uber.model_checks.validation.validations]
