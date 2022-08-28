@@ -974,7 +974,8 @@ def overlapping_events(event, other_event_id=None):
 PanelApplication.required = [
     ('name', 'Panel Name'),
     ('description', 'Panel Description'),
-    ('length', 'Panel Length')
+    ('length', 'Panel Length'),
+    ('noise_level', 'Noise Level'),
 ]
 
 PanelApplicant.required = [
