@@ -48,7 +48,7 @@ def read_only_makes_sense(group):
 
 
 AdminAccount.required = [
-    ('attendee', 'Attendee'),
+    ('attendee_id', 'Attendee'),
 ]
 
 if not c.AUTH_DOMAIN:

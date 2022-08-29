@@ -930,7 +930,6 @@ class OAuthRequest:
 
     def get_email(self):
         profile = self.client.get("https://{}/userinfo".format(c.AUTH_DOMAIN)).json()
-        log.debug(str(profile))
         if not profile.get('email', ''):
             log.error("Tried to authenticate a user but we couldn't retrieve their email. Did we use the right scope?")
         else:
@@ -1757,7 +1756,6 @@ class TaskUtils:
                         new_staff.badge_num = old_badge_num
                         new_staff.managers.append(account)
                         session.add(new_staff)
-                        log.debug(new_staff.badge_num)
                 else:
                     new_attendee = TaskUtils.basic_attendee_import(attendee)
                     new_attendee.paid = c.NOT_PAID
