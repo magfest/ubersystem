@@ -1110,11 +1110,11 @@ class Charge:
                     receipt_items.append(ReceiptItem(receipt_id=receipt.id,
                                                      desc=desc,
                                                      amount=cost,
-                                                     count=count,
+                                                     count=cost[price],
                                                      who=AdminAccount.admin_name() or 'non-admin'
                                                     ))
                 else:
-                    receipt_items.append((desc, price, count))
+                    receipt_items.append((desc, price, cost[price]))
             return receipt_items
         if receipt:
             return [ReceiptItem(receipt_id=receipt.id,
