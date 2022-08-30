@@ -166,7 +166,7 @@ def check_missed_stripe_payments():
     return paid_ids
 
 
-@celery.schedule(timedelta(minutes=10))
+@celery.schedule(timedelta(minutes=30))
 def process_api_queue():
     known_job_names = ['attendee_account_import', 'attendee_import', 'group_import']
     completed_jobs = {}
