@@ -210,11 +210,13 @@ class Config(_Overridable):
         badges, since those have by definition not been promised to anyone.
         """
         from uber.models import Session, Attendee
+        count = 0
         with Session() as session:
-            return session.query(Attendee).filter(
+            count = session.query(Attendee).filter(
                 Attendee.paid != c.NOT_PAID,
                 Attendee.badge_type == badge_type,
                 Attendee.badge_status.in_([c.COMPLETED_STATUS, c.NEW_STATUS])).count()
+        return count
 
     def get_printed_badge_deadline_by_type(self, badge_type):
         """
