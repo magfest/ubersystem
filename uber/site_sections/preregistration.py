@@ -597,7 +597,7 @@ class Root:
             if not message:
                 receipts = []
                 for model in charge.models:
-                    charge_receipt, charge_receipt_items = Charge.create_model_receipt(model)
+                    charge_receipt, charge_receipt_items = Charge.create_new_receipt(model, create_model=True)
                     existing_receipt = session.get_receipt_by_model(model)
                     if existing_receipt:
                         # If their registration costs changed, close their old receipt
@@ -1325,6 +1325,9 @@ class Root:
                     message = 'Your information has been updated'
 
                 page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
+                receipt_or_new = session.get_receipt_by_model(attendee, create_if_none=True)
+                if receipt_or_new.current_amount_owed and not receipt_or_new.pending_total:
+                    raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)
                 raise HTTPRedirect(page + 'message=' + message)
 
         attendee.placeholder = placeholder
@@ -1347,7 +1350,7 @@ class Root:
             'receipt':       session.get_receipt_by_model(attendee),
             'attendee_group_discount': (group_credit[1] / 100) if group_credit else 0,
         }
-
+        
     @ajax
     def get_receipt_preview(self, session, id, **params):
         try:
@@ -1377,7 +1380,7 @@ class Root:
                 receipt_item = Charge.process_receipt_upgrade_item(attendee, param, receipt=receipt, new_val=params[param])
                 session.add(receipt_item)
 
-        attendee.apply(params, ignore_csrf=True, restricted=True)
+        attendee.apply(params, ignore_csrf=True, restricted=False)
         message = check(attendee)
         
         if message:
@@ -1390,7 +1393,7 @@ class Root:
     @ajax
     @credit_card
     @requires_account(Attendee)
-    def process_upgrade_payment(self, session, id, receipt_id, message='', **params):
+    def process_attendee_payment(self, session, id, receipt_id, message='', **params):
         receipt = session.model_receipt(receipt_id)
         attendee = session.attendee(id)
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
@@ -1405,9 +1408,43 @@ class Root:
 
         session.commit()
 
+        return_to = params.get('return_to')
+
+        success_url_base = 'confirm?id=' + id + '&' if not return_to or return_to == 'confirm' else return_to + '?'
+
         return {'stripe_intent': stripe_intent,
-                'success_url': 'confirm?id={}&message={}'.format(id, 'Thank you for your purchase!'),
+                'success_url': '{}message={}'.format(success_url_base, 'Thank you for your purchase!'),
                 'cancel_url': 'cancel_payment'}
+
+    @id_required(Attendee)
+    @requires_account(Attendee)
+    def new_badge_payment(self, session, id, return_to, message=''):
+        attendee = session.attendee(id)
+        return {
+            'attendee': attendee,
+            'receipt': session.get_receipt_by_model(attendee, create_if_none=True),
+            'return_to': return_to,
+            'message': message,
+        }
+
+    @id_required(Attendee)
+    @requires_account(Attendee)
+    def reset_receipt(self, session, id, return_to):
+        attendee = session.attendee(id)
+        receipt = session.get_receipt_by_model(attendee)
+        receipt.closed = datetime.now()
+        session.add(receipt)
+        session.commit()
+
+        message = attendee.undo_extras()
+        if not message:
+            new_receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+            page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
+            if new_receipt.current_amount_owed:
+                raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)
+            raise HTTPRedirect(page + 'message=Your registration has been confirmed')
+        log.error(message)
+        raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to + '&message=There was a problem resetting your receipt')
 
     @ajax
     @credit_card
@@ -1424,7 +1461,7 @@ class Root:
         if session.get_receipt_by_model(attendee):
             return {'error': 'You have outstanding purchases. Please refresh the page to pay for them.'}
         
-        receipt, receipt_items = Charge.create_model_receipt(attendee)
+        receipt, receipt_items = Charge.create_new_receipt(attendee, create_model=True)
         session.add(receipt)
         for item in receipt_items:
             session.add(item)

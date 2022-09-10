@@ -479,8 +479,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not self.gets_any_kind_of_shirt:
             self.shirt = c.NO_SHIRT
 
-        if self.badge_cost == None:
-            self.badge_cost = self.calculate_badge_cost()
+        self.badge_cost = self.calculate_badge_cost()
 
         if self.badge_cost == 0 and self.paid in [c.NOT_PAID, c.PAID_BY_GROUP]:
             self.paid = c.NEED_NOT_PAY
@@ -746,6 +745,13 @@ class Attendee(MagModel, TakesPaymentMixin):
             return self.promo_code.calculate_discounted_price(cost)
         else:
             return cost
+    
+    def undo_extras(self):
+        if self.active_receipt:
+            return "Could not undo extras, this attendee has an open receipt!"
+        self.amount_extra = 0
+        self.extra_donation = 0
+        self.badge_type = c.ATTENDEE_BADGE
 
     def qualifies_for_discounts(self):
         return self.paid != c.NEED_NOT_PAY and self.overridden_price is None and not self.is_dealer
@@ -890,6 +896,9 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         current_cost = self.calculate_badge_cost() * 100
 
+        log.debug(kwargs)
+        log.debug(preview_attendee.badge_type)
+
         return current_cost, (preview_attendee.calculate_badge_cost() * 100) - current_cost
 
     def calc_age_discount_change(self, birthdate):
@@ -1022,6 +1031,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def needs_pii_consent(self):
         return self.is_new or self.placeholder or not self.first_name
+
+    @property
+    def has_extras(self):
+        return self.amount_extra or self.extra_donation or self.badge_type in c.BADGE_TYPE_PRICES
 
     @property
     def shirt_size_marked(self):
