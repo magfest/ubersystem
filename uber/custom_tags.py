@@ -197,9 +197,12 @@ def format_phone(val, country='US'):
     if not val:
         return
         
-    return phonenumbers.format_number(
-        phonenumbers.parse(val, country),
-        PhoneNumberFormat.NATIONAL)
+    try:
+        return phonenumbers.format_number(
+                            phonenumbers.parse(val, country),
+                            PhoneNumberFormat.NATIONAL)
+    except Exception:
+        return val
 
 
 @JinjaEnv.jinja_filter
