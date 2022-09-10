@@ -432,7 +432,6 @@ class MagModel:
                 changes to any fields.
         """
         bools = self.regform_bools if restricted else bools
-        log.debug(bools)
         checkgroups = self.regform_checkgroups if restricted else checkgroups
         for column in self.__table__.columns:
             if (not restricted or column.name in self.unrestricted) and column.name in params and column.name != 'id':
