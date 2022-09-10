@@ -939,7 +939,7 @@ class Session(SessionManager):
                     who=uber.models.AdminAccount.admin_name() or 'non-admin'
                 ))
 
-                # Also add refund ID to the original transaction to help admins
+                # Also add refund ID to the original transaction to help us track things
                 txn.refund_id = response.id
                 self.add(txn)
                 return response

@@ -896,9 +896,6 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         current_cost = self.calculate_badge_cost() * 100
 
-        log.debug(kwargs)
-        log.debug(preview_attendee.badge_type)
-
         return current_cost, (preview_attendee.calculate_badge_cost() * 100) - current_cost
 
     def calc_age_discount_change(self, birthdate):

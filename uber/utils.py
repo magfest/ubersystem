@@ -1167,9 +1167,10 @@ class Charge:
             except AttributeError:
                 old_cost, cost_change = cls.calc_simple_cost_change(model, col_name, new_val)
 
-        if not old_cost and col_name != 'badge_type':
+        is_removable_item = col_name != 'badge_type'
+        if not old_cost and is_removable_item:
             cost_desc = "Adding {}".format(cost_change_name)
-        elif cost_change * -1 == old_cost: # We're crediting the full amount of the item
+        elif cost_change * -1 == old_cost and is_removable_item: # We're crediting the full amount of the item
             cost_desc = "Removing {}".format(cost_change_name)
         elif cost_change > 0:
             cost_desc = "{} {}".format(increase_term, cost_change_name)
