@@ -107,7 +107,6 @@ class Root:
             'last_name': params.get('last_name', ''),
             'email': params.get('email', ''),
             'new_dealer': new_dealer,
-            'receipt_items': Charge.get_all_receipt_items(group),
         }
 
     def history(self, session, id):
