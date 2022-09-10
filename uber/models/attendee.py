@@ -2019,6 +2019,10 @@ class AttendeeAccount(MagModel):
         return [attendee for attendee in self.imported_attendees if attendee.group]
 
     @property
+    def pending_attendees(self):
+        return [attendee for attendee in self.attendees if attendee.badge_status == c.PENDING_STATUS]
+
+    @property
     def invalid_attendees(self):
         return [attendee for attendee in self.attendees if not attendee.is_valid and attendee.badge_status != c.PENDING_STATUS]
 

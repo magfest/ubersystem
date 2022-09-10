@@ -45,7 +45,6 @@
 </div>
 {% else %}
 <div class="panel-body">
-    {{ attendees_with_amount_paid }}
     {% for attendee, money_owed in attendees_who_owe_money.items() %}
     {% if loop.first %}
     <div class="alert alert-warning">
@@ -110,6 +109,24 @@
 </div>
 </div>
 </div>
+{% endif %}
+{% if not account.valid_attendees %}
+    {% for attendee in account.pending_attendees %}
+    {% if loop.first %}
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <h4 class="panel-title">Pending Registrations</h4>
+        </div>
+        <div class="panel-footer">
+    {% endif %}
+    <div class="row">
+        {% include "preregistration/attendee_card.html" %}
+    </div>
+    {% if loop.last %}
+    </div>
+    </div>
+    {% endif %}
+    {% endfor %}
 {% endif %}
 {% for attendee in account.imported_attendees %}
 {% if loop.first %}
