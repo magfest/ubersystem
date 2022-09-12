@@ -751,7 +751,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             return "Could not undo extras, this attendee has an open receipt!"
         self.amount_extra = 0
         self.extra_donation = 0
-        self.badge_type = c.ATTENDEE_BADGE
+        if self.badge_type in c.BADGE_TYPE_PRICES:
+            self.badge_type = c.ATTENDEE_BADGE
 
     def qualifies_for_discounts(self):
         return self.paid != c.NEED_NOT_PAY and self.overridden_price is None and not self.is_dealer
