@@ -247,7 +247,7 @@ class Root:
         receipt = session.get_receipt_by_model(app)
 
         if not receipt:
-            receipt, receipt_items = Charge.create_model_receipt(app)
+            receipt, receipt_items = Charge.create_new_receipt(app, create_model=True)
             session.add(receipt)
             for item in receipt_items:
                 session.add(item)

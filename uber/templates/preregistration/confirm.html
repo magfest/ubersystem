@@ -2,7 +2,7 @@
 {% set name_ro = not attendee.placeholder %}
 {% set assigned_depts_ro = True %}
 {% set amount_extra_ro = True if attendee.badge_status == c.DEFERRED_STATUS else False %}
-{% set money_fields_ro = True if receipt and receipt.closed_receipt_items else False %}
+{% set money_fields_ro = True if receipt %}
 {% set page_ro = not attendee.is_valid %}
 {% import "fields/attendee.html" as attendee_fields with context %}
 {% block title %}Confirm Your Details{% endblock %}
@@ -63,7 +63,7 @@
             {% else %}
             <div class="alert alert-danger">
               You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
-              Please <a href="" data-toggle="modal" data-target="#receiptModal">check your receipt here</a> to pay for your extra items.
+              Please <a href="" data-toggle="modal" data-target="#receiptModal">check your receipt here</a> to pay.
             </div>
             {% endif %}
         {% elif attendee.badge_status == c.PENDING_STATUS %}
@@ -97,7 +97,7 @@
             {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and attendee.group.status not in [c.APPROVED, c.CANCELLED] %}
             <br/><br/>If you would like, you may instead
             <a href="../marketplace/index?attendee_id={{ attendee.id }}" target="_blank">apply for a table in the Marketplace.</a>{% endif %}
-            {% if attendee.group.status != c.APPROVED and attendee.paid == c.PAID_BY_GROUP and attendee.calculate_badge_cost() == attendee.new_badge_cost and not money_fields_ro %}
+            {% if False and attendee.group.status != c.APPROVED and attendee.paid == c.PAID_BY_GROUP and attendee.calculate_badge_cost() == attendee.new_badge_cost and not money_fields_ro %}
               <br/><br/>You may also pay {{ (attendee.total_cost - attendee_group_discount)|format_currency }} for your individual registration using the button below.
               {% if attendee_group_discount %}<br/>This does not include your current group discount of {{ attendee_group_discount|format_currency(true) }}.{% endif %}
               <br/>{{ stripe_form('buy_own_group_badge', attendee) }}

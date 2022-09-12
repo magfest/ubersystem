@@ -15,7 +15,7 @@ from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, s
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiJob, Attendee, ModelReceipt, ReceiptItem, ReceiptTransaction
 from uber.site_sections import devtools
-from uber.utils import get_api_service_from_server, normalize_email
+from uber.utils import Charge, check, get_api_service_from_server, normalize_email
 
 def check_custom_receipt_item_txn(params, is_txn=False):
     if not params.get('amount'):
@@ -107,6 +107,25 @@ class Root:
         return {'removed': id}
 
     @ajax
+    def undo_receipt_item(self, session, id='', **params):
+        item = session.receipt_item(id)
+        receipt = item.receipt
+        model = session.get_model_by_receipt(receipt)
+        for col_name in item.revert_change:
+            receipt_item = Charge.process_receipt_upgrade_item(model, col_name, receipt=receipt, new_val=item.revert_change[col_name])
+            session.add(receipt_item)
+            model.apply(item.revert_change, restricted=False)
+        
+        message = check(model)
+        
+        if message:
+            session.rollback()
+            return {'error': message}
+        session.commit()
+
+        return {'success': True}
+
+    @ajax
     def add_receipt_txn(self, session, id='', **params):
         receipt = session.model_receipt(id)
 
@@ -145,6 +164,21 @@ class Root:
         session.commit()
 
         return {'cancelled': id, 'time': datetime_local_filter(txn.cancelled)}
+
+    @ajax
+    def refund_receipt_txn(self, session, id='', **params):
+        txn = session.receipt_transaction(id)
+        model = session.get_model_by_receipt(txn.receipt)
+        
+        if not txn.refund_id and txn.stripe_id:
+            response = session.process_refund(txn)
+            if response:
+                if isinstance(response, string_types):
+                    raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', model.id, response)
+
+            session.commit()
+
+        return {'refunded': id}
     
     def process_full_refund(self, session, id='', attendee_id='', group_id=''):
         receipt = session.model_receipt(id)
