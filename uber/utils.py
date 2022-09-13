@@ -1372,7 +1372,7 @@ class Charge:
                 if model and isinstance(model, ArtShowApplication) and not txn.receipt.open_receipt_items:
                     try:
                         send_email.delay(
-                            c.ADMIN_EMAIL,
+                            c.ART_SHOW_EMAIL,
                             c.ART_SHOW_EMAIL,
                             'Art Show Payment Received',
                             render('emails/art_show/payment_notification.txt',

@@ -50,7 +50,7 @@ class Root:
                     c.ART_SHOW_EMAIL,
                     'Art Show Application Received',
                     render('emails/art_show/reg_notification.txt',
-                           {'app': app}), model=app)
+                           {'app': app}, encoding=None), model=app.to_dict('id'))
                 session.commit()
                 raise HTTPRedirect('confirmation?id={}', app.id)
 
