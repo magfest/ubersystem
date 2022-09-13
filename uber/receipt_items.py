@@ -33,15 +33,15 @@ def table_cost(app):
     return ("General Table", c.COST_PER_TABLE * 100, app.tables) if app.tables else None
 
 @cost_calculation.ArtShowApplication
-def ad_panel_cost(app):
+def mature_panel_cost(app):
     return ("Mature Panel", c.COST_PER_PANEL * 100, app.panels_ad) if app.panels_ad else None
 
 @cost_calculation.ArtShowApplication
-def ad_table_cost(app):
+def mature_table_cost(app):
     return ("Mature Table", c.COST_PER_TABLE * 100, app.tables_ad) if app.tables_ad else None
 
 @cost_calculation.ArtShowApplication
-def mailing_fee(app):
+def mailing_fee_cost(app):
     return ("Mailing fee", c.ART_MAILING_FEE * 100) if app.delivery_method == c.BY_MAIL else None
 
 
@@ -105,12 +105,12 @@ def badge_cost(group):
 
 
 @cost_calculation.PrintJob
-def badge_reprint_fee(job):
+def badge_reprint_fee_cost(job):
     return ("Badge reprint fee", job.print_fee * 100) if job.print_fee else None
 
 
 @cost_calculation.PromoCodeGroup
-def cost(group):
+def group_cost(group):
     cost_table = defaultdict(int)
 
     for code in group.promo_codes:

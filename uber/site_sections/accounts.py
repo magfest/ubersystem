@@ -188,23 +188,24 @@ class Root:
         }
 
     @public
-    def process_login(self, session, code, state, original_location=None):
+    def process_login(self, session, code, state, original_location=None, **params):
         original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
         if not cherrypy.session.get('oauth_state'):
             raise HTTPRedirect('login?message={}', 'Authentication session expired')
 
-        message = ''
-        try:
-            request = OAuthRequest(state=cherrypy.session['oauth_state'])
-        except Exception as ex:
-            log.error("Processing third-party OAuth login failed: " + str(ex))
-            message = "There was a problem logging in. Try again or contact your administrator."
-        else:
-            request.set_token(code, state)
+        message = params.get('error', '')
+        if not message:
             try:
-                account = session.get_account_by_email(request.get_email())
-            except NoResultFound:
-                message = 'Could not find your account. Please contact your administrator.'
+                request = OAuthRequest(state=cherrypy.session['oauth_state'])
+            except Exception as ex:
+                log.error("Processing third-party OAuth login failed: " + str(ex))
+                message = "There was a problem logging in. Try again or contact your administrator."
+            else:
+                request.set_token(code, state)
+                try:
+                    account = session.get_account_by_email(request.get_email())
+                except NoResultFound:
+                    message = 'Could not find your account. Please contact your administrator.'
         
         if not message:
             cherrypy.session['account_id'] = account.id

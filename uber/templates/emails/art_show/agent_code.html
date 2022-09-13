@@ -10,8 +10,8 @@ an email confirming their unassignment.
 
 <br/><br/>To assign an agent to your art application, send them the above code.
 They must then add the code to their registration, either while signing up or
-afterwards by using the confirmation link they receive by email when they
-register. You can check your
+afterwards by {% if c.ATTENDEE_ACCOUNTS_ENABLED %}logging in{% else %}using the confirmation link they received by email when they
+registered{% endif %}. You can check your
 <a href="{{ c.URL_BASE }}/art_show_applications/edit?id={{ app.id }}">Art Show
 application </a> at any time to see your agent's status or assign a new agent.
 

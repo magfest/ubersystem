@@ -236,7 +236,7 @@ class Root:
     def groups(self, *path, **params):
         if 'promo_code' in c.PAGE:
             redirect_site_section('groups', 'registration')
-        redirect_site_section('groups', 'dealer_admin')
+        redirect_site_section('groups', 'group_admin')
 
     def jobs(self, *path, **params):
         redirect_site_section('jobs', 'shifts_admin')

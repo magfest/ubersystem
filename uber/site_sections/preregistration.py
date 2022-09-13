@@ -1413,7 +1413,7 @@ class Root:
         success_url_base = 'confirm?id=' + id + '&' if not return_to or return_to == 'confirm' else return_to + '?'
 
         return {'stripe_intent': stripe_intent,
-                'success_url': '{}message={}'.format(success_url_base, 'Thank you for your purchase!'),
+                'success_url': '{}message={}'.format(success_url_base, 'Payment accepted!'),
                 'cancel_url': 'cancel_payment'}
 
     @id_required(Attendee)
@@ -1481,7 +1481,7 @@ class Root:
         session.commit()
 
         return {'stripe_intent': stripe_intent,
-                'success_url': 'confirm?id={}&message={}'.format(id, 'Thank you for your purchase!'),
+                'success_url': 'confirm?id={}&message={}'.format(id, 'Payment accepted!'),
                 'cancel_url': 'cancel_payment'}
 
 

@@ -45,12 +45,12 @@ class Root:
                 app.attendee = attendee
 
                 session.add(app)
-                send_email(
+                send_email.delay(
                     c.ART_SHOW_EMAIL,
                     c.ART_SHOW_EMAIL,
                     'Art Show Application Received',
                     render('emails/art_show/reg_notification.txt',
-                           {'app': app}), model=app)
+                           {'app': app}, encoding=None), model=app.to_dict('id'))
                 session.commit()
                 raise HTTPRedirect('confirmation?id={}', app.id)
 
@@ -264,21 +264,6 @@ class Root:
         receipt_txn = Charge.create_receipt_transaction(receipt, charge_desc, stripe_intent.id)
         session.add(receipt_txn)
         session.commit()
-
-        send_email.delay(
-            c.ADMIN_EMAIL,
-            c.ART_SHOW_EMAIL,
-            'Art Show Payment Received',
-            render('emails/art_show/payment_notification.txt',
-                {'app': app}, encoding=None),
-            model=app.to_dict('id'))
-        send_email.delay(
-            c.ART_SHOW_EMAIL,
-            app.email_to_address,
-            'Art Show Payment Received',
-            render('emails/art_show/payment_confirmation.txt',
-                {'app': app}, encoding=None),
-            model=app.to_dict('id'))
     
         return {'stripe_intent': stripe_intent,
                 'success_url': 'edit?id={}&message={}'.format(app.id,
