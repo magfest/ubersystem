@@ -291,6 +291,13 @@ if c.ART_SHOW_ENABLED:
         ident='art_show_declined')
 
     ArtShowAppEmailFixture(
+        'Your {EVENT_NAME} Art Show payment has been received',
+        'art_show/payment_confirmation.txt',
+        lambda a: a.status == c.APPROVED and a.amount_paid,
+        ident='art_show_payment_received'
+    )
+
+    ArtShowAppEmailFixture(
         'Reminder to pay for your {EVENT_NAME} Art Show application',
         'art_show/payment_reminder.txt',
         lambda a: a.status == c.APPROVED and a.is_unpaid,

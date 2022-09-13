@@ -1328,7 +1328,7 @@ class Charge:
 
     @staticmethod
     def mark_paid_from_intent_id(intent_id, charge_id):
-        from uber.models import Attendee, Group, Session
+        from uber.models import Attendee, ArtShowApplication, Group, Session
         from uber.tasks.email import send_email
         from uber.decorators import render
         
@@ -1359,17 +1359,27 @@ class Charge:
 
                 session.commit()
 
-                if isinstance(model, Group):
-                    if model and model.is_dealer and not txn.receipt.open_receipt_items:
-                        try:
-                            send_email.delay(
-                                c.MARKETPLACE_EMAIL,
-                                c.MARKETPLACE_EMAIL,
-                                '{} Payment Completed'.format(c.DEALER_TERM.title()),
-                                render('emails/dealers/payment_notification.txt', {'group': model}, encoding=None),
-                                model=model.to_dict('id'))
-                        except Exception:
-                            log.error('unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
+                if model and isinstance(model, Group) and model.is_dealer and not txn.receipt.open_receipt_items:
+                    try:
+                        send_email.delay(
+                            c.MARKETPLACE_EMAIL,
+                            c.MARKETPLACE_EMAIL,
+                            '{} Payment Completed'.format(c.DEALER_TERM.title()),
+                            render('emails/dealers/payment_notification.txt', {'group': model}, encoding=None),
+                            model=model.to_dict('id'))
+                    except Exception:
+                        log.error('Unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
+                if model and isinstance(model, ArtShowApplication) and not txn.receipt.open_receipt_items:
+                    try:
+                        send_email.delay(
+                            c.ADMIN_EMAIL,
+                            c.ART_SHOW_EMAIL,
+                            'Art Show Payment Received',
+                            render('emails/art_show/payment_notification.txt',
+                                {'app': model}, encoding=None),
+                            model=model.to_dict('id'))
+                    except Exception:
+                        log.error('Unable to send Art Show payment confirmation email', exc_info=True)
 
             return txn
 
