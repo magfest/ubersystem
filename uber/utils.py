@@ -1381,7 +1381,7 @@ class Charge:
                     except Exception:
                         log.error('Unable to send Art Show payment confirmation email', exc_info=True)
 
-            return txn
+            return matching_txns
 
 
 class SignNowDocument:    
