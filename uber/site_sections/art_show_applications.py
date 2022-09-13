@@ -45,7 +45,7 @@ class Root:
                 app.attendee = attendee
 
                 session.add(app)
-                send_email(
+                send_email.delay(
                     c.ART_SHOW_EMAIL,
                     c.ART_SHOW_EMAIL,
                     'Art Show Application Received',
