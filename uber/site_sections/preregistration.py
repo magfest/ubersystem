@@ -856,7 +856,9 @@ class Root:
     def group_members(self, session, id, message='', **params):
         group = session.group(id)
 
-        if group.is_dealer and c.SIGNNOW_DEALER_TEMPLATE_ID:
+        signnow_document = None
+
+        if group.is_dealer and c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_valid:
             signnow_document = session.query(SignedDocument).filter_by(model="Group", fk_id=group.id).first()
             signnow_link = ''
 

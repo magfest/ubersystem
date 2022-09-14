@@ -1,0 +1,25 @@
+<html>
+<head></head>
+<body>
+
+<p>
+    Hello {{ group.leader.first_name }}! Our records show that you have an approved {{ c.DEALER_APP_TERM }} but have not signed the terms and conditions yet.
+    We understand that not everyone was able to sign their terms and conditions when they applied -- now's your chance! Simply complete the following steps:
+</p>
+
+<ol>
+    <li><a href="{{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}" target="_blank">{% if c.ATTENDEE_ACCOUNTS_ENABLED %}Log in{% else %}Click here{% endif %}</a> to view your application.</li>
+    <li>Click the "Review and Sign" button in the red box. If you do not see this button, please contact us at {{ c.ADMIN_EMAIL|email_only|email_to_link }}.</li>
+    <li>Read and sign the document, then click "Done" at the top-right corner.</li>
+</ol>
+
+<p>
+    After signing the terms and conditions, {% if group.is_unpaid %}don't forget to also pay for your registration and tables.{% else %}you are all set!{% endif %}
+</p>
+
+<p>
+    Please note that <strong>failing to sign the terms and conditions will remove your application from consideration</strong>. Please review and sign it as soon as you are able!
+</p>
+
+</body>
+</html>

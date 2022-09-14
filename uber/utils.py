@@ -1406,26 +1406,37 @@ class SignNowDocument:
 
         self.access_token = c.SIGNNOW_ACCESS_TOKEN
 
+        if self.access_token and not refresh:
+            return
+
         if not self.access_token and c.DEV_BOX and c.SIGNNOW_USERNAME and c.SIGNNOW_PASSWORD:
             access_request = signnow_sdk.OAuth2.request_token(c.SIGNNOW_USERNAME, c.SIGNNOW_PASSWORD, '*')
             if 'error' in access_request:
                 self.error_message = "Error getting access token from SignNow: " + access_request['error']
             else:
                 self.access_token = access_request['access_token']
-            
-        elif (not self.access_token or refresh) and aws_secrets_client:
+        elif aws_secrets_client:
             aws_secrets_client.get_signnow_secret()
             self.access_token = c.SIGNNOW_ACCESS_TOKEN
+        else:
+            self.error_message = "We couldn't get an access token because there was no AWS Secrets client set. If you're on a development box, you can instead use a username and password."
+        
+        if not self.access_token:
+            self.error_message = "We tried to set an access token, but for some reason it failed."
 
     def create_document(self, template_id, doc_title, folder_id='', uneditable_texts_list=None, fields={}):
         from requests import post, put
         from json import dumps, loads
 
         self.set_access_token(refresh=True)
-        document_request = signnow_sdk.Template.copy(self.access_token, template_id, doc_title)
+        if not self.error_message:
+            document_request = signnow_sdk.Template.copy(self.access_token, template_id, doc_title)
         
-        if 'error' in document_request:
-            self.error_message = "Error creating document from template: " + document_request['error']
+            if 'error' in document_request:
+                self.error_message = "Error creating document from template with token {}: {}".format(self.access_token, document_request['error'])
+                return None
+
+        if self.error_message:
             return None
         
         if uneditable_texts_list:

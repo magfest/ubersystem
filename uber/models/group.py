@@ -10,6 +10,7 @@ from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
+from sqlalchemy.sql.elements import not_
 from sqlalchemy.types import Boolean, Integer, Numeric
 
 from uber.config import c
@@ -182,6 +183,14 @@ class Group(MagModel, TakesPaymentMixin):
         badges.
         """
         return [a for a in self.attendees if a.is_unassigned and a.paid == c.PAID_BY_GROUP]
+
+    @hybrid_property
+    def is_valid(self):
+        return self.status not in [c.CANCELLED, c.DECLINED, c.IMPORTED]
+
+    @is_valid.expression
+    def is_valid(cls):
+        return not_(cls.status.in_([c.CANCELLED, c.DECLINED, c.IMPORTED]))
 
     @property
     def new_ribbon(self):
