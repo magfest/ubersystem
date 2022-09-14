@@ -22,7 +22,10 @@ class Root:
         return ''
 
     def index(self, session, message='', show_all=None):
-        groups = session.viewable_groups().limit(c.ROW_LOAD_LIMIT)
+        if show_all:
+            groups = session.viewable_groups().limit(c.ROW_LOAD_LIMIT)
+        else:
+            groups = session.viewable_groups().filter(~Group.status.in_([c.DECLINED, c.IMPORTED, c.CANCELLED])).limit(c.ROW_LOAD_LIMIT)
         dealer_groups = [group for group in groups if group.is_dealer]
         return {
             'message': message,
