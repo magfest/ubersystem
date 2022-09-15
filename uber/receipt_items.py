@@ -11,8 +11,6 @@ from uber.decorators import cost_calculation, credit_calculation
 from uber.models import Attendee
 
 
-
-
 @cost_calculation.MarketplaceApplication
 def app_cost(app):
     if app.status == c.APPROVED:

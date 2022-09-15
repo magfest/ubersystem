@@ -270,14 +270,14 @@ class Group(MagModel, TakesPaymentMixin):
     @property
     def amount_extra(self):
         if self.is_new:
-            return sum(a.total_cost - a.badge_cost for a in self.attendees if a.paid == c.PAID_BY_GROUP)
+            return sum(a.total_cost - a.badge_cost for a in self.attendees if a.paid == c.PAID_BY_GROUP) / 100
         else:
             return 0
 
     @property
     def total_cost(self):
         if self.active_receipt:
-            return self.active_receipt['current_amount_owed']
+            return self.active_receipt['current_amount_owed'] / 100
         return self.default_cost + self.amount_extra
 
     @property
