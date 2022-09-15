@@ -2,7 +2,7 @@
 
 {{ creator }} has created an admin account for you on the {{ c.EVENT_NAME }} registration system.
 
-Use the following link to log in: {{ c.URL_BASE }}/accounts/login/
+Use the following link to log in: {{ c.URL_BASE }}/accounts/login
 {% if c.ATTENDEE_ACCOUNTS_ENABLED %}Please note this is NOT the account you use to manage your personal registration information.{% endif %}
 
 
