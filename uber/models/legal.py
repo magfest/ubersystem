@@ -13,6 +13,7 @@ from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sideboard.lib import serializer
 
 from uber.config import c
+from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.admin import AdminAccount
 from uber.models.email import Email
@@ -29,6 +30,11 @@ class SignedDocument(MagModel):
     ident = Column(UnicodeText)
     signed = Column(UTCDateTime, nullable=True, default=None)
     declined = Column(UTCDateTime, nullable=True, default=None)
+
+    @presave_adjustment
+    def null_doc_id(self):
+        if not self.document_id:
+            self.document_id = ""
 
     def get_doc_signed_timestamp(self, document_id=""):
         d = SignNowDocument()
