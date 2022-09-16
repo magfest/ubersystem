@@ -75,8 +75,13 @@ def kickin_cost(attendee):
 
 @credit_calculation.Attendee
 def age_discount(attendee):
-    if attendee.qualifies_for_discounts:
-        return ("Age Discount", attendee.age_discount * 100) if attendee.age_discount else None
+    if attendee.qualifies_for_discounts and attendee.age_discount:
+        if abs(attendee.age_discount) > attendee.calculate_badge_cost():
+            age_discount = attendee.calculate_badge_cost() * 100 * -1
+        else:
+            age_discount = attendee.age_discount * 100
+
+        return ("Age Discount", age_discount)
 
 @credit_calculation.Attendee
 def group_discount(attendee):
