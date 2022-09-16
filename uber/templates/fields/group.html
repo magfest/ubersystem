@@ -62,19 +62,19 @@
       <br/><br/>Here is your group's cost breakdown:
       <ul>
         {% if group.auto_recalc %}
-          <li>{{ group.table_cost|format_currency }} for {{ group.tables }} table{{ group.tables|pluralize }}</li>
-          <li>{{ group.badge_cost|format_currency }} for {{ group.badges_purchased }} badge{{ group.badges_purchased|pluralize }}
+          <li>{{ group.default_table_cost|format_currency }} for {% if group.tables_repr %}a {{ group.tables_repr }}{% else %}{{ group.tables }} table{{ group.tables|pluralize }}{% endif %}</li>
+          <li>{{ group.default_badge_cost|format_currency }} for {{ group.badges_purchased }} badge{{ group.badges_purchased|pluralize }}
             {% if upgraded_badges %}(including {{ upgraded_badges }} upgraded badge{{ upgraded_badges|pluralize }}){% endif %}</li>
         {% else %}
           <li>{{ group.cost|format_currency }} total cost</li>
         {% endif %}
-        <!--<li>{{ ((group.amount_paid + group.amount_pending) / 100)|format_currency or '$0' }} paid{% if group.amount_unpaid %} so far</li>
+        <li>{{ ((group.amount_paid + group.amount_pending) / 100)|format_currency or '$0' }} paid{% if group.amount_unpaid %} so far</li>
           <li>{{ group.amount_unpaid|format_currency }} unpaid</li>
           </ul>
           <br/>{{ stripe_form('process_group_payment',group) }}
         {% else %}
           </li></ul>
-        {% endif %}-->
+        {% endif %}
     {% endif %}
   {% elif group.status == c.CANCELLED %}
     <div class="alert alert-info">

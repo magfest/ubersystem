@@ -996,19 +996,21 @@ class Root:
     @credit_card
     def process_group_payment(self, session, id):
         group = session.group(id)
-        charge = Charge(group, amount=group.amount_unpaid * 100)
-        stripe_intent = charge.create_stripe_intent()
-        message = stripe_intent if isinstance(stripe_intent, string_types) else ''
-        if message:
-            return {'error': message}
-        else:
-            session.add(session.create_receipt_item(group, charge.amount, "Group page payment", charge.stripe_transaction))
+        receipt = session.get_receipt_by_model(group, create_if_none=True)
+        charge_desc = "{}: {}".format(group.name, receipt.charge_description_list)
+        charge = Charge(group, amount=receipt.current_amount_owed, description=charge_desc)
 
-            session.merge(group)
-            session.commit()
+        stripe_intent = charge.create_stripe_intent()
+        if isinstance(stripe_intent, string_types):
+            return {'error': stripe_intent}
+
+        receipt_txn = Charge.create_receipt_transaction(receipt, charge_desc, stripe_intent.id)
+        session.add(receipt_txn)
+        
+        session.commit()
                     
-            return {'stripe_intent': stripe_intent,
-                    'success_url': 'group_members?id={}&message={}'.format(group.id, 'Your payment has been accepted')}
+        return {'stripe_intent': stripe_intent,
+                'success_url': 'group_members?id={}&message={}'.format(group.id, 'Your payment has been accepted')}
 
     @requires_account(Attendee)
     @csrf_protected
