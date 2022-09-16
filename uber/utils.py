@@ -1412,16 +1412,18 @@ class SignNowDocument:
         if not self.access_token and c.DEV_BOX and c.SIGNNOW_USERNAME and c.SIGNNOW_PASSWORD:
             access_request = signnow_sdk.OAuth2.request_token(c.SIGNNOW_USERNAME, c.SIGNNOW_PASSWORD, '*')
             if 'error' in access_request:
-                self.error_message = "Error getting access token from SignNow: " + access_request['error']
+                self.error_message = "Error getting access token from SignNow using username and passsword: " + access_request['error']
             else:
                 self.access_token = access_request['access_token']
-        elif aws_secrets_client:
+        elif not aws_secrets_client:
+            self.error_message = "Couldn't get a SignNow access token because there was no AWS Secrets client. If you're on a development box, you can instead use a username and password."
+        elif not c.AWS_SIGNNOW_SECRET_NAME:
+            self.error_message = "Couldn't get a SignNow access token because the secret name is not set. If you're on a development box, you can instead use a username and password."
+        else:
             aws_secrets_client.get_signnow_secret()
             self.access_token = c.SIGNNOW_ACCESS_TOKEN
-        else:
-            self.error_message = "We couldn't get an access token because there was no AWS Secrets client set. If you're on a development box, you can instead use a username and password."
         
-        if not self.access_token:
+        if not self.access_token and not self.error_message:
             self.error_message = "We tried to set an access token, but for some reason it failed."
 
     def create_document(self, template_id, doc_title, folder_id='', uneditable_texts_list=None, fields={}):

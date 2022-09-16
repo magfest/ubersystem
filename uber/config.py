@@ -958,13 +958,13 @@ class AWSSecretFetcher:
         log.error("Could not retrieve secret from AWS. Is the secret name (\"{}\") correct?".format(secret_name))
 
     def get_all_secrets(self):
-        if c.AWS_AUTH0_SECRET_NAME:
-            self.get_auth0_secret()
-
-        if c.AWS_SIGNNOW_SECRET_NAME:
-            self.get_signnow_secret()
+        self.get_auth0_secret()
+        self.get_signnow_secret()
 
     def get_auth0_secret(self):
+        if not c.AWS_AUTH0_SECRET_NAME:
+            return
+
         auth0_secret = self.get_secret(c.AWS_AUTH0_SECRET_NAME)
         if auth0_secret:
             c.AUTH_DOMAIN = auth0_secret.get('AUTH0_DOMAIN', '') or c.AUTH_DOMAIN
@@ -972,6 +972,9 @@ class AWSSecretFetcher:
             c.AUTH_CLIENT_SECRET = auth0_secret.get('CLIENT_SECRET', '') or c.AUTH_CLIENT_SECRET
 
     def get_signnow_secret(self):
+        if not c.AWS_SIGNNOW_SECRET_NAME:
+            return
+
         signnow_secret = self.get_secret(c.AWS_SIGNNOW_SECRET_NAME)
         if signnow_secret:
             c.SIGNNOW_ACCESS_TOKEN = signnow_secret.get('ACCESS_TOKEN', '') or c.SIGNNOW_ACCESS_TOKEN
