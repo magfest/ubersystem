@@ -58,7 +58,8 @@ Attendee.credit_changes = {
 
 @cost_calculation.Attendee
 def badge_cost(attendee):
-    return ("{} badge for {}".format(attendee.badge_type_label, attendee.full_name), attendee.calculate_badge_cost() * 100)
+    if not (attendee.group and attendee.paid == c.PAID_BY_GROUP):
+        return ("{} badge for {}".format(attendee.badge_type_label, attendee.full_name), attendee.calculate_badge_cost() * 100)
 
 @cost_calculation.Attendee
 def shipping_fee_cost(attendee):
@@ -85,7 +86,7 @@ def age_discount(attendee):
 
 @credit_calculation.Attendee
 def group_discount(attendee):
-    if attendee.qualifies_for_discounts and not attendee.age_discount and (
+    if c.GROUP_DISCOUNT and attendee.qualifies_for_discounts and not attendee.age_discount and (
                 attendee.promo_code_groups or attendee.group and attendee.paid == c.PAID_BY_GROUP):
         return ("Group Discount", c.GROUP_DISCOUNT * 100 * -1)
 
