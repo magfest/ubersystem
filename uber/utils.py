@@ -1094,7 +1094,7 @@ class Charge:
                             if receipt:
                                 receipt_items.append(ReceiptItem(receipt_id=receipt.id,
                                                                 desc=desc,
-                                                                amount=cost,
+                                                                amount=price,
                                                                 count=cost[price],
                                                                 who=AdminAccount.admin_name() or 'non-admin'
                                                                 ))
@@ -1303,7 +1303,7 @@ class Charge:
 
             stripe_intent = stripe.PaymentIntent.create(
                 payment_method_types=['card'],
-                amount=amount,
+                amount=int(amount),
                 currency='usd',
                 description=description,
                 receipt_email=customer.email if receipt_email else None,
