@@ -745,6 +745,15 @@ class Attendee(MagModel, TakesPaymentMixin):
             return self.promo_code.calculate_discounted_price(cost)
         else:
             return cost
+
+    def calculate_badge_upgrade_cost(self):
+        if self.badge_type not in c.BADGE_TYPE_PRICES:
+            return 0
+        
+        if self.paid == c.NEED_NOT_PAY:
+            return c.BADGE_TYPE_PRICES[self.badge_type] - self.new_badge_cost
+        else:
+            return c.BADGE_TYPE_PRICES[self.badge_type] - self.calculate_badge_cost()
     
     def undo_extras(self):
         if self.active_receipt:
@@ -766,8 +775,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             return c.get_oneday_price(registered)
         elif self.is_presold_oneday:
             return c.get_presold_oneday_price(self.badge_type)
-        elif self.badge_type in c.BADGE_TYPE_PRICES:
-            return int(c.BADGE_TYPE_PRICES[self.badge_type])
         else:
             return c.get_attendee_price(registered)
 
