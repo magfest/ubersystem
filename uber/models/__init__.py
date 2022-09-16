@@ -411,9 +411,12 @@ class MagModel:
         try:
             cost_calc = receipt_items[self.__class__.__name__][name[8:]](self)
             try:
-                return sum(item[0] * item[1] for item in cost_calc.items()) / 100
+                return sum(item[0] * item[1] for item in cost_calc[1].items()) / 100
             except AttributeError:
-                return cost_calc[1] * cost_calc[2] / 100
+                if len(cost_calc) > 2:
+                    return cost_calc[1] * cost_calc[2] / 100
+                else:
+                    return cost_calc[1] / 100
         except Exception:
             pass
 

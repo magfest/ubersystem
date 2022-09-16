@@ -810,8 +810,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def total_cost(self):
         if self.active_receipt:
-            return self.active_receipt['current_amount_owed']
-        return self.default_cost + (self.amount_extra or 0)
+            return self.active_receipt['current_amount_owed'] / 100
+        return self.default_cost
 
     @property
     def total_donation(self):
