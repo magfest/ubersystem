@@ -897,14 +897,17 @@ class Attendee(MagModel, TakesPaymentMixin):
             preview_attendee.overridden_price = int(kwargs['overridden_price'])
         if 'badge_type' in kwargs:
             preview_attendee.badge_type = int(kwargs['badge_type'])
+            new_cost = preview_attendee.calculate_badge_upgrade_cost() * 100
         if 'ribbon' in kwargs:
             add_opt(preview_attendee.ribbon_ints, int(kwargs['ribbon']))
         if 'paid' in kwargs:
             preview_attendee.paid = int(kwargs['paid'])
 
         current_cost = self.calculate_badge_cost() * 100
+        if not new_cost:
+            new_cost = (preview_attendee.calculate_badge_cost() * 100) - current_cost
 
-        return current_cost, (preview_attendee.calculate_badge_cost() * 100) - current_cost
+        return current_cost, new_cost
 
     def calc_age_discount_change(self, birthdate):
         preview_attendee = Attendee(**self.to_dict())
