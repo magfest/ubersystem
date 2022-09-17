@@ -144,7 +144,7 @@ class ModelReceipt(MagModel):
 
     @property
     def current_amount_owed(self):
-        return sum([(item.amount * item.count) for item in self.open_receipt_items])
+        return max(0, sum([(item.amount * item.count) for item in self.open_receipt_items]))
 
     @property
     def item_total(self):
