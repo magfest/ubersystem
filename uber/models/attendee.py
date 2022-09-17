@@ -746,11 +746,13 @@ class Attendee(MagModel, TakesPaymentMixin):
         else:
             return cost
 
-    def calculate_badge_upgrade_cost(self):
+    def calculate_badge_upgrade_cost(self, current_badge_type=c.ATTENDEE_BADGE):
         if self.badge_type not in c.BADGE_TYPE_PRICES:
             return 0
         
-        if self.paid == c.NEED_NOT_PAY:
+        if current_badge_type in c.BADGE_TYPE_PRICES:
+            return c.BADGE_TYPE_PRICES[self.badge_type] - c.BADGE_TYPE_PRICES[current_badge_type]
+        elif self.paid == c.NEED_NOT_PAY:
             return c.BADGE_TYPE_PRICES[self.badge_type] - self.new_badge_cost
         else:
             return c.BADGE_TYPE_PRICES[self.badge_type] - self.calculate_badge_cost()
@@ -897,7 +899,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             preview_attendee.overridden_price = int(kwargs['overridden_price'])
         if 'badge_type' in kwargs:
             preview_attendee.badge_type = int(kwargs['badge_type'])
-            new_cost = preview_attendee.calculate_badge_upgrade_cost() * 100
+            new_cost = preview_attendee.calculate_badge_upgrade_cost(self.badge_type) * 100
         if 'ribbon' in kwargs:
             add_opt(preview_attendee.ribbon_ints, int(kwargs['ribbon']))
         if 'paid' in kwargs:
