@@ -74,7 +74,7 @@ def badge_cost(attendee):
 @cost_calculation.Attendee
 def badge_upgrade_cost(attendee):
     if attendee.badge_type in c.BADGE_TYPE_PRICES:
-        return ("{} badge upgrade for {}".format(attendee.badge_type_label, attendee.full_name), attendee.calculate_badge_upgrade_cost() * 100)
+        return ("{} badge upgrade for {}".format(attendee.badge_type_label, attendee.full_name), attendee.calculate_badge_prices_cost() * 100)
 
 @cost_calculation.Attendee
 def shipping_fee_cost(attendee):
