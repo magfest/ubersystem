@@ -279,6 +279,7 @@ def format_currency(value, show_abs=False):
 
     if value < 0:
         sign = "-$"
+        value = abs(value)
     else:
         sign = "$"
 
