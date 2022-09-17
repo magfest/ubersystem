@@ -547,7 +547,7 @@ $().ready(function() {
       <label for="badge_type" class="col-sm-3 control-label">Badge Type</label>
       <div class="col-sm-6 form-control-static">
         {{ attendee.badge_type_label }}
-        {{ upgrade_button('badge-type') }}
+        {% if attendee.badge_type != c.MAX_BADGE_TYPE_UPGRADE %}{{ upgrade_button('badge-type') }}{% endif %}
       </div>
     </div>
   {% endif %}

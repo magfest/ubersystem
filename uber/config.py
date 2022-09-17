@@ -1082,6 +1082,8 @@ for _badge_type, _price in _config['badge_type_prices'].items():
     except AttributeError:
         pass
 
+c.MAX_BADGE_TYPE_UPGRADE = sorted(c.BADGE_TYPE_PRICES, key=c.BADGE_TYPE_PRICES.get, reverse=True)[0]
+
 c.make_enum('age_group', OrderedDict([(name, section['desc']) for name, section in _config['age_groups'].items()]))
 c.AGE_GROUP_CONFIGS = {}
 for _name, _section in _config['age_groups'].items():
