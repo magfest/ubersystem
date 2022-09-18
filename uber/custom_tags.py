@@ -270,19 +270,22 @@ def percent_of(numerator, denominator):
 
 @JinjaEnv.jinja_filter
 def format_currency(value, show_abs=False):
-    if value or value == 0:
-        value = float(value)
-        if show_abs:
-            value = abs(value)
+    if not value:
+        value = 0
 
-        if value < 0:
-            sign = "-$"
-        else:
-            sign = "$"
+    value = float(value)
+    if show_abs:
+        value = abs(value)
 
-        if int(value) != value:
-            return "{}{:,.2f}".format(sign, value)
-        return "{}{:,}".format(sign, int(value))
+    if value < 0:
+        sign = "-$"
+        value = abs(value)
+    else:
+        sign = "$"
+
+    if int(value) != value:
+        return "{}{:,.2f}".format(sign, value)
+    return "{}{:,}".format(sign, int(value))
 
 
 @JinjaEnv.jinja_filter

@@ -11,7 +11,7 @@
 <div class="panel panel-default">
   <div class="panel-body">
     {{ dealer_groups }} {{ c.DEALER_TERM }} groups ({{ dealer_badges }} badges, {{ tables }} tables)
-    <span class="pull-right"><a href="index?show_all=true#dealers" class="btn btn-info">Show Declined and Imported Dealers</a></span>
+    <span class="pull-right"><a href="index?show_all=true#dealers" class="btn btn-info">Show All Dealers</a></span>
     <br/> <br/>
     {{ approved_tables }} approved tables / {{ waitlisted_tables }} waitlisted tables / {{ unapproved_tables }} unapproved tables
   </div>  
@@ -33,8 +33,8 @@
     </tr>
   </thead>
   <tbody>
-{% for group in groups if group.is_dealer and (show_all or (group.status != c.DECLINED and group.status != c.IMPORTED)) %}
-    <tr{% if c.SIGNNOW_DEALER_TEMPLATE_ID and not group.signnow_document_signed or group.status in [c.DECLINED_STATUS, c.CANCELLED_STATUS] %} class="danger"{% endif %}>
+{% for group in groups if group.is_dealer and (show_all or (group.status not in [c.DECLINED, c.IMPORTED, c.CANCELLED])) %}
+    <tr{% if c.SIGNNOW_DEALER_TEMPLATE_ID and not group.signnow_document_signed or group.status in [c.DECLINED, c.CANCELLED] %} class="danger"{% endif %}>
         <td style="text-align:left" data-order="{{ group.name }}" data-search="{{ group.name }}"> <a href="form?id={{ group.id }}">{{ group.name|default('?????', boolean=True) }}</a> </td>
         <td>
             {% if group.is_dealer %}

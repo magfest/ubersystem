@@ -1094,7 +1094,7 @@ class Charge:
                             if receipt:
                                 receipt_items.append(ReceiptItem(receipt_id=receipt.id,
                                                                 desc=desc,
-                                                                amount=cost,
+                                                                amount=price,
                                                                 count=cost[price],
                                                                 who=AdminAccount.admin_name() or 'non-admin'
                                                                 ))
@@ -1303,7 +1303,7 @@ class Charge:
 
             stripe_intent = stripe.PaymentIntent.create(
                 payment_method_types=['card'],
-                amount=amount,
+                amount=int(amount),
                 currency='usd',
                 description=description,
                 receipt_email=customer.email if receipt_email else None,
@@ -1328,7 +1328,7 @@ class Charge:
 
     @staticmethod
     def mark_paid_from_intent_id(intent_id, charge_id):
-        from uber.models import Attendee, Group, Session
+        from uber.models import Attendee, ArtShowApplication, Group, Session
         from uber.tasks.email import send_email
         from uber.decorators import render
         
@@ -1359,19 +1359,29 @@ class Charge:
 
                 session.commit()
 
-                if isinstance(model, Group):
-                    if model and model.is_dealer and not txn.receipt.open_receipt_items:
-                        try:
-                            send_email.delay(
-                                c.MARKETPLACE_EMAIL,
-                                c.MARKETPLACE_EMAIL,
-                                '{} Payment Completed'.format(c.DEALER_TERM.title()),
-                                render('emails/dealers/payment_notification.txt', {'group': model}, encoding=None),
-                                model=model.to_dict('id'))
-                        except Exception:
-                            log.error('unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
+                if model and isinstance(model, Group) and model.is_dealer and not txn.receipt.open_receipt_items:
+                    try:
+                        send_email.delay(
+                            c.MARKETPLACE_EMAIL,
+                            c.MARKETPLACE_EMAIL,
+                            '{} Payment Completed'.format(c.DEALER_TERM.title()),
+                            render('emails/dealers/payment_notification.txt', {'group': model}, encoding=None),
+                            model=model.to_dict('id'))
+                    except Exception:
+                        log.error('Unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
+                if model and isinstance(model, ArtShowApplication) and not txn.receipt.open_receipt_items:
+                    try:
+                        send_email.delay(
+                            c.ART_SHOW_EMAIL,
+                            c.ART_SHOW_EMAIL,
+                            'Art Show Payment Received',
+                            render('emails/art_show/payment_notification.txt',
+                                {'app': model}, encoding=None),
+                            model=model.to_dict('id'))
+                    except Exception:
+                        log.error('Unable to send Art Show payment confirmation email', exc_info=True)
 
-            return txn
+            return matching_txns
 
 
 class SignNowDocument:    
@@ -1396,26 +1406,39 @@ class SignNowDocument:
 
         self.access_token = c.SIGNNOW_ACCESS_TOKEN
 
+        if self.access_token and not refresh:
+            return
+
         if not self.access_token and c.DEV_BOX and c.SIGNNOW_USERNAME and c.SIGNNOW_PASSWORD:
             access_request = signnow_sdk.OAuth2.request_token(c.SIGNNOW_USERNAME, c.SIGNNOW_PASSWORD, '*')
             if 'error' in access_request:
-                self.error_message = "Error getting access token from SignNow: " + access_request['error']
+                self.error_message = "Error getting access token from SignNow using username and passsword: " + access_request['error']
             else:
                 self.access_token = access_request['access_token']
-            
-        elif (not self.access_token or refresh) and aws_secrets_client:
+        elif not aws_secrets_client:
+            self.error_message = "Couldn't get a SignNow access token because there was no AWS Secrets client. If you're on a development box, you can instead use a username and password."
+        elif not c.AWS_SIGNNOW_SECRET_NAME:
+            self.error_message = "Couldn't get a SignNow access token because the secret name is not set. If you're on a development box, you can instead use a username and password."
+        else:
             aws_secrets_client.get_signnow_secret()
             self.access_token = c.SIGNNOW_ACCESS_TOKEN
+        
+        if not self.access_token and not self.error_message:
+            self.error_message = "We tried to set an access token, but for some reason it failed."
 
     def create_document(self, template_id, doc_title, folder_id='', uneditable_texts_list=None, fields={}):
         from requests import post, put
         from json import dumps, loads
 
         self.set_access_token(refresh=True)
-        document_request = signnow_sdk.Template.copy(self.access_token, template_id, doc_title)
+        if not self.error_message:
+            document_request = signnow_sdk.Template.copy(self.access_token, template_id, doc_title)
         
-        if 'error' in document_request:
-            self.error_message = "Error creating document from template: " + document_request['error']
+            if 'error' in document_request:
+                self.error_message = "Error creating document from template with token {}: {}".format(self.access_token, document_request['error'])
+                return None
+
+        if self.error_message:
             return None
         
         if uneditable_texts_list:

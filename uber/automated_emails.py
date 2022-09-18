@@ -291,6 +291,13 @@ if c.ART_SHOW_ENABLED:
         ident='art_show_declined')
 
     ArtShowAppEmailFixture(
+        'Your {EVENT_NAME} Art Show payment has been received',
+        'art_show/payment_confirmation.txt',
+        lambda a: a.status == c.APPROVED and a.amount_paid,
+        ident='art_show_payment_received'
+    )
+
+    ArtShowAppEmailFixture(
         'Reminder to pay for your {EVENT_NAME} Art Show application',
         'art_show/payment_reminder.txt',
         lambda a: a.status == c.APPROVED and a.is_unpaid,
@@ -391,12 +398,19 @@ class MarketplaceEmailFixture(AutomatedEmailFixture):
 if c.DEALER_REG_START:
 
     MarketplaceEmailFixture(
-        'Your {} {} has been approved'.format(c.EVENT_NAME, c.DEALER_REG_TERM.capitalize()),
+        'Your {} {} has been approved'.format(c.EVENT_NAME, c.DEALER_APP_TERM.capitalize()),
         'dealers/approved.html',
         lambda g: g.status == c.APPROVED,
         # query=Group.status == c.APPROVED,
         needs_approval=True,
         ident='dealer_reg_approved')
+
+    MarketplaceEmailFixture(
+        'Please complete your {} {}!'.format(c.EVENT_NAME, c.DEALER_APP_TERM.capitalize()),
+        'dealers/signnow_request.html',
+        lambda g: g.status == c.APPROVED and c.SIGNNOW_DEALER_TEMPLATE_ID and not g.signnow_document_signed,
+        needs_approval=True,
+        ident='dealer_signnow_email')
 
     MarketplaceEmailFixture(
         'Reminder to pay for your {} {}'.format(c.EVENT_NAME, c.DEALER_REG_TERM.capitalize()),

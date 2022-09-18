@@ -11,8 +11,6 @@ from uber.decorators import cost_calculation, credit_calculation
 from uber.models import Attendee
 
 
-
-
 @cost_calculation.MarketplaceApplication
 def app_cost(app):
     if app.status == c.APPROVED:
@@ -33,15 +31,15 @@ def table_cost(app):
     return ("General Table", c.COST_PER_TABLE * 100, app.tables) if app.tables else None
 
 @cost_calculation.ArtShowApplication
-def ad_panel_cost(app):
+def mature_panel_cost(app):
     return ("Mature Panel", c.COST_PER_PANEL * 100, app.panels_ad) if app.panels_ad else None
 
 @cost_calculation.ArtShowApplication
-def ad_table_cost(app):
+def mature_table_cost(app):
     return ("Mature Table", c.COST_PER_TABLE * 100, app.tables_ad) if app.tables_ad else None
 
 @cost_calculation.ArtShowApplication
-def mailing_fee(app):
+def mailing_fee_cost(app):
     return ("Mailing fee", c.ART_MAILING_FEE * 100) if app.delivery_method == c.BY_MAIL else None
 
 
@@ -60,7 +58,23 @@ Attendee.credit_changes = {
 
 @cost_calculation.Attendee
 def badge_cost(attendee):
-    return ("{} badge for {}".format(attendee.badge_type_label, attendee.full_name), attendee.calculate_badge_cost() * 100)
+    if attendee.paid == c.PAID_BY_GROUP:
+        cost = 0
+    else:
+        cost = attendee.calculate_badge_cost() * 100
+
+    if cost or attendee.badge_type in c.BADGE_TYPE_PRICES:
+        if attendee.badge_type in c.BADGE_TYPE_PRICES:
+            label = "Attendee badge for {}{}".format(attendee.full_name, "" if cost else " (paid by group)")
+        else:
+            label = "{} badge for {}".format(attendee.badge_type_label, attendee.full_name)
+
+        return (label, cost)
+
+@cost_calculation.Attendee
+def badge_upgrade_cost(attendee):
+    if attendee.badge_type in c.BADGE_TYPE_PRICES:
+        return ("{} badge upgrade for {}".format(attendee.badge_type_label, attendee.full_name), attendee.calculate_badge_prices_cost() * 100)
 
 @cost_calculation.Attendee
 def shipping_fee_cost(attendee):
@@ -77,12 +91,17 @@ def kickin_cost(attendee):
 
 @credit_calculation.Attendee
 def age_discount(attendee):
-    if attendee.qualifies_for_discounts:
-        return ("Age Discount", attendee.age_discount * 100) if attendee.age_discount else None
+    if attendee.qualifies_for_discounts and attendee.age_discount:
+        if abs(attendee.age_discount) > attendee.calculate_badge_cost():
+            age_discount = attendee.calculate_badge_cost() * 100 * -1
+        else:
+            age_discount = attendee.age_discount * 100
+
+        return ("Age Discount", age_discount)
 
 @credit_calculation.Attendee
 def group_discount(attendee):
-    if attendee.qualifies_for_discounts and not attendee.age_discount and (
+    if c.GROUP_DISCOUNT and attendee.qualifies_for_discounts and not attendee.age_discount and (
                 attendee.promo_code_groups or attendee.group and attendee.paid == c.PAID_BY_GROUP):
         return ("Group Discount", c.GROUP_DISCOUNT * 100 * -1)
 
@@ -105,12 +124,12 @@ def badge_cost(group):
 
 
 @cost_calculation.PrintJob
-def badge_reprint_fee(job):
+def badge_reprint_fee_cost(job):
     return ("Badge reprint fee", job.print_fee * 100) if job.print_fee else None
 
 
 @cost_calculation.PromoCodeGroup
-def cost(group):
+def group_cost(group):
     cost_table = defaultdict(int)
 
     for code in group.promo_codes:

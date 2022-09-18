@@ -856,7 +856,9 @@ class Root:
     def group_members(self, session, id, message='', **params):
         group = session.group(id)
 
-        if group.is_dealer and c.SIGNNOW_DEALER_TEMPLATE_ID:
+        signnow_document = None
+
+        if group.is_dealer and c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_valid:
             signnow_document = session.query(SignedDocument).filter_by(model="Group", fk_id=group.id).first()
             signnow_link = ''
 
@@ -994,19 +996,21 @@ class Root:
     @credit_card
     def process_group_payment(self, session, id):
         group = session.group(id)
-        charge = Charge(group, amount=group.amount_unpaid * 100)
-        stripe_intent = charge.create_stripe_intent()
-        message = stripe_intent if isinstance(stripe_intent, string_types) else ''
-        if message:
-            return {'error': message}
-        else:
-            session.add(session.create_receipt_item(group, charge.amount, "Group page payment", charge.stripe_transaction))
+        receipt = session.get_receipt_by_model(group, create_if_none=True)
+        charge_desc = "{}: {}".format(group.name, receipt.charge_description_list)
+        charge = Charge(group, amount=receipt.current_amount_owed, description=charge_desc)
 
-            session.merge(group)
-            session.commit()
+        stripe_intent = charge.create_stripe_intent()
+        if isinstance(stripe_intent, string_types):
+            return {'error': stripe_intent}
+
+        receipt_txn = Charge.create_receipt_transaction(receipt, charge_desc, stripe_intent.id)
+        session.add(receipt_txn)
+        
+        session.commit()
                     
-            return {'stripe_intent': stripe_intent,
-                    'success_url': 'group_members?id={}&message={}'.format(group.id, 'Your payment has been accepted')}
+        return {'stripe_intent': stripe_intent,
+                'success_url': 'group_members?id={}&message={}'.format(group.id, 'Your payment has been accepted')}
 
     @requires_account(Attendee)
     @csrf_protected
@@ -1270,7 +1274,7 @@ class Root:
         attendees_who_owe_money = {}
         for attendee in account.attendees:
             receipt = session.get_receipt_by_model(attendee)
-            if receipt and receipt.current_amount_owed > 0:
+            if receipt and receipt.current_amount_owed:
                 attendees_who_owe_money[attendee.full_name] = receipt.current_amount_owed
 
         if not account:
@@ -1372,7 +1376,7 @@ class Root:
         except Exception:
             return {'error': "Cannot find your receipt, please contact registration"}
         
-        if receipt.open_receipt_items and receipt.current_amount_owed > 0:
+        if receipt.open_receipt_items and receipt.current_amount_owed:
             return {'error': "You already have an outstanding balance, please pay for your current items or contact registration"}
 
         for param in params:
@@ -1413,7 +1417,7 @@ class Root:
         success_url_base = 'confirm?id=' + id + '&' if not return_to or return_to == 'confirm' else return_to + '?'
 
         return {'stripe_intent': stripe_intent,
-                'success_url': '{}message={}'.format(success_url_base, 'Thank you for your purchase!'),
+                'success_url': '{}message={}'.format(success_url_base, 'Payment accepted!'),
                 'cancel_url': 'cancel_payment'}
 
     @id_required(Attendee)
@@ -1481,7 +1485,7 @@ class Root:
         session.commit()
 
         return {'stripe_intent': stripe_intent,
-                'success_url': 'confirm?id={}&message={}'.format(id, 'Thank you for your purchase!'),
+                'success_url': 'confirm?id={}&message={}'.format(id, 'Payment accepted!'),
                 'cancel_url': 'cancel_payment'}
 
 

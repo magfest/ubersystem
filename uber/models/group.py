@@ -10,6 +10,7 @@ from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
+from sqlalchemy.sql.elements import not_
 from sqlalchemy.types import Boolean, Integer, Numeric
 
 from uber.config import c
@@ -183,6 +184,14 @@ class Group(MagModel, TakesPaymentMixin):
         """
         return [a for a in self.attendees if a.is_unassigned and a.paid == c.PAID_BY_GROUP]
 
+    @hybrid_property
+    def is_valid(self):
+        return self.status not in [c.CANCELLED, c.DECLINED, c.IMPORTED]
+
+    @is_valid.expression
+    def is_valid(cls):
+        return not_(cls.status.in_([c.CANCELLED, c.DECLINED, c.IMPORTED]))
+
     @property
     def new_ribbon(self):
         return c.DEALER_RIBBON if self.is_dealer else ''
@@ -261,14 +270,14 @@ class Group(MagModel, TakesPaymentMixin):
     @property
     def amount_extra(self):
         if self.is_new:
-            return sum(a.total_cost - a.badge_cost for a in self.attendees if a.paid == c.PAID_BY_GROUP)
+            return sum(a.total_cost - a.badge_cost for a in self.attendees if a.paid == c.PAID_BY_GROUP) / 100
         else:
             return 0
 
     @property
     def total_cost(self):
         if self.active_receipt:
-            return self.active_receipt['current_amount_owed']
+            return self.active_receipt['current_amount_owed'] / 100
         return self.default_cost + self.amount_extra
 
     @property
