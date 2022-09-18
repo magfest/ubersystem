@@ -53,7 +53,7 @@
         and is not considered a valid registration. Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you have any questions.
       </div>
       {% else %}
-        {% if not attendee.placeholder and receipt.current_amount_owed %}
+        {% if not attendee.placeholder and receipt and receipt.current_amount_owed %}
             {% if receipt.pending_total %}
             <div class="alert alert-warning">
               You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>

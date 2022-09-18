@@ -1274,7 +1274,7 @@ class Root:
         attendees_who_owe_money = {}
         for attendee in account.attendees:
             receipt = session.get_receipt_by_model(attendee)
-            if receipt and receipt.current_amount_owed > 0:
+            if receipt and receipt.current_amount_owed:
                 attendees_who_owe_money[attendee.full_name] = receipt.current_amount_owed
 
         if not account:
@@ -1376,7 +1376,7 @@ class Root:
         except Exception:
             return {'error': "Cannot find your receipt, please contact registration"}
         
-        if receipt.open_receipt_items and receipt.current_amount_owed > 0:
+        if receipt.open_receipt_items and receipt.current_amount_owed:
             return {'error': "You already have an outstanding balance, please pay for your current items or contact registration"}
 
         for param in params:

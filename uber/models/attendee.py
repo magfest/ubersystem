@@ -745,6 +745,18 @@ class Attendee(MagModel, TakesPaymentMixin):
             return self.promo_code.calculate_discounted_price(cost)
         else:
             return cost
+
+    def calculate_badge_prices_cost(self, current_badge_type=c.ATTENDEE_BADGE):
+        base_badge_cost = self.new_badge_cost if self.paid == c.NEED_NOT_PAY else self.calculate_badge_cost()
+
+        if self.badge_type in c.BADGE_TYPE_PRICES and current_badge_type in c.BADGE_TYPE_PRICES:
+            return c.BADGE_TYPE_PRICES[self.badge_type] - c.BADGE_TYPE_PRICES[current_badge_type]
+        elif current_badge_type in c.BADGE_TYPE_PRICES:
+            return base_badge_cost - c.BADGE_TYPE_PRICES[current_badge_type]
+        elif self.badge_type in c.BADGE_TYPE_PRICES:
+            return c.BADGE_TYPE_PRICES[self.badge_type] - base_badge_cost
+        else:
+            return 0
     
     def undo_extras(self):
         if self.active_receipt:
@@ -755,7 +767,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.badge_type = c.ATTENDEE_BADGE
 
     def qualifies_for_discounts(self):
-        return self.paid != c.NEED_NOT_PAY and self.overridden_price is None and not self.is_dealer
+        return self.paid != c.NEED_NOT_PAY and self.overridden_price is None and not self.is_dealer and self.badge_type not in c.BADGE_TYPE_PRICES
 
     @property
     def new_badge_cost(self):
@@ -766,8 +778,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             return c.get_oneday_price(registered)
         elif self.is_presold_oneday:
             return c.get_presold_oneday_price(self.badge_type)
-        elif self.badge_type in c.BADGE_TYPE_PRICES:
-            return int(c.BADGE_TYPE_PRICES[self.badge_type])
         else:
             return c.get_attendee_price(registered)
 
@@ -890,14 +900,17 @@ class Attendee(MagModel, TakesPaymentMixin):
             preview_attendee.overridden_price = int(kwargs['overridden_price'])
         if 'badge_type' in kwargs:
             preview_attendee.badge_type = int(kwargs['badge_type'])
+            new_cost = preview_attendee.calculate_badge_prices_cost(self.badge_type) * 100
         if 'ribbon' in kwargs:
             add_opt(preview_attendee.ribbon_ints, int(kwargs['ribbon']))
         if 'paid' in kwargs:
             preview_attendee.paid = int(kwargs['paid'])
 
         current_cost = self.calculate_badge_cost() * 100
+        if not new_cost:
+            new_cost = (preview_attendee.calculate_badge_cost() * 100) - current_cost
 
-        return current_cost, (preview_attendee.calculate_badge_cost() * 100) - current_cost
+        return current_cost, new_cost
 
     def calc_age_discount_change(self, birthdate):
         preview_attendee = Attendee(**self.to_dict())
