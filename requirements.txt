@@ -18,7 +18,7 @@ twilio==6.10.0
 cherrys==0.4
 redis==2.10.6
 ics==0.4
-Pillow==8.3.2
+Pillow==9.0.1
 fpdf==1.7.2
 boto3==1.14.45
 SQLAlchemy==1.3.0
