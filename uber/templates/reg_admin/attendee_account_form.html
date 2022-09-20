@@ -1,0 +1,160 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}{{ account.email }} Attendee Account{% endblock %}
+{% block content %}
+<h3>{{ account.email }} Attendee Account</h3>
+<form class="form reset-form form-inline pull-left" method="post" action="../preregistration/reset_password">
+    <input type="hidden" name="account_email" value="{{ account.email }}" />
+    <input type="hidden" name="admin_url" value="reg_admin/attendee_account_form?id={{ account.id}}&" />
+    {{ csrf_token() }}
+    <button type="submit" class="btn btn-sm btn-warning">
+        <span class="glyphicon glyphicon-repeat"></span> Reset Password
+    </button>
+</form>
+<form class="form delete-form form-inline" method="post" action="delete_attendee_account">
+    <input type="hidden" name="id" value="{{ account.id }}" />
+    {{ csrf_token() }}
+    &nbsp;<button type="submit" class="btn btn-sm btn-danger">
+        <span class="glyphicon glyphicon-remove"></span> Delete Account
+    </button>
+</form><br/>
+{% for attendee in account.valid_attendees %}
+{% if loop.first %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+        Registrations
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped datatable">
+        <thead>
+            <tr>
+            <th>Status</th>
+            <th>Registration</th>
+            <th>Art Show</th>
+            <th>Marketplace</th>
+            <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% endif %}
+            <tr id="{{ account.email|idize }}">
+            <td>{{ attendee.badge_status_label }}</td>
+            <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
+                {{ attendee|form_link(true) }}
+                {% if attendee.group %}({{ attendee.group|form_link(true) }}){% endif %}
+            </td>
+            <td>
+                {% for app in attendee.art_show_applications %}
+                <a href="../art_show_admin/form?id={{ app.id }}" target="_blank">View Application</a>
+                {% else %}
+                    N/A
+                {% endfor %}
+            </td>
+            <td>
+                {% for app in attendee.marketplace_applications %}
+                <a href="../marketplace_admin/form?id={{ app.id }}" target="_blank">View Application</a>
+                {% else %}
+                    N/A
+                {% endfor %}
+            </td>
+            <td>
+                
+            </td>
+            </tr>
+        {% if loop.last %}
+        </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+{% for attendee in account.imported_attendees %}
+{% if loop.first %}
+<div class="panel panel-info">
+    <div class="panel-heading">
+        Last Year's Registrations
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped datatable">
+        <thead>
+            <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% endif %}
+            <tr id="{{ account.email|idize }}">
+            <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
+                {{ attendee.full_name }}
+            </td>
+            <td>{{ attendee.email }}</td>
+            <td>
+                <form method="post" action="repurchase" class="form-horizontal">
+                {{ csrf_token() }}
+                <input type="hidden" name="id" value="{{ attendee.id }}" />
+                <button type="submit" class="btn btn-sm btn-info" value="Import">
+                    <span class="glyphicon glyphicon-download"></span> Purchase
+                </button>
+                </form>
+            </td>
+            </tr>
+        {% if loop.last %}
+        </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+{% for attendee in account.invalid_attendees %}
+{% if loop.first %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+        Invalid Registrations
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped datatable">
+        <thead>
+            <tr>
+            <th>Status</th>
+            <th>Registration</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% endif %}
+            <tr id="{{ account.email|idize }}">
+            <td>{{ attendee.badge_status_label }}</td>
+            <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
+                {{ attendee|form_link(true) }}
+                {% if attendee.group %}({{ attendee.group|form_link(true) }}){% endif %}
+            </td>
+            </tr>
+        {% if loop.last %}
+        </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+<script type="text/javascript">
+    $(function() {
+      $('.delete-form').on('submit', function(event) {
+        event.preventDefault();
+        var $toSubmit = $(this);
+        bootbox.confirm({
+          backdrop: true,
+          message: '<p>Are you sure you want to delete this account?</p>',
+          buttons: {
+            confirm: { label: '<span class="glyphicon glyphicon-remove"></span> Delete', className: 'btn-danger' },
+            cancel: { label: 'Nevermind', className: 'btn-default' }
+          },
+          callback: function (result) {
+            if (result) {
+              $toSubmit[0].submit();
+            }
+          }
+        });
+      });
+    });
+</script>
+{% endblock %}

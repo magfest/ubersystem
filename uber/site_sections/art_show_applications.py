@@ -1,10 +1,11 @@
 import cherrypy
 from six import string_types
+from pockets.autolog import log
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, render, credit_card, requires_account
 from uber.errors import HTTPRedirect
-from uber.models import ArtShowApplication
+from uber.models import ArtShowApplication, ModelReceipt
 from uber.tasks.email import send_email
 from uber.utils import Charge, check
 
@@ -66,11 +67,13 @@ class Root:
     @requires_account(ArtShowApplication)
     def edit(self, session, message='', **params):
         return_to = params.get('return_to', '/art_show_applications/edit')
-        app = session.art_show_application(params, restricted='art_show_applications' in return_to,
-                                           ignore_csrf=True)
+
         if not params.get('id'):
             message = 'Invalid art show application ID. ' \
                       'Please try going back in your browser.'
+
+        app = session.art_show_application(params, restricted='art_show_applications' in return_to,
+                                           ignore_csrf=True)
 
         if cherrypy.request.method == 'POST':
             message = check(app, prereg='art_show_applications' in return_to)
@@ -94,7 +97,8 @@ class Root:
         return {
             'message': message,
             'app': app,
-            'account': session.one_badge_attendee_account(app.attendee),
+            'receipt': session.get_receipt_by_model(app),
+            'account': session.get_attendee_account_by_attendee(app.attendee),
             'return_to': 'edit?id={}'.format(app.id),
         }
 
@@ -238,41 +242,45 @@ class Root:
     @ajax
     @credit_card
     def process_art_show_payment(self, session, id):
-        attendee = session.attendee(id)
-        charge = Charge(attendee, description="Art show application payment for {}".format(attendee.full_name))
-        
-        stripe_intent = charge.create_stripe_intent(session)
-        message = stripe_intent if isinstance(stripe_intent, string_types) else ''
-        if message:
-            return {'error': message}
-        else:
-            cancel_amt = 0
-            for app in attendee.art_show_applications:
-                cancel_amt = app.amount_unpaid
-                app.amount_paid += app.amount_unpaid
-                send_email.delay(
-                    c.ADMIN_EMAIL,
-                    c.ART_SHOW_EMAIL,
-                    'Art Show Payment Received',
-                    render('emails/art_show/payment_notification.txt',
-                        {'app': app}, encoding=None),
-                    model=app.to_dict('id'))
-                send_email.delay(
-                    c.ART_SHOW_EMAIL,
-                    app.email_to_address,
-                    'Art Show Payment Received',
-                    render('emails/art_show/payment_confirmation.txt',
-                        {'app': app}, encoding=None),
-                    model=app.to_dict('id'))
-            if attendee.paid == c.NOT_PAID:
-                attendee.paid = c.HAS_PAID
-            session.add(session.create_receipt_item(attendee, charge.amount, "Art show payment", charge.stripe_transaction))
-            session.add(attendee)
+        app = session.art_show_application(id)
+
+        receipt = session.get_receipt_by_model(app)
+
+        if not receipt:
+            receipt, receipt_items = Charge.create_model_receipt(app)
+            session.add(receipt)
+            for item in receipt_items:
+                session.add(item)
             session.commit()
-            
-            return {'stripe_intent': stripe_intent,
-                    'success_url': 'edit?id={}&message={}'.format(attendee.art_show_applications[0].id,
-                                                                  'Your payment has been accepted'),
-                    'cancel_url': '../preregistration/cancel_payment?model_id={}&cancel_amt={}'.format(
-                            attendee.art_show_applications[0].id, cancel_amt
-                    )}
+        
+        charge_desc = "{}'s Art Show Application: {}".format(app.attendee.full_name, receipt.charge_description_list)
+        charge = Charge(app, amount=receipt.current_amount_owed, description=charge_desc)
+        
+        stripe_intent = charge.create_stripe_intent()
+
+        if isinstance(stripe_intent, string_types):
+            return {'error': stripe_intent}
+        
+        receipt_txn = Charge.create_receipt_transaction(receipt, charge_desc, stripe_intent.id)
+        session.add(receipt_txn)
+        session.commit()
+
+        send_email.delay(
+            c.ADMIN_EMAIL,
+            c.ART_SHOW_EMAIL,
+            'Art Show Payment Received',
+            render('emails/art_show/payment_notification.txt',
+                {'app': app}, encoding=None),
+            model=app.to_dict('id'))
+        send_email.delay(
+            c.ART_SHOW_EMAIL,
+            app.email_to_address,
+            'Art Show Payment Received',
+            render('emails/art_show/payment_confirmation.txt',
+                {'app': app}, encoding=None),
+            model=app.to_dict('id'))
+    
+        return {'stripe_intent': stripe_intent,
+                'success_url': 'edit?id={}&message={}'.format(app.id,
+                                                                'Your payment has been accepted'),
+                'cancel_url': '../preregistration/cancel_payment'}

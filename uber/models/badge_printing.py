@@ -18,7 +18,7 @@ __all__ = ['PrintJob']
 
 class PrintJob(MagModel):
     attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    admin_id = Column(UUID, ForeignKey('admin_account.id'))
+    admin_id = Column(UUID, ForeignKey('admin_account.id'), nullable=True)
     admin_name = Column(UnicodeText) # Preserve admin's name in case their account is removed
     printer_id = Column(UnicodeText)
     reg_station = Column(Integer, nullable=True)

@@ -65,10 +65,11 @@
     {% endif %}
     {% if group.is_dealer %}
       {{ group_fields.status }}
+      {{ group_fields.signed_document }}
       <h2>"{{ group.name }}" Information</h2>
       <form method="post" action="group_members" class="form-horizontal" role="form">
         <input type="hidden" name="id" value="{{ group.id }}" />
-        {% if not page_ro %}{{ group_fields.group_name }}{% endif %}
+        {% if not page_ro or 'name' in c.APPROVED_DEALER_EDITABLE_FIELDS and group.status == c.APPROVED %}{{ group_fields.group_name }}{% endif %}
         {{ group_fields.categories }}
         {{ group_fields.wares }}
         {{ group_fields.description }}
@@ -76,7 +77,7 @@
         {{ group_fields.website }}
         {{ group_fields.address }}
         {% include "groupextra.html" %}
-        {% if not page_ro %}
+        {% if not page_ro or c.APPROVED_DEALER_EDITABLE_FIELDS and group.status == c.APPROVED %}
         <button type="submit" class="btn btn-primary" value="Update Application">Update Application</button>
         <button type="submit" class="btn btn-danger" value="Cancel {{ c.DEALER_APP_TERM|title }}" form="cancel_dealer">Cancel Application</button>
         {% endif %}

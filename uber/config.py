@@ -12,6 +12,7 @@ from hashlib import sha512
 from itertools import chain
 
 import cherrypy
+import signnow_python_sdk
 import stripe
 from pockets import keydefaultdict, nesteddefaultdict, unwrap
 from pockets.autolog import log
@@ -54,11 +55,19 @@ class _Overridable:
         if 'enums' in plugin_config:
             self.make_enums(plugin_config['enums'])
 
+        if 'integer_enums' in plugin_config:
+            self.make_integer_enums(plugin_config['integer_enums'])
+
         if 'dates' in plugin_config:
             self.make_dates(plugin_config['dates'])
 
         if 'data_dirs' in plugin_config:
             self.make_data_dirs(plugin_config['data_dirs'])
+
+        if 'secret' in plugin_config:
+            for attr, val in plugin_config['secret'].items():
+                if not isinstance(val, dict):
+                    setattr(self, attr.upper(), val)
 
     def make_dates(self, config_section):
         """
@@ -96,6 +105,29 @@ class _Overridable:
         """
         for name, subsection in config_section.items():
             self.make_enum(name, subsection)
+
+    def make_integer_enums(self, config_section):
+        def is_intstr(s):
+            if s and s[0] in ('-', '+'):
+                return str(s[1:]).isdigit()
+            return str(s).isdigit()
+
+        for name, val in config_section.items():
+            if isinstance(val, int):
+                setattr(c, name.upper(), val)
+
+        for name, section in config_section.items():
+            if isinstance(section, dict):
+                interpolated = OrderedDict()
+                for desc, val in section.items():
+                    if is_intstr(val):
+                        price = int(val)
+                    else:
+                        price = getattr(c, val.upper())
+
+                    interpolated[desc] = price
+
+                c.make_enum(name, interpolated, prices=name.endswith('_price'))
 
     def make_enum(self, enum_name, section, prices=False):
         """
@@ -152,7 +184,7 @@ class Config(_Overridable):
 
     def get_attendee_price(self, dt=None):
         price = self.INITIAL_ATTENDEE
-        if self.PRICE_BUMPS_ENABLED:
+        """if self.PRICE_BUMPS_ENABLED:
             localized_now = uber.utils.localized_now()
             for day, bumped_price in sorted(self.PRICE_BUMPS.items()):
                 if (dt or localized_now) >= day:
@@ -165,7 +197,7 @@ class Config(_Overridable):
 
                 for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
                     if badges_sold >= badge_cap and bumped_price > price:
-                        price = bumped_price
+                        price = bumped_price"""
         return price
 
     def get_group_price(self, dt=None):
@@ -178,11 +210,13 @@ class Config(_Overridable):
         badges, since those have by definition not been promised to anyone.
         """
         from uber.models import Session, Attendee
+        count = 0
         with Session() as session:
-            return session.query(Attendee).filter(
+            count = session.query(Attendee).filter(
                 Attendee.paid != c.NOT_PAID,
                 Attendee.badge_type == badge_type,
                 Attendee.badge_status.in_([c.COMPLETED_STATUS, c.NEW_STATUS])).count()
+        return count
 
     def get_printed_badge_deadline_by_type(self, badge_type):
         """
@@ -853,7 +887,7 @@ class SecretConfig(_Overridable):
     @property
     def SQLALCHEMY_URL(self):
         """
-        support reading the DB connection info from an environment var (used with Docker containers)
+        Support reading the DB connection info from an environment var (used with Docker containers)
         DB_CONNECTION_STRING should contain the full Postgres URI
         """
         db_connection_string = os.environ.get('DB_CONNECTION_STRING')
@@ -864,10 +898,101 @@ class SecretConfig(_Overridable):
             return _config['secret']['sqlalchemy_url']
 
 
+class AWSSecretFetcher:
+    """
+    This class manages fetching secrets from AWS. Some secrets only need to be
+    fetched once, while others may be re-fetched to refresh tokens.
+    """
+
+    def __init__(self):
+        import boto3
+        
+        aws_session = boto3.session.Session(
+            aws_access_key_id=c.AWS_ACCESS_KEY,
+            aws_secret_access_key=c.AWS_SECRET_KEY
+        )
+
+        self.client = aws_session.client(
+            service_name=c.AWS_SECRET_SERVICE_NAME,
+            region_name=c.AWS_REGION
+        )
+
+    def get_secret(self, secret_name):
+        import json
+        from botocore.exceptions import ClientError
+
+        try:
+            get_secret_value_response = self.client.get_secret_value(
+                SecretId=secret_name
+            )
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'DecryptionFailureException':
+                # Secrets Manager can't decrypt the protected secret text using the provided KMS key.
+                log.error("Retrieving secret error: Wrong KMS key ({}).".format(str(e)))
+                return
+            elif e.response['Error']['Code'] == 'InternalServiceErrorException':
+                # An error occurred on the server side.
+                log.error("Retrieving secret error: Server error ({}).".format(str(e)))
+                return
+            elif e.response['Error']['Code'] == 'InvalidParameterException':
+                # You provided an invalid value for a parameter.
+                log.error("Retrieving secret error: Invalid parameter ({}).".format(str(e)))
+                return
+            elif e.response['Error']['Code'] == 'InvalidRequestException':
+                # You provided a parameter value that is not valid for the current state of the resource.
+                log.error("Retrieving secret error: Invalid parameter ({}).".format(str(e)))
+                return
+            elif e.response['Error']['Code'] == 'ResourceNotFoundException':
+                # We can't find the resource that you asked for.
+                log.error("Retrieving secret error: Resource not found ({}).".format(str(e)))
+                return
+        else:
+            # Decrypts secret using the associated KMS key.
+            if 'SecretString' in get_secret_value_response:
+                secret = json.loads(get_secret_value_response['SecretString'])
+            else:
+                log.error("Could not retrieve secret from AWS, instead we got: {}".format(str(secret)))
+                return
+
+            return secret
+        log.error("Could not retrieve secret from AWS. Is the secret name (\"{}\") correct?".format(secret_name))
+
+    def get_all_secrets(self):
+        if c.AWS_AUTH0_SECRET_NAME:
+            self.get_auth0_secret()
+
+        if c.AWS_SIGNNOW_SECRET_NAME:
+            self.get_signnow_secret()
+
+    def get_auth0_secret(self):
+        auth0_secret = self.get_secret(c.AWS_AUTH0_SECRET_NAME)
+        if auth0_secret:
+            c.AUTH_DOMAIN = auth0_secret.get('AUTH0_DOMAIN', '') or c.AUTH_DOMAIN
+            c.AUTH_CLIENT_ID = auth0_secret.get('CLIENT_ID', '') or c.AUTH_CLIENT_ID
+            c.AUTH_CLIENT_SECRET = auth0_secret.get('CLIENT_SECRET', '') or c.AUTH_CLIENT_SECRET
+
+    def get_signnow_secret(self):
+        signnow_secret = self.get_secret(c.AWS_SIGNNOW_SECRET_NAME)
+        if signnow_secret:
+            c.SIGNNOW_ACCESS_TOKEN = signnow_secret.get('ACCESS_TOKEN', '') or c.SIGNNOW_ACCESS_TOKEN
+            c.SIGNNOW_CLIENT_ID = signnow_secret.get('CLIENT_ID', '') or c.SIGNNOW_CLIENT_ID
+            c.SIGNNOW_CLIENT_SECRET = signnow_secret.get('CLIENT_SECRET', '') or c.SIGNNOW_CLIENT_SECRET
+
+
 c = Config()
 _secret = SecretConfig()
-
 _config = parse_config(__file__)  # outside this module, we use the above c global instead of using this directly
+
+if c.AWS_SECRET_SERVICE_NAME:
+    aws_secrets_client = AWSSecretFetcher()
+    aws_secrets_client.get_all_secrets()
+else:
+    aws_secrets_client = None
+
+signnow_python_sdk.Config(client_id=c.SIGNNOW_CLIENT_ID,
+                          client_secret=c.SIGNNOW_CLIENT_SECRET,
+                          environment=c.SIGNNOW_ENV)
+signnow_sdk = signnow_python_sdk
 
 
 def _unrepr(d):
@@ -926,12 +1051,6 @@ for _opt, _val in c.BADGE_PRICES['attendee'].items():
 c.ORDERED_PRICE_LIMITS = sorted([val for key, val in c.PRICE_LIMITS.items()])
 
 
-def _is_intstr(s):
-    if s and s[0] in ('-', '+'):
-        return s[1:].isdigit()
-    return s.isdigit()
-
-
 # Under certain conditions, we want to completely remove certain payment options from the system.
 # However, doing so cleanly also risks an exception being raised if these options are referenced elsewhere in the code
 # (i.e., c.STRIPE). So we create an enum val to allow code to check for these variables without exceptions.
@@ -947,22 +1066,7 @@ if c.ONLY_PREPAY_AT_DOOR:
 
 c.make_enums(_config['enums'])
 
-for _name, _val in _config['integer_enums'].items():
-    if isinstance(_val, int):
-        setattr(c, _name.upper(), _val)
-
-for _name, _section in _config['integer_enums'].items():
-    if isinstance(_section, dict):
-        _interpolated = OrderedDict()
-        for _desc, _val in _section.items():
-            if _is_intstr(_val):
-                _price = int(_val)
-            else:
-                _price = getattr(c, _val.upper())
-
-            _interpolated[_desc] = _price
-
-        c.make_enum(_name, _interpolated, prices=_name.endswith('_price'))
+c.make_integer_enums(_config['integer_enums'])
 
 c.BADGE_RANGES = {}
 for _badge_type, _range in _config['badge_ranges'].items():
@@ -1123,6 +1227,7 @@ c.GUIDEBOOK_PROPERTIES = [
     ('guidebook_location', 'Location/Room'),
     ('guidebook_image', 'Image (Optional)'),
     ('guidebook_thumbnail', 'Thumbnail (Optional)'),
+    ('guidebook_track', 'Schedule Track (Optional)'),
 ]
 
 

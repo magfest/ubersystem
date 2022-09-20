@@ -1,0 +1,5 @@
+The following preregistrations did not properly complete their payment while preregistering:
+{% for attendee in attendees %}- {{ attendee.full_name }}: {{ c.URL_BASE }}/registration/form?id={{ attendee.id }}{% endfor %}
+
+
+Please check if their Stripe payment went through and mark them as paid or contact them.

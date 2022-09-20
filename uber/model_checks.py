@@ -48,10 +48,11 @@ def read_only_makes_sense(group):
 
 
 AdminAccount.required = [
-    ('attendee', 'Attendee'),
-    ('hashed', 'Password'),
+    ('attendee_id', 'Attendee'),
 ]
 
+if not c.AUTH_DOMAIN:
+    AdminAccount.required.append(('hashed', 'Password'))
 
 @validation.AdminAccount
 def duplicate_admin(account):
@@ -148,6 +149,18 @@ def dealer_region(group):
             'state' if group.country == 'United States' else 'province or region')
 
 
+@prereg_validation.Group
+def dealer_email(group):
+    if group.is_dealer and not group.email_address:
+        return 'Please enter your business email address'
+
+
+@prereg_validation.Group
+def dealer_phone(group):
+    if group.is_dealer and not group.phone:
+        return 'Please enter your business\' phone number'
+
+
 @validation.Group
 def group_money(group):
     if not group.auto_recalc:
@@ -237,7 +250,7 @@ def no_more_child_badges(attendee):
 def upgrade_sold_out(attendee):
     currently_available_upgrades = [tier['price'] for tier in c.PREREG_DONATION_DESCRIPTIONS]
     if (attendee.is_new or attendee.orig_value_of('amount_extra') != attendee.amount_extra) \
-        and attendee.amount_extra not in currently_available_upgrades:
+        and attendee.amount_extra and attendee.amount_extra not in currently_available_upgrades:
         return "The upgrade you have selected is sold out."
 
 
@@ -253,6 +266,7 @@ def extra_donation_valid(attendee):
 
 @prereg_validation.Attendee
 def total_cost_over_paid(attendee):
+    return
     if (attendee.total_cost * 100) < attendee.amount_paid:
         if (not attendee.orig_value_of('birthdate') or attendee.orig_value_of('birthdate') < attendee.birthdate) \
                 and attendee.age_group_conf['val'] in [c.UNDER_6, c.UNDER_13]:
@@ -262,15 +276,12 @@ def total_cost_over_paid(attendee):
             format_currency(attendee.amount_paid / 100))
 
 
-@validation.Attendee
-def reasonable_total_cost(attendee):
-    if attendee.total_cost >= 999999:
-        return 'We cannot charge {}. Please reduce extras so the total is below $999,999.'.format(
-            format_currency(attendee.total_cost))
-
-
 @prereg_validation.Attendee
 def promo_code_is_useful(attendee):
+    with Session() as session:
+        if attendee.promo_code and session.lookup_agent_code(attendee.promo_code.code):
+            return
+
     if attendee.is_new and attendee.promo_code:
         if not attendee.is_unpaid:
             return "You can't apply a promo code after you've paid or if you're in a group."
@@ -963,7 +974,8 @@ def overlapping_events(event, other_event_id=None):
 PanelApplication.required = [
     ('name', 'Panel Name'),
     ('description', 'Panel Description'),
-    ('length', 'Panel Length')
+    ('length', 'Panel Length'),
+    ('noise_level', 'Noise Level'),
 ]
 
 PanelApplicant.required = [
@@ -1255,20 +1267,6 @@ def check_in_gallery(piece):
 def media_max_length(piece):
     if len(piece.media) > 15:
         return "The description of the piece's media must be 15 characters or fewer."
-
-
-@prereg_validation.Attendee
-def promo_code_is_useful(attendee):
-    if attendee.promo_code:
-        with Session() as session:
-            if session.lookup_agent_code(attendee.promo_code.code):
-                return
-        if not attendee.is_unpaid:
-            return "You can't apply a promo code after you've paid or if you're in a group."
-        elif attendee.overridden_price:
-            return "You already have a special badge price, you can't use a promo code on top of that."
-        elif attendee.badge_cost >= attendee.badge_cost_without_promo_code:
-            return "That promo code doesn't make your badge any cheaper. You may already have other discounts."
 
 
 @prereg_validation.Attendee

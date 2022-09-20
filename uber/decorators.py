@@ -727,8 +727,20 @@ class Validation:
             return func
         return wrapper
 
-
 validation, prereg_validation = Validation(), Validation()
+
+
+class ReceiptItemConfig:
+    def __init__(self):
+        self.items = defaultdict(OrderedDict)
+
+    def __getattr__(self, model_name):
+        def wrapper(func):
+            self.items[model_name][func.__name__] = func
+            return func
+        return wrapper
+
+cost_calculation, credit_calculation = ReceiptItemConfig(), ReceiptItemConfig()
 
 
 adjustment_counter = count().__next__

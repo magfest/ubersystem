@@ -113,6 +113,26 @@ class Root:
             api_job.cancelled = datetime.now()
         raise HTTPRedirect('api_jobs?message={}', message or 'API job deleted.')
 
+    def rerun_api_job(self, session, id, message='', **params):
+        api_job = session.api_job(id)
+        if not api_job:
+            message = "No job found!"
+        elif api_job.cancelled:
+            message = "This job has already been deleted."
+        elif not api_job.completed:
+            api_job.queued = None
+            message = "API job requeued."
+        else:
+            new_job = ApiJob().apply(api_job.to_dict())
+            new_job.completed = None
+            new_job.queued = None
+            new_job.errors = ''
+            new_job.admin_id = cherrypy.session.get('account_id')
+            new_job.admin_name = session.admin_attendee().full_name
+            session.add(new_job)
+            message = "API job duplicated."
+        raise HTTPRedirect('api_jobs?message={}', message)
+
     def requeue_incomplete_jobs(self, session, message='', **params):
         to_requeue = session.query(ApiJob).filter(ApiJob.cancelled == None,
                                                   ApiJob.completed == None,
@@ -152,8 +172,8 @@ class Root:
 
         if event and event['type'] == 'payment_intent.succeeded':
             payment_intent = event['data']['object']
-            matching_txns = Charge.mark_paid_from_stripe_id(payment_intent['id'])
-            if not matching_txns:
+            matching_txn = Charge.mark_paid_from_intent_id(payment_intent['id'], payment_intent.charges.data[0].id)
+            if not matching_txn:
                 cherrypy.response.status = 400
                 return "No matching Stripe transaction"
             cherrypy.response.status = 200

@@ -5,15 +5,6 @@
 
 <script type="text/javascript">
     $().ready(function() {
-      $('#cancel_payment').click(function(event) {
-        event.preventDefault();
-        $.post('cancel_prereg_payment', {csrf_token: csrf_token},
-        function(result) {
-            if (result.message) {
-                window.location.replace('index?message=Payment%20reset');
-            }
-        });
-      })
       $("a[href^='delete']").click(function(event){
           var urlToUse = $(this).attr('href');
           event.preventDefault();

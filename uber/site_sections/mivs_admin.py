@@ -65,7 +65,7 @@ class Root:
                 send_email.delay(
                     c.MIVS_EMAIL,
                     attendee.email_to_address,
-                    'New {} Ubersystem Account'.format(c.EVENT_NAME),
+                    'New {} MIVS Judge Account'.format(c.EVENT_NAME),
                     email_body,
                     model=attendee.to_dict('id'))
                 raise HTTPRedirect(

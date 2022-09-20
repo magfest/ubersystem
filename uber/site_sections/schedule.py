@@ -156,7 +156,7 @@ class Root:
                 event.start_time_local.strftime('%I:%M:%S %p'),
                 (event.start_time_local + timedelta(minutes=event.minutes)).strftime('%I:%M:%S %p'),
                 event.location_label,
-                '',
+                event.guidebook_track,
                 normalize_newlines(event.description).replace('\n', ' '),
                 '', '', '', ''
             ])

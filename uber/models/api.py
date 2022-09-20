@@ -42,7 +42,7 @@ class ApiToken(MagModel):
 
 
 class ApiJob(MagModel):
-    admin_id = Column(UUID, ForeignKey('admin_account.id'))
+    admin_id = Column(UUID, ForeignKey('admin_account.id'), nullable=True)
     admin_name = Column(UnicodeText) # Preserve admin's name in case their account is removed
     queued = Column(UTCDateTime, nullable=True, default=None)
     completed = Column(UTCDateTime, nullable=True, default=None)

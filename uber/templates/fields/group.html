@@ -3,6 +3,33 @@
 
 {%- set attendee_or_group = attendee if attendee else group -%}
 
+{% set signed_document %}
+{% if false %}
+{% if c.SIGNNOW_DEALER_TEMPLATE_ID and signnow_link %}
+  {% if signnow_document and signnow_document.signed %}
+  <span id="tc-link">
+    <a href="{{ signnow_link }}" class="btn btn-info" target="_blank" role="button">
+      <span class="glyphicon glyphicon-download"></span> Terms and Conditions
+    </a>
+  </span>
+  <script type="text/javascript">
+    $(function() {
+      $('#tc-link').insertAfter($("button[form='cancel_dealer']"));
+    });
+  </script>
+  {% else %}
+  <div class="alert alert-danger">
+    <p>We need you to sign our terms and conditions for vending at {{ c.EVENT_NAME }}.</p>
+    <p><a href="{{ signnow_link }}" class="btn btn-primary" target="_blank">
+      {% if group.signnow_document %}Finish Signing{% else %}Review and Sign{% endif %}
+    </a></p>
+    <p>Make sure to click "DONE" in the top right to confirm your signature.</p>
+  </div>
+  {% endif %}
+{% endif %}
+{% endif %}
+{% endset %}
+
 
 {% set status %}
 {% set read_only = group_status_ro or page_ro %}
@@ -37,19 +64,19 @@
       <br/><br/>Here is your group's cost breakdown:
       <ul>
         {% if group.auto_recalc %}
-          <li>{{ group.table_cost|format_currency }} for {{ group.tables }} table{{ group.tables|pluralize }}</li>
-          <li>{{ group.badge_cost|format_currency }} for {{ group.badges_purchased }} badge{{ group.badges_purchased|pluralize }}
+          <li>{{ group.default_table_cost|format_currency }} for {{ group.tables }} table{{ group.tables|pluralize }}</li>
+          <li>{{ group.default_badge_cost|format_currency }} for {{ group.badges_purchased }} badge{{ group.badges_purchased|pluralize }}
             {% if upgraded_badges %}(including {{ upgraded_badges }} upgraded badge{{ upgraded_badges|pluralize }}){% endif %}</li>
         {% else %}
           <li>{{ group.cost|format_currency }} total cost</li>
         {% endif %}
-        <li>{{ ((group.amount_paid + group.amount_pending) / 100)|format_currency or '$0' }} paid{% if group.amount_unpaid %} so far</li>
+        <!--<li>{{ ((group.amount_paid + group.amount_pending) / 100)|format_currency or '$0' }} paid{% if group.amount_unpaid %} so far</li>
           <li>{{ group.amount_unpaid|format_currency }} unpaid</li>
           </ul>
           <br/>{{ stripe_form('process_group_payment',group) }}
         {% else %}
           </li></ul>
-        {% endif %}
+        {% endif %}-->
     {% endif %}
   {% elif group.status == c.CANCELLED %}
     <div class="alert alert-info">
@@ -62,7 +89,7 @@
       <br/><br/>If you would like, you may instead
       <a href="../marketplace/index?attendee_id={{ group.leader.id }}" target="_blank">apply for a table in the Marketplace.</a>{% endif %}
   {% endif %}
-</div>
+  </div>
 {% endif %}
 <script type="text/javascript">
   var unapprove = function(action, convert) {
@@ -94,7 +121,7 @@
 <div class="group_fields">
   <div class="form-group">
     <label for="name" class="col-sm-3 control-label">{{ "Table" if attendee_or_group.is_dealer else "Group" }} Name</label>
-    {% call macros.read_only_if(read_only, attendee_or_group.name) %}
+    {% call macros.read_only_if(read_only, attendee_or_group.name, check_dealer_editable=(group, 'name')) %}
       <div class="col-sm-6">
         <input type="text" name="name" class="form-control" value="{{ name|default(attendee_or_group.name) }}" maxlength="40" />
       </div>
@@ -197,7 +224,10 @@
 {% set read_only = categories_ro or page_ro %}
 <div class="form-group">
   <label for="categories" class="col-sm-3 control-label">What kinds of things do you sell?</label>
-  {% call macros.read_only_if(read_only, group.categories_labels, post_text=("Other: " if not group.categories_labels else ":") + group.categories_text if group.categories_text) %}
+  {% call macros.read_only_if(read_only, 
+                              group.categories_labels, 
+                              post_text=("Other: " if not group.categories_labels else ":") + group.categories_text if group.categories_text,
+                              check_dealer_editable=(group, 'categories')) %}
     <div class="checkbox col-sm-9">
       {{ macros.checkgroup(group, 'categories') }}
     </div>
@@ -224,7 +254,7 @@
 {% set read_only = wares_ro or page_ro %}
 <div class="form-group">
   <label for="wares" class="col-sm-3 control-label">What do you sell?</label>
-  {% call macros.read_only_if(read_only, group.wares) %}
+  {% call macros.read_only_if(read_only, group.wares, check_dealer_editable=(group, 'wares')) %}
     <div class="col-sm-6">
       <textarea class="form-control" name="wares" rows="4">{{ group.wares }}</textarea>
     </div>
@@ -240,7 +270,7 @@
 {% set read_only = description_ro or page_ro %}
 <div class="form-group">
   <label for="description" class="col-sm-3 control-label">Description</label>
-  {% call macros.read_only_if(read_only, group.description) %}
+  {% call macros.read_only_if(read_only, group.description, check_dealer_editable=(group, 'description')) %}
     <div class="col-sm-6">
       <textarea class="form-control" name="description" rows="4" maxlength="400">{{ group.description }}</textarea>
     </div>
@@ -256,7 +286,7 @@
 {% set read_only = special_needs_ro or page_ro %}
 <div class="form-group">
   <label for="special_needs" class="col-sm-3 control-label optional-field">Table Requests and Special Requests</label>
-  {% call macros.read_only_if(read_only, group.special_needs) %}
+  {% call macros.read_only_if(read_only, group.special_needs, check_dealer_editable=(group, 'special_needs')) %}
     <div class="col-sm-6">
       <textarea class="form-control" name="special_needs" rows="4" placeholder="E.g., specific table, who you would like to sit near, who you would not like to sit near.">{{ group.special_needs }}</textarea>
     </div>
@@ -272,7 +302,7 @@
 {% set read_only = website_ro or page_ro %}
 <div class="form-group">
   <label for="website" class="col-sm-3 control-label">Website URL</label>
-  {% call macros.read_only_if(read_only, group.website) %}
+  {% call macros.read_only_if(read_only, group.website, check_dealer_editable=(group, 'website')) %}
     <div class="col-sm-6">
       <input class="form-control" type="text" name="website" value="{{ group.website }}" size="40" />
     </div>
@@ -296,15 +326,27 @@
   {% endif %}
   {% if not admin_area %}
   <div class="form-group">
-    <p class="col-sm-10 col-sm-offset-1">
-      Please enter your <strong>business</strong> address below. This
-      should be the address you use for tax purposes.
+    <p class="col-sm-10 col-sm-offset-1" id="business-info-intro">
+      Please enter your <strong>business</strong> information below. This
+      should be the information you use for tax purposes.
     </p>
   </div>
   {% endif %}
 {% endif %}
 
-{{ macros.address_form(group, name_prefix='group_', is_readonly=read_only, is_required=required) }}
+{{ macros.address_form(group, name_prefix='group_', is_readonly=read_only, is_required=required, check_dealer_editable=(group, 'address')) }}
+<div class="form-group">
+  <label class="col-sm-3 control-label">Phone Number</label>
+    <div class="col-sm-6">
+      <input type="text" class="form-control" name="group_phone" value="{{ group.phone }}" />
+    </div>
+</div>
+<div class="form-group">
+  <label class="col-sm-3 control-label">Email Address</label>
+    <div class="col-sm-6">
+      <input type="text" class="form-control" name="group_email_address" value="{{ group.email_address }}" />
+    </div>
+</div>
 {% endset %}
 
 
@@ -333,7 +375,7 @@
 <div class="form-group">
   <label class="col-sm-3 control-label">Amount Paid</label>
   <div class="col-sm-6 form-control-static">
-    {{ (group.amount_paid / 100)|format_currency }}
+    
   </div>
 </div>
 {% endset %}

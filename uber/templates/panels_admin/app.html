@@ -11,6 +11,15 @@
 <h1>Panel Application <small><a href="index">View all panel applications</a></small></h1>
 
 <div class="form-horizontal">
+    {% if app.department != c.PANELS %}
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Department</label>
+        <div class="col-sm-6 form-control-static">
+            {{ app.department_label }}
+        </div>
+    </div>
+    {% endif %}
+
     <div class="form-group">
         <label class="col-sm-3 control-label">Panel Status</label>
         <div class="col-sm-6 form-control-static">
@@ -18,26 +27,59 @@
                 {{ csrf_token() }}
                 <input type="hidden" name="id" value="{{ app.id }}" />
                 {% if app.status != c.PENDING %}
-                    <b>{{ app.status_label }}</b>
+                    <b>{{ "Confirmed" if app.confirmed else app.status_label }}</b>
                     <br/>Change:
                 {% endif %}
                 {% if app.status != c.ACCEPTED %}
-                    <button name="status" value="{{ c.ACCEPTED }}">Accept</button>
+                    <button name="status" class="btn btn-success" value="{{ c.ACCEPTED }}">Accept</button>
                 {% endif %}
                 {% if app.status != c.WAITLISTED %}
-                    <button name="status" value="{{ c.WAITLISTED }}">Waitlist</button>
+                    <button name="status" class="btn btn-warning" value="{{ c.WAITLISTED }}">Waitlist</button>
                 {% endif %}
                 {% if app.status != c.DECLINED %}
-                    <button name="status" value="{{ c.DECLINED }}">Decline</button>
+                    <button name="status" class="btn btn-danger" value="{{ c.DECLINED }}">Decline</button>
                 {% endif %}
                 {% if app.status == c.ACCEPTED %}
-                    <button name="status" value="{{ c.CANCELLED }}">Cancel Panel</button>
+                    <button name="status" class="btn btn-default" value="{{ c.CANCELLED }}">Cancel Panel</button>
                 {% endif %}
                 <br/>
                 {{ macros.popup_link("email_statuses", "Will this trigger an email?") }}
             </form>
         </div>
     </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Panel Track</label>
+        <form method="post" action="update_track">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ app.id }}" />
+            <div class="row">
+                <div class="col-sm-3">
+                  <div class="input-group">
+                    <input type="text" class="form-control" name="track" value="{{ app.track }}" />
+                    <div class="input-group-btn">
+                      <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Use Existing Track <span class="caret"></span>
+                      </button>
+                      <ul class="dropdown-menu dropdown-menu-right">
+                        {% for track in current_tracks %}
+                        <li><a href="#" onClick="setTrack('{{ track[0] }}')">{{ track[0] }}</a></li>
+                        {% endfor %}
+                      </ul>
+                    </div><!-- /btn-group -->
+                  </div><!-- /input-group -->
+                </div><!-- /.col-sm-6 -->
+                <button type="submit" class="btn btn-primary">Update</button>
+              </div><!-- /.row -->
+        </form>
+    </div>
+    <script type="text/javascript">
+        var setTrack = function(track) {
+            if ($.field('track')) {
+                $.field('track').val(track);
+            }
+        }
+    </script>
 
     {% if app.poc_id %}
         <div class="form-group">
@@ -119,6 +161,13 @@
         <label class="col-sm-3 control-label">Expected Length</label>
         <div class="col-sm-6 form-control-static">
             {{ app.length_label if app.length != c.OTHER and not app.length_text else app.length_text }}
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-sm-3 control-label">Noise Level</label>
+        <div class="col-sm-6 form-control-static">
+            {{ app.noise_level_label }}
         </div>
     </div>
 
