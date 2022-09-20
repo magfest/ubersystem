@@ -145,8 +145,8 @@ class Root:
                     presenters.add(attendee)
                     out.writerow([attendee.full_name, game.studio.name])
 
-    @csv_file
-    def xlsx_file(self, out, session):
+    @xlsx_file
+    def judges(self, out, session):
         rows = []
         header_row = [
             'First Name', 'Last Name',
@@ -154,7 +154,7 @@ class Root:
             'Genres', 'Platforms', 'Other Platforms',
             'Staff Notes']
 
-        for judge in (session.query(IndieJudge).options(joinedload(IndieJudge.admin_account):
+        for judge in session.query(IndieJudge).options(joinedload(IndieJudge.admin_account)):
           attendee = judge.admin_account.attendee
           rows.append([
                 attendee.first_name, attendee.last_name,
