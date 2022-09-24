@@ -25,7 +25,7 @@
 </style>
 
 <ul class="nav nav-tabs" role="tablist">
-  {% if attendee.is_group_leader %}
+  {% if attendee.is_group_leader and attendee.group %}
   <li role="presentation"{% if 'group_members' in c.PAGE_PATH %} class="active"{% endif %}>
     <a href="../preregistration/group_members?id={{ attendee.group.id }}">
       <span class="glyphicon glyphicon-briefcase"></span> {% if attendee.group.is_dealer %}Dealer Application{% else %}Manage {{ attendee.group.name }}{% endif %}

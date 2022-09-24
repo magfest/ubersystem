@@ -78,11 +78,7 @@
             </ul>
           </td>
           <td>
-            {% if attendee.badges %}
-              {{ (attendee.amount_extra_unpaid + (attendee.badges|int * c.GROUP_PRICE))|format_currency }}
-            {% else %}
-              {{ attendee.total_cost|format_currency }}
-            {% endif %}
+              {{ attendee.default_cost|format_currency }}
           </td>
           <td>
             <a href="form?edit_id={{ attendee.id }}">Edit</a> / <a href="delete?id={{ attendee.id }}">Delete</a>
