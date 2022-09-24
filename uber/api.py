@@ -298,6 +298,10 @@ class GuestLookup:
             'website': True,
             'facebook': True,
             'twitter': True,
+            'instagram': True,
+            'twitch': True,
+            'bandcamp': True,
+            'discord': True,
             'other_social_media': True,
             'teaser_song_url': True,
             'pic_url': True

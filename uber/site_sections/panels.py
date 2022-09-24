@@ -1,5 +1,7 @@
 import cherrypy
 
+from datetime import datetime
+
 from uber.config import c
 from uber.decorators import all_renderable
 from uber.errors import HTTPRedirect
@@ -33,7 +35,7 @@ def check_extra_verifications(**params):
     elif 'data_agreement' not in params:
         return 'You must check the box to agree for your information to be used for determining panels selection'
     elif 'covid_agreement' not in params:
-        return 'You must check the box to agree to the {} COVID Policy'.format(c.EVENT_NAME_AND_YEAR)
+        return 'You must check the box acknowledging the {} COVID Policy'.format(c.EVENT_NAME_AND_YEAR)
     elif 'verify_unavailable' not in params:
         return 'You must check the box to confirm that you are only unavailable at the specified times'
     elif 'verify_waiting' not in params:
@@ -139,6 +141,16 @@ class Root:
             'poc_id': poc_id,
             'other_panelists': other_panelists,
             'return_to': return_to
+        }
+
+    def confirm_panel(self, session, id):
+        app = session.panel_application(id)
+        app.confirmed = datetime.now()
+        session.add(app)
+        session.commit()
+
+        return {
+            'app': app,
         }
 
 

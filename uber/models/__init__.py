@@ -830,7 +830,13 @@ class Session(SessionManager):
                         )
                 )
                 
-            return_dict['panels_admin'] = self.query(Attendee).filter(Attendee.ribbon.contains(c.PANELIST_RIBBON))
+            return_dict['panels_admin'] = self.query(Attendee).filter(
+                                                 or_(Attendee.ribbon.contains(c.PANELIST_RIBBON),
+                                                     Attendee.panel_interest == True,
+                                                     Attendee.panel_applications != None,
+                                                     Attendee.assigned_panelists != None,
+                                                     Attendee.panel_applicants != None,
+                                                     Attendee.panel_feedback != None))
             return_dict['dealer_admin'] = self.query(Attendee).join(Group, Attendee.group_id == Group.id).filter(Attendee.is_dealer)
             return_dict['mits_admin'] = self.query(Attendee).join(MITSApplicant).filter(Attendee.mits_applicants)
             return_dict['mivs_admin'] = (self.query(Attendee).join(Group, Attendee.group_id == Group.id)

@@ -48,7 +48,7 @@ def read_only_makes_sense(group):
 
 
 AdminAccount.required = [
-    ('attendee', 'Attendee'),
+    ('attendee_id', 'Attendee'),
 ]
 
 if not c.AUTH_DOMAIN:
@@ -147,6 +147,18 @@ def dealer_region(group):
     if group.country in ['Canada', 'United States'] and len(group.region) < 3:
         return 'Please enter the full name of your {}.'.format(
             'state' if group.country == 'United States' else 'province or region')
+
+
+@prereg_validation.Group
+def dealer_email(group):
+    if group.is_dealer and not group.email_address:
+        return 'Please enter your business email address'
+
+
+@prereg_validation.Group
+def dealer_phone(group):
+    if group.is_dealer and not group.phone:
+        return 'Please enter your business\' phone number'
 
 
 @validation.Group
@@ -266,6 +278,10 @@ def total_cost_over_paid(attendee):
 
 @prereg_validation.Attendee
 def promo_code_is_useful(attendee):
+    with Session() as session:
+        if attendee.promo_code and session.lookup_agent_code(attendee.promo_code.code):
+            return
+
     if attendee.is_new and attendee.promo_code:
         if not attendee.is_unpaid:
             return "You can't apply a promo code after you've paid or if you're in a group."
@@ -781,7 +797,7 @@ def agree_to_coc(dev):
 @validation.IndieDeveloper
 def agree_to_data_policy(dev):
     if not dev.agreed_data_policy:
-        return 'You must agree to for your information to be used for determining showcase selection.'
+        return 'You must agree for your information to be used for determining showcase selection.'
 
 
 @validation.IndieDeveloper
@@ -958,7 +974,8 @@ def overlapping_events(event, other_event_id=None):
 PanelApplication.required = [
     ('name', 'Panel Name'),
     ('description', 'Panel Description'),
-    ('length', 'Panel Length')
+    ('length', 'Panel Length'),
+    ('noise_level', 'Noise Level'),
 ]
 
 PanelApplicant.required = [
@@ -1250,20 +1267,6 @@ def check_in_gallery(piece):
 def media_max_length(piece):
     if len(piece.media) > 15:
         return "The description of the piece's media must be 15 characters or fewer."
-
-
-@prereg_validation.Attendee
-def promo_code_is_useful(attendee):
-    if attendee.promo_code:
-        with Session() as session:
-            if session.lookup_agent_code(attendee.promo_code.code):
-                return
-        if not attendee.is_unpaid:
-            return "You can't apply a promo code after you've paid or if you're in a group."
-        elif attendee.overridden_price:
-            return "You already have a special badge price, you can't use a promo code on top of that."
-        elif attendee.badge_cost >= attendee.badge_cost_without_promo_code:
-            return "That promo code doesn't make your badge any cheaper. You may already have other discounts."
 
 
 @prereg_validation.Attendee

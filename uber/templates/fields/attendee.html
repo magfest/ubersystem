@@ -1092,7 +1092,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 
 {% set email %}
 {% set read_only = email_ro or (page_ro and not contact_write) %}
-<div class="form-group">
+<div class="form-group attendee-email">
   <label for="email" class="col-sm-3 control-label">Email Address</label>
   {% if limited_read %}
     <div class="col-sm-6 form-control-static">{{ attendee.masked_email }}</div>
@@ -1100,6 +1100,15 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
   {% call macros.read_only_if(read_only, attendee.email) %}
   <div class="col-sm-6">
     <input type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="Email Address">
+    {% if is_prereg_dealer %}
+    {{ macros.toggle_checkbox(
+                selector='input[name=email]',
+                label='Use my business email for my personal email.',
+                suffix="copy_email",
+                mode='.attendee-email .form-control',
+                name='copy_email',
+                checked=copy_email) }}
+    {% endif %}
   </div>
   {% endcall %}
   {% endif %}
@@ -1126,7 +1135,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
           });
       });
   </script>
-  <div class="form-group">
+  <div class="form-group attendee-email">
     <label for="confirm_email" class="col-sm-3 control-label">Confirm Email</label>
     <div class="col-sm-6">
       <input type="email" name="confirm_email" id="confirm_email" required value="{{ attendee.email }}" class="form-control" placeholder="Confirm your email address">
@@ -1253,6 +1262,16 @@ $(window).on("runJavaScript", function () {
 {% call macros.read_only_if(read_only, attendee.cellphone) %}
   <div class="col-sm-6">
     <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" {% if attendee.is_dealer %}required{% endif %} placeholder="A phone number we can use to contact you during the event">
+    {% if is_prereg_dealer %}
+    {{ macros.toggle_checkbox(
+                selector='input[name=cellphone]',
+                label='Use my business phone number for my cellphone number.',
+                required_selector='input[name=cellphone]',
+                suffix="copy_phone",
+                mode='input[name=cellphone]',
+                name='copy_phone',
+                checked=copy_phone) }}
+    {% endif %}
   </div>
 {% endcall %}
   {% if not attendee.is_dealer or admin_area %}
@@ -1429,6 +1448,20 @@ $(window).on("runJavaScript", function () {
     {% if not admin_area %}<span class="popup">{{ macros.popup_link("../static_views/privacy.html", "View Our Spam Policy") }}</span>{% endif %}
   </div>
 </div>
+{% endset %}
+
+
+{% set panel_interest %}
+{% set read_only = panel_interest_ro or page_ro %}
+{% if c.BEFORE_PANELS_DEADLINE %}
+<div class="form-group">
+  <label for="panel_interest" class="col-sm-3 control-label optional-field">Panel Interest</label>
+  <div class="checkbox col-sm-9">
+    {{ macros.checkbox(attendee, 'panel_interest', label='I plan to apply for a panel this year.', is_readonly=read_only, clientside_bool=clientside_bool) }}<br/>
+    {% if not admin_area and c.AFTER_PANELS_START %}<a href="../panels/" target="_blank">Apply for a panel here</a>!{% endif %}
+  </div>
+</div>
+{% endif %}
 {% endset %}
 
 

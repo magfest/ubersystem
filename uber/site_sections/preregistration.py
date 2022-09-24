@@ -34,7 +34,7 @@ def check_post_con(klass):
                 return """
                 <html><head></head><body style='text-align:center'>
                     <h2 style='color:red'>We hope you enjoyed {event} {current_year}!</h2>
-                    We look forward to seeing you in {next_year}! Watch our website (<a href="https://www.furfest.org">https://www.furfest.org</a>) and our Twitter (<a href="https://twitter.com/Furfest">@Furfest</a>) for announcements.
+                    We look forward to seeing you in {next_year}! Watch our website (<a href="https://www.magfest.org">https://www.magfest.org</a>) and our Twitter (<a href="https://twitter.com/MAGFest">@MAGFest</a>) for announcements.
                 </body></html>
                 """.format(event=c.EVENT_NAME, current_year=c.EVENT_YEAR, next_year=(1 + int(c.EVENT_YEAR)) if c.EVENT_YEAR else '')
             else:
@@ -293,6 +293,17 @@ class Root:
                 if params.get('copy_address'):
                     params[field_name] = group_params[field_name]
                     attendee.apply(params)
+                    
+            group_params['phone'] = params.get('group_phone', '')
+            if params.get('copy_phone'):
+                params['cellphone'] = group_params['phone']
+                attendee.apply(params)
+            
+            group_params['email_address'] = params.get('group_email_address', '')
+            if params.get('copy_email'):
+                params['email'] = group_params['email_address']
+                attendee.apply(params)
+
             if not params.get('old_group_id'):
                 group = session.group(group_params, ignore_csrf=True, restricted=True)
 
@@ -346,6 +357,8 @@ class Root:
                 'affiliates': session.affiliates(),
                 'cart_not_empty': Charge.unpaid_preregs,
                 'copy_address': params.get('copy_address'),
+                'copy_email': params.get('copy_email'),
+                'copy_phone': params.get('copy_phone'),
                 'promo_code_code': params.get('promo_code', ''),
                 'pii_consent': params.get('pii_consent'),
                 'name': name,
@@ -466,6 +479,8 @@ class Root:
             'cart_not_empty': Charge.unpaid_preregs,
             'same_legal_name': params.get('same_legal_name'),
             'copy_address': params.get('copy_address'),
+            'copy_email': params.get('copy_email'),
+            'copy_phone': params.get('copy_phone'),
             'promo_code_code': params.get('promo_code', ''),
             'pii_consent': params.get('pii_consent'),
             'invite_code': params.get('invite_code', ''),
@@ -945,8 +960,8 @@ class Root:
             'account': session.get_attendee_account_by_attendee(group.leader),
             'current_account': session.current_attendee_account(),
             'upgraded_badges': len([a for a in group.attendees if a.badge_type in c.BADGE_TYPE_PRICES]),
-            'signnow_document': signnow_document,
-            'signnow_link': signnow_link,
+            'signnow_document': signnow_document if c.SIGNNOW_DEALER_TEMPLATE_ID else None,
+            'signnow_link': signnow_link if c.SIGNNOW_DEALER_TEMPLATE_ID else None,
             'message': message
         }
 

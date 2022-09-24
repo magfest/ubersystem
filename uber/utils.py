@@ -455,7 +455,7 @@ def check(model, *, prereg=False):
     """
     errors = []
     for field, name in model.required:
-        if not str(getattr(model, field)).strip():
+        if not getattr(model, field) or not str(getattr(model, field)).strip():
             errors.append(name + ' is a required field')
 
     validations = [uber.model_checks.validation.validations]
@@ -930,7 +930,6 @@ class OAuthRequest:
 
     def get_email(self):
         profile = self.client.get("https://{}/userinfo".format(c.AUTH_DOMAIN)).json()
-        log.debug(str(profile))
         if not profile.get('email', ''):
             log.error("Tried to authenticate a user but we couldn't retrieve their email. Did we use the right scope?")
         else:

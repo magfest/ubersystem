@@ -23,10 +23,18 @@
 
       {% if c.AFTER_PANELS_DEADLINE and not c.HAS_PANELS_ADMIN_ACCESS %}
         Unfortunately, the deadline for panel applications has passed and we are no longer accepting panel submissions.
+      {% elif c.BEFORE_PANELS_START and not c.HAS_PANELS_ADMIN_ACCESS %}
+        Panel applications will open {{ c.PANELS_START|datetime_local }}.
       {% else %}
         {% if c.AFTER_PANELS_DEADLINE and c.HAS_PANELS_ADMIN_ACCESS %}
           <span style="color:red">
             Panel applications have closed, but because you are a logged in
+            administrator you can submit a new application using this form.
+          </span>
+          <br/> <br/>
+        {% elif c.BEFORE_PANELS_START and c.HAS_PANELS_ADMIN_ACCESS %}
+          <span style="color:red">
+            Panel applications open {{ c.PANELS_START|datetime_local }}, but because you are a logged in
             administrator you can submit a new application using this form.
           </span>
           <br/> <br/>
@@ -35,7 +43,7 @@
         all. We WILL be contacting potential panelists for more information as necessary.
         To increase your odds of acceptance, fill this form out accurately and keep an eye out for communication from us.
         <br/><br/>
-        Please review the MAGFest COVID policy at <a href="{{ c.COVID_POLICIES_URL }}" target="_blank">{{ c.COVID_POLICIES_URL }}</a>.
+        {% if c.COVID_POLICIES_URL %}Please review the MAGFest COVID policy at <a href="{{ c.COVID_POLICIES_URL }}" target="_blank">{{ c.COVID_POLICIES_URL }}</a>.{% endif %}
         <br/> <br/>
         Panel requests are due by {{ c.PANELS_DEADLINE|datetime_local('%-I:%M%p %Z on %A, %B %-e') }}.
         <br/> <br/>
@@ -148,14 +156,7 @@
             <p class="help-block">For more information on our privacy practices please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a>.</p>
             </div>
           </div>
-          <div class="form-group">
-            <div class="col-sm-9 col-sm-offset-3">
-              <label class="checkbox-label" style="font-weight: normal;">
-                <input type="checkbox" name="covid_agreement"{% if covid_agreement %} checked{% endif %} />
-                I understand and agree with the {{ macros.popup_link(c.COVID_POLICIES_URL, c.EVENT_NAME_AND_YEAR ~ " COVID Policy") }}.
-              </label>
-            </div>
-          </div>
+          {% include "preregistration/covid_checkbox.html" ignore missing %}
 
           <h3>Other Panelists</h3>
           {% include "other_panelists_form.html" %}

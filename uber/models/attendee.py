@@ -398,6 +398,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     panel_applicants = relationship('PanelApplicant', backref='attendee')
     panel_applications = relationship('PanelApplication', backref='poc')
     panel_feedback = relationship('EventFeedback', backref='attendee')
+    panel_interest = Column(Boolean, default=False)
 
     # =========================
     # attractions

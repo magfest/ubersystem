@@ -1171,6 +1171,16 @@ if c.PANELS_ENABLED:
         ident='panel_waitlisted')
 
     PanelAppEmailFixture(
+        'Last chance to confirm your panel',
+        'panels/panel_accept_reminder.txt',
+        lambda app: (
+            c.PANELS_CONFIRM_DEADLINE
+            and app.status == c.ACCEPTED
+            and not app.confirmed
+            and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
+        ident='panel_accept_reminder')
+
+    PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Has Been Scheduled: {{ app.name }}',
         'panels/panel_app_scheduled.txt',
         lambda app: app.event_id,

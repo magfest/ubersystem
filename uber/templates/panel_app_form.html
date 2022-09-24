@@ -45,6 +45,27 @@
         <input class="form-control" type="text" name="name" value="{{ app.name }}" required="required" />
     </div>
 </div>
+{% if c.PANEL_DEPT_OPTS|length > 1 %}
+<div class="form-group">
+    <label class="col-sm-3 control-label">Department</label>
+    <div class="col-sm-6">
+        <select class="form-control" name="department">
+            {{ options(c.PANEL_DEPT_OPTS, app.department) }}
+        </select>
+    </div>
+    <div class="clearfix"></div>
+    <p class="help-block col-sm-9 col-sm-offset-3">
+        For regular panels, leave {{ c.PANEL_DEPT_OPTS[c.PANELS] }} selected.
+    </p>
+</div>
+<script type="text/javascript">
+    $().ready(function() {
+        if ($.field('department')) {
+            $("select[name=department]").find('option[value="{{ c.PANELS }}"]').insertBefore($("select[name=department]").find('option:eq(0)'));
+        }
+    });
+</script>
+{% endif %}
 <div class="form-group">
     <label class="col-sm-3 control-label">Type of Panel</label>
     <div class="col-sm-6">
@@ -99,6 +120,16 @@
     </p>
 </div>
 <div class="form-group">
+    <label class="col-sm-3 control-label">Panel Noise Level</label>
+    <div class="col-sm-6">
+        <select class="form-control" name="noise_level">
+            <option value="">Please select an option</option>
+            {{ options(c.NOISE_LEVEL_OPTS, app.noise_level) }}
+        </select>
+    </div>
+    <div class="clearfix"></div>
+</div>
+<div class="form-group">
     <label class="col-sm-3 control-label">Is it okay to record or livestream your panel? </label>
     <div class="col-sm-6">
         <select class="form-control" name="livestream">
@@ -116,7 +147,7 @@
     <div class="col-sm-9 col-sm-offset-3 checkbox">
         {{ macros.toggle_checkbox(
             '.form-group-need_tables',
-            'Would your panel benefit from a different setup from our normal panel rooms – for instance, tables for people to work on?',
+            'Would your panel benefit from a different setup from our normal panel rooms – for instance, an open space or tables for people to work on?',
             suffix='_need_tables',
             name='need_tables',
             required_selector='.form-group-need_tables .form-control',

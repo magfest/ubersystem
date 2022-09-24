@@ -1232,6 +1232,7 @@ c.GUIDEBOOK_PROPERTIES = [
     ('guidebook_location', 'Location/Room'),
     ('guidebook_image', 'Image (Optional)'),
     ('guidebook_thumbnail', 'Thumbnail (Optional)'),
+    ('guidebook_track', 'Schedule Track (Optional)'),
 ]
 
 
