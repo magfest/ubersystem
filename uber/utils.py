@@ -1121,10 +1121,10 @@ class Charge:
         """
         model_dict = model.to_dict()
 
-        if not model_dict.get(col_name):
-            return
+        if model_dict.get(col_name) == None:
+            return None, None
         
-        return (model_dict[col_name], new_val - model_dict[col_name])
+        return (model_dict[col_name] * 100, (int(new_val) - model_dict[col_name]) * 100)
 
     @classmethod
     def process_receipt_upgrade_item(cls, model, col_name, new_val, receipt=None, count=1):
@@ -1161,11 +1161,11 @@ class Charge:
             if len(cost_change_tuple) > 2:
                 cost_change_name = cost_change_name.format(*[dictionary.get(new_val) for dictionary in cost_change_tuple[2:]])
             
-            try:
+            if not cost_change_func:
+                old_cost, cost_change = cls.calc_simple_cost_change(model, col_name, new_val)
+            else:
                 change_func = getattr(model, cost_change_func)
                 old_cost, cost_change = change_func(**{col_name: new_val})
-            except AttributeError:
-                old_cost, cost_change = cls.calc_simple_cost_change(model, col_name, new_val)
 
         is_removable_item = col_name != 'badge_type'
         if not old_cost and is_removable_item:
@@ -1196,10 +1196,13 @@ class Charge:
         This lets us show the attendee a nice display of what they're buying
         ... whenever we get around to actually using it that way
         """
+        from uber.models import PromoCodeGroup
+
         items_preview = []
         for model in self.models:
             if getattr(model, 'badges', None) and getattr(model, 'name') and isinstance(model, uber.models.Attendee):
                 items_group = ("{} plus {} badges ({})".format(getattr(model, 'full_name', None), int(model.badges) - 1, model.name), [])
+                x, receipt_items = Charge.create_new_receipt(PromoCodeGroup())
             else:
                 group_name = getattr(model, 'name', None)
                 items_group = (group_name or getattr(model, 'full_name', None), [])
@@ -1317,7 +1320,18 @@ class Charge:
             return 'An unexpected problem occurred while setting up payment: ' + str(e)
 
     @classmethod
-    def create_receipt_transaction(self, receipt, desc='', intent_id=''):
+    def create_receipt_transaction(self, receipt, desc='', intent_id='', amount=0):
+        if not amount and intent_id:
+            intent = stripe.PaymentIntent.retrieve(intent_id)
+            log.debug(intent)
+            amount = intent.amount
+        
+        if not amount:
+            amount = receipt.current_amount_owed
+        
+        if not amount > 0:
+            return "There was an issue recording your payment."
+
         return uber.models.ReceiptTransaction(
             receipt_id=receipt.id,
             intent_id=intent_id,

@@ -104,7 +104,9 @@ var collectStripePayment = function (client_secret, stripe_id, success_url, canc
         card.destroy();
         $.post(cancel_url, {stripe_id: stripe_id, csrf_token: csrf_token},
         function(result) {
-            if (result.message) {
+            if (result.redirect_url) {
+                window.location.replace(result.redirect_url);
+            } else if (result.message) {
                 toastr.error(result.message);
                 $(form).addClass('hidden');
                 $('#stripeModal').off('hidden.bs.modal');
