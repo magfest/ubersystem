@@ -184,7 +184,7 @@ class Config(_Overridable):
 
     def get_attendee_price(self, dt=None):
         price = self.INITIAL_ATTENDEE
-        """if self.PRICE_BUMPS_ENABLED:
+        if self.PRICE_BUMPS_ENABLED:
             localized_now = uber.utils.localized_now()
             for day, bumped_price in sorted(self.PRICE_BUMPS.items()):
                 if (dt or localized_now) >= day:
@@ -197,7 +197,7 @@ class Config(_Overridable):
 
                 for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
                     if badges_sold >= badge_cap and bumped_price > price:
-                        price = bumped_price"""
+                        price = bumped_price
         return price
 
     def get_group_price(self, dt=None):
@@ -958,13 +958,13 @@ class AWSSecretFetcher:
         log.error("Could not retrieve secret from AWS. Is the secret name (\"{}\") correct?".format(secret_name))
 
     def get_all_secrets(self):
-        if c.AWS_AUTH0_SECRET_NAME:
-            self.get_auth0_secret()
-
-        if c.AWS_SIGNNOW_SECRET_NAME:
-            self.get_signnow_secret()
+        self.get_auth0_secret()
+        self.get_signnow_secret()
 
     def get_auth0_secret(self):
+        if not c.AWS_AUTH0_SECRET_NAME:
+            return
+
         auth0_secret = self.get_secret(c.AWS_AUTH0_SECRET_NAME)
         if auth0_secret:
             c.AUTH_DOMAIN = auth0_secret.get('AUTH0_DOMAIN', '') or c.AUTH_DOMAIN
@@ -972,6 +972,9 @@ class AWSSecretFetcher:
             c.AUTH_CLIENT_SECRET = auth0_secret.get('CLIENT_SECRET', '') or c.AUTH_CLIENT_SECRET
 
     def get_signnow_secret(self):
+        if not c.AWS_SIGNNOW_SECRET_NAME:
+            return
+
         signnow_secret = self.get_secret(c.AWS_SIGNNOW_SECRET_NAME)
         if signnow_secret:
             c.SIGNNOW_ACCESS_TOKEN = signnow_secret.get('ACCESS_TOKEN', '') or c.SIGNNOW_ACCESS_TOKEN
@@ -1078,6 +1081,8 @@ for _badge_type, _price in _config['badge_type_prices'].items():
         c.BADGE_TYPE_PRICES[getattr(c, _badge_type.upper())] = _price
     except AttributeError:
         pass
+
+c.MAX_BADGE_TYPE_UPGRADE = sorted(c.BADGE_TYPE_PRICES, key=c.BADGE_TYPE_PRICES.get, reverse=True)[0]
 
 c.make_enum('age_group', OrderedDict([(name, section['desc']) for name, section in _config['age_groups'].items()]))
 c.AGE_GROUP_CONFIGS = {}

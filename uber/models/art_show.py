@@ -133,7 +133,7 @@ class ArtShowApplication(MagModel):
             return 0
         else:
             if self.active_receipt:
-                return self.active_receipt['current_amount_owed']
+                return self.active_receipt['current_amount_owed'] / 100
             return self.potential_cost
 
     @property

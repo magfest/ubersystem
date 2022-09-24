@@ -19,7 +19,7 @@
 {%- set group_id = group_id or attendee.group_id -%}
 
 {% macro upgrade_button(upgrade_btn_id, text="Upgrade") %}
-{% if receipt and receipt.current_amount_owed <= 0 %}
+{% if receipt and receipt.current_amount_owed <= 0 and money_fields_ro %}
   <a class="btn btn-sm btn-success" id="upgrade-{{ upgrade_btn_id }}-btn" data-toggle="modal" data-target="#upgradeModal">
     <span class="glyphicon glyphicon-circle-arrow-up"></span> {{ text }}
   </a>
@@ -36,39 +36,11 @@
         <h4 class="modal-title" id="receiptTitle">Receipt</h4>
       </div>
       <div class="modal-body">
-          <table class="table table-striped" id="upgrade-preview">
-              <tbody>
-                {% for item in receipt.all_sorted_items_and_txns|rejectattr("cancelled") %}
-                <tr>
-                  <td><span class='pull-right'>{{ item.desc }}{{ ": " if item.desc else "" }}</span></td>
-                  <td>
-                    {% if item.method %}
-                    {{ (item.amount / 100)|format_currency(true) }} {{ "Paid" if item.amount > 0 else "Refunded" }} ({{ item.method_label }})
-                    {% else %}
-                    {{ (item.amount / 100)|format_currency }}
-                    {% endif %}
-                  </td>
-                </tr>
-                {% endfor %}
-                {% if receipt.current_amount_owed %}
-                <tr><td colspan="2"></td></tr>
-                <tr>
-                  <td colspan="2">
-                    <span class='pull-right'>
-                      <strong>Total: {{ (receipt.current_amount_owed / 100)|format_currency }}
-                        {% if receipt.pending_total %}({{ (receipt.pending_total / 100)|format_currency }} pending){% endif %}
-                      </strong>
-                    </span>
-                  </td>
-                </tr>
-                {% endif %}
-              </tbody>
-          </table>
-          <p>If something here does not look right, please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.</p>
+          {% include 'preregistration/receipt_table.html' %}
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-        {% if receipt.current_amount_owed and not receipt.pending_total %}{{ stripe_form('process_upgrade_payment', attendee, receipt_id=receipt.id, stripe_button_id="receipt-stripe-btn") }}{% endif %}
+        {% if receipt.current_amount_owed and not receipt.pending_total %}{{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, stripe_button_id="receipt-stripe-btn") }}{% endif %}
       </div>
     </div>
   </div>
@@ -233,9 +205,11 @@ $().ready(function() {
             price: {{ badge_cost if badge_cost is defined else c.BADGE_PRICE }},
             {% if c.BADGE_TYPE_PRICES and (attendee.is_new or attendee.badge_type == c.ATTENDEE_BADGE) %}
             onClick: function () {
-                $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}').trigger('change');
                 {% if money_fields_ro %}
                 updateReceiptPreview('badge_type', '{{ c.ATTENDEE_BADGE }}');
+                $('#upgrade_badge_type').val('{{ badge_type }}');
+                {% else %}
+                $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}').trigger('change');
                 {% endif %}
             }
             {% endif %}
@@ -276,9 +250,11 @@ $().ready(function() {
                     price: {{ c.BADGE_TYPE_PRICES[badge_type] }},
                     badge_type: '{{ badge_type }}',
                     onClick: function () {
-                        $('input[name="badge_type"]').val('{{ badge_type }}');
                         {% if money_fields_ro %}
                         updateReceiptPreview('badge_type', '{{ badge_type }}');
+                        $('#upgrade_badge_type').val('{{ badge_type }}');
+                        {% else %}
+                        $('input[name="badge_type"]').val('{{ badge_type }}');
                         {% endif %}
                     }
                 });
@@ -571,7 +547,7 @@ $().ready(function() {
       <label for="badge_type" class="col-sm-3 control-label">Badge Type</label>
       <div class="col-sm-6 form-control-static">
         {{ attendee.badge_type_label }}
-        {{ upgrade_button('badge-type') }}
+        {% if attendee.badge_type != c.MAX_BADGE_TYPE_UPGRADE %}{{ upgrade_button('badge-type') }}{% endif %}
       </div>
     </div>
   {% endif %}
@@ -1771,7 +1747,7 @@ $(window).on("runJavaScript", function(){
   <label class="col-sm-3 control-label">Badge Price</label>
   {% call macros.read_only_if(read_only, attendee.badge_price, pre_text='$' if attendee.badge_price, post_text=post_text if attendee.badge_price) %}
   <div class="checkbox col-sm-9">
-    $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost }}" />
+    $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost|default(0, true) }}" />
     {{ post_text }}
   </div>
 {% endcall %}
@@ -1966,29 +1942,33 @@ $(window).on("runJavaScript", function(){
 
 {% set agreed_to_volunteer_agreement %}
 {# Always read-only #}
+{% if c.VOLUNTEER_AGREEMENT_ENABLED and admin_area %}
 <div class="form-group staffing staffing-checked">
   <label class="col-sm-3 control-label">Agreed to Volunteer Agreement</label>
   <div class="col-sm-9">
     <div class="form-control-static">
-      {% if c.VOLUNTEER_AGREEMENT_ENABLED and admin_area %}{{ attendee.agreed_to_volunteer_agreement|yesno("Yes,No") }}{% endif %}
+      {{ attendee.agreed_to_volunteer_agreement|yesno("Yes,No") }}
       <input type="hidden" name="agreed_to_volunteer_agreement" value="{{ attendee.agreed_to_volunteer_agreement|yesno("1,0") }}" />
     </div>
   </div>
 </div>
+{% endif %}
 {% endset %}
 
 
 {% set reviewed_emergency_procedures %}
 {# Always read-only #}
+{% if c.EMERGENCY_PROCEDURES_ENABLED and admin_area %}
 <div class="form-group staffing staffing-checked">
   <label class="col-sm-3 control-label">Reviewed Emergency Procedures</label>
   <div class="col-sm-9">
     <div class="form-control-static">
-      {% if c.EMERGENCY_PROCEDURES_ENABLED and admin_area %}{{ attendee.reviewed_emergency_procedures|yesno("Yes,No") }}{% endif %}
+      {{ attendee.reviewed_emergency_procedures|yesno("Yes,No") }}
       <input type="hidden" name="reviewed_emergency_procedures" value="{{ attendee.reviewed_emergency_procedures|yesno("1,0") }}" />
     </div>
   </div>
 </div>
+{% endif %}
 {% endset %}
 
 
