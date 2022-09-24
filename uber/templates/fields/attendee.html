@@ -694,9 +694,7 @@ $().ready(function() {
 {% if c.DONATIONS_ENABLED and not admin_area and not read_only %}
   {% if c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 or attendee.amount_extra or attendee.gets_any_kind_of_shirt %}
     <div class="extra-row form-group">
-      <label for="amount_extra" class="col-sm-3 control-label">Want to kick in extra?
-        <br>
-        {{ macros.popup_link("../static_views/givingExtra.html", "Why do this?") }}
+      <label for="amount_extra" class="col-sm-3 control-label">Pre-order Merch
       </label>
       <div class="col-sm-9">
         {% if c.PREREG_DONATION_DESCRIPTIONS or c.FORMATTED_DONATION_DESCRIPTIONS and not attendee.is_new and attendee.amount_extra %}
@@ -882,7 +880,10 @@ $().ready(function() {
 {% endif %}
 <div id="extra_donation">
   <div class="form-group">
-      <label class="col-sm-3 control-label">Extra Donation</label>
+      <label class="col-sm-3 control-label"><span>Extra Donation</span>
+        <br>
+        {{ macros.popup_link("../static_views/givingExtra.html", "Learn more") }}
+        </label>
   {% if c.COLLECT_EXTRA_DONATION %}
     {% call macros.read_only_if(read_only, attendee.extra_donation, pre_text='$' if attendee.extra_donation else '', post_text=upgrade_button('extra-donation', text="Change" if attendee.extra_donation else "Donate")) %}
       <div class="col-sm-6">
