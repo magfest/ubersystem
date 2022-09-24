@@ -23,13 +23,6 @@
       }
       {% endif %}
       $(function () {
-        $('.group_fields').addClass('hide');
-
-        {% if attendee and attendee.badge_type == c.PSEUDO_DEALER_BADGE %}
-        $('.group_fields').removeClass('hide');
-        $('.non_group_fields').addClass('hide');
-        {% endif %}
-
         $("#prereg-form").submit(function () { 
         if(!disclaimersConfirmed) {
           openDisclaimersModal();
