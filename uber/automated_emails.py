@@ -133,7 +133,7 @@ class AutomatedEmailFixture:
 
 AutomatedEmailFixture(
     Attendee,
-    '{EVENT_NAME} payment received',
+    '{EVENT_NAME} registration confirmed',
     'reg_workflow/attendee_confirmation.html',
     lambda a: a.paid == c.HAS_PAID and not a.promo_code_groups,
     # query=Attendee.paid == c.HAS_PAID,
@@ -152,6 +152,13 @@ AutomatedEmailFixture(
     needs_approval=False,
     allow_at_the_con=True,
     ident='attendee_badge_confirmed')
+
+AutomatedEmailFixture(
+    Attendee,
+    'Claim your Deferred Badge for {EVENT_NAME} {EVENT_YEAR}!',
+    'placeholders/deferred.html',
+    lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN and a.badge_type != c.STAFF_BADGE,
+    ident='claim_deferred_badge')
 
 AutomatedEmailFixture(
     AttendeeAccount,
@@ -196,7 +203,7 @@ AutomatedEmailFixture(
 
 AutomatedEmailFixture(
     Attendee,
-    '{EVENT_NAME} extra payment received',
+    '{EVENT_NAME} merch pre-order received',
     'reg_workflow/group_donation.txt',
     lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid >= (a.amount_extra * 100),
     # query=and_(
@@ -506,9 +513,9 @@ AutomatedEmailFixture(
     ident='dealer_info_required')
 
 StopsEmailFixture(
-    'Claim your Staff Badge and Apply to Staff at {EVENT_NAME} {EVENT_YEAR}!',
+    'Claim your Staff Badge for {EVENT_NAME} {EVENT_YEAR}!',
     'placeholders/imported_volunteer.txt',
-    lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN,
+    lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN and a.badge_type == c.STAFF_BADGE,
     ident='volunteer_again_inquiry')
 
 StopsEmailFixture(

@@ -192,7 +192,7 @@ class Config(_Overridable):
 
             # Only check bucket-based pricing if we're not checking an existing badge AND
             # we're not on-site (because on-site pricing doesn't involve checking badges sold)
-            if not dt and not c.AT_THE_CON:
+            if not dt and not c.AT_THE_CON and self.PRICE_LIMITS:
                 badges_sold = self.BADGES_SOLD
 
                 for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
