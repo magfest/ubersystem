@@ -135,7 +135,7 @@ def promo_code_group_cost(attendee):
         # During prereg we set the number of promo code badges on the attendee model
         cost_table[c.get_group_price() * 100] = int(attendee.badges)
     elif attendee.promo_code_groups:
-        for code in attendee.promo_code_groups[0]:
+        for code in attendee.promo_code_groups[0].promo_codes:
             cost_table[code.cost * 100] += 1
     else:
         return

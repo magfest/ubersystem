@@ -28,8 +28,8 @@
           <td>{{ group.code }}</td>
           <td>{{ total_counts[group.id] or '0' }}</td>
           <td>{{ used_counts[group.id] or '0' }}</td>
-          <td>{{ total_costs[group.id] or '0' }}</td>
-          <td>{{ group.buyer.amount_unpaid }}</td>
+          <td>{{ total_costs[group.id]|format_currency or '$0' }}</td>
+          <td>{{ group.buyer.amount_unpaid|format_currency }}</td>
         </tr>
       {% endfor -%}
       </tbody>
