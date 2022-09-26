@@ -874,6 +874,8 @@ class ExcelWorksheetStreamWriter:
             self.worksheet.set_column(i, i, width)
 
     def writerows(self, header_row, rows, header_format={'bold': True}):
+        rows = [list(map(str, row)) for row in rows]
+
         if header_row:
             self.set_column_widths([header_row] + rows)
             if header_format:
