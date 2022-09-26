@@ -150,7 +150,7 @@ class Root:
         rows = []
         header_row = [
             'First Name', 'Last Name',
-            'Email', 'Status', 'No Game Submission?',
+            'Email', 'Status', 'Has Game Submission?',
             'Genres', 'Platforms', 'Other Platforms',
             'Staff Notes']
 
@@ -158,8 +158,8 @@ class Root:
           attendee = judge.admin_account.attendee
           rows.append([
                 attendee.first_name, attendee.last_name,
-                attendee.email, judge.status, judge.no_game_submission,
-                judge.genres, judge.platforms, judge.platforms_text,
+                attendee.email, judge.status_label, "No" if judge.no_game_submission else "Yes",
+                " / ".join(judge.genres_labels), " / ".join(judge.platforms_labels), judge.platforms_text,
                 judge.staff_notes
             ])
 
