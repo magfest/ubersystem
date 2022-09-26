@@ -157,7 +157,8 @@ AutomatedEmailFixture(
     Attendee,
     'Claim your Deferred Badge for {EVENT_NAME} {EVENT_YEAR}!',
     'placeholders/deferred.html',
-    lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN and a.badge_type != c.STAFF_BADGE,
+    lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN and \
+              a.badge_type == c.ATTENDEE_BADGE and a.paid == c.NEED_NOT_PAY and not a.admin_account,
     ident='claim_deferred_badge')
 
 AutomatedEmailFixture(
