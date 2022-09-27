@@ -1,6 +1,8 @@
 from datetime import datetime
+import stripe
 
 from pytz import UTC
+from pockets.autolog import log
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, func, or_, select
 
@@ -13,6 +15,7 @@ from uber.config import c
 from uber.models import MagModel
 from uber.models.attendee import Attendee, AttendeeAccount, Group
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column
+from uber.utils import Charge
 
 
 __all__ = [
@@ -117,8 +120,12 @@ class ModelReceipt(MagModel):
         return [txn for txn in self.receipt_txns if txn.cancelled]
 
     @property
+    def pending_txns(self):
+        return [txn for txn in self.receipt_txns if txn.is_pending_charge]
+
+    @property
     def pending_total(self):
-        return sum([txn.amount for txn in self.receipt_txns if txn.intent_id and not txn.charge_id and not txn.cancelled])
+        return sum([txn.amount for txn in self.receipt_txns if txn.is_pending_charge])
 
     @hybrid_property
     def payment_total(self):
@@ -179,6 +186,20 @@ class ReceiptTransaction(MagModel):
     def stripe_id(self):
         # Return the most relevant Stripe ID for admins
         return self.refund_id or self.charge_id or self.intent_id
+
+    def get_stripe_intent(self):
+        try:
+            return stripe.PaymentIntent.retrieve(self.intent_id)
+        except Exception as e:
+            log.error(e)
+    
+    def check_paid_from_stripe(self):
+        if self.charge_id:
+            return
+
+        intent = stripe.PaymentIntent.retrieve(self.intent_id)
+        if intent and intent.charges:
+            return Charge.mark_paid_from_intent_id(self.intent_id, intent.charges.data[0].id)
 
 
 class ReceiptItem(MagModel):
