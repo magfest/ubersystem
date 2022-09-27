@@ -31,6 +31,7 @@
 <button class="btn btn-info stripe-btn"{% if 'stripe_button_id' in params %} id="{{ params['stripe_button_id'] }}"{% endif %} onClick="callStripeAction();">
 <span class="display: block; min-height: 30px;">Pay with Card</span>
 </button>
+{% if not stripeModal %}
 <div id="stripeModal" class="modal" style="color:black;" tabindex="-1" role="dialog" data-backdrop="static">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
@@ -59,6 +60,8 @@
   </div>
 </div>
 <script type="text/javascript">
+$('#stripeModal').detach().appendTo("body");
+
 stripe_action_params = {id: '{{ id }}'};
 
 var callStripeAction = function (autoTrigger=false) {
@@ -169,3 +172,5 @@ var collectStripePayment = function (client_secret, stripe_id, success_url, canc
     });
 }
 </script>
+{% endif %}
+{% set stripeModal = true %}
