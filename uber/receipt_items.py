@@ -102,7 +102,7 @@ def age_discount(attendee):
 @credit_calculation.Attendee
 def group_discount(attendee):
     if c.GROUP_DISCOUNT and attendee.qualifies_for_discounts and not attendee.age_discount and (
-                attendee.promo_code_groups or attendee.group and attendee.paid == c.PAID_BY_GROUP):
+                attendee.promo_code_groups or attendee.group):
         return ("Group Discount", c.GROUP_DISCOUNT * 100 * -1)
 
 

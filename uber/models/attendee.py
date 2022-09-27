@@ -766,6 +766,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_type in c.BADGE_TYPE_PRICES:
             self.badge_type = c.ATTENDEE_BADGE
 
+    @property
     def qualifies_for_discounts(self):
         return self.paid != c.NEED_NOT_PAY and self.overridden_price is None and not self.is_dealer and self.badge_type not in c.BADGE_TYPE_PRICES
 
