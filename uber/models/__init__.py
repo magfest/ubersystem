@@ -410,6 +410,9 @@ class MagModel:
         receipt_items = uber.receipt_items.cost_calculation.items
         try:
             cost_calc = receipt_items[self.__class__.__name__][name[8:]](self)
+            if not cost_calc:
+                return 0
+
             try:
                 return sum(item[0] * item[1] for item in cost_calc[1].items()) / 100
             except AttributeError:

@@ -300,7 +300,7 @@ def promo_code_is_useful(attendee):
             return "You can't apply a promo code to a one day badge."
         elif attendee.overridden_price:
             return "You already have a special badge price, you can't use a promo code on top of that."
-        elif attendee.badge_cost >= attendee.badge_cost_without_promo_code:
+        elif attendee.default_badge_cost >= attendee.badge_cost_without_promo_code:
             return "That promo code doesn't make your badge any cheaper. You may already have other discounts."
 
 
