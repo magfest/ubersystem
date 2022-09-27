@@ -180,6 +180,7 @@ class Root:
 
         return {'refunded': id}
     
+    @not_site_mappable
     def process_full_refund(self, session, id='', attendee_id='', group_id=''):
         receipt = session.model_receipt(id)
         refund_total = 0
