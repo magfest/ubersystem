@@ -16,10 +16,7 @@ You ({{ attendee.full_name }}) have preregistered for {{ c.EVENT_NAME_AND_YEAR }
 {% else %}
     and your payment of {{ (attendee.amount_paid / 100)|format_currency }} has been received.
 {% endif %}
-Your registration confirmation number is {{ attendee.id }}, and you can update your information or kick in
-{% if attendee.amount_extra %}
-    even more
-{% endif %}
+Your registration confirmation number is {{ attendee.id }}, and you can update your information, preorder merch, or donate
 extra money <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">here</a>.
 
 {% if attendee.is_group_leader %}
@@ -31,7 +28,7 @@ extra money <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id 
 
 Badges are not mailed out before the event, so your badge will be available for pickup at the registration desk when you arrive at {{ c.EVENT_NAME }}.  Simply bring a photo ID and <a href="{{ c.COVID_POLICIES_URL }}" target="_blank">proof of vaccination</a> to the registration desk, where you'll be provided with your badge.
 {% if c.DONATIONS_ENABLED and not attendee.amount_extra %}
-    If you order bonus items such as a t-shirt or merch package, you can pick those up at our merchandise booth.
+    If you order any merchandise, you can pick those up at our merchandise booth.
     The location and hours of the registration desk and merchandise booth will be e-mailed prior to the event.
 {% endif %}
 
