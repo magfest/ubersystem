@@ -1323,7 +1323,6 @@ class Charge:
     def create_receipt_transaction(self, receipt, desc='', intent_id='', amount=0):
         if not amount and intent_id:
             intent = stripe.PaymentIntent.retrieve(intent_id)
-            log.debug(intent)
             amount = intent.amount
         
         if not amount:

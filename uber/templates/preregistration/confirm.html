@@ -54,11 +54,11 @@
       </div>
       {% else %}
         {% if not attendee.placeholder and receipt and receipt.current_amount_owed %}
-            {% if receipt.pending_total %}
+            {% if incomplete_txn %}
             <div class="alert alert-warning">
               You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
-              with pending payments of {{ (receipt.pending_total / 100)|format_currency }}.
-              Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if this issue persists or if you have any questions.
+              with an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.
+              <br/><br/>Click here to complete your payment: {{ stripe_form('finish_pending_payment', attendee, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}
             </div>
             {% else %}
             <div class="alert alert-danger">
@@ -110,7 +110,7 @@
         {% endif %}
       {% endif %}
 
-      {% if money_fields_ro %}
+      {% if money_fields_ro and not incomplete_txn %}
         {% include 'preregistration/upgrade_modal.html' %}
       {% endif %}
       {{ attendee_fields.receipt_modal }}

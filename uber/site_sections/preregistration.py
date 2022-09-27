@@ -1340,6 +1340,7 @@ class Root:
             raise HTTPRedirect('repurchase?id={}', attendee.id)
 
         placeholder = attendee.placeholder
+        receipt = session.get_receipt_by_model(attendee)
         if 'email' in params and not message:
             attendee.placeholder = False
             message = check(attendee, prereg=True)
@@ -1351,7 +1352,6 @@ class Root:
                     message = 'Your information has been updated'
 
                 page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
-                receipt = session.get_receipt_by_model(attendee)
                 if not receipt:
                     new_receipt = session.get_receipt_by_model(attendee, create_if_none=True)
                     if new_receipt.current_amount_owed and not new_receipt.pending_total:
@@ -1366,6 +1366,15 @@ class Root:
 
         group_credit = receipt_items.credit_calculation.items['Attendee']['group_discount'](attendee)
 
+        last_incomplete_txn = None
+        if receipt:
+            for txn in receipt.pending_txns:
+                txns_marked_paid = txn.check_paid_from_stripe()
+                if not txns_marked_paid:
+                    last_incomplete_txn = txn
+
+            session.commit()
+
         return {
             'undoing_extra': undoing_extra,
             'return_to':     return_to,
@@ -1376,6 +1385,7 @@ class Root:
             'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
             'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
             'receipt':       session.get_receipt_by_model(attendee),
+            'incomplete_txn':  last_incomplete_txn,
             'attendee_group_discount': (group_credit[1] / 100) if group_credit else 0,
         }
         
@@ -1418,6 +1428,24 @@ class Root:
         session.commit()
 
         return {'success': True}
+
+    @ajax
+    @credit_card
+    @requires_account(Attendee)
+    def finish_pending_payment(self, session, id, txn_id, **params):
+        attendee = session.attendee(id)
+        txn = session.receipt_transaction(txn_id)
+
+        stripe_intent = txn.get_stripe_intent()
+
+        if stripe_intent.charges:
+            return {'error': "This payment has already been finalized!"}
+
+        return {'stripe_intent': stripe_intent,
+                'success_url': 'confirm?id={}&message={}'.format(
+                    attendee.id,
+                    'Your payment has been accepted!'),
+                'cancel_url': 'cancel_payment'}
 
     @ajax
     @credit_card
