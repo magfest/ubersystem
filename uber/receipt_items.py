@@ -58,7 +58,7 @@ Attendee.credit_changes = {
 
 @cost_calculation.Attendee
 def badge_cost(attendee):
-    if attendee.paid == c.PAID_BY_GROUP or attendee.promo_code_groups:
+    if attendee.paid == c.PAID_BY_GROUP or attendee.promo_code_groups or getattr(attendee, 'badges', None):
         cost = 0
     else:
         cost = attendee.calculate_badge_cost() * 100
