@@ -68,13 +68,19 @@ class Root:
             if job.type == c.REGULAR:
                 by_start[job.start_time_local].append(job)
         times = [c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH)]
+
+        try:
+            checklist = session.checklist_status('creating_shifts', department_id)
+        except ValueError:
+            checklist = {'conf': None, 'relevant': False, 'completed': None}
+
         return {
             'department_id': department_id,
             'department': department,
             'setup': [j for j in jobs if j.type == c.SETUP],
             'teardown': [j for j in jobs if j.type == c.TEARDOWN],
             'normal': [j for j in jobs if j.type != c.SETUP and j.type != c.TEARDOWN],
-            'checklist': department_id and session.checklist_status('creating_shifts', department_id),
+            'checklist': department_id and checklist,
             'times': [(t, t + timedelta(hours=1), by_start[t]) for i, t in enumerate(times)],
             'jobs': jobs,
             'message': message,
@@ -108,6 +114,11 @@ class Root:
 
         jobs = session.jobs().filter(*job_filters)
 
+        try:
+            checklist = session.checklist_status('postcon_hours', department_id)
+        except ValueError:
+            checklist = {'conf': None, 'relevant': False, 'completed': None}
+
         return {
             'message': message,
             'department_id': department_id,
@@ -117,7 +128,7 @@ class Root:
             'hide_filled': cherrypy.session.get('signups_hide_filled'),
             'attendees': session.staffers_for_dropdown(),
             'jobs': [job_dict(job) for job in jobs],
-            'checklist': department_id and session.checklist_status('postcon_hours', department_id)
+            'checklist': department_id and checklist
         }
 
     @department_id_adapter
@@ -191,13 +202,18 @@ class Root:
         for job in session.jobs(department_id):
             update_counts(job, counts)
 
+        try:
+            checklist = session.checklist_status('assigned_volunteers', department_id)
+        except ValueError:
+            checklist = {'conf': None, 'relevant': False, 'completed': None}
+
         return {
             'counts': counts,
             'department_id': department_id,
             'attendees': attendees,
             'emails': ','.join(a.email for a in attendees),
             'emails_with_shifts': ','.join([a.email for a in attendees if department_id and a.hours_here]),
-            'checklist': session.checklist_status('assigned_volunteers', department_id),
+            'checklist': checklist,
             'message': message,
         }
 
