@@ -1335,7 +1335,7 @@ class Charge:
         return uber.models.ReceiptTransaction(
             receipt_id=receipt.id,
             intent_id=intent_id,
-            amount=receipt.current_amount_owed,
+            amount=amount,
             desc=desc,
             who=uber.models.AdminAccount.admin_name() or 'non-admin'
         )
