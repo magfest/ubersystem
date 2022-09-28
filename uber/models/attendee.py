@@ -206,10 +206,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     city = Column(UnicodeText)
     region = Column(UnicodeText)
     country = Column(UnicodeText)
-    no_cellphone = Column(Boolean, default=False)
     ec_name = Column(UnicodeText)
     ec_phone = Column(UnicodeText)
+    onsite_contact = Column(UnicodeText)
+    no_onsite_contact = Column(Boolean, default=False)
     cellphone = Column(UnicodeText)
+    no_cellphone = Column(Boolean, default=False)
 
     # Represents a request for hotel booking info during preregistration
     requested_hotel_info = Column(Boolean, default=False)
