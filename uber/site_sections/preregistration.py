@@ -340,7 +340,7 @@ class Root:
             message = check_pii_consent(params, attendee) or message
             if not message and attendee.badge_type not in c.PREREG_BADGE_TYPES:
                 message = 'Invalid badge type!'
-            if not message and attendee.promo_code and params.get('promo_code') != attendee.promo_code_code:
+            if not message and attendee.promo_code and params.get('promo_code') != attendee.promo_code_code and cherrypy.request.method == 'POST':
                 attendee.promo_code = None
             if not message and c.BADGE_PROMO_CODES_ENABLED and params.get('promo_code'):
                 if session.lookup_promo_or_group_code(params.get('promo_code'), PromoCodeGroup):
