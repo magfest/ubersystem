@@ -879,6 +879,7 @@ class Root:
             return {'error': receipt_txn}
             
         session.add(receipt_txn)
+        session.add_codes_to_pc_group(group, count)
         session.commit()
             
         return {'stripe_intent': stripe_intent,

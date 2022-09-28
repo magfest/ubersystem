@@ -770,7 +770,7 @@ $().ready(function() {
     <label class="col-sm-3 control-label">
       Pre-ordered Merch
     </label>
-    {% call macros.read_only_if(read_only, attendee.amount_extra_label or "None", post_text=upgrade_button('amount-extra', text="Upgrade" if attendee.amount_exta else "Add")) %}
+    {% call macros.read_only_if(read_only, attendee.amount_extra_label or "None", post_text='' if attendee.amount_extra >= c.SEASON_LEVEL else upgrade_button('amount-extra', text="Upgrade" if attendee.amount_extra else "Add")) %}
     <div class="col-sm-3">
       <select name="amount_extra" class="form-control">
         {{ options(c.DONATION_TIER_OPTS,attendee.amount_extra) }}
