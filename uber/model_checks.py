@@ -436,6 +436,22 @@ def emergency_contact_not_cellphone(attendee):
 
 
 @validation.Attendee
+@ignore_unassigned_and_placeholders
+def onsite_contact(attendee):
+    if not attendee.onsite_contact and not attendee.no_onsite_contact and attendee.badge_type != c.STAFF_BADGE:
+        return 'Please enter contact information for at least one trusted friend onsite, or indicate ' \
+               'that we should use your emergency contact information instead.'
+
+
+@validation.Attendee
+@ignore_unassigned_and_placeholders
+def onsite_contact_length(attendee):
+    if attendee.onsite_contact and len(attendee.onsite_contact) > 500:
+        return 'You have entered over 500 characters of onsite contact information.' \
+                'Please provide contact information for fewer friends.'
+
+
+@validation.Attendee
 def printed_badge_change(attendee):
     if attendee.badge_printed_name != attendee.orig_value_of('badge_printed_name') \
             and not AdminAccount.admin_name() \
