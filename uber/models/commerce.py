@@ -129,11 +129,11 @@ class ModelReceipt(MagModel):
 
     @hybrid_property
     def payment_total(self):
-        return sum([txn.amount for txn in self.receipt_txns if txn.charge_id or txn.method != c.STRIPE and txn.amount > 0])
+        return sum([txn.receipt_share for txn in self.receipt_txns if txn.charge_id or txn.method != c.STRIPE and txn.amount > 0])
     
     @payment_total.expression
     def payment_total(cls):
-        return select([func.sum(ReceiptTransaction.amount)]
+        return select([func.sum(ReceiptTransaction.receipt_share)]
                      ).where(ReceiptTransaction.receipt_id == cls.id
                      ).where(or_(ReceiptTransaction.charge_id != None,
                                 and_(ReceiptTransaction.method != c.STRIPE, ReceiptTransaction.amount > 0))
@@ -177,6 +177,16 @@ class ReceiptTransaction(MagModel):
     cancelled = Column(UTCDateTime, nullable=True)
     who = Column(UnicodeText)
     desc = Column(UnicodeText)
+
+    @hybrid_property
+    def receipt_share(self):
+        return min(self.amount, sum([item.amount for item in self.receipt.receipt_items if item.added < self.added]))
+
+    @receipt_share.expression
+    def receipt_share(cls):
+        return select([func.sum(ReceiptItem.amount)]
+                                          ).where(ReceiptItem.receipt_id == cls.receipt_id
+                                          ).where(ReceiptItem.added < cls.added).label('receipt_share')
 
     @property
     def is_pending_charge(self):
