@@ -24,8 +24,8 @@
         <tr>
           <td><ul style="margin: 5px 0; padding-right: 0"><li></li></ul></td>
           <td>{{ code.code }}</td>
-          {% if code.used_by %}
-            {% set attendee = code.used_by[0] %}
+          {% if code.valid_used_by %}
+            {% set attendee = code.valid_used_by[0] %}
             <td style="padding-right: 10px">
               {{ attendee.full_name }}
             </td>

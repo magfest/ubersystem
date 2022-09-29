@@ -121,7 +121,7 @@ $(document).ready(function() {
         <td data-order="{{ promo_code.uses_count }}">
           {{ promo_code.uses_count_str }}, {{ promo_code.uses_remaining_str }}
           <br>
-          {% for attendee in promo_code.used_by %}
+          {% for attendee in promo_code.valid_used_by %}
           <a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a>{% if not loop.last %}, {% endif %}
           {% endfor %}
         </td>

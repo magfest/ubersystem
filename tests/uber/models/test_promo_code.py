@@ -235,7 +235,7 @@ class TestAttendeePromoCodeModelChecks:
         Charge.unpaid_preregs[sess.id] = Charge.to_sessionized(sess)
         sess.promo_code = None
         sess.promo_code_id = None
-        assert len(promo_code.used_by) == 0
+        assert len(promo_code.valid_used_by) == 0
 
         attendee = Attendee(
             promo_code=promo_code,

@@ -98,8 +98,8 @@
           <td>
             {{ code.code }}
           </td>
-          <td data-order="{{ code.used_by[0].full_name if code.used_by else '' }}">
-            {{ code.used_by[0]|form_link if code.used_by else 'N/A' }}
+          <td data-order="{{ code.valid_used_by[0].full_name if code.valid_used_by else '' }}">
+            {{ code.valid_used_by[0]|form_link if code.valid_used_by else 'N/A' }}
           </td>
           <td>{{ code.created.when|datetime_local }}</td>
           <td>{{ code.cost|format_currency }}</td>
