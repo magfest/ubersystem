@@ -1425,6 +1425,7 @@ class Root:
         if message:
             session.rollback()
             return {'error': message}
+        session.add(attendee)
         session.commit()
 
         return {'success': True}
