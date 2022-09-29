@@ -1125,6 +1125,9 @@ class Charge:
         if model_dict.get(col_name) == None:
             return None, None
         
+        if not new_val:
+            new_val = 0
+        
         return (model_dict[col_name] * 100, (int(new_val) - model_dict[col_name]) * 100)
 
     @classmethod

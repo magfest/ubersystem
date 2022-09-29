@@ -180,8 +180,8 @@ class PromoCodeGroup(MagModel):
 
     @property
     def sorted_promo_codes(self):
-        return list(sorted(self.promo_codes, key=lambda pc: (not pc.used_by,
-                                                             pc.used_by[0].full_name if pc.used_by else pc.code)))
+        return list(sorted(self.promo_codes, key=lambda pc: (not pc.valid_used_by,
+                                                             pc.valid_used_by[0].full_name if pc.valid_used_by else pc.code)))
 
     @property
     def hours_since_registered(self):
@@ -396,18 +396,23 @@ class PromoCode(MagModel):
         return func.replace(func.replace(func.lower(cls.code), '-', ''), ' ', '')
 
     @property
+    def valid_used_by(self):
+        return [attendee for attendee in self.used_by if attendee.is_valid]
+
+    @property
     def uses_allowed_str(self):
         uses = self.uses_allowed
         return 'Unlimited uses' if uses is None else '{} use{} allowed'.format(uses, '' if uses == 1 else 's')
 
     @hybrid_property
     def uses_count(self):
-        return len(self.used_by)
+        return len([self.valid_used_by])
 
     @uses_count.expression
     def uses_count(cls):
         from uber.models.attendee import Attendee
-        return select([func.count(Attendee.id)]).where(Attendee.promo_code_id == cls.id).label('uses_count')
+        return select([func.count(Attendee.id)]).where(Attendee.promo_code_id == cls.id
+                                               ).where(Attendee.is_valid == True).label('uses_count')
 
     @property
     def uses_count_str(self):
