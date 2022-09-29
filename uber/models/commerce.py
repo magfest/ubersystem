@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import stripe
 
 from pytz import UTC
@@ -180,13 +180,13 @@ class ReceiptTransaction(MagModel):
 
     @hybrid_property
     def receipt_share(self):
-        return min(self.amount, sum([item.amount for item in self.receipt.receipt_items if item.added <= self.added]))
+        return min(self.amount, sum([item.amount for item in self.receipt.receipt_items if item.added <= (self.added + timedelta(minutes=1))]))
 
     @receipt_share.expression
     def receipt_share(cls):
         return select([func.sum(ReceiptItem.amount)]
                                           ).where(ReceiptItem.receipt_id == cls.receipt_id
-                                          ).where(ReceiptItem.added <= cls.added).label('receipt_share')
+                                          ).where(ReceiptItem.added <= func.timestampadd('MINUTE', 1, cls.added)).label('receipt_share')
 
     @property
     def is_pending_charge(self):
