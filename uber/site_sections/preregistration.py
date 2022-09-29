@@ -1415,9 +1415,13 @@ class Root:
 
         for param in params:
             if param in Attendee.cost_changes:
-                receipt_item = Charge.process_receipt_upgrade_item(attendee, param, receipt=receipt, new_val=params[param])
-                if receipt_item.amount != 0:
-                    session.add(receipt_item)
+                try:
+                    receipt_item = Charge.process_receipt_upgrade_item(attendee, param, receipt=receipt, new_val=params[param])
+                    if receipt_item.amount != 0 and not receipt.open_receipt_items:
+                        session.add(receipt_item)
+                except Exception as e:
+                    session.rollback()
+                    return {'error': str(e)}
 
         attendee.apply(params, ignore_csrf=True, restricted=False)
         message = check(attendee)
@@ -1425,7 +1429,7 @@ class Root:
         if message:
             session.rollback()
             return {'error': message}
-        session.add(attendee)
+
         session.commit()
 
         return {'success': True}
