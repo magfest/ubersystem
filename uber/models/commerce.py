@@ -133,7 +133,7 @@ class ModelReceipt(MagModel):
     
     @payment_total.expression
     def payment_total(cls):
-        return select([func.sum(ReceiptTransaction.receipt_share)]
+        return select([func.sum(ReceiptTransaction.amount)]
                      ).where(ReceiptTransaction.receipt_id == cls.id
                      ).where(or_(ReceiptTransaction.charge_id != None,
                                 and_(ReceiptTransaction.method != c.STRIPE, ReceiptTransaction.amount > 0))
@@ -178,15 +178,9 @@ class ReceiptTransaction(MagModel):
     who = Column(UnicodeText)
     desc = Column(UnicodeText)
 
-    @hybrid_property
+    @property
     def receipt_share(self):
-        return min(self.amount, sum([item.amount for item in self.receipt.receipt_items if item.added <= (self.added + timedelta(minutes=1))]))
-
-    @receipt_share.expression
-    def receipt_share(cls):
-        return select([func.sum(ReceiptItem.amount)]
-                                          ).where(ReceiptItem.receipt_id == cls.receipt_id
-                                          ).where(ReceiptItem.added <= func.timestampadd('MINUTE', 1, cls.added)).label('receipt_share')
+        return min(self.amount, sum([item.total_amount for item in self.receipt.receipt_items if item.added <= self.added]))
 
     @property
     def is_pending_charge(self):
@@ -224,5 +218,9 @@ class ReceiptItem(MagModel):
     who = Column(UnicodeText)
     desc = Column(UnicodeText)
     revert_change = Column(JSON, default={}, server_default='{}')
+
+    @property
+    def total_amount(self):
+        return self.amount * self.count
 
 
