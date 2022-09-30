@@ -851,19 +851,14 @@ class Root:
         charge = Charge(group, amount=c.get_group_price() * 100 * count,
                         description=charge_desc)
         if charge.dollar_amount % c.GROUP_PRICE:
+            session.rollback()
             return {'error': 'Our preregistration price has gone up since you tried to add more codes; please try again'}
         
-        stripe_intent = charge.create_stripe_intent()
+        stripe_intent = session.process_receipt_charge(receipt, charge)
         if isinstance(stripe_intent, string_types):
-            session.rollback()
             return {'error': stripe_intent}
 
-        receipt_txn = Charge.create_receipt_transaction(receipt, charge_desc, stripe_intent.id)
-        if isinstance(receipt_txn, string_types):
-            session.rollback()
-            return {'error': receipt_txn}
-            
-        session.add(receipt_txn)
+        session.add_codes_to_pc_group(group, count)
         session.commit()
             
         return {'stripe_intent': stripe_intent,
@@ -1022,12 +1017,9 @@ class Root:
         charge_desc = "{}: {}".format(group.name, receipt.charge_description_list)
         charge = Charge(group, amount=receipt.current_amount_owed, description=charge_desc)
 
-        stripe_intent = charge.create_stripe_intent()
+        stripe_intent = session.process_receipt_charge(receipt, charge)
         if isinstance(stripe_intent, string_types):
             return {'error': stripe_intent}
-
-        receipt_txn = Charge.create_receipt_transaction(receipt, charge_desc, stripe_intent.id)
-        session.add(receipt_txn)
         
         session.commit()
                     
@@ -1079,36 +1071,33 @@ class Root:
     @ajax
     @credit_card
     def pay_for_extra_members(self, session, id, count):
+        from uber.models import ReceiptItem
         group = session.group(id)
-        charge = Charge(
-            group,
-            amount=100 * int(count) * group.new_badge_cost,
-            description='{} extra badge{} for {}'.format(count, "s" if int(count) > 1 else "", group.name))
-        badges_to_add = charge.dollar_amount // group.new_badge_cost
+        receipt = session.get_receipt_by_model(group)
+        count = int(count)
+        session.add(ReceiptItem(receipt_id=receipt.id,
+                                desc='Extra badge for {}'.format(group.name),
+                                amount=group.new_badge_cost * 100,
+                                count=count,
+                                who='non-admin',
+                            ))
+        charge_desc = '{} extra badge{} for {}'.format(count, 's' if count > 1 else '', group.name)
+        charge = Charge(group, amount=group.new_badge_cost * count * 100,
+                        description=charge_desc)
         if charge.dollar_amount % group.new_badge_cost:
-            message = 'Our preregistration price has gone up since you tried to add the badges; please try again'
-        else:
-            stripe_intent = charge.create_stripe_intent()
-            message = stripe_intent if isinstance(stripe_intent, string_types) else ''
+            session.rollback()
+            return {'error': 'Our preregistration price has gone up since you tried to add the badges; please try again'}
+        
+        stripe_intent = session.process_receipt_charge(receipt, charge)
+        if isinstance(stripe_intent, string_types):
+            return {'error': stripe_intent}
 
-        if message:
-            return {'error': message}
-        else:
-            session.assign_badges(group, group.badges + badges_to_add)
+        session.assign_badges(group, group.badges + count)
+        session.commit()
             
-            session.add(session.create_receipt_item(
-                group, charge.amount,
-                "Adding {} badge{} to group {} (${} each)".format(
-                    badges_to_add,
-                    "s" if badges_to_add > 1 else "",
-                    group.name, group.new_badge_cost), charge.stripe_transaction),
-            )
-            session.merge(group)
-            session.commit()
-            
-            return {'stripe_intent': stripe_intent,
-                    'success_url': 'group_members?id={}&message={}'.format(
-                        group.id, 'Your payment has been accepted and the badges have been added to your group')}
+        return {'stripe_intent': stripe_intent,
+                'success_url': 'group_members?id={}&message={}'.format(
+                    group.id, 'Your payment has been accepted and the badges have been added to your group')}
 
     @id_required(Attendee)
     @requires_account(Attendee)
@@ -1217,24 +1206,19 @@ class Root:
             raise HTTPRedirect('confirm?id={}&message={}', id, failure_message)
 
         if attendee.amount_paid:
-            if not all(stripe_log.stripe_transaction.stripe_id
-                       and stripe_log.stripe_transaction.type == c.PAYMENT
-                       for stripe_log in attendee.stripe_txn_share_logs):
-                raise HTTPRedirect('confirm?id={}&message={}', id,
-                                   failure_message)
+            receipt = session.get_receipt_by_model(attendee)
             total_refunded = 0
-            for stripe_log in attendee.stripe_txn_share_logs:
-                error, response, stripe_transaction = session.process_refund(stripe_log, attendee)
-                if error:
-                    raise HTTPRedirect('confirm?id={}&message={}', id,
-                                       failure_message)
-                elif response:
-                    session.add(session.create_receipt_item(attendee, 
-                        response.amount, 
-                        "Self-service refund", 
-                        stripe_transaction,
-                        c.REFUND))
-                    total_refunded += response.amount
+            for txn in receipt.receipt_txns:
+                if not txn.refund_id and txn.stripe_id:
+                    response = session.process_refund(txn)
+                    if response:
+                        if isinstance(response, string_types):
+                            raise HTTPRedirect('confirm?id={}&message={}', id,
+                                   failure_message)
+                        total_refunded += response.amount
+
+            receipt.closed = datetime.now()
+            session.add(receipt)
 
             success_message = "Your refund of {} should appear on your credit card in a few days."\
                 .format(format_currency(total_refunded / 100))
@@ -1461,12 +1445,9 @@ class Root:
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = Charge(attendee, amount=receipt.current_amount_owed, description=charge_desc)
 
-        stripe_intent = charge.create_stripe_intent()
+        stripe_intent = charge.process_receipt_charge(receipt, charge)
         if isinstance(stripe_intent, string_types):
             return {'error': stripe_intent}
-
-        receipt_txn = Charge.create_receipt_transaction(receipt, charge_desc, stripe_intent.id)
-        session.add(receipt_txn)
 
         session.commit()
 
@@ -1533,12 +1514,9 @@ class Root:
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = Charge(attendee, amount=receipt.current_amount_owed, description=charge_desc)
 
-        stripe_intent = charge.create_stripe_intent()
+        stripe_intent = session.process_receipt_charge(receipt, charge)
         if isinstance(stripe_intent, string_types):
             return {'error': stripe_intent}
-
-        receipt_txn = Charge.create_receipt_transaction(receipt, charge_desc, stripe_intent.id)
-        session.add(receipt_txn)
 
         session.commit()
 

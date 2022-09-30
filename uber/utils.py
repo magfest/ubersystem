@@ -1323,7 +1323,7 @@ class Charge:
             return 'An unexpected problem occurred while setting up payment: ' + str(e)
 
     @classmethod
-    def create_receipt_transaction(self, receipt, desc='', intent_id='', amount=0):
+    def create_receipt_transaction(self, receipt, desc='', intent_id='', amount=0, method=c.STRIPE):
         if not amount and intent_id:
             intent = stripe.PaymentIntent.retrieve(intent_id)
             amount = intent.amount
@@ -1339,12 +1339,13 @@ class Charge:
             intent_id=intent_id,
             amount=receipt.current_amount_owed,
             desc=desc,
+            method=method,
             who=uber.models.AdminAccount.admin_name() or 'non-admin'
         )
 
     @staticmethod
     def mark_paid_from_intent_id(intent_id, charge_id):
-        from uber.models import Attendee, ArtShowApplication, Group, Session
+        from uber.models import Attendee, ArtShowApplication, MarketplaceApplication, Group, Session
         from uber.tasks.email import send_email
         from uber.decorators import render
         
@@ -1356,6 +1357,14 @@ class Charge:
                 session.add(txn)
                 txn_receipt = txn.receipt
 
+                """
+                We need to change how receipt transactions and items are tracked next year
+                I'm not doing it now but I want this code for later
+                
+                for item in txn.receipt_itms:
+                    item.closed = datetime.now()
+                    session.add(item)
+                """
                 for item in txn_receipt.open_receipt_items:
                     if item.added < txn.added:
                         item.closed = datetime.now()
@@ -1396,6 +1405,21 @@ class Charge:
                             model=model.to_dict('id'))
                     except Exception:
                         log.error('Unable to send Art Show payment confirmation email', exc_info=True)
+                if model and isinstance(model, MarketplaceApplication) and not txn.receipt.open_receipt_items:
+                    send_email.delay(
+                        c.MARKETPLACE_APP_EMAIL,
+                        c.MARKETPLACE_APP_EMAIL,
+                        'Marketplace Payment Received',
+                        render('emails/marketplace/payment_notification.txt',
+                            {'app': model}, encoding=None),
+                        model=model.to_dict('id'))
+                    send_email.delay(
+                        c.MARKETPLACE_APP_EMAIL,
+                        model.email_to_address,
+                        'Marketplace Payment Received',
+                        render('emails/marketplace/payment_confirmation.txt',
+                            {'app': model}, encoding=None),
+                        model=model.to_dict('id'))
 
             return matching_txns
 
