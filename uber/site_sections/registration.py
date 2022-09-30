@@ -646,22 +646,17 @@ class Root:
     @credit_card
     def take_payment(self, session, id):
         attendee = session.attendee(id)
-        charge = Charge(attendee, amount=attendee.amount_unpaid * 100)
-        stripe_intent = charge.create_stripe_intent()
-        message = stripe_intent if isinstance(stripe_intent, string_types) else ''
+        receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+        charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
+        charge = Charge(attendee, amount=receipt.current_amount_owed, description=charge_desc)
+        stripe_intent = session.process_receipt_charge(receipt, charge)
         
-        if message:
-            return {'error': message}
-        else:
-            db_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
-            if db_attendee:
-                attendee = db_attendee
-            session.add(session.create_receipt_item(attendee, charge.amount,
-                                                    "At-door kiosk payment", charge.stripe_transaction))
-            session.add(attendee)
-            session.commit()
-            return {'stripe_intent': stripe_intent,
-                    'success_url': 'register?message={}'.format(c.AT_DOOR_PREPAID_MSG)}
+        if isinstance(stripe_intent, string_types):
+            return {'error': stripe_intent}
+        
+        session.commit()
+        return {'stripe_intent': stripe_intent,
+                'success_url': 'register?message={}'.format(c.AT_DOOR_PREPAID_MSG)}
 
     def comments(self, session, order='last_name'):
         return {
@@ -712,13 +707,16 @@ class Root:
             return {'success': False, 'message': 'Payments can only be taken by at-door stations.'}
         
         attendee = session.attendee(id)
+        receipt = session.get_receipt_by_model(attendee)
         attendee.paid = c.HAS_PAID
         if int(payment_method) == c.STRIPE_ERROR:
-            attendee.for_review += "Automated message: Stripe payment manually verified by admin."
+            desc = "Automated message: Stripe payment manually verified by admin."
+        else:
+            desc = "At-door marked as paid"
         attendee.payment_method = payment_method
 
-        session.add(session.create_receipt_item(attendee, attendee.total_cost * 100,
-                                                        "At-door marked as paid", txn_type=c.PAYMENT, payment_method=payment_method))
+        session.add(Charge.create_receipt_transaction(receipt, desc, method=payment_method))
+        
         attendee.reg_station = cherrypy.session.get('reg_station')
         session.commit()
         return {'success': True, 'message': 'Attendee marked as paid.', 'id': attendee.id}
@@ -727,20 +725,16 @@ class Root:
     @credit_card
     def manual_reg_charge(self, session, id):
         attendee = session.attendee(id)
-        charge = Charge(attendee, amount=attendee.amount_unpaid * 100)
-        stripe_intent = charge.create_stripe_intent()
-        message = stripe_intent if isinstance(stripe_intent, string_types) else ''
+        receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+        charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
+        charge = Charge(attendee, amount=receipt.current_amount_owed, description=charge_desc)
+
+        stripe_intent = session.process_receipt_charge(receipt, charge, payment_method=c.MANUAL)
+        if isinstance(stripe_intent, string_types):
+            return {'error': stripe_intent}
         
-        if message:
-            return {'error': message}
-        else:
-            attendee.payment_method = c.MANUAL
-            session.add(session.create_receipt_item(attendee, charge.amount,
-                                                    "At-door desk payment", charge.stripe_transaction))
-            
-            session.merge(attendee)
-            session.commit()
-            return {'stripe_intent': stripe_intent, 'success_url': ''}
+        session.commit()
+        return {'stripe_intent': stripe_intent, 'success_url': ''}
 
     @check_for_encrypted_badge_num
     @csrf_protected

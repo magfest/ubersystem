@@ -921,7 +921,7 @@ class Session(SessionManager):
                 return 'Cannot refund a transaction without a Stripe ID'
 
             log.debug('REFUND: attempting to refund Stripe transaction with ID {} {} cents for {}',
-                      txn.stripe_id, txn.amount, txn.desc)
+                      txn.stripe_id, txn.receipt_share, txn.desc)
 
             try:
                 if txn.charge_id:
@@ -933,7 +933,7 @@ class Session(SessionManager):
                         return
                     for charge in payment_intent.charges:
                         response = stripe.Refund.create(
-                                    charge=charge.id, amount=txn.amount, reason='requested_by_customer')
+                                    charge=charge.id, amount=txn.receipt_share, reason='requested_by_customer')
             except Exception as e:
                 error_txt = 'Error while calling process_refund' \
                             '(self, stripeID={!r})'.format(txn.stripe_id)
@@ -955,23 +955,28 @@ class Session(SessionManager):
                 self.add(txn)
                 return response
 
-        def create_receipt_item(self, model, amount, desc, 
-                                stripe_txn=None, txn_type=c.PENDING, payment_method=c.STRIPE):
-            item = ReceiptItem(
-                txn_id=stripe_txn.id if stripe_txn else None,
-                txn_type=txn_type,
-                payment_method=payment_method,
-                amount=amount,
-                who=getattr(model, 'full_name', getattr(model, 'name', '')),
-                when=stripe_txn.when if stripe_txn else datetime.now(UTC),
-                desc=desc,
-                cost_snapshot=getattr(model, 'current_purchased_items', {}))
-            if isinstance(model, uber.models.Attendee):
-                item.attendee_id = getattr(model, 'id', None)
-            elif isinstance(model, uber.models.Group):
-                item.group_id = getattr(model, 'id', None)
+        def process_receipt_charge(self, receipt, charge, payment_method=c.STRIPE):
+            """
+            Creates the stripe intent and receipt transaction for a given charge object.
+            """
+            stripe_intent = charge.create_stripe_intent()
+            if isinstance(stripe_intent, six.string_types):
+                self.rollback()
+                return stripe_intent
 
-            return item
+            receipt_txn = Charge.create_receipt_transaction(receipt, charge.description, stripe_intent.id, method=payment_method)
+            if isinstance(receipt_txn, six.string_types):
+                self.rollback()
+                return receipt_txn
+
+            if stripe_intent.amount != receipt.current_amount_owed:
+                self.rollback()
+                return "There was an error calculating the amount. Please contact the system admin."
+
+            # Later we will want code to assign receipt items to this transaction
+
+            self.add(receipt_txn)
+            return stripe_intent
 
         def possible_match_list(self):
             possibles = defaultdict(list)
