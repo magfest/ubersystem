@@ -406,7 +406,7 @@ class PromoCode(MagModel):
 
     @hybrid_property
     def uses_count(self):
-        return len([self.valid_used_by])
+        return len(self.valid_used_by)
 
     @uses_count.expression
     def uses_count(cls):
