@@ -12,6 +12,7 @@ from sqlalchemy.types import Integer
 from sqlalchemy.orm import backref
 
 from uber.config import c
+from uber.custom_tags import format_currency
 from uber.models import MagModel
 from uber.models.attendee import Attendee, AttendeeAccount, Group
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column
@@ -96,9 +97,6 @@ class ModelReceipt(MagModel):
     owner_model = Column(UnicodeText)
     closed = Column(UTCDateTime, nullable=True)
 
-    def get_open_receipt_items_before_datetime(self, dt):
-        return [item for item in self.open_receipt_items if item.added < dt]
-
     @property
     def all_sorted_items_and_txns(self):
         return sorted(self.receipt_items + self.receipt_txns, key=lambda x: x.added)
@@ -161,6 +159,15 @@ class ModelReceipt(MagModel):
     def txn_total(self):
         return self.payment_total - self.refund_total
 
+    @property
+    def total_str(self):
+        return "{} in {} - {} in {} = {} owe {}".format(format_currency(self.item_total / 100),
+                                                        "Purchases" if self.item_total >= 0 else "Credit",
+                                                        format_currency(self.txn_total / 100),
+                                                        "Payments" if self.txn_total >= 0 else "Refunds",
+                                                        "They" if self.current_amount_owed >= 0 else "We",
+                                                        format_currency(self.current_amount_owed / 100))
+
 
 class ReceiptTransaction(MagModel):
     receipt_id = Column(UUID, ForeignKey('model_receipt.id', ondelete='SET NULL'), nullable=True)
@@ -180,6 +187,9 @@ class ReceiptTransaction(MagModel):
 
     @property
     def receipt_share(self):
+        # I'm saving this for later
+        # return sum([item.total for item in self.receipt_items])
+            
         return min(self.amount, sum([item.total_amount for item in self.receipt.receipt_items if item.added <= self.added]))
 
     @property
@@ -211,6 +221,12 @@ class ReceiptItem(MagModel):
     receipt = relationship('ModelReceipt', foreign_keys=receipt_id,
                            cascade='save-update, merge',
                            backref=backref('receipt_items', cascade='save-update, merge'))
+    """
+    We don't want these columns yet, but I will later
+    txn_id = Column(UUID, ForeignKey('receipt_transaction.id', ondelete='SET NULL'), nullable=True)
+    receipt_txn = relationship('ReceiptTransaction', foreign_keys=txn_id,
+                           cascade='save-update, merge',
+                           backref=backref('receipt_items', cascade='save-update, merge'))"""
     amount = Column(Integer)
     count = Column(Integer, default=1)
     added = Column(UTCDateTime, default=lambda: datetime.now(UTC))
