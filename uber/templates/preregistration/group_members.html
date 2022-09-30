@@ -142,11 +142,10 @@
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
                     <button class="btn btn-sm btn-warning" type="submit" style="margin: 5px 0;">This person isn't coming</button>
                   </form>
-                {% elif attendee.is_transferable and attendee.total_donation %}
+                {% elif attendee.is_transferable %}
                   <form method="get" action="transfer_badge">
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
-                    <b> Added on an extra {{ attendee.total_donation|format_currency }}! </b>
-                    <input type="submit" value="Transfer Registration" />
+                    <button class="btn btn-sm btn-warning" type="submit" style="margin: 5px 0;">Transfer registration</button>
                   </form>
                 {% endif %}
             </td>
