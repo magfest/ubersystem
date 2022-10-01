@@ -1,6 +1,8 @@
-from datetime import datetime
+from datetime import datetime, timedelta
+import stripe
 
 from pytz import UTC
+from pockets.autolog import log
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import and_, func, or_, select
 
@@ -10,9 +12,11 @@ from sqlalchemy.types import Integer
 from sqlalchemy.orm import backref
 
 from uber.config import c
+from uber.custom_tags import format_currency
 from uber.models import MagModel
 from uber.models.attendee import Attendee, AttendeeAccount, Group
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column
+from uber.utils import Charge
 
 
 __all__ = [
@@ -93,9 +97,6 @@ class ModelReceipt(MagModel):
     owner_model = Column(UnicodeText)
     closed = Column(UTCDateTime, nullable=True)
 
-    def get_open_receipt_items_before_datetime(self, dt):
-        return [item for item in self.open_receipt_items if item.added < dt]
-
     @property
     def all_sorted_items_and_txns(self):
         return sorted(self.receipt_items + self.receipt_txns, key=lambda x: x.added)
@@ -117,12 +118,16 @@ class ModelReceipt(MagModel):
         return [txn for txn in self.receipt_txns if txn.cancelled]
 
     @property
+    def pending_txns(self):
+        return [txn for txn in self.receipt_txns if txn.is_pending_charge]
+
+    @property
     def pending_total(self):
-        return sum([txn.amount for txn in self.receipt_txns if txn.intent_id and not txn.charge_id and not txn.cancelled])
+        return sum([txn.amount for txn in self.receipt_txns if txn.is_pending_charge])
 
     @hybrid_property
     def payment_total(self):
-        return sum([txn.amount for txn in self.receipt_txns if txn.charge_id or txn.method != c.STRIPE and txn.amount > 0])
+        return sum([txn.receipt_share for txn in self.receipt_txns if txn.charge_id or txn.method != c.STRIPE and txn.amount > 0])
     
     @payment_total.expression
     def payment_total(cls):
@@ -154,6 +159,15 @@ class ModelReceipt(MagModel):
     def txn_total(self):
         return self.payment_total - self.refund_total
 
+    @property
+    def total_str(self):
+        return "{} in {} - {} in {} = {} owe {}".format(format_currency(self.item_total / 100),
+                                                        "Purchases" if self.item_total >= 0 else "Credit",
+                                                        format_currency(self.txn_total / 100),
+                                                        "Payments" if self.txn_total >= 0 else "Refunds",
+                                                        "They" if self.current_amount_owed >= 0 else "We",
+                                                        format_currency(self.current_amount_owed / 100))
+
 
 class ReceiptTransaction(MagModel):
     receipt_id = Column(UUID, ForeignKey('model_receipt.id', ondelete='SET NULL'), nullable=True)
@@ -172,6 +186,13 @@ class ReceiptTransaction(MagModel):
     desc = Column(UnicodeText)
 
     @property
+    def receipt_share(self):
+        # I'm saving this for later
+        # return sum([item.total for item in self.receipt_items])
+            
+        return min(self.amount, sum([item.total_amount for item in self.receipt.receipt_items if item.added <= self.added]))
+
+    @property
     def is_pending_charge(self):
         return self.intent_id and not self.charge_id and not self.cancelled
 
@@ -180,12 +201,32 @@ class ReceiptTransaction(MagModel):
         # Return the most relevant Stripe ID for admins
         return self.refund_id or self.charge_id or self.intent_id
 
+    def get_stripe_intent(self):
+        try:
+            return stripe.PaymentIntent.retrieve(self.intent_id)
+        except Exception as e:
+            log.error(e)
+    
+    def check_paid_from_stripe(self):
+        if self.charge_id:
+            return
+
+        intent = stripe.PaymentIntent.retrieve(self.intent_id)
+        if intent and intent.charges:
+            return Charge.mark_paid_from_intent_id(self.intent_id, intent.charges.data[0].id)
+
 
 class ReceiptItem(MagModel):
     receipt_id = Column(UUID, ForeignKey('model_receipt.id', ondelete='SET NULL'), nullable=True)
     receipt = relationship('ModelReceipt', foreign_keys=receipt_id,
                            cascade='save-update, merge',
                            backref=backref('receipt_items', cascade='save-update, merge'))
+    """
+    We don't want these columns yet, but I will later
+    txn_id = Column(UUID, ForeignKey('receipt_transaction.id', ondelete='SET NULL'), nullable=True)
+    receipt_txn = relationship('ReceiptTransaction', foreign_keys=txn_id,
+                           cascade='save-update, merge',
+                           backref=backref('receipt_items', cascade='save-update, merge'))"""
     amount = Column(Integer)
     count = Column(Integer, default=1)
     added = Column(UTCDateTime, default=lambda: datetime.now(UTC))
@@ -193,5 +234,9 @@ class ReceiptItem(MagModel):
     who = Column(UnicodeText)
     desc = Column(UnicodeText)
     revert_change = Column(JSON, default={}, server_default='{}')
+
+    @property
+    def total_amount(self):
+        return self.amount * self.count
 
 

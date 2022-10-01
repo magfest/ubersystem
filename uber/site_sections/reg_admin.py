@@ -100,11 +100,17 @@ class Root:
             item = session.receipt_item(id)
         except NoResultFound:
             item = session.receipt_transaction(id)
+
+        receipt = item.receipt
         
         session.delete(item)
         session.commit()
 
-        return {'removed': id}
+        return {
+            'removed': id,
+            'new_total': receipt.total_str,
+            'disable_button': receipt.current_amount_owed == 0
+        }
 
     @ajax
     def undo_receipt_item(self, session, id='', **params):
@@ -163,7 +169,12 @@ class Root:
         session.add(txn)
         session.commit()
 
-        return {'cancelled': id, 'time': datetime_local_filter(txn.cancelled)}
+        return {
+            'cancelled': id,
+            'time': datetime_local_filter(txn.cancelled),
+            'new_total': txn.receipt.total_str,
+            'disable_button': txn.receipt.current_amount_owed == 0
+        }
 
     @ajax
     def refund_receipt_txn(self, session, id='', **params):
@@ -178,8 +189,13 @@ class Root:
 
             session.commit()
 
-        return {'refunded': id}
+        return {
+            'refunded': id,
+            'new_total': txn.receipt.total_str,
+            'disable_button': txn.receipt.current_amount_owed == 0
+        }
     
+    @not_site_mappable
     def process_full_refund(self, session, id='', attendee_id='', group_id=''):
         receipt = session.model_receipt(id)
         refund_total = 0

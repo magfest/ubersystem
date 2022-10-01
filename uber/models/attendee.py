@@ -766,6 +766,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if self.badge_type in c.BADGE_TYPE_PRICES:
             self.badge_type = c.ATTENDEE_BADGE
 
+    @property
     def qualifies_for_discounts(self):
         return self.paid != c.NEED_NOT_PAY and self.overridden_price is None and not self.is_dealer and self.badge_type not in c.BADGE_TYPE_PRICES
 
@@ -1027,7 +1028,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                and self.amount_paid > 0 \
                and self.paid not in [c.NEED_NOT_PAY, c.REFUNDED] \
                and not self.is_group_leader \
-               and self.stripe_txn_share_logs \
+               and self.active_receipt \
                and not self.checked_in \
                and c.SELF_SERVICE_REFUNDS_OPEN
 

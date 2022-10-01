@@ -58,13 +58,13 @@ Attendee.credit_changes = {
 
 @cost_calculation.Attendee
 def badge_cost(attendee):
-    if attendee.paid == c.PAID_BY_GROUP:
+    if attendee.paid == c.PAID_BY_GROUP or attendee.promo_code_groups:
         cost = 0
     else:
         cost = attendee.calculate_badge_cost() * 100
 
     if cost or attendee.badge_type in c.BADGE_TYPE_PRICES:
-        if attendee.badge_type in c.BADGE_TYPE_PRICES:
+        if attendee.badge_type in c.BADGE_TYPE_PRICES or not attendee.badge_type_label:
             label = "Attendee badge for {}{}".format(attendee.full_name, "" if cost else " (paid by group)")
         else:
             label = "{} badge for {}".format(attendee.badge_type_label, attendee.full_name)
@@ -102,7 +102,7 @@ def age_discount(attendee):
 @credit_calculation.Attendee
 def group_discount(attendee):
     if c.GROUP_DISCOUNT and attendee.qualifies_for_discounts and not attendee.age_discount and (
-                attendee.promo_code_groups or attendee.group and attendee.paid == c.PAID_BY_GROUP):
+                attendee.promo_code_groups or attendee.group):
         return ("Group Discount", c.GROUP_DISCOUNT * 100 * -1)
 
 
@@ -127,18 +127,18 @@ def badge_cost(group):
 def badge_reprint_fee_cost(job):
     return ("Badge reprint fee", job.print_fee * 100) if job.print_fee else None
 
-
-@cost_calculation.PromoCodeGroup
-def group_cost(group):
+@cost_calculation.Attendee
+def promo_code_group_cost(attendee):
     cost_table = defaultdict(int)
 
-    for code in group.promo_codes:
-        cost_table[code.cost * 100] += 1
+    if getattr(attendee, 'badges', None):
+        # During prereg we set the number of promo code badges on the attendee model
+        cost_table[c.get_group_price() * 100] = int(attendee.badges)
+    elif attendee.promo_code_groups:
+        for code in attendee.promo_code_groups[0]:
+            cost_table[code.cost * 100] += 1
+    else:
+        return
 
-    return ("Group badge ({}'s group)".format(), cost_table)
-
-@cost_calculation.PromoCode
-def code_cost(code):
-    return ("Promo code group badge", code.cost * 100) if code.cost else None
-
-
+    return ("Group badge ({})".format(attendee.promo_code_groups[0].name if attendee.promo_code_groups
+                                      else getattr(attendee, 'name', 'Unknown')), cost_table)
