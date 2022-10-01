@@ -109,18 +109,26 @@ def group_discount(attendee):
 @cost_calculation.Group
 def table_cost(group):
     table_count = int(float(group.tables))
-    if table_count:
+    if table_count and group.auto_recalc:
         return ("{} Tables".format(table_count), sum(c.TABLE_PRICES[i] for i in range(1, 1 + table_count)) * 100)
 
 @cost_calculation.Group
 def badge_cost(group):
     cost_table = defaultdict(int)
 
+    if not group.auto_recalc:
+        return None
+
     for attendee in group.attendees:
         if attendee.paid == c.PAID_BY_GROUP and attendee.badge_cost:
             cost_table[attendee.badge_cost * 100] += 1
 
     return ("Group badge ({})".format(group.name), cost_table)
+
+@cost_calculation.Group
+def set_cost(group):
+    if not group.auto_recalc:
+        return ("Custom fee for group {}".format(group.name), group.cost * 100)
 
 
 @cost_calculation.PrintJob
