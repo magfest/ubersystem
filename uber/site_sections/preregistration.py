@@ -1413,7 +1413,7 @@ class Root:
             if param in Attendee.cost_changes:
                 try:
                     receipt_item = Charge.process_receipt_upgrade_item(attendee, param, receipt=receipt, new_val=params[param])
-                    if receipt_item.amount != 0 and not receipt.open_receipt_items:
+                    if receipt_item.amount != 0 and (not receipt.open_receipt_items or receipt.current_amount_owed == 0):
                         session.add(receipt_item)
                 except Exception as e:
                     session.rollback()
@@ -1475,7 +1475,7 @@ class Root:
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = Charge(attendee, amount=receipt.current_amount_owed, description=charge_desc)
 
-        stripe_intent = charge.process_receipt_charge(receipt, charge)
+        stripe_intent = session.process_receipt_charge(receipt, charge)
         if isinstance(stripe_intent, string_types):
             return {'error': stripe_intent}
 
