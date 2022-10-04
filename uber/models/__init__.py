@@ -969,10 +969,6 @@ class Session(SessionManager):
                 self.rollback()
                 return receipt_txn
 
-            if stripe_intent.amount != receipt.current_amount_owed:
-                self.rollback()
-                return "There was an error calculating the amount. Please contact the system admin."
-
             # Later we will want code to assign receipt items to this transaction
 
             self.add(receipt_txn)
