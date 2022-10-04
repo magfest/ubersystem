@@ -241,6 +241,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     got_merch = Column(Boolean, default=False, admin_only=True)
     got_staff_merch = Column(Boolean, default=False, admin_only=True)
     got_swadge = Column(Boolean, default=False, admin_only=True)
+    can_transfer = Column(Boolean, default=False, admin_only=True)
 
     reg_station = Column(Integer, nullable=True, admin_only=True)
     registered = Column(UTCDateTime, server_default=utcnow())
@@ -1170,13 +1171,34 @@ class Attendee(MagModel, TakesPaymentMixin):
         return badge
 
     @property
-    def is_transferable(self):
+    def is_inherently_transferable(self):
         return self.badge_status == c.COMPLETED_STATUS \
             and not self.checked_in \
             and (self.paid in [c.HAS_PAID, c.PAID_BY_GROUP] or self.in_promo_code_group) \
             and self.badge_type in c.TRANSFERABLE_BADGE_TYPES \
             and not self.admin_account \
             and not self.has_role_somewhere
+
+    @property
+    def is_transferable(self):
+        return self.is_inherently_transferable or self.can_transfer
+
+    @property
+    def cannot_transfer_reason(self):
+        reasons = []
+        if self.admin_account:
+            reasons.append("they have an admin account")
+        if self.badge_type not in c.TRANSFERABLE_BADGE_TYPES:
+            reasons.append("their badge type ({}) is not transferable".format(self.badge_type_label))
+        if self.has_role_somewhere:
+            reasons.append("they are a department head, checklist admin, or point of contact for the following departments: {}".format(
+                                ", ".join([membership.department.name for membership in self.dept_memberships_with_role])))
+        return reasons
+    
+    @presave_adjustment
+    def force_no_transfer(self):
+        if self.admin_account or self.badge_type not in c.TRANSFERABLE_BADGE_TYPES or self.has_role_somewhere:
+            self.can_transfer = False
 
     # TODO: delete this after Super MAGFest 2018
     @property

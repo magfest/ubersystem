@@ -1594,12 +1594,11 @@ class TaskUtils:
             session.commit()
 
             errors = []
-            badge_type = int(import_job.json_data.get('badge_type', 0))
+            badge_type = int(import_job.json_data.get('badge_type', c.ATTENDEE_BADGE))
+            badge_status = int(import_job.json_data.get('badge_status', c.NEW_STATUS))
             extra_admin_notes = import_job.json_data.get('admin_notes', '')
 
-            if not badge_type:
-                errors.append("ERROR: Attendee does not have a badge type.")
-            elif badge_type not in c.BADGES:
+            if badge_type not in c.BADGES:
                 errors.append("ERROR: Attendee badge type not recognized: " + str(badge_type))
 
             try:
@@ -1630,7 +1629,7 @@ class TaskUtils:
 
             attendee.update({
                 'badge_type': badge_type,
-                'badge_status': c.NEW_STATUS if badge_type == c.STAFF_BADGE else c.IMPORTED_STATUS,
+                'badge_status': badge_status,
                 'paid': paid,
                 'placeholder': True,
                 'requested_hotel_info': True,

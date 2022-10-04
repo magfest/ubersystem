@@ -1654,6 +1654,33 @@ $(window).on("runJavaScript", function(){
 </div>
 {% endset %}
 
+{% set can_transfer %}
+{% set read_only = can_transfer_ro or page_ro or attendee.cannot_transfer_reason %}
+<div class="form-group">
+  <label for="can_transfer" class="col-sm-3 control-label">Is Transferable</label>
+  <div class="checkbox col-sm-6">
+    {% if attendee.is_inherently_transferable %}
+    This attendee can currently transfer their badge.
+    {% elif attendee.cannot_transfer_reason %}
+    This attendee cannot transfer their badge under any circumstances because
+    {% for reason in attendee.cannot_transfer_reason %}
+    {% if loop.last and attendee.cannot_transfer_reason|length > 1 %} and {% endif %}
+    {{ reason }}{% if attendee.cannot_transfer_reason|length > 2 %}, {% endif %}
+    {% endfor %}.
+    {% else %}
+    <label for='can_transfer' class="checkbox-label">
+      {{ macros.checkbox(attendee, 'can_transfer', is_readonly=read_only, clientside_bool=clientside_bool) }} Make this attendee's badge always transferable
+    </label>
+    {% endif %}
+  </div>
+  {% if not attendee.is_inherently_transferable and not attendee.cannot_transfer_reason %}
+  <p class="help-block col-sm-9 col-sm-offset-3">
+    This attendee can {% if attendee.can_transfer %}only transfer their badge with this override turned on{% else %}<strong>NOT</strong> currently transfer their badge{% endif %}.
+  </p>
+  {% endif %}
+</div>
+{% endset %}
+
 
 {% set badge_status %}
 {% set read_only = badge_status_ro or page_ro %}
@@ -1680,7 +1707,7 @@ $(window).on("runJavaScript", function(){
   <label for="admin_status" class="col-sm-3 control-label">Admin Accesses</label>
   <div class="col-sm-9 form-control-static">
     {% if attendee.admin_account %}
-      {{ attendee.admin_account.access_groups_labels|join(', ') }}
+      {{ attendee.admin_account.access_groups_labels|join(', ')|default("This attendee has an admin account but no accesses.", true) }}
     {% else %}
       This attendee does not have an admin account.
     {% endif %}
