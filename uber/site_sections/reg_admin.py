@@ -13,9 +13,9 @@ from uber.config import c, _config
 from uber.custom_tags import datetime_local_filter, pluralize, format_currency
 from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, ApiJob, Attendee, ModelReceipt, ReceiptItem, ReceiptTransaction
+from uber.models import AdminAccount, ApiJob, Attendee, Group, ModelReceipt, ReceiptItem, ReceiptTransaction
 from uber.site_sections import devtools
-from uber.utils import Charge, check, get_api_service_from_server, normalize_email
+from uber.utils import Charge, check, get_api_service_from_server, normalize_email, TaskUtils
 
 def check_custom_receipt_item_txn(params, is_txn=False):
     if not params.get('amount'):
@@ -407,11 +407,11 @@ class Root:
                 groups = models
                 groups_by_name = groupify(groups, lambda g: g['name'])
 
-                """existing_groups = session.query(Group).filter(Group.name.in_(groups_by_name.keys())) \
+                existing_groups = session.query(Group).filter(Group.name.in_(groups_by_name.keys())) \
                     .options(subqueryload(Group.attendees)).all()
                 for group in existing_groups:
                     existing_key = group.name
-                    groups_by_name.pop(existing_key, {})"""
+                    groups_by_name.pop(existing_key, {})
                 groups = list(chain(*groups_by_name.values()))
 
         return {
@@ -432,7 +432,8 @@ class Root:
             'existing_groups': existing_groups,
         }
 
-    def confirm_import_attendees(self, session, badge_type, admin_notes, target_server, api_token, query, attendee_ids):
+    def confirm_import_attendees(self, session, badge_type, badge_status, 
+                                 admin_notes, target_server, api_token, query, attendee_ids, **params):
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('import_attendees?target_server={}&api_token={}&query={}',
                                target_server,
@@ -452,15 +453,19 @@ class Root:
             if existing_import:
                 already_queued += 1
             else:
-                session.add(ApiJob(
+                import_job = ApiJob(
                     admin_id = admin_id,
                     admin_name = admin_name,
                     job_name = "attendee_import",
                     target_server = target_server,
                     api_token = api_token,
                     query = id,
-                    json_data = {'badge_type': badge_type, 'admin_notes': admin_notes, 'full': True}
-                ))
+                    json_data = {'badge_type': badge_type, 'admin_notes': admin_notes, 'badge_status': badge_status, 'full': True}
+                )
+                if len(attendee_ids) < 25:
+                    TaskUtils.attendee_import(import_job)
+                else:
+                    session.add(import_job)
             session.commit()
 
         attendee_count = len(attendee_ids) - already_queued
@@ -505,7 +510,7 @@ class Root:
             if existing_import:
                 already_queued += 1
             else:
-                session.add(ApiJob(
+                import_job = ApiJob(
                     admin_id = admin_id,
                     admin_name = admin_name,
                     job_name = "attendee_account_import",
@@ -513,7 +518,11 @@ class Root:
                     api_token = api_token,
                     query = id,
                     json_data = {'all': False}
-                ))
+                )
+                if len(account_ids) < 25:
+                    TaskUtils.attendee_account_import(import_job)
+                else:
+                    session.add(import_job)
             session.commit()
 
         attendee_count = len(account_ids) - already_queued
@@ -556,7 +565,7 @@ class Root:
             if existing_import:
                 already_queued += 1
             else:
-                session.add(ApiJob(
+                import_job = ApiJob(
                     admin_id = admin_id,
                     admin_name = admin_name,
                     job_name = "group_import",
@@ -564,7 +573,11 @@ class Root:
                     api_token = api_token,
                     query = id,
                     json_data = {'all': True}
-                ))
+                )
+                if len(group_ids) < 25:
+                    TaskUtils.group_import(import_job)
+                else:
+                    session.add(import_job)
             session.commit()
 
         attendee_count = len(group_ids) - already_queued

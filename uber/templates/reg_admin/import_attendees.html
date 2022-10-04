@@ -16,6 +16,7 @@
   }
 
   .control-inline select {
+    display: inline-block;
     margin-right: 20px;
     min-width: 50%;
   }
@@ -228,6 +229,12 @@
     <div class="form-group">
       <label class="control-label">Import Selected As</label>
       <div class="control-inline">
+        <select name="badge_status" class="form-control">
+          {{ options([
+            (c.NEW_STATUS, 'New'),
+            (c.IMPORTED_STATUS, 'Imported')
+            ], default=c.NEW_STATUS)}}
+        </select>
         <select name="badge_type" class="form-control">
           {{ options([
             (c.STAFF_BADGE, 'Staffers'),
