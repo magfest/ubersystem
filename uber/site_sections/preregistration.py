@@ -950,13 +950,25 @@ class Root:
                 message = 'Thank you! Your application has been updated.'
 
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
+
+        last_incomplete_txn = None
+        receipt = session.get_receipt_by_model(group)
+        if receipt:
+            for txn in receipt.pending_txns:
+                txns_marked_paid = txn.check_paid_from_stripe()
+                if not txns_marked_paid:
+                    last_incomplete_txn = txn
+
+            session.commit()
         return {
             'group':   group,
             'account': session.get_attendee_account_by_attendee(group.leader),
             'current_account': session.current_attendee_account(),
             'upgraded_badges': len([a for a in group.attendees if a.badge_type in c.BADGE_TYPE_PRICES]),
-            'signnow_document': signnow_document if c.SIGNNOW_DEALER_TEMPLATE_ID else None,
-            'signnow_link': signnow_link if c.SIGNNOW_DEALER_TEMPLATE_ID else None,
+            'signnow_document': signnow_document,
+            'signnow_link': signnow_link,
+            'receipt': receipt,
+            'incomplete_txn': last_incomplete_txn,
             'message': message
         }
 
@@ -1448,6 +1460,24 @@ class Root:
         return {'stripe_intent': stripe_intent,
                 'success_url': 'confirm?id={}&message={}'.format(
                     attendee.id,
+                    'Your payment has been accepted!'),
+                'cancel_url': 'cancel_payment'}
+
+    @ajax
+    @credit_card
+    @requires_account(Group)
+    def finish_pending_group_payment(self, session, id, txn_id, **params):
+        group = session.group(id)
+        txn = session.receipt_transaction(txn_id)
+
+        stripe_intent = txn.get_stripe_intent()
+
+        if stripe_intent.charges:
+            return {'error': "This payment has already been finalized!"}
+
+        return {'stripe_intent': stripe_intent,
+                'success_url': 'group_members?id={}&message={}'.format(
+                    group.id,
                     'Your payment has been accepted!'),
                 'cancel_url': 'cancel_payment'}
 

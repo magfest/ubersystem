@@ -287,7 +287,7 @@ class Group(MagModel, TakesPaymentMixin):
     @property
     def amount_unpaid(self):
         if self.registered:
-            return max(0, ((self.cost * 100) - self.amount_paid - self.amount_pending) / 100)
+            return max(0, ((self.total_cost * 100) - self.amount_paid - self.amount_pending) / 100)
         else:
             return self.total_cost
 
