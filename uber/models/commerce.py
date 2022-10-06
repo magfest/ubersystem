@@ -149,7 +149,11 @@ class ModelReceipt(MagModel):
 
     @property
     def current_amount_owed(self):
-        return max(0, self.item_total - self.txn_total)
+        return max(0, self.current_receipt_amount)
+
+    @property
+    def current_receipt_amount(self):
+        return self.item_total - self.txn_total
 
     @property
     def item_total(self):
@@ -165,8 +169,8 @@ class ModelReceipt(MagModel):
                                                         "Purchases" if self.item_total >= 0 else "Credit",
                                                         format_currency(self.txn_total / 100),
                                                         "Payments" if self.txn_total >= 0 else "Refunds",
-                                                        "They" if self.current_amount_owed >= 0 else "We",
-                                                        format_currency(self.current_amount_owed / 100))
+                                                        "They" if self.current_receipt_amount >= 0 else "We",
+                                                        format_currency(self.current_receipt_amount / 100))
 
 
 class ReceiptTransaction(MagModel):
