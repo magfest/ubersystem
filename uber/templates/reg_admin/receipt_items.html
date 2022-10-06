@@ -388,7 +388,7 @@
       <td colspan="7">
         <div class="btn-group pull-right" role="group" aria-label="...">
           <button class="btn btn-primary" onClick="showForm('{{ receipt.id }}', '-item-form')">Add Custom Purchase or Credit</button>
-          <button class="btn btn-success" id="record_payment_refund" onClick="showForm('{{ receipt.id }}', '-txn-form')"{% if receipt.current_amount_owed == 0 %} disabled{% endif %}>Record Payment or Refund</button>
+          <button class="btn btn-success" id="record_payment_refund" onClick="showForm('{{ receipt.id }}', '-txn-form')"{% if receipt.current_receipt_amount == 0 %} disabled{% endif %}>Record Payment or Refund</button>
         </div>
       </td>
     </tr>
