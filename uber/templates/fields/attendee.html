@@ -751,7 +751,7 @@ $().ready(function() {
   {% endif %}
   {% if c.DONATION_TIER_OPTS|length > 1 and (not c.PREREG_DONATION_OPTS or c.PREREG_DONATION_OPTS|length <= 1) and c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form', '/preregistration/register_group_member'] %}
     <div class="extra-row form-group">
-      <span class="col-sm-offset-3 col-sm-6"><strong>Kick-in tiers are no longer available</strong>. Please visit our merchandise booth on-site for t-shirts and other swag.</span>
+      <span class="col-sm-offset-3 col-sm-6"><strong>Pre-ordered merch packages are no longer available</strong>. Please visit our merchandise booth on-site for t-shirts and other swag!</span>
     </div>
   {% endif %}
 
@@ -766,11 +766,12 @@ $().ready(function() {
   </div>
 {% endif %}
 {% if c.DONATIONS_ENABLED and (admin_area or read_only) %}
+{% set can_upgrade_amount_extra = c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 and attendee.amount_extra < c.PREREG_DONATION_OPTS[-1][0] %}
   <div class="form-group">
     <label class="col-sm-3 control-label">
       Pre-ordered Merch
     </label>
-    {% call macros.read_only_if(read_only, attendee.amount_extra_label or "None", post_text='' if attendee.amount_extra >= c.SEASON_LEVEL else upgrade_button('amount-extra', text="Upgrade" if attendee.amount_extra else "Add")) %}
+    {% call macros.read_only_if(read_only, attendee.amount_extra_label or "None", post_text='' if not can_upgrade_amount_extra else upgrade_button('amount-extra', text="Upgrade" if attendee.amount_extra else "Add")) %}
     <div class="col-sm-3">
       <select name="amount_extra" class="form-control">
         {{ options(c.DONATION_TIER_OPTS,attendee.amount_extra) }}
