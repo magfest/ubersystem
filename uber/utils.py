@@ -642,11 +642,11 @@ class Registry:
 class DeptChecklistConf(Registry):
     instances = OrderedDict()
 
-    def __init__(self, slug, description, deadline, full_description='', name=None, path=None, email_post_con=False):
+    def __init__(self, slug, description, deadline, full_description='', name=None, path=None, email_post_con=False, external_form_url=''):
         assert re.match('^[a-z0-9_]+$', slug), \
             'Dept Head checklist item sections must have separated_by_underscore names'
 
-        self.slug, self.description, self.full_description = slug, description, full_description
+        self.slug, self.description, self.full_description, self.external_form_url = slug, description, full_description, external_form_url
         self.name = name or slug.replace('_', ' ').title()
         self._path = path or '/dept_checklist/form?slug={slug}&department_id={department_id}'
         self.email_post_con = bool(email_post_con)
