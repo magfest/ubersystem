@@ -225,22 +225,6 @@ class Root:
             'checklist': checklist,
             'placeholders': placeholders
         }
-
-    @department_id_adapter
-    def hotel_setup(self, session, department_id=None, submitted=None, csrf_token=None):
-        return _submit_checklist_item(session, department_id, submitted, csrf_token, 'hotel_setup')
-
-    @department_id_adapter
-    def logistics(self, session, department_id=None, submitted=None, csrf_token=None):
-        return _submit_checklist_item(session, department_id, submitted, csrf_token, 'logistics')
-
-    @department_id_adapter
-    def ppe_requests(self, session, department_id=None, submitted=None, csrf_token=None):
-        return _submit_checklist_item(session, department_id, submitted, csrf_token, 'ppe_requests')
-    
-    @department_id_adapter
-    def office_supplies(self, session, department_id=None, submitted=None, csrf_token=None):
-        return _submit_checklist_item(session, department_id, submitted, csrf_token, 'office_supplies')
     
     @department_id_adapter
     def printed_signs(self, session, department_id=None, submitted=None, csrf_token=None):
@@ -256,10 +240,6 @@ class Root:
     def allotments(self, session, department_id=None, submitted=None, csrf_token=None, **params):
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'allotments',
                                       'Treasury checklist data uploaded')
-
-    @department_id_adapter
-    def tech_requirements(self, session, department_id=None, submitted=None, csrf_token=None):
-        return _submit_checklist_item(session, department_id, submitted, csrf_token, 'tech_requirements')
     
     @department_id_adapter
     def guidebook_schedule(self, session, department_id=None, submitted=None, csrf_token=None):
