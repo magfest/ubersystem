@@ -11,8 +11,7 @@
 {{ csrf_token() }}
 {% if conf.external_form_url %}
 <h3><a href="{{ conf.external_form_url }}" target="_blank">{{ c.EVENT_NAME }} {{ conf.name }} Form</a></h3>
-Once you've filled out the form above, or if you don't need any special
-hotel setup for your department, please click the button below.<br/>
+Once you've filled out the form above, please click the button below.<br/>
 <br/>
 <button type="submit" name="comments" value="">I Have Filled out the {{ conf.name }} Form</button>
 {% else %}
