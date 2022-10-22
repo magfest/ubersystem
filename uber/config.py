@@ -684,7 +684,8 @@ class Config(_Overridable):
     def get_kickin_count(self, kickin_level):
         from uber.models import Session, Attendee
         with Session() as session:
-            count = session.query(Attendee).filter_by(amount_extra=kickin_level).count()
+            count = session.query(Attendee).filter_by(amount_extra=kickin_level).filter(
+                    ~Attendee.badge_status.in_([c.INVALID_STATUS, c.IMPORTED_STATUS, c.REFUNDED_STATUS])).count()
         return count
 
     @request_cached_property
