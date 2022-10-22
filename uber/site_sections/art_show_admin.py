@@ -72,7 +72,6 @@ class Root:
             'attendee_id': app.attendee_id or params.get('attendee_id', ''),
             'all_attendees': sorted(attendees, key=lambda tup: tup[1]),
             'new_app': new_app,
-            'receipt_items': Charge.get_all_receipt_items(app),
         }
 
     def pieces(self, session, id, message=''):
@@ -402,6 +401,10 @@ class Root:
 
         pdf = fpdf.FPDF(unit='pt', format='letter')
         pdf.add_font('3of9', '', get_static_file_path('free3of9.ttf'), uni=True)
+        pdf.add_font('NotoSans', '', get_static_file_path('NotoSans-Regular.ttf'), uni=True)
+        pdf.add_font('NotoSans Bold', '', get_static_file_path('NotoSans-Bold.ttf'), uni=True)
+        normal_font_name = 'NotoSans'
+        bold_font_name = 'NotoSans Bold'
         
         def set_fitted_font_size(text, font_size=12, max_size=160):
             pdf.set_font_size(size=font_size)
@@ -421,18 +424,18 @@ class Root:
 
             # Location, Piece ID, and barcode
             pdf.image(get_static_file_path('bidsheet.png'), x=0 + xplus, y=0 + yplus, w=306)
-            pdf.set_font("Arial", size=10)
+            pdf.set_font(normal_font_name, size=10)
             pdf.set_xy(81 + xplus, 27 + yplus)
             pdf.cell(80, 16, txt=piece.app.locations, ln=1, align="C")
             pdf.set_font("3of9", size=22)
             pdf.set_xy(163 + xplus, 15 + yplus)
             pdf.cell(132, 22, txt=piece.barcode_data, ln=1, align="C")
-            pdf.set_font("Arial", size=8, style='B')
+            pdf.set_font(bold_font_name, size=8,)
             pdf.set_xy(163 + xplus, 32 + yplus)
             pdf.cell(132, 12, txt=piece.artist_and_piece_id, ln=1, align="C")
 
             # Artist, Title, Media
-            pdf.set_font("Arial", size=12)
+            pdf.set_font(normal_font_name, size=12)
             set_fitted_font_size(piece.app.display_name)
             pdf.set_xy(81 + xplus, 54 + yplus)
             pdf.cell(160, 24,
@@ -441,7 +444,7 @@ class Root:
             pdf.set_xy(81 + xplus, 80 + yplus)
             set_fitted_font_size(piece.name)
             pdf.cell(160, 24, txt=piece.name, ln=1, align="C")
-            pdf.set_font("Arial", size=12)
+            pdf.set_font(normal_font_name, size=12)
             pdf.set_xy(81 + xplus, 105 + yplus)
             pdf.cell(
                 160, 24,
@@ -451,10 +454,10 @@ class Root:
             )
 
             # Type, Minimum Bid, QuickSale Price
-            pdf.set_font("Arial", size=10)
+            pdf.set_font(normal_font_name, size=10)
             pdf.set_xy(242 + xplus, 54 + yplus)
             pdf.cell(53, 24, txt=piece.type_label, ln=1, align="C")
-            pdf.set_font("Arial", size=8)
+            pdf.set_font(normal_font_name, size=8)
             pdf.set_xy(242 + xplus, 90 + yplus)
             # Note: we want the prices on the PDF to always have a trailing .00
             pdf.cell(53, 14, txt=('${:,.2f}'.format(piece.opening_bid)) if piece.valid_for_sale else 'N/A', ln=1)

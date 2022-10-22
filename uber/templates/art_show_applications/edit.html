@@ -10,16 +10,16 @@
 {% endif %}
 <div class="panel panel-default">
   <div class="panel-heading">
-    Application Information
+    Art Show Application Information
   </div>
   <div class="panel-body">
-    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_applications %}
+    {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.badge_status != c.NOT_ATTENDING or attendee.marketplace_applications %}
       {% include 'confirm_tabs.html' with context %}
     {% endif %}
-    <h2>{{ c.EVENT_NAME }} Art Show Application</h2>
       {% if app.status == c.APPROVED %}
       Congratulations, your application has been approved!
         {% if not app.incomplete_reason and app.is_unpaid %}
+        <br/><br/>
           {% if receipt.pending_total %}
           You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
             with pending payments of {{ (receipt.pending_total / 100)|format_currency }}.
@@ -29,13 +29,15 @@
           <br/><br/>
           <div style="text-align:center">
               {{ stripe_form('process_art_show_payment', app) }}
-          </div><br/><br/>
+          </div>
           {% endif %}
         {% elif app.attendee.placeholder and app.attendee.badge_status != c.NOT_ATTENDING %}
+        <br/><br/>
           Before completing your application, please finish filling out your information
-          <a href="../preregistration/confirm?id={{ app.attendee_id }}" target="_blank">here</a>. Afterwards, you will
+          <a href="../preregistration/confirm?id={{ app.attendee_id }}">here</a>. Afterwards, you will
           be able to pay for your application on this page.
         {% elif app.delivery_method == c.BY_MAIL and not app.address1 %}
+        <br/><br/>
           Please fill in your mailing address below. Afterwards, you will be able to pay for your application on this page.
         {% else %}
         <br/><br/>{% include 'art_show_common/art_pieces_form.html' %}
@@ -63,6 +65,7 @@
       Unfortunately, since your application has been {{ app.status_label|lower }}, you may no longer edit it. However,
       you may still view the details of your application below. <br/><br/>
       {% endif %}
+      <br/><br/>
     <form method="post" id="new_agent" action="new_agent" role="form"></form>
     <form method="post" action="edit" class="form-horizontal" role="form">
       <input type="hidden" name="id" value="{{ app.id }}">

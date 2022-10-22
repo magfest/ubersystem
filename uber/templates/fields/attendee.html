@@ -19,7 +19,7 @@
 {%- set group_id = group_id or attendee.group_id -%}
 
 {% macro upgrade_button(upgrade_btn_id, text="Upgrade") %}
-{% if receipt and receipt.current_amount_owed <= 0 %}
+{% if receipt and receipt.current_amount_owed <= 0 and money_fields_ro %}
   <a class="btn btn-sm btn-success" id="upgrade-{{ upgrade_btn_id }}-btn" data-toggle="modal" data-target="#upgradeModal">
     <span class="glyphicon glyphicon-circle-arrow-up"></span> {{ text }}
   </a>
@@ -36,39 +36,11 @@
         <h4 class="modal-title" id="receiptTitle">Receipt</h4>
       </div>
       <div class="modal-body">
-          <table class="table table-striped" id="upgrade-preview">
-              <tbody>
-                {% for item in receipt.all_sorted_items_and_txns|rejectattr("cancelled") %}
-                <tr>
-                  <td><span class='pull-right'>{{ item.desc }}{{ ": " if item.desc else "" }}</span></td>
-                  <td>
-                    {% if item.method %}
-                    {{ (item.amount / 100)|format_currency(true) }} {{ "Paid" if item.amount > 0 else "Refunded" }} ({{ item.method_label }})
-                    {% else %}
-                    {{ (item.amount / 100)|format_currency }}
-                    {% endif %}
-                  </td>
-                </tr>
-                {% endfor %}
-                {% if receipt.current_amount_owed %}
-                <tr><td colspan="2"></td></tr>
-                <tr>
-                  <td colspan="2">
-                    <span class='pull-right'>
-                      <strong>Total: {{ (receipt.current_amount_owed / 100)|format_currency }}
-                        {% if receipt.pending_total %}({{ (receipt.pending_total / 100)|format_currency }} pending){% endif %}
-                      </strong>
-                    </span>
-                  </td>
-                </tr>
-                {% endif %}
-              </tbody>
-          </table>
-          <p>If something here does not look right, please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.</p>
+          {% include 'preregistration/receipt_table.html' %}
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-        {% if receipt.current_amount_owed and not receipt.pending_total %}{{ stripe_form('process_upgrade_payment', attendee, receipt_id=receipt.id, stripe_button_id="receipt-stripe-btn") }}{% endif %}
+        {% if receipt.current_amount_owed and not receipt.pending_total %}{{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, stripe_button_id="receipt-stripe-btn") }}{% endif %}
       </div>
     </div>
   </div>
@@ -233,9 +205,11 @@ $().ready(function() {
             price: {{ badge_cost if badge_cost is defined else c.BADGE_PRICE }},
             {% if c.BADGE_TYPE_PRICES and (attendee.is_new or attendee.badge_type == c.ATTENDEE_BADGE) %}
             onClick: function () {
-                $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}').trigger('change');
                 {% if money_fields_ro %}
                 updateReceiptPreview('badge_type', '{{ c.ATTENDEE_BADGE }}');
+                $('#upgrade_badge_type').val('{{ badge_type }}');
+                {% else %}
+                $('input[name="badge_type"]').val('{{ c.ATTENDEE_BADGE }}').trigger('change');
                 {% endif %}
             }
             {% endif %}
@@ -276,9 +250,11 @@ $().ready(function() {
                     price: {{ c.BADGE_TYPE_PRICES[badge_type] }},
                     badge_type: '{{ badge_type }}',
                     onClick: function () {
-                        $('input[name="badge_type"]').val('{{ badge_type }}');
                         {% if money_fields_ro %}
                         updateReceiptPreview('badge_type', '{{ badge_type }}');
+                        $('#upgrade_badge_type').val('{{ badge_type }}');
+                        {% else %}
+                        $('input[name="badge_type"]').val('{{ badge_type }}');
                         {% endif %}
                     }
                 });
@@ -379,7 +355,7 @@ $().ready(function() {
                 }
             });
             if (!$(BADGE_TYPES.selector).slice(target, 1 + target).is('.active')) {
-                setBadge(BADGE_TYPES, target);
+              setBadge(BADGE_TYPES, target);
             }
         }
     };
@@ -571,7 +547,7 @@ $().ready(function() {
       <label for="badge_type" class="col-sm-3 control-label">Badge Type</label>
       <div class="col-sm-6 form-control-static">
         {{ attendee.badge_type_label }}
-        {{ upgrade_button('badge-type') }}
+        {% if c.MAX_BADGE_TYPE_UPGRADE and attendee.badge_type != c.MAX_BADGE_TYPE_UPGRADE %}{{ upgrade_button('badge-type') }}{% endif %}
       </div>
     </div>
   {% endif %}
@@ -648,11 +624,17 @@ $().ready(function() {
 {% set amount_extra_js %}
 <script type="text/javascript">
   var donationChanged = function (formId) {
+    if(formId === undefined) {
+      formId = '';
+    }
     if(formId != '') {
-      formId = '#' + formId + ' '
+      formId = '#' + formId + ' ';
+      {% if money_fields_ro %}
+        updateReceiptPreview('amount_extra', $.val('amount_extra'));
+      {% endif %}
     }
     setVisible(formId + '.affiliate-row', $.val('amount_extra') > 0);
-    {% if attendee.num_event_shirts_owed or attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS %}
+    {% if (attendee.num_event_shirts_owed or attendee.gets_staff_shirt) and c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS %}
         setVisible(formId + '.shirt-row', true);
     {% else %}
         setVisible(formId + '.shirt-row', $.val('amount_extra') >= {{ c.SHIRT_LEVEL }});
@@ -712,9 +694,7 @@ $().ready(function() {
 {% if c.DONATIONS_ENABLED and not admin_area and not read_only %}
   {% if c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 or attendee.amount_extra or attendee.gets_any_kind_of_shirt %}
     <div class="extra-row form-group">
-      <label for="amount_extra" class="col-sm-3 control-label">Want to kick in extra?
-        <br>
-        {{ macros.popup_link("../static_views/givingExtra.html", "Why do this?") }}
+      <label for="amount_extra" class="col-sm-3 control-label">Pre-order Merch
       </label>
       <div class="col-sm-9">
         {% if c.PREREG_DONATION_DESCRIPTIONS or c.FORMATTED_DONATION_DESCRIPTIONS and not attendee.is_new and attendee.amount_extra %}
@@ -726,7 +706,7 @@ $().ready(function() {
                         name="amount_extra"
                         autocomplete="off"
                         value="{{ tier.price }}"
-                        onchange="donationChanged({{ form }});"
+                        onchange="donationChanged('{{ form }}');"
                         {% if attendee.amount_extra == tier.price %}checked{% endif %} />
                   <div class="title">
                     <h4>{{ tier.name }}</h4>
@@ -754,10 +734,8 @@ $().ready(function() {
               {% endif %}
             {% endfor %}
           </div>
-
-
           {% else %}
-            <select name="amount_extra" class="form-control" onchange="donationChanged({{ form }});">
+            <select name="amount_extra" class="form-control" onchange="donationChanged('{{ form }}');">
               {{ options(c.PREREG_DONATION_OPTS, attendee.amount_extra) }}
             </select>
           {% endif %}
@@ -766,14 +744,14 @@ $().ready(function() {
       <p class="help-block col-sm-offset-3 col-sm-9">
         Each level includes all lower levels. <br/>
         {% if c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime_local }}.<br/>{% endif %}
-        {% if c.SHIRT_DEADLINE %} {% if c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Shirt level up to Supporter level{% else %}Shirt level and higher{% endif %} {% if c.BEFORE_SHIRT_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SHIRT_DEADLINE|datetime_local }}.<br/>{% endif %}
-        {% if c.SHIRT_STOCK %}Kick-ins are only available while supplies last.{% endif %}
+        {% if c.SHIRT_DEADLINE %} {% if c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Shirt level up to Supporter level{% else %}Shirt level and higher{% endif %} {% if c.BEFORE_SHIRT_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SHIRT_DEADLINE|datetime_local("%b %-d %-I:%M%p %Z") }}{% if c.SHIRT_STOCK %} or while supplies last{% endif %}.<br/>{% endif %}
+        {% if not c.SHIRT_DEADLINE and c.SHIRT_STOCK %}Shirt level and higher are only available while supplies last.{% endif %}
       </p>
     </div>
   {% endif %}
   {% if c.DONATION_TIER_OPTS|length > 1 and (not c.PREREG_DONATION_OPTS or c.PREREG_DONATION_OPTS|length <= 1) and c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form', '/preregistration/register_group_member'] %}
     <div class="extra-row form-group">
-      <span class="col-sm-offset-3 col-sm-6"><strong>Kick-in tiers are no longer available</strong>. Please visit our merchandise booth on-site for t-shirts and other swag.</span>
+      <span class="col-sm-offset-3 col-sm-6"><strong>Pre-ordered merch packages are no longer available</strong>. Please visit our merchandise booth on-site for t-shirts and other swag!</span>
     </div>
   {% endif %}
 
@@ -788,16 +766,16 @@ $().ready(function() {
   </div>
 {% endif %}
 {% if c.DONATIONS_ENABLED and (admin_area or read_only) %}
+{% set can_upgrade_amount_extra = c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 and attendee.amount_extra < c.PREREG_DONATION_OPTS[-1][0] %}
   <div class="form-group">
     <label class="col-sm-3 control-label">
-      Kick-in/Upgrade
+      Pre-ordered Merch
     </label>
-    {% call macros.read_only_if(read_only, attendee.amount_extra_label or "None", post_text=upgrade_button('amount-extra')) %}
+    {% call macros.read_only_if(read_only, attendee.amount_extra_label or "None", post_text='' if not can_upgrade_amount_extra else upgrade_button('amount-extra', text="Upgrade" if attendee.amount_extra else "Add")) %}
     <div class="col-sm-3">
       <select name="amount_extra" class="form-control">
         {{ options(c.DONATION_TIER_OPTS,attendee.amount_extra) }}
       </select>
-      {% if upgrade_button('amount-extra') %}<span class="form-control-static">{{ upgrade_button('amount-extra') }}</span>{% endif %}
     </div>
     {% endcall %}
   </div>
@@ -892,11 +870,23 @@ $().ready(function() {
 
 {% macro extra_donation(read_only=extra_donation_ro or money_fields_ro or page_ro) %}
 {% if c.COLLECT_EXTRA_DONATION or c.EXTRA_DONATION_URL %}
+{% if money_fields_ro %}
+<script type="text/javascript">
+  if ($.field('extra_donation')) {
+    $.field('extra_donation').blur(function() {
+      updateReceiptPreview('extra_donation', $.val('extra_donation'));
+    })
+  }
+</script>
+{% endif %}
 <div id="extra_donation">
   <div class="form-group">
-      <label class="col-sm-3 control-label">Extra Donation</label>
+      <label class="col-sm-3 control-label"><span>Extra Donation</span>
+        <br>
+        {{ macros.popup_link("../static_views/givingExtra.html", "Learn more") }}
+        </label>
   {% if c.COLLECT_EXTRA_DONATION %}
-    {% call macros.read_only_if(read_only, attendee.extra_donation, pre_text='$' if attendee.extra_donation) %}
+    {% call macros.read_only_if(read_only, attendee.extra_donation, pre_text='$' if attendee.extra_donation else '', post_text=upgrade_button('extra-donation', text="Change" if attendee.extra_donation else "Donate")) %}
       <div class="col-sm-6">
         <div class="input-group">
           <span class="input-group-addon">$</span>
@@ -918,6 +908,7 @@ $().ready(function() {
 If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXTRA_DONATION %} also{% endif %} do so at any time of year at <a href="{{ c.EXTRA_DONATION_URL }}" target="_blank">{{ c.EXTRA_DONATION_URL }}</a>!
 </div>
 {% endif %}
+</div>
 </div>
 {% endif %}
 {% endmacro %}
@@ -1224,8 +1215,9 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 {% endif %}
 {% endset %}
 
-{% if full_read %}
+
 {% set emergency_contact %}
+{% if full_read %}
 {% if attendee.is_new or not admin_area or c.HAS_REG_ADMIN_ACCESS %}
 {% set read_only = emergency_contact_ro or page_ro %}
 <div class="form-group">
@@ -1245,12 +1237,48 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 {% endcall %}
 </div>
 {% endif %}
-{% endset %}
 {% endif %}
+{% endset %}
 
 
-{% if not limited_read %}
+{% set onsite_contact %}
+{% if full_read %}
+{% if attendee.is_new or not admin_area or c.HAS_REG_ADMIN_ACCESS %}
+{% set read_only = onsite_contact_ro or page_ro %}
+<div class="form-group">
+  <label for="onsite_contact" class="col-sm-3 control-label">On-site Contact</label>
+  {% call macros.read_only_if(read_only, attendee.onsite_contact) %}
+  <div class="col-sm-6">
+    <textarea name="onsite_contact" class="form-control" placeholder="Contact info for a trusted friend or friends who will be at or near the venue during the event." maxlength="500">{{ attendee.onsite_contact }}</textarea>
+  </div>
+{% endcall %}
+    <div class="checkbox col-sm-6 col-sm-offset-3">
+      {{ macros.checkbox(attendee, 'no_onsite_contact', label="Use my emergency contact information.", label_class='onsite-ec', is_readonly=read_only, clientside_bool=clientside_bool) }}
+    </div>
+</div>
+<script type="text/javascript">
+var noOnsiteClicked = function () {
+  if ($.field('no_onsite_contact') && $.field('cellphone')) {
+    $.field('onsite_contact').prop('disabled', $.field('no_onsite_contact').prop('checked'));
+    if($.field('no_onsite_contact').prop('checked')) {
+      $.field('onsite_contact').val('');
+    }
+  }
+};
+$(window).on("runJavaScript", function () {
+  noOnsiteClicked();
+  if ($.field('no_onsite_contact')) {
+    $.field('no_onsite_contact').on('click', noOnsiteClicked);
+  }
+});
+  </script>
+{% endif %}
+{% endif %}
+{% endset %}
+
+
 {% set cellphone %}
+{% if not limited_read %}
 <script type="text/javascript">
 var noCellphoneClicked = function () {
   if ($.field('no_cellphone') && $.field('cellphone')) {
@@ -1291,8 +1319,8 @@ $(window).on("runJavaScript", function () {
     </div>
   {% endif %}
 </div>
-{% endset %}
 {% endif %}
+{% endset %}
 
 
 {% set interests %}
@@ -1412,7 +1440,7 @@ $(window).on("runJavaScript", function () {
 
 {% if c.BADGE_PROMO_CODES_ENABLED and not group_id and (attendee.is_unpaid or attendee.promo_code_code or admin_area) %}
   <div class="non_group_fields form-group">
-    <label for="promo_code" class="col-sm-3 control-label optional-field">Promo Code</label>
+    <label for="promo_code" class="col-sm-3 control-label optional-field">Promo {% if c.GROUPS_ENABLED %}or Group {% endif %}Code</label>
     <div class="col-sm-6">
       {% if attendee.is_unpaid and not read_only %}
         <input type="textarea" name="promo_code" value="{{ attendee.promo_code_code or promo_code_code }}" class="form-control" placeholder="Promo Code">
@@ -1479,8 +1507,9 @@ $(window).on("runJavaScript", function () {
 {% set pii_consent_checkbox %}
 {% set read_only = pii_consent_ro or page_ro %}
 <div class="form-group">
+  <label class="col-sm-3 control-label">Privacy Policy</label>
 {% call macros.read_only_if(read_only, attendee.pii_consent|yesno) %}
-  <div class="checkbox col-sm-9 col-sm-offset-3">
+  <div class="checkbox col-sm-9">
     <label for="pii_consent" class="checkbox-label">
       <input type="checkbox" name="pii_consent" id="pii_consent" value="1" required {% if pii_consent %}checked{% endif %} />
       <strong>Yes</strong>, I understand and agree that {{ c.ORGANIZATION_NAME }} will store the personal information I provided above for the limited purposes of contacting me about my 
@@ -1626,6 +1655,33 @@ $(window).on("runJavaScript", function(){
 </div>
 {% endset %}
 
+{% set can_transfer %}
+{% set read_only = can_transfer_ro or page_ro or attendee.cannot_transfer_reason %}
+<div class="form-group">
+  <label for="can_transfer" class="col-sm-3 control-label">Is Transferable</label>
+  <div class="checkbox col-sm-6">
+    {% if attendee.is_inherently_transferable %}
+    This attendee can currently transfer their badge.
+    {% elif attendee.cannot_transfer_reason %}
+    This attendee cannot transfer their badge under any circumstances because
+    {% for reason in attendee.cannot_transfer_reason %}
+    {% if loop.last and attendee.cannot_transfer_reason|length > 1 %} and {% endif %}
+    {{ reason }}{% if attendee.cannot_transfer_reason|length > 2 %}, {% endif %}
+    {% endfor %}.
+    {% else %}
+    <label for='can_transfer' class="checkbox-label">
+      {{ macros.checkbox(attendee, 'can_transfer', is_readonly=read_only, clientside_bool=clientside_bool) }} Make this attendee's badge always transferable
+    </label>
+    {% endif %}
+  </div>
+  {% if not attendee.is_inherently_transferable and not attendee.cannot_transfer_reason %}
+  <p class="help-block col-sm-9 col-sm-offset-3">
+    This attendee can {% if attendee.can_transfer %}only transfer their badge with this override turned on{% else %}<strong>NOT</strong> currently transfer their badge{% endif %}.
+  </p>
+  {% endif %}
+</div>
+{% endset %}
+
 
 {% set badge_status %}
 {% set read_only = badge_status_ro or page_ro %}
@@ -1652,7 +1708,7 @@ $(window).on("runJavaScript", function(){
   <label for="admin_status" class="col-sm-3 control-label">Admin Accesses</label>
   <div class="col-sm-9 form-control-static">
     {% if attendee.admin_account %}
-      {{ attendee.admin_account.access_groups_labels|join(', ') }}
+      {{ attendee.admin_account.access_groups_labels|join(', ')|default("This attendee has an admin account but no accesses.", true) }}
     {% else %}
       This attendee does not have an admin account.
     {% endif %}
@@ -1771,7 +1827,7 @@ $(window).on("runJavaScript", function(){
   <label class="col-sm-3 control-label">Badge Price</label>
   {% call macros.read_only_if(read_only, attendee.badge_price, pre_text='$' if attendee.badge_price, post_text=post_text if attendee.badge_price) %}
   <div class="checkbox col-sm-9">
-    $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost }}" />
+    $<input type="text" style="width:4em" name="overridden_price" value="{{ attendee.badge_cost|default(0, true) }}" />
     {{ post_text }}
   </div>
 {% endcall %}
@@ -1966,29 +2022,33 @@ $(window).on("runJavaScript", function(){
 
 {% set agreed_to_volunteer_agreement %}
 {# Always read-only #}
+{% if c.VOLUNTEER_AGREEMENT_ENABLED and admin_area %}
 <div class="form-group staffing staffing-checked">
   <label class="col-sm-3 control-label">Agreed to Volunteer Agreement</label>
   <div class="col-sm-9">
     <div class="form-control-static">
-      {% if c.VOLUNTEER_AGREEMENT_ENABLED and admin_area %}{{ attendee.agreed_to_volunteer_agreement|yesno("Yes,No") }}{% endif %}
+      {{ attendee.agreed_to_volunteer_agreement|yesno("Yes,No") }}
       <input type="hidden" name="agreed_to_volunteer_agreement" value="{{ attendee.agreed_to_volunteer_agreement|yesno("1,0") }}" />
     </div>
   </div>
 </div>
+{% endif %}
 {% endset %}
 
 
 {% set reviewed_emergency_procedures %}
 {# Always read-only #}
+{% if c.EMERGENCY_PROCEDURES_ENABLED and admin_area %}
 <div class="form-group staffing staffing-checked">
   <label class="col-sm-3 control-label">Reviewed Emergency Procedures</label>
   <div class="col-sm-9">
     <div class="form-control-static">
-      {% if c.EMERGENCY_PROCEDURES_ENABLED and admin_area %}{{ attendee.reviewed_emergency_procedures|yesno("Yes,No") }}{% endif %}
+      {{ attendee.reviewed_emergency_procedures|yesno("Yes,No") }}
       <input type="hidden" name="reviewed_emergency_procedures" value="{{ attendee.reviewed_emergency_procedures|yesno("1,0") }}" />
     </div>
   </div>
 </div>
+{% endif %}
 {% endset %}
 
 

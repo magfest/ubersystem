@@ -13,9 +13,9 @@ from uber.config import c, _config
 from uber.custom_tags import datetime_local_filter, pluralize, format_currency
 from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, ApiJob, Attendee, ModelReceipt, ReceiptItem, ReceiptTransaction
+from uber.models import AdminAccount, ApiJob, Attendee, Group, ModelReceipt, ReceiptItem, ReceiptTransaction
 from uber.site_sections import devtools
-from uber.utils import get_api_service_from_server, normalize_email
+from uber.utils import Charge, check, get_api_service_from_server, normalize_email, TaskUtils
 
 def check_custom_receipt_item_txn(params, is_txn=False):
     if not params.get('amount'):
@@ -100,11 +100,36 @@ class Root:
             item = session.receipt_item(id)
         except NoResultFound:
             item = session.receipt_transaction(id)
+
+        receipt = item.receipt
         
         session.delete(item)
         session.commit()
 
-        return {'removed': id}
+        return {
+            'removed': id,
+            'new_total': receipt.total_str,
+            'disable_button': receipt.current_amount_owed == 0
+        }
+
+    @ajax
+    def undo_receipt_item(self, session, id='', **params):
+        item = session.receipt_item(id)
+        receipt = item.receipt
+        model = session.get_model_by_receipt(receipt)
+        for col_name in item.revert_change:
+            receipt_item = Charge.process_receipt_upgrade_item(model, col_name, receipt=receipt, new_val=item.revert_change[col_name])
+            session.add(receipt_item)
+            model.apply(item.revert_change, restricted=False)
+        
+        message = check(model)
+        
+        if message:
+            session.rollback()
+            return {'error': message}
+        session.commit()
+
+        return {'success': True}
 
     @ajax
     def add_receipt_txn(self, session, id='', **params):
@@ -144,8 +169,33 @@ class Root:
         session.add(txn)
         session.commit()
 
-        return {'cancelled': id, 'time': datetime_local_filter(txn.cancelled)}
+        return {
+            'cancelled': id,
+            'time': datetime_local_filter(txn.cancelled),
+            'new_total': txn.receipt.total_str,
+            'disable_button': txn.receipt.current_amount_owed == 0
+        }
+
+    @ajax
+    def refund_receipt_txn(self, session, id='', **params):
+        txn = session.receipt_transaction(id)
+        model = session.get_model_by_receipt(txn.receipt)
+        
+        if not txn.refund_id and txn.stripe_id:
+            response = session.process_refund(txn)
+            if response:
+                if isinstance(response, string_types):
+                    raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', model.id, response)
+
+            session.commit()
+
+        return {
+            'refunded': id,
+            'new_total': txn.receipt.total_str,
+            'disable_button': txn.receipt.current_amount_owed == 0
+        }
     
+    @not_site_mappable
     def process_full_refund(self, session, id='', attendee_id='', group_id=''):
         receipt = session.model_receipt(id)
         refund_total = 0
@@ -357,11 +407,11 @@ class Root:
                 groups = models
                 groups_by_name = groupify(groups, lambda g: g['name'])
 
-                """existing_groups = session.query(Group).filter(Group.name.in_(groups_by_name.keys())) \
+                existing_groups = session.query(Group).filter(Group.name.in_(groups_by_name.keys())) \
                     .options(subqueryload(Group.attendees)).all()
                 for group in existing_groups:
                     existing_key = group.name
-                    groups_by_name.pop(existing_key, {})"""
+                    groups_by_name.pop(existing_key, {})
                 groups = list(chain(*groups_by_name.values()))
 
         return {
@@ -382,7 +432,8 @@ class Root:
             'existing_groups': existing_groups,
         }
 
-    def confirm_import_attendees(self, session, badge_type, admin_notes, target_server, api_token, query, attendee_ids):
+    def confirm_import_attendees(self, session, badge_type, badge_status, 
+                                 admin_notes, target_server, api_token, query, attendee_ids, **params):
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('import_attendees?target_server={}&api_token={}&query={}',
                                target_server,
@@ -402,15 +453,19 @@ class Root:
             if existing_import:
                 already_queued += 1
             else:
-                session.add(ApiJob(
+                import_job = ApiJob(
                     admin_id = admin_id,
                     admin_name = admin_name,
                     job_name = "attendee_import",
                     target_server = target_server,
                     api_token = api_token,
                     query = id,
-                    json_data = {'badge_type': badge_type, 'admin_notes': admin_notes, 'full': True}
-                ))
+                    json_data = {'badge_type': badge_type, 'admin_notes': admin_notes, 'badge_status': badge_status, 'full': True}
+                )
+                if len(attendee_ids) < 25:
+                    TaskUtils.attendee_import(import_job)
+                else:
+                    session.add(import_job)
             session.commit()
 
         attendee_count = len(attendee_ids) - already_queued
@@ -455,7 +510,7 @@ class Root:
             if existing_import:
                 already_queued += 1
             else:
-                session.add(ApiJob(
+                import_job = ApiJob(
                     admin_id = admin_id,
                     admin_name = admin_name,
                     job_name = "attendee_account_import",
@@ -463,7 +518,11 @@ class Root:
                     api_token = api_token,
                     query = id,
                     json_data = {'all': False}
-                ))
+                )
+                if len(account_ids) < 25:
+                    TaskUtils.attendee_account_import(import_job)
+                else:
+                    session.add(import_job)
             session.commit()
 
         attendee_count = len(account_ids) - already_queued
@@ -506,7 +565,7 @@ class Root:
             if existing_import:
                 already_queued += 1
             else:
-                session.add(ApiJob(
+                import_job = ApiJob(
                     admin_id = admin_id,
                     admin_name = admin_name,
                     job_name = "group_import",
@@ -514,7 +573,11 @@ class Root:
                     api_token = api_token,
                     query = id,
                     json_data = {'all': True}
-                ))
+                )
+                if len(group_ids) < 25:
+                    TaskUtils.group_import(import_job)
+                else:
+                    session.add(import_job)
             session.commit()
 
         attendee_count = len(group_ids) - already_queued

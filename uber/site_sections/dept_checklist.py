@@ -225,22 +225,6 @@ class Root:
             'checklist': checklist,
             'placeholders': placeholders
         }
-
-    @department_id_adapter
-    def hotel_setup(self, session, department_id=None, submitted=None, csrf_token=None):
-        return _submit_checklist_item(session, department_id, submitted, csrf_token, 'hotel_setup')
-
-    @department_id_adapter
-    def logistics(self, session, department_id=None, submitted=None, csrf_token=None):
-        return _submit_checklist_item(session, department_id, submitted, csrf_token, 'logistics')
-
-    @department_id_adapter
-    def ppe_requests(self, session, department_id=None, submitted=None, csrf_token=None):
-        return _submit_checklist_item(session, department_id, submitted, csrf_token, 'ppe_requests')
-    
-    @department_id_adapter
-    def office_supplies(self, session, department_id=None, submitted=None, csrf_token=None):
-        return _submit_checklist_item(session, department_id, submitted, csrf_token, 'office_supplies')
     
     @department_id_adapter
     def printed_signs(self, session, department_id=None, submitted=None, csrf_token=None):
@@ -256,10 +240,6 @@ class Root:
     def allotments(self, session, department_id=None, submitted=None, csrf_token=None, **params):
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'allotments',
                                       'Treasury checklist data uploaded')
-
-    @department_id_adapter
-    def tech_requirements(self, session, department_id=None, submitted=None, csrf_token=None):
-        return _submit_checklist_item(session, department_id, submitted, csrf_token, 'tech_requirements')
     
     @department_id_adapter
     def guidebook_schedule(self, session, department_id=None, submitted=None, csrf_token=None):
@@ -273,10 +253,15 @@ class Root:
         if department_id == 'All':
             department_id = None
 
+        try:
+            checklist = session.checklist_status('hotel_eligible', department_id)
+        except ValueError:
+            checklist = {'conf': None, 'relevant': False, 'completed': None}
+
         return {
             'department_id': department_id,
             'department_name': c.DEPARTMENTS.get(department_id, 'All'),
-            'checklist': session.checklist_status('hotel_eligible', department_id),
+            'checklist': checklist,
             'attendees': session.query(Attendee).filter(
                 Attendee.hotel_eligible == True,
                 Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
@@ -304,6 +289,11 @@ class Root:
         
         attendee = session.admin_attendee()
 
+        try:
+            checklist = session.checklist_status('approve_setup_teardown', department_id)
+        except ValueError:
+            checklist = {'conf': None, 'relevant': False, 'completed': None}
+
         return {
             'admin_has_room_access': c.HAS_HOTEL_ADMIN_ACCESS,
             'attendee': attendee,
@@ -311,8 +301,7 @@ class Root:
             'department_id': department_id,
             'department_name': c.DEPARTMENTS.get(department_id, 'All'),
             'declined_count': len([r for r in requests if r.nights == '']),
-            'checklist': session.checklist_status(
-                'approve_setup_teardown', department_id),
+            'checklist': checklist,
             'staffer_count': session.query(Attendee).filter(
                 Attendee.hotel_eligible == True, *dept_filter).count()  # noqa: E712
         }

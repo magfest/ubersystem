@@ -2,7 +2,7 @@
 {% set name_ro = not attendee.placeholder %}
 {% set assigned_depts_ro = True %}
 {% set amount_extra_ro = True if attendee.badge_status == c.DEFERRED_STATUS else False %}
-{% set money_fields_ro = True if receipt and receipt.closed_receipt_items else False %}
+{% set money_fields_ro = True if receipt %}
 {% set page_ro = not attendee.is_valid %}
 {% import "fields/attendee.html" as attendee_fields with context %}
 {% block title %}Confirm Your Details{% endblock %}
@@ -53,17 +53,17 @@
         and is not considered a valid registration. Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you have any questions.
       </div>
       {% else %}
-        {% if not attendee.placeholder and receipt.current_amount_owed %}
-            {% if receipt.pending_total %}
+        {% if not attendee.placeholder and receipt and receipt.current_amount_owed %}
+            {% if incomplete_txn %}
             <div class="alert alert-warning">
               You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
-              with pending payments of {{ (receipt.pending_total / 100)|format_currency }}.
-              Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if this issue persists or if you have any questions.
+              with an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.
+              <br/><br/>Click here to complete your payment: {{ stripe_form('finish_pending_payment', attendee, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}
             </div>
             {% else %}
             <div class="alert alert-danger">
               You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
-              Please <a href="" data-toggle="modal" data-target="#receiptModal">check your receipt here</a> to pay for your extra items.
+              Please <a href="" data-toggle="modal" data-target="#receiptModal">check your receipt here</a> to pay.
             </div>
             {% endif %}
         {% elif attendee.badge_status == c.PENDING_STATUS %}
@@ -110,7 +110,7 @@
         {% endif %}
       {% endif %}
 
-      {% if money_fields_ro %}
+      {% if money_fields_ro and not incomplete_txn %}
         {% include 'preregistration/upgrade_modal.html' %}
       {% endif %}
       {{ attendee_fields.receipt_modal }}
@@ -140,6 +140,7 @@
       {{ attendee_fields.email }}
       {{ attendee_fields.address }}
       {{ attendee_fields.emergency_contact }}
+      {{ attendee_fields.onsite_contact }}
       {{ attendee_fields.cellphone }}
       {{ attendee_fields.promo_code }}
       {{ attendee_fields.interests }}

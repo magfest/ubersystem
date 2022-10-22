@@ -276,6 +276,13 @@ def total_cost_over_paid(attendee):
             format_currency(attendee.amount_paid / 100))
 
 
+@validation.Attendee
+def reasonable_total_cost(attendee):
+    if attendee.total_cost >= 999999:
+        return 'We cannot charge {}. Please reduce extras so the total is below $999,999.'.format(
+            format_currency(attendee.total_cost))
+
+
 @prereg_validation.Attendee
 def promo_code_is_useful(attendee):
     with Session() as session:
@@ -293,7 +300,7 @@ def promo_code_is_useful(attendee):
             return "You can't apply a promo code to a one day badge."
         elif attendee.overridden_price:
             return "You already have a special badge price, you can't use a promo code on top of that."
-        elif attendee.badge_cost >= attendee.badge_cost_without_promo_code:
+        elif attendee.default_badge_cost >= attendee.badge_cost_without_promo_code:
             return "That promo code doesn't make your badge any cheaper. You may already have other discounts."
 
 
@@ -426,6 +433,22 @@ def dealer_cellphone(attendee):
 def emergency_contact_not_cellphone(attendee):
     if not attendee.international and attendee.cellphone and attendee.cellphone == attendee.ec_phone:
         return "Your phone number cannot be the same as your emergency contact number"
+
+
+@validation.Attendee
+@ignore_unassigned_and_placeholders
+def onsite_contact(attendee):
+    if not attendee.onsite_contact and not attendee.no_onsite_contact and attendee.badge_type != c.STAFF_BADGE:
+        return 'Please enter contact information for at least one trusted friend onsite, or indicate ' \
+               'that we should use your emergency contact information instead.'
+
+
+@validation.Attendee
+@ignore_unassigned_and_placeholders
+def onsite_contact_length(attendee):
+    if attendee.onsite_contact and len(attendee.onsite_contact) > 500:
+        return 'You have entered over 500 characters of onsite contact information.' \
+                'Please provide contact information for fewer friends.'
 
 
 @validation.Attendee

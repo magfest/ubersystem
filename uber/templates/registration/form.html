@@ -8,7 +8,7 @@
 
 <div class="panel panel-default">
 <div class="panel-body">
-{% if c.AT_THE_CON and receipt and receipt.current_amount_owed > 0 and not attendee.is_new %}
+{% if c.AT_THE_CON and receipt and receipt.current_amount_owed and not attendee.is_new %}
     <div class="alert alert-warning center" role="alert">
     <h4>{{ attendee.full_name }} currently owes <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.</h4>
     {% if Charge %}
@@ -70,6 +70,7 @@
 {% endif %}
 
 {{ attendee_fields.is_placeholder }}
+{{ attendee_fields.can_transfer }}
 {{ attendee_fields.badge_status }}
 {% if c.HAS_ACCOUNTS_ACCESS %}
   {{ attendee_fields.admin_access }}
@@ -87,6 +88,7 @@
 {{ attendee_fields.age }}
 {{ attendee_fields.email }}
 {{ attendee_fields.emergency_contact }}
+{{ attendee_fields.onsite_contact }}
 {{ attendee_fields.cellphone }}
 {{ attendee_fields.address }}
 {{ attendee_fields.shirt_size }}

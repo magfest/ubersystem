@@ -642,11 +642,11 @@ class Registry:
 class DeptChecklistConf(Registry):
     instances = OrderedDict()
 
-    def __init__(self, slug, description, deadline, full_description='', name=None, path=None, email_post_con=False):
+    def __init__(self, slug, description, deadline, full_description='', name=None, path=None, email_post_con=False, external_form_url=''):
         assert re.match('^[a-z0-9_]+$', slug), \
             'Dept Head checklist item sections must have separated_by_underscore names'
 
-        self.slug, self.description, self.full_description = slug, description, full_description
+        self.slug, self.description, self.full_description, self.external_form_url = slug, description, full_description, external_form_url
         self.name = name or slug.replace('_', ' ').title()
         self._path = path or '/dept_checklist/form?slug={slug}&department_id={department_id}'
         self.email_post_con = bool(email_post_con)
@@ -874,6 +874,8 @@ class ExcelWorksheetStreamWriter:
             self.worksheet.set_column(i, i, width)
 
     def writerows(self, header_row, rows, header_format={'bold': True}):
+        rows = [list(map(str, row)) for row in rows]
+
         if header_row:
             self.set_column_widths([header_row] + rows)
             if header_format:
@@ -1066,75 +1068,48 @@ class Charge:
             raise HTTPRedirect('../preregistration/credit_card_retry')
 
     @classmethod
-    def get_all_receipt_items(cls, model, items=None):
+    def create_new_receipt(cls, model, create_model=False, items=None):
         """
         Iterates through the cost_calculations for this model and returns a list containing all non-null cost and credit items.
         This function is for use with new models to grab all their initial costs for creating or previewing a receipt.
         """
+        from uber.models import AdminAccount, ModelReceipt, ReceiptItem
         if not items:
             items = [uber.receipt_items.cost_calculation.items] + [uber.receipt_items.credit_calculation.items]
         receipt_items = []
+        receipt = ModelReceipt(owner_id=model.id, owner_model=model.__class__.__name__) if create_model else None
         
         for i in items:
             for calculation in i[model.__class__.__name__].values():
                 item = calculation(model)
                 if item:
-                    receipt_items.append(item)
-        
-        return receipt_items
-
-    @classmethod
-    def process_receipt_item(cls, item, receipt=None):
-        """
-        Unpacks the items from get_all_receipt_items. If a ModelReceipt is provided, new ReceiptItems are created.
-        Otherwise, the raw values are returned so attendees can preview their receipts.
-
-        Returns a list containing either:
-            - A single ReceiptItem
-            - A single tuple (desc, cost, count)
-            - Multiple ReceiptItems
-            - Multiple tuples (desc, cost, count)
-        """
-        from uber.models import AdminAccount, ReceiptItem
-        try:
-            desc, cost, count = item
-        except ValueError:
-            # Unpack list of wrong size (no quantity provided).
-            desc, cost = item
-            count = 1
-        if isinstance(cost, Iterable):
-            # A list of the same item at different prices, e.g., group badges
-            receipt_items = []
-            for price in cost:
-                if receipt:
-                    receipt_items.append(ReceiptItem(receipt_id=receipt.id,
-                                                     desc=desc,
-                                                     amount=cost,
-                                                     count=cost[price],
-                                                     who=AdminAccount.admin_name() or 'non-admin'
-                                                    ))
-                else:
-                    receipt_items.append((desc, price, cost[price]))
-            return receipt_items
-        if receipt:
-            return [ReceiptItem(receipt_id=receipt.id,
-                                desc=desc,
-                                amount=cost,
-                                count=count,
-                                who=AdminAccount.admin_name() or 'non-admin'
-                            )]
-        else:
-            return [(desc, cost, count)]
-
-    @classmethod
-    def create_model_receipt(cls, model):
-        from uber.models import ModelReceipt
-
-        receipt = ModelReceipt(owner_id=model.id, owner_model=model.__class__.__name__)
-        receipt_items = []
-
-        for item in cls.get_all_receipt_items(model):
-            receipt_items.extend(cls.process_receipt_item(item, receipt))
+                    try:
+                        desc, cost, count = item
+                    except ValueError:
+                        # Unpack list of wrong size (no quantity provided).
+                        desc, cost = item
+                        count = 1
+                    if isinstance(cost, Iterable):
+                        # A list of the same item at different prices, e.g., group badges
+                        for price in cost:
+                            if receipt:
+                                receipt_items.append(ReceiptItem(receipt_id=receipt.id,
+                                                                desc=desc,
+                                                                amount=price,
+                                                                count=cost[price],
+                                                                who=AdminAccount.admin_name() or 'non-admin'
+                                                                ))
+                            else:
+                                receipt_items.append((desc, price, cost[price]))
+                    elif receipt:
+                        receipt_items.append(ReceiptItem(receipt_id=receipt.id,
+                                                          desc=desc,
+                                                          amount=cost,
+                                                          count=count,
+                                                          who=AdminAccount.admin_name() or 'non-admin'
+                                                        ))
+                    else:
+                        receipt_items.append((desc, cost, count))
         
         return receipt, receipt_items
 
@@ -1147,10 +1122,13 @@ class Charge:
         """
         model_dict = model.to_dict()
 
-        if not model_dict.get(col_name):
-            return
+        if model_dict.get(col_name) == None:
+            return None, None
         
-        return (model_dict[col_name], new_val - model_dict[col_name])
+        if not new_val:
+            new_val = 0
+        
+        return (model_dict[col_name] * 100, (int(new_val) - model_dict[col_name]) * 100)
 
     @classmethod
     def process_receipt_upgrade_item(cls, model, col_name, new_val, receipt=None, count=1):
@@ -1187,15 +1165,16 @@ class Charge:
             if len(cost_change_tuple) > 2:
                 cost_change_name = cost_change_name.format(*[dictionary.get(new_val) for dictionary in cost_change_tuple[2:]])
             
-            try:
+            if not cost_change_func:
+                old_cost, cost_change = cls.calc_simple_cost_change(model, col_name, new_val)
+            else:
                 change_func = getattr(model, cost_change_func)
                 old_cost, cost_change = change_func(**{col_name: new_val})
-            except AttributeError:
-                old_cost, cost_change = cls.calc_simple_cost_change(model, col_name, new_val)
 
-        if not old_cost:
+        is_removable_item = col_name != 'badge_type'
+        if not old_cost and is_removable_item:
             cost_desc = "Adding {}".format(cost_change_name)
-        elif cost_change * -1 == old_cost: # We're crediting the full amount of the item
+        elif cost_change * -1 == old_cost and is_removable_item: # We're crediting the full amount of the item
             cost_desc = "Removing {}".format(cost_change_name)
         elif cost_change > 0:
             cost_desc = "{} {}".format(increase_term, cost_change_name)
@@ -1216,21 +1195,24 @@ class Charge:
     def prereg_receipt_preview(self):
         """
         Returns a list of tuples where tuple[0] is the name of a group of items,
-        and tuple[1] is a list of cost item tuples from process_receipt_item
+        and tuple[1] is a list of cost item tuples from create_new_receipt
         
         This lets us show the attendee a nice display of what they're buying
         ... whenever we get around to actually using it that way
         """
+        from uber.models import PromoCodeGroup
+
         items_preview = []
         for model in self.models:
             if getattr(model, 'badges', None) and getattr(model, 'name') and isinstance(model, uber.models.Attendee):
                 items_group = ("{} plus {} badges ({})".format(getattr(model, 'full_name', None), int(model.badges) - 1, model.name), [])
+                x, receipt_items = Charge.create_new_receipt(PromoCodeGroup())
             else:
                 group_name = getattr(model, 'name', None)
                 items_group = (group_name or getattr(model, 'full_name', None), [])
             
-            for item in Charge.get_all_receipt_items(model):
-                items_group[1].extend(Charge.process_receipt_item(item))
+            x, receipt_items = Charge.create_new_receipt(model)
+            items_group[1].extend(receipt_items)
             
             items_preview.append(items_group)
 
@@ -1328,7 +1310,7 @@ class Charge:
 
             stripe_intent = stripe.PaymentIntent.create(
                 payment_method_types=['card'],
-                amount=amount,
+                amount=int(amount),
                 currency='usd',
                 description=description,
                 receipt_email=customer.email if receipt_email else None,
@@ -1342,18 +1324,29 @@ class Charge:
             return 'An unexpected problem occurred while setting up payment: ' + str(e)
 
     @classmethod
-    def create_receipt_transaction(self, receipt, desc='', intent_id=''):
+    def create_receipt_transaction(self, receipt, desc='', intent_id='', amount=0, method=c.STRIPE):
+        if not amount and intent_id:
+            intent = stripe.PaymentIntent.retrieve(intent_id)
+            amount = intent.amount
+        
+        if not amount:
+            amount = receipt.current_amount_owed
+        
+        if not amount > 0:
+            return "There was an issue recording your payment."
+
         return uber.models.ReceiptTransaction(
             receipt_id=receipt.id,
             intent_id=intent_id,
-            amount=receipt.current_amount_owed,
+            amount=amount,
             desc=desc,
+            method=method,
             who=uber.models.AdminAccount.admin_name() or 'non-admin'
         )
 
     @staticmethod
     def mark_paid_from_intent_id(intent_id, charge_id):
-        from uber.models import Attendee, Group, Session
+        from uber.models import Attendee, ArtShowApplication, MarketplaceApplication, Group, Session
         from uber.tasks.email import send_email
         from uber.decorators import render
         
@@ -1365,6 +1358,14 @@ class Charge:
                 session.add(txn)
                 txn_receipt = txn.receipt
 
+                """
+                We need to change how receipt transactions and items are tracked next year
+                I'm not doing it now but I want this code for later
+                
+                for item in txn.receipt_itms:
+                    item.closed = datetime.now()
+                    session.add(item)
+                """
                 for item in txn_receipt.open_receipt_items:
                     if item.added < txn.added:
                         item.closed = datetime.now()
@@ -1384,19 +1385,44 @@ class Charge:
 
                 session.commit()
 
-                if isinstance(model, Group):
-                    if model and model.is_dealer and not txn.receipt.open_receipt_items:
-                        try:
-                            send_email.delay(
-                                c.MARKETPLACE_EMAIL,
-                                c.MARKETPLACE_EMAIL,
-                                '{} Payment Completed'.format(c.DEALER_TERM.title()),
-                                render('emails/dealers/payment_notification.txt', {'group': model}, encoding=None),
-                                model=model.to_dict('id'))
-                        except Exception:
-                            log.error('unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
+                if model and isinstance(model, Group) and model.is_dealer and not txn.receipt.open_receipt_items:
+                    try:
+                        send_email.delay(
+                            c.MARKETPLACE_EMAIL,
+                            c.MARKETPLACE_EMAIL,
+                            '{} Payment Completed'.format(c.DEALER_TERM.title()),
+                            render('emails/dealers/payment_notification.txt', {'group': model}, encoding=None),
+                            model=model.to_dict('id'))
+                    except Exception:
+                        log.error('Unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
+                if model and isinstance(model, ArtShowApplication) and not txn.receipt.open_receipt_items:
+                    try:
+                        send_email.delay(
+                            c.ART_SHOW_EMAIL,
+                            c.ART_SHOW_EMAIL,
+                            'Art Show Payment Received',
+                            render('emails/art_show/payment_notification.txt',
+                                {'app': model}, encoding=None),
+                            model=model.to_dict('id'))
+                    except Exception:
+                        log.error('Unable to send Art Show payment confirmation email', exc_info=True)
+                if model and isinstance(model, MarketplaceApplication) and not txn.receipt.open_receipt_items:
+                    send_email.delay(
+                        c.MARKETPLACE_APP_EMAIL,
+                        c.MARKETPLACE_APP_EMAIL,
+                        'Marketplace Payment Received',
+                        render('emails/marketplace/payment_notification.txt',
+                            {'app': model}, encoding=None),
+                        model=model.to_dict('id'))
+                    send_email.delay(
+                        c.MARKETPLACE_APP_EMAIL,
+                        model.email_to_address,
+                        'Marketplace Payment Received',
+                        render('emails/marketplace/payment_confirmation.txt',
+                            {'app': model}, encoding=None),
+                        model=model.to_dict('id'))
 
-            return txn
+            return matching_txns
 
 
 class SignNowDocument:    
@@ -1421,26 +1447,39 @@ class SignNowDocument:
 
         self.access_token = c.SIGNNOW_ACCESS_TOKEN
 
+        if self.access_token and not refresh:
+            return
+
         if not self.access_token and c.DEV_BOX and c.SIGNNOW_USERNAME and c.SIGNNOW_PASSWORD:
             access_request = signnow_sdk.OAuth2.request_token(c.SIGNNOW_USERNAME, c.SIGNNOW_PASSWORD, '*')
             if 'error' in access_request:
-                self.error_message = "Error getting access token from SignNow: " + access_request['error']
+                self.error_message = "Error getting access token from SignNow using username and passsword: " + access_request['error']
             else:
                 self.access_token = access_request['access_token']
-            
-        elif (not self.access_token or refresh) and aws_secrets_client:
+        elif not aws_secrets_client:
+            self.error_message = "Couldn't get a SignNow access token because there was no AWS Secrets client. If you're on a development box, you can instead use a username and password."
+        elif not c.AWS_SIGNNOW_SECRET_NAME:
+            self.error_message = "Couldn't get a SignNow access token because the secret name is not set. If you're on a development box, you can instead use a username and password."
+        else:
             aws_secrets_client.get_signnow_secret()
             self.access_token = c.SIGNNOW_ACCESS_TOKEN
+        
+        if not self.access_token and not self.error_message:
+            self.error_message = "We tried to set an access token, but for some reason it failed."
 
     def create_document(self, template_id, doc_title, folder_id='', uneditable_texts_list=None, fields={}):
         from requests import post, put
         from json import dumps, loads
 
         self.set_access_token(refresh=True)
-        document_request = signnow_sdk.Template.copy(self.access_token, template_id, doc_title)
+        if not self.error_message:
+            document_request = signnow_sdk.Template.copy(self.access_token, template_id, doc_title)
         
-        if 'error' in document_request:
-            self.error_message = "Error creating document from template: " + document_request['error']
+            if 'error' in document_request:
+                self.error_message = "Error creating document from template with token {}: {}".format(self.access_token, document_request['error'])
+                return None
+
+        if self.error_message:
             return None
         
         if uneditable_texts_list:
@@ -1555,12 +1594,11 @@ class TaskUtils:
             session.commit()
 
             errors = []
-            badge_type = int(import_job.json_data.get('badge_type', 0))
+            badge_type = int(import_job.json_data.get('badge_type', c.ATTENDEE_BADGE))
+            badge_status = int(import_job.json_data.get('badge_status', c.NEW_STATUS))
             extra_admin_notes = import_job.json_data.get('admin_notes', '')
 
-            if not badge_type:
-                errors.append("ERROR: Attendee does not have a badge type.")
-            elif badge_type not in c.BADGES:
+            if badge_type not in c.BADGES:
                 errors.append("ERROR: Attendee badge type not recognized: " + str(badge_type))
 
             try:
@@ -1591,7 +1629,7 @@ class TaskUtils:
 
             attendee.update({
                 'badge_type': badge_type,
-                'badge_status': c.NEW_STATUS if badge_type == c.STAFF_BADGE else c.IMPORTED_STATUS,
+                'badge_status': badge_status,
                 'paid': paid,
                 'placeholder': True,
                 'requested_hotel_info': True,

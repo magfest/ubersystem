@@ -133,7 +133,7 @@ class AutomatedEmailFixture:
 
 AutomatedEmailFixture(
     Attendee,
-    '{EVENT_NAME} payment received',
+    '{EVENT_NAME} registration confirmed',
     'reg_workflow/attendee_confirmation.html',
     lambda a: a.paid == c.HAS_PAID and not a.promo_code_groups,
     # query=Attendee.paid == c.HAS_PAID,
@@ -152,6 +152,14 @@ AutomatedEmailFixture(
     needs_approval=False,
     allow_at_the_con=True,
     ident='attendee_badge_confirmed')
+
+AutomatedEmailFixture(
+    Attendee,
+    'Claim your Deferred Badge for {EVENT_NAME} {EVENT_YEAR}!',
+    'placeholders/deferred.html',
+    lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN and \
+              a.badge_type == c.ATTENDEE_BADGE and a.paid == c.NEED_NOT_PAY and not a.admin_account,
+    ident='claim_deferred_badge')
 
 AutomatedEmailFixture(
     AttendeeAccount,
@@ -196,7 +204,7 @@ AutomatedEmailFixture(
 
 AutomatedEmailFixture(
     Attendee,
-    '{EVENT_NAME} extra payment received',
+    '{EVENT_NAME} merch pre-order received',
     'reg_workflow/group_donation.txt',
     lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid >= (a.amount_extra * 100),
     # query=and_(
@@ -289,6 +297,13 @@ if c.ART_SHOW_ENABLED:
         'art_show/declined.txt',
         lambda a: a.status == c.DECLINED,
         ident='art_show_declined')
+
+    ArtShowAppEmailFixture(
+        'Your {EVENT_NAME} Art Show payment has been received',
+        'art_show/payment_confirmation.txt',
+        lambda a: a.status == c.APPROVED and a.amount_paid,
+        ident='art_show_payment_received'
+    )
 
     ArtShowAppEmailFixture(
         'Reminder to pay for your {EVENT_NAME} Art Show application',
@@ -391,12 +406,19 @@ class MarketplaceEmailFixture(AutomatedEmailFixture):
 if c.DEALER_REG_START:
 
     MarketplaceEmailFixture(
-        'Your {} {} has been approved'.format(c.EVENT_NAME, c.DEALER_REG_TERM.capitalize()),
+        'Your {} {} has been approved'.format(c.EVENT_NAME, c.DEALER_APP_TERM.capitalize()),
         'dealers/approved.html',
         lambda g: g.status == c.APPROVED,
         # query=Group.status == c.APPROVED,
         needs_approval=True,
         ident='dealer_reg_approved')
+
+    MarketplaceEmailFixture(
+        'Please complete your {} {}!'.format(c.EVENT_NAME, c.DEALER_APP_TERM.capitalize()),
+        'dealers/signnow_request.html',
+        lambda g: g.status == c.APPROVED and c.SIGNNOW_DEALER_TEMPLATE_ID and not g.signnow_document_signed,
+        needs_approval=True,
+        ident='dealer_signnow_email')
 
     MarketplaceEmailFixture(
         'Reminder to pay for your {} {}'.format(c.EVENT_NAME, c.DEALER_REG_TERM.capitalize()),
@@ -492,9 +514,9 @@ AutomatedEmailFixture(
     ident='dealer_info_required')
 
 StopsEmailFixture(
-    'Claim your Staff Badge and Apply to Staff at {EVENT_NAME} {EVENT_YEAR}!',
+    'Claim your Staff Badge for {EVENT_NAME} {EVENT_YEAR}!',
     'placeholders/imported_volunteer.txt',
-    lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN,
+    lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN and a.badge_type == c.STAFF_BADGE,
     ident='volunteer_again_inquiry')
 
 StopsEmailFixture(
@@ -530,13 +552,13 @@ AutomatedEmailFixture(
     ident='badge_confirmation_reminder_last_chance')
 
 
-# Volunteer emails; none of these will be sent unless SHIFTS_CREATED is set.
+# Volunteer emails; none of these will be sent unless VOLUNTEER_CHECKLIST_OPEN is set.
 
 StopsEmailFixture(
     'Please complete your {EVENT_NAME} Staff/Volunteer Checklist',
     'shifts/created.txt',
     lambda a: a.staffing,
-    when=after(c.SHIFTS_CREATED),
+    when=after(c.VOLUNTEER_CHECKLIST_OPEN),
     ident='volunteer_checklist_completion_request')
 
 StopsEmailFixture(
@@ -561,7 +583,7 @@ StopsEmailFixture(
     'Still want to volunteer at {EVENT_NAME} ({EVENT_DATE})?',
     'shifts/volunteer_check.txt',
     lambda a: (
-        c.SHIFTS_CREATED
+        c.VOLUNTEER_CHECKLIST_OPEN
         and c.VOLUNTEER_RIBBON in a.ribbon_ints
         and a.takes_shifts
         and a.weighted_hours == 0),
@@ -587,7 +609,7 @@ if c.VOLUNTEER_AGREEMENT_ENABLED:
     StopsEmailFixture(
         'Reminder: Please agree to terms of {EVENT_NAME} ({EVENT_DATE}) volunteer agreement',
         'staffing/volunteer_agreement.txt',
-        lambda a: c.SHIFTS_CREATED and c.VOLUNTEER_AGREEMENT_ENABLED and not a.agreed_to_volunteer_agreement,
+        lambda a: c.VOLUNTEER_CHECKLIST_OPEN and c.VOLUNTEER_AGREEMENT_ENABLED and not a.agreed_to_volunteer_agreement,
         when=days_before(45, c.FINAL_EMAIL_DEADLINE),
         ident='volunteer_agreement')
 

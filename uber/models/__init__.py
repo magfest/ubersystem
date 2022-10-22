@@ -174,9 +174,7 @@ class MagModel:
         Because things like discounts exist, we ensure default_cost will never
         return a negative value.
         """
-        receipt_items = []
-        for item in Charge.get_all_receipt_items(self):
-            receipt_items.extend(Charge.process_receipt_item(item))
+        receipt, receipt_items = Charge.create_new_receipt(self)
             
         return max(0, sum([(cost * count) for desc, cost, count in receipt_items]) / 100)
 
@@ -409,15 +407,21 @@ class MagModel:
             if self.active_receipt:
                 log.error('Cost property {} was called for object {}, which has an active receipt. This may cause problems.'.format(name, self))
 
-            receipt_items = uber.receipt_items.cost_calculation.items
+        receipt_items = uber.receipt_items.cost_calculation.items
+        try:
+            cost_calc = receipt_items[self.__class__.__name__][name[8:]](self)
+            if not cost_calc:
+                return 0
+
             try:
-                cost_calc = receipt_items[self.__class__.__name__][name[8:]](self)[1]
-                try:
-                    return sum(cost_calc) / 100
-                except TypeError:
-                    return cost_calc / 100
-            except Exception:
-                pass
+                return sum(item[0] * item[1] for item in cost_calc[1].items()) / 100
+            except AttributeError:
+                if len(cost_calc) > 2:
+                    return cost_calc[1] * cost_calc[2] / 100
+                else:
+                    return cost_calc[1] / 100
+        except Exception:
+            pass
 
         raise AttributeError(self.__class__.__name__ + '.' + name)
 
@@ -917,7 +921,7 @@ class Session(SessionManager):
                 return 'Cannot refund a transaction without a Stripe ID'
 
             log.debug('REFUND: attempting to refund Stripe transaction with ID {} {} cents for {}',
-                      txn.stripe_id, txn.amount, txn.desc)
+                      txn.stripe_id, txn.receipt_share, txn.desc)
 
             try:
                 if txn.charge_id:
@@ -929,7 +933,7 @@ class Session(SessionManager):
                         return
                     for charge in payment_intent.charges:
                         response = stripe.Refund.create(
-                                    charge=charge.id, amount=txn.amount, reason='requested_by_customer')
+                                    charge=charge.id, amount=txn.receipt_share, reason='requested_by_customer')
             except Exception as e:
                 error_txt = 'Error while calling process_refund' \
                             '(self, stripeID={!r})'.format(txn.stripe_id)
@@ -946,28 +950,29 @@ class Session(SessionManager):
                     who=uber.models.AdminAccount.admin_name() or 'non-admin'
                 ))
 
-                # Also add refund ID to the original transaction to help admins
+                # Also add refund ID to the original transaction to help us track things
                 txn.refund_id = response.id
                 self.add(txn)
                 return response
 
-        def create_receipt_item(self, model, amount, desc, 
-                                stripe_txn=None, txn_type=c.PENDING, payment_method=c.STRIPE):
-            item = ReceiptItem(
-                txn_id=stripe_txn.id if stripe_txn else None,
-                txn_type=txn_type,
-                payment_method=payment_method,
-                amount=amount,
-                who=getattr(model, 'full_name', getattr(model, 'name', '')),
-                when=stripe_txn.when if stripe_txn else datetime.now(UTC),
-                desc=desc,
-                cost_snapshot=getattr(model, 'current_purchased_items', {}))
-            if isinstance(model, uber.models.Attendee):
-                item.attendee_id = getattr(model, 'id', None)
-            elif isinstance(model, uber.models.Group):
-                item.group_id = getattr(model, 'id', None)
+        def process_receipt_charge(self, receipt, charge, payment_method=c.STRIPE):
+            """
+            Creates the stripe intent and receipt transaction for a given charge object.
+            """
+            stripe_intent = charge.create_stripe_intent()
+            if isinstance(stripe_intent, six.string_types):
+                self.rollback()
+                return stripe_intent
 
-            return item
+            receipt_txn = Charge.create_receipt_transaction(receipt, charge.description, stripe_intent.id, method=payment_method)
+            if isinstance(receipt_txn, six.string_types):
+                self.rollback()
+                return receipt_txn
+
+            # Later we will want code to assign receipt items to this transaction
+
+            self.add(receipt_txn)
+            return stripe_intent
 
         def possible_match_list(self):
             possibles = defaultdict(list)
@@ -1112,11 +1117,21 @@ class Session(SessionManager):
             if attendee not in account.attendees:
                 account.attendees.append(attendee)
 
-        def get_receipt_by_model(self, model, include_closed=False):
+        def get_receipt_by_model(self, model, include_closed=False, create_if_none=False):
             receipt_select = self.query(ModelReceipt).filter_by(owner_id=model.id, owner_model=model.__class__.__name__)
             if not include_closed:
-                return receipt_select.filter(ModelReceipt.closed == None).first()
-            return receipt_select.first()
+                receipt_select = receipt_select.filter(ModelReceipt.closed == None)
+            receipt = receipt_select.first()
+
+            if not receipt and create_if_none:
+                receipt, receipt_items = Charge.create_new_receipt(model, create_model=True)
+
+                if receipt_items:
+                    self.add(receipt)
+                    for item in receipt_items:
+                        self.add(item)
+                    self.commit()
+            return receipt
 
         def get_model_by_receipt(self, receipt):
             cls = getattr(uber.models, receipt.owner_model)

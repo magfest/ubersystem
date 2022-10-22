@@ -1,6 +1,6 @@
-{{ stripe_form('process_upgrade_payment', attendee, receipt_id=receipt.id, stripe_button_id="upgrade-stripe-btn") }}
+{{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, stripe_button_id="upgrade-stripe-btn") }}
 <div class="modal fade" id="upgradeModal" tabindex="-1" role="dialog" aria-labelledby="upgradeTitle">
-    <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-lg" role="document">
       <div class="modal-content">
         <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
@@ -10,16 +10,12 @@
             <form method="post" action="purchase_upgrades" id="purchase-upgrades" class="form-horizontal">
                 {{ csrf_token() }}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
-                <input type="hidden" name="badge_type" value="{{ attendee.badge_type }}" />
+                <input type="hidden" id="upgrade_badge_type" name="badge_type" value="{{ attendee.badge_type }}" />
                 <input type="hidden" name="receipt_id" value="{{ receipt.id }}" />
                 {{ attendee_fields.badge_buttons }}
-                {{ attendee_fields.amount_extra(read_only=False, form="upgrade") }}
-                {% if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES and attendee.amount_extra < c.SUPPORTER_LEVEL %}
-                    {{ attendee_fields.badge_printed_name }}
-                {% endif %}
-                {% if not attendee.num_event_shirts_owed %}
-                    {{ attendee_fields.shirt_size }}
-                {% endif %}
+                {{ attendee_fields.amount_extra(read_only=False, form="purchase-upgrades") }}
+                {{ attendee_fields.badge_printed_name }}
+                {{ attendee_fields.shirt_size }}
                 {{ attendee_fields.extra_donation(read_only=False) }}
             </form>
             <table class="table table-striped" id="upgrade-preview">
@@ -36,9 +32,18 @@
 
 <script type="text/javascript">
     var costChangeDict = {};
+    var lastAmountExtra; // I hate JavaScript
     var updateReceiptPreview = function(colName, val=0) {
-        if (colName == "" || val == "") {
-            return
+        if (colName == 'amount_extra' && lastAmountExtra !== undefined && val == lastAmountExtra) {
+            return;
+        } else if (colName == 'amount_extra') {
+            lastAmountExtra = val;
+        }
+        
+        if (colName == "") {
+            return;
+        } else if (val == "") {
+            val = 0;
         }
         existing_row = $('td#' + colName + ' > span');
         $.post("get_receipt_preview", {
@@ -81,8 +86,7 @@
         });
     };
     $().ready(function() {
-        // Badge type changes call updateReceiptPreview in the BADGE_TYPES array
-        // Need to add amount_extra and extra_donation triggers here
+        $('#upgrade-purchase').prop('disabled', true);
         $("form[action='purchase_upgrades']").submit(function(event){
         var $form = $(this);
         $btn = $form.find('button[type=submit]');

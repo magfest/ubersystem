@@ -45,12 +45,12 @@ class Root:
                 app.attendee = attendee
 
                 session.add(app)
-                send_email(
+                send_email.delay(
                     c.ART_SHOW_EMAIL,
                     c.ART_SHOW_EMAIL,
                     'Art Show Application Received',
                     render('emails/art_show/reg_notification.txt',
-                           {'app': app}), model=app)
+                           {'app': app}, encoding=None), model=app.to_dict('id'))
                 session.commit()
                 raise HTTPRedirect('confirmation?id={}', app.id)
 
@@ -244,41 +244,17 @@ class Root:
     def process_art_show_payment(self, session, id):
         app = session.art_show_application(id)
 
-        receipt = session.get_receipt_by_model(app)
-
-        if not receipt:
-            receipt, receipt_items = Charge.create_model_receipt(app)
-            session.add(receipt)
-            for item in receipt_items:
-                session.add(item)
-            session.commit()
+        receipt = session.get_receipt_by_model(app, create_if_none=True)
         
         charge_desc = "{}'s Art Show Application: {}".format(app.attendee.full_name, receipt.charge_description_list)
         charge = Charge(app, amount=receipt.current_amount_owed, description=charge_desc)
         
-        stripe_intent = charge.create_stripe_intent()
+        stripe_intent = session.process_receipt_charge(receipt, charge)
 
         if isinstance(stripe_intent, string_types):
             return {'error': stripe_intent}
         
-        receipt_txn = Charge.create_receipt_transaction(receipt, charge_desc, stripe_intent.id)
-        session.add(receipt_txn)
         session.commit()
-
-        send_email.delay(
-            c.ADMIN_EMAIL,
-            c.ART_SHOW_EMAIL,
-            'Art Show Payment Received',
-            render('emails/art_show/payment_notification.txt',
-                {'app': app}, encoding=None),
-            model=app.to_dict('id'))
-        send_email.delay(
-            c.ART_SHOW_EMAIL,
-            app.email_to_address,
-            'Art Show Payment Received',
-            render('emails/art_show/payment_confirmation.txt',
-                {'app': app}, encoding=None),
-            model=app.to_dict('id'))
     
         return {'stripe_intent': stripe_intent,
                 'success_url': 'edit?id={}&message={}'.format(app.id,

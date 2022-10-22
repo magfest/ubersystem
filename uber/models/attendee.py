@@ -206,10 +206,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     city = Column(UnicodeText)
     region = Column(UnicodeText)
     country = Column(UnicodeText)
-    no_cellphone = Column(Boolean, default=False)
     ec_name = Column(UnicodeText)
     ec_phone = Column(UnicodeText)
+    onsite_contact = Column(UnicodeText)
+    no_onsite_contact = Column(Boolean, default=False)
     cellphone = Column(UnicodeText)
+    no_cellphone = Column(Boolean, default=False)
 
     # Represents a request for hotel booking info during preregistration
     requested_hotel_info = Column(Boolean, default=False)
@@ -239,6 +241,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     got_merch = Column(Boolean, default=False, admin_only=True)
     got_staff_merch = Column(Boolean, default=False, admin_only=True)
     got_swadge = Column(Boolean, default=False, admin_only=True)
+    can_transfer = Column(Boolean, default=False, admin_only=True)
 
     reg_station = Column(Integer, nullable=True, admin_only=True)
     registered = Column(UTCDateTime, server_default=utcnow())
@@ -480,8 +483,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not self.gets_any_kind_of_shirt:
             self.shirt = c.NO_SHIRT
 
-        if self.badge_cost == None:
-            self.badge_cost = self.calculate_badge_cost()
+        self.badge_cost = self.calculate_badge_cost()
 
         if self.badge_cost == 0 and self.paid in [c.NOT_PAID, c.PAID_BY_GROUP]:
             self.paid = c.NEED_NOT_PAY
@@ -748,8 +750,29 @@ class Attendee(MagModel, TakesPaymentMixin):
         else:
             return cost
 
+    def calculate_badge_prices_cost(self, current_badge_type=c.ATTENDEE_BADGE):
+        base_badge_cost = self.new_badge_cost if self.paid == c.NEED_NOT_PAY else self.calculate_badge_cost()
+
+        if self.badge_type in c.BADGE_TYPE_PRICES and current_badge_type in c.BADGE_TYPE_PRICES:
+            return c.BADGE_TYPE_PRICES[self.badge_type] - c.BADGE_TYPE_PRICES[current_badge_type]
+        elif current_badge_type in c.BADGE_TYPE_PRICES:
+            return base_badge_cost - c.BADGE_TYPE_PRICES[current_badge_type]
+        elif self.badge_type in c.BADGE_TYPE_PRICES:
+            return c.BADGE_TYPE_PRICES[self.badge_type] - base_badge_cost
+        else:
+            return 0
+    
+    def undo_extras(self):
+        if self.active_receipt:
+            return "Could not undo extras, this attendee has an open receipt!"
+        self.amount_extra = 0
+        self.extra_donation = 0
+        if self.badge_type in c.BADGE_TYPE_PRICES:
+            self.badge_type = c.ATTENDEE_BADGE
+
+    @property
     def qualifies_for_discounts(self):
-        return self.paid != c.NEED_NOT_PAY and self.overridden_price is None and not self.is_dealer
+        return self.paid != c.NEED_NOT_PAY and self.overridden_price is None and not self.is_dealer and self.badge_type not in c.BADGE_TYPE_PRICES
 
     @property
     def new_badge_cost(self):
@@ -760,8 +783,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             return c.get_oneday_price(registered)
         elif self.is_presold_oneday:
             return c.get_presold_oneday_price(self.badge_type)
-        elif self.badge_type in c.BADGE_TYPE_PRICES:
-            return int(c.BADGE_TYPE_PRICES[self.badge_type])
         else:
             return c.get_attendee_price(registered)
 
@@ -804,8 +825,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def total_cost(self):
         if self.active_receipt:
-            return self.active_receipt['current_amount_owed']
-        return self.default_cost + (self.amount_extra or 0)
+            return self.active_receipt['current_amount_owed'] / 100
+        return self.default_cost
 
     @property
     def total_donation(self):
@@ -884,14 +905,17 @@ class Attendee(MagModel, TakesPaymentMixin):
             preview_attendee.overridden_price = int(kwargs['overridden_price'])
         if 'badge_type' in kwargs:
             preview_attendee.badge_type = int(kwargs['badge_type'])
+            new_cost = preview_attendee.calculate_badge_prices_cost(self.badge_type) * 100
         if 'ribbon' in kwargs:
             add_opt(preview_attendee.ribbon_ints, int(kwargs['ribbon']))
         if 'paid' in kwargs:
             preview_attendee.paid = int(kwargs['paid'])
 
         current_cost = self.calculate_badge_cost() * 100
+        if not new_cost:
+            new_cost = (preview_attendee.calculate_badge_cost() * 100) - current_cost
 
-        return current_cost, (preview_attendee.calculate_badge_cost() * 100) - current_cost
+        return current_cost, new_cost
 
     def calc_age_discount_change(self, birthdate):
         preview_attendee = Attendee(**self.to_dict())
@@ -1008,7 +1032,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                and self.amount_paid > 0 \
                and self.paid not in [c.NEED_NOT_PAY, c.REFUNDED] \
                and not self.is_group_leader \
-               and self.stripe_txn_share_logs \
+               and self.active_receipt \
                and not self.checked_in \
                and c.SELF_SERVICE_REFUNDS_OPEN
 
@@ -1023,6 +1047,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def needs_pii_consent(self):
         return self.is_new or self.placeholder or not self.first_name
+
+    @property
+    def has_extras(self):
+        return self.amount_extra or self.extra_donation or self.badge_type in c.BADGE_TYPE_PRICES
 
     @property
     def shirt_size_marked(self):
@@ -1143,13 +1171,34 @@ class Attendee(MagModel, TakesPaymentMixin):
         return badge
 
     @property
-    def is_transferable(self):
+    def is_inherently_transferable(self):
         return self.badge_status == c.COMPLETED_STATUS \
             and not self.checked_in \
             and (self.paid in [c.HAS_PAID, c.PAID_BY_GROUP] or self.in_promo_code_group) \
             and self.badge_type in c.TRANSFERABLE_BADGE_TYPES \
             and not self.admin_account \
             and not self.has_role_somewhere
+
+    @property
+    def is_transferable(self):
+        return self.is_inherently_transferable or self.can_transfer
+
+    @property
+    def cannot_transfer_reason(self):
+        reasons = []
+        if self.admin_account:
+            reasons.append("they have an admin account")
+        if self.badge_type not in c.TRANSFERABLE_BADGE_TYPES:
+            reasons.append("their badge type ({}) is not transferable".format(self.badge_type_label))
+        if self.has_role_somewhere:
+            reasons.append("they are a department head, checklist admin, or point of contact for the following departments: {}".format(
+                                ", ".join([membership.department.name for membership in self.dept_memberships_with_role])))
+        return reasons
+    
+    @presave_adjustment
+    def force_no_transfer(self):
+        if self.admin_account or self.badge_type not in c.TRANSFERABLE_BADGE_TYPES or self.has_role_somewhere:
+            self.can_transfer = False
 
     # TODO: delete this after Super MAGFest 2018
     @property
@@ -1741,7 +1790,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def hotel_shifts_required(self):
-        return bool(c.SHIFTS_CREATED and self.hotel_nights and not self.is_dept_head and self.takes_shifts)
+        return bool(c.VOLUNTEER_CHECKLIST_OPEN and self.hotel_nights and not self.is_dept_head and self.takes_shifts)
 
     @property
     def setup_hotel_approved(self):
@@ -1764,7 +1813,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             or not c.BEFORE_ROOM_DEADLINE
             or not c.HOTELS_ENABLED) and (
             not c.VOLUNTEER_AGREEMENT_ENABLED or self.agreed_to_volunteer_agreement) and (
-            not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures)
+            not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures) \
+            and c.SHIFTS_CREATED
 
     @property
     def hotel_nights(self):
@@ -2005,6 +2055,10 @@ class AttendeeAccount(MagModel):
     @property
     def imported_group_badges(self):
         return [attendee for attendee in self.imported_attendees if attendee.group]
+
+    @property
+    def pending_attendees(self):
+        return [attendee for attendee in self.attendees if attendee.badge_status == c.PENDING_STATUS]
 
     @property
     def invalid_attendees(self):

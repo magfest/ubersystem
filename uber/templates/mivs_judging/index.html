@@ -41,7 +41,9 @@
 {% elif judge.status == c.NEXT_YEAR %}
   Sorry you won't be able to judge this year. We'll be in touch next year and hope you can join us then.
 {% elif judge.status == c.CANCELLED %}
-  Thank you for updating your preference, we'll be removing you from the judging list going forward. Thanks for all the work you've put into judging for MIVS in the past. If you change your mind, email {{ '{{ c.MIVS_EMAIL|email_only }}'|email_to_link }}.
+  Thank you for updating your preference, we'll be removing you from the judging list going forward. Thanks for all the work you've put into judging for MIVS in the past. If you change your mind, email {{ c.MIVS_EMAIL|email_only|email_to_link }}.
+{% elif judge.status == c.DISQUALIFIED %}
+  Unfortunately, since you did not complete reviewing your assigned games before the deadline, you have been disqualified as a judge for this year. If this doesn't sound right, email {{ c.MIVS_EMAIL|email_only|email_to_link }}.
 {% else %}
 <h2>Your Preferences</h2>
   In order to help us match you with the right kinds of games, please tell us what genres you prefer to play and what
