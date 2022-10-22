@@ -1790,7 +1790,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def hotel_shifts_required(self):
-        return bool(c.SHIFTS_CREATED and self.hotel_nights and not self.is_dept_head and self.takes_shifts)
+        return bool(c.VOLUNTEER_CHECKLIST_OPEN and self.hotel_nights and not self.is_dept_head and self.takes_shifts)
 
     @property
     def setup_hotel_approved(self):
@@ -1813,7 +1813,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             or not c.BEFORE_ROOM_DEADLINE
             or not c.HOTELS_ENABLED) and (
             not c.VOLUNTEER_AGREEMENT_ENABLED or self.agreed_to_volunteer_agreement) and (
-            not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures)
+            not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures) \
+            and c.SHIFTS_CREATED
 
     @property
     def hotel_nights(self):
