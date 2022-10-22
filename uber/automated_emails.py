@@ -552,13 +552,13 @@ AutomatedEmailFixture(
     ident='badge_confirmation_reminder_last_chance')
 
 
-# Volunteer emails; none of these will be sent unless SHIFTS_CREATED is set.
+# Volunteer emails; none of these will be sent unless VOLUNTEER_CHECKLIST_OPEN is set.
 
 StopsEmailFixture(
     'Please complete your {EVENT_NAME} Staff/Volunteer Checklist',
     'shifts/created.txt',
     lambda a: a.staffing,
-    when=after(c.SHIFTS_CREATED),
+    when=after(c.VOLUNTEER_CHECKLIST_OPEN),
     ident='volunteer_checklist_completion_request')
 
 StopsEmailFixture(
@@ -583,7 +583,7 @@ StopsEmailFixture(
     'Still want to volunteer at {EVENT_NAME} ({EVENT_DATE})?',
     'shifts/volunteer_check.txt',
     lambda a: (
-        c.SHIFTS_CREATED
+        c.VOLUNTEER_CHECKLIST_OPEN
         and c.VOLUNTEER_RIBBON in a.ribbon_ints
         and a.takes_shifts
         and a.weighted_hours == 0),
@@ -609,7 +609,7 @@ if c.VOLUNTEER_AGREEMENT_ENABLED:
     StopsEmailFixture(
         'Reminder: Please agree to terms of {EVENT_NAME} ({EVENT_DATE}) volunteer agreement',
         'staffing/volunteer_agreement.txt',
-        lambda a: c.SHIFTS_CREATED and c.VOLUNTEER_AGREEMENT_ENABLED and not a.agreed_to_volunteer_agreement,
+        lambda a: c.VOLUNTEER_CHECKLIST_OPEN and c.VOLUNTEER_AGREEMENT_ENABLED and not a.agreed_to_volunteer_agreement,
         when=days_before(45, c.FINAL_EMAIL_DEADLINE),
         ident='volunteer_agreement')
 
