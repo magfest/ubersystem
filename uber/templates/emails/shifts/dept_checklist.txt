@@ -10,10 +10,10 @@ Approvals here will affect setup/teardown permissions for your volunteers.
 Please complete the following steps by {{ conf.deadline|datetime_local }}:
 
 {% for membership in attendee.dept_memberships_as_checklist_admin -%}
-* {{ c.URL_BASE }}{{ conf|dept_checklist_path(membership.department_id) }}
+* {{ conf.name }}: {{ c.URL_BASE }}{{ conf|dept_checklist_path(membership.department_id) }}
 {% endfor %}{% if conf.slug == 'creating_shifts' %}
 
-If you need us to import your shifts from last time, let us know at stops@magwest.org.
+If you need us to import your shifts from last time, let us know at {{ c.STAFF_EMAIL|email_only }}.
 
 {% endif %}
 
