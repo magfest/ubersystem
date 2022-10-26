@@ -691,7 +691,7 @@ if c.HOTELS_ENABLED:
         Attendee,
         'Want volunteer hotel room space at {EVENT_NAME}?',
         'hotel/hotel_rooms.txt',
-        lambda a: c.AFTER_SHIFTS_CREATED and a.hotel_eligible and a.takes_shifts, sender=c.ROOM_EMAIL_SENDER,
+        lambda a: a.hotel_eligible and not a.hotel_requests and a.takes_shifts, sender=c.ROOM_EMAIL_SENDER,
         when=days_before(45, c.ROOM_DEADLINE, 14),
         ident='volunteer_hotel_room_inquiry')
 
