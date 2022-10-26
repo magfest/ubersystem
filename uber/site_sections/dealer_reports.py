@@ -49,7 +49,7 @@ class Root:
         ])
         dealer_groups = session.query(Group).filter(Group.tables > 0).all()
         for group in dealer_groups:
-            if group.approved and group.is_dealer:
+            if group.status == c.APPROVED and group.is_dealer:
                 full_name = group.leader.full_name if group.leader else ''
                 out.writerow([
                     group.name,
@@ -76,7 +76,7 @@ class Root:
         dealer_groups = session.query(Group).filter(Group.tables > 0).all()
         rows = []
         for group in dealer_groups:
-            if group.approved and group.is_dealer:
+            if group.status == c.APPROVED and group.is_dealer:
                 rows.append([
                     group.name,
                     group.leader.email,
