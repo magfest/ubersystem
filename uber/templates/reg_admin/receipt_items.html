@@ -276,7 +276,7 @@
       <th>Amount</th>
       <th></th>
     </tr></thead>
-    {% for item in items %} {{item.receipt_share}}
+    {% for item in items %}
       <tr id="{{ item.id }}">
         <td>{{ item.added|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
         <td>{{ item.who }}</td>

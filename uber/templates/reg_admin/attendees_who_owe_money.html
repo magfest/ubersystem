@@ -13,7 +13,6 @@
             <th>Attendee</th>
             <th>Email</th>
             <th>Badge Type</th>
-            <th>Purchased Items</th>
             <th>Amount Unpaid</th>
             <th>Amount Pending</th>
             <th>Receipt Items</th>
@@ -35,16 +34,10 @@
                 {{ attendee.badge_type_label }}
             </td>
             <td>
-                {% for item in attendee.purchased_items %}
-                {{ item[:-5]|replace('_', ' ')|title }} ({{ attendee.purchased_items[item]|format_currency }})
-                {% if not loop.last %} / {% endif %}
-                {% endfor %}
-            </td>
-            <td>
                 {{ attendee.amount_unpaid|format_currency }}
             </td>
             <td>
-                {{ attendee.amount_pending|format_currency }}
+                {{ (attendee.amount_pending / 100)|format_currency }}
             </td>
             <td>
                 <a class="btn btn-success" href="receipt_items?id={{ attendee.id }}" target="_blank">View Receipt Items</a>

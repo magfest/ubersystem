@@ -299,9 +299,8 @@ class Root:
         return {'invalidated': id}
 
     def attendees_who_owe_money(self, session):
-        # TODO: Use receipts here instead of attendees
         unpaid_attendees = [attendee for attendee in session.attendees_with_badges() 
-                            if attendee.total_purchased_cost > attendee.amount_paid]
+                            if attendee.amount_unpaid]
         return {
             'attendees': unpaid_attendees,
         }
