@@ -1738,7 +1738,9 @@ $(window).on("runJavaScript", function(){
             var group = $.val('group_opt');
             if (group === '') {
                 $('#group_link').hide();
+                {% if c.HAS_GROUP_ADMIN_ACCESS and not attendee.group %}$('#new_group').show();{% endif %}
             } else {
+                {% if c.HAS_GROUP_ADMIN_ACCESS and not attendee.group %}$('#new_group').hide();{% endif %}
                 $('#group_link').attr("href", '../group_admin/form?id=' + group).show();
             }
         }
@@ -1766,6 +1768,9 @@ $(window).on("runJavaScript", function(){
         {{ options(group_opts,attendee.group.id) }}
       </select>
       <a id="group_link" href="" target="_blank">View this Group's Page</a>
+      {% if c.HAS_GROUP_ADMIN_ACCESS and not attendee.group %}
+      <a id="new_group" href="../group_admin/new_group_from_attendee?id={{ attendee.id }}" target="_blank">Create New Group</a>
+      {% endif %}
       <div id="unassigned" style="display:none ; color:red">
         Warning: This group has at least one unassigned badge.  Are you sure you want this to be a new attendee and not just fill in the data for one of this group's badges?
       </div>
