@@ -13,7 +13,7 @@
       </thead>
       <tbody>
       {% for group in groups if group.guest and (group.guest.group_type == c.BAND if band else group.guest.group_type == c.GUEST) -%}
-        <tr id="{{ group.id }}" class="{{ group.guest.group_type_label|lower if group.guest else "" }} group-row">
+        <tr id="{{ group.id }}" class="{{ group.guest.group_type_label|lower|replace(' ','_') if group.guest else "" }} group-row">
           <td>
             <a href="form?id={{ group.id }}" target="_blank">{{ group.name }}</a>
             <span class="guest_info">
