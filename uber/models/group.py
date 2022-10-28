@@ -350,7 +350,7 @@ class Group(MagModel, TakesPaymentMixin):
             return 0
         if self.can_add:
             return 1
-        elif self.is_dealer:
+        elif self.guest and self.guest.group_type != c.MIVS:
             return 0
         else:
             return c.MIN_GROUP_ADDITION
