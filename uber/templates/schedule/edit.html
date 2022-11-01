@@ -25,7 +25,7 @@
 </style>
 
 <script type="text/javascript">
-    var SLOT_COUNT = {{ c.PANEL_SCHEDULE_LENGTH }} * 2;
+    var SLOT_COUNT = {{ c.PANEL_SCHEDULE_LENGTH }};
     var EVENTS = {{ events|jsonize }};
     var EPOCH = moment('{{ c.PANELS_EPOCH|datetime_local("%Y-%m-%d %H:%M:%S") }}', 'YYYY-MM-DD HH:mm:ss');
 
