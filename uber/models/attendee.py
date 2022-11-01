@@ -1482,19 +1482,20 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @classproperty
     def searchable_fields(cls):
-        # List of fields for the attendee search to check search terms against
-        return ['first_name', 'last_name', 'legal_name', 'badge_printed_name',
-                'email', 'comments', 'admin_notes', 'for_review', 'promo_code_group_name']
+        fields = [col.name for col in cls.__table__.columns if isinstance(col.type, UnicodeText)]
+        fields.remove('other_accessibility_requests')
+        return fields
 
     @classproperty
     def searchable_bools(cls):
-        return ['placeholder', 'can_spam', 'got_merch', 'got_staff_merch', 'confirmed', 'checked_in', 'staffing', 
-                'agreed_to_volunteer_agreement', 'reviewed_emergency_procedures', 'walk_on_volunteer', 
-                'can_work_setup', 'can_work_teardown', 'hotel_eligible', 'attractions_opt_out']
+        fields = [col.name for col in cls.__table__.columns if isinstance(col.type, Boolean)]
+        fields.remove('requested_accessibility_services')
+        fields.extend(['confirmed', 'checked_in'])
+        return fields
     
     @classproperty
     def searchable_choices(cls):
-        return ['age_group', 'badge_type', 'badge_status', 'paid', 'amount_extra']
+        return [col.name for col in cls.__table__.columns if isinstance(col.type, Choice)]
 
     @classproperty
     def checkin_bools(self):

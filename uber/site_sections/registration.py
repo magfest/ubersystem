@@ -81,6 +81,8 @@ class Root:
             if search_results:
                 attendees = search_results
             count = attendees.count()
+            if count == total_count:
+                message = 'Every{} attendee matched this search.'.format('' if invalid else ' valid')
         if not count:
             attendees = attendees.options(joinedload(Attendee.group))
             count = total_count
@@ -91,10 +93,10 @@ class Root:
         if search_text:
             page = page or 1
             if search_text and count == total_count and not message:
-                message = 'No matches found'
+                message = 'No matches found.{}'.format('' if invalid else ' Try showing all badges to expand your search.')
             elif search_text and count == 1 and not c.AT_THE_CON:
                 raise HTTPRedirect(
-                    'form?id={}&message={}', attendees.one().id, 'This attendee was the only search result')
+                    'form?id={}&message={}', attendees.one().id, 'This attendee was the only{} search result'.format('' if invalid else ' valid'))
 
         pages = range(1, int(math.ceil(count / 100)) + 1)
         attendees = attendees[-100 + 100*page: 100*page] if page else []

@@ -1,4 +1,5 @@
 import json
+import operator
 import os
 import re
 import uuid
@@ -1604,8 +1605,39 @@ class Session(SessionManager):
                 self.add(attendee)
                 self.commit()
 
-        def search(self, text, *filters):
+        def get_truth(self, left, op, right):
+            # Helper function for use in attribute and property search
+            return op(left, right)
 
+        def parse_attr_search_terms(self, search_text):
+            # Parse the search terms, including accounting for prefixes like >, <, and !=
+            # Returns the target attr/property name, the search term with and without AND/OR, and the operator
+            target, term = search_text.split(':', 1)
+            target, term = target.strip(), term.strip()
+            search_term = term.replace('AND', '').replace('OR', '').strip()
+
+            if search_term[0] in ['>', '<', '!']:
+                if search_term[0] == '!':
+                    op = operator.ne
+
+                if search_term[1] == '=':
+                    if search_term[0] == '>':
+                        op = operator.le
+                    elif search_term[0] == '<':
+                        op = operator.ge
+                    search_term = search_term[2:]
+                else:
+                    if search_term[0] == '>':
+                        op = operator.gt
+                    elif search_term[0] == '<':
+                        op = operator.lt
+                    search_term = search_term[1:]
+            else:
+                op = operator.eq
+            
+            return target, term, search_term, op
+
+        def search(self, text, *filters):
             # We need to both outerjoin on the PromoCodeGroup table and also
             # query it.  In order to do this we need to alias it so that the
             # reference to PromoCodeGroup in the joinedload doesn't conflict
@@ -1690,18 +1722,18 @@ class Session(SessionManager):
                         search_text = search_text.replace('AND', '').replace('OR', '').strip()
                         or_checks.extend(check_text_fields(search_text))
                     else:
-                        target, term = search_text.split(':', 1)
-                        target, term = target.strip(), term.strip()
-                        search_term = term.replace('AND', '').replace('OR', '').strip()
+                        target, term, search_term, op = self.parse_attr_search_terms(search_text)
+
                         if target == 'email':
-                            attr_search_filter = Attendee.icontains(Attendee.normalized_email, normalize_email(search_term))
+                            attr_search_filter = Attendee.normalized_email.icontains(normalize_email(search_term))
                         elif target == 'group':
-                            attr_search_filter = Attendee.icontains(Group.name, search_term.strip())
+                            attr_search_filter = Group.name.icontains(search_term.strip())
                         elif target == 'has_ribbon':
                             attr_search_filter = Attendee.ribbon == Attendee.ribbon.type.convert_if_labels(search_term.title())
                         elif target in Attendee.searchable_bools:
                             t_or_f = search_term.strip().lower() not in ('f', 'false', 'n', 'no', '0', 'none')
                             attr_search_filter = getattr(Attendee,target) == t_or_f
+
                             if not isinstance(getattr(Attendee, target).type, Boolean):
                                 attr_search_filter = getattr(Attendee,target) != None \
                                     if t_or_f == True else getattr(Attendee,target) == None
@@ -1721,13 +1753,17 @@ class Session(SessionManager):
                                         search_term = getattr(Attendee,target).type.convert_if_label(search_term.title())
                                     except KeyError:
                                         return None, 'ERROR: {} is not a valid option for {}'.format(search_term, target)
-                            attr_search_filter = getattr(Attendee,target) == search_term
+                            attr_search_filter = self.get_truth(getattr(Attendee,target), op, search_term)
                         else:
                             try:
                                 getattr(Attendee,target)
                             except AttributeError:
                                 return None, 'ERROR: {} is not a valid attribute'.format(target)
-                            attr_search_filter = getattr(Attendee,target) == search_term
+                            # Are we a searchable property?
+                            if isinstance(getattr(Attendee,target) == search_term, sqlalchemy.sql.elements.BinaryExpression):
+                                attr_search_filter = self.get_truth(getattr(Attendee,target), op, search_term)
+                            else:
+                                return None, 'ERROR: {} is not a searchable attribute'.format(target)
                         
                         if term.endswith(' OR') or last_term and last_term.endswith(' OR'):
                             or_checks.append(attr_search_filter)
@@ -1746,6 +1782,38 @@ class Session(SessionManager):
                 return attendees.filter(and_(*and_checks)), ''
             else:
                 return attendees, ''
+
+        def property_search(self, text):
+            """
+            Many of our most useful forms of data are properties on the Attendee model.
+            However, these often are too complex to create SQL statements for, so we
+            can't use them in regular attendee attribute search. Our workaround for this
+            has been either creating custom reports or making sysadmins cry. This is our
+            quick-ish solution -- a way to filter attendees by any property. Because this is
+            resource-intensive, it is locked behind the Devtools site section.
+            """
+            if "OR" in text:
+                return None, 'Sorry, property search does not support OR conditions due to I don\'t want to install Pandas.'
+            delimited_text = text.replace('AND', 'AND,')
+            list_of_attr_searches = delimited_text.split(',')
+            last_term = None
+
+            conditions_list = []
+            results = []
+
+            for search_text in list_of_attr_searches:
+                target, term, search_term, op = self.parse_attr_search_terms(search_text)
+                try:
+                    search_term = int(search_term)
+                except Exception as ex:
+                    pass
+                conditions_list.append((target, search_term, op))
+
+            for attendee in self.valid_attendees():
+                if all([self.get_truth(getattr(attendee, target), op, search_term) for target, search_term, op in conditions_list]):
+                    results.append(attendee)
+            
+            return results, ''
 
         def delete_from_group(self, attendee, group):
             """
