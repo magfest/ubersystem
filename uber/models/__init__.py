@@ -1622,9 +1622,9 @@ class Session(SessionManager):
 
                 if search_term[1] == '=':
                     if search_term[0] == '>':
-                        op = operator.le
-                    elif search_term[0] == '<':
                         op = operator.ge
+                    elif search_term[0] == '<':
+                        op = operator.le
                     search_term = search_term[2:]
                 else:
                     if search_term[0] == '>':
