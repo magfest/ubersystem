@@ -1101,6 +1101,8 @@ class Root:
         from uber.models import ReceiptItem
         group = session.group(id)
         receipt = session.get_receipt_by_model(group, create_if_none=True)
+        session.add(receipt)
+        session.commit()
         count = int(count)
         session.add(ReceiptItem(receipt_id=receipt.id,
                                 desc='Extra badge for {}'.format(group.name),
