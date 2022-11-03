@@ -10,6 +10,10 @@
   var updateRow = function (id, selector, text) {
     $('#' + id + selector).html(text);
   };
+  var updateTotal = function (text, disable_button=true) {
+    $('#receipt_total').html(text);
+    $('#record_payment_refund').prop('disabled', disable_button);
+  }
   var showForm = function(receiptId, whichForm) {
     $('#' + receiptId + whichForm).removeClass('hidden')
   };
@@ -41,6 +45,7 @@
             } else {
               toastr.info('Item deleted');
               hideRow(response.removed);
+              updateTotal(response.new_total, response.disable_button);
             }
           }, 'json');
         }
@@ -103,6 +108,7 @@
             } else {
               toastr.info('Transaction cancelled');
               updateRow(response.cancelled, ' td:last', "<em>Cancelled " + response.time + ".</em>");
+              updateTotal(response.new_total, response.disable_button);
             }
           }, 'json');
         }
@@ -134,6 +140,7 @@
             } else {
               toastr.info('Transaction refunded');
               updateRow(response.refunded, ' td:last', "<em>Transaction refunded.</em>");
+              updateTotal(response.new_total, response.disable_button);
             }
           }, 'json');
         }
@@ -319,12 +326,7 @@
     {% endfor %}
     <tr>
       <td colspan="7">
-        <span class="pull-right">
-        <strong>Total</strong>: 
-        {{ (receipt.item_total / 100)|format_currency(true) }} in {{ 'Credit' if receipt.item_total < 0 else 'Purchases' }}
-        - {{ (receipt.txn_total / 100)|format_currency(true) }} in {{ 'Refunds' if receipt.txn_total < 0 else 'Payments' }}
-        = {{ 'We' if (receipt.item_total - receipt.txn_total) < 0 else 'They' }} owe {{ ((receipt.item_total - receipt.txn_total) / 100)|format_currency(true) }}
-        </span>
+        <span class="pull-right"><strong>Total</strong>: <span id="receipt_total">{{ receipt.total_str }}</span></span>
       </td>
     </tr>
     <tr id="{{ receipt.id }}-item-form" class="hidden">
@@ -386,7 +388,7 @@
       <td colspan="7">
         <div class="btn-group pull-right" role="group" aria-label="...">
           <button class="btn btn-primary" onClick="showForm('{{ receipt.id }}', '-item-form')">Add Custom Purchase or Credit</button>
-          <button class="btn btn-success" onClick="showForm('{{ receipt.id }}', '-txn-form')">Record Payment or Refund</button>
+          <button class="btn btn-success" id="record_payment_refund" onClick="showForm('{{ receipt.id }}', '-txn-form')"{% if receipt.current_receipt_amount == 0 %} disabled{% endif %}>Record Payment or Refund</button>
         </div>
       </td>
     </tr>

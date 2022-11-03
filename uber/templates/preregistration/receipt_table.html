@@ -9,6 +9,9 @@
           {% else %}
           {{ (item.amount / 100)|format_currency }}
           {% endif %}
+          {% if item.count and item.count > 1 %}
+             x{{ item.count }}: {{ (item.count * item.amount / 100)|format_currency }}
+          {% endif %}
         </td>
       </tr>
       {% endfor %}

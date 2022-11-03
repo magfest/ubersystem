@@ -1121,10 +1121,13 @@ class Charge:
         """
         model_dict = model.to_dict()
 
-        if not model_dict.get(col_name):
-            return
+        if model_dict.get(col_name) == None:
+            return None, None
         
-        return (model_dict[col_name], new_val - model_dict[col_name])
+        if not new_val:
+            new_val = 0
+        
+        return (model_dict[col_name] * 100, (int(new_val) - model_dict[col_name]) * 100)
 
     @classmethod
     def process_receipt_upgrade_item(cls, model, col_name, new_val, receipt=None, count=1):
@@ -1161,11 +1164,11 @@ class Charge:
             if len(cost_change_tuple) > 2:
                 cost_change_name = cost_change_name.format(*[dictionary.get(new_val) for dictionary in cost_change_tuple[2:]])
             
-            try:
+            if not cost_change_func:
+                old_cost, cost_change = cls.calc_simple_cost_change(model, col_name, new_val)
+            else:
                 change_func = getattr(model, cost_change_func)
                 old_cost, cost_change = change_func(**{col_name: new_val})
-            except AttributeError:
-                old_cost, cost_change = cls.calc_simple_cost_change(model, col_name, new_val)
 
         is_removable_item = col_name != 'badge_type'
         if not old_cost and is_removable_item:
@@ -1196,10 +1199,13 @@ class Charge:
         This lets us show the attendee a nice display of what they're buying
         ... whenever we get around to actually using it that way
         """
+        from uber.models import PromoCodeGroup
+
         items_preview = []
         for model in self.models:
             if getattr(model, 'badges', None) and getattr(model, 'name') and isinstance(model, uber.models.Attendee):
                 items_group = ("{} plus {} badges ({})".format(getattr(model, 'full_name', None), int(model.badges) - 1, model.name), [])
+                x, receipt_items = Charge.create_new_receipt(PromoCodeGroup())
             else:
                 group_name = getattr(model, 'name', None)
                 items_group = (group_name or getattr(model, 'full_name', None), [])
@@ -1317,18 +1323,29 @@ class Charge:
             return 'An unexpected problem occurred while setting up payment: ' + str(e)
 
     @classmethod
-    def create_receipt_transaction(self, receipt, desc='', intent_id=''):
+    def create_receipt_transaction(self, receipt, desc='', intent_id='', amount=0, method=c.STRIPE):
+        if not amount and intent_id:
+            intent = stripe.PaymentIntent.retrieve(intent_id)
+            amount = intent.amount
+        
+        if not amount:
+            amount = receipt.current_amount_owed
+        
+        if not amount > 0:
+            return "There was an issue recording your payment."
+
         return uber.models.ReceiptTransaction(
             receipt_id=receipt.id,
             intent_id=intent_id,
             amount=receipt.current_amount_owed,
             desc=desc,
+            method=method,
             who=uber.models.AdminAccount.admin_name() or 'non-admin'
         )
 
     @staticmethod
     def mark_paid_from_intent_id(intent_id, charge_id):
-        from uber.models import Attendee, ArtShowApplication, Group, Session
+        from uber.models import Attendee, ArtShowApplication, MarketplaceApplication, Group, Session
         from uber.tasks.email import send_email
         from uber.decorators import render
         
@@ -1340,6 +1357,14 @@ class Charge:
                 session.add(txn)
                 txn_receipt = txn.receipt
 
+                """
+                We need to change how receipt transactions and items are tracked next year
+                I'm not doing it now but I want this code for later
+                
+                for item in txn.receipt_itms:
+                    item.closed = datetime.now()
+                    session.add(item)
+                """
                 for item in txn_receipt.open_receipt_items:
                     if item.added < txn.added:
                         item.closed = datetime.now()
@@ -1380,6 +1405,21 @@ class Charge:
                             model=model.to_dict('id'))
                     except Exception:
                         log.error('Unable to send Art Show payment confirmation email', exc_info=True)
+                if model and isinstance(model, MarketplaceApplication) and not txn.receipt.open_receipt_items:
+                    send_email.delay(
+                        c.MARKETPLACE_APP_EMAIL,
+                        c.MARKETPLACE_APP_EMAIL,
+                        'Marketplace Payment Received',
+                        render('emails/marketplace/payment_notification.txt',
+                            {'app': model}, encoding=None),
+                        model=model.to_dict('id'))
+                    send_email.delay(
+                        c.MARKETPLACE_APP_EMAIL,
+                        model.email_to_address,
+                        'Marketplace Payment Received',
+                        render('emails/marketplace/payment_confirmation.txt',
+                            {'app': model}, encoding=None),
+                        model=model.to_dict('id'))
 
             return matching_txns
 
@@ -1553,12 +1593,11 @@ class TaskUtils:
             session.commit()
 
             errors = []
-            badge_type = int(import_job.json_data.get('badge_type', 0))
+            badge_type = int(import_job.json_data.get('badge_type', c.ATTENDEE_BADGE))
+            badge_status = int(import_job.json_data.get('badge_status', c.NEW_STATUS))
             extra_admin_notes = import_job.json_data.get('admin_notes', '')
 
-            if not badge_type:
-                errors.append("ERROR: Attendee does not have a badge type.")
-            elif badge_type not in c.BADGES:
+            if badge_type not in c.BADGES:
                 errors.append("ERROR: Attendee badge type not recognized: " + str(badge_type))
 
             try:
@@ -1589,7 +1628,7 @@ class TaskUtils:
 
             attendee.update({
                 'badge_type': badge_type,
-                'badge_status': c.NEW_STATUS if badge_type == c.STAFF_BADGE else c.IMPORTED_STATUS,
+                'badge_status': badge_status,
                 'paid': paid,
                 'placeholder': True,
                 'requested_hotel_info': True,

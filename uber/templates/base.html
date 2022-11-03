@@ -494,11 +494,6 @@
                       $(this).parents('.form-group').hide();
                   }
               })
-              if ($('#stripeModal').length) {
-                // Always make sure the Stripe payment modal is not inside another modal
-                // This avoids issues where the parent modal is hidden and so the Stripe modal never shows up
-                $('#stripeModal').detach().appendTo("body");
-              }
           });
       </script>
       <script src="../static/js/load-attendee-modal.js" type="text/javascript"></script>

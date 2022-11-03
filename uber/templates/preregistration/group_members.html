@@ -94,6 +94,11 @@
     <div style="text-align:center">
         {{ stripe_form('process_group_payment',group) }}
     </div>
+{% elif not group.is_dealer and receipt and receipt.current_amount_owed and incomplete_txn %}
+<div style="text-align:center">
+  You currently have an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.
+  <br/><br/>Click here to complete your payment: {{ stripe_form('finish_pending_group_payment', group, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}
+</div>
 {% endif %}
 
 <div style="margin:15px">
@@ -142,11 +147,10 @@
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
                     <button class="btn btn-sm btn-warning" type="submit" style="margin: 5px 0;">This person isn't coming</button>
                   </form>
-                {% elif attendee.is_transferable and attendee.total_donation %}
+                {% elif attendee.is_transferable %}
                   <form method="get" action="transfer_badge">
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
-                    <b> Added on an extra {{ attendee.total_donation|format_currency }}! </b>
-                    <input type="submit" value="Transfer Registration" />
+                    <button class="btn btn-sm btn-warning" type="submit" style="margin: 5px 0;">Transfer registration</button>
                   </form>
                 {% endif %}
             </td>

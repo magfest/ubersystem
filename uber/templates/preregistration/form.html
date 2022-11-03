@@ -6,18 +6,7 @@
 {% import "fields/account.html" as account_fields with context %}
 {% block title %}Preregistration{% endblock %}
 {% block content %}
-  {% if is_prereg_attendee %}
-    <script type="text/javascript">
-        $(function () {
-            $('.group_fields').addClass('hide');
-            {% if attendee and attendee.badge_type == c.PSEUDO_DEALER_BADGE %}
-            $('.group_fields').removeClass('hide');
-            $('.non_group_fields').addClass('hide');
-            {% endif %}
-        });
-    </script>
-  {% endif %}
-  {{ attendee_fields.amount_extra_js }}
+{{ attendee_fields.amount_extra_js }}
 {% include 'prereg_masthead.html' %}
 {% set original_location = ".." ~ c.PAGE_PATH %}
 {% if (is_prereg_dealer or logged_in_account) and c.ATTENDEE_ACCOUNTS_ENABLED %}

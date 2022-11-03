@@ -273,10 +273,15 @@ class Root:
         if department_id == 'All':
             department_id = None
 
+        try:
+            checklist = session.checklist_status('hotel_eligible', department_id)
+        except ValueError:
+            checklist = {'conf': None, 'relevant': False, 'completed': None}
+
         return {
             'department_id': department_id,
             'department_name': c.DEPARTMENTS.get(department_id, 'All'),
-            'checklist': session.checklist_status('hotel_eligible', department_id),
+            'checklist': checklist,
             'attendees': session.query(Attendee).filter(
                 Attendee.hotel_eligible == True,
                 Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
@@ -304,6 +309,11 @@ class Root:
         
         attendee = session.admin_attendee()
 
+        try:
+            checklist = session.checklist_status('approve_setup_teardown', department_id)
+        except ValueError:
+            checklist = {'conf': None, 'relevant': False, 'completed': None}
+
         return {
             'admin_has_room_access': c.HAS_HOTEL_ADMIN_ACCESS,
             'attendee': attendee,
@@ -311,8 +321,7 @@ class Root:
             'department_id': department_id,
             'department_name': c.DEPARTMENTS.get(department_id, 'All'),
             'declined_count': len([r for r in requests if r.nights == '']),
-            'checklist': session.checklist_status(
-                'approve_setup_teardown', department_id),
+            'checklist': checklist,
             'staffer_count': session.query(Attendee).filter(
                 Attendee.hotel_eligible == True, *dept_filter).count()  # noqa: E712
         }
