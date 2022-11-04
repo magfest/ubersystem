@@ -1,0 +1,7 @@
+debug = ${DEBUG}
+priority_plugins = "uber",
+default_url = "${DEFAULT_URL}"
+path = "${DEFAULT_URL}"
+
+[secret]
+broker_url = "amqp://${BROKER_USER}:${BROKER_PASS}@${BROKER_HOST}:${BROKER_PORT}/${BROKER_VHOST}"
