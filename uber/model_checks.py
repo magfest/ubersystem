@@ -1022,14 +1022,8 @@ def pa_phone(pa):
 
 @validation.PanelApplication
 def unavailability(app):
-    if not app.unavailable and not app.poc_id:
+    if not app.unavailable:
         return 'Your unavailability is required.'
-
-
-@validation.PanelApplication
-def availability(app):
-    if not app.available and app.poc and app.poc.guest_group:
-        return 'Please list the times you are available to hold this panel!'
 
 
 @validation.PanelApplication
