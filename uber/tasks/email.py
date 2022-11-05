@@ -1,4 +1,4 @@
-from collections import Mapping
+from collections.abc import Mapping
 from datetime import timedelta
 from time import sleep
 

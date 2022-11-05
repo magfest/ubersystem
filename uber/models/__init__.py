@@ -20,9 +20,9 @@ from pytz import UTC
 from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
 from sideboard.lib import on_startup, stopped
 from sqlalchemy import and_, func, or_, not_
-from sqlalchemy.dialects.postgresql.json import JSONB
+from sqlalchemy.dialects.postgresql.json import JSON
 from sqlalchemy.event import listen
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Query, joinedload, subqueryload, aliased
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import MetaData
@@ -502,7 +502,7 @@ class MagModel:
                             value = dateparser.parse(value)
                         value = value.date()
 
-                    elif isinstance(column.type, JSONB) and isinstance(value, str):
+                    elif isinstance(column.type, JSON) and isinstance(value, str):
                         value = json.loads(value)
 
                 except Exception as error:
@@ -719,7 +719,10 @@ class Session(SessionManager):
 
         def admin_attendee(self):
             if getattr(cherrypy, 'session', {}).get('account_id'):
-                return self.admin_account(cherrypy.session.get('account_id')).attendee
+                try:
+                    return self.admin_account(cherrypy.session.get('account_id')).attendee
+                except NoResultFound:
+                    return
 
         def current_attendee_account(self):
             if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id'):
@@ -1108,7 +1111,7 @@ class Session(SessionManager):
         def create_attendee_account(self, email, password=None):
             from uber.models import AttendeeAccount
 
-            new_account = AttendeeAccount(email=email, hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
+            new_account = AttendeeAccount(email=email, hashed=bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8') if password else '')
             self.add(new_account)
             return new_account
 
@@ -1923,7 +1926,7 @@ class Session(SessionManager):
 
             test_developer_account = AdminAccount(
                 attendee=attendee,
-                hashed=bcrypt.hashpw('magfest', bcrypt.gensalt())
+                hashed=bcrypt.hashpw('magfest'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             )
             test_developer_account.access_groups.append(all_access_group)
 

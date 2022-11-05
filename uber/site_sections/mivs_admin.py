@@ -56,7 +56,7 @@ class Root:
                 password = genpasswd()
                 attendee.admin_account = AdminAccount(
                     judge=judge,
-                    hashed=bcrypt.hashpw(password, bcrypt.gensalt())
+                    hashed=bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                 )
                 email_body = render('emails/accounts/new_account.txt', {
                     'password': password,

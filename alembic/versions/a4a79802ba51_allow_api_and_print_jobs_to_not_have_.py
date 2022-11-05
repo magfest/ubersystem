@@ -52,10 +52,12 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.alter_column('api_job', 'admin_id',
+    with op.batch_alter_table("api_job") as batch_op:
+        batch_op.alter_column('admin_id',
                existing_type=postgresql.UUID(),
                nullable=True)
-    op.alter_column('print_job', 'admin_id',
+    with op.batch_alter_table("print_job") as batch_op:
+        batch_op.alter_column('admin_id',
                existing_type=postgresql.UUID(),
                nullable=True)
 

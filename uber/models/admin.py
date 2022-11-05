@@ -5,7 +5,7 @@ from pockets import classproperty, listify
 from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy.dialects.postgresql.json import JSONB
+from sqlalchemy.dialects.postgresql.json import JSON
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
@@ -254,8 +254,8 @@ class AccessGroup(MagModel):
         (FULL, 'All Info')]
 
     name = Column(UnicodeText)
-    access = Column(MutableDict.as_mutable(JSONB), default={})
-    read_only_access = Column(MutableDict.as_mutable(JSONB), default={})
+    access = Column(MutableDict.as_mutable(JSON), default={})
+    read_only_access = Column(MutableDict.as_mutable(JSON), default={})
 
     @presave_adjustment
     def _disable_api_access(self):

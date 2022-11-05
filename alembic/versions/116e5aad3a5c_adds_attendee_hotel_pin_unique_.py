@@ -86,7 +86,8 @@ def upgrade():
                     })
                 )
 
-    op.create_unique_constraint(op.f('uq_attendee_hotel_pin'), 'attendee', ['hotel_pin'])
+    with op.batch_alter_table("attendee") as batch_op:
+        batch_op.create_unique_constraint(op.f('uq_attendee_hotel_pin'), ['hotel_pin'])
 
 
 def downgrade():

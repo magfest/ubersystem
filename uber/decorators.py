@@ -282,7 +282,7 @@ def ajax_gettable(func):
 
 
 def multifile_zipfile(func):
-    parameters = inspect.getargspec(func)
+    parameters = inspect.getfullargspec(func)
     if len(parameters[0]) == 3:
         func.site_mappable = True
 
@@ -311,7 +311,7 @@ def _set_response_filename(base_filename):
 
 
 def xlsx_file(func):
-    parameters = inspect.getargspec(func)
+    parameters = inspect.getfullargspec(func)
     if len(parameters[0]) == 3:
         func.site_mappable = True
 
@@ -347,7 +347,7 @@ def xlsx_file(func):
 
 
 def csv_file(func):
-    parameters = inspect.getargspec(func)
+    parameters = inspect.getfullargspec(func)
     if len(parameters[0]) == 3:
         func.site_mappable = True
 

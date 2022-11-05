@@ -14,7 +14,7 @@ from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.dialects.postgresql.json import JSONB
+from sqlalchemy.dialects.postgresql.json import JSON
 from sqlalchemy.orm import backref, column_property, subqueryload
 from sqlalchemy.schema import Column as SQLAlchemyColumn, ForeignKey, Index, Table, UniqueConstraint
 from sqlalchemy.types import Boolean, Date, Integer
@@ -263,8 +263,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         primaryjoin='and_('
                     'DeptMembershipRequest.attendee_id == Attendee.id, '
                     'DeptMembershipRequest.department_id == None)',
-        uselist=False,
-        viewonly=True)
+        uselist=False)
     dept_roles = relationship(
         'DeptRole',
         backref='attendees',
@@ -273,69 +272,59 @@ class Attendee(MagModel, TakesPaymentMixin):
                       'dept_membership_dept_role.c.dept_role_id == DeptRole.id, '
                       'dept_membership_dept_role.c.dept_membership_id == DeptMembership.id)',
         secondary='join(DeptMembership, dept_membership_dept_role)',
-        order_by='DeptRole.name',
-        viewonly=True)
+        order_by='DeptRole.name')
     shifts = relationship('Shift', backref='attendee')
     jobs = relationship(
         'Job',
         backref='attendees_working_shifts',
         cascade='save-update,merge,refresh-expire,expunge',
         secondary='shift',
-        order_by='Job.name',
-        viewonly=True)
+        order_by='Job.name')
     jobs_in_assigned_depts = relationship(
         'Job',
         backref='attendees_in_dept',
         cascade='save-update,merge,refresh-expire,expunge',
         secondaryjoin='DeptMembership.department_id == Job.department_id',
         secondary='dept_membership',
-        order_by='Job.name',
-        viewonly=True)
+        order_by='Job.name')
     depts_where_working = relationship(
         'Department',
         backref='attendees_working_shifts',
         cascade='save-update,merge,refresh-expire,expunge',
         secondary='join(Shift, Job)',
-        order_by='Department.name',
-        viewonly=True)
+        order_by='Department.name')
     dept_memberships_with_inherent_role = relationship(
         'DeptMembership',
         primaryjoin='and_('
                     'Attendee.id == DeptMembership.attendee_id, '
-                    'DeptMembership.has_inherent_role)',
-        viewonly=True)
+                    'DeptMembership.has_inherent_role)')
     dept_memberships_with_role = relationship(
         'DeptMembership',
         primaryjoin='and_('
                     'Attendee.id == DeptMembership.attendee_id, '
-                    'DeptMembership.has_role)',
-        viewonly=True)
+                    'DeptMembership.has_role)')
     dept_memberships_as_dept_head = relationship(
         'DeptMembership',
         primaryjoin='and_('
                     'Attendee.id == DeptMembership.attendee_id, '
-                    'DeptMembership.is_dept_head == True)',
-        viewonly=True)
+                    'DeptMembership.is_dept_head == True)')
     dept_memberships_as_poc = relationship(
         'DeptMembership',
         primaryjoin='and_('
                     'Attendee.id == DeptMembership.attendee_id, '
-                    'DeptMembership.is_poc == True)',
-        viewonly=True)
+                    'DeptMembership.is_poc == True)')
     dept_memberships_where_can_admin_checklist = relationship(
         'DeptMembership',
         primaryjoin='and_('
                     'Attendee.id == DeptMembership.attendee_id, '
                     'or_('
                     'DeptMembership.is_dept_head == True,'
-                    'DeptMembership.is_checklist_admin == True))',
-        viewonly=True)
+                    'DeptMembership.is_checklist_admin == True))')
     dept_memberships_as_checklist_admin = relationship(
         'DeptMembership',
         primaryjoin='and_('
                     'Attendee.id == DeptMembership.attendee_id, '
-                    'DeptMembership.is_checklist_admin == True)',
-        viewonly=True)
+                    'DeptMembership.is_checklist_admin == True)')
     pocs_for_depts_where_working = relationship(
         'Attendee',
         cascade='save-update,merge,refresh-expire,expunge',
@@ -345,8 +334,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                       'DeptMembership.is_poc == True)',
         secondary='join(Shift, Job).join(DeptMembership, '
                   'DeptMembership.department_id == Job.department_id)',
-        order_by='Attendee.full_name',
-        viewonly=True)
+        order_by='Attendee.full_name')
     dept_heads_for_depts_where_working = relationship(
         'Attendee',
         cascade='save-update,merge,refresh-expire,expunge',
@@ -356,8 +344,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                       'DeptMembership.is_dept_head == True)',
         secondary='join(Shift, Job).join(DeptMembership, '
                   'DeptMembership.department_id == Job.department_id)',
-        order_by='Attendee.full_name',
-        viewonly=True)
+        order_by='Attendee.full_name')
 
     staffing = Column(Boolean, default=False)
     agreed_to_volunteer_agreement = Column(Boolean, default=False)

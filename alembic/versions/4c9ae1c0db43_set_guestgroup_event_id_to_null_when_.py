@@ -52,8 +52,9 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.drop_constraint('fk_guest_group_event_id_event', 'guest_group', type_='foreignkey')
-    op.create_foreign_key(op.f('fk_guest_group_event_id_event'), 'guest_group', 'event', ['event_id'], ['id'], ondelete='SET NULL')
+    with op.batch_alter_table("guest_group") as batch_op:
+        batch_op.drop_constraint('fk_guest_group_event_id_event', type_='foreignkey')
+        batch_op.create_foreign_key(op.f('fk_guest_group_event_id_event'), 'event', ['event_id'], ['id'], ondelete='SET NULL')
 
 
 def downgrade():

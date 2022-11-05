@@ -39,7 +39,7 @@ class Root:
             studio = session.query(IndieStudio).filter_by(name=studio_name).first()
             if not studio:
                 message = 'No studio exists with that name'
-            elif not studio.hashed == bcrypt.hashpw(password, studio.hashed):
+            elif not studio.hashed.encode('utf-8') == bcrypt.hashpw(password.encode('utf-8'), studio.hashed.encode('utf-8')):
                 message = 'That is not the correct password'
             else:
                 raise HTTPRedirect('continue_app?id={}', studio.id)

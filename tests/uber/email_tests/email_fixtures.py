@@ -4,7 +4,7 @@ Test fixtures used by all our email related tests.
 
 from datetime import datetime, timedelta
 
-from collections import OrderedDict
+from collections.abc import OrderedDict
 from unittest.mock import Mock
 
 import pytest

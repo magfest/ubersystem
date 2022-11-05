@@ -587,7 +587,7 @@ class Root:
                     account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(login_email)).first()
                     if not account:
                         error_message = 'No account exists for that email address'
-                    elif not bcrypt.hashpw(login_password, account.hashed) == account.hashed:
+                    elif not bcrypt.hashpw(login_password.encode('utf-8'), account.hashed.encode('utf-8')) == account.hashed.encode('utf-8'):
                         error_message = 'Incorrect password'
                     else:
                         new_or_existing_account = account

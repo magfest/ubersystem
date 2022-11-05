@@ -17,6 +17,6 @@ elif [ "$1" = 'celery-beat' ]; then
     /app/env/bin/celery -A uber.tasks beat --pidfile=
 elif [ "$1" = 'celery-worker' ]; then
     /app/env/bin/celery -A uber.tasks worker
+else
+    exec "$@"
 fi
-
-exec "$@"
