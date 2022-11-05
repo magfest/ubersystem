@@ -1,6 +1,3 @@
-debug = ${DEBUG}
-priority_plugins = "uber",
-default_url = "${DEFAULT_URL}"
 path = "${DEFAULT_URL}"
 
 [secret]
