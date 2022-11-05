@@ -6,9 +6,10 @@ LABEL version.rams-core ="0.1"
 RUN apt-get update && apt-get install -y ghostscript gettext-base vim && rm -rf /var/lib/apt/lists/*
 
 ADD requirements*.txt plugins/uber/
+ADD setup.py plugins/uber/
+ADD uber/_version.py plugins/uber/uber/
 
 RUN /app/env/bin/paver install_deps
-RUN /app/env/bin/python3 -m pip install SQLAlchemy==1.3.0
 
 ADD uber-development.ini.template ./uber-development.ini.template
 ADD sideboard-development.ini.template ./sideboard-development.ini.template
@@ -25,6 +26,7 @@ ADD . plugins/uber/
 # docker run -it --env-file uberenv ghcr.io/magfest/ubersystem:main
 ENV HOST=0.0.0.0
 ENV PORT=8282
+ENV HOSTNAME=localhost
 ENV DEFAULT_URL=/uber
 ENV DEBUG=false
 ENV SESSION_HOST=redis
