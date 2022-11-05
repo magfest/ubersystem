@@ -5,10 +5,12 @@ LABEL version.rams-core ="0.1"
 # install ghostscript and gettext-base
 RUN apt-get update && apt-get install -y ghostscript gettext-base vim && rm -rf /var/lib/apt/lists/*
 
-ADD . plugins/uber/
+ADD requirements*.txt plugins/uber/
 
 RUN /app/env/bin/paver install_deps
 RUN /app/env/bin/python3 -m pip install SQLAlchemy==1.3.0
+
+ADD . plugins/uber/
 
 ADD uber-development.ini.template ./uber-development.ini.template
 ADD sideboard-development.ini.template ./sideboard-development.ini.template

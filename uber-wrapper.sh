@@ -1,18 +1,6 @@
 #!/bin/bash
 set -e
 
-export HOST="${HOST:-0.0.0.0}"
-export PORT="${PORT:-8282}"
-export DEFAULT_URL="${DEFAULT_URL:-/}"
-export DEBUG="${DEBUG:-false}"
-export SESSION_HOST="${SESSION_HOST:-redis}"
-export SESSION_PORT="${SESSION_PORT:-6379}"
-export BROKER_HOST="${BROKER_HOST:-rabbitmq}"
-export BROKER_PORT="${BROKER_PORT:-5672}"
-export BROKER_USER="${BROKER_USER:-celery}"
-export BROKER_PASS="${BROKER_PASS:-celery}"
-export BROKER_VHOST="${BROKER_VHOST:-uber}"
-
 envsubst < "uber-development.ini.template" > /app/plugins/uber/development.ini
 echo "Running with uber config as follows:"
 cat /app/plugins/uber/development.ini
