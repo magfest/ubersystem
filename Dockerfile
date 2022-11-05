@@ -1,4 +1,4 @@
-FROM ghcr.io/magfest/sideboard:main
+FROM ghcr.io/magfest/sideboard:next as build
 MAINTAINER RAMS Project "code@magfest.org"
 LABEL version.rams-core ="0.1"
 
@@ -37,5 +37,10 @@ ENV BROKER_USER=celery
 ENV BROKER_PASS=celery
 ENV BROKER_VHOST=uber
 
+FROM build as test
+RUN /app/env/bin/pip install mock pytest
+CMD /app/env/bin/python3 -m pytest
+
+FROM build as release
 ENTRYPOINT ["/usr/local/bin/uber-wrapper.sh"]
 CMD ["uber"]
