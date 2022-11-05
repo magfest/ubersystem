@@ -16,6 +16,12 @@ ADD uber-development.ini.template ./uber-development.ini.template
 ADD sideboard-development.ini.template ./sideboard-development.ini.template
 ADD uber-wrapper.sh /usr/local/bin/
 
+# These are just semi-reasonable defaults. Use either -e or --env-file to set what you need
+# I.e.:
+# docker run -it -e HOST=192.168.0.10 -e PORT=80 ghcr.io/magfest/sideboard:main
+# or
+# echo "HOST=192.168.0.10" > uberenv
+# docker run -it --env-file uberenv ghcr.io/magfest/sideboard:main
 ENV HOST=0.0.0.0
 ENV PORT=8282
 ENV DEFAULT_URL=/uber
