@@ -1483,7 +1483,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     @classproperty
     def searchable_fields(cls):
         fields = [col.name for col in cls.__table__.columns if isinstance(col.type, UnicodeText)]
-        fields.remove('other_accessibility_requests')
+        if "other_accessibility_requests" in fields:
+            fields.remove('other_accessibility_requests')
         return fields
 
     @classproperty
