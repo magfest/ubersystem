@@ -828,6 +828,14 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieGame,
+        'MIVS {EVENT_YEAR} Waitlist: Additional Information Required',
+        'mivs/waitlist_info.txt',
+        lambda game: game.status == c.WAITLISTED,
+        ident='mivs_waitlist_info'
+    )
+
+    MIVSEmailFixture(
+        IndieGame,
         'Last chance to accept your MIVS booth',
         'mivs/game_accept_reminder.txt',
         lambda game: (
