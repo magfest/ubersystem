@@ -1,0 +1,13 @@
+Ahoy {{ game.studio.primary_contact_first_names }},
+
+As your game is on the waitlist, we wanted to know your team's "cutoff date".  This would be the final date you would still be able to attend should a spot open up in the showcase.
+
+Please reply to this email by Nov 13th with your team's desired cutoff date. 
+
+After the "cutoff date" that you give us, your entry will be removed from the Waitlist. We're sorry but we cannot give out details regarding size of the Waitlist or your entry's position.
+
+We sincerely thank you for your flexibility and we hope to see you in this or a future MIVS.
+
+If you have any questions, please email {{ c.MIVS_EMAIL|email_only }}
+
+{{ c.MIVS_EMAIL_SIGNATURE }}
