@@ -438,7 +438,7 @@ def emergency_contact_not_cellphone(attendee):
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def onsite_contact(attendee):
-    if not attendee.onsite_contact and not attendee.no_onsite_contact and attendee.badge_type != c.STAFF_BADGE:
+    if not attendee.onsite_contact and not attendee.no_onsite_contact and attendee.badge_type not in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
         return 'Please enter contact information for at least one trusted friend onsite, or indicate ' \
                'that we should use your emergency contact information instead.'
 
@@ -454,12 +454,13 @@ def onsite_contact_length(attendee):
 @validation.Attendee
 def printed_badge_change(attendee):
     if attendee.badge_printed_name != attendee.orig_value_of('badge_printed_name') \
-            and not AdminAccount.admin_name() \
             and c.PRINTED_BADGE_DEADLINE \
             and localized_now() > c.get_printed_badge_deadline_by_type(attendee.badge_type_real):
-
-        return '{} badges have already been ordered, so you cannot change the badge printed name.'.format(
-            attendee.badge_type_label if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES else "Supporter")
+        with Session() as session:
+            admin = session.current_admin_account()
+            if not admin.is_admin:
+                return '{} badges have already been ordered, so you cannot change the badge printed name.'.format(
+                    attendee.badge_type_label if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES else "Supporter")
 
 
 @validation.Attendee
@@ -528,7 +529,7 @@ def no_more_custom_badges(attendee):
             and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
         with Session() as session:
             admin = session.current_admin_account()
-            if not admin.full_registration_admin and not admin.full_shifts_admin:
+            if not admin.is_admin:
                 return 'Custom badges have already been ordered so you cannot use this badge type'
 
 
