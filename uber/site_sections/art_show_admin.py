@@ -771,6 +771,14 @@ class Root:
             'receipt': receipt,
         }
 
+    @ajax
+    def cancel_payment(self, session, id, stripe_id):
+        payment = session.query(ArtShowPayment).filter_by(id=id).first()
+        session.delete(payment)
+        session.commit()
+
+        return {'message': 'Payment cancelled.'}
+
     @public
     @ajax
     @credit_card
@@ -787,14 +795,18 @@ class Root:
         if message:
             return {'error': message}
         else:
-            session.add(ArtShowPayment(
+            payment = ArtShowPayment(
                 receipt=receipt,
-                amount=charge.amount,
+                amount=charge.total_cost,
                 type=c.STRIPE,
-            ))
+            )
+            session.add(payment)
             session.commit()
-            return {'stripe_intent': stripe_intent,
-                    'success_url': 'pieces_bought?id={}&message={}'.format(attendee.id, 'Charge successfully processed')}
+            return {
+                'stripe_intent': stripe_intent,
+                'success_url': 'pieces_bought?id={}&message={}'.format(attendee.id, 'Charge successfully processed'),
+                'cancel_url': 'cancel_payment?id={}'.format(payment.id)
+            }
 
     @public
     def sales_charge_form(self, message='', amount=None, description='',
