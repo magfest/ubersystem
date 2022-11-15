@@ -25,7 +25,7 @@ from uber.custom_tags import format_currency
 from uber.decorators import prereg_validation, validation
 from uber.models import AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowApplication, ArtShowPiece, \
     AttendeeAccount, AttendeeTournament, Attraction, AttractionFeature, Department, DeptRole, Event, Group, \
-    IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio, Job, MarketplaceApplication, \
+    GuestDetailedTravelPlan, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio, Job, MarketplaceApplication, \
     MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam, PanelApplicant, PanelApplication, \
     PromoCode, PromoCodeGroup, Sale, Session, WatchList
 from uber.utils import localized_now, Charge, valid_email
@@ -1121,6 +1121,63 @@ def is_merch_checklist_complete(guest_merch):
                 and guest_merch.poc_country):
             return 'You must tell us your complete mailing address'
 
+@validation.GuestTravelPlans
+def has_modes(guest_travel_plans):
+    if not guest_travel_plans.modes:
+        return 'Please tell us how you will arrive at MAGFest.'
+
+@validation.GuestTravelPlans
+def has_modes_text(guest_travel_plans):
+    if c.OTHER in guest_travel_plans.modes_ints and not guest_travel_plans.modes_text:
+        return 'You need to tell us what "other" travel modes you are using.'
+
+@validation.GuestTravelPlans
+def has_details(guest_travel_plans):
+    if not guest_travel_plans.details:
+        return 'Please provide details of your arrival and departure plans.'
+
+GuestDetailedTravelPlan.required = [
+    ('mode', 'Mode of Travel'),
+    ('traveller', 'Traveller Name'),
+    ('contact_email', 'Contact Email'),
+    ('contact_phone', 'Contact Phone #'),
+    ('arrival_time', 'Arrival Time'),
+    ('departure_time', 'Departure Time')
+]
+
+@validation.GuestDetailedTravelPlan
+def arrival_departure_details(travel_plan):
+    if travel_plan.mode not in [c.CAR, c.TAXI]:
+        if not travel_plan.arrival_details:
+            return 'Please provide arrival details, such as the bus or train or plane identifier.'
+        if not travel_plan.departure_details:
+            return 'Please provide departure details, such as the bus or train or plane identifier.'
+
+@validation.GuestDetailedTravelPlan
+def time_checks(travel_plan):
+    if travel_plan.arrival_time < travel_plan.min_arrival_time:
+        return 'If you are arriving over a week before the event, please select the earliest date and make a note in the arrival details.'
+    if travel_plan.arrival_time > travel_plan.max_arrival_time:
+        return 'You cannot arrive after the event is over.'
+    if travel_plan.departure_time < travel_plan.min_departure_time:
+        return 'You cannot leave before the event starts.'
+    if travel_plan.departure_time > travel_plan.max_departure_time:
+        return 'If you are leaving over a week after the event, please select the latest date and make a note in the departure details.'
+
+@validation.GuestDetailedTravelPlan
+def has_modes_text(travel_plan):
+    if travel_plan.mode == c.OTHER and not travel_plan.mode_text:
+        return 'You need to tell us what "other" travel mode you are using.'
+
+@validation.GuestDetailedTravelPlan
+def validate_email(travel_plan):
+    return valid_email(travel_plan.contact_email)
+
+@validation.GuestDetailedTravelPlan
+def validate_phone(travel_plan):
+    if _invalid_phone_number(travel_plan.contact_phone):
+        return 'Your phone number was not a valid 10-digit US phone number. ' \
+            'Please include a country code (e.g. +44) for international numbers.'
 
 # =============================
 # art show
