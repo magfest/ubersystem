@@ -33,6 +33,7 @@ class Root:
             'Selling Merchandise',
             'Charity Answer', 'Charity Donation',
             'Travel Mode(s)', 'Travel Mode(s) Text', 'Travel Details',
+            'Needs Rehearsal?',
         ])
         for guest in [guest for guest in session.query(GuestGroup).all() if session.admin_can_see_guest_group(guest)]:
             absolute_pic_url = convert_to_absolute_url(getattr(guest.bio, 'pic_url', ''))
@@ -56,7 +57,7 @@ class Root:
                 getattr(guest.merch, 'selling_merch_label', ''),
                 getattr(guest.charity, 'donating_label', ''), getattr(guest.charity, 'desc', ''),
                 ' / '.join(getattr(guest.travel_plans, 'modes_labels', '')), getattr(guest.travel_plans, 'modes_text', ''),
-                getattr(guest.travel_plans, 'details', '')
+                getattr(guest.travel_plans, 'details', ''), guest.rehearsal_status or 'N/A',
             ])
 
     @csv_file
