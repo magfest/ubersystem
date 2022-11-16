@@ -344,13 +344,15 @@ class Root:
 
     def assign_locations(self, session, message='', **params):
         valid_apps = session.query(ArtShowApplication).filter_by(status=c.APPROVED)
-        for app in [app for app in valid_apps if app.amount_unpaid == 0]:
-            field_name = '{}_locations'.format(app.id)
-            if field_name in params:
-                app.locations = params.get(field_name)
-                session.add(app)
-                
-        session.commit()
+
+        if cherrypy.request.method == 'POST':
+            for app in valid_apps:
+                field_name = '{}_locations'.format(app.id)
+                if field_name in params:
+                    app.locations = params.get(field_name)
+                    session.add(app)
+                    
+            session.commit()
 
         return {
             'apps': valid_apps,
