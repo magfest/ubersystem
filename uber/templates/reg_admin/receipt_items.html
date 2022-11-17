@@ -1,7 +1,17 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% set model = attendee if attendee else group %}
-{% set model_str = "attendee" if attendee else "group" %}
-{% block title %}Receipt Items - {{ model.full_name|default(model.name) }}{% endblock %}
+
+{% if art_show_app %}
+  {% set model_str = "application" %}
+  {% set model = art_show_app %}
+{% elif group %}
+  {% set model_str = "group" %}
+  {% set model = group %}
+{% else %}
+  {% set model_str = "attendee" %}
+  {% set model = attendee %}
+{% endif %}
+
+{% block title %}Receipt Items - {% if model.attendee %}{{ model.attendee.full_name }}'s {{ model_str|title }}{% else %}{{ model.full_name|default(model.name) }}{% endif %}{% endblock %}
 {% block content %}
 <script type="text/javascript">
   var hideRow = function (id) {
@@ -241,9 +251,21 @@
     });
   });
 </script>
-{% include "registration/menu.html" if attendee else "group_admin/nav_menu.html" %}
+{% if art_show_app %}
+{{ macros.nav_menu(
+  art_show_app, c.PAGE_PATH,
+  "../art_show_admin/form?id={id}", "App Form", True,
+  "../art_show_admin/pieces?id={id}", "Submitted Pieces", True,
+  "receipt_items?id={id}", "Receipt Items", c.HAS_REG_ADMIN_ACCESS,
+  "../art_show_admin/history?id={id}", "History", True,
+  "../art_show_admin/index", "Return to App List", True
+  ) }}
 
-<h2>Receipt{% if other_receipts %}s{% endif %} for {{ model.full_name|default(model.name) }}{% if c.AT_THE_CON and model.badge_num %}({{ model.badge }}){% endif %}</h2>
+{% else %}
+  {% include "registration/menu.html" if attendee else "group_admin/nav_menu.html" %}
+{% endif %}
+
+<h2>Receipt{% if other_receipts %}s{% endif %} for {% if model.attendee %}{{ model.attendee.full_name }}'s {{ model_str|title }}{% else %}{{ model.full_name|default(model.name) }}{% endif %}{% if c.AT_THE_CON and model.badge_num %}({{ model.badge }}){% endif %}</h2>
   <div class="panel panel-body">
   <p>Use this form to remove and add custom purchases and credits or non-Stripe payments and refunds for this {{ model_str }}.
     You will not be able to remove purchases or credits that were created before a sucessful payment was made.
@@ -298,7 +320,7 @@
           {% if item.cancelled %}
             <em>Cancelled {{ item.cancelled|datetime_local }}</em>
           {% elif item.closed %}
-            {% if item.revert_change %}
+            {% if item.revert_change and not receipt.closed %}
               <button class="btn btn-sm btn-danger" onClick="undoItem('{{ item.id }}', '{{ receipt.id }}')">Undo Item</button>
             {% else %}
               <em>Payment finalized {{ item.closed|datetime_local }}</em>
@@ -384,6 +406,7 @@
         </form>
       </td>
     </tr>
+    {% if not receipt.closed %}
     <tr id="{{ receipt.id }}">
       <td colspan="7">
         <div class="btn-group pull-right" role="group" aria-label="...">
@@ -392,6 +415,7 @@
         </div>
       </td>
     </tr>
+    {% endif %}
   </table>
 {% endmacro %}
 
