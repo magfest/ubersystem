@@ -13,7 +13,7 @@ from uber.config import c, _config
 from uber.custom_tags import datetime_local_filter, pluralize, format_currency
 from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, ApiJob, Attendee, Group, ModelReceipt, ReceiptItem, ReceiptTransaction
+from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, Group, ModelReceipt, ReceiptItem, ReceiptTransaction
 from uber.site_sections import devtools
 from uber.utils import Charge, check, get_api_service_from_server, normalize_email, TaskUtils
 
@@ -45,7 +45,10 @@ class Root:
         try:
             model = session.attendee(id)
         except NoResultFound:
-            model = session.group(id)
+            try:
+                model = session.group(id)
+            except NoResultFound:
+                model = session.art_show_application(id)
 
         receipt = session.get_receipt_by_model(model)
 
@@ -56,7 +59,8 @@ class Root:
             
         return {
             'attendee': model if isinstance(model, Attendee) else None,
-            'group': model,
+            'group': model if isinstance(model, Group) else None,
+            'art_show_app': model if isinstance(model, ArtShowApplication) else None,
             'receipt': receipt,
             'other_receipts': other_receipts,
             'closed_receipts': session.query(ModelReceipt).filter(ModelReceipt.owner_id == id,
