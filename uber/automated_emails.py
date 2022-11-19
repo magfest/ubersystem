@@ -562,11 +562,21 @@ StopsEmailFixture(
     ident='volunteer_checklist_completion_request')
 
 StopsEmailFixture(
+    '{EVENT_NAME} ({EVENT_DATE}) shifts are live!',
+    'shifts/shifts_created.txt',
+    lambda a: (
+        c.AFTER_SHIFTS_CREATED
+        and a.takes_shifts
+        and a.registered_local <= c.SHIFTS_CREATED),
+    when=before(c.PREREG_TAKEDOWN),
+    ident='volunteer_shift_signup_notification')
+
+StopsEmailFixture(
     'Reminder to sign up for {EVENT_NAME} ({EVENT_DATE}) shifts',
     'shifts/reminder.txt',
     lambda a: (
         c.AFTER_SHIFTS_CREATED
-        and days_after(30, max(a.registered_local, c.SHIFTS_CREATED))()
+        and days_after(14, max(a.registered_local, c.SHIFTS_CREATED))()
         and a.takes_shifts
         and not a.shift_minutes),
     when=before(c.PREREG_TAKEDOWN),
