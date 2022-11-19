@@ -1045,6 +1045,17 @@ class Attendee(MagModel, TakesPaymentMixin):
                and c.SELF_SERVICE_DEFERRALS_OPEN
 
     @property
+    def cannot_delete_badge_reason(self):
+        if self.paid == c.HAS_PAID:
+            return "Cannot delete a paid badge."
+        if self.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
+            from uber.models import Session
+            with Session() as session:
+                admin = session.current_admin_account()
+                if not admin.is_admin:
+                    return "Custom badges have already been ordered so you cannot delete this badge."
+
+    @property
     def needs_pii_consent(self):
         return self.is_new or self.placeholder or not self.first_name
 
