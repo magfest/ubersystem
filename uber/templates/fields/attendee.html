@@ -420,8 +420,9 @@ $().ready(function() {
   }
   toggleStaffingField = function () {
     if ($.field('staffing') && $.field('staffing').length) {
-      var changeToStaffing = ($.val("badge_type") == {{ c.STAFF_BADGE }} && $.field('staffing').prop('checked', false));
-      var changeFromStaffing = ($.val("badge_type") != {{ c.STAFF_BADGE }} && $.field('staffing').prop('checked', true));
+      var staffing_badges = ['{{ c.STAFF_BADGE }}', '{{ c.CONTRACTOR_BADGE }}'];
+      var changeToStaffing = (staffing_badges.includes($.val("badge_type")) && $.field('staffing').prop('checked', false));
+      var changeFromStaffing = (staffing_badges.includes($.val("badge_type")) && $.field('staffing').prop('checked', true));
       if (changeToStaffing || changeFromStaffing) {
         $.field('staffing').click();
       }
