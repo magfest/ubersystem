@@ -7,7 +7,7 @@ from uber.config import c
 from uber.custom_tags import time_day_local
 from uber.decorators import ajax, all_renderable, csv_file, log_pageview, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import Email, Event, Group, GuestGroup, GuestMerch, GuestTravelPlans, PageViewTracking, Tracking
+from uber.models import Email, Event, Group, GuestAutograph, GuestGroup, GuestMerch, GuestTravelPlans, PageViewTracking, Tracking
 from uber.utils import check, convert_to_absolute_url
 
 
@@ -143,3 +143,13 @@ class Root:
                         guest.merch.total_quantity(item),
                         convert_to_absolute_url(guest.merch.inventory_url(item['id'], 'image'))
                     ])
+
+    @csv_file
+    def autograph_requests(self, out, session):
+        out.writerow([
+            'Group Name', '# of Sessions', 'Session Length (Minutes)',
+        ])
+
+        autograph_sessions = session.query(GuestAutograph).filter(GuestAutograph.num > 0)
+        for request in autograph_sessions:
+            out.writerow([request.guest.group.name, request.num, request.length])
