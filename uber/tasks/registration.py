@@ -54,7 +54,7 @@ def check_duplicate_registrations():
 
                 if dupes:
                     body = render('emails/daily_checks/duplicates.html', {'dupes': sorted(dupes.items())})
-                    send_email(c.ADMIN_EMAIL, c.REGDESK_EMAIL, subject, body, format='html', model='n/a')
+                    send_email.delay(c.ADMIN_EMAIL, c.REGDESK_EMAIL, subject, body, format='html', model='n/a')
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
@@ -93,7 +93,7 @@ def check_placeholder_registrations():
                                            .order_by(Attendee.registered, Attendee.full_name).all())  # noqa: E712
                     if placeholders:
                         body = render('emails/daily_checks/placeholders.html', {'placeholders': placeholders})
-                        send_email(c.ADMIN_EMAIL, to, subject, body, format='html', model='n/a')
+                        send_email.delay(c.ADMIN_EMAIL, to, subject, body, format='html', model='n/a')
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
@@ -116,7 +116,7 @@ def check_pending_badges():
                 pending = session.query(Attendee).filter_by(badge_status=c.PENDING_STATUS).filter(per_email_filter).all()
                 if pending and session.no_email(subject.format(badge_type)):
                         body = render('emails/daily_checks/pending.html', {'pending': pending, 'site_section': site_section})
-                        send_email(c.ADMIN_EMAIL, to, subject.format(badge_type), body, format='html', model='n/a')
+                        send_email.delay(c.ADMIN_EMAIL, to, subject.format(badge_type), body, format='html', model='n/a')
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
@@ -129,7 +129,7 @@ def check_unassigned_volunteers():
             subject = c.EVENT_NAME + ' Unassigned Volunteer Report for ' + localized_now().strftime('%Y-%m-%d')
             if unassigned and session.no_email(subject):
                 body = render('emails/daily_checks/unassigned.html', {'unassigned': unassigned})
-                send_email(c.STAFF_EMAIL, c.STAFF_EMAIL, subject, body, format='html', model='n/a')
+                send_email.delay(c.STAFF_EMAIL, c.STAFF_EMAIL, subject, body, format='html', model='n/a')
 
 
 @celery.schedule(timedelta(minutes=5))
@@ -140,7 +140,7 @@ def check_near_cap():
         with Session() as session:
             if not session.query(Email).filter_by(subject=subject).first() and actual_badges_left <= badges_left:
                 body = render('emails/badges_sold_alert.txt', {'badges_left': actual_badges_left})
-                send_email(c.ADMIN_EMAIL, [c.REGDESK_EMAIL, c.ADMIN_EMAIL], subject, body, model='n/a')
+                send_email.delay(c.ADMIN_EMAIL, [c.REGDESK_EMAIL, c.ADMIN_EMAIL], subject, body, model='n/a')
 
 
 @celery.schedule(timedelta(minutes=30))
