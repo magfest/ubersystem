@@ -1,0 +1,29 @@
+{% extends "guest_checklist/merch_deadline.html" %}
+
+{% block deadline_headline %}Rock Island Inventory{% endblock %}
+{% block deadline_text %}
+{% if guest.merch_status %}
+    You have submitted information for Rock Island, but you can edit it using the link above.
+{% else %}
+    Fill out your information for Rock Island!
+{% endif %}
+{% endblock %}
+{% block deadline_extra %}{% endblock %}
+
+{% block form_header %}
+{{ super() }}
+<script type="text/javascript">
+    $(function () {
+        $.field('selling_merch').val('{{ c.ROCK_ISLAND }}').parents('.form-group').hide();
+    });
+</script>
+{% endblock %}
+
+{% block form_desc %}
+<p>Please fill in your information for Rock Island below.</p>
+<p>
+    <a href="../static/RockIsland.pdf">
+      Click here for more info about our Rock Island service!
+    </a>
+</p>
+{% endblock %}
