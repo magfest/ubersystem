@@ -893,7 +893,7 @@ class Session(SessionManager):
                     'completed': attendee.checklist_item_for_slug(conf.slug)
                 }
 
-        def jobs_for_signups(self):
+        def jobs_for_signups(self, all=False):
             fields = [
                 'name', 'department_id', 'department_name', 'description',
                 'weight', 'start_time_local', 'end_time_local', 'duration',
@@ -904,6 +904,8 @@ class Session(SessionManager):
             for job in jobs:
                 if job.required_roles:
                     restricted_minutes.add(frozenset(job.minutes))
+            if all:
+                return [job.to_dict(fields) for job in jobs]
             return [
                 job.to_dict(fields)
                 for job in jobs if (job.required_roles or frozenset(job.minutes) not in restricted_minutes)]

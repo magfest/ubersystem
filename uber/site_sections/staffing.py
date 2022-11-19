@@ -193,8 +193,8 @@ class Root:
         }
 
     @check_shutdown
-    def shifts(self, session, view='', start=''):
-        joblist = session.jobs_for_signups()
+    def shifts(self, session, view='', start='', all=''):
+        joblist = session.jobs_for_signups(all=all)
         con_days = -(-c.CON_LENGTH // 24)  # Equivalent to ceil(c.CON_LENGTH / 24)
 
         volunteer = session.logged_in_volunteer()
@@ -221,35 +221,37 @@ class Root:
         return {
             'jobs': joblist,
             'has_public_jobs': has_public_jobs,
-            'name': session.logged_in_volunteer().full_name,
-            'hours': session.logged_in_volunteer().weighted_hours,
+            'depts_with_roles': [membership.department.name for membership in volunteer.dept_memberships_with_role],
+            'name': volunteer.full_name,
+            'hours': volunteer.weighted_hours,
             'assigned_depts_labels': volunteer.assigned_depts_labels,
             'view': view,
             'start': start,
             'start_day': c.SHIFTS_START_DAY if has_setup else c.EPOCH,
-            'cal_length': cal_length
+            'cal_length': cal_length,
+            'show_all': all,
         }
 
     @check_shutdown
     @ajax_gettable
-    def jobs(self, session):
-        return {'jobs': session.jobs_for_signups()}
+    def jobs(self, session, all=False):
+        return {'jobs': session.jobs_for_signups(all=all)}
 
     @check_shutdown
     @ajax
-    def sign_up(self, session, job_id):
+    def sign_up(self, session, job_id, all=False):
         return {
             'error': session.assign(session.logged_in_volunteer().id, job_id),
-            'jobs': session.jobs_for_signups()
+            'jobs': session.jobs_for_signups(all=all)
         }
 
     @check_shutdown
     @ajax
-    def drop(self, session, job_id):
+    def drop(self, session, job_id, all=False):
         if c.AFTER_DROP_SHIFTS_DEADLINE:
             return {
                 'error': "You can no longer drop shifts.",
-                'jobs': session.jobs_for_signups()
+                'jobs': session.jobs_for_signups(all=all)
             }
         try:
             shift = session.shift(job_id=job_id, attendee_id=session.logged_in_volunteer().id)
@@ -258,7 +260,7 @@ class Root:
         except Exception:
             pass
         finally:
-            return {'jobs': session.jobs_for_signups()}
+            return {'jobs': session.jobs_for_signups(all=all)}
 
     @public
     def login(self, session, message='',  first_name='', last_name='', email='', zip_code='', original_location=None):

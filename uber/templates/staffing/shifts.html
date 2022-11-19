@@ -86,8 +86,22 @@
         <span class="public-state-text hidden is_public-state-text">
           to <b>hide</b> <span class="text-public">public</span> jobs in departments you are not assigned to.
         </span>
-        <br>
+        <br/>
       </div>
+      {% if depts_with_roles %}
+      <br/>
+      <div>
+        You have been assigned special roles in the following departments: {{ depts_with_roles|join(", ") }}.<br/>
+        {% if show_all %}
+        <strong>All available shifts are currently shown regardless of required role.</strong><br/> You can instead 
+        <a href="shifts">prioritize shifts</a> with required roles.
+        {% else %}
+        As a result, <strong>some shifts without required roles may be hidden</strong>.<br/> You can opt to
+        <a href="shifts?all=True">show all shifts</a> regardless of required roles.
+        {% endif %}
+        <br/><br/>
+      </div>
+      {% endif %}
       <a href="#" class="toggle-cal" state="all">Click Here</a>
       <span class="all-state-text state-text"> to see the {{hours}} weighted hours worth of shifts you are signed up for</span>
       <span class="shift-state-text hidden state-text"> to sign up for more shifts; you are currently signed up for {{hours}} weighted hours</span>
@@ -299,13 +313,13 @@
         confirmStr += title + " at " + time + " on " + date + "?";
         var r = confirm(confirmStr);
         if (r == true) {
-          var tgtShiftURL = "sign_up?job_id="+ id;
+          var tgtShiftURL = "sign_up?job_id="+ id + "&all={{ show_all }}";
             if(taken=='true') {
-                tgtShiftURL = "drop?job_id=" + id;
+                tgtShiftURL = "drop?job_id=" + id + "&all={{ show_all }}";
             }
             $.post( tgtShiftURL,postData,function( data,status ) {
                 var view = shiftCal.view;
-                window.location.href = window.location.pathname + "?view=" + view.type + "&start=" + view.currentStart.toISOString();
+                window.location.href = window.location.pathname + "?view=" + view.type + "&start=" + view.currentStart.toISOString() + "&all={{ show_all }}";
             });
         }
     }
