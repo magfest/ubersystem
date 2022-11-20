@@ -980,36 +980,6 @@ if c.MIVS_ENABLED:
                 ident='mivs_checklist_new_item_{}'.format(key),
             )
 
-    deadline_groups = set([val['deadline'] for key, val in c.MIVS_CHECKLIST.items()])
-
-    for deadline in deadline_groups:
-        MIVSGuestEmailFixture(
-            'An item on your {EVENT_NAME} MIVS Checklist is due soon',
-            'mivs/checklist_reminder.txt',
-            lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
-                           for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
-            when=days_before(2, deadline, 1),
-            ident='mivs_checklist_due_2_days_from_{}'.format(deadline.strftime('%m_%d')),
-        )
-
-        MIVSGuestEmailFixture(
-            'An item on your {EVENT_NAME} MIVS Checklist is due tomorrow',
-            'mivs/checklist_reminder.txt',
-            lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
-                           for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
-            when=days_before(1, deadline, 0),
-            ident='mivs_checklist_due_1_day_from_{}'.format(deadline.strftime('%m_%d')),
-        )
-
-        MIVSGuestEmailFixture(
-            'An item on your {EVENT_NAME} MIVS Checklist is overdue',
-            'mivs/checklist_reminder.txt',
-            lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
-                           for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
-            when=days_after(1, deadline),
-            ident='mivs_checklist_overdue_{}'.format(deadline.strftime('%m_%d')),
-        )
-
     # At-Con MIVS Emails
     MIVSEmailFixture(
         IndieGame,

@@ -121,7 +121,7 @@ class Root:
                 if email.automated_email and email.fk:
                     email.automated_email.send_to(email.fk, delay=False, raise_errors=True)
                 else:
-                    send_email(
+                    send_email.delay(
                         c.ADMIN_EMAIL,
                         email.fk_email,
                         email.subject,
