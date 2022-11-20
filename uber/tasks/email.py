@@ -139,8 +139,7 @@ def notify_admins_of_pending_emails():
 
         return groupify(pending_emails, 'sender', 'ident')
 
-
-@celery.schedule(timedelta(minutes=5))
+@celery.schedule(timedelta(minutes=5 if c.DEV_BOX else 15))
 def send_automated_emails():
     """
     Send any automated emails that are currently active, and have been approved
