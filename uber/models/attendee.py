@@ -593,6 +593,11 @@ class Attendee(MagModel, TakesPaymentMixin):
                 if not self.amount_unpaid:
                     self.badge_num = self.session.get_next_badge_num(self.badge_type)
 
+    @presave_adjustment
+    def match_account_if_exists(self):
+        if c.ATTENDEE_ACCOUNTS_ENABLED and self.email and not self.managers:
+            self.session.match_attendee_to_account(self)
+
     @hybrid_property
     def times_printed(self):
         return len([job.id for job in self.print_requests if job.printed])
