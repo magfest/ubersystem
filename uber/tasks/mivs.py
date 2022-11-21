@@ -4,7 +4,7 @@ from pockets.autolog import log
 
 from uber.config import c
 from uber.decorators import render
-from uber.models import Email, Session, IndieStudio
+from uber.models import Email, Session, GuestGroup, Group, IndieStudio
 from uber.tasks import celery
 from uber.tasks.email import send_email
 
@@ -52,7 +52,7 @@ def send_mivs_checklist_reminders():
         return
 
     with Session() as session:
-        studios = session.query(IndieStudio).filter_by(status=c.ACCEPTED)
+        studios = session.query(IndieStudio).join(Group).join(GuestGroup)
         for studio in studios:
             if studio.group and studio.group.guest:
                 due_soon, overdue = studio.checklist_items_due_soon_grouped
