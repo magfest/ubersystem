@@ -1109,6 +1109,11 @@ class Session(SessionManager):
             if attendee not in account.attendees:
                 account.attendees.append(attendee)
 
+        def match_attendee_to_account(self, attendee):
+            existing_account = self.query(AttendeeAccount).filter_by(normalized_email=normalize_email(attendee.email)).first()
+            if existing_account:
+                self.add_attendee_to_account(attendee, existing_account)
+
         def get_receipt_by_model(self, model, include_closed=False, create_if_none=False):
             receipt_select = self.query(ModelReceipt).filter_by(owner_id=model.id, owner_model=model.__class__.__name__)
             if not include_closed:

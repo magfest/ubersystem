@@ -133,7 +133,7 @@ class ArtShowApplication(MagModel):
             return 0
         else:
             if self.active_receipt:
-                return self.active_receipt['current_amount_owed'] / 100
+                return self.active_receipt['item_total'] / 100
             return self.potential_cost
 
     @property
@@ -153,7 +153,7 @@ class ArtShowApplication(MagModel):
 
     @property
     def amount_unpaid(self):
-        return max(0, self.total_cost - self.amount_paid)
+        return max(0, self.total_cost - (self.amount_paid / 100))
 
     @property
     def amount_pending(self):
