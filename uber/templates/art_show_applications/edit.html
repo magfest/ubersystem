@@ -18,12 +18,20 @@
     {% endif %}
       {% if app.status == c.APPROVED %}
       Congratulations, your application has been approved!
-        {% if not app.incomplete_reason and app.is_unpaid %}
+        {% if not app.incomplete_reason and app.amount_unpaid %}
         <br/><br/>
           {% if receipt.pending_total %}
-          You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
-            with pending payments of {{ (receipt.pending_total / 100)|format_currency }}.
-            Please contact us at {{ c.ART_SHOW_EMAIL|email_only|email_to_link }} if this issue persists or if you have any questions.
+            {% if incomplete_txn %}
+              <div class="alert alert-warning">
+                You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
+                with an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.
+                <br/><br/>Click here to complete your payment: {{ stripe_form('finish_pending_payment', app, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}
+              </div>
+            {% else %}
+            You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
+              with pending payments of {{ (receipt.pending_total / 100)|format_currency }}.
+              Please contact us at {{ c.ART_SHOW_EMAIL|email_only|email_to_link }} if this issue persists or if you have any questions.
+            {% endif %}
           {% else %}
           In order to complete your application, please pay {{ app.amount_unpaid|format_currency }} using the button below.
           <br/><br/>

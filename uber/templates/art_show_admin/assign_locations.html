@@ -1,7 +1,9 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Assign Locations{% endblock %}
 {% block content %}
-
+<style type="text/css">
+.invalid-row>td {background-color: #FFE4E1 !important;}
+</style>
 {% block admin_controls %}
 
 <h3>Assign Locations</h3>
@@ -19,14 +21,16 @@
         <th>Location</th>
     </tr></thead>
     {% for app in apps %}
-        <tr>
+        <tr {% if app.amount_unpaid %}class="invalid-row"{% endif %}>
             <td>{{ app.artist_name|default('N/A') }}</td>
             <td style="text-align:left" data-order="{{ app.attendee.full_name }}" data-search="{{ app.attendee.full_name }}"> <a href="form?id={{ app.id }}">{{ app.attendee.full_name|default("?????") }}</a> </td>
             <td>{{ app.panels }}</td>
             <td>{{ app.panels_ad }}</td>
             <td>{{ app.tables }}</td>
             <td>{{ app.tables_ad }}</td>
-            <td><input type="text" class="form-control" name="{{ app.id }}_locations" value="{{ app.locations }}" /></td>
+            <td>
+              <input type="text" class="form-control" name="{{ app.id }}_locations" value="{{ app.locations }}" />
+            </td>
         </tr>
     {% endfor %}
       <caption align="bottom">

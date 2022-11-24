@@ -3,7 +3,7 @@ from uber.models.attendee import AttendeeAccount
 
 import cherrypy
 from datetime import datetime
-from pockets import groupify, listify
+from pockets import groupify
 from six import string_types
 from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import joinedload, raiseload, subqueryload
@@ -13,9 +13,9 @@ from uber.config import c, _config
 from uber.custom_tags import datetime_local_filter, pluralize, format_currency
 from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, ApiJob, Attendee, Group, ModelReceipt, ReceiptItem, ReceiptTransaction
+from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, Group, ModelReceipt, ReceiptItem, ReceiptTransaction
 from uber.site_sections import devtools
-from uber.utils import Charge, check, get_api_service_from_server, normalize_email, TaskUtils
+from uber.utils import Charge, check, get_api_service_from_server, normalize_email, valid_email, TaskUtils
 
 def check_custom_receipt_item_txn(params, is_txn=False):
     if not params.get('amount'):
@@ -39,13 +39,34 @@ def check_custom_receipt_item_txn(params, is_txn=False):
     elif not params.get('desc'):
         return "You must describe the item you are adding or crediting."
 
+
+def assign_account_by_email(session, attendee, account_email):
+    from uber.site_sections.preregistration import set_up_new_account
+
+    account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(account_email)).first()
+    if not account:
+        if c.ONE_MANAGER_PER_BADGE and attendee.managers:
+            # It's too confusing for an admin to move someone to a new account and still see them on their old account
+            # If an admin typoes the new account's email, that's a them problem
+            attendee.managers.clear()
+        set_up_new_account(session, attendee, account_email)
+        session.commit()
+        return "New account made for {} under email {}.".format(attendee.full_name, account_email)
+    else:
+        session.add_attendee_to_account(attendee, account)
+        session.commit()
+        return "{} is now being managed by account {}.".format(attendee.full_name, account_email)
+
 @all_renderable()
 class Root:
     def receipt_items(self, session, id, message=''):
         try:
             model = session.attendee(id)
         except NoResultFound:
-            model = session.group(id)
+            try:
+                model = session.group(id)
+            except NoResultFound:
+                model = session.art_show_application(id)
 
         receipt = session.get_receipt_by_model(model)
 
@@ -56,7 +77,8 @@ class Root:
             
         return {
             'attendee': model if isinstance(model, Attendee) else None,
-            'group': model,
+            'group': model if isinstance(model, Group) else None,
+            'art_show_app': model if isinstance(model, ArtShowApplication) else None,
             'receipt': receipt,
             'other_receipts': other_receipts,
             'closed_receipts': session.query(ModelReceipt).filter(ModelReceipt.owner_id == id,
@@ -252,30 +274,100 @@ class Root:
 
     @site_mappable
     def orphaned_attendees(self, session, message='', **params):
-        from uber.site_sections.preregistration import set_up_new_account
+        attendees = session.query(Attendee).filter(~Attendee.managers.any())
+
+        if not params.get('show_all'):
+            attendees = attendees.filter_by(is_valid=True, is_unassigned=False)
 
         if cherrypy.request.method == 'POST':
-            if 'account_email' not in params:
-                message = "Please enter an account email to assign to this attendee."
-            else:
-                account_email = params.get('account_email').strip()
-                attendee = session.attendee(params.get('id'))
-                account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(account_email)).first()
-                if not attendee:
-                    message = "Attendee not found!"
-                elif not account:
-                    set_up_new_account(session, attendee, account_email)
-                    session.commit()
-                    message = "New account made for {} under email {}.".format(attendee.full_name, account_email)
+            account_email = params.get('account_email').strip()
+            attendee = session.attendee(params.get('id'))
+
+            if not attendee:
+                message = "Attendee not found!"
+            elif not account_email:
+                if 'account_id' in params:
+                    message = "Please enter an email address."
                 else:
-                    session.add_attendee_to_account(session.attendee(params.get('id')), account)
-                    session.commit()
-                    message = "{} is now being managed by account {}.".format(attendee.full_name, account_email)
+                    account_email = attendee.email
+
+            if not message:
+                message = valid_email(account_email)
+            if not message:
+                message = assign_account_by_email(session, attendee, account_email)
+
+            if 'account_id' in params:
+                raise HTTPRedirect('attendee_account_form?id={}&message={}', params.get('account_id'), message)
 
         return {
             'message': message,
-            'attendees': session.query(Attendee).filter(~Attendee.managers.any()).options(raiseload('*')).all(),
+            'attendees': attendees.options(raiseload('*')).all(),
+            'show_all': params.get('show_all', ''),
         }
+
+    def add_multiple_accounts(self, session, **params):
+        attendee_ids = params.get('attendee_ids', '').split(',')
+        account_emails = params.get('account_emails', '').split(',')
+        tuple_list = zip(attendee_ids, account_emails)
+
+        no_attendee = 0
+        invalid_email = 0
+        new_account = 0
+        assigned = 0
+        for id, account_email in tuple_list:
+            attendee = session.attendee(id)
+            if not attendee:
+                no_attendee += 1
+                break
+            elif not account_email:
+                account_email = attendee.email
+            if valid_email(account_email):
+                invalid_email += 1
+                break
+            
+            message = assign_account_by_email(session, attendee, account_email)
+            if 'New account' in message:
+                new_account += 1
+            else:
+                assigned += 1
+
+        messages = []
+        if no_attendee:
+            messages.append("{} attendee(s) could not be found.".format(no_attendee))
+        if invalid_email:
+            messages.append("{} email(s) entered were invalid.".format(invalid_email))
+        if new_account:
+            messages.append("{} new account(s) were created.".format(new_account))
+        if assigned:
+            messages.append("{} attendee(s) were assigned to existing accounts.".format(assigned))
+
+        return  " ".join(messages)
+
+    def add_all_accounts(self, session, show_all='', email_contains='', **params):
+        attendees = session.query(Attendee).filter(~Attendee.managers.any())
+
+        if not show_all:
+            attendees = attendees.filter_by(is_valid=True, is_unassigned=False)
+        if email_contains:
+            attendees = attendees.filter(Attendee.normalized_email.contains(normalize_email(email_contains)))
+        
+        new_account = 0
+        assigned = 0
+
+        for attendee in attendees:
+            message = assign_account_by_email(session, attendee, attendee.email)
+            if 'New account' in message:
+                new_account += 1
+            else:
+                assigned += 1
+        
+        messages = []
+        if new_account:
+            messages.append("{} new account(s) were created.".format(new_account))
+        if assigned:
+            messages.append("{} attendee(s) were assigned to existing accounts.".format(assigned))
+        
+        raise HTTPRedirect('orphaned_attendees?show_all={}&message={}', show_all, ' '.join(messages))
 
     def payment_pending_attendees(self, session):
         possibles = session.possible_match_list()
@@ -323,12 +415,28 @@ class Root:
         for row in rows:
             out.writerow(row)
 
-    def attendee_account_form(self, session, id, message=''):
+    def attendee_account_form(self, session, id, message='', **params):
         account = session.attendee_account(id)
+
+        new_email = params.get('new_account_email', '')
+        if cherrypy.request.method == 'POST' and new_email:
+            if normalize_email(new_email) == normalize_email(account.email):
+                message = "That is already the email address for this account!"
+            else:
+                existing_account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(new_email)).first()
+                if existing_account:
+                    message = "That account already exists. You can instead reassign this account's attendees."
+                else:
+                    message = valid_email(new_email)
+                    if not message:
+                        account.email = new_email
+                        session.add(account)
+                        raise HTTPRedirect('attendee_account_form?id={}&message={}', account.id, "Account email updated!")
 
         return {
             'message': message,
             'account': account,
+            'new_email': new_email,
         }
 
     @site_mappable

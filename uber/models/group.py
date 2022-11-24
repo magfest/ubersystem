@@ -277,7 +277,7 @@ class Group(MagModel, TakesPaymentMixin):
     @property
     def total_cost(self):
         if self.active_receipt:
-            return self.active_receipt['current_amount_owed'] / 100
+            return self.active_receipt['item_total'] / 100
         return self.default_cost + self.amount_extra
 
     @property

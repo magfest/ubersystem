@@ -986,7 +986,7 @@ class Root:
                     'group_id',
                     'badge_type',
                     'badge_num',
-                    'base_badge_price',
+                    'badge_cost',
                     'ribbon',
                     'paid',
                     'overridden_price',

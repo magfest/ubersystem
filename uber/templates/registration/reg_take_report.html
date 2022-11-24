@@ -68,7 +68,6 @@
     <tr class="header">
         <td>Name</td>
         <td>Badge</td>
-        <td>Payment Type</td>
         <td>Payment Amount</td>
         <td>Registered</td>
     </tr>
@@ -76,7 +75,6 @@
         <tr>
             <td><a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
             <td>{{ attendee.badge }}</td>
-            <td>{{ attendee.payment_method_label }}</td>
             <td>{{ (attendee.amount_paid / 100)|format_currency }}</td>
             <td>{{ attendee.registered }}</td>
         </tr>

@@ -197,6 +197,11 @@ class Root:
                             message,
                             '{} {}'.format(attendee.first_name, attendee.last_name) if c.AT_THE_CON else '')
 
+        receipt = session.get_receipt_by_model(attendee)
+        if receipt:
+            for txn in receipt.pending_txns:
+                txn.check_paid_from_stripe()
+
         return {
             'message':    message,
             'attendee':   attendee,
@@ -466,6 +471,11 @@ class Root:
 
     def check_in_form(self, session, id):
         attendee = session.attendee(id)
+        receipt = session.get_receipt_by_model(attendee)
+        if receipt:
+            for txn in receipt.pending_txns:
+                txn.check_paid_from_stripe()
+
         if attendee.paid == c.PAID_BY_GROUP and not attendee.group_id:
             valid_groups = session.query(Group).options(joinedload(Group.leader)).filter(
                 Group.status != c.WAITLISTED,
@@ -555,6 +565,7 @@ class Root:
     def register(self, session, message='', error_message='', **params):
         params['id'] = 'None'
         login_email = None
+        payment_method = int(params.get('payment_method', 0))
 
         if 'kiosk_mode' in params:
             cherrypy.session['kiosk_mode'] = True
@@ -583,9 +594,9 @@ class Root:
                     error_message = check_account(session, account_email, account_password, params.get('confirm_password'))
             
             if not error_message:
-                if not attendee.payment_method and (not c.BADGE_PRICE_WAIVED or c.BEFORE_BADGE_PRICE_WAIVED):
+                if not payment_method and (not c.BADGE_PRICE_WAIVED or c.BEFORE_BADGE_PRICE_WAIVED):
                     error_message = 'Please select a payment type'
-                elif attendee.payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
+                elif payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
                     error_message = 'Email address is required to pay with a credit card at our registration desk'
                 elif attendee.badge_type not in [badge for badge, desc in c.AT_THE_DOOR_BADGE_OPTS]:
                     error_message = 'No hacking allowed!'
@@ -609,11 +620,11 @@ class Root:
                 if c.AFTER_BADGE_PRICE_WAIVED:
                     message = c.AT_DOOR_WAIVED_MSG
                     attendee.paid = c.NEED_NOT_PAY
-                elif attendee.payment_method == c.STRIPE:
+                elif payment_method == c.STRIPE:
                     raise HTTPRedirect('pay?id={}', attendee.id)
-                elif attendee.payment_method == c.CASH:
+                elif payment_method == c.CASH:
                     message = c.AT_DOOR_CASH_MSG.format('${}'.format(attendee.total_cost))
-                elif attendee.payment_method == c.MANUAL:
+                elif payment_method == c.MANUAL:
                     message = c.AT_DOOR_MANUAL_MSG
                 raise HTTPRedirect('register?message={}', message
                                    or "Thanks! Please proceed to the registration desk to pick up your badge.")
@@ -622,6 +633,7 @@ class Root:
             'message':  message,
             'error_message':  error_message,
             'attendee': attendee,
+            'payment_method': payment_method,
             'promo_code': params.get('promo_code', ''),
             'logged_in_account': session.current_attendee_account(),
             'original_location': '../registration/register',
@@ -709,13 +721,12 @@ class Root:
             return {'success': False, 'message': 'Payments can only be taken by at-door stations.'}
         
         attendee = session.attendee(id)
-        receipt = session.get_receipt_by_model(attendee)
+        receipt = session.get_receipt_by_model(attendee, create_if_none=True)
         attendee.paid = c.HAS_PAID
         if int(payment_method) == c.STRIPE_ERROR:
             desc = "Automated message: Stripe payment manually verified by admin."
         else:
             desc = "At-door marked as paid"
-        attendee.payment_method = payment_method
 
         session.add(Charge.create_receipt_transaction(receipt, desc, method=payment_method))
         

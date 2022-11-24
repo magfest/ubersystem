@@ -5,10 +5,31 @@
     <div class="panel-heading">
         <h3 class="panel-title">Attendees Without Accounts</h3>
     </div>
+    <div class="panel-body">
+        <form class="form email-form form-inline" method="post" action="add_all_accounts">
+            <input type="hidden" name="show_all" value="{{ show_all }}" />
+            {{ csrf_token() }}
+            <div class="input-group col-sm-7">
+                <input type="text" class="form-control" name="email_contains" value="{{ email_contains }}" placeholder="Enter a string to limit matched attendees, e.g., furfest.org" />
+                <span class="input-group-btn">
+                    <button type="submit" class="btn btn-primary">
+                    Add Accounts for {% if show_all %}ALL{% else %}All Valid{% endif %} Attendees
+                    </button>
+                </span>
+            </div>
+        </form>
+        <br/>
+        {% if show_all %}
+        <a href="orphaned_attendees" class="btn btn-info pull-left">Hide Invalid and Unassigned Attendees</a>
+        {% else %}
+        <a href="orphaned_attendees?show_all=True" class="btn btn-info pull-left">Show All Attendees</a>
+        {% endif %}
+    </div>
     <div class="table-responsive">
         <table class="table table-striped datatable">
         <thead>
             <tr>
+            <th></th>
             <th>Attendee</th>
             <th>Email</th>
             <th>Badge Type</th>
@@ -19,7 +40,9 @@
         </thead>
         <tbody>
         {% for attendee in attendees %}
-        <tr id="{{ attendee.full_name }}">
+        <tr id="{{ attendee.id }}">
+            <td><input type="checkbox" name="account-row" value="{{ attendee.id }}">
+            </td>
             <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
                 {{ attendee|form_link }}
             </td>
@@ -40,8 +63,8 @@
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
                 {{ csrf_token() }}
                 <div class="row">
-                <div class="input-group col-sm-9">
-                    <input type="email" name="account_email" class="form-control" placeholder="Account Email Address" required />
+                <div class="input-group col-sm-12">
+                    <input type="email" name="account_email" class="form-control" placeholder="{{ attendee.email }}" />
                     <span class="input-group-btn">
                         <button type="submit" class="btn btn-primary">
                             <span class="glyphicon glyphicon-plus"></span> Add Account
@@ -56,5 +79,26 @@
         </tbody>
         </table>
     </div>
+    <div class="panel-footer">
+        <button class="btn btn-primary" onClick="addMultipleAccounts()">Add Selected Accounts</button>
+    </div>
 </div>
+<script type="text/javascript">
+    var addMultipleAccounts = function() {
+        var attendee_ids = [];
+        var account_emails = [];
+        $('[name="account-row"]:checked').each(function () { 
+            var attendee_id = $(this).val();
+            account_emails.push($('#' + attendee_id).find('input[name="account_email"]').val());
+            attendee_ids.push(attendee_id);
+        });
+        console.log(attendee_ids);
+        $.post('add_multiple_accounts', {attendee_ids: attendee_ids.join(), 
+                                         account_emails: account_emails.join(),
+                                         csrf_token: csrf_token}, function(s) {
+            var sep = location.href.indexOf('?') === -1 ? '?' : '&';
+            location.href += sep + 'message=' + encodeURIComponent(s);
+        });
+    }
+</script>
 {% endblock %}
