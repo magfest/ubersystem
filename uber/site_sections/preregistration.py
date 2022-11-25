@@ -585,7 +585,7 @@ class Root:
             
             if not message:
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
-                    account_email, account_password = params.get('account_email'), params.get('account_password')
+                    account_email, account_password = params.get('account_email', ''), params.get('account_password', '')
                     message = check_account(session, account_email, account_password, params.get('confirm_password'))
                     if message:
                         return {'error': message}
@@ -1223,7 +1223,7 @@ class Root:
             receipt = session.get_receipt_by_model(attendee)
             total_refunded = 0
             for txn in receipt.receipt_txns:
-                if not txn.refund_id and txn.stripe_id:
+                if txn.stripe_id:
                     response = session.process_refund(txn)
                     if response:
                         if isinstance(response, string_types):
@@ -1294,7 +1294,7 @@ class Root:
         attendees_who_owe_money = {}
         for attendee in account.attendees:
             receipt = session.get_receipt_by_model(attendee)
-            if receipt and receipt.current_amount_owed:
+            if receipt and receipt.current_amount_owed and attendee.is_valid:
                 attendees_who_owe_money[attendee.full_name] = receipt.current_amount_owed
 
         if not account:
@@ -1382,7 +1382,7 @@ class Root:
             'affiliates':    session.affiliates(),
             'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
             'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
-            'receipt':       session.get_receipt_by_model(attendee),
+            'receipt':       session.get_receipt_by_model(attendee) if attendee.is_valid else None,
             'incomplete_txn':  last_incomplete_txn,
             'attendee_group_discount': (group_credit[1] / 100) if group_credit else 0,
         }
