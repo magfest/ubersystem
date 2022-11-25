@@ -196,6 +196,16 @@ class ReceiptTransaction(MagModel):
             
         return min(self.amount, sum([item.total_amount for item in self.receipt.receipt_items if item.added <= self.added]))
 
+    def update_amount_refunded(self):
+        if not self.intent_id:
+            return
+        
+        refunded_total = 0
+        for refund in stripe.Refund.list(payment_intent=self.intent_id):
+            refunded_total += refund.amount
+        
+        self.refunded = refunded_total
+
     @property
     def is_pending_charge(self):
         return self.intent_id and not self.charge_id and not self.cancelled
@@ -203,19 +213,22 @@ class ReceiptTransaction(MagModel):
     @property
     def stripe_id(self):
         # Return the most relevant Stripe ID for admins
-        return self.refund_id or self.charge_id or self.intent_id
+        return self.charge_id or self.intent_id
 
     def get_stripe_intent(self):
+        if not self.stripe_id:
+            return
+
         try:
             return stripe.PaymentIntent.retrieve(self.intent_id)
         except Exception as e:
             log.error(e)
-    
+
     def check_paid_from_stripe(self):
         if self.charge_id:
             return
 
-        intent = stripe.PaymentIntent.retrieve(self.intent_id)
+        intent = self.get_stripe_intent()
         if intent and intent.charges:
             return Charge.mark_paid_from_intent_id(self.intent_id, intent.charges.data[0].id)
 

@@ -899,7 +899,7 @@ class Session(SessionManager):
                 job.to_dict(fields)
                 for job in jobs if (job.required_roles or frozenset(job.minutes) not in restricted_minutes)]
 
-        def process_refund(self, txn):
+        def process_refund(self, txn, amount=0):
             """
             Attempts to refund a given Stripe transaction
             Returns either an error message, a Stripe Refund() object, or None if the transaction had no successful charges
@@ -907,25 +907,19 @@ class Session(SessionManager):
             import stripe
             from pockets.autolog import log
 
-            if txn.refund_id:
-                return 'This charge has already been refunded'
-            if not txn.charge_id and not txn.intent_id:
+            if not txn.stripe_id:
                 return 'Cannot refund a transaction without a Stripe ID'
 
+            txn.update_amount_refunded()
+
+            refund_amount = int(amount or txn.amount - txn.refunded)
+
             log.debug('REFUND: attempting to refund Stripe transaction with ID {} {} cents for {}',
-                      txn.stripe_id, txn.receipt_share, txn.desc)
+                      txn.stripe_id, refund_amount, txn.desc)
 
             try:
-                if txn.charge_id:
-                    response = stripe.Refund.create(charge=txn.charge_id, amount=txn.amount, reason='requested_by_customer')
-                else:
-                    payment_intent = stripe.PaymentIntent.retrieve(txn.intent_id)
-                    if not payment_intent.charges:
-                        # Nothing to refund
-                        return
-                    for charge in payment_intent.charges:
-                        response = stripe.Refund.create(
-                                    charge=charge.id, amount=txn.receipt_share, reason='requested_by_customer')
+                response = stripe.Refund.create(
+                            payment_intent=txn.intent_id, amount=refund_amount, reason='requested_by_customer')
             except Exception as e:
                 error_txt = 'Error while calling process_refund' \
                             '(self, stripeID={!r})'.format(txn.stripe_id)
@@ -937,13 +931,11 @@ class Session(SessionManager):
                 self.add(ReceiptTransaction(
                     receipt_id=txn.receipt.id,
                     refund_id=response.id,
-                    amount=txn.amount * -1,
+                    amount=refund_amount * -1,
                     desc="Automatic refund of Stripe transaction " + txn.stripe_id,
                     who=uber.models.AdminAccount.admin_name() or 'non-admin'
                 ))
 
-                # Also add refund ID to the original transaction to help us track things
-                txn.refund_id = response.id
                 self.add(txn)
                 return response
 
