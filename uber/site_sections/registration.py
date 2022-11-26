@@ -126,6 +126,11 @@ class Root:
 
     @log_pageview
     def form(self, session, message='', return_to='', **params):
+        if cherrypy.request.method == 'POST':
+            message = session.auto_update_receipt(session.attendee(params.get('id')), params)
+            if message:
+                log.error("Error while auto-updating attendee receipt: {}".format(message))
+
         attendee = session.attendee(
             params, checkgroups=Attendee.all_checkgroups, bools=Attendee.all_bools, allow_invalid=True)
 
@@ -1040,7 +1045,7 @@ class Root:
                                                                 last_name=attendee.last_name,
                                                                 email=attendee.email).count():
                 message = 'An attendee with this name and email address already exists.'
-        
+
         if not message:
             if 'group_opt' in params:
                 attendee.group_id = params.get('group_opt') or None
@@ -1056,6 +1061,9 @@ class Root:
 
         if not message:
             message = check(attendee)
+
+        if not message:
+            message = session.auto_update_receipt(attendee, params)
 
         if not message:
             success = True

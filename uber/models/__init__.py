@@ -899,6 +899,31 @@ class Session(SessionManager):
                 job.to_dict(fields)
                 for job in jobs if (job.required_roles or frozenset(job.minutes) not in restricted_minutes)]
 
+        def auto_update_receipt(self, model, params):
+            receipt = self.get_receipt_by_model(model)
+            if not receipt:
+                return
+            
+            cost_changes = getattr(model.__class__, 'cost_changes', [])
+            credit_changes = getattr(model.__class__, 'credit_changes', [])
+            for param in params:
+                if param in credit_changes:
+                    try:
+                        receipt_item = Charge.process_receipt_credit_change(model, param, receipt=receipt, new_val=params[param])
+                        if receipt_item.amount != 0:
+                            self.add(receipt_item)
+                    except Exception as e:
+                        self.rollback()
+                        return str(e)
+                elif param in cost_changes:
+                    try:
+                        receipt_item = Charge.process_receipt_upgrade_item(model, param, receipt=receipt, new_val=params[param])
+                        if receipt_item.amount != 0:
+                            self.add(receipt_item)
+                    except Exception as e:
+                        self.rollback()
+                        return str(e)
+
         def process_refund(self, txn, amount=0):
             """
             Attempts to refund a given Stripe transaction

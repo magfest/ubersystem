@@ -53,7 +53,7 @@ Attendee.cost_changes = {
 Attendee.credit_changes = {
     'paid': ('Badge Comp', "calc_badge_comp_change"),
     'birthdate': ('Age Discount', "calc_age_discount_change"),
-    'promo_code': ('Promo Code'), # TODO
+    #'promo_code': ('Promo Code'), TODO
 }
 
 @cost_calculation.Attendee

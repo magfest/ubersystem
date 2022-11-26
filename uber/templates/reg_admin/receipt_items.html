@@ -427,7 +427,7 @@
     {% if not receipt.closed %}
     <tr id="{{ receipt.id }}">
       <td colspan="7">
-        <div class="btn-group pull-right" role="group" aria-label="...">
+        <div class="btn-group pull-right" role="group">
           <button class="btn btn-default">Add:</button>
           <button class="btn btn-primary" onClick="showForm('{{ receipt.id }}', '-purchase-form')">Purchase</button>
           <button class="btn btn-success" onClick="showForm('{{ receipt.id }}', '-credit-form')">Credit</button>

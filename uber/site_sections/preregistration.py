@@ -1331,6 +1331,11 @@ class Root:
     @requires_account(Attendee)
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
+        if cherrypy.request.method == 'POST':
+            message = session.auto_update_receipt(session.attendee(params.get('id')), params)
+            if message:
+                log.error("Error while auto-updating attendee receipt: {}".format(message))
+
         # Safe to ignore csrf tokens here, because an attacker would need to know the attendee id a priori
         attendee = session.attendee(params, restricted=True, ignore_csrf=True)
 
@@ -1411,15 +1416,9 @@ class Root:
         if receipt.open_receipt_items and receipt.current_amount_owed:
             return {'error': "You already have an outstanding balance, please pay for your current items or contact registration"}
 
-        for param in params:
-            if param in Attendee.cost_changes:
-                try:
-                    receipt_item = Charge.process_receipt_upgrade_item(attendee, param, receipt=receipt, new_val=params[param])
-                    if receipt_item.amount != 0 and (not receipt.open_receipt_items or receipt.current_amount_owed == 0):
-                        session.add(receipt_item)
-                except Exception as e:
-                    session.rollback()
-                    return {'error': str(e)}
+        message = session.auto_update_receipt(attendee, params)
+        if message:
+            return {'error': message}
 
         attendee.apply(params, ignore_csrf=True, restricted=False)
         message = check(attendee)
