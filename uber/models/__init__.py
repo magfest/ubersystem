@@ -899,30 +899,59 @@ class Session(SessionManager):
                 job.to_dict(fields)
                 for job in jobs if (job.required_roles or frozenset(job.minutes) not in restricted_minutes)]
 
+        def update_receipt_item_from_param(self, model, receipt, param_name, params, func_name='process_receipt_upgrade_item'):
+            charge_func = getattr(Charge, func_name)
+            try:
+                receipt_item = charge_func(model, param_name, receipt=receipt, new_val=params[param_name])
+                if receipt_item.amount != 0:
+                    self.add(receipt_item)
+            except Exception as e:
+                self.rollback()
+                log.error(str(e))
+
         def auto_update_receipt(self, model, params):
+            params = params.copy()
             receipt = self.get_receipt_by_model(model)
             if not receipt:
                 return
+
+            if params.get('no_override') and params.get('overridden_price') or params.get('overridden_price') == '':
+                params['overridden_price'] = None
+
+            model_overridden_price = getattr(model, 'overridden_price', None)
+            model_auto_recalc = getattr(model, 'auto_recalc', True)
+            overridden_unset = model_overridden_price and not params.get('overridden_price')
+            auto_recalc_unset = not model_auto_recalc and params.get('auto_recalc', None)
+
+            if (model_overridden_price and not overridden_unset) or (not model_auto_recalc and not auto_recalc_unset):
+                return
+
+            if params.get('overridden_price'):
+                return self.update_receipt_item_from_param(model, receipt, 'overridden_price', params)
+            
+            if not params.get('auto_recalc', True):
+                return self.update_receipt_item_from_param(model, receipt, 'cost', params)
+            else:
+                params.pop('cost', None)
+            
+            if params.get('power_fee', None) != None and c.POWER_PRICES.get(int(params.get('power'), 0), None) == None:
+                error = self.update_receipt_item_from_param(model, receipt, 'power_fee', params)
+                if error:
+                    return error
+                params.pop('power')
+                params.pop('power_fee')
             
             cost_changes = getattr(model.__class__, 'cost_changes', [])
             credit_changes = getattr(model.__class__, 'credit_changes', [])
             for param in params:
                 if param in credit_changes:
-                    try:
-                        receipt_item = Charge.process_receipt_credit_change(model, param, receipt=receipt, new_val=params[param])
-                        if receipt_item.amount != 0:
-                            self.add(receipt_item)
-                    except Exception as e:
-                        self.rollback()
-                        return str(e)
+                    error = self.update_receipt_item_from_param(model, receipt, param, params, 'process_receipt_credit_change')
+                    if error:
+                        return error
                 elif param in cost_changes:
-                    try:
-                        receipt_item = Charge.process_receipt_upgrade_item(model, param, receipt=receipt, new_val=params[param])
-                        if receipt_item.amount != 0:
-                            self.add(receipt_item)
-                    except Exception as e:
-                        self.rollback()
-                        return str(e)
+                    error = self.update_receipt_item_from_param(model, receipt, param, params)
+                    if error:
+                        return error
 
         def process_refund(self, txn, amount=0):
             """

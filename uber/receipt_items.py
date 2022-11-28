@@ -8,7 +8,7 @@ from collections import defaultdict
 
 from uber.config import c
 from uber.decorators import cost_calculation, credit_calculation
-from uber.models import Attendee
+from uber.models import Attendee, ArtShowApplication, Group
 
 
 @cost_calculation.MarketplaceApplication
@@ -16,6 +16,14 @@ def app_cost(app):
     if app.status == c.APPROVED:
         return ("Marketplace Application Fee", app.overridden_price * 100 or c.MARKETPLACE_FEE * 100 or 0)
 
+
+ArtShowApplication.cost_changes = {
+    'overridden_price': ('Custom App Price', "calc_app_price_change"),
+    'panels': ('General Panels', "calc_app_price_change"),
+    'panels_ad': ('Mature Panels', "calc_app_price_change"),
+    'tables': ('General Tables', "calc_app_price_change"),
+    'tables_ad': ('Mature Tables', "calc_app_price_change"),
+}
 
 @cost_calculation.ArtShowApplication
 def overridden_app_cost(app):
@@ -105,6 +113,12 @@ def group_discount(attendee):
                 attendee.promo_code_groups or attendee.group):
         return ("Group Discount", c.GROUP_DISCOUNT * 100 * -1)
 
+
+Group.cost_changes = {
+    'cost': ('Custom Group Price', "calc_group_price_change"),
+    'tables': ('Tables', "calc_group_price_change"),
+    'badges': ('Badges', "calc_group_price_change"),
+}
 
 @cost_calculation.Group
 def table_cost(group):

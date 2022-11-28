@@ -1185,7 +1185,7 @@ class Charge:
         except Exception:
             pass # It's fine if this is not a number
 
-        if isinstance(model.__table__.columns.get(col_name).type, Choice):
+        if col_name != 'badges' and isinstance(model.__table__.columns.get(col_name).type, Choice):
             increase_term, decrease_term = "Upgrading", "Downgrading"
         else:
             increase_term, decrease_term = "Increasing", "Decreasing"
@@ -1216,13 +1216,18 @@ class Charge:
         else:
             cost_desc = "{} {}".format(decrease_term, cost_change_name)
 
+        if col_name == 'tables':
+            old_val = int(getattr(model, col_name))
+        else:
+            old_val = getattr(model, col_name)
+
         if receipt:
             return ReceiptItem(receipt_id=receipt.id,
                                 desc=cost_desc,
                                 amount=cost_change,
                                 count=count,
                                 who=AdminAccount.admin_name() or 'non-admin',
-                                revert_change={col_name: getattr(model, col_name)},
+                                revert_change={col_name: old_val},
                             )
         else:
             return (cost_desc, cost_change, count)

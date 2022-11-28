@@ -29,6 +29,8 @@ class Root:
         if new_app and 'attendee_id' in params:
             app = session.art_show_application(params, ignore_csrf=True, bools=['us_only'])
         else:
+            if cherrypy.request.method == 'POST':
+                message = session.auto_update_receipt(session.art_show_application(params.get('id')), params)
             app = session.art_show_application(params, bools=['us_only'])
         attendee = None
         app_paid = 0 if new_app else app.amount_paid
@@ -43,10 +45,11 @@ class Root:
         if cherrypy.request.method == 'POST':
             if new_app:
                 attendee, message = \
-                    session.attendee_from_art_show_app( **params)
+                    session.attendee_from_art_show_app(**params)
             else:
                 attendee = app.attendee
             message = message or check(app)
+
             if not message:
                 if attendee:
                     if params.get('badge_status', ''):

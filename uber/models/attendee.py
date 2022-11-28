@@ -911,7 +911,10 @@ class Attendee(MagModel, TakesPaymentMixin):
         preview_attendee = Attendee(**self.to_dict())
         new_cost = None
         if 'overridden_price' in kwargs:
-            preview_attendee.overridden_price = int(kwargs['overridden_price'])
+            try:
+                preview_attendee.overridden_price = int(kwargs['overridden_price'])
+            except TypeError:
+                preview_attendee.overridden_price = kwargs['overridden_price']
         if 'badge_type' in kwargs:
             preview_attendee.badge_type = int(kwargs['badge_type'])
             new_cost = preview_attendee.calculate_badge_prices_cost(self.badge_type) * 100
