@@ -639,8 +639,11 @@ class Root:
                     message = c.AT_DOOR_CASH_MSG.format('${}'.format(attendee.total_cost))
                 elif payment_method == c.MANUAL:
                     message = c.AT_DOOR_MANUAL_MSG
-                raise HTTPRedirect('register?message={}', message
-                                   or "Thanks! Please proceed to the registration desk to pick up your badge.")
+                message = message or "Thanks! Please proceed to the registration desk to pick up your badge."
+                if in_kiosk_mode:
+                    raise HTTPRedirect('register?message={}', message)
+                else:
+                    raise HTTPRedirect('at_door_complete?id={}&message={}', attendee.id, message)
 
         return {
             'message':  message,
@@ -653,14 +656,25 @@ class Root:
             'kiosk_mode': in_kiosk_mode,
             'logging_in': bool(login_email),
         }
+    
+    @public
+    @check_atd
+    def at_door_complete(self, session, id, message=''):
+        attendee = session.attendee(id)
+        return {
+            'confirm_message': message,
+            'attendee': attendee,
+        }
 
     @public
     @check_atd
     def pay(self, session, id, message=''):
         attendee = session.attendee(id)
         if not attendee.amount_unpaid:
-            raise HTTPRedirect(
-                'register?message={}', c.AT_DOOR_NOPAY_MSG)
+            if cherrypy.session.get('kiosk_mode'):
+                raise HTTPRedirect('register?message={}', c.AT_DOOR_NOPAY_MSG)
+            else:
+                raise HTTPRedirect('at_door_complete?id={}&message={}', attendee.id, c.AT_DOOR_NOPAY_MSG)
         else:
             return {
                 'message': message,
@@ -682,8 +696,12 @@ class Root:
             return {'error': stripe_intent}
         
         session.commit()
+        if cherrypy.session.get('kiosk_mode'):
+            success_url = 'register?message={}'.format(c.AT_DOOR_PREPAID_MSG)
+        else:
+            success_url = 'at_door_complete?id={}&message={}'.format(attendee.id, c.AT_DOOR_PREPAID_MSG)
         return {'stripe_intent': stripe_intent,
-                'success_url': 'register?message={}'.format(c.AT_DOOR_PREPAID_MSG)}
+                'success_url': success_url}
 
     def comments(self, session, order='last_name'):
         return {
