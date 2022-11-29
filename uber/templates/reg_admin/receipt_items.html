@@ -409,7 +409,7 @@
               </button>
             {% endif %}
           {% elif item.charge_id and amount_left and not receipt.closed %}
-            <button class="btn btn-sm btn-success" onClick="refundTxn('{{ item.id }}', '{{ (amount_left / 100)|format_currency }}')">Refund Transaction</button>
+            <button class="btn btn-sm btn-warning" onClick="refundTxn('{{ item.id }}', '{{ (amount_left / 100)|format_currency }}')">Refund Transaction</button>
             <span id="amt-refunded">{% if item.refunded %} ({{ (item.refunded / 100)|format_currency }} refunded){% endif %}</span>
           {% endif %}
         </td>
