@@ -1764,7 +1764,7 @@ $(window).on("runJavaScript", function(){
       {% else %}
         <select name="payment_method" class="form-control" onChange="maybeBold()">
           <option value="">Select a payment option</option>
-          {{ options(c.DOOR_PAYMENT_METHOD_OPTS,payment_method) }}
+          {{ options(c.DOOR_PAYMENT_METHOD_OPTS, payment_method_val) }}
         </select>
         {% if c.CHILD_BADGE in c.PREREG_BADGE_TYPES %}
         <div class="form-group">
