@@ -145,10 +145,6 @@ def set_cost(group):
         return ("Custom fee for group {}".format(group.name), group.cost * 100)
 
 
-@cost_calculation.PrintJob
-def badge_reprint_fee_cost(job):
-    return ("Badge reprint fee", job.print_fee * 100) if job.print_fee else None
-
 @cost_calculation.Attendee
 def promo_code_group_cost(attendee):
     cost_table = defaultdict(int)
