@@ -570,7 +570,9 @@ class Root:
     def register(self, session, message='', error_message='', **params):
         params['id'] = 'None'
         login_email = None
-        payment_method = int(params.get('payment_method', 0))
+        payment_method = params.get('payment_method')
+        if payment_method:
+            payment_method = int(payment_method)
 
         if 'kiosk_mode' in params:
             cherrypy.session['kiosk_mode'] = True
@@ -638,7 +640,7 @@ class Root:
             'message':  message,
             'error_message':  error_message,
             'attendee': attendee,
-            'payment_method': payment_method,
+            'payment_method_val': payment_method,
             'promo_code': params.get('promo_code', ''),
             'logged_in_account': session.current_attendee_account(),
             'original_location': '../registration/register',
