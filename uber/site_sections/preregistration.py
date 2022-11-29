@@ -943,8 +943,10 @@ class Root:
                 txns_marked_paid = txn.check_paid_from_stripe()
                 if not txns_marked_paid:
                     last_incomplete_txn = txn
+            session.refresh(receipt)
 
-            session.commit()
+        session.refresh(group)
+
         return {
             'group':   group,
             'account': session.get_attendee_account_by_attendee(group.leader),
@@ -1375,8 +1377,9 @@ class Root:
                 txns_marked_paid = txn.check_paid_from_stripe()
                 if not txns_marked_paid:
                     last_incomplete_txn = txn
+            session.refresh(receipt)
 
-            session.commit()
+        session.refresh(attendee)
 
         return {
             'undoing_extra': undoing_extra,

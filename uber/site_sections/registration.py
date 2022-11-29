@@ -206,6 +206,9 @@ class Root:
         if receipt:
             for txn in receipt.pending_txns:
                 txn.check_paid_from_stripe()
+            session.refresh(receipt)
+
+        session.refresh(attendee)
 
         return {
             'message':    message,
@@ -480,6 +483,9 @@ class Root:
         if receipt:
             for txn in receipt.pending_txns:
                 txn.check_paid_from_stripe()
+            session.refresh(receipt)
+
+        session.refresh(attendee)
 
         if attendee.paid == c.PAID_BY_GROUP and not attendee.group_id:
             valid_groups = session.query(Group).options(joinedload(Group.leader)).filter(
