@@ -143,6 +143,26 @@ class ArtShowApplication(MagModel):
         else:
             return self.default_cost or 0
 
+    def calc_app_price_change(self, **kwargs):
+        preview_app = ArtShowApplication(**self.to_dict())
+        current_cost = int(self.potential_cost * 100)
+
+        if 'overridden_price' in kwargs:
+            try:
+                preview_app.overridden_price = int(kwargs['overridden_price'])
+            except TypeError:
+                preview_app.overridden_price = kwargs['overridden_price']
+        if 'panels' in kwargs:
+            preview_app.panels = int(kwargs['panels'])
+        if 'panels_ad' in kwargs:
+            preview_app.panels_ad = int(kwargs['panels_ad'])
+        if 'tables' in kwargs:
+            preview_app.tables = int(kwargs['tables'])
+        if 'tables_ad' in kwargs:
+            preview_app.tables_ad = int(kwargs['tables_ad'])
+
+        return current_cost, int(preview_app.potential_cost * 100) - current_cost
+
     @property
     def email(self):
         return self.attendee.email

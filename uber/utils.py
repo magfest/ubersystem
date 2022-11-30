@@ -1130,6 +1130,42 @@ class Charge:
         return (model_dict[col_name] * 100, (int(new_val) - model_dict[col_name]) * 100)
 
     @classmethod
+    def process_receipt_credit_change(cls, model, col_name, new_val, receipt=None):
+        from uber.models import AdminAccount, ReceiptItem
+
+        credit_change_tuple = model.credit_changes.get(col_name)
+        if credit_change_tuple:
+            credit_change_name = credit_change_tuple[0]
+            credit_change_func = credit_change_tuple[1]
+
+            change_func = getattr(model, credit_change_func)
+            old_discount, discount_change = change_func(**{col_name: new_val})
+            log.debug(old_discount)
+            log.debug(discount_change)
+            if old_discount >= 0 and discount_change < 0:
+                verb = "Added"
+            elif old_discount < 0 and discount_change >= 0 and old_discount == discount_change * -1:
+                verb = "Removed"
+            else:
+                verb = "Changed"
+            discount_desc = "{} {}".format(credit_change_name, verb)
+            
+            if col_name == 'birthdate':
+                old_val = datetime.strftime(getattr(model, col_name), c.TIMESTAMP_FORMAT)
+            else:
+                old_val = getattr(model, col_name)
+
+            if receipt:
+                return ReceiptItem(receipt_id=receipt.id,
+                                   desc=discount_desc,
+                                   amount=discount_change,
+                                   who=AdminAccount.admin_name() or 'non-admin',
+                                   revert_change={col_name: old_val},
+                                )
+            else:
+                return (discount_desc, discount_change)
+
+    @classmethod
     def process_receipt_upgrade_item(cls, model, col_name, new_val, receipt=None, count=1):
         """
         Finds the cost of a receipt item to add to an existing receipt.
@@ -1149,7 +1185,7 @@ class Charge:
         except Exception:
             pass # It's fine if this is not a number
 
-        if isinstance(model.__table__.columns.get(col_name).type, Choice):
+        if col_name != 'badges' and isinstance(model.__table__.columns.get(col_name).type, Choice):
             increase_term, decrease_term = "Upgrading", "Downgrading"
         else:
             increase_term, decrease_term = "Increasing", "Decreasing"
@@ -1180,13 +1216,18 @@ class Charge:
         else:
             cost_desc = "{} {}".format(decrease_term, cost_change_name)
 
+        if col_name == 'tables':
+            old_val = int(getattr(model, col_name))
+        else:
+            old_val = getattr(model, col_name)
+
         if receipt:
             return ReceiptItem(receipt_id=receipt.id,
                                 desc=cost_desc,
                                 amount=cost_change,
                                 count=count,
                                 who=AdminAccount.admin_name() or 'non-admin',
-                                revert_change={col_name: getattr(model, col_name)},
+                                revert_change={col_name: old_val},
                             )
         else:
             return (cost_desc, cost_change, count)

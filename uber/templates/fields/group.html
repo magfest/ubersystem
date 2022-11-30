@@ -120,7 +120,7 @@
 
 
 {% set group_name %}
-{% set read_only = group_name_ro or page_ro %}
+{% set read_only = (group_name_ro or page_ro) and not (group.status == c.APPROVED and 'name' in c.APPROVED_DEALER_EDITABLE_FIELDS) %}
 <div class="group_fields">
   <div class="form-group">
     <label for="name" class="col-sm-3 control-label">{{ "Table" if attendee_or_group.is_dealer else "Group" }} Name</label>
@@ -224,7 +224,7 @@
 
 
 {% set categories %}
-{% set read_only = categories_ro or page_ro %}
+{% set read_only = (categories_ro or page_ro) and not (group.status == c.APPROVED and 'categories' in c.APPROVED_DEALER_EDITABLE_FIELDS) %}
 <div class="form-group">
   <label for="categories" class="col-sm-3 control-label">What kinds of things do you sell?</label>
   {% call macros.read_only_if(read_only, 
@@ -254,7 +254,7 @@
 
 
 {% set wares %}
-{% set read_only = wares_ro or page_ro %}
+{% set read_only = (wares_ro or page_ro) and not (group.status == c.APPROVED and 'wares' in c.APPROVED_DEALER_EDITABLE_FIELDS) %}
 <div class="form-group">
   <label for="wares" class="col-sm-3 control-label">What do you sell?</label>
   {% call macros.read_only_if(read_only, group.wares, check_dealer_editable=(group, 'wares')) %}
@@ -270,7 +270,7 @@
 
 
 {% set description %}
-{% set read_only = description_ro or page_ro %}
+{% set read_only = (description_ro or page_ro) and not (group.status == c.APPROVED and 'description' in c.APPROVED_DEALER_EDITABLE_FIELDS) %}
 <div class="form-group">
   <label for="description" class="col-sm-3 control-label">Description</label>
   {% call macros.read_only_if(read_only, group.description, check_dealer_editable=(group, 'description')) %}
@@ -286,7 +286,7 @@
 
 
 {% set special_needs %}
-{% set read_only = special_needs_ro or page_ro %}
+{% set read_only = (special_needs_ro or page_ro) and not (group.status == c.APPROVED and 'special_needs' in c.APPROVED_DEALER_EDITABLE_FIELDS) %}
 <div class="form-group">
   <label for="special_needs" class="col-sm-3 control-label optional-field">Table Requests and Special Requests</label>
   {% call macros.read_only_if(read_only, group.special_needs, check_dealer_editable=(group, 'special_needs')) %}
@@ -302,7 +302,7 @@
 
 
 {% set website %}
-{% set read_only = website_ro or page_ro %}
+{% set read_only = (website_ro or page_ro) and not (group.status == c.APPROVED and 'website' in c.APPROVED_DEALER_EDITABLE_FIELDS) %}
 <div class="form-group">
   <label for="website" class="col-sm-3 control-label">Website URL</label>
   {% call macros.read_only_if(read_only, group.website, check_dealer_editable=(group, 'website')) %}
@@ -318,7 +318,7 @@
 
 
 {% set address %}
-{% set read_only = group_address_ro or page_ro %}
+{% set read_only = (group_address_ro or page_ro) and not (group.status == c.APPROVED and 'address' in c.APPROVED_DEALER_EDITABLE_FIELDS) %}
 {% set required = not admin_area %}
 {% set prefix = '' if 'group_admin' in c.PAGE_PATH else 'group_' %}
 {% if not read_only %}

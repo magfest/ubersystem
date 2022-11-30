@@ -139,8 +139,7 @@ def notify_admins_of_pending_emails():
 
         return groupify(pending_emails, 'sender', 'ident')
 
-
-@celery.schedule(timedelta(minutes=5))
+@celery.schedule(timedelta(minutes=5 if c.DEV_BOX else 15))
 def send_automated_emails():
     """
     Send any automated emails that are currently active, and have been approved
@@ -157,7 +156,11 @@ def send_automated_emails():
             .options(joinedload(AutomatedEmail.emails)).all()
 
         for automated_email in active_automated_emails:
+            automated_email.currently_sending = True
+            session.add(automated_email)
+            session.commit()
             automated_email.unapproved_count = 0
+
         automated_emails_by_model = groupify(active_automated_emails, 'model')
 
         for model, query_func in AutomatedEmailFixture.queries.items():
@@ -171,6 +174,11 @@ def send_automated_emails():
                                 automated_email.send_to(model_instance, delay=False)
                             else:
                                 automated_email.unapproved_count += 1
+        
+        for automated_email in active_automated_emails:
+            automated_email.currently_sending = False
+            session.add(automated_email)
+            session.commit()
 
         return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
 
