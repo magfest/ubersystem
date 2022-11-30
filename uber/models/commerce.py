@@ -175,7 +175,7 @@ class ModelReceipt(MagModel):
 
     @property
     def last_incomplete_txn(self):
-        return sorted(self.pending_txns, key=lambda t: t.added, reverse=True)[:-1][0]
+        return sorted(self.pending_txns, key=lambda t: t.added, reverse=True)[0] if self.pending_txns else None
 
 
 class ReceiptTransaction(MagModel):
