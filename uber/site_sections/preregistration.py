@@ -1001,7 +1001,7 @@ class Root:
 
                 attendee.apply(params, restricted=True)
 
-                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                if c.ATTENDEE_ACCOUNTS_ENABLED and session.current_attendee_account():
                     session.add_attendee_to_account(attendee, session.current_attendee_account())
 
                 # Free group badges are considered 'registered' when they are actually claimed.
@@ -1316,7 +1316,7 @@ class Root:
             message = "Something went wrong. Please try again."
         if not attendee.email:
             message = "This attendee needs an email address to set up a new account."
-        if normalize_email(attendee.email) == session.current_attendee_account().normalized_email:
+        if session.current_attendee_account() and normalize_email(attendee.email) == session.current_attendee_account().normalized_email:
             message = "You cannot grant an account to someone with the same email address as your account."
         if not message:
             set_up_new_account(session, attendee)
