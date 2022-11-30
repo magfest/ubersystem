@@ -936,16 +936,7 @@ class Root:
 
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
 
-        last_incomplete_txn = None
-        receipt = session.get_receipt_by_model(group)
-        if receipt:
-            for txn in receipt.pending_txns:
-                txns_marked_paid = txn.check_paid_from_stripe()
-                if not txns_marked_paid:
-                    last_incomplete_txn = txn
-            session.refresh(receipt)
-
-        session.refresh(group)
+        receipt = session.refresh_receipt_and_model(group)
 
         return {
             'group':   group,
@@ -955,7 +946,7 @@ class Root:
             'signnow_document': signnow_document,
             'signnow_link': signnow_link,
             'receipt': receipt,
-            'incomplete_txn': last_incomplete_txn,
+            'incomplete_txn': receipt.last_incomplete_txn,
             'message': message
         }
 
@@ -1371,15 +1362,7 @@ class Root:
 
         group_credit = receipt_items.credit_calculation.items['Attendee']['group_discount'](attendee)
 
-        last_incomplete_txn = None
-        if receipt:
-            for txn in receipt.pending_txns:
-                txns_marked_paid = txn.check_paid_from_stripe()
-                if not txns_marked_paid:
-                    last_incomplete_txn = txn
-            session.refresh(receipt)
-
-        session.refresh(attendee)
+        session.refresh_receipt_and_model(attendee)
 
         return {
             'undoing_extra': undoing_extra,
@@ -1391,7 +1374,7 @@ class Root:
             'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
             'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
             'receipt':       session.get_receipt_by_model(attendee) if attendee.is_valid else None,
-            'incomplete_txn':  last_incomplete_txn,
+            'incomplete_txn':  receipt.last_incomplete_txn,
             'attendee_group_discount': (group_credit[1] / 100) if group_credit else 0,
         }
         

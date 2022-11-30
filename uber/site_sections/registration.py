@@ -202,13 +202,7 @@ class Root:
                             message,
                             '{} {}'.format(attendee.first_name, attendee.last_name) if c.AT_THE_CON else '')
 
-        receipt = session.get_receipt_by_model(attendee)
-        if receipt:
-            for txn in receipt.pending_txns:
-                txn.check_paid_from_stripe()
-            session.refresh(receipt)
-
-        session.refresh(attendee)
+        receipt = session.refresh_receipt_and_model(attendee)
 
         return {
             'message':    message,
@@ -224,7 +218,7 @@ class Root:
             'reg_station': cherrypy.session.get('reg_station', ''),
             'printer_default_id': cherrypy.session.get('printer_default_id', ''),
             'printer_minor_id': cherrypy.session.get('printer_minor_id', ''),
-            'receipt': session.get_receipt_by_model(attendee),
+            'receipt': receipt,
         }  # noqa: E711
 
         return {
@@ -479,13 +473,7 @@ class Root:
 
     def check_in_form(self, session, id):
         attendee = session.attendee(id)
-        receipt = session.get_receipt_by_model(attendee)
-        if receipt:
-            for txn in receipt.pending_txns:
-                txn.check_paid_from_stripe()
-            session.refresh(receipt)
-
-        session.refresh(attendee)
+        session.refresh_receipt_and_model(attendee)
 
         if attendee.paid == c.PAID_BY_GROUP and not attendee.group_id:
             valid_groups = session.query(Group).options(joinedload(Group.leader)).filter(

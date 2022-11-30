@@ -94,22 +94,13 @@ class Root:
                 session.rollback()
                 raise HTTPRedirect('..{}?id={}&message={}', return_to, app.id, message)
         
-        last_incomplete_txn = None
-        receipt = session.get_receipt_by_model(app)
-        if receipt:
-            for txn in receipt.pending_txns:
-                txns_marked_paid = txn.check_paid_from_stripe()
-                if not txns_marked_paid:
-                    last_incomplete_txn = txn
-            session.refresh(receipt)
-        
-        session.refresh(app)
+        receipt = session.refresh_receipt_and_model(app)
 
         return {
             'message': message,
             'app': app,
             'receipt': receipt,
-            'incomplete_txn': last_incomplete_txn,
+            'incomplete_txn': receipt.last_incomplete_txn,
             'account': session.get_attendee_account_by_attendee(app.attendee),
             'return_to': 'edit?id={}'.format(app.id),
         }
