@@ -55,7 +55,7 @@
 
     <br/>
 
-    {% if c.PRE_CON %}
+    {% if group.min_badges_addable %}
       <div id="add" style="display:none">
         <form class="form-inline" method="get" action="add_promo_codes">
           <input type="hidden" name="id" value="{{ group.id }}" />

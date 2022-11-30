@@ -899,7 +899,61 @@ class Session(SessionManager):
                 job.to_dict(fields)
                 for job in jobs if (job.required_roles or frozenset(job.minutes) not in restricted_minutes)]
 
-        def process_refund(self, txn):
+        def update_receipt_item_from_param(self, model, receipt, param_name, params, func_name='process_receipt_upgrade_item'):
+            charge_func = getattr(Charge, func_name)
+            try:
+                receipt_item = charge_func(model, param_name, receipt=receipt, new_val=params[param_name])
+                if receipt_item.amount != 0:
+                    self.add(receipt_item)
+            except Exception as e:
+                self.rollback()
+                log.error(str(e))
+
+        def auto_update_receipt(self, model, params):
+            params = params.copy()
+            receipt = self.get_receipt_by_model(model)
+            if not receipt:
+                return
+
+            if params.get('no_override') and params.get('overridden_price') or params.get('overridden_price') == '':
+                params['overridden_price'] = None
+
+            model_overridden_price = getattr(model, 'overridden_price', None)
+            model_auto_recalc = getattr(model, 'auto_recalc', True)
+            overridden_unset = model_overridden_price and not params.get('overridden_price')
+            auto_recalc_unset = not model_auto_recalc and params.get('auto_recalc', None)
+
+            if (model_overridden_price and not overridden_unset) or (not model_auto_recalc and not auto_recalc_unset):
+                return
+
+            if params.get('overridden_price'):
+                return self.update_receipt_item_from_param(model, receipt, 'overridden_price', params)
+            
+            if not params.get('auto_recalc', True):
+                return self.update_receipt_item_from_param(model, receipt, 'cost', params)
+            else:
+                params.pop('cost', None)
+            
+            if params.get('power_fee', None) != None and c.POWER_PRICES.get(int(params.get('power'), 0), None) == None:
+                error = self.update_receipt_item_from_param(model, receipt, 'power_fee', params)
+                if error:
+                    return error
+                params.pop('power')
+                params.pop('power_fee')
+            
+            cost_changes = getattr(model.__class__, 'cost_changes', [])
+            credit_changes = getattr(model.__class__, 'credit_changes', [])
+            for param in params:
+                if param in credit_changes:
+                    error = self.update_receipt_item_from_param(model, receipt, param, params, 'process_receipt_credit_change')
+                    if error:
+                        return error
+                elif param in cost_changes:
+                    error = self.update_receipt_item_from_param(model, receipt, param, params)
+                    if error:
+                        return error
+
+        def process_refund(self, txn, amount=0):
             """
             Attempts to refund a given Stripe transaction
             Returns either an error message, a Stripe Refund() object, or None if the transaction had no successful charges
@@ -907,25 +961,19 @@ class Session(SessionManager):
             import stripe
             from pockets.autolog import log
 
-            if txn.refund_id:
-                return 'This charge has already been refunded'
-            if not txn.charge_id and not txn.intent_id:
+            if not txn.stripe_id:
                 return 'Cannot refund a transaction without a Stripe ID'
 
+            txn.update_amount_refunded()
+
+            refund_amount = int(amount or txn.amount - txn.refunded)
+
             log.debug('REFUND: attempting to refund Stripe transaction with ID {} {} cents for {}',
-                      txn.stripe_id, txn.receipt_share, txn.desc)
+                      txn.stripe_id, refund_amount, txn.desc)
 
             try:
-                if txn.charge_id:
-                    response = stripe.Refund.create(charge=txn.charge_id, amount=txn.amount, reason='requested_by_customer')
-                else:
-                    payment_intent = stripe.PaymentIntent.retrieve(txn.intent_id)
-                    if not payment_intent.charges:
-                        # Nothing to refund
-                        return
-                    for charge in payment_intent.charges:
-                        response = stripe.Refund.create(
-                                    charge=charge.id, amount=txn.receipt_share, reason='requested_by_customer')
+                response = stripe.Refund.create(
+                            payment_intent=txn.intent_id, amount=refund_amount, reason='requested_by_customer')
             except Exception as e:
                 error_txt = 'Error while calling process_refund' \
                             '(self, stripeID={!r})'.format(txn.stripe_id)
@@ -937,13 +985,11 @@ class Session(SessionManager):
                 self.add(ReceiptTransaction(
                     receipt_id=txn.receipt.id,
                     refund_id=response.id,
-                    amount=txn.amount * -1,
+                    amount=refund_amount * -1,
                     desc="Automatic refund of Stripe transaction " + txn.stripe_id,
                     who=uber.models.AdminAccount.admin_name() or 'non-admin'
                 ))
 
-                # Also add refund ID to the original transaction to help us track things
-                txn.refund_id = response.id
                 self.add(txn)
                 return response
 

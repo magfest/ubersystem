@@ -13,7 +13,7 @@ from uber.config import c, _config
 from uber.custom_tags import datetime_local_filter, pluralize, format_currency
 from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, Group, ModelReceipt, ReceiptItem, ReceiptTransaction
+from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, Group, ModelReceipt, ReceiptItem, ReceiptTransaction, Tracking
 from uber.site_sections import devtools
 from uber.utils import Charge, check, get_api_service_from_server, normalize_email, valid_email, TaskUtils
 
@@ -69,11 +69,24 @@ class Root:
                 model = session.art_show_application(id)
 
         receipt = session.get_receipt_by_model(model)
+        if receipt:
+            receipt.changes = session.query(Tracking).filter(
+                or_(Tracking.links.like('%model_receipt({})%'
+                                        .format(receipt.id)),
+                    and_(Tracking.model == 'ModelReceipt',
+                    Tracking.fk_id == receipt.id))).order_by(Tracking.when).all()
 
         other_receipts = set()
         if isinstance(model, Attendee):
             for app in model.art_show_applications:
-                other_receipts.add(session.get_receipt_by_model(app))
+                other_receipt = session.get_receipt_by_model(app)
+                if other_receipt:
+                    other_receipt.changes = session.query(Tracking).filter(
+                        or_(Tracking.links.like('%model_receipt({})%'
+                                                .format(other_receipt.id)),
+                            and_(Tracking.model == 'ModelReceipt',
+                            Tracking.fk_id == other_receipt.id))).order_by(Tracking.when).all()
+                    other_receipts.add(other_receipt)
             
         return {
             'attendee': model if isinstance(model, Attendee) else None,
@@ -95,6 +108,11 @@ class Root:
         if message:
             return {'error': message}
 
+        amount = int(params.get('amount', 0))
+
+        if params.get('item_type', '') == 'credit':
+            amount = amount * -1
+
         count = params.get('count')
         if count:
             try:
@@ -104,7 +122,7 @@ class Root:
 
         session.add(ReceiptItem(receipt_id=receipt.id,
                                 desc=params['desc'],
-                                amount=int(params.get('amount', 0)) * 100,
+                                amount=amount * 100,
                                 count=int(count or 1),
                                 who=AdminAccount.admin_name() or 'non-admin'
                             ))
@@ -161,8 +179,13 @@ class Root:
         if message:
             return {'error': message}
 
+        amount = int(params.get('amount', 0))
+
+        if params.get('txn_type', '') == 'refund':
+            amount = amount * -1
+
         session.add(ReceiptTransaction(receipt_id=receipt.id,
-                                       amount=int(params.get('amount', 0)) * 100,
+                                       amount=amount * 100,
                                        method=params.get('method'),
                                        desc=params['desc'],
                                        who=AdminAccount.admin_name() or 'non-admin'
@@ -202,9 +225,15 @@ class Root:
     def refund_receipt_txn(self, session, id='', **params):
         txn = session.receipt_transaction(id)
         model = session.get_model_by_receipt(txn.receipt)
+        amount = int(float(params.get('amount', 0)) * 100)
+        txn.update_amount_refunded()
+        refund_total = amount + txn.refunded
+
+        if refund_total > txn.amount:
+            return {'error': "There is not enough left on this transaction to refund ${}.".format(amount)}
         
-        if not txn.refund_id and txn.stripe_id:
-            response = session.process_refund(txn)
+        if txn.stripe_id:
+            response = session.process_refund(txn, amount)
             if response:
                 if isinstance(response, string_types):
                     raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', model.id, response)
@@ -213,6 +242,7 @@ class Root:
 
         return {
             'refunded': id,
+            'refund_total': refund_total,
             'new_total': txn.receipt.total_str,
             'disable_button': txn.receipt.current_amount_owed == 0
         }
@@ -222,7 +252,10 @@ class Root:
         receipt = session.model_receipt(id)
         refund_total = 0
         for txn in receipt.receipt_txns:
-            if not txn.refund_id and txn.stripe_id:
+            if txn.intent_id and not txn.charge_id and not txn.cancelled:
+                txn.check_paid_from_stripe()
+            
+            if txn.charge_id:
                 response = session.process_refund(txn)
                 if response:
                     if isinstance(response, string_types):

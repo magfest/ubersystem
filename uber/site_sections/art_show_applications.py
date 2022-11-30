@@ -101,6 +101,9 @@ class Root:
                 txns_marked_paid = txn.check_paid_from_stripe()
                 if not txns_marked_paid:
                     last_incomplete_txn = txn
+            session.refresh(receipt)
+        
+        session.refresh(app)
 
         return {
             'message': message,

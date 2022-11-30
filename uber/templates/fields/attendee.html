@@ -818,7 +818,7 @@ $().ready(function() {
 
 {% set shirt_size %}
 {% set read_only = shirt_size_ro or page_ro %}
-{% if not admin_area or attendee.num_event_shirts_owed or attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS %}
+{% if not admin_area or c.BADGE_TYPE_PRICES or attendee.num_event_shirts_owed or attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS %}
   {% set shirt_opts = c.PREREG_SHIRT_OPTS if not admin_area else c.SHIRT_OPTS %}
   {% set warn_on_change = c.PREREG_SHIRTS and not admin_area and attendee.shirt not in c.PREREG_SHIRTS.keys() %}
   {% if not admin_area %}
@@ -1764,7 +1764,7 @@ $(window).on("runJavaScript", function(){
       {% else %}
         <select name="payment_method" class="form-control" onChange="maybeBold()">
           <option value="">Select a payment option</option>
-          {{ options(c.DOOR_PAYMENT_METHOD_OPTS,payment_method) }}
+          {{ options(c.DOOR_PAYMENT_METHOD_OPTS, payment_method_val) }}
         </select>
         {% if c.CHILD_BADGE in c.PREREG_BADGE_TYPES %}
         <div class="form-group">
