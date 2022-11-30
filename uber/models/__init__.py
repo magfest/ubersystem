@@ -1212,6 +1212,20 @@ class Session(SessionManager):
         def lookup_agent_code(self, code):
             return self.query(ArtShowApplication).filter_by(agent_code=code).all()
 
+        def refresh_receipt_and_model(self, model):
+            receipt = self.get_receipt_by_model(model)
+            if receipt:
+                for txn in receipt.pending_txns:
+                    txn.check_paid_from_stripe()
+                self.refresh(receipt)
+            
+            try:
+                self.refresh(model)
+            except sqlalchemy.exc.InvalidRequestError:
+                # Non-persistent object, so nothing to refresh
+                pass
+            return receipt
+
         def add_promo_code_to_attendee(self, attendee, code):
             """
             Convenience method for adding a promo code to an attendee.

@@ -173,6 +173,10 @@ class ModelReceipt(MagModel):
                                                         "They" if self.current_receipt_amount >= 0 else "We",
                                                         format_currency(self.current_receipt_amount / 100))
 
+    @property
+    def last_incomplete_txn(self):
+        return sorted(self.pending_txns.sort, key=lambda t: t.added, reverse=True)[:-1][0]
+
 
 class ReceiptTransaction(MagModel):
     receipt_id = Column(UUID, ForeignKey('model_receipt.id', ondelete='SET NULL'), nullable=True)

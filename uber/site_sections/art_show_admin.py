@@ -29,7 +29,7 @@ class Root:
         if new_app and 'attendee_id' in params:
             app = session.art_show_application(params, ignore_csrf=True, bools=['us_only'])
         else:
-            if cherrypy.request.method == 'POST':
+            if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
                 message = session.auto_update_receipt(session.art_show_application(params.get('id')), params)
             app = session.art_show_application(params, bools=['us_only'])
         attendee = None
