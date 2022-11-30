@@ -346,9 +346,12 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def min_badges_addable(self):
-        if self.is_dealer and not self.dealer_badges_remaining or self.amount_unpaid:
+        if not c.PRE_CON:
             return 0
-        if self.can_add:
+
+        if self.is_dealer and (not self.dealer_badges_remaining or self.amount_unpaid):
+            return 0
+        elif self.is_dealer or self.can_add:
             return 1
         elif self.guest and self.guest.group_type != c.MIVS:
             return 0
