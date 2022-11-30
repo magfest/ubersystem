@@ -100,7 +100,7 @@ class Root:
             'message': message,
             'app': app,
             'receipt': receipt,
-            'incomplete_txn': receipt.last_incomplete_txn,
+            'incomplete_txn': receipt.last_incomplete_txn if receipt else None,
             'account': session.get_attendee_account_by_attendee(app.attendee),
             'return_to': 'edit?id={}'.format(app.id),
         }
