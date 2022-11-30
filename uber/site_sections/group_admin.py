@@ -43,8 +43,8 @@ class Root:
 
     @log_pageview
     def form(self, session, new_dealer='', message='', **params):
-        if cherrypy.request.method == 'POST':
-                message = session.auto_update_receipt(session.group(params.get('id')), params)
+        if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
+            message = session.auto_update_receipt(session.group(params.get('id')), params)
 
         group = session.group(params, checkgroups=Group.all_checkgroups, bools=Group.all_bools)
 

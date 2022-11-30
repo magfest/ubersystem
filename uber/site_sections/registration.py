@@ -126,7 +126,7 @@ class Root:
 
     @log_pageview
     def form(self, session, message='', return_to='', **params):
-        if cherrypy.request.method == 'POST':
+        if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
             message = session.auto_update_receipt(session.attendee(params.get('id')), params)
             if message:
                 log.error("Error while auto-updating attendee receipt: {}".format(message))

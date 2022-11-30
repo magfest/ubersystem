@@ -1324,7 +1324,7 @@ class Root:
     @requires_account(Attendee)
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
-        if cherrypy.request.method == 'POST':
+        if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
             message = session.auto_update_receipt(session.attendee(params.get('id')), params)
             if message:
                 log.error("Error while auto-updating attendee receipt: {}".format(message))
