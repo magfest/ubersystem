@@ -138,8 +138,8 @@ class Root:
         if not attendee:
             raise HTTPRedirect('index')
         if attendee.amount_unpaid:
-            raise HTTPRedirect(
-                '{}?id={}', attendee.payment_page, attendee.id)
+            raise HTTPRedirect('../preregistration/new_badge_payment?id=' + attendee.id + 
+                               '&return_to=../attractions/manage?id=' + attendee.id)
         return {
             'attractions': session.query(Attraction).order_by('name').all(),
             'attendee': attendee,

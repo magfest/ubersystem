@@ -1009,7 +1009,7 @@ class Root:
                     attendee.registered = localized_now()
 
                 if attendee.amount_unpaid:
-                    raise HTTPRedirect(attendee.payment_page)
+                    raise HTTPRedirect('new_badge_payment?id={}&return_to=confirm', attendee.id)
                 else:
                     raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Badge registered successfully')
 
@@ -1150,7 +1150,7 @@ class Root:
                     log.error('unable to send badge change email', exc_info=True)
 
                 if attendee.amount_unpaid:
-                    raise HTTPRedirect(attendee.payment_page)
+                    raise HTTPRedirect('new_badge_payment?id={}&return_to=confirm', attendee.id)
                 else:
                     raise HTTPRedirect(
                         'badge_updated?id={}&message={}', attendee.id, 'Your registration has been transferred')
@@ -1182,7 +1182,7 @@ class Root:
                 session.commit()
 
                 if attendee.amount_unpaid:
-                    raise HTTPRedirect(attendee.payment_page + '&payment_label=merch_shipping_fee')
+                    raise HTTPRedirect('new_badge_payment?id={}&return_to=confirm', attendee.id)
                 else:
                     raise HTTPRedirect(
                         'badge_updated?id={}&message={}', attendee.id, 'Your registration has been deferred')
