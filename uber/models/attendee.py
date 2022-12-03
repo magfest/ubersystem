@@ -853,6 +853,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     def amount_pending(self):
         return self.active_receipt.get('pending_total', 0)
 
+    @property
+    def is_paid(self):
+        return self.active_receipt.get('current_amount_owed', None) == 0
+
     @hybrid_property
     def amount_paid(self):
         return self.active_receipt.get('payment_total', 0)
