@@ -968,6 +968,9 @@ class Session(SessionManager):
 
             refund_amount = int(amount or txn.amount - txn.refunded)
 
+            if not refund_amount:
+                return
+
             log.debug('REFUND: attempting to refund Stripe transaction with ID {} {} cents for {}',
                       txn.stripe_id, refund_amount, txn.desc)
 
