@@ -320,6 +320,10 @@ class Group(MagModel, TakesPaymentMixin):
         return self.default_cost + self.amount_extra
 
     @property
+    def is_paid(self):
+        return self.active_receipt.get('current_amount_owed', None) == 0
+
+    @property
     def amount_unpaid(self):
         if self.registered:
             return max(0, ((self.total_cost * 100) - self.amount_paid - self.amount_pending) / 100)

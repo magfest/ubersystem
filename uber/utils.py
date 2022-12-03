@@ -1414,12 +1414,12 @@ class Charge:
                 session.commit()
 
                 model = session.get_model_by_receipt(txn_receipt)
-                if isinstance(model, Attendee) and not model.amount_pending:
+                if isinstance(model, Attendee) and model.is_paid:
                     if model.badge_status == c.PENDING_STATUS:
                         model.badge_status = c.NEW_STATUS
                     if model.paid in [c.NOT_PAID, c.PENDING]:
                         model.paid = c.HAS_PAID
-                if isinstance(model, Group) and not model.amount_pending:
+                if isinstance(model, Group) and model.is_paid:
                     model.paid = c.HAS_PAID
                 session.add(model)
 
