@@ -617,6 +617,7 @@ class Root:
                         cherrypy.session['attendee_account_id'] = new_or_existing_account.id
 
                 session.add(attendee)
+                receipt = session.get_receipt_by_model(attendee, create_if_none=True)
                 session.commit()
                 if c.AFTER_BADGE_PRICE_WAIVED:
                     message = c.AT_DOOR_WAIVED_MSG
