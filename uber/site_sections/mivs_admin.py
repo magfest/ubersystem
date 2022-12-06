@@ -60,7 +60,8 @@ class Root:
                 )
                 email_body = render('emails/accounts/new_account.txt', {
                     'password': password,
-                    'account': attendee.admin_account
+                    'account': attendee.admin_account,
+                    'creator': AdminAccount.admin_name()
                 }, encoding=None)
                 send_email.delay(
                     c.MIVS_EMAIL,
@@ -90,6 +91,32 @@ class Root:
             'judge': judge,
             'message': message
         }
+
+    def disqualify_judge(self, session, message='', id='', **params):
+        judge = session.indie_judge(id)
+        attendee = judge.attendee
+
+        judge.status = c.DISQUALIFIED
+        prior_payment_status = attendee.paid
+
+        if prior_payment_status == c.NEED_NOT_PAY:
+            attendee.paid = c.NOT_PAID
+            session.add(attendee)
+
+        session.commit()
+
+        email_body = render('emails/mivs/judge_disqualified.txt', {
+                    'judge': judge,
+                    'prior_payment_status': prior_payment_status,
+                }, encoding=None)
+        send_email.delay(
+            c.MIVS_EMAIL,
+            judge.attendee.email_to_address,
+            'MIVS Judging Disqualification',
+            email_body,
+            model=attendee.to_dict('id'))
+
+        raise HTTPRedirect('index?message={}{}', attendee.full_name, ' has been disqualified from judging for this year')
 
     def judges_owed_refunds(self, session):
         return {

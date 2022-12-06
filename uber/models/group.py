@@ -34,6 +34,8 @@ class Group(MagModel, TakesPaymentMixin):
     city = Column(UnicodeText)
     region = Column(UnicodeText)
     country = Column(UnicodeText)
+    email_address = Column(UnicodeText)
+    phone = Column(UnicodeText)
     website = Column(UnicodeText)
     wares = Column(UnicodeText)
     categories = Column(MultiChoice(c.DEALER_WARES_OPTS))
@@ -251,6 +253,8 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def email(self):
+        if self.email_address:
+            return self.email_address
         if self.studio and self.studio.email:
             return self.studio.email
         elif self.leader and self.leader.email:
@@ -387,11 +391,12 @@ class Group(MagModel, TakesPaymentMixin):
     def min_badges_addable(self):
         if not c.PRE_CON:
             return 0
-        if self.is_dealer and not self.dealer_badges_remaining or self.amount_unpaid:
+
+        if self.is_dealer and (not self.dealer_badges_remaining or self.amount_unpaid):
             return 0
-        if self.can_add:
+        elif self.is_dealer or self.can_add:
             return 1
-        elif self.is_dealer:
+        elif self.guest and self.guest.group_type != c.MIVS:
             return 0
         else:
             return c.MIN_GROUP_ADDITION

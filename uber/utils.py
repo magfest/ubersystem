@@ -455,7 +455,7 @@ def check(model, *, prereg=False):
     """
     errors = []
     for field, name in model.required:
-        if not str(getattr(model, field)).strip():
+        if not getattr(model, field) or not str(getattr(model, field)).strip():
             errors.append(name + ' is a required field')
 
     validations = [uber.model_checks.validation.validations]
@@ -642,11 +642,11 @@ class Registry:
 class DeptChecklistConf(Registry):
     instances = OrderedDict()
 
-    def __init__(self, slug, description, deadline, full_description='', name=None, path=None, email_post_con=False):
+    def __init__(self, slug, description, deadline, full_description='', name=None, path=None, email_post_con=False, external_form_url=''):
         assert re.match('^[a-z0-9_]+$', slug), \
             'Dept Head checklist item sections must have separated_by_underscore names'
 
-        self.slug, self.description, self.full_description = slug, description, full_description
+        self.slug, self.description, self.full_description, self.external_form_url = slug, description, full_description, external_form_url
         self.name = name or slug.replace('_', ' ').title()
         self._path = path or '/dept_checklist/form?slug={slug}&department_id={department_id}'
         self.email_post_con = bool(email_post_con)
@@ -874,6 +874,8 @@ class ExcelWorksheetStreamWriter:
             self.worksheet.set_column(i, i, width)
 
     def writerows(self, header_row, rows, header_format={'bold': True}):
+        rows = [list(map(str, row)) for row in rows]
+
         if header_row:
             self.set_column_widths([header_row] + rows)
             if header_format:
@@ -930,7 +932,6 @@ class OAuthRequest:
 
     def get_email(self):
         profile = self.client.get("https://{}/userinfo".format(c.AUTH_DOMAIN)).json()
-        log.debug(str(profile))
         if not profile.get('email', ''):
             log.error("Tried to authenticate a user but we couldn't retrieve their email. Did we use the right scope?")
         else:
@@ -1378,7 +1379,7 @@ class Charge:
         return uber.models.ReceiptTransaction(
             receipt_id=receipt.id,
             intent_id=intent_id,
-            amount=receipt.current_amount_owed,
+            amount=amount,
             desc=desc,
             method=method,
             who=uber.models.AdminAccount.admin_name() or 'non-admin'

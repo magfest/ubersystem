@@ -4,4 +4,4 @@
 
 Please let us know if you have any questions.
 
-{{ c.PEGLEGS_EMAIL_SIGNATURE }}
+{{ c.PANELS_EMAIL_SIGNATURE }}

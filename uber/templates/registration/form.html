@@ -70,6 +70,7 @@
 {% endif %}
 
 {{ attendee_fields.is_placeholder }}
+{{ attendee_fields.can_transfer }}
 {{ attendee_fields.badge_status }}
 {% if c.HAS_ACCOUNTS_ACCESS %}
   {{ attendee_fields.admin_access }}
@@ -87,6 +88,7 @@
 {{ attendee_fields.age }}
 {{ attendee_fields.email }}
 {{ attendee_fields.emergency_contact }}
+{{ attendee_fields.onsite_contact }}
 {{ attendee_fields.cellphone }}
 {{ attendee_fields.address }}
 {{ attendee_fields.shirt_size }}
@@ -97,6 +99,7 @@
 {{ attendee_fields.found_how }}
 {{ attendee_fields.comments }}
 {{ attendee_fields.can_spam }}
+{{ attendee_fields.panel_interest }}
 {{ attendee_fields.attractions_opt_out }}
 
 {% block post_regform %}{% endblock %}
@@ -146,7 +149,7 @@
             {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}" />{% endif %}
         </form>
         <input type="submit" form="delete_attendee" class="btn btn-danger" value="{% if attendee.group and attendee.is_unassigned %}Delete this group badge{% elif attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}"
-                        {% if attendee.paid == c.HAS_PAID %} style="background-color:#BCBCBC" title="Cannot delete a paid badge." disabled {% endif %}/>
+                        {% if attendee.cannot_delete_badge_reason %} style="background-color:#BCBCBC" title="{{ attendee.cannot_delete_badge_reason }}" disabled {% endif %}/>
         {% if c.HAS_SECURITY_ADMIN_ACCESS %}
         <a href="../security_admin/watchlist_form?attendee_id={{ attendee.id }}" class="btn btn-warning">Add to Watchlist</a>
         {% endif %}

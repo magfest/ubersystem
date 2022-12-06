@@ -1,5 +1,5 @@
 {% if group.guest %}
-  {% set return_to_hash = "#" ~ group.guest.group_type_label|lower ~ ("" if group.guest.group_type == c.MIVS else "s") %}
+  {% set return_to_hash = "#" ~ group.guest.group_type_label|lower|replace(' ','_') ~ ("" if group.guest.group_type == c.MIVS else "s") %}
 {% elif group.is_dealer %}
   {% set return_to_hash = "#dealers" %}
 {% endif %}

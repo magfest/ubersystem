@@ -192,7 +192,7 @@ class Config(_Overridable):
 
             # Only check bucket-based pricing if we're not checking an existing badge AND
             # we're not on-site (because on-site pricing doesn't involve checking badges sold)
-            if not dt and not c.AT_THE_CON:
+            if not dt and not c.AT_THE_CON and self.PRICE_LIMITS:
                 badges_sold = self.BADGES_SOLD
 
                 for badge_cap, bumped_price in sorted(self.PRICE_LIMITS.items()):
@@ -684,7 +684,8 @@ class Config(_Overridable):
     def get_kickin_count(self, kickin_level):
         from uber.models import Session, Attendee
         with Session() as session:
-            count = session.query(Attendee).filter_by(amount_extra=kickin_level).count()
+            count = session.query(Attendee).filter_by(amount_extra=kickin_level).filter(
+                    ~Attendee.badge_status.in_([c.INVALID_STATUS, c.IMPORTED_STATUS, c.REFUNDED_STATUS])).count()
         return count
 
     @request_cached_property
@@ -750,11 +751,12 @@ class Config(_Overridable):
     def SITE_MAP(self):
         public_site_sections, public_pages, pages = self.GETTABLE_SITE_PAGES
         
-        accessible_site_sections = {section: pages for section, pages in pages.items() 
-                                    if c.has_section_or_page_access(page_path=section, include_read_only=True)}
-        for section in accessible_site_sections:
-            accessible_site_sections[section] = [page for page in accessible_site_sections[section] 
-                                                 if c.has_section_or_page_access(page_path=page['path'], include_read_only=True)]
+        accessible_site_sections = defaultdict(list)
+        for section in pages:
+            accessible_pages = [page for page in pages[section] 
+                                if c.has_section_or_page_access(page_path=page['path'], include_read_only=True)]
+            if accessible_pages:
+                accessible_site_sections[section] = accessible_pages
             
         return sorted(accessible_site_sections.items())
     
@@ -1232,6 +1234,7 @@ c.GUIDEBOOK_PROPERTIES = [
     ('guidebook_location', 'Location/Room'),
     ('guidebook_image', 'Image (Optional)'),
     ('guidebook_thumbnail', 'Thumbnail (Optional)'),
+    ('guidebook_track', 'Schedule Track (Optional)'),
 ]
 
 

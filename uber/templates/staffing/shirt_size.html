@@ -5,9 +5,9 @@
 
 <h2> Tell Us Your Shirt Size </h2>
 
-<p>One of the perks of volunteering is a tshirt for anyone who takes at least {{ c.HOURS_FOR_SHIRT }} weighted hours worth of shifts.</p>
+<p>One of the perks of volunteering is a t-shirt for anyone {% if c.HOURS_FOR_SHIRT and attendee.volunteer_event_shirt_eligible %}who takes at least {{ c.HOURS_FOR_SHIRT }} weighted hours worth of shifts{% else %} on staff{% endif %}.
 
-{% if attendee.gets_staff_shirt and c.STAFF_EVENT_SHIRT_OPTS %}
+{% if attendee.gets_staff_shirt %}
     <h3>Staff Shirt Policy</h3>
     <p>
         Event staff are given a themed staff t-shirt that serves as a uniform for the event, and is theirs to keep forever.
@@ -25,15 +25,9 @@
     </i></p>
     <p>
         Staff shirts help make the event a more safe and welcome place to be, and while we strongly prefer you to wear
-        a staff shirt while on shift, you are not required to do so. We understand that you may not be comfortable with
-        people approaching you, or that your shift may have a level of sensitivity which requires that you not be obviously
-        identifiable as staff. If you strongly dislike t-shirts, check with your department head to see if they can provide
-        you with a visibility vest while on shift. 
+        a staff shirt while on shift, you are not required to do so.
     </p>
-    <p>
-        To prevent confusion, please do not wear a previous year's staff shirt at this event, whether or not you are on shift.
-        <b>If you are wearing an old staff shirt, you may be asked to change.</b>
-    </p>
+    {% if c.STAFF_EVENT_SHIRT_OPTS %}
     <p>
         As staff, you receive two complimentary shirts, and since you'll be potentially wearing the staff shirt a substantial
         portion of the event, we give you the option for both of them to be the staff shirt design.
@@ -47,6 +41,7 @@
         {% endfor %}
         </div>
     </p>
+    {% endif %}
 {% endif %}
 <form method="post" action="shirt_size" id="shirt_size" class="form-inline">
     {{ csrf_token() }}

@@ -411,6 +411,9 @@ class MagModel:
         receipt_items = uber.receipt_items.cost_calculation.items
         try:
             cost_calc = receipt_items[self.__class__.__name__][name[8:]](self)
+            if not cost_calc:
+                return 0
+
             try:
                 return sum(item[0] * item[1] for item in cost_calc[1].items()) / 100
             except AttributeError:
@@ -831,7 +834,13 @@ class Session(SessionManager):
                         )
                 )
                 
-            return_dict['panels_admin'] = self.query(Attendee).filter(Attendee.ribbon.contains(c.PANELIST_RIBBON))
+            return_dict['panels_admin'] = self.query(Attendee).filter(
+                                                 or_(Attendee.ribbon.contains(c.PANELIST_RIBBON),
+                                                     Attendee.panel_interest == True,
+                                                     Attendee.panel_applications != None,
+                                                     Attendee.assigned_panelists != None,
+                                                     Attendee.panel_applicants != None,
+                                                     Attendee.panel_feedback != None))
             return_dict['dealer_admin'] = self.query(Attendee).join(Group, Attendee.group_id == Group.id).filter(Attendee.is_dealer)
             return_dict['mits_admin'] = self.query(Attendee).join(MITSApplicant).filter(Attendee.mits_applicants)
             return_dict['mivs_admin'] = (self.query(Attendee).join(Group, Attendee.group_id == Group.id)
@@ -884,7 +893,7 @@ class Session(SessionManager):
                     'completed': attendee.checklist_item_for_slug(conf.slug)
                 }
 
-        def jobs_for_signups(self):
+        def jobs_for_signups(self, all=False):
             fields = [
                 'name', 'department_id', 'department_name', 'description',
                 'weight', 'start_time_local', 'end_time_local', 'duration',
@@ -895,6 +904,8 @@ class Session(SessionManager):
             for job in jobs:
                 if job.required_roles:
                     restricted_minutes.add(frozenset(job.minutes))
+            if all:
+                return [job.to_dict(fields) for job in jobs]
             return [
                 job.to_dict(fields)
                 for job in jobs if (job.required_roles or frozenset(job.minutes) not in restricted_minutes)]

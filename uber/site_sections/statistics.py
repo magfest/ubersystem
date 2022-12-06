@@ -185,7 +185,7 @@ class Root:
             donation_amounts = list(counts['donation_tiers'].keys())
             for index, amount in enumerate(donation_amounts):
                 next_amount = donation_amounts[index + 1] if index + 1 < len(donation_amounts) else six.MAXSIZE
-                if a.amount_extra >= amount and a.amount_extra < next_amount:
+                if a.amount_extra >= amount and a.amount_extra < next_amount and a.badge_status not in [c.INVALID_STATUS, c.IMPORTED_STATUS, c.REFUNDED_STATUS]:
                     counts['donation_tiers'][amount] = counts['donation_tiers'][amount] + 1
             if not a.checked_in:
                 is_paid = a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid

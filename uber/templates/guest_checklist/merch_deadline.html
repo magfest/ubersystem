@@ -19,6 +19,7 @@
       <br/></br>
     </td>
   </tr>
+  {% block deadline_extra %}
   {% if HAS_ROCK_ISLAND and guest.merch.selling_merch == c.ROCK_ISLAND %}
     <tr>
       <td></td>
@@ -38,6 +39,7 @@
       </td>
     </tr>
   {% endif %}
+  {% endblock %}
 {% else %}
 
   {% import 'guests_macros.html' as guests_macros with context %}
@@ -149,7 +151,7 @@
 
     {% if HAS_ROCK_ISLAND %}
       <p>
-        It is recommended, but not required, for {{ guest.group_type_label|lower }}s to use our Rock Island service in this area, as merchandise can
+        It is recommended, but not required, for {{ guest.group_type_label|lower|replace(' ','_') }}s to use our Rock Island service in this area, as merchandise can
         be sold more consistently, and for many more hours.
       </p>
       <p>

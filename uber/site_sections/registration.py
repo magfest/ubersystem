@@ -302,6 +302,18 @@ class Root:
             'message': message,
         }
 
+    @ajax
+    def remove_group_code(self, session, id='', **params):
+        code = session.promo_code(id)
+
+        pc_group = code.group
+        pc_group.promo_codes.remove(code)
+
+        session.delete(code)
+        session.commit()
+
+        return { 'removed': id }
+
     @public
     def qrcode_generator(self, data):
         """

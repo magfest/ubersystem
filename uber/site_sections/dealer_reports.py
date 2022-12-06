@@ -6,6 +6,27 @@ from uber.models import Group
 @all_renderable()
 class Root:
     @csv_file
+    def seller_initial_review(self, out, session):
+        out.writerow([
+            'Group ID',
+            'Group Leader\'s Name',
+            'Table Name',
+            'Website URL',
+            'What They Sell',
+        ])
+
+        dealer_groups = session.query(Group).filter(Group.tables > 0).all()
+        for group in dealer_groups:
+            full_name = group.leader.full_name if group.leader else ''
+            out.writerow([
+                group.id,
+                full_name,
+                group.name,
+                group.website,
+                group.wares
+            ])
+    
+    @csv_file
     def seller_table_info(self, out, session):
         out.writerow([
             'Business Name',
@@ -112,9 +133,9 @@ class Root:
         
     @xlsx_file
     def seller_tax_info(self, out, session):
-        waitlisted_groups = session.query(Group).filter(Group.status == c.APPROVED).all()
+        approved_groups = session.query(Group).filter(Group.status == c.APPROVED).all()
         rows = []
-        for group in waitlisted_groups:
+        for group in approved_groups:
             if group.is_dealer:
                 rows.append([
                     group.name,

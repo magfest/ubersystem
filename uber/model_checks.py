@@ -25,7 +25,7 @@ from uber.custom_tags import format_currency
 from uber.decorators import prereg_validation, validation
 from uber.models import AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowApplication, ArtShowPiece, \
     AttendeeAccount, AttendeeTournament, Attraction, AttractionFeature, Department, DeptRole, Event, Group, \
-    IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio, Job, MarketplaceApplication, \
+    GuestDetailedTravelPlan, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio, Job, MarketplaceApplication, \
     MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam, PanelApplicant, PanelApplication, \
     PromoCode, PromoCodeGroup, Sale, Session, WatchList
 from uber.utils import localized_now, Charge, valid_email
@@ -48,7 +48,7 @@ def read_only_makes_sense(group):
 
 
 AdminAccount.required = [
-    ('attendee', 'Attendee'),
+    ('attendee_id', 'Attendee'),
 ]
 
 if not c.AUTH_DOMAIN:
@@ -147,6 +147,18 @@ def dealer_region(group):
     if group.country in ['Canada', 'United States'] and len(group.region) < 3:
         return 'Please enter the full name of your {}.'.format(
             'state' if group.country == 'United States' else 'province or region')
+
+
+@prereg_validation.Group
+def dealer_email(group):
+    if group.is_dealer and not group.email_address:
+        return 'Please enter your business email address'
+
+
+@prereg_validation.Group
+def dealer_phone(group):
+    if group.is_dealer and not group.phone:
+        return 'Please enter your business\' phone number'
 
 
 @validation.Group
@@ -273,6 +285,10 @@ def reasonable_total_cost(attendee):
 
 @prereg_validation.Attendee
 def promo_code_is_useful(attendee):
+    with Session() as session:
+        if attendee.promo_code and session.lookup_agent_code(attendee.promo_code.code):
+            return
+
     if attendee.is_new and attendee.promo_code:
         if not attendee.is_unpaid:
             return "You can't apply a promo code after you've paid or if you're in a group."
@@ -284,7 +300,7 @@ def promo_code_is_useful(attendee):
             return "You can't apply a promo code to a one day badge."
         elif attendee.overridden_price:
             return "You already have a special badge price, you can't use a promo code on top of that."
-        elif attendee.badge_cost >= attendee.badge_cost_without_promo_code:
+        elif attendee.default_badge_cost >= attendee.badge_cost_without_promo_code:
             return "That promo code doesn't make your badge any cheaper. You may already have other discounts."
 
 
@@ -420,14 +436,31 @@ def emergency_contact_not_cellphone(attendee):
 
 
 @validation.Attendee
+@ignore_unassigned_and_placeholders
+def onsite_contact(attendee):
+    if not attendee.onsite_contact and not attendee.no_onsite_contact and attendee.badge_type not in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
+        return 'Please enter contact information for at least one trusted friend onsite, or indicate ' \
+               'that we should use your emergency contact information instead.'
+
+
+@validation.Attendee
+@ignore_unassigned_and_placeholders
+def onsite_contact_length(attendee):
+    if attendee.onsite_contact and len(attendee.onsite_contact) > 500:
+        return 'You have entered over 500 characters of onsite contact information.' \
+                'Please provide contact information for fewer friends.'
+
+
+@validation.Attendee
 def printed_badge_change(attendee):
     if attendee.badge_printed_name != attendee.orig_value_of('badge_printed_name') \
-            and not AdminAccount.admin_name() \
             and c.PRINTED_BADGE_DEADLINE \
             and localized_now() > c.get_printed_badge_deadline_by_type(attendee.badge_type_real):
-
-        return '{} badges have already been ordered, so you cannot change the badge printed name.'.format(
-            attendee.badge_type_label if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES else "Supporter")
+        with Session() as session:
+            admin = session.current_admin_account()
+            if not admin.is_admin:
+                return '{} badges have already been ordered, so you cannot change the badge printed name.'.format(
+                    attendee.badge_type_label if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES else "Supporter")
 
 
 @validation.Attendee
@@ -496,7 +529,7 @@ def no_more_custom_badges(attendee):
             and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
         with Session() as session:
             admin = session.current_admin_account()
-            if not admin.full_registration_admin and not admin.full_shifts_admin:
+            if not admin.is_admin:
                 return 'Custom badges have already been ordered so you cannot use this badge type'
 
 
@@ -788,7 +821,7 @@ def agree_to_coc(dev):
 @validation.IndieDeveloper
 def agree_to_data_policy(dev):
     if not dev.agreed_data_policy:
-        return 'You must agree to for your information to be used for determining showcase selection.'
+        return 'You must agree for your information to be used for determining showcase selection.'
 
 
 @validation.IndieDeveloper
@@ -965,7 +998,8 @@ def overlapping_events(event, other_event_id=None):
 PanelApplication.required = [
     ('name', 'Panel Name'),
     ('description', 'Panel Description'),
-    ('length', 'Panel Length')
+    ('length', 'Panel Length'),
+    ('noise_level', 'Noise Level'),
 ]
 
 PanelApplicant.required = [
@@ -989,14 +1023,8 @@ def pa_phone(pa):
 
 @validation.PanelApplication
 def unavailability(app):
-    if not app.unavailable and not app.poc_id:
+    if not app.unavailable:
         return 'Your unavailability is required.'
-
-
-@validation.PanelApplication
-def availability(app):
-    if not app.available and app.poc and app.poc.guest_group:
-        return 'Please list the times you are available to hold this panel!'
 
 
 @validation.PanelApplication
@@ -1094,6 +1122,63 @@ def is_merch_checklist_complete(guest_merch):
                 and guest_merch.poc_country):
             return 'You must tell us your complete mailing address'
 
+@validation.GuestTravelPlans
+def has_modes(guest_travel_plans):
+    if not guest_travel_plans.modes:
+        return 'Please tell us how you will arrive at MAGFest.'
+
+@validation.GuestTravelPlans
+def has_modes_text(guest_travel_plans):
+    if c.OTHER in guest_travel_plans.modes_ints and not guest_travel_plans.modes_text:
+        return 'You need to tell us what "other" travel modes you are using.'
+
+@validation.GuestTravelPlans
+def has_details(guest_travel_plans):
+    if not guest_travel_plans.details:
+        return 'Please provide details of your arrival and departure plans.'
+
+GuestDetailedTravelPlan.required = [
+    ('mode', 'Mode of Travel'),
+    ('traveller', 'Traveller Name'),
+    ('contact_email', 'Contact Email'),
+    ('contact_phone', 'Contact Phone #'),
+    ('arrival_time', 'Arrival Time'),
+    ('departure_time', 'Departure Time')
+]
+
+@validation.GuestDetailedTravelPlan
+def arrival_departure_details(travel_plan):
+    if travel_plan.mode not in [c.CAR, c.TAXI]:
+        if not travel_plan.arrival_details:
+            return 'Please provide arrival details, such as the bus or train or plane identifier.'
+        if not travel_plan.departure_details:
+            return 'Please provide departure details, such as the bus or train or plane identifier.'
+
+@validation.GuestDetailedTravelPlan
+def time_checks(travel_plan):
+    if travel_plan.arrival_time < travel_plan.min_arrival_time:
+        return 'If you are arriving over a week before the event, please select the earliest date and make a note in the arrival details.'
+    if travel_plan.arrival_time > travel_plan.max_arrival_time:
+        return 'You cannot arrive after the event is over.'
+    if travel_plan.departure_time < travel_plan.min_departure_time:
+        return 'You cannot leave before the event starts.'
+    if travel_plan.departure_time > travel_plan.max_departure_time:
+        return 'If you are leaving over a week after the event, please select the latest date and make a note in the departure details.'
+
+@validation.GuestDetailedTravelPlan
+def has_modes_text(travel_plan):
+    if travel_plan.mode == c.OTHER and not travel_plan.mode_text:
+        return 'You need to tell us what "other" travel mode you are using.'
+
+@validation.GuestDetailedTravelPlan
+def validate_email(travel_plan):
+    return valid_email(travel_plan.contact_email)
+
+@validation.GuestDetailedTravelPlan
+def validate_phone(travel_plan):
+    if _invalid_phone_number(travel_plan.contact_phone):
+        return 'Your phone number was not a valid 10-digit US phone number. ' \
+            'Please include a country code (e.g. +44) for international numbers.'
 
 # =============================
 # art show
@@ -1257,20 +1342,6 @@ def check_in_gallery(piece):
 def media_max_length(piece):
     if len(piece.media) > 15:
         return "The description of the piece's media must be 15 characters or fewer."
-
-
-@prereg_validation.Attendee
-def promo_code_is_useful(attendee):
-    if attendee.promo_code:
-        with Session() as session:
-            if session.lookup_agent_code(attendee.promo_code.code):
-                return
-        if not attendee.is_unpaid:
-            return "You can't apply a promo code after you've paid or if you're in a group."
-        elif attendee.overridden_price:
-            return "You already have a special badge price, you can't use a promo code on top of that."
-        elif attendee.badge_cost >= attendee.badge_cost_without_promo_code:
-            return "That promo code doesn't make your badge any cheaper. You may already have other discounts."
 
 
 @prereg_validation.Attendee

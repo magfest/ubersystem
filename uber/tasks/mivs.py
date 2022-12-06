@@ -3,8 +3,10 @@ from datetime import timedelta
 from pockets.autolog import log
 
 from uber.config import c
-from uber.models import Session
+from uber.decorators import render
+from uber.models import Email, Session, GuestGroup, Group, IndieStudio
 from uber.tasks import celery
+from uber.tasks.email import send_email
 
 
 __all__ = ['mivs_assign_game_codes_to_judges']
@@ -32,3 +34,46 @@ def mivs_assign_game_codes_to_judges():
                             'Unable to find free code for game {} to assign to judge {}',
                             game.title,
                             review.judge.full_name)
+
+
+def should_send_reminder(session, studio, keys, ident_prepend):
+    sent_email_idents = [item[0][len(ident_prepend):] for item in 
+                        session.query(Email.ident).filter(Email.ident.startswith(ident_prepend),
+                                                Email.fk_id == studio.id)]
+    already_reminded = set()
+    for ident in sent_email_idents:
+        keys = ident.split('_AND_')
+        already_reminded.update(keys)
+    return set(keys).difference(already_reminded)
+
+@celery.schedule(timedelta(hours=6))
+def send_mivs_checklist_reminders():
+    if not c.PRE_CON:
+        return
+
+    with Session() as session:
+        studios = session.query(IndieStudio).join(Group).join(GuestGroup)
+        for studio in studios:
+            if studio.group and studio.group.guest:
+                due_soon, overdue = studio.checklist_items_due_soon_grouped
+                due_soon_keys = [key for key, val in due_soon]
+                overdue_keys = [key for key, val in overdue]
+                if due_soon and should_send_reminder(session, studio, due_soon_keys, 'mivs_checklist_reminder_'):
+                    send_email.delay(
+                        c.MIVS_EMAIL,
+                        studio.email,
+                        "You have {} MIVS checklist item{} due soon".format(len(due_soon_keys), 's' if len(due_soon_keys) > 1 else ''),
+                        render('emails/mivs/checklist_reminder.txt', {'due_soon': due_soon, 'studio': studio}, encoding=None),
+                        model=studio.to_dict(),
+                        ident='mivs_checklist_reminder_' + '_AND_'.join(due_soon_keys)
+                    )
+                if overdue and should_send_reminder(session, studio, overdue_keys, 'mivs_checklist_overdue_'):
+                    send_email.delay(
+                        c.MIVS_EMAIL,
+                        studio.email,
+                        "You have {} MIVS checklist item{} overdue!".format(len(overdue_keys), 's' if len(overdue_keys) > 1 else ''),
+                        render('emails/mivs/checklist_reminder.txt', {'overdue': overdue, 'studio': studio}, encoding=None),
+                        model=studio.to_dict(),
+                        ident='mivs_checklist_overdue_' + '_AND_'.join(overdue_keys)
+                    )
+                    

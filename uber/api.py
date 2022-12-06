@@ -298,6 +298,10 @@ class GuestLookup:
             'website': True,
             'facebook': True,
             'twitter': True,
+            'instagram': True,
+            'twitch': True,
+            'bandcamp': True,
+            'discord': True,
             'other_social_media': True,
             'teaser_song_url': True,
             'pic_url': True
@@ -407,6 +411,7 @@ class AttendeeLookup:
         'is_dept_head': True,
         'ribbon_labels': True,
         'public_id': True,
+        'covid_ready': True,
     }
 
     fields_full = dict(fields, **{
