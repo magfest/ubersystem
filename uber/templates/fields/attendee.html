@@ -818,7 +818,7 @@ $().ready(function() {
 
 {% set shirt_size %}
 {% set read_only = shirt_size_ro or page_ro %}
-{% if not admin_area or attendee.num_event_shirts_owed or attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS %}
+{% if not admin_area or c.BADGE_TYPE_PRICES or attendee.num_event_shirts_owed or attendee.gets_staff_shirt and c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS %}
   {% set shirt_opts = c.PREREG_SHIRT_OPTS if not admin_area else c.SHIRT_OPTS %}
   {% set warn_on_change = c.PREREG_SHIRTS and not admin_area and attendee.shirt not in c.PREREG_SHIRTS.keys() %}
   {% if not admin_area %}
@@ -1589,9 +1589,9 @@ $(window).on("runJavaScript", function () {
     {% for manager in attendee.managers %}
       {% if not loop.first %} / {% endif %}{{ manager|form_link(true) }}
       {% if manager.attendees|length > 1 %}
-      ({%- for managed_attendee in manager.attendees|selectattr('id','!=',attendee.id) -%}
-        {% if not loop.first %} / {% endif %}{{ managed_attendee|form_link }}
-        {%- endfor -%})
+      (&nbsp;{%- for managed_attendee in manager.attendees|selectattr('id','!=',attendee.id) -%}
+        {% if not loop.first %} / {% endif %}{{ managed_attendee|form_link }}{% if not managed_attendee.is_valid %} <span class="badge">Invalid</span>{% endif %}
+        {%- endfor -%}&nbsp;)
       {% endif %}
     {% else %}
       This attendee has no attendee accounts.
@@ -1843,32 +1843,7 @@ $(window).on("runJavaScript", function(){
 
 {% set payment_method %}
 {% set read_only = payment_method_ro or page_ro %}
-{% if admin_area and (attendee.payment_method or c.AT_THE_CON) %}
-  <div class="form-group">
-    <label for="payment_method" class="col-sm-3 control-label">Payment Method</label>
-    {% call macros.read_only_if(read_only, attendee.payment_method) %}
-    <div class="col-sm-3">
-      <select id="payment_method" name="payment_method" class="form-control">
-        <option value="">N/A</option>
-        {{ options(c.PAYMENT_METHOD_OPTS,attendee.payment_method) }}
-      </select>
-    </div>
-  {% endcall %}
-  </div>
-  {% if c.CHILD_BADGE in c.PREREG_BADGE_TYPES %}
-  <div class="form-group">
-      <p class="help-block col-sm-9 col-sm-offset-3">
-      {% if c.CHILD_BADGE_AVAILABLE %}
-        Badges for attendees under 13 are half-price. <br/>
-        Attendees under 6 enter free. <br/>
-        All attendees under 13 must be accompanied by an adult with a valid Attendee badge.
-    {% else %}
-    <span class="text-danger">Unfortunately, we are sold out of badges for attendees under 18.</span>
-    {% endif %}
-      </p>
-    </div>
-  {% endif %}
-{% elif not admin_area and c.AT_THE_CON %}
+{% if not admin_area and c.AT_THE_CON %}
   <script type="text/javascript">
       var maybeBold = function() {
           var $emailLabel = $('#email').parents('.form-group').find('label');
@@ -1895,8 +1870,21 @@ $(window).on("runJavaScript", function(){
       {% else %}
         <select name="payment_method" class="form-control" onChange="maybeBold()">
           <option value="">Select a payment option</option>
-          {{ options(c.DOOR_PAYMENT_METHOD_OPTS,attendee.payment_method) }}
+          {{ options(c.DOOR_PAYMENT_METHOD_OPTS, payment_method_val) }}
         </select>
+        {% if c.CHILD_BADGE in c.PREREG_BADGE_TYPES %}
+        <div class="form-group">
+            <p class="help-block col-sm-9 col-sm-offset-3">
+            {% if c.CHILD_BADGE_AVAILABLE %}
+              Badges for attendees under 13 are half-price. <br/>
+              Attendees under 6 enter free. <br/>
+              All attendees under 13 must be accompanied by an adult with a valid Attendee badge.
+          {% else %}
+          <span class="text-danger">Unfortunately, we are sold out of badges for attendees under 18.</span>
+          {% endif %}
+            </p>
+          </div>
+        {% endif %}
       {% endif %}
     </div>
   </div>

@@ -7,7 +7,7 @@
 {% set prereg_message %}
     {% if c.BEFORE_PREREG_OPEN %}
         Preregistration will open {{ c.PREREG_OPEN|datetime_local }}.
-    {% elif c.AFTER_PREREG_TAKEDOWN %}
+    {% elif c.AFTER_PREREG_TAKEDOWN and not c.AT_THE_CON %}
         Preregistration has closed for the year.
     {% elif not c.ATTENDEE_BADGE_AVAILABLE %}
         Preregistration has sold out!

@@ -46,7 +46,7 @@
         <td>{{ app.tables }}</td>
         <td>{{ app.panels_ad }}</td>
         <td>{{ app.tables_ad }}</td>
-        <td>{{ app.potential_cost|format_currency }}</td>
+        <td>{{ app.total_cost|default(app.potential_cost)|format_currency }}{% if app.amount_unpaid %} ({{ (app.amount_unpaid)|format_currency }} unpaid){% endif %}</td>
         <td>{{ app.admin_notes }}</td>
     </tr>
 {% endfor %}

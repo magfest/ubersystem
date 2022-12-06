@@ -126,6 +126,11 @@ class Root:
 
     @log_pageview
     def form(self, session, message='', return_to='', **params):
+        if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
+            message = session.auto_update_receipt(session.attendee(params.get('id')), params)
+            if message:
+                log.error("Error while auto-updating attendee receipt: {}".format(message))
+
         attendee = session.attendee(
             params, checkgroups=Attendee.all_checkgroups, bools=Attendee.all_bools, allow_invalid=True)
 
@@ -197,6 +202,8 @@ class Root:
                             message,
                             '{} {}'.format(attendee.first_name, attendee.last_name) if c.AT_THE_CON else '')
 
+        receipt = session.refresh_receipt_and_model(attendee)
+
         return {
             'message':    message,
             'attendee':   attendee,
@@ -211,7 +218,7 @@ class Root:
             'reg_station': cherrypy.session.get('reg_station', ''),
             'printer_default_id': cherrypy.session.get('printer_default_id', ''),
             'printer_minor_id': cherrypy.session.get('printer_minor_id', ''),
-            'receipt': session.get_receipt_by_model(attendee),
+            'receipt': receipt,
         }  # noqa: E711
 
         return {
@@ -478,6 +485,8 @@ class Root:
 
     def check_in_form(self, session, id):
         attendee = session.attendee(id)
+        session.refresh_receipt_and_model(attendee)
+
         if attendee.paid == c.PAID_BY_GROUP and not attendee.group_id:
             valid_groups = session.query(Group).options(joinedload(Group.leader)).filter(
                 Group.status != c.WAITLISTED,
@@ -567,6 +576,9 @@ class Root:
     def register(self, session, message='', error_message='', **params):
         params['id'] = 'None'
         login_email = None
+        payment_method = params.get('payment_method')
+        if payment_method:
+            payment_method = int(payment_method)
 
         if 'kiosk_mode' in params:
             cherrypy.session['kiosk_mode'] = True
@@ -595,9 +607,9 @@ class Root:
                     error_message = check_account(session, account_email, account_password, params.get('confirm_password'))
             
             if not error_message:
-                if not attendee.payment_method and (not c.BADGE_PRICE_WAIVED or c.BEFORE_BADGE_PRICE_WAIVED):
+                if not payment_method and (not c.BADGE_PRICE_WAIVED or c.BEFORE_BADGE_PRICE_WAIVED):
                     error_message = 'Please select a payment type'
-                elif attendee.payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
+                elif payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
                     error_message = 'Email address is required to pay with a credit card at our registration desk'
                 elif attendee.badge_type not in [badge for badge, desc in c.AT_THE_DOOR_BADGE_OPTS]:
                     error_message = 'No hacking allowed!'
@@ -617,28 +629,42 @@ class Root:
                         cherrypy.session['attendee_account_id'] = new_or_existing_account.id
 
                 session.add(attendee)
+                receipt = session.get_receipt_by_model(attendee, create_if_none=True)
                 session.commit()
                 if c.AFTER_BADGE_PRICE_WAIVED:
                     message = c.AT_DOOR_WAIVED_MSG
                     attendee.paid = c.NEED_NOT_PAY
-                elif attendee.payment_method == c.STRIPE:
+                elif payment_method == c.STRIPE:
                     raise HTTPRedirect('pay?id={}', attendee.id)
-                elif attendee.payment_method == c.CASH:
+                elif payment_method == c.CASH:
                     message = c.AT_DOOR_CASH_MSG.format('${}'.format(attendee.total_cost))
-                elif attendee.payment_method == c.MANUAL:
+                elif payment_method == c.MANUAL:
                     message = c.AT_DOOR_MANUAL_MSG
-                raise HTTPRedirect('register?message={}', message
-                                   or "Thanks! Please proceed to the registration desk to pick up your badge.")
+                message = message or "Thanks! Please proceed to the registration desk to pick up your badge."
+                if in_kiosk_mode:
+                    raise HTTPRedirect('register?message={}', message)
+                else:
+                    raise HTTPRedirect('at_door_complete?id={}&message={}', attendee.id, message)
 
         return {
             'message':  message,
             'error_message':  error_message,
             'attendee': attendee,
+            'payment_method_val': payment_method,
             'promo_code': params.get('promo_code', ''),
             'logged_in_account': session.current_attendee_account(),
             'original_location': '../registration/register',
             'kiosk_mode': in_kiosk_mode,
             'logging_in': bool(login_email),
+        }
+    
+    @public
+    @check_atd
+    def at_door_complete(self, session, id, message=''):
+        attendee = session.attendee(id)
+        return {
+            'confirm_message': message,
+            'attendee': attendee,
         }
 
     @public
@@ -646,8 +672,10 @@ class Root:
     def pay(self, session, id, message=''):
         attendee = session.attendee(id)
         if not attendee.amount_unpaid:
-            raise HTTPRedirect(
-                'register?message={}', c.AT_DOOR_NOPAY_MSG)
+            if cherrypy.session.get('kiosk_mode'):
+                raise HTTPRedirect('register?message={}', c.AT_DOOR_NOPAY_MSG)
+            else:
+                raise HTTPRedirect('at_door_complete?id={}&message={}', attendee.id, c.AT_DOOR_NOPAY_MSG)
         else:
             return {
                 'message': message,
@@ -669,8 +697,12 @@ class Root:
             return {'error': stripe_intent}
         
         session.commit()
+        if cherrypy.session.get('kiosk_mode'):
+            success_url = 'register?message={}'.format(c.AT_DOOR_PREPAID_MSG)
+        else:
+            success_url = 'at_door_complete?id={}&message={}'.format(attendee.id, c.AT_DOOR_PREPAID_MSG)
         return {'stripe_intent': stripe_intent,
-                'success_url': 'register?message={}'.format(c.AT_DOOR_PREPAID_MSG)}
+                'success_url': success_url}
 
     def comments(self, session, order='last_name'):
         return {
@@ -721,13 +753,12 @@ class Root:
             return {'success': False, 'message': 'Payments can only be taken by at-door stations.'}
         
         attendee = session.attendee(id)
-        receipt = session.get_receipt_by_model(attendee)
+        receipt = session.get_receipt_by_model(attendee, create_if_none=True)
         attendee.paid = c.HAS_PAID
         if int(payment_method) == c.STRIPE_ERROR:
             desc = "Automated message: Stripe payment manually verified by admin."
         else:
             desc = "At-door marked as paid"
-        attendee.payment_method = payment_method
 
         session.add(Charge.create_receipt_transaction(receipt, desc, method=payment_method))
         
@@ -1041,7 +1072,7 @@ class Root:
                                                                 last_name=attendee.last_name,
                                                                 email=attendee.email).count():
                 message = 'An attendee with this name and email address already exists.'
-        
+
         if not message:
             if 'group_opt' in params:
                 attendee.group_id = params.get('group_opt') or None
@@ -1057,6 +1088,9 @@ class Root:
 
         if not message:
             message = check(attendee)
+
+        if not message:
+            message = session.auto_update_receipt(attendee, params)
 
         if not message:
             success = True

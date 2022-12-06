@@ -133,7 +133,7 @@ class ArtShowApplication(MagModel):
             return 0
         else:
             if self.active_receipt:
-                return self.active_receipt['current_amount_owed'] / 100
+                return self.active_receipt['item_total'] / 100
             return self.potential_cost
 
     @property
@@ -142,6 +142,26 @@ class ArtShowApplication(MagModel):
             return self.overridden_price
         else:
             return self.default_cost or 0
+
+    def calc_app_price_change(self, **kwargs):
+        preview_app = ArtShowApplication(**self.to_dict())
+        current_cost = int(self.potential_cost * 100)
+
+        if 'overridden_price' in kwargs:
+            try:
+                preview_app.overridden_price = int(kwargs['overridden_price'])
+            except TypeError:
+                preview_app.overridden_price = kwargs['overridden_price']
+        if 'panels' in kwargs:
+            preview_app.panels = int(kwargs['panels'])
+        if 'panels_ad' in kwargs:
+            preview_app.panels_ad = int(kwargs['panels_ad'])
+        if 'tables' in kwargs:
+            preview_app.tables = int(kwargs['tables'])
+        if 'tables_ad' in kwargs:
+            preview_app.tables_ad = int(kwargs['tables_ad'])
+
+        return current_cost, int(preview_app.potential_cost * 100) - current_cost
 
     @property
     def email(self):
@@ -153,7 +173,7 @@ class ArtShowApplication(MagModel):
 
     @property
     def amount_unpaid(self):
-        return max(0, self.total_cost - self.amount_paid)
+        return max(0, self.total_cost - (self.amount_paid / 100))
 
     @property
     def amount_pending(self):

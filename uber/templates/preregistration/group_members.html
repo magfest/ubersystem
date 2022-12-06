@@ -172,7 +172,7 @@
         Please contact us at <strong>{{ c.MARKETPLACE_EMAIL|email_only|email_to_link }}</strong> if you wish to purchase additional badges.
         {% endif %}
 
-{% if c.PRE_CON and group.min_badges_addable %}
+{% if group.min_badges_addable %}
     <div id="add" style="display:none">
       <form class="form-inline" method="get" action="add_group_members">
         <input type="hidden" name="id" value="{{ group.id }}" />

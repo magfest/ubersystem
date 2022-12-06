@@ -54,7 +54,11 @@ printBadge = function ($form) {
         data: $form.serialize(),
         success: function (json) {
             if (json.success) {
-            toastr.success(json.message);
+                if (json.message.includes('fee')) { 
+                    window.location = window.location + '&message=' + json.message
+                } else {
+                    toastr.success(json.message);
+                }
             } else {
             toastr.error(json.message);
             }

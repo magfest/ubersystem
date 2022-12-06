@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy.sql.elements import not_
-
+from dateutil import parser as dateparser
 from pockets import cached_property, classproperty, groupify, listify, is_listy, readable_join
 from pockets.autolog import log
 from pytz import UTC
@@ -597,6 +597,11 @@ class Attendee(MagModel, TakesPaymentMixin):
                 if not self.amount_unpaid:
                     self.badge_num = self.session.get_next_badge_num(self.badge_type)
 
+    @presave_adjustment
+    def match_account_if_exists(self):
+        if c.ATTENDEE_ACCOUNTS_ENABLED and self.email and not self.managers:
+            self.session.match_attendee_to_account(self)
+
     @hybrid_property
     def times_printed(self):
         return len([job.id for job in self.print_requests if job.printed])
@@ -751,6 +756,10 @@ class Attendee(MagModel, TakesPaymentMixin):
             return cost
 
     def calculate_badge_prices_cost(self, current_badge_type=c.ATTENDEE_BADGE):
+        # This is a special calculation that accounts for badge upgrades for comped attendees
+        # All other badge type changes (i.e. those not to/from a badge type in BADGE_TYPE_PRICES)
+        # use the attendee's actual current badge cost
+
         base_badge_cost = self.new_badge_cost if self.paid == c.NEED_NOT_PAY else self.calculate_badge_cost()
 
         if self.badge_type in c.BADGE_TYPE_PRICES and current_badge_type in c.BADGE_TYPE_PRICES:
@@ -824,8 +833,11 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def total_cost(self):
+        if not self.is_valid:
+            return 0
+
         if self.active_receipt:
-            return self.active_receipt['current_amount_owed'] / 100
+            return self.active_receipt['item_total'] / 100
         return self.default_cost
 
     @property
@@ -844,6 +856,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def amount_pending(self):
         return self.active_receipt.get('pending_total', 0)
+
+    @property
+    def is_paid(self):
+        return self.active_receipt.get('current_amount_owed', None) == 0
 
     @hybrid_property
     def amount_paid(self):
@@ -901,8 +917,12 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     def calc_badge_cost_change(self, **kwargs):
         preview_attendee = Attendee(**self.to_dict())
+        new_cost = None
         if 'overridden_price' in kwargs:
-            preview_attendee.overridden_price = int(kwargs['overridden_price'])
+            try:
+                preview_attendee.overridden_price = int(kwargs['overridden_price'])
+            except TypeError:
+                preview_attendee.overridden_price = kwargs['overridden_price']
         if 'badge_type' in kwargs:
             preview_attendee.badge_type = int(kwargs['badge_type'])
             new_cost = preview_attendee.calculate_badge_prices_cost(self.badge_type) * 100
@@ -919,10 +939,31 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     def calc_age_discount_change(self, birthdate):
         preview_attendee = Attendee(**self.to_dict())
-        preview_attendee.birthdate = birthdate
-        current_discount = self.age_discount() * 100
+        preview_attendee.birthdate = dateparser.parse(birthdate)
+        current_discount = max(self.badge_cost * 100 * -1, self.age_discount * 100)
+        new_discount = max(self.badge_cost * 100 * -1, preview_attendee.age_discount * 100)
 
-        return current_discount, (preview_attendee.age_discount() * 100) - current_discount
+        if not new_discount:
+            return current_discount, current_discount * -1
+        elif not current_discount:
+            return current_discount, new_discount
+        else:
+            return current_discount, new_discount - current_discount
+
+    def calc_badge_comp_change(self, paid):
+        preview_attendee = Attendee(**self.to_dict())
+        paid = int(paid)
+        comped_or_refunded = [c.NEED_NOT_PAY, c.REFUNDED]
+        preview_attendee.paid = paid
+        if paid != c.NEED_NOT_PAY and self.paid != c.NEED_NOT_PAY:
+            return 0, 0
+        elif self.paid in comped_or_refunded and paid in comped_or_refunded:
+            return 0, 0
+        elif paid == c.NEED_NOT_PAY:
+            return 0, self.badge_cost * -1 * 100
+        else:
+            badge_cost = preview_attendee.calculate_badge_cost() * 100
+            return badge_cost * -1, badge_cost 
 
     @hybrid_property
     def is_unassigned(self):
