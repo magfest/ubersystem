@@ -290,9 +290,8 @@ def promo_code_is_useful(attendee):
             if session.lookup_agent_code(attendee.promo_code.code):
                 return
             code = session.lookup_promo_or_group_code(attendee.promo_code.code, PromoCode)
-            if code and code.group:
-                return
-            if session.lookup_promo_or_group_code(attendee.promo_code.code, PromoCodeGroup):
+            group = code.group if code and code.group else session.lookup_promo_or_group_code(attendee.promo_code.code, PromoCodeGroup)
+            if group and group.total_cost == 0:
                 return
 
     if attendee.is_new and attendee.promo_code:
