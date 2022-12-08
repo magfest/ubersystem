@@ -285,9 +285,15 @@ def reasonable_total_cost(attendee):
 
 @prereg_validation.Attendee
 def promo_code_is_useful(attendee):
-    with Session() as session:
-        if attendee.promo_code and session.lookup_agent_code(attendee.promo_code.code):
-            return
+    if attendee.promo_code:
+        with Session() as session:
+            if session.lookup_agent_code(attendee.promo_code.code):
+                return
+            code = session.lookup_promo_or_group_code(attendee.promo_code.code, PromoCode)
+            if code and code.group:
+                return
+            if session.lookup_promo_or_group_code(attendee.promo_code.code, PromoCodeGroup):
+                return
 
     if attendee.is_new and attendee.promo_code:
         if not attendee.is_unpaid:
