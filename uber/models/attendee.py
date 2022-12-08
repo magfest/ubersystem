@@ -692,12 +692,13 @@ class Attendee(MagModel, TakesPaymentMixin):
         We use this list to determine which admins can create, edit, and view the attendee.
         """
         section_list = []
-        if self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE, c.ATTENDEE_BADGE] and self.staffing_or_will_be:
+        if self.staffing_or_will_be:
             section_list.append('shifts_admin')
         if (self.group and self.group.guest and self.group.guest.group_type == c.BAND
-            ) or (self.badge_type == c.GUEST and c.BAND in self.ribbon_ints):
+            ) or (self.badge_type == c.GUEST_BADGE and c.BAND in self.ribbon_ints):
             section_list.append('band_admin')
-        if self.group and self.group.guest and self.group.guest.group_type == c.GUEST:
+        if (self.group and self.group.guest and self.group.guest.group_type == c.GUEST
+            ) or (self.badge_type == c.GUEST_BADGE and c.BAND not in self.ribbon_ints):
             section_list.append('guest_admin')
         if c.PANELIST_RIBBON in self.ribbon_ints:
             section_list.append('panels_admin')
