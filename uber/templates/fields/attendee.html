@@ -1443,13 +1443,13 @@ $(window).on("runJavaScript", function () {
   <div class="non_group_fields form-group">
     <label for="promo_code" class="col-sm-3 control-label optional-field">Promo {% if c.GROUPS_ENABLED %}or Group {% endif %}Code</label>
     <div class="col-sm-6">
-      {% if attendee.is_unpaid and not read_only %}
+      {% if not attendee.active_receipt and not read_only %}
         <input type="textarea" name="promo_code" value="{{ attendee.promo_code_code or promo_code_code }}" class="form-control" placeholder="Promo Code">
       {% else %}
         <input type="hidden" name="promo_code" value="{{ attendee.promo_code_code }}">
         <p class="form-control-static">
-          {{ attendee.promo_code_code }}
-          {% if not read_only and c.HAS_REG_ADMIN_ACCESS %}
+          {{ attendee.promo_code_code|default("N/A") }}
+          {% if not read_only and c.HAS_REG_ADMIN_ACCESS and attendee.promo_code_code %}
             [<a href="" id="remove_promo_code" onClick="removePromoCode(event)">Remove</a>]
           {% endif %}
         </p>

@@ -1344,6 +1344,10 @@ class Root:
             if message:
                 log.error("Error while auto-updating attendee receipt: {}".format(message))
 
+            # Stop unsetting these every time someone updates their info
+            params['agreed_to_volunteer_agreement'] = session.attendee(params.get('id')).agreed_to_volunteer_agreement
+            params['reviewed_emergency_procedures'] = session.attendee(params.get('id')).reviewed_emergency_procedures
+
         # Safe to ignore csrf tokens here, because an attacker would need to know the attendee id a priori
         attendee = session.attendee(params, restricted=True, ignore_csrf=True)
 

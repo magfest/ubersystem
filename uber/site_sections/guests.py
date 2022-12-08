@@ -7,10 +7,11 @@ from pockets.autolog import log
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable
+from uber.decorators import ajax, all_renderable, render
 from uber.errors import HTTPRedirect
 from uber.models import GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans
 from uber.utils import check
+from uber.tasks.email import send_email
 
 
 def compile_travel_plans_from_params(session, **params):
@@ -275,6 +276,13 @@ class Root:
             else:
                 guest.charity = guest_charity
                 session.add(guest_charity)
+                if guest_charity.donating == c.DONATING or guest_charity.orig_value_of('donating') != guest_charity.donating:
+                    send_email.delay(
+                            c.CHARITY_EMAIL,
+                            c.CHARITY_EMAIL,
+                            '{} Donation Notification'.format(guest.group.name),
+                            render('emails/guests/charity_notification.txt', {'guest': guest}, encoding=None),
+                            model=guest.to_dict('id'))
                 raise HTTPRedirect('index?id={}&message={}', guest.id, 'Your charity decisions have been saved')
 
         return {
