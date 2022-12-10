@@ -214,6 +214,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
         self.active_before = fixture.active_before
         self.approved = False if self.is_new else self.approved
         self.unapproved_count = 0 if self.is_new else self.unapproved_count
+        self.currently_sending = False
         return self
 
     def renderable_data(self, model_instance):
