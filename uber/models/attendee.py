@@ -918,6 +918,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     def calc_badge_cost_change(self, **kwargs):
         preview_attendee = Attendee(**self.to_dict())
+        promo_code_discount = self.calculate_badge_cost(use_promo_code=False) - self.calculate_badge_cost()
         new_cost = None
         if 'overridden_price' in kwargs:
             try:
@@ -936,7 +937,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not new_cost:
             new_cost = (preview_attendee.calculate_badge_cost() * 100) - current_cost
 
-        return current_cost, new_cost
+        return current_cost, new_cost - (promo_code_discount * 100)
 
     def calc_age_discount_change(self, birthdate):
         preview_attendee = Attendee(**self.to_dict())
