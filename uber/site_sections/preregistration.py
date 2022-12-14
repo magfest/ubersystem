@@ -927,7 +927,7 @@ class Root:
             # with the Attendee's address fields, we must clone the params and
             # rename all the "group_" fields.
             group_params = dict(params)
-            for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city']:
+            for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city', 'phone', 'email_address']:
                 group_field_name = 'group_{}'.format(field_name)
                 if group_field_name in params:
                     group_params[field_name] = params.get(group_field_name, '')

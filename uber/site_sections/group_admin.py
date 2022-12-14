@@ -63,6 +63,14 @@ class Root:
 
         group = session.group(params, checkgroups=Group.all_checkgroups, bools=Group.all_bools)
 
+        group_params = dict(params)
+        for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city', 'phone', 'email_address']:
+            group_field_name = 'group_{}'.format(field_name)
+            if group_field_name in params:
+                group_params[field_name] = params.get(group_field_name, '')
+
+        group.apply(group_params)
+
         if cherrypy.request.method == 'POST':
             new_with_leader = any(params.get(info) for info in ['first_name', 'last_name', 'email'])
             message = message or self._required_message(params, ['name'])

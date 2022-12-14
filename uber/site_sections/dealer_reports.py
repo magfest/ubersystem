@@ -57,8 +57,8 @@ class Root:
                     group.description,
                     group.website,
                     group.leader.legal_name or group.leader.full_name,
-                    group.leader.email,
-                    group.leader.cellphone,
+                    group.email,
+                    group.phone if group.phone else group.leader.cellphone,
                     group.address1,
                     group.address2,
                     group.city,
@@ -79,9 +79,9 @@ class Root:
             if group.status == c.APPROVED and group.is_dealer:
                 rows.append([
                     group.name,
-                    group.leader.email,
+                    group.email,
                     group.leader.legal_name or group.leader.full_name,
-                    group.leader.cellphone,
+                    group.phone if group.phone else group.leader.cellphone,
                     group.physical_address
                 ])
         header_row = [
@@ -119,7 +119,7 @@ class Root:
                 rows.append([
                     group.name,
                     group.leader.full_name,
-                    group.leader.email,
+                    group.email,
                     group.website,
                     group.physical_address
                 ])
@@ -140,9 +140,9 @@ class Root:
                 rows.append([
                     group.name,
                     group.leader.full_name,
-                    group.leader.email,
+                    group.email,
                     group.physical_address,
-                    group.leader.cellphone,
+                    group.phone if group.phone else group.leader.cellphone,
                     group.special_needs,
                     group.admin_notes,
                     group.wares,
