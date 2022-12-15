@@ -49,7 +49,7 @@ class Root:
                     c.MARKETPLACE_APP_EMAIL,
                     'Marketplace Application Received',
                     render('emails/marketplace/reg_notification.txt',
-                           {'app': app}), model=app)
+                           {'app': app}), model=app, encoding=None)
                 session.commit()
                 raise HTTPRedirect('confirmation?id={}', app.id)
 
