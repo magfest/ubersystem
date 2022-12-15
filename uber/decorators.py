@@ -383,7 +383,7 @@ def set_csv_filename(func):
 def check_shutdown(func):
     @wraps(func)
     def with_check(self, *args, **kwargs):
-        if c.UBER_SHUT_DOWN or c.AT_THE_CON:
+        if c.UBER_SHUT_DOWN:
             raise HTTPRedirect('index?message={}', 'The page you requested is only available pre-event.')
         else:
             return func(self, *args, **kwargs)
