@@ -592,7 +592,10 @@ def money_amount(model):
 
 
 Job.required = [
-    ('name', 'Job Name')
+    ('name', 'Job Name'),
+    ('description', 'Job Description'),
+    ('start_time', 'Start Time'),
+    ('duration', 'Hours and/or Minutes')
 ]
 
 
