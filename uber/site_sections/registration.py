@@ -154,11 +154,6 @@ class Root:
                 message = check(attendee)
 
             if not message:
-                # Free group badges are only considered 'registered' when they are actually claimed.
-                if attendee.paid == c.PAID_BY_GROUP and attendee.group_id and attendee.group.cost == 0:
-                    attendee.registered = localized_now()
-                session.add(attendee)
-
                 if attendee.is_new and \
                         session.attendees_with_badges().filter_by(first_name=attendee.first_name,
                                                                   last_name=attendee.last_name,
@@ -1102,10 +1097,6 @@ class Root:
                 ) and not session.admin_can_create_attendee(attendee):
                 attendee.badge_status = c.PENDING_STATUS
                 message += ' as a pending badge'
-            
-            # Free group badges are only considered 'registered' when they are actually claimed.
-            if attendee.paid == c.PAID_BY_GROUP and attendee.group_id and attendee.group.cost == 0:
-                attendee.registered = localized_now()
 
             session.add(attendee)
             session.commit()
