@@ -871,33 +871,10 @@ class Config(_Overridable):
                 return False
             else:
                 return int(count_check) < int(stock_setting)
-        elif hasattr(_secret, name):
-            return getattr(_secret, name)
         elif name.lower() in _config['secret']:
             return _config['secret'][name.lower()]
         else:
             raise AttributeError('no such attribute {}'.format(name))
-
-
-class SecretConfig(_Overridable):
-    """
-    This class is for properties which we don't want to be used as Javascript
-    variables.  Properties on this class can be accessed normally through the
-    global c object as if they were defined there.
-    """
-
-    @property
-    def SQLALCHEMY_URL(self):
-        """
-        Support reading the DB connection info from an environment var (used with Docker containers)
-        DB_CONNECTION_STRING should contain the full Postgres URI
-        """
-        db_connection_string = os.environ.get('DB_CONNECTION_STRING')
-
-        if db_connection_string is not None:
-            return db_connection_string
-        else:
-            return _config['secret']['sqlalchemy_url']
 
 
 class AWSSecretFetcher:
@@ -985,8 +962,18 @@ class AWSSecretFetcher:
 
 
 c = Config()
-_secret = SecretConfig()
 _config = parse_config(__file__)  # outside this module, we use the above c global instead of using this directly
+db_connection_string = os.environ.get('DB_CONNECTION_STRING')
+
+for conf, val in _config['secret'].items():
+    conf_env = os.environ.get(conf.upper())
+
+    if conf_env is not None:
+        setattr(c, conf.upper(), conf_env)
+    elif conf == "sqlalchemy_url" and db_connection_string is not None: # Backwards compatibility
+        setattr(c, conf.upper(), db_connection_string)
+    else:
+        setattr(c, conf.upper(), val)
 
 if c.AWS_SECRET_SERVICE_NAME:
     aws_secrets_client = AWSSecretFetcher()
@@ -1032,7 +1019,7 @@ c.make_dates(_config['dates'])
 c.DATA_DIRS = {}
 c.make_data_dirs(_config['data_dirs'])
 
-if "sqlite" in _config['secret']['sqlalchemy_url']:
+if "sqlite" in c.SQLALCHEMY_URL:
     # SQLite does not suport pool_size and max_overflow,
     # so disable them if sqlite is used.
     c.SQLALCHEMY_POOL_SIZE = -1
