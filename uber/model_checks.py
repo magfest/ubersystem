@@ -615,6 +615,12 @@ def time_conflicts(job):
                     shift.attendee.full_name)
 
 
+@validation.Job
+def no_negative_hours(job):
+    if job.duration < 0:
+        return 'You cannot create a job with negative hours.'
+
+
 Department.required = [('name', 'Name'), ('description', 'Description')]
 DeptRole.required = [('name', 'Name')]
 
