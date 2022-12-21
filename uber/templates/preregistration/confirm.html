@@ -33,11 +33,11 @@
 {% if account %}
   {% include 'preregistration/update_account.html' %}
 {% endif %}
-<div class="panel panel-default">
-  <div class="panel-heading">
+<div class="card">
+  <div class="card-header">
     Registration Information
   </div>
-  <div class="panel-body">
+  <div class="card-body">
     {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_applications or attendee.is_group_leader %}
       {% include 'confirm_tabs.html' with context %}
     {% endif %}
@@ -48,32 +48,32 @@
     {% endif %}
 
       {% if not attendee.is_valid %}
-      <div class="alert alert-danger">
+      <div class="alert alert-danger" role="alert">
         Your registration is currently marked as <strong>{{ attendee.badge_status_label }}</strong>
         and is not considered a valid registration. Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you have any questions.
       </div>
       {% else %}
         {% if not attendee.placeholder and receipt and receipt.current_amount_owed %}
             {% if incomplete_txn %}
-            <div class="alert alert-warning">
+            <div class="alert alert-warning" role="alert">
               You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
               with an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.
               <br/><br/>Click here to complete your payment: {{ stripe_form('finish_pending_payment', attendee, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}
             </div>
             {% else %}
-            <div class="alert alert-danger">
+            <div class="alert alert-danger" role="alert">
               You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
               Please <a href="" data-toggle="modal" data-target="#receiptModal">check your receipt here</a> to pay.
             </div>
             {% endif %}
         {% elif attendee.badge_status == c.PENDING_STATUS %}
-            <div class="alert alert-warning">
+            <div class="alert alert-warning" role="alert">
               Your registration has not finished processing, likely because we don't have a verified completed payment. 
               Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if this issue persists or if you have any questions.
             </div>
         {% endif %}
         {% if attendee.badge_status == c.DEFERRED_STATUS %}
-          <div class="alert alert-warning">
+          <div class="alert alert-warning" role="alert">
             Your registration has been deferred to {{ c.EVENT_NAME }} {{ c.EVENT_YEAR|int + 1 }}.
             You can {% if attendee.shipping_fee_cost %}update your mailing address
             for your badge and kick-in merch below{% else %}update your information below for next year{% endif %}.
@@ -91,7 +91,7 @@
           {% else %}
             {% set bg_class = 'info' %}
           {% endif %}
-          <div class="alert alert-{{ bg_class }}">
+          <div class="alert alert-{{ bg_class }}" role="alert">
             Your group "<a href="group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>"
             is currently {{ attendee.group.status_label }}.
             {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and attendee.group.status not in [c.APPROVED, c.CANCELLED] %}
@@ -115,7 +115,7 @@
       {% endif %}
       {{ attendee_fields.receipt_modal }}
 
-      <form method="post" action="confirm" id="confirm" class="form-horizontal">
+      <form method="post" action="confirm" id="confirm" class="row g-3">
         {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ attendee.id }}" />
         <input type="hidden" name="return_to" value="{{ return_to }}" />

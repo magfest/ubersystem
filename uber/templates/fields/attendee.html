@@ -578,46 +578,42 @@ $().ready(function() {
         }
     })
 </script>
-<div class="form-group">
-  <label for="first_name" class="col-sm-3 control-label">Name</label>
-  {% call macros.read_only_if(read_only, attendee.masked_name if limited_read else attendee.full_name) %}
-    <div class="col-sm-3">
-      <input type="text" name="first_name" id="first_name" value="{{ attendee.first_name }}" class="form-control" placeholder="First Name" autocomplete="fname">
-    </div>
-    {% if limited_read or limited_write %}
-    <div class="col-sm-3 form-control-static">{{ attendee.last_name[0] ~ '.' if limited_read else attendee.last_name }}</div>
-    {% else %}
-    <div class="col-sm-3">
-      <input type="text" name="last_name" id="last_name" value="{{ attendee.last_name }}" class="form-control" placeholder="Last Name" autocomplete="lname">
-    </div>
-    {% endif %}
-  {% endcall %}
+
+{% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}
+<div class="col-md-6">
+  <div class="form-floating mb-3">
+    {{ form.first_name(readonly=read_only) }}
+    <label for="{{ form.first_name.id }}">{{ form.first_name.label }}</label>
+  </div>
+</div>
+<div class="col-md-6">
+  <div class="form-floating mb-3">
+    {{ form.last_name(value=attendee_last_name, readonly=read_only) }}
+    <label for="last_name">Last Name</label>
+  </div>
 </div>
 
-{% if not read_only %}
-  <div class="form-group">
-    <div class="col-sm-9 col-sm-offset-3">
-      <label for="same_legal_name" class="checkbox-label">
-        <input type="checkbox" name="same_legal_name" id="same_legal_name" value="1" {% if same_legal_name or attendee.first_name != '' and attendee.legal_name == '' %}checked="checked"{% endif %} />
-        The above name is exactly what appears on {{ "my" if not admin_area else "their" }} Legal Photo ID
-      </label>
-    </div>
-  </div>
-{% endif %}
-
 {% if full_read %}
-<div class="form-group">
-  <label for="legal_name" class="col-sm-3 control-label">Name as appears on <span class="text-nowrap">Legal Photo ID</span></label>
-  {% call macros.read_only_if(read_only, attendee.legal_name) %}
-    <div class="col-sm-6">
-      <input type="text" name="legal_name" value="{{ attendee.legal_name }}" class="form-control" placeholder="Name exactly as it appears on Photo ID" autocomplete="name" />
-      {% if not admin_area %}
-        <p class="help-block">
-          <span class="popup">{{ macros.popup_link("../static_views/legal_name.html", 'What does "Legal Photo ID" mean?') }}</span>
-        </p>
-      {% endif %}
-    </div>
-  {% endcall %}
+<div class="col-md-6">
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" value="1" id="same_legal_name"
+      {% if same_legal_name or attendee.first_name != '' and attendee.legal_name == '' %} checked{% endif %}>
+    <label class="form-check-label" for="same_legal_name">
+      The above name is exactly what appears on {{ "my" if not admin_area else "their" }} Legal Photo ID
+    </label>
+  </div>
+</div>
+<div class="col-md-6">
+  <div class="form-floating mb-3">
+    <input type="text" name="legal_name" id="legal_name"
+      value="{{ attendee.legal_name }}" class="form-control" placeholder="Name exactly as it appears on Photo ID" autocomplete="name" />
+      <label for="legal_name">Name as appears on <span class="text-nowrap">Legal Photo ID</span></label>
+  </div>
+  {% if not admin_area %}
+  <div class="form-text">
+      {{ macros.popup_link("../static_views/legal_name.html", 'What does "Legal Photo ID" mean?') }}
+  </div>
+  {% endif %}
 </div>
 {% endif %}
 {% endset %}

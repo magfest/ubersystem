@@ -47,7 +47,7 @@
 <div class="panel-body">
     {% for attendee, money_owed in attendees_who_owe_money.items() %}
     {% if loop.first %}
-    <div class="alert alert-warning">
+    <div class="alert alert-warning" role="alert">
         The following attendees on your account have outstanding balances:
         <ul>
     {% endif %}
