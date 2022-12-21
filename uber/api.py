@@ -817,6 +817,8 @@ class JobLookup:
         'start_time': True,
         'end_time': True,
         'duration': True,
+        'slots': True,
+        'slots_taken': True,
         'shifts': {
             'worked': True,
             'worked_label': True,
