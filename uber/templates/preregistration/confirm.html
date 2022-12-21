@@ -4,7 +4,7 @@
 {% set amount_extra_ro = True if attendee.badge_status == c.DEFERRED_STATUS else False %}
 {% set money_fields_ro = True if receipt %}
 {% set page_ro = not attendee.is_valid %}
-{% import "fields/attendee.html" as attendee_fields with context %}
+{% import "forms/attendee.html" as attendee_fields with context %}
 {% block title %}Confirm Your Details{% endblock %}
 {% block backlink %}
 {{ super() }}

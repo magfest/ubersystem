@@ -1,6 +1,6 @@
 {% extends "preregistration/preregbase.html" %}
 {% set page_ro = True if group.status in [c.APPROVED, c.CANCELLED, c.DECLINED] else False %}
-{% import "fields/group.html" as group_fields with context %}
+{% import "forms/group.html" as group_fields with context %}
 {% block title %}Group Members{% endblock %}
 {% block content %}
 <script type="text/javascript">

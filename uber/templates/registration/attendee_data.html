@@ -1,7 +1,7 @@
 {% set admin_area=True %}
 {% set clientside_bool=True %}
 {% set badge_status_ro=not c.HAS_REG_ADMIN_ACCESS %}
-{% import "fields/attendee.html" as attendee_fields with context %}
+{% import "forms/attendee.html" as attendee_fields with context %}
 <script src="//cdnjs.cloudflare.com/ajax/libs/validate.js/0.13.1/validate.min.js"></script>
 <script type="text/javascript">
 createDateTextEntries();
