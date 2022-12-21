@@ -158,6 +158,8 @@ class Root:
                         session.attendees_with_badges().filter_by(first_name=attendee.first_name,
                                                                   last_name=attendee.last_name,
                                                                   email=attendee.email).count():
+                    session.add(attendee)
+                    session.commit()
                     raise HTTPRedirect('duplicate?id={}&return_to={}', attendee.id, return_to or 'index')
 
                 message = '{} has been saved'.format(attendee.full_name)
@@ -186,6 +188,8 @@ class Root:
                             stay_on_form = False
                         
                 if stay_on_form:
+                    session.add(attendee)
+                    session.commit()
                     raise HTTPRedirect('form?id={}&message={}&return_to={}', attendee.id, message, return_to)
                 else:
                     if return_to:
@@ -1049,6 +1053,11 @@ class Root:
     @ajax
     @attendee_view
     def update_attendee(self, session, message='', success=False, **params):
+        if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
+            message = session.auto_update_receipt(session.attendee(params.get('id')), params)
+            if message:
+                log.error("Error while auto-updating attendee receipt: {}".format(message))
+
         for key in params:
             if params[key] == "false":
                 params[key] = False
@@ -1083,9 +1092,6 @@ class Root:
 
         if not message:
             message = check(attendee)
-
-        if not message:
-            message = session.auto_update_receipt(attendee, params)
 
         if not message:
             success = True
