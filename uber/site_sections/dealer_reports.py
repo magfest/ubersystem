@@ -82,7 +82,12 @@ class Root:
                     group.email,
                     group.leader.legal_name or group.leader.full_name,
                     group.phone if group.phone else group.leader.cellphone,
-                    group.physical_address,
+                    group.address1,
+                    group.address2,
+                    group.city,
+                    group.region,
+                    group.zip_code,
+                    group.country,
                     group.has_permit,
                     group.license
                 ])
@@ -91,7 +96,12 @@ class Root:
             'Contact Email',
             'Primary Contact',
             'Contact Phone #',
-            'Physical Address',
+            'Address 1',
+            'Address 2',
+            'City',
+            'State/Region',
+            'Zip Code',
+            'Country',
             'Has Permit',
             'License #']
         out.writerows(header_row, rows)
