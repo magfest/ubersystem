@@ -337,7 +337,7 @@ def full_name(attendee):
 def allowed_to_volunteer(attendee):
     if attendee.staffing_or_will_be \
             and not attendee.age_group_conf['can_volunteer'] \
-            and attendee.badge_type != c.STAFF_BADGE \
+            and attendee.badge_type not in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] \
             and c.PRE_CON:
 
         return 'Your interest is appreciated, but ' + c.EVENT_NAME + ' volunteers must be 18 or older.'
