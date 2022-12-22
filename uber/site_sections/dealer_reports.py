@@ -82,14 +82,18 @@ class Root:
                     group.email,
                     group.leader.legal_name or group.leader.full_name,
                     group.phone if group.phone else group.leader.cellphone,
-                    group.physical_address
+                    group.physical_address,
+                    group.has_permit,
+                    group.license
                 ])
         header_row = [
             'Vendor Name',
             'Contact Email',
             'Primary Contact',
             'Contact Phone #',
-            'Physical Address']
+            'Physical Address',
+            'Has Permit',
+            'License #']
         out.writerows(header_row, rows)
 
     @xlsx_file
