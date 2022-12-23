@@ -659,7 +659,7 @@ AutomatedEmailFixture(
 # sent close to the event start date.
 AutomatedEmailFixture(
     Attendee,
-    'Check in faster at {EVENT_NAME}',
+    'Check in faster AND pre-verify your vaccination at {EVENT_NAME}',
     'reg_workflow/attendee_qrcode.html',
     lambda a: not a.is_not_ready_to_checkin and c.USE_CHECKIN_BARCODE,
     allow_at_the_con=True,
