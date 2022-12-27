@@ -61,7 +61,7 @@ def _attendee_fields_and_query(full, query):
             subqueryload(Attendee.shifts).subqueryload(Shift.job))
     else:
         fields = AttendeeLookup.fields
-        query = query.options(subqueryload(Attendee.dept_memberships))
+        query = query.options(subqueryload(Attendee.dept_hips))
     return (fields, query)
 
 
@@ -1127,27 +1127,31 @@ class DepartmentLookup:
     
     @department_id_adapter
     @api_auth('api_read')
-    def members(self, department_id):
+    def members(self, department_id, full=False):
         """
         Returns an object with all members of this department broken down by their roles.
         
-        Takes the department id as the only parameter.
+        Takes the department id and 'full' to return attendees' full list of fields.
         """
         with Session() as session:
             department = session.query(Department).filter_by(id=department_id).first()
             if not department:
                 raise HTTPError(404, 'Department id not found: {}'.format(department_id))
+            if full:
+                attendee_fields = AttendeeLookup.fields_full
+            else:
+                attendee_fields = AttendeeLookup.fields
             return department.to_dict({
                 'id': True,
                 'name': True,
                 'description': True,
                 'dept_roles': True,
-                'dept_heads': True,
-                'checklist_admins': True,
-                'members_with_inherent_role': True,
-                'members_who_can_admin_checklist': True,
-                'pocs': True,
-                'members': True
+                'dept_heads': attendee_fields,
+                'checklist_admins': attendee_fields,
+                'members_with_inherent_role': attendee_fields,
+                'members_who_can_admin_checklist': attendee_fields,
+                'pocs': attendee_fields,
+                'members': attendee_fields
             })
 
     @department_id_adapter
