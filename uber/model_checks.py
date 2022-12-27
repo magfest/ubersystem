@@ -463,7 +463,7 @@ def printed_badge_change(attendee):
             and localized_now() > c.get_printed_badge_deadline_by_type(attendee.badge_type_real):
         with Session() as session:
             admin = session.current_admin_account()
-            if not admin.is_admin:
+            if not admin.is_super_admin:
                 return '{} badges have already been ordered, so you cannot change the badge printed name.'.format(
                     attendee.badge_type_label if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES else "Supporter")
 
@@ -529,14 +529,32 @@ def invalid_badge_num(attendee):
 
 
 @validation.Attendee
+def no_changing_badge_num(attendee):
+    if attendee.badge_num != attendee.orig_value_of('badge_num') \
+            and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
+        with Session() as session:
+            admin = session.current_admin_account()
+            if not admin.is_super_admin:
+                return 'Custom badges have already been ordered so you cannot change this person\'s badge number'
+
+
+@validation.Attendee
 def no_more_custom_badges(attendee):
     if (attendee.badge_type != attendee.orig_value_of('badge_type') or attendee.is_new) \
             and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
         with Session() as session:
             admin = session.current_admin_account()
-            if not admin.is_admin:
+            if not admin.is_super_admin:
                 return 'Custom badges have already been ordered so you cannot use this badge type'
 
+@validation.Attendee
+def must_keep_custom_badge(attendee):
+    if attendee.badge_type != attendee.orig_value_of('badge_type') \
+            and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
+        with Session() as session:
+            admin = session.current_admin_account()
+            if not admin.is_super_admin:
+                return 'This attendee\'s badge has already been printed so you cannot change it to a different type'
 
 @validation.Attendee
 def out_of_badge_type(attendee):

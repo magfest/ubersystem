@@ -576,6 +576,9 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.session.update_badge(self, old_type, old_num)
         elif needs_badge_num(self) and not self.badge_num:
             self.badge_num = self.session.get_next_badge_num(self.badge_type)
+        elif not self.checked_in and self.badge_status != self.orig_value_of('badge_status') and not self.is_valid \
+            and not (self.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE):
+            self.badge_num = None
 
     @presave_adjustment
     def _use_promo_code(self):
@@ -1095,7 +1098,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             from uber.models import Session
             with Session() as session:
                 admin = session.current_admin_account()
-                if not admin.is_admin:
+                if not admin.is_super_admin:
                     return "Custom badges have already been ordered so you cannot delete this badge."
 
     @property
