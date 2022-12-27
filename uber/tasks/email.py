@@ -155,12 +155,12 @@ def send_automated_emails():
             .filter(*AutomatedEmail.filters_for_active) \
             .options(joinedload(AutomatedEmail.emails)).all()
 
-        """ This appears to be breaking our email-sending process and I do not have the time or tools to figure it out
         for automated_email in active_automated_emails:
+            """ This appears to be breaking our email-sending process and I do not have the time or tools to figure it out
             automated_email.currently_sending = True
             session.add(automated_email)
-            session.commit()
-            automated_email.unapproved_count = 0"""
+            session.commit()"""
+            automated_email.unapproved_count = 0
 
         automated_emails_by_model = groupify(active_automated_emails, 'model')
 
