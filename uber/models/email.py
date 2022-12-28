@@ -71,6 +71,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
     needs_approval = Column(Boolean, default=True)
     unapproved_count = Column(Integer, default=0)
     currently_sending = Column(Boolean, default=False)
+    last_send_time = Column(UTCDateTime, nullable=True, default=None)
 
     allow_at_the_con = Column(Boolean, default=False)
     allow_post_con = Column(Boolean, default=False)
