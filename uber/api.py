@@ -61,7 +61,7 @@ def _attendee_fields_and_query(full, query):
             subqueryload(Attendee.shifts).subqueryload(Shift.job))
     else:
         fields = AttendeeLookup.fields
-        query = query.options(subqueryload(Attendee.dept_hips))
+        query = query.options(subqueryload(Attendee.dept_memberships))
     return (fields, query)
 
 
