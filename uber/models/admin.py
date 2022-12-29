@@ -134,6 +134,8 @@ class AdminAccount(MagModel):
     
     @property
     def viewable_guest_group_types(self):
+        if 'guest_admin' in self.read_or_write_access_set:
+            [opt for opt in c.GROUP_TYPE_VARS if opt.lower() + "_admin" in self.read_or_write_access_set or opt.lower() + "_admin" not in c.ADMIN_PAGES]
         return [opt for opt in c.GROUP_TYPE_VARS if opt.lower() + "_admin" in self.read_or_write_access_set]
 
     @property
