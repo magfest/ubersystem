@@ -63,7 +63,7 @@ class Root:
                     group.address2,
                     group.city,
                     group.region,
-                    group.zip_code,
+                    str(group.zip_code),
                     group.country,
                     group.tables,
                     group.amount_paid / 100,
@@ -86,7 +86,7 @@ class Root:
                     group.address2,
                     group.city,
                     group.region,
-                    group.zip_code,
+                    str(group.zip_code),
                     group.country,
                     group.has_permit,
                     group.license
