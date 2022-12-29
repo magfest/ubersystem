@@ -67,7 +67,7 @@ def _decline_and_convert_dealer_group(session, group, status=c.DECLINED):
                 new_attendee = Attendee()
                 for attr in c.UNTRANSFERABLE_ATTRS:
                     setattr(new_attendee, attr, getattr(attendee, attr))
-                new_attendee.overridden_price = attendee.new_badge_cost - c.GROUP_DISCOUNT
+                new_attendee.overridden_price = attendee.new_badge_cost
                 new_attendee.badge_cost = attendee.new_badge_cost
                 new_attendee.append_admin_note(admin_note)
                 session.add(new_attendee)
