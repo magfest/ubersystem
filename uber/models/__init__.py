@@ -752,7 +752,7 @@ class Session(SessionManager):
             return set(staffer.assigned_depts_ids).intersection(dept_ids_with_inherent_role)
 
         def admin_can_see_guest_group(self, guest):
-            return guest.group_type_label.upper() in self.current_admin_account().viewable_guest_group_types
+            return guest.group_type_label.upper().replace(' ','_') in self.current_admin_account().viewable_guest_group_types
 
         def admin_attendee_max_access(self, attendee, read_only=True):
             admin = self.current_admin_account()
