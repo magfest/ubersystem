@@ -51,7 +51,10 @@ def _format_opts(opts):
     return ''.join(html)
 
 
-def _attendee_fields_and_query(full, query):
+def _attendee_fields_and_query(full, query, only_valid=True):
+    if only_valid:
+        query = query.filter(Attendee.is_valid == True)
+
     if full:
         fields = AttendeeLookup.fields_full
         query = query.options(
