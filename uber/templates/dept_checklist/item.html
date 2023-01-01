@@ -2,7 +2,9 @@
 {% block title %}Department Checklist - {{ conf.name }}{% endblock %}
 {% block content %}
 
-<h2>Department Checklist: {{ conf.name }}</h2>
+<h2>Department Checklist: {{ conf.name }}
+  <a class="btn btn-info" href="item_csv?slug={{ conf.slug }}"><span class="glyphicon glyphicon-download"></span> Download CSV</a>
+</h2>
 
 {{ conf.description }}
 
