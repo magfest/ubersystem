@@ -4,7 +4,8 @@ from pytz import UTC
 from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, department_id_adapter, render, xlsx_file
+from uber.custom_tags import linebreaksbr
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, render, xlsx_file
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, DeptChecklistItem, HotelRequests, RoomAssignment, Shift
 from uber.utils import check, check_csrf, days_before, DeptChecklistConf, redirect_to_allowed_dept
@@ -199,6 +200,29 @@ class Root:
                 for dept in departments
             ]
         }
+
+    @csv_file
+    def item_csv(self, out, session, slug):
+        conf = DeptChecklistConf.instances[slug]
+        departments = session.query(Department) \
+            .options(
+                subqueryload(Department.checklist_admins),
+                subqueryload(Department.dept_checklist_items)) \
+            .order_by(Department.name)
+        out.writerow([
+            "Complete",
+            "Completed By",
+            "Comments",
+            "Checklist Admins"
+        ])
+        for dept in departments:
+            item = dept.checklist_item_for_slug(conf.slug)
+            out.writerow([
+                "Yes" if item else "No",
+                item.attendee.full_name if item else 'N/A',
+                linebreaksbr(item.comments) if item else 'N/A',
+                ', '.join([a.full_name for a in dept.checklist_admins])
+            ])
 
     @department_id_adapter
     def placeholders(self, session, department_id=None):
