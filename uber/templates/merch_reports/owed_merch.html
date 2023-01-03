@@ -9,6 +9,7 @@
     <th>Name on ID</th>
     <th>Email Address</th>
     <th>Merch</th>
+    <th>Extra Merch</th>
     <th>Shirt Size</th>
     <th>Badge #</th>
     <th>Money Owed</th>
@@ -21,6 +22,7 @@
         <td>{{ attendee.legal_name }}</td>
         <td>{{ attendee.email|email_to_link }}</td>
         <td>{{ attendee.merch }}</td>
+        <td>{{ attendee.extra_merch }}</td>
         <td>{{ attendee.shirt_label }}</td>
         <td>{{ attendee.badge_num }}</td>
         <td>{{ attendee.amount_unpaid|format_currency }}</td>
