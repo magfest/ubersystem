@@ -1028,7 +1028,7 @@ class Root:
     @credit_card
     def process_group_payment(self, session, id):
         group = session.group(id)
-        receipt = session.get_receipt_by_model(group, create_if_none=True)
+        receipt = session.get_receipt_by_model(group, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(group.name, receipt.charge_description_list)
         charge = Charge(group, amount=receipt.current_amount_owed, description=charge_desc)
 
@@ -1088,7 +1088,7 @@ class Root:
     def pay_for_extra_members(self, session, id, count):
         from uber.models import ReceiptItem
         group = session.group(id)
-        receipt = session.get_receipt_by_model(group, create_if_none=True)
+        receipt = session.get_receipt_by_model(group, create_if_none="DEFAULT")
         session.add(receipt)
         session.commit()
         count = int(count)
@@ -1363,7 +1363,7 @@ class Root:
 
                 page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
                 if not receipt:
-                    new_receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+                    new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
                     if new_receipt.current_amount_owed and not new_receipt.pending_total:
                         raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)
                 raise HTTPRedirect(page + 'message=' + message)
@@ -1496,7 +1496,7 @@ class Root:
         attendee = session.attendee(id)
         return {
             'attendee': attendee,
-            'receipt': session.get_receipt_by_model(attendee, create_if_none=True),
+            'receipt': session.get_receipt_by_model(attendee, create_if_none="DEFAULT"),
             'return_to': return_to,
             'message': message,
         }
@@ -1512,7 +1512,7 @@ class Root:
 
         message = attendee.undo_extras()
         if not message:
-            new_receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+            new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
             page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
             if new_receipt.current_amount_owed:
                 raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)
