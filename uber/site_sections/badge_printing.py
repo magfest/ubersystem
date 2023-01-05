@@ -148,7 +148,7 @@ class Root:
         if success:
             reprint_fee = int(params.get('fee_amount', 0))
             if reprint_fee:
-                receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+                receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
                 session.add(ReceiptItem(receipt_id=receipt.id,
                                         desc="Badge reprint fee (${})".format(reprint_fee),
                                         amount=reprint_fee * 100,

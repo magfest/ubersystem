@@ -100,6 +100,19 @@ class Root:
             'message': message,
         }
 
+    def create_receipt(self, session, id='', blank=False):
+        try:
+            model = session.attendee(id)
+        except NoResultFound:
+            try:
+                model = session.group(id)
+            except NoResultFound:
+                model = session.art_show_application(id)
+        receipt = session.get_receipt_by_model(model, create_if_none="BLANK" if blank else "DEFAULT")
+
+        raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', model.id, "{} receipt created.".format("Blank" if blank else "Default"))
+
+
     @ajax
     def add_receipt_item(self, session, id='', **params):
         receipt = session.model_receipt(id)
