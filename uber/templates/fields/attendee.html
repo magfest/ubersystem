@@ -1132,7 +1132,40 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 </div>
 {% endif %}
 {% endset %}
+
+
+{% set onsite_contact %}
+{% if full_read %}
+{% set read_only = onsite_contact_ro or page_ro %}
+<div class="form-group">
+  <label for="onsite_contact" class="col-sm-3 control-label">On-site Contact</label>
+  {% call macros.read_only_if(read_only, attendee.onsite_contact) %}
+  <div class="col-sm-6">
+    <textarea name="onsite_contact" class="form-control" placeholder="Contact info for a trusted friend or friends who will be at or near the venue during the event." maxlength="500">{{ attendee.onsite_contact }}</textarea>
+  </div>
+{% endcall %}
+    <div class="checkbox col-sm-6 col-sm-offset-3">
+      {{ macros.checkbox(attendee, 'no_onsite_contact', label="My emergency contact is also on site with me at the event.", label_class='onsite-ec', is_readonly=read_only, clientside_bool=clientside_bool) }}
+    </div>
+</div>
+<script type="text/javascript">
+var noOnsiteClicked = function () {
+  if ($.field('no_onsite_contact') && $.field('cellphone')) {
+    $.field('onsite_contact').prop('disabled', $.field('no_onsite_contact').prop('checked'));
+    if($.field('no_onsite_contact').prop('checked')) {
+      $.field('onsite_contact').val('');
+    }
+  }
+};
+$(window).on("runJavaScript", function () {
+  noOnsiteClicked();
+  if ($.field('no_onsite_contact')) {
+    $.field('no_onsite_contact').on('click', noOnsiteClicked);
+  }
+});
+  </script>
 {% endif %}
+{% endset %}
 
 
 {% if not limited_read %}
