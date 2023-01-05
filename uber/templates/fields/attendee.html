@@ -1245,8 +1245,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 
 
 {% set onsite_contact %}
-{% if full_read or c.SECURITY_ADMIN_ACCESS or not attendee.onsite_contact %}
-{% if attendee.is_new or not admin_area or c.HAS_REG_ADMIN_ACCESS %}
+{% if full_read %}
 {% set read_only = onsite_contact_ro or page_ro %}
 <div class="form-group">
   <label for="onsite_contact" class="col-sm-3 control-label">On-site Contact</label>
@@ -1275,7 +1274,6 @@ $(window).on("runJavaScript", function () {
   }
 });
   </script>
-{% endif %}
 {% endif %}
 {% endset %}
 
