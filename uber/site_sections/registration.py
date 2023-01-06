@@ -164,8 +164,9 @@ class Root:
 
                 message = '{} has been saved'.format(attendee.full_name)
                 stay_on_form = params.get('save') != 'save_return_to_search'
+                session.add(attendee)
+                session.commit()
                 if params.get('save') == 'save_check_in':
-                    session.commit()
                     if attendee.is_not_ready_to_checkin:
                         message = "Attendee saved, but they cannot check in now. Reason: {}".format(
                             attendee.is_not_ready_to_checkin)
@@ -188,8 +189,6 @@ class Root:
                             stay_on_form = False
                         
                 if stay_on_form:
-                    session.add(attendee)
-                    session.commit()
                     raise HTTPRedirect('form?id={}&message={}&return_to={}', attendee.id, message, return_to)
                 else:
                     if return_to:
