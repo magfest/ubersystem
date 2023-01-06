@@ -494,6 +494,7 @@ $().ready(function() {
   <div class="form-group">
     <label class="col-sm-3 control-label">Badge Type</label>
     <div class="col-sm-6">
+      Please register <strong>on the day you are attending</strong> to get the correct pro-rated badge price!<br/>
       <select name="badge_type" class="form-control">
         {{ options(c.AT_THE_DOOR_BADGE_OPTS,attendee.badge_type) }}
       </select>
@@ -1443,7 +1444,7 @@ $(window).on("runJavaScript", function () {
   <div class="non_group_fields form-group">
     <label for="promo_code" class="col-sm-3 control-label optional-field">Promo {% if c.GROUPS_ENABLED %}or Group {% endif %}Code</label>
     <div class="col-sm-6">
-      {% if not attendee.active_receipt and not read_only %}
+      {% if not read_only %}
         <input type="textarea" name="promo_code" value="{{ attendee.promo_code_code or promo_code_code }}" class="form-control" placeholder="Promo Code">
       {% else %}
         <input type="hidden" name="promo_code" value="{{ attendee.promo_code_code }}">
@@ -1882,8 +1883,8 @@ $(window).on("runJavaScript", function(){
               Attendees under 6 enter free. <br/>
               All attendees under 13 must be accompanied by an adult with a valid Attendee badge.
             {% else %}
-          <span class="text-danger">Unfortunately, we are sold out of badges for attendees under 18.</span>
-            {% endif %}
+            <span class="text-danger">Unfortunately, we are sold out of badges for attendees under 18.</span>
+          {% endif %}
             </p>
           </div>
         {% endif %}
