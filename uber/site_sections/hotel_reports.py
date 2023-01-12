@@ -393,6 +393,42 @@ class Root:
                 out.writerow(list(row.values()))
 
     @csv_file
+    def hotel_audit(self, out, session):
+        """All valid attendees provided to the hotels team for Maritz' audit"""
+        out.writerow([
+            'First Name',
+            'Last Name',
+            'Legal Name',
+            'City',
+            'State',
+            'Zip Code',
+            'Non-US?'
+        ])
+        if c.MAPS_ENABLED:
+            from uszipcode import SearchEngine
+            try:
+                engine = SearchEngine(db_file_dir="/srv/reggie/data")
+            except Exception as e:
+                log.error("Error calling SearchEngine: " + e)
+
+        for attendee in session.valid_attendees():
+            city = ''
+            state = ''
+            if engine and not attendee.international:
+                simple_zip = engine.by_zipcode(attendee.zip_code)
+                city = simple_zip.city
+                state = simple_zip.state
+            out.writerow([
+                attendee.first_name,
+                attendee.last_name,
+                attendee.legal_name,
+                city,
+                state,
+                attendee.zip_code,
+                "Yes" if attendee.international else "No",
+            ])
+    
+    @csv_file
     def mark_center(self, out, session):
         """spreadsheet in the format requested by the Hilton Mark Center"""
         out.writerow([
