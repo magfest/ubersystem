@@ -404,6 +404,7 @@ class Root:
             'Zip Code',
             'Non-US?'
         ])
+        engine = None
         if c.MAPS_ENABLED:
             from uszipcode import SearchEngine
             try:
@@ -411,7 +412,7 @@ class Root:
             except Exception as e:
                 log.error("Error calling SearchEngine: " + e)
 
-        for attendee in session.valid_attendees():
+        for attendee in session.valid_attendees().filter(Attendee.is_unassigned == False):
             city = ''
             state = ''
             if engine and not attendee.international:
