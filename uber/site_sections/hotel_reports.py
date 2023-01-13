@@ -415,8 +415,8 @@ class Root:
         for attendee in session.valid_attendees().filter(Attendee.is_unassigned == False):
             city = ''
             state = ''
-            if engine and not attendee.international:
-                simple_zip = engine.by_zipcode(attendee.zip_code)
+            if engine and attendee.zip_code and not attendee.international:
+                simple_zip = engine.by_zipcode(attendee.zip_code[:5])
                 city = simple_zip.city
                 state = simple_zip.state
             out.writerow([
