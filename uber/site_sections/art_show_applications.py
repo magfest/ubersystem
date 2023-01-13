@@ -93,14 +93,35 @@ class Root:
             else:
                 session.rollback()
                 raise HTTPRedirect('..{}?id={}&message={}', return_to, app.id, message)
+        
+        receipt = session.refresh_receipt_and_model(app)
 
         return {
             'message': message,
             'app': app,
-            'receipt': session.get_receipt_by_model(app),
+            'receipt': receipt,
+            'incomplete_txn': receipt.last_incomplete_txn if receipt else None,
             'account': session.get_attendee_account_by_attendee(app.attendee),
             'return_to': 'edit?id={}'.format(app.id),
         }
+
+    @ajax
+    @credit_card
+    @requires_account(ArtShowApplication)
+    def finish_pending_payment(self, session, id, txn_id, **params):
+        app = session.art_show_application(id)
+        txn = session.receipt_transaction(txn_id)
+
+        stripe_intent = txn.get_stripe_intent()
+
+        if stripe_intent.charges:
+            return {'error': "This payment has already been finalized!"}
+
+        return {'stripe_intent': stripe_intent,
+                'success_url': 'edit?id={}&message={}'.format(
+                    app.id,
+                    'Your payment has been accepted!'),
+                'cancel_url': 'cancel_payment'}
 
     @ajax
     def save_art_show_piece(self, session, app_id, message='', **params):
@@ -244,7 +265,7 @@ class Root:
     def process_art_show_payment(self, session, id):
         app = session.art_show_application(id)
 
-        receipt = session.get_receipt_by_model(app, create_if_none=True)
+        receipt = session.get_receipt_by_model(app, create_if_none="DEFAULT")
         
         charge_desc = "{}'s Art Show Application: {}".format(app.attendee.full_name, receipt.charge_description_list)
         charge = Charge(app, amount=receipt.current_amount_owed, description=charge_desc)

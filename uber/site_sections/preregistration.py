@@ -30,13 +30,8 @@ def check_post_con(klass):
     def wrapper(func):
         @wraps(func)
         def wrapped(self, *args, **kwargs):
-            if c.POST_CON:  # TODO: replace this with a template and make that suitably generic
-                return """
-                <html><head></head><body style='text-align:center'>
-                    <h2 style='color:red'>We hope you enjoyed {event} {current_year}!</h2>
-                    We look forward to seeing you in {next_year}! Watch our website (<a href="https://www.magfest.org">https://www.magfest.org</a>) and our Twitter (<a href="https://twitter.com/MAGFest">@MAGFest</a>) for announcements.
-                </body></html>
-                """.format(event=c.EVENT_NAME, current_year=c.EVENT_YEAR, next_year=(1 + int(c.EVENT_YEAR)) if c.EVENT_YEAR else '')
+            if c.POST_CON:
+                return render('static_views/post_con.html')
             else:
                 return func(self, *args, **kwargs)
         return wrapped
@@ -600,7 +595,7 @@ class Root:
             
             if not message:
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
-                    account_email, account_password = params.get('account_email'), params.get('account_password')
+                    account_email, account_password = params.get('account_email', ''), params.get('account_password', '')
                     message = check_account(session, account_email, account_password, params.get('confirm_password'))
                     if message:
                         return {'error': message}
@@ -927,7 +922,7 @@ class Root:
             # with the Attendee's address fields, we must clone the params and
             # rename all the "group_" fields.
             group_params = dict(params)
-            for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city']:
+            for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city', 'phone', 'email_address']:
                 group_field_name = 'group_{}'.format(field_name)
                 if group_field_name in params:
                     group_params[field_name] = params.get(group_field_name, '')
@@ -951,15 +946,8 @@ class Root:
 
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
 
-        last_incomplete_txn = None
-        receipt = session.get_receipt_by_model(group)
-        if receipt:
-            for txn in receipt.pending_txns:
-                txns_marked_paid = txn.check_paid_from_stripe()
-                if not txns_marked_paid:
-                    last_incomplete_txn = txn
+        receipt = session.refresh_receipt_and_model(group)
 
-            session.commit()
         return {
             'group':   group,
             'account': session.get_attendee_account_by_attendee(group.leader),
@@ -968,7 +956,7 @@ class Root:
             'signnow_document': signnow_document,
             'signnow_link': signnow_link,
             'receipt': receipt,
-            'incomplete_txn': last_incomplete_txn,
+            'incomplete_txn': receipt.last_incomplete_txn if receipt else None,
             'message': message
         }
 
@@ -1001,7 +989,7 @@ class Root:
                     'group_id',
                     'badge_type',
                     'badge_num',
-                    'base_badge_price',
+                    'badge_cost',
                     'ribbon',
                     'paid',
                     'overridden_price',
@@ -1014,7 +1002,7 @@ class Root:
 
                 attendee.apply(params, restricted=True)
 
-                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                if c.ATTENDEE_ACCOUNTS_ENABLED and session.current_attendee_account():
                     session.add_attendee_to_account(attendee, session.current_attendee_account())
 
                 # Free group badges are considered 'registered' when they are actually claimed.
@@ -1022,7 +1010,7 @@ class Root:
                     attendee.registered = localized_now()
 
                 if attendee.amount_unpaid:
-                    raise HTTPRedirect(attendee.payment_page)
+                    raise HTTPRedirect('new_badge_payment?id={}&return_to=confirm', attendee.id)
                 else:
                     raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Badge registered successfully')
 
@@ -1040,7 +1028,7 @@ class Root:
     @credit_card
     def process_group_payment(self, session, id):
         group = session.group(id)
-        receipt = session.get_receipt_by_model(group, create_if_none=True)
+        receipt = session.get_receipt_by_model(group, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(group.name, receipt.charge_description_list)
         charge = Charge(group, amount=receipt.current_amount_owed, description=charge_desc)
 
@@ -1100,7 +1088,7 @@ class Root:
     def pay_for_extra_members(self, session, id, count):
         from uber.models import ReceiptItem
         group = session.group(id)
-        receipt = session.get_receipt_by_model(group, create_if_none=True)
+        receipt = session.get_receipt_by_model(group, create_if_none="DEFAULT")
         session.add(receipt)
         session.commit()
         count = int(count)
@@ -1163,7 +1151,7 @@ class Root:
                     log.error('unable to send badge change email', exc_info=True)
 
                 if attendee.amount_unpaid:
-                    raise HTTPRedirect(attendee.payment_page)
+                    raise HTTPRedirect('new_badge_payment?id={}&return_to=confirm', attendee.id)
                 else:
                     raise HTTPRedirect(
                         'badge_updated?id={}&message={}', attendee.id, 'Your registration has been transferred')
@@ -1195,7 +1183,7 @@ class Root:
                 session.commit()
 
                 if attendee.amount_unpaid:
-                    raise HTTPRedirect(attendee.payment_page + '&payment_label=merch_shipping_fee')
+                    raise HTTPRedirect('new_badge_payment?id={}&return_to=confirm', attendee.id)
                 else:
                     raise HTTPRedirect(
                         'badge_updated?id={}&message={}', attendee.id, 'Your registration has been deferred')
@@ -1238,7 +1226,7 @@ class Root:
             receipt = session.get_receipt_by_model(attendee)
             total_refunded = 0
             for txn in receipt.receipt_txns:
-                if not txn.refund_id and txn.stripe_id:
+                if txn.stripe_id:
                     response = session.process_refund(txn)
                     if response:
                         if isinstance(response, string_types):
@@ -1309,7 +1297,7 @@ class Root:
         attendees_who_owe_money = {}
         for attendee in account.attendees:
             receipt = session.get_receipt_by_model(attendee)
-            if receipt and receipt.current_amount_owed:
+            if receipt and receipt.current_amount_owed and attendee.is_valid:
                 attendees_who_owe_money[attendee.full_name] = receipt.current_amount_owed
 
         if not account:
@@ -1329,7 +1317,7 @@ class Root:
             message = "Something went wrong. Please try again."
         if not attendee.email:
             message = "This attendee needs an email address to set up a new account."
-        if normalize_email(attendee.email) == session.current_attendee_account().normalized_email:
+        if session.current_attendee_account() and normalize_email(attendee.email) == session.current_attendee_account().normalized_email:
             message = "You cannot grant an account to someone with the same email address as your account."
         if not message:
             set_up_new_account(session, attendee)
@@ -1346,6 +1334,15 @@ class Root:
     @requires_account(Attendee)
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
+        if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
+            message = session.auto_update_receipt(session.attendee(params.get('id')), params)
+            if message:
+                log.error("Error while auto-updating attendee receipt: {}".format(message))
+
+            # Stop unsetting these every time someone updates their info
+            params['agreed_to_volunteer_agreement'] = session.attendee(params.get('id')).agreed_to_volunteer_agreement
+            params['reviewed_emergency_procedures'] = session.attendee(params.get('id')).reviewed_emergency_procedures
+
         # Safe to ignore csrf tokens here, because an attacker would need to know the attendee id a priori
         attendee = session.attendee(params, restricted=True, ignore_csrf=True)
 
@@ -1366,7 +1363,7 @@ class Root:
 
                 page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
                 if not receipt:
-                    new_receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+                    new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
                     if new_receipt.current_amount_owed and not new_receipt.pending_total:
                         raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)
                 raise HTTPRedirect(page + 'message=' + message)
@@ -1379,14 +1376,7 @@ class Root:
 
         group_credit = receipt_items.credit_calculation.items['Attendee']['group_discount'](attendee)
 
-        last_incomplete_txn = None
-        if receipt:
-            for txn in receipt.pending_txns:
-                txns_marked_paid = txn.check_paid_from_stripe()
-                if not txns_marked_paid:
-                    last_incomplete_txn = txn
-
-            session.commit()
+        session.refresh_receipt_and_model(attendee)
 
         return {
             'undoing_extra': undoing_extra,
@@ -1397,8 +1387,8 @@ class Root:
             'affiliates':    session.affiliates(),
             'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
             'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
-            'receipt':       session.get_receipt_by_model(attendee),
-            'incomplete_txn':  last_incomplete_txn,
+            'receipt':       session.get_receipt_by_model(attendee) if attendee.is_valid else None,
+            'incomplete_txn':  receipt.last_incomplete_txn if receipt else None,
             'attendee_group_discount': (group_credit[1] / 100) if group_credit else 0,
         }
         
@@ -1426,15 +1416,9 @@ class Root:
         if receipt.open_receipt_items and receipt.current_amount_owed:
             return {'error': "You already have an outstanding balance, please pay for your current items or contact registration"}
 
-        for param in params:
-            if param in Attendee.cost_changes:
-                try:
-                    receipt_item = Charge.process_receipt_upgrade_item(attendee, param, receipt=receipt, new_val=params[param])
-                    if receipt_item.amount != 0 and (not receipt.open_receipt_items or receipt.current_amount_owed == 0):
-                        session.add(receipt_item)
-                except Exception as e:
-                    session.rollback()
-                    return {'error': str(e)}
+        message = session.auto_update_receipt(attendee, params)
+        if message:
+            return {'error': message}
 
         attendee.apply(params, ignore_csrf=True, restricted=False)
         message = check(attendee)
@@ -1512,7 +1496,7 @@ class Root:
         attendee = session.attendee(id)
         return {
             'attendee': attendee,
-            'receipt': session.get_receipt_by_model(attendee, create_if_none=True),
+            'receipt': session.get_receipt_by_model(attendee, create_if_none="DEFAULT"),
             'return_to': return_to,
             'message': message,
         }
@@ -1528,7 +1512,7 @@ class Root:
 
         message = attendee.undo_extras()
         if not message:
-            new_receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+            new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
             page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
             if new_receipt.current_amount_owed:
                 raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)

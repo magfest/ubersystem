@@ -79,7 +79,15 @@
       $('.signup-event-label').html($('#' + eventId + ' .event-label').html());
       $('.signup-event-location').html($('#' + eventId + ' .event-location').html());
 
+      {% if c.AT_THE_CON %}
       $signupModal.modal('show');
+      {% else %}
+      if($event.hasClass('badge-num-required')) {
+        $signupModal.modal('show');
+      } else {
+        $altSignupModal.modal('show');
+      }
+      {% endif %}
     });
 
     var signupForEvent = function(eventId, extraParams, callback) {
@@ -244,7 +252,14 @@
           You {% if feature.attraction.advance_checkin < 0 %}may{% else %}must{% endif %}
           check in {{ feature.attraction.advance_checkin_label }}.
         </p>
-        {{ attractions_macros.badge_num_form('All we need is your badge number!') }}
+        {% if not c.AT_THE_CON %}
+        {% if feature.badge_num_required %}
+        <br/>
+        <h4 class="text-center">This event requires a badge number to sign up. You'll be able to sign up after you pick up your badge at registration!</h3>
+        {% endif %}
+        {% else %}
+        {{ attractions_macros.badge_num_form('Type your badge # here after picking up your badge!') }}
+        {% endif %}
       </div>
       <div class="modal-footer">
         {% if not feature.badge_num_required %}
@@ -398,7 +413,7 @@
           {% for event in events %}
             {%- set is_soldout = event.is_sold_out -%}
             {%- set is_unavailable = not event.signups_open -%}
-            <div class="event hover-btn{% if is_soldout %} soldout{% endif %}{% if is_unavailable %} unavailable{% endif %}"
+            <div class="event hover-btn{% if is_soldout %} soldout{% endif %}{% if is_unavailable %} unavailable{% endif %}{% if feature.badge_num_required %} badge-num-required{% endif %}"
                 id="{{ event.id }}"
                 data-event-id="{{ event.id }}"
                 data-event-name="{{ event.name }}"

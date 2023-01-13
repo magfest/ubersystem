@@ -99,11 +99,11 @@
   </tr>
   {% if app.delivery_method == c.BY_MAIL %}<tr><td colspan="4"></td><td>Total Mail-In Fee</td><td>{{ c.ART_MAILING_FEE|format_currency }}</td></tr>{% endif %}
   <tr><td colspan="4"></td><td><strong>Total Fees</strong></td><td>{{ app.total_cost|format_currency }}</td></tr>
-  <tr><td colspan="4"></td><td>Prepaid</td><td>{{ app.amount_paid|format_currency }}</td></tr>
+  <tr><td colspan="4"></td><td>Prepaid</td><td>{{ (app.amount_paid / 100)|format_currency }}</td></tr>
 </table>
 <table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
   <tr>
-    <td width="25%"><strong>Commission Rate</strong></td><td>{{ c.COMMISSION_PCT / 100 }}%</td>
+    <td width="25%"><strong>Commission Rate</strong></td><td>{{ (c.COMMISSION_PCT // 100) if (c.COMMISSION_PCT // 100) == (c.COMMISSION_PCT / 100) else "%.2f"|format(c.COMMISSION_PCT / 100) }}%</td>
     <td><strong>Commission</strong></td><td>{{ (app.commission / 100)|format_currency }}</td>
   </tr>
   <tr><td><strong>Name on Check</strong></td><td>{{ app.check_payable or app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name }}</td></tr>

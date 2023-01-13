@@ -22,30 +22,6 @@
     {% endfor %}
   </table>
 
-  {% if model.stripe_txn_share_logs %}
-    <h2>Payment History for {{ model.full_name|default(model.name) }} {% if c.AT_THE_CON and model.badge_num %}({{ model.badge_num }}){% endif %}</h2>
-    <table class="table-striped table-bordered table-condensed">
-      <thead><tr>
-        <th>Payment ID</th>
-        <th>Amount</th>
-        <th>Txn Total</th>
-        <th>When</th>
-        <th>Who</th>
-        <th>Description</th>
-      </tr></thead>
-      {% for log in model.stripe_txn_share_logs %}
-        <tr>
-          <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.stripe_id }}</td>
-          <td valign="top" style="white-space:nowrap">{{ (log.share / 100)|format_currency }}
-          <td valign="top" style="white-space:nowrap">{{ (log.stripe_transaction.amount / 100)|format_currency }} {{ log.stripe_transaction.type_label }}</td>
-          <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.when|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
-          <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.who }}</td>
-          <td valign="top" style="white-space:nowrap">{{ log.stripe_transaction.desc }}</td>
-        </tr>
-      {% endfor %}
-    </table>
-  {% endif %}
-
   <h2>Page View History for {{ model.full_name|default(model.name) }} {% if c.AT_THE_CON and model.badge_num %}({{ model.badge_num }}){% endif %}</h2>
 
   <table class="table-striped table-bordered table-condensed">

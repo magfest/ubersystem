@@ -25,7 +25,7 @@ from uber.custom_tags import format_currency
 from uber.decorators import prereg_validation, validation
 from uber.models import AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowApplication, ArtShowPiece, \
     AttendeeAccount, AttendeeTournament, Attraction, AttractionFeature, Department, DeptRole, Event, Group, \
-    IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio, Job, MarketplaceApplication, \
+    GuestDetailedTravelPlan, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio, Job, MarketplaceApplication, \
     MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam, PanelApplicant, PanelApplication, \
     PromoCode, PromoCodeGroup, Sale, Session, WatchList
 from uber.utils import localized_now, Charge, valid_email
@@ -285,9 +285,14 @@ def reasonable_total_cost(attendee):
 
 @prereg_validation.Attendee
 def promo_code_is_useful(attendee):
-    with Session() as session:
-        if attendee.promo_code and session.lookup_agent_code(attendee.promo_code.code):
-            return
+    if attendee.promo_code:
+        with Session() as session:
+            if session.lookup_agent_code(attendee.promo_code.code):
+                return
+            code = session.lookup_promo_or_group_code(attendee.promo_code.code, PromoCode)
+            group = code.group if code and code.group else session.lookup_promo_or_group_code(attendee.promo_code.code, PromoCodeGroup)
+            if group and group.total_cost == 0:
+                return
 
     if attendee.is_new and attendee.promo_code:
         if not attendee.is_unpaid:
@@ -332,7 +337,7 @@ def full_name(attendee):
 def allowed_to_volunteer(attendee):
     if attendee.staffing_or_will_be \
             and not attendee.age_group_conf['can_volunteer'] \
-            and attendee.badge_type != c.STAFF_BADGE \
+            and attendee.badge_type not in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] \
             and c.PRE_CON:
 
         return 'Your interest is appreciated, but ' + c.EVENT_NAME + ' volunteers must be 18 or older.'
@@ -438,7 +443,7 @@ def emergency_contact_not_cellphone(attendee):
 @validation.Attendee
 @ignore_unassigned_and_placeholders
 def onsite_contact(attendee):
-    if not attendee.onsite_contact and not attendee.no_onsite_contact and attendee.badge_type != c.STAFF_BADGE:
+    if not attendee.onsite_contact and not attendee.no_onsite_contact and attendee.badge_type not in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
         return 'Please enter contact information for at least one trusted friend onsite, or indicate ' \
                'that we should use your emergency contact information instead.'
 
@@ -454,12 +459,13 @@ def onsite_contact_length(attendee):
 @validation.Attendee
 def printed_badge_change(attendee):
     if attendee.badge_printed_name != attendee.orig_value_of('badge_printed_name') \
-            and not AdminAccount.admin_name() \
             and c.PRINTED_BADGE_DEADLINE \
             and localized_now() > c.get_printed_badge_deadline_by_type(attendee.badge_type_real):
-
-        return '{} badges have already been ordered, so you cannot change the badge printed name.'.format(
-            attendee.badge_type_label if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES else "Supporter")
+        with Session() as session:
+            admin = session.current_admin_account()
+            if not admin.is_admin:
+                return '{} badges have already been ordered, so you cannot change the badge printed name.'.format(
+                    attendee.badge_type_label if attendee.badge_type in c.PREASSIGNED_BADGE_TYPES else "Supporter")
 
 
 @validation.Attendee
@@ -528,7 +534,7 @@ def no_more_custom_badges(attendee):
             and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
         with Session() as session:
             admin = session.current_admin_account()
-            if not admin.full_registration_admin and not admin.full_shifts_admin:
+            if not admin.is_admin:
                 return 'Custom badges have already been ordered so you cannot use this badge type'
 
 
@@ -586,7 +592,10 @@ def money_amount(model):
 
 
 Job.required = [
-    ('name', 'Job Name')
+    ('name', 'Job Name'),
+    ('description', 'Job Description'),
+    ('start_time', 'Start Time'),
+    ('duration', 'Hours and/or Minutes')
 ]
 
 
@@ -604,6 +613,12 @@ def time_conflicts(job):
             if job.minutes.intersection(shift.attendee.shift_minutes - original_minutes):
                 return 'You cannot change this job to this time, because {} is already working a shift then'.format(
                     shift.attendee.full_name)
+
+
+@validation.Job
+def no_negative_hours(job):
+    if job.duration < 0:
+        return 'You cannot create a job with negative hours.'
 
 
 Department.required = [('name', 'Name'), ('description', 'Description')]
@@ -1022,14 +1037,8 @@ def pa_phone(pa):
 
 @validation.PanelApplication
 def unavailability(app):
-    if not app.unavailable and not app.poc_id:
+    if not app.unavailable:
         return 'Your unavailability is required.'
-
-
-@validation.PanelApplication
-def availability(app):
-    if not app.available and app.poc and app.poc.guest_group:
-        return 'Please list the times you are available to hold this panel!'
 
 
 @validation.PanelApplication
@@ -1127,6 +1136,63 @@ def is_merch_checklist_complete(guest_merch):
                 and guest_merch.poc_country):
             return 'You must tell us your complete mailing address'
 
+@validation.GuestTravelPlans
+def has_modes(guest_travel_plans):
+    if not guest_travel_plans.modes:
+        return 'Please tell us how you will arrive at MAGFest.'
+
+@validation.GuestTravelPlans
+def has_modes_text(guest_travel_plans):
+    if c.OTHER in guest_travel_plans.modes_ints and not guest_travel_plans.modes_text:
+        return 'You need to tell us what "other" travel modes you are using.'
+
+@validation.GuestTravelPlans
+def has_details(guest_travel_plans):
+    if not guest_travel_plans.details:
+        return 'Please provide details of your arrival and departure plans.'
+
+GuestDetailedTravelPlan.required = [
+    ('mode', 'Mode of Travel'),
+    ('traveller', 'Traveller Name'),
+    ('contact_email', 'Contact Email'),
+    ('contact_phone', 'Contact Phone #'),
+    ('arrival_time', 'Arrival Time'),
+    ('departure_time', 'Departure Time')
+]
+
+@validation.GuestDetailedTravelPlan
+def arrival_departure_details(travel_plan):
+    if travel_plan.mode not in [c.CAR, c.TAXI]:
+        if not travel_plan.arrival_details:
+            return 'Please provide arrival details, such as the bus or train or plane identifier.'
+        if not travel_plan.departure_details:
+            return 'Please provide departure details, such as the bus or train or plane identifier.'
+
+@validation.GuestDetailedTravelPlan
+def time_checks(travel_plan):
+    if travel_plan.arrival_time < travel_plan.min_arrival_time:
+        return 'If you are arriving over a week before the event, please select the earliest date and make a note in the arrival details.'
+    if travel_plan.arrival_time > travel_plan.max_arrival_time:
+        return 'You cannot arrive after the event is over.'
+    if travel_plan.departure_time < travel_plan.min_departure_time:
+        return 'You cannot leave before the event starts.'
+    if travel_plan.departure_time > travel_plan.max_departure_time:
+        return 'If you are leaving over a week after the event, please select the latest date and make a note in the departure details.'
+
+@validation.GuestDetailedTravelPlan
+def has_modes_text(travel_plan):
+    if travel_plan.mode == c.OTHER and not travel_plan.mode_text:
+        return 'You need to tell us what "other" travel mode you are using.'
+
+@validation.GuestDetailedTravelPlan
+def validate_email(travel_plan):
+    return valid_email(travel_plan.contact_email)
+
+@validation.GuestDetailedTravelPlan
+def validate_phone(travel_plan):
+    if _invalid_phone_number(travel_plan.contact_phone):
+        return 'Your phone number was not a valid 10-digit US phone number. ' \
+            'Please include a country code (e.g. +44) for international numbers.'
 
 # =============================
 # art show

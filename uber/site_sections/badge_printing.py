@@ -7,7 +7,7 @@ from uber.config import c
 from uber.custom_tags import time_day_local
 from uber.decorators import ajax, ajax_gettable, all_renderable, not_site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, PrintJob
+from uber.models import AdminAccount, Attendee, PrintJob, ReceiptItem
 from uber.utils import localized_now
 
 
@@ -146,6 +146,17 @@ class Root:
         success, message = pre_print_check(session, attendee, printer_id, dry_run=False, **params)
 
         if success:
+            reprint_fee = int(params.get('fee_amount', 0))
+            if reprint_fee:
+                receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
+                session.add(ReceiptItem(receipt_id=receipt.id,
+                                        desc="Badge reprint fee (${})".format(reprint_fee),
+                                        amount=reprint_fee * 100,
+                                        count=1,
+                                        who=AdminAccount.admin_name() or 'non-admin',
+                                        )
+                            )
+
             session.add(attendee)
             session.commit()
 
@@ -201,6 +212,16 @@ class Root:
             success = True
             message = "Job marked as invalid."
             job.errors = "Marked invalid by {}".format(session.admin_attendee().full_name)
+            if job.print_fee and job.attendee:
+                receipt = session.get_receipt_by_model(job.attendee)
+                if receipt:
+                    session.add(ReceiptItem(receipt_id=receipt.id,
+                                            desc="Badge reprint cancelled (${})".format(job.print_fee),
+                                            amount=job.print_fee * 100 * -1,
+                                            count=1,
+                                            who=AdminAccount.admin_name() or 'non-admin',
+                                            )
+                                )
             session.add(job)
             session.commit()
         

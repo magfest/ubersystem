@@ -751,11 +751,12 @@ class Config(_Overridable):
     def SITE_MAP(self):
         public_site_sections, public_pages, pages = self.GETTABLE_SITE_PAGES
         
-        accessible_site_sections = {section: pages for section, pages in pages.items() 
-                                    if c.has_section_or_page_access(page_path=section, include_read_only=True)}
-        for section in accessible_site_sections:
-            accessible_site_sections[section] = [page for page in accessible_site_sections[section] 
-                                                 if c.has_section_or_page_access(page_path=page['path'], include_read_only=True)]
+        accessible_site_sections = defaultdict(list)
+        for section in pages:
+            accessible_pages = [page for page in pages[section] 
+                                if c.has_section_or_page_access(page_path=page['path'], include_read_only=True)]
+            if accessible_pages:
+                accessible_site_sections[section] = accessible_pages
             
         return sorted(accessible_site_sections.items())
     

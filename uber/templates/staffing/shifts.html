@@ -38,7 +38,8 @@
 <div class="row">
   <div class="col-md-12 text-center">
   <span style="font-size:16pt ; font-weight:bold" class="ng-binding">{{ name }}'s available shifts</span>
-    </div>
+  <h4><a href="printable" target="_blank">View Printable Schedule</a></h4>
+  </div>
 </div>
 <div class="row">
   <div class="col-md-12 text-center">
@@ -58,50 +59,71 @@
     <br><br>
     You are assigned to the following department{{ assigned_depts_labels|length|pluralize }}: {{ assigned_depts_labels|join(' / ') }}.
     <br>
-    {% if c.AFTER_DROP_SHIFTS_DEADLINE %}
-    After {{ c.DROP_SHIFTS_DEADLINE|datetime_local }}, you must contact {{ c.STAFF_EMAIL|email_only|email_to_link }} to drop shifts. You may continue to add shifts through the event.
-    <br/>
-    {% else %}
-    You can drop shifts until <b>{{ c.DROP_SHIFTS_DEADLINE|datetime_local }}</b>. <br/>
-    {% endif %}
-    {% if has_public_jobs %}
-      <br>
-      Some of the listed jobs are in departments you are not assigned to
-      (marked like this <sup class="text-public">public</sup>).
-      <br>
-      {% if c.MAX_DEPTS_WHERE_WORKING > 0 %}
-        You may sign up any of the listed jobs, but you'll be prevented from
-        working in more than {{ c.MAX_DEPTS_WHERE_WORKING }}
-        department{{ c.MAX_DEPTS_WHERE_WORKING|pluralize }}.
-        <br>
+    {% if c.AFTER_SHIFTS_CREATED %}
+      {% if c.AFTER_DROP_SHIFTS_DEADLINE %}
+      After {{ c.DROP_SHIFTS_DEADLINE|datetime_local }}, you must contact {{ c.STAFF_EMAIL|email_only|email_to_link }} to drop shifts. You may continue to add shifts through the event.
+      <br/>
+      {% else %}
+      You can drop shifts until <b>{{ c.DROP_SHIFTS_DEADLINE|datetime_local }}</b>. <br/>
       {% endif %}
-    {% endif %}
-    <br>
-    <div class="state-text">
-      <a href="#" class="toggle-is_public" state="nonpublic">Click Here</a>
-      <span class="nonpublic-state-text is_public-state-text">
-        to <b>show</b> <span class="text-public">public</span> jobs in departments you are not assigned to.
-      </span>
-      <span class="public-state-text hidden is_public-state-text">
-        to <b>hide</b> <span class="text-public">public</span> jobs in departments you are not assigned to.
-      </span>
+      {% if has_public_jobs %}
+        <br>
+        Some of the listed jobs are in departments you are not assigned to
+        (marked like this <sup class="text-public">public</sup>).
+        <br>
+        {% if c.MAX_DEPTS_WHERE_WORKING > 0 %}
+          You may sign up any of the listed jobs, but you'll be prevented from
+          working in more than {{ c.MAX_DEPTS_WHERE_WORKING }}
+          department{{ c.MAX_DEPTS_WHERE_WORKING|pluralize }}.
+          <br>
+        {% endif %}
+      {% endif %}
       <br>
-    </div>
-    <a href="#" class="toggle-cal" state="all">Click Here</a>
-    <span class="all-state-text state-text"> to see the {{hours}} weighted hours worth of shifts you are signed up for</span>
-    <span class="shift-state-text hidden state-text"> to sign up for more shifts; you are currently signed up for {{hours}} weighted hours</span>
-    <br>
-    or <a href="index">Click Here</a> to return to the main page of the Volunteer Checklist.
+      <div class="state-text">
+        <a href="#" class="toggle-is_public" state="nonpublic">Click Here</a>
+        <span class="nonpublic-state-text is_public-state-text">
+          to <b>show</b> <span class="text-public">public</span> jobs in departments you are not assigned to.
+        </span>
+        <span class="public-state-text hidden is_public-state-text">
+          to <b>hide</b> <span class="text-public">public</span> jobs in departments you are not assigned to.
+        </span>
+        <br/>
+      </div>
+      {% if depts_with_roles %}
+      <br/>
+      <div>
+        You have been assigned special roles in the following departments: {{ depts_with_roles|join(", ") }}.<br/>
+        {% if show_all %}
+        <strong>All available shifts are currently shown regardless of required role.</strong><br/> You can instead 
+        <a href="shifts">prioritize shifts</a> with required roles.
+        {% else %}
+        As a result, <strong>some shifts without required roles may be hidden</strong>.<br/> You can opt to
+        <a href="shifts?all=True">show all shifts</a> regardless of required roles.
+        {% endif %}
+        <br/><br/>
+      </div>
+      {% endif %}
+      <a href="#" class="toggle-cal" state="all">Click Here</a>
+      <span class="all-state-text state-text"> to see the {{hours}} weighted hours worth of shifts you are signed up for</span>
+      <span class="shift-state-text hidden state-text"> to sign up for more shifts; you are currently signed up for {{hours}} weighted hours</span>
+      <br>
+    {% else %}
+    Shifts will be available starting {{ c.SHIFTS_CREATED.astimezone(c.EVENT_TIMEZONE).strftime('%B %-e') }}.
+    <br/><br/>
+    {% endif %}
+    <a href="index">Click Here</a> to return to the main page of the Volunteer Checklist.
   </div>
 </div>
-
+{% if c.AFTER_SHIFTS_CREATED %}
 <div class="row">
   <div class="col-md-10 col-md-offset-1 col-xs-12">
     <div id="shift_cal"></div>
   </div>
 </div>
+{% endif %}
 {% endblock %}
 {% block page_script %}
+{% if c.AFTER_SHIFTS_CREATED %}
 <script src="../static/deps/combined.min.js"></script>
 <script src="../angular/magfest.js"></script>
 
@@ -292,15 +314,16 @@
         confirmStr += title + " at " + time + " on " + date + "?";
         var r = confirm(confirmStr);
         if (r == true) {
-          var tgtShiftURL = "sign_up?job_id="+ id;
+          var tgtShiftURL = "sign_up?job_id="+ id + "&all={{ show_all }}";
             if(taken=='true') {
-                tgtShiftURL = "drop?job_id=" + id;
+                tgtShiftURL = "drop?job_id=" + id + "&all={{ show_all }}";
             }
             $.post( tgtShiftURL,postData,function( data,status ) {
                 var view = shiftCal.view;
-                window.location.href = window.location.pathname + "?view=" + view.type + "&start=" + view.currentStart.toISOString();
+                window.location.href = window.location.pathname + "?view=" + view.type + "&start=" + view.currentStart.toISOString() + "&all={{ show_all }}";
             });
         }
     }
 </script>
+{% endif %}
 {% endblock %}

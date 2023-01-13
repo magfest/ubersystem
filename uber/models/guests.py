@@ -3,9 +3,10 @@ import re
 import shutil
 import uuid
 from collections import defaultdict
+from datetime import timedelta
 
-from pockets import uniquify
-from residue import JSON, CoerceUTF8 as UnicodeText, UUID
+from pockets import uniquify, classproperty
+from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer
@@ -21,7 +22,7 @@ from uber.utils import filename_extension
 __all__ = [
     'GuestGroup', 'GuestInfo', 'GuestBio', 'GuestTaxes', 'GuestStagePlot',
     'GuestPanel', 'GuestMerch', 'GuestCharity', 'GuestAutograph',
-    'GuestInterview', 'GuestTravelPlans']
+    'GuestInterview', 'GuestTravelPlans', 'GuestDetailedTravelPlan']
 
 
 class GuestGroup(MagModel):
@@ -87,6 +88,10 @@ class GuestGroup(MagModel):
                 checklist_items.append(item)
                 
         return sorted(checklist_items, key= lambda i: self.deadline_from_model(i['name']))
+
+    @property
+    def uses_detailed_travel_plans(self):
+        return self.group_type == c.BAND
 
     @property
     def all_badges_claimed(self):
@@ -382,11 +387,11 @@ class GuestMerch(MagModel):
 
     @property
     def rock_island_url(self):
-        return '../guest_admin/rock_island?id={}'.format(self.guest_id)
+        return '../guest_reports/rock_island?id={}'.format(self.guest_id)
 
     @property
     def rock_island_csv_url(self):
-        return '../guest_admin/rock_island_csv?id={}'.format(self.guest_id)
+        return '../guest_reports/rock_island_csv?id={}'.format(self.guest_id)
 
     @property
     def status(self):
@@ -636,3 +641,40 @@ class GuestTravelPlans(MagModel):
     modes = Column(MultiChoice(c.GUEST_TRAVEL_OPTS))
     modes_text = Column(UnicodeText)
     details = Column(UnicodeText)
+
+    @property
+    def num_detailed_travel_plans(self):
+        return len(self.detailed_travel_plans)
+
+class GuestDetailedTravelPlan(MagModel):
+    travel_plans_id = Column(UUID, ForeignKey('guest_travel_plans.id'), nullable=True)
+    travel_plans = relationship('GuestTravelPlans', foreign_keys=travel_plans_id, single_parent=True,
+                           backref=backref('detailed_travel_plans'), cascade='save-update,merge,refresh-expire,expunge')
+    mode = Column(Choice(c.GUEST_TRAVEL_OPTS))
+    mode_text = Column(UnicodeText)
+    traveller = Column(UnicodeText)
+    companions = Column(UnicodeText)
+    luggage_needs = Column(UnicodeText)
+    contact_email = Column(UnicodeText)
+    contact_phone = Column(UnicodeText)
+    arrival_time = Column(UTCDateTime)
+    arrival_details = Column(UnicodeText)
+    departure_time = Column(UTCDateTime)
+    departure_details = Column(UnicodeText)
+    extra_details = Column(UnicodeText)
+
+    @classproperty
+    def min_arrival_time(self):
+        return c.EPOCH - timedelta(days=7)
+
+    @classproperty
+    def max_arrival_time(self):
+        return c.ESCHATON
+
+    @classproperty
+    def min_departure_time(self):
+        return c.EPOCH
+
+    @classproperty
+    def max_departure_time(self):
+        return c.ESCHATON + timedelta(days=7)

@@ -315,21 +315,21 @@ if c.ART_SHOW_ENABLED:
     ArtShowAppEmailFixture(
         '{EVENT_NAME} Art Show piece entry needed',
         'art_show/pieces_reminder.txt',
-        lambda a: not a.is_unpaid and not a.art_show_pieces,
+        lambda a: a.status == c.APPROVED and not a.is_unpaid and not a.art_show_pieces,
         when=days_before(15, c.EPOCH),
         ident='art_show_pieces_reminder')
 
     ArtShowAppEmailFixture(
         'Reminder to assign an agent for your {EVENT_NAME} Art Show application',
         'art_show/agent_reminder.html',
-        lambda a: not a.is_unpaid and a.delivery_method == c.AGENT and not a.agent,
+        lambda a: a.status == c.APPROVED and not a.is_unpaid and a.delivery_method == c.AGENT and not a.agent,
         when=after(c.EVENT_TIMEZONE.localize(datetime(int(c.EVENT_YEAR), 11, 1))),
         ident='art_show_agent_reminder')
 
     ArtShowAppEmailFixture(
         '{EVENT_NAME} Art Show MAIL IN Instructions',
         'art_show/mailing_in.html',
-        lambda a: not a.is_unpaid and a.delivery_method == c.BY_MAIL,
+        lambda a: a.status == c.APPROVED and not a.is_unpaid and a.delivery_method == c.BY_MAIL,
         when=days_before(40, c.ART_SHOW_DEADLINE),
         ident='art_show_mail_in')
 
@@ -562,11 +562,21 @@ StopsEmailFixture(
     ident='volunteer_checklist_completion_request')
 
 StopsEmailFixture(
+    '{EVENT_NAME} ({EVENT_DATE}) shifts are live!',
+    'shifts/shifts_created.txt',
+    lambda a: (
+        c.AFTER_SHIFTS_CREATED
+        and a.takes_shifts
+        and a.registered_local <= c.SHIFTS_CREATED),
+    when=before(c.PREREG_TAKEDOWN),
+    ident='volunteer_shift_signup_notification')
+
+StopsEmailFixture(
     'Reminder to sign up for {EVENT_NAME} ({EVENT_DATE}) shifts',
     'shifts/reminder.txt',
     lambda a: (
         c.AFTER_SHIFTS_CREATED
-        and days_after(30, max(a.registered_local, c.SHIFTS_CREATED))()
+        and days_after(14, max(a.registered_local, c.SHIFTS_CREATED))()
         and a.takes_shifts
         and not a.shift_minutes),
     when=before(c.PREREG_TAKEDOWN),
@@ -828,6 +838,14 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieGame,
+        'MIVS {EVENT_YEAR} Waitlist: Additional Information Required',
+        'mivs/waitlist_info.txt',
+        lambda game: game.status == c.WAITLISTED,
+        ident='mivs_waitlist_info'
+    )
+
+    MIVSEmailFixture(
+        IndieGame,
         'Last chance to accept your MIVS booth',
         'mivs/game_accept_reminder.txt',
         lambda game: (
@@ -944,53 +962,12 @@ if c.MIVS_ENABLED:
         ident='mivs_checklist_update_hotel_information'
     )
 
-
     MIVSGuestEmailFixture(
         'New {EVENT_NAME} MIVS Checklist Item: MIVS Training',
         'mivs/checklist/new_update_training_information.txt',
         lambda mg: True,
         ident='mivs_checklist_update_training_information'
     )
-
-    for key, val in c.MIVS_CHECKLIST.items():
-        if val['start']:
-            MIVSGuestEmailFixture(
-                'New MIVS Checklist Item Available: {}'.format(val['name']),
-                'mivs/checklist_new_item.txt',
-                lambda mg: val['start'] > mg.created.when,
-                when=after(val['start']),
-                ident='mivs_checklist_new_item_{}'.format(key),
-            )
-
-    deadline_groups = set([val['deadline'] for key, val in c.MIVS_CHECKLIST.items()])
-
-    for deadline in deadline_groups:
-        MIVSGuestEmailFixture(
-            'An item on your {EVENT_NAME} MIVS Checklist is due soon',
-            'mivs/checklist_reminder.txt',
-            lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
-                           for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
-            when=days_before(2, deadline, 1),
-            ident='mivs_checklist_due_2_days_from_{}'.format(deadline.strftime('%m_%d')),
-        )
-
-        MIVSGuestEmailFixture(
-            'An item on your {EVENT_NAME} MIVS Checklist is due tomorrow',
-            'mivs/checklist_reminder.txt',
-            lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
-                           for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
-            when=days_before(1, deadline, 0),
-            ident='mivs_checklist_due_1_day_from_{}'.format(deadline.strftime('%m_%d')),
-        )
-
-        MIVSGuestEmailFixture(
-            'An item on your {EVENT_NAME} MIVS Checklist is overdue',
-            'mivs/checklist_reminder.txt',
-            lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
-                           for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
-            when=days_after(1, deadline),
-            ident='mivs_checklist_overdue_{}'.format(deadline.strftime('%m_%d')),
-        )
 
     # At-Con MIVS Emails
     MIVSEmailFixture(

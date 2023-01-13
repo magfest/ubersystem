@@ -1,7 +1,17 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% set model = attendee if attendee else group %}
-{% set model_str = "attendee" if attendee else "group" %}
-{% block title %}Receipt Items - {{ model.full_name|default(model.name) }}{% endblock %}
+
+{% if art_show_app %}
+  {% set model_str = "application" %}
+  {% set model = art_show_app %}
+{% elif group %}
+  {% set model_str = "group" %}
+  {% set model = group %}
+{% else %}
+  {% set model_str = "attendee" %}
+  {% set model = attendee %}
+{% endif %}
+
+{% block title %}Receipt Items - {% if model.attendee %}{{ model.attendee.full_name }}'s {{ model_str|title }}{% else %}{{ model.full_name|default(model.name) }}{% endif %}{% endblock %}
 {% block content %}
 <script type="text/javascript">
   var hideRow = function (id) {
@@ -12,7 +22,7 @@
   };
   var updateTotal = function (text, disable_button=true) {
     $('#receipt_total').html(text);
-    $('#record_payment_refund').prop('disabled', disable_button);
+    $('.record_payment_refund').prop('disabled', disable_button);
   }
   var showForm = function(receiptId, whichForm) {
     $('#' + receiptId + whichForm).removeClass('hidden')
@@ -117,10 +127,11 @@
   };
 
   var refundTxn = function (txnId, amount) {
-    bootbox.confirm({
+    var refundPrompt = bootbox.prompt({
       title: "Refund Transaction?",
-      message: "This will refund the attendee " + amount + " through Stripe. " +
+      message: "This will refund the attendee through Stripe. " +
         "This cannot be undone. Are you sure?",
+      placeholder: amount,
       buttons: {
           confirm: {
               label: 'Refund',
@@ -133,18 +144,22 @@
       },
       callback: function (result) {
         if(result) {
-          $.post('refund_receipt_txn', {csrf_token: csrf_token, id: txnId}, function (response) {
+          $.post('refund_receipt_txn', {csrf_token: csrf_token, id: txnId, amount: result}, function (response) {
             toastr.clear();
             if (response.error) {
               toastr.error(response.error);
             } else {
               toastr.info('Transaction refunded');
-              updateRow(response.refunded, ' td:last', "<em>Transaction refunded.</em>");
+              updateRow(response.refunded, ' td:last #amt-refunded', " ($" + (response.refund_total / 100).toFixed(2) + " refunded)");
               updateTotal(response.new_total, response.disable_button);
             }
           }, 'json');
         }
       }
+    });
+    refundPrompt.init(function(){
+      $(this).find('.bootbox-form').prepend('<p>This will refund the attendee through Stripe. You can enter an amount below or leave it blank to refund the full amount.</p>')
+      $(this).find('.bootbox-input-text')
     });
   };
 
@@ -241,23 +256,30 @@
     });
   });
 </script>
-{% include "registration/menu.html" if attendee else "group_admin/nav_menu.html" %}
+{% if art_show_app %}
+{{ macros.nav_menu(
+  art_show_app, c.PAGE_PATH,
+  "../art_show_admin/form?id={id}", "App Form", True,
+  "../art_show_admin/pieces?id={id}", "Submitted Pieces", True,
+  "receipt_items?id={id}", "Receipt Items", c.HAS_REG_ADMIN_ACCESS,
+  "../art_show_admin/history?id={id}", "History", True,
+  "../art_show_admin/index", "Return to App List", True
+  ) }}
 
-<h2>Receipt{% if other_receipts %}s{% endif %} for {{ model.full_name|default(model.name) }}{% if c.AT_THE_CON and model.badge_num %}({{ model.badge }}){% endif %}</h2>
+{% else %}
+  {% include "registration/menu.html" if attendee else "group_admin/nav_menu.html" %}
+{% endif %}
+
+<h2>Receipt{% if other_receipts %}s{% endif %} for {% if model.attendee %}{{ model.attendee.full_name }}'s {{ model_str|title }}{% else %}{{ model.full_name|default(model.name) }}{% endif %}{% if c.AT_THE_CON and model.badge_num %} ({{ model.badge }}){% endif %}</h2>
   <div class="panel panel-body">
   <p>Use this form to remove and add custom purchases and credits or non-Stripe payments and refunds for this {{ model_str }}.
-    You will not be able to remove purchases or credits that were created before a sucessful payment was made.
+    You will not be able to remove purchases or credits that were created before a successful payment was made.
     Confirmed Stripe payments or refunds that have a Stripe ID will also be locked.
-  </p>
-
-  <p>
-    Enter a positive number in the amount field to add a purchase, and a negative number to apply a credit.
-    Similarly, payments and refunds can be tracked using positive and negative amounts, respectively.
   </p>
   
   <p>
     If a payment was made and confirmed through Stripe, you can refund part or all of it using the "Refund Transaction" button.
-    Note that some Stripe payments may appear on multiple receipts, for example, when somone registers multiple badges in one transaction.
+    Note that some Stripe payments may appear on multiple receipts, for example, when someone registers multiple badges in one transaction.
   </p>
 
   <p>
@@ -266,7 +288,75 @@
   </p>
   </div>
 
+{% macro receipt_item_form(type="purchase") %}
+<tr id="{{ receipt.id }}-{{ type }}-form" class="hidden">
+  <td colspan="7">
+    <button type="button" class="close pull-left" aria-label="Close" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')"><span aria-hidden="true">&times;</span></button>
+    <form method="post" action="add_receipt_item" class="form-inline pull-right">
+      {{ csrf_token() }}
+      <input type="hidden" name="id" value="{{ receipt.id }}" />
+      <input type="hidden" name="item_type" value="{{ type }}" />
+      <div class="form-group">
+        <label for="desc">Description</label>
+        <input type="text" name="desc" class="form-control" placeholder="{{ type|title }} Description" required>
+      </div>
+      <div class="form-group">
+        <label for="amount">Amount</label>
+        <div class="input-group">
+          <span class="input-group-addon">$</span>
+          <input type="number" name="amount" class="form-control" placeholder="0" required>
+          <span class="input-group-addon">.00</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="count">Quantity</label>
+          <input type="number" name="count" class="form-control" placeholder="1">
+      </div>
+      <button type="submit" class="btn {{ 'btn-primary' if type == 'purchase' else 'btn-success' }}">Add {{ type|title }}</button>
+    </form>
+  </td>
+</tr>
+{% endmacro %}
+{% macro receipt_txn_form(type="payment") %}
+<tr id="{{ receipt.id }}-{{ type }}-form" class="hidden">
+  <td colspan="7">
+    <button type="button" class="close pull-left" aria-label="Close" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')"><span aria-hidden="true">&times;</span></button>
+    <form method="post" action="add_receipt_txn" class="form-inline pull-right">
+      {{ csrf_token() }}
+      <input type="hidden" name="id" value="{{ receipt.id }}" />
+      <input type="hidden" name="txn_type" value="{{ type }}" />
+      <div class="form-group">
+        <label for="amount">{{ type|title }} Method</label>
+        <select name="method" class="form-control">
+          <option value="">Select a Method</option>
+          {{ options(c.PAYMENT_METHOD_OPTS, c.CASH) }}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="count">Amount</label>
+        <div class="input-group">
+          <span class="input-group-addon">$</span>
+          <input type="number" name="amount" class="form-control" placeholder="0" required>
+          <span class="input-group-addon">.00</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="desc">Description</label>
+        <input type="text" name="desc" class="form-control" placeholder="Transaction Description">
+      </div>
+      <button type="submit" class="btn {{ 'btn-info' if type == 'payment' else 'btn-warning' }}">Add {{ type|title }}</button>
+    </form>
+  </td>
+</tr>
+  {% endmacro %}
+
 {% macro receipt_table(receipt, items) %}
+<ul class="nav nav-tabs" role="tablist">
+  <li role="presentation" class="active"><a href="#{{ receipt.id }}-home" aria-controls="{{ receipt.id }}-home" role="tab" data-toggle="tab">Receipt</a></li>
+  <li role="presentation"><a href="#{{ receipt.id }}-history" aria-controls="{{ receipt.id }}-history" role="tab" data-toggle="tab">History</a></li>
+</ul>
+<div class="tab-content">
+  <div role="tabpanel" class="tab-pane active" id="{{ receipt.id }}-home">
   <table class="table table-striped">
     <thead><tr>
       <th>Added</th>
@@ -276,7 +366,8 @@
       <th>Amount</th>
       <th></th>
     </tr></thead>
-    {% for item in items %} {{item.receipt_share}}
+    {% for item in items %}
+    {% set amount_left = item.amount - item.refunded if item.refunded else item.amount %}
       <tr id="{{ item.id }}">
         <td>{{ item.added|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
         <td>{{ item.who }}</td>
@@ -298,7 +389,7 @@
           {% if item.cancelled %}
             <em>Cancelled {{ item.cancelled|datetime_local }}</em>
           {% elif item.closed %}
-            {% if item.revert_change %}
+            {% if item.revert_change and not receipt.closed %}
               <button class="btn btn-sm btn-danger" onClick="undoItem('{{ item.id }}', '{{ receipt.id }}')">Undo Item</button>
             {% else %}
               <em>Payment finalized {{ item.closed|datetime_local }}</em>
@@ -306,7 +397,8 @@
           {% elif item.is_pending_charge or not item.stripe_id %}
             {% if item.intent_id and not item.refund_id and not receipt.closed %}
               <button class="btn btn-sm btn-danger" onClick="cancelTxn('{{ item.id }}')">Mark as Cancelled</button>
-            {% elif item.method and not receipt.open_receipt_items|selectattr("added", "<", item.added)|list|length %}
+            {# This should be updated when we associate receipt txns with items directly #}
+            {% elif item.method and not receipt.open_receipt_items|selectattr("added", "<", item.added)|list|length and receipt.current_receipt_amount == 0 %}
               <em>Payment locked.</em>
             {% elif not receipt.closed %}
               {% if item.revert_change %}
@@ -316,10 +408,9 @@
                 Delete {{ "Transaction" if item.method else "Item" }}
               </button>
             {% endif %}
-          {% elif item.refund_id and (item.refunded or item.amount > 0) %}
-              <em>{% if item.refunded %}{{ item.refunded|format_currency }}{% else %}Transaction{% endif %} refunded.</em>
-          {% elif item.charge_id and not item.refund_id and not receipt.closed %}
-            <button class="btn btn-sm btn-success" onClick="refundTxn('{{ item.id }}', '{{ (item.amount / 100)|format_currency }}')">Refund Transaction</button>
+          {% elif item.charge_id and amount_left and not receipt.closed %}
+            <button class="btn btn-sm btn-warning" onClick="refundTxn('{{ item.id }}', '{{ (amount_left / 100)|format_currency }}')">Refund Transaction</button>
+            <span id="amt-refunded">{% if item.refunded %} ({{ (item.refunded / 100)|format_currency }} refunded){% endif %}</span>
           {% endif %}
         </td>
       </tr>
@@ -329,70 +420,46 @@
         <span class="pull-right"><strong>Total</strong>: <span id="receipt_total">{{ receipt.total_str }}</span></span>
       </td>
     </tr>
-    <tr id="{{ receipt.id }}-item-form" class="hidden">
-      <td colspan="7">
-        <button type="button" class="close pull-left" aria-label="Close" onClick="hideForm('{{ receipt.id }}', '-item-form')"><span aria-hidden="true">&times;</span></button>
-        <form method="post" action="add_receipt_item" class="form-inline pull-right">
-          {{ csrf_token() }}
-          <input type="hidden" name="id" value="{{ receipt.id }}" />
-          <div class="form-group">
-            <label for="desc">Description</label>
-            <input type="text" name="desc" class="form-control" placeholder="Item Description" required>
-          </div>
-          <div class="form-group">
-            <label for="amount">Amount</label>
-            <div class="input-group">
-              <span class="input-group-addon">$</span>
-              <input type="number" name="amount" class="form-control" placeholder="0" required>
-              <span class="input-group-addon">.00</span>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="count">Quantity</label>
-              <input type="number" name="count" class="form-control" placeholder="1">
-          </div>
-          <button type="submit" class="btn btn-primary">Add Purchase/Credit</button>
-        </form>
-      </td>
-    </tr>
-    <tr id="{{ receipt.id }}-txn-form" class="hidden">
-      <td colspan="7">
-        <button type="button" class="close pull-left" aria-label="Close" onClick="hideForm('{{ receipt.id }}', '-txn-form')"><span aria-hidden="true">&times;</span></button>
-        <form method="post" action="add_receipt_txn" class="form-inline pull-right">
-          {{ csrf_token() }}
-          <input type="hidden" name="id" value="{{ receipt.id }}" />
-          <div class="form-group">
-            <label for="amount">Payment/Refund Method</label>
-            <select name="method" class="form-control">
-              <option value="">Select a Method</option>
-              {{ options(c.PAYMENT_METHOD_OPTS, c.CASH) }}
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="count">Amount</label>
-            <div class="input-group">
-              <span class="input-group-addon">$</span>
-              <input type="number" name="amount" class="form-control" placeholder="0" required>
-              <span class="input-group-addon">.00</span>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="desc">Description</label>
-            <input type="text" name="desc" class="form-control" placeholder="Transaction Description">
-          </div>
-          <button type="submit" class="btn btn-success">Add Payment/Refund</button>
-        </form>
-      </td>
-    </tr>
+    {{ receipt_item_form(type="purchase") }}
+    {{ receipt_item_form(type="credit") }}
+    {{ receipt_txn_form(type="payment") }}
+    {{ receipt_txn_form(type="refund") }}
+    {% if not receipt.closed %}
     <tr id="{{ receipt.id }}">
       <td colspan="7">
-        <div class="btn-group pull-right" role="group" aria-label="...">
-          <button class="btn btn-primary" onClick="showForm('{{ receipt.id }}', '-item-form')">Add Custom Purchase or Credit</button>
-          <button class="btn btn-success" id="record_payment_refund" onClick="showForm('{{ receipt.id }}', '-txn-form')"{% if receipt.current_receipt_amount == 0 %} disabled{% endif %}>Record Payment or Refund</button>
+        <div class="btn-group pull-right" role="group">
+          <button class="btn btn-default">Add:</button>
+          <button class="btn btn-primary" onClick="showForm('{{ receipt.id }}', '-purchase-form')">Purchase</button>
+          <button class="btn btn-success" onClick="showForm('{{ receipt.id }}', '-credit-form')">Credit</button>
+          <button class="btn btn-info record_payment_refund" onClick="showForm('{{ receipt.id }}', '-payment-form')"{% if receipt.current_receipt_amount == 0 %} disabled{% endif %}>Payment</button>
+          <button class="btn btn-warning record_payment_refund" onClick="showForm('{{ receipt.id }}', '-refund-form')"{% if receipt.current_receipt_amount == 0 %} disabled{% endif %}>Refund</button>
         </div>
       </td>
     </tr>
+    {% endif %}
   </table>
+</div>
+<div role="tabpanel" class="tab-pane" id="{{ receipt.id }}-history">
+  <table class="table-striped table-bordered table-condensed">
+    <thead><tr>
+      <th>Which</th>
+      <th>What</th>
+      <th>When</th>
+      <th>Who</th>
+      <th>Changes</th>
+    </tr></thead>
+    {% for tracked in receipt.changes %}
+      <tr>
+        <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.when|full_datetime_local }}</td>
+        <td valign="top" style="white-space:nowrap">{{ tracked.who }}</td>
+        <td valign="top">{{ tracked.data }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+</div>
+</div>
 {% endmacro %}
 
 <div class="panel panel-default">
@@ -405,6 +472,7 @@
   <button class="btn btn-danger" onClick="fullRefund('{{ receipt.id }}')">Refund and Cancel This {{ model_str|title }}</button>
 {% else %}
 There are no active receipts for this {{ model_str }}.
+<br/><a href="create_receipt?id={{ model.id }}" class="btn btn-success">Create Default Receipt</a> <a href="create_receipt?id={{ model.id }}&blank=true" class="btn btn-info">Create Blank Receipt</a>
 {% endif %}
 </div>
 </div>

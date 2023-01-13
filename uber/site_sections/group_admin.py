@@ -58,11 +58,22 @@ class Root:
 
     @log_pageview
     def form(self, session, new_dealer='', message='', **params):
+        if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
+            message = session.auto_update_receipt(session.group(params.get('id')), params)
+
         group = session.group(params, checkgroups=Group.all_checkgroups, bools=Group.all_bools)
+
+        group_params = dict(params)
+        for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city', 'phone', 'email_address']:
+            group_field_name = 'group_{}'.format(field_name)
+            if group_field_name in params:
+                group_params[field_name] = params.get(group_field_name, '')
+
+        group.apply(group_params)
 
         if cherrypy.request.method == 'POST':
             new_with_leader = any(params.get(info) for info in ['first_name', 'last_name', 'email'])
-            message = self._required_message(params, ['name'])
+            message = message or self._required_message(params, ['name'])
             
             if not message and group.is_new and (params.get('group_type') or new_dealer or group.is_dealer):
                 message = self._required_message(params, ['first_name', 'last_name', 'email'])
@@ -86,8 +97,7 @@ class Root:
                     badge_status=new_badge_status,
                     )
 
-            if not message:
-                if group.is_new and new_with_leader:
+            if not message and group.is_new and new_with_leader:
                     session.commit()
                     leader = group.leader = group.attendees[0]
                     leader.first_name = params.get('first_name')
@@ -99,22 +109,22 @@ class Root:
                         session.delete(group)
                         session.commit()
 
-                if not message:
-                    if params.get('group_type'):
-                        group.guest = group.guest or GuestGroup()
-                        group.guest.group_type = params.get('group_type')
+            if not message:
+                if params.get('group_type'):
+                    group.guest = group.guest or GuestGroup()
+                    group.guest.group_type = params.get('group_type')
+                
+                if group.is_new and group.is_dealer:
+                    if group.status == c.APPROVED and group.amount_unpaid:
+                        raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
+                    elif group.status == c.APPROVED:
+                        raise HTTPRedirect(
+                            'index?message={}', group.name + ' has been uploaded and approved')
+                    else:
+                        raise HTTPRedirect(
+                            'index?message={}', group.name + ' is uploaded as ' + group.status_label)
                     
-                    if group.is_new and group.is_dealer:
-                        if group.status == c.APPROVED and group.amount_unpaid:
-                            raise HTTPRedirect('../preregistration/group_members?id={}', group.id)
-                        elif group.status == c.APPROVED:
-                            raise HTTPRedirect(
-                                'index?message={}', group.name + ' has been uploaded and approved')
-                        else:
-                            raise HTTPRedirect(
-                                'index?message={}', group.name + ' is uploaded as ' + group.status_label)
-                     
-                    raise HTTPRedirect('form?id={}&message={} has been saved', group.id, group.name)
+                raise HTTPRedirect('form?id={}&message={} has been saved', group.id, group.name)
 
         return {
             'message': message,

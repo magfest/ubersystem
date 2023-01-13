@@ -111,12 +111,14 @@
             })
 
             $('#datatable_'+id).each(function() {
-              var table = $(this).DataTable({
-                    paging: false,
-                    stateSave: true,
-                    searching: false,
-                    info: false
+              if (! $.fn.DataTable.isDataTable($(this))) {
+                var table = $(this).DataTable({
+                  paging: false,
+                  stateSave: true,
+                  searching: false,
+                  info: false
                 });
+              }
             });
         };
 
