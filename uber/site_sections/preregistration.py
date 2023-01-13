@@ -30,13 +30,8 @@ def check_post_con(klass):
     def wrapper(func):
         @wraps(func)
         def wrapped(self, *args, **kwargs):
-            if c.POST_CON:  # TODO: replace this with a template and make that suitably generic
-                return """
-                <html><head></head><body style='text-align:center'>
-                    <h2 style='color:red'>We hope you enjoyed {event} {current_year}!</h2>
-                    We look forward to seeing you in {next_year}! Watch our website (<a href="https://www.magfest.org">https://www.magfest.org</a>) and our Twitter (<a href="https://twitter.com/MAGFest">@MAGFest</a>) for announcements.
-                </body></html>
-                """.format(event=c.EVENT_NAME, current_year=c.EVENT_YEAR, next_year=(1 + int(c.EVENT_YEAR)) if c.EVENT_YEAR else '')
+            if c.POST_CON:
+                return render('static_views/post_con.html')
             else:
                 return func(self, *args, **kwargs)
         return wrapped
@@ -1033,7 +1028,7 @@ class Root:
     @credit_card
     def process_group_payment(self, session, id):
         group = session.group(id)
-        receipt = session.get_receipt_by_model(group, create_if_none=True)
+        receipt = session.get_receipt_by_model(group, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(group.name, receipt.charge_description_list)
         charge = Charge(group, amount=receipt.current_amount_owed, description=charge_desc)
 
@@ -1093,7 +1088,7 @@ class Root:
     def pay_for_extra_members(self, session, id, count):
         from uber.models import ReceiptItem
         group = session.group(id)
-        receipt = session.get_receipt_by_model(group, create_if_none=True)
+        receipt = session.get_receipt_by_model(group, create_if_none="DEFAULT")
         session.add(receipt)
         session.commit()
         count = int(count)
@@ -1370,7 +1365,7 @@ class Root:
 
                 page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
                 if not receipt:
-                    new_receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+                    new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
                     if new_receipt.current_amount_owed and not new_receipt.pending_total:
                         raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)
                 raise HTTPRedirect(page + 'message=' + message)
@@ -1504,7 +1499,7 @@ class Root:
         attendee = session.attendee(id)
         return {
             'attendee': attendee,
-            'receipt': session.get_receipt_by_model(attendee, create_if_none=True),
+            'receipt': session.get_receipt_by_model(attendee, create_if_none="DEFAULT"),
             'return_to': return_to,
             'message': message,
         }
@@ -1520,7 +1515,7 @@ class Root:
 
         message = attendee.undo_extras()
         if not message:
-            new_receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+            new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
             page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
             if new_receipt.current_amount_owed:
                 raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)

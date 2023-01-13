@@ -265,7 +265,7 @@ class Root:
     def process_art_show_payment(self, session, id):
         app = session.art_show_application(id)
 
-        receipt = session.get_receipt_by_model(app, create_if_none=True)
+        receipt = session.get_receipt_by_model(app, create_if_none="DEFAULT")
         
         charge_desc = "{}'s Art Show Application: {}".format(app.attendee.full_name, receipt.charge_description_list)
         charge = Charge(app, amount=receipt.current_amount_owed, description=charge_desc)

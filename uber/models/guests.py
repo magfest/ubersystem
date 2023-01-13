@@ -387,11 +387,11 @@ class GuestMerch(MagModel):
 
     @property
     def rock_island_url(self):
-        return '../guest_admin/rock_island?id={}'.format(self.guest_id)
+        return '../guest_reports/rock_island?id={}'.format(self.guest_id)
 
     @property
     def rock_island_csv_url(self):
-        return '../guest_admin/rock_island_csv?id={}'.format(self.guest_id)
+        return '../guest_reports/rock_island_csv?id={}'.format(self.guest_id)
 
     @property
     def status(self):

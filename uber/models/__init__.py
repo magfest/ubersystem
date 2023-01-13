@@ -752,7 +752,7 @@ class Session(SessionManager):
             return set(staffer.assigned_depts_ids).intersection(dept_ids_with_inherent_role)
 
         def admin_can_see_guest_group(self, guest):
-            return guest.group_type_label.upper() in self.current_admin_account().viewable_guest_group_types
+            return guest.group_type_label.upper().replace(' ','_') in self.current_admin_account().viewable_guest_group_types
 
         def admin_attendee_max_access(self, attendee, read_only=True):
             admin = self.current_admin_account()
@@ -1174,7 +1174,7 @@ class Session(SessionManager):
             if existing_account:
                 self.add_attendee_to_account(attendee, existing_account)
 
-        def get_receipt_by_model(self, model, include_closed=False, create_if_none=False):
+        def get_receipt_by_model(self, model, include_closed=False, create_if_none=""):
             receipt_select = self.query(ModelReceipt).filter_by(owner_id=model.id, owner_model=model.__class__.__name__)
             if not include_closed:
                 receipt_select = receipt_select.filter(ModelReceipt.closed == None)
@@ -1183,11 +1183,11 @@ class Session(SessionManager):
             if not receipt and create_if_none:
                 receipt, receipt_items = Charge.create_new_receipt(model, create_model=True)
 
-                if receipt_items:
-                    self.add(receipt)
+                self.add(receipt)
+                if create_if_none != "BLANK":
                     for item in receipt_items:
                         self.add(item)
-                    self.commit()
+                self.commit()
             return receipt
 
         def get_model_by_receipt(self, receipt):
