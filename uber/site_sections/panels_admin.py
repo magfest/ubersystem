@@ -7,7 +7,7 @@ from pockets.autolog import log
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, site_mappable
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file
 from uber.errors import HTTPRedirect
 from uber.models import AssignedPanelist, Attendee, AutomatedEmail, Event, EventFeedback, \
     PanelApplicant, PanelApplication
@@ -259,7 +259,6 @@ class Root:
                 ])
             ])
 
-    @site_mappable(download=True)
     @csv_file
     def everything(self, out, session):
         out.writerow([

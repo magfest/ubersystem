@@ -9,7 +9,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import literal
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, site_mappable
+from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable
 from uber.jinja import JinjaEnv
 from uber.models import Attendee, Group, PromoCode
 
@@ -225,7 +225,6 @@ class Root:
                            for amount, desc in sorted(c.DONATION_TIERS.items()) if amount]
         }
 
-    @site_mappable(download=True)
     @csv_file
     def checkins_by_hour(self, out, session):
         def date_trunc_hour(*args, **kwargs):

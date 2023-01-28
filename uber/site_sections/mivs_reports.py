@@ -4,14 +4,13 @@ from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.custom_tags import humanize_timedelta
-from uber.decorators import all_renderable, csv_file, multifile_zipfile, xlsx_file, site_mappable
+from uber.decorators import all_renderable, csv_file, multifile_zipfile, xlsx_file
 from uber.models import Attendee, Group, IndieGame, IndieJudge, IndieStudio
 from uber.utils import check, localized_now
 
 
 @all_renderable()
 class Root:
-    @site_mappable(download=True)
     @csv_file
     def social_media(self, out, session):
         out.writerow(['Studio', 'Website', 'Twitter', 'Facebook'])
@@ -24,7 +23,6 @@ class Root:
                     game.studio.facebook
                 ])
 
-    @site_mappable(download=True)
     @csv_file
     def everything(self, out, session):
         out.writerow([
@@ -69,7 +67,6 @@ class Root:
                 str(game.average_score)
             ] + [str(score) for score in game.scores])
 
-    @site_mappable(download=True)
     @csv_file
     def checklist_info_csv(self, out, session):
         header_row = ['Studio']
@@ -89,7 +86,6 @@ class Root:
                 ])
             out.writerow(row)
 
-    @site_mappable(download=True)
     @csv_file
     def discussion_group_emails(self, out, session):
         out.writerow(['Studio', 'Emails', 'Last Updated'])
@@ -105,7 +101,6 @@ class Root:
 
             out.writerow(row)
 
-    @site_mappable(download=True)
     @xlsx_file
     def accepted_games_xlsx(self, out, session):
         rows = []
@@ -127,7 +122,6 @@ class Root:
             'Screenshot 1', 'Screenshot 2']
         out.writerows(header_row, rows)
 
-    @site_mappable(download=True)
     @multifile_zipfile
     def accepted_games_zip(self, zip_file, session):
         output = self.accepted_games_xlsx(set_headers=False)
@@ -140,7 +134,6 @@ class Root:
                     filepath = os.path.join(c.MIVS_GAME_IMAGE_DIR, screenshot.id)
                     zip_file.write(filepath, os.path.join('mivs_accepted_game_images', filename))
 
-    @site_mappable(download=True)
     @csv_file
     def presenters(self, out, session):
         presenters = set()
@@ -152,7 +145,6 @@ class Root:
                     presenters.add(attendee)
                     out.writerow([attendee.full_name, game.studio.name])
 
-    @site_mappable(download=True)
     @xlsx_file
     def judges(self, out, session):
         rows = []

@@ -291,6 +291,7 @@ def multifile_zipfile(func):
     parameters = inspect.getargspec(func)
     if len(parameters[0]) == 3:
         func.site_mappable = True
+        func.site_map_download = True
 
     @wraps(func)
     def zipfile_out(self, session, **kwargs):
@@ -320,6 +321,7 @@ def xlsx_file(func):
     parameters = inspect.getargspec(func)
     if len(parameters[0]) == 3:
         func.site_mappable = True
+        func.site_map_download = True
 
     func.output_file_extension = 'xlsx'
 
@@ -356,6 +358,7 @@ def csv_file(func):
     parameters = inspect.getargspec(func)
     if len(parameters[0]) == 3:
         func.site_mappable = True
+        func.site_map_download = True
 
     func.output_file_extension = 'csv'
 

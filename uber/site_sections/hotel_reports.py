@@ -7,7 +7,7 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
-from uber.decorators import all_renderable, csv_file, site_mappable
+from uber.decorators import all_renderable, csv_file
 from uber.models import Attendee, HotelRequests, Job, Room, RoomAssignment, Shift
 from uber.utils import noon_datetime
 
@@ -193,7 +193,6 @@ class Root:
                 dept.inconsistent_attendees.append(attendee)
         return {'departments': departments}
 
-    @site_mappable(download=True)
     @csv_file
     def inconsistent_shoulder_shifts_csv(self, out, session):
         shoulder_nights_missing_shifts = _inconsistent_shoulder_shifts(session)
@@ -213,7 +212,6 @@ class Root:
     def hours_vs_rooms(self, session):
         return {'hours_vs_rooms_report': _hours_vs_rooms(session)}
 
-    @site_mappable(download=True)
     @csv_file
     def hours_vs_rooms_csv(self, out, session):
         hours_vs_rooms_report = _hours_vs_rooms(session)
@@ -255,7 +253,6 @@ class Root:
     def hours_vs_rooms_by_dept(self, session):
         return {'departments': _hours_vs_rooms_by_dept(session)}
 
-    @site_mappable(download=True)
     @csv_file
     def hours_vs_rooms_by_dept_csv(self, out, session):
         departments = _hours_vs_rooms_by_dept(session)
@@ -295,7 +292,6 @@ class Root:
         for row in rows:
             out.writerow(row)
 
-    @site_mappable(download=True)
     @csv_file
     def ordered(self, out, session):
         reqs = [
@@ -363,7 +359,6 @@ class Root:
             for a in group:
                 writerow(a, a.hotel_requests)
 
-    @site_mappable(download=True)
     @csv_file
     def hotel_email_info(self, out, session):
         fields = [
@@ -397,7 +392,6 @@ class Root:
                     })
                 out.writerow(list(row.values()))
 
-    @site_mappable(download=True)
     @csv_file
     def hotel_audit(self, out, session):
         """All valid attendees provided to the hotels team for Maritz' audit"""
@@ -495,7 +489,6 @@ class Root:
                                  ','.join(room.email),  # Emails
                              ])
 
-    @site_mappable(download=True)
     @csv_file
     def gaylord(self, out, session):
         fields = [
@@ -533,7 +526,6 @@ class Root:
                     })
                 out.writerow(list(row.values()))
 
-    @site_mappable(download=True)
     @csv_file
     def requested_hotel_info(self, out, session):
         eligibility_filters = []

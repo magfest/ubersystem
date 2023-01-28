@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
 from uber.custom_tags import linebreaksbr
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, render, xlsx_file, site_mappable
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, render, xlsx_file
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Department, DeptChecklistItem, HotelRequests, RoomAssignment, Shift
 from uber.utils import check, check_csrf, days_before, DeptChecklistConf, redirect_to_allowed_dept
@@ -149,7 +149,6 @@ class Root:
             'checklist': checklist
         }
 
-    @site_mappable(download=True)
     @xlsx_file
     def overview_xlsx(self, out, session):
         checklist = list(DeptChecklistConf.instances.values())

@@ -147,7 +147,6 @@ class Root:
     if not c.HIDE_SCHEDULE:
         ical.restricted = False
 
-    @site_mappable(download=True)
     @csv_file
     def csv(self, out, session):
         out.writerow(['Session Title', 'Date', 'Time Start', 'Time End', 'Room/Location',
@@ -168,7 +167,6 @@ class Root:
         for r in sorted(rows, key=lambda tup: tup[4]):
             out.writerow(r)
 
-    @site_mappable(download=True)
     @csv_file
     def panels(self, out, session):
         out.writerow(['Panel', 'Time', 'Duration', 'Room', 'Description', 'Panelists'])
@@ -355,7 +353,6 @@ class Root:
             'locations': locations
         }
 
-    @site_mappable(download=True)
     @schedule_view
     @csv_file
     def panel_tech_needs(self, out, session):

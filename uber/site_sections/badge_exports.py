@@ -1,7 +1,7 @@
 from sqlalchemy import func
 
 from uber.config import c
-from uber.decorators import all_renderable, multifile_zipfile, xlsx_file, site_mappable
+from uber.decorators import all_renderable, multifile_zipfile, xlsx_file
 from uber.models import Attendee
 from uber.reports import PersonalizedBadgeReport, PrintedBadgeReport
 
@@ -17,22 +17,18 @@ def generate_staff_badges(start_badge, end_badge, out, session):
 
 @all_renderable()
 class Root:
-    @site_mappable(download=True)
     @xlsx_file
     def printed_badges_attendee(self, out, session):
         PrintedBadgeReport(badge_type=c.ATTENDEE_BADGE, badge_type_name='Attendee').run(out, session)
 
-    @site_mappable(download=True)
     @xlsx_file
     def printed_badges_guest(self, out, session):
         PrintedBadgeReport(badge_type=c.GUEST_BADGE, badge_type_name='Guest').run(out, session)
 
-    @site_mappable(download=True)
     @xlsx_file
     def printed_badges_one_day(self, out, session):
         PrintedBadgeReport(badge_type=c.ONE_DAY_BADGE, badge_type_name='OneDay').run(out, session)
 
-    @site_mappable(download=True)
     @xlsx_file
     def printed_badges_minor(self, out, session):
         try:
@@ -40,7 +36,6 @@ class Root:
         except AttributeError:
             pass
     
-    @site_mappable(download=True)
     @xlsx_file
     def printed_badges_staff(self, out, session):
 
@@ -73,7 +68,6 @@ class Root:
 
         generate_staff_badges(int(start_badge), int(end_badge), out, session)
 
-    @site_mappable(download=True)
     @xlsx_file
     def badge_hangars_supporters(self, out, session):
         PersonalizedBadgeReport(include_badge_nums=False).run(
@@ -96,7 +90,6 @@ class Root:
         badge_hangars_supporters,
     ]
 
-    @site_mappable(download=True)
     @multifile_zipfile
     def personalized_badges_zip(self, zip_file, session):
         """

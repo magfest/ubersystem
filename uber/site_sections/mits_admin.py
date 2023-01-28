@@ -4,7 +4,7 @@ import cherrypy
 from pockets.autolog import log
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csv_file, site_mappable
+from uber.decorators import ajax, all_renderable, csv_file
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, MITSTeam
 from uber.utils import add_opt, check_csrf
@@ -123,7 +123,6 @@ class Root:
         else:
             return {'comp_count': applicant.team.comped_badge_count}
 
-    @site_mappable(download=True)
     @csv_file
     def hotel_requests(self, out, session):
         for team in session.mits_teams().filter_by(status=c.ACCEPTED):
@@ -139,7 +138,6 @@ class Root:
                         for val, desc in c.MITS_ROOM_NIGHT_OPTS
                     ])
 
-    @site_mappable(download=True)
     @csv_file
     def showcase_requests(self, out, session):
         out.writerow(['Team Name'] + [desc for val, desc in c.MITS_SHOWCASE_SCHEDULE_OPTS])
@@ -151,7 +149,6 @@ class Root:
                     for val, desc in c.MITS_SHOWCASE_SCHEDULE_OPTS
                 ])
 
-    @site_mappable(download=True)
     @csv_file
     def panel_requests(self, out, session):
         out.writerow(['URL', 'Team', 'Primary Contact Names', 'Primary Contact Emails']

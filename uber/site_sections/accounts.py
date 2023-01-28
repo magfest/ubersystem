@@ -346,7 +346,6 @@ class Root:
         return {'message': message}
 
     # print out a CSV list of attendees that signed up for the newsletter for import into our bulk mailer
-    @site_mappable(download=True)
     @csv_file
     def can_spam(self, out, session):
         out.writerow(["fullname", "email", "zipcode"])
@@ -354,7 +353,6 @@ class Root:
             out.writerow([a.full_name, a.email, a.zip_code])
 
     # print out a CSV list of staffers (ignore can_spam for this since it's for internal staff mailing)
-    @site_mappable(download=True)
     @csv_file
     def staff_emails(self, out, session):
         out.writerow(["fullname", "email", "zipcode"])
