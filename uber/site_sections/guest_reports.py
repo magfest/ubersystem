@@ -96,7 +96,7 @@ class Root:
             'only_empty': only_empty
         }
 
-    @site_mappable
+    @site_mappable(download=True)
     @csv_file
     def rock_island_csv(self, out, session, id=None, **params):
         out.writerow([
