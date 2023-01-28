@@ -35,7 +35,7 @@ class Root:
             PrintedBadgeReport(badge_type=c.CHILD_BADGE, badge_type_name='Minor').run(out, session)
         except AttributeError:
             pass
-    
+
     @xlsx_file
     def printed_badges_staff(self, out, session):
 

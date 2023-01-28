@@ -70,7 +70,6 @@ class Root:
             # we cache this view because it takes a while to generate
             return get_schedule_data(session, message)
 
-    @site_mappable(download=True)
     @schedule_view
     @csv_file
     def time_ordered(self, out, session):
