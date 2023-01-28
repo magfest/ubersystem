@@ -6,7 +6,7 @@ from datetime import timedelta
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
-from uber.decorators import all_renderable, csv_file, render
+from uber.decorators import all_renderable, csv_file, render, site_mappable
 from uber.models import Attendee, Department
 
 
@@ -104,6 +104,7 @@ class Root:
             'message': message,
         }
 
+    @site_mappable(download=True)
     @csv_file
     def dept_head_contact_info(self, out, session):
         out.writerow(["Full Name", "Email", "Phone", "Department(s)"])
@@ -111,6 +112,7 @@ class Root:
             for label in a.assigned_depts_labels:
                 out.writerow([a.full_name, a.email, a.cellphone, label])
 
+    @site_mappable(download=True)
     @csv_file
     def volunteers_with_worked_hours(self, out, session):
         out.writerow(['Badge #', 'Full Name', 'E-mail Address', 'Weighted Hours Scheduled', 'Weighted Hours Worked'])
@@ -177,6 +179,7 @@ class Root:
             )]
         }
 
+    @site_mappable(download=True)
     @csv_file
     def volunteer_checklist_csv(self, out, session):
         checklists = volunteer_checklists(session)
@@ -196,6 +199,7 @@ class Root:
     def volunteer_checklists(self, session):
         return volunteer_checklists(session)
     
+    @site_mappable(download=True)
     @csv_file
     def name_in_credits(self, out, session):
         out.writerow(["Name submitted for credits"])

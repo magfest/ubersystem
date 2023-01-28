@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload, subqueryload
 from sqlalchemy.sql import label
 
 from uber.config import c
-from uber.decorators import ajax, ajax_gettable, all_renderable, csv_file
+from uber.decorators import ajax, ajax_gettable, all_renderable, csv_file, site_mappable
 from uber.models import Attendee, TabletopCheckout, TabletopGame
 from uber.utils import localized_now
 
@@ -21,6 +21,7 @@ class Root:
             'game': session.tabletop_game(id),
         }
 
+    @site_mappable(download=True)
     @csv_file
     def checkout_counts(self, out, session):
         out.writerow([

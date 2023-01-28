@@ -46,7 +46,7 @@ class Root:
         for model in model_list:
             row = []
             for key, val in c.GUIDEBOOK_PROPERTIES:
-                row.append(getattr(model, key, '').replace('\n', '<br/>'))
+                row.append(getattr(model, key, ''))
             out.writerow(row)
 
     @multifile_zipfile

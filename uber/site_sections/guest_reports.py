@@ -16,6 +16,7 @@ class Root:
     def index(self, session, message=''):
         HTTPRedirect('../group_admin/index')
 
+    @site_mappable(download=True)
     @csv_file
     def checklist_info_csv(self, out, session):
         out.writerow([
@@ -96,7 +97,7 @@ class Root:
             'only_empty': only_empty
         }
 
-    @site_mappable
+    @site_mappable(download=True)
     @csv_file
     def rock_island_csv(self, out, session, id=None, **params):
         out.writerow([

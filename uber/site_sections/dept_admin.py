@@ -211,6 +211,7 @@ class Root:
 
             out.writerow(row)
 
+    @site_mappable(download=True)
     @csv_file
     def overworked_attendees(self, out, session):
         def single_sequence(attendee, start_minute, minute_map):

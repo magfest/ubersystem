@@ -798,7 +798,8 @@ class Config(_Overridable):
                         and not getattr(method, 'not_site_mappable', False):
                         pages[module_name].append({
                             'name': name.replace('_', ' ').title(),
-                            'path': '/{}/{}'.format(module_name, name)
+                            'path': '/{}/{}'.format(module_name, name),
+                            'is_download': getattr(method, 'site_map_download', False)
                         })
         return public_site_sections, public_pages, pages
 
@@ -1221,7 +1222,6 @@ c.GUIDEBOOK_PROPERTIES = [
     ('guidebook_location', 'Location/Room'),
     ('guidebook_image', 'Image (Optional)'),
     ('guidebook_thumbnail', 'Thumbnail (Optional)'),
-    ('guidebook_track', 'Schedule Track (Optional)'),
 ]
 
 

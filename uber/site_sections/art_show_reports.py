@@ -1,5 +1,5 @@
 from uber.config import c
-from uber.decorators import all_renderable, csv_file
+from uber.decorators import all_renderable, csv_file, site_mappable
 from uber.utils import localized_now
 
 from sqlalchemy import func
@@ -138,12 +138,14 @@ class Root:
             'now': localized_now(),
         }
 
+    @site_mappable(download=True)
     @csv_file
     def banner_csv(self, out, session):
         out.writerow(['Banner Name', 'Locations'])
         for app in session.query(ArtShowApplication).filter(ArtShowApplication.status != c.DECLINED):
             out.writerow([app.display_name, app.locations])
 
+    @site_mappable(download=True)
     @csv_file
     def artist_csv(self, out, session):
         out.writerow(['Application Status',
@@ -215,6 +217,7 @@ class Root:
                           address_model.country,
                           ])
 
+    @site_mappable(download=True)
     @csv_file
     def pieces_csv(self, out, session):
         out.writerow(["Artist Name",
@@ -247,6 +250,7 @@ class Root:
                           '$' + str(piece.sale_price) if piece.status in [c.SOLD, c.PAID] else 'N/A',
                           ])
 
+    @site_mappable(download=True)
     @csv_file
     def bidder_csv(self, out, session):
         out.writerow(["Bidder Number",

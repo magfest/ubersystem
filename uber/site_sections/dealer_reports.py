@@ -1,10 +1,11 @@
 from uber.config import c
-from uber.decorators import all_renderable, csv_file, xlsx_file
+from uber.decorators import all_renderable, csv_file, xlsx_file, site_mappable
 from uber.models import Group
 
 
 @all_renderable()
 class Root:
+    @site_mappable(download=True)
     @csv_file
     def seller_initial_review(self, out, session):
         out.writerow([
@@ -26,6 +27,7 @@ class Root:
                 group.wares
             ])
     
+    @site_mappable(download=True)
     @csv_file
     def seller_table_info(self, out, session):
         out.writerow([
@@ -71,6 +73,7 @@ class Root:
                     group.badges
                 ])
 
+    @site_mappable(download=True)
     @xlsx_file
     def seller_comptroller_info(self, out, session):
         dealer_groups = session.query(Group).filter(Group.tables > 0).all()
@@ -106,6 +109,7 @@ class Root:
             'License #']
         out.writerows(header_row, rows)
 
+    @site_mappable(download=True)
     @xlsx_file
     def seller_applications(self, out, session):
         dealer_groups = session.query(Group).filter(Group.is_dealer).all()
@@ -123,7 +127,7 @@ class Root:
             out.writecell(group.registered.replace(tzinfo=None), format={'num_format': 'dd/mm/yy hh:mm'})
             out.writecell(group.name, url="{}/group_admin/form?id={}".format(c.URL_BASE, group.id), last_cell=True)
             
-        
+    @site_mappable(download=True)
     @xlsx_file
     def waitlisted_group_info(self, out, session):
         waitlisted_groups = session.query(Group).filter(Group.status == c.WAITLISTED).all()
@@ -145,6 +149,7 @@ class Root:
             ]
         out.writerows(header_row, rows)
         
+    @site_mappable(download=True)
     @xlsx_file
     def seller_tax_info(self, out, session):
         approved_groups = session.query(Group).filter(Group.status == c.APPROVED).all()

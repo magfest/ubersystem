@@ -88,7 +88,7 @@ class Root:
         session.delete(session.admin_account(id))
         raise HTTPRedirect('index?message={}', 'Account deleted')
 
-    @site_mappable
+    @site_mappable(download=True)
     @department_id_adapter
     def bulk(self, session, department_id=None, **params):
         department_id = None if department_id == 'All' else department_id
@@ -346,6 +346,7 @@ class Root:
         return {'message': message}
 
     # print out a CSV list of attendees that signed up for the newsletter for import into our bulk mailer
+    @site_mappable(download=True)
     @csv_file
     def can_spam(self, out, session):
         out.writerow(["fullname", "email", "zipcode"])
@@ -353,6 +354,7 @@ class Root:
             out.writerow([a.full_name, a.email, a.zip_code])
 
     # print out a CSV list of staffers (ignore can_spam for this since it's for internal staff mailing)
+    @site_mappable(download=True)
     @csv_file
     def staff_emails(self, out, session):
         out.writerow(["fullname", "email", "zipcode"])
