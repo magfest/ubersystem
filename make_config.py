@@ -24,7 +24,6 @@ for encoded in yaml.load(config, Loader=yaml.Loader):
     decoded = base64.b64decode(encoded)
     unzipped = gzip.decompress(decoded)
     parsed = yaml.load(unzipped, Loader=yaml.Loader)
-    print(parsed)
     
     sideboard_config = parsed.get("sideboard", {})
     if sideboard_config:
@@ -53,6 +52,8 @@ for plugin, configs in plugin_configs.items():
             config.merge(override)
         config.filename = os.path.join(root, "plugins/", plugin, "development.ini")
         config.write()
+        with open(os.path.join(root, "plugins/", plugin, "development.ini"), "r") as CONFIG:
+            print(plugin, CONFIG.read())
 
 if sideboard_configs:
     config = sideboard_configs[0]
@@ -60,3 +61,5 @@ if sideboard_configs:
         config.merge(override)
     config.filename = os.path.join(root, "development.ini")
     config.write()
+    with open(os.path.join(root, "development.ini"), "r") as CONFIG:
+        print("sideboard", CONFIG.read())
