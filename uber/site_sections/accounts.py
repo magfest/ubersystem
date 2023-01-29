@@ -88,7 +88,7 @@ class Root:
         session.delete(session.admin_account(id))
         raise HTTPRedirect('index?message={}', 'Account deleted')
 
-    @site_mappable(download=True)
+    @site_mappable
     @department_id_adapter
     def bulk(self, session, department_id=None, **params):
         department_id = None if department_id == 'All' else department_id
