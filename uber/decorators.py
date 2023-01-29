@@ -115,9 +115,15 @@ def check_for_encrypted_badge_num(func):
     return with_check
 
 
-def site_mappable(func):
-    func.site_mappable = True
-    return func
+def site_mappable(_func=None, *, download=False):
+    def wrapper(func):
+        func.site_mappable = True
+        func.site_map_download = download
+        return func
+    if _func is None:
+        return wrapper
+    else:
+        return wrapper(_func)
 
 
 def not_site_mappable(func):
@@ -285,6 +291,7 @@ def multifile_zipfile(func):
     parameters = inspect.getargspec(func)
     if len(parameters[0]) == 3:
         func.site_mappable = True
+        func.site_map_download = True
 
     @wraps(func)
     def zipfile_out(self, session, **kwargs):
@@ -314,6 +321,7 @@ def xlsx_file(func):
     parameters = inspect.getargspec(func)
     if len(parameters[0]) == 3:
         func.site_mappable = True
+        func.site_map_download = True
 
     func.output_file_extension = 'xlsx'
 
@@ -350,6 +358,7 @@ def csv_file(func):
     parameters = inspect.getargspec(func)
     if len(parameters[0]) == 3:
         func.site_mappable = True
+        func.site_map_download = True
 
     func.output_file_extension = 'csv'
 
