@@ -408,7 +408,7 @@ class Root:
         if c.MAPS_ENABLED:
             from uszipcode import SearchEngine
             try:
-                engine = SearchEngine(db_file_dir="/srv/reggie/data")
+                engine = SearchEngine(db_file_dir=c.MAPS_DIR)
             except Exception as e:
                 log.error("Error calling SearchEngine: " + e)
 
