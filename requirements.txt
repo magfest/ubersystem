@@ -21,3 +21,6 @@ ics==0.4
 Pillow==6.2.2
 fpdf==1.7.2
 boto3==1.14.45
+SQLAlchemy==1.1.0
+Jinja2==2.11.3
+pyyaml==6.0
