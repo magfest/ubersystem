@@ -263,7 +263,7 @@ class Root:
     try:
         center = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(20745)
     except Exception as e:
-        log.error("Error calling SearchEngine: " + e)
+        log.error("Error calling SearchEngine: ", exc_info=True)
 
     def map(self):
         return {
@@ -285,7 +285,7 @@ class Root:
             try:
                 found = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(int(z))
             except Exception as e:
-                log.error("Error calling SearchEngine: " + e)
+                log.error("Error calling SearchEngine: ", exc_info=True)
             else:
                 if found.zipcode:
                     zips[z] = found
@@ -301,7 +301,7 @@ class Root:
                 res = SearchEngine(db_file_dir="/srv/reggie/data").by_coordinates(
                     self.center.lat, self.center.lng, radius=int(params['radius']), returns=None)
             except Exception as e:
-                log.error("Error calling SearchEngine: " + e)
+                log.error("Error calling SearchEngine: ", exc_info=True)
             else:
                 out.writerow(['# of Attendees', 'City', 'State', 'Zipcode', 'Miles from Event', '% of Total Attendees'])
                 if len(res) > 0:
@@ -320,7 +320,7 @@ class Root:
             try:
                 self.center = SearchEngine(db_file_dir="/srv/reggie/data").by_zipcode(int(params["zip"]))
             except Exception as e:
-                log.error("Error calling SearchEngine: " + e)
+                log.error("Error calling SearchEngine: ", exc_info=True)
             else:
                 return "Set to %s, %s - %s" % (self.center.city, self.center.state, self.center.zipcode)
         return False
@@ -337,7 +337,7 @@ class Root:
             try:
                 zip_codes = list(map(lambda x: x.zipcode, SearchEngine(db_file_dir="/srv/reggie/data").by_state(state, returns=None)))
             except Exception as e:
-                log.error("Error calling SearchEngine: " + e)
+                log.error("Error calling SearchEngine: ", exc_info=True)
             else:
                 current_count = session.attendees_with_badges().filter(Attendee.zip_code.in_(zip_codes)).count()
                 if current_count:
