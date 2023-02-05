@@ -367,7 +367,7 @@ class MagModel:
         try:
             val = int(val)
         except ValueError:
-            log.debug('{} is not an int. Did we forget to migrate data for {} during a DB migration?', val, name)
+            log.debug('{} is not an int. Did we forget to migrate data for {} during a DB migration?'.format(val, name))
             return ''
 
         if val == -1:
@@ -375,7 +375,7 @@ class MagModel:
 
         label = self.get_field(name).type.choices.get(val)
         if not label:
-            log.debug('{} does not have a label for {}, check your enum generating code', name, val)
+            log.debug('{} does not have a label for {}, check your enum generating code'.format(name, val))
             return ''
         return label
 

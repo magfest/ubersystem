@@ -495,7 +495,7 @@ class TestStaffingAdjustments:
 
     @pytest.fixture(autouse=True)
     def prevent_presave_adjustments(self, monkeypatch):
-        """ Prevent some tests from crashing on exit by not invoking presave_adjustements() """
+        """ Prevent some tests from crashing on exit by not invoking presave_adjustments() """
         monkeypatch.setattr(Attendee, 'presave_adjustments', Mock())
         return Attendee.presave_adjustments
 
@@ -510,7 +510,7 @@ class TestStaffingAdjustments:
 
     def test_staffing_still_trusted_assigned(self, dept, shiftless_dept):
         """
-        After applying staffing adjustements:
+        After applying staffing adjustments:
         Any depts you are both trusted and assigned to should remain unchanged
         """
         a = Attendee(staffing=True)

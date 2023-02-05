@@ -25,5 +25,4 @@ treepoem==3.17.0
 twilio==7.15.1
 uszipcode==1.0.1
 XlsxWriter==3.0.3
-Authlib==1.0.1
 pyyaml==6.0

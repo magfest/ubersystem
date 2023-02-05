@@ -2,13 +2,14 @@ from datetime import datetime
 
 import cherrypy
 import pytest
+import bcrypt
 import pytz
 from cherrypy import HTTPError
 
 from tests.uber.conftest import csrf_token
 from uber.api import auth_by_token, auth_by_session, api_auth, all_api_auth
 from uber.config import c
-from uber.models import AdminAccount, Attendee, ApiToken, Session
+from uber.models import AdminAccount, Attendee, ApiToken, Session, AccessGroup
 from uber.utils import check
 
 
@@ -26,15 +27,66 @@ def session():
 
 @pytest.fixture()
 def admin_account(monkeypatch, session):
-    admin_account = AdminAccount(attendee=Attendee())
-    session.add(admin_account)
-    session.commit()
-    session.refresh(admin_account)
-    monkeypatch.setitem(cherrypy.session, 'account_id', admin_account.id)
-    yield admin_account
-    cherrypy.session['account_id'] = None
-    session.delete(admin_account)
+    attendee = Attendee(
+        placeholder=True,
+        first_name='Test',
+        last_name='Developer',
+        email='magfest@example.com',
+        badge_type=c.ATTENDEE_BADGE,
+    )
+    session.add(attendee)
 
+    test_developer_account = AdminAccount(
+        attendee=attendee,
+        hashed=bcrypt.hashpw('magfest'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    )
+
+    session.add(test_developer_account)
+    session.commit()
+    session.refresh(test_developer_account)
+    monkeypatch.setitem(cherrypy.session, 'account_id', test_developer_account.id)
+    yield test_developer_account
+    cherrypy.session['account_id'] = None
+    session.delete(test_developer_account)
+    session.delete(attendee)
+
+@pytest.fixture()
+def api_access_groups(session):
+    api_read_group = AccessGroup(
+        name="API Read",
+        read_only_access={"api": "5"}
+    )
+    api_update_group = AccessGroup(
+        name="API Update",
+        access={"api": "1"}
+    )
+    api_create_group = AccessGroup(
+        name="API Create",
+        access={"api": "2"}
+    )
+    api_delete_group = AccessGroup(
+        name="API Delete",
+        access={"api": "5"}
+    )
+    session.add(api_read_group)
+    session.add(api_update_group)
+    session.add(api_create_group)
+    session.add(api_delete_group)
+    session.commit()
+    session.refresh(api_read_group)
+    session.refresh(api_update_group)
+    session.refresh(api_create_group)
+    session.refresh(api_delete_group)
+    yield {
+        c.API_READ: api_read_group,
+        c.API_UPDATE: api_update_group,
+        c.API_CREATE: api_create_group,
+        c.API_DELETE: api_delete_group
+    }
+    session.delete(api_read_group)
+    session.delete(api_update_group)
+    session.delete(api_create_group)
+    session.delete(api_delete_group)
 
 @pytest.fixture()
 def api_token(session, admin_account):
@@ -46,134 +98,6 @@ def api_token(session, admin_account):
     session.refresh(api_token)
     yield api_token
     session.delete(api_token)
-
-
-class TestCheckAdminAccount(object):
-    ACCESS_ERR = 'You do not have permission to change that access setting'
-
-    TEST_ACCESS_CHANGES = [
-        ([], [], None),
-        ([], ["Server Admin"], ACCESS_ERR),
-        ([], ["Account Management"], ACCESS_ERR),
-        ([], ["Registration and Staffing"], ACCESS_ERR),
-        ([], ["Server Admin", "Registration and Staffing"], ACCESS_ERR),
-        ([], ["Server Admin", "Account Management"], ACCESS_ERR),
-        ([], ["Server Admin", "Account Management", "Registration and Staffing"], ACCESS_ERR),
-        ([], ["Account Management", "Registration and Staffing"], ACCESS_ERR),
-
-        (["Server Admin"], [], None),
-        (["Server Admin"], ["Server Admin"], None),
-        (["Server Admin"], ["Account Management"], None),
-        (["Server Admin"], ["Registration and Staffing"], None),
-        (["Server Admin"], ["Server Admin", "Registration and Staffing"], None),
-        (["Server Admin"], ["Server Admin", "Account Management"], None),
-        (["Server Admin"], ["Server Admin", "Account Management", "Registration and Staffing"], None),
-        (["Server Admin"], ["Account Management", "Registration and Staffing"], None),
-
-        (["Account Management"], [], None),
-        (["Account Management"], ["Server Admin"], ACCESS_ERR),
-        (["Account Management"], ["Account Management"], None),
-        (["Account Management"], ["Registration and Staffing"], None),
-        (["Account Management"], ["Server Admin", "Registration and Staffing"], ACCESS_ERR),
-        (["Account Management"], ["Server Admin", "Account Management"], ACCESS_ERR),
-        (["Account Management"], ["Server Admin", "Account Management", "Registration and Staffing"], ACCESS_ERR),
-        (["Account Management"], ["Account Management", "Registration and Staffing"], None),
-
-        (["Registration and Staffing"], [], None),
-        (["Registration and Staffing"], ["Server Admin"], ACCESS_ERR),
-        (["Registration and Staffing"], ["Account Management"], ACCESS_ERR),
-        (["Registration and Staffing"], ["Registration and Staffing"], None),
-        (["Registration and Staffing"], ["Server Admin", "Registration and Staffing"], ACCESS_ERR),
-        (["Registration and Staffing"], ["Server Admin", "Account Management"], ACCESS_ERR),
-        (["Registration and Staffing"], ["Server Admin", "Account Management", "Registration and Staffing"], ACCESS_ERR),
-        (["Registration and Staffing"], ["Account Management", "Registration and Staffing"], ACCESS_ERR),
-
-        (["Server Admin", "Registration and Staffing"], [], None),
-        (["Server Admin", "Registration and Staffing"], ["Server Admin"], None),
-        (["Server Admin", "Registration and Staffing"], ["Account Management"], None),
-        (["Server Admin", "Registration and Staffing"], ["Registration and Staffing"], None),
-        (["Server Admin", "Registration and Staffing"], ["Server Admin", "Registration and Staffing"], None),
-        (["Server Admin", "Registration and Staffing"], ["Server Admin", "Account Management"], None),
-        (["Server Admin", "Registration and Staffing"], ["Server Admin", "Account Management", "Registration and Staffing"], None),
-        (["Server Admin", "Registration and Staffing"], ["Account Management", "Registration and Staffing"], None),
-
-        (["Account Management", "Registration and Staffing"], [], None),
-        (["Account Management", "Registration and Staffing"], ["Server Admin"], ACCESS_ERR),
-        (["Account Management", "Registration and Staffing"], ["Account Management"], None),
-        (["Account Management", "Registration and Staffing"], ["Registration and Staffing"], None),
-        (["Account Management", "Registration and Staffing"], ["Server Admin", "Registration and Staffing"], ACCESS_ERR),
-        (["Account Management", "Registration and Staffing"], ["Server Admin", "Account Management"], ACCESS_ERR),
-        (["Account Management", "Registration and Staffing"], ["Server Admin", "Account Management", "Registration and Staffing"], ACCESS_ERR),
-        (["Account Management", "Registration and Staffing"], ["Account Management", "Registration and Staffing"], None),
-    ]
-
-    @pytest.mark.parametrize('admin_access,access_changes,expected', TEST_ACCESS_CHANGES)
-    def test_check_admin_account_access_new(self, session, admin_account, admin_access, access_changes, expected):
-        admin_access = ','.join(map(str, admin_access))
-        access_changes = ','.join(map(str, access_changes))
-
-        admin_account.access = admin_access
-        session.commit()
-        session.refresh(admin_account)
-
-        test_attendee = Attendee(email='test@example.com')
-        session.add(test_attendee)
-        session.commit()
-        test_admin_account = AdminAccount(
-            access=access_changes,
-            attendee_id=test_attendee.id,
-            hashed='<bcrypted>')
-        message = check(test_admin_account)
-        assert message == expected
-
-    @pytest.mark.parametrize('admin_access,access_changes,expected', TEST_ACCESS_CHANGES)
-    def test_check_admin_account_access_remove(self, session, admin_account, admin_access, access_changes, expected):
-        admin_access = ','.join(map(str, admin_access))
-        access_changes = ','.join(map(str, access_changes))
-
-        admin_account.access = admin_access
-        session.commit()
-        session.refresh(admin_account)
-
-        test_attendee = Attendee(email='test@example.com')
-        session.add(test_attendee)
-
-        test_admin_account = AdminAccount(
-            access=access_changes,
-            attendee_id=test_attendee.id,
-            hashed='<bcrypted>')
-        session.add(test_admin_account)
-        session.commit()
-        session.refresh(test_admin_account)
-
-        test_admin_account.access = ''
-        message = check(test_admin_account)
-        assert message == expected
-
-    @pytest.mark.parametrize('admin_access,access_changes,expected', TEST_ACCESS_CHANGES)
-    def test_check_admin_account_access_add(self, session, admin_account, admin_access, access_changes, expected):
-        admin_access = ','.join(map(str, admin_access))
-        access_changes = ','.join(map(str, access_changes))
-
-        admin_account.access = admin_access
-        session.commit()
-        session.refresh(admin_account)
-
-        test_attendee = Attendee(email='test@example.com')
-        session.add(test_attendee)
-
-        test_admin_account = AdminAccount(
-            access='',
-            attendee_id=test_attendee.id,
-            hashed='<bcrypted>')
-        session.add(test_admin_account)
-        session.commit()
-        session.refresh(test_admin_account)
-
-        test_admin_account.access = access_changes
-        message = check(test_admin_account)
-        assert expected == message
-
 
 class TestAuthByToken(object):
     ACCESS_ERR = 'Insufficient access for auth token: {}'.format(VALID_API_TOKEN)
@@ -201,12 +125,12 @@ class TestAuthByToken(object):
 
     @pytest.mark.parametrize('token_access,required_access,expected', [
         ([], [], None),
-        ([], [c.API_READ], (403, ACCESS_ERR)),
-        ([], [c.API_READ, c.API_UPDATE], (403, ACCESS_ERR)),
+        ([], ['api_read'], (403, ACCESS_ERR)),
+        ([], ['api_read', 'api_update'], (403, ACCESS_ERR)),
         ([c.API_READ], [], None),
-        ([c.API_READ], [c.API_READ], None),
-        ([c.API_READ], [c.API_READ, c.API_UPDATE], (403, ACCESS_ERR)),
-        ([c.API_READ, c.API_UPDATE], [c.API_READ, c.API_UPDATE], None),
+        ([c.API_READ], ['api_read'], None),
+        ([c.API_READ], ['api_read', 'api_update'], (403, ACCESS_ERR)),
+        ([c.API_READ, c.API_UPDATE], ['api_read', 'api_update'], None),
     ])
     def test_insufficient_access(self, monkeypatch, session, api_token, token_access, required_access, expected):
         api_token.access = ','.join(map(str, token_access))
@@ -247,15 +171,15 @@ class TestAuthBySession(object):
 
     @pytest.mark.parametrize('admin_access,required_access,expected', [
         ([], [], None),
-        ([], [c.API_READ], (403, ACCESS_ERR)),
-        ([], [c.API_READ, c.API_UPDATE], (403, ACCESS_ERR)),
+        ([], ['api_read'], (403, ACCESS_ERR)),
+        ([], ['api_read', 'api_update'], (403, ACCESS_ERR)),
         ([c.API_READ], [], None),
-        ([c.API_READ], [c.API_READ], None),
-        ([c.API_READ], [c.API_READ, c.API_UPDATE], (403, ACCESS_ERR)),
-        ([c.API_READ, c.API_UPDATE], [c.API_READ, c.API_UPDATE], None),
+        ([c.API_READ], ['api_read'], None),
+        ([c.API_READ], ['api_read', 'api_update'], (403, ACCESS_ERR)),
+        ([c.API_READ, c.API_UPDATE], ['api_read', 'api_update'], None),
     ])
-    def test_insufficient_access(self, monkeypatch, session, admin_account, admin_access, required_access, expected):
-        admin_account.access = ','.join(map(str, admin_access))
+    def test_insufficient_access(self, monkeypatch, session, admin_account, api_access_groups, admin_access, required_access, expected):
+        admin_account.access_groups = [api_access_groups[x] for x in admin_access]
         session.commit()
         session.refresh(admin_account)
         monkeypatch.setitem(cherrypy.session, 'account_id', admin_account.id)
@@ -270,22 +194,22 @@ class TestApiAuth(object):
 
     TEST_REQUIRED_ACCESS = [
         ([], [], False),
-        ([], [c.API_READ], True),
-        ([], [c.API_READ, c.API_UPDATE], True),
+        ([], ['api_read'], True),
+        ([], ['api_read', 'api_update'], True),
         ([c.API_READ], [], False),
-        ([c.API_READ], [c.API_READ], False),
-        ([c.API_READ], [c.API_READ, c.API_UPDATE], True),
-        ([c.API_READ, c.API_UPDATE], [c.API_READ, c.API_UPDATE], False),
+        ([c.API_READ], ['api_read'], False),
+        ([c.API_READ], ['api_read', 'api_update'], True),
+        ([c.API_READ, c.API_UPDATE], ['api_read', 'api_update'], False),
     ]
 
     @pytest.mark.parametrize('admin_access,required_access,expected', TEST_REQUIRED_ACCESS)
-    def test_api_auth_by_session(self, monkeypatch, session, admin_account, admin_access, required_access, expected):
+    def test_api_auth_by_session(self, monkeypatch, session, admin_account, api_access_groups, admin_access, required_access, expected):
 
         @api_auth(*required_access)
         def _func():
             return 'SUCCESS'
 
-        admin_account.access = ','.join(map(str, admin_access))
+        admin_account.access_groups = [api_access_groups[x] for x in admin_access]
         session.commit()
         session.refresh(admin_account)
         monkeypatch.setitem(cherrypy.session, 'account_id', admin_account.id)
@@ -327,17 +251,17 @@ class TestAllApiAuth(object):
 
     TEST_REQUIRED_ACCESS = [
         ([], [], False),
-        ([], [c.API_READ], True),
-        ([], [c.API_READ, c.API_UPDATE], True),
+        ([], ['api_read'], True),
+        ([], ['api_read', 'api_update'], True),
         ([c.API_READ], [], False),
-        ([c.API_READ], [c.API_READ], False),
-        ([c.API_READ], [c.API_READ, c.API_UPDATE], True),
-        ([c.API_READ, c.API_UPDATE], [c.API_READ, c.API_UPDATE], False),
+        ([c.API_READ], ['api_read'], False),
+        ([c.API_READ], ['api_read', 'api_update'], True),
+        ([c.API_READ, c.API_UPDATE], ['api_read', 'api_update'], False),
     ]
 
     @pytest.mark.parametrize('admin_access,required_access,expected', TEST_REQUIRED_ACCESS)
     def test_all_api_auth_by_session(
-            self, monkeypatch, session, admin_account, admin_access, required_access, expected):
+            self, monkeypatch, session, admin_account, api_access_groups, admin_access, required_access, expected):
 
         @all_api_auth(*required_access)
         class Service(object):
@@ -349,7 +273,7 @@ class TestAllApiAuth(object):
 
         service = Service()
 
-        admin_account.access = ','.join(map(str, admin_access))
+        admin_account.access_groups = [api_access_groups[x] for x in admin_access]
         session.commit()
         session.refresh(admin_account)
         monkeypatch.setitem(cherrypy.session, 'account_id', admin_account.id)
