@@ -1,21 +1,21 @@
-"""Allow API and Print jobs to not have admin IDs
+"""Add column to track email sending
 
-Revision ID: a4a79802ba51
-Revises: a5d2a3700b1a
-Create Date: 2022-08-18 23:48:31.985975
+Revision ID: fa2deb095760
+Revises: cd2578936cb0
+Create Date: 2022-11-28 21:45:45.496955
 
 """
 
 
 # revision identifiers, used by Alembic.
-revision = 'a4a79802ba51'
-down_revision = 'a5d2a3700b1a'
+revision = 'fa2deb095760'
+down_revision = 'cd2578936cb0'
 branch_labels = None
-depends_on = 'c7a439f29c1c'
+depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+
 
 
 try:
@@ -52,20 +52,8 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    with op.batch_alter_table("api_job") as batch_op:
-        batch_op.alter_column('admin_id',
-               existing_type=postgresql.UUID(),
-               nullable=True)
-    with op.batch_alter_table("print_job") as batch_op:
-        batch_op.alter_column('admin_id',
-               existing_type=postgresql.UUID(),
-               nullable=True)
+    op.add_column('automated_email', sa.Column('currently_sending', sa.Boolean(), server_default='False', nullable=False))
 
 
 def downgrade():
-    op.alter_column('print_job', 'admin_id',
-               existing_type=postgresql.UUID(),
-               nullable=False)
-    op.alter_column('api_job', 'admin_id',
-               existing_type=postgresql.UUID(),
-               nullable=False)
+    op.drop_column('automated_email', 'currently_sending')

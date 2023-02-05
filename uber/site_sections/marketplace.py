@@ -44,12 +44,12 @@ class Root:
                 app.attendee = attendee
 
                 session.add(app)
-                send_email(
+                send_email.delay(
                     c.MARKETPLACE_APP_EMAIL,
                     c.MARKETPLACE_APP_EMAIL,
                     'Marketplace Application Received',
                     render('emails/marketplace/reg_notification.txt',
-                           {'app': app}), model=app)
+                           {'app': app}), model=app, encoding=None)
                 session.commit()
                 raise HTTPRedirect('confirmation?id={}', app.id)
 
@@ -103,7 +103,7 @@ class Root:
     def process_marketplace_payment(self, session, id):
         app = session.marketplace_application(id)
         
-        receipt = session.get_receipt_by_model(app, create_if_none=True)
+        receipt = session.get_receipt_by_model(app, create_if_none="DEFAULT")
         
         charge_desc = "{}'s Marketplace Application: {}".format(app.attendee.full_name, receipt.charge_description_list)
         charge = Charge(app, amount=receipt.current_amount_owed, description=charge_desc)

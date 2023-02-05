@@ -266,7 +266,20 @@ class Root:
             allowed=['department_id', 'start_time', 'type'] + list(defaults.keys()))
 
         if cherrypy.request.method == 'POST':
-            job.duration = int(params.get('duration_hours', 0)) * 60 + int(params.get('duration_minutes', 0))
+            hours = params.get('duration_hours', 0)
+            minutes = params.get('duration_minutes', 0)
+
+            try:
+                hours = int(hours)
+            except ValueError:
+                hours = 0
+            
+            try:
+                minutes = int(minutes)
+            except ValueError:
+                minutes = 0
+
+            job.duration = hours * 60 + minutes
             message = check(job)
             if not message:
                 session.add(job)

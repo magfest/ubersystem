@@ -29,6 +29,8 @@ class Root:
         if new_app and 'attendee_id' in params:
             app = session.art_show_application(params, ignore_csrf=True, bools=['us_only'])
         else:
+            if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
+                message = session.auto_update_receipt(session.art_show_application(params.get('id')), params)
             app = session.art_show_application(params, bools=['us_only'])
         attendee = None
         app_paid = 0 if new_app else app.amount_paid
@@ -43,10 +45,11 @@ class Root:
         if cherrypy.request.method == 'POST':
             if new_app:
                 attendee, message = \
-                    session.attendee_from_art_show_app( **params)
+                    session.attendee_from_art_show_app(**params)
             else:
                 attendee = app.attendee
             message = message or check(app)
+
             if not message:
                 if attendee:
                     if params.get('badge_status', ''):
@@ -344,13 +347,15 @@ class Root:
 
     def assign_locations(self, session, message='', **params):
         valid_apps = session.query(ArtShowApplication).filter_by(status=c.APPROVED)
-        for app in [app for app in valid_apps if app.amount_unpaid == 0]:
-            field_name = '{}_locations'.format(app.id)
-            if field_name in params:
-                app.locations = params.get(field_name)
-                session.add(app)
-                
-        session.commit()
+
+        if cherrypy.request.method == 'POST':
+            for app in valid_apps:
+                field_name = '{}_locations'.format(app.id)
+                if field_name in params:
+                    app.locations = params.get(field_name)
+                    session.add(app)
+                    
+            session.commit()
 
         return {
             'apps': valid_apps,
@@ -771,6 +776,14 @@ class Root:
             'receipt': receipt,
         }
 
+    @ajax
+    def cancel_payment(self, session, id, stripe_id):
+        payment = session.query(ArtShowPayment).filter_by(id=id).first()
+        session.delete(payment)
+        session.commit()
+
+        return {'message': 'Payment cancelled.'}
+
     @public
     @ajax
     @credit_card
@@ -787,14 +800,18 @@ class Root:
         if message:
             return {'error': message}
         else:
-            session.add(ArtShowPayment(
+            payment = ArtShowPayment(
                 receipt=receipt,
-                amount=charge.amount,
+                amount=charge.total_cost,
                 type=c.STRIPE,
-            ))
+            )
+            session.add(payment)
             session.commit()
-            return {'stripe_intent': stripe_intent,
-                    'success_url': 'pieces_bought?id={}&message={}'.format(attendee.id, 'Charge successfully processed')}
+            return {
+                'stripe_intent': stripe_intent,
+                'success_url': 'pieces_bought?id={}&message={}'.format(attendee.id, 'Charge successfully processed'),
+                'cancel_url': 'cancel_payment?id={}'.format(payment.id)
+            }
 
     @public
     def sales_charge_form(self, message='', amount=None, description='',

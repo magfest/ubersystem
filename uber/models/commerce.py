@@ -127,12 +127,13 @@ class ModelReceipt(MagModel):
 
     @hybrid_property
     def payment_total(self):
-        return sum([txn.receipt_share for txn in self.receipt_txns if txn.charge_id or txn.method != c.STRIPE and txn.amount > 0])
+        return sum([txn.receipt_share for txn in self.receipt_txns if not txn.cancelled and (txn.charge_id or txn.method != c.STRIPE and txn.amount > 0)])
     
     @payment_total.expression
     def payment_total(cls):
         return select([func.sum(ReceiptTransaction.amount)]
                      ).where(ReceiptTransaction.receipt_id == cls.id
+                     ).where(ReceiptTransaction.cancelled == None
                      ).where(or_(ReceiptTransaction.charge_id != None,
                                 and_(ReceiptTransaction.method != c.STRIPE, ReceiptTransaction.amount > 0))
                      ).label('payment_total')
@@ -172,6 +173,10 @@ class ModelReceipt(MagModel):
                                                         "They" if self.current_receipt_amount >= 0 else "We",
                                                         format_currency(self.current_receipt_amount / 100))
 
+    @property
+    def last_incomplete_txn(self):
+        return sorted(self.pending_txns, key=lambda t: t.added, reverse=True)[0] if self.pending_txns else None
+
 
 class ReceiptTransaction(MagModel):
     receipt_id = Column(UUID, ForeignKey('model_receipt.id', ondelete='SET NULL'), nullable=True)
@@ -196,6 +201,16 @@ class ReceiptTransaction(MagModel):
             
         return min(self.amount, sum([item.total_amount for item in self.receipt.receipt_items if item.added <= self.added]))
 
+    def update_amount_refunded(self):
+        if not self.intent_id:
+            return
+        
+        refunded_total = 0
+        for refund in stripe.Refund.list(payment_intent=self.intent_id):
+            refunded_total += refund.amount
+        
+        self.refunded = refunded_total
+
     @property
     def is_pending_charge(self):
         return self.intent_id and not self.charge_id and not self.cancelled
@@ -203,19 +218,22 @@ class ReceiptTransaction(MagModel):
     @property
     def stripe_id(self):
         # Return the most relevant Stripe ID for admins
-        return self.refund_id or self.charge_id or self.intent_id
+        return self.charge_id or self.intent_id
 
     def get_stripe_intent(self):
+        if not self.stripe_id:
+            return
+
         try:
             return stripe.PaymentIntent.retrieve(self.intent_id)
         except Exception as e:
             log.error(e)
-    
+
     def check_paid_from_stripe(self):
         if self.charge_id:
             return
 
-        intent = stripe.PaymentIntent.retrieve(self.intent_id)
+        intent = self.get_stripe_intent()
         if intent and intent.charges:
             return Charge.mark_paid_from_intent_id(self.intent_id, intent.charges.data[0].id)
 

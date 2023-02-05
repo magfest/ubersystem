@@ -30,18 +30,18 @@
 
       <h3>Additional Information</h3>
       <div class="form-group">
-        <label class="col-sm-3 control-label">When are your preferred panel times?</label>
+        <label class="col-sm-3 control-label">When are you NOT available?</label>
         <div class="col-sm-6">
-          <textarea class="form-control" name="available" rows="4" required="required">{{ app.available }}</textarea>
+          <textarea class="form-control" name="unavailable" rows="4" required="required">{{ app.unavailable }}</textarea>
         </div>
         <div class="clearfix"></div>
         <p class="help-block col-sm-9 col-sm-offset-3">
-          Please let us know the time slot you would prefer for this panel. Panel times can’t be guaranteed, but we’ll
-          do our best to accommodate preferences.
+          Please let us know of any schedule conflicts due to prior obligations, travel times, or other needs.
+          (e.g. you made a deal with a fairy godmother to get here and have to be back in your room by midnight.)
         </p>
       </div>
       <div class="form-group">
-        <label class="col-sm-3 control-label">Is there anything else you would like to provide regarding your submission?</label>
+        <label class="col-sm-3 control-label optional-field">Is there anything else you would like to provide regarding your submission?</label>
         <div class="col-sm-6">
           <textarea class="form-control" name="extra_info" rows="4">{{ app.extra_info }}</textarea>
         </div>

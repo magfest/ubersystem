@@ -2,6 +2,8 @@
 {% block title %}{{ account.email }} Attendee Account{% endblock %}
 {% block content %}
 <h3>{{ account.email }} Attendee Account</h3>
+<div class="panel panel-default">
+    <div class="panel-body">
 <form class="form reset-form form-inline pull-left" method="post" action="../preregistration/reset_password">
     <input type="hidden" name="account_email" value="{{ account.email }}" />
     <input type="hidden" name="admin_url" value="reg_admin/attendee_account_form?id={{ account.id}}&" />
@@ -10,14 +12,28 @@
         <span class="glyphicon glyphicon-repeat"></span> Reset Password
     </button>
 </form>
-<form class="form delete-form form-inline" method="post" action="delete_attendee_account">
+<form class="form delete-form form-inline pull-left" method="post" action="delete_attendee_account">
     <input type="hidden" name="id" value="{{ account.id }}" />
     {{ csrf_token() }}
     &nbsp;<button type="submit" class="btn btn-sm btn-danger">
         <span class="glyphicon glyphicon-remove"></span> Delete Account
     </button>
-</form><br/>
-{% for attendee in account.valid_attendees %}
+</form>
+<form class="form email-form form-inline pull-left" method="post" action="attendee_account_form">
+    <input type="hidden" name="id" value="{{ account.id }}" />
+    {{ csrf_token() }}
+    <div class="form-group">
+        &nbsp;<input type="text" class="form-control" name="new_account_email" value="{{ new_email }}" placeholder="New email address" />
+    </div>
+    <div class="form-group">
+        <button type="submit" class="btn btn-sm btn-info">
+        <span class="glyphicon glyphicon-arrow-right"></span> Change Account Email
+        </button>
+    </div>
+</form>
+</div>
+</div>
+{% for attendee in account.attendees %}
 {% if loop.first %}
 <div class="panel panel-default">
     <div class="panel-heading">
@@ -31,7 +47,9 @@
             <th>Registration</th>
             <th>Art Show</th>
             <th>Marketplace</th>
-            <th></th>
+            <th>Badge #</th>
+            <th>Paid</th>
+            <th>Reassign</th>
             </tr>
         </thead>
         <tbody>
@@ -57,76 +75,27 @@
                 {% endfor %}
             </td>
             <td>
-                
+                {{ attendee.badge_num }}
             </td>
-            </tr>
-        {% if loop.last %}
-        </tbody>
-        </table>
-    </div>
-</div>
-{% endif %}
-{% endfor %}
-{% for attendee in account.imported_attendees %}
-{% if loop.first %}
-<div class="panel panel-info">
-    <div class="panel-heading">
-        Last Year's Registrations
-    </div>
-    <div class="table-responsive">
-        <table class="table table-striped datatable">
-        <thead>
-            <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th></th>
-            </tr>
-        </thead>
-        <tbody>
-        {% endif %}
-            <tr id="{{ account.email|idize }}">
-            <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
-                {{ attendee.full_name }}
-            </td>
-            <td>{{ attendee.email }}</td>
             <td>
-                <form method="post" action="repurchase" class="form-horizontal">
-                {{ csrf_token() }}
-                <input type="hidden" name="id" value="{{ attendee.id }}" />
-                <button type="submit" class="btn btn-sm btn-info" value="Import">
-                    <span class="glyphicon glyphicon-download"></span> Purchase
-                </button>
-                </form>
+                {{ attendee.paid_label }}
             </td>
-            </tr>
-        {% if loop.last %}
-        </tbody>
-        </table>
-    </div>
-</div>
-{% endif %}
-{% endfor %}
-{% for attendee in account.invalid_attendees %}
-{% if loop.first %}
-<div class="panel panel-default">
-    <div class="panel-heading">
-        Invalid Registrations
-    </div>
-    <div class="table-responsive">
-        <table class="table table-striped datatable">
-        <thead>
-            <tr>
-            <th>Status</th>
-            <th>Registration</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% endif %}
-            <tr id="{{ account.email|idize }}">
-            <td>{{ attendee.badge_status_label }}</td>
-            <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
-                {{ attendee|form_link(true) }}
-                {% if attendee.group %}({{ attendee.group|form_link(true) }}){% endif %}
+            <td>
+                <form class="form form-inline" method="post" action="orphaned_attendees">
+                    <input type="hidden" name="id" value="{{ attendee.id }}" />
+                    {{ csrf_token() }}
+                    <input type="hidden" name="account_id" value="{{ account.id }}" />
+                    <div class="row">
+                    <div class="input-group col-sm-9">
+                        <input type="email" name="account_email" class="form-control" placeholder="Account Email Address" required />
+                        <span class="input-group-btn">
+                            <button type="submit" class="btn btn-primary">
+                                <span class="glyphicon glyphicon-plus"></span> Reassign
+                            </button>
+                        </span>
+                    </div>
+                    </div>
+                </form>
             </td>
             </tr>
         {% if loop.last %}

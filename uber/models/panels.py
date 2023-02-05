@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
@@ -164,7 +165,7 @@ class PanelApplication(MagModel):
 
     @property
     def after_confirm_deadline(self):
-        return self.confirm_deadline and self.confirm_deadline < datetime.now()
+        return self.confirm_deadline and self.confirm_deadline < datetime.now(UTC)
 
     @hybrid_property
     def has_been_accepted(self):

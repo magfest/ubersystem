@@ -12,7 +12,7 @@
 <input type="hidden" name="id" value="{{ attendee.id }}" />
 <select name="payment_method" onChange="toggleMarkButton(this)">
     <option value="">Payment Method</option>
-    {{ options(c.NEW_REG_PAYMENT_METHOD_OPTS,attendee.payment_method) }}
+    {{ options(c.NEW_REG_PAYMENT_METHOD_OPTS,payment_method) }}
 </select>
     <button class="btn btn-success" type="submit" disabled="disabled">Mark as Paid</button>
 </form>
@@ -226,15 +226,17 @@ $().ready(function() {
                      * keypress handler on the element.
                      */
                     var focusBadgeNum = function () {
-                        var $num = $('#checkin-badge:text');
-                        if ($num.is(':visible')) {
-                            $num.focus().keypress(function (event) {
-                                if (event.keyCode === 13) {
-                                    checkIn('{{ attendee.id }}');
-                                }
-                            });
-                        } else {
-                            setTimeout(focusBadgeNum, 100);
+                        if($('input#checkin-badge')) {
+                            var $num = $('#checkin-badge:text');
+                            if ($num.is(':visible')) {
+                                $num.focus().keypress(function (event) {
+                                    if (event.keyCode === 13) {
+                                        checkIn('{{ attendee.id }}');
+                                    }
+                                });
+                            } else {
+                                setTimeout(focusBadgeNum, 100);
+                            }
                         }
                     };
                     focusBadgeNum();
@@ -336,9 +338,9 @@ $().ready(function() {
     };
 
     age = {{ attendee.age_now_or_at_con|default(0, true)}};
-    if (age < 18) {
+    if (age < 18 && $.field('printer_id')) {
         $.field('printer_id').val(printer_minor_id);
-    } else if (age >= 18) {
+    } else if (age >= 18 && $.field('printer_id')) {
         $.field('printer_id').val(printer_default_id);
     }
 </script>

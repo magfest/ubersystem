@@ -169,9 +169,9 @@ def attractions_send_notifications():
                         body = render(template, {
                             'signup': signup,
                             'checkin': checkin,
-                            'c': c}).decode('utf-8')
+                            'c': c}, encoding=None)
                         sid = ident
-                        send_email(from_, to_, subject=subject, body=body, format='html', model=attendee, ident=ident)
+                        send_email.delay(from_, to_, subject=subject, body=body, format='html', model=attendee.to_dict(), ident=ident)
                 except Exception:
                     log.error(
                         'Error sending notification\n'
