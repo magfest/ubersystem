@@ -1,6 +1,8 @@
 Ahoy {{ game.studio.primary_contact_first_names }},
 
-Setup begins today for MAGFest! You can begin checking in at 6pm today. Please use the VIP Line to checkin at registration when you arrive onsite.
+Setup begins today for MAGFest! 
+
+When you arrive, you may go directly into hall C.  You do not need a badge. 
 
 The 2023 MIVS Indie Handbook has tons of information on Load In/Out (Section 4.20+): https://docs.google.com/document/d/1ecxBjipQH22o1Jewsa6_PmdBPYcwAo7OvgdYvlnxAUk/
 
