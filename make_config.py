@@ -7,6 +7,8 @@ import os
 
 root = os.environ.get("UBERSYSTEM_ROOT", "/app")
 config = os.environ.get("UBERSYSTEM_CONFIG", "[]")
+secrets = yaml.load(os.environ.get("UBERSYSTEM_SECRETS", "{}"), Loader=yaml.Loader)
+
 
 plugins = os.listdir(os.path.join(root, "plugins"))
 plugin_configs = {x: [] for x in plugins}
@@ -50,6 +52,8 @@ for plugin, configs in plugin_configs.items():
         config = configs[0]
         for override in configs[1:]:
             config.merge(override)
+        if plugin in secrets:
+            config.merge(ConfigObj(secrets[plugin]))
         config.filename = os.path.join(root, "plugins/", plugin, "development.ini")
         config.write()
         with open(os.path.join(root, "plugins/", plugin, "development.ini"), "r") as CONFIG:
@@ -59,6 +63,8 @@ if sideboard_configs:
     config = sideboard_configs[0]
     for override in configs[1:]:
         config.merge(override)
+    if "sideboard" in secrets:
+        config.merge(ConfigObj(secrets["sideboard"]))
     config.filename = os.path.join(root, "development.ini")
     config.write()
     with open(os.path.join(root, "development.ini"), "r") as CONFIG:
