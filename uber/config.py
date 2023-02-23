@@ -916,7 +916,7 @@ if c.ONE_DAYS_ENABLED and c.PRESELL_ONE_DAYS:
             c.PREASSIGNED_BADGE_TYPES.append(_val)
         _day += timedelta(days=1)
 
-c.MAX_BADGE = max(xs[1] for int(xs) in c.BADGE_RANGES.values())
+c.MAX_BADGE = max(int(xs[1]) for xs in c.BADGE_RANGES.values())
 
 c.JOB_LOCATION_OPTS.sort(key=lambda tup: tup[1])
 
