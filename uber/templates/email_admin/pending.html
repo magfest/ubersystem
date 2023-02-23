@@ -29,6 +29,7 @@
     <thead>
     <tr class="header">
       <th>Subject</th>
+      <th>Template</th>
       <th>Sender</th>
       <th>Emails Sent</th>
       <th>Emails waiting to send but need approval</th>
@@ -50,6 +51,7 @@
               require{{ email.unapproved_count|pluralize('s', '') }} approval
             {% endif %}
           </td>
+          <td><a href="{{ email.fixture.template_url }}" target="_blank">{{ email.fixture.template_plugin }}</a></td>
           <td>{{ email.sender }}</td>
           <td>{{ email.sent_email_count }}</td>
           <td>{{ email.unapproved_count }}</td>
