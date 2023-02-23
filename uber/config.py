@@ -968,7 +968,11 @@ c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) fo
 c.DONATION_TIER_ITEMS = {}
 c.DONATION_TIER_DESCRIPTIONS = _config.get('donation_tier_descriptions', {})
 for _ident, _tier in c.DONATION_TIER_DESCRIPTIONS.items():
-    [price] = [amt for amt, name in c.DONATION_TIERS.items() if name == _tier['name']]
+    try:
+      [price] = [amt for amt, name in c.DONATION_TIERS.items() if name == _tier['name']]
+    except ValueError:
+        pass
+    
     _tier['price'] = price
     if price:  # ignore the $0 kickin level
         c.DONATION_TIER_ITEMS[price] = _tier['merch_items'] or _tier['description'].split('|')
