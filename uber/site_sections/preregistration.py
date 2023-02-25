@@ -1334,29 +1334,41 @@ class Root:
     @requires_account(Attendee)
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
-        from uber.forms import PersonalData
+        if params.get('id') in [None, '', 'None']:
+            attendee = Attendee()
+        else:
+            attendee = session.attendee(params.get('id'))
+
+        from uber.forms import PersonalInfo, BadgeExtras, OtherInfo
         if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-            message = session.auto_update_receipt(session.attendee(params.get('id')), params)
+            message = session.auto_update_receipt(attendee, params)
             if message:
                 log.error("Error while auto-updating attendee receipt: {}".format(message))
 
             # Stop unsetting these every time someone updates their info
-            params['agreed_to_volunteer_agreement'] = session.attendee(params.get('id')).agreed_to_volunteer_agreement
-            params['reviewed_emergency_procedures'] = session.attendee(params.get('id')).reviewed_emergency_procedures
-
-        # Safe to ignore csrf tokens here, because an attacker would need to know the attendee id a priori
-        attendee = session.attendee(params, restricted=True, ignore_csrf=True)
-        form = PersonalData(obj=attendee)
+            params['agreed_to_volunteer_agreement'] = attendee.agreed_to_volunteer_agreement
+            params['reviewed_emergency_procedures'] = attendee.reviewed_emergency_procedures
 
         if attendee.badge_status == c.REFUNDED_STATUS:
             raise HTTPRedirect('repurchase?id={}', attendee.id)
 
         placeholder = attendee.placeholder
+
         receipt = session.get_receipt_by_model(attendee)
-        if 'email' in params and not message:
+        personal_info = PersonalInfo(params, attendee)
+        badge_extras = BadgeExtras(params, attendee)
+        other_info = OtherInfo(params, attendee)
+
+        if cherrypy.request.method == 'POST' and not message:
             attendee.placeholder = False
+            personal_info.populate_obj(attendee)
+            badge_extras.populate_obj(attendee)
+            other_info.populate_obj(attendee)
+
             message = check(attendee, prereg=True)
             if not message:
+                session.add(attendee)
+                session.commit()
                 if placeholder:
                     attendee.confirmed = localized_now()
                     message = 'Your registration has been confirmed'
@@ -1392,7 +1404,9 @@ class Root:
             'receipt':       session.get_receipt_by_model(attendee) if attendee.is_valid else None,
             'incomplete_txn':  receipt.last_incomplete_txn if receipt else None,
             'attendee_group_discount': (group_credit[1] / 100) if group_credit else 0,
-            'form': form,
+            'personal_info': personal_info,
+            'badge_extras': badge_extras,
+            'other_info': other_info,
         }
         
     @ajax

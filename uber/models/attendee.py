@@ -218,8 +218,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     requested_accessibility_services = Column(Boolean, default=False)
 
     interests = Column(MultiChoice(c.INTEREST_OPTS))
-    found_how = Column(UnicodeText)
-    comments = Column(UnicodeText)
+    found_how = Column(UnicodeText) # TODO: Remove?
+    comments = Column(UnicodeText) # TODO: Remove?
     for_review = Column(UnicodeText, admin_only=True)
     admin_notes = Column(UnicodeText, admin_only=True)
 
@@ -229,7 +229,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     badge_status = Column(Choice(c.BADGE_STATUS_OPTS), default=c.NEW_STATUS, index=True, admin_only=True)
     ribbon = Column(MultiChoice(c.RIBBON_OPTS), admin_only=True)
 
-    affiliate = Column(UnicodeText)
+    affiliate = Column(UnicodeText) # TODO: Remove?
 
     # If [[staff_shirt]] is the same as [[shirt]], we only use the shirt column
     shirt = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)

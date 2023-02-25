@@ -1,0 +1,141 @@
+{% macro form_input_extras(field, help_text='', extra_field=None) %}
+{% if help_text or field.description %}
+    <div class="form-text">
+    {{ help_text or field.description }}
+    </div>
+{% endif %}
+{% if extra_field %}
+    {{ extra_field }}
+{% endif %}
+{% endmacro %}
+
+{% macro form_input(field, help_text='', extra_field=None) %}
+{% set type = field.meta.get_field_type(field) %}
+
+{% if type in ['checkbox','switch'] %}
+<div class="form-check{% if type == 'switch' %} form-switch{% endif %}">
+  {{ field(class="form-check-input", checked=field.data, **kwargs) }}
+  {{ field.label(class="form-check-label") }}
+  {{ form_input_extras(field, help_text, extra_field) }}
+</div>
+{% elif type == 'inputgroup' %}
+<div class="form-text">{{ field.label }}</div>
+{{ field(class="form-control", **kwargs) }}
+{{ form_input_extras(field, help_text, extra_field) }}
+{% elif type == 'checkgroup' %}
+<div class="form-text">{{ field.label() }}</div>
+<div class="card card-body">{{ field(**kwargs) }}</div>
+{% else %}
+<div class="form-floating mb-3">
+    {{ field(class="form-control", **kwargs) }}
+    {{ field.label }}
+    {{ form_input_extras(field, help_text, extra_field) }}
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro toggle_checkbox(checkbox_field, target_fields, type='checkbox', help_text='', toggle_required=False, hide_on_checked=False, mode='visibility') -%}
+{% set suffix = "_" ~ checkbox_field.id %}
+  <div class="form-check{% if type == 'switch' %} form-switch{% endif %}">
+    {{ checkbox_field(class="form-check-input", **kwargs) }}
+    {{ checkbox_field.label(class="form-check-label") }}
+    {% if help_text or checkbox_field.description %}
+      <div class="form-text">
+        {{ help_text or checkbox_field.description }}
+      </div>
+    {% endif %}
+  </div>
+
+<script type="text/javascript">
+    var toggleVisibility{{ suffix }} = function () {
+        var isChecked = $('#{{ checkbox_field.id }}').prop('checked'),
+            hideOnChecked = {{ hide_on_checked|yesno('true,false') }},
+            isVisible = isChecked != hideOnChecked;
+        if ('{{ mode }}' == 'visibility') {
+            {% for target_field in target_fields %}
+            $('#{{ target_field.id }}').toggle(isVisible);
+            $('#{{ target_field.id }}').parent('.card .card-body').parents('.row').toggle(isVisible);
+            {% endfor %}
+        } else {
+            {% for target_field in target_fields %}
+            $('#{{ target_field.id }}').prop('{{ mode }}', !isVisible);
+            {% endfor %}
+        }
+        {%- if toggle_required -%}
+        {% for target_field in target_fields %}
+        $('#{{ target_field.id }}').prop('required', isVisible);
+        {% endfor %}
+        {%- endif -%}
+    };
+    $(function () {
+        toggleVisibility{{ suffix }}();
+        $('#{{ checkbox_field.id }}').change(toggleVisibility{{ suffix }});
+    });
+</script>
+{%- endmacro %}
+
+{% macro card_select(target_field, opts, text_class="text-center") %}
+{# 
+    A set of card elements generated from opts. Each item in opts should include the following fields:
+        name (str): The title displayed at the top of the card.
+        desc (str): A short description of the card. Will be rendered as HTML.
+        value (str): The value the card should set on the target_field when clicked.
+        price (optional str): A price to display below the title.
+        icon (optional str): The path for an icon for the card, e.g., ../static/icons/sponsor.png
+        link (optional str): The path for a template. If present, a "Read more" link is added to the card that opens that template in a pop-up.
+
+    TODO: Card groups aren't responsive -- turn them off based on screen size?
+
+    Note that transform: rotate(0) is used to contain our stretched links to the desired element.
+    Don't change it or the "Read More" links won't work.
+#}
+
+<div class="mt-3 form-text">{{ target_field.label }}</div>
+<div class="card-group mt-0 mb-3">
+{% for opt in opts %}
+<div class="card {{ text_class }}">
+    <div class="card-header" style="transform: rotate(0);">
+        <h5 class="card-title">
+            <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card"
+            data-value="{{ opt.value }}">{{ opt.name }}</a>
+        </h5>
+        {{ opt.price|format_currency }}
+    </div>
+    <div class="card-body" style="transform: rotate(0);">
+    {% if opt.icon %}
+        <img src="{{ opt.icon }}" class="card-img" alt="{{ opt.name }} Icon">
+    {% endif %}
+        <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card"
+            data-value="{{ opt.value }}">{{ opt.desc|safe }}</a>
+    </div>
+    {% if opt.link %}
+    <div class="card-footer">
+        {{ macros.popup_link(opt.link, 'Read More') }}
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+</div>
+
+<script type="text/javascript">
+    var setField_{{ target_field.name }} = function(value) {
+        $("#{{ target_field.id }}").val(value);
+        $(".{{ target_field.name }}_card").each(function(){
+            var header = $(this).parent().siblings('.card-header');
+            if(this.dataset.value == value) {
+                header.addClass('text-white bg-primary');
+            } else {
+                header.removeClass('text-white bg-primary border-primary');
+            }
+        });
+    };
+    $(function () {
+        setField_{{ target_field.name }}("{{ target_field.data }}");
+        $('.{{ target_field.name }}_card').click(function(){
+            setField_{{ target_field.name }}(this.dataset.value);
+            return false;
+        });
+    });
+    var makeBadgeMatchExtra = function () {}; // TODO: Remove
+</script>
+{%- endmacro %}

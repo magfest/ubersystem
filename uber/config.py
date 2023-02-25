@@ -483,6 +483,58 @@ class Config(_Overridable):
                 tier['price'] < c.SHIRT_LEVEL]
 
     @property
+    def FORMATTED_DONATION_DESCRIPTIONS_EXCLUSIVE(self):
+        """
+        A list of the donation descriptions, formatted for use on attendee-facing pages.
+        
+        This does NOT filter out unavailable kick-ins so we can use it on attendees' confirmation pages
+        to show unavailable kick-ins they've already purchased. To show only available kick-ins, use
+        PREREG_DONATION_DESCRIPTIONS.
+        """
+        donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
+
+        donation_list = sorted(donation_list, key=lambda tier: tier[1]['value'])
+
+        # add in all previous descriptions.  the higher tiers include all the lower tiers
+        for entry in donation_list:
+            all_desc_and_links = \
+                [(tier[1]['description'], tier[1]['link']) for tier in donation_list
+                    if tier[1]['value'] > 0 and tier[1]['value'] < entry[1]['value']] \
+                + [(entry[1]['description'], entry[1]['link'])]
+
+            # maybe slight hack. descriptions and links are separated by '|' characters so we can have multiple
+            # items displayed in the donation tiers.  in an ideal world, these would already be separated in the INI
+            # and we wouldn't have to do it here.
+            entry[1]['all_descriptions'] = []
+            for item in all_desc_and_links:
+                descriptions = item[0].split('|')
+                links = item[1].split('|')
+                entry[1]['all_descriptions'] += list(zip(descriptions, links))
+
+        return [dict(tier[1]) for tier in donation_list]
+
+    @property
+    def PREREG_DONATION_DESCRIPTIONS_EXCLUSIVE(self):
+        donation_list = self.FORMATTED_DONATION_DESCRIPTIONS_EXCLUSIVE
+
+        # include only the items that are actually available for purchase
+        if not self.SHARED_KICKIN_STOCKS:
+            donation_list = [tier for tier in donation_list
+                             if tier['value'] not in self.kickin_availability_matrix
+                             or self.kickin_availability_matrix[tier['value']]]
+        elif self.BEFORE_SHIRT_DEADLINE and not self.SHIRT_AVAILABLE:
+            donation_list = [tier for tier in donation_list if tier['value'] < self.SHIRT_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
+            donation_list = [tier for tier in donation_list if tier['value'] < self.SUPPORTER_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
+            donation_list = [tier for tier in donation_list if tier['value'] < self.SEASON_LEVEL]
+
+        return [tier for tier in donation_list if 
+                (tier['value'] >= c.SHIRT_LEVEL and tier['value'] < c.SUPPORTER_LEVEL and c.BEFORE_SHIRT_DEADLINE) or 
+                (tier['value'] >= c.SUPPORTER_LEVEL and c.BEFORE_SUPPORTER_DEADLINE) or 
+                tier['value'] < c.SHIRT_LEVEL]
+
+    @property
     def PREREG_DONATION_TIERS(self):
         return dict(self.PREREG_DONATION_OPTS)
 
@@ -1168,6 +1220,7 @@ for _ident, _tier in c.DONATION_TIER_DESCRIPTIONS.items():
     except ValueError:
         pass
 
+    _tier['value'] = price
     _tier['price'] = price
     if price:  # ignore the $0 kickin level
         c.DONATION_TIER_ITEMS[price] = _tier['merch_items'] or _tier['description'].split('|')

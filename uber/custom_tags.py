@@ -255,6 +255,13 @@ def email_to_link(email=None):
 
 
 @JinjaEnv.jinja_filter
+def popup_link(href, text='<sup>?</sup>'):
+    return safe_string("<a onClick='window.open(&quot;{href}&quot;, &quot;info&quot;, " \
+        "&quot;toolbar=no,height=500,width=375,scrollbars=yes&quot;).focus();" \
+        "return false;' href='{href}'>{text}</a>".format(href=href, text=text))
+
+
+@JinjaEnv.jinja_filter
 def percent(numerator, denominator):
     if denominator == 0:
         return '0 / 0'

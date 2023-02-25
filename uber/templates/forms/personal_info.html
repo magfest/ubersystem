@@ -1,0 +1,126 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+
+{# BLOCK NAMES in this form:
+      name
+      contact_info
+      age
+      address
+      ec_info
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+{% block name %}
+{% set name_read_only = name_ro or (page_ro and not (limited_write or contact_write)) %}
+{% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}
+
+<div class="row g-3">
+<div class="col">{{ form_macros.form_input(personal_info.first_name, readonly=name_read_only, ) }}</div>
+<div class="col">{{ form_macros.form_input(personal_info.last_name, value=attendee_last_name, readonly=name_read_only) }}</div>
+</div>
+
+{% if full_read or attendee.legal_name %}
+<div class="row g-3">
+  <div class="col">{{ form_macros.toggle_checkbox(personal_info.same_legal_name, [personal_info.legal_name], toggle_required=True, mode="readonly",
+                   disabled=name_read_only, checked=same_legal_name or attendee.first_name != '' and attendee.legal_name == '') }}
+  </div>
+
+  <div class="col">{{ form_macros.form_input(personal_info.legal_name, help_text=macros.popup_link("../static_views/legal_name.html", 'What does "Legal Photo ID" mean?'),
+              readonly=name_read_only) }}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+
+{% block contact_info %}
+{% set attendee_email = attendee.masked_email if limited_read else attendee.email %}
+{% if is_prereg_dealer %}
+  {% set email_extra_field = form_macros.toggle_checkbox(personal_info.copy_email, [personal_info.email], toggle_required=True, mode="readonly",
+                    checked=copy_email or (attendee.group and attendee.email == attendee.group.email)) %}
+  {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.copy_phone, [personal_info.cellphone], toggle_required=True, mode="readonly",
+                    checked=copy_phone or (attendee.group and attendee.cellphone == attendee.group.phone)) %}
+{% else %}
+  {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.no_cellphone, [personal_info.cellphone], toggle_required=True, hide_on_checked=True, mode="disabled") %}
+{% endif %}
+
+<div class="row g-3">
+  <div class="col">
+    {{ form_macros.form_input(personal_info.email, extra_field=email_extra_field, value=attendee_email, readonly=email_ro or (page_ro and not contact_write)) }}
+  </div>
+
+  <div class="col">
+    {{ form_macros.form_input(personal_info.cellphone, extra_field=cellphone_extra_field, readonly=cellphone_ro or (page_ro and not contact_write)) }}
+  </div>
+</div>
+{% endblock %}
+
+
+{% block age %}
+<div class="row g-3">
+  <div class="col">
+{% if c.COLLECT_EXACT_BIRTHDATE %}
+  {{ form_macros.form_input(personal_info.birthdate, readonly=age_ro or page_ro)}}
+{% else %}
+  TBD
+{% endif %}
+  </div>
+
+  <div class="col">
+    {% if c.CONSENT_FORM_URL and not admin_area %}
+    <div class="alert alert-warning" role="alert">
+      <em>
+        Attendees under 18 <b>MUST</b> bring a signed (and notarized if not accompanied by parent or guardian during badge pickup) 
+        <a target="_blank" href="{{ c.CONSENT_FORM_URL }}">parental consent form</a>.
+      </em>
+    </div>
+    {% elif admin_area and attendee.birthdate %}
+      ({{ attendee.age_group_conf.desc }})
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+
+{% block address %}
+{% if c.COLLECT_FULL_ADDRESS %}
+  
+{% else %}
+<div class="row g-3">
+  <div class="col">
+    {{ form_macros.form_input(personal_info.zip_code, extra_field=form_macros.form_input(personal_info.international, disabled=address_ro or page_ro), readonly=address_ro or page_ro)}}
+  </div>
+
+  <div class="col">
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+
+{% block ec_info %}
+{% if admin_area and (full_read or c.HAS_REG_ADMIN_ACCESS) or (attendee.is_new or not admin_area) %}
+{% set onsite_extra_field = form_macros.toggle_checkbox(personal_info.no_onsite_contact, [personal_info.onsite_contact], toggle_required=True, hide_on_checked=True, mode="disabled") %}
+<div class="row g-3">
+  <div class="col">
+    {{ form_macros.form_input(personal_info.ec_name, readonly=emergency_contact_ro or page_ro) }}
+  </div>
+
+  <div class="col">
+    {{ form_macros.form_input(personal_info.ec_phone, readonly=emergency_contact_ro or page_ro) }}
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col">
+    {{ form_macros.form_input(personal_info.onsite_contact, extra_field=onsite_extra_field, readonly=emergency_contact_ro or page_ro, maxlength="500") }}
+  </div>
+  <div class="col">
+    <div class="alert alert-info" role="alert">
+    Contact info for a trusted friend or friends who will be at or near the venue during the event. {{ attendee.international }}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
