@@ -392,89 +392,83 @@
     <div id="mainContainer" class="container-fluid">
         {% block backlink %}
         {% if admin_area %}
-            <nav class="navbar navbar-expand-lg navbar-light" role="navigation">
-                <!-- Brand and toggle get grouped for better mobile display -->
-                <div class="container-fluid">
-                  <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#main-navbar-collapse-1">
-                    <span class="sr-only">Toggle navigation</span>
-                    <span class="icon-bar"></span>
-                    <span class="icon-bar"></span>
-                    <span class="icon-bar"></span>
-                  </button>
-                  <a class="navbar-brand" href="../accounts/homepage">{{ c.EVENT_NAME }}</a>
-                </div>
-                <!-- Collect the nav links, forms, and other content for toggling -->
-                <div class="collapse navbar-collapse" id="main-navbar-collapse-1">
-                    <ul class="navbar-nav navbar-right">
-                      {% block feedback_menu %}
-                      {% if c.JIRA_ENABLED %}
-                        <li class="dropdown">
-                          <a href="#" class="dropdown-toggle" data-toggle="dropdown" title="Submit feedback">
-                            <span class="glyphicon glyphicon-send"></span>
-                          </a>
-                          <ul class="dropdown-menu" role="menu">
-                            <li><a id="report-a-bug" href="#" title="Report a Bug">Report a Bug</a></li>
-                            <li><a id="request-an-improvement" href="#" title="Request an Improvement">Request an Improvement</a></li>
-                          </ul>
-                        </li>
-                      {% endif %}
-                      {% endblock %}
-                        <li><a href="{{ c.ADMIN_GUIDE_URL }}" target="admin_guide"><span title="Admin Guide" class="glyphicon glyphicon-question-sign"></span></a></li>
-                        <li><a href="../accounts/sitemap"><span title="Site Map" class="glyphicon glyphicon-road"></span></a></li>
+        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+            <div class="container-fluid">
+              <a class="navbar-brand" href="../accounts/homepage">
+                <img src="../static/images/favicon.png" alt="{{ c.EVENT_NAME }}" width="30" height="24" class="d-inline-block align-text-top">
+                {{ c.EVENT_NAME }}
+            </a>
+              <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#main-navbar-collapse" aria-controls="main-navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+              </button>
+              <div class="collapse navbar-collapse" id="main-navbar-collapse">
+                {% block mainmenu %}
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0" id="main-menu">
+                    {% block mainmenu_items %}
+                    {% for menu_item in c.MENU_FILTERED_BY_ACCESS_LEVELS.submenu -%}
+                        {% if menu_item.href -%}
+                            <li class="nav-item"><a class="nav-link" href="{{ menu_item.href }}">{{ menu_item.name }}</a></li>
+                        {% elif menu_item.submenu -%}
                         <li class="nav-item dropdown">
-                            <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
-                                <span>Logged in as: {{ c.CURRENT_ADMIN.first_name }} {{ c.CURRENT_ADMIN.last_name }}</span> <span title="Account Settings" class="glyphicon glyphicon-cog"></span><span class="caret"></span>
+                            <a class="nav-link dropdown-toggle" href="#" id="navbar-dropdown-{{ menu_item.name }}" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                {{ menu_item.name }}
                             </a>
-                            <ul class="dropdown-menu" role="menu">
-                                {% if 'admin_account' in c.CURRENT_ADMIN %}
-                                  <li><a href="#attendee_form?id={{ c.CURRENT_ADMIN.id }}">My Registration</a></li>
-                                  {% if c.HAS_DEPT_ADMIN_ACCESS and c.CURRENT_ADMIN.assigned_depts %}
-                                    <li><a href="../dept_admin/?filtered=1">My Departments</a></li>
-                                    {% for dept in c.CURRENT_ADMIN.assigned_depts %}
-                                      <li><a href="../dept_admin/form?id={{ dept.id }}">&nbsp;&#8226;&nbsp;{{ dept.name }}</a></li>
-                                    {% endfor %}
-                                  {% endif %}
-                                  <li role="separator" class="divider"></li>
-                                {% endif %}
-                                <li><a href="../accounts/change_password">Change Password</a></li>
-                                <li><a href="../accounts/logout">Logout</a></li>
+                            <ul class="dropdown-menu" aria-labelledby="navbar-dropdown-{{ menu_item.name }}">
+                                {% for submenu_item in menu_item.submenu -%}
+                                    <li>
+                                    {% if submenu_item.href -%}<a class="dropdown-item" href="{{ submenu_item.href }}">
+                                    {% else -%}<a class="disabled">{% endif -%}
+                                        {{ submenu_item.name }}
+                                    </a></li>
+                                {% endfor -%}
                             </ul>
-                        </li>
-                    </ul>
-                    {% block mainmenu %}
-                    <ul class="dropdown-menu" id="main-menu">
-                        {% block mainmenu_items %}
-                        {% for menu_item in c.MENU_FILTERED_BY_ACCESS_LEVELS.submenu -%}
-                            {% if menu_item.href -%}
-                                <li><a href="{{ menu_item.href }}">{{ menu_item.name }}</a></li>
-                            {% elif menu_item.submenu -%}
-                                <li class="dropdown">
-                                    <a href="#" class="dropdown-toggle" data-toggle="dropdown">
-                                        {{ menu_item.name }}
-                                        <span class="caret"></span>
-                                    </a>
-
-                                    <ul class="dropdown-menu" role="menu">
-                                    {% for submenu_item in menu_item.submenu -%}
-                                        <li>
-                                            {% if submenu_item.href -%}
-                                                <a href="{{ submenu_item.href }}">
-                                            {% else -%}
-                                                <a class="disabled">
-                                            {% endif -%}
-                                            {{ submenu_item.name }}</a>
-                                        </li>
-                                    {% endfor -%}
-                                    </ul>
-                                </li>
-
-                            {% endif -%}
-                        {% endfor -%}
-                        {% endblock mainmenu_items %}
-                    </ul>
-                    {% endblock mainmenu %}
-                </div>
-            </nav>
+                          </li>
+                        {% endif -%}
+                    {% endfor -%}
+                    {% endblock mainmenu_items %}
+                </ul>
+                {% endblock mainmenu %}
+                <ul class="navbar-nav d-flex">
+                    {% block feedback_menu %}
+                    {% if c.JIRA_ENABLED %}
+                      <li class="nav-item dropdown">
+                      <a class="nav-link dropdown-toggle" href="#" title="Submit feedback" id="feedback-dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="glyphicon glyphicon-send"></span>
+                      </a>
+                      <ul class="dropdown-menu" role="menu" aria-labelledby="feedback-dropdown">
+                          <li><a class="dropdown-item" id="report-a-bug" href="#" title="Report a Bug">Report a Bug</a></li>
+                          <li><a class="dropdown-item" id="request-an-improvement" href="#" title="Request an Improvement">Request an Improvement</a></li>
+                        </ul>
+                      </li>
+                    {% endif %}
+                    {% endblock %}
+                    {% if c.ADMIN_GUIDE_URL %}
+                    <li class="nav-item"><a href="{{ c.ADMIN_GUIDE_URL }}" target="admin_guide" class="nav-link"><span title="Admin Guide" class="glyphicon glyphicon-question-sign"></span></a></li>
+                    {% endif %}
+                    <li class="nav-item"><a href="../accounts/sitemap" class="nav-link"><span title="Site Map" class="glyphicon glyphicon-road"></span></a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="account-dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span>Logged in as: {{ c.CURRENT_ADMIN.first_name }} {{ c.CURRENT_ADMIN.last_name }}</span> <span title="Account Settings" class="glyphicon glyphicon-cog"></span>
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="account-dropdown">
+                            {% if 'admin_account' in c.CURRENT_ADMIN %}
+                              <li><a class="dropdown-item" href="#attendee_form?id={{ c.CURRENT_ADMIN.id }}">My Registration</a></li>
+                              {% if c.HAS_DEPT_ADMIN_ACCESS and c.CURRENT_ADMIN.assigned_depts %}
+                                <li><a class="dropdown-item" href="../dept_admin/?filtered=1">My Departments</a></li>
+                                {% for dept in c.CURRENT_ADMIN.assigned_depts %}
+                                  <li><a class="dropdown-item" href="../dept_admin/form?id={{ dept.id }}">&nbsp;&#8226;&nbsp;{{ dept.name }}</a></li>
+                                {% endfor %}
+                              {% endif %}
+                              <li><hr class="dropdown-divider"></li>
+                            {% endif %}
+                            <li><a class="dropdown-item" href="../accounts/change_password">Change Password</a></li>
+                            <li><a class="dropdown-item" href="../accounts/logout">Logout</a></li>
+                        </ul>
+                    </li>
+                </ul>
+              </div>
+            </div>
+          </nav>
         {% endif %}
         {% endblock %}
         {% block header %}{% endblock %}
