@@ -118,7 +118,7 @@
       {%- set has_value = value == default -%}
       {%- if not is_readonly or has_value -%}
         <label
-            class="btn btn-default{% if is_readonly %} disabled{% endif %}{% if has_value %} active{% endif %}"
+            class="btn btn-outline-secondary{% if is_readonly %} disabled{% endif %}{% if has_value %} active{% endif %}"
             {% if desc %}title="{{ desc }}"{% endif %}>
             <input
                 type="radio"

@@ -7,8 +7,8 @@
 {{ attendee_fields.amount_extra_js }}
 
 {% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     <form method="post" action="register_group_member" class="form-horizontal">
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ attendee.db_id }}" />

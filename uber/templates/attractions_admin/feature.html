@@ -14,9 +14,9 @@
 
 <h2>
   {%- if feature.is_new -%}
-    <span class="glyphicon glyphicon-plus"></span> New Feature for the {{ attraction|form_link }} Attraction
+    <i class="fa fa-plus"></i> New Feature for the {{ attraction|form_link }} Attraction
   {%- else -%}
-    <span class="glyphicon glyphicon-cog"></span> Edit the {{ feature.name }} Feature for the {{ attraction|form_link }} Attraction
+    <i class="fa fa-cog"></i> Edit the {{ feature.name }} Feature for the {{ attraction|form_link }} Attraction
   {%- endif -%}
 </h2>
 
@@ -62,7 +62,7 @@
   <div class="form-group">
     <div class="col-sm-9 col-sm-offset-3">
       <input type="submit" name="save" class="btn btn-primary" value="Save">
-      <a href="form?id={{ attraction.id }}" type="button" class="btn btn-default">Cancel</a>
+      <a href="form?id={{ attraction.id }}" type="button" class="btn btn-outline-secondary">Cancel</a>
     </div>
   </div>
 </form>

@@ -52,7 +52,7 @@ loadForm = function(kw) {
   var glyphicon_span = $('a[href="#attendee' + kw + '"]').children('span');
   var glyphicon_class = glyphicon_span.attr('class');
   var old_hash = window.location.hash;
-  glyphicon_span.removeClass().addClass('glyphicon glyphicon-repeat gly-spin');
+  glyphicon_span.removeClass().addClass('fa fa-repeat gly-spin');
   $('#attendee' + kw).load('../registration/attendee_' + kw.toLowerCase() + '?id=' + attendeeID, function(response, status){
     window.history.replaceState("", document.title, window.location.href.replace(location.hash, "") + old_hash);
     if (status == 'success') {
@@ -89,30 +89,30 @@ loadForm("{{ tab_view }}");
       <ul class="nav nav-tabs" role="tablist">
           <li role="presentation" class="active">
           <a href="#attendeeData" aria-controls="attendeeData" role="tab" data-toggle="tab" onClick="loadForm('Data')">
-          <span class="glyphicon glyphicon-user"></span>&nbsp;Data
+          <i class="fa fa-user"></i>&nbsp;Data
           </a>
           </li>
           {% if attendee.staffing and c.HAS_SHIFTS_ADMIN_ACCESS %}
           <li role="presentation">
           <a href="#attendeeShifts" aria-controls="attendeeShifts" role="tab" data-toggle="tab" onClick="loadForm('Shifts')">
-          <span class="glyphicon glyphicon-calendar"></span>&nbsp;Shifts
+          <i class="fa fa-calendar"></i>&nbsp;Shifts
           </a>
           </li>
           {% endif %}
           <li role="presentation">
           <a href="#attendeeHistory" aria-controls="attendeeHistory" role="tab" data-toggle="tab" onClick="loadForm('History')">
-          <span class="glyphicon glyphicon-time"></span>&nbsp;History
+          <i class="fa fa-time"></i>&nbsp;History
           </a>
           </li>
           {% if attendee.banned and c.HAS_SECURITY_ADMIN_ACCESS %}
           <li role="presentation">
           <a href="#attendeeWatchlist" aria-controls="attendeeWatchlist" role="tab" data-toggle="tab" onClick="loadForm('Watchlist')">
-          <span class="glyphicon glyphicon-ban-circle"></span>&nbsp;Watchlist Entry
+          <i class="fa fa-ban-circle"></i>&nbsp;Watchlist Entry
           </a>
           </li>
           {% endif %}
           <button class='btn btn-info pull-right' onClick="refreshTab()">
-          Refresh&nbsp;<span class="glyphicon glyphicon-refresh pull-right"></span>
+          Refresh&nbsp;<i class="fa fa-refresh pull-right"></i>
           </button>
       </ul>
       {% endif %}

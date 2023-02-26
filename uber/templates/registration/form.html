@@ -6,8 +6,8 @@
 
 {% include "registration/menu.html" %}
 
-<div class="panel panel-default">
-<div class="panel-body">
+<div class="card">
+<div class="card-body">
 {% if c.AT_THE_CON and receipt and receipt.current_amount_owed and not attendee.is_new %}
     <div class="alert alert-warning center" role="alert">
     <h4>{{ attendee.full_name }} currently owes <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.</h4>

@@ -13,8 +13,8 @@ app, c.PAGE_PATH,
 
 <h2>Art Show Application Form{% if app.attendee %} for {{ app.attendee|form_link }}{% endif %}</h2>
 
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     <form method="post" id="new_agent" action="../art_show_applications/new_agent" role="form">
       <input type="hidden" name="admin" value="1" />
     </form>

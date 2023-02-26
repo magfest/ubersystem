@@ -50,9 +50,9 @@
             <td data-order="{{ (0 if status.is_complete else (2 if status.is_applicable else 1)) }}">
               <div title="{{ item_name }}">
                 {% if status.is_complete %}
-                  <span class="glyphicon glyphicon-check"></span>
+                  <i class="fa fa-check"></i>
                 {% elif status.is_applicable %}
-                  <span class="glyphicon glyphicon-unchecked"></span>
+                  <i class="fa fa-unchecked"></i>
                 {% else %}
                   <span>N/A</span>
                 {% endif %}

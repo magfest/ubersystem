@@ -27,7 +27,7 @@ html, body {
     margin-right: -15px;
 }
 
-.masthead + .panel > .panel-body + table.table {
+.masthead + .panel > .card-body + table.table {
     border-top: 0 none transparent;
 }
 

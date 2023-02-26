@@ -6,8 +6,8 @@
   {% include "panels_common.html" %}
 
   {% include 'prereg_masthead.html' %}
-  <div class="panel panel-default">
-    <div class="panel-body">
+  <div class="card">
+    <div class="card-body">
     {% if c.APP_LIMIT and attendee.panel_applications|length >= c.APP_LIMIT %}
       You have already submitted the maximum number of panels ({{ c.APP_LIMIT }}). Please contact your liaison if
       you need to change a panel or submit more ideas.

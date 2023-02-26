@@ -43,7 +43,7 @@
           },
           cancel: {
               label: 'Nevermind',
-              className: 'btn-default'
+              className: 'btn-outline-secondary'
           }
       },
       callback: function (result) {
@@ -74,7 +74,7 @@
           },
           cancel: {
               label: 'Nevermind',
-              className: 'btn-default'
+              className: 'btn-outline-secondary'
           }
       },
       callback: function (result) {
@@ -106,7 +106,7 @@
           },
           cancel: {
               label: 'Nevermind',
-              className: 'btn-default'
+              className: 'btn-outline-secondary'
           }
       },
       callback: function (result) {
@@ -139,7 +139,7 @@
           },
           cancel: {
               label: 'Nevermind',
-              className: 'btn-default'
+              className: 'btn-outline-secondary'
           }
       },
       callback: function (result) {
@@ -187,7 +187,7 @@
           },
           cancel: {
               label: 'Nevermind',
-              className: 'btn-default'
+              className: 'btn-outline-secondary'
           }
       },
       callback: function (result) {
@@ -239,7 +239,7 @@
               },
               cancel: {
                   label: 'Nevermind',
-                  className: 'btn-default'
+                  className: 'btn-outline-secondary'
               }
           },
           callback: function (result) {
@@ -271,7 +271,7 @@
 {% endif %}
 
 <h2>Receipt{% if other_receipts %}s{% endif %} for {% if model.attendee %}{{ model.attendee.full_name }}'s {{ model_str|title }}{% else %}{{ model.full_name|default(model.name) }}{% endif %}{% if c.AT_THE_CON and model.badge_num %} ({{ model.badge }}){% endif %}</h2>
-  <div class="panel panel-body">
+  <div class="card-body">
   <p>Use this form to remove and add custom purchases and credits or non-Stripe payments and refunds for this {{ model_str }}.
     You will not be able to remove purchases or credits that were created before a successful payment was made.
     Confirmed Stripe payments or refunds that have a Stripe ID will also be locked.
@@ -428,7 +428,7 @@
     <tr id="{{ receipt.id }}">
       <td colspan="7">
         <div class="btn-group pull-right" role="group">
-          <button class="btn btn-default">Add:</button>
+          <button class="btn btn-outline-secondary">Add:</button>
           <button class="btn btn-primary" onClick="showForm('{{ receipt.id }}', '-purchase-form')">Purchase</button>
           <button class="btn btn-success" onClick="showForm('{{ receipt.id }}', '-credit-form')">Credit</button>
           <button class="btn btn-info record_payment_refund" onClick="showForm('{{ receipt.id }}', '-payment-form')"{% if receipt.current_receipt_amount == 0 %} disabled{% endif %}>Payment</button>
@@ -462,11 +462,11 @@
 </div>
 {% endmacro %}
 
-<div class="panel panel-default">
-  <div class="panel-heading">
-    <h3 class="panel-title">Current Receipt</h3>
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">Current Receipt</h3>
   </div>
-<div class="panel-body">
+<div class="card-body">
 {% if receipt %}
   {{ receipt_table(receipt, receipt.all_sorted_items_and_txns) }}
   <button class="btn btn-danger" onClick="fullRefund('{{ receipt.id }}')">Refund and Cancel This {{ model_str|title }}</button>
@@ -478,22 +478,22 @@ There are no active receipts for this {{ model_str }}.
 </div>
 
 {% for other_receipt in other_receipts %}
-<div class="panel panel-default">
-  <div class="panel-heading">
-    <h3 class="panel-title">{{ other_receipt.owner_model }} Receipt</h3>
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">{{ other_receipt.owner_model }} Receipt</h3>
   </div>
-<div class="panel-body">
+<div class="card-body">
   {{ receipt_table(other_receipt, other_receipt.all_sorted_items_and_txns) }}
 </div>
 </div>
 {% endfor %}
 
 {% for closed_receipt in closed_receipts %}
-<div class="panel panel-default">
-  <div class="panel-heading">
-    <h3 class="panel-title">Closed Receipt ({{ closed_receipt.closed|datetime_local }})</h3>
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">Closed Receipt ({{ closed_receipt.closed|datetime_local }})</h3>
   </div>
-<div class="panel-body">
+<div class="card-body">
   {{ receipt_table(closed_receipt, closed_receipt.all_sorted_items_and_txns) }}
 </div>
 </div>

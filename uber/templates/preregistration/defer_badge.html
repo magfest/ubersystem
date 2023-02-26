@@ -8,8 +8,8 @@
 </script>
 
 {% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     <h3> Defer {{ attendee.full_name }}'s Registration </h3>
 
     <p>
@@ -37,7 +37,7 @@
         <div class="col-sm-6 col-sm-offset-3">
           <button type="submit" class="btn btn-warning">Yes, Defer My Badge to {{ c.EVENT_NAME }} {{ c.EVENT_YEAR|int + 1 }}</button>
         
-          <a href="confirm?id={{ attendee.id }}" class="btn btn-default">Nevermind</a>
+          <a href="confirm?id={{ attendee.id }}" class="btn btn-outline-secondary">Nevermind</a>
         </div>
       </div>
 

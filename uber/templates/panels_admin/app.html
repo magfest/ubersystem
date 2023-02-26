@@ -40,7 +40,7 @@
                     <button name="status" class="btn btn-danger" value="{{ c.DECLINED }}">Decline</button>
                 {% endif %}
                 {% if app.status == c.ACCEPTED %}
-                    <button name="status" class="btn btn-default" value="{{ c.CANCELLED }}">Cancel Panel</button>
+                    <button name="status" class="btn btn-outline-secondary" value="{{ c.CANCELLED }}">Cancel Panel</button>
                 {% endif %}
                 <br/>
                 {{ macros.popup_link("email_statuses", "Will this trigger an email?") }}
@@ -58,7 +58,7 @@
                   <div class="input-group">
                     <input type="text" class="form-control" name="track" value="{{ app.track }}" />
                     <div class="input-group-btn">
-                      <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                      <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         Use Existing Track <span class="caret"></span>
                       </button>
                       <ul class="dropdown-menu dropdown-menu-right">

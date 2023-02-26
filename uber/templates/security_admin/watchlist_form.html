@@ -20,14 +20,14 @@
     <ul class="nav nav-tabs" role="tablist">
     <li role="presentation">
     <a href="#info" aria-controls="info" role="tab" data-toggle="tab">
-    <span class="glyphicon glyphicon-list"></span>&nbsp;Watchlist Entry
+    <i class="fa fa-list"></i>&nbsp;Watchlist Entry
     </a>
     </li>
     {% set attendees = entry.attendees + entry.attendee_guesses %}
     {% if attendees %}
       <li role="presentation">
       <a href="#attendees" aria-controls="attendees" role="tab" data-toggle="tab">
-      <span class="glyphicon glyphicon-user"></span>&nbsp;Matching Attendees
+      <i class="fa fa-user"></i>&nbsp;Matching Attendees
       </a>
       </li>
     {% endif %}
