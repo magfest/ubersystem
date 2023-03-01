@@ -1141,8 +1141,6 @@ class Charge:
 
             change_func = getattr(model, credit_change_func)
             old_discount, discount_change = change_func(**{col_name: new_val})
-            log.debug(old_discount)
-            log.debug(discount_change)
             if old_discount >= 0 and discount_change < 0:
                 verb = "Added"
             elif old_discount < 0 and discount_change >= 0 and old_discount == discount_change * -1:
