@@ -47,13 +47,6 @@ def read_only_makes_sense(group):
             return 'You cannot set a read-only access level lower than the read-write access'
 
 
-AdminAccount.required = [
-    ('attendee_id', 'Attendee'),
-]
-
-if not c.AUTH_DOMAIN:
-    AdminAccount.required.append(('hashed', 'Password'))
-
 @validation.AdminAccount
 def duplicate_admin(account):
     if account.is_new:
