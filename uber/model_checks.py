@@ -1077,6 +1077,12 @@ def specify_cost_details(app):
         return 'Please describe the materials you will provide and how much you will charge attendees for them.'
 
 
+@validation.PanelApplication
+def specify_rating(app):
+    if len(c.PANEL_RATING_OPTS) > 1 and app.rating == c.UNRATED:
+        return 'Please select a content rating for your panel.'
+
+
 Attraction.required = [
     ('name', 'Name'),
     ('description', 'Description')
