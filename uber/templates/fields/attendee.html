@@ -1866,7 +1866,8 @@ $(window).on("runJavaScript", function(){
     <label class="col-sm-3 control-label">Payment Method</label>
     <div class="col-sm-6">
       {% if c.AFTER_BADGE_PRICE_WAIVED %}
-        <div style="margin-top:10px">All badge types are now free - enjoy {{ c.EVENT_NAME }}!</div>
+        <div style="margin-top:10px" class="form-control">All badge types are now free - enjoy {{ c.EVENT_NAME }}!</div>
+        </div>
       {% else %}
         <select name="payment_method" class="form-control" onChange="maybeBold()">
           <option value="">Select a payment option</option>
@@ -1880,9 +1881,9 @@ $(window).on("runJavaScript", function(){
               Badges for attendees under 13 are half-price. <br/>
               Attendees under 6 enter free. <br/>
               All attendees under 13 must be accompanied by an adult with a valid Attendee badge.
-          {% else %}
+            {% else %}
           <span class="text-danger">Unfortunately, we are sold out of badges for attendees under 18.</span>
-          {% endif %}
+            {% endif %}
             </p>
           </div>
         {% endif %}

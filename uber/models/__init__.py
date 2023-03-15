@@ -964,6 +964,39 @@ class Session(SessionManager):
                     if error:
                         return error
 
+        def preprocess_refund(self, amount=0, txn=None, item=None):
+            if item:
+                txn = txn or item.receipt_txn
+
+            if not txn:
+                return "Transaction not found for this receipt item."
+
+            if not txn.intent_id:
+                return "Can't refund a non-Stripe payment."
+
+            if not txn.charge_id:
+                charge_id = txn.check_paid_from_stripe()
+                if not charge_id:
+                    return "We could not find record of this payment being completed."
+
+            already_refunded = txn.update_amount_refunded()
+            if already_refunded - txn.amount <= 0:
+                if item:
+                    return # We'll just skip the refund, it's fine
+                return "This payment has already been fully refunded."
+
+            refund_amount = int(amount or txn.amount - already_refunded)
+            if already_refunded - txn.amount <= refund_amount:
+                return "There is not enough left on this transaction to refund ${}.".format(refund_amount)
+
+            response = self.process_refund(txn, refund_amount)
+            if isinstance(response, six.string_types):
+                return response
+            
+            txn.refunded += refund_amount
+            self.commit()
+            self.refresh(txn)
+
         def process_refund(self, txn, amount=0):
             """
             Attempts to refund a given Stripe transaction
@@ -972,15 +1005,7 @@ class Session(SessionManager):
             import stripe
             from pockets.autolog import log
 
-            if not txn.stripe_id:
-                return 'Cannot refund a transaction without a Stripe ID'
-
-            txn.update_amount_refunded()
-
-            refund_amount = int(amount or txn.amount - txn.refunded)
-
-            if not refund_amount:
-                return
+            refund_amount = amount or txn.amount_left
 
             log.debug('REFUND: attempting to refund Stripe transaction with ID {} {} cents for {}',
                       txn.stripe_id, refund_amount, txn.desc)
@@ -1010,6 +1035,8 @@ class Session(SessionManager):
         def process_receipt_charge(self, receipt, charge, payment_method=c.STRIPE):
             """
             Creates the stripe intent and receipt transaction for a given charge object.
+            Most methods should call this instead of calling create_stripe_intent and 
+            create_receipt_transaction directly.
             """
             stripe_intent = charge.create_stripe_intent()
             if isinstance(stripe_intent, six.string_types):
@@ -1020,8 +1047,6 @@ class Session(SessionManager):
             if isinstance(receipt_txn, six.string_types):
                 self.rollback()
                 return receipt_txn
-
-            # Later we will want code to assign receipt items to this transaction
 
             self.add(receipt_txn)
             return stripe_intent

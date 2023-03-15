@@ -12,6 +12,7 @@ ALREADY SENT FOR THAT CATEGORY TO RE-SEND.
 """
 
 import os
+import jinja2
 from datetime import datetime, timedelta
 import pathlib
 
@@ -126,9 +127,13 @@ class AutomatedEmailFixture:
         self.active_before = max(before) if before else None
 
         env = JinjaEnv.env()
-        template_path = pathlib.Path(env.get_template(os.path.join('emails', self.template)).name)
-        self.template_plugin = template_path.parts[3]
-        self.template_url = f"https://github.com/magfest/{self.template_plugin}/tree/main/{self.template_plugin}/{pathlib.Path(*template_path.parts[5:]).as_posix()}"
+        try:
+            template_path = pathlib.Path(env.get_template(os.path.join('emails', self.template)).name)
+            self.template_plugin = template_path.parts[3]
+            self.template_url = f"https://github.com/magfest/{self.template_plugin}/tree/main/{self.template_plugin}/{pathlib.Path(*template_path.parts[5:]).as_posix()}"
+        except jinja2.exceptions.TemplateNotFound:
+            self.template_url = ""
+        
 
     @property
     def body(self):

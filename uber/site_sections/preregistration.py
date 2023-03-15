@@ -645,7 +645,7 @@ class Root:
             return {'error': message}
 
         for receipt in receipts:
-            receipt_txn = Charge.create_receipt_transaction(receipt, charge.description, stripe_intent.id)
+            receipt_txn = Charge.create_receipt_transaction(receipt, charge.description, stripe_intent.id, receipt.current_amount_owed)
             session.add(receipt_txn)
 
         for attendee in charge.attendees:
