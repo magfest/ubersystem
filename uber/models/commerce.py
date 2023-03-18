@@ -289,16 +289,20 @@ class ReceiptTransaction(MagModel):
             return new_charge_id
 
     def update_amount_refunded(self):
+        from uber.models import Session
         if not self.intent_id:
             return 0
         
         refunded_total = 0
         for refund in stripe.Refund.list(payment_intent=self.intent_id):
             refunded_total += refund.amount
-        other_refunds = self.receipt.refund_total - self.refunded
+        with Session() as session:
+            other_txns = session.query(ReceiptTransaction).filter_by(intent_id=self.intent_id
+                                                            ).filter(ReceiptTransaction.id != self.id)
+            other_refunds = sum([txn.refunded for txn in other_txns])
         
         self.refunded = min(self.amount, refunded_total - other_refunds)
-        return refunded_total
+        return self.refunded
 
     @property
     def cannot_delete_reason(self):

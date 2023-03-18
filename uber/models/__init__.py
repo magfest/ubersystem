@@ -966,6 +966,8 @@ class Session(SessionManager):
 
         def preprocess_refund(self, amount=0, txn=None, item=None):
             from uber.custom_tags import format_currency
+            from uber.models import Attendee
+
             if item:
                 txn = txn or item.receipt_txn
 
@@ -995,6 +997,12 @@ class Session(SessionManager):
                 return response
             
             txn.refunded += refund_amount
+
+            model = self.get_model_by_receipt(txn.receipt)
+            if isinstance(model, Attendee) and model.paid == c.HAS_PAID:
+                model.paid = c.REFUNDED
+                self.add(model)
+            
             self.commit()
             self.refresh(txn)
 

@@ -168,10 +168,11 @@
   };
 
   var refundTxn = function (txnId, amount) {
-    var amountField = $("#refundTxnDiv [name='amount']")
+    var amountField = $("#refundTxnForm [name='amount']");
     amountField.attr('placeholder', amount.substring(1));
 
     var form = $("#refundTxnDiv").html();
+    $("#refundTxnDiv").html('');
 
     bootbox.confirm({
       title: "Refund Transaction?",
@@ -188,8 +189,9 @@
       },
       callback: function (result) {
         if(result) {
-          $.post('refund_receipt_txn', {csrf_token: csrf_token, id: txnId, amount: amountField.val() || 0}, function (response) {
+          $.post('refund_receipt_txn', {csrf_token: csrf_token, id: txnId, amount: $("#refundTxnForm [name='amount']").val() || 0}, function (response) {
             toastr.clear();
+            $("#refundTxnDiv").html(form);
             if (response.error) {
               toastr.error(response.error);
             } else {
@@ -284,6 +286,9 @@
   };
 
   $().ready(function () {
+    $('#refundTxnForm').submit(function(event) {
+      return false;
+    })
     $("form[action='add_receipt_item']").submit(function(event){
       var $form = $(this);
       $btn = $form.find('button[type=submit]');
@@ -615,12 +620,12 @@ There are no active receipts for this {{ model_str }}.
 <div id="refundTxnDiv" class="hidden">
   <p>This will refund this {{ model_str }} through Stripe. You can enter an amount below or leave it blank to refund the full amount.</p>
 
-  <form class="form-horizontal">
+  <div class="form-horizontal" id="refundTxnForm">
       <div class="input-group">
         <span class="input-group-addon">$</span>
         <input type="text" class="form-control" name="amount">
       </div>
-  </form>
+  </div>
 </div>
 
 {% endblock %}
