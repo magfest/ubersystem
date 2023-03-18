@@ -221,7 +221,7 @@ class Root:
     def comp_refund_receipt_item(self, session, id='', **params):
         item = session.receipt_item(id)
         actually_refunded = item.receipt_txn.refunded if item.receipt_txn else None
-        error = session.preprocess_refund(amount=float(params.get('amount', 0) * 100), item=item)
+        error = session.preprocess_refund(amount=float(params.get('amount', 0)) * 100, item=item)
         if error:
             return {'error': error}
 
@@ -245,7 +245,7 @@ class Root:
 
         actually_refunded = item.receipt_txn.refunded if item.receipt_txn else None
 
-        error = session.preprocess_refund(amount=float(params.get('amount', 0) * 100), item=item)
+        error = session.preprocess_refund(amount=float(params.get('amount', 0)) * 100, item=item)
         if error:
             session.rollback()
             return {'error': error}
@@ -345,7 +345,7 @@ class Root:
     def refund_receipt_txn(self, session, id='', **params):
         txn = session.receipt_transaction(id)
 
-        error = session.preprocess_refund(amount=float(params.get('amount', 0) * 100), txn=txn)
+        error = session.preprocess_refund(amount=float(params.get('amount', 0)) * 100, txn=txn)
         if error:
             return {'error': error}
 

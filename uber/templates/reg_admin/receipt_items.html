@@ -168,7 +168,8 @@
   };
 
   var refundTxn = function (txnId, amount) {
-    $("#refundTxnDiv [name='amount']").attr('placeholder', amount.substring(1));
+    var amountField = $("#refundTxnDiv [name='amount']")
+    amountField.attr('placeholder', amount.substring(1));
 
     var form = $("#refundTxnDiv").html();
 
@@ -187,7 +188,7 @@
       },
       callback: function (result) {
         if(result) {
-          $.post('refund_receipt_txn', {csrf_token: csrf_token, id: txnId, amount: result}, function (response) {
+          $.post('refund_receipt_txn', {csrf_token: csrf_token, id: txnId, amount: amountField.val() || 0}, function (response) {
             toastr.clear();
             if (response.error) {
               toastr.error(response.error);

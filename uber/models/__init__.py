@@ -965,6 +965,7 @@ class Session(SessionManager):
                         return error
 
         def preprocess_refund(self, amount=0, txn=None, item=None):
+            from uber.custom_tags import format_currency
             if item:
                 txn = txn or item.receipt_txn
 
@@ -980,14 +981,14 @@ class Session(SessionManager):
                     return "We could not find record of this payment being completed."
 
             already_refunded = txn.update_amount_refunded()
-            if already_refunded - txn.amount <= 0:
+            if txn.amount - already_refunded <= 0:
                 if item:
                     return # We'll just skip the refund, it's fine
                 return "This payment has already been fully refunded."
 
-            refund_amount = int(amount or txn.amount - already_refunded)
-            if already_refunded - txn.amount <= refund_amount:
-                return "There is not enough left on this transaction to refund ${}.".format(refund_amount)
+            refund_amount = int(amount or (txn.amount - already_refunded))
+            if txn.amount - already_refunded < refund_amount:
+                return "There is not enough left on this transaction to refund {}.".format(format_currency(refund_amount / 100))
 
             response = self.process_refund(txn, refund_amount)
             if isinstance(response, six.string_types):
