@@ -686,7 +686,8 @@ def report_critical_exception(msg, subject="Critical Error"):
     uber.server.log_exception_with_verbose_context(msg=msg)
 
     # Also attempt to email the admins
-    send_email.delay(c.ADMIN_EMAIL, [c.ADMIN_EMAIL], subject, msg + '\n{}'.format(traceback.format_exc()))
+    if c.SEND_EMAILS and not c.DEV_BOX:
+        send_email.delay(c.ADMIN_EMAIL, [c.ADMIN_EMAIL], subject, msg + '\n{}'.format(traceback.format_exc()))
 
 
 def get_page(page, queryset):
@@ -1364,24 +1365,61 @@ class Charge:
 
     @classmethod
     def create_receipt_transaction(self, receipt, desc='', intent_id='', amount=0, method=c.STRIPE):
-        if not amount and intent_id:
+        txn_total = amount
+        
+        if intent_id:
             intent = stripe.PaymentIntent.retrieve(intent_id)
-            amount = intent.amount
+            txn_total = intent.amount
+            if not amount:
+                amount = txn_total
         
-        if not amount:
-            amount = receipt.current_amount_owed
-        
-        if not amount > 0:
+        if amount <= 0:
             return "There was an issue recording your payment."
 
         return uber.models.ReceiptTransaction(
             receipt_id=receipt.id,
             intent_id=intent_id,
             amount=amount,
+            txn_total=txn_total or amount,
+            receipt_items=receipt.open_receipt_items,
             desc=desc,
             method=method,
             who=uber.models.AdminAccount.admin_name() or 'non-admin'
         )
+
+    @staticmethod
+    def update_refunded_from_stripe(intent_id, total_refund, preferred_txn=None):
+        from uber.models import Session
+
+        refund_left = total_refund
+
+        session = Session()
+        matching_txns = session.query(uber.models.ReceiptTransaction).filter_by(intent_id=intent_id).all()
+
+        current_total = sum([txn.refunded for txn in matching_txns])
+        if current_total == total_refund:
+            session.close()
+            return
+
+        if preferred_txn:
+            preferred_txn.refunded = min(preferred_txn.amount, total_refund - current_total + preferred_txn.refunded)
+            refund_left = total_refund - current_total - preferred_txn.amount_left
+            session.add(preferred_txn)
+            if not refund_left:
+                session.commit()
+                session.close()
+                return preferred_txn
+
+        for txn in matching_txns:
+            txn.refunded = min(txn.amount, refund_left)
+            session.add(txn)
+
+            refund_left = refund_left - txn.amount
+            if not refund_left:
+                session.commit()
+                session.close()
+                return matching_txns
+
 
     @staticmethod
     def mark_paid_from_intent_id(intent_id, charge_id):
@@ -1389,79 +1427,72 @@ class Charge:
         from uber.tasks.email import send_email
         from uber.decorators import render
         
-        with Session() as session:
-            matching_txns = session.query(uber.models.ReceiptTransaction).filter_by(intent_id=intent_id).all()
+        session = Session().session
+        matching_txns = session.query(uber.models.ReceiptTransaction).filter_by(intent_id=intent_id).filter(
+                                                                        uber.models.ReceiptTransaction.charge_id == '').all()
 
-            for txn in matching_txns:
-                txn.charge_id = charge_id
-                session.add(txn)
-                txn_receipt = txn.receipt
+        for txn in matching_txns:
+            txn.charge_id = charge_id
+            session.add(txn)
+            txn_receipt = txn.receipt
 
-                """
-                We need to change how receipt transactions and items are tracked next year
-                I'm not doing it now but I want this code for later
-                
-                for item in txn.receipt_itms:
-                    item.closed = datetime.now()
-                    session.add(item)
-                """
-                for item in txn_receipt.open_receipt_items:
-                    if item.added < txn.added:
-                        item.closed = datetime.now()
-                        session.add(item)
+            for item in txn.receipt_items:
+                item.closed = datetime.now()
+                session.add(item)
 
-                session.commit()
+            session.commit()
 
-                model = session.get_model_by_receipt(txn_receipt)
-                if isinstance(model, Attendee) and model.is_paid:
-                    if model.badge_status == c.PENDING_STATUS:
-                        model.badge_status = c.NEW_STATUS
-                    if model.paid in [c.NOT_PAID, c.PENDING]:
-                        model.paid = c.HAS_PAID
-                if isinstance(model, Group) and model.is_paid:
+            model = session.get_model_by_receipt(txn_receipt)
+            if isinstance(model, Attendee) and model.is_paid:
+                if model.badge_status == c.PENDING_STATUS:
+                    model.badge_status = c.NEW_STATUS
+                if model.paid in [c.NOT_PAID, c.PENDING]:
                     model.paid = c.HAS_PAID
-                session.add(model)
+            if isinstance(model, Group) and model.is_paid:
+                model.paid = c.HAS_PAID
+            session.add(model)
 
-                session.commit()
+            session.commit()
 
-                if model and isinstance(model, Group) and model.is_dealer and not txn.receipt.open_receipt_items:
-                    try:
-                        send_email.delay(
-                            c.MARKETPLACE_EMAIL,
-                            c.MARKETPLACE_EMAIL,
-                            '{} Payment Completed'.format(c.DEALER_TERM.title()),
-                            render('emails/dealers/payment_notification.txt', {'group': model}, encoding=None),
-                            model=model.to_dict('id'))
-                    except Exception:
-                        log.error('Unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
-                if model and isinstance(model, ArtShowApplication) and not txn.receipt.open_receipt_items:
-                    try:
-                        send_email.delay(
-                            c.ART_SHOW_EMAIL,
-                            c.ART_SHOW_EMAIL,
-                            'Art Show Payment Received',
-                            render('emails/art_show/payment_notification.txt',
-                                {'app': model}, encoding=None),
-                            model=model.to_dict('id'))
-                    except Exception:
-                        log.error('Unable to send Art Show payment confirmation email', exc_info=True)
-                if model and isinstance(model, MarketplaceApplication) and not txn.receipt.open_receipt_items:
+            if model and isinstance(model, Group) and model.is_dealer and not txn.receipt.open_receipt_items:
+                try:
                     send_email.delay(
-                        c.MARKETPLACE_APP_EMAIL,
-                        c.MARKETPLACE_APP_EMAIL,
-                        'Marketplace Payment Received',
-                        render('emails/marketplace/payment_notification.txt',
+                        c.MARKETPLACE_EMAIL,
+                        c.MARKETPLACE_EMAIL,
+                        '{} Payment Completed'.format(c.DEALER_TERM.title()),
+                        render('emails/dealers/payment_notification.txt', {'group': model}, encoding=None),
+                        model=model.to_dict('id'))
+                except Exception:
+                    log.error('Unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
+            if model and isinstance(model, ArtShowApplication) and not txn.receipt.open_receipt_items:
+                try:
+                    send_email.delay(
+                        c.ART_SHOW_EMAIL,
+                        c.ART_SHOW_EMAIL,
+                        'Art Show Payment Received',
+                        render('emails/art_show/payment_notification.txt',
                             {'app': model}, encoding=None),
                         model=model.to_dict('id'))
-                    send_email.delay(
-                        c.MARKETPLACE_APP_EMAIL,
-                        model.email_to_address,
-                        'Marketplace Payment Received',
-                        render('emails/marketplace/payment_confirmation.txt',
-                            {'app': model}, encoding=None),
-                        model=model.to_dict('id'))
+                except Exception:
+                    log.error('Unable to send Art Show payment confirmation email', exc_info=True)
+            if model and isinstance(model, MarketplaceApplication) and not txn.receipt.open_receipt_items:
+                send_email.delay(
+                    c.MARKETPLACE_APP_EMAIL,
+                    c.MARKETPLACE_APP_EMAIL,
+                    'Marketplace Payment Received',
+                    render('emails/marketplace/payment_notification.txt',
+                        {'app': model}, encoding=None),
+                    model=model.to_dict('id'))
+                send_email.delay(
+                    c.MARKETPLACE_APP_EMAIL,
+                    model.email_to_address,
+                    'Marketplace Payment Received',
+                    render('emails/marketplace/payment_confirmation.txt',
+                        {'app': model}, encoding=None),
+                    model=model.to_dict('id'))
 
-            return matching_txns
+        session.close()
+        return matching_txns
 
 
 class SignNowDocument:    

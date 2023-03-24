@@ -524,7 +524,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 log.error('unable to send banned email about {}', self, exc_info=True)
 
         elif self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name and (
-                    self.paid in [c.HAS_PAID, c.NEED_NOT_PAY]
+                    self.paid in [c.HAS_PAID, c.NEED_NOT_PAY, c.REFUNDED]
                     or self.paid == c.PAID_BY_GROUP
                     and self.group_id
                     and not self.group.is_unpaid):
@@ -584,6 +584,11 @@ class Attendee(MagModel, TakesPaymentMixin):
                 self.overridden_price = self.badge_cost
             else:
                 self.paid = c.NEED_NOT_PAY
+
+    @presave_adjustment
+    def refunded_if_receipt_has_refund(self):
+        if self.paid == c.HAS_PAID and self.active_receipt and self.active_receipt.get('refund_total'):
+            self.paid = c.REFUNDED
 
     @presave_adjustment
     def assign_creator(self):

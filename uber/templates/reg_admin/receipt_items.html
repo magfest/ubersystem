@@ -63,6 +63,36 @@
     });
   };
 
+  var compItem = function (itemId) {
+    bootbox.confirm({
+      title: "Comp Receipt Item?",
+      message: "This will mark this item as comped, adding a credit to the receipt. " +
+               "Use the Refund button if you want to both comp and refund this item via Stripe (if applicable).",
+      buttons: {
+          confirm: {
+              label: 'Comp Item',
+              className: 'btn-success'
+          },
+          cancel: {
+              label: 'Nevermind',
+              className: 'btn-default'
+          }
+      },
+      callback: function (result) {
+        if(result) {
+          $.post('comp_receipt_item', {csrf_token: csrf_token, id: itemId}, function (response) {
+            toastr.clear();
+            if (response.error) {
+              toastr.error(response.error);
+            } else {
+              window.location = 'receipt_items?id={{ model.id }}&message=Receipt item comped'
+            }
+          }, 'json');
+        }
+      }
+    });
+  };
+
   var undoItem = function (itemId) {
     bootbox.confirm({
       title: "Undo Receipt Item?",
@@ -92,12 +122,23 @@
     });
   };
 
+  var refreshTxn = function(txnId) {
+    $.post('refresh_receipt_txn', {csrf_token: csrf_token, id: txnId}, function (response) {
+      if (response.refresh) {
+        window.location.href = 'receipt_items?id={{ model.id }}&message=' + response.message;
+      } else {
+        toastr.clear();
+        toastr.info(response.message);
+      }
+    }, 'json');
+  }
+
   var cancelTxn = function (txnId) {
     bootbox.confirm({
       title: "Cancel Transaction?",
       message: "This will permanently mark this transaction as cancelled. " +
-        "This cannot be undone, and should only be used for payments that " +
-        "were recorded incorrectly or that you are sure did not go through. " +
+        "This cannot be undone, and should only be used if the receipt total " +
+        "has changed since this payment was initiated. " +
         "Are you sure?",
       buttons: {
           confirm: {
@@ -127,15 +168,19 @@
   };
 
   var refundTxn = function (txnId, amount) {
-    var refundPrompt = bootbox.prompt({
+    var amountField = $("#refundTxnForm [name='amount']");
+    amountField.attr('placeholder', amount.substring(1));
+
+    var form = $("#refundTxnDiv").html();
+    $("#refundTxnDiv").html('');
+
+    bootbox.confirm({
       title: "Refund Transaction?",
-      message: "This will refund the attendee through Stripe. " +
-        "This cannot be undone. Are you sure?",
-      placeholder: amount,
+      message: form,
       buttons: {
           confirm: {
-              label: 'Refund',
-              className: 'btn-danger'
+              label: 'Process Refund',
+              className: 'btn-warning'
           },
           cancel: {
               label: 'Nevermind',
@@ -143,8 +188,9 @@
           }
       },
       callback: function (result) {
+        $("#refundTxnDiv").html(form);
         if(result) {
-          $.post('refund_receipt_txn', {csrf_token: csrf_token, id: txnId, amount: result}, function (response) {
+          $.post('refund_receipt_txn', {csrf_token: csrf_token, id: txnId, amount: $("#refundTxnForm [name='amount']").val() || 0}, function (response) {
             toastr.clear();
             if (response.error) {
               toastr.error(response.error);
@@ -157,9 +203,45 @@
         }
       }
     });
-    refundPrompt.init(function(){
-      $(this).find('.bootbox-form').prepend('<p>This will refund the attendee through Stripe. You can enter an amount below or leave it blank to refund the full amount.</p>')
-      $(this).find('.bootbox-input-text')
+  };
+
+  var refundItem = function (itemId, amount, count, canRevert) {
+    var bootboxBtns = {
+          cancel: {
+              label: 'Nevermind',
+              className: 'btn-default',
+          },
+          comp: {
+              label: 'Comp and Refund',
+              className: 'btn-success',
+              callback: function () {
+                $.post('comp_refund_receipt_item', {csrf_token: csrf_token, id: itemId, amount: result}, function (response) {
+                  toastr.clear();
+                  if (response.error) {
+                    toastr.error(response.error);
+                  } else {
+                    toastr.info('Transaction refunded');
+                    updateRow(response.refunded, ' td:last #amt-refunded', " ($" + (response.refund_total / 100).toFixed(2) + " refunded)");
+                    updateTotal(response.new_total, response.disable_button);
+                  }
+                }, 'json');
+              }
+          }
+        }
+
+    if (canRevert == 'yes') {
+      bootboxBtns.revert = {
+        label: 'Undo and Refund',
+        className: 'btn-danger',
+      }
+    }
+    
+    bootbox.dialog({
+      title: "Refund Item?",
+      message: "This will refund this purchase in full (" + amount + " x" + count + "). " +
+      "If you need to refund an item without marking it as comped or reverting the change, " +
+      "please refund the transaction directly.",
+      buttons: bootboxBtns,
     });
   };
 
@@ -204,6 +286,9 @@
   };
 
   $().ready(function () {
+    $('#refundTxnForm').submit(function(event) {
+      return false;
+    })
     $("form[action='add_receipt_item']").submit(function(event){
       var $form = $(this);
       $btn = $form.find('button[type=submit]');
@@ -290,7 +375,7 @@
 
 {% macro receipt_item_form(type="purchase") %}
 <tr id="{{ receipt.id }}-{{ type }}-form" class="hidden">
-  <td colspan="7">
+  <td colspan="8">
     <button type="button" class="close pull-left" aria-label="Close" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')"><span aria-hidden="true">&times;</span></button>
     <form method="post" action="add_receipt_item" class="form-inline pull-right">
       {{ csrf_token() }}
@@ -362,12 +447,16 @@
       <th>Added</th>
       <th>Admin</th>
       <th>Type</th>
+      <th></th>
       <th>Description</th>
       <th>Amount</th>
       <th></th>
+      <th></th>
     </tr></thead>
     {% for item in items %}
-    {% set amount_left = item.amount - item.refunded if item.refunded else item.amount %}
+      {#- Cache some properties that involve API calls or heavy DB calls #}
+      {% set stripe_url = item.stripe_url %}
+
       <tr id="{{ item.id }}">
         <td>{{ item.added|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
         <td>{{ item.who }}</td>
@@ -378,45 +467,61 @@
             {{ "Purchase" if item.amount > 0 else "Credit" }}
           {% endif %}
         </td>
+        <td>
+          {% if stripe_url %}<a class="btn btn-sm btn-info" href="{{ stripe_url }}" target="_blank">View <span class="glyphicon glyphicon-new-window"></span></a>{% endif %}
+        </td>
         <td>{{ item.desc }}{{ " (Stripe ID: " ~ item.stripe_id ~ ")" if item.stripe_id else "" }}</td>
         <td>
           {{ (item.amount / 100)|format_currency(true) }}
           {% if item.count and item.count > 1 %}
              x{{ item.count }}: {{ (item.count * item.amount / 100)|format_currency }}
           {% endif %}
-          </td>
+        </td>
         <td>
-          {% if item.cancelled %}
-            <em>Cancelled {{ item.cancelled|datetime_local }}</em>
-          {% elif item.closed %}
-            {% if item.revert_change and not receipt.closed %}
-              <button class="btn btn-sm btn-danger" onClick="undoItem('{{ item.id }}', '{{ receipt.id }}')">Undo Item</button>
-            {% else %}
-              <em>Payment finalized {{ item.closed|datetime_local }}</em>
-            {% endif %}
-          {% elif item.is_pending_charge or not item.stripe_id %}
-            {% if item.intent_id and not item.refund_id and not receipt.closed %}
-              <button class="btn btn-sm btn-danger" onClick="cancelTxn('{{ item.id }}')">Mark as Cancelled</button>
-            {# This should be updated when we associate receipt txns with items directly #}
-            {% elif item.method and not receipt.open_receipt_items|selectattr("added", "<", item.added)|list|length and receipt.current_receipt_amount == 0 %}
-              <em>Payment locked.</em>
-            {% elif not receipt.closed %}
-              {% if item.revert_change %}
-                <button class="btn btn-sm btn-danger" onClick="undoItem('{{ item.id }}', '{{ receipt.id }}')">Undo Item</button>
+          {% if item.refundable %}
+          <button class="btn btn-sm btn-warning"
+                  onClick="
+                  {% if item.method %}
+                  refundTxn('{{ item.id }}', '{{ (item.amount_left / 100)|format_currency }}')
+                  {% else %}
+                  refundItem('{{ item.id }}', '{{ (item.amount / 100)|format_currency }}', '{{ item.count }}', '{{ item.revert_change|yesno }}')
+                  {% endif %}"
+                  >
+                  Refund
+          </button>
+          {% endif %}
+        </td>
+        <td>
+          {% if item.available_actions %}
+            {% for action in item.available_actions %}
+              {% if action == 'refresh_receipt_txn' %}
+              <button class="btn btn-sm btn-info" onClick="refreshTxn('{{ item.id }}')">Refresh from Stripe</button>
               {% endif %}
+              {% if action == 'cancel_receipt_txn' %}
+              <button class="btn btn-sm btn-danger" onClick="cancelTxn('{{ item.id }}')">Mark as Cancelled</button>
+              {% endif %}
+              {% if action == 'comp_receipt_item' %}
+              <button class="btn btn-sm btn-success" onClick="compItem('{{ item.id }}', '{{ receipt.id }}')">Comp Item</button>
+              {% endif %}
+              {% if action == 'undo_receipt_item' %}
+              <button class="btn btn-sm btn-danger" onClick="undoItem('{{ item.id }}', '{{ receipt.id }}')">Undo Item</button>
+              {% endif %}
+              {% if action == 'remove_receipt_item' %}
               <button class="btn btn-sm btn-danger" onClick="deleteItem('{{ item.id }}')">
                 Delete {{ "Transaction" if item.method else "Item" }}
               </button>
-            {% endif %}
-          {% elif item.charge_id and amount_left and not receipt.closed %}
-            <button class="btn btn-sm btn-warning" onClick="refundTxn('{{ item.id }}', '{{ (amount_left / 100)|format_currency }}')">Refund Transaction</button>
-            <span id="amt-refunded">{% if item.refunded %} ({{ (item.refunded / 100)|format_currency }} refunded){% endif %}</span>
+              {% endif %}
+            {% endfor %}
+          {% elif item.cancelled %}
+            <em>Cancelled {{ item.cancelled|datetime_local }}</em>
+          {% elif item.closed %}
+            <em>Paid {{ item.paid|datetime_local }}</em>
           {% endif %}
         </td>
       </tr>
     {% endfor %}
     <tr>
-      <td colspan="7">
+      <td colspan="8">
         <span class="pull-right"><strong>Total</strong>: <span id="receipt_total">{{ receipt.total_str }}</span></span>
       </td>
     </tr>
@@ -426,7 +531,7 @@
     {{ receipt_txn_form(type="refund") }}
     {% if not receipt.closed %}
     <tr id="{{ receipt.id }}">
-      <td colspan="7">
+      <td colspan="8">
         <div class="btn-group pull-right" role="group">
           <button class="btn btn-default">Add:</button>
           <button class="btn btn-primary" onClick="showForm('{{ receipt.id }}', '-purchase-form')">Purchase</button>
@@ -498,5 +603,16 @@ There are no active receipts for this {{ model_str }}.
 </div>
 </div>
 {% endfor %}
+
+<div id="refundTxnDiv" class="hidden">
+  <p>This will refund this {{ model_str }} through Stripe. You can enter an amount below or leave it blank to refund the full amount.</p>
+
+  <div class="form-horizontal" id="refundTxnForm">
+      <div class="input-group">
+        <span class="input-group-addon">$</span>
+        <input type="text" class="form-control" name="amount">
+      </div>
+  </div>
+</div>
 
 {% endblock %}
