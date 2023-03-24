@@ -1226,13 +1226,13 @@ class Root:
             receipt = session.get_receipt_by_model(attendee)
             total_refunded = 0
             for txn in receipt.receipt_txns:
-                if txn.stripe_id:
+                error = session.preprocess_refund(txn)
+                if not error:
                     response = session.process_refund(txn)
-                    if response:
-                        if isinstance(response, string_types):
-                            raise HTTPRedirect('confirm?id={}&message={}', id,
-                                   failure_message)
-                        total_refunded += response.amount
+                    if isinstance(response, string_types):
+                        raise HTTPRedirect('confirm?id={}&message={}', id,
+                                failure_message)
+                    total_refunded += response.amount
 
             receipt.closed = datetime.now()
             session.add(receipt)

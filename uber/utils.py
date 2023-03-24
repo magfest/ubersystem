@@ -686,7 +686,8 @@ def report_critical_exception(msg, subject="Critical Error"):
     uber.server.log_exception_with_verbose_context(msg=msg)
 
     # Also attempt to email the admins
-    send_email.delay(c.ADMIN_EMAIL, [c.ADMIN_EMAIL], subject, msg + '\n{}'.format(traceback.format_exc()))
+    if c.SEND_EMAILS and not c.DEV_BOX:
+        send_email.delay(c.ADMIN_EMAIL, [c.ADMIN_EMAIL], subject, msg + '\n{}'.format(traceback.format_exc()))
 
 
 def get_page(page, queryset):

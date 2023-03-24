@@ -188,10 +188,10 @@
           }
       },
       callback: function (result) {
+        $("#refundTxnDiv").html(form);
         if(result) {
           $.post('refund_receipt_txn', {csrf_token: csrf_token, id: txnId, amount: $("#refundTxnForm [name='amount']").val() || 0}, function (response) {
             toastr.clear();
-            $("#refundTxnDiv").html(form);
             if (response.error) {
               toastr.error(response.error);
             } else {
@@ -493,38 +493,25 @@
         </td>
         <td>
           {% if item.available_actions %}
-            {% if item.available_actions|length > 2 %}
-            <button class="btn btn-sm btn-info" data-toggle="modal" data-target="#actions_for_{{ item.id }}"><span class="glyphicon glyphicon-cog"></span> Actions</button>
-            <div class="modal fade" id="actions_for_{{ item.id }}" role="dialog">
-              <div class="modal-dialog modal-lg">
-                  <div class="modal-content"><div style='padding: 10px;'>
-                    {% endif %}
-                    
-                    {% for action in item.available_actions %}
-                      {% if action == 'refresh_receipt_txn' %}
-                      <button class="btn btn-sm btn-info" onClick="refreshTxn('{{ item.id }}')">Refresh from Stripe</button>
-                      {% endif %}
-                      {% if action == 'cancel_receipt_txn' %}
-                      <button class="btn btn-sm btn-danger" onClick="cancelTxn('{{ item.id }}')">Mark as Cancelled</button>
-                      {% endif %}
-                      {% if action == 'comp_receipt_item' %}
-                      <button class="btn btn-sm btn-success" onClick="compItem('{{ item.id }}', '{{ receipt.id }}')">Comp Item</button>
-                      {% endif %}
-                      {% if action == 'undo_receipt_item' %}
-                      <button class="btn btn-sm btn-danger" onClick="undoItem('{{ item.id }}', '{{ receipt.id }}')">Undo Item</button>
-                      {% endif %}
-                      {% if action == 'remove_receipt_item' %}
-                      <button class="btn btn-sm btn-danger" onClick="deleteItem('{{ item.id }}')">
-                        Delete {{ "Transaction" if item.method else "Item" }}
-                      </button>
-                      {% endif %}
-                    {% endfor %}
-
-                    {% if item.available_actions|length > 2 %}
-                  </div></div>
-              </div>
-            </div>
-            {% endif %}
+            {% for action in item.available_actions %}
+              {% if action == 'refresh_receipt_txn' %}
+              <button class="btn btn-sm btn-info" onClick="refreshTxn('{{ item.id }}')">Refresh from Stripe</button>
+              {% endif %}
+              {% if action == 'cancel_receipt_txn' %}
+              <button class="btn btn-sm btn-danger" onClick="cancelTxn('{{ item.id }}')">Mark as Cancelled</button>
+              {% endif %}
+              {% if action == 'comp_receipt_item' %}
+              <button class="btn btn-sm btn-success" onClick="compItem('{{ item.id }}', '{{ receipt.id }}')">Comp Item</button>
+              {% endif %}
+              {% if action == 'undo_receipt_item' %}
+              <button class="btn btn-sm btn-danger" onClick="undoItem('{{ item.id }}', '{{ receipt.id }}')">Undo Item</button>
+              {% endif %}
+              {% if action == 'remove_receipt_item' %}
+              <button class="btn btn-sm btn-danger" onClick="deleteItem('{{ item.id }}')">
+                Delete {{ "Transaction" if item.method else "Item" }}
+              </button>
+              {% endif %}
+            {% endfor %}
           {% elif item.cancelled %}
             <em>Cancelled {{ item.cancelled|datetime_local }}</em>
           {% elif item.closed %}

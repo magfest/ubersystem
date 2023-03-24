@@ -352,9 +352,9 @@ class ReceiptItem(MagModel):
         if not self.closed:
             actions.append('remove_receipt_item')
 
-        if not self.comped:
+        if not self.comped and self.amount > 0 and not self.reverted:
             actions.append('comp_receipt_item')
-        if self.revert_change and not self.reverted:
+        if self.revert_change and not self.reverted and not self.comped:
             actions.append('undo_receipt_item')
 
         return actions

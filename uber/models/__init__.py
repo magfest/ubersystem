@@ -964,18 +964,32 @@ class Session(SessionManager):
                     if error:
                         return error
 
-        def preprocess_refund(self, amount=0, txn=None, item=None):
-            from uber.custom_tags import format_currency
-            from uber.models import Attendee
-
+        def refund_item_or_txn(self, amount=0, txn=None, item=None):
             if item:
                 txn = txn or item.receipt_txn
 
             if not txn:
                 return "Transaction not found for this receipt item."
 
+            error = self.preprocess_refund(txn, amount, bool(item))
+            if error:
+                return error
+
+            response = self.process_refund(txn, amount)
+            if response and isinstance(response, six.string_types):
+                return response
+
+        def preprocess_refund(self, txn, amount=0, already_refunded_error=True):
+            """
+            Performs error checks and updates transactions to prepare them for process_refund.
+            Call this to skip over transactions that can't be refunded or if you always want 
+            the Stripe response from process_refund. Otherwise, call refund_item_or_txn instead.
+            """
+            from uber.custom_tags import format_currency
+            from uber.models import Attendee
+
             if not txn.intent_id:
-                return "Can't refund a non-Stripe payment."
+                return "Can't refund a transaction that is not a Stripe payment."
 
             if not txn.charge_id:
                 charge_id = txn.check_paid_from_stripe()
@@ -984,31 +998,18 @@ class Session(SessionManager):
 
             already_refunded = txn.update_amount_refunded()
             if txn.amount - already_refunded <= 0:
-                if item:
-                    return # We'll just skip the refund, it's fine
-                return "This payment has already been fully refunded."
+                if already_refunded_error:
+                    return "This payment has already been fully refunded."
 
             refund_amount = int(amount or (txn.amount - already_refunded))
             if txn.amount - already_refunded < refund_amount:
-                return "There is not enough left on this transaction to refund {}.".format(format_currency(refund_amount / 100))
-
-            response = self.process_refund(txn, refund_amount)
-            if isinstance(response, six.string_types):
-                return response
-            
-            txn.refunded += refund_amount
-
-            model = self.get_model_by_receipt(txn.receipt)
-            if isinstance(model, Attendee) and model.paid == c.HAS_PAID:
-                model.paid = c.REFUNDED
-                self.add(model)
-            
-            self.commit()
-            self.refresh(txn)
+                return "There is not enough left on this transaction to refund {}.".format(format_currency(refund_amount / 100))                
 
         def process_refund(self, txn, amount=0):
             """
-            Attempts to refund a given Stripe transaction
+            Attempts to refund a given Stripe transaction. Either call this after preprocess_refund
+            or call refund_item_or_txn instead.
+
             Returns either an error message, a Stripe Refund() object, or None if the transaction had no successful charges
             """
             import stripe
@@ -1016,12 +1017,16 @@ class Session(SessionManager):
 
             refund_amount = amount or txn.amount_left
 
+            balance = stripe.Balance.retrieve()
+            if balance['available'][0]['amount'] < refund_amount:
+                return "We cannot currently refund this transaction. Please try again in a few days or contact an administrator."
+
             log.debug('REFUND: attempting to refund Stripe transaction with ID {} {} cents for {}',
                       txn.stripe_id, refund_amount, txn.desc)
 
             try:
                 response = stripe.Refund.create(
-                            payment_intent=txn.intent_id, amount=refund_amount, reason='requested_by_customer')
+                            payment_intent=txn.intent_id, amount=int(refund_amount), reason='requested_by_customer')
             except Exception as e:
                 error_txt = 'Error while calling process_refund' \
                             '(self, stripeID={!r})'.format(txn.stripe_id)
@@ -1039,6 +1044,15 @@ class Session(SessionManager):
                 ))
 
                 self.add(txn)
+                txn.refunded += refund_amount
+
+                model = self.get_model_by_receipt(txn.receipt)
+                if isinstance(model, Attendee) and model.paid == c.HAS_PAID:
+                    model.paid = c.REFUNDED
+                    self.add(model)
+                
+                self.commit()
+                self.refresh(txn)
                 return response
 
         def process_receipt_charge(self, receipt, charge, payment_method=c.STRIPE):

@@ -52,12 +52,12 @@ def revert_receipt_item(session, item):
 
 
 def comped_receipt_item(item):
-    ReceiptItem(receipt_id=item.receipt.id,
-                                desc="Credit for " + item.desc,
-                                amount=item.amount * -1,
-                                count=item.count,
-                                who=AdminAccount.admin_name() or 'non-admin',
-                            )
+    return ReceiptItem(receipt_id=item.receipt.id,
+                       desc="Credit for " + item.desc,
+                       amount=item.amount * -1,
+                       count=item.count,
+                       who=AdminAccount.admin_name() or 'non-admin',
+                    )
 
 
 def assign_account_by_email(session, attendee, account_email):
@@ -177,7 +177,7 @@ class Root:
         if item_or_txn.cannot_delete_reason:
             return {'error': item_or_txn.cannot_delete_reason}
 
-        if item_or_txn.method:
+        if isinstance(item_or_txn, ReceiptTransaction):
             for item in item_or_txn.receipt_items:
                 item.closed = None
                 session.add(item)
@@ -206,7 +206,7 @@ class Root:
     @ajax
     def undo_receipt_item(self, session, id='', **params):
         item = session.receipt_item(id)
-        message = revert_receipt_item(session, id)
+        message = revert_receipt_item(session, item)
         
         if message:
             session.rollback()
@@ -221,7 +221,7 @@ class Root:
     def comp_refund_receipt_item(self, session, id='', **params):
         item = session.receipt_item(id)
         actually_refunded = item.receipt_txn.refunded if item.receipt_txn else None
-        error = session.preprocess_refund(amount=float(params.get('amount', 0)) * 100, item=item)
+        error = session.refund_item_or_txn(amount=float(params.get('amount', 0)) * 100, item=item)
         if error:
             return {'error': error}
 
@@ -237,7 +237,7 @@ class Root:
     @ajax
     def undo_refund_receipt_item(self, session, id='', **params):
         item = session.receipt_item(id)
-        message = revert_receipt_item(session, id)
+        message = revert_receipt_item(session, item)
         
         if message:
             session.rollback()
@@ -245,7 +245,7 @@ class Root:
 
         actually_refunded = item.receipt_txn.refunded if item.receipt_txn else None
 
-        error = session.preprocess_refund(amount=float(params.get('amount', 0)) * 100, item=item)
+        error = session.refund_item_or_txn(amount=float(params.get('amount', 0)) * 100, item=item)
         if error:
             session.rollback()
             return {'error': error}
@@ -345,7 +345,7 @@ class Root:
     def refund_receipt_txn(self, session, id='', **params):
         txn = session.receipt_transaction(id)
 
-        error = session.preprocess_refund(amount=float(params.get('amount', 0)) * 100, txn=txn)
+        error = session.refund_item_or_txn(amount=float(params.get('amount', 0)) * 100, txn=txn)
         if error:
             return {'error': error}
 
@@ -362,15 +362,12 @@ class Root:
         receipt = session.model_receipt(id)
         refund_total = 0
         for txn in receipt.receipt_txns:
-            if txn.intent_id and not txn.charge_id and not txn.cancelled:
-                txn.check_paid_from_stripe()
-            
-            if txn.charge_id:
-                response = session.process_refund(txn)
-                if response:
-                    if isinstance(response, string_types):
-                        raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', attendee_id or group_id, response)
-                    refund_total += response.amount
+            error = session.preprocess_refund(txn)
+            if not error:
+                response = session.process_refund(txn=txn)
+                if isinstance(response, string_types):
+                    raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', attendee_id or group_id, response)
+                refund_total += response.amount
 
         receipt.closed = datetime.now()
         session.add(receipt)
