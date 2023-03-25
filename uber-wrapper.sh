@@ -7,6 +7,11 @@ set -e
 envsubst < "uber-development.ini.template" > /app/plugins/uber/development.ini
 envsubst < "sideboard-development.ini.template" > /app/development.ini
 
+if [ -n "${UBERSYSTEM_GIT_CONFIG}" ]; then
+    echo "Loading UBERSYSTEM_CONFIG from git repo ${UBERSYSTEM_GIT_CONFIG}"
+    /app/env/bin/python /app/plugins/uber/make_config.py --repo "${UBERSYSTEM_GIT_CONFIG}" --paths ${UBERSYSTEM_GIT_CONFIG_PATHS}
+fi
+
 if [ -n "${UBERSYSTEM_CONFIG}" ]; then
     echo "Parsing config from environment"
     /app/env/bin/python /app/plugins/uber/make_config.py
