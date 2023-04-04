@@ -9,8 +9,9 @@ sessions/session-*
 development.conf
 production.conf
 event.conf
-development.ini
+development*.ini
 test.ini
+docker-compose.override.yml
 #Project
 workspace.xml
 tasks.xml
