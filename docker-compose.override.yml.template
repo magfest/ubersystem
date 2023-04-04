@@ -2,7 +2,7 @@
 # 0. Stop any other containers as they all share the same port
 # 1. Download all plugins into one root directory; multiple event plugins can live side-by-side
 # 2. For each event you want to develop for, create `development-EVENTNAME.ini` in this directory
-#    where EVENTNAME matches the name of the event plugin. This file does not need to contain anything.
+#    where EVENTNAME matches the name of the event plugin. The new file does not need to contain anything.
 # 3. Copy this file to docker-compose.override.yml
 # 4. Run `docker-compose -p EVENTNAME up -d`
 # 5. Run `docker exec EVENTNAME-web-1 /app/env/bin/python /app/plugins/uber/make_config.py --repo https://github.com/magfest/terraform-aws-magfest.git --paths uber_config/environments/dev uber_config/events/EVENT/YEAR`
