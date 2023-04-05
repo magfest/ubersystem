@@ -8,8 +8,8 @@ services:
     environment:
       - DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
       - PORT=80
-      - UBERSYSTEM_GIT_CONFIG=https://github.com/magfest/terraform-aws-magfest.git
-      - UBERSYSTEM_GIT_CONFIG_PATHS=uber_config/environments/dev uber_config/events/super/2024
+    volumes:
+      - $PWD:/app/plugins/uber
   db:
     image: postgres
     environment:
@@ -31,12 +31,12 @@ services:
     command: ['celery-beat']
     environment:
       - DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
-      - UBERSYSTEM_GIT_CONFIG=https://github.com/magfest/terraform-aws-magfest.git
-      - UBERSYSTEM_GIT_CONFIG_PATHS=uber_config/environments/dev uber_config/events/super/2024
+    volumes:
+      - $PWD:/app/plugins/uber
   celery-worker:
     build: .
     command: ['celery-worker']
     environment:
       - DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
-      - UBERSYSTEM_GIT_CONFIG=https://github.com/magfest/terraform-aws-magfest.git
-      - UBERSYSTEM_GIT_CONFIG_PATHS=uber_config/environments/dev uber_config/events/super/2024
+    volumes:
+      - $PWD:/app/plugins/uber
