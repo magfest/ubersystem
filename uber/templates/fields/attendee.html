@@ -18,14 +18,6 @@
 {%- set is_after_hotel_email = c.AFTER_PREREG_HOTEL_INFO_EMAIL_DATE -%}
 {%- set group_id = group_id or attendee.group_id -%}
 
-{% macro upgrade_button(upgrade_btn_id, text="Upgrade") %}
-{% if receipt and receipt.current_amount_owed <= 0 and money_fields_ro %}
-  <a class="btn btn-sm btn-success" id="upgrade-{{ upgrade_btn_id }}-btn" data-toggle="modal" data-target="#upgradeModal">
-    <span class="glyphicon glyphicon-circle-arrow-up"></span> {{ text }}
-  </a>
-{% endif %}
-{% endmacro %}
-
 {% set receipt_modal %}
 {% if receipt and not admin_area %}
 <div class="modal fade" id="receiptModal" tabindex="-1" role="dialog" aria-labelledby="receiptTitle">
@@ -548,7 +540,7 @@ $().ready(function() {
       <label for="badge_type" class="col-sm-3 control-label">Badge Type</label>
       <div class="col-sm-6 form-control-static">
         {{ attendee.badge_type_label }}
-        {% if c.MAX_BADGE_TYPE_UPGRADE and attendee.badge_type != c.MAX_BADGE_TYPE_UPGRADE %}{{ upgrade_button('badge-type') }}{% endif %}
+        {% if c.MAX_BADGE_TYPE_UPGRADE and attendee.badge_type != c.MAX_BADGE_TYPE_UPGRADE %}{{ macros.upgrade_button('badge-type') }}{% endif %}
       </div>
     </div>
   {% endif %}
@@ -772,7 +764,7 @@ $().ready(function() {
     <label class="col-sm-3 control-label">
       Pre-ordered Merch
     </label>
-    {% call macros.read_only_if(read_only, attendee.amount_extra_label or "None", post_text='' if not can_upgrade_amount_extra else upgrade_button('amount-extra', text="Upgrade" if attendee.amount_extra else "Add")) %}
+    {% call macros.read_only_if(read_only, attendee.amount_extra_label or "None", post_text='' if not can_upgrade_amount_extra else macros.upgrade_button('amount-extra', text="Upgrade" if attendee.amount_extra else "Add")) %}
     <div class="col-sm-3">
       <select name="amount_extra" class="form-control">
         {{ options(c.DONATION_TIER_OPTS,attendee.amount_extra) }}
@@ -887,7 +879,7 @@ $().ready(function() {
         {{ macros.popup_link("../static_views/givingExtra.html", "Learn more") }}
         </label>
   {% if c.COLLECT_EXTRA_DONATION %}
-    {% call macros.read_only_if(read_only, attendee.extra_donation, pre_text='$' if attendee.extra_donation else '', post_text=upgrade_button('extra-donation', text="Change" if attendee.extra_donation else "Donate")) %}
+    {% call macros.read_only_if(read_only, attendee.extra_donation, pre_text='$' if attendee.extra_donation else '', post_text=macros.upgrade_button('extra-donation', text="Change" if attendee.extra_donation else "Donate")) %}
       <div class="col-sm-6">
         <div class="input-group">
           <span class="input-group-addon">$</span>
