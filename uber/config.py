@@ -474,7 +474,7 @@ class Config(_Overridable):
             donation_list = [tier for tier in donation_list if tier['price'] < self.SHIRT_LEVEL]
         elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
             donation_list = [tier for tier in donation_list if tier['price'] < self.SUPPORTER_LEVEL]
-        elif self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SEASON_AVAILABLE:
             donation_list = [tier for tier in donation_list if tier['price'] < self.SEASON_LEVEL]
 
         return [tier for tier in donation_list if 
