@@ -736,8 +736,8 @@ $().ready(function() {
 
       <p class="help-block col-sm-offset-3 col-sm-9">
         Each level includes all lower levels. <br/>
-        {% if c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime_local }}.<br/>{% endif %}
-        {% if c.SHIRT_DEADLINE %} {% if c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Shirt level up to Supporter level{% else %}Shirt level and higher{% endif %} {% if c.BEFORE_SHIRT_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SHIRT_DEADLINE|datetime_local("%b %-d %-I:%M%p %Z") }}{% if c.SHIRT_STOCK %} or while supplies last{% endif %}.<br/>{% endif %}
+        {% if c.SUPPORTER_DEADLINE and c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime_local }}.<br/>{% endif %}
+        {% if c.SHIRT_DEADLINE %} {% if c.SUPPORTER_DEADLINE and c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Shirt level up to Supporter level{% else %}Shirt level and higher{% endif %} {% if c.BEFORE_SHIRT_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SHIRT_DEADLINE|datetime_local("%b %-d %-I:%M%p %Z") }}{% if c.SHIRT_STOCK %} or while supplies last{% endif %}.<br/>{% endif %}
         {% if not c.SHIRT_DEADLINE and c.SHIRT_STOCK %}Shirt level and higher are only available while supplies last.{% endif %}
       </p>
     </div>
