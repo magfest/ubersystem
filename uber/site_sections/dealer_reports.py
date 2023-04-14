@@ -63,7 +63,7 @@ class Root:
                     group.address2,
                     group.city,
                     group.region,
-                    group.zip_code,
+                    str(group.zip_code),
                     group.country,
                     group.tables,
                     group.amount_paid / 100,
@@ -86,7 +86,7 @@ class Root:
                     group.address2,
                     group.city,
                     group.region,
-                    group.zip_code,
+                    str(group.zip_code),
                     group.country,
                     group.has_permit,
                     group.license
@@ -123,7 +123,7 @@ class Root:
             out.writecell(group.registered.replace(tzinfo=None), format={'num_format': 'dd/mm/yy hh:mm'})
             out.writecell(group.name, url="{}/group_admin/form?id={}".format(c.URL_BASE, group.id), last_cell=True)
             
-        
+
     @xlsx_file
     def waitlisted_group_info(self, out, session):
         waitlisted_groups = session.query(Group).filter(Group.status == c.WAITLISTED).all()

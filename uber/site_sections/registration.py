@@ -164,8 +164,9 @@ class Root:
 
                 message = '{} has been saved'.format(attendee.full_name)
                 stay_on_form = params.get('save') != 'save_return_to_search'
+                session.add(attendee)
+                session.commit()
                 if params.get('save') == 'save_check_in':
-                    session.commit()
                     if attendee.is_not_ready_to_checkin:
                         message = "Attendee saved, but they cannot check in now. Reason: {}".format(
                             attendee.is_not_ready_to_checkin)
@@ -188,8 +189,6 @@ class Root:
                             stay_on_form = False
                         
                 if stay_on_form:
-                    session.add(attendee)
-                    session.commit()
                     raise HTTPRedirect('form?id={}&message={}&return_to={}', attendee.id, message, return_to)
                 else:
                     if return_to:
@@ -628,7 +627,7 @@ class Root:
                         cherrypy.session['attendee_account_id'] = new_or_existing_account.id
 
                 session.add(attendee)
-                receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+                receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
                 session.commit()
                 if c.AFTER_BADGE_PRICE_WAIVED:
                     message = c.AT_DOOR_WAIVED_MSG
@@ -687,7 +686,7 @@ class Root:
     @credit_card
     def take_payment(self, session, id):
         attendee = session.attendee(id)
-        receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+        receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = Charge(attendee, amount=receipt.current_amount_owed, description=charge_desc)
         stripe_intent = session.process_receipt_charge(receipt, charge)
@@ -752,7 +751,7 @@ class Root:
             return {'success': False, 'message': 'Payments can only be taken by at-door stations.'}
         
         attendee = session.attendee(id)
-        receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+        receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         attendee.paid = c.HAS_PAID
         if int(payment_method) == c.STRIPE_ERROR:
             desc = "Automated message: Stripe payment manually verified by admin."
@@ -769,7 +768,7 @@ class Root:
     @credit_card
     def manual_reg_charge(self, session, id):
         attendee = session.attendee(id)
-        receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+        receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = Charge(attendee, amount=receipt.current_amount_owed, description=charge_desc)
 

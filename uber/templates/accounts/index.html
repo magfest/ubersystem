@@ -19,13 +19,15 @@ table form {
       <div class="form-group">
         <label for="attendee_id" class="sr-only">Attendee</label>
         <select class="form-control" id="attendee_id" name="attendee_id">
+            <option value="" selected="selected">Select an attendee</option>
             {{ options(all_attendees) }}
         </select>
       </div>
       <div class="form-group">
         <label for="password" class="sr-only">Password</label>
         <div class="input-group">
-          <input type="password" class="form-control" id="password" name="password" placeholder="Password" {% if not c.AT_OR_POST_CON %}disabled{% endif %}>
+          <input type="password" class="form-control" id="password" name="password" placeholder="Password"
+            {% if not c.AT_OR_POST_CON %}disabled{% endif %}>
            {% if not c.AT_OR_POST_CON %}
            <span class="input-group-addon"><span class="glyphicon glyphicon-ban-circle"></span></span>
            {% endif %}
@@ -139,6 +141,14 @@ $(document).ready(function() {
     $('table').on('click', '.update-button', function (event) {
         $(event.target).closest('tr').find('.update-form').submit();
     });
+});
+$("form[action='update']").ajaxForm(function(response){
+    if(response.success == true) {
+      window.location.href = 'index?message=' + response.message;
+    } else {
+      toastr.clear();
+      toastr.error(response.message);
+    }
 });
 </script>
 {% endblock %}

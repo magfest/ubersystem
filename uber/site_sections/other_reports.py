@@ -28,6 +28,7 @@ class Root:
             }
         }
 
+    @site_mappable(download=True)
     def food_eligible(self, session):
         cherrypy.response.headers['Content-Type'] = 'application/xml'
         eligible = {
@@ -46,7 +47,7 @@ class Root:
         }
 
     @csv_file
-    @site_mappable
+    @site_mappable(download=True)
     def requested_accessibility_services(self, out, session):
         out.writerow(['Registered', 'Badge #', 'Full Name', 'Badge Type', 'Email', 'Comments'])
         query = session.query(Attendee).filter_by(requested_accessibility_services=True)

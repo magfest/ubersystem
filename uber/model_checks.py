@@ -47,13 +47,6 @@ def read_only_makes_sense(group):
             return 'You cannot set a read-only access level lower than the read-write access'
 
 
-AdminAccount.required = [
-    ('attendee_id', 'Attendee'),
-]
-
-if not c.AUTH_DOMAIN:
-    AdminAccount.required.append(('hashed', 'Password'))
-
 @validation.AdminAccount
 def duplicate_admin(account):
     if account.is_new:
@@ -1075,6 +1068,12 @@ def specify_table_needs(app):
 def specify_cost_details(app):
     if app.has_cost and not app.cost_desc:
         return 'Please describe the materials you will provide and how much you will charge attendees for them.'
+
+
+@validation.PanelApplication
+def specify_rating(app):
+    if len(c.PANEL_RATING_OPTS) > 1 and app.rating == c.UNRATED:
+        return 'Please select a content rating for your panel.'
 
 
 Attraction.required = [
