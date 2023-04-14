@@ -1295,7 +1295,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def gets_staff_shirt(self):
-        return bool(self.badge_type == c.STAFF_BADGE and c.HOURS_FOR_SHIRT)
+        return bool(self.badge_type == c.STAFF_BADGE and c.SHIRTS_PER_STAFFER > 0)
 
     @property
     def num_staff_shirts_owed(self):
