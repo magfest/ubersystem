@@ -126,12 +126,6 @@ class AutomatedEmailFixture:
         before = [d.active_before for d in when if d.active_before]
         self.active_before = max(before) if before else None
 
-    @property
-    def body(self):
-        return decorators.render_empty(os.path.join('emails', self.template))
-    
-    @property
-    def template_url(self):
         env = JinjaEnv.env()
         try:
             template_path = pathlib.Path(env.get_template(os.path.join('emails', self.template)).name)
@@ -139,6 +133,11 @@ class AutomatedEmailFixture:
             self.template_url = f"https://github.com/magfest/{self.template_plugin}/tree/main/{self.template_plugin}/{pathlib.Path(*template_path.parts[5:]).as_posix()}"
         except jinja2.exceptions.TemplateNotFound:
             self.template_url = ""
+        
+
+    @property
+    def body(self):
+        return decorators.render_empty(os.path.join('emails', self.template))
 
 
 # Payment reminder emails, including ones for groups, which are always safe to be here, since they just
@@ -672,7 +671,7 @@ AutomatedEmailFixture(
 # sent close to the event start date.
 AutomatedEmailFixture(
     Attendee,
-    'Check in faster AND pre-verify your vaccination at {EVENT_NAME}',
+    'Check in faster at {EVENT_NAME}',
     'reg_workflow/attendee_qrcode.html',
     lambda a: not a.is_not_ready_to_checkin and c.USE_CHECKIN_BARCODE,
     allow_at_the_con=True,
