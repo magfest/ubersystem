@@ -1334,10 +1334,12 @@ class Root:
     @requires_account(Attendee)
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
+        error = ''
         if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-            message = session.auto_update_receipt(session.attendee(params.get('id')), params)
-            if message:
+            error = session.auto_update_receipt(session.attendee(params.get('id')), params)
+            if error:
                 log.error("Error while auto-updating attendee receipt: {}".format(message))
+                message = error
 
             # Stop unsetting these every time someone updates their info
             params['agreed_to_volunteer_agreement'] = session.attendee(params.get('id')).agreed_to_volunteer_agreement
@@ -1368,7 +1370,8 @@ class Root:
                         raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)
                 raise HTTPRedirect(page + 'message=' + message)
 
-        if not message:
+        if not error:
+            log.debug("Refreshing receipt...")
             session.refresh_receipt_and_model(attendee)
 
         attendee.placeholder = placeholder

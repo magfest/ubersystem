@@ -199,10 +199,7 @@ class Root:
                             attendee.id,
                             message,
                             '{} {}'.format(attendee.first_name, attendee.last_name) if c.AT_THE_CON else '')
-            else:
-                receipt = session.refresh_receipt_and_model(attendee)
-        else:
-            receipt = session.get_receipt_by_model(attendee)
+        receipt = session.refresh_receipt_and_model(attendee)
 
         return {
             'message':    message,
