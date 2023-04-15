@@ -56,7 +56,7 @@
           <td>
             <ul style="padding-left:15px">
               {% if attendee.badge_type in c.BADGE_TYPE_PRICES %}
-              <li>{{ attendee.badge_type_label|replace(' ', '-') }}-level r{% else %}<li>R{% endif %}egistration for {{ c.EVENT_NAME }}{% if attendee.badges %} for {{ attendee.badges }} people{% endif %}{% if attendee.default_badge_cost or attendee.default_promo_code_group_cost %} ({{ (attendee.default_badge_cost or attendee.default_promo_code_group_cost)|format_currency }}){% endif %}</li>
+              <li>{{ attendee.badge_type_label|replace(' ', '-') }}-level r{% else %}<li>R{% endif %}egistration for {{ c.EVENT_NAME }}{% if attendee.badges %} for {{ attendee.badges }} people{% endif %}{% if (attendee.default_badge_cost and attendee.age_discount|abs < attendee.default_badge_cost) or attendee.default_promo_code_group_cost %} ({{ ((attendee.default_badge_cost or attendee.default_promo_code_group_cost) - attendee.age_discount|abs)|format_currency }}){% endif %}</li>
               {% if attendee.requested_hotel_info %}
                 <li>Requested hotel booking info</li>
               {% endif %}

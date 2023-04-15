@@ -1330,7 +1330,7 @@ class Charge:
             return "There was an error calculating the amount. Please refresh the page or contact the system admin."
 
         if amount > 999999:
-            return "We cannot charge {}. Please make sure your total is below $999,999.".format(format_currency(amount / 100))
+            return "We cannot charge {}. Please make sure your total is below $9,999.".format(format_currency(amount / 100))
 
         log.debug('Creating Stripe Intent to charge {} cents for {}', amount, description)
         try:
