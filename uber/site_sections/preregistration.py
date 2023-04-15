@@ -1368,6 +1368,9 @@ class Root:
                         raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)
                 raise HTTPRedirect(page + 'message=' + message)
 
+        if not message:
+            session.refresh_receipt_and_model(attendee)
+
         attendee.placeholder = placeholder
         if not message and attendee.placeholder:
             message = 'You are not yet registered!  You must fill out this form to complete your registration.'
@@ -1375,8 +1378,6 @@ class Root:
             message = 'You are already registered but you may update your information with this form.'
 
         group_credit = receipt_items.credit_calculation.items['Attendee']['group_discount'](attendee)
-
-        session.refresh_receipt_and_model(attendee)
 
         return {
             'undoing_extra': undoing_extra,
@@ -1390,6 +1391,7 @@ class Root:
             'receipt':       session.get_receipt_by_model(attendee) if attendee.is_valid else None,
             'incomplete_txn':  receipt.last_incomplete_txn if receipt else None,
             'attendee_group_discount': (group_credit[1] / 100) if group_credit else 0,
+            'pii_consent':  params.get('pii_consent'),
         }
         
     @ajax

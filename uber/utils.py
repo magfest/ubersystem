@@ -1198,7 +1198,7 @@ class Charge:
             cost_change_name = cost_change_tuple[0]
             cost_change_func = cost_change_tuple[1]
             if len(cost_change_tuple) > 2:
-                cost_change_name = cost_change_name.format(*[dictionary.get(new_val) for dictionary in cost_change_tuple[2:]])
+                cost_change_name = cost_change_name.format(*[dictionary.get(new_val, str(new_val)) for dictionary in cost_change_tuple[2:]])
             
             if not cost_change_func:
                 old_cost, cost_change = cls.calc_simple_cost_change(model, col_name, new_val)
