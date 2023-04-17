@@ -52,7 +52,7 @@ class AmazonSES:
                 },
                 ReturnPath=returnPath or source,
             )
-            log.error("Sent email. Response: " + str(response))
+            log.info("Sent email. Response: " + str(response))
         except ClientError as e:
             return e.response['Error']['Message']
         except Exception as e:
