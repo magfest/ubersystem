@@ -58,14 +58,17 @@ def send_email(
             'subject': subject,
             'charset': 'UTF-8',
             }
+        log.error('Attempting to send email {}, locals())
 
         try:
-            email_sender.sendEmail(
-            source=sender,
-            toAddresses=to,
-            ccAddresses=cc,
-            bccAddresses=bcc,
-            message=message)
+            error_msg = email_sender.sendEmail(
+                            source=sender,
+                            toAddresses=to,
+                            ccAddresses=cc,
+                            bccAddresses=bcc,
+                            message=message)
+            if error_msg:
+                log.error('Error while sending email: ' + error_msg)
         except Exception as error:
             log.error('Error while sending email: {}'.format(error))
         sleep(0.1)  # Avoid hitting rate limit
