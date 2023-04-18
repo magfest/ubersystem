@@ -60,7 +60,7 @@ def send_email(
             'subject': subject,
             'charset': 'UTF-8',
             }
-        log.info('Attempting to send email {}, locals())
+        log.info('Attempting to send email {}', locals())
 
         try:
             error_msg = email_sender.sendEmail(
