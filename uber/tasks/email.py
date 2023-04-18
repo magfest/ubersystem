@@ -72,13 +72,13 @@ def send_email(
             if error_msg:
                 log.error('Error while sending email: ' + error_msg)
             else:
-                record_email = True if c.DEV_BOX else False
+                record_email = True
         except Exception as error:
             log.error('Error while sending email: {}'.format(error))
         sleep(0.1)  # Avoid hitting rate limit
     else:
         log.error('Email sending turned off, so unable to send {}', locals())
-        record_email = True
+        record_email = True if c.DEV_BOX else False
 
     if original_to:
         body = body.decode('utf-8') if isinstance(body, bytes) else body
