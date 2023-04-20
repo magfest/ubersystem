@@ -6,6 +6,7 @@ import pathlib
 import base64
 import gzip
 import yaml
+import sys
 import os
 
 root = os.environ.get("UBERSYSTEM_ROOT", "/app")
@@ -18,7 +19,11 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("--repo", required=False, help="Optional git repo to pull config from, used for development")
 parser.add_argument("--paths", nargs="*", help="Configuration paths to use when loading from git repo")
+parser.add_argument("--overwrite", help="Overwrite an existing development.ini if it exists", action="store_true")
 args = parser.parse_args()
+
+if not args.overwrite and os.path.exists("development.ini"):
+    sys.exit("development.ini already exists. Use --overwrite to replace it.")
 
 if args.repo:
     repo_config = []
