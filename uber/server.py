@@ -80,6 +80,15 @@ def log_exception_with_verbose_context(debug=False, msg=''):
     log_with_verbose_context('\n'.join([msg, 'Exception encountered']), exc_info=True)
 
 
+def redirect_site_section(original, redirect, new_page='', *path, **params):
+    path = cherrypy.request.path_info.replace(original, redirect)
+    if new_page:
+        path = path.replace(c.PAGE, new_page)
+    if cherrypy.request.query_string:
+        path += '?' + cherrypy.request.query_string
+    raise HTTPRedirect(path)
+
+
 cherrypy.tools.custom_verbose_logger = cherrypy.Tool('before_error_response', log_exception_with_verbose_context)
 
 
