@@ -2,8 +2,7 @@
 x-uber: &uber
   build: .
   environment: 
-    - &uber-db-connect # This anchor ONLY supports one value, YAML does not support properly merging sequences
-      DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
+    - &uber-db-connect DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
   volumes:
     - $PWD:/app/plugins/uber
 
