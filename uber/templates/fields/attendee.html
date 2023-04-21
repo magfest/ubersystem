@@ -973,7 +973,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 
 {% set job_interests %}
 {% set read_only = job_interests_ro or page_ro %}
-{% if c.JOB_INTEREST_OPTS %}
+{% if c.JOB_INTEREST_OPTS or c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
   <div class="form-group staffing" id="departments">
     <label for="requested_depts_ids" class="col-sm-3 control-label">Where do you want to help?</label>
     {% call macros.read_only_if(read_only, attendee.requested_depts_labels) %}
