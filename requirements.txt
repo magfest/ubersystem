@@ -27,3 +27,4 @@ requests==2.27.1
 signnow_python_sdk==2.0.1
 Authlib==1.0.1
 WTForms==3.0.0
+pyyaml==6.0

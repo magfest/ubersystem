@@ -40,6 +40,26 @@ def check_custom_receipt_item_txn(params, is_txn=False):
         return "You must describe the item you are adding or crediting."
 
 
+def revert_receipt_item(session, item):
+    receipt = item.receipt
+    model = session.get_model_by_receipt(receipt)
+    for col_name in item.revert_change:
+        receipt_item = Charge.process_receipt_upgrade_item(model, col_name, receipt=receipt, new_val=item.revert_change[col_name])
+        session.add(receipt_item)
+        model.apply(item.revert_change, restricted=False)
+    
+    return check(model)
+
+
+def comped_receipt_item(item):
+    return ReceiptItem(receipt_id=item.receipt.id,
+                       desc="Credit for " + item.desc,
+                       amount=item.amount * -1,
+                       count=item.count,
+                       who=AdminAccount.admin_name() or 'non-admin',
+                    )
+
+
 def assign_account_by_email(session, attendee, account_email):
     from uber.site_sections.preregistration import set_up_new_account
 
@@ -150,13 +170,21 @@ class Root:
     @ajax
     def remove_receipt_item(self, session, id='', **params):
         try:
-            item = session.receipt_item(id)
+            item_or_txn = session.receipt_item(id)
         except NoResultFound:
-            item = session.receipt_transaction(id)
+            item_or_txn = session.receipt_transaction(id)
 
-        receipt = item.receipt
+        if item_or_txn.cannot_delete_reason:
+            return {'error': item_or_txn.cannot_delete_reason}
+
+        if isinstance(item_or_txn, ReceiptTransaction):
+            for item in item_or_txn.receipt_items:
+                item.closed = None
+                session.add(item)
+
+        receipt = item_or_txn.receipt
         
-        session.delete(item)
+        session.delete(item_or_txn)
         session.commit()
 
         return {
@@ -166,23 +194,67 @@ class Root:
         }
 
     @ajax
+    def comp_receipt_item(self, session, id='', **params):
+        item = session.receipt_item(id)
+        credit_item = comped_receipt_item(item)
+        session.add(credit_item)
+        item.comped = True
+        session.commit()
+
+        return {'success': True}
+
+    @ajax
     def undo_receipt_item(self, session, id='', **params):
         item = session.receipt_item(id)
-        receipt = item.receipt
-        model = session.get_model_by_receipt(receipt)
-        for col_name in item.revert_change:
-            receipt_item = Charge.process_receipt_upgrade_item(model, col_name, receipt=receipt, new_val=item.revert_change[col_name])
-            session.add(receipt_item)
-            model.apply(item.revert_change, restricted=False)
-        
-        message = check(model)
+        message = revert_receipt_item(session, item)
         
         if message:
             session.rollback()
             return {'error': message}
+
+        item.reverted = True
         session.commit()
 
         return {'success': True}
+
+    @ajax
+    def comp_refund_receipt_item(self, session, id='', **params):
+        item = session.receipt_item(id)
+        actually_refunded = item.receipt_txn.refunded if item.receipt_txn else None
+        error = session.refund_item_or_txn(amount=float(params.get('amount', 0)) * 100, item=item)
+        if error:
+            return {'error': error}
+
+        actually_refunded = item.receipt_txn.refunded - actually_refunded
+
+        credit_item = comped_receipt_item(item)
+        session.add(credit_item)
+        item.comped = True
+        session.commit()
+
+        return {'message': "Item comped{}".format(" and refunded." if actually_refunded else ". Its corresponding transaction was already fully refunded.")}
+
+    @ajax
+    def undo_refund_receipt_item(self, session, id='', **params):
+        item = session.receipt_item(id)
+        message = revert_receipt_item(session, item)
+        
+        if message:
+            session.rollback()
+            return {'error': message}
+
+        actually_refunded = item.receipt_txn.refunded if item.receipt_txn else None
+
+        error = session.refund_item_or_txn(amount=float(params.get('amount', 0)) * 100, item=item)
+        if error:
+            session.rollback()
+            return {'error': error}
+        
+        actually_refunded = item.receipt_txn.refunded - actually_refunded
+        item.reverted = True
+        session.commit()
+
+        return {'message': "Item reverted{}".format(" and refunded." if actually_refunded else ". Its corresponding transaction was already fully refunded.")}
 
     @ajax
     def add_receipt_txn(self, session, id='', **params):
@@ -222,9 +294,20 @@ class Root:
     @ajax
     def cancel_receipt_txn(self, session, id='', **params):
         txn = session.receipt_transaction(id)
+
+        if txn.charge_id:
+            return {'error': "You cannot cancel a completed Stripe payment."}
+        
+        if txn.intent_id:
+            charge_id = txn.check_paid_from_stripe()
+            if charge_id:
+                return {'error': "Stripe indicates that this payment has already completed."}
         
         txn.cancelled = datetime.now()
-        session.add(txn)
+        for item in txn.receipt_items:
+            item.closed = None
+            session.add(item)
+        txn.receipt_items = []
         session.commit()
 
         return {
@@ -235,27 +318,41 @@ class Root:
         }
 
     @ajax
+    def refresh_receipt_txn(self, session, id='', **params):
+        txn = session.receipt_transaction(id)
+        messages = []
+
+        if txn.intent_id and not txn.charge_id:
+            charge_id = txn.check_paid_from_stripe()
+            if charge_id:
+                messages.append("Transaction marked as paid from Stripe.")
+
+        if txn.amount_left > 0:
+            prior_amount = txn.amount - txn.amount_left
+            new_amount = txn.update_amount_refunded()
+            if prior_amount != new_amount:
+                messages.append("Refund amount updated from {} to {}.".format(format_currency(prior_amount / 100),
+                                                                              format_currency(new_amount / 100)))
+
+        session.commit()
+        
+        return {
+            'refresh': bool(messages),
+            'message': ' '.join(messages) if messages else "Transaction already up-to-date.",
+        }
+
+    @ajax
     def refund_receipt_txn(self, session, id='', **params):
         txn = session.receipt_transaction(id)
-        model = session.get_model_by_receipt(txn.receipt)
-        amount = int(float(params.get('amount', 0)) * 100)
-        txn.update_amount_refunded()
-        refund_total = amount + txn.refunded
 
-        if refund_total > txn.amount:
-            return {'error': "There is not enough left on this transaction to refund ${}.".format(amount)}
-        
-        if txn.stripe_id:
-            response = session.process_refund(txn, amount)
-            if response:
-                if isinstance(response, string_types):
-                    raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', model.id, response)
-
-            session.commit()
+        error = session.refund_item_or_txn(amount=float(params.get('amount', 0)) * 100, txn=txn)
+        if error:
+            return {'error': error}
 
         return {
             'refunded': id,
-            'refund_total': refund_total,
+            'message': "Successfully refunded {}".format(format_currency(txn.refunded)),
+            'refund_total': txn.refunded,
             'new_total': txn.receipt.total_str,
             'disable_button': txn.receipt.current_amount_owed == 0
         }
@@ -265,15 +362,12 @@ class Root:
         receipt = session.model_receipt(id)
         refund_total = 0
         for txn in receipt.receipt_txns:
-            if txn.intent_id and not txn.charge_id and not txn.cancelled:
-                txn.check_paid_from_stripe()
-            
-            if txn.charge_id:
-                response = session.process_refund(txn)
-                if response:
-                    if isinstance(response, string_types):
-                        raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', attendee_id or group_id, response)
-                    refund_total += response.amount
+            error = session.preprocess_refund(txn)
+            if not error:
+                response = session.process_refund(txn=txn)
+                if isinstance(response, string_types):
+                    raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', attendee_id or group_id, response)
+                refund_total += response.amount
 
         receipt.closed = datetime.now()
         session.add(receipt)

@@ -223,7 +223,7 @@ class Config(_Overridable):
         Returns either PRINTED_BADGE_DEADLINE for custom badge types or the latter of PRINTED_BADGE_DEADLINE and
         SUPPORTER_BADGE_DEADLINE if the badge type is not preassigned (and only has a badge name if they're a supporter)
         """
-        return c.PRINTED_BADGE_DEADLINE if badge_type in c.PREASSIGNED_BADGE_TYPES \
+        return c.PRINTED_BADGE_DEADLINE if badge_type in c.PREASSIGNED_BADGE_TYPES or not c.SUPPORTER_BADGE_DEADLINE \
             else max(c.PRINTED_BADGE_DEADLINE, c.SUPPORTER_BADGE_DEADLINE)
 
     def after_printed_badge_deadline_by_type(self, badge_type):
@@ -474,7 +474,7 @@ class Config(_Overridable):
             donation_list = [tier for tier in donation_list if tier['price'] < self.SHIRT_LEVEL]
         elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
             donation_list = [tier for tier in donation_list if tier['price'] < self.SUPPORTER_LEVEL]
-        elif self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SEASON_AVAILABLE:
             donation_list = [tier for tier in donation_list if tier['price'] < self.SEASON_LEVEL]
 
         return [tier for tier in donation_list if 
@@ -850,7 +850,8 @@ class Config(_Overridable):
                         and not getattr(method, 'not_site_mappable', False):
                         pages[module_name].append({
                             'name': name.replace('_', ' ').title(),
-                            'path': '/{}/{}'.format(module_name, name)
+                            'path': '/{}/{}'.format(module_name, name),
+                            'is_download': getattr(method, 'site_map_download', False)
                         })
         return public_site_sections, public_pages, pages
 

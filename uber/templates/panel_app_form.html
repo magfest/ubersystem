@@ -66,6 +66,23 @@
     });
 </script>
 {% endif %}
+{% if c.PANEL_RATING_OPTS|length > 1 %}
+<div class="form-group">
+    <label class="col-sm-3 control-label">Panel Content Rating</label>
+    <div class="col-sm-6">
+        <select class="form-control" name="rating">
+            {{ options(c.PANEL_RATING_OPTS, app.rating) }}
+        </select>
+    </div>
+</div>
+<script type="text/javascript">
+    $().ready(function() {
+        if ($.field('rating')) {
+            $("select[name=rating]").find('option[value="{{ c.UNRATED }}"]').insertBefore($("select[name=rating]").find('option:eq(0)'));
+        }
+    });
+</script>
+{% endif %}
 <div class="form-group">
     <label class="col-sm-3 control-label">Type of Panel</label>
     <div class="col-sm-6">

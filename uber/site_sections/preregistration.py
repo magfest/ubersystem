@@ -645,7 +645,7 @@ class Root:
             return {'error': message}
 
         for receipt in receipts:
-            receipt_txn = Charge.create_receipt_transaction(receipt, charge.description, stripe_intent.id)
+            receipt_txn = Charge.create_receipt_transaction(receipt, charge.description, stripe_intent.id, receipt.current_amount_owed)
             session.add(receipt_txn)
 
         for attendee in charge.attendees:
@@ -1226,13 +1226,13 @@ class Root:
             receipt = session.get_receipt_by_model(attendee)
             total_refunded = 0
             for txn in receipt.receipt_txns:
-                if txn.stripe_id:
+                error = session.preprocess_refund(txn)
+                if not error:
                     response = session.process_refund(txn)
-                    if response:
-                        if isinstance(response, string_types):
-                            raise HTTPRedirect('confirm?id={}&message={}', id,
-                                   failure_message)
-                        total_refunded += response.amount
+                    if isinstance(response, string_types):
+                        raise HTTPRedirect('confirm?id={}&message={}', id,
+                                failure_message)
+                    total_refunded += response.amount
 
             receipt.closed = datetime.now()
             session.add(receipt)
@@ -1340,10 +1340,12 @@ class Root:
             attendee = session.attendee(params.get('id'))
 
         from uber.forms import PersonalInfo, BadgeExtras, OtherInfo
+        error = ''
         if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-            message = session.auto_update_receipt(attendee, params)
-            if message:
+            error = session.auto_update_receipt(attendee, params)
+            if error:
                 log.error("Error while auto-updating attendee receipt: {}".format(message))
+                message = error
 
             # Stop unsetting these every time someone updates their info
             params['agreed_to_volunteer_agreement'] = attendee.agreed_to_volunteer_agreement
@@ -1382,6 +1384,10 @@ class Root:
                         raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)
                 raise HTTPRedirect(page + 'message=' + message)
 
+        if not error:
+            log.debug("Refreshing receipt...")
+            session.refresh_receipt_and_model(attendee)
+
         attendee.placeholder = placeholder
         if not message and attendee.placeholder:
             message = 'You are not yet registered!  You must fill out this form to complete your registration.'
@@ -1389,8 +1395,6 @@ class Root:
             message = 'You are already registered but you may update your information with this form.'
 
         group_credit = receipt_items.credit_calculation.items['Attendee']['group_discount'](attendee)
-
-        session.refresh_receipt_and_model(attendee)
 
         return {
             'undoing_extra': undoing_extra,
@@ -1407,6 +1411,7 @@ class Root:
             'personal_info': personal_info,
             'badge_extras': badge_extras,
             'other_info': other_info,
+            'pii_consent':  params.get('pii_consent'),
         }
         
     @ajax
@@ -1456,6 +1461,9 @@ class Root:
         txn = session.receipt_transaction(txn_id)
 
         stripe_intent = txn.get_stripe_intent()
+
+        if not stripe_intent:
+            return {'error': "Something went wrong. Please contact us at {}.".format(c.REGDESK_EMAIL)}
 
         if stripe_intent.charges:
             return {'error': "This payment has already been finalized!"}

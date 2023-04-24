@@ -1,21 +1,21 @@
-"""Allow API and Print jobs to not have admin IDs
+"""Add content rating to panel applications
 
-Revision ID: a4a79802ba51
-Revises: a5d2a3700b1a
-Create Date: 2022-08-18 23:48:31.985975
+Revision ID: ed2acba6f8bd
+Revises: fa2deb095760
+Create Date: 2023-02-28 22:22:34.633635
 
 """
 
 
 # revision identifiers, used by Alembic.
-revision = 'a4a79802ba51'
-down_revision = 'a5d2a3700b1a'
+revision = 'ed2acba6f8bd'
+down_revision = 'fa2deb095760'
 branch_labels = None
-depends_on = 'c7a439f29c1c'
+depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+
 
 
 try:
@@ -52,18 +52,8 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.alter_column('api_job', 'admin_id',
-               existing_type=postgresql.UUID(),
-               nullable=True)
-    op.alter_column('print_job', 'admin_id',
-               existing_type=postgresql.UUID(),
-               nullable=True)
+    op.add_column('panel_application', sa.Column('rating', sa.Integer(), server_default='54944008', nullable=False))
 
 
 def downgrade():
-    op.alter_column('print_job', 'admin_id',
-               existing_type=postgresql.UUID(),
-               nullable=False)
-    op.alter_column('api_job', 'admin_id',
-               existing_type=postgresql.UUID(),
-               nullable=False)
+    op.drop_column('panel_application', 'rating')

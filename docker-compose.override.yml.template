@@ -1,0 +1,42 @@
+# Usage instructions
+# 0. Stop any other containers as they all share the same port
+# 1. Download all plugins into one root directory; multiple event plugins can live side-by-side
+# 2. For each event you want to develop for, create `development-EVENTNAME.ini` in this directory
+#    where EVENTNAME matches the name of the event plugin. The new file does not need to contain anything.
+# 3. Copy this file to docker-compose.override.yml
+# 4. Run `docker-compose -p EVENTNAME up -d`
+# 5. Run `docker exec EVENTNAME-web-1 /app/env/bin/python /app/plugins/uber/make_config.py --repo https://github.com/magfest/terraform-aws-magfest.git --paths uber_config/environments/dev uber_config/events/EVENT/YEAR`
+#    where EVENT is the config folder name (e.g., `stock` not `magstock`) and year is the config year (e.g., 2023)
+#
+# Repeat step 5 whenever you want to reset your config to the git repo
+
+services:
+  web:
+    extends:
+      file: docker-compose.yml
+      service: web
+    # Uncomment the environment settings below to automatically pull config from a git repo
+    # This will ALWAYS UNDO any local changes you make to development.ini
+    # Be sure to set your UBER_CONFIG_EVENT and UBER_CONFIG_YEAR env variables to match the folders in your git repo
+    #
+    #environment:
+    #  - UBERSYSTEM_GIT_CONFIG=https://github.com/magfest/terraform-aws-magfest.git
+    #  - UBERSYSTEM_GIT_CONFIG_PATHS=uber_config/environments/dev uber_config/events/${UBER_CONFIG_EVENT:-super}/${UBER_CONFIG_YEAR:-2024}
+    volumes:
+      - $PWD/../covid:/app/plugins/covid
+      - $PWD/../${COMPOSE_PROJECT_NAME}/:/app/plugins/${COMPOSE_PROJECT_NAME}
+      - $PWD/development-${COMPOSE_PROJECT_NAME}.ini:/app/plugins/uber/development.ini
+  celery-beat:
+    extends:
+      file: docker-compose.yml
+      service: celery-beat
+    volumes:
+      - $PWD/../covid:/app/plugins/covid
+      - $PWD/../${COMPOSE_PROJECT_NAME}/:/app/plugins/${COMPOSE_PROJECT_NAME}
+  celery-worker:
+    extends:
+      file: docker-compose.yml
+      service: celery-worker
+    volumes:
+      - $PWD/../covid:/app/plugins/covid
+      - $PWD/../${COMPOSE_PROJECT_NAME}/:/app/plugins/${COMPOSE_PROJECT_NAME}

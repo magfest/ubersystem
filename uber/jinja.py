@@ -153,12 +153,18 @@ class JinjaEnv:
             cls._env.loader.searchpath.insert(0, dirname)
         else:
             cls._template_dirs.insert(0, dirname)
+        cls.clear_cache()
 
     @classmethod
     def env(cls):
         if cls._env is None:
             cls._env = cls._init_env()
         return cls._env
+
+    @classmethod
+    def clear_cache(cls):
+        if not cls._env is None:
+            cls._env._get_matching_filenames.cache_clear()
 
     @classmethod
     def _init_env(cls):
