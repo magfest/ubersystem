@@ -309,7 +309,7 @@ class Config(_Overridable):
                     Attendee.paid == self.PAID_BY_GROUP,
                     Group.amount_paid > 0).count()
 
-                promo_code_badges = session.query(PromoCode).join(PromoCodeGroup).count()
+                promo_code_badges = session.query(PromoCode).join(PromoCodeGroup).filter(PromoCode.cost > 0).count()
 
                 return individuals + group_badges + promo_code_badges
 
