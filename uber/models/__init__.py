@@ -990,6 +990,10 @@ class Session(SessionManager):
 
             if not txn.intent_id:
                 return "Can't refund a transaction that is not a Stripe payment."
+            
+            error = txn.check_stripe_id()
+            if error:
+                return "Error issuing refund: " + str(error)
 
             if not txn.charge_id:
                 charge_id = txn.check_paid_from_stripe()

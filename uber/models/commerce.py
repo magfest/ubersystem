@@ -174,9 +174,29 @@ class ModelReceipt(MagModel):
                                                         "They" if self.current_receipt_amount >= 0 else "We",
                                                         format_currency(self.current_receipt_amount / 100))
 
-    @property
-    def last_incomplete_txn(self):
-        return sorted(self.pending_txns, key=lambda t: t.added, reverse=True)[0] if self.pending_txns else None
+    def get_last_incomplete_txn(self):
+        from uber.models import Session
+
+        for txn in sorted(self.pending_txns, key=lambda t: t.added, reverse=True):
+            error = txn.check_stripe_id()
+            if error or txn.amount != self.current_receipt_amount:
+                if error:
+                    txn.cancelled = datetime.now() # TODO: Add logs to txns/items and log the automatic cancellation reason?
+                if txn.amount != self.current_receipt_amount:
+                    txn.amount = self.current_receipt_amount
+                    stripe.PaymentIntent.modify(txn.intent_id, amount = txn.amount)
+
+                if self.session:
+                    self.session.add(txn)
+                    self.session.commit()
+                else:
+                    with Session() as session:    
+                        session.add(txn)
+                        session.commit()
+                if not error:
+                    return txn
+            else:
+                return txn
 
 
 class ReceiptTransaction(MagModel):
@@ -255,6 +275,34 @@ class ReceiptTransaction(MagModel):
     def stripe_id(self):
         # Return the most relevant Stripe ID for admins
         return self.refund_id or self.charge_id or self.intent_id
+    
+    def check_stripe_id(self):
+        # Check all possible Stripe IDs for invalid request errors
+        # Stripe IDs become invalid if, for example, the Stripe API keys change
+
+        if not self.stripe_id:
+            return
+        
+        refund_intent_id = None
+        if self.refund_id:
+            try:
+                refund = stripe.Refund.retrieve(self.refund_id)
+            except Exception as e:
+                return e.user_message
+            else:
+                refund_intent_id = refund.payment_intent
+
+        if self.intent_id or refund_intent_id:
+            try:
+                intent = stripe.PaymentIntent.retrieve(self.intent_id or refund_intent_id)
+            except Exception as e:
+                return e.user_message
+            
+        if self.charge_id:
+            try:
+                charge = stripe.Charge.retrieve(self.charge_id)
+            except Exception as e:
+                return e.user_message
 
     def get_intent_id_from_refund(self):
         if not self.refund_id:
