@@ -299,6 +299,9 @@ class Root:
             return {'error': "You cannot cancel a completed Stripe payment."}
         
         if txn.intent_id:
+            error = txn.check_stripe_id()
+            if error:
+                return {'error': "Error while checking this transaction: " + error}
             charge_id = txn.check_paid_from_stripe()
             if charge_id:
                 return {'error': "Stripe indicates that this payment has already completed."}
@@ -322,19 +325,23 @@ class Root:
         txn = session.receipt_transaction(id)
         messages = []
 
-        if txn.intent_id and not txn.charge_id:
-            charge_id = txn.check_paid_from_stripe()
-            if charge_id:
-                messages.append("Transaction marked as paid from Stripe.")
+        error = txn.check_stripe_id()
+        if not error:
+            if txn.intent_id and not txn.charge_id:
+                charge_id = txn.check_paid_from_stripe()
+                if charge_id:
+                    messages.append("Transaction marked as paid from Stripe.")
 
-        if txn.amount_left > 0:
-            prior_amount = txn.amount - txn.amount_left
-            new_amount = txn.update_amount_refunded()
-            if prior_amount != new_amount:
-                messages.append("Refund amount updated from {} to {}.".format(format_currency(prior_amount / 100),
+            if txn.amount_left > 0:
+                prior_amount = txn.amount - txn.amount_left
+                new_amount = txn.update_amount_refunded()
+                if prior_amount != new_amount:
+                    messages.append("Refund amount updated from {} to {}.".format(format_currency(prior_amount / 100),
                                                                               format_currency(new_amount / 100)))
 
-        session.commit()
+            session.commit()
+        else:
+            messages.append("Error while refreshing from Stripe: " + error)
         
         return {
             'refresh': bool(messages),
