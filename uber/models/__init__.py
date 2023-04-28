@@ -1022,7 +1022,7 @@ class Session(SessionManager):
             refund_amount = amount or txn.amount_left
 
             balance = stripe.Balance.retrieve()
-            if balance['available'][0]['amount'] < refund_amount:
+            if balance['instant_available'][0]['amount'] < refund_amount:
                 return "We cannot currently refund this transaction. Please try again in a few days or contact an administrator."
 
             log.debug('REFUND: attempting to refund Stripe transaction with ID {} {} cents for {}',
