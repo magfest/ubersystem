@@ -94,7 +94,7 @@ class RegistrationDataOneYear:
 
         # merge attendee and promo code group reg
         dict_reg_per_day = dict(reg_per_day)
-        total_reg_per_day = [(k, dict_reg_per_day[k] + dict(group_reg_per_day)[k]) for k in sorted(dict_reg_per_day)]
+        total_reg_per_day = [(k, dict_reg_per_day.get(k, 0) + dict(group_reg_per_day).get(k, 0)) for k in sorted(dict_reg_per_day)]
 
         for reg_data in total_reg_per_day:
             day = reg_data[0]
