@@ -99,7 +99,7 @@ class RegistrationDataOneYear:
         for k, v in dict(group_reg_per_day).items():
             total_reg_per_day[k] += v
 
-        for reg_data in total_reg_per_day:
+        for reg_data in list(total_reg_per_day):
             day = reg_data[0]
             reg_count = reg_data[1]
 
