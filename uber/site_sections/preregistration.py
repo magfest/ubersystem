@@ -30,13 +30,8 @@ def check_post_con(klass):
     def wrapper(func):
         @wraps(func)
         def wrapped(self, *args, **kwargs):
-            if c.POST_CON:  # TODO: replace this with a template and make that suitably generic
-                return """
-                <html><head></head><body style='text-align:center'>
-                    <h2 style='color:red'>We hope you enjoyed {event} {current_year}!</h2>
-                    We look forward to seeing you in {next_year}! Watch our website (<a href="https://www.magfest.org">https://www.magfest.org</a>) and our Twitter (<a href="https://twitter.com/MAGFest">@MAGFest</a>) for announcements.
-                </body></html>
-                """.format(event=c.EVENT_NAME, current_year=c.EVENT_YEAR, next_year=(1 + int(c.EVENT_YEAR)) if c.EVENT_YEAR else '')
+            if c.POST_CON:
+                return render('static_views/post_con.html')
             else:
                 return func(self, *args, **kwargs)
         return wrapped
@@ -650,7 +645,7 @@ class Root:
             return {'error': message}
 
         for receipt in receipts:
-            receipt_txn = Charge.create_receipt_transaction(receipt, charge.description, stripe_intent.id)
+            receipt_txn = Charge.create_receipt_transaction(receipt, charge.description, stripe_intent.id, receipt.current_amount_owed)
             session.add(receipt_txn)
 
         for attendee in charge.attendees:
@@ -927,7 +922,7 @@ class Root:
             # with the Attendee's address fields, we must clone the params and
             # rename all the "group_" fields.
             group_params = dict(params)
-            for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city']:
+            for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city', 'phone', 'email_address']:
                 group_field_name = 'group_{}'.format(field_name)
                 if group_field_name in params:
                     group_params[field_name] = params.get(group_field_name, '')
@@ -961,7 +956,7 @@ class Root:
             'signnow_document': signnow_document,
             'signnow_link': signnow_link,
             'receipt': receipt,
-            'incomplete_txn': receipt.last_incomplete_txn if receipt else None,
+            'incomplete_txn': receipt.get_last_incomplete_txn() if receipt else None,
             'message': message
         }
 
@@ -1033,7 +1028,7 @@ class Root:
     @credit_card
     def process_group_payment(self, session, id):
         group = session.group(id)
-        receipt = session.get_receipt_by_model(group, create_if_none=True)
+        receipt = session.get_receipt_by_model(group, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(group.name, receipt.charge_description_list)
         charge = Charge(group, amount=receipt.current_amount_owed, description=charge_desc)
 
@@ -1093,7 +1088,7 @@ class Root:
     def pay_for_extra_members(self, session, id, count):
         from uber.models import ReceiptItem
         group = session.group(id)
-        receipt = session.get_receipt_by_model(group, create_if_none=True)
+        receipt = session.get_receipt_by_model(group, create_if_none="DEFAULT")
         session.add(receipt)
         session.commit()
         count = int(count)
@@ -1231,13 +1226,13 @@ class Root:
             receipt = session.get_receipt_by_model(attendee)
             total_refunded = 0
             for txn in receipt.receipt_txns:
-                if txn.stripe_id:
+                error = session.preprocess_refund(txn)
+                if not error:
                     response = session.process_refund(txn)
-                    if response:
-                        if isinstance(response, string_types):
-                            raise HTTPRedirect('confirm?id={}&message={}', id,
-                                   failure_message)
-                        total_refunded += response.amount
+                    if isinstance(response, string_types):
+                        raise HTTPRedirect('confirm?id={}&message={}', id,
+                                failure_message)
+                    total_refunded += response.amount
 
             receipt.closed = datetime.now()
             session.add(receipt)
@@ -1339,10 +1334,16 @@ class Root:
     @requires_account(Attendee)
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
+        error = ''
         if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-            message = session.auto_update_receipt(session.attendee(params.get('id')), params)
-            if message:
+            error = session.auto_update_receipt(session.attendee(params.get('id')), params)
+            if error:
                 log.error("Error while auto-updating attendee receipt: {}".format(message))
+                message = error
+
+            # Stop unsetting these every time someone updates their info
+            params['agreed_to_volunteer_agreement'] = session.attendee(params.get('id')).agreed_to_volunteer_agreement
+            params['reviewed_emergency_procedures'] = session.attendee(params.get('id')).reviewed_emergency_procedures
 
         # Safe to ignore csrf tokens here, because an attacker would need to know the attendee id a priori
         attendee = session.attendee(params, restricted=True, ignore_csrf=True)
@@ -1364,10 +1365,14 @@ class Root:
 
                 page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
                 if not receipt:
-                    new_receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+                    new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
                     if new_receipt.current_amount_owed and not new_receipt.pending_total:
                         raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)
                 raise HTTPRedirect(page + 'message=' + message)
+
+        if not error:
+            log.debug("Refreshing receipt...")
+            session.refresh_receipt_and_model(attendee)
 
         attendee.placeholder = placeholder
         if not message and attendee.placeholder:
@@ -1376,8 +1381,6 @@ class Root:
             message = 'You are already registered but you may update your information with this form.'
 
         group_credit = receipt_items.credit_calculation.items['Attendee']['group_discount'](attendee)
-
-        session.refresh_receipt_and_model(attendee)
 
         return {
             'undoing_extra': undoing_extra,
@@ -1389,8 +1392,9 @@ class Root:
             'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
             'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
             'receipt':       session.get_receipt_by_model(attendee) if attendee.is_valid else None,
-            'incomplete_txn':  receipt.last_incomplete_txn if receipt else None,
+            'incomplete_txn':  receipt.get_last_incomplete_txn() if receipt else None,
             'attendee_group_discount': (group_credit[1] / 100) if group_credit else 0,
+            'pii_consent':  params.get('pii_consent'),
         }
         
     @ajax
@@ -1439,7 +1443,14 @@ class Root:
         attendee = session.attendee(id)
         txn = session.receipt_transaction(txn_id)
 
+        error = txn.check_stripe_id()
+        if error:
+            return {'error': "Something went wrong with this payment. Please refresh the page and try again."}
+
         stripe_intent = txn.get_stripe_intent()
+
+        if not stripe_intent:
+            return {'error': "Something went wrong. Please contact us at {}.".format(c.REGDESK_EMAIL)}
 
         if stripe_intent.charges:
             return {'error': "This payment has already been finalized!"}
@@ -1456,6 +1467,10 @@ class Root:
     def finish_pending_group_payment(self, session, id, txn_id, **params):
         group = session.group(id)
         txn = session.receipt_transaction(txn_id)
+
+        error = txn.check_stripe_id()
+        if error:
+            return {'error': "Something went wrong with this payment. Please refresh the page and try again."}
 
         stripe_intent = txn.get_stripe_intent()
 
@@ -1497,7 +1512,7 @@ class Root:
         attendee = session.attendee(id)
         return {
             'attendee': attendee,
-            'receipt': session.get_receipt_by_model(attendee, create_if_none=True),
+            'receipt': session.get_receipt_by_model(attendee, create_if_none="DEFAULT"),
             'return_to': return_to,
             'message': message,
         }
@@ -1513,7 +1528,7 @@ class Root:
 
         message = attendee.undo_extras()
         if not message:
-            new_receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+            new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
             page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
             if new_receipt.current_amount_owed:
                 raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)

@@ -223,7 +223,7 @@ class Config(_Overridable):
         Returns either PRINTED_BADGE_DEADLINE for custom badge types or the latter of PRINTED_BADGE_DEADLINE and
         SUPPORTER_BADGE_DEADLINE if the badge type is not preassigned (and only has a badge name if they're a supporter)
         """
-        return c.PRINTED_BADGE_DEADLINE if badge_type in c.PREASSIGNED_BADGE_TYPES \
+        return c.PRINTED_BADGE_DEADLINE if badge_type in c.PREASSIGNED_BADGE_TYPES or not c.SUPPORTER_BADGE_DEADLINE \
             else max(c.PRINTED_BADGE_DEADLINE, c.SUPPORTER_BADGE_DEADLINE)
 
     def after_printed_badge_deadline_by_type(self, badge_type):
@@ -309,7 +309,7 @@ class Config(_Overridable):
                     Attendee.paid == self.PAID_BY_GROUP,
                     Group.amount_paid > 0).count()
 
-                promo_code_badges = session.query(PromoCode).join(PromoCodeGroup).count()
+                promo_code_badges = session.query(PromoCode).join(PromoCodeGroup).filter(PromoCode.cost > 0).count()
 
                 return individuals + group_badges + promo_code_badges
 
@@ -474,7 +474,7 @@ class Config(_Overridable):
             donation_list = [tier for tier in donation_list if tier['price'] < self.SHIRT_LEVEL]
         elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
             donation_list = [tier for tier in donation_list if tier['price'] < self.SUPPORTER_LEVEL]
-        elif self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SEASON_AVAILABLE:
             donation_list = [tier for tier in donation_list if tier['price'] < self.SEASON_LEVEL]
 
         return [tier for tier in donation_list if 
@@ -798,7 +798,8 @@ class Config(_Overridable):
                         and not getattr(method, 'not_site_mappable', False):
                         pages[module_name].append({
                             'name': name.replace('_', ' ').title(),
-                            'path': '/{}/{}'.format(module_name, name)
+                            'path': '/{}/{}'.format(module_name, name),
+                            'is_download': getattr(method, 'site_map_download', False)
                         })
         return public_site_sections, public_pages, pages
 
@@ -871,33 +872,10 @@ class Config(_Overridable):
                 return False
             else:
                 return int(count_check) < int(stock_setting)
-        elif hasattr(_secret, name):
-            return getattr(_secret, name)
         elif name.lower() in _config['secret']:
             return _config['secret'][name.lower()]
         else:
             raise AttributeError('no such attribute {}'.format(name))
-
-
-class SecretConfig(_Overridable):
-    """
-    This class is for properties which we don't want to be used as Javascript
-    variables.  Properties on this class can be accessed normally through the
-    global c object as if they were defined there.
-    """
-
-    @property
-    def SQLALCHEMY_URL(self):
-        """
-        Support reading the DB connection info from an environment var (used with Docker containers)
-        DB_CONNECTION_STRING should contain the full Postgres URI
-        """
-        db_connection_string = os.environ.get('DB_CONNECTION_STRING')
-
-        if db_connection_string is not None:
-            return db_connection_string
-        else:
-            return _config['secret']['sqlalchemy_url']
 
 
 class AWSSecretFetcher:
@@ -985,8 +963,18 @@ class AWSSecretFetcher:
 
 
 c = Config()
-_secret = SecretConfig()
 _config = parse_config(__file__)  # outside this module, we use the above c global instead of using this directly
+db_connection_string = os.environ.get('DB_CONNECTION_STRING')
+
+for conf, val in _config['secret'].items():
+    conf_env = os.environ.get(conf.upper())
+
+    if conf_env is not None:
+        setattr(c, conf.upper(), conf_env)
+    elif conf == "sqlalchemy_url" and db_connection_string is not None: # Backwards compatibility
+        setattr(c, conf.upper(), db_connection_string)
+    else:
+        setattr(c, conf.upper(), val)
 
 if c.AWS_SECRET_SERVICE_NAME:
     aws_secrets_client = AWSSecretFetcher()
@@ -1032,7 +1020,7 @@ c.make_dates(_config['dates'])
 c.DATA_DIRS = {}
 c.make_data_dirs(_config['data_dirs'])
 
-if "sqlite" in _config['secret']['sqlalchemy_url']:
+if "sqlite" in c.SQLALCHEMY_URL:
     # SQLite does not suport pool_size and max_overflow,
     # so disable them if sqlite is used.
     c.SQLALCHEMY_POOL_SIZE = -1

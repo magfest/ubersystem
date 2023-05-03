@@ -6,7 +6,7 @@
 {% import "fields/account.html" as account_fields with context %}
 {% block title %}Preregistration{% endblock %}
 {% block content %}
-  {% if is_prereg_attendee or is_prereg_dealer %}
+  {% if (is_prereg_attendee or is_prereg_dealer) and not edit_id %}
     <script type="text/javascript">
       var disclaimersConfirmed = false;
       var confirmDisclaimers = function () {

@@ -132,7 +132,7 @@ class Group(MagModel, TakesPaymentMixin):
             preview_group.tables = int(kwargs['tables'])
             return self.default_table_cost * 100, (preview_group.default_table_cost * 100) - (self.default_table_cost * 100)
         if 'badges' in kwargs:
-            num_new_badges = int(kwargs['badges']) - self.badges_purchased
+            num_new_badges = int(kwargs['badges']) - self.badges
             return self.current_badge_cost * 100, self.new_badge_cost * num_new_badges * 100
 
         if not new_cost:

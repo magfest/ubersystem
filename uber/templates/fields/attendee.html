@@ -18,14 +18,6 @@
 {%- set is_after_hotel_email = c.AFTER_PREREG_HOTEL_INFO_EMAIL_DATE -%}
 {%- set group_id = group_id or attendee.group_id -%}
 
-{% macro upgrade_button(upgrade_btn_id, text="Upgrade") %}
-{% if receipt and receipt.current_amount_owed <= 0 and money_fields_ro %}
-  <a class="btn btn-sm btn-success" id="upgrade-{{ upgrade_btn_id }}-btn" data-toggle="modal" data-target="#upgradeModal">
-    <span class="glyphicon glyphicon-circle-arrow-up"></span> {{ text }}
-  </a>
-{% endif %}
-{% endmacro %}
-
 {% set receipt_modal %}
 {% if receipt and not admin_area %}
 <div class="modal fade" id="receiptModal" tabindex="-1" role="dialog" aria-labelledby="receiptTitle">
@@ -548,7 +540,7 @@ $().ready(function() {
       <label for="badge_type" class="col-sm-3 control-label">Badge Type</label>
       <div class="col-sm-6 form-control-static">
         {{ attendee.badge_type_label }}
-        {% if c.MAX_BADGE_TYPE_UPGRADE and attendee.badge_type != c.MAX_BADGE_TYPE_UPGRADE %}{{ upgrade_button('badge-type') }}{% endif %}
+        {% if c.MAX_BADGE_TYPE_UPGRADE and attendee.badge_type != c.MAX_BADGE_TYPE_UPGRADE %}{{ macros.upgrade_button('badge-type') }}{% endif %}
       </div>
     </div>
   {% endif %}
@@ -744,8 +736,8 @@ $().ready(function() {
 
       <p class="help-block col-sm-offset-3 col-sm-9">
         Each level includes all lower levels. <br/>
-        {% if c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime_local }}.<br/>{% endif %}
-        {% if c.SHIRT_DEADLINE %} {% if c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Shirt level up to Supporter level{% else %}Shirt level and higher{% endif %} {% if c.BEFORE_SHIRT_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SHIRT_DEADLINE|datetime_local("%b %-d %-I:%M%p %Z") }}{% if c.SHIRT_STOCK %} or while supplies last{% endif %}.<br/>{% endif %}
+        {% if c.SUPPORTER_DEADLINE and c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime_local }}.<br/>{% endif %}
+        {% if c.SHIRT_DEADLINE %} {% if c.SUPPORTER_DEADLINE and c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Shirt level up to Supporter level{% else %}Shirt level and higher{% endif %} {% if c.BEFORE_SHIRT_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SHIRT_DEADLINE|datetime_local("%b %-d %-I:%M%p %Z") }}{% if c.SHIRT_STOCK %} or while supplies last{% endif %}.<br/>{% endif %}
         {% if not c.SHIRT_DEADLINE and c.SHIRT_STOCK %}Shirt level and higher are only available while supplies last.{% endif %}
       </p>
     </div>
@@ -772,7 +764,7 @@ $().ready(function() {
     <label class="col-sm-3 control-label">
       Pre-ordered Merch
     </label>
-    {% call macros.read_only_if(read_only, attendee.amount_extra_label or "None", post_text='' if not can_upgrade_amount_extra else upgrade_button('amount-extra', text="Upgrade" if attendee.amount_extra else "Add")) %}
+    {% call macros.read_only_if(read_only, attendee.amount_extra_label or "None", post_text='' if not can_upgrade_amount_extra else macros.upgrade_button('amount-extra', text="Upgrade" if attendee.amount_extra else "Add")) %}
     <div class="col-sm-3">
       <select name="amount_extra" class="form-control">
         {{ options(c.DONATION_TIER_OPTS,attendee.amount_extra) }}
@@ -794,7 +786,7 @@ $().ready(function() {
     <div class="col-sm-6">
       <input type="text" class="form-control" name="badge_printed_name" maxlength="20" value="{{ attendee.badge_printed_name }}" {% if readonly_badge_name %}readonly{% endif %} />
     </div>
-    <p class="help-block col-sm-offset-3 col-sm-9">Badge names have a maximum of 20 characters.</p>
+    <p class="help-block col-sm-offset-3 col-sm-9">Custom names have a maximum of 20 characters.</p>
   </div>
 
   {% if readonly_badge_name %}
@@ -887,7 +879,7 @@ $().ready(function() {
         {{ macros.popup_link("../static_views/givingExtra.html", "Learn more") }}
         </label>
   {% if c.COLLECT_EXTRA_DONATION %}
-    {% call macros.read_only_if(read_only, attendee.extra_donation, pre_text='$' if attendee.extra_donation else '', post_text=upgrade_button('extra-donation', text="Change" if attendee.extra_donation else "Donate")) %}
+    {% call macros.read_only_if(read_only, attendee.extra_donation, pre_text='$' if attendee.extra_donation else '', post_text=macros.upgrade_button('extra-donation', text="Change" if attendee.extra_donation else "Donate")) %}
       <div class="col-sm-6">
         <div class="input-group">
           <span class="input-group-addon">$</span>
@@ -981,7 +973,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 
 {% set job_interests %}
 {% set read_only = job_interests_ro or page_ro %}
-{% if c.JOB_INTEREST_OPTS %}
+{% if c.JOB_INTEREST_OPTS or c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
   <div class="form-group staffing" id="departments">
     <label for="requested_depts_ids" class="col-sm-3 control-label">Where do you want to help?</label>
     {% call macros.read_only_if(read_only, attendee.requested_depts_labels) %}
@@ -1254,7 +1246,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
   </div>
 {% endcall %}
     <div class="checkbox col-sm-6 col-sm-offset-3">
-      {{ macros.checkbox(attendee, 'no_onsite_contact', label="Use my emergency contact information.", label_class='onsite-ec', is_readonly=read_only, clientside_bool=clientside_bool) }}
+      {{ macros.checkbox(attendee, 'no_onsite_contact', label="My emergency contact is also on site with me at the event.", label_class='onsite-ec', is_readonly=read_only, clientside_bool=clientside_bool) }}
     </div>
 </div>
 <script type="text/javascript">
@@ -1443,13 +1435,13 @@ $(window).on("runJavaScript", function () {
   <div class="non_group_fields form-group">
     <label for="promo_code" class="col-sm-3 control-label optional-field">Promo {% if c.GROUPS_ENABLED %}or Group {% endif %}Code</label>
     <div class="col-sm-6">
-      {% if attendee.is_unpaid and not read_only %}
+      {% if not attendee.active_receipt and not read_only %}
         <input type="textarea" name="promo_code" value="{{ attendee.promo_code_code or promo_code_code }}" class="form-control" placeholder="Promo Code">
       {% else %}
         <input type="hidden" name="promo_code" value="{{ attendee.promo_code_code }}">
         <p class="form-control-static">
-          {{ attendee.promo_code_code }}
-          {% if not read_only and c.HAS_REG_ADMIN_ACCESS %}
+          {{ attendee.promo_code_code|default("N/A") }}
+          {% if not read_only and c.HAS_REG_ADMIN_ACCESS and attendee.promo_code_code %}
             [<a href="" id="remove_promo_code" onClick="removePromoCode(event)">Remove</a>]
           {% endif %}
         </p>
@@ -1866,12 +1858,14 @@ $(window).on("runJavaScript", function(){
     <label class="col-sm-3 control-label">Payment Method</label>
     <div class="col-sm-6">
       {% if c.AFTER_BADGE_PRICE_WAIVED %}
-        <div style="margin-top:10px">All badge types are now free - enjoy {{ c.EVENT_NAME }}!</div>
+        <div style="margin-top:10px" class="form-control">All badge types are now free - enjoy {{ c.EVENT_NAME }}!</div>
+        </div>
       {% else %}
         <select name="payment_method" class="form-control" onChange="maybeBold()">
           <option value="">Select a payment option</option>
           {{ options(c.DOOR_PAYMENT_METHOD_OPTS, payment_method_val) }}
         </select>
+        </div>
         {% if c.CHILD_BADGE in c.PREREG_BADGE_TYPES %}
         <div class="form-group">
             <p class="help-block col-sm-9 col-sm-offset-3">
@@ -1879,14 +1873,14 @@ $(window).on("runJavaScript", function(){
               Badges for attendees under 13 are half-price. <br/>
               Attendees under 6 enter free. <br/>
               All attendees under 13 must be accompanied by an adult with a valid Attendee badge.
-          {% else %}
+            {% else %}
           <span class="text-danger">Unfortunately, we are sold out of badges for attendees under 18.</span>
-          {% endif %}
+            {% endif %}
             </p>
           </div>
         {% endif %}
       {% endif %}
-    </div>
+    
   </div>
 {% endif %}
 {% endset %}

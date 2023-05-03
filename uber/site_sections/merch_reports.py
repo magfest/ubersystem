@@ -5,7 +5,8 @@ from pytz import UTC
 from sqlalchemy import or_
 
 from uber.config import c
-from uber.decorators import all_renderable
+from uber.custom_tags import format_currency, datetime_local_filter
+from uber.decorators import all_renderable, csv_file
 from uber.models import Attendee
 
 
@@ -94,9 +95,40 @@ class Root:
 
     def extra_merch(self, session):
         return {
-            'attendees': session.query(Attendee).filter(Attendee.extra_merch != '').order_by(Attendee.full_name).all()}
+            'attendees': session.valid_attendees().filter(Attendee.extra_merch != '').order_by(Attendee.full_name).all()}
         
     def owed_merch(self, session):
         return {
-            'attendees': session.query(Attendee).filter(Attendee.amount_extra > 0, Attendee.got_merch == False)
+            'attendees': session.valid_attendees().filter(Attendee.amount_extra > 0, Attendee.got_merch == False)
         }
+
+    @csv_file
+    def owed_merch_csv(self, out, session):
+        out.writerow([
+            'Name',
+            'Name on ID',
+            'Email Address',
+            'Merch',
+            'Extra Merch',
+            'Shirt Size',
+            'Badge #',
+            'Money Owed',
+            'Checked In',
+            'Admin Notes',
+        ])
+        attendees = session.valid_attendees().filter(Attendee.amount_extra > 0, Attendee.got_merch == False)
+        for attendee in attendees:
+            out.writerow([
+                attendee.full_name,
+                attendee.legal_name,
+                attendee.email,
+                attendee.merch,
+                attendee.extra_merch,
+                attendee.shirt_label,
+                attendee.badge_num,
+                format_currency(attendee.amount_unpaid),
+                datetime_local_filter(attendee.checked_in),
+                attendee.admin_notes,
+            ])
+        
+        

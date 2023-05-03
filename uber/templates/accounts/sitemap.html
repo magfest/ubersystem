@@ -15,7 +15,7 @@
     <ul class="nav nav-pills">
     {% for page in pagelist %}
       {% if page.name != "Index" %}
-      <li><a href="..{{ page.path }}">{{ page.name }}</a></li>
+      <li><a href="..{{ page.path }}">{{ page.name }}{% if page.is_download %} ⤓{% endif %}</a></li>
       {% endif %}
     {% endfor %}
     </ul>

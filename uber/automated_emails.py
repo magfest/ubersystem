@@ -12,7 +12,9 @@ ALREADY SENT FOR THAT CATEGORY TO RE-SEND.
 """
 
 import os
+import jinja2
 from datetime import datetime, timedelta
+import pathlib
 
 from pockets import listify
 from pytz import UTC
@@ -20,6 +22,7 @@ from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
 from uber import decorators
+from uber.jinja import JinjaEnv
 from uber.models import AdminAccount, Attendee, AttendeeAccount, ArtShowApplication, AutomatedEmail, Department, Group, \
     GuestGroup, IndieGame, IndieJudge, IndieStudio, MarketplaceApplication, MITSTeam, MITSApplicant, PanelApplication, \
     PanelApplicant, PromoCodeGroup, Room, RoomAssignment, Shift
@@ -126,6 +129,16 @@ class AutomatedEmailFixture:
     @property
     def body(self):
         return decorators.render_empty(os.path.join('emails', self.template))
+    
+    @property
+    def template_url(self):
+        env = JinjaEnv.env()
+        try:
+            template_path = pathlib.Path(env.get_template(os.path.join('emails', self.template)).name)
+            self.template_plugin = template_path.parts[3]
+            self.template_url = f"https://github.com/magfest/{self.template_plugin}/tree/main/{self.template_plugin}/{pathlib.Path(*template_path.parts[5:]).as_posix()}"
+        except jinja2.exceptions.TemplateNotFound:
+            self.template_url = ""
 
 
 # Payment reminder emails, including ones for groups, which are always safe to be here, since they just
@@ -548,7 +561,7 @@ AutomatedEmailFixture(
     'Last Chance to Accept Your {EVENT_NAME} ({EVENT_DATE}) Badge',
     'placeholders/reminder.txt',
     lambda a: a.placeholder and not a.is_dealer,
-    when=days_before(7, c.PLACEHOLDER_DEADLINE),
+    when=days_before(7, c.PLACEHOLDER_DEADLINE if c.PLACEHOLDER_DEADLINE else c.UBER_TAKEDOWN),
     ident='badge_confirmation_reminder_last_chance')
 
 

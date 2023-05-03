@@ -524,7 +524,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 log.error('unable to send banned email about {}', self, exc_info=True)
 
         elif self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name and (
-                    self.paid in [c.HAS_PAID, c.NEED_NOT_PAY]
+                    self.paid in [c.HAS_PAID, c.NEED_NOT_PAY, c.REFUNDED]
                     or self.paid == c.PAID_BY_GROUP
                     and self.group_id
                     and not self.group.is_unpaid):
@@ -584,6 +584,11 @@ class Attendee(MagModel, TakesPaymentMixin):
                 self.overridden_price = self.badge_cost
             else:
                 self.paid = c.NEED_NOT_PAY
+
+    @presave_adjustment
+    def refunded_if_receipt_has_refund(self):
+        if self.paid == c.HAS_PAID and self.active_receipt and self.active_receipt.get('refund_total'):
+            self.paid = c.REFUNDED
 
     @presave_adjustment
     def assign_creator(self):
@@ -692,12 +697,13 @@ class Attendee(MagModel, TakesPaymentMixin):
         We use this list to determine which admins can create, edit, and view the attendee.
         """
         section_list = []
-        if self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE, c.ATTENDEE_BADGE] and self.staffing_or_will_be:
+        if self.staffing_or_will_be:
             section_list.append('shifts_admin')
         if (self.group and self.group.guest and self.group.guest.group_type == c.BAND
-            ) or (self.badge_type == c.GUEST and c.BAND in self.ribbon_ints):
+            ) or (self.badge_type == c.GUEST_BADGE and c.BAND in self.ribbon_ints):
             section_list.append('band_admin')
-        if self.group and self.group.guest and self.group.guest.group_type == c.GUEST:
+        if (self.group and self.group.guest and self.group.guest.group_type == c.GUEST
+            ) or (self.badge_type == c.GUEST_BADGE and c.BAND not in self.ribbon_ints):
             section_list.append('guest_admin')
         if c.PANELIST_RIBBON in self.ribbon_ints:
             section_list.append('panels_admin')
@@ -917,6 +923,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     def calc_badge_cost_change(self, **kwargs):
         preview_attendee = Attendee(**self.to_dict())
+        promo_code_discount = self.calculate_badge_cost(use_promo_code=False) - self.calculate_badge_cost()
         new_cost = None
         if 'overridden_price' in kwargs:
             try:
@@ -935,7 +942,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not new_cost:
             new_cost = (preview_attendee.calculate_badge_cost() * 100) - current_cost
 
-        return current_cost, new_cost
+        return current_cost, new_cost - (promo_code_discount * 100)
 
     def calc_age_discount_change(self, birthdate):
         preview_attendee = Attendee(**self.to_dict())
@@ -1288,7 +1295,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def gets_staff_shirt(self):
-        return bool(self.badge_type == c.STAFF_BADGE and c.HOURS_FOR_SHIRT)
+        return bool(self.badge_type == c.STAFF_BADGE and c.SHIRTS_PER_STAFFER > 0)
 
     @property
     def num_staff_shirts_owed(self):
@@ -1535,7 +1542,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     @classproperty
     def searchable_fields(cls):
         fields = [col.name for col in cls.__table__.columns if isinstance(col.type, UnicodeText)]
-        fields.remove('other_accessibility_requests')
+        if "other_accessibility_requests" in fields:
+            fields.remove('other_accessibility_requests')
         return fields
 
     @classproperty
@@ -1860,6 +1868,12 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def shift_prereqs_complete(self):
+        if not c.PRE_CON:
+            return not self.placeholder and (
+            not c.VOLUNTEER_AGREEMENT_ENABLED or self.agreed_to_volunteer_agreement) and (
+            not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures) \
+            and c.SHIFTS_CREATED
+
         return not self.placeholder and self.food_restrictions_filled_out and self.shirt_info_marked and (
             not self.hotel_eligible
             or self.hotel_requests
