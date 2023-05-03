@@ -1,6 +1,18 @@
 #!/bin/bash
 set -e
 
+# SESSION_HOST and BROKER_HOST may point to SRV records that need to get resolved to a host/port
+SESSION_REC=$(dig srv "$SESSION_HOST" | grep -v SOA | grep -v -e "^$\|^;" | cut -f 5 | cut -d ' ' -f 3,4 | head -1)
+BROKER_REC=$(dig srv "$BROKER_HOST" | grep -v SOA | grep -v -e "^$\|^;" | cut -f 5 | cut -d ' ' -f 3,4 | head -1)
+if [[ ! -z "$SESSION_REC" ]]; then
+    SESSION_HOST=$(echo $SESSION_REC | cut -d ' ' -f 2)
+    SESSION_PORT=$(echo $SESSION_REC | cut -d ' ' -f 1)
+fi
+if [[ ! -z "$BROKER_REC" ]]; then
+    BROKER_HOST=$(echo $BROKER_REC | cut -d ' ' -f 2)
+    BROKER_PORT=$(echo $BROKER_REC | cut -d ' ' -f 1)
+fi
+
 # This will replace any variable references in these files
 # If you want to add any additional settings here just add
 # the variables to the environment when running this.
