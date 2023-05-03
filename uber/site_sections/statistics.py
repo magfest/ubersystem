@@ -99,10 +99,7 @@ class RegistrationDataOneYear:
         for k, v in dict(group_reg_per_day).items():
             total_reg_per_day[k] += v
 
-        for reg_data in list(total_reg_per_day):
-            day = reg_data[0]
-            reg_count = reg_data[1]
-
+        for day, reg_count in total_reg_per_day.items():
             day_offset = self.num_days_to_report - (self.end_date - day).days
             day_index = day_offset - 1
 
