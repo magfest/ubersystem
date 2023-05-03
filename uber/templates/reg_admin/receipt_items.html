@@ -49,11 +49,11 @@
       callback: function (result) {
         if(result) {
           $.post('remove_receipt_item', {csrf_token: csrf_token, id: itemId}, function (response) {
-            toastr.clear();
+            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
             if (response.error) {
-              toastr.error(response.error);
+              $("#message-alert").addClass("alert-danger").show().children('span').html(response.error);
             } else {
-              toastr.info('Item deleted');
+              $("#message-alert").addClass("alert-info").show().children('span').html('Item deleted');
               hideRow(response.removed);
               updateTotal(response.new_total, response.disable_button);
             }
@@ -81,9 +81,9 @@
       callback: function (result) {
         if(result) {
           $.post('comp_receipt_item', {csrf_token: csrf_token, id: itemId}, function (response) {
-            toastr.clear();
+            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
             if (response.error) {
-              toastr.error(response.error);
+              $("#message-alert").addClass("alert-danger").show().children('span').html(response.error);
             } else {
               window.location = 'receipt_items?id={{ model.id }}&message=Receipt item comped'
             }
@@ -110,9 +110,9 @@
       callback: function (result) {
         if(result) {
           $.post('undo_receipt_item', {csrf_token: csrf_token, id: itemId}, function (response) {
-            toastr.clear();
+            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
             if (response.error) {
-              toastr.error(response.error);
+              $("#message-alert").addClass("alert-danger").show().children('span').html(response.error);
             } else {
               window.location = 'receipt_items?id={{ model.id }}&message=Receipt item reverted'
             }
@@ -127,8 +127,8 @@
       if (response.refresh) {
         window.location.href = 'receipt_items?id={{ model.id }}&message=' + response.message;
       } else {
-        toastr.clear();
-        toastr.info(response.message);
+        $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+        $("#message-alert").addClass("alert-info").show().children('span').html(response.message);
       }
     }, 'json');
   }
@@ -153,11 +153,11 @@
       callback: function (result) {
         if(result) {
           $.post('cancel_receipt_txn', {csrf_token: csrf_token, id: txnId}, function (response) {
-            toastr.clear();
+            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
             if (response.error) {
-              toastr.error(response.error);
+              $("#message-alert").addClass("alert-danger").show().children('span').html(response.error);
             } else {
-              toastr.info('Transaction cancelled');
+              $("#message-alert").addClass("alert-info").show().children('span').html('Transaction cancelled');
               updateRow(response.cancelled, ' td:last', "<em>Cancelled " + response.time + ".</em>");
               updateTotal(response.new_total, response.disable_button);
             }
@@ -191,11 +191,11 @@
         $("#refundTxnDiv").html(form);
         if(result) {
           $.post('refund_receipt_txn', {csrf_token: csrf_token, id: txnId, amount: $("#refundTxnForm [name='amount']").val() || 0}, function (response) {
-            toastr.clear();
+            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
             if (response.error) {
-              toastr.error(response.error);
+              $("#message-alert").addClass("alert-danger").show().children('span').html(response.error);
             } else {
-              toastr.info('Transaction refunded');
+              $("#message-alert").addClass("alert-info").show().children('span').html('Transaction refunded');
               updateRow(response.refunded, ' td:last #amt-refunded', " ($" + (response.refund_total / 100).toFixed(2) + " refunded)");
               updateTotal(response.new_total, response.disable_button);
             }
@@ -216,11 +216,11 @@
               className: 'btn-success',
               callback: function () {
                 $.post('comp_refund_receipt_item', {csrf_token: csrf_token, id: itemId, amount: result}, function (response) {
-                  toastr.clear();
+                  $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
                   if (response.error) {
-                    toastr.error(response.error);
+                    $("#message-alert").addClass("alert-danger").show().children('span').html(response.error);
                   } else {
-                    toastr.info('Transaction refunded');
+                    $("#message-alert").addClass("alert-info").show().children('span').html('Transaction refunded');
                     updateRow(response.refunded, ' td:last #amt-refunded', " ($" + (response.refund_total / 100).toFixed(2) + " refunded)");
                     updateTotal(response.new_total, response.disable_button);
                   }
@@ -248,9 +248,9 @@
   var addPayment = function ($form, $btn) {
     $.post('add_receipt_txn', $form.serialize(), function(result) {
       $btn.prop('disabled', false);
-      toastr.clear();
+      $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
       if (result.error) {
-        toastr.error(result.error);
+        $("#message-alert").addClass("alert-danger").show().children('span').html(result.error);
       } else if (result.success) {
         window.location = 'receipt_items?id={{ model.id }}&message=Receipt item added'
       }
@@ -295,10 +295,10 @@
       event.preventDefault();
       $btn.prop('disabled', true);
       $.post('add_receipt_item', $form.serialize(), function(result) {
-        toastr.clear();
+        $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
         $btn.prop('disabled', false);
         if (result.error) {
-          toastr.error(result.error);
+          $("#message-alert").addClass("alert-danger").show().children('span').html(result.error);
         } else if (result.success) {
           window.location = 'receipt_items?id={{ model.id }}&message=Receipt item added'
         }

@@ -40,7 +40,7 @@
                   updateAllColors();
               },
               error: function () {
-                  toastr.error('Unable to connect to server, please try again.');
+                  $("#message-alert").addClass("alert-danger").show().children('span').html('Unable to connect to server, please try again.');
               }
           });
       };
@@ -70,18 +70,18 @@
                               csrf_token: csrf_token
                           },
                           success: function (json) {
-                            toastr.clear();
+                            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
                             var message = json.message;
                             if (json.success) {
-                                toastr.info(message);
+                                $("#message-alert").addClass("alert-info").show().children('span').html(message);
                                 $("select[name='id'] option[value='" + id + "']").remove();
                                 $.field('id').val("None").trigger("change");
                             } else {
-                                toastr.error(json.error);
+                                $("#message-alert").addClass("alert-danger").show().children('span').html(json.error);
                             }
                         },
                           error: function () {
-                              toastr.error('Unable to connect to server, please try again.');
+                              $("#message-alert").addClass("alert-danger").show().children('span').html('Unable to connect to server, please try again.');
                           }
                       });
                   }

@@ -6,12 +6,12 @@ var updateWatchlist = function () {
     var old_hash = window.location.hash;
     $.post($(this).attr('action'), $(this).serializeArray())
     .success(function (json) {
-        toastr.info(json.message);
+        $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
         loadForm("Watchlist");
         window.location.hash = old_hash;
     })
     .fail(function(message) {
-        toastr.error(message);
+        $("#message-alert").addClass("alert-danger").show().children('span').html(message);
         window.location.hash = old_hash;
     });
   })

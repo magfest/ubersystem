@@ -739,6 +739,29 @@ class Validation:
 validation, prereg_validation = Validation(), Validation()
 
 
+class WTFormValidation:
+    def __init__(self):
+        self.validations = defaultdict(OrderedDict)
+
+    def __getattr__(self, field_name):
+        def wrapper(func):
+            self.validations[field_name][func.__name__] = func
+            return func
+        return wrapper
+    
+    def get_validations_by_field(self, field_name):
+        field_validations = self.validations.get(field_name)
+        return list(field_validations.values()) if field_validations else []
+
+    def get_validation_dict(self):
+        all_validations = {}
+        for key, dict in self.validations.items():
+            all_validations[key] = list(dict.values())
+        return all_validations
+
+form_validation, new_or_changed_validation, post_form_validation = WTFormValidation(), WTFormValidation(), WTFormValidation()
+
+
 class ReceiptItemConfig:
     def __init__(self):
         self.items = defaultdict(OrderedDict)

@@ -287,6 +287,21 @@ def get_age_from_birthday(birthdate, today=None):
     return today.year - birthdate.year - upcoming_birthday
 
 
+def get_age_conf_from_birthday(birthdate, today=None):
+    """
+    Combines get_age_from_birthday with our age configuration groups
+    to allow easy access to age-related config when doing validations.
+    """
+    if not birthdate:
+        return c.AGE_GROUP_CONFIGS[c.AGE_UNKNOWN]
+
+    age = get_age_from_birthday(birthdate, today)
+
+    for val, age_group in c.AGE_GROUP_CONFIGS.items():
+        if val != c.AGE_UNKNOWN and age_group['min_age'] <= age and age <= age_group['max_age']:
+            return age_group
+
+
 class DateBase:
     _when_dateformat = '%m/%d'
 

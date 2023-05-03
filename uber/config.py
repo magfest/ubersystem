@@ -218,17 +218,6 @@ class Config(_Overridable):
                 Attendee.badge_status.in_([c.COMPLETED_STATUS, c.NEW_STATUS])).count()
         return count
 
-    def get_printed_badge_deadline_by_type(self, badge_type):
-        """
-        Returns either PRINTED_BADGE_DEADLINE for custom badge types or the latter of PRINTED_BADGE_DEADLINE and
-        SUPPORTER_BADGE_DEADLINE if the badge type is not preassigned (and only has a badge name if they're a supporter)
-        """
-        return c.PRINTED_BADGE_DEADLINE if badge_type in c.PREASSIGNED_BADGE_TYPES or not c.SUPPORTER_BADGE_DEADLINE \
-            else max(c.PRINTED_BADGE_DEADLINE, c.SUPPORTER_BADGE_DEADLINE)
-
-    def after_printed_badge_deadline_by_type(self, badge_type):
-        return uber.utils.localized_now() > self.get_printed_badge_deadline_by_type(badge_type)
-
     def has_section_or_page_access(self, include_read_only=False, page_path=''):
         access = uber.models.AdminAccount.get_access_set(include_read_only=include_read_only)
         page_path = page_path or self.PAGE_PATH
@@ -367,46 +356,6 @@ class Config(_Overridable):
             for badge_type, desc in self.AT_THE_DOOR_BADGE_OPTS
             if self.BADGES[badge_type] in c.DAYS_OF_WEEK
         }
-
-    @property
-    @dynamic
-    def SWADGES_AVAILABLE(self):
-        """
-        TODO: REMOVE THIS AFTER SUPER MAGFEST 2018.
-
-        This property addresses the fact that our "swag badges" (aka swadges)
-        arrived more than a day late.  Normally this would have been just a
-        normal part of our merch.  However, we now have a bunch of people who
-        have already received our merch without the swadge.  So we basically
-        have three groups of people:
-
-        1) People who have already received their merch are marked as not
-            having received their swadge.
-
-        2) Until the swadges arrive, instead of the "Give Merch" button, we
-            want "Give Merch Without Swadge" and "Give Merch Including Swadge"
-            buttons.
-
-        3) After the "Give Merch With Swadge" button has been pressed for the
-            first time, we want to revert to the single "Give Merch" button,
-            which is assumed to include the Swadge because those have arrived.
-
-        This property controls whether we're in state (2) or (3) above.  We
-        perform a database query to see if there are any attendees who have
-        got_swadge set.  Once we've found that once we cache that result here
-        on the "c" object and no longer perform the query.  The reason why we
-        do this instead of adding a new config option is to allow us to know
-        that the swadges are present without having to restart the server
-        during our busiest time of the weekend.
-        """
-        if getattr(self, '_swadges_available', False):
-            return True
-
-        with uber.models.Session() as session:
-            got = session.query(uber.models.Attendee).filter_by(got_swadge=True).first()
-            if got:
-                self._swadges_available = True
-            return bool(got)
 
     @property
     def kickin_availability_matrix(self):
@@ -613,6 +562,10 @@ class Config(_Overridable):
     @property
     def PREREG_AGE_GROUP_OPTS(self):
         return [opt for opt in self.AGE_GROUP_OPTS if opt[0] != self.AGE_UNKNOWN]
+    
+    @property
+    def NOW_OR_AT_CON(self):
+        return c.EPOCH.date() if date.today().date() <= c.EPOCH.date() else uber.utils.localized_now().date()
 
     @property
     def AT_OR_POST_CON(self):

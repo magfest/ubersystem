@@ -52,6 +52,7 @@
         and is not considered a valid registration. Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you have any questions.
       </div>
       {% else %}
+      <div class="alert" role="alert" id="form-validations"></div>
         {% if not attendee.placeholder and receipt and receipt.current_amount_owed %}
             {% if incomplete_txn %}
             <div class="alert alert-warning" role="alert">
@@ -175,5 +176,59 @@
     {% endif %}
   </div>
 </div>
+<script type="text/javascript">
+$(function () {
+  $("#form-validations").hide();
+  var serverValidationPassed = false;
+  
+  var runServerValidations = function($form) {
+    if(!$("#confirm")[0].checkValidity()) {
+      $("#confirm")[0].reportValidity();
+    } else {
+      $.post('validate_attendee', $form.serialize(), function (response) {
+        $("#form-validations").hide().removeClass().addClass("alert").html("");
+        $(".is-invalid").each(function() {
+          var field_id = $(this).attr('id');
+          $(this).removeClass('is-invalid');
+          $("#" + field_id + "-validation").hide();
+        });
+        if (response.error) {
+          $("#form-validations").addClass("alert-danger").html(
+            "Please correct the following errors:" +
+            "<ul></ul>"
+            );
+          $.each(response.error, function(key, val) {
+            val = val.join(" ");
+            if ($("#" + key).length != 0) {
+              var field_label = $("label[for='" + key + "']").text();
+              $("#form-validations").find("ul").append("<li>" + field_label + ": " + val + "</li>");
+              $("#" + key).addClass("is-invalid");
+            } else {
+              $("#form-validations").find("ul").append("<li>" + val + "</li>");
+            }
 
+            if ($("#" + key + "-validation").length != 0)
+            {
+              $("#" + key + "-validation").html(val).show();
+            }
+          });
+          $("#form-validations").show();
+          $('html, body').animate({scrollTop: $("#form-validations").offset().top}, 50);
+        } else {
+          serverValidationPassed = true;
+          $("#confirm").submit();
+        }
+      }, 'json');
+    }
+  }
+
+  $(function () {
+    $("#confirm").submit(function () { 
+    if(!serverValidationPassed) {
+      runServerValidations($(this));
+      return false;
+    }});
+  });
+});
+</script>
 {% endblock %}

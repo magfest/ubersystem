@@ -139,7 +139,7 @@ class AdminAccount(MagModel):
         return [opt for opt in c.GROUP_TYPE_VARS if opt.lower() + "_admin" in self.read_or_write_access_set]
 
     @property
-    def is_admin(self):
+    def is_super_admin(self):
         return 'devtools' in self.write_access_set
 
     @property

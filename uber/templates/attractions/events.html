@@ -105,12 +105,12 @@
             $('#' + eventId + ' .remaining-slots').text(response['remaining_slots']);
             callback(response);
           } else {
-            toastr.error(response['error'] || 'Error signing up for event', '', {timeOut: 3000});
+            $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'] || 'Error signing up for event', '', {timeOut: 3000});
             callback(false);
           }
         },
         error: function(response, status, statusText) {
-          toastr.error('Error signing up for event', '', {timeOut: 3000});
+          $("#message-alert").addClass("alert-danger").show().children('span').html('Error signing up for event', '', {timeOut: 3000});
           callback(false);
         }
       });
@@ -134,7 +134,7 @@
           if (response['remaining_slots'] === response['old_remaining_slots']) {
             message = ' was already signed up for ';
           }
-          toastr.info($attendee.html() + message + $eventLabel.html());
+          $("#message-alert").addClass("alert-info").show().children('span').html($attendee.html() + message + $eventLabel.html());
           hideBadgeNumConfirm($doneModal, true);
         } else {
           hideBadgeNumConfirm($doneModal, false);
@@ -178,7 +178,7 @@
     });
 
     $modals.on('hide.bs.modal', function (event) {
-      toastr.clear();
+      $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
     });
 
     $modals.on('hidden.bs.modal', function (event) {

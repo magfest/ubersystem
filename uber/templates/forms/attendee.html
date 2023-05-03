@@ -156,8 +156,8 @@ $().ready(function() {
                     togglePrices();
                 {% else %}
                     setBadge(REG_TYPES, 0);
-                    toastr.clear();
-                    toastr.error('Group registration has closed.');
+                    $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+                    $("#message-alert").addClass("alert-danger").show().children('span').html('Group registration has closed.');
                 {% endif %}
             }
         });
@@ -469,7 +469,7 @@ $().ready(function() {
   {% endif %}
 {% elif c.AT_THE_CON and attendee.is_new %}
   <script>
-      window.setTimeout(toastr.clear, 10000);
+      window.setTimeout($("#message-alert").hide().removeClass().addClass("alert").children("span").html(""), 10000);
       var maybeWarn = function () {
           var types = {{ c.PRESOLD_ONEDAY_BADGE_TYPES|jsonize }};
           var badgeType = $.val('badge_type');
@@ -624,7 +624,6 @@ $().ready(function() {
         updateReceiptPreview('amount_extra', $.val('amount_extra'));
       {% endif %}
     }
-    setVisible(formId + '.affiliate-row', $.val('amount_extra') > 0);
     {% if (attendee.num_event_shirts_owed or attendee.gets_staff_shirt) and c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS %}
         setVisible(formId + '.shirt-row', true);
     {% else %}
@@ -656,25 +655,6 @@ $().ready(function() {
                   escapeMarkup: function (m) { return m; },
                   width: '100%',
               }).select2('val', {{ attendee.amount_extra }});
-          }
-          if ($.field('affiliate')) {
-              $.field('affiliate').select2({
-                  placeholder: "I don't care about this",
-                  allowClear: true,
-                  tags: true,
-                  data: {{ affiliates|jsonize }},
-                  width: '100%',
-                  createTag: function(params) {
-                      var term = $.trim(params.term);
-
-                      if (params.term === '') return null;
-
-                      return {
-                          id: params.term,
-                          text: params.term + ' (Add new)'
-                      }
-                  }
-              }).val({{ attendee.affiliate|default('', boolean=True)|jsonize }}).trigger('change');
           }
       }
   });
@@ -745,16 +725,6 @@ $().ready(function() {
       <span class="col-sm-offset-3 col-sm-6"><strong>Pre-ordered merch packages are no longer available</strong>. Please visit our merchandise booth on-site for t-shirts and other swag!</span>
     </div>
   {% endif %}
-
-  <div class="affiliate-row extra-row form-group" style="display:none">
-    <label for="affiliate" class="col-sm-3 control-label optional-field">Affiliate</label>
-    <div class="col-sm-6">
-      <select name="affiliate">
-        <option value="" selected="selected"></option>
-      </select>
-    </div>
-    <div class="form-control-static">{{ macros.popup_link("../static_views/affiliates.html", "What's an affiliate?") }}</div>
-  </div>
 {% endif %}
 {% if c.DONATIONS_ENABLED and (admin_area or read_only) %}
 {% set can_upgrade_amount_extra = c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 and attendee.amount_extra < c.PREREG_DONATION_OPTS[-1][0] %}
@@ -778,7 +748,7 @@ $().ready(function() {
 {% set read_only = badge_printed_name_ro or page_ro %}
 {% if c.PRINTED_BADGE_DEADLINE %}
 {% if not admin_area %}
-  {%- set readonly_badge_name = c.after_printed_badge_deadline_by_type(attendee.badge_type) -%}
+  {%- set readonly_badge_name = c.AFTER_PRINTED_BADGE_DEADLINE -%}
   <div class="badge-row extra-row form-group" style="display:none">
     <label for="badge_printed_name" class="col-sm-3 control-label optional-field">Name Printed on Badge</label>
     <div class="col-sm-6">

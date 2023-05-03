@@ -61,15 +61,15 @@ There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view.
     $('.ajax-link').on('click', function (event) {
         var $link = $(this);
         event.preventDefault();
-        toastr.clear();
+        $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
         $.ajax({
             method: 'GET',
             url: $link.attr('href'),
             success: function (json) {
                 if (json.success) {
-                    toastr.success(json.message);
+                    $("#message-alert").addClass("alert-success").show().children('span').html(json.message);
                 } else {
-                    toastr.error(json.message);
+                    $("#message-alert").addClass("alert-danger").show().children('span').html(json.message);
                 }
                 $link.hide()
                 if (json.queued) {
@@ -85,7 +85,7 @@ There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view.
                 }
             },
             error: function () {
-                toastr.error('Unable to connect to server, please try again.');
+                $("#message-alert").addClass("alert-danger").show().children('span').html('Unable to connect to server, please try again.');
             }
         });
     });

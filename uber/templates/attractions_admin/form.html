@@ -365,7 +365,7 @@
 
       var callback = function(response) {
         if(response && response['error']) {
-          toastr.error(response['error'], '', {timeOut: 3000});
+          $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'], '', {timeOut: 3000});
         } else {
           var $event = $button.closest('.event');
           $event.css({'height': $event.height(), 'min-height': ''});
@@ -435,15 +435,15 @@
               },
               success: function(response, status) {
                 if (response['error']) {
-                    toastr.error('There was an error opening signups: ' + response['error']);
+                    $("#message-alert").addClass("alert-danger").show().children('span').html('There was an error opening signups: ' + response['error']);
                 } else {
-                    toastr.success('Signups for all ' + features[featureId] + ' events on ' + day + ' opened!', {timeOut: 2000});
+                    $("#message-alert").addClass("alert-success").show().children('span').html('Signups for all ' + features[featureId] + ' events on ' + day + ' opened!', {timeOut: 2000});
                     $('#' + featureId + '_' + location + '_' + day + ' .open-signups').hide();
                     $('#' + featureId + '_' + location + '_' + day + ' .close-signups').show();
                 }
               },
               error: function(response, status) {
-                toastr.error(response);
+                $("#message-alert").addClass("alert-danger").show().children('span').html(response);
               }
           });
           }
@@ -475,15 +475,15 @@
               },
               success: function(response, status) {
                 if (response['error']) {
-                    toastr.error('There was an error closing signups: ' + response['error']);
+                    $("#message-alert").addClass("alert-danger").show().children('span').html('There was an error closing signups: ' + response['error']);
                 } else {
-                    toastr.success('Signups for all ' + features[featureId] + ' events on ' + day + ' closed!', {timeOut: 2000});
+                    $("#message-alert").addClass("alert-success").show().children('span').html('Signups for all ' + features[featureId] + ' events on ' + day + ' closed!', {timeOut: 2000});
                     $('#' + featureId + '_' + location + '_' + day + ' .close-signups').hide();
                     $('#' + featureId + '_' + location + '_' + day + ' .open-signups').show();
                 }
               },
               error: function(response, status) {
-                toastr.error(response);
+                $("#message-alert").addClass("alert-danger").show().children('span').html(response);
               }
           });
           }
@@ -517,7 +517,7 @@
                 if (result) {
                   updateLocations(featureId, oldValue, newValue, function(response) {
                     if(response && response['error']) {
-                      toastr.error(response['error']);
+                      $("#message-alert").addClass("alert-danger").show().children('span').html(response['error']);
                       $select.val(oldValue);
                     } else {
                       window.location = window.location + '&message=Successfully merged rooms!';
@@ -531,7 +531,7 @@
           } else {
             updateLocations(featureId, oldValue, newValue, function(response) {
               if(response && response['error']) {
-                toastr.error(response['error']);
+                $("#message-alert").addClass("alert-danger").show().children('span').html(response['error']);
                 $select.val(oldValue);
               } else {
                 $select.data('initialValue', newValue);

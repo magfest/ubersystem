@@ -56,7 +56,7 @@
           signupId = $button.data('signupId');
       checkinSignup(signupId, function(response) {
         if(response && response['error']) {
-          toastr.error(response['error'], '', {timeOut: 3000});
+          $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'], '', {timeOut: 3000});
         } else {
           var $checkinTd = $button.closest('td'),
               $cancelButton = $checkinTd.closest('tr').find('.controls button'),
@@ -74,7 +74,7 @@
           signupId = $button.data('signupId');
       undoCheckinSignup(signupId, function(response) {
         if(response && response['error']) {
-          toastr.error(response['error'], '', {timeOut: 3000});
+          $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'], '', {timeOut: 3000});
         } else {
           var $checkinTd = $button.closest('td'),
               $cancelButton = $checkinTd.closest('tr').find('.controls button'),
@@ -103,13 +103,13 @@
           if (result) {
             cancelSignup(signupId, function(response) {
               if(response && response['error']) {
-                toastr.error(response['error'], '', {timeOut: 3000});
+                $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'], '', {timeOut: 3000});
               } else {
                 var $signupRow = $button.closest('tr');
                 $signupRow.fadeOut(function() {
                   $attendeesTable.DataTable().row($signupRow).remove().draw();
                 });
-                toastr.success('Signup for ' + attendeeName + ' successfully cancelled', '', {timeOut: 3000});
+                $("#message-alert").addClass("alert-success").show().children('span').html('Signup for ' + attendeeName + ' successfully cancelled', '', {timeOut: 3000});
               }
             });
           }

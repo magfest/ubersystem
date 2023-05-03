@@ -171,7 +171,7 @@ def edit_only_correct_statuses(group):
         return "You cannot change your {} after it has been {}.".format(c.DEALER_APP_TERM, group.status_label)
 
 
-def _invalid_phone_number(s):
+def invalid_phone_number(s):
     try:
         # parse input as a US number, unless a leading + is provided,
         # in which case the input will be validated according to the country code
@@ -190,7 +190,7 @@ def _invalid_phone_number(s):
     return False
 
 
-def _invalid_zip_code(s):
+def invalid_zip_code(s):
     return len(re.findall(r'\d', s)) not in [5, 9]
 
 
@@ -721,7 +721,7 @@ def attendee_tournament_email(app):
 
 @validation.AttendeeTournament
 def attendee_tournament_cellphone(app):
-    if app.cellphone and _invalid_phone_number(app.cellphone):
+    if app.cellphone and invalid_phone_number(app.cellphone):
         return 'You did not enter a valid cellphone number'
 
 # =============================
@@ -815,7 +815,7 @@ def mivs_unique_name(studio):
                 
 @validation.IndieStudio
 def mivs_studio_contact_phone(studio):
-    if studio.contact_phone and _invalid_phone_number(studio.contact_phone):
+    if studio.contact_phone and invalid_phone_number(studio.contact_phone):
         return 'Please enter a valid phone number'
 
 
@@ -839,7 +839,7 @@ def mivs_dev_email(dev):
 
 @validation.IndieDeveloper
 def mivs_dev_cellphone(dev):
-    if (dev.primary_contact or dev.cellphone) and _invalid_phone_number(dev.cellphone):
+    if (dev.primary_contact or dev.cellphone) and invalid_phone_number(dev.cellphone):
         return 'Please enter a valid phone number'
 
 
@@ -974,7 +974,7 @@ def mits_applicant_email_valid(applicant):
 
 @validation.MITSApplicant
 def valid_phone_number(applicant):
-    if _invalid_phone_number(applicant.cellphone):
+    if invalid_phone_number(applicant.cellphone):
         return 'Your cellphone number was not a valid 10-digit US phone number. ' \
             'Please include a country code (e.g. +44) for international numbers.'
 
@@ -1024,7 +1024,7 @@ def pa_email(pa):
 
 @validation.PanelApplicant
 def pa_phone(pa):
-    if (pa.submitter or pa.cellphone) and _invalid_phone_number(pa.cellphone):
+    if (pa.submitter or pa.cellphone) and invalid_phone_number(pa.cellphone):
         return 'Please enter a valid phone number'
 
 
@@ -1189,7 +1189,7 @@ def validate_email(travel_plan):
 
 @validation.GuestDetailedTravelPlan
 def validate_phone(travel_plan):
-    if _invalid_phone_number(travel_plan.contact_phone):
+    if invalid_phone_number(travel_plan.contact_phone):
         return 'Your phone number was not a valid 10-digit US phone number. ' \
             'Please include a country code (e.g. +44) for international numbers.'
 

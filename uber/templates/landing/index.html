@@ -80,29 +80,12 @@
             $(window).load(function() {
                 $(".loader").fadeOut("fast");
             });
-            toastr.options = {
-                closeButton: true,
-                debug: false,
-                positionClass: "toast-top-right",
-                onclick: null,
-                showDuration: "300",
-                hideDuration: "1000",
-                timeOut: "0",
-                extendedTimeOut: "0",
-                showEasing: "swing",
-                hideEasing: "linear",
-                showMethod: "fadeIn",
-                hideMethod: "fadeOut",
-                onShown: function() {
-                  replaceQueryParamInUrl('message');
-                }
-            };
             var message = '{{ message or '' }}';
             var error_message = '{{ error_message }}';
             if (error_message.length) {
-                toastr.error(error_message);
+                $("#message-alert").addClass("alert-danger").show().children('span').html(error_message);
             } else if (message.length) {
-                toastr.info(message);
+                $("#message-alert").addClass("alert-info").show().children('span').html(message);
             };
         }
         )

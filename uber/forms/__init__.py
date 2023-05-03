@@ -1,15 +1,18 @@
 
 from importlib import import_module
 from markupsafe import Markup
-from wtforms import Form, StringField, IntegerField, BooleanField
+from wtforms import Form, StringField, IntegerField, BooleanField, validators
 import wtforms.widgets.core as wtforms_widgets
 from wtforms.validators import Optional, ValidationError, StopValidation
 from pockets.autolog import log
 from uber.config import c
 from uber.forms.widgets import *
+from uber.model_checks import invalid_zip_code
 
 
 class MagForm(Form):
+    skip_unassigned_placeholder_validators = {}
+
     @classmethod
     def all_forms(cls):
         # Get a list of all forms that inherit from MagForm
@@ -68,6 +71,10 @@ class MagForm(Form):
 
         super().__init__(formdata, obj, prefix, data, meta, **kwargs)
 
+    def field_list(self):
+        return list(self._fields.keys())
+
+
     class Meta:
         text_vars = {
             'EVENT_NAME': c.EVENT_NAME,
@@ -87,6 +94,8 @@ class MagForm(Form):
                 return 'inputgroup'
             elif isinstance(widget, MultiCheckbox):
                 return 'checkgroup'
+            elif isinstance(widget, wtforms_widgets.Select):
+                return 'select'
             else:
                 return 'text'
 
@@ -112,7 +121,7 @@ class MagForm(Form):
             if field_desc:
                 unbound_field.kwargs['description'] = self.format_field_text(field_desc, text_format_vars)
             
-            unbound_field.kwargs['render_kw'] = self.set_keyword_defaults(unbound_field, unbound_field.kwargs.get('render_kw', {}))
+            unbound_field.kwargs['render_kw'] = self.set_keyword_defaults(unbound_field, unbound_field.kwargs.get('render_kw', {}), field_name)
 
             return unbound_field.bind(form=form, **options)
 
@@ -128,7 +137,7 @@ class MagForm(Form):
                 return Markup(formatted_text)
             return formatted_text
 
-        def set_keyword_defaults(self, ufield, render_kw):
+        def set_keyword_defaults(self, ufield, render_kw, field_name):
             # Changes the render_kw dictionary to implement some high-level defaults
 
             # Fixes textarea fields to work with Bootstrap floating labels
@@ -146,6 +155,9 @@ class MagForm(Form):
             if 'placeholder' not in render_kw:
                 render_kw['placeholder'] = " "
 
+            # Support for validating fields inline
+            render_kw['aria-describedby'] = field_name + "-validation"
+
             return render_kw
 
         def wrap_formdata(self, form, formdata):
@@ -157,48 +169,24 @@ class MagForm(Form):
 
 
 class Address(MagForm):
-    address1 = StringField('Address 1', default='')
+    address1 = StringField('Address 1', default='', validators=[validators.InputRequired(message="Please enter a street address.")])
     address2 = StringField('Address 2', default='')
-    city = StringField('City', default='')
+    city = StringField('City', default='', validators=[validators.InputRequired(message="Please enter a city.")])
     region = StringField('State/Province', default='')
     zip_code = StringField('Zip/Postal Code', default='')
-    country = StringField('Country', default='')
+    country = StringField('Country', default='', validators=[validators.InputRequired(message="Please enter a country.")])
+
+    def validate_region(form, field):
+        if form.country.data in ['United States', 'Canada'] and not field.data:
+            raise ValidationError('Please enter a state, province, or region.')
+    
+    def validate_zip_code(form, field):
+        if form.country.data == 'United States' and not c.AT_OR_POST_CON and invalid_zip_code(field.data):
+            raise ValidationError('Please enter a valid 5 or 9-digit zip code.')
 
 
 class HiddenIntField(IntegerField):
     widget = wtforms_widgets.HiddenInput()
-
-
-class OptionalIf(Optional):
-    """
-    Treats the field as optional if certain fields are truthy and/or falsey.
-    Used largely to exclude placeholder and unassigned group badges from validations.
-    """
-    def __init__(self, strip_whitespace=True, truthy=[], falsey=[]):
-        self.truthy = truthy
-        self.falsey = falsey
-        super().__init__(strip_whitespace)
-
-    def __call__(self, form, field):
-        for fieldname in self.truthy:
-            try:
-                fieldval = form[fieldname]
-            except KeyError as exc:
-                raise ValidationError(
-                    field.gettext("Invalid field name '%s'.") % fieldname
-                ) from exc
-            if not fieldval:
-                super().__call__(form, field)
-
-        for fieldname in self.falsey:
-            try:
-                fieldval = form[fieldname]
-            except KeyError as exc:
-                raise ValidationError(
-                    field.gettext("Invalid field name '%s'.") % fieldname
-                ) from exc
-            if fieldval:
-                super().__call__(form, field)
 
 
 class DictWrapper(dict):

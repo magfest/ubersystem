@@ -1,14 +1,22 @@
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
+{% set prereg_merch_available = True or c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 %}
 
 {{ badge_extras.badge_type }}
 {% if c.BADGE_TYPE_PRICES %}
 {% endif %}
 
 {{ badge_extras.amount_extra }}
-{% if c.DONATIONS_ENABLED %}
+{% if c.DONATIONS_ENABLED and (prereg_merch_available or attendee.amount_extra) %}
 <div class="row g-3">
 {{ form_macros.card_select(badge_extras.amount_extra, c.FORMATTED_DONATION_DESCRIPTIONS_EXCLUSIVE)}}
+</div>
+{{ form_macros.toggle_fields_js(badge_extras.amount_extra, [badge_extras.shirt], off_values=["0"], toggle_required=True) }}
+{% endif %}
+
+{% if prereg_merch_available or attendee.gets_any_kind_of_shirt %}
+<div class="row g-3">
+    <div class="col">{{ form_macros.form_input(badge_extras.shirt) }}</div>
 </div>
 {% endif %}
 

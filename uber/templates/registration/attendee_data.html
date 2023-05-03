@@ -15,7 +15,7 @@ var saveAndClose = function() {
   
 var updateAttendee = function(event){
     event.preventDefault();
-    toastr.clear();
+    $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
 
     var formData = $("#attendee_form").serializeArray();
     var old_hash = window.location.hash;
@@ -32,7 +32,7 @@ var updateAttendee = function(event){
         data: formData,
         success: function (json) {
             if (json.success) {
-              toastr.info(json.message);
+              $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
               {% if attendee.is_new %}
               old_hash = "#attendee_form?id=" + json.id
               window.location = window.location.href.replace(location.hash, "") + old_hash;
@@ -41,11 +41,11 @@ var updateAttendee = function(event){
               loadForm("Data");
               {% endif %}
             } else {
-              toastr.error(json.message);
+              $("#message-alert").addClass("alert-danger").show().children('span').html(json.message);
             }
         },
         error: function () {
-            toastr.error('Unable to connect to server, please try again.');
+            $("#message-alert").addClass("alert-danger").show().children('span').html('Unable to connect to server, please try again.');
         }
     });
     setTimeout(function(){ 

@@ -166,12 +166,12 @@
       var callback = function(response) {
         if(response && response['error']) {
           $optout.prop('checked', !isOptedOut)
-          toastr.error(response['error'], '', {timeOut: 3000});
+          $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'], '', {timeOut: 3000});
         } else {
           var message = isOptedOut ?
             'Attraction signups disabled':
             'Attraction signups re-enabled';
-          toastr.success(message, '', {timeOut: 3000});
+          $("#message-alert").addClass("alert-success").show().children('span').html(message, '', {timeOut: 3000});
         }
       };
 
@@ -198,9 +198,9 @@
       var callback = function(response) {
         if(response && response['error']) {
           $optout.prop('checked', !isOptedOut)
-          toastr.error(response['error'], '', {timeOut: 3000});
+          $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'], '', {timeOut: 3000});
         } else {
-          toastr.success('Communication prefs updated', '', {timeOut: 3000});
+          $("#message-alert").addClass("alert-success").show().children('span').html('Communication prefs updated', '', {timeOut: 3000});
         }
       };
 
@@ -236,19 +236,19 @@
             $('#' + eventId + ' .remaining-slots').text(response['remaining_slots']);
             callback(response);
           } else {
-            toastr.error(response['error'] || 'Error signing up for event', '', {timeOut: 3000});
+            $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'] || 'Error signing up for event', '', {timeOut: 3000});
             callback(false);
           }
         },
         error: function(response, status, statusText) {
-          toastr.error('Error signing up for event', '', {timeOut: 3000});
+          $("#message-alert").addClass("alert-danger").show().children('span').html('Error signing up for event', '', {timeOut: 3000});
           callback(false);
         }
       });
     };
 
     $signupModal.on('hide.bs.modal', function (event) {
-      toastr.clear();
+      $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
     });
 
     $signupModal.on('show.bs.modal', function (event) {
@@ -272,7 +272,7 @@
           if (response['remaining_slots'] === response['old_remaining_slots']) {
             message = ' was already signed up for ';
           }
-          toastr.info($attendee.html() + message + eventLabel);
+          $("#message-alert").addClass("alert-info").show().children('span').html($attendee.html() + message + eventLabel);
           hideBadgeNumConfirm($signupModal, true);
         } else {
           hideBadgeNumConfirm($signupModal, false);
@@ -308,10 +308,10 @@
 
       var callback = function(response) {
         if(response && response['error']) {
-          toastr.error(response['error'], '', {timeOut: 3000});
+          $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'], '', {timeOut: 3000});
         } else {
           $signup.fadeOut();
-          toastr.success('Signup for ' + eventLabel + ' successfully cancelled', '', {timeOut: 3000});
+          $("#message-alert").addClass("alert-success").show().children('span').html('Signup for ' + eventLabel + ' successfully cancelled', '', {timeOut: 3000});
         }
       };
 

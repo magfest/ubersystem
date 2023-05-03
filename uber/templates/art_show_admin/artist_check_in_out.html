@@ -166,10 +166,10 @@
                                     location.href = '?{% if checkout %}checkout=True&{% endif %}message=' + response['success'];
                                 }
                             } else {
-                                toastr.error('', response['error'], {timeOut: 5000});
+                                $("#message-alert").addClass("alert-danger").show().children('span').html('', response['error'], {timeOut: 5000});
                             }
                         } catch(ex) {
-                            toastr.error('', 'There was an error saving the app: ' + responseText.substring(0, 1024), {timeOut: 5000});
+                            $("#message-alert").addClass("alert-danger").show().children('span').html('', 'There was an error saving the app: ' + responseText.substring(0, 1024), {timeOut: 5000});
                         }
                     }
                 } finally {

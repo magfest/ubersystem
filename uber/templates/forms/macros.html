@@ -7,6 +7,7 @@
 {% if extra_field %}
     {{ extra_field }}
 {% endif %}
+    <div id="{{ field.id }}-validation" class="invalid-feedback"></div>
 {% endmacro %}
 
 {% macro form_input(field, help_text='', extra_field=None) %}
@@ -14,7 +15,7 @@
 
 {% if type in ['checkbox','switch'] %}
 <div class="form-check{% if type == 'switch' %} form-switch{% endif %}">
-  {{ field(class="form-check-input", checked=field.data, **kwargs) }}
+  {{ field(class="form-check-input", checked=field.data, value=1, **kwargs) }}
   {{ field.label(class="form-check-label") }}
   {{ form_input_extras(field, help_text, extra_field) }}
 </div>
@@ -25,6 +26,13 @@
 {% elif type == 'checkgroup' %}
 <div class="form-text">{{ field.label() }}</div>
 <div class="card card-body">{{ field(**kwargs) }}</div>
+{{ form_input_extras(field, help_text, extra_field) }}
+{% elif type == 'select' %}
+<div class="form-floating mb-3">
+    {{ field(class="form-select", **kwargs) }}
+    {{ field.label }}
+    {{ form_input_extras(field, help_text, extra_field) }}
+</div>
 {% else %}
 <div class="form-floating mb-3">
     {{ field(class="form-control", **kwargs) }}
@@ -34,10 +42,9 @@
 {% endif %}
 {% endmacro %}
 
-{% macro toggle_checkbox(checkbox_field, target_fields, type='checkbox', help_text='', toggle_required=False, hide_on_checked=False, mode='visibility') -%}
-{% set suffix = "_" ~ checkbox_field.id %}
+{% macro toggle_checkbox(checkbox_field, target_fields, type='checkbox', help_text='', toggle_required=False, hide_on_checked=False, prop='visibility') -%}
   <div class="form-check{% if type == 'switch' %} form-switch{% endif %}">
-    {{ checkbox_field(class="form-check-input", **kwargs) }}
+    {{ checkbox_field(class="form-check-input", value=1, **kwargs) }}
     {{ checkbox_field.label(class="form-check-label") }}
     {% if help_text or checkbox_field.description %}
       <div class="form-text">
@@ -46,30 +53,56 @@
     {% endif %}
   </div>
 
+{{ toggle_fields_js(checkbox_field, target_fields, off_values=[1 if hide_on_checked == True else 0], toggle_required=toggle_required, prop=prop) }}
+{%- endmacro %}
+
+{% macro toggle_fields_js(source_field, target_fields, off_values=[], on_values=[], toggle_required=False, prop='visibility', hide_row=True) %}
+{% set suffix = "_" ~ source_field.id %}
 <script type="text/javascript">
-    var toggleVisibility{{ suffix }} = function () {
-        var isChecked = $('#{{ checkbox_field.id }}').prop('checked'),
-            hideOnChecked = {{ hide_on_checked|yesno('true,false') }},
-            isVisible = isChecked != hideOnChecked;
-        if ('{{ mode }}' == 'visibility') {
-            {% for target_field in target_fields %}
-            $('#{{ target_field.id }}').toggle(isVisible);
-            $('#{{ target_field.id }}').parent('.card .card-body').parents('.row').toggle(isVisible);
-            {% endfor %}
+    var toggleField{{ suffix }} = function() {
+        // Get the checked/unchecked status if the field is a checkbox, otherwise get the field's value
+        if ($("#{{ source_field.id }}").is(':checkbox')) {
+            toggleVal = $('#{{ source_field.id }}').prop('checked') ? 1 : 0;
         } else {
-            {% for target_field in target_fields %}
-            $('#{{ target_field.id }}').prop('{{ mode }}', !isVisible);
-            {% endfor %}
+            toggleVal = $("#{{ source_field.id }}").val();
         }
-        {%- if toggle_required -%}
+
+        // Set whether we should toggle the target fields "on" or "off" based on the values provided
+        // If no off_values or on_values were provided, we rely on truthiness instead
+        {% if off_values %}
+            toggleOn = ({{ off_values|safe }}.includes(toggleVal) === false);
+        {% elif on_values %}
+            toggleOn = {{ on_values|safe }}.includes(toggleVal);
+        {% else %}
+            toggleOn = Boolean(toggleVal);
+        {% endif %}
+
         {% for target_field in target_fields %}
-        $('#{{ target_field.id }}').prop('required', isVisible);
+            if ('{{ prop }}' == 'visibility') {
+                {% for target_field in target_fields %}
+                    $('#{{ target_field.id }}').toggle(toggleOn);
+                    {% if hide_row %}
+                        $('#{{ target_field.id }}').closest('.row').toggle(toggleOn);
+                    {% else %}
+                        $('#{{ target_field.id }}').closest('.col').toggle(toggleOn);
+                    {% endif %}
+                {% endfor %}
+            } else {
+                {% for target_field in target_fields %}
+                    $('#{{ target_field.id }}').prop('{{ prop }}', !toggleOn);
+                {% endfor %}
+            }
+            {%- if toggle_required -%}
+                {% for target_field in target_fields %}
+                    $('#{{ target_field.id }}').prop('required', toggleOn);
+                {% endfor %}
+            {%- endif -%}
         {% endfor %}
-        {%- endif -%}
-    };
+    }
+
     $(function () {
-        toggleVisibility{{ suffix }}();
-        $('#{{ checkbox_field.id }}').change(toggleVisibility{{ suffix }});
+        toggleField{{ suffix }}();
+        $('#{{ source_field.id }}').change(toggleField{{ suffix }});
     });
 </script>
 {%- endmacro %}
@@ -119,7 +152,7 @@
 
 <script type="text/javascript">
     var setField_{{ target_field.name }} = function(value) {
-        $("#{{ target_field.id }}").val(value);
+        $("#{{ target_field.id }}").val(value).trigger('change');
         $(".{{ target_field.name }}_card").each(function(){
             var header = $(this).parent().siblings('.card-header');
             if(this.dataset.value == value) {

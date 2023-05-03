@@ -187,7 +187,7 @@ class Root:
             app.zip_code = app.attendee.zip_code
             app.country = app.attendee.country
 
-        from uber.model_checks import _invalid_zip_code
+        from uber.model_checks import invalid_zip_code
 
         if not app.address1:
             message = 'Please enter a street address.'
@@ -198,7 +198,7 @@ class Root:
         if not app.country:
             message = 'Please enter a country.'
         if app.country == 'United States':
-            if _invalid_zip_code(app.zip_code):
+            if invalid_zip_code(app.zip_code):
                 message = 'Enter a valid zip code'
 
         if message:

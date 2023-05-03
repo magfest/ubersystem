@@ -154,7 +154,7 @@
         };
 
         try {
-          toastr.clear();
+          $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
           $output.text('');
           $output.css({
             'border-color': '',

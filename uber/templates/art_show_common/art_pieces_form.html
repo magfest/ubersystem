@@ -380,10 +380,10 @@
                             $modals.modal('hide');
                             location.href = '?id={{ app.id }}&message='+response['success'];
                         } else {
-                            toastr.error('', response['error'], {timeOut: 5000});
+                            $("#message-alert").addClass("alert-danger").show().children('span').html('', response['error'], {timeOut: 5000});
                         }
                     } catch(ex) {
-                        toastr.error('', 'There was an error saving the piece: ' + responseText.substring(0, 1024), {timeOut: 5000});
+                        $("#message-alert").addClass("alert-danger").show().children('span').html('', 'There was an error saving the piece: ' + responseText.substring(0, 1024), {timeOut: 5000});
                     }
                 }
             } finally {
@@ -416,15 +416,15 @@
                             },
                             success: function(response, status) {
                                 if (response['error']) {
-                                    toastr.error('There was an error removing the piece: ' + response['error']);
+                                    $("#message-alert").addClass("alert-danger").show().children('span').html('There was an error removing the piece: ' + response['error']);
                                 } else {
                                     dataTable.row(pieceRow).remove();
                                     dataTable.draw();
-                                    toastr.success('', pieceName + ' successfully removed!', {timeOut: 2000});
+                                    $("#message-alert").addClass("alert-success").show().children('span').html('', pieceName + ' successfully removed!', {timeOut: 2000});
                                 }
                             },
                             error: function(response, status) {
-                                toastr.error('There was an error removing the item: ' + response);
+                                $("#message-alert").addClass("alert-danger").show().children('span').html('There was an error removing the item: ' + response);
                             }
                         });
                     }

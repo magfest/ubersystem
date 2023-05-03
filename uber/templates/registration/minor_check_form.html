@@ -46,17 +46,17 @@
             reprint_fee: {{ reprint_fee|default("''", true) }}
         },
         success: function (json) {
-            toastr.clear();
+            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
             var message = json.message;
             if (json.success) {
-                toastr.success(message);
+                $("#message-alert").addClass("alert-success").show().children('span').html(message);
                 loadCheckInFormModal(attendeeID, json.printer_id);
             } else {
-                toastr.error(message);
+                $("#message-alert").addClass("alert-danger").show().children('span').html(message);
             }
         },
         error: function () {
-            toastr.error('Unable to connect to server, please try again.');
+            $("#message-alert").addClass("alert-danger").show().children('span').html('Unable to connect to server, please try again.');
         }
         });
     };

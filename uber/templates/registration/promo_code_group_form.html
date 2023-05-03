@@ -38,9 +38,9 @@
       callback: function (result) {
         if(result) {
           $.post('remove_group_code', {csrf_token: csrf_token, id: codeId}, function (response) {
-            toastr.clear();
+            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
             if (response.error) {
-              toastr.error(response.error);
+              $("#message-alert").addClass("alert-danger").show().children('span').html(response.error);
             } else {
               window.location = 'promo_code_group_form?id={{ group.id }}&message=Code deleted'
             }

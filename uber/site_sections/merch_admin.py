@@ -159,7 +159,6 @@ class Root:
             'message': message,
             'merch_items': merch_items,
             'gets_swadge': gets_swadge,
-            'swadges_available': c.SWADGES_AVAILABLE
         }
 
     @ajax
@@ -218,7 +217,6 @@ class Root:
             attendee.got_staff_merch = False
         else:
             attendee.got_merch = attendee.got_swadge = False
-            c._swadges_available = False  # force db check next time
         if attendee.no_shirt:
             session.delete(attendee.no_shirt)
         session.commit()
