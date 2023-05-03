@@ -44,7 +44,7 @@ class Root:
                 app.attendee = attendee
 
                 session.add(app)
-                send_email(
+                send_email.delay(
                     c.MARKETPLACE_APP_EMAIL,
                     c.MARKETPLACE_APP_EMAIL,
                     'Marketplace Application Received',

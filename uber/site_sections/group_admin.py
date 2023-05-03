@@ -41,6 +41,21 @@ class Root:
             'approved_tables':   sum(g.tables for g in dealer_groups if g.status == c.APPROVED)
         }
 
+    def new_group_from_attendee(self, session, id):
+        attendee = session.attendee(id)
+        if attendee.group:
+            if c.HAS_REGISTRATION_ACCESS:
+                link = '../registration/form?id={}&'.format(attendee.id)
+            else:
+                link = '../accounts/homepage?'
+            raise HTTPRedirect('{}message={}', link, "That attendee is already in a group!")
+        group = Group(name="{}'s Group".format(attendee.full_name))
+        attendee.group = group
+        group.leader = attendee
+        session.add(group)
+        
+        raise HTTPRedirect('form?id={}&message={}', group.id, "Group successfully created.")
+
     @log_pageview
     def form(self, session, new_dealer='', message='', **params):
         if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:

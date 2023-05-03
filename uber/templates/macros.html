@@ -75,7 +75,7 @@
 {%- endmacro %}
 
 
-{% macro checkgroup_opts(field_name, choices, suffix='', defaults=[], is_readonly=False, include_empty_hidden=False) -%}
+{% macro checkgroup_opts(field_name, choices, suffix='', label_format='', defaults=[], is_readonly=False, include_empty_hidden=False, line_break=False) -%}
   <div class="checkgroup">
     {% for choice in choices -%}
       {%- set value = choice.0 -%}
@@ -100,7 +100,7 @@
                 name="{{ field_name }}{{ suffix }}"
                 value="{{ value }}"
                 {% if has_value %}checked{% endif %}/>
-            {{ label }}
+            {% if label_format %}{{ label_format.format(label) }}{% else %}{{ label }}{% endif %}
           {% endif %}
         </label>
       {% endif %}
@@ -139,7 +139,7 @@
   {%- set defaults = model[field_name] if not defaults and not is_class else '' -%}
   {%- set defaults = defaults.split(",") if defaults else [] -%}
   {%- set choices = model.get_field(field_name).type.choices -%}
-  {{ checkgroup_opts(field_name, choices, suffix, defaults, is_readonly) }}
+  {{ checkgroup_opts(field_name, choices, suffix=suffix, defaults=defaults, is_readonly=is_readonly) }}
 {%- endmacro %}
 
 

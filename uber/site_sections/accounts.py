@@ -395,7 +395,8 @@ class Root:
                         session.add(account)
                         body = render('emails/accounts/new_account.txt', {
                             'account': account,
-                            'password': password if not c.AUTH_DOMAIN else ''
+                            'password': password if not c.AUTH_DOMAIN else '',
+                            'creator': AdminAccount.admin_name()
                         }, encoding=None)
                         send_email.delay(
                             c.ADMIN_EMAIL,

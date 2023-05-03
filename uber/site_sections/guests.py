@@ -3,12 +3,33 @@ import shutil
 
 import cherrypy
 from cherrypy.lib.static import serve_file
+from pockets.autolog import log
+from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable
 from uber.errors import HTTPRedirect
-from uber.models import GuestMerch
+from uber.models import GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans
 from uber.utils import check
+
+
+def compile_travel_plans_from_params(session, **params):
+    # Turns form fields into a list of dicts of travel plans for the travel step
+    travel_plan_fields = [col.name for col in GuestDetailedTravelPlan.__table__.columns]
+    travel_plan_fields.remove('travel_plans_id')
+
+    travel_plans = []
+    for i in range(1, int(params.get('detailed_travels', 0)) + 1):
+        travel_plan_params = {attr: params.get('{}_{}'.format(attr, i)) for attr in travel_plan_fields}
+
+        # We should have restricted=True here but UTCDateTime columns are always restricted and I don't know why
+        try:
+            travel_plan = session.guest_detailed_travel_plan(travel_plan_params, ignore_csrf=True)
+        except NoResultFound:
+            travel_plan_params.pop('id')
+            travel_plan = session.guest_detailed_travel_plan(travel_plan_params, ignore_csrf=True)
+        travel_plans.append(travel_plan)
+    return travel_plans
 
 
 @all_renderable(public=True)
@@ -182,9 +203,9 @@ class Root:
                     for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city']:
                         group_params[field_name] = params.get(field_name, '')
 
-                    if not guest.info and not guest_merch.tax_phone:
+                    if c.GUEST_INFO_DEADLINE and not guest.info and not guest_merch.tax_phone:
                         message = 'You must provide a phone number for tax purposes.'
-                    elif not (params.get('country')
+                    elif c.GUEST_INFO_DEADLINE and not (params.get('country')
                               and params.get('region')
                               and params.get('zip_code')
                               and params.get('address1')
@@ -296,15 +317,38 @@ class Root:
 
     def travel_plans(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
-        guest_travel_plans = session.guest_travel_plans(params, checkgroups=['modes'])
+
+        if guest.uses_detailed_travel_plans:
+            guest_travel_plans = guest.travel_plans or GuestTravelPlans(guest_id=guest_id)
+            detailed_travel_plans = compile_travel_plans_from_params(session, **params) or guest_travel_plans.detailed_travel_plans
+        else:
+            guest_travel_plans = session.guest_travel_plans(params, checkgroups=['modes'])
+
         if cherrypy.request.method == 'POST':
-            if not guest_travel_plans.modes:
-                message = 'Please tell us how you will arrive at MAGFest.'
-            elif c.OTHER in guest_travel_plans.modes_ints and not guest_travel_plans.modes_text:
-                message = 'You need to tell us what "other" travel modes you are using.'
-            elif not guest_travel_plans.details:
-                message = 'Please provide details of your arrival and departure plans.'
+            if guest.uses_detailed_travel_plans:
+                # Remove extra plans
+                if len(detailed_travel_plans) < guest_travel_plans.num_detailed_travel_plans:
+                    new_travel_plan_ids = [travel_plan.id for travel_plan in detailed_travel_plans]
+                    for travel_plan in guest_travel_plans.detailed_travel_plans:
+                        if travel_plan.id not in new_travel_plan_ids:
+                            session.delete(travel_plan)
+                            session.commit()
+
+                # Check remaining + new plans
+                for index, plan in enumerate(detailed_travel_plans):
+                    message = check(plan)
+                    if message:
+                        message = "There is an error in travel plan #{}: {}".format(index + 1, message)
+                        break
             else:
+                message = check(guest_travel_plans)
+
+            if not message:
+                if guest.uses_detailed_travel_plans:
+                    for plan in detailed_travel_plans:
+                        plan.travel_plans = guest_travel_plans
+                        session.add(plan)
+                        session.commit()
                 guest.travel_plans = guest_travel_plans
                 session.add(guest_travel_plans)
                 raise HTTPRedirect('index?id={}&message={}', guest.id, 'Your travel plans have been saved')
@@ -312,7 +356,12 @@ class Root:
         return {
             'guest': guest,
             'guest_travel_plans': guest.travel_plans or guest_travel_plans,
-            'message': message
+            'detailed_travel_plans': detailed_travel_plans if guest.uses_detailed_travel_plans else None,
+            'message': message,
+            'min_arrival_time': GuestDetailedTravelPlan.min_arrival_time,
+            'max_arrival_time': GuestDetailedTravelPlan.max_arrival_time,
+            'min_departure_time': GuestDetailedTravelPlan.min_departure_time,
+            'max_departure_time': GuestDetailedTravelPlan.max_departure_time,
         }
 
     def mivs_core_hours(self, session, guest_id, message='', **params):

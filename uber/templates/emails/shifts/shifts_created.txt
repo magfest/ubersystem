@@ -1,0 +1,5 @@
+{{ attendee.first_name }},
+
+Thanks for signing up to volunteer at {{ c.EVENT_NAME }}! Shifts are now live and you can sign up for them at {{ c.URL_BASE }}/staffing/login?first_name={{ attendee.first_name|urlencode }}&last_name={{ attendee.last_name|urlencode }}&email={{ attendee.email|urlencode }}&zip_code={{ attendee.zip_code|urlencode }} -- some departments may have extra information about their shifts, so keep an eye out for any emails from your assigned departments.
+
+You can add / change your shifts anytime until {{ c.EPOCH|datetime_local }}. {% if c.BEFORE_DROP_SHIFTS_DEADLINE %}You can drop shifts up until {{ c.DROP_SHIFTS_DEADLINE.astimezone(c.EVENT_TIMEZONE).strftime('%B %-e') }}. After that time{% else %}If you want to drop any shifts{% endif %}, you will need to contact STOPS at {{ c.STAFF_EMAIL|email_only }}

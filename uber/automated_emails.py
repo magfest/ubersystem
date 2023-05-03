@@ -133,7 +133,7 @@ class AutomatedEmailFixture:
 
 AutomatedEmailFixture(
     Attendee,
-    '{EVENT_NAME} payment received',
+    '{EVENT_NAME} registration confirmed',
     'reg_workflow/attendee_confirmation.html',
     lambda a: a.paid == c.HAS_PAID and not a.promo_code_groups,
     # query=Attendee.paid == c.HAS_PAID,
@@ -152,6 +152,14 @@ AutomatedEmailFixture(
     needs_approval=False,
     allow_at_the_con=True,
     ident='attendee_badge_confirmed')
+
+AutomatedEmailFixture(
+    Attendee,
+    'Claim your Deferred Badge for {EVENT_NAME} {EVENT_YEAR}!',
+    'placeholders/deferred.html',
+    lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN and \
+              a.badge_type == c.ATTENDEE_BADGE and a.paid == c.NEED_NOT_PAY and not a.admin_account,
+    ident='claim_deferred_badge')
 
 AutomatedEmailFixture(
     AttendeeAccount,
@@ -196,7 +204,7 @@ AutomatedEmailFixture(
 
 AutomatedEmailFixture(
     Attendee,
-    '{EVENT_NAME} extra payment received',
+    '{EVENT_NAME} merch pre-order received',
     'reg_workflow/group_donation.txt',
     lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid >= (a.amount_extra * 100),
     # query=and_(
@@ -506,9 +514,9 @@ AutomatedEmailFixture(
     ident='dealer_info_required')
 
 StopsEmailFixture(
-    'Claim your Staff Badge and Apply to Staff at {EVENT_NAME} {EVENT_YEAR}!',
+    'Claim your Staff Badge for {EVENT_NAME} {EVENT_YEAR}!',
     'placeholders/imported_volunteer.txt',
-    lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN,
+    lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN and a.badge_type == c.STAFF_BADGE,
     ident='volunteer_again_inquiry')
 
 StopsEmailFixture(
@@ -544,21 +552,31 @@ AutomatedEmailFixture(
     ident='badge_confirmation_reminder_last_chance')
 
 
-# Volunteer emails; none of these will be sent unless SHIFTS_CREATED is set.
+# Volunteer emails; none of these will be sent unless VOLUNTEER_CHECKLIST_OPEN is set.
 
 StopsEmailFixture(
     'Please complete your {EVENT_NAME} Staff/Volunteer Checklist',
     'shifts/created.txt',
     lambda a: a.staffing,
-    when=after(c.SHIFTS_CREATED),
+    when=after(c.VOLUNTEER_CHECKLIST_OPEN),
     ident='volunteer_checklist_completion_request')
+
+StopsEmailFixture(
+    '{EVENT_NAME} ({EVENT_DATE}) shifts are live!',
+    'shifts/shifts_created.txt',
+    lambda a: (
+        c.AFTER_SHIFTS_CREATED
+        and a.takes_shifts
+        and a.registered_local <= c.SHIFTS_CREATED),
+    when=before(c.PREREG_TAKEDOWN),
+    ident='volunteer_shift_signup_notification')
 
 StopsEmailFixture(
     'Reminder to sign up for {EVENT_NAME} ({EVENT_DATE}) shifts',
     'shifts/reminder.txt',
     lambda a: (
         c.AFTER_SHIFTS_CREATED
-        and days_after(30, max(a.registered_local, c.SHIFTS_CREATED))()
+        and days_after(14, max(a.registered_local, c.SHIFTS_CREATED))()
         and a.takes_shifts
         and not a.shift_minutes),
     when=before(c.PREREG_TAKEDOWN),
@@ -575,7 +593,7 @@ StopsEmailFixture(
     'Still want to volunteer at {EVENT_NAME} ({EVENT_DATE})?',
     'shifts/volunteer_check.txt',
     lambda a: (
-        c.SHIFTS_CREATED
+        c.VOLUNTEER_CHECKLIST_OPEN
         and c.VOLUNTEER_RIBBON in a.ribbon_ints
         and a.takes_shifts
         and a.weighted_hours == 0),
@@ -601,7 +619,7 @@ if c.VOLUNTEER_AGREEMENT_ENABLED:
     StopsEmailFixture(
         'Reminder: Please agree to terms of {EVENT_NAME} ({EVENT_DATE}) volunteer agreement',
         'staffing/volunteer_agreement.txt',
-        lambda a: c.SHIFTS_CREATED and c.VOLUNTEER_AGREEMENT_ENABLED and not a.agreed_to_volunteer_agreement,
+        lambda a: c.VOLUNTEER_CHECKLIST_OPEN and c.VOLUNTEER_AGREEMENT_ENABLED and not a.agreed_to_volunteer_agreement,
         when=days_before(45, c.FINAL_EMAIL_DEADLINE),
         ident='volunteer_agreement')
 
@@ -683,7 +701,7 @@ if c.HOTELS_ENABLED:
         Attendee,
         'Want volunteer hotel room space at {EVENT_NAME}?',
         'hotel/hotel_rooms.txt',
-        lambda a: c.AFTER_SHIFTS_CREATED and a.hotel_eligible and a.takes_shifts, sender=c.ROOM_EMAIL_SENDER,
+        lambda a: a.hotel_eligible and not a.hotel_requests and a.takes_shifts, sender=c.ROOM_EMAIL_SENDER,
         when=days_before(45, c.ROOM_DEADLINE, 14),
         ident='volunteer_hotel_room_inquiry')
 
@@ -820,6 +838,14 @@ if c.MIVS_ENABLED:
 
     MIVSEmailFixture(
         IndieGame,
+        'MIVS {EVENT_YEAR} Waitlist: Additional Information Required',
+        'mivs/waitlist_info.txt',
+        lambda game: game.status == c.WAITLISTED,
+        ident='mivs_waitlist_info'
+    )
+
+    MIVSEmailFixture(
+        IndieGame,
         'Last chance to accept your MIVS booth',
         'mivs/game_accept_reminder.txt',
         lambda game: (
@@ -936,53 +962,12 @@ if c.MIVS_ENABLED:
         ident='mivs_checklist_update_hotel_information'
     )
 
-
     MIVSGuestEmailFixture(
         'New {EVENT_NAME} MIVS Checklist Item: MIVS Training',
         'mivs/checklist/new_update_training_information.txt',
         lambda mg: True,
         ident='mivs_checklist_update_training_information'
     )
-
-    for key, val in c.MIVS_CHECKLIST.items():
-        if val['start']:
-            MIVSGuestEmailFixture(
-                'New MIVS Checklist Item Available: {}'.format(val['name']),
-                'mivs/checklist_new_item.txt',
-                lambda mg: val['start'] > mg.created.when,
-                when=after(val['start']),
-                ident='mivs_checklist_new_item_{}'.format(key),
-            )
-
-    deadline_groups = set([val['deadline'] for key, val in c.MIVS_CHECKLIST.items()])
-
-    for deadline in deadline_groups:
-        MIVSGuestEmailFixture(
-            'An item on your {EVENT_NAME} MIVS Checklist is due soon',
-            'mivs/checklist_reminder.txt',
-            lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
-                           for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
-            when=days_before(2, deadline, 1),
-            ident='mivs_checklist_due_2_days_from_{}'.format(deadline.strftime('%m_%d')),
-        )
-
-        MIVSGuestEmailFixture(
-            'An item on your {EVENT_NAME} MIVS Checklist is due tomorrow',
-            'mivs/checklist_reminder.txt',
-            lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
-                           for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
-            when=days_before(1, deadline, 0),
-            ident='mivs_checklist_due_1_day_from_{}'.format(deadline.strftime('%m_%d')),
-        )
-
-        MIVSGuestEmailFixture(
-            'An item on your {EVENT_NAME} MIVS Checklist is overdue',
-            'mivs/checklist_reminder.txt',
-            lambda mg: any(getattr(mg.group.studio, key + "_status", None) is None
-                           for key, val in c.MIVS_CHECKLIST.items() if val['deadline'] == deadline),
-            when=days_after(1, deadline),
-            ident='mivs_checklist_overdue_{}'.format(deadline.strftime('%m_%d')),
-        )
 
     # At-Con MIVS Emails
     MIVSEmailFixture(
@@ -1169,6 +1154,16 @@ if c.PANELS_ENABLED:
         'panels/panel_app_waitlisted.txt',
         lambda app: app.status == c.WAITLISTED,
         ident='panel_waitlisted')
+
+    PanelAppEmailFixture(
+        'Last chance to confirm your panel',
+        'panels/panel_accept_reminder.txt',
+        lambda app: (
+            c.PANELS_CONFIRM_DEADLINE
+            and app.status == c.ACCEPTED
+            and not app.confirmed
+            and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
+        ident='panel_accept_reminder')
 
     PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Has Been Scheduled: {{ app.name }}',

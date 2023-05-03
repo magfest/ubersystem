@@ -6,4 +6,4 @@ If you have any questions or concerns, please don't hesitate to send them to {{ 
 
 Congratulations again, and we look forward to seeing you at {{ c.EVENT_NAME }}!
 
-{{ c.PEGLEGS_EMAIL_SIGNATURE }}
+{{ c.PANELS_EMAIL_SIGNATURE }}

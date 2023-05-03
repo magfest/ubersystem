@@ -420,8 +420,9 @@ $().ready(function() {
   }
   toggleStaffingField = function () {
     if ($.field('staffing') && $.field('staffing').length) {
-      var changeToStaffing = ($.val("badge_type") == {{ c.STAFF_BADGE }} && $.field('staffing').prop('checked', false));
-      var changeFromStaffing = ($.val("badge_type") != {{ c.STAFF_BADGE }} && $.field('staffing').prop('checked', true));
+      var staffing_badges = ['{{ c.STAFF_BADGE }}', '{{ c.CONTRACTOR_BADGE }}'];
+      var changeToStaffing = (staffing_badges.includes($.val("badge_type")) && $.field('staffing').prop('checked', false));
+      var changeFromStaffing = (staffing_badges.includes($.val("badge_type")) && $.field('staffing').prop('checked', true));
       if (changeToStaffing || changeFromStaffing) {
         $.field('staffing').click();
       }
@@ -694,9 +695,7 @@ $().ready(function() {
 {% if c.DONATIONS_ENABLED and not admin_area and not read_only %}
   {% if c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 or attendee.amount_extra or attendee.gets_any_kind_of_shirt %}
     <div class="extra-row form-group">
-      <label for="amount_extra" class="col-sm-3 control-label">Want to kick in extra?
-        <br>
-        {{ macros.popup_link("../static_views/givingExtra.html", "Why do this?") }}
+      <label for="amount_extra" class="col-sm-3 control-label">Pre-order Merch
       </label>
       <div class="col-sm-9">
         {% if c.PREREG_DONATION_DESCRIPTIONS or c.FORMATTED_DONATION_DESCRIPTIONS and not attendee.is_new and attendee.amount_extra %}
@@ -746,14 +745,14 @@ $().ready(function() {
       <p class="help-block col-sm-offset-3 col-sm-9">
         Each level includes all lower levels. <br/>
         {% if c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Supporter level and higher {% if c.BEFORE_SUPPORTER_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SUPPORTER_DEADLINE|datetime_local }}.<br/>{% endif %}
-        {% if c.SHIRT_DEADLINE %} {% if c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Shirt level up to Supporter level{% else %}Shirt level and higher{% endif %} {% if c.BEFORE_SHIRT_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SHIRT_DEADLINE|datetime_local }}.<br/>{% endif %}
-        {% if c.SHIRT_STOCK %}Kick-ins are only available while supplies last.{% endif %}
+        {% if c.SHIRT_DEADLINE %} {% if c.SUPPORTER_DEADLINE != c.SHIRT_DEADLINE %}Shirt level up to Supporter level{% else %}Shirt level and higher{% endif %} {% if c.BEFORE_SHIRT_DEADLINE %}are{% else %}were{% endif %} only available until {{ c.SHIRT_DEADLINE|datetime_local("%b %-d %-I:%M%p %Z") }}{% if c.SHIRT_STOCK %} or while supplies last{% endif %}.<br/>{% endif %}
+        {% if not c.SHIRT_DEADLINE and c.SHIRT_STOCK %}Shirt level and higher are only available while supplies last.{% endif %}
       </p>
     </div>
   {% endif %}
   {% if c.DONATION_TIER_OPTS|length > 1 and (not c.PREREG_DONATION_OPTS or c.PREREG_DONATION_OPTS|length <= 1) and c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form', '/preregistration/register_group_member'] %}
     <div class="extra-row form-group">
-      <span class="col-sm-offset-3 col-sm-6"><strong>Kick-in tiers are no longer available</strong>. Please visit our merchandise booth on-site for t-shirts and other swag.</span>
+      <span class="col-sm-offset-3 col-sm-6"><strong>Pre-ordered merch packages are no longer available</strong>. Please visit our merchandise booth on-site for t-shirts and other swag!</span>
     </div>
   {% endif %}
 
@@ -768,11 +767,12 @@ $().ready(function() {
   </div>
 {% endif %}
 {% if c.DONATIONS_ENABLED and (admin_area or read_only) %}
+{% set can_upgrade_amount_extra = c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 and attendee.amount_extra < c.PREREG_DONATION_OPTS[-1][0] %}
   <div class="form-group">
     <label class="col-sm-3 control-label">
       Pre-ordered Merch
     </label>
-    {% call macros.read_only_if(read_only, attendee.amount_extra_label or "None", post_text=upgrade_button('amount-extra', text="Upgrade" if attendee.amount_exta else "Add")) %}
+    {% call macros.read_only_if(read_only, attendee.amount_extra_label or "None", post_text='' if not can_upgrade_amount_extra else upgrade_button('amount-extra', text="Upgrade" if attendee.amount_extra else "Add")) %}
     <div class="col-sm-3">
       <select name="amount_extra" class="form-control">
         {{ options(c.DONATION_TIER_OPTS,attendee.amount_extra) }}
@@ -882,7 +882,10 @@ $().ready(function() {
 {% endif %}
 <div id="extra_donation">
   <div class="form-group">
-      <label class="col-sm-3 control-label">Extra Donation</label>
+      <label class="col-sm-3 control-label"><span>Extra Donation</span>
+        <br>
+        {{ macros.popup_link("../static_views/givingExtra.html", "Learn more") }}
+        </label>
   {% if c.COLLECT_EXTRA_DONATION %}
     {% call macros.read_only_if(read_only, attendee.extra_donation, pre_text='$' if attendee.extra_donation else '', post_text=upgrade_button('extra-donation', text="Change" if attendee.extra_donation else "Donate")) %}
       <div class="col-sm-6">
@@ -1092,7 +1095,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 
 {% set email %}
 {% set read_only = email_ro or (page_ro and not contact_write) %}
-<div class="form-group">
+<div class="form-group attendee-email">
   <label for="email" class="col-sm-3 control-label">Email Address</label>
   {% if limited_read %}
     <div class="col-sm-6 form-control-static">{{ attendee.masked_email }}</div>
@@ -1100,6 +1103,15 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
   {% call macros.read_only_if(read_only, attendee.email) %}
   <div class="col-sm-6">
     <input type="email" name="email" id="email" value="{{ attendee.email }}" class="form-control" placeholder="Email Address">
+    {% if is_prereg_dealer %}
+    {{ macros.toggle_checkbox(
+                selector='input[name=email]',
+                label='Use my business email for my personal email.',
+                suffix="copy_email",
+                mode='.attendee-email .form-control',
+                name='copy_email',
+                checked=copy_email) }}
+    {% endif %}
   </div>
   {% endcall %}
   {% endif %}
@@ -1126,7 +1138,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
           });
       });
   </script>
-  <div class="form-group">
+  <div class="form-group attendee-email">
     <label for="confirm_email" class="col-sm-3 control-label">Confirm Email</label>
     <div class="col-sm-6">
       <input type="email" name="confirm_email" id="confirm_email" required value="{{ attendee.email }}" class="form-control" placeholder="Confirm your email address">
@@ -1204,8 +1216,9 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 {% endif %}
 {% endset %}
 
-{% if full_read %}
+
 {% set emergency_contact %}
+{% if full_read %}
 {% if attendee.is_new or not admin_area or c.HAS_REG_ADMIN_ACCESS %}
 {% set read_only = emergency_contact_ro or page_ro %}
 <div class="form-group">
@@ -1225,12 +1238,48 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 {% endcall %}
 </div>
 {% endif %}
-{% endset %}
 {% endif %}
+{% endset %}
 
 
-{% if not limited_read %}
+{% set onsite_contact %}
+{% if full_read %}
+{% if attendee.is_new or not admin_area or c.HAS_REG_ADMIN_ACCESS %}
+{% set read_only = onsite_contact_ro or page_ro %}
+<div class="form-group">
+  <label for="onsite_contact" class="col-sm-3 control-label">On-site Contact</label>
+  {% call macros.read_only_if(read_only, attendee.onsite_contact) %}
+  <div class="col-sm-6">
+    <textarea name="onsite_contact" class="form-control" placeholder="Contact info for a trusted friend or friends who will be at or near the venue during the event." maxlength="500">{{ attendee.onsite_contact }}</textarea>
+  </div>
+{% endcall %}
+    <div class="checkbox col-sm-6 col-sm-offset-3">
+      {{ macros.checkbox(attendee, 'no_onsite_contact', label="Use my emergency contact information.", label_class='onsite-ec', is_readonly=read_only, clientside_bool=clientside_bool) }}
+    </div>
+</div>
+<script type="text/javascript">
+var noOnsiteClicked = function () {
+  if ($.field('no_onsite_contact') && $.field('cellphone')) {
+    $.field('onsite_contact').prop('disabled', $.field('no_onsite_contact').prop('checked'));
+    if($.field('no_onsite_contact').prop('checked')) {
+      $.field('onsite_contact').val('');
+    }
+  }
+};
+$(window).on("runJavaScript", function () {
+  noOnsiteClicked();
+  if ($.field('no_onsite_contact')) {
+    $.field('no_onsite_contact').on('click', noOnsiteClicked);
+  }
+});
+  </script>
+{% endif %}
+{% endif %}
+{% endset %}
+
+
 {% set cellphone %}
+{% if not limited_read %}
 <script type="text/javascript">
 var noCellphoneClicked = function () {
   if ($.field('no_cellphone') && $.field('cellphone')) {
@@ -1253,6 +1302,16 @@ $(window).on("runJavaScript", function () {
 {% call macros.read_only_if(read_only, attendee.cellphone) %}
   <div class="col-sm-6">
     <input type="text" name="cellphone" id="cellphone" value="{{ attendee.cellphone }}" class="form-control" {% if attendee.is_dealer %}required{% endif %} placeholder="A phone number we can use to contact you during the event">
+    {% if is_prereg_dealer %}
+    {{ macros.toggle_checkbox(
+                selector='input[name=cellphone]',
+                label='Use my business phone number for my cellphone number.',
+                required_selector='input[name=cellphone]',
+                suffix="copy_phone",
+                mode='input[name=cellphone]',
+                name='copy_phone',
+                checked=copy_phone) }}
+    {% endif %}
   </div>
 {% endcall %}
   {% if not attendee.is_dealer or admin_area %}
@@ -1261,8 +1320,8 @@ $(window).on("runJavaScript", function () {
     </div>
   {% endif %}
 </div>
-{% endset %}
 {% endif %}
+{% endset %}
 
 
 {% set interests %}
@@ -1382,7 +1441,7 @@ $(window).on("runJavaScript", function () {
 
 {% if c.BADGE_PROMO_CODES_ENABLED and not group_id and (attendee.is_unpaid or attendee.promo_code_code or admin_area) %}
   <div class="non_group_fields form-group">
-    <label for="promo_code" class="col-sm-3 control-label optional-field">Promo Code</label>
+    <label for="promo_code" class="col-sm-3 control-label optional-field">Promo {% if c.GROUPS_ENABLED %}or Group {% endif %}Code</label>
     <div class="col-sm-6">
       {% if attendee.is_unpaid and not read_only %}
         <input type="textarea" name="promo_code" value="{{ attendee.promo_code_code or promo_code_code }}" class="form-control" placeholder="Promo Code">
@@ -1432,11 +1491,26 @@ $(window).on("runJavaScript", function () {
 {% endset %}
 
 
+{% set panel_interest %}
+{% set read_only = panel_interest_ro or page_ro %}
+{% if c.BEFORE_PANELS_DEADLINE %}
+<div class="form-group">
+  <label for="panel_interest" class="col-sm-3 control-label optional-field">Panel Interest</label>
+  <div class="checkbox col-sm-9">
+    {{ macros.checkbox(attendee, 'panel_interest', label='I plan to apply for a panel this year.', is_readonly=read_only, clientside_bool=clientside_bool) }}<br/>
+    {% if not admin_area and c.AFTER_PANELS_START %}<a href="../panels/" target="_blank">Apply for a panel here</a>!{% endif %}
+  </div>
+</div>
+{% endif %}
+{% endset %}
+
+
 {% set pii_consent_checkbox %}
 {% set read_only = pii_consent_ro or page_ro %}
 <div class="form-group">
+  <label class="col-sm-3 control-label">Privacy Policy</label>
 {% call macros.read_only_if(read_only, attendee.pii_consent|yesno) %}
-  <div class="checkbox col-sm-9 col-sm-offset-3">
+  <div class="checkbox col-sm-9">
     <label for="pii_consent" class="checkbox-label">
       <input type="checkbox" name="pii_consent" id="pii_consent" value="1" required {% if pii_consent %}checked{% endif %} />
       <strong>Yes</strong>, I understand and agree that {{ c.ORGANIZATION_NAME }} will store the personal information I provided above for the limited purposes of contacting me about my 
@@ -1582,6 +1656,33 @@ $(window).on("runJavaScript", function(){
 </div>
 {% endset %}
 
+{% set can_transfer %}
+{% set read_only = can_transfer_ro or page_ro or attendee.cannot_transfer_reason %}
+<div class="form-group">
+  <label for="can_transfer" class="col-sm-3 control-label">Is Transferable</label>
+  <div class="checkbox col-sm-6">
+    {% if attendee.is_inherently_transferable %}
+    This attendee can currently transfer their badge.
+    {% elif attendee.cannot_transfer_reason %}
+    This attendee cannot transfer their badge under any circumstances because
+    {% for reason in attendee.cannot_transfer_reason %}
+    {% if loop.last and attendee.cannot_transfer_reason|length > 1 %} and {% endif %}
+    {{ reason }}{% if attendee.cannot_transfer_reason|length > 2 %}, {% endif %}
+    {% endfor %}.
+    {% else %}
+    <label for='can_transfer' class="checkbox-label">
+      {{ macros.checkbox(attendee, 'can_transfer', is_readonly=read_only, clientside_bool=clientside_bool) }} Make this attendee's badge always transferable
+    </label>
+    {% endif %}
+  </div>
+  {% if not attendee.is_inherently_transferable and not attendee.cannot_transfer_reason %}
+  <p class="help-block col-sm-9 col-sm-offset-3">
+    This attendee can {% if attendee.can_transfer %}only transfer their badge with this override turned on{% else %}<strong>NOT</strong> currently transfer their badge{% endif %}.
+  </p>
+  {% endif %}
+</div>
+{% endset %}
+
 
 {% set badge_status %}
 {% set read_only = badge_status_ro or page_ro %}
@@ -1608,7 +1709,7 @@ $(window).on("runJavaScript", function(){
   <label for="admin_status" class="col-sm-3 control-label">Admin Accesses</label>
   <div class="col-sm-9 form-control-static">
     {% if attendee.admin_account %}
-      {{ attendee.admin_account.access_groups_labels|join(', ') }}
+      {{ attendee.admin_account.access_groups_labels|join(', ')|default("This attendee has an admin account but no accesses.", true) }}
     {% else %}
       This attendee does not have an admin account.
     {% endif %}
@@ -1638,7 +1739,9 @@ $(window).on("runJavaScript", function(){
             var group = $.val('group_opt');
             if (group === '') {
                 $('#group_link').hide();
+                {% if c.HAS_GROUP_ADMIN_ACCESS and not attendee.group %}$('#new_group').show();{% endif %}
             } else {
+                {% if c.HAS_GROUP_ADMIN_ACCESS and not attendee.group %}$('#new_group').hide();{% endif %}
                 $('#group_link').attr("href", '../group_admin/form?id=' + group).show();
             }
         }
@@ -1666,6 +1769,9 @@ $(window).on("runJavaScript", function(){
         {{ options(group_opts,attendee.group.id) }}
       </select>
       <a id="group_link" href="" target="_blank">View this Group's Page</a>
+      {% if c.HAS_GROUP_ADMIN_ACCESS and not attendee.group %}
+      <a id="new_group" href="../group_admin/new_group_from_attendee?id={{ attendee.id }}" target="_blank">Create New Group</a>
+      {% endif %}
       <div id="unassigned" style="display:none ; color:red">
         Warning: This group has at least one unassigned badge.  Are you sure you want this to be a new attendee and not just fill in the data for one of this group's badges?
       </div>

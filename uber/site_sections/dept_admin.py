@@ -195,6 +195,22 @@ class Root:
 
             out.writerow(row)
 
+    @department_id_adapter
+    @csv_file
+    def dept_members_export(self, out, session, department_id, message='', **params):
+        department = session.query(Department).get(department_id)
+        headers = ['Name', 'Legal Name', 'Email', 'Phone Number', 'Emergency Contact',
+                   'Weighted Hours', 'Badge Status', 'Placeholder']
+
+        out.writerow(headers)
+        for attendee in department.members:
+            row = [attendee.full_name, attendee.legal_name, attendee.email, attendee.cellphone,
+                   attendee.ec_name + ": " + attendee.ec_phone,
+                   attendee.weighted_hours_in(department),
+                   attendee.badge_status_label, yesno(attendee.placeholder, 'Yes,No')]
+
+            out.writerow(row)
+
     @csv_file
     def overworked_attendees(self, out, session):
         def single_sequence(attendee, start_minute, minute_map):

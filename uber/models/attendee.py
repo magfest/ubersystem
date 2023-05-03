@@ -206,10 +206,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     city = Column(UnicodeText)
     region = Column(UnicodeText)
     country = Column(UnicodeText)
-    no_cellphone = Column(Boolean, default=False)
     ec_name = Column(UnicodeText)
     ec_phone = Column(UnicodeText)
+    onsite_contact = Column(UnicodeText)
+    no_onsite_contact = Column(Boolean, default=False)
     cellphone = Column(UnicodeText)
+    no_cellphone = Column(Boolean, default=False)
 
     # Represents a request for hotel booking info during preregistration
     requested_hotel_info = Column(Boolean, default=False)
@@ -239,6 +241,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     got_merch = Column(Boolean, default=False, admin_only=True)
     got_staff_merch = Column(Boolean, default=False, admin_only=True)
     got_swadge = Column(Boolean, default=False, admin_only=True)
+    can_transfer = Column(Boolean, default=False, admin_only=True)
 
     reg_station = Column(Integer, nullable=True, admin_only=True)
     registered = Column(UTCDateTime, server_default=utcnow())
@@ -398,6 +401,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     panel_applicants = relationship('PanelApplicant', backref='attendee')
     panel_applications = relationship('PanelApplication', backref='poc')
     panel_feedback = relationship('EventFeedback', backref='attendee')
+    panel_interest = Column(Boolean, default=False)
 
     # =========================
     # attractions
@@ -853,6 +857,10 @@ class Attendee(MagModel, TakesPaymentMixin):
     def amount_pending(self):
         return self.active_receipt.get('pending_total', 0)
 
+    @property
+    def is_paid(self):
+        return self.active_receipt.get('current_amount_owed', None) == 0
+
     @hybrid_property
     def amount_paid(self):
         return self.active_receipt.get('payment_total', 0)
@@ -1078,6 +1086,17 @@ class Attendee(MagModel, TakesPaymentMixin):
                and c.SELF_SERVICE_DEFERRALS_OPEN
 
     @property
+    def cannot_delete_badge_reason(self):
+        if self.paid == c.HAS_PAID:
+            return "Cannot delete a paid badge."
+        if self.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
+            from uber.models import Session
+            with Session() as session:
+                admin = session.current_admin_account()
+                if not admin.is_admin:
+                    return "Custom badges have already been ordered so you cannot delete this badge."
+
+    @property
     def needs_pii_consent(self):
         return self.is_new or self.placeholder or not self.first_name
 
@@ -1204,13 +1223,34 @@ class Attendee(MagModel, TakesPaymentMixin):
         return badge
 
     @property
-    def is_transferable(self):
+    def is_inherently_transferable(self):
         return self.badge_status == c.COMPLETED_STATUS \
             and not self.checked_in \
             and (self.paid in [c.HAS_PAID, c.PAID_BY_GROUP] or self.in_promo_code_group) \
             and self.badge_type in c.TRANSFERABLE_BADGE_TYPES \
             and not self.admin_account \
             and not self.has_role_somewhere
+
+    @property
+    def is_transferable(self):
+        return self.is_inherently_transferable or self.can_transfer
+
+    @property
+    def cannot_transfer_reason(self):
+        reasons = []
+        if self.admin_account:
+            reasons.append("they have an admin account")
+        if self.badge_type not in c.TRANSFERABLE_BADGE_TYPES:
+            reasons.append("their badge type ({}) is not transferable".format(self.badge_type_label))
+        if self.has_role_somewhere:
+            reasons.append("they are a department head, checklist admin, or point of contact for the following departments: {}".format(
+                                ", ".join([membership.department.name for membership in self.dept_memberships_with_role])))
+        return reasons
+    
+    @presave_adjustment
+    def force_no_transfer(self):
+        if self.admin_account or self.badge_type not in c.TRANSFERABLE_BADGE_TYPES or self.has_role_somewhere:
+            self.can_transfer = False
 
     # TODO: delete this after Super MAGFest 2018
     @property
@@ -1803,7 +1843,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def hotel_shifts_required(self):
-        return bool(c.SHIFTS_CREATED and self.hotel_nights and not self.is_dept_head and self.takes_shifts)
+        return bool(c.VOLUNTEER_CHECKLIST_OPEN and self.hotel_nights and not self.is_dept_head and self.takes_shifts)
 
     @property
     def setup_hotel_approved(self):
@@ -1826,7 +1866,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             or not c.BEFORE_ROOM_DEADLINE
             or not c.HOTELS_ENABLED) and (
             not c.VOLUNTEER_AGREEMENT_ENABLED or self.agreed_to_volunteer_agreement) and (
-            not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures)
+            not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures) \
+            and c.SHIFTS_CREATED
 
     @property
     def hotel_nights(self):

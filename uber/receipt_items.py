@@ -66,7 +66,7 @@ Attendee.credit_changes = {
 
 @cost_calculation.Attendee
 def badge_cost(attendee):
-    if attendee.paid == c.PAID_BY_GROUP or attendee.promo_code_groups:
+    if attendee.paid == c.PAID_BY_GROUP or attendee.promo_code_groups or getattr(attendee, 'badges', None):
         cost = 0
     else:
         cost = attendee.calculate_badge_cost() * 100
@@ -153,7 +153,7 @@ def promo_code_group_cost(attendee):
         # During prereg we set the number of promo code badges on the attendee model
         cost_table[c.get_group_price() * 100] = int(attendee.badges)
     elif attendee.promo_code_groups:
-        for code in attendee.promo_code_groups[0]:
+        for code in attendee.promo_code_groups[0].promo_codes:
             cost_table[code.cost * 100] += 1
     else:
         return

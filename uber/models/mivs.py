@@ -187,18 +187,16 @@ class IndieStudio(MagModel):
 
     @property
     def checklist_items_due_soon_grouped(self):
-        two_days = []
-        one_day = []
+        due_soon = []
         overdue = []
         for key, val in c.MIVS_CHECKLIST.items():
-            if localized_now() >= self.checklist_deadline(key):
-                overdue.append([val['name'], "mivs_" + key])
-            elif (localized_now() - timedelta(days=1)) >= self.checklist_deadline(key):
-                one_day.append([val['name'], "mivs_" + key])
-            elif (localized_now() - timedelta(days=2)) >= self.checklist_deadline(key):
-                two_days.append([val['name'], "mivs_" + key])
+            if not getattr(self, key + "_status", None):
+                if localized_now() >= self.checklist_deadline(key):
+                    overdue.append((key, val['name']))
+                elif (localized_now() + timedelta(days=3)) >= self.checklist_deadline(key):
+                    due_soon.append((key, val['name']))
 
-        return two_days, one_day, overdue
+        return due_soon, overdue
 
     @property
     def website_href(self):
