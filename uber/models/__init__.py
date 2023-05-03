@@ -2001,22 +2001,6 @@ class Session(SessionManager):
             self.add(Shift(attendee=attendee, job=job))
             self.commit()
 
-        def affiliates(self):
-            amounts = defaultdict(
-                int, {a: -i for i, a in enumerate(c.DEFAULT_AFFILIATES)})
-
-            query = self.query(Attendee.affiliate, Attendee.amount_extra) \
-                .filter(and_(Attendee.amount_extra > 0, Attendee.affiliate != ''))
-
-            for aff, amt in query:
-                amounts[aff] += amt
-
-            return [{
-                'id': aff,
-                'text': aff,
-                'total': max(0, amt)
-            } for aff, amt in sorted(amounts.items(), key=lambda tup: -tup[1])]
-
         def insert_test_admin_account(self):
             """
             Insert a test admin into the database with username

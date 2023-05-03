@@ -8,7 +8,7 @@ if (form_link && form_link.includes('attendee_form')) {
         $(window).trigger( 'runJavaScript' );
     } else {
         // We got redirected -- likely to the login page -- so load it properly
-        toastr.error("Form loading failed.");
+        $("#message-alert").addClass("alert-danger").show().children('span').html("Form loading failed.");
         window.location.hash = ""; // prevent refresh loops
         window.location.reload();
     }

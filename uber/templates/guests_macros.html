@@ -80,7 +80,7 @@
       value="{{ travel_plan.arrival_time.astimezone(c.EVENT_TIMEZONE).strftime('%-m/%-d/%Y %-I:%M %p') if travel_plan.arrival_time and not is_class else '' }}"
       required="required">
       <span class="input-group-addon">
-        <span class="glyphicon glyphicon-calendar"></span>
+        <i class="fa fa-calendar"></i>
       </span>
     </div>
   </div>
@@ -109,7 +109,7 @@
       value="{{ travel_plan.departure_time.astimezone(c.EVENT_TIMEZONE).strftime('%-m/%-d/%Y %-I:%M %p') if travel_plan.departure_time and not is_class else '' }}"
       required="required">
       <span class="input-group-addon">
-        <span class="glyphicon glyphicon-calendar"></span>
+        <i class="fa fa-calendar"></i>
       </span>
     </div>
   </div>
@@ -148,7 +148,7 @@
   {%- set inventory_url = guest_merch.inventory_url(item.id, name) -%}
   <a href="{{ inventory_url }}" target="_blank" class="preview image-preview {{ class }}">
     {%- if suppress_preview -%}
-      <div><span class="glyphicon glyphicon-picture"></span> View image</div>
+      <div><i class="fa fa-picture"></i> View image</div>
     {%- else -%}
       <img src="{{ inventory_url }}"/>
     {%- endif -%}
@@ -282,7 +282,7 @@
           <input type="number" name="inventory_{{ one_size_attr }}{{ suffix }}" class="one_size_quantity" {% if is_one_size %}value="{{ item[one_size_attr] }}"{% endif %} min="0" required/>
         </div>
         <div class="clearfix"></div>
-        <div class="panel panel-default panel-sizes">
+        <div class="card card-sizes">
           <table class="table table-condensed">
             <tbody>
               {% for cut_value, cut_label in cuts_opts %}
@@ -424,10 +424,10 @@
       <td class="inventory-item-controls">
         <div class="btn-group-vertical" role="group">
           <button type="button" class="btn btn-danger remove_inventory">
-            <span class="glyphicon glyphicon-remove"></span>
+            <i class="fa fa-remove"></i>
           </button>
           <button type="button" class="btn btn-primary edit_inventory">
-            <span class="glyphicon glyphicon-pencil"></span>
+            <i class="fa fa-pencil"></i>
           </button>
         </div>
       </td>

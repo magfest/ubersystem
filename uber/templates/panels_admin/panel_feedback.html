@@ -14,8 +14,8 @@
 </script>
 
 {% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     <h2>Feedback for {{ event.name }}</h2>
     <form method="post" action="panel_feedback" class="form-horizontal" role="form">
         {{ csrf_token() }}

@@ -73,7 +73,7 @@
                 {% if attendee == attendee.group.leader %}Leader{% else %}Member{% endif %} of "{{ attendee.group.name }}"
                 {% if attendee == attendee.group.leader and attendee.group.status != c.IMPORTED %}
                 <span class="badge">{{ attendee.group.status_label }}</span>
-                <a href="group_members?id={{ attendee.group.id }}" class="btn btn-primary btn-xs"><span class="glyphicon glyphicon-pencil"></span>&nbsp;Edit</a>
+                <a href="group_members?id={{ attendee.group.id }}" class="btn btn-primary btn-xs"><i class="fa fa-pencil"></i>&nbsp;Edit</a>
                 {% endif %}
             </h4>
         </div>
@@ -95,11 +95,11 @@
                     <div class="pull-right">
                     {% if attendee.group and attendee == attendee.group.leader and dealer_reg_open %}
                     <a href="../preregistration/reapply?id={{ attendee.id }}" class="btn btn-success">
-                        Reapply as Dealer &nbsp;<span class="glyphicon glyphicon-plus"></span>
+                        Reapply as Dealer &nbsp;<i class="fa fa-plus"></i>
                     </a>
                     {% elif not prereg_message %}
                     <a href="../preregistration/repurchase?id={{ attendee.id }}&skip_confirm=true" class="btn btn-info">
-                        Register With This Info &nbsp;<span class="glyphicon glyphicon-plus"></span>
+                        Register With This Info &nbsp;<i class="fa fa-plus"></i>
                     </a>
                     {% endif %}
                     </div>
@@ -109,27 +109,27 @@
                     <div class="btn-group pull-right" role="group" aria-label="...">
                     {% endif %}
                     <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-info" value="Edit">
-                        <span class="glyphicon glyphicon-pencil"></span> Edit Details
+                        <i class="fa fa-pencil"></i> Edit Details
                     </a>
                     {% if c.ART_SHOW_OPEN %}
                     {% if not attendee.art_show_applications %}
                     <a href="../art_show_applications/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-warning">
-                        <span class="glyphicon glyphicon-tags"></span>&nbsp; Apply for Art Show
+                        <i class="fa fa-tags"></i>&nbsp; Apply for Art Show
                     </a>
                     {% else %}
                     <a href="../art_show_applications/edit?id={{ attendee.art_show_applications[0].id }}" class="btn btn-sm btn-warning">
-                        <span class="glyphicon glyphicon-tags"></span>&nbsp; View Art Show App
+                        <i class="fa fa-tags"></i>&nbsp; View Art Show App
                     </a>
                     {% endif %}
                     {% endif %}
                     {% if c.AFTER_MARKETPLACE_REG_START %}
                     {% if c.BEFORE_MARKETPLACE_DEADLINE and not attendee.marketplace_applications %}
                     <a href="../marketplace/index?attendee_id={{ attendee.id }}" class="btn btn-sm btn-success">
-                        <span class="glyphicon glyphicon-shopping-cart"></span> Apply for Marketplace
+                        <i class="fa fa-shopping-cart"></i> Apply for Marketplace
                     </a>
                     {% elif attendee.marketplace_applications %}
                     <a href="../marketplace/edit?id={{ attendee.marketplace_applications[0].id }}" class="btn btn-sm btn-success">
-                        <span class="glyphicon glyphicon-shopping-cart"></span> View Marketplace App
+                        <i class="fa fa-shopping-cart"></i> View Marketplace App
                     </a>
                     {% endif %}
                     {% endif %}

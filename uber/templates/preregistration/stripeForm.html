@@ -53,7 +53,7 @@
             <div id="card-errors" role="alert"></div>
         </div>
         <div style="margin-top:10px;"><button class="btn btn-success">Submit Payment</button>
-        <button class="btn btn-default" data-dismiss="modal">Cancel</button></div>
+        <button class="btn btn-outline-secondary" data-dismiss="modal">Cancel</button></div>
         </form>
         </div>
     </div>
@@ -83,7 +83,7 @@ var callStripeAction = function (autoTrigger=false) {
     function(result) {
         if (autoTrigger == false) { $btn.prop('disabled', false); }
         if (result.error) {
-            toastr.error(result.error);
+            $("#message-alert").addClass("alert-danger").show().children('span').html(result.error);
         } else if (result.stripe_intent) {
             var dollars = result.stripe_intent.amount / 100;
             dollars = dollars.toLocaleString("en-US", {style:"currency", currency:"USD"});
@@ -97,7 +97,7 @@ var callStripeAction = function (autoTrigger=false) {
 
 var collectStripePayment = function (client_secret, stripe_id, success_url, cancel_url) {
     $('#stripeModal').modal('show');
-    toastr.clear();
+    $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
     var form = document.getElementById('payment-form');
     var stripe = Stripe('{{ c.STRIPE_PUBLIC_KEY }}');
     var elements = stripe.elements();
@@ -110,7 +110,7 @@ var collectStripePayment = function (client_secret, stripe_id, success_url, canc
             if (result.redirect_url) {
                 window.location.replace(result.redirect_url);
             } else if (result.message) {
-                toastr.error(result.message);
+                $("#message-alert").addClass("alert-danger").show().children('span').html(result.message);
                 $(form).addClass('hidden');
                 $('#stripeModal').off('hidden.bs.modal');
             }
@@ -156,7 +156,7 @@ var collectStripePayment = function (client_secret, stripe_id, success_url, canc
             }).then(function(result) {
             if (result.error) {
                 // Show error to your customer (e.g., insufficient funds)
-                toastr.error(result.error.message);
+                $("#message-alert").addClass("alert-danger").show().children('span').html(result.error.message);
             } else {
                 // The payment has been processed!
                 if (result.paymentIntent.status === 'succeeded') {

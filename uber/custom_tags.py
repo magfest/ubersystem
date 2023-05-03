@@ -175,7 +175,7 @@ def icon_yesno(value, icon=None, color=None):
     icon = icon or 'ok-sign,remove-sign,question-sign'
     color = color or 'success,danger,info'
     icon_opts, color_opts = icon.split(','), color.split(',')
-    html = "<span class='glyphicon glyphicon-{} text-{}'></span>"
+    html = "<i class='fa fa-{} text-{}'></i>"
     if len(icon_opts) < 2 or len(color_opts) < 2:
         return value  # Invalid arg.
     try:
@@ -252,6 +252,13 @@ def email_to_link(email=None):
     if not email:
         return ''
     return safe_string('<a href="mailto:{0}">{0}</a>'.format(jinja2.escape(email)))
+
+
+@JinjaEnv.jinja_filter
+def popup_link(href, text='<sup>?</sup>'):
+    return safe_string("<a onClick='window.open(&quot;{href}&quot;, &quot;info&quot;, " \
+        "&quot;toolbar=no,height=500,width=375,scrollbars=yes&quot;).focus();" \
+        "return false;' href='{href}'>{text}</a>".format(href=href, text=text))
 
 
 @JinjaEnv.jinja_filter

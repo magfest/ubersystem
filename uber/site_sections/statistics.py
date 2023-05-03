@@ -206,34 +206,6 @@ class Root:
             'total_registrations': session.query(Attendee).count()
         }
 
-    def affiliates(self, session):
-        class AffiliateCounts:
-            def __init__(self):
-                self.tally, self.total = 0, 0
-                self.amounts = {}
-
-            @property
-            def sorted(self):
-                return sorted(self.amounts.items())
-
-            def count(self, amount):
-                self.tally += 1
-                self.total += amount
-                self.amounts[amount] = 1 + self.amounts.get(amount, 0)
-
-        counts = defaultdict(AffiliateCounts)
-        for affiliate, amount in (session.query(Attendee.affiliate, Attendee.amount_extra)
-                                         .filter(Attendee.amount_extra > 0)):
-            counts['everything combined'].count(amount)
-            counts[affiliate or 'no affiliate selected'].count(amount)
-
-        return {
-            'counts': sorted(counts.items(), key=lambda tup: -tup[-1].total),
-            'registrations': session.query(Attendee).filter_by(paid=c.NEED_NOT_PAY).count(),
-            'quantities': [(desc, session.query(Attendee).filter(Attendee.amount_extra >= amount).count())
-                           for amount, desc in sorted(c.DONATION_TIERS.items()) if amount]
-        }
-
     @csv_file
     def checkins_by_hour(self, out, session):
         def date_trunc_hour(*args, **kwargs):

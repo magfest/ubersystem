@@ -7,11 +7,11 @@
 {% if account %}
   {% include 'preregistration/update_account.html' %}
 {% endif %}
-<div class="panel panel-default">
-  <div class="panel-heading">
+<div class="card">
+  <div class="card-header">
     Marketplace Application
   </div>
-  <div class="panel-body">
+  <div class="card-body">
     {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_applications %}
       {% include 'confirm_tabs.html' with context %}
     {% endif %}

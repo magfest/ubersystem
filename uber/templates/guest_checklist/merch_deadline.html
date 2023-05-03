@@ -120,7 +120,7 @@
                 </div>
                 <div class="modal-footer">
                   <button type="submit" class="btn btn-primary save_inventory">Save</button>
-                  <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                  <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancel</button>
                 </div>
               </form>
             </div>
@@ -201,7 +201,7 @@
           <div class="well well-sm well-success col-sm-6 col-sm-offset-3 text-success text-center">
             <h4>Add some merch to your inventory!</h4>
             <div class="inventory-add-item text-success">
-              <span class="glyphicon glyphicon-plus-sign"></span>
+              <i class="fa fa-plus-sign"></i>
               <select class="form-control add_inventory">
                 <option value="">Select an item to add it...</option>
                 {{ options(c.MERCH_TYPES_OPTS) }}
@@ -299,7 +299,7 @@
                     message: 'Remove this ' + titleText + ' from your inventory?',
                     buttons: {
                         confirm: { label: 'Remove', className: 'btn-danger' },
-                        cancel: { label: 'Nevermind', className: 'btn-default' }
+                        cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
                     },
                     callback: function (result) {
                         if (result) {
@@ -313,18 +313,18 @@
                                 },
                                 success: function(response, status) {
                                   if (response['error']) {
-                                    toastr.error('There was an error removing the item: ' + response['error']);
+                                    $("#message-alert").addClass("alert-danger").show().children('span').html('There was an error removing the item: ' + response['error']);
                                   } else {
                                     dataTable.row($inventoryRow).remove();
                                     dataTable.draw();
                                     if (!dataTable.rows().count()) {
                                         $('#inventory_container').hide();
                                     }
-                                    toastr.success('', titleText + ' successfully removed!', {timeOut: 2000});
+                                    $("#message-alert").addClass("alert-success").show().children('span').html('', titleText + ' successfully removed!', {timeOut: 2000});
                                   }
                                 },
                                 error: function(response, status) {
-                                  toastr.error('There was an error removing the item: ' + response);
+                                  $("#message-alert").addClass("alert-danger").show().children('span').html('There was an error removing the item: ' + response);
                                 }
                             });
                         }
@@ -345,7 +345,7 @@
                   message: 'Remove ' + $downloadFilename.val() + ' from your inventory?',
                   buttons: {
                       confirm: { label: 'Remove', className: 'btn-danger' },
-                      cancel: { label: 'Nevermind', className: 'btn-default' }
+                      cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
                   },
                   callback: function (result) {
                       if (result) {
@@ -361,7 +361,7 @@
             var onOneSizeChange = function() {
               var $varietyColumn = $(this).closest('.col-variety'),
                   $oneSizeQuantity = $varietyColumn.find('.one_size_quantity'),
-                  $sizesPanel = $varietyColumn.find('.panel-sizes'),
+                  $sizesPanel = $varietyColumn.find('.card-sizes'),
                   isOneSize = $(this).prop('checked');
 
               $oneSizeQuantity.toggle(isOneSize);
@@ -409,10 +409,10 @@
                           });
                           $modals.modal('hide');
                         } else {
-                          toastr.error('', response['error'], {timeOut: 5000});
+                          $("#message-alert").addClass("alert-danger").show().children('span').html('', response['error'], {timeOut: 5000});
                         }
                       } catch(ex) {
-                        toastr.error('', 'There was an error saving the form: ' + responseText.substring(0, 1024), {timeOut: 5000});
+                        $("#message-alert").addClass("alert-danger").show().children('span').html('', 'There was an error saving the form: ' + responseText.substring(0, 1024), {timeOut: 5000});
                       }
                     }
                   } finally {

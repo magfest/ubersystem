@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Art Show Pieces Bought - {{ receipt.attendee.full_name }}{% endblock %}
 {% block content %}
-<h3>Art Show Purchases for {{ receipt.attendee|form_link }} <a href="../art_show_admin/sales_search" class="btn btn-default pull-right">Return to Search</a></h3>
+<h3>Art Show Purchases for {{ receipt.attendee|form_link }} <a href="../art_show_admin/sales_search" class="btn btn-outline-secondary pull-right">Return to Search</a></h3>
 {% for receipt_iter in receipt.attendee.art_show_receipts %}
 {% if receipt_iter.id != receipt.id %}
 <a href="pieces_bought?id={{ receipt_iter.id }}">(Invoice #{{ receipt_iter.invoice_num }})</a>
@@ -13,9 +13,9 @@ Invoice #{{ receipt.invoice_num }}
 <a href="pieces_bought?id={{ receipt.attendee.id }}">[Start New Invoice]</a>
 {% endif %}
 {% set receipt_open = (receipt.id == receipt.attendee.art_show_receipt.id) %}
-<div class="panel panel-default">
+<div class="card">
   {% if receipt_open %}
-  <div class="panel-body">
+  <div class="card-body">
     <div class="row text-center">
       <div class="col-sm-4">
         <form role="form" method="post" action="pieces_bought" id="search_form">
@@ -43,7 +43,7 @@ Invoice #{{ receipt.invoice_num }}
           <div class="modal-body">
             <input type="hidden" name="id" value="{{ receipt.id }}" />
             {% for piece in pieces %}
-            <button class="btn btn-default" name="search_text" value="{{ piece.artist_and_piece_id }}">
+            <button class="btn btn-outline-secondary" name="search_text" value="{{ piece.artist_and_piece_id }}">
               {{ piece.name }} by {{ piece.app.display_name }}
             </button>
             {% endfor %}
@@ -154,7 +154,7 @@ Invoice #{{ receipt.invoice_num }}
           <input type="hidden" name="id" value="{{ payment.id }}" />
           {{ csrf_token() }}
           <button type="submit" 
-          class="undo_payment btn btn-sm btn-danger glyphicon glyphicon-remove" 
+          class="undo_payment btn btn-sm btn-danger fa fa-remove" 
           data-desc="{{ payment_desc }}"></button>
         </form>
       </td></tr>
@@ -216,7 +216,7 @@ Invoice #{{ receipt.invoice_num }}
             message: 'Are you sure you want to remove this ' + payment_or_refund.toLowerCase() + '? This cannot be undone.',
             buttons: {
                 confirm: { label: 'Delete ' + payment_or_refund, className: 'btn-danger' },
-                cancel: { label: 'Nevermind', className: 'btn-default' }
+                cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
             },
             callback: function (result) {
                 if (result) {

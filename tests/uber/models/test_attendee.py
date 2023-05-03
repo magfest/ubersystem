@@ -10,7 +10,7 @@ from uber.config import c
 from uber.models import Attendee, Department, DeptMembership, DeptMembershipRequest, DeptRole, FoodRestrictions, \
     Group, Job, Session, Shift
 from uber.models.commerce import StripeTransaction, StripeTransactionAttendee
-from uber.model_checks import extra_donation_valid, _invalid_phone_number
+from uber.model_checks import extra_donation_valid, invalid_phone_number
 
 
 @pytest.fixture()
@@ -834,7 +834,7 @@ class TestPhoneNumberValidations:
         '+49 033933-88213'
     ])
     def test_valid_number(self, number):
-        assert not _invalid_phone_number(number)
+        assert not invalid_phone_number(number)
 
     @pytest.mark.parametrize('number', [
         # invalid US numbers
@@ -857,7 +857,7 @@ class TestPhoneNumberValidations:
         '+44,4930222'
     ])
     def test_invalid_number(selfself, number):
-        assert _invalid_phone_number(number)
+        assert invalid_phone_number(number)
 
 
 class TestNormalizedEmail:

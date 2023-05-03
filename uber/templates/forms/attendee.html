@@ -31,7 +31,7 @@
           {% include 'preregistration/receipt_table.html' %}
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Close</button>
         {% if receipt.current_amount_owed and not receipt.pending_total %}{{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, stripe_button_id="receipt-stripe-btn") }}{% endif %}
       </div>
     </div>
@@ -115,13 +115,11 @@ $().ready(function() {
         });
     };
     setTimeout(checkCap, PREREG_CHECK_INTERVAL);
-
     var updateBadgeTypeHiddenInput = function(newBadgeType) {
         if ($.inArray($('input[name="badge_type"]').val(), PREREG_BADGE_TYPES) > -1) {
             $('input[name="badge_type"]').val(newBadgeType);
         }
     };
-
     var REG_TYPES = {
         row: '#reg-types',
         selector: '.reg-type-selector',
@@ -158,8 +156,8 @@ $().ready(function() {
                     togglePrices();
                 {% else %}
                     setBadge(REG_TYPES, 0);
-                    toastr.clear();
-                    toastr.error('Group registration has closed.');
+                    $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+                    $("#message-alert").addClass("alert-danger").show().children('span').html('Group registration has closed.');
                 {% endif %}
             }
         });
@@ -471,7 +469,7 @@ $().ready(function() {
   {% endif %}
 {% elif c.AT_THE_CON and attendee.is_new %}
   <script>
-      window.setTimeout(toastr.clear, 10000);
+      window.setTimeout($("#message-alert").hide().removeClass().addClass("alert").children("span").html(""), 10000);
       var maybeWarn = function () {
           var types = {{ c.PRESOLD_ONEDAY_BADGE_TYPES|jsonize }};
           var badgeType = $.val('badge_type');
@@ -483,11 +481,11 @@ $().ready(function() {
       };
       $(window).on("runJavaScript", function () {
           {% if c.AT_THE_DOOR_BADGE_OPTS %}
-              $('#bold-field-message').detach().prependTo('.panel-body > .form-horizontal');
+              $('#bold-field-message').detach().prependTo('.card-body > .form-horizontal');
               $.field('badge_type').on('change', maybeWarn);
               maybeWarn();
           {% else %}
-              $('.panel').empty().append('<h1>All badges are sold out!</h1>');
+              $('.card').empty().append('<h1>All badges are sold out!</h1>');
           {% endif %}
       });
   </script>
@@ -626,7 +624,6 @@ $().ready(function() {
         updateReceiptPreview('amount_extra', $.val('amount_extra'));
       {% endif %}
     }
-    setVisible(formId + '.affiliate-row', $.val('amount_extra') > 0);
     {% if (attendee.num_event_shirts_owed or attendee.gets_staff_shirt) and c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS %}
         setVisible(formId + '.shirt-row', true);
     {% else %}
@@ -640,9 +637,9 @@ $().ready(function() {
         setVisible(formId + '.season-row', $.val('amount_extra') >= {{ c.SEASON_LEVEL }});
     $.each($(formId + "input:radio[name='amount_extra']"), function() {
         $(this).parents('.btn').removeClass('active btn-primary');
-        $(this).parents('.btn').addClass('btn-default');
+        $(this).parents('.btn').addClass('btn-outline-secondary');
         if ($(this).val() == $.val('amount_extra')) {
-            $(this).parents('.btn').removeClass('btn-default');
+            $(this).parents('.btn').removeClass('btn-outline-secondary');
             $(this).parents('.btn').addClass('active btn-primary');
         }
     });
@@ -658,25 +655,6 @@ $().ready(function() {
                   escapeMarkup: function (m) { return m; },
                   width: '100%',
               }).select2('val', {{ attendee.amount_extra }});
-          }
-          if ($.field('affiliate')) {
-              $.field('affiliate').select2({
-                  placeholder: "I don't care about this",
-                  allowClear: true,
-                  tags: true,
-                  data: {{ affiliates|jsonize }},
-                  width: '100%',
-                  createTag: function(params) {
-                      var term = $.trim(params.term);
-
-                      if (params.term === '') return null;
-
-                      return {
-                          id: params.term,
-                          text: params.term + ' (Add new)'
-                      }
-                  }
-              }).val({{ attendee.affiliate|default('', boolean=True)|jsonize }}).trigger('change');
           }
       }
   });
@@ -694,7 +672,7 @@ $().ready(function() {
           <div data-toggle="buttons" class="btn-group-inline">
             {% for tier in c.FORMATTED_DONATION_DESCRIPTIONS %}
               {% if tier in c.PREREG_DONATION_DESCRIPTIONS or attendee.amount_extra == tier.price %}
-                <label class="btn btn-default btn-inline">
+                <label class="btn btn-outline-secondary btn-inline">
                   <input type="radio"
                         name="amount_extra"
                         autocomplete="off"
@@ -747,16 +725,6 @@ $().ready(function() {
       <span class="col-sm-offset-3 col-sm-6"><strong>Pre-ordered merch packages are no longer available</strong>. Please visit our merchandise booth on-site for t-shirts and other swag!</span>
     </div>
   {% endif %}
-
-  <div class="affiliate-row extra-row form-group" style="display:none">
-    <label for="affiliate" class="col-sm-3 control-label optional-field">Affiliate</label>
-    <div class="col-sm-6">
-      <select name="affiliate">
-        <option value="" selected="selected"></option>
-      </select>
-    </div>
-    <div class="form-control-static">{{ macros.popup_link("../static_views/affiliates.html", "What's an affiliate?") }}</div>
-  </div>
 {% endif %}
 {% if c.DONATIONS_ENABLED and (admin_area or read_only) %}
 {% set can_upgrade_amount_extra = c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 and attendee.amount_extra < c.PREREG_DONATION_OPTS[-1][0] %}
@@ -780,7 +748,7 @@ $().ready(function() {
 {% set read_only = badge_printed_name_ro or page_ro %}
 {% if c.PRINTED_BADGE_DEADLINE %}
 {% if not admin_area %}
-  {%- set readonly_badge_name = c.after_printed_badge_deadline_by_type(attendee.badge_type) -%}
+  {%- set readonly_badge_name = c.AFTER_PRINTED_BADGE_DEADLINE -%}
   <div class="badge-row extra-row form-group" style="display:none">
     <label for="badge_printed_name" class="col-sm-3 control-label optional-field">Name Printed on Badge</label>
     <div class="col-sm-6">
@@ -1419,7 +1387,7 @@ $(window).on("runJavaScript", function () {
               'set them to unpaid. They will be asked to pay the difference to complete their registration.',
               buttons: {
                   confirm: { label: 'Remove Promo Code', className: 'btn-danger' },
-                  cancel: { label: 'Nevermind', className: 'btn-default' }
+                  cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
               },
               callback: function(result) {
                   if (result) {

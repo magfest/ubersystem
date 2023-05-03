@@ -1,13 +1,13 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% import "fields/attendee.html" as attendee_fields with context %}
+{% import "forms/attendee.html" as attendee_fields with context %}
 {% block title %}Attendee Form - {{ attendee.full_name }}{% endblock %}
 {% block content %}
 {% include "check_in.html" %}
 
 {% include "registration/menu.html" %}
 
-<div class="panel panel-default">
-<div class="panel-body">
+<div class="card">
+<div class="card-body">
 {% if c.AT_THE_CON and receipt and receipt.current_amount_owed and not attendee.is_new %}
     <div class="alert alert-warning center" role="alert">
     <h4>{{ attendee.full_name }} currently owes <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.</h4>
@@ -25,12 +25,12 @@
         this.contentDocument.body.innerHTML = '';
         
         if (responseText) {
-            toastr.clear();
+            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
             var response = $.parseJSON(responseText);
             if (response['success'] == true) {
                 window.location.href = '../registration/form?id={{ attendee.id }}&message=' + response['message'];
             } else {
-                toastr.error('', response['message'], {timeOut: 1000});
+                $("#message-alert").addClass("alert-danger").show().children('span').html('', response['message'], {timeOut: 1000});
             }
         }
     });

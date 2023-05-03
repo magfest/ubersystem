@@ -4,7 +4,7 @@
 
 <h2>
   Volunteers With Inconsistent Shoulder Shifts
-  <small><a href="inconsistent_shoulder_shifts_csv"><span class="glyphicon glyphicon-download"></span> Download CSV</a></small>
+  <small><a href="inconsistent_shoulder_shifts_csv"><i class="fa fa-download"></i> Download CSV</a></small>
 </h2>
 
 {% for department in departments %}
@@ -13,7 +13,7 @@
       {{ department|form_link }}
       <small style="margin-left: 10px">
         <a href="mailto:{{ department.dept_head_emails }}">
-          <span class="glyphicon glyphicon-envelope"></span>
+          <i class="fa fa-envelope"></i>
           Email Department Heads
         </a>
       </small>

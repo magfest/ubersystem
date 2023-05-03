@@ -15,6 +15,8 @@ ADD uber-development.ini.template ./uber-development.ini.template
 ADD sideboard-development.ini.template ./sideboard-development.ini.template
 ADD uber-wrapper.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/uber-wrapper.sh
+ADD rebuild-config.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/rebuild-config.sh
 
 ADD . plugins/uber/
 

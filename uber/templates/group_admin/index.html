@@ -15,34 +15,34 @@
   <ul class="nav nav-tabs" role="tablist">
   <li role="presentation">
   <a href="#all" aria-controls="all" role="tab" data-toggle="tab">
-  <span class="glyphicon glyphicon-list"></span>&nbsp;All Groups
+  <i class="fa fa-list"></i>&nbsp;All Groups
   </a>
   </li>
   {% if c.HAS_GUEST_ADMIN_ACCESS %}
   <li role="presentation">
   <a href="#guests" aria-controls="guests" role="tab" data-toggle="tab">
-  <span class="glyphicon glyphicon-star"></span>&nbsp;Guests
+  <i class="fa fa-star"></i>&nbsp;Guests
   </a>
   </li>
   {% endif %}
   {% if c.HAS_BAND_ADMIN_ACCESS %}
   <li role="presentation">
   <a href="#bands" aria-controls="bands" role="tab" data-toggle="tab">
-  <span class="glyphicon glyphicon-music"></span>&nbsp;Bands
+  <i class="fa fa-music"></i>&nbsp;Bands
   </a>
   </li>
   {% endif %}
   {% if c.HAS_MIVS_ADMIN_ACCESS %}
   <li role="presentation">
   <a href="#mivs" aria-controls="mivs" role="tab" data-toggle="tab">
-  <span class="glyphicon glyphicon-floppy-disk"></span>&nbsp;MIVS
+  <i class="fa fa-floppy-disk"></i>&nbsp;MIVS
   </a>
   </li>
   {% endif %}
   {% if c.HAS_DEALER_ADMIN_ACCESS %}
   <li role="presentation">
   <a href="#dealers" aria-controls="dealers" role="tab" data-toggle="tab">
-  <span class="glyphicon glyphicon-usd"></span>&nbsp;Marketplace
+  <i class="fa fa-usd"></i>&nbsp;Marketplace
   </a>
   </li>
   {% endif %}
@@ -50,7 +50,7 @@
   <div class="tab-content">
   <div class="row" style="padding: 10px;"></div>
   <div role="tabpanel" class="tab-pane" id="all">
-    <div class="panel panel-body">
+    <div class="card-body">
     <table class="datatable table table-striped">
       <thead>
       <tr>

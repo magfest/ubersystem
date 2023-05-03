@@ -1,11 +1,11 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Attendees Without Accounts{% endblock %}
 {% block content %}
-<div class="panel panel-default">
-    <div class="panel-heading">
-        <h3 class="panel-title">Attendees Without Accounts</h3>
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Attendees Without Accounts</h3>
     </div>
-    <div class="panel-body">
+    <div class="card-body">
         <form class="form email-form form-inline" method="post" action="add_all_accounts">
             <input type="hidden" name="show_all" value="{{ show_all }}" />
             {{ csrf_token() }}
@@ -67,7 +67,7 @@
                     <input type="email" name="account_email" class="form-control" placeholder="{{ attendee.email }}" />
                     <span class="input-group-btn">
                         <button type="submit" class="btn btn-primary">
-                            <span class="glyphicon glyphicon-plus"></span> Add Account
+                            <i class="fa fa-plus"></i> Add Account
                         </button>
                     </span>
                 </div>
@@ -79,7 +79,7 @@
         </tbody>
         </table>
     </div>
-    <div class="panel-footer">
+    <div class="card-footer">
         <button class="btn btn-primary" onClick="addMultipleAccounts()">Add Selected Accounts</button>
     </div>
 </div>

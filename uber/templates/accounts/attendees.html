@@ -1,10 +1,10 @@
 {% if attendees|length == c.ROW_LOAD_LIMIT %}
-<div class="panel panel-body">
+<div class="card-body">
 This page only shows up to <strong>{{ c.ROW_LOAD_LIMIT }}</strong> attendees. You may need to use another view to find the attendee you need.
 </div>
 {% endif %}
 {% if attendees %}
-<div class="panel panel-default">
+<div class="card">
   <table class="table table-striped datatable">
     <thead>
       <tr>
