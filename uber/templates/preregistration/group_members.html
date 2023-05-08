@@ -114,7 +114,7 @@
     If a {{ group.is_dealer|yesno("planned " + c.DEALER_HELPER_TERM + ",group member") }} cannot attend, you may use the "This person
     isn't coming" button next to their entry on the list below to unset their badge, which may then be assigned to
     someone else. Upgraded badges may only be transferred directly between two people; please contact us at
-    <a href="{{ c.CONTACT_URL }}">{{ c.CONTACT_URL }}</a> if you wish to transfer badges.
+    {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you wish to transfer badges.
 </div>
 
 <br/> <b>Here are the badges for your group:</b>
