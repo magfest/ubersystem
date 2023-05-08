@@ -2,8 +2,8 @@
 set -e
 
 # SESSION_HOST and BROKER_HOST may point to SRV records that need to get resolved to a host/port
-SESSION_REC=$(dig srv "$SESSION_HOST" | grep -v SOA | grep -v -e "^$\|^;" | cut -f 5 | cut -d ' ' -f 3,4 | head -1)
-BROKER_REC=$(dig srv "$BROKER_HOST" | grep -v SOA | grep -v -e "^$\|^;" | cut -f 5 | cut -d ' ' -f 3,4 | head -1)
+SESSION_REC=$(dig srv +noall +answer +short "$SESSION_HOST" | cut -d ' ' -f 3,4 | head -1)
+BROKER_REC=$(dig srv +noall +answer +short "$BROKER_HOST" | cut -d ' ' -f 3,4 | head -1)
 if [[ ! -z "$SESSION_REC" ]]; then
     SESSION_HOST=$(echo $SESSION_REC | cut -d ' ' -f 2)
     SESSION_PORT=$(echo $SESSION_REC | cut -d ' ' -f 1)
