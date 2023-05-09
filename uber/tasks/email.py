@@ -1,5 +1,5 @@
 from collections import Mapping
-from datetime import timedelta
+from datetime import timedelta, datetime
 from time import sleep
 
 from celery.schedules import crontab
@@ -164,13 +164,6 @@ def send_automated_emails():
             .filter(*AutomatedEmail.filters_for_active) \
             .options(joinedload(AutomatedEmail.emails)).all()
 
-        for automated_email in active_automated_emails:
-            """ This appears to be breaking our email-sending process and I do not have the time or tools to figure it out
-            automated_email.currently_sending = True
-            session.add(automated_email)
-            session.commit()"""
-            automated_email.unapproved_count = 0
-
         automated_emails_by_model = groupify(active_automated_emails, 'model')
 
         for model, query_func in AutomatedEmailFixture.queries.items():
@@ -178,6 +171,17 @@ def send_automated_emails():
             for model_instance in model_instances:
                 automated_emails = automated_emails_by_model.get(model.__name__, [])
                 for automated_email in automated_emails:
+                    if automated_email.currently_sending:
+                        if automated_email.last_send_time:
+                            if (datetime.now() - automated_email.last_send_time) < timedelta(seconds=600):
+                                # Looks like another thread is still running and hasn't timed out.
+                                continue
+                    automated_email.currently_sending = True
+                    automated_email.last_send_time = datetime.now()
+                    session.add(automated_email)
+                    session.commit()
+                    unapproved_count = 0
+
                     if model_instance.id not in automated_email.emails_by_fk_id:
                         if automated_email.would_send_if_approved(model_instance):
                             if automated_email.approved or not automated_email.needs_approval:
@@ -185,14 +189,16 @@ def send_automated_emails():
                                     session.refresh_receipt_and_model(model_instance)
                                 automated_email.send_to(model_instance, delay=False)
                             else:
-                                automated_email.unapproved_count += 1
-        
-        """ See the note above
-        for automated_email in active_automated_emails:
-            automated_email.currently_sending = False
-            session.add(automated_email)
-            session.commit()"""
+                                unapproved_count += 1
+                            automated_email.last_send_time = datetime.now()
+                            session.add(automated_email)
+                            session.commit()
 
+                    automated_email.unapproved_count = unapproved_count
+                    automated_email.currently_sending = False
+                    session.add(automated_email)
+                    session.commit()
+        
         return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
 
         # TODO: Once we finish converting each AutomatedEmailFixture.filter
