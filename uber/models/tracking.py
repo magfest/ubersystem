@@ -144,7 +144,7 @@ class Tracking(MagModel):
             data = cls.format(diff)
             if len(diff) == 1 and 'badge_num' in diff and c.SHIFT_CUSTOM_BADGES:
                 action = c.AUTO_BADGE_SHIFT
-            if len(diff) == 1 and 'currently_sending' in diff:
+            if len(diff) < 3 and 'currently_sending' in diff:
                 return
             elif not data:
                 return
