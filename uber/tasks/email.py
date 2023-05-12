@@ -167,21 +167,21 @@ def send_automated_emails():
         automated_emails_by_model = groupify(active_automated_emails, 'model')
 
         for model, query_func in AutomatedEmailFixture.queries.items():
-            model_instances = query_func(session)
-            for model_instance in model_instances:
-                automated_emails = automated_emails_by_model.get(model.__name__, [])
-                for automated_email in automated_emails:
-                    if automated_email.currently_sending:
-                        if automated_email.last_send_time:
-                            if (datetime.now() - automated_email.last_send_time) < timedelta(seconds=600):
-                                # Looks like another thread is still running and hasn't timed out.
-                                continue
-                    automated_email.currently_sending = True
-                    automated_email.last_send_time = datetime.now()
-                    session.add(automated_email)
-                    session.commit()
-                    unapproved_count = 0
-
+            automated_emails = automated_emails_by_model.get(model.__name__, [])
+            for automated_email in automated_emails:
+                if automated_email.currently_sending:
+                    if automated_email.last_send_time:
+                        if (datetime.now() - automated_email.last_send_time) < timedelta(seconds=600):
+                            # Looks like another thread is still running and hasn't timed out.
+                            continue
+                automated_email.currently_sending = True
+                automated_email.last_send_time = datetime.now()
+                session.add(automated_email)
+                session.commit()
+                unapproved_count = 0
+                
+                model_instances = query_func(session)
+                for model_instance in model_instances:
                     if model_instance.id not in automated_email.emails_by_fk_id:
                         if automated_email.would_send_if_approved(model_instance):
                             if automated_email.approved or not automated_email.needs_approval:
