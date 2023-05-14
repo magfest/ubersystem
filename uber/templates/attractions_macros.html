@@ -84,9 +84,9 @@
     $('#{{ html_id }} input[name="{{ field_name }}"]').datetimepicker({
       sideBySide: true,
       useCurrent: false,
-      defaultDate: '{{ value.isoformat() }}',
-      minDate: '{{ c.EPOCH.isoformat() }}',
-      maxDate: '{{ c.ESCHATON.isoformat() }}',
+      defaultDate: '{{ value.isoformat()[:-6] }}',
+      minDate: '{{ c.EPOCH.isoformat()[:-6] }}',
+      maxDate: '{{ c.ESCHATON.isoformat()[:-6] }}',
       format: 'M/D/Y h:mm A'
     });
   </script>
