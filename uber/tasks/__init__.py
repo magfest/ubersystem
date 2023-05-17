@@ -13,7 +13,7 @@ celery.conf.beat_schedule = {}
 celery.conf.beat_startup_tasks = []
 celery.conf.update(config_dict['celery'])
 celery.conf.update(broker_url=config_dict['secret']['broker_url'])
-
+celery.conf.update(result_backend="rpc")
 
 def celery_on_startup(fn, *args, **kwargs):
     celery.conf.beat_startup_tasks.append((celery.task(fn), args, kwargs))
@@ -60,6 +60,7 @@ def configure_celery_logger(loglevel, logfile, format, colorize, **kwargs):
 
 from uber.tasks import attractions  # noqa: F401
 from uber.tasks import email  # noqa: F401
+from uber.tasks import health  # noqa: F401
 from uber.tasks import panels  # noqa: F401
 from uber.tasks import mivs  # noqa: F401
 from uber.tasks import registration  # noqa: F401
