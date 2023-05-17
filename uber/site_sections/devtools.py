@@ -222,10 +222,10 @@ class Root:
         session.execute(text('SELECT 1'))
         db_read_time += time.perf_counter()
 
-        payload = random.randrange(1024)
-        task_run_time = -time.perf_counter()
-        response = ping.delay(payload).wait()
-        task_run_time += time.perf_counter()
+        #payload = random.randrange(1024)
+        #task_run_time = -time.perf_counter()
+        #response = ping.delay(payload).wait()
+        #task_run_time += time.perf_counter()
 
         return json.dumps({
             'server_current_timestamp': int(datetime.utcnow().timestamp()),
@@ -233,10 +233,10 @@ class Root:
             'session_commit_time': session_commit_time,
             'db_read_time': db_read_time,
             'db_status': Session.engine.pool.status(),
-            'task_run_time': task_run_time,
-            'task_response_correct': payload == response,
-            'task_payload': payload,
-            'task_response': response,
+        #    'task_run_time': task_run_time,
+        #    'task_response_correct': payload == response,
+        #    'task_payload': payload,
+        #    'task_response': response,
         })
 
 @register_diagnostics_status_function
