@@ -32,15 +32,15 @@
           },
           cancel: {
               label: 'Nevermind',
-              className: 'btn-default'
+              className: 'btn-outline-secondary'
           }
       },
       callback: function (result) {
         if(result) {
           $.post('remove_group_code', {csrf_token: csrf_token, id: codeId}, function (response) {
-            toastr.clear();
+            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
             if (response.error) {
-              toastr.error(response.error);
+              $("#message-alert").addClass("alert-danger").show().children('span').html(response.error);
             } else {
               window.location = 'promo_code_group_form?id={{ group.id }}&message=Code deleted'
             }
@@ -53,8 +53,8 @@
         setBuyerLink();
     });
   </script>
-  <div class="panel panel-default">
-    <div class="panel-body">
+  <div class="card">
+    <div class="card-body">
       {% if group.is_new %}
         <h3>New Promo Code Group</h3>
       {% else %}
@@ -155,7 +155,7 @@
           
           <td>{{ code.created.when|datetime_local }}</td>
           <td>{{ code.cost|format_currency }}</td>
-          <td>{% if not code.valid_used_by %}<button class="btn btn-sm btn-danger" onClick="deleteCode('{{ code.id }}')"><span class="glyphicon glyphicon-remove"></span></button>{% endif %}</td>
+          <td>{% if not code.valid_used_by %}<button class="btn btn-sm btn-danger" onClick="deleteCode('{{ code.id }}')"><i class="fa fa-remove"></i></button>{% endif %}</td>
         </tr>
       {% endfor -%}
       </tbody>

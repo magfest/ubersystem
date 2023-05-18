@@ -1,7 +1,7 @@
 function barcodeScanned(barcode) {
     $.post("../registration/qrcode_reader", {csrf_token: csrf_token, qrcode: barcode})
         .success(function (json) {
-            toastr.clear();
+            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
             var message = json.message;
             if (json.success) {
                 if ($("#search_bar").size()) { $("#search_bar").val(json.data).parents('form').submit() }
@@ -9,19 +9,19 @@ function barcodeScanned(barcode) {
             } else {
                 $.post("../barcode/get_badge_num_from_barcode", {csrf_token: csrf_token, barcode: barcode})
                     .done(function (data) {
-                        if (data['badge_num'] == -1) { toastr.error(data['message']); }
+                        if (data['badge_num'] == -1) { $("#message-alert").addClass("alert-danger").show().children('span').html(data['message']); }
                         else if ($("#checkin-badge").size() && $("#checkin-badge").is(":visible")) { $("#checkin-badge").val(data['badge_num']); }
                         else if ($("#badge_num").size()) { $("#badge_num:focus").val(data['badge_num']); }
                         else if ($("#search_bar").size()) { $("#search_bar").val(data['badge_num']); }
                         else { offerBarcodeOpts(data['badge_num'], "Badge number"); }
                     })
                     .fail(function(message) {
-                        toastr.error(message);
+                        $("#message-alert").addClass("alert-danger").show().children('span').html(message);
                     });
             }
         })
         .fail(function () {
-            toastr.error('Unable to connect to server, please try again.');
+            $("#message-alert").addClass("alert-danger").show().children('span').html('Unable to connect to server, please try again.');
         })
 }
 

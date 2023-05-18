@@ -11,7 +11,7 @@ from uber.utils import check_csrf, create_valid_user_supplied_redirect_url, ensu
 @all_renderable()
 class Root:
     def index(self, session, message=''):
-        if c.UBER_SHUT_DOWN or c.AT_THE_CON:
+        if c.UBER_SHUT_DOWN:
             return render('staffing/printable.html', {'attendee': session.logged_in_volunteer()})
         else:
             return {

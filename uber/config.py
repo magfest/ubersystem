@@ -218,17 +218,6 @@ class Config(_Overridable):
                 Attendee.badge_status.in_([c.COMPLETED_STATUS, c.NEW_STATUS])).count()
         return count
 
-    def get_printed_badge_deadline_by_type(self, badge_type):
-        """
-        Returns either PRINTED_BADGE_DEADLINE for custom badge types or the latter of PRINTED_BADGE_DEADLINE and
-        SUPPORTER_BADGE_DEADLINE if the badge type is not preassigned (and only has a badge name if they're a supporter)
-        """
-        return c.PRINTED_BADGE_DEADLINE if badge_type in c.PREASSIGNED_BADGE_TYPES \
-            else max(c.PRINTED_BADGE_DEADLINE, c.SUPPORTER_BADGE_DEADLINE)
-
-    def after_printed_badge_deadline_by_type(self, badge_type):
-        return uber.utils.localized_now() > self.get_printed_badge_deadline_by_type(badge_type)
-
     def has_section_or_page_access(self, include_read_only=False, page_path=''):
         access = uber.models.AdminAccount.get_access_set(include_read_only=include_read_only)
         page_path = page_path or self.PAGE_PATH
@@ -309,7 +298,7 @@ class Config(_Overridable):
                     Attendee.paid == self.PAID_BY_GROUP,
                     Group.amount_paid > 0).count()
 
-                promo_code_badges = session.query(PromoCode).join(PromoCodeGroup).count()
+                promo_code_badges = session.query(PromoCode).join(PromoCodeGroup).filter(PromoCode.cost > 0).count()
 
                 return individuals + group_badges + promo_code_badges
 
@@ -367,46 +356,6 @@ class Config(_Overridable):
             for badge_type, desc in self.AT_THE_DOOR_BADGE_OPTS
             if self.BADGES[badge_type] in c.DAYS_OF_WEEK
         }
-
-    @property
-    @dynamic
-    def SWADGES_AVAILABLE(self):
-        """
-        TODO: REMOVE THIS AFTER SUPER MAGFEST 2018.
-
-        This property addresses the fact that our "swag badges" (aka swadges)
-        arrived more than a day late.  Normally this would have been just a
-        normal part of our merch.  However, we now have a bunch of people who
-        have already received our merch without the swadge.  So we basically
-        have three groups of people:
-
-        1) People who have already received their merch are marked as not
-            having received their swadge.
-
-        2) Until the swadges arrive, instead of the "Give Merch" button, we
-            want "Give Merch Without Swadge" and "Give Merch Including Swadge"
-            buttons.
-
-        3) After the "Give Merch With Swadge" button has been pressed for the
-            first time, we want to revert to the single "Give Merch" button,
-            which is assumed to include the Swadge because those have arrived.
-
-        This property controls whether we're in state (2) or (3) above.  We
-        perform a database query to see if there are any attendees who have
-        got_swadge set.  Once we've found that once we cache that result here
-        on the "c" object and no longer perform the query.  The reason why we
-        do this instead of adding a new config option is to allow us to know
-        that the swadges are present without having to restart the server
-        during our busiest time of the weekend.
-        """
-        if getattr(self, '_swadges_available', False):
-            return True
-
-        with uber.models.Session() as session:
-            got = session.query(uber.models.Attendee).filter_by(got_swadge=True).first()
-            if got:
-                self._swadges_available = True
-            return bool(got)
 
     @property
     def kickin_availability_matrix(self):
@@ -474,13 +423,65 @@ class Config(_Overridable):
             donation_list = [tier for tier in donation_list if tier['price'] < self.SHIRT_LEVEL]
         elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
             donation_list = [tier for tier in donation_list if tier['price'] < self.SUPPORTER_LEVEL]
-        elif self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SEASON_AVAILABLE:
             donation_list = [tier for tier in donation_list if tier['price'] < self.SEASON_LEVEL]
 
         return [tier for tier in donation_list if 
                 (tier['price'] >= c.SHIRT_LEVEL and tier['price'] < c.SUPPORTER_LEVEL and c.BEFORE_SHIRT_DEADLINE) or 
                 (tier['price'] >= c.SUPPORTER_LEVEL and c.BEFORE_SUPPORTER_DEADLINE) or 
                 tier['price'] < c.SHIRT_LEVEL]
+
+    @property
+    def FORMATTED_DONATION_DESCRIPTIONS_EXCLUSIVE(self):
+        """
+        A list of the donation descriptions, formatted for use on attendee-facing pages.
+        
+        This does NOT filter out unavailable kick-ins so we can use it on attendees' confirmation pages
+        to show unavailable kick-ins they've already purchased. To show only available kick-ins, use
+        PREREG_DONATION_DESCRIPTIONS.
+        """
+        donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
+
+        donation_list = sorted(donation_list, key=lambda tier: tier[1]['value'])
+
+        # add in all previous descriptions.  the higher tiers include all the lower tiers
+        for entry in donation_list:
+            all_desc_and_links = \
+                [(tier[1]['description'], tier[1]['link']) for tier in donation_list
+                    if tier[1]['value'] > 0 and tier[1]['value'] < entry[1]['value']] \
+                + [(entry[1]['description'], entry[1]['link'])]
+
+            # maybe slight hack. descriptions and links are separated by '|' characters so we can have multiple
+            # items displayed in the donation tiers.  in an ideal world, these would already be separated in the INI
+            # and we wouldn't have to do it here.
+            entry[1]['all_descriptions'] = []
+            for item in all_desc_and_links:
+                descriptions = item[0].split('|')
+                links = item[1].split('|')
+                entry[1]['all_descriptions'] += list(zip(descriptions, links))
+
+        return [dict(tier[1]) for tier in donation_list]
+
+    @property
+    def PREREG_DONATION_DESCRIPTIONS_EXCLUSIVE(self):
+        donation_list = self.FORMATTED_DONATION_DESCRIPTIONS_EXCLUSIVE
+
+        # include only the items that are actually available for purchase
+        if not self.SHARED_KICKIN_STOCKS:
+            donation_list = [tier for tier in donation_list
+                             if tier['value'] not in self.kickin_availability_matrix
+                             or self.kickin_availability_matrix[tier['value']]]
+        elif self.BEFORE_SHIRT_DEADLINE and not self.SHIRT_AVAILABLE:
+            donation_list = [tier for tier in donation_list if tier['value'] < self.SHIRT_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
+            donation_list = [tier for tier in donation_list if tier['value'] < self.SUPPORTER_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and self.SEASON_AVAILABLE:
+            donation_list = [tier for tier in donation_list if tier['value'] < self.SEASON_LEVEL]
+
+        return [tier for tier in donation_list if 
+                (tier['value'] >= c.SHIRT_LEVEL and tier['value'] < c.SUPPORTER_LEVEL and c.BEFORE_SHIRT_DEADLINE) or 
+                (tier['value'] >= c.SUPPORTER_LEVEL and c.BEFORE_SUPPORTER_DEADLINE) or 
+                tier['value'] < c.SHIRT_LEVEL]
 
     @property
     def PREREG_DONATION_TIERS(self):
@@ -561,6 +562,10 @@ class Config(_Overridable):
     @property
     def PREREG_AGE_GROUP_OPTS(self):
         return [opt for opt in self.AGE_GROUP_OPTS if opt[0] != self.AGE_UNKNOWN]
+    
+    @property
+    def NOW_OR_AT_CON(self):
+        return c.EPOCH.date() if date.today().date() <= c.EPOCH.date() else uber.utils.localized_now().date()
 
     @property
     def AT_OR_POST_CON(self):
@@ -798,7 +803,8 @@ class Config(_Overridable):
                         and not getattr(method, 'not_site_mappable', False):
                         pages[module_name].append({
                             'name': name.replace('_', ' ').title(),
-                            'path': '/{}/{}'.format(module_name, name)
+                            'path': '/{}/{}'.format(module_name, name),
+                            'is_download': getattr(method, 'site_map_download', False)
                         })
         return public_site_sections, public_pages, pages
 
@@ -871,33 +877,10 @@ class Config(_Overridable):
                 return False
             else:
                 return int(count_check) < int(stock_setting)
-        elif hasattr(_secret, name):
-            return getattr(_secret, name)
         elif name.lower() in _config['secret']:
             return _config['secret'][name.lower()]
         else:
             raise AttributeError('no such attribute {}'.format(name))
-
-
-class SecretConfig(_Overridable):
-    """
-    This class is for properties which we don't want to be used as Javascript
-    variables.  Properties on this class can be accessed normally through the
-    global c object as if they were defined there.
-    """
-
-    @property
-    def SQLALCHEMY_URL(self):
-        """
-        Support reading the DB connection info from an environment var (used with Docker containers)
-        DB_CONNECTION_STRING should contain the full Postgres URI
-        """
-        db_connection_string = os.environ.get('DB_CONNECTION_STRING')
-
-        if db_connection_string is not None:
-            return db_connection_string
-        else:
-            return _config['secret']['sqlalchemy_url']
 
 
 class AWSSecretFetcher:
@@ -985,8 +968,18 @@ class AWSSecretFetcher:
 
 
 c = Config()
-_secret = SecretConfig()
 _config = parse_config(__file__)  # outside this module, we use the above c global instead of using this directly
+db_connection_string = os.environ.get('DB_CONNECTION_STRING')
+
+for conf, val in _config['secret'].items():
+    conf_env = os.environ.get(conf.upper())
+
+    if conf_env is not None:
+        setattr(c, conf.upper(), conf_env)
+    elif conf == "sqlalchemy_url" and db_connection_string is not None: # Backwards compatibility
+        setattr(c, conf.upper(), db_connection_string)
+    else:
+        setattr(c, conf.upper(), val)
 
 if c.AWS_SECRET_SERVICE_NAME:
     aws_secrets_client = AWSSecretFetcher()
@@ -1032,7 +1025,7 @@ c.make_dates(_config['dates'])
 c.DATA_DIRS = {}
 c.make_data_dirs(_config['data_dirs'])
 
-if "sqlite" in _config['secret']['sqlalchemy_url']:
+if "sqlite" in c.SQLALCHEMY_URL:
     # SQLite does not suport pool_size and max_overflow,
     # so disable them if sqlite is used.
     c.SQLALCHEMY_POOL_SIZE = -1
@@ -1181,6 +1174,7 @@ for _ident, _tier in c.DONATION_TIER_DESCRIPTIONS.items():
     except ValueError:
         pass
 
+    _tier['value'] = price
     _tier['price'] = price
     if price:  # ignore the $0 kickin level
         c.DONATION_TIER_ITEMS[price] = _tier['merch_items'] or _tier['description'].split('|')

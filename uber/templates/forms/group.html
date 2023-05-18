@@ -8,7 +8,7 @@
   {% if signnow_document and signnow_document.signed %}
   <span id="tc-link">
     <a href="{{ signnow_link }}" class="btn btn-info" target="_blank" role="button">
-      <span class="glyphicon glyphicon-download"></span> Terms and Conditions
+      <i class="fa fa-download"></i> Terms and Conditions
     </a>
   </span>
   <script type="text/javascript">
@@ -17,7 +17,7 @@
     });
   </script>
   {% else %}
-  <div class="alert alert-danger">
+  <div class="alert alert-danger" role="alert">
     <p>We need you to sign our terms and conditions for vending at {{ c.EVENT_NAME }}.</p>
     <p><a href="{{ signnow_link }}" class="btn btn-primary" target="_blank">
       {% if group.signnow_document %}Finish Signing{% else %}Review and Sign{% endif %}
@@ -56,7 +56,7 @@
 {% else %}
   {# Always read-only for attendees #}
   {% if group.status == c.APPROVED %}
-    <div class="alert alert-success">
+    <div class="alert alert-success" role="alert">
     Congratulations, your {{ c.DEALER_APP_TERM }} has been <strong>approved</strong>!
     {% if group.cost %}
       <br/><br/>Here is your group's cost breakdown:
@@ -82,11 +82,11 @@
         {% endif %}
     {% endif %}
   {% elif group.status == c.CANCELLED %}
-    <div class="alert alert-info">
+    <div class="alert alert-info" role="alert">
     You have <strong>cancelled</strong> your {{ c.DEALER_APP_TERM }}. If this was a mistake, please contact us at
     <a href="mailto:{{ c.MARKETPLACE_EMAIL }}">{{ c.MARKETPLACE_EMAIL }}</a>.
   {% else %}
-    <div class="alert alert-{{ 'danger' if group.status == c.DECLINED else 'warning' }}">
+    <div class="alert alert-{{ 'danger' if group.status == c.DECLINED else 'warning' }}" role="alert">
     Your {{ c.DEALER_APP_TERM }} {{ 'is' if group.status == c.UNAPPROVED else 'has been' }} <strong>{{ group.status_label }}</strong>.
       {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and group.leader %}
       <br/><br/>If you would like, you may instead

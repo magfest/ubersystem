@@ -9,7 +9,7 @@ from pockets import listify
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, cached, csrf_protected, csv_file, render, schedule_view
+from uber.decorators import ajax, all_renderable, cached, csrf_protected, csv_file, render, schedule_view, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, AssignedPanelist, Attendee, Event, PanelApplication
 from uber.utils import check, localized_now, normalize_newlines
@@ -76,6 +76,7 @@ class Root:
         for event in session.query(Event).order_by('start_time', 'duration', 'location').all():
             out.writerow([event.timespan(30), event.name, event.location_label])
 
+    @site_mappable(download=True)
     @schedule_view
     def xml(self, session):
         cherrypy.response.headers['Content-type'] = 'text/xml'
@@ -86,6 +87,7 @@ class Root:
             'schedule': sorted(schedule.items(), key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[1][0].location))
         })
 
+    @site_mappable(download=True)
     @schedule_view
     def schedule_tsv(self, session):
         cherrypy.response.headers['Content-Type'] = 'text/tsv'
@@ -105,6 +107,7 @@ class Root:
             'schedule': sorted(schedule.items(), key=lambda tup: c.ORDERED_EVENT_LOCS.index(tup[1][0]['location']))
         })
 
+    @site_mappable(download=True)
     def ical(self, session, **params):
         icalendar = ics.Calendar()
 
@@ -359,7 +362,7 @@ class Root:
         for panel in panel_applications:
             panels[panel.event.start_time][panel.event.location] = panel
 
-        curr_time, last_time = min(panels), max(panels)
+        curr_time, last_time = min(panels).astimezone(c.EVENT_TIMEZONE), max(panels).astimezone(c.EVENT_TIMEZONE)
         out.writerow(['Panel Starts'] + [c.EVENT_LOCATIONS[room] for room in c.PANEL_ROOMS])
         while curr_time <= last_time:
             row = [curr_time.strftime('%H:%M %a')]

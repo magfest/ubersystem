@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% import "fields/attendee.html" as attendee_fields with context %}
+{% import "forms/attendee.html" as attendee_fields with context %}
 {% block title %}At the Door Registration{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
 
   {% include 'prereg_masthead.html' %}
   {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
-  <div class="panel panel-default">
-    <div class="panel-body">
+  <div class="card">
+    <div class="card-body">
       {% include 'preregistration/create_or_login_account.html' %}
     </div>
   </div>
@@ -31,8 +31,8 @@
   </script>
   {% endif %}
   {% endif %}
-  <div class="panel panel-default">
-    <div class="panel-body">
+  <div class="card">
+    <div class="card-body">
       <form method="post" action="register" id="reg-form" autocomplete="off" class="form-horizontal">
         {{ csrf_token() }}
         {% if c.ATTENDEE_ACCOUNTS_ENABLED %}

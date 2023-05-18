@@ -28,7 +28,7 @@ from uber.models import MagModel
 from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, TakesPaymentMixin
-from uber.utils import add_opt, get_age_from_birthday, hour_day_format, localized_now, mask_string, normalize_email, \
+from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthday, hour_day_format, localized_now, mask_string, normalize_email, \
     remove_opt
 
 
@@ -218,8 +218,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     requested_accessibility_services = Column(Boolean, default=False)
 
     interests = Column(MultiChoice(c.INTEREST_OPTS))
-    found_how = Column(UnicodeText)
-    comments = Column(UnicodeText)
+    found_how = Column(UnicodeText) # TODO: Remove?
+    comments = Column(UnicodeText) # TODO: Remove?
     for_review = Column(UnicodeText, admin_only=True)
     admin_notes = Column(UnicodeText, admin_only=True)
 
@@ -229,7 +229,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     badge_status = Column(Choice(c.BADGE_STATUS_OPTS), default=c.NEW_STATUS, index=True, admin_only=True)
     ribbon = Column(MultiChoice(c.RIBBON_OPTS), admin_only=True)
 
-    affiliate = Column(UnicodeText)
+    affiliate = Column(UnicodeText) # TODO: Remove
 
     # If [[staff_shirt]] is the same as [[shirt]], we only use the shirt column
     shirt = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)
@@ -471,9 +471,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not self.hotel_pin or not self.hotel_pin.strip():
             self.hotel_pin = None
 
-        if not self.amount_extra:
-            self.affiliate = ''
-
         if self.birthdate == '':
             self.birthdate = None
 
@@ -524,7 +521,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 log.error('unable to send banned email about {}', self, exc_info=True)
 
         elif self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name and (
-                    self.paid in [c.HAS_PAID, c.NEED_NOT_PAY]
+                    self.paid in [c.HAS_PAID, c.NEED_NOT_PAY, c.REFUNDED]
                     or self.paid == c.PAID_BY_GROUP
                     and self.group_id
                     and not self.group.is_unpaid):
@@ -586,6 +583,11 @@ class Attendee(MagModel, TakesPaymentMixin):
                 self.paid = c.NEED_NOT_PAY
 
     @presave_adjustment
+    def refunded_if_receipt_has_refund(self):
+        if self.paid == c.HAS_PAID and self.active_receipt and self.active_receipt.get('refund_total'):
+            self.paid = c.REFUNDED
+
+    @presave_adjustment
     def assign_creator(self):
         if self.is_new and not self.creator_id:
             self.creator_id = self.session.admin_attendee().id if self.session.admin_attendee() else None
@@ -618,10 +620,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def age_now_or_at_con(self):
         if not self.birthdate:
             return None
-        day = c.EPOCH.date() if date.today() <= c.EPOCH.date()\
-            else uber.utils.localized_now().date()
-        return day.year - self.birthdate.year - (
-            (day.month, day.day) < (self.birthdate.month, self.birthdate.day))
+        return get_age_from_birthday(self.birthdate, c.NOW_OR_AT_CON)
         
     @presave_adjustment
     def not_attending_need_not_pay(self):
@@ -692,12 +691,13 @@ class Attendee(MagModel, TakesPaymentMixin):
         We use this list to determine which admins can create, edit, and view the attendee.
         """
         section_list = []
-        if self.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE, c.ATTENDEE_BADGE] and self.staffing_or_will_be:
+        if self.staffing_or_will_be:
             section_list.append('shifts_admin')
         if (self.group and self.group.guest and self.group.guest.group_type == c.BAND
-            ) or (self.badge_type == c.GUEST and c.BAND in self.ribbon_ints):
+            ) or (self.badge_type == c.GUEST_BADGE and c.BAND in self.ribbon_ints):
             section_list.append('band_admin')
-        if self.group and self.group.guest and self.group.guest.group_type == c.GUEST:
+        if (self.group and self.group.guest and self.group.guest.group_type == c.GUEST
+            ) or (self.badge_type == c.GUEST_BADGE and c.BAND not in self.ribbon_ints):
             section_list.append('guest_admin')
         if c.PANELIST_RIBBON in self.ribbon_ints:
             section_list.append('panels_admin')
@@ -821,13 +821,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def age_group_conf(self):
         if self.birthdate:
-            day = c.EPOCH.date() if date.today() <= c.EPOCH.date() else localized_now().date()
-
-            attendee_age = get_age_from_birthday(self.birthdate, day)
-            for val, age_group in c.AGE_GROUP_CONFIGS.items():
-                if val != c.AGE_UNKNOWN and age_group['min_age'] <= attendee_age \
-                        and attendee_age <= age_group['max_age']:
-                    return age_group
+            return get_age_conf_from_birthday(self.birthdate, c.NOW_OR_AT_CON)
 
         return c.AGE_GROUP_CONFIGS[int(self.age_group or c.AGE_UNKNOWN)]
 
@@ -917,6 +911,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     def calc_badge_cost_change(self, **kwargs):
         preview_attendee = Attendee(**self.to_dict())
+        promo_code_discount = self.calculate_badge_cost(use_promo_code=False) - self.calculate_badge_cost()
         new_cost = None
         if 'overridden_price' in kwargs:
             try:
@@ -935,7 +930,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not new_cost:
             new_cost = (preview_attendee.calculate_badge_cost() * 100) - current_cost
 
-        return current_cost, new_cost
+        return current_cost, new_cost - (promo_code_discount * 100)
 
     def calc_age_discount_change(self, birthdate):
         preview_attendee = Attendee(**self.to_dict())
@@ -1093,7 +1088,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             from uber.models import Session
             with Session() as session:
                 admin = session.current_admin_account()
-                if not admin.is_admin:
+                if not admin.is_super_admin:
                     return "Custom badges have already been ordered so you cannot delete this badge."
 
     @property
@@ -1288,7 +1283,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def gets_staff_shirt(self):
-        return bool(self.badge_type == c.STAFF_BADGE and c.HOURS_FOR_SHIRT)
+        return bool(self.badge_type == c.STAFF_BADGE and c.SHIRTS_PER_STAFFER > 0)
 
     @property
     def num_staff_shirts_owed(self):
@@ -1535,7 +1530,8 @@ class Attendee(MagModel, TakesPaymentMixin):
     @classproperty
     def searchable_fields(cls):
         fields = [col.name for col in cls.__table__.columns if isinstance(col.type, UnicodeText)]
-        fields.remove('other_accessibility_requests')
+        if "other_accessibility_requests" in fields:
+            fields.remove('other_accessibility_requests')
         return fields
 
     @classproperty
@@ -1860,6 +1856,12 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def shift_prereqs_complete(self):
+        if not c.PRE_CON:
+            return not self.placeholder and (
+            not c.VOLUNTEER_AGREEMENT_ENABLED or self.agreed_to_volunteer_agreement) and (
+            not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures) \
+            and c.SHIFTS_CREATED
+
         return not self.placeholder and self.food_restrictions_filled_out and self.shirt_info_marked and (
             not self.hotel_eligible
             or self.hotel_requests

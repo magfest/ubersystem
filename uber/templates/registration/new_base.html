@@ -46,12 +46,12 @@
                 mpoints:        0,
                 csrf_token:     csrf_token,
             }, function(json) {
-                toastr.remove();
+                $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
                 if (!json.success) {
-                    toastr.error(json.message);
+                    $("#message-alert").addClass("alert-danger").show().children('span').html(json.message);
                 } else {
                     $('#badge_num').val('');
-                    toastr.info(json.message);
+                    $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
                     window.location.replace('../merch_admin/arbitrary_charge_form?amount=' + $('#store_cash').val() +
                         '&description=' + json.message + '&sale_id=' + json.id);
                 }
@@ -95,17 +95,17 @@
                         dataType: 'json',
                         data: data,
                         success: function (json) {
-                            toastr.clear();
+                            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
                             var message = json.message;
                             if (json.success) {
-                                toastr.info(message);
+                                $("#message-alert").addClass("alert-info").show().children('span').html(message);
                                 refreshRow(currentForm);
                             } else {
-                                toastr.error(message);
+                                $("#message-alert").addClass("alert-danger").show().children('span').html(message);
                             }
                         },
                         error: function () {
-                            toastr.error('Unable to connect to server, please try again.');
+                            $("#message-alert").addClass("alert-danger").show().children('span').html('Unable to connect to server, please try again.');
                         }
                     });
 
@@ -139,18 +139,18 @@
                     dataType: 'json',
                     data: data,
                     success: function (json) {
-                        toastr.clear();
+                        $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
                         var message = json.message;
                         if (json.success) {
-                            toastr.info(message);
+                            $("#message-alert").addClass("alert-info").show().children('span').html(message);
                             // Refresh the form
                             refreshRow(currentForm);
                         } else {
-                            toastr.error(message);
+                            $("#message-alert").addClass("alert-danger").show().children('span').html(message);
                         }
                     },
                     error: function () {
-                        toastr.error('Unable to connect to server, please try again.');
+                        $("#message-alert").addClass("alert-danger").show().children('span').html('Unable to connect to server, please try again.');
                     }
                 });
             });

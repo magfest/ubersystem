@@ -47,18 +47,28 @@ class Root:
         }
 
     @csrf_protected
+    @ajax
     def update(self, session, password='', message='', **params):
-        account = session.admin_account(params)
+        if not params.get('attendee_id', '') and params.get('id', 'None') == 'None':
+            message = "Please select an attendee to create an admin account for."
+        
+        if not message:
+            account = session.admin_account(params)
 
-        if account.is_new:
-            if not c.AUTH_DOMAIN:
-                if c.AT_OR_POST_CON and not password:
-                    message = 'You must enter a password'
+            if account.is_new and not c.AUTH_DOMAIN:
+                if c.AT_OR_POST_CON:
+                    if not password:
+                        message = 'You must enter a password'
+                    elif params.get("check-password", "") != password:
+                        message = 'Your password and password confirmation do not match'
+                    password = password
                 else:
-                    password = password if c.AT_OR_POST_CON else genpasswd()
+                    password = genpasswd()
+                
+                if not message:
                     account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
 
-        message = message or check(account)
+            message = message or check(account)
         if not message:
             message = 'Account settings uploaded'
             attendee = session.attendee(account.attendee_id)  # dumb temporary hack, will fix later with tests
@@ -78,10 +88,12 @@ class Root:
                     'New ' + c.EVENT_NAME + ' Admin Account',
                     body,
                     model=attendee.to_dict('id'))
+            session.commit()
+            return { 'success': True, 'message': message }
         else:
             session.rollback()
 
-        raise HTTPRedirect('index?message={}', message)
+        return { 'success': False, 'message': message }
 
     @csrf_protected
     def delete(self, session, id, **params):
@@ -188,6 +200,7 @@ class Root:
         }
 
     @public
+    @not_site_mappable
     def process_login(self, session, code, state, original_location=None, **params):
         original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
         if not cherrypy.session.get('oauth_state'):
@@ -249,6 +262,7 @@ class Root:
         raise HTTPRedirect('login?message={}', 'You have been logged out')
         
     @public
+    @not_site_mappable
     def process_logout(self):
         # We shouldn't need this, but Auth0 is throwing errors
         # when I try to include a message to the redirect url

@@ -1,11 +1,11 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}Preregistraton Successful{% endblock %}
+{% block title %}Preregistration Successful{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
 
 {% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_OPEN) }}
 
     <div class="row">

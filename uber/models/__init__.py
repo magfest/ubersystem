@@ -752,7 +752,7 @@ class Session(SessionManager):
             return set(staffer.assigned_depts_ids).intersection(dept_ids_with_inherent_role)
 
         def admin_can_see_guest_group(self, guest):
-            return guest.group_type_label.upper() in self.current_admin_account().viewable_guest_group_types
+            return guest.group_type_label.upper().replace(' ','_') in self.current_admin_account().viewable_guest_group_types
 
         def admin_attendee_max_access(self, attendee, read_only=True):
             admin = self.current_admin_account()
@@ -964,30 +964,73 @@ class Session(SessionManager):
                     if error:
                         return error
 
+        def refund_item_or_txn(self, amount=0, txn=None, item=None):
+            if item:
+                txn = txn or item.receipt_txn
+
+            if not txn:
+                return "Transaction not found for this receipt item."
+
+            error = self.preprocess_refund(txn, amount, bool(item))
+            if error:
+                return error
+
+            response = self.process_refund(txn, amount)
+            if response and isinstance(response, six.string_types):
+                return response
+
+        def preprocess_refund(self, txn, amount=0, already_refunded_error=True):
+            """
+            Performs error checks and updates transactions to prepare them for process_refund.
+            Call this to skip over transactions that can't be refunded or if you always want 
+            the Stripe response from process_refund. Otherwise, call refund_item_or_txn instead.
+            """
+            from uber.custom_tags import format_currency
+            from uber.models import Attendee
+
+            if not txn.intent_id:
+                return "Can't refund a transaction that is not a Stripe payment."
+            
+            error = txn.check_stripe_id()
+            if error:
+                return "Error issuing refund: " + str(error)
+
+            if not txn.charge_id:
+                charge_id = txn.check_paid_from_stripe()
+                if not charge_id:
+                    return "We could not find record of this payment being completed."
+
+            already_refunded = txn.update_amount_refunded()
+            if txn.amount - already_refunded <= 0:
+                if already_refunded_error:
+                    return "This payment has already been fully refunded."
+
+            refund_amount = int(amount or (txn.amount - already_refunded))
+            if txn.amount - already_refunded < refund_amount:
+                return "There is not enough left on this transaction to refund {}.".format(format_currency(refund_amount / 100))                
+
         def process_refund(self, txn, amount=0):
             """
-            Attempts to refund a given Stripe transaction
+            Attempts to refund a given Stripe transaction. Either call this after preprocess_refund
+            or call refund_item_or_txn instead.
+
             Returns either an error message, a Stripe Refund() object, or None if the transaction had no successful charges
             """
             import stripe
             from pockets.autolog import log
 
-            if not txn.stripe_id:
-                return 'Cannot refund a transaction without a Stripe ID'
+            refund_amount = amount or txn.amount_left
 
-            txn.update_amount_refunded()
-
-            refund_amount = int(amount or txn.amount - txn.refunded)
-
-            if not refund_amount:
-                return
+            balance = stripe.Balance.retrieve()
+            if balance['instant_available'][0]['amount'] < refund_amount:
+                return "We cannot currently refund this transaction. Please try again in a few days or contact an administrator."
 
             log.debug('REFUND: attempting to refund Stripe transaction with ID {} {} cents for {}',
                       txn.stripe_id, refund_amount, txn.desc)
 
             try:
                 response = stripe.Refund.create(
-                            payment_intent=txn.intent_id, amount=refund_amount, reason='requested_by_customer')
+                            payment_intent=txn.intent_id, amount=int(refund_amount), reason='requested_by_customer')
             except Exception as e:
                 error_txt = 'Error while calling process_refund' \
                             '(self, stripeID={!r})'.format(txn.stripe_id)
@@ -1005,11 +1048,22 @@ class Session(SessionManager):
                 ))
 
                 self.add(txn)
+                txn.refunded += refund_amount
+
+                model = self.get_model_by_receipt(txn.receipt)
+                if isinstance(model, Attendee) and model.paid == c.HAS_PAID:
+                    model.paid = c.REFUNDED
+                    self.add(model)
+                
+                self.commit()
+                self.refresh(txn)
                 return response
 
         def process_receipt_charge(self, receipt, charge, payment_method=c.STRIPE):
             """
             Creates the stripe intent and receipt transaction for a given charge object.
+            Most methods should call this instead of calling create_stripe_intent and 
+            create_receipt_transaction directly.
             """
             stripe_intent = charge.create_stripe_intent()
             if isinstance(stripe_intent, six.string_types):
@@ -1020,8 +1074,6 @@ class Session(SessionManager):
             if isinstance(receipt_txn, six.string_types):
                 self.rollback()
                 return receipt_txn
-
-            # Later we will want code to assign receipt items to this transaction
 
             self.add(receipt_txn)
             return stripe_intent
@@ -1174,7 +1226,7 @@ class Session(SessionManager):
             if existing_account:
                 self.add_attendee_to_account(attendee, existing_account)
 
-        def get_receipt_by_model(self, model, include_closed=False, create_if_none=False):
+        def get_receipt_by_model(self, model, include_closed=False, create_if_none=""):
             receipt_select = self.query(ModelReceipt).filter_by(owner_id=model.id, owner_model=model.__class__.__name__)
             if not include_closed:
                 receipt_select = receipt_select.filter(ModelReceipt.closed == None)
@@ -1183,11 +1235,11 @@ class Session(SessionManager):
             if not receipt and create_if_none:
                 receipt, receipt_items = Charge.create_new_receipt(model, create_model=True)
 
-                if receipt_items:
-                    self.add(receipt)
+                self.add(receipt)
+                if create_if_none != "BLANK":
                     for item in receipt_items:
                         self.add(item)
-                    self.commit()
+                self.commit()
             return receipt
 
         def get_model_by_receipt(self, receipt):
@@ -1948,22 +2000,6 @@ class Session(SessionManager):
 
             self.add(Shift(attendee=attendee, job=job))
             self.commit()
-
-        def affiliates(self):
-            amounts = defaultdict(
-                int, {a: -i for i, a in enumerate(c.DEFAULT_AFFILIATES)})
-
-            query = self.query(Attendee.affiliate, Attendee.amount_extra) \
-                .filter(and_(Attendee.amount_extra > 0, Attendee.affiliate != ''))
-
-            for aff, amt in query:
-                amounts[aff] += amt
-
-            return [{
-                'id': aff,
-                'text': aff,
-                'total': max(0, amt)
-            } for aff, amt in sorted(amounts.items(), key=lambda tup: -tup[1])]
 
         def insert_test_admin_account(self):
             """

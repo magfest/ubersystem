@@ -31,7 +31,7 @@ $(document).ready(function() {
                 'paid, will lose their discounted badge price. This cannot be undone.',
             buttons: {
                 confirm: { label: 'Delete Promo Code', className: 'btn-danger' },
-                cancel: { label: 'Nevermind', className: 'btn-default' }
+                cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
             },
             callback: function(result) {
                 if (result) {
@@ -67,7 +67,7 @@ $(document).ready(function() {
       <div class="modal-footer">
         <form method="post" action="delete_promo_codes" class="form-horizontal">
           {{ csrf_token() }}
-          <button type="button" class="btn btn-default" data-dismiss="modal">Nevermind</button>
+          <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Nevermind</button>
           <button type="submit" class="btn btn-danger">Delete Unused</button>
         </form>
       </div>
@@ -135,7 +135,7 @@ $(document).ready(function() {
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ promo_code.id }}" />
             <button type="submit" class="btn btn-sm btn-primary update-button">
-              <span class="glyphicon glyphicon-ok"></span>
+              <i class="fa fa-ok"></i>
             </button>
           </form>
           <form method="post" action="delete_promo_codes">
@@ -145,7 +145,7 @@ $(document).ready(function() {
             <div title="Promo codes that have already been used cannot be deleted" style="display: inline-block;">
             {% endif %}
             <button class="btn btn-sm btn-danger delete-button {% if promo_code.uses_count > 0 %}disabled{% endif %}" data-code="{{ promo_code.code }}">
-              <span class="glyphicon glyphicon-trash"></span>
+              <i class="fa fa-trash"></i>
             </button>
             {% if promo_code.uses_count > 0 %}
             </div>

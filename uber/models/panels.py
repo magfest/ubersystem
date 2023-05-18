@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
@@ -108,6 +109,7 @@ class PanelApplication(MagModel):
     affiliations = Column(UnicodeText)
     past_attendance = Column(UnicodeText)
     department = Column(Choice(c.PANEL_DEPT_OPTS), default=c.PANELS)
+    rating = Column(Choice(c.PANEL_RATING_OPTS), default=c.UNRATED)
     presentation = Column(Choice(c.PRESENTATION_OPTS))
     other_presentation = Column(UnicodeText)
     noise_level = Column(Choice(c.NOISE_LEVEL_OPTS))
@@ -164,7 +166,7 @@ class PanelApplication(MagModel):
 
     @property
     def after_confirm_deadline(self):
-        return self.confirm_deadline and self.confirm_deadline < datetime.now()
+        return self.confirm_deadline and self.confirm_deadline < datetime.now(UTC)
 
     @hybrid_property
     def has_been_accepted(self):
@@ -202,4 +204,4 @@ class EventFeedback(MagModel):
     headcount_starting = Column(Integer, default=0)
     headcount_during = Column(Integer, default=0)
     comments = Column(UnicodeText)
-    rating = Column(Choice(c.PANEL_RATING_OPTS), default=c.UNRATED)
+    rating = Column(Choice(c.PANEL_FEEDBACK_OPTS), default=c.UNRATED)

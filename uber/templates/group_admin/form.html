@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% import "fields/group.html" as group_fields with context %}
+{% import "forms/group.html" as group_fields with context %}
 {% block title %}Group Form{% endblock %}
 {% block content %}
 {% include "group_admin/nav_menu.html" %}
@@ -14,19 +14,19 @@
     {% endif %}
     </h1> 
     {% endif %}
-<div class="panel panel-body">
+<div class="card-body">
   {% if not group.is_new %}
     <div role="tabpanel">
     <ul class="nav nav-tabs" role="tablist">
     <li role="presentation">
     <a href="#info" aria-controls="info" role="tab" data-toggle="tab">
-    <span class="glyphicon glyphicon-list"></span>&nbsp;Group Info
+    <i class="fa fa-list"></i>&nbsp;Group Info
     </a>
     </li>
     {% if group.sorted_attendees%}
     <li role="presentation">
     <a href="#badges" aria-controls="badges" role="tab" data-toggle="tab">
-    <span class="glyphicon glyphicon-user"></span>&nbsp;Badges
+    <i class="fa fa-user"></i>&nbsp;Badges
     </a>
     </li>
     {% endif %}

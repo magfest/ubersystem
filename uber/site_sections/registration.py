@@ -154,21 +154,19 @@ class Root:
                 message = check(attendee)
 
             if not message:
-                # Free group badges are only considered 'registered' when they are actually claimed.
-                if attendee.paid == c.PAID_BY_GROUP and attendee.group_id and attendee.group.cost == 0:
-                    attendee.registered = localized_now()
-                session.add(attendee)
-
                 if attendee.is_new and \
                         session.attendees_with_badges().filter_by(first_name=attendee.first_name,
                                                                   last_name=attendee.last_name,
                                                                   email=attendee.email).count():
+                    session.add(attendee)
+                    session.commit()
                     raise HTTPRedirect('duplicate?id={}&return_to={}', attendee.id, return_to or 'index')
 
                 message = '{} has been saved'.format(attendee.full_name)
                 stay_on_form = params.get('save') != 'save_return_to_search'
+                session.add(attendee)
+                session.commit()
                 if params.get('save') == 'save_check_in':
-                    session.commit()
                     if attendee.is_not_ready_to_checkin:
                         message = "Attendee saved, but they cannot check in now. Reason: {}".format(
                             attendee.is_not_ready_to_checkin)
@@ -201,7 +199,6 @@ class Root:
                             attendee.id,
                             message,
                             '{} {}'.format(attendee.first_name, attendee.last_name) if c.AT_THE_CON else '')
-
         receipt = session.refresh_receipt_and_model(attendee)
 
         return {
@@ -629,7 +626,7 @@ class Root:
                         cherrypy.session['attendee_account_id'] = new_or_existing_account.id
 
                 session.add(attendee)
-                receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+                receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
                 session.commit()
                 if c.AFTER_BADGE_PRICE_WAIVED:
                     message = c.AT_DOOR_WAIVED_MSG
@@ -688,7 +685,7 @@ class Root:
     @credit_card
     def take_payment(self, session, id):
         attendee = session.attendee(id)
-        receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+        receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = Charge(attendee, amount=receipt.current_amount_owed, description=charge_desc)
         stripe_intent = session.process_receipt_charge(receipt, charge)
@@ -753,7 +750,7 @@ class Root:
             return {'success': False, 'message': 'Payments can only be taken by at-door stations.'}
         
         attendee = session.attendee(id)
-        receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+        receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         attendee.paid = c.HAS_PAID
         if int(payment_method) == c.STRIPE_ERROR:
             desc = "Automated message: Stripe payment manually verified by admin."
@@ -770,7 +767,7 @@ class Root:
     @credit_card
     def manual_reg_charge(self, session, id):
         attendee = session.attendee(id)
-        receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+        receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = Charge(attendee, amount=receipt.current_amount_owed, description=charge_desc)
 
@@ -1054,6 +1051,11 @@ class Root:
     @ajax
     @attendee_view
     def update_attendee(self, session, message='', success=False, **params):
+        if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
+            message = session.auto_update_receipt(session.attendee(params.get('id')), params)
+            if message:
+                log.error("Error while auto-updating attendee receipt: {}".format(message))
+
         for key in params:
             if params[key] == "false":
                 params[key] = False
@@ -1090,9 +1092,6 @@ class Root:
             message = check(attendee)
 
         if not message:
-            message = session.auto_update_receipt(attendee, params)
-
-        if not message:
             success = True
             message = '{} has been saved'.format(attendee.full_name)
             
@@ -1102,10 +1101,6 @@ class Root:
                 ) and not session.admin_can_create_attendee(attendee):
                 attendee.badge_status = c.PENDING_STATUS
                 message += ' as a pending badge'
-            
-            # Free group badges are only considered 'registered' when they are actually claimed.
-            if attendee.paid == c.PAID_BY_GROUP and attendee.group_id and attendee.group.cost == 0:
-                attendee.registered = localized_now()
 
             session.add(attendee)
             session.commit()

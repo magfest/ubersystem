@@ -47,13 +47,6 @@ def read_only_makes_sense(group):
             return 'You cannot set a read-only access level lower than the read-write access'
 
 
-AdminAccount.required = [
-    ('attendee_id', 'Attendee'),
-]
-
-if not c.AUTH_DOMAIN:
-    AdminAccount.required.append(('hashed', 'Password'))
-
 @validation.AdminAccount
 def duplicate_admin(account):
     if account.is_new:
@@ -178,7 +171,7 @@ def edit_only_correct_statuses(group):
         return "You cannot change your {} after it has been {}.".format(c.DEALER_APP_TERM, group.status_label)
 
 
-def _invalid_phone_number(s):
+def invalid_phone_number(s):
     try:
         # parse input as a US number, unless a leading + is provided,
         # in which case the input will be validated according to the country code
@@ -197,7 +190,7 @@ def _invalid_phone_number(s):
     return False
 
 
-def _invalid_zip_code(s):
+def invalid_zip_code(s):
     return len(re.findall(r'\d', s)) not in [5, 9]
 
 
@@ -285,9 +278,14 @@ def reasonable_total_cost(attendee):
 
 @prereg_validation.Attendee
 def promo_code_is_useful(attendee):
-    with Session() as session:
-        if attendee.promo_code and session.lookup_agent_code(attendee.promo_code.code):
-            return
+    if attendee.promo_code:
+        with Session() as session:
+            if session.lookup_agent_code(attendee.promo_code.code):
+                return
+            code = session.lookup_promo_or_group_code(attendee.promo_code.code, PromoCode)
+            group = code.group if code and code.group else session.lookup_promo_or_group_code(attendee.promo_code.code, PromoCodeGroup)
+            if group and group.total_cost == 0:
+                return
 
     if attendee.is_new and attendee.promo_code:
         if not attendee.is_unpaid:
@@ -332,7 +330,7 @@ def full_name(attendee):
 def allowed_to_volunteer(attendee):
     if attendee.staffing_or_will_be \
             and not attendee.age_group_conf['can_volunteer'] \
-            and attendee.badge_type != c.STAFF_BADGE \
+            and attendee.badge_type not in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] \
             and c.PRE_CON:
 
         return 'Your interest is appreciated, but ' + c.EVENT_NAME + ' volunteers must be 18 or older.'
@@ -587,7 +585,10 @@ def money_amount(model):
 
 
 Job.required = [
-    ('name', 'Job Name')
+    ('name', 'Job Name'),
+    ('description', 'Job Description'),
+    ('start_time', 'Start Time'),
+    ('duration', 'Hours and/or Minutes')
 ]
 
 
@@ -605,6 +606,12 @@ def time_conflicts(job):
             if job.minutes.intersection(shift.attendee.shift_minutes - original_minutes):
                 return 'You cannot change this job to this time, because {} is already working a shift then'.format(
                     shift.attendee.full_name)
+
+
+@validation.Job
+def no_negative_hours(job):
+    if job.duration < 0:
+        return 'You cannot create a job with negative hours.'
 
 
 Department.required = [('name', 'Name'), ('description', 'Description')]
@@ -714,7 +721,7 @@ def attendee_tournament_email(app):
 
 @validation.AttendeeTournament
 def attendee_tournament_cellphone(app):
-    if app.cellphone and _invalid_phone_number(app.cellphone):
+    if app.cellphone and invalid_phone_number(app.cellphone):
         return 'You did not enter a valid cellphone number'
 
 # =============================
@@ -808,7 +815,7 @@ def mivs_unique_name(studio):
                 
 @validation.IndieStudio
 def mivs_studio_contact_phone(studio):
-    if studio.contact_phone and _invalid_phone_number(studio.contact_phone):
+    if studio.contact_phone and invalid_phone_number(studio.contact_phone):
         return 'Please enter a valid phone number'
 
 
@@ -832,7 +839,7 @@ def mivs_dev_email(dev):
 
 @validation.IndieDeveloper
 def mivs_dev_cellphone(dev):
-    if (dev.primary_contact or dev.cellphone) and _invalid_phone_number(dev.cellphone):
+    if (dev.primary_contact or dev.cellphone) and invalid_phone_number(dev.cellphone):
         return 'Please enter a valid phone number'
 
 
@@ -967,7 +974,7 @@ def mits_applicant_email_valid(applicant):
 
 @validation.MITSApplicant
 def valid_phone_number(applicant):
-    if _invalid_phone_number(applicant.cellphone):
+    if invalid_phone_number(applicant.cellphone):
         return 'Your cellphone number was not a valid 10-digit US phone number. ' \
             'Please include a country code (e.g. +44) for international numbers.'
 
@@ -1017,7 +1024,7 @@ def pa_email(pa):
 
 @validation.PanelApplicant
 def pa_phone(pa):
-    if (pa.submitter or pa.cellphone) and _invalid_phone_number(pa.cellphone):
+    if (pa.submitter or pa.cellphone) and invalid_phone_number(pa.cellphone):
         return 'Please enter a valid phone number'
 
 
@@ -1061,6 +1068,12 @@ def specify_table_needs(app):
 def specify_cost_details(app):
     if app.has_cost and not app.cost_desc:
         return 'Please describe the materials you will provide and how much you will charge attendees for them.'
+
+
+@validation.PanelApplication
+def specify_rating(app):
+    if len(c.PANEL_RATING_OPTS) > 1 and app.rating == c.UNRATED:
+        return 'Please select a content rating for your panel.'
 
 
 Attraction.required = [
@@ -1176,7 +1189,7 @@ def validate_email(travel_plan):
 
 @validation.GuestDetailedTravelPlan
 def validate_phone(travel_plan):
-    if _invalid_phone_number(travel_plan.contact_phone):
+    if invalid_phone_number(travel_plan.contact_phone):
         return 'Your phone number was not a valid 10-digit US phone number. ' \
             'Please include a country code (e.g. +44) for international numbers.'
 

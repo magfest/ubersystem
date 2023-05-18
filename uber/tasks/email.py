@@ -52,25 +52,33 @@ def send_email(
     if c.DEV_BOX:
         to, cc, bcc = map(lambda xs: list(filter(_is_dev_email, xs)), [to, cc, bcc])
 
+    record_email = False
+
     if c.SEND_EMAILS and to:
         message = {
             'bodyText' if format == 'text' else 'bodyHtml': body,
             'subject': subject,
             'charset': 'UTF-8',
             }
+        log.info('Attempting to send email {}', locals())
 
         try:
-            email_sender.sendEmail(
-            source=sender,
-            toAddresses=to,
-            ccAddresses=cc,
-            bccAddresses=bcc,
-            message=message)
+            error_msg = email_sender.sendEmail(
+                            source=sender,
+                            toAddresses=to,
+                            ccAddresses=cc,
+                            bccAddresses=bcc,
+                            message=message)
+            if error_msg:
+                log.error('Error while sending email: ' + error_msg)
+            else:
+                record_email = True
         except Exception as error:
             log.error('Error while sending email: {}'.format(error))
         sleep(0.1)  # Avoid hitting rate limit
     else:
         log.error('Email sending turned off, so unable to send {}', locals())
+        record_email = True if c.DEV_BOX else False
 
     if original_to:
         body = body.decode('utf-8') if isinstance(body, bytes) else body
@@ -87,24 +95,25 @@ def send_email(
             elif isinstance(model, Mapping):
                 fk_kwargs['automated_email_id'] = automated_email.get('id', None)
 
-        email = Email(
-            subject=subject,
-            body=body,
-            sender=sender,
-            to=','.join(original_to),
-            cc=','.join(original_cc),
-            bcc=','.join(original_bcc),
-            ident=ident,
-            **fk_kwargs)
+        if record_email:
+            email = Email(
+                subject=subject,
+                body=body,
+                sender=sender,
+                to=','.join(original_to),
+                cc=','.join(original_cc),
+                bcc=','.join(original_bcc),
+                ident=ident,
+                **fk_kwargs)
 
-        session = session or getattr(model, 'session', getattr(automated_email, 'session', None))
-        if session:
-            session.add(email)
-            session.commit()
-        else:
-            with Session() as session:
+            session = session or getattr(model, 'session', getattr(automated_email, 'session', None))
+            if session:
                 session.add(email)
                 session.commit()
+            else:
+                with Session() as session:
+                    session.add(email)
+                    session.commit()
 
 
 @celery.schedule(crontab(hour=6, minute=0, day_of_week=1))
@@ -156,9 +165,10 @@ def send_automated_emails():
             .options(joinedload(AutomatedEmail.emails)).all()
 
         for automated_email in active_automated_emails:
+            """ This appears to be breaking our email-sending process and I do not have the time or tools to figure it out
             automated_email.currently_sending = True
             session.add(automated_email)
-            session.commit()
+            session.commit()"""
             automated_email.unapproved_count = 0
 
         automated_emails_by_model = groupify(active_automated_emails, 'model')
@@ -171,14 +181,17 @@ def send_automated_emails():
                     if model_instance.id not in automated_email.emails_by_fk_id:
                         if automated_email.would_send_if_approved(model_instance):
                             if automated_email.approved or not automated_email.needs_approval:
+                                if model_instance.active_receipt:
+                                    session.refresh_receipt_and_model(model_instance)
                                 automated_email.send_to(model_instance, delay=False)
                             else:
                                 automated_email.unapproved_count += 1
         
+        """ See the note above
         for automated_email in active_automated_emails:
             automated_email.currently_sending = False
             session.add(automated_email)
-            session.commit()
+            session.commit()"""
 
         return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
 

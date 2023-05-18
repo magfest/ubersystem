@@ -7,6 +7,7 @@ from uber.models.art_show import ArtShowApplication
 
 import bcrypt
 import cherrypy
+from collections import defaultdict
 from pockets import listify
 from pockets.autolog import log
 from six import string_types
@@ -30,13 +31,8 @@ def check_post_con(klass):
     def wrapper(func):
         @wraps(func)
         def wrapped(self, *args, **kwargs):
-            if c.POST_CON:  # TODO: replace this with a template and make that suitably generic
-                return """
-                <html><head></head><body style='text-align:center'>
-                    <h2 style='color:red'>We hope you enjoyed {event} {current_year}!</h2>
-                    We look forward to seeing you in {next_year}! Watch our website (<a href="https://www.magfest.org">https://www.magfest.org</a>) and our Twitter (<a href="https://twitter.com/MAGFest">@MAGFest</a>) for announcements.
-                </body></html>
-                """.format(event=c.EVENT_NAME, current_year=c.EVENT_YEAR, next_year=(1 + int(c.EVENT_YEAR)) if c.EVENT_YEAR else '')
+            if c.POST_CON:
+                return render('static_views/post_con.html')
             else:
                 return func(self, *args, **kwargs)
         return wrapped
@@ -354,7 +350,6 @@ class Root:
                 'attendee':   attendee,
                 'group':      group,
                 'edit_id':    edit_id,
-                'affiliates': session.affiliates(),
                 'cart_not_empty': Charge.unpaid_preregs,
                 'copy_address': params.get('copy_address'),
                 'copy_email': params.get('copy_email'),
@@ -475,7 +470,6 @@ class Root:
             'group':      group,
             'promo_code_group': promo_code_group,
             'edit_id':    edit_id,
-            'affiliates': session.affiliates(),
             'cart_not_empty': Charge.unpaid_preregs,
             'same_legal_name': params.get('same_legal_name'),
             'copy_address': params.get('copy_address'),
@@ -650,7 +644,7 @@ class Root:
             return {'error': message}
 
         for receipt in receipts:
-            receipt_txn = Charge.create_receipt_transaction(receipt, charge.description, stripe_intent.id)
+            receipt_txn = Charge.create_receipt_transaction(receipt, charge.description, stripe_intent.id, receipt.current_amount_owed)
             session.add(receipt_txn)
 
         for attendee in charge.attendees:
@@ -927,7 +921,7 @@ class Root:
             # with the Attendee's address fields, we must clone the params and
             # rename all the "group_" fields.
             group_params = dict(params)
-            for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city']:
+            for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city', 'phone', 'email_address']:
                 group_field_name = 'group_{}'.format(field_name)
                 if group_field_name in params:
                     group_params[field_name] = params.get(group_field_name, '')
@@ -961,7 +955,7 @@ class Root:
             'signnow_document': signnow_document,
             'signnow_link': signnow_link,
             'receipt': receipt,
-            'incomplete_txn': receipt.last_incomplete_txn if receipt else None,
+            'incomplete_txn': receipt.get_last_incomplete_txn() if receipt else None,
             'message': message
         }
 
@@ -1024,7 +1018,6 @@ class Root:
             'group_id': group_id,
             'group': group,
             'attendee': attendee,
-            'affiliates': session.affiliates(),
             'badge_cost': 0,
             'must_be_staffing': must_be_staffing,
         }
@@ -1033,7 +1026,7 @@ class Root:
     @credit_card
     def process_group_payment(self, session, id):
         group = session.group(id)
-        receipt = session.get_receipt_by_model(group, create_if_none=True)
+        receipt = session.get_receipt_by_model(group, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(group.name, receipt.charge_description_list)
         charge = Charge(group, amount=receipt.current_amount_owed, description=charge_desc)
 
@@ -1093,7 +1086,7 @@ class Root:
     def pay_for_extra_members(self, session, id, count):
         from uber.models import ReceiptItem
         group = session.group(id)
-        receipt = session.get_receipt_by_model(group, create_if_none=True)
+        receipt = session.get_receipt_by_model(group, create_if_none="DEFAULT")
         session.add(receipt)
         session.commit()
         count = int(count)
@@ -1168,7 +1161,6 @@ class Root:
             'old':      old,
             'attendee': attendee,
             'message':  message,
-            'affiliates': session.affiliates()
         }
 
     @id_required(Attendee)
@@ -1231,13 +1223,13 @@ class Root:
             receipt = session.get_receipt_by_model(attendee)
             total_refunded = 0
             for txn in receipt.receipt_txns:
-                if txn.stripe_id:
+                error = session.preprocess_refund(txn)
+                if not error:
                     response = session.process_refund(txn)
-                    if response:
-                        if isinstance(response, string_types):
-                            raise HTTPRedirect('confirm?id={}&message={}', id,
-                                   failure_message)
-                        total_refunded += response.amount
+                    if isinstance(response, string_types):
+                        raise HTTPRedirect('confirm?id={}&message={}', id,
+                                failure_message)
+                    total_refunded += response.amount
 
             receipt.closed = datetime.now()
             session.add(receipt)
@@ -1339,23 +1331,41 @@ class Root:
     @requires_account(Attendee)
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
-        if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-            message = session.auto_update_receipt(session.attendee(params.get('id')), params)
-            if message:
-                log.error("Error while auto-updating attendee receipt: {}".format(message))
+        if params.get('id') in [None, '', 'None']:
+            attendee = Attendee()
+        else:
+            attendee = session.attendee(params.get('id'))
 
-        # Safe to ignore csrf tokens here, because an attacker would need to know the attendee id a priori
-        attendee = session.attendee(params, restricted=True, ignore_csrf=True)
+        from uber.forms import PersonalInfo, BadgeExtras, OtherInfo
+        error = ''
+        if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
+            error = session.auto_update_receipt(attendee, params)
+            if error:
+                log.error("Error while auto-updating attendee receipt: {}".format(message))
+                message = error
+
+            # Stop unsetting these every time someone updates their info
+            params['agreed_to_volunteer_agreement'] = attendee.agreed_to_volunteer_agreement
+            params['reviewed_emergency_procedures'] = attendee.reviewed_emergency_procedures
 
         if attendee.badge_status == c.REFUNDED_STATUS:
             raise HTTPRedirect('repurchase?id={}', attendee.id)
 
         placeholder = attendee.placeholder
+
         receipt = session.get_receipt_by_model(attendee)
-        if 'email' in params and not message:
+        personal_info = PersonalInfo(params, attendee)
+        badge_extras = BadgeExtras(params, attendee)
+        other_info = OtherInfo(params, attendee)
+
+        if cherrypy.request.method == 'POST' and not message:
+            attendee = session.attendee(params, restricted=True)
             attendee.placeholder = False
+
             message = check(attendee, prereg=True)
             if not message:
+                session.add(attendee)
+                session.commit()
                 if placeholder:
                     attendee.confirmed = localized_now()
                     message = 'Your registration has been confirmed'
@@ -1364,10 +1374,14 @@ class Root:
 
                 page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
                 if not receipt:
-                    new_receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+                    new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
                     if new_receipt.current_amount_owed and not new_receipt.pending_total:
                         raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)
                 raise HTTPRedirect(page + 'message=' + message)
+
+        if not error:
+            log.debug("Refreshing receipt...")
+            session.refresh_receipt_and_model(attendee)
 
         attendee.placeholder = placeholder
         if not message and attendee.placeholder:
@@ -1377,21 +1391,80 @@ class Root:
 
         group_credit = receipt_items.credit_calculation.items['Attendee']['group_discount'](attendee)
 
-        session.refresh_receipt_and_model(attendee)
-
         return {
             'undoing_extra': undoing_extra,
             'return_to':     return_to,
             'attendee':      attendee,
             'account':       session.get_attendee_account_by_attendee(attendee),
             'message':       message,
-            'affiliates':    session.affiliates(),
             'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
             'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
             'receipt':       session.get_receipt_by_model(attendee) if attendee.is_valid else None,
-            'incomplete_txn':  receipt.last_incomplete_txn if receipt else None,
+            'incomplete_txn':  receipt.get_last_incomplete_txn() if receipt else None,
             'attendee_group_discount': (group_credit[1] / 100) if group_credit else 0,
+            'personal_info': personal_info,
+            'badge_extras': badge_extras,
+            'other_info': other_info,
+            'pii_consent':  params.get('pii_consent'),
         }
+
+    @ajax
+    def validate_attendee(self, session, **params):
+        from uber.forms import AdminInfo, PersonalInfo, BadgeExtras, OtherInfo
+        from uber.validations import attendee as attendee_validators
+        from wtforms import validators
+
+        if params.get('id') in [None, '', 'None']:
+            attendee = Attendee()
+        else:
+            attendee = session.attendee(params.get('id'))
+
+        # Only applies to the confirmation page
+        params['placeholder'] = False
+
+        receipt = session.get_receipt_by_model(attendee)
+        personal_info, admin_info = PersonalInfo(params, attendee), AdminInfo(params, attendee)
+        form_modules = (personal_info, BadgeExtras(params, attendee), OtherInfo(params, attendee))
+
+        unassigned_group_reg = admin_info.group_id.data and not personal_info.first_name.data and not personal_info.last_name.data
+        valid_placeholder = admin_info.placeholder.data and personal_info.first_name.data and personal_info.last_name.data
+
+        all_errors = defaultdict(list)
+
+        for module in form_modules:
+            extra_validators = defaultdict(list)
+            for key, val in module.skip_unassigned_placeholder_validators.items():
+                if unassigned_group_reg or valid_placeholder:
+                    extra_validators[key].append(validators.Optional())
+                else:
+                    extra_validators[key].extend(val)
+
+            for key in module.field_list():
+                field = getattr(module, key, None)
+                extra_validators[key].extend(attendee_validators.form_validation.get_validations_by_field(key))
+                if field and (attendee.is_new or getattr(attendee, key, None) != field.data):
+                    extra_validators[key].extend(attendee_validators.new_or_changed_validation.get_validations_by_field(key))
+
+            log.debug(extra_validators)
+
+            valid = module.validate(extra_validators=extra_validators)
+            if not valid:
+                for key, val in module.errors.items():
+                    all_errors[key].extend(val)
+
+        if all_errors:
+            return {"error": all_errors}
+
+        preview_attendee = session.attendee(params, restricted=True)
+        for key, val in attendee_validators.post_form_validation.get_validation_dict().items():
+            for func in val:
+                message = func(preview_attendee)
+                if message:
+                    all_errors[key].append(message)
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
         
     @ajax
     def get_receipt_preview(self, session, id, **params):
@@ -1439,7 +1512,14 @@ class Root:
         attendee = session.attendee(id)
         txn = session.receipt_transaction(txn_id)
 
+        error = txn.check_stripe_id()
+        if error:
+            return {'error': "Something went wrong with this payment. Please refresh the page and try again."}
+
         stripe_intent = txn.get_stripe_intent()
+
+        if not stripe_intent:
+            return {'error': "Something went wrong. Please contact us at {}.".format(c.REGDESK_EMAIL)}
 
         if stripe_intent.charges:
             return {'error': "This payment has already been finalized!"}
@@ -1456,6 +1536,10 @@ class Root:
     def finish_pending_group_payment(self, session, id, txn_id, **params):
         group = session.group(id)
         txn = session.receipt_transaction(txn_id)
+
+        error = txn.check_stripe_id()
+        if error:
+            return {'error': "Something went wrong with this payment. Please refresh the page and try again."}
 
         stripe_intent = txn.get_stripe_intent()
 
@@ -1497,7 +1581,7 @@ class Root:
         attendee = session.attendee(id)
         return {
             'attendee': attendee,
-            'receipt': session.get_receipt_by_model(attendee, create_if_none=True),
+            'receipt': session.get_receipt_by_model(attendee, create_if_none="DEFAULT"),
             'return_to': return_to,
             'message': message,
         }
@@ -1513,7 +1597,7 @@ class Root:
 
         message = attendee.undo_extras()
         if not message:
-            new_receipt = session.get_receipt_by_model(attendee, create_if_none=True)
+            new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
             page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
             if new_receipt.current_amount_owed:
                 raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)

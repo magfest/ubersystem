@@ -23,7 +23,7 @@
             </table>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Close</button>
           <button type="submit" id="upgrade-purchase" form="purchase-upgrades" type="button" class="btn btn-success">Purchase<span id="upgrade-preview-total"></span></button>
         </div>
       </div>
@@ -39,13 +39,13 @@
         } else if (colName == 'amount_extra') {
             lastAmountExtra = val;
         }
-        
+
         if (colName == "") {
             return;
         } else if (val == "") {
             val = 0;
         }
-        existing_row = $('td#' + colName + ' > span');
+        var existing_row = $('td#' + colName + ' > span');
         $.post("get_receipt_preview", {
             csrf_token: csrf_token,
             id: "{{ attendee.id }}",
@@ -54,7 +54,7 @@
         },
         function(result) {
           if (result.error) {
-            toastr.error(result.error);
+            $("#message-alert").addClass("alert-danger").show().children('span').html(result.error);
           } else {
             change_str = result.change > 0 ? "$" + result.change / 100 : "-$" + result.change * -1 / 100;
             costChangeDict[colName] = result.change;
@@ -95,7 +95,7 @@
         $.post('purchase_upgrades', $form.serialize(), function(result) {
             $btn.prop('disabled', false);
             if (result.error) {
-                toastr.error(result.error);
+                $("#message-alert").addClass("alert-danger").show().children('span').html(result.error);
             } else if (result.success) {
                 $('#upgradeModal').modal('toggle');
                 callStripeAction(autoTrigger=true);

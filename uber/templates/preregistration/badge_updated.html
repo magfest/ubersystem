@@ -3,8 +3,8 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 {% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     <h2>{{ message }}!</h2>
     <p>
       You have successfully {% if 'registered' in message or 'confirmed' in message %}confirmed{% elif 'transferred' in message %}transferred{% elif 'deferred' in message %}deferred{% else %}updated{% endif %} your registration.

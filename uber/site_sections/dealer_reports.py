@@ -57,13 +57,13 @@ class Root:
                     group.description,
                     group.website,
                     group.leader.legal_name or group.leader.full_name,
-                    group.leader.email,
-                    group.leader.cellphone,
+                    group.email,
+                    group.phone if group.phone else group.leader.cellphone,
                     group.address1,
                     group.address2,
                     group.city,
                     group.region,
-                    group.zip_code,
+                    str(group.zip_code),
                     group.country,
                     group.tables,
                     group.amount_paid / 100,
@@ -79,17 +79,31 @@ class Root:
             if group.status == c.APPROVED and group.is_dealer:
                 rows.append([
                     group.name,
-                    group.leader.email,
+                    group.email,
                     group.leader.legal_name or group.leader.full_name,
-                    group.leader.cellphone,
-                    group.physical_address
+                    group.phone if group.phone else group.leader.cellphone,
+                    group.address1,
+                    group.address2,
+                    group.city,
+                    group.region,
+                    str(group.zip_code),
+                    group.country,
+                    group.has_permit,
+                    group.license
                 ])
         header_row = [
             'Vendor Name',
             'Contact Email',
             'Primary Contact',
             'Contact Phone #',
-            'Physical Address']
+            'Address 1',
+            'Address 2',
+            'City',
+            'State/Region',
+            'Zip Code',
+            'Country',
+            'Has Permit',
+            'License #']
         out.writerows(header_row, rows)
 
     @xlsx_file
@@ -109,7 +123,7 @@ class Root:
             out.writecell(group.registered.replace(tzinfo=None), format={'num_format': 'dd/mm/yy hh:mm'})
             out.writecell(group.name, url="{}/group_admin/form?id={}".format(c.URL_BASE, group.id), last_cell=True)
             
-        
+
     @xlsx_file
     def waitlisted_group_info(self, out, session):
         waitlisted_groups = session.query(Group).filter(Group.status == c.WAITLISTED).all()
@@ -119,7 +133,7 @@ class Root:
                 rows.append([
                     group.name,
                     group.leader.full_name,
-                    group.leader.email,
+                    group.email,
                     group.website,
                     group.physical_address
                 ])
@@ -140,9 +154,9 @@ class Root:
                 rows.append([
                     group.name,
                     group.leader.full_name,
-                    group.leader.email,
+                    group.email,
                     group.physical_address,
-                    group.leader.cellphone,
+                    group.phone if group.phone else group.leader.cellphone,
                     group.special_needs,
                     group.admin_notes,
                     group.wares,

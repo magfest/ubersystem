@@ -22,7 +22,7 @@ class Root:
     def index(self, session, show_revoked=False, message='', **params):
         admin_account = session.current_admin_account()
         api_tokens = session.query(ApiToken)
-        if not admin_account.is_admin:
+        if not admin_account.is_super_admin:
             api_tokens = api_tokens.filter_by(admin_account_id=admin_account.id)
         if not show_revoked:
             api_tokens = api_tokens.filter(ApiToken.revoked_time == None)  # noqa: E711

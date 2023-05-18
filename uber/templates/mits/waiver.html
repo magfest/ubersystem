@@ -62,7 +62,7 @@
 
   {% if team.waiver_signed %}
   <strong>{{ team.waiver_signature }}</strong> signed this waiver at {{ team.waiver_signed|datetime_local }}.
-  <br/><a href="index" class="btn btn-default">Go Back to Application</a>
+  <br/><a href="index" class="btn btn-outline-secondary">Go Back to Application</a>
   {% else %}
   <form method="post" action="waiver" class="form-horizontal" role="form">
     {{ csrf_token() }}
