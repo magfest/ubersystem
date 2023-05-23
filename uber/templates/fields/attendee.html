@@ -1761,7 +1761,7 @@ $(window).on("runJavaScript", function(){
         {{ options(group_opts,attendee.group.id) }}
       </select>
       <a id="group_link" href="" target="_blank">View this Group's Page</a>
-      {% if c.HAS_GROUP_ADMIN_ACCESS and not attendee.group %}
+      {% if c.HAS_GROUP_ADMIN_ACCESS and not attendee.group and not attendee.is_new %}
       <a id="new_group" href="../group_admin/new_group_from_attendee?id={{ attendee.id }}" target="_blank">Create New Group</a>
       {% endif %}
       <div id="unassigned" style="display:none ; color:red">
