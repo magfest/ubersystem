@@ -540,7 +540,7 @@ class MagModel:
 
     def timespan(self, minute_increment=1):
         def minutestr(dt):
-            return ':30' if dt.minute == 30 else ''
+            return '' if dt.minute == 0 else dt.strftime(':%M')
 
         timespan = timedelta(minutes=minute_increment * self.duration)
         endtime = self.start_time_local + timespan

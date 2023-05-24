@@ -1108,7 +1108,7 @@ c.START_TIME_OPTS = [
 
 c.SETUP_JOB_START = c.EPOCH - timedelta(days=c.SETUP_SHIFT_DAYS)
 c.TEARDOWN_JOB_END = c.ESCHATON + timedelta(days=1, hours=23) # Allow two full days for teardown shifts
-c.CON_TOTAL_LENGTH = int((c.TEARDOWN_JOB_END - c.SETUP_JOB_START).seconds / 3600)
+c.CON_TOTAL_DAYS = -(-(int((c.TEARDOWN_JOB_END - c.SETUP_JOB_START).total_seconds() // 3600)) // 24)
 c.PANEL_STRICT_LENGTH_OPTS = [opt for opt in c.PANEL_LENGTH_OPTS if opt != c.OTHER]
 
 c.EVENT_YEAR = c.EPOCH.strftime('%Y')
