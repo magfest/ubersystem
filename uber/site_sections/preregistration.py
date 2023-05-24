@@ -1009,6 +1009,12 @@ class Root:
                 if group.cost == 0:
                     attendee.registered = localized_now()
 
+                receipt = session.get_receipt_by_model(attendee)
+                if not receipt:
+                    new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
+                    if new_receipt.current_amount_owed and not new_receipt.pending_total:
+                        raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=confirm')
+
                 if attendee.amount_unpaid:
                     raise HTTPRedirect('new_badge_payment?id={}&return_to=confirm', attendee.id)
                 else:
