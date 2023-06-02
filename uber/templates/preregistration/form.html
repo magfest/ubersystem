@@ -6,7 +6,7 @@
 {% import "forms/account.html" as account_fields with context %}
 {% block title %}Preregistration{% endblock %}
 {% block content %}
-  {% if (is_prereg_attendee or is_prereg_dealer) and not edit_id %}
+  {% if c.PAGE_PATH in ['/preregistration/form', '/preregistration/dealer_registration'] and not edit_id %}
     <script type="text/javascript">
       var disclaimersConfirmed = false;
       var confirmDisclaimers = function () {
@@ -21,8 +21,23 @@
           $('#disclaimers_modal').modal("show");
         }
       }
+      {% else %}
+      var openDisclaimersModal = function() {
+        var success = validateAndIncludeAccountFields();
+        if (!success) {
+          return false;
+        }
+        if(!$("#prereg-form")[0].checkValidity()) {
+          $("#prereg-form")[0].reportValidity();
+          return false;
+        }
+        $('#disclaimers_modal').modal("show");
+      }
       {% endif %}
       $(function () {
+        {% if c.ATTENDEE_ACCOUNTS_ENABLED and not logged_in_account %}
+        $("#account-form").submit(function () { openDisclaimersModal(); });
+        {% endif %}
         $("#prereg-form").submit(function () { 
         if(!disclaimersConfirmed) {
           openDisclaimersModal();
@@ -30,50 +45,32 @@
         }});
       });
     </script>
+  {% elif c.ATTENDEE_ACCOUNTS_ENABLED and not logged_in_account %}
+  <script type="text/javascript">
+    $(document).ready(function() {
+      $("#account-form").submit(function () { $("#prereg-form").submit(); });
+      $("#prereg-form").submit(function () { 
+        var success = validateAndIncludeAccountFields();
+          if (!success) {
+            return false;
+          }
+          if(!$(this)[0].checkValidity()) {
+            $(this)[0].reportValidity();
+            return false;
+          }
+        });
+    });
+  </script>
   {% endif %}
   {{ attendee_fields.amount_extra_js }}
 {% include 'prereg_masthead.html' %}
 {% set original_location = ".." ~ c.PAGE_PATH %}
-{% if (is_prereg_dealer or logged_in_account) and c.ATTENDEE_ACCOUNTS_ENABLED %}
+{% if c.ATTENDEE_ACCOUNTS_ENABLED and not logged_in_account %}
 <div class="card">
   <div class="card-body">
     {% include 'preregistration/create_or_login_account.html' %}
   </div>
 </div>
-{% if not logged_in_account %}
-<script type="text/javascript">
-  var openDisclaimersModal = function() {
-    var success = validateAndIncludeAccountFields();
-    if (!success) {
-      return false;
-    }
-    if(!$("#prereg-form")[0].checkValidity()) {
-      $("#prereg-form")[0].reportValidity();
-      return false;
-    }
-    $('#disclaimers_modal').modal("show");
-  }
-$(document).ready(function() {
-  $("#account-form").submit(function () { openDisclaimersModal(); });
-})
-</script>
-{% endif %}
-{% elif c.ATTENDEE_ACCOUNTS_ENABLED %}
-<div class="card">
-  <div class="card-body">
-    <div id="login-link" class="text-center">
-      Already have an account? <a href="#" class="btn btn-xs btn-primary" id="show-login-form">Log in</a>
-    </div>
-    {% include 'preregistration/login.html' %}
-  </div>
-</div>
-<script type="text/javascript">
-  $('#login-form').hide();
-  $('#show-login-form').on('click', function() {
-    $('#login-form').show();
-    $('#login-link').hide();
-  });
-</script>
 {% endif %}
 <div class="card">
   <div class="card-body">
@@ -82,7 +79,7 @@ $(document).ready(function() {
 {#- The action is set to "post_form" or "post_dealer" in order to bypass the NGINX cache. -#}
 {% set post_action = 'post_dealer' if attendee.is_dealer else 'post_form' %}
 <form method="post" id="prereg-form" action="{{ post_action }}" class="form-horizontal" role="form">
-{% if is_prereg_dealer and c.ATTENDEE_ACCOUNTS_ENABLED %}
+{% if not logged_in_account and c.ATTENDEE_ACCOUNTS_ENABLED %}
 <input type="hidden" name="account_email" class="copy-from-account-input"/>
 <input type="hidden" name="account_password" class="copy-from-account-input"/>
 <input type="hidden" name="confirm_password" class="copy-from-account-input"/>
@@ -91,8 +88,6 @@ $(document).ready(function() {
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}
 
-  {{ group_fields.group_name }}
-  {{ group_fields.badges_dropdown }}
   {% if is_prereg_dealer %}
     {{ group_fields.tables }}
     {{ group_fields.categories }}
@@ -104,8 +99,7 @@ $(document).ready(function() {
     {{ group_fields.invite_code_field }}
   {% endif %}
   {% if not is_prereg_dealer and c.GROUPS_ENABLED %}{{ attendee_fields.promo_code }}{% endif %}
-  {{ group_fields.explanation }}
-  {{ attendee_fields.group_fields }}
+
   {{ attendee_fields.badge_buttons }}
   {{ attendee_fields.badge_type }}
   {{ attendee_fields.name }}

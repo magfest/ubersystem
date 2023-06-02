@@ -82,20 +82,6 @@ def check_account(session, email, password, confirm_password, skip_if_logged_in=
 
         return valid_password(password)
 
-def add_to_new_or_existing_account(session, attendee, **params):
-    current_account = session.current_attendee_account()
-    if current_account:
-        session.add_attendee_to_account(attendee, current_account)
-        return
-    
-    account_email, account_password = params.get('account_email'), params.get('account_password')
-    message = check_account(session, account_email, account_password, params.get('confirm_password'))
-    if not message:
-        new_account = session.create_attendee_account(account_email, account_password)
-        session.add_attendee_to_account(attendee, new_account)
-        cherrypy.session['attendee_account_id'] = new_account.id
-    return message
-
 def set_up_new_account(session, attendee, email=None):
     email = email or attendee.email
     token = genpasswd(short=True)
@@ -181,20 +167,22 @@ class Root:
                 session.commit()
 
         if Charge.pending_preregs:
-            # Getting here with pending preregs means the payment process was interrupted somehow
-            # We can't handle this sensibly through code, an admin needs to sort it out
             attendees = []
             for id in Charge.pending_preregs:
-                attendees.append(session.query(Attendee).filter_by(id=id).first())
-            
-            send_email.delay(c.REGDESK_EMAIL, c.REGDESK_EMAIL, "Prereg payment interrupted",
-                            render('emails/interrupted_prereg.txt', {'attendees': attendees}, encoding=None),
-                            model='n/a')
-            message = message or "The payment process was interrupted. " \
-                                 "If you don't receive a confirmation email soon, please contact us at {}" \
-                                 .format(email_only(c.REGDESK_EMAIL))
-            Charge.pending_preregs.clear()
+                existing_model = session.query(Attendee).filter_by(id=id).first()
+                if not existing_model:
+                    existing_model = session.query(Group).filter_by(id=id).first()
+                if existing_model:
+                    receipt = session.refresh_receipt_and_model(existing_model)
+                    if receipt.get_last_incomplete_txn():
+                        Charge.unpaid_preregs[id] = Charge.pending_preregs[id]
+                    else:
+                        Charge.paid_preregs[id] = Charge.pending_preregs[id]
+                Charge.pending_preregs.pop(id)
+
         if not Charge.unpaid_preregs:
+            if Charge.paid_preregs:
+                raise HTTPRedirect('paid_preregistrations')
             raise HTTPRedirect('form?message={}', message) if message else HTTPRedirect('form')
         else:
             charge = Charge(listify(Charge.unpaid_preregs.values()))
@@ -373,10 +361,21 @@ class Root:
                 params['badges'] = 0
                 params['name'] = ''
 
+            if not message and c.ATTENDEE_ACCOUNTS_ENABLED:
+                attendee_account = session.current_attendee_account()
+                if not attendee_account:
+                    account_email, account_password = params.get('account_email'), params.get('account_password')
+                    if not account_email:
+                        account_email = attendee.email
+                    message = check_account(session, account_email, account_password, params.get('confirm_password'))
+                    if not message:
+                        attendee_account = session.create_attendee_account(account_email, account_password)
+                        cherrypy.session['attendee_account_id'] = attendee_account.id
+
             if not message:
                 if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
-                    if c.ATTENDEE_ACCOUNTS_ENABLED:
-                        message = add_to_new_or_existing_account(session, attendee, **params)
+                    if attendee_account:
+                        session.add_attendee_to_account(attendee, attendee_account)
 
                     if not message:
                         if attendee.id in cherrypy.session.setdefault('imported_attendee_ids', {}):
@@ -535,18 +534,6 @@ class Root:
         }
 
     def process_free_prereg(self, session, message='', **params):
-        account_email, account_password = params.get('account_email'), params.get('account_password')
-        
-        if c.ATTENDEE_ACCOUNTS_ENABLED:
-            message = check_account(session, account_email, account_password, params.get('confirm_password'))
-            if message:
-                return {'error': message}
-
-            new_or_existing_account = session.current_attendee_account()
-            if not new_or_existing_account:
-                new_or_existing_account = session.create_attendee_account(account_email, account_password)
-            cherrypy.session['attendee_account_id'] = new_or_existing_account.id
-        
         charge = Charge(listify(Charge.unpaid_preregs.values()))
         charge.set_total_cost()
         if charge.total_cost <= 0:
@@ -564,7 +551,7 @@ class Root:
                     session.rollback()
                     raise HTTPRedirect('index?message={}', message)
                 elif c.ATTENDEE_ACCOUNTS_ENABLED:
-                    session.add_attendee_to_account(attendee, new_or_existing_account)
+                    session.add_attendee_to_account(attendee, session.current_attendee_account())
                 else:
                     session.add(attendee)
 
@@ -591,19 +578,6 @@ class Root:
             for attendee in charge.attendees:
                 if not message and attendee.promo_code_id:
                     message = check_prereg_promo_code(session, attendee)
-            
-            if not message:
-                if c.ATTENDEE_ACCOUNTS_ENABLED:
-                    account_email, account_password = params.get('account_email', ''), params.get('account_password', '')
-                    message = check_account(session, account_email, account_password, params.get('confirm_password'))
-                    if message:
-                        return {'error': message}
-
-                    new_or_existing_account = session.current_attendee_account()
-                    if not new_or_existing_account:
-                        new_or_existing_account = session.create_attendee_account(account_email, account_password)
-                    cherrypy.session['attendee_account_id'] = new_or_existing_account.id
-                message = check(attendee, prereg=True)
             
             if not message:
                 receipts = []
@@ -666,7 +640,7 @@ class Root:
                     session.delete(pc_group)
                 
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
-                    session.add_attendee_to_account(pending_attendee, new_or_existing_account)
+                    session.add_attendee_to_account(pending_attendee, session.current_attendee_account())
             else:
                 if attendee.id in cherrypy.session.setdefault('imported_attendee_ids', {}):
                     old_attendee = session.attendee(cherrypy.session['imported_attendee_ids'][attendee.id])
@@ -678,7 +652,7 @@ class Root:
                 attendee.paid = c.PENDING
                 session.add(attendee)
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
-                    session.add_attendee_to_account(attendee, new_or_existing_account)
+                    session.add_attendee_to_account(attendee, session.current_attendee_account())
                 
                 if attendee.badges:
                     pc_group = session.create_promo_code_group(attendee, attendee.name, int(attendee.badges) - 1)
@@ -702,12 +676,6 @@ class Root:
             if not txn.charge_id:
                 txn.cancelled = datetime.now()
                 session.add(txn)
-
-        account = session.current_attendee_account()
-        if account and not any(attendee.badge_status != c.PENDING_STATUS for attendee in account.attendees) \
-                   and len(account.attendees) == len(Charge.pending_preregs):
-            session.delete(account)
-            cherrypy.session['attendee_account_id'] = ''
 
         Charge.paid_preregs.clear()
         if Charge.pending_preregs:
@@ -950,7 +918,7 @@ class Root:
         return {
             'group':   group,
             'account': session.get_attendee_account_by_attendee(group.leader),
-            'current_account': session.current_attendee_account(),
+            'logged_in_account': session.current_attendee_account(),
             'upgraded_badges': len([a for a in group.attendees if a.badge_type in c.BADGE_TYPE_PRICES]),
             'signnow_document': signnow_document,
             'signnow_link': signnow_link,
