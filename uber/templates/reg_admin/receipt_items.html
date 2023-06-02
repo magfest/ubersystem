@@ -374,7 +374,7 @@
   </div>
 
 {% macro receipt_item_form(type="purchase") %}
-<tr id="{{ receipt.id }}-{{ type }}-form" class="hidden">
+<tr id="{{ receipt.id }}-{{ type }}-form" class="visually-hidden">
   <td colspan="8">
     <button type="button" class="close pull-left" aria-label="Close" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')"><span aria-hidden="true">&times;</span></button>
     <form method="post" action="add_receipt_item" class="form-inline pull-right">
@@ -403,7 +403,7 @@
 </tr>
 {% endmacro %}
 {% macro receipt_txn_form(type="payment") %}
-<tr id="{{ receipt.id }}-{{ type }}-form" class="hidden">
+<tr id="{{ receipt.id }}-{{ type }}-form" class="visually-hidden">
   <td colspan="7">
     <button type="button" class="close pull-left" aria-label="Close" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')"><span aria-hidden="true">&times;</span></button>
     <form method="post" action="add_receipt_txn" class="form-inline pull-right">
@@ -604,7 +604,7 @@ There are no active receipts for this {{ model_str }}.
 </div>
 {% endfor %}
 
-<div id="refundTxnDiv" class="hidden">
+<div id="refundTxnDiv" class="visually-hidden">
   <p>This will refund this {{ model_str }} through Stripe. You can enter an amount below or leave it blank to refund the full amount.</p>
 
   <div class="form-horizontal" id="refundTxnForm">

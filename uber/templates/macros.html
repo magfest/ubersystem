@@ -400,7 +400,7 @@
   {%- set vars = {'is_complete': False} -%}
   <div class="row bs-wizard">
     {% for url, text in steps -%}
-      <div class="col-xs-{{ col_size }} bs-wizard-step {% if page_path|basename in url -%}active{%- if vars.update({'is_complete': True}) -%}{%- endif -%}{%- elif vars.is_complete -%}disabled{%- else -%}complete{%- endif %}">
+      <div class="col bs-wizard-step {% if page_path|basename in url -%}active{%- if vars.update({'is_complete': True}) -%}{%- endif -%}{%- elif vars.is_complete -%}disabled{%- else -%}complete{%- endif %}">
         <div class="text-center bs-wizard-stepnum">Step {{ loop.index }}</div>
         <div class="progress"><div class="progress-bar"></div></div>
         <a class="bs-wizard-dot"></a>
