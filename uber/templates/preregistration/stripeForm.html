@@ -28,6 +28,10 @@
   background-color: #fefde5 !important;
 }
 </style>
+{% if not stripe_loaded %}
+<script src="https://js.stripe.com/v3/" async></script>
+{% set stripe_loaded = true %}
+{% endif %}
 <button class="btn btn-info stripe-btn"{% if 'stripe_button_id' in params %} id="{{ params['stripe_button_id'] }}"{% endif %} onClick="callStripeAction();">
 <span class="display: block; min-height: 30px;">Pay with Card</span>
 </button>

@@ -1,11 +1,11 @@
 {% import 'macros.html' as macros with context %}
+{% set page_ro = false %}
 <!DOCTYPE HTML>
 <html>
 <head>
     {{ macros.ie7_compatibility_check() }}
     <title>{{ c.EVENT_NAME }} - {% block title %}{% endblock %}</title>
     <link rel="icon" href="../static/images/favicon.png" type="image/x-icon" />
-    <script src="https://js.stripe.com/v3/" async></script>
 
     {% block head_styles %}
         <link rel="stylesheet" href="../static/deps/combined.min.css" />
