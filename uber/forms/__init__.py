@@ -1,3 +1,4 @@
+import re
 
 from importlib import import_module
 from markupsafe import Markup
@@ -8,6 +9,16 @@ from pockets.autolog import log
 from uber.config import c
 from uber.forms.widgets import *
 from uber.model_checks import invalid_zip_code
+
+
+def load_forms(params, model, module, form_list):
+    # Utility function for initializing several Form objects, since most form pages use multiple Form classes
+    # Each class is assigned to a snake_case class name in the return dict,
+    # e.g., the PersonalInfo object will be in form_dict['personal_info']
+    form_dict = {}
+    for cls in form_list:
+        form_dict[re.sub(r'(?<!^)(?=[A-Z])', '_', cls).lower()] = getattr(module, cls)(params, model)
+    return form_dict
 
 
 class MagForm(Form):
@@ -168,9 +179,9 @@ class MagForm(Form):
             return super().wrap_formdata(form, formdata)
 
 
-class Address(MagForm):
-    address1 = StringField('Address 1', default='', validators=[validators.InputRequired(message="Please enter a street address.")])
-    address2 = StringField('Address 2', default='')
+class AddressForm():
+    address1 = StringField('Address Line 1', default='', validators=[validators.InputRequired(message="Please enter a street address.")])
+    address2 = StringField('Address Line 2', default='')
     city = StringField('City', default='', validators=[validators.InputRequired(message="Please enter a city.")])
     region = StringField('State/Province', default='')
     zip_code = StringField('Zip/Postal Code', default='')
@@ -198,5 +209,6 @@ class DictWrapper(dict):
                 return [self[arg]]
         else:
             return []
+
 
 from uber.forms.attendee import *  # noqa: F401,E402,F403

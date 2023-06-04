@@ -1,6 +1,7 @@
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 {% set prereg_merch_available = True or c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 %}
+{% set badge_extras = badge_extras or forms['badge_extras'] %}
 
 {{ badge_extras.badge_type }}
 {% if c.BADGE_TYPE_PRICES %}

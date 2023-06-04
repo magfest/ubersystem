@@ -1,5 +1,6 @@
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
+{% set personal_info = personal_info or forms['personal_info'] %}
 
 {# BLOCK NAMES in this form:
       name

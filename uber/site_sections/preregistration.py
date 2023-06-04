@@ -20,6 +20,7 @@ from uber.custom_tags import email_only
 from uber.decorators import ajax, all_renderable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
+from uber.forms import attendee as attendee_form, load_forms
 from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, ModelReceipt, PromoCode, PromoCodeGroup, \
                         ReceiptTransaction, SignedDocument, Tracking
 from uber.tasks.email import send_email
@@ -457,10 +458,13 @@ class Root:
         if attendee.promo_code:
             promo_code_group = session.query(PromoCode).filter_by(code=attendee.promo_code.code).first().group
 
+        forms = load_forms(params, attendee, attendee_form, ['PersonalInfo', 'BadgeExtras', 'OtherInfo'])
+
         return {
             'logged_in_account': session.current_attendee_account(),
             'message':    message,
             'attendee':   attendee,
+            'forms': forms,
             'account_email': params.get('account_email', ''),
             'account_password': params.get('account_password', ''),
             'confirm_password': params.get('confirm_password', ''),
@@ -1304,7 +1308,6 @@ class Root:
         else:
             attendee = session.attendee(params.get('id'))
 
-        from uber.forms import PersonalInfo, BadgeExtras, OtherInfo
         error = ''
         if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
             error = session.auto_update_receipt(attendee, params)
@@ -1322,9 +1325,7 @@ class Root:
         placeholder = attendee.placeholder
 
         receipt = session.get_receipt_by_model(attendee)
-        personal_info = PersonalInfo(params, attendee)
-        badge_extras = BadgeExtras(params, attendee)
-        other_info = OtherInfo(params, attendee)
+        forms = load_forms(params, attendee, attendee_form, ['PersonalInfo', 'BadgeExtras', 'OtherInfo'])
 
         if cherrypy.request.method == 'POST' and not message:
             attendee = session.attendee(params, restricted=True)
@@ -1370,9 +1371,7 @@ class Root:
             'receipt':       session.get_receipt_by_model(attendee) if attendee.is_valid else None,
             'incomplete_txn':  receipt.get_last_incomplete_txn() if receipt else None,
             'attendee_group_discount': (group_credit[1] / 100) if group_credit else 0,
-            'personal_info': personal_info,
-            'badge_extras': badge_extras,
-            'other_info': other_info,
+            'forms': forms,
             'pii_consent':  params.get('pii_consent'),
         }
 
@@ -1391,15 +1390,15 @@ class Root:
         params['placeholder'] = False
 
         receipt = session.get_receipt_by_model(attendee)
-        personal_info, admin_info = PersonalInfo(params, attendee), AdminInfo(params, attendee)
-        form_modules = (personal_info, BadgeExtras(params, attendee), OtherInfo(params, attendee))
+        forms = load_forms(params, attendee, attendee_form, ['AdminInfo', 'PersonalInfo', 'BadgeExtras', 'OtherInfo'])
+        personal_info, admin_info = forms['personal_info'], forms['admin_info']
 
         unassigned_group_reg = admin_info.group_id.data and not personal_info.first_name.data and not personal_info.last_name.data
         valid_placeholder = admin_info.placeholder.data and personal_info.first_name.data and personal_info.last_name.data
 
         all_errors = defaultdict(list)
 
-        for module in form_modules:
+        for module in forms:
             extra_validators = defaultdict(list)
             for key, val in module.skip_unassigned_placeholder_validators.items():
                 if unassigned_group_reg or valid_placeholder:
