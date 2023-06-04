@@ -1,5 +1,6 @@
 from markupsafe import Markup
 from wtforms.widgets import NumberInput, html_params, CheckboxInput
+from uber.config import c
 
 class MultiCheckbox():
     def __call__(self, field, div_class='checkgroup', **kwargs):
@@ -10,10 +11,13 @@ class MultiCheckbox():
         for value, label, checked in field.iter_choices():
             choice_id = '%s-%s' % (field_id, value)
             options = dict(kwargs, name=field.name, value=value, id=choice_id)
+            if value == c.OTHER:
+                html.append('<br/>')
             if checked:
                 options['checked'] = 'checked'
+            html.append('<label for="%s" class="checkbox-label">' % choice_id)
             html.append('<input %s /> ' % html_params(**options))
-            html.append('<label for="%s" class="checkbox-label">%s</label>' % (choice_id, label))
+            html.append('%s</label>' % label)
         html.append('</fieldset>')
         html.append('</div>')
         return Markup(''.join(html))
