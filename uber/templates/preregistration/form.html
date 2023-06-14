@@ -88,6 +88,13 @@
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}
 
+  {% include "forms/badge_extras.html" %}
+  {% include "forms/personal_info.html" %}
+  {% include "forms/other_info.html" %}
+
+<!-- old fields, kept for reference as we migrate to new fields
+  {{ group_fields.group_name }}
+  {{ group_fields.badges_dropdown }}
   {% if is_prereg_dealer %}
     {{ group_fields.tables }}
     {{ group_fields.categories }}
@@ -99,7 +106,8 @@
     {{ group_fields.invite_code_field }}
   {% endif %}
   {% if not is_prereg_dealer and c.GROUPS_ENABLED %}{{ attendee_fields.promo_code }}{% endif %}
-
+  {{ group_fields.explanation }}
+  {{ attendee_fields.group_fields }}
   {{ attendee_fields.badge_buttons }}
   {{ attendee_fields.badge_type }}
   {{ attendee_fields.name }}
@@ -122,7 +130,7 @@
   {{ attendee_fields.requested_accessibility_services }}
   {{ attendee_fields.can_spam }}
   {{ attendee_fields.panel_interest }}
-  {{ attendee_fields.pii_consent_checkbox }}
+  {{ attendee_fields.pii_consent_checkbox }} #} -->
 
   {# Deprecated forms included for backwards compatibility with old plugins #}
   {% include "groupform.html" %}
@@ -132,7 +140,7 @@
     <div class="col-sm-9 col-sm-offset-3">
         {% if attendee.is_dealer %}
             <button type="button" onClick="openDisclaimersModal()" class="btn btn-primary" value="Submit Application">Submit Application</button>
-        {% elif not edit_id %}
+        {% elif c.PAGE_PATH in ['/preregistration/form', '/preregistration/dealer_registration'] and not edit_id %}
             <button type="button" onClick="openDisclaimersModal()" class="btn btn-primary" value="Add to Cart">Add to Cart</button>
         {% else %}
             <button type="submit" class="btn btn-primary" value="Update">Update</button>

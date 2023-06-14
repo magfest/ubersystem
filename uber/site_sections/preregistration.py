@@ -1329,6 +1329,7 @@ class Root:
 
         if cherrypy.request.method == 'POST' and not message:
             attendee = session.attendee(params, restricted=True)
+            forms['personal_info'].populate_obj(attendee)
             attendee.placeholder = False
 
             message = check(attendee, prereg=True)
@@ -1377,7 +1378,6 @@ class Root:
 
     @ajax
     def validate_attendee(self, session, **params):
-        from uber.forms import AdminInfo, PersonalInfo, BadgeExtras, OtherInfo
         from uber.validations import attendee as attendee_validators
         from wtforms import validators
 
@@ -1398,7 +1398,7 @@ class Root:
 
         all_errors = defaultdict(list)
 
-        for module in forms:
+        for module in forms.values():
             extra_validators = defaultdict(list)
             for key, val in module.skip_unassigned_placeholder_validators.items():
                 if unassigned_group_reg or valid_placeholder:
@@ -1411,8 +1411,6 @@ class Root:
                 extra_validators[key].extend(attendee_validators.form_validation.get_validations_by_field(key))
                 if field and (attendee.is_new or getattr(attendee, key, None) != field.data):
                     extra_validators[key].extend(attendee_validators.new_or_changed_validation.get_validations_by_field(key))
-
-            log.debug(extra_validators)
 
             valid = module.validate(extra_validators=extra_validators)
             if not valid:

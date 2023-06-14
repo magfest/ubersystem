@@ -123,7 +123,6 @@
   
         {% block form_top %}{% endblock %}
 
-      {% if not money_fields_ro %}{{ attendee_fields.badge_buttons }}{% endif %}
       {{ attendee_fields.prereg_intro }}
       {% include "forms/badge_extras.html" %}
       {% include "forms/personal_info.html" %}

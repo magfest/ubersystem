@@ -2,7 +2,7 @@ import re
 
 from importlib import import_module
 from markupsafe import Markup
-from wtforms import Form, StringField, IntegerField, BooleanField, validators
+from wtforms import Form, StringField, SelectField, IntegerField, BooleanField, validators
 import wtforms.widgets.core as wtforms_widgets
 from wtforms.validators import Optional, ValidationError, StopValidation
 from pockets.autolog import log
@@ -11,18 +11,45 @@ from uber.forms.widgets import *
 from uber.model_checks import invalid_zip_code
 
 
-def load_forms(params, model, module, form_list):
-    # Utility function for initializing several Form objects, since most form pages use multiple Form classes
-    # Each class is assigned to a snake_case class name in the return dict,
-    # e.g., the PersonalInfo object will be in form_dict['personal_info']
+def load_forms(params, model, module, form_list, prefix_dict={}):
+    """
+    Utility function for initializing several Form objects, since most form pages use multiple Form classes.
+
+    Also adds aliases for common fields, e.g., mapping the `region` column to `region_us` and `region_canada`.
+    This is currently only designed to work with text fields and select fields with a [(val, label)] list of choices.
+
+    `params` should be a dictionary from a form submission, usually passed straight from the page handler.
+    `model` is the object itself, e.g., the attendee we're loading the form for.
+    `form_list` is a list of strings of which form classes to load, e.g., ['PersonalInfo', 'BadgeExtras', 'OtherInfo']
+    `prefix_dict` is an optional dictionary to load some of the forms with a prefix. This is useful for loading forms with
+    conflicting field names on the same page, e.g., passing {'GroupInfo': 'group_'} will add group_ to all GroupInfo fields.
+
+    Returns a dictionary of form objects with the snake-case version of the form as the ID, e.g.,
+    the PersonalInfo class will be returned as form_dict['personal_info'].
+    """
+
     form_dict = {}
+    alias_dict = {}
+
     for cls in form_list:
-        form_dict[re.sub(r'(?<!^)(?=[A-Z])', '_', cls).lower()] = getattr(module, cls)(params, model)
+        form_cls = getattr(module, cls)
+        for model_field_name, aliases in form_cls.field_aliases.items():
+            model_val = getattr(model, model_field_name)
+            for aliased_field in aliases:
+                aliased_field_args = getattr(form_cls, aliased_field).kwargs
+                choices = aliased_field_args.get('choices')
+                if choices:
+                    alias_dict[aliased_field] = model_val if model_val in [val for val, label in choices] else aliased_field_args.get('default')
+                else:
+                    alias_dict[aliased_field] = model_val
+
+        form_dict[re.sub(r'(?<!^)(?=[A-Z])', '_', cls).lower()] = form_cls(params, model, prefix=prefix_dict.get(cls, ''), data=alias_dict)
     return form_dict
 
 
 class MagForm(Form):
     skip_unassigned_placeholder_validators = {}
+    field_aliases = {}
 
     @classmethod
     def all_forms(cls):
@@ -84,6 +111,16 @@ class MagForm(Form):
 
     def field_list(self):
         return list(self._fields.keys())
+    
+    def populate_obj(self, obj):
+        """ Adds alias processing to populate_obj. """
+        super().populate_obj(obj)
+
+        for model_field_name, aliases in self.field_aliases.items():
+            for aliased_field in reversed(aliases):
+                field_obj = getattr(self, aliased_field, None)
+                if field_obj and field_obj.data:
+                    field_obj.populate_obj(obj, model_field_name)
 
 
     class Meta:
@@ -105,6 +142,8 @@ class MagForm(Form):
                 return 'inputgroup'
             elif isinstance(widget, MultiCheckbox):
                 return 'checkgroup'
+            elif isinstance(widget, CountrySelect):
+                return 'text'
             elif isinstance(widget, wtforms_widgets.Select):
                 return 'select'
             else:
@@ -180,15 +219,19 @@ class MagForm(Form):
 
 
 class AddressForm():
+    field_aliases = {'region': ['region_us', 'region_canada']}
+
     address1 = StringField('Address Line 1', default='', validators=[validators.InputRequired(message="Please enter a street address.")])
     address2 = StringField('Address Line 2', default='')
     city = StringField('City', default='', validators=[validators.InputRequired(message="Please enter a city.")])
+    region_us = SelectField('State', default='', choices=c.REGION_OPTS_US)
+    region_canada = SelectField('Province', default='', choices=c.REGION_OPTS_CANADA)
     region = StringField('State/Province', default='')
     zip_code = StringField('Zip/Postal Code', default='')
-    country = StringField('Country', default='', validators=[validators.InputRequired(message="Please enter a country.")])
+    country = SelectField('Country', default='', validators=[validators.InputRequired(message="Please enter a country.")], choices=c.COUNTRY_OPTS, widget=CountrySelect())
 
     def validate_region(form, field):
-        if form.country.data in ['United States', 'Canada'] and not field.data:
+        if form.country.data not in ['United States', 'Canada'] and not field.data:
             raise ValidationError('Please enter a state, province, or region.')
     
     def validate_zip_code(form, field):

@@ -12,18 +12,19 @@
   Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 
+
 {% block name %}
 {% set name_read_only = name_ro or (page_ro and not (limited_write or contact_write)) %}
 {% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}
 
 <div class="row g-3">
-<div class="col">{{ form_macros.form_input(personal_info.first_name, readonly=name_read_only, ) }}</div>
+<div class="col">{{ form_macros.form_input(personal_info.first_name, readonly=name_read_only) }}</div>
 <div class="col">{{ form_macros.form_input(personal_info.last_name, value=attendee_last_name, readonly=name_read_only) }}</div>
 </div>
 
-{% if full_read or attendee.legal_name %}
+{% if attendee.legal_name or attendee.is_new or attendee.placeholder %}
 <div class="row g-3">
-  <div class="col">{{ form_macros.toggle_checkbox(personal_info.same_legal_name, [personal_info.legal_name], toggle_required=True, prop="readonly",
+  <div class="col">{{ form_macros.toggle_checkbox(personal_info.same_legal_name, [personal_info.legal_name], toggle_required=True, hide_on_checked=True, prop="readonly",
                    disabled=name_read_only, checked=same_legal_name or attendee.first_name != '' and attendee.legal_name == '') }}
   </div>
 
@@ -86,7 +87,7 @@
 
 {% block address %}
 {% if c.COLLECT_FULL_ADDRESS %}
-  
+  {{ form_macros.address_fields(attendee, personal_info) }}
 {% else %}
 <div class="row g-3">
   <div class="col">

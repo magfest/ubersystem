@@ -181,3 +181,57 @@
     var makeBadgeMatchExtra = function () {}; // TODO: Remove
 </script>
 {%- endmacro %}
+
+{% macro address_fields(model, form_obj) %}
+<div class="row g-3">
+  <div class="col">
+    {{ form_input(form_obj.address1) }}
+  </div>
+  <div class="col">
+    {{ form_input(form_obj.address2) }}
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col">
+    {{ form_input(form_obj.country) }}
+  </div>
+  <div class="col">
+    {{ form_input(form_obj.region_us) }}
+    {{ form_input(form_obj.region_canada) }}
+    {{ form_input(form_obj.region) }}
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col">
+    {{ form_input(form_obj.city) }}
+  </div>
+  <div class="col">
+    {{ form_input(form_obj.zip_code) }}
+  </div>
+</div>
+<script type="text/javascript">
+    {%- set country_id = form_obj.country.id %}
+    var regionChange{{ country_id }} = function() {
+        $('#{{ form_obj.region_us.id }}').prop('disabled', true).parent('.form-floating').hide();
+        $('#{{ form_obj.region_canada.id }}').prop('disabled', true).parent('.form-floating').hide();
+        $('#{{ form_obj.region.id }}').prop('disabled', false).parent('.form-floating').show();
+        var whichCountry = $('#{{ country_id }}').find(':selected').text();
+        switch(whichCountry) {
+              case 'United States':
+                $('#{{ form_obj.region.id }}').prop('disabled', true).parent('.form-floating').hide();
+                $('#{{ form_obj.region_us.id }}').prop('disabled', false).parent('.form-floating').show();
+                break;
+              case 'Canada':
+                $('#{{ form_obj.region.id }}').prop('disabled', true).parent('.form-floating').hide();
+                $('#{{ form_obj.region_canada.id }}').prop('disabled', false).parent('.form-floating').show();
+                break;
+          }
+    }
+    $(function() {
+        $('#{{ country_id }}').selectToAutocomplete().change(function() {
+            regionChange{{ country_id }}();
+        });
+        regionChange{{ country_id }}();
+    })
+</script>
+{%- endmacro %}

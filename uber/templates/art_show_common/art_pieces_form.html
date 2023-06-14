@@ -5,7 +5,7 @@
     display: inline;
   }
 </style>
-<script type="text/javascript">{% include "region_opts.html" %}</script>
+{% include "region_opts.html" %}
 
 {%- macro piece_modal(real_piece=None) -%}
 {% set piece = ArtShowPiece if not real_piece else real_piece %}

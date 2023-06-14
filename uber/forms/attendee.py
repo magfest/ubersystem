@@ -5,13 +5,13 @@ from wtforms import (BooleanField, DateField, EmailField, Form, FormField,
 from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
-from uber.forms import Address, MultiCheckbox, MagForm, SwitchInput, DollarInput, HiddenIntField
+from uber.forms import AddressForm, MultiCheckbox, MagForm, SwitchInput, DollarInput, HiddenIntField
 from uber.custom_tags import popup_link
 from uber.validations import attendee as attendee_validators
 
 __all__ = ['AdminInfo', 'BadgeExtras', 'PersonalInfo', 'OtherInfo']
 
-class PersonalInfo(MagForm):
+class PersonalInfo(AddressForm, MagForm):
     badge_type = HiddenIntField('Badge Type')
     first_name = StringField('First Name', render_kw={'autocomplete': "fname"})
     last_name = StringField('Last Name', render_kw={'autocomplete': "lname"})
@@ -25,8 +25,7 @@ class PersonalInfo(MagForm):
     cellphone = TelField('Phone Number', description="A cellphone number is required for volunteers.", render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
     birthdate = DateField('Date of Birth', validators=[attendee_validators.attendee_age_checks])
     age_group = SelectField('Age Group', choices=c.AGE_GROUPS)
-    
-    zip_code = StringField('Zip/Postal Code', default='')
+
     ec_name = StringField('Emergency Contact Name', render_kw={'placeholder': 'Who we should contact if something happens to you'})
     ec_phone = TelField('Emergency Contact Phone', render_kw={'placeholder': 'A valid phone number for your emergency contact'})
     onsite_contact = TextAreaField('Onsite Contact', validators=[validators.Length(max=500, message="You have entered over 500 characters of onsite contact information. Please provide contact information for fewer friends.")], render_kw={'placeholder': 'Contact info for a trusted friend or friends who will be at or near the venue during the event'})
@@ -55,6 +54,7 @@ class BadgeExtras(MagForm):
     amount_extra = HiddenIntField('Pre-order Merch', validators=[validators.NumberRange(min=0, message="Amount extra must be a number that is 0 or higher.")])
     extra_donation = IntegerField('Extra Donation', validators=[validators.NumberRange(min=0, message="Extra donation must be a number that is 0 or higher.")], widget=DollarInput(), description=popup_link("../static_views/givingExtra.html", "Learn more"))
     shirt = SelectField('Shirt Size', choices=c.SHIRT_OPTS, coerce=int)
+    badge_printed_name = StringField('Name Printed on Badge')
 
     def validate_shirt(form, field):
         if form.amount_extra.data > 0 and field.data == c.NO_SHIRT:

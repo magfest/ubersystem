@@ -252,9 +252,8 @@
               is_required=False) }}
         </div>
 
+        {% include "region_opts.html" %}
         <script type="text/javascript">
-          {% include "region_opts.html" %}
-
             var showOrHideRockIsland = function() {
                 var isRockIsland = $.val('selling_merch') === {{ c.ROCK_ISLAND }};
                 setVisible('#rockisland', isRockIsland);
