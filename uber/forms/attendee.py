@@ -9,7 +9,7 @@ from uber.forms import AddressForm, MultiCheckbox, MagForm, SwitchInput, DollarI
 from uber.custom_tags import popup_link
 from uber.validations import attendee as attendee_validators
 
-__all__ = ['AdminInfo', 'BadgeExtras', 'PersonalInfo', 'OtherInfo']
+__all__ = ['AdminInfo', 'BadgeExtras', 'PersonalInfo', 'OtherInfo', 'Consents']
 
 class PersonalInfo(AddressForm, MagForm):
     badge_type = HiddenIntField('Badge Type')
@@ -39,13 +39,13 @@ class PersonalInfo(AddressForm, MagForm):
     international = BooleanField('I\'m coming from outside the US.')
 
     skip_unassigned_placeholder_validators = {
-        'first_name': [validators.InputRequired(message="Please provide your first name.")],
-        'last_name': [validators.InputRequired(message="Please provide your last name.")],
-        'email': [validators.InputRequired(message="Please enter an email address.")],
+        'first_name': [validators.InputRequired("Please provide your first name.")],
+        'last_name': [validators.InputRequired("Please provide your last name.")],
+        'email': [validators.InputRequired("Please enter an email address.")],
         'birthdate': [validators.InputRequired("Please enter your date of birth.")] if c.COLLECT_EXACT_BIRTHDATE else [validators.Optional()],
         'age_group': [validators.InputRequired("Please select your age group.")] if not c.COLLECT_EXACT_BIRTHDATE else [validators.Optional()],
-        'ec_name': [validators.InputRequired(message="Please tell us the name of your emergency contact.")],
-        'ec_phone': [validators.InputRequired(message="Please give us an emergency contact phone number.")],
+        'ec_name': [validators.InputRequired("Please tell us the name of your emergency contact.")],
+        'ec_phone': [validators.InputRequired("Please give us an emergency contact phone number.")],
     }
             
 
@@ -66,8 +66,12 @@ class OtherInfo(MagForm):
     requested_dept_ids = SelectMultipleField('Where do you want to help?', choices=c.JOB_INTEREST_OPTS, coerce=int, widget=MultiCheckbox())
     requested_accessibility_services = BooleanField('I would like to be contacted by the {EVENT_NAME} Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', widget=SwitchInput())
     interests = SelectMultipleField('What interests you?', choices=c.INTEREST_OPTS, coerce=int, validators=[validators.Optional()], widget=MultiCheckbox())
-    can_spam = BooleanField('Please send me emails relating to {EVENT_NAME} and {ORGANIZATION_NAME} in future years.', widget=SwitchInput(), description=popup_link("../static_views/privacy.html", "View Our Spam Policy"))
-    pii_consent = BooleanField(Markup('<strong>Yes</strong>, I understand and agree that {ORGANIZATION_NAME} will store the personal information I provided above for the limited purposes of contacting me about my registration'), widget=SwitchInput())
+
+
+class Consents(MagForm):
+    can_spam = BooleanField('Please send me emails relating to {EVENT_NAME} and {ORGANIZATION_NAME} in future years.', description=popup_link("../static_views/privacy.html", "View Our Spam Policy"))
+    pii_consent = BooleanField(Markup('<strong>Yes</strong>, I understand and agree that {ORGANIZATION_NAME} will store the personal information I provided above for the limited purposes of contacting me about my registration'),
+                               validators=[validators.InputRequired("You must agree to allow us to store your personal information in order to register.")])
 
     def pii_consent_label(self):
         base_label = "<strong>Yes</strong>, I understand and agree that {ORGANIZATION_NAME} will store the personal information I provided above for the limited purposes of contacting me about my registration"

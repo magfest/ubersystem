@@ -206,11 +206,6 @@ def banned_volunteer(attendee):
                     'talk to STOPS to override if necessary' if c.AT_THE_CON else
                     'Please contact us via {} if you believe this is in error'.format(c.CONTACT_URL))
 
-@form_validation.zip_code
-def valid_format(form, field):
-    if not form.international.data and not c.AT_OR_POST_CON and invalid_zip_code(field.data):
-        raise ValidationError('Please enter a valid 5 or 9-digit zip code.')
-
 
 ###### Admin-Only Validations ######
 

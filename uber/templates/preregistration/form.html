@@ -4,47 +4,11 @@
 {% import "forms/attendee.html" as attendee_fields with context %}
 {% import "forms/group.html" as group_fields with context %}
 {% import "forms/account.html" as account_fields with context %}
+{% import 'forms/macros.html' as form_macros with context %}
 {% block title %}Preregistration{% endblock %}
 {% block content %}
-  {% if c.PAGE_PATH in ['/preregistration/form', '/preregistration/dealer_registration'] and not edit_id %}
-    <script type="text/javascript">
-      var disclaimersConfirmed = false;
-      var confirmDisclaimers = function () {
-        disclaimersConfirmed = true;
-        $("#prereg-form").submit();
-      }
-      {% if logged_in_account or not c.ATTENDEE_ACCOUNTS_ENABLED %}
-      var openDisclaimersModal = function() {
-        if(!$("#prereg-form")[0].checkValidity()) {
-          $("#prereg-form")[0].reportValidity();
-        } else {
-          $('#disclaimers_modal').modal("show");
-        }
-      }
-      {% else %}
-      var openDisclaimersModal = function() {
-        var success = validateAndIncludeAccountFields();
-        if (!success) {
-          return false;
-        }
-        if(!$("#prereg-form")[0].checkValidity()) {
-          $("#prereg-form")[0].reportValidity();
-          return false;
-        }
-        $('#disclaimers_modal').modal("show");
-      }
-      {% endif %}
-      $(function () {
-        {% if c.ATTENDEE_ACCOUNTS_ENABLED and not logged_in_account %}
-        $("#account-form").submit(function () { openDisclaimersModal(); });
-        {% endif %}
-        $("#prereg-form").submit(function () { 
-        if(!disclaimersConfirmed) {
-          openDisclaimersModal();
-          return false;
-        }});
-      });
-    </script>
+  {% if c.PAGE_PATH == '/preregistration/dealer_registration' %}
+    {% include 'preregistration/disclaimer_popup.html' %}
   {% elif c.ATTENDEE_ACCOUNTS_ENABLED and not logged_in_account %}
   <script type="text/javascript">
     $(document).ready(function() {
@@ -65,16 +29,11 @@
   {{ attendee_fields.amount_extra_js }}
 {% include 'prereg_masthead.html' %}
 {% set original_location = ".." ~ c.PAGE_PATH %}
-{% if c.ATTENDEE_ACCOUNTS_ENABLED and not logged_in_account %}
-<div class="card">
-  <div class="card-body">
-    {% include 'preregistration/create_or_login_account.html' %}
-  </div>
-</div>
-{% endif %}
 <div class="card">
   <div class="card-body">
   {{ attendee_fields.prereg_intro }}
+
+  {{ form_macros.form_validation('prereg-form') }}
 
 {#- The action is set to "post_form" or "post_dealer" in order to bypass the NGINX cache. -#}
 {% set post_action = 'post_dealer' if attendee.is_dealer else 'post_form' %}
@@ -87,12 +46,14 @@
 {% if edit_id %}
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}
+{{ csrf_token() }}
 
   {% include "forms/badge_extras.html" %}
   {% include "forms/personal_info.html" %}
-  {% include "forms/other_info.html" %}
+  {% include "forms/consents.html" %}
 
-<!-- old fields, kept for reference as we migrate to new fields
+{# old fields, kept for reference as we migrate to new fields
+  {% include "forms/other_info.html" %}
   {{ group_fields.group_name }}
   {{ group_fields.badges_dropdown }}
   {% if is_prereg_dealer %}
@@ -130,7 +91,7 @@
   {{ attendee_fields.requested_accessibility_services }}
   {{ attendee_fields.can_spam }}
   {{ attendee_fields.panel_interest }}
-  {{ attendee_fields.pii_consent_checkbox }} #} -->
+  {{ attendee_fields.pii_consent_checkbox }} #}
 
   {# Deprecated forms included for backwards compatibility with old plugins #}
   {% include "groupform.html" %}
@@ -139,11 +100,12 @@
 <div class="form-group">
     <div class="col-sm-9 col-sm-offset-3">
         {% if attendee.is_dealer %}
-            <button type="button" onClick="openDisclaimersModal()" class="btn btn-primary" value="Submit Application">Submit Application</button>
+            <button type="submit" class="btn btn-primary" value="Submit Application">Submit Application</button>
         {% elif c.PAGE_PATH in ['/preregistration/form', '/preregistration/dealer_registration'] and not edit_id %}
-            <button type="button" onClick="openDisclaimersModal()" class="btn btn-primary" value="Add to Cart">Add to Cart</button>
+            <button type="submit" class="btn btn-primary" value="Next">Next</button>
         {% else %}
             <button type="submit" class="btn btn-primary" value="Update">Update</button>
+            <button type="submit" class="btn btn-primary" name="go_to_cart" value="1">Update & Go to Cart</button>
         {% endif %}
 
         {% if edit_id or cart_not_empty %}
@@ -153,22 +115,6 @@
 </div>
 
 </form>
-
-<div class="modal fade" id="disclaimers_modal" role="dialog">
-  <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-body">{% include "preregistration/disclaimers.html" %}</div>
-        <div class="modal-footer">
-          <button class="btn btn-primary btn-lg" data-dismiss="modal" onClick="confirmDisclaimers()">
-            I agree to the above
-          </button>
-        </div>
-      </div>
-  </div>
-</div>
-<script type="text/javascript">
-  
-</script>
 
 </div>
 </div>

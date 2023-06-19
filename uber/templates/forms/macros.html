@@ -44,7 +44,8 @@
 {% endif %}
 {% endmacro %}
 
-{% macro toggle_checkbox(checkbox_field, target_fields, type='checkbox', help_text='', toggle_required=False, hide_on_checked=False, prop='visibility') -%}
+{% macro toggle_checkbox(checkbox_field, target_fields, help_text='', toggle_required=False, hide_on_checked=False, prop='visibility') -%}
+  {% set type = checkbox_field.meta.get_field_type(checkbox_field) %}
   <div class="form-check{% if type == 'switch' %} form-switch{% endif %}">
     {{ checkbox_field(class="form-check-input", value=1, **kwargs) }}
     {{ checkbox_field.label(class="form-check-label") }}
@@ -234,4 +235,84 @@
         regionChange{{ country_id }}();
     })
 </script>
+{%- endmacro %}
+
+{% macro form_validation(form_id, page_handler='validate_attendee', form_list=[], include_disclaimers_modal=false) %}
+<div class="alert" role="alert" id="form-validations"></div>
+
+<script type="text/javascript">
+  var serverValidationPassed = false;
+  
+  var runServerValidations = function($form, go_to_cart) {
+    if(!$("#{{ form_id }}")[0].checkValidity()) {
+      $("#{{ form_id }}")[0].reportValidity();
+    } else {
+        var form_list = {{ form_list|safe }}.join(',')
+        if (form_list != '') {
+            form_list = '&form_list=' + form_list
+        }
+      $.post("{{ page_handler }}", $form.serialize() + form_list, function (response) {
+        $("#form-validations").hide().removeClass().addClass("alert").html("");
+        $(".is-invalid").each(function() {
+          var field_id = $(this).attr('id');
+          $(this).removeClass('is-invalid');
+          $("#" + field_id + "-validation").hide();
+        });
+        if (response.error) {
+          $("#form-validations").addClass("alert-danger").html(
+            "Please correct the following errors:" +
+            "<ul></ul>"
+            );
+          $.each(response.error, function(key, val) {
+            val = val.join(" ");
+            if ($("#" + key).length != 0) {
+              var field_label = $("label[for='" + key + "']").text();
+              $("#form-validations").find("ul").append("<li>" + field_label + ": " + val + "</li>");
+              $("#" + key).addClass("is-invalid");
+            } else {
+              $("#form-validations").find("ul").append("<li>" + val + "</li>");
+            }
+
+            if ($("#" + key + "-validation").length != 0)
+            {
+              $("#" + key + "-validation").html(val).show();
+            }
+          });
+          $("#form-validations").show();
+          $('html, body').animate({scrollTop: $("#form-validations").offset().top}, 50);
+        } else {
+          serverValidationPassed = true;
+          if (go_to_cart != '') {
+            $("#prereg-form").find($("[name=go_to_cart]")).click();
+          } else {
+            $("#{{ form_id }}").submit();
+          }
+        }
+      }, 'json');
+    }
+  }
+
+  $(function () {
+    $("#form-validations").hide();
+    {% if c.ATTENDEE_ACCOUNTS_ENABLED and not logged_in_account %}
+      {{ submit_validation_and_disclaimer("account-form", include_disclaimers_modal) }}
+    {% endif %}
+      {{ submit_validation_and_disclaimer(form_id, include_disclaimers_modal) }}
+});
+</script>
+{%- endmacro %}
+
+{% macro submit_validation_and_disclaimer(form_id, include_disclaimers_modal=false) %}
+$("#{{ form_id }}").submit(function (event) { 
+    if(!serverValidationPassed) {
+      runServerValidations($(this), event.originalEvent.submitter.name);
+      return false;
+    }
+    {% if include_disclaimers_modal %}
+    if(!disclaimersConfirmed) {
+        openDisclaimersModal();
+        return false;
+    }
+    {% endif %}
+});
 {%- endmacro %}

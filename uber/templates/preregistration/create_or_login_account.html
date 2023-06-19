@@ -1,7 +1,6 @@
 {% if logged_in_account %}
-<div class="text-center">You are currently logged in as <strong>{{ logged_in_account.email }}</strong>.
-Your {{ 'registration(s)' if c.PAGE_PATH in ['/registration/register', '/preregistration/form', '/preregistration/post_form', '/preregistration/index'] else 'application' }} will be added to your account. <a href="../preregistration/logout?return_to={{ c.PAGE_PATH }}" class="btn btn-sm btn-danger">Logout</a></div>
-{% else %}
+<div class="text-center card-body">You are currently logged in as <strong>{{ logged_in_account.email }}</strong>. <a href="../preregistration/logout?return_to={{ c.PAGE_PATH }}" class="btn btn-sm btn-danger">Logout</a></div>
+{% elif c.ATTENDEE_ACCOUNTS_ENABLED %}
 <ul class="nav nav-tabs" role="tablist">
   <li role="presentation" class="nav-item"><a href="#create" class="nav-link active" id="create-tab" data-bs-toggle="tab" data-bs-target="#create" type="button" role="tab" aria-controls="create" aria-selected="true">Create Account</a></li>
   <li role="presentation" class="nav-item"><a href="#login" class= "nav-link" id="login-tab" data-bs-toggle="tab" data-bs-target="#login" type="button" role="tab" aria-controls="login" aria-selected="false">Log In</a></li>
@@ -19,7 +18,7 @@ Your {{ 'registration(s)' if c.PAGE_PATH in ['/registration/register', '/preregi
   <div role="tabpanel" class="tab-pane" id="login" aria-labelledby="login-tab">
     {% include 'preregistration/login.html' %}
   </div>
-  </div>
+</div>
 
   <script type="text/javascript">
     function validateAndIncludeAccountFields(params_list) {

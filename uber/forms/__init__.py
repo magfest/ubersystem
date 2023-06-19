@@ -32,7 +32,10 @@ def load_forms(params, model, module, form_list, prefix_dict={}):
     alias_dict = {}
 
     for cls in form_list:
-        form_cls = getattr(module, cls)
+        form_cls = getattr(module, cls, None)
+        if not form_cls:
+            break
+
         for model_field_name, aliases in form_cls.field_aliases.items():
             model_val = getattr(model, model_field_name)
             for aliased_field in aliases:
@@ -104,7 +107,8 @@ class MagForm(Form):
             field_in_formdata = name in formdata
             if isinstance(field, BooleanField) and not field_in_formdata and field_in_obj:
                 formdata[name] = getattr(obj, name)
-            elif hasattr(obj, 'all_checkgroups') and not field_in_formdata and field_in_obj and name in obj.all_checkgroups:
+            elif hasattr(obj, 'all_checkgroups') and not field_in_formdata and field_in_obj and \
+                name in obj.all_checkgroups and isinstance(getattr(obj, name), str):
                 formdata[name] = getattr(obj, name).split(',')
 
         super().__init__(formdata, obj, prefix, data, meta, **kwargs)
@@ -113,8 +117,13 @@ class MagForm(Form):
         return list(self._fields.keys())
     
     def populate_obj(self, obj):
-        """ Adds alias processing to populate_obj. """
-        super().populate_obj(obj)
+        """ Adds alias processing and data coercion to populate_obj. Note that we bypass fields' populate_obj. """
+        for name, field in self._fields.items():
+            column = obj.__table__.columns.get(name)
+            if column is not None:
+                setattr(obj, name, obj.coerce_column_data(column, field.data))
+            else:
+                setattr(obj, name, field.data)
 
         for model_field_name, aliases in self.field_aliases.items():
             for aliased_field in reversed(aliases):
@@ -235,7 +244,7 @@ class AddressForm():
             raise ValidationError('Please enter a state, province, or region.')
     
     def validate_zip_code(form, field):
-        if form.country.data == 'United States' and not c.AT_OR_POST_CON and invalid_zip_code(field.data):
+        if (form.country.data == 'United States' or form.international.data) and not c.AT_OR_POST_CON and invalid_zip_code(field.data):
             raise ValidationError('Please enter a valid 5 or 9-digit zip code.')
 
 

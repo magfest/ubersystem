@@ -6,7 +6,6 @@
     staffing
     interests
     accessibility
-    consents
 
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
@@ -35,17 +34,4 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 <div class="row g-3">
     <div class="col">{{ form_macros.form_input(other_info.requested_accessibility_services) }}</div>
 </div>
-{% endblock %}
-
-
-{% block consents %}
-<div class="row g-3">
-    <div class="col">{{ form_macros.form_input(other_info.can_spam) }}</div>
-</div>
-
-{% if attendee.placeholder or attendee.is_new %}
-<div class="row g-3">
-    <div class="col">{{ form_macros.form_input(other_info.pii_consent) }}</div>
-</div>
-{% endif %}
 {% endblock %}
