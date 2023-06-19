@@ -13,7 +13,8 @@ from uber.decorators import render
 from uber.models import ApiJob, Attendee, Email, Session, ReceiptTransaction
 from uber.tasks.email import send_email
 from uber.tasks import celery
-from uber.utils import Charge, localized_now, TaskUtils
+from uber.utils import localized_now, TaskUtils
+from uber.payments import Charge
 
 
 __all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_unassigned_volunteers',

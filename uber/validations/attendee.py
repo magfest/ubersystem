@@ -184,7 +184,7 @@ def promo_code_not_is_expired(attendee):
 
 @post_form_validation.promo_code
 def promo_code_has_uses_remaining(attendee):
-    from uber.utils import Charge
+    from uber.payments import Charge
     if attendee.is_new and attendee.promo_code and not attendee.promo_code.is_unlimited:
         unpaid_uses_count = Charge.get_unpaid_promo_code_uses_count(
             attendee.promo_code.id, attendee.id)

@@ -23,8 +23,9 @@ from uber.errors import HTTPRedirect
 from uber.models import Attendee, AttendeeAccount, Department, Email, Group, Job, PageViewTracking, PrintJob, PromoCode, \
     PromoCodeGroup, Sale, Session, Shift, Tracking, WatchList
 from uber.site_sections.preregistration import check_account
-from uber.utils import add_opt, check, check_pii_consent, Charge, get_page, hour_day_format, \
+from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
     localized_now, Order, normalize_email
+from uber.payments import Charge
 
 
 def pre_checkin_check(attendee, group):

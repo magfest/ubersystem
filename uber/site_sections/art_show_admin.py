@@ -14,7 +14,8 @@ from uber.decorators import ajax, all_renderable, credit_card, public
 from uber.errors import HTTPRedirect
 from uber.models import ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, \
                         Attendee, Tracking, ArbitraryCharge
-from uber.utils import Charge, check, get_static_file_path, localized_now, Order
+from uber.utils import check, get_static_file_path, localized_now, Order
+from uber.payments import Charge
 
 
 @all_renderable()

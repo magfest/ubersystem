@@ -7,7 +7,8 @@ from uber.decorators import ajax, all_renderable, credit_card, public
 from uber.errors import HTTPRedirect
 from uber.models import ArbitraryCharge, Attendee, MerchDiscount, MerchPickup, \
     MPointsForCash, NoShirt, OldMPointExchange, Sale, Session
-from uber.utils import check, check_csrf, Charge, hour_day_format
+from uber.utils import check, check_csrf
+from uber.payments import Charge
     
 @all_renderable()
 class Root:

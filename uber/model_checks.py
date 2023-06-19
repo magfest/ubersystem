@@ -28,7 +28,8 @@ from uber.models import AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowAp
     GuestDetailedTravelPlan, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio, Job, MarketplaceApplication, \
     MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam, PanelApplicant, PanelApplication, \
     PromoCode, PromoCodeGroup, Sale, Session, WatchList
-from uber.utils import localized_now, Charge, valid_email
+from uber.utils import localized_now, valid_email
+from uber.payments import Charge
 
 
 AccessGroup.required = [('name', 'Name')]

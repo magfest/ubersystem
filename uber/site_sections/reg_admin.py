@@ -15,7 +15,8 @@ from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, s
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, Group, ModelReceipt, ReceiptItem, ReceiptTransaction, Tracking
 from uber.site_sections import devtools
-from uber.utils import Charge, check, get_api_service_from_server, normalize_email, valid_email, TaskUtils
+from uber.utils import check, get_api_service_from_server, normalize_email, valid_email, TaskUtils
+from uber.payments import Charge
 
 def check_custom_receipt_item_txn(params, is_txn=False):
     if not params.get('amount'):

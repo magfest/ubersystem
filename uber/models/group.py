@@ -18,7 +18,8 @@ from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, TakesPaymentMixin
-from uber.utils import add_opt, Charge
+from uber.utils import add_opt
+from uber.payments import Charge
 
 
 __all__ = ['Group']

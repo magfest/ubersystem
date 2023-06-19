@@ -25,7 +25,8 @@ from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, Mod
                         ReceiptTransaction, SignedDocument, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, genpasswd, valid_email, \
-    valid_password, Charge, SignNowDocument
+    valid_password, SignNowDocument
+from uber.payments import Charge
 
 
 def check_post_con(klass):

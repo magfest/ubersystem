@@ -7,7 +7,8 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, log_pageview, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Email, Event, Group, GuestGroup, GuestMerch, PageViewTracking, Tracking
-from uber.utils import Charge, check, convert_to_absolute_url
+from uber.payments import Charge
+from uber.utils import check, convert_to_absolute_url
 
 
 @all_renderable()

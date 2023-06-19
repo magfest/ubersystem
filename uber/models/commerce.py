@@ -17,7 +17,7 @@ from uber.custom_tags import format_currency
 from uber.models import MagModel
 from uber.models.attendee import Attendee, AttendeeAccount, Group
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column
-from uber.utils import Charge
+from uber.payments import Charge
 
 
 __all__ = [

@@ -6,8 +6,9 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, render, credit_card, requires_account
 from uber.errors import HTTPRedirect
 from uber.models import ArtShowApplication, ModelReceipt
+from uber.payments import Charge
 from uber.tasks.email import send_email
-from uber.utils import Charge, check
+from uber.utils import check
 
 
 @all_renderable(public=True)
