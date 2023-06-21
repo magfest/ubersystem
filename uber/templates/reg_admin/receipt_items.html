@@ -11,6 +11,8 @@
   {% set model = attendee %}
 {% endif %}
 
+{% set processor_str = "Authorize.net" if c.AUTHORIZENET_LOGIN_ID else "Stripe" %}
+
 {% block title %}Receipt Items - {% if model.attendee %}{{ model.attendee.full_name }}'s {{ model_str|title }}{% else %}{{ model.full_name|default(model.name) }}{% endif %}{% endblock %}
 {% block content %}
 <script type="text/javascript">
@@ -67,7 +69,7 @@
     bootbox.confirm({
       title: "Comp Receipt Item?",
       message: "This will mark this item as comped, adding a credit to the receipt. " +
-               "Use the Refund button if you want to both comp and refund this item via Stripe (if applicable).",
+               "Use the Refund button if you want to both comp and refund this item via {{ processor_str }} (if applicable).",
       buttons: {
           confirm: {
               label: 'Comp Item',
@@ -260,7 +262,7 @@
   var fullRefund = function (receiptId) {
     bootbox.confirm({
       title: "Refund and Cancel Registration?",
-      message: "This will refund ALL existing Stripe transactions that have not already been refunded. " +
+      message: "This will refund ALL existing {{ processor_str }} transactions that have not already been refunded. " +
                "It will also cancel this {{ model_str }}'s registration. Are you sure?",
       buttons: {
           confirm: {
@@ -357,14 +359,14 @@
 
 <h2>Receipt{% if other_receipts %}s{% endif %} for {% if model.attendee %}{{ model.attendee.full_name }}'s {{ model_str|title }}{% else %}{{ model.full_name|default(model.name) }}{% endif %}{% if c.AT_THE_CON and model.badge_num %} ({{ model.badge }}){% endif %}</h2>
   <div class="card-body">
-  <p>Use this form to remove and add custom purchases and credits or non-Stripe payments and refunds for this {{ model_str }}.
+  <p>Use this form to remove and add custom purchases and credits or non-{{ processor_str }} payments and refunds for this {{ model_str }}.
     You will not be able to remove purchases or credits that were created before a successful payment was made.
-    Confirmed Stripe payments or refunds that have a Stripe ID will also be locked.
+    Confirmed {{ processor_str }} payments or refunds that have a {{ processor_str }} ID will also be locked.
   </p>
   
   <p>
-    If a payment was made and confirmed through Stripe, you can refund part or all of it using the "Refund Transaction" button.
-    Note that some Stripe payments may appear on multiple receipts, for example, when someone registers multiple badges in one transaction.
+    If a payment was made and confirmed through {{ processor_str }}, you can refund part or all of it using the "Refund Transaction" button.
+    Note that some {{ processor_str }} payments may appear on multiple receipts, for example, when someone registers multiple badges in one transaction.
   </p>
 
   <p>
@@ -470,7 +472,7 @@
         <td>
           {% if stripe_url %}<a class="btn btn-sm btn-info" href="{{ stripe_url }}" target="_blank">View <span class="glyphicon glyphicon-new-window"></span></a>{% endif %}
         </td>
-        <td>{{ item.desc }}{{ " (Stripe ID: " ~ item.stripe_id ~ ")" if item.stripe_id else "" }}</td>
+        <td>{{ item.desc }}{{ " (" ~ processor_str ~ " ID: " ~ item.stripe_id ~ ")" if item.stripe_id else "" }}</td>
         <td>
           {{ (item.amount / 100)|format_currency(true) }}
           {% if item.count and item.count > 1 %}
@@ -495,7 +497,7 @@
           {% if item.available_actions %}
             {% for action in item.available_actions %}
               {% if action == 'refresh_receipt_txn' %}
-              <button class="btn btn-sm btn-info" onClick="refreshTxn('{{ item.id }}')">Refresh from Stripe</button>
+              <button class="btn btn-sm btn-info" onClick="refreshTxn('{{ item.id }}')">Refresh from {{ processor_str }}</button>
               {% endif %}
               {% if action == 'cancel_receipt_txn' %}
               <button class="btn btn-sm btn-danger" onClick="cancelTxn('{{ item.id }}')">Mark as Cancelled</button>
@@ -605,7 +607,7 @@ There are no active receipts for this {{ model_str }}.
 {% endfor %}
 
 <div id="refundTxnDiv" class="visually-hidden">
-  <p>This will refund this {{ model_str }} through Stripe. You can enter an amount below or leave it blank to refund the full amount.</p>
+  <p>This will refund this {{ model_str }} through {{ processor_str }}. You can enter an amount below or leave it blank to refund the full amount.</p>
 
   <div class="form-horizontal" id="refundTxnForm">
       <div class="input-group">

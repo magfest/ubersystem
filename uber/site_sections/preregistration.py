@@ -179,7 +179,7 @@ class Root:
                     if receipt.get_last_incomplete_txn():
                         Charge.unpaid_preregs[id] = Charge.pending_preregs[id]
                     else:
-                        Charge.paid_preregs[id] = Charge.pending_preregs[id]
+                        Charge.paid_preregs.append(Charge.pending_preregs[id])
                 Charge.pending_preregs.pop(id)
 
         if not Charge.unpaid_preregs:
@@ -689,6 +689,18 @@ class Root:
                 'success_url': 'paid_preregistrations?total_cost={}&message={}'.format(
                     charge.dollar_amount, 'Payment accepted!'),
                 'cancel_url': 'cancel_prereg_payment'}
+    
+    @ajax
+    def submit_authnet_charge(self, session, ref_id, amount, desc, token_desc, token_val, **params):
+        token_dict = {
+            "desc": token_desc,
+            "val": token_val,
+        }
+        response = Charge.send_authorizenet_txn(ref_id, amount, desc, token_dict)
+        if isinstance(response, string_types):
+            return {'error': response}
+        else:
+            return {'success': True}
 
     @ajax
     def cancel_prereg_payment(self, session, stripe_id):

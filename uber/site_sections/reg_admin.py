@@ -299,7 +299,7 @@ class Root:
         if txn.charge_id:
             return {'error': "You cannot cancel a completed Stripe payment."}
         
-        if txn.intent_id:
+        if txn.intent_id and not c.AUTHORIZENET_LOGIN_ID:
             error = txn.check_stripe_id()
             if error:
                 return {'error': "Error while checking this transaction: " + error}

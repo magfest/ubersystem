@@ -178,7 +178,10 @@ class ModelReceipt(MagModel):
         from uber.models import Session
 
         for txn in sorted(self.pending_txns, key=lambda t: t.added, reverse=True):
-            error = txn.check_stripe_id()
+            if c.AUTHORIZENET_LOGIN_ID:
+                error = None # TODO: do we need anything here?
+            else:
+                error = txn.check_stripe_id()
             if error or txn.amount != self.current_receipt_amount:
                 if error:
                     txn.cancelled = datetime.now() # TODO: Add logs to txns/items and log the automatic cancellation reason?

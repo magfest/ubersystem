@@ -13,7 +13,6 @@ from itertools import chain
 
 import cherrypy
 import signnow_python_sdk
-import stripe
 from pockets import keydefaultdict, nesteddefaultdict, unwrap
 from pockets.autolog import log
 from sideboard.lib import cached_property, parse_config, request_cached_property
@@ -1217,7 +1216,9 @@ except ValueError:
 else:
     c.VOLUNTEER_CHECKLIST = [url for step, url in _items]
 
-stripe.api_key = c.STRIPE_SECRET_KEY
+if not c.AUTHORIZENET_LOGIN_ID:
+    import stripe
+    stripe.api_key = c.STRIPE_SECRET_KEY
 
 
 # plugins can use this to append paths which will be included as <script> tags, e.g. if a plugin

@@ -5,6 +5,7 @@ import random
 import re
 import string
 import traceback
+import json
 from typing import Iterable
 import urllib
 from collections import defaultdict, OrderedDict
@@ -29,6 +30,28 @@ from pytz import UTC
 import uber
 from uber.config import c, _config, signnow_sdk
 from uber.errors import CSRFException, HTTPRedirect
+from uber.utils import report_critical_exception
+
+class MockStripeIntent(dict):
+    """
+    Stripe and Authorize.net use radically different workflows: Stripe has you request a payment intent
+    before it collects CC details, and Authorize.net requires CC details (or a token) before it will
+    do anything.
+    
+    We prefer Stripe's method as this creates a record in our system before payment is attempted in
+    case anything goes wrong. This class lets us use Stripe's workflow in our page handlers with 
+    minimal disruptions.
+    """
+    def __init__(self, amount, description, receipt_email=''):
+        self.id = str(uuid4()).replace('-', '')[:20]
+        self.amount = amount
+        self.description = description
+        self.receipt_email = receipt_email
+        self.charges = None
+
+        # And now for the serializable info!
+        dict.__init__(self, id=self.id, amount=amount, description=description, receipt_email=receipt_email, charges=self.charges)
+
 
 class Charge:
     def __init__(self, targets=(), amount=0, description=None, receipt_email=''):
@@ -417,6 +440,20 @@ class Charge:
 
         log.debug('Creating Stripe Intent to charge {} cents for {}', amount, description)
         try:
+            return self.stripe_or_authorize_intent(amount, description, receipt_email)
+        except Exception as e:
+            error_txt = 'Got an error while calling create_stripe_intent()'
+            report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
+            return 'An unexpected problem occurred while setting up payment: ' + str(e)
+        
+    def stripe_or_authorize_intent(self, amount, description, receipt_email):
+        if c.AUTHORIZENET_LOGIN_ID:
+            return MockStripeIntent(
+                amount=int(amount),
+                description=description,
+                receipt_email=receipt_email
+            )
+        else:
             customer = None
             if receipt_email:
                 customer_list = stripe.Customer.list(
@@ -431,7 +468,7 @@ class Charge:
                         email=receipt_email,
                     )
 
-            stripe_intent = stripe.PaymentIntent.create(
+            return stripe.PaymentIntent.create(
                 payment_method_types=['card'],
                 amount=int(amount),
                 currency='usd',
@@ -439,18 +476,95 @@ class Charge:
                 receipt_email=customer.email if receipt_email else None,
                 customer=customer.id if customer else None,
             )
+    
+    @classmethod
+    def send_authorizenet_txn(self, ref_id, amount, desc="", token_dict={}, txn_type=c.AUTHCAPTURE):
+        from authorizenet import apicontractsv1, apicontrollers
+        from decimal import Decimal
+        
+        merchantAuth = apicontractsv1.merchantAuthenticationType()
+        merchantAuth.name = c.AUTHORIZENET_LOGIN_ID
+        merchantAuth.transactionKey = c.AUTHORIZENET_LOGIN_KEY
+        
+        transaction = apicontractsv1.transactionRequestType()
 
-            return stripe_intent
-        except Exception as e:
-            error_txt = 'Got an error while calling create_stripe_intent()'
-            report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
-            return 'An unexpected problem occurred while setting up payment: ' + str(e)
+        if token_dict:
+            opaqueData = apicontractsv1.opaqueDataType()
+            opaqueData.dataDescriptor = token_dict["desc"]
+            opaqueData.dataValue = token_dict["val"]
+
+            paymentInfo = apicontractsv1.paymentType()
+            paymentInfo.opaqueData = opaqueData
+            transaction.payment = paymentInfo
+
+        if desc:
+            order = apicontractsv1.orderType()
+            order.description = desc
+            transaction.order = order
+
+        transaction.transactionType = c.AUTHNET_TXN_TYPES[txn_type]
+        transaction.amount = Decimal(int(amount) / 100)
+
+        transactionRequest = apicontractsv1.createTransactionRequest()
+        transactionRequest.merchantAuthentication = merchantAuth
+        transactionRequest.transactionRequest = transaction
+        
+        # Create the controller and get response
+        transactionController = apicontrollers.createTransactionController(transactionRequest)
+        transactionController.setenvironment(c.AUTHORIZENET_ENDPOINT)
+        transactionController.execute()
+
+        response = transactionController.getresponse()
+
+        if response is not None:
+        # Check to see if the API request was successfully received and acted upon
+            if response.messages.resultCode == "Ok":
+                # Since the API request was successful, look for a transaction response
+                # and parse it to display the results of authorizing the card
+                if hasattr(response.transactionResponse, 'messages') == True:
+                    auth_txn_id = int(response.transactionResponse.transId)
+                    
+                    print ('Successfully created transaction with Transaction ID: %s' % auth_txn_id)
+                    print ('Transaction Response Code: %s' % response.transactionResponse.responseCode)
+                    print ('Message Code: %s' % response.transactionResponse.messages.message[0].code)
+                    print ('Auth Code: %s' % response.transactionResponse.authCode)
+                    print ('Description: %s' % response.transactionResponse.messages.message[0].description)
+                    
+                    if txn_type in [c.AUTHCAPTURE, c.CAPTURE]:
+                        self.mark_paid_from_intent_id(ref_id, auth_txn_id)
+                    elif txn_type == c.AUTHONLY:
+                        return auth_txn_id
+                    elif txn_type == c.REFUND:
+                        pass
+                    return
+                else:
+                    report_critical_exception(msg="{} {}".format(
+                        str(response.transactionResponse.errors.error[0].errorCode),
+                        response.transactionResponse.errors.error[0].errorText
+                    ), subject='ERROR: Authorize.net error')
+
+                    return response.transactionResponse.errors.error[0].errorText
+            # Or, print errors if the API request wasn't successful
+            else:
+                if hasattr(response, 'transactionResponse') == True and hasattr(response.transactionResponse, 'errors') == True:
+                    error_code = str(response.transactionResponse.errors.error[0].errorCode)
+                    error_msg = response.transactionResponse.errors.error[0].errorText
+                else:
+                    error_code = response.messages.message[0]['code'].text
+                    error_msg = response.messages.message[0]['text'].text
+                    
+                report_critical_exception(msg="{} {}".format(error_code, error_msg), subject='ERROR: Authorize.net error')
+                    
+                return error_msg
+        else:
+            return "No response???"
+
 
     @classmethod
     def create_receipt_transaction(self, receipt, desc='', intent_id='', amount=0, method=c.STRIPE):
         txn_total = amount
         
-        if intent_id:
+        if intent_id and not c.AUTHORIZENET_LOGIN_ID:
             intent = stripe.PaymentIntent.retrieve(intent_id)
             txn_total = intent.amount
             if not amount:
