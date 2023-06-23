@@ -57,13 +57,17 @@
                 action="index">
                 <div class="form-row">
                     <strong>Credit or debit card</strong>
-                    <input type="text" class="form-control" name="cardNumber" id="cardNumber" placeholder="Card Number"/>
+                    <input type="text" class="form-control" name="cardNumber" id="cardNumber" placeholder="Card Number"
+                        inputmode="numeric" autocomplete="cc-number" autocorrect="off" aria-label="Credit or debit card number"/>
                     &nbsp;
                     <div class="input-group">
-                        <input type="text" class="form-control" name="expMonth" id="expMonth" placeholder="MM"/>
+                        <input type="text" class="form-control" name="expMonth" id="expMonth" placeholder="MM"
+                        inputmode="numeric" autocomplete="cc-exp-month" autocorrect="off" aria-label="Credit or debit card expiration month"/>
                         <span class="input-group-text">/</span>
-                        <input type="text" class="form-control" name="expYear" id="expYear" placeholder="YY"/>
-                        <input type="text" class="form-control" name="cardCode" id="cardCode" placeholder="CVC"/>
+                        <input type="text" class="form-control" name="expYear" id="expYear" placeholder="YY"
+                        inputmode="numeric" autocomplete="cc-exp-year" autocorrect="off" aria-label="Credit or debit card expiration year"/>
+                        <input type="text" class="form-control" name="cardCode" id="cardCode" placeholder="CVC"
+                        inputmode="numeric" autocomplete="cc-csc" autocorrect="off" aria-label="Credit or debit card CVC/CVV"/>
                     </div>
                     <div style="margin-top:10px;"><button class="btn btn-success">Submit Payment</button>
                     <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button></div>
@@ -122,7 +126,7 @@ var callStripeAction = function (autoTrigger=false) {
             $('#stripeModal').find('.modal-title').text('Paying ' + dollars + ' to {{ c.ORGANIZATION_NAME }}');
             $('#stripeModal').find('.charge_desc').text(result.stripe_intent.description);
             {% if c.AUTHORIZENET_LOGIN_ID %}
-                collectAuthNetPayment(result.stripe_intent.id, result.stripe_intent.description, result.success_url, cancel_url, result.stripe_intent.amount)
+                collectAuthNetPayment(result.stripe_intent.id, result.stripe_intent.receipt_email, result.stripe_intent.description, result.success_url, cancel_url, result.stripe_intent.amount)
             {% else %}
                 collectStripePayment(result.stripe_intent.client_secret, result.stripe_intent.id, result.success_url, cancel_url);
             {% endif %}
@@ -156,7 +160,7 @@ var processCancelUrl = function(result, form, card=null) {
 }
 
 {% if c.AUTHORIZENET_LOGIN_ID %}
-var collectAuthNetPayment = function (ref_id, desc, success_url, cancel_url, amount) {
+var collectAuthNetPayment = function (ref_id, email, desc, success_url, cancel_url, amount) {
     var form = $('#payment-form');
     form.removeClass('visually-hidden');
     var authData = {
@@ -185,6 +189,7 @@ var collectAuthNetPayment = function (ref_id, desc, success_url, cancel_url, amo
             $.post("../preregistration/submit_authnet_charge", {
                 ref_id: ref_id,
                 amount: amount,
+                email: email,
                 desc: desc,
                 token_desc: response.opaqueData.dataDescriptor,
                 token_val: response.opaqueData.dataValue,

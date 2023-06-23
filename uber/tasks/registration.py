@@ -14,7 +14,7 @@ from uber.models import ApiJob, Attendee, Email, Session, ReceiptTransaction
 from uber.tasks.email import send_email
 from uber.tasks import celery
 from uber.utils import localized_now, TaskUtils
-from uber.payments import Charge
+from uber.payments import ReceiptManager
 
 
 __all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_unassigned_volunteers',
@@ -163,7 +163,7 @@ def check_missed_stripe_payments():
         payment_intent = event.data.object
         if payment_intent.id in pending_ids:
             paid_ids.append(payment_intent.id)
-            Charge.mark_paid_from_intent_id(payment_intent.id, payment_intent.charges.data[0].id)
+            ReceiptManager.mark_paid_from_intent_id(payment_intent.id, payment_intent.charges.data[0].id)
     return paid_ids
 
 

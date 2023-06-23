@@ -7,8 +7,8 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, log_pageview, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Email, Event, Group, GuestGroup, GuestMerch, PageViewTracking, Tracking
-from uber.payments import Charge
 from uber.utils import check, convert_to_absolute_url
+from uber.payments import ReceiptManager
 
 
 @all_renderable()
@@ -60,7 +60,9 @@ class Root:
     @log_pageview
     def form(self, session, new_dealer='', message='', **params):
         if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-            message = session.auto_update_receipt(session.group(params.get('id')), params)
+            group = session.group(params.get('id'))
+            receipt_items = ReceiptManager.auto_update_receipt(group, session.get_receipt_by_model(group), params)
+            session.add_all(receipt_items)
 
         group = session.group(params, checkgroups=Group.all_checkgroups, bools=Group.all_bools)
 

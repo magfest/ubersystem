@@ -36,7 +36,7 @@
   <div class="card-body">
     {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_OPEN) }}
 
-      {% if charge.attendees or charge.groups %}
+      {% if cart.attendees or cart.groups %}
         {% include 'preregistration/index_payment_form.html' %}
   </div>
 
@@ -50,7 +50,7 @@
       </tr>
     </thead>
     <tbody>
-      {% for attendee in charge.attendees %}
+      {% for attendee in cart.attendees %}
         <tr>
           <td>{{ attendee.full_name }}{% if attendee.badges %} ({{ attendee.name }}){% endif %}</td>
           <td>
@@ -94,7 +94,7 @@
         </tr>
       {% endfor %}
 
-      {% for group in charge.groups %}
+      {% for group in cart.groups %}
         <tr>
           <td>{{ group.name }}</td>
           <td>
@@ -116,12 +116,12 @@
         </tr>
       {% endfor %}
     </tbody>
-    {% if charge.has_targets %}
+    {% if cart.has_targets %}
       <tfoot>
         <tr>
           <th></th>
           <th style="text-align:right;"><i>Total:</i></th>
-          <th><b>{{ charge.dollar_amount|format_currency }}</b></th>
+          <th><b>{{ cart.dollar_amount|format_currency }}</b></th>
           <th></th>
         </tr>
       </tfoot>

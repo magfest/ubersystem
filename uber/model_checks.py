@@ -29,7 +29,7 @@ from uber.models import AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowAp
     MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam, PanelApplicant, PanelApplication, \
     PromoCode, PromoCodeGroup, Sale, Session, WatchList
 from uber.utils import localized_now, valid_email
-from uber.payments import Charge
+from uber.payments import PreregCart
 
 
 AccessGroup.required = [('name', 'Name')]
@@ -334,7 +334,7 @@ def promo_code_not_is_expired(attendee):
 @prereg_validation.Attendee
 def promo_code_has_uses_remaining(attendee):
     if attendee.is_new and attendee.promo_code and not attendee.promo_code.is_unlimited:
-        unpaid_uses_count = Charge.get_unpaid_promo_code_uses_count(
+        unpaid_uses_count = PreregCart.get_unpaid_promo_code_uses_count(
             attendee.promo_code.id, attendee.id)
         if (attendee.promo_code.uses_remaining - unpaid_uses_count) < 0:
             return 'That promo code has been used too many times.'

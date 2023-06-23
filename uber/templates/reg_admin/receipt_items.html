@@ -217,7 +217,7 @@
               label: 'Comp and Refund',
               className: 'btn-success',
               callback: function () {
-                $.post('comp_refund_receipt_item', {csrf_token: csrf_token, id: itemId, amount: result}, function (response) {
+                $.post('comp_refund_receipt_item', {csrf_token: csrf_token, id: itemId, amount: amount.substring(1)}, function (response) {
                   $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
                   if (response.error) {
                     $("#message-alert").addClass("alert-danger").show().children('span').html(response.error);
@@ -484,12 +484,12 @@
           <button class="btn btn-sm btn-warning"
                   onClick="
                   {% if item.method %}
-                  refundTxn('{{ item.id }}', '{{ (item.amount_left / 100)|format_currency }}')
-                  {% else %}
-                  refundItem('{{ item.id }}', '{{ (item.amount / 100)|format_currency }}', '{{ item.count }}', '{{ item.revert_change|yesno }}')
-                  {% endif %}"
-                  >
+                  refundTxn('{{ item.id }}', '{{ (item.amount_left / 100)|format_currency }}')">
                   Refund
+                  {% else %}
+                  refundItem('{{ item.id }}', '{{ (item.amount / 100)|format_currency }}', '{{ item.count }}', '{{ item.revert_change|yesno }}')">
+                  Refund Item
+                  {% endif %}
           </button>
           {% endif %}
         </td>
