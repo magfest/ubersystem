@@ -1131,8 +1131,11 @@ class Session(SessionManager):
                     ),
                 Attendee.watchlist_id == None).all()
 
-        def get_account_by_email(self, email):
-            return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
+        def get_attendee_account_by_email(self, email):
+            return self.query(AttendeeAccount).filter_by(normalized_email=normalize_email(email)).one()
+
+        def get_admin_account_by_email(self, email):
+            return self.query(AdminAccount).join(Attendee).filter(Attendee.normalized_email == normalize_email(email)).one()
 
         def no_email(self, subject):
             return not self.query(Email).filter_by(subject=subject).all()

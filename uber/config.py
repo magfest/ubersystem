@@ -946,15 +946,6 @@ class AWSSecretFetcher:
         self.get_auth0_secret()
         self.get_signnow_secret()
 
-    def get_auth0_secret(self):
-        if not c.AWS_AUTH0_SECRET_NAME:
-            return
-
-        auth0_secret = self.get_secret(c.AWS_AUTH0_SECRET_NAME)
-        if auth0_secret:
-            c.AUTH_DOMAIN = auth0_secret.get('AUTH0_DOMAIN', '') or c.AUTH_DOMAIN
-            c.AUTH_CLIENT_ID = auth0_secret.get('CLIENT_ID', '') or c.AUTH_CLIENT_ID
-            c.AUTH_CLIENT_SECRET = auth0_secret.get('CLIENT_SECRET', '') or c.AUTH_CLIENT_SECRET
 
     def get_signnow_secret(self):
         if not c.AWS_SIGNNOW_SECRET_NAME:
@@ -1416,3 +1407,23 @@ c.GUEST_CHECKLIST_ITEMS = [
 # Generate the possible template prefixes per step
 for item in c.GUEST_CHECKLIST_ITEMS:
     item['deadline_template'] = ['guest_checklist/', item['name'] + '_deadline.html']
+
+if c.SAML_METADATA_URL:
+    from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
+    sp_settings = {
+        "entityId": c.URL_BASE + "/saml/metadata",
+            "assertionConsumerService": {
+                "url": c.URL_BASE + "/saml/acs",
+                "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+            },
+            "singleLogoutService": {
+                "url": c.URL_BASE + "/saml/logout",
+                "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+            },
+            "NameIDFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
+            # Temp, ask Crimson how he wants to handle this
+            "x509cert": c.SAML_CERT,
+            "privateKey": c.SAML_KEY
+        }
+    c.SAML_SETTINGS = OneLogin_Saml2_IdPMetadataParser.parse_remote(c.SAML_METADATA_URL)
+    c.SAML_SETTINGS["sp"] = sp_settings

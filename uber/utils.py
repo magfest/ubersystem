@@ -19,7 +19,6 @@ from uuid import uuid4
 import cherrypy
 import phonenumbers
 import stripe
-from authlib.integrations.requests_client import OAuth2Session
 from phonenumbers import PhoneNumberFormat
 from pockets import cached_property, classproperty, floor_datetime, is_listy, listify
 from pockets.autolog import log
@@ -831,6 +830,15 @@ def get_api_service_from_server(target_server, api_token):
     return service, message, target_url
 
 
+def prepare_saml_request(request):
+    return {
+        'http_host': request.headers.get('Host', ''),
+        'script_name': request.script_name + request.path_info,
+        'get_data': request.params.copy() if request.method == 'GET' else {},
+        'post_data': request.params.copy() if request.method == 'POST' else {},
+    }
+
+
 class request_cached_context:
     """
     We cache certain variables (like c.BADGES_SOLD) on a per-cherrypy.request basis.
@@ -933,34 +941,6 @@ class ExcelWorksheetStreamWriter:
             self.next_row += 1
         else:
             self.next_col += 1
-
-
-class OAuthRequest:
-
-    def __init__(self, scope='openid profile email', state=None):
-        self.redirect_uri = (c.REDIRECT_URL_BASE or c.URL_BASE) + "/accounts/"
-        self.client = OAuth2Session(c.AUTH_CLIENT_ID, c.AUTH_CLIENT_SECRET, scope=scope, state=state, redirect_uri=self.redirect_uri + "process_login")
-        self.state = state if state else None
-
-    def set_auth_url(self):
-        self.auth_uri, self.state = self.client.create_authorization_url("https://{}/authorize".format(c.AUTH_DOMAIN), self.state)
-
-    def set_token(self, code, state):
-        self.auth_token = self.client.fetch_token("https://{}/oauth/token".format(c.AUTH_DOMAIN), code=code, state=state).get('access_token')
-
-    def get_email(self):
-        profile = self.client.get("https://{}/userinfo".format(c.AUTH_DOMAIN)).json()
-        if not profile.get('email', ''):
-            log.error("Tried to authenticate a user but we couldn't retrieve their email. Did we use the right scope?")
-        else:
-            return profile['email']
-
-    @property
-    def logout_uri(self):
-        return "https://{}/v2/logout?client_id={}&returnTo={}".format(
-                    c.AUTH_DOMAIN,
-                    c.AUTH_CLIENT_ID,
-                    self.redirect_uri + "process_logout")
 
 
 class Charge:
