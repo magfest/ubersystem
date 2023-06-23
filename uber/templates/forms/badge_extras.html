@@ -1,11 +1,40 @@
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
-{% set prereg_merch_available = True or c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 %}
+{% set prereg_merch_available = c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 %}
+{% set badge_extras = badge_extras or forms['badge_extras'] %}
 
+{# BLOCK NAMES in this form:
+    badge_type
+    add_ons
+    perk_info
+    donation
+
+Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+{% block badge_type %}
 {{ badge_extras.badge_type }}
 {% if c.BADGE_TYPE_PRICES %}
-{% endif %}
+    {% if attendee.badge_type not in c.PREREG_BADGE_TYPES and attendee.badge_type in c.BADGES %}
+        {% set badge_type_opts = [{
+            'name': attendee.badge_type_label,
+            'desc': 'Allows access to the convention for its duration.',
+            'value': attendee.badge_type
+            }] %}
+        {% for opt in c.FORMATTED_BADGE_TYPES %}
+            {% if not loop.first %}{{ badge_type_opts.append(opt)|default("", True) }}{% endif %}
+        {% endfor %}
+    {% else %}
+        {% set badge_type_opts = c.FORMATTED_BADGE_TYPES %}
+    {% endif %}
 
+    <div class="row g-3">
+    {{ form_macros.card_select(badge_extras.badge_type, badge_type_opts) }}
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block add_ons %}
 {{ badge_extras.amount_extra }}
 {% if c.DONATIONS_ENABLED and (prereg_merch_available or attendee.amount_extra) %}
 <div class="row g-3">
@@ -13,13 +42,17 @@
 </div>
 {{ form_macros.toggle_fields_js(badge_extras.amount_extra, [badge_extras.shirt], off_values=["0"], toggle_required=True) }}
 {% endif %}
+{% endblock %}
 
+{% block perk_info %}
 {% if prereg_merch_available or attendee.gets_any_kind_of_shirt %}
 <div class="row g-3">
     <div class="col">{{ form_macros.form_input(badge_extras.shirt) }}</div>
 </div>
 {% endif %}
+{% endblock %}
 
+{% block donation %}
 {% if c.COLLECT_EXTRA_DONATION %}
 <div class="row g-3">
     <div class="col">{{ form_macros.form_input(badge_extras.extra_donation, readonly=extra_donation_ro or money_fields_ro or page_ro) }}</div>
@@ -39,3 +72,4 @@
     {% endif %}
 </div>
 {% endif %}
+{% endblock %}

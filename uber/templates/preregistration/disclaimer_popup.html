@@ -1,0 +1,42 @@
+<script type="text/javascript">
+    var disclaimersConfirmed = false;
+    var confirmDisclaimers = function () {
+      disclaimersConfirmed = true;
+      $("#prereg-form").submit();
+    }
+    {% if logged_in_account or not c.ATTENDEE_ACCOUNTS_ENABLED %}
+    var openDisclaimersModal = function() {
+      if(!$("#prereg-form")[0].checkValidity()) {
+        $("#prereg-form")[0].reportValidity();
+      } else {
+        $('#disclaimers_modal').modal("show");
+      }
+    }
+    {% else %}
+    var openDisclaimersModal = function() {
+      var success = validateAndIncludeAccountFields();
+      if (!success) {
+        return false;
+      }
+      if(!$("#prereg-form")[0].checkValidity()) {
+        $("#prereg-form")[0].reportValidity();
+        return false;
+      }
+      $('#disclaimers_modal').modal("show");
+    }
+    {% endif %}
+    
+  </script>
+
+<div class="modal fade" id="disclaimers_modal" role="dialog">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-body">{% include "preregistration/disclaimers.html" %}</div>
+          <div class="modal-footer">
+            <button class="btn btn-primary btn-lg" data-dismiss="modal" onClick="confirmDisclaimers()">
+              I agree to the above
+            </button>
+          </div>
+        </div>
+    </div>
+</div>

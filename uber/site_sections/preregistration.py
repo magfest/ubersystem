@@ -20,6 +20,7 @@ from uber.custom_tags import email_only
 from uber.decorators import ajax, all_renderable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
+from uber.forms import attendee as attendee_form, load_forms
 from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, ModelReceipt, PromoCode, PromoCodeGroup, \
                         ReceiptTransaction, SignedDocument, Tracking
 from uber.tasks.email import send_email
@@ -153,7 +154,7 @@ class Root:
         return {'message': message}
 
     @check_if_can_reg
-    def index(self, session, message='', account_email='', account_password='', removed_id=''):
+    def index(self, session, message='', account_email='', account_password='', removed_id='', **params):
         if removed_id:
             existing_model = session.query(Attendee).filter_by(id=removed_id).first()
             if not existing_model:
@@ -255,14 +256,22 @@ class Root:
         badges = params.get('badges', 0)
         name = params.get('name', '')
 
+        if c.PAGE == 'post_dealer':
+            params['badge_type'] = c.PSEUDO_DEALER_BADGE
+        elif not params.get('badge_type'):
+            params['badge_type'] = c.ATTENDEE_BADGE
+
         if edit_id is not None:
             attendee = self._get_unsaved(
                 edit_id,
-                if_not_found=HTTPRedirect('form?message={}', 'That preregistration has already been finalized'))
+                if_not_found=HTTPRedirect('form?message={}', 'That preregistration expired or has already been finalized.'))
+            attendee.apply(params, restricted=True)
+            forms = load_forms(params, attendee, attendee_form, ['PersonalInfo', 'BadgeExtras', 'Consents'])
             badges = getattr(attendee, 'badges', 0)
             name = getattr(attendee, 'name', '')
         else:
             attendee = session.attendee(params, ignore_csrf=True, restricted=True)
+            forms = load_forms({}, attendee, attendee_form, ['PersonalInfo', 'BadgeExtras', 'Consents'])
 
         if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
             # Both the Attendee class and Group class have identically named
@@ -288,28 +297,15 @@ class Root:
                 params['email'] = group_params['email_address']
                 attendee.apply(params)
 
-            if not params.get('old_group_id'):
-                group = session.group(group_params, ignore_csrf=True, restricted=True)
-
-        if edit_id is not None:
-            attendee.apply(params, restricted=True)
-            if not params.get('repurchase'):
-                params.setdefault('pii_consent', True)
             if params.get('old_group_id'):
                 old_group = session.group(params['old_group_id'])
                 old_group_dict = session.group(params['old_group_id']).to_dict(c.GROUP_REAPPLY_ATTRS)
                 group.apply(old_group_dict, ignore_csrf=True, restricted=True)
                 name = old_group.name
                 badges = old_group.badges_purchased
-        else:
-            attendee = session.attendee(params, ignore_csrf=True, restricted=True)
+            else:
+                group = session.group(group_params, ignore_csrf=True, restricted=True)
 
-        if c.PAGE == 'post_dealer':
-            attendee.badge_type = c.PSEUDO_DEALER_BADGE
-        elif not attendee.badge_type:
-            attendee.badge_type = c.ATTENDEE_BADGE
-
-        if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
             if not c.DEALER_REG_OPEN:
                 return render('static_views/dealer_reg_closed.html') if c.AFTER_DEALER_REG_START \
                     else render('static_views/dealer_reg_not_open.html')
@@ -321,7 +317,6 @@ class Root:
                     raise HTTPRedirect("form?message=Incorrect {} invite code.".format(c.DEALER_REG_TERM))
 
         if cherrypy.request.method == 'POST' or edit_id is not None:
-            message = check_pii_consent(params, attendee) or message
             if not message and attendee.badge_type not in c.PREREG_BADGE_TYPES:
                 message = 'Invalid badge type!'
             if not message and attendee.promo_code and params.get('promo_code') != attendee.promo_code_code and cherrypy.request.method == 'POST':
@@ -334,6 +329,7 @@ class Root:
         if message:
             return {
                 'logged_in_account': session.current_attendee_account(),
+                'forms': forms,
                 'message':    message,
                 'attendee':   attendee,
                 'group':      group,
@@ -349,7 +345,7 @@ class Root:
                 'invite_code': params.get('invite_code', ''),
             }
 
-        if 'first_name' in params:
+        if cherrypy.request.method == 'POST':
             if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                 message = check(group, prereg=True)
 
@@ -436,7 +432,9 @@ class Root:
                         hotel_page = 'hotel?edit_id={}' if edit_id else 'hotel?id={}'
                         raise HTTPRedirect(hotel_page, group.id if attendee.paid == c.PAID_BY_GROUP else attendee.id)
                     else:
-                        raise HTTPRedirect('index')
+                        if edit_id and params.get('go_to_cart'):
+                            raise HTTPRedirect('index')
+                        raise HTTPRedirect('additional_info?id={}&editing={}', attendee.id, edit_id)
 
         else:
             if edit_id is None:
@@ -461,6 +459,7 @@ class Root:
             'logged_in_account': session.current_attendee_account(),
             'message':    message,
             'attendee':   attendee,
+            'forms': forms,
             'account_email': params.get('account_email', ''),
             'account_password': params.get('account_password', ''),
             'confirm_password': params.get('confirm_password', ''),
@@ -477,6 +476,26 @@ class Root:
             'promo_code_code': params.get('promo_code', ''),
             'pii_consent': params.get('pii_consent'),
             'invite_code': params.get('invite_code', ''),
+        }
+    
+    def additional_info(self, session, message='', id=None, editing=None, **params):
+        if not id:
+            raise HTTPRedirect('index')
+        attendee = self._get_unsaved(id,
+                if_not_found=HTTPRedirect('form?message={}', 'That preregistration expired or has already been finalized.'))
+        forms = load_forms(params, attendee, attendee_form, ['OtherInfo'])
+        if cherrypy.request.method == "POST":
+            for form in forms.values():
+                form.populate_obj(attendee)
+            Charge.unpaid_preregs[attendee.id] = Charge.to_sessionized(attendee, attendee.name, attendee.badges)
+            Tracking.track(c.EDITED_PREREG, attendee)
+            raise HTTPRedirect('index')
+        return {
+            'logged_in_account': session.current_attendee_account(),
+            'message':    message,
+            'attendee':   attendee,
+            'editing': editing,
+            'forms': forms,
         }
 
     @redirect_if_at_con_to_kiosk
@@ -1304,7 +1323,6 @@ class Root:
         else:
             attendee = session.attendee(params.get('id'))
 
-        from uber.forms import PersonalInfo, BadgeExtras, OtherInfo
         error = ''
         if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
             error = session.auto_update_receipt(attendee, params)
@@ -1322,12 +1340,11 @@ class Root:
         placeholder = attendee.placeholder
 
         receipt = session.get_receipt_by_model(attendee)
-        personal_info = PersonalInfo(params, attendee)
-        badge_extras = BadgeExtras(params, attendee)
-        other_info = OtherInfo(params, attendee)
+        forms = load_forms(params, attendee, attendee_form, ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents'])
 
         if cherrypy.request.method == 'POST' and not message:
             attendee = session.attendee(params, restricted=True)
+            forms['personal_info'].populate_obj(attendee)
             attendee.placeholder = False
 
             message = check(attendee, prereg=True)
@@ -1370,36 +1387,48 @@ class Root:
             'receipt':       session.get_receipt_by_model(attendee) if attendee.is_valid else None,
             'incomplete_txn':  receipt.get_last_incomplete_txn() if receipt else None,
             'attendee_group_discount': (group_credit[1] / 100) if group_credit else 0,
-            'personal_info': personal_info,
-            'badge_extras': badge_extras,
-            'other_info': other_info,
+            'forms': forms,
             'pii_consent':  params.get('pii_consent'),
         }
 
     @ajax
-    def validate_attendee(self, session, **params):
-        from uber.forms import AdminInfo, PersonalInfo, BadgeExtras, OtherInfo
+    def validate_attendee(self, session, form_list=[], **params):
         from uber.validations import attendee as attendee_validators
         from wtforms import validators
+        prereg = False
 
         if params.get('id') in [None, '', 'None']:
             attendee = Attendee()
         else:
-            attendee = session.attendee(params.get('id'))
+            try:
+                attendee = session.attendee(params.get('id'))
+            except NoResultFound:
+                attendee = self._get_unsaved(
+                    params.get('id'),
+                    if_not_found=HTTPRedirect('form?message={}', 'That preregistration expired or has already been finalized.'))
+                prereg = True
 
-        # Only applies to the confirmation page
+        # TODO: This only applies to the confirmation page
         params['placeholder'] = False
 
         receipt = session.get_receipt_by_model(attendee)
-        personal_info, admin_info = PersonalInfo(params, attendee), AdminInfo(params, attendee)
-        form_modules = (personal_info, BadgeExtras(params, attendee), OtherInfo(params, attendee))
+        if not form_list:
+            form_list = ['AdminInfo', 'PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+        forms = load_forms(params, attendee, attendee_form, form_list)
+        
+        if 'PersonalInfo' in form_list and 'AdminInfo' in form_list:
+            personal_info, admin_info = forms['personal_info'], forms['admin_info']
 
-        unassigned_group_reg = admin_info.group_id.data and not personal_info.first_name.data and not personal_info.last_name.data
-        valid_placeholder = admin_info.placeholder.data and personal_info.first_name.data and personal_info.last_name.data
+            unassigned_group_reg = admin_info.group_id.data and not personal_info.first_name.data and not personal_info.last_name.data
+            valid_placeholder = admin_info.placeholder.data and personal_info.first_name.data and personal_info.last_name.data
+        else:
+            unassigned_group_reg, valid_placeholder = False, False
 
         all_errors = defaultdict(list)
 
-        for module in form_modules:
+        for module in forms.values():
             extra_validators = defaultdict(list)
             for key, val in module.skip_unassigned_placeholder_validators.items():
                 if unassigned_group_reg or valid_placeholder:
@@ -1413,8 +1442,6 @@ class Root:
                 if field and (attendee.is_new or getattr(attendee, key, None) != field.data):
                     extra_validators[key].extend(attendee_validators.new_or_changed_validation.get_validations_by_field(key))
 
-            log.debug(extra_validators)
-
             valid = module.validate(extra_validators=extra_validators)
             if not valid:
                 for key, val in module.errors.items():
@@ -1423,14 +1450,15 @@ class Root:
         if all_errors:
             return {"error": all_errors}
 
-        preview_attendee = session.attendee(params, restricted=True)
-        for key, val in attendee_validators.post_form_validation.get_validation_dict().items():
-            for func in val:
-                message = func(preview_attendee)
-                if message:
-                    all_errors[key].append(message)
-        if all_errors:
-            return {"error": all_errors}
+        if not prereg:
+            preview_attendee = session.attendee(params, restricted=True)
+            for key, val in attendee_validators.post_form_validation.get_validation_dict().items():
+                for func in val:
+                    message = func(preview_attendee)
+                    if message:
+                        all_errors[key].append(message)
+            if all_errors:
+                return {"error": all_errors}
 
         return {"success": True}
         

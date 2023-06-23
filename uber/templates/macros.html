@@ -390,7 +390,8 @@
   {% else %}
     {%-
             set steps = [
-                (('form', 'post_form'), 'Enter Info'),
+                (('form', 'post_form'), 'Personal Info'),
+                (('additional_info'), 'Additional Info'),
                 (('index', 'preregistration', ''), 'Review & Pay'),
                 (('paid_preregistrations',), 'Done')]
             -%}

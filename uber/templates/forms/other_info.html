@@ -1,11 +1,11 @@
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
+{% set other_info = other_info or forms['other_info'] %}
 
 {# BLOCK NAMES in this form:
     staffing
     interests
     accessibility
-    consents
 
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
@@ -22,9 +22,11 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 
 {% block interests %}
+{% if c.INTEREST_OPTS %}
 <div class="row g-3">
     <div class="col">{{ form_macros.form_input(other_info.interests) }}</div>
 </div>
+{% endif %}
 {% endblock %}
 
 
@@ -32,17 +34,4 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 <div class="row g-3">
     <div class="col">{{ form_macros.form_input(other_info.requested_accessibility_services) }}</div>
 </div>
-{% endblock %}
-
-
-{% block consents %}
-<div class="row g-3">
-    <div class="col">{{ form_macros.form_input(other_info.can_spam) }}</div>
-</div>
-
-{% if attendee.placeholder or True %}
-<div class="row g-3">
-    <div class="col">{{ form_macros.form_input(other_info.pii_consent) }}</div>
-</div>
-{% endif %}
 {% endblock %}

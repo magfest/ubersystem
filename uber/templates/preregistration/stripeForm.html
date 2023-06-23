@@ -28,6 +28,10 @@
   background-color: #fefde5 !important;
 }
 </style>
+{% if not stripe_loaded %}
+<script src="https://js.stripe.com/v3/" async></script>
+{% set stripe_loaded = true %}
+{% endif %}
 <button class="btn btn-info stripe-btn"{% if 'stripe_button_id' in params %} id="{{ params['stripe_button_id'] }}"{% endif %} onClick="callStripeAction();">
 <span class="display: block; min-height: 30px;">Pay with Card</span>
 </button>
@@ -104,15 +108,18 @@ var collectStripePayment = function (client_secret, stripe_id, success_url, canc
     var card = elements.create("card");
 
     $('#stripeModal').on('hidden.bs.modal', function (e) {
-        card.destroy();
         $.post(cancel_url, {stripe_id: stripe_id, csrf_token: csrf_token},
         function(result) {
             if (result.redirect_url) {
                 window.location.replace(result.redirect_url);
             } else if (result.message) {
                 $("#message-alert").addClass("alert-danger").show().children('span').html(result.message);
-                $(form).addClass('hidden');
+                $(form).addClass('visually-hidden');
                 $('#stripeModal').off('hidden.bs.modal');
+                setTimeout(()=> {
+                    card.destroy();
+                }
+                ,3000);
             }
         });
     })
@@ -145,7 +152,7 @@ var collectStripePayment = function (client_secret, stripe_id, success_url, canc
         }
     });
 
-    $(form).removeClass('hidden');
+    $(form).removeClass('visually-hidden');
 
     form.addEventListener('submit', function(event) {
         event.preventDefault();

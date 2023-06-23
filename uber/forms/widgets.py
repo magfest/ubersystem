@@ -1,5 +1,6 @@
-from markupsafe import Markup
-from wtforms.widgets import NumberInput, html_params, CheckboxInput
+from markupsafe import escape, Markup
+from wtforms.widgets import NumberInput, html_params, CheckboxInput, Select
+from uber.config import c
 
 class MultiCheckbox():
     def __call__(self, field, div_class='checkgroup', **kwargs):
@@ -10,10 +11,13 @@ class MultiCheckbox():
         for value, label, checked in field.iter_choices():
             choice_id = '%s-%s' % (field_id, value)
             options = dict(kwargs, name=field.name, value=value, id=choice_id)
+            if value == c.OTHER:
+                html.append('<br/>')
             if checked:
                 options['checked'] = 'checked'
+            html.append('<label for="%s" class="checkbox-label">' % choice_id)
             html.append('<input %s /> ' % html_params(**options))
-            html.append('<label for="%s" class="checkbox-label">%s</label>' % (choice_id, label))
+            html.append('%s</label>' % label)
         html.append('</fieldset>')
         html.append('</div>')
         return Markup(''.join(html))
@@ -45,3 +49,26 @@ class NumberInputGroup(NumberInput):
 class DollarInput(NumberInputGroup):
     def __init__(self, prefix='$', suffix='.00', **kwargs):
         super().__init__(prefix, suffix, **kwargs)
+
+class CountrySelect(Select):
+    """
+    Renders a custom select field for countries.
+    This is the same as Select but it adds data-alternative-spellings and data-relevancy-booster flags.
+    """
+
+    @classmethod
+    def render_option(cls, value, label, selected, **kwargs):
+        if value is True:
+            # Handle the special case of a 'True' value.
+            value = str(value)
+
+        options = dict(kwargs, value=value)
+        if c.COUNTRY_ALT_SPELLINGS.get(value):
+            options["data-alternative-spellings"] = c.COUNTRY_ALT_SPELLINGS[value]
+            if value in ['Australia', 'Canada', 'United States', 'United Kingdom']:
+                options["data-relevancy-booster"] = 2
+        if selected:
+            options["selected"] = True
+        return Markup(
+            "<option {}>{}</option>".format(html_params(**options), escape(label))
+        )

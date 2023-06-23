@@ -1,0 +1,24 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set consents = consents or forms['consents'] %}
+
+{# BLOCK NAMES in this form:
+    optional
+    required
+
+Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+{% block optional %}
+<div class="row g-3">
+    <div class="col">{{ form_macros.form_input(consents.can_spam) }}</div>
+</div>
+{% endblock %}
+
+{% block required %}
+{% if attendee.placeholder or attendee.is_new %}
+<div class="row g-3">
+    <div class="col">{{ form_macros.form_input(consents.pii_consent, checked=edit_id) }}</div>
+</div>
+{% endif %}
+{% endblock %}

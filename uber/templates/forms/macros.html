@@ -10,7 +10,7 @@
     <div id="{{ field.id }}-validation" class="invalid-feedback"></div>
 {% endmacro %}
 
-{% macro form_input(field, help_text='', extra_field=None) %}
+{% macro form_input(field, help_text='', extra_field=None, no_margin=False) %}
 {% set type = field.meta.get_field_type(field) %}
 
 {% if type in ['checkbox','switch'] %}
@@ -25,16 +25,18 @@
 {{ form_input_extras(field, help_text, extra_field) }}
 {% elif type == 'checkgroup' %}
 <div class="form-text">{{ field.label() }}</div>
-<div class="card card-body">{{ field(**kwargs) }}</div>
-{{ form_input_extras(field, help_text, extra_field) }}
+<div class="card card-body">
+    {{ field(**kwargs) }}
+    <div class="col col-6">{{ form_input_extras(field, help_text, extra_field) }}</div>
+</div>
 {% elif type == 'select' %}
-<div class="form-floating mb-3">
+<div class="form-floating{% if not no_margin %} mb-3{% endif %}">
     {{ field(class="form-select", **kwargs) }}
     {{ field.label }}
     {{ form_input_extras(field, help_text, extra_field) }}
 </div>
 {% else %}
-<div class="form-floating mb-3">
+<div class="form-floating{% if not no_margin %} mb-3{% endif %}">
     {{ field(class="form-control", **kwargs) }}
     {{ field.label }}
     {{ form_input_extras(field, help_text, extra_field) }}
@@ -42,7 +44,8 @@
 {% endif %}
 {% endmacro %}
 
-{% macro toggle_checkbox(checkbox_field, target_fields, type='checkbox', help_text='', toggle_required=False, hide_on_checked=False, prop='visibility') -%}
+{% macro toggle_checkbox(checkbox_field, target_fields, help_text='', toggle_required=False, hide_on_checked=False, prop='visibility') -%}
+  {% set type = checkbox_field.meta.get_field_type(checkbox_field) %}
   <div class="form-check{% if type == 'switch' %} form-switch{% endif %}">
     {{ checkbox_field(class="form-check-input", value=1, **kwargs) }}
     {{ checkbox_field.label(class="form-check-label") }}
@@ -60,22 +63,29 @@
 {% set suffix = "_" ~ source_field.id %}
 <script type="text/javascript">
     var toggleField{{ suffix }} = function() {
+        var toggleOn, toggleVal;
+
         // Get the checked/unchecked status if the field is a checkbox, otherwise get the field's value
         if ($("#{{ source_field.id }}").is(':checkbox')) {
-            toggleVal = $('#{{ source_field.id }}').prop('checked') ? 1 : 0;
+            toggleVal = $('#{{ source_field.id }}').prop('checked') ? "1" : "0";
+        } else if ($("#{{ source_field.id }}").is("div")) {
+            // For checkgroup source fields, we only support a single on_value
+            toggleOn = $('#{{ source_field.id }}-{{ on_values[0]|string }}').prop('checked') ? true : false;
         } else {
             toggleVal = $("#{{ source_field.id }}").val();
         }
 
         // Set whether we should toggle the target fields "on" or "off" based on the values provided
         // If no off_values or on_values were provided, we rely on truthiness instead
-        {% if off_values %}
-            toggleOn = ({{ off_values|safe }}.includes(toggleVal) === false);
-        {% elif on_values %}
-            toggleOn = {{ on_values|safe }}.includes(toggleVal);
-        {% else %}
-            toggleOn = Boolean(toggleVal);
-        {% endif %}
+        if (toggleOn === undefined) {
+            {% if off_values %}
+                toggleOn = ({{ off_values|safe }}.map(String).includes(toggleVal) === false);
+            {% elif on_values %}
+                toggleOn = {{ on_values|safe }}.map(String).includes(toggleVal);
+            {% else %}
+                toggleOn = Boolean(isNaN(parseInt(toggleVal)) ? toggleVal : parseInt(toggleVal));
+            {% endif %}
+        }
 
         {% for target_field in target_fields %}
             if ('{{ prop }}' == 'visibility') {
@@ -132,7 +142,7 @@
             <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card"
             data-value="{{ opt.value }}">{{ opt.name }}</a>
         </h5>
-        {{ opt.price|format_currency }}
+        {% if opt.price %}{{ opt.price|format_currency }}{% endif %}
     </div>
     <div class="card-body" style="transform: rotate(0);">
     {% if opt.icon %}
@@ -171,4 +181,138 @@
     });
     var makeBadgeMatchExtra = function () {}; // TODO: Remove
 </script>
+{%- endmacro %}
+
+{% macro address_fields(model, form_obj) %}
+<div class="row g-3">
+  <div class="col">
+    {{ form_input(form_obj.address1) }}
+  </div>
+  <div class="col">
+    {{ form_input(form_obj.address2) }}
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col">
+    {{ form_input(form_obj.country) }}
+  </div>
+  <div class="col">
+    {{ form_input(form_obj.region_us) }}
+    {{ form_input(form_obj.region_canada) }}
+    {{ form_input(form_obj.region) }}
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col">
+    {{ form_input(form_obj.city) }}
+  </div>
+  <div class="col">
+    {{ form_input(form_obj.zip_code) }}
+  </div>
+</div>
+<script type="text/javascript">
+    {%- set country_id = form_obj.country.id %}
+    var regionChange{{ country_id }} = function() {
+        $('#{{ form_obj.region_us.id }}').prop('disabled', true).parent('.form-floating').hide();
+        $('#{{ form_obj.region_canada.id }}').prop('disabled', true).parent('.form-floating').hide();
+        $('#{{ form_obj.region.id }}').prop('disabled', false).parent('.form-floating').show();
+        var whichCountry = $('#{{ country_id }}').find(':selected').text();
+        switch(whichCountry) {
+              case 'United States':
+                $('#{{ form_obj.region.id }}').prop('disabled', true).parent('.form-floating').hide();
+                $('#{{ form_obj.region_us.id }}').prop('disabled', false).parent('.form-floating').show();
+                break;
+              case 'Canada':
+                $('#{{ form_obj.region.id }}').prop('disabled', true).parent('.form-floating').hide();
+                $('#{{ form_obj.region_canada.id }}').prop('disabled', false).parent('.form-floating').show();
+                break;
+          }
+    }
+    $(function() {
+        $('#{{ country_id }}').selectToAutocomplete().change(function() {
+            regionChange{{ country_id }}();
+        });
+        regionChange{{ country_id }}();
+    })
+</script>
+{%- endmacro %}
+
+{% macro form_validation(form_id, page_handler='validate_attendee', form_list=[], include_disclaimers_modal=false) %}
+<div class="alert" role="alert" id="form-validations"></div>
+
+<script type="text/javascript">
+  var serverValidationPassed = false;
+  
+  var runServerValidations = function($form, go_to_cart) {
+    if(!$("#{{ form_id }}")[0].checkValidity()) {
+      $("#{{ form_id }}")[0].reportValidity();
+    } else {
+        var form_list = {{ form_list|safe }}.join(',')
+        if (form_list != '') {
+            form_list = '&form_list=' + form_list
+        }
+      $.post("{{ page_handler }}", $form.serialize() + form_list, function (response) {
+        $("#form-validations").hide().removeClass().addClass("alert").html("");
+        $(".is-invalid").each(function() {
+          var field_id = $(this).attr('id');
+          $(this).removeClass('is-invalid');
+          $("#" + field_id + "-validation").hide();
+        });
+        if (response.error) {
+          $("#form-validations").addClass("alert-danger").html(
+            "Please correct the following errors:" +
+            "<ul></ul>"
+            );
+          $.each(response.error, function(key, val) {
+            val = val.join(" ");
+            if ($("#" + key).length != 0) {
+              var field_label = $("label[for='" + key + "']").text();
+              $("#form-validations").find("ul").append("<li>" + field_label + ": " + val + "</li>");
+              $("#" + key).addClass("is-invalid");
+            } else {
+              $("#form-validations").find("ul").append("<li>" + val + "</li>");
+            }
+
+            if ($("#" + key + "-validation").length != 0)
+            {
+              $("#" + key + "-validation").html(val).show();
+            }
+          });
+          $("#form-validations").show();
+          $('html, body').animate({scrollTop: $("#form-validations").offset().top}, 50);
+        } else {
+          serverValidationPassed = true;
+          if (go_to_cart != '') {
+            $("#prereg-form").find($("[name=go_to_cart]")).click();
+          } else {
+            $("#{{ form_id }}").submit();
+          }
+        }
+      }, 'json');
+    }
+  }
+
+  $(function () {
+    $("#form-validations").hide();
+    {% if c.ATTENDEE_ACCOUNTS_ENABLED and not logged_in_account %}
+      {{ submit_validation_and_disclaimer("account-form", include_disclaimers_modal) }}
+    {% endif %}
+      {{ submit_validation_and_disclaimer(form_id, include_disclaimers_modal) }}
+});
+</script>
+{%- endmacro %}
+
+{% macro submit_validation_and_disclaimer(form_id, include_disclaimers_modal=false) %}
+$("#{{ form_id }}").submit(function (event) { 
+    if(!serverValidationPassed) {
+      runServerValidations($(this), event.originalEvent.submitter.name);
+      return false;
+    }
+    {% if include_disclaimers_modal %}
+    if(!disclaimersConfirmed) {
+        openDisclaimersModal();
+        return false;
+    }
+    {% endif %}
+});
 {%- endmacro %}

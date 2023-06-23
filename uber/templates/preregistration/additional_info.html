@@ -1,0 +1,33 @@
+{% extends "./preregistration/preregbase.html" %}
+{%- set is_prereg_attendee = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}
+{% import 'forms/macros.html' as form_macros with context %}
+{% block title %}Additional Info{% endblock %}
+{% block backlink %}{% endblock %}
+{% block content %}
+{% if not editing %}
+{% include 'preregistration/disclaimer_popup.html' %}
+{% endif %}
+{% include 'prereg_masthead.html' %}
+<div class="card">
+  <div class="card-body">
+    {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_OPEN) }}
+
+    {{ form_macros.form_validation('prereg-form', form_list=['OtherInfo'], include_disclaimers_modal=not editing) }}
+
+    <form method="post" id="prereg-form" action="additional_info" class="form-horizontal" role="form">
+        <input type="hidden" name="id" value="{{ attendee.id }}" />
+        {{ csrf_token() }}
+        {% include "forms/other_info.html" %}
+      <div class="form-group">
+        <div class="col-sm-9 col-sm-offset-3">
+            {% if editing %}
+            <button type="submit" class="btn btn-primary" value="Update">Update</button>
+            {% else %}
+            <button type="submit" class="btn btn-primary" value="Add to Cart">Add to Cart</button>
+            {% endif %}
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

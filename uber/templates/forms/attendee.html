@@ -1111,9 +1111,8 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 {% set address %}
 {% set read_only = address_ro or page_ro %}
 {% if c.COLLECT_FULL_ADDRESS or attendee.shipping_fee_cost %}
+{% include "region_opts.html" %}
   <script type="text/javascript">
-      {% include "region_opts.html" %}
-
       var setInternational = function () {
           countryName = $.field('country').val();
           if(countryName == 'United States') {
