@@ -830,6 +830,15 @@ def get_api_service_from_server(target_server, api_token):
     return service, message, target_url
 
 
+def prepare_saml_request(request):
+    return {
+        'http_host': request.headers.get('Host', ''),
+        'script_name': request.script_name + request.path_info,
+        'get_data': request.params.copy() if request.method == 'GET' else {},
+        'post_data': request.params.copy() if request.method == 'POST' else {},
+    }
+
+
 class request_cached_context:
     """
     We cache certain variables (like c.BADGES_SOLD) on a per-cherrypy.request basis.
