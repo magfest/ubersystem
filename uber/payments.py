@@ -22,7 +22,6 @@ from uuid import uuid4
 import cherrypy
 import phonenumbers
 import stripe
-from authlib.integrations.requests_client import OAuth2Session
 from phonenumbers import PhoneNumberFormat
 from pockets import cached_property, classproperty, floor_datetime, is_listy, listify
 from pockets.autolog import log
