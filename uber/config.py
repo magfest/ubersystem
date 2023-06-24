@@ -942,9 +942,7 @@ class AWSSecretFetcher:
         log.error("Could not retrieve secret from AWS. Is the secret name (\"{}\") correct?".format(secret_name))
 
     def get_all_secrets(self):
-        self.get_auth0_secret()
         self.get_signnow_secret()
-
 
     def get_signnow_secret(self):
         if not c.AWS_SIGNNOW_SECRET_NAME:
