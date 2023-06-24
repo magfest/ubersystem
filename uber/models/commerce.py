@@ -17,7 +17,7 @@ from uber.custom_tags import format_currency
 from uber.models import MagModel
 from uber.models.attendee import Attendee, AttendeeAccount, Group
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column
-from uber.utils import Charge
+from uber.payments import ReceiptManager
 
 
 __all__ = [
@@ -178,7 +178,10 @@ class ModelReceipt(MagModel):
         from uber.models import Session
 
         for txn in sorted(self.pending_txns, key=lambda t: t.added, reverse=True):
-            error = txn.check_stripe_id()
+            if c.AUTHORIZENET_LOGIN_ID:
+                error = None # TODO: do we need anything here?
+            else:
+                error = txn.check_stripe_id()
             if error or txn.amount != self.current_receipt_amount:
                 if error:
                     txn.cancelled = datetime.now() # TODO: Add logs to txns/items and log the automatic cancellation reason?
@@ -243,7 +246,8 @@ class ReceiptTransaction(MagModel):
             return actions
 
         if self.intent_id:
-            actions.append('refresh_receipt_txn')
+            if not c.AUTHORIZENET_LOGIN_ID:
+                actions.append('refresh_receipt_txn')
             if not self.charge_id:
                 actions.append('cancel_receipt_txn')
 
@@ -261,7 +265,15 @@ class ReceiptTransaction(MagModel):
         if not self.stripe_id:
             return ''
         
-        return "https://dashboard.stripe.com/payments/{}".format(self.intent_id or self.get_intent_id_from_refund())
+        if c.AUTHORIZENET_LOGIN_ID:
+            if not self.charge_id:
+                return ''
+            if 'test' in c.AUTHORIZENET_ENDPOINT:
+                return "https://sandbox.authorize.net/ui/themes/sandbox/transaction/transactiondetail.aspx?transID={}".format(self.charge_id)
+            else:
+                return "{}".format(self.charge_id)
+        else:
+            return "https://dashboard.stripe.com/payments/{}".format(self.intent_id or self.get_intent_id_from_refund())
 
     @property
     def amount_left(self):
@@ -280,7 +292,7 @@ class ReceiptTransaction(MagModel):
         # Check all possible Stripe IDs for invalid request errors
         # Stripe IDs become invalid if, for example, the Stripe API keys change
 
-        if not self.stripe_id:
+        if c.AUTHORIZENET_LOGIN_ID or not self.stripe_id:
             return
         
         refund_intent_id = None
@@ -305,7 +317,7 @@ class ReceiptTransaction(MagModel):
                 return e.user_message
 
     def get_intent_id_from_refund(self):
-        if not self.refund_id:
+        if c.AUTHORIZENET_LOGIN_ID or not self.refund_id:
             return
 
         try:
@@ -327,18 +339,18 @@ class ReceiptTransaction(MagModel):
             log.error(e)
 
     def check_paid_from_stripe(self):
-        if self.charge_id:
+        if self.charge_id or c.AUTHORIZENET_LOGIN_ID:
             return
 
         intent = self.get_stripe_intent()
         if intent and intent.charges:
             new_charge_id = intent.charges.data[0].id
-            Charge.mark_paid_from_intent_id(self.intent_id, new_charge_id)
+            ReceiptManager.mark_paid_from_intent_id(self.intent_id, new_charge_id)
             return new_charge_id
 
     def update_amount_refunded(self):
         from uber.models import Session
-        if not self.intent_id:
+        if c.AUTHORIZENET_LOGIN_ID or not self.intent_id:
             return 0
         
         refunded_total = 0

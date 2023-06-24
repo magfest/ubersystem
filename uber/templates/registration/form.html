@@ -11,7 +11,7 @@
 {% if c.AT_THE_CON and receipt and receipt.current_amount_owed and not attendee.is_new %}
     <div class="alert alert-warning center" role="alert">
     <h4>{{ attendee.full_name }} currently owes <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.</h4>
-    {% if Charge %}
+    {% if payment_enabled %}
     {{ stripe_form('manual_reg_charge', attendee) }}
     {% else %}
     Please instruct them to pay at an at-door or manager station.

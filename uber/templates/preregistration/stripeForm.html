@@ -29,7 +29,14 @@
 }
 </style>
 {% if not stripe_loaded %}
+{% if c.AUTHORIZENET_LOGIN_ID %}
+<script type="text/javascript"
+    src="https://js{{ 'test' if 'test' in c.AUTHORIZENET_ENDPOINT else '' }}.authorize.net/v1/Accept.js"
+    charset="utf-8">
+</script>
+{% else %}
 <script src="https://js.stripe.com/v3/" async></script>
+{% endif %}
 {% set stripe_loaded = true %}
 {% endif %}
 <button class="btn btn-info stripe-btn"{% if 'stripe_button_id' in params %} id="{{ params['stripe_button_id'] }}"{% endif %} onClick="callStripeAction();">
@@ -44,6 +51,29 @@
         </div>
         <div class="modal-body text-left jumbotron">
         <div class="charge_desc" style="margin-bottom:10px;"></div>
+        {% if c.AUTHORIZENET_LOGIN_ID %}
+            <form id="payment-form" class="visually-hidden"
+                method="POST"
+                action="index">
+                <div class="form-row">
+                    <strong>Credit or debit card</strong>
+                    <input type="text" class="form-control" name="cardNumber" id="cardNumber" placeholder="Card Number"
+                        inputmode="numeric" autocomplete="cc-number" autocorrect="off" aria-label="Credit or debit card number"/>
+                    &nbsp;
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="expMonth" id="expMonth" placeholder="MM"
+                        inputmode="numeric" autocomplete="cc-exp-month" autocorrect="off" aria-label="Credit or debit card expiration month"/>
+                        <span class="input-group-text">/</span>
+                        <input type="text" class="form-control" name="expYear" id="expYear" placeholder="YY"
+                        inputmode="numeric" autocomplete="cc-exp-year" autocorrect="off" aria-label="Credit or debit card expiration year"/>
+                        <input type="text" class="form-control" name="cardCode" id="cardCode" placeholder="CVC"
+                        inputmode="numeric" autocomplete="cc-csc" autocorrect="off" aria-label="Credit or debit card CVC/CVV"/>
+                    </div>
+                    <div style="margin-top:10px;"><button class="btn btn-success">Submit Payment</button>
+                    <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button></div>
+                </div>
+            </form>
+        {% else %}
         <form action="/charge" method="post" id="payment-form" class="visually-hidden">
         <div class="form-row">
             <label for="card-element">
@@ -59,6 +89,7 @@
         <div style="margin-top:10px;"><button class="btn btn-success">Submit Payment</button>
         <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button></div>
         </form>
+        {% endif %}
         </div>
     </div>
   </div>
@@ -94,11 +125,105 @@ var callStripeAction = function (autoTrigger=false) {
             var cancel_url = result.cancel_url || '../preregistration/cancel_payment'
             $('#stripeModal').find('.modal-title').text('Paying ' + dollars + ' to {{ c.ORGANIZATION_NAME }}');
             $('#stripeModal').find('.charge_desc').text(result.stripe_intent.description);
-            collectStripePayment(result.stripe_intent.client_secret, result.stripe_intent.id, result.success_url, cancel_url);
+            {% if c.AUTHORIZENET_LOGIN_ID %}
+                collectAuthNetPayment(result.stripe_intent.id, result.stripe_intent.receipt_email, result.stripe_intent.description, result.success_url, cancel_url, result.stripe_intent.amount)
+            {% else %}
+                collectStripePayment(result.stripe_intent.client_secret, result.stripe_intent.id, result.success_url, cancel_url);
+            {% endif %}
         }
         });
 };
 
+var processSuccessUrl = function(success_url) {
+    if(success_url == '') {
+        // Special override for at-door check-in modal payment workflow
+        window[loadCheckInForm()];
+    } else {
+        window.location.replace(success_url);
+    }
+}
+
+var processCancelUrl = function(result, form, card=null) {
+    if (result.redirect_url) {
+        window.location.replace(result.redirect_url);
+    } else if (result.message) {
+        $("#message-alert").addClass("alert-danger").show().children('span').html(result.message);
+        $(form).addClass('visually-hidden');
+        $('#stripeModal').off('hidden.bs.modal');
+        if (card != null) {
+            setTimeout(()=> {
+                card.destroy();
+            }
+            ,3000);
+        }
+    }
+}
+
+{% if c.AUTHORIZENET_LOGIN_ID %}
+var collectAuthNetPayment = function (ref_id, email, desc, success_url, cancel_url, amount) {
+    var form = $('#payment-form');
+    form.removeClass('visually-hidden');
+    var authData = {
+        clientKey: "{{ c.AUTHORIZENET_PUBLIC_KEY }}",
+        apiLoginID: "{{ c.AUTHORIZENET_LOGIN_ID }}"
+    };
+
+    $('#stripeModal').modal('show');
+    $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+
+    var handleAuthNetResponse = function (response) {
+        if (response.messages.resultCode === "Error") {
+            $("#message-alert").addClass("alert-danger").show().children('span').html(response.messages.message[0].text);
+            form.addClass('visually-hidden');
+            $('#stripeModal').off('hidden.bs.modal');
+
+            var i = 0;
+            while (i < response.messages.message.length) {
+                console.log(
+                    response.messages.message[i].code + ": " +
+                    response.messages.message[i].text
+                );
+                i = i + 1;
+            }
+        } else {
+            $.post("../preregistration/submit_authnet_charge", {
+                ref_id: ref_id,
+                amount: amount,
+                email: email,
+                desc: desc,
+                token_desc: response.opaqueData.dataDescriptor,
+                token_val: response.opaqueData.dataValue,
+                csrf_token: csrf_token
+            },
+            function(result) {
+                if (result.error) {
+                    $("#message-alert").addClass("alert-danger").show().children('span').html(result.error.message);
+                } else {
+                    // The payment has been processed!
+                    processSuccessUrl(success_url);
+                };
+            });
+        }
+    }
+    
+    form.on('submit', function(event) {
+        event.preventDefault();
+        var cardData = {
+            cardNumber: $("#cardNumber").val(),
+            month: $("#expMonth").val(),
+            year: $("#expYear").val(),
+            cardCode: $("#cardCode").val()
+        };
+
+        var secureData = {
+            authData: authData,
+            cardData: cardData
+        };
+
+        Accept.dispatchData(secureData, handleAuthNetResponse);
+    });
+}
+{% else %}
 var collectStripePayment = function (client_secret, stripe_id, success_url, cancel_url) {
     $('#stripeModal').modal('show');
     $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
@@ -110,17 +235,7 @@ var collectStripePayment = function (client_secret, stripe_id, success_url, canc
     $('#stripeModal').on('hidden.bs.modal', function (e) {
         $.post(cancel_url, {stripe_id: stripe_id, csrf_token: csrf_token},
         function(result) {
-            if (result.redirect_url) {
-                window.location.replace(result.redirect_url);
-            } else if (result.message) {
-                $("#message-alert").addClass("alert-danger").show().children('span').html(result.message);
-                $(form).addClass('visually-hidden');
-                $('#stripeModal').off('hidden.bs.modal');
-                setTimeout(()=> {
-                    card.destroy();
-                }
-                ,3000);
-            }
+            processCancelUrl(result, form, card);
         });
     })
 
@@ -167,17 +282,13 @@ var collectStripePayment = function (client_secret, stripe_id, success_url, canc
             } else {
                 // The payment has been processed!
                 if (result.paymentIntent.status === 'succeeded') {
-                    if(success_url == '') {
-                        // Special override for at-door check-in modal payment workflow
-                        window[loadCheckInForm()];
-                    } else {
-                        window.location.replace(success_url);
-                    }
+                    processSuccessUrl(success_url);
                 }
             };
         });
     });
 }
+{% endif %}
 </script>
 {% endif %}
 {% set stripeModal = true %}

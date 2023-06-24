@@ -13,7 +13,8 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, not_site_mappable, public, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiJob, ApiToken
-from uber.utils import Charge, check
+from uber.utils import check
+from uber.payments import ReceiptManager
 
 
 @all_renderable()
@@ -172,7 +173,7 @@ class Root:
 
         if event and event['type'] == 'payment_intent.succeeded':
             payment_intent = event['data']['object']
-            matching_txns = Charge.mark_paid_from_intent_id(payment_intent['id'], payment_intent.charges.data[0].id)
+            matching_txns = ReceiptManager.mark_paid_from_intent_id(payment_intent['id'], payment_intent.charges.data[0].id)
             if not matching_txns:
                 cherrypy.response.status = 400
                 return "No matching Stripe transactions"

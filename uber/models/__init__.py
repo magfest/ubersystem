@@ -34,8 +34,9 @@ from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
-from uber.utils import Charge, check_csrf, normalize_email, normalize_phone, DeptChecklistConf, report_critical_exception, \
+from uber.utils import check_csrf, normalize_email, normalize_phone, DeptChecklistConf, report_critical_exception, \
     valid_email, valid_password
+from uber.payments import ReceiptManager
 
 
 def _make_getter(model):
@@ -175,7 +176,7 @@ class MagModel:
         Because things like discounts exist, we ensure default_cost will never
         return a negative value.
         """
-        receipt, receipt_items = Charge.create_new_receipt(self)
+        receipt, receipt_items = ReceiptManager.create_new_receipt(self)
             
         return max(0, sum([(cost * count) for desc, cost, count in receipt_items]) / 100)
 
@@ -903,174 +904,6 @@ class Session(SessionManager):
                 job.to_dict(fields)
                 for job in jobs if (job.required_roles or frozenset(job.minutes) not in restricted_minutes)]
 
-        def update_receipt_item_from_param(self, model, receipt, param_name, params, func_name='process_receipt_upgrade_item'):
-            charge_func = getattr(Charge, func_name)
-            try:
-                receipt_item = charge_func(model, param_name, receipt=receipt, new_val=params[param_name])
-                if receipt_item.amount != 0:
-                    self.add(receipt_item)
-            except Exception as e:
-                self.rollback()
-                log.error(str(e))
-
-        def auto_update_receipt(self, model, params):
-            params = params.copy()
-            receipt = self.get_receipt_by_model(model)
-            if not receipt:
-                return
-
-            if params.get('no_override') and params.get('overridden_price') or params.get('overridden_price') == '':
-                params['overridden_price'] = None
-
-            model_overridden_price = getattr(model, 'overridden_price', None)
-            model_auto_recalc = getattr(model, 'auto_recalc', True)
-            overridden_unset = model_overridden_price and not params.get('overridden_price')
-            auto_recalc_unset = not model_auto_recalc and params.get('auto_recalc', None)
-
-            if (model_overridden_price and not overridden_unset) or (not model_auto_recalc and not auto_recalc_unset):
-                return
-
-            if params.get('overridden_price'):
-                return self.update_receipt_item_from_param(model, receipt, 'overridden_price', params)
-            
-            if not params.get('auto_recalc', True):
-                return self.update_receipt_item_from_param(model, receipt, 'cost', params)
-            else:
-                params.pop('cost', None)
-            
-            if params.get('power_fee', None) != None and c.POWER_PRICES.get(int(params.get('power'), 0), None) == None:
-                error = self.update_receipt_item_from_param(model, receipt, 'power_fee', params)
-                if error:
-                    return error
-                params.pop('power')
-                params.pop('power_fee')
-            
-            cost_changes = getattr(model.__class__, 'cost_changes', [])
-            credit_changes = getattr(model.__class__, 'credit_changes', [])
-            for param in params:
-                if param in credit_changes:
-                    error = self.update_receipt_item_from_param(model, receipt, param, params, 'process_receipt_credit_change')
-                    if error:
-                        return error
-                elif param in cost_changes:
-                    error = self.update_receipt_item_from_param(model, receipt, param, params)
-                    if error:
-                        return error
-
-        def refund_item_or_txn(self, amount=0, txn=None, item=None):
-            if item:
-                txn = txn or item.receipt_txn
-
-            if not txn:
-                return "Transaction not found for this receipt item."
-
-            error = self.preprocess_refund(txn, amount, bool(item))
-            if error:
-                return error
-
-            response = self.process_refund(txn, amount)
-            if response and isinstance(response, six.string_types):
-                return response
-
-        def preprocess_refund(self, txn, amount=0, already_refunded_error=True):
-            """
-            Performs error checks and updates transactions to prepare them for process_refund.
-            Call this to skip over transactions that can't be refunded or if you always want 
-            the Stripe response from process_refund. Otherwise, call refund_item_or_txn instead.
-            """
-            from uber.custom_tags import format_currency
-            from uber.models import Attendee
-
-            if not txn.intent_id:
-                return "Can't refund a transaction that is not a Stripe payment."
-            
-            error = txn.check_stripe_id()
-            if error:
-                return "Error issuing refund: " + str(error)
-
-            if not txn.charge_id:
-                charge_id = txn.check_paid_from_stripe()
-                if not charge_id:
-                    return "We could not find record of this payment being completed."
-
-            already_refunded = txn.update_amount_refunded()
-            if txn.amount - already_refunded <= 0:
-                if already_refunded_error:
-                    return "This payment has already been fully refunded."
-
-            refund_amount = int(amount or (txn.amount - already_refunded))
-            if txn.amount - already_refunded < refund_amount:
-                return "There is not enough left on this transaction to refund {}.".format(format_currency(refund_amount / 100))                
-
-        def process_refund(self, txn, amount=0):
-            """
-            Attempts to refund a given Stripe transaction. Either call this after preprocess_refund
-            or call refund_item_or_txn instead.
-
-            Returns either an error message, a Stripe Refund() object, or None if the transaction had no successful charges
-            """
-            import stripe
-            from pockets.autolog import log
-
-            refund_amount = amount or txn.amount_left
-
-            balance = stripe.Balance.retrieve()
-            if balance['instant_available'][0]['amount'] < refund_amount:
-                return "We cannot currently refund this transaction. Please try again in a few days or contact an administrator."
-
-            log.debug('REFUND: attempting to refund Stripe transaction with ID {} {} cents for {}',
-                      txn.stripe_id, refund_amount, txn.desc)
-
-            try:
-                response = stripe.Refund.create(
-                            payment_intent=txn.intent_id, amount=int(refund_amount), reason='requested_by_customer')
-            except Exception as e:
-                error_txt = 'Error while calling process_refund' \
-                            '(self, stripeID={!r})'.format(txn.stripe_id)
-                report_critical_exception(
-                    msg=error_txt,
-                    subject='ERROR: MAGFest Stripe invalid request error')
-                return 'An unexpected problem occurred: ' + str(e)
-            else:
-                self.add(ReceiptTransaction(
-                    receipt_id=txn.receipt.id,
-                    refund_id=response.id,
-                    amount=refund_amount * -1,
-                    desc="Automatic refund of Stripe transaction " + txn.stripe_id,
-                    who=uber.models.AdminAccount.admin_name() or 'non-admin'
-                ))
-
-                self.add(txn)
-                txn.refunded += refund_amount
-
-                model = self.get_model_by_receipt(txn.receipt)
-                if isinstance(model, Attendee) and model.paid == c.HAS_PAID:
-                    model.paid = c.REFUNDED
-                    self.add(model)
-                
-                self.commit()
-                self.refresh(txn)
-                return response
-
-        def process_receipt_charge(self, receipt, charge, payment_method=c.STRIPE):
-            """
-            Creates the stripe intent and receipt transaction for a given charge object.
-            Most methods should call this instead of calling create_stripe_intent and 
-            create_receipt_transaction directly.
-            """
-            stripe_intent = charge.create_stripe_intent()
-            if isinstance(stripe_intent, six.string_types):
-                self.rollback()
-                return stripe_intent
-
-            receipt_txn = Charge.create_receipt_transaction(receipt, charge.description, stripe_intent.id, method=payment_method)
-            if isinstance(receipt_txn, six.string_types):
-                self.rollback()
-                return receipt_txn
-
-            self.add(receipt_txn)
-            return stripe_intent
-
         def possible_match_list(self):
             possibles = defaultdict(list)
             for a in self.valid_attendees():
@@ -1229,12 +1062,11 @@ class Session(SessionManager):
             receipt = receipt_select.first()
 
             if not receipt and create_if_none:
-                receipt, receipt_items = Charge.create_new_receipt(model, create_model=True)
+                receipt, receipt_items = ReceiptManager.create_new_receipt(model, create_model=True)
 
                 self.add(receipt)
                 if create_if_none != "BLANK":
-                    for item in receipt_items:
-                        self.add(item)
+                    self.add_all(receipt_items)
                 self.commit()
             return receipt
 
@@ -1242,6 +1074,20 @@ class Session(SessionManager):
             cls = getattr(uber.models, receipt.owner_model)
             if cls:
                 return self.query(cls).filter_by(id=receipt.owner_id).first()
+
+        def refresh_receipt_and_model(self, model):
+            receipt = self.get_receipt_by_model(model)
+            if receipt:
+                for txn in receipt.pending_txns:
+                    txn.check_paid_from_stripe()
+                self.refresh(receipt)
+            
+            try:
+                self.refresh(model)
+            except sqlalchemy.exc.InvalidRequestError:
+                # Non-persistent object, so nothing to refresh
+                pass
+            return receipt
 
         def attendee_from_marketplace_app(self, **params):
             attendee, message = self.create_or_find_attendee_by_id(**params)
@@ -1273,20 +1119,6 @@ class Session(SessionManager):
 
         def lookup_agent_code(self, code):
             return self.query(ArtShowApplication).filter_by(agent_code=code).all()
-
-        def refresh_receipt_and_model(self, model):
-            receipt = self.get_receipt_by_model(model)
-            if receipt:
-                for txn in receipt.pending_txns:
-                    txn.check_paid_from_stripe()
-                self.refresh(receipt)
-            
-            try:
-                self.refresh(model)
-            except sqlalchemy.exc.InvalidRequestError:
-                # Non-persistent object, so nothing to refresh
-                pass
-            return receipt
 
         def add_promo_code_to_attendee(self, attendee, code):
             """

@@ -13,7 +13,7 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, credit_card
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Tracking, ArbitraryCharge, MarketplaceApplication
-from uber.utils import Charge, check, localized_now, Order, remove_opt
+from uber.utils import check, localized_now, Order, remove_opt
 
 
 @all_renderable()

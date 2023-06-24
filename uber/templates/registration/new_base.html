@@ -276,9 +276,6 @@
                 </select>
                     <button class="btn btn-success" type="submit" disabled="disabled">Mark as Paid</button>
                 </form>
-              <!-- this is causing major slowdowns, TODO: fix after the event!
-                 OR <br/>
-                {{ stripe_form('manual_reg_charge',Charge(attendee)) }} -->
             {% endif %}
         </td>
         {% if attendee.paid == c.PAID_BY_GROUP %}

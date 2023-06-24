@@ -23,8 +23,9 @@ from uber.errors import HTTPRedirect
 from uber.models import Attendee, AttendeeAccount, Department, Email, Group, Job, PageViewTracking, PrintJob, PromoCode, \
     PromoCodeGroup, Sale, Session, Shift, Tracking, WatchList
 from uber.site_sections.preregistration import check_account
-from uber.utils import add_opt, check, check_pii_consent, Charge, get_page, hour_day_format, \
+from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
     localized_now, Order, normalize_email
+from uber.payments import TransactionRequest, ReceiptManager
 
 
 def pre_checkin_check(attendee, group):
@@ -127,9 +128,9 @@ class Root:
     @log_pageview
     def form(self, session, message='', return_to='', **params):
         if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-            message = session.auto_update_receipt(session.attendee(params.get('id')), params)
-            if message:
-                log.error("Error while auto-updating attendee receipt: {}".format(message))
+            attendee = session.attendee(params.get('id'))
+            receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
+            session.add_all(receipt_items)
 
         attendee = session.attendee(
             params, checkgroups=Attendee.all_checkgroups, bools=Attendee.all_bools, allow_invalid=True)
@@ -211,17 +212,12 @@ class Root:
                 group_id: unassigned
                 for group_id, unassigned in session.query(Attendee.group_id, func.count('*')).filter(
                     Attendee.group_id != None, Attendee.first_name == '').group_by(Attendee.group_id).all()},
-            'Charge': Charge if cherrypy.session.get('reg_station') else None,
+            'payment_enabled': True if cherrypy.session.get('reg_station') else False,
             'reg_station': cherrypy.session.get('reg_station', ''),
             'printer_default_id': cherrypy.session.get('printer_default_id', ''),
             'printer_minor_id': cherrypy.session.get('printer_minor_id', ''),
             'receipt': receipt,
         }  # noqa: E711
-
-        return {
-            'message':  message,
-            'attendee': attendee
-        }
 
     def promo_code_groups(self, session, message=''):
         groups = session.query(PromoCodeGroup).order_by(PromoCodeGroup.name).all()
@@ -504,7 +500,6 @@ class Root:
         return {
             'attendee': attendee,
             'groups': groups,
-            'Charge': Charge,
         }
 
     @check_for_encrypted_badge_num
@@ -687,18 +682,19 @@ class Root:
         attendee = session.attendee(id)
         receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = Charge(attendee, amount=receipt.current_amount_owed, description=charge_desc)
-        stripe_intent = session.process_receipt_charge(receipt, charge)
+        charge = TransactionRequest(receipt, attendee.email, charge_desc)
+        message = charge.process_payment(receipt)
         
-        if isinstance(stripe_intent, string_types):
-            return {'error': stripe_intent}
+        if message:
+            return {'error': message}
         
+        session.add_all(charge.get_receipt_items_to_add())
         session.commit()
         if cherrypy.session.get('kiosk_mode'):
             success_url = 'register?message={}'.format(c.AT_DOOR_PREPAID_MSG)
         else:
             success_url = 'at_door_complete?id={}&message={}'.format(attendee.id, c.AT_DOOR_PREPAID_MSG)
-        return {'stripe_intent': stripe_intent,
+        return {'stripe_intent': charge.intent,
                 'success_url': success_url}
 
     def comments(self, session, order='last_name'):
@@ -727,7 +723,6 @@ class Root:
                                          Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
                                          *restrict_to)
                                  .order_by(Attendee.registered.desc()).all(),
-            'Charge': Charge
         }  # noqa: E711
 
     @not_site_mappable
@@ -757,7 +752,11 @@ class Root:
         else:
             desc = "At-door marked as paid"
 
-        session.add(Charge.create_receipt_transaction(receipt, desc, method=payment_method))
+        receipt_manager = ReceiptManager(receipt)
+        error = receipt_manager.create_payment_transaction(desc, method=payment_method)
+        if error:
+            return {'success': False, 'message': error}
+        session.add_all(receipt_manager.items_to_add)
         
         attendee.reg_station = cherrypy.session.get('reg_station')
         session.commit()
@@ -769,14 +768,15 @@ class Root:
         attendee = session.attendee(id)
         receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = Charge(attendee, amount=receipt.current_amount_owed, description=charge_desc)
+        charge = TransactionRequest(receipt, attendee.email, charge_desc)
 
-        stripe_intent = session.process_receipt_charge(receipt, charge, payment_method=c.MANUAL)
-        if isinstance(stripe_intent, string_types):
-            return {'error': stripe_intent}
+        message = charge.process_payment(receipt, payment_method=c.MANUAL)
+        if message:
+            return {'error': message}
         
+        session.add_all(charge.get_receipt_items_to_add())
         session.commit()
-        return {'stripe_intent': stripe_intent, 'success_url': ''}
+        return {'stripe_intent': charge.intent, 'success_url': ''}
 
     @check_for_encrypted_badge_num
     @csrf_protected
@@ -1052,9 +1052,9 @@ class Root:
     @attendee_view
     def update_attendee(self, session, message='', success=False, **params):
         if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-            message = session.auto_update_receipt(session.attendee(params.get('id')), params)
-            if message:
-                log.error("Error while auto-updating attendee receipt: {}".format(message))
+            attendee = session.attendee(params.get('id'))
+            receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
+            session.add_all(receipt_items)
 
         for key in params:
             if params[key] == "false":

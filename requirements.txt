@@ -4,6 +4,7 @@ python-dateutil==2.6.0
 psycopg2
 py3k-bcrypt==0.3
 stripe==2.42.0
+authorizenet==1.1.4
 pytz==2017.2
 alembic==0.9.1
 treepoem==1.0.1
