@@ -49,10 +49,10 @@
         <div class="modal-header">
         <h4 class="modal-title text-center"></h4>
         </div>
-        <div class="modal-body text-left jumbotron">
+        <div class="modal-body text-start jumbotron">
         <div class="charge_desc" style="margin-bottom:10px;"></div>
         {% if c.AUTHORIZENET_LOGIN_ID %}
-            <form id="payment-form" class="visually-hidden"
+            <form id="payment-form" class="d-none"
                 method="POST"
                 action="index">
                 <div class="form-row">
@@ -74,7 +74,7 @@
                 </div>
             </form>
         {% else %}
-        <form action="/charge" method="post" id="payment-form" class="visually-hidden">
+        <form action="/charge" method="post" id="payment-form" class="d-none">
         <div class="form-row">
             <label for="card-element">
             Credit or debit card
@@ -148,7 +148,7 @@ var processCancelUrl = function(result, form, card=null) {
         window.location.replace(result.redirect_url);
     } else if (result.message) {
         $("#message-alert").addClass("alert-danger").show().children('span').html(result.message);
-        $(form).addClass('visually-hidden');
+        $(form).addClass('d-none');
         $('#stripeModal').off('hidden.bs.modal');
         if (card != null) {
             setTimeout(()=> {
@@ -162,7 +162,7 @@ var processCancelUrl = function(result, form, card=null) {
 {% if c.AUTHORIZENET_LOGIN_ID %}
 var collectAuthNetPayment = function (ref_id, email, desc, success_url, cancel_url, amount) {
     var form = $('#payment-form');
-    form.removeClass('visually-hidden');
+    form.removeClass('d-none');
     var authData = {
         clientKey: "{{ c.AUTHORIZENET_PUBLIC_KEY }}",
         apiLoginID: "{{ c.AUTHORIZENET_LOGIN_ID }}"
@@ -174,7 +174,7 @@ var collectAuthNetPayment = function (ref_id, email, desc, success_url, cancel_u
     var handleAuthNetResponse = function (response) {
         if (response.messages.resultCode === "Error") {
             $("#message-alert").addClass("alert-danger").show().children('span').html(response.messages.message[0].text);
-            form.addClass('visually-hidden');
+            form.addClass('d-none');
             $('#stripeModal').off('hidden.bs.modal');
 
             var i = 0;
@@ -267,7 +267,7 @@ var collectStripePayment = function (client_secret, stripe_id, success_url, canc
         }
     });
 
-    $(form).removeClass('visually-hidden');
+    $(form).removeClass('d-none');
 
     form.addEventListener('submit', function(event) {
         event.preventDefault();

@@ -338,18 +338,24 @@ class TransactionRequest:
     def stripe_or_authnet_refund(self, txn, amount):
         if c.AUTHORIZENET_LOGIN_ID:
             error = self.get_authorizenet_txn(txn.charge_id)
+
             if error:
                 return error
-            if self.response.transactionStatus != "settledSuccessfully":
-                return "This transaction cannot be refunded because it has not been successfully settled."
-            if parse(self.response.submitTimeUTC).replace(tzinfo=pytz.UTC) < datetime.now(pytz.UTC) - timedelta(days=180):
-                return "This transaction is more than 180 days old and cannot be refunded automatically."
-            if self.response.settleAmount * 100 < self.amount:
-                return "This transaction was only for {} so it cannot be refunded {}".format(
-                    format_currency(self.response.settleAmount),
-                    format_currency(self.amount / 100))
-            cc_num = str(self.response.payment.creditCard.cardNumber)[-4:]
-            error = self.send_authorizenet_txn(txn_type=c.REFUND, amount=amount, cc_num=cc_num, txn_id=txn.charge_id)
+
+            if self.response.transactionStatus == "capturedPendingSettlement":
+                error = self.send_authorizenet_txn(txn_type=c.VOID, txn_id=txn.charge_id)
+            elif self.response.transactionStatus != "settledSuccessfully":
+                return "This transaction cannot be refunded because of invalid status: {}".format(self.response.transactionStatus)
+            else:
+                if parse(str(self.response.submitTimeUTC)).replace(tzinfo=pytz.UTC) < datetime.now(pytz.UTC) - timedelta(days=180):
+                    return "This transaction is more than 180 days old and cannot be refunded automatically."
+
+                if self.response.settleAmount * 100 < self.amount:
+                    return "This transaction was only for {} so it cannot be refunded {}".format(
+                        format_currency(self.response.settleAmount),
+                        format_currency(self.amount / 100))
+                cc_num = str(self.response.payment.creditCard.cardNumber)[-4:]
+                error = self.send_authorizenet_txn(txn_type=c.REFUND, amount=amount, cc_num=cc_num, txn_id=txn.charge_id)
             if error:
                 return 'An unexpected problem occurred: ' + str(error)
         else:
@@ -619,12 +625,12 @@ class ReceiptManager:
 
     def update_transaction_refund(self, txn, refund_amount):
         txn.refunded += refund_amount
-        self.items_to_add(txn)
+        self.items_to_add.append(txn)
 
         model = self.get_model_by_receipt(txn.receipt)
         if isinstance(model, uber.models.Attendee) and model.paid == c.HAS_PAID:
             model.paid = c.REFUNDED
-            self.items_to_add.add(model)
+            self.items_to_add.append(model)
 
     @classmethod
     def create_new_receipt(cls, model, create_model=False, items=None):
@@ -809,10 +815,12 @@ class ReceiptManager:
             return []
 
         if params.get('overridden_price'):
-            return [self.add_receipt_item_from_param(model, receipt, 'overridden_price', params)]
+            receipt_item = self.add_receipt_item_from_param(model, receipt, 'overridden_price', params)
+            return [receipt_item] if receipt_item else []
         
         if not params.get('auto_recalc', True):
-            return [self.add_receipt_item_from_param(model, receipt, 'cost', params)]
+            receipt_item = self.add_receipt_item_from_param(model, receipt, 'cost', params)
+            return [receipt_item] if receipt_item else []
         else:
             params.pop('cost', None)
         
