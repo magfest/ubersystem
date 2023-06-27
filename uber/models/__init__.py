@@ -1037,11 +1037,31 @@ class Session(SessionManager):
                             cherrypy.session['attendee_account_id'] = new_account.id
             return attendee, message
 
-        def create_attendee_account(self, email, password=None):
-            from uber.models import AttendeeAccount
+        def create_admin_account(self, attendee, password='', generate_pwd=True, **params):
+            from uber.utils import genpasswd
 
-            new_account = AttendeeAccount(email=email, hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
+            if not password and generate_pwd:
+                password = genpasswd()
+            
+            new_account = AdminAccount(attendee=attendee, hashed=bcrypt.hashpw(password, bcrypt.gensalt()))
+            new_account.apply(params)
             self.add(new_account)
+            return new_account
+
+        def create_attendee_account(self, email=None, normalized_email=None, password=None, match_existing_attendees=False):
+            from uber.models import Attendee, AttendeeAccount
+            from uber.utils import normalize_email_legacy
+
+            if email:
+                normalized_email = uber.utils.normalize_email(email)
+
+            new_account = AttendeeAccount(email=normalized_email, hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
+            self.add(new_account)
+
+            if match_existing_attendees:
+                matching_attendees = self.query(Attendee).filter_by(normalized_email=normalize_email_legacy(email))
+                for attendee in matching_attendees:
+                    self.add_attendee_to_account(attendee, new_account)
             return new_account
 
         def add_attendee_to_account(self, attendee, account):
@@ -1051,7 +1071,7 @@ class Session(SessionManager):
                 account.attendees.append(attendee)
 
         def match_attendee_to_account(self, attendee):
-            existing_account = self.query(AttendeeAccount).filter_by(normalized_email=normalize_email(attendee.email)).first()
+            existing_account = self.query(AttendeeAccount).filter_by(email=normalize_email(attendee.email)).first()
             if existing_account:
                 self.add_attendee_to_account(attendee, existing_account)
 

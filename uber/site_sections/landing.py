@@ -18,17 +18,7 @@ class Root:
         }
     
     def login_select(self, session, **params):
-        redirect_url = ""
-        if not cherrypy.session.get('account_id') and not cherrypy.session.get('attendee_account_id'):
-            redirect_url = "index?message={}".format("You are not logged in.")
-        elif not cherrypy.session.get('account_id'):
-            redirect_url = "../preregistration/homepage"
-        elif not cherrypy.session.get('attendee_account_id'):
-            redirect_url = "../accounts/homepage"
         
-        if redirect_url:
-            raise HTTPRedirect(redirect_url)
-
         return {
             'message': params.get('message')
         }

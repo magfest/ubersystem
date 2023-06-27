@@ -55,7 +55,7 @@ class Root:
         if not message:
             account = session.admin_account(params)
 
-            if account.is_new and not c.SAML_METADATA_URL:
+            if account.is_new and not c.SAML_SETTINGS:
                 if c.AT_OR_POST_CON:
                     if not password:
                         message = 'You must enter a password'
@@ -182,13 +182,13 @@ class Root:
                 ensure_csrf_token_exists()
                 raise HTTPRedirect(original_location)
 
-        if c.SAML_METADATA_URL:
+        if c.SAML_SETTINGS:
             from uber.utils import prepare_saml_request
             from onelogin.saml2.auth import OneLogin_Saml2_Auth
 
             req = prepare_saml_request(cherrypy.request)
             auth = OneLogin_Saml2_Auth(req, c.SAML_SETTINGS)
-            raise HTTPRedirect(auth.login(return_to=c.URL_BASE + original_location))
+            raise HTTPRedirect(auth.login(return_to=c.URL_ROOT + original_location))
 
         return {
             'message': message,
@@ -367,14 +367,14 @@ class Root:
                 if match:
                     account = session.admin_account(params)
                     if account.is_new:
-                        if not c.SAML_METADATA_URL:
+                        if not c.SAML_SETTINGS:
                             password = genpasswd()
                             account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
                         account.attendee = match
                         session.add(account)
                         body = render('emails/accounts/new_account.txt', {
                             'account': account,
-                            'password': password if not c.SAML_METADATA_URL else '',
+                            'password': password if not c.SAML_SETTINGS else '',
                             'creator': AdminAccount.admin_name()
                         }, encoding=None)
                         send_email.delay(

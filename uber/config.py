@@ -1407,10 +1407,10 @@ c.GUEST_CHECKLIST_ITEMS = [
 for item in c.GUEST_CHECKLIST_ITEMS:
     item['deadline_template'] = ['guest_checklist/', item['name'] + '_deadline.html']
 
-if c.SAML_METADATA_URL:
-    from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
+c.SAML_SETTINGS = {}
+if c.SAML_SP_SETTINGS["privateKey"]:
     sp_settings = {
-        "entityId": c.URL_BASE + "/saml/metadata",
+            "entityId": c.URL_BASE + "/saml/metadata",
             "assertionConsumerService": {
                 "url": c.URL_BASE + "/saml/acs",
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
@@ -1420,9 +1420,8 @@ if c.SAML_METADATA_URL:
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
             },
             "NameIDFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
-            # Temp, ask Crimson how he wants to handle this
-            "x509cert": c.SAML_CERT,
-            "privateKey": c.SAML_KEY
+            "x509cert": c.SAML_SP_SETTINGS["x509cert"],
+            "privateKey": c.SAML_SP_SETTINGS["privateKey"]
         }
-    c.SAML_SETTINGS = OneLogin_Saml2_IdPMetadataParser.parse_remote(c.SAML_METADATA_URL)
+    c.SAML_SETTINGS["idp"] = c.SAML_IDP_SETTINGS
     c.SAML_SETTINGS["sp"] = sp_settings
