@@ -2,7 +2,7 @@
 {% block title %}Manage Your Registrations{% endblock %}
 {% block content %}
 {% include 'prereg_masthead.html' %}
-{% include 'preregistration/update_account.html' %}
+{% set account = homepage_account %}
 {% set dealer_reg_open = c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
 {% set prereg_message %}
     {% if c.BEFORE_PREREG_OPEN %}

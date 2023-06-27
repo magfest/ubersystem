@@ -1,6 +1,5 @@
 {% set password_help %}
-<div class="clearfix"></div>
-<p class="help-block col-sm-offset-3 col-sm-6">
+<p class="form-text">
     Passwords must be at least {{ c.MINIMUM_PASSWORD_LENGTH }} characters long
     {% if c.PASSWORD_CONDITIONS %}
         and contain at least 
@@ -15,8 +14,8 @@
 
 {% set new_password_validation %}
 <script type="text/javascript">
-    var password = document.getElementById("new_password")
-    , confirm_password = document.getElementById("confirm_new_password");
+    var password = document.getElementById("new-password")
+    , confirm_password = document.getElementById("confirm-password");
 
     function validatePassword(){
         new_password = password.value;

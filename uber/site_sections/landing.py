@@ -1,6 +1,6 @@
 import cherrypy
 
-from uber.decorators import all_renderable
+from uber.decorators import all_renderable, requires_account
 from uber.errors import HTTPRedirect
 
 
@@ -17,6 +17,7 @@ class Root:
             'kiosk_mode': cherrypy.session.get('kiosk_mode'),
         }
     
+    @requires_account()
     def login_select(self, session, **params):
         
         return {

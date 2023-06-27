@@ -3,11 +3,8 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 {% include "region_opts.html" %}
-<div class="masthead"></div>
+{% include "prereg_masthead.html" %}
 {% set attendee = app.attendee %}
-{% if account %}
-  {% include 'preregistration/update_account.html' %}
-{% endif %}
 <div class="card">
   <div class="card-header">
     Art Show Application Information

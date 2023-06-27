@@ -51,7 +51,8 @@ class Root:
     def update(self, session, password='', message='', **params):
         if not params.get('attendee_id', '') and params.get('id', 'None') == 'None':
             message = "Please select an attendee to create an admin account for."
-        
+        attendee = session.attendee(params['attendee_id'])
+
         if not message:
             account = session.admin_account(params)
 
@@ -71,7 +72,6 @@ class Root:
             message = message or check(account)
         if not message:
             message = 'Account settings uploaded'
-            attendee = session.attendee(account.attendee_id)  # dumb temporary hack, will fix later with tests
             account.attendee = attendee
             session.add(account)
             if account.is_new and not c.AT_OR_POST_CON:
@@ -199,7 +199,7 @@ class Root:
     @public
     def homepage(self, session, message=''):
         if not cherrypy.session.get('account_id'):
-            raise HTTPRedirect('login?message={}', 'You are not logged in')
+            raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
         
         return {
             'message': message,
@@ -210,7 +210,7 @@ class Root:
     @not_site_mappable
     def attendees(self, session, query=''):
         if not cherrypy.session.get('account_id'):
-            raise HTTPRedirect('login?message={}', 'You are not logged in')
+            raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
         
         attendees = session.access_query_matrix()[query].limit(c.ROW_LOAD_LIMIT).all() if query else None
         
@@ -224,16 +224,19 @@ class Root:
             if key not in ['preregs', 'paid_preregs', 'job_defaults', 'prev_location']:
                 cherrypy.session.pop(key)
         
-        raise HTTPRedirect('login?message={}', 'You have been logged out')
+        if c.SAML_SETTINGS:
+            raise HTTPRedirect('../landing/index?message={}', 'You have been logged out.')
+        else:
+            raise HTTPRedirect('login?message={}', 'You have been logged out.')
         
     @public
     @not_site_mappable
     def process_logout(self):
         # We shouldn't need this, but Auth0 is throwing errors
-        # when I try to include a message to the redirect url
+        # when I try to include a message in the redirect url
         # so here we are
 
-        raise HTTPRedirect('../landing/index?message={}', 'You have been logged out')
+        raise HTTPRedirect('../landing/index?message={}', 'You have been logged out.')
 
     @public
     def reset(self, session, message='', email=None):
@@ -273,7 +276,7 @@ class Root:
             updater_password=None,
             new_password=None,
             csrf_token=None,
-            confirm_new_password=None):
+            confirm_password=None):
 
         if updater_password is not None:
             new_password = new_password.strip()
@@ -282,7 +285,7 @@ class Root:
                 message = 'New password is required'
             elif not valid_password(updater_password, updater_account):
                 message = 'Your password is incorrect'
-            elif new_password != confirm_new_password:
+            elif new_password != confirm_password:
                 message = 'Passwords do not match'
             else:
                 check_csrf(csrf_token)
@@ -303,10 +306,10 @@ class Root:
             old_password=None,
             new_password=None,
             csrf_token=None,
-            confirm_new_password=None):
+            confirm_password=None):
 
         if not cherrypy.session.get('account_id'):
-            raise HTTPRedirect('login?message={}', 'You are not logged in')
+            raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
 
         if old_password is not None:
             new_password = new_password.strip()
@@ -315,7 +318,7 @@ class Root:
                 message = 'New password is required'
             elif not valid_password(old_password, account):
                 message = 'Incorrect old password; please try again'
-            elif new_password != confirm_new_password:
+            elif new_password != confirm_password:
                 message = 'Passwords do not match'
             else:
                 check_csrf(csrf_token)

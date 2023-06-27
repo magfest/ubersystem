@@ -13,6 +13,7 @@ from uber.utils import check
 
 @all_renderable(public=True)
 class Root:
+    @requires_account()
     def index(self, session, message='', **params):
         app = session.art_show_application(params, restricted=True,
                                            ignore_csrf=True)
@@ -102,7 +103,7 @@ class Root:
             'app': app,
             'receipt': receipt,
             'incomplete_txn': receipt.get_last_incomplete_txn() if receipt else None,
-            'account': session.get_attendee_account_by_attendee(app.attendee),
+            'homepage_account': session.get_attendee_account_by_attendee(app.attendee),
             'return_to': 'edit?id={}'.format(app.id),
         }
 
