@@ -123,7 +123,17 @@ def normalize_newlines(text):
         return ''
 
 
-def normalize_email(email):
+def normalize_email(email, split_address=False):
+    from email_validator import validate_email
+    response = validate_email(email, check_deliverability=False)
+    if split_address:
+        return response['local'], response['domain']
+    return response['email']
+
+
+def normalize_email_legacy(email):
+    # We're trialing a new way to normalize email for attendee accounts
+    # This is for attendee records themselves
     return email.strip().lower().replace('.', '')
 
 
@@ -1236,7 +1246,7 @@ class TaskUtils:
                 except Exception as ex:
                     import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
 
-                account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email(account_to_import['email'])).first()
+                account = session.query(AttendeeAccount).filter(AttendeeAccount.email == normalize_email(account_to_import['email'])).first()
                 if not account:
                     del account_to_import['id']
                     account = AttendeeAccount().apply(account_to_import, restricted=False)
@@ -1304,7 +1314,7 @@ class TaskUtils:
                 session.commit()
                 return
 
-            account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email(account_to_import['email'])).first()
+            account = session.query(AttendeeAccount).filter(AttendeeAccount.email == normalize_email(account_to_import['email'])).first()
             if not account:
                 del account_to_import['id']
                 account = AttendeeAccount().apply(account_to_import, restricted=False)
@@ -1429,7 +1439,7 @@ class TaskUtils:
                     except Exception as ex:
                         import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
 
-                    account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email(account_to_import['email'])).first()
+                    account = session.query(AttendeeAccount).filter(AttendeeAccount.email == normalize_email(account_to_import['email'])).first()
                     if not account:
                         del account_to_import['id']
                         account = AttendeeAccount().apply(account_to_import, restricted=False)

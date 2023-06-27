@@ -28,7 +28,7 @@ from uber.models import MagModel
 from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, TakesPaymentMixin
-from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthday, hour_day_format, localized_now, mask_string, normalize_email, \
+from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthday, hour_day_format, localized_now, mask_string, normalize_email_legacy, \
     remove_opt
 
 
@@ -1177,7 +1177,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def normalized_email(self):
-        return normalize_email(self.email)
+        return normalize_email_legacy(self.email)
 
     @normalized_email.expression
     def normalized_email(cls):
@@ -2070,14 +2070,6 @@ class AttendeeAccount(MagModel):
     @presave_adjustment
     def strip_email(self):
         self.email = self.email.strip()
-    
-    @hybrid_property
-    def normalized_email(self):
-        return normalize_email(self.email)
-
-    @normalized_email.expression
-    def normalized_email(cls):
-        return func.replace(func.lower(func.trim(cls.email)), '.', '')
 
     @property
     def has_only_one_badge(self):

@@ -72,9 +72,9 @@ def check_account(session, email, password, confirm_password, skip_if_logged_in=
     if email and valid_email(email):
         return valid_email(email)
 
-    existing_account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(email)).first()
-    if existing_account and (old_email and existing_account.normalized_email != normalize_email(old_email)
-            or logged_in_account and logged_in_account.normalized_email != existing_account.normalized_email
+    existing_account = session.query(AttendeeAccount).filter_by(email=normalize_email(email)).first()
+    if existing_account and (old_email and existing_account.email != normalize_email(old_email)
+            or logged_in_account and logged_in_account.email != existing_account.email
             or not old_email and not logged_in_account):
         return "There's already an account with that email address"
     
@@ -87,7 +87,7 @@ def check_account(session, email, password, confirm_password, skip_if_logged_in=
 def set_up_new_account(session, attendee, email=None):
     email = email or attendee.email
     token = genpasswd(short=True)
-    account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(email)).first()
+    account = session.query(AttendeeAccount).filter_by(email=normalize_email(email)).first()
     if account:
         if account.password_reset:
             session.delete(account.password_reset)
@@ -1681,7 +1681,7 @@ class Root:
     def reset_password(self, session, **params):
         if 'account_email' in params:
             account_email = params['account_email']
-            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(account_email)).first()
+            account = session.query(AttendeeAccount).filter_by(email=normalize_email(account_email)).first()
             if 'admin_url' in params:
                 success_url = "../{}message=Password reset email sent.".format(params['admin_url'])
             else:
@@ -1713,7 +1713,7 @@ class Root:
         if 'id' in params:
             account = session.attendee_account(params['id'])
         else:
-            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(account_email)).first()
+            account = session.query(AttendeeAccount).filter_by(email=normalize_email(account_email)).first()
         if not account or not account.password_reset:
             message = 'Invalid link. This link may have already been used or replaced.'
         elif account.password_reset.is_expired:
@@ -1727,7 +1727,7 @@ class Root:
         if cherrypy.request.method == 'POST':
             account_password = params.get('account_password')
             message = check_account(session, account_email, account_password, 
-                                    params.get('confirm_password'), False, True, account.normalized_email)
+                                    params.get('confirm_password'), False, True, account.email)
 
             if not message:
                 account.email = account_email
