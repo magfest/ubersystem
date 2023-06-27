@@ -1,6 +1,7 @@
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 {% set other_info = other_info or forms['other_info'] %}
+{% set personal_info = personal_info or forms['personal_info'] %}
 
 {# BLOCK NAMES in this form:
     staffing
@@ -11,13 +12,27 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 #}
 
 {% block staffing %}
+{% set include_cellphone = (not personal_info or personal_info is none) and not other_info.cellphone.data %}
 <div class="row g-3">
-    <div class="col">{{ form_macros.toggle_checkbox(other_info.staffing, [other_info.requested_dept_ids]) }}</div>
+    <div class="col">{{ form_macros.toggle_checkbox(other_info.staffing, 
+        [other_info.requested_dept_ids, other_info.cellphone] if include_cellphone else [other_info.requested_dept_ids]) }}</div>
 </div>
 
+{% if include_cellphone %}
+<div class="row g-3">
+{% set cellphone_extra_field = form_macros.toggle_checkbox(other_info.no_cellphone, [other_info.cellphone], hide_on_checked=True, prop="readonly") %}
+    <div class="col">{{ form_macros.form_input(other_info.cellphone, extra_field=cellphone_extra_field, readonly=cellphone_ro or (page_ro and not contact_write)) }}</div>
+</div>
+{% elif not personal_info or personal_info is none %}
+{# TODO: handle this better #}
+<input type="hidden" name="no_cellphone" value="{{ other_info.no_cellphone.data }}" />
+{% endif %}
+
+{% if c.JOB_INTEREST_OPTS or c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
 <div class="row g-3">
     <div class="col">{{ form_macros.form_input(other_info.requested_dept_ids) }}</div>
 </div>
+{% endif %}
 {% endblock %}
 
 

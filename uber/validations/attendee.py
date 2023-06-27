@@ -32,7 +32,8 @@ def attendee_badge_under_13(attendee):
 
 ###### Attendee-Facing Validations ######
 def attendee_age_checks(form, field):
-    age_group_conf = get_age_conf_from_birthday(field.data, c.NOW_OR_AT_CON) if form.birthdate.data else field.data
+    age_group_conf = get_age_conf_from_birthday(field.data, c.NOW_OR_AT_CON) \
+        if (hasattr(form, "birthdate") and form.birthdate.data) else field.data
     if age_group_conf and not age_group_conf['can_register']:
         raise ValidationError('Attendees {} years of age do not need to register, ' \
             'but MUST be accompanied by a parent at all times!'.format(age_group_conf['desc'].lower()))
@@ -116,6 +117,9 @@ def age_discount_after_paid(attendee):
 
 @form_validation.cellphone
 def dealer_cellphone_required(form, field):
+    if not hasattr(form, 'badge_type'): # TODO: Is there a better way?
+        return
+
     if form.badge_type.data == c.PSEUDO_DEALER_BADGE and not field.data:
         raise StopValidation('A phone number is required for {}s.'.format(c.DEALER_TERM))
 
@@ -127,6 +131,9 @@ def invalid_format(form, field):
 
 @form_validation.cellphone
 def different_ec_phone(form, field):
+    if not hasattr(form, 'ec_phone'):
+        return
+
     if field.data and field.data == form.ec_phone.data:
         raise ValidationError("Your phone number cannot be the same as your emergency contact number.")
 
@@ -137,6 +144,9 @@ def volunteers_cellphone_or_checkbox(attendee):
 
 @form_validation.ec_phone
 def valid_format(form, field):
+    if not hasattr(form, 'international'):
+        return
+    
     if not form.international.data and invalid_phone_number(field.data):
         if c.COLLECT_FULL_ADDRESS:
             raise ValidationError('Please enter a 10-digit US phone number or include a ' \
@@ -146,6 +156,9 @@ def valid_format(form, field):
 
 @form_validation.onsite_contact
 def required_or_no_contact(form, field):
+    if not hasattr(form, 'no_onsite_contact'):
+        return
+    
     if not field.data and not form.no_onsite_contact.data:
         raise ValidationError('Please enter contact information for at least one trusted friend onsite, ' \
                                 'or indicate that we should use your emergency contact information instead.')
@@ -211,7 +224,7 @@ def banned_volunteer(attendee):
 
 @form_validation.badge_num
 def not_in_range(form, field):
-    if not field.data:
+    if not field.data or not hasattr(form, 'badge_type'):
         return
     
     badge_type = get_real_badge_type(form.badge_type.data)

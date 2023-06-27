@@ -22,7 +22,7 @@ class PersonalInfo(AddressForm, MagForm):
         validators.Email(granular_message=True),
         ],
         render_kw={'placeholder': 'test@example.com'})
-    cellphone = TelField('Phone Number', description="A cellphone number is required for volunteers.", render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
+    cellphone = TelField('Phone Number', render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
     birthdate = DateField('Date of Birth', validators=[attendee_validators.attendee_age_checks])
     age_group = SelectField('Age Group', choices=c.AGE_GROUPS)
 
@@ -35,7 +35,7 @@ class PersonalInfo(AddressForm, MagForm):
     copy_address = BooleanField('Use my business address for my personal address.', default=False)
 
     no_cellphone = BooleanField('I won\'t have a phone with me during the event.')
-    no_onsite_contact = BooleanField('Use my emergency contact information.')
+    no_onsite_contact = BooleanField('My emergency contact is also on site with me at the event.')
     international = BooleanField('I\'m coming from outside the US.')
 
     skip_unassigned_placeholder_validators = {
@@ -64,6 +64,8 @@ class BadgeExtras(MagForm):
 class OtherInfo(MagForm):
     staffing = BooleanField('I am interested in volunteering!', widget=SwitchInput(), description=popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?"))
     requested_dept_ids = SelectMultipleField('Where do you want to help?', choices=c.JOB_INTEREST_OPTS, coerce=int, widget=MultiCheckbox())
+    cellphone = TelField('Phone Number', description="A cellphone number is required for volunteers.", render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
+    no_cellphone = BooleanField('I won\'t have a phone with me during the event.')
     requested_accessibility_services = BooleanField('I would like to be contacted by the {EVENT_NAME} Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', widget=SwitchInput())
     interests = SelectMultipleField('What interests you?', choices=c.INTEREST_OPTS, coerce=int, validators=[validators.Optional()], widget=MultiCheckbox())
 

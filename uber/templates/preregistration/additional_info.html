@@ -18,15 +18,12 @@
         <input type="hidden" name="id" value="{{ attendee.id }}" />
         {{ csrf_token() }}
         {% include "forms/other_info.html" %}
-      <div class="form-group">
-        <div class="col-sm-9 col-sm-offset-3">
-            {% if editing %}
-            <button type="submit" class="btn btn-primary" value="Update">Update</button>
-            {% else %}
-            <button type="submit" class="btn btn-primary" value="Add to Cart">Add to Cart</button>
-            {% endif %}
-        </div>
-      </div>
+        &nbsp;
+        {% if editing and editing is not none %}
+        <button type="submit" class="btn btn-primary mt-3" value="Update">Update</button>
+        {% else %}
+        <button type="submit" class="btn btn-primary mt-3" value="Add to Cart">Add to Cart</button>
+        {% endif %}
     </form>
   </div>
 </div>

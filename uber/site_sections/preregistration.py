@@ -254,26 +254,26 @@ class Root:
         valid session cookie. Thus, this page is also exposed as "post_form".
         """
         params['id'] = 'None'   # security!
+        attendee = Attendee()
         group = Group()
         badges = params.get('badges', 0)
         name = params.get('name', '')
 
         if c.PAGE == 'post_dealer':
             params['badge_type'] = c.PSEUDO_DEALER_BADGE
-        elif not params.get('badge_type'):
+        elif cherrypy.request.method == 'POST' and not params.get('badge_type'):
             params['badge_type'] = c.ATTENDEE_BADGE
 
         if edit_id is not None:
             attendee = self._get_unsaved(
                 edit_id,
                 if_not_found=HTTPRedirect('form?message={}', 'That preregistration expired or has already been finalized.'))
-            attendee.apply(params, restricted=True)
-            forms = load_forms(params, attendee, attendee_form, ['PersonalInfo', 'BadgeExtras', 'Consents'])
             badges = getattr(attendee, 'badges', 0)
             name = getattr(attendee, 'name', '')
-        else:
-            attendee = session.attendee(params, ignore_csrf=True, restricted=True)
-            forms = load_forms({}, attendee, attendee_form, ['PersonalInfo', 'BadgeExtras', 'Consents'])
+
+        forms = load_forms(params, attendee, attendee_form, ['PersonalInfo', 'BadgeExtras', 'Consents'])
+        for form in forms.values():
+            form.populate_obj(attendee)
 
         if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
             # Both the Attendee class and Group class have identically named
@@ -487,7 +487,7 @@ class Root:
             'logged_in_account': session.current_attendee_account(),
             'message':    message,
             'attendee':   attendee,
-            'editing': editing,
+            'editing': editing if editing != "None" else None,
             'forms': forms,
         }
 
@@ -580,9 +580,7 @@ class Root:
     @ajax
     @credit_card
     def prereg_payment(self, session, message='', **params):
-        log.debug(listify(PreregCart.unpaid_preregs.values()))
         cart = PreregCart(listify(PreregCart.unpaid_preregs.values()))
-        log.debug(cart.targets)
         cart.set_total_cost()
         if not cart.total_cost:
             if not cart.models:
@@ -941,7 +939,7 @@ class Root:
 
         return {
             'group':   group,
-            'account': session.get_attendee_account_by_attendee(group.leader),
+            'homepage_account': session.get_attendee_account_by_attendee(group.leader),
             'logged_in_account': session.current_attendee_account(),
             'upgraded_badges': len([a for a in group.attendees if a.badge_type in c.BADGE_TYPE_PRICES]),
             'signnow_document': signnow_document,
@@ -1281,8 +1279,8 @@ class Root:
 
         cherrypy.session['attendee_account_id'] = account.id
         ensure_csrf_token_exists()
-                raise HTTPRedirect(original_location)
-
+        return {'success': True}
+    
     @ajax
     def create_account(self, session, **params):
         from uber.utils import ensure_csrf_token_exists
@@ -1369,11 +1367,14 @@ class Root:
         placeholder = attendee.placeholder
 
         receipt = session.get_receipt_by_model(attendee)
-        forms = load_forms(params, attendee, attendee_form, ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents'])
+        form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo']
+        if placeholder:
+            form_list.append('Consents')
+        forms = load_forms(params, attendee, attendee_form, form_list)
 
         if cherrypy.request.method == 'POST' and not message:
-            attendee = session.attendee(params, restricted=True)
-            forms['personal_info'].populate_obj(attendee)
+            for form in forms.values():
+                form.populate_obj(attendee)
             attendee.placeholder = False
 
             message = check(attendee, prereg=True)
@@ -1403,8 +1404,6 @@ class Root:
         elif not message and not c.ATTENDEE_ACCOUNTS_ENABLED and attendee.badge_status == c.COMPLETED_STATUS:
             message = 'You are already registered but you may update your information with this form.'
 
-        group_credit = receipt_items.credit_calculation.items['Attendee']['group_discount'](attendee)
-
         return {
             'undoing_extra': undoing_extra,
             'return_to':     return_to,
@@ -1415,7 +1414,6 @@ class Root:
             'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
             'receipt':       session.get_receipt_by_model(attendee) if attendee.is_valid else None,
             'incomplete_txn':  receipt.get_last_incomplete_txn() if receipt else None,
-            'attendee_group_discount': (group_credit[1] / 100) if group_credit else 0,
             'forms': forms,
             'pii_consent':  params.get('pii_consent'),
         }
@@ -1455,7 +1453,12 @@ class Root:
         else:
             unassigned_group_reg, valid_placeholder = False, False
 
+        if 'PersonalInfo' in form_list and 'OtherInfo' in form_list:
+            del forms['other_info'].cellphone # TODO: Find a better way to handle these cases
+
         all_errors = defaultdict(list)
+        if not prereg:
+            preview_attendee = Attendee(**attendee.to_dict()) # TODO: Is there a better way to do this?
 
         for module in forms.values():
             extra_validators = defaultdict(list)
@@ -1465,8 +1468,7 @@ class Root:
                 else:
                     extra_validators[key].extend(val)
 
-            for key in module.field_list():
-                field = getattr(module, key, None)
+            for key, field in module.field_list:
                 extra_validators[key].extend(attendee_validators.form_validation.get_validations_by_field(key))
                 if field and (attendee.is_new or getattr(attendee, key, None) != field.data):
                     extra_validators[key].extend(attendee_validators.new_or_changed_validation.get_validations_by_field(key))
@@ -1475,12 +1477,13 @@ class Root:
             if not valid:
                 for key, val in module.errors.items():
                     all_errors[key].extend(val)
+            elif not prereg:
+                module.populate_obj(preview_attendee)
 
         if all_errors:
             return {"error": all_errors}
 
         if not prereg:
-            preview_attendee = session.attendee(params, restricted=True)
             for key, val in attendee_validators.post_form_validation.get_validation_dict().items():
                 for func in val:
                     message = func(preview_attendee)

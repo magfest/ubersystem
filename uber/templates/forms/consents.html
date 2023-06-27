@@ -18,7 +18,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% block required %}
 {% if attendee.placeholder or attendee.is_new %}
 <div class="row g-3">
-    <div class="col">{{ form_macros.form_input(consents.pii_consent, checked=edit_id) }}</div>
+    <div class="col">{{ form_macros.form_input(consents.pii_consent, checked=edit_id is not none) }}</div>
 </div>
 {% endif %}
 {% endblock %}

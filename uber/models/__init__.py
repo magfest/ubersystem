@@ -443,6 +443,11 @@ class MagModel:
             elif value == '' and isinstance(column.type, (Float, Numeric, Choice, Integer, UTCDateTime, Date)):
                 return None
 
+            elif isinstance(column.type, Boolean):
+                if isinstance(value, six.string_types):
+                    return value.strip().lower() not in ('f', 'false', 'n', 'no', '0')
+                return bool(value)
+
             elif isinstance(column.type, Float):
                 return float(value)
 
