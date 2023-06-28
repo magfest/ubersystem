@@ -10,9 +10,14 @@
     {% block head_styles %}
         <link rel="stylesheet" href="../static/deps/combined.min.css" />
         <link rel="stylesheet" href="../static_views/styles/main.css" />
+        {% if 'preregistration' in c.PAGE_PATH or 'landing' in c.PAGE_PATH or admin_area %}
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
         <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+        {% else %}
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+        {% endif %}
         {% if admin_area %}
             <link rel="stylesheet" type="text/css" href="../static_views/additional-styles.css" />
         {% else %}
@@ -34,6 +39,13 @@
             $(window).on("runJavaScript", function () {
               $('[data-toggle="tooltip"]').tooltip()
             })
+
+            showErrorMessage = function(message='', alertId="message-alert") {
+                $("#" + alertId).addClass("alert-danger").show().children('span').html(message);
+            }
+            hideMessage = function(alertId="message-alert") {
+                $("#" + alertId).hide();
+            }
         </script>
 
         {% if not dont_show_csrf_token %}
@@ -434,7 +446,7 @@
         {% endif %}
         {% endblock %}
         {% block header %}{% endblock %}
-        {% block alert %}<div class="alert alert-dismissible" role="alert" id="message-alert"><span></span><button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>{% endblock %}
+        {% block alert %}<div class="alert alert-dismissible" role="alert" id="message-alert"><span></span><button type="button" class="btn-close" onClick="hideMessage()" aria-label="Close"></button></div>{% endblock %}
         {% block content %}{% endblock %}
         <div id="bottomAnchor"></div>
     </div>

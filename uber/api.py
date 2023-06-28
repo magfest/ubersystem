@@ -773,7 +773,7 @@ class AttendeeAccountLookup:
             else:
                 email_accounts = []
                 if emails:
-                    email_accounts = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email.in_(list(emails.keys()))) \
+                    email_accounts = session.query(AttendeeAccount).filter(AttendeeAccount.email.in_(list(emails.keys()))) \
                         .options(subqueryload(AttendeeAccount.attendees)).order_by(AttendeeAccount.email, AttendeeAccount.id).all()
 
                 known_emails = set(a.normalized_email for a in email_accounts)

@@ -12,7 +12,7 @@ from pockets import listify
 from pockets.autolog import log
 from six import string_types
 from sqlalchemy import func
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from onelogin.saml2.auth import OneLogin_Saml2_Auth
 from onelogin.saml2.settings import OneLogin_Saml2_Settings
 from onelogin.saml2.utils import OneLogin_Saml2_Utils
@@ -24,10 +24,10 @@ from uber.custom_tags import email_only
 from uber.decorators import ajax, all_renderable, not_site_mappable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, ModelReceipt, PromoCode, PromoCodeGroup, \
+from uber.models import Attendee, AccessGroup, AttendeeAccount, Attraction, Email, Group, ModelReceipt, PromoCode, PromoCodeGroup, \
                         ReceiptTransaction, SignedDocument, Tracking
 from uber.tasks.email import send_email
-from uber.utils import prepare_saml_request
+from uber.utils import prepare_saml_request, normalize_email_legacy
     
 
 @all_renderable(public=True)
@@ -43,39 +43,61 @@ class Root:
                 account_email = auth.get_nameid()
                 admin_account = None
                 account = None
+                matching_attendee = session.query(Attendee).filter_by(is_valid=True, normalized_email=normalize_email_legacy(account_email)).first()
 
                 try:
                     admin_account = session.get_admin_account_by_email(account_email)
-                    cherrypy.session['account_id'] = admin_account.id
                 except NoResultFound:
-                    pass
+                    if c.DEV_BOX:
+                        if not matching_attendee:
+                            matching_attendee = Attendee(placeholder=True, email=account_email)
+                            session.add(matching_attendee)
+                            session.commit()
+
+                        admin_account = session.create_admin_account(matching_attendee, generate_pwd=False)
+                        all_access_group = session.query(AccessGroup).filter_by(name="All Access").first()
+                        if all_access_group:
+                            admin_account.access_groups.append(all_access_group)
+                if admin_account:
+                    cherrypy.session['account_id'] = admin_account.id
 
                 try:
                     account = session.get_attendee_account_by_email(account_email)
-                    cherrypy.session['attendee_account_id'] = account.id
                 except NoResultFound:
-                    pass
-
-                saml_data = auth.get_attributes()
+                    account = session.create_attendee_account(account_email, match_existing_attendees=True)
+                
+                if account:
+                    cherrypy.session['attendee_account_id'] = account.id
 
                 if not admin_account and not account:
-                    raise HTTPRedirect("../landing/index?message=No account found for email {}", account_email)
-                elif admin_account:
-                    admin_account.attendee.first_name = saml_data.get("firstName", admin_account.attendee.first_name)
-                    admin_account.attendee.last_name = saml_data.get("lastName", admin_account.attendee.last_name)
-                    session.add(admin_account.attendee)
-
-                log.debug(saml_data)
-                redirect_url = req['post_data'].get('RelayState', '')
+                    raise HTTPRedirect("../landing/index?message={}",
+                                       "We could not find create any accounts from the email {}. \
+                                        Please contact your administrator.".format(account_email))
                 
+                if admin_account:
+                    attendee_to_update = admin_account.attendee
+                else:
+                    attendee_to_update = matching_attendee
+                
+                if attendee_to_update:
+                    saml_data = auth.get_attributes()
+                    attendee_to_update.first_name = saml_data.get("firstName", [admin_account.attendee.first_name])[0]
+                    attendee_to_update.last_name = saml_data.get("lastName", [admin_account.attendee.last_name])[0]
+                    session.add(attendee_to_update)
+
+                session.commit()
+
+                redirect_url = req['post_data'].get('RelayState', '')
+
                 if redirect_url:
                     if OneLogin_Saml2_Utils.get_self_url(req) != redirect_url:
-                        redirect_url = None
-                    else:
-                        our_netloc = urlparse(c.URL_BASE).netloc
+                        our_netloc = urlparse(c.URL_ROOT).netloc
                         redirect_netloc = urlparse(redirect_url).netloc
-                        if redirect_netloc and our_netloc != redirect_netloc:
+                        if not redirect_netloc or redirect_netloc != our_netloc:
                             log.error("SAML authentication used invalid redirect URL: {}".format(redirect_url))
+                            redirect_url = None
+                        if redirect_url and 'accounts' in redirect_url and not admin_account:
+                            # Prevents a redirect loop if someone tries to log in as an admin with no admin account
                             redirect_url = None
                 
                 if not redirect_url:
@@ -105,20 +127,3 @@ class Root:
             error_msg = "Error found on SAML Metadata: %s" % (', '.join(errors))
             log.error(error_msg)
             return error_msg
-
-    @not_site_mappable
-    def logout(self, session, **params):
-        req = prepare_saml_request(cherrypy.request)
-        auth = OneLogin_Saml2_Auth(req)
-        delete_session_callback = lambda: cherrypy.session.flush()
-        url = auth.process_slo(delete_session_cb=delete_session_callback)
-        errors = auth.get_errors()
-        if len(errors) == 0:
-            if url is not None:
-                # To avoid 'Open Redirect' attacks, before execute the redirection confirm
-                # the value of the url is a trusted URL.
-                raise HTTPRedirect(url)
-            else:
-                log.debug("Successfully Logged out")
-        else:
-            log.error("Error when processing SLO: %s %s" % (', '.join(errors), auth.get_last_error_reason()))

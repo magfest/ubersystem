@@ -195,8 +195,14 @@ def requires_account(model=None):
                 admin_account_id = cherrypy.session.get('account_id')
                 attendee_account_id = cherrypy.session.get('attendee_account_id')
                 message = ''
-                if attendee_account_id is None and admin_account_id is None:
-                    message = 'You are not logged in'
+                if not model and not attendee_account_id:
+                    # These should all be pages like the prereg form
+                    message = 'Please log in or create an account to {}!'.format(
+                        "register" if c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form']
+                        else "fill out this application")
+                    raise HTTPRedirect('../landing/index?message={}'.format(message), save_location=True)
+                elif attendee_account_id is None and admin_account_id is None:
+                    message = 'You must log in to view this page.'
                 elif kwargs.get('id') and model:
                     check_id_for_model(model, **kwargs)
                     if model == Attendee:
@@ -213,12 +219,12 @@ def requires_account(model=None):
                     account = session.query(AttendeeAccount).get(attendee_account_id) if attendee_account_id else None
                     
                     if not account or account not in attendee.managers:
-                        message = 'You do not have permission to view this page'
+                        message = 'You do not have permission to view this page.'
 
                 if message:
                     if admin_account_id:
                         raise HTTPRedirect('../accounts/homepage?message={}'.format(message))
-                    raise HTTPRedirect('../preregistration/login?message={}'.format(message), save_location=True)
+                    raise HTTPRedirect('../landing/index?message={}'.format(message), save_location=True)
             return func(*args, **kwargs)
         return protected
     return model_requires_account
@@ -235,7 +241,7 @@ def requires_admin(func=None, inherent_role=None, override_access=None):
                 with uber.models.Session() as session:
                     message = check_can_edit_dept(session, department_id, inherent_role, override_access)
                     if message:
-                        raise HTTPRedirect('../landing/invalid?message={}'.format(message))
+                        raise HTTPRedirect('../accounts/homepage?message={}'.format(message), save_location=True)
             return func(*args, **kwargs)
         return _protected
 
@@ -608,11 +614,13 @@ def renderable(func):
         except CSRFException as e:
             message = "Your CSRF token is invalid. Please go back and try again."
             uber.server.log_exception_with_verbose_context(msg=str(e))
-            raise HTTPRedirect("../landing/invalid?message={}", message)
+            if not c.DEV_BOX:
+                raise HTTPRedirect("../landing/invalid?message={}", message)
         except (AssertionError, ValueError) as e:
             message = str(e)
             uber.server.log_exception_with_verbose_context(msg=message)
-            raise HTTPRedirect("../landing/invalid?message={}", message)
+            if not c.DEV_BOX:
+                raise HTTPRedirect("../landing/invalid?message={}", message)
         except TypeError as e:
             # Very restrictive pattern so we don't accidentally match legit errors
             pattern = r"^{}\(\) missing 1 required positional argument: '\S*?id'$".format(func.__name__)
@@ -620,7 +628,8 @@ def renderable(func):
                 # NOTE: We are NOT logging the exception if the user entered an invalid URL
                 message = 'Looks like you tried to access a page without all the query parameters. '\
                           'Please go back and try again.'
-                raise HTTPRedirect("../landing/invalid?message={}", message)
+                if not c.DEV_BOX:
+                    raise HTTPRedirect("../landing/invalid?message={}", message)
             else:
                 raise
 

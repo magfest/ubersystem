@@ -18,11 +18,10 @@ from sqlalchemy.orm import joinedload
 from uber.config import c
 from uber.custom_tags import format_currency
 from uber.decorators import ajax, ajax_gettable, all_renderable, attendee_view, check_for_encrypted_badge_num, check_if_can_reg, credit_card, \
-    csrf_protected, department_id_adapter, log_pageview, not_site_mappable, render, site_mappable, public
+    csrf_protected, department_id_adapter, log_pageview, not_site_mappable, render, requires_account, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, AttendeeAccount, Department, Email, Group, Job, PageViewTracking, PrintJob, PromoCode, \
     PromoCodeGroup, Sale, Session, Shift, Tracking, WatchList
-from uber.site_sections.preregistration import check_account
 from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
     localized_now, Order, normalize_email
 from uber.payments import TransactionRequest, ReceiptManager
@@ -565,6 +564,7 @@ class Root:
     @public
     @check_atd
     @check_if_can_reg
+    @requires_account()
     def register(self, session, message='', error_message='', **params):
         params['id'] = 'None'
         login_email = None
@@ -585,38 +585,21 @@ class Root:
 
         attendee = session.attendee(params, restricted=True, ignore_csrf=True)
         error_message = error_message or check_pii_consent(params, attendee)
-        if not error_message and 'first_name' in params:
-            if c.ATTENDEE_ACCOUNTS_ENABLED:
-                if login_email:
-                    account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(login_email)).first()
-                    if not account:
-                        error_message = 'No account exists for that email address'
-                    elif not bcrypt.hashpw(login_password, account.hashed) == account.hashed:
-                        error_message = 'Incorrect password'
-                    else:
-                        new_or_existing_account = account
-                else:
-                    error_message = check_account(session, account_email, account_password, params.get('confirm_password'))
-            
-            if not error_message:
-                if not payment_method and (not c.BADGE_PRICE_WAIVED or c.BEFORE_BADGE_PRICE_WAIVED):
-                    error_message = 'Please select a payment type'
-                elif payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
-                    error_message = 'Email address is required to pay with a credit card at our registration desk'
-                elif attendee.badge_type not in [badge for badge, desc in c.AT_THE_DOOR_BADGE_OPTS]:
-                    error_message = 'No hacking allowed!'
-                else:
-                    error_message = check(attendee)
+        if not error_message and 'first_name' in params:            
+            if not payment_method and (not c.BADGE_PRICE_WAIVED or c.BEFORE_BADGE_PRICE_WAIVED):
+                error_message = 'Please select a payment type'
+            elif payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
+                error_message = 'Email address is required to pay with a credit card at our registration desk'
+            elif attendee.badge_type not in [badge for badge, desc in c.AT_THE_DOOR_BADGE_OPTS]:
+                error_message = 'No hacking allowed!'
+            else:
+                error_message = check(attendee)
 
             if not error_message and c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
                 error_message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
             if not error_message:
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
-                    if not login_email:
-                        new_or_existing_account = session.current_attendee_account()
-                    if not new_or_existing_account:
-                        new_or_existing_account = session.create_attendee_account(account_email, account_password)
-                    session.add_attendee_to_account(attendee, new_or_existing_account)
+                    new_or_existing_account = session.current_attendee_account()
                     if not in_kiosk_mode:
                         cherrypy.session['attendee_account_id'] = new_or_existing_account.id
 

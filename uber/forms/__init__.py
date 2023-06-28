@@ -1,4 +1,5 @@
 import re
+import cherrypy
 
 from importlib import import_module
 from markupsafe import Markup
@@ -98,23 +99,32 @@ class MagForm(Form):
         
         # Special form data preprocessing!
         #
-        # WTForms is supposed to use data from obj if it's not present in formdata
-        # but a bug prevents this from working for boolean fields so let's do it ourselves
+        # Checkboxes aren't submitted in HTML forms if they're unchecked; additionally, there is a bug in WTForms
+        # So if a checkbox isn't present in the params, we use the object's value UNLESS this form was submitted,
+        # in which case we set it to false
         #
         # We also convert our MultiChoice value (a string) into the list of strings that WTForms expects
         for name, field in self._fields.items():
             field_in_obj = hasattr(obj, name)
             field_in_formdata = name in formdata
             if isinstance(field, BooleanField) and not field_in_formdata and field_in_obj:
-                formdata[name] = getattr(obj, name)
+                if cherrypy.request.method == 'POST':
+                    formdata[name] = False
+                else:
+                    formdata[name] = getattr(obj, name)
             elif hasattr(obj, 'all_checkgroups') and not field_in_formdata and field_in_obj and \
                 name in obj.all_checkgroups and isinstance(getattr(obj, name), str):
                 formdata[name] = getattr(obj, name).split(',')
 
         super().__init__(formdata, obj, prefix, data, meta, **kwargs)
 
+    @property
     def field_list(self):
-        return list(self._fields.keys())
+        return list(self._fields.items())
+    
+    @property
+    def bool_list(self):
+        return [(key, field) for key, field in self._fields.items() if field.type == 'BooleanField']
     
     def populate_obj(self, obj):
         """ Adds alias processing and data coercion to populate_obj. Note that we bypass fields' populate_obj. """

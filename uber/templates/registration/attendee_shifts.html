@@ -130,7 +130,7 @@
             <td>{{ shift.job.weighted_hours }}</td>
             <td id="shift_status_{{ shift.id }}"></td>
             <td id="shift_rating_{{ shift.id }}"></td>
-            <td class="text-right">
+            <td class="text-end">
               <form method="post" action="../shifts_admin/unassign_shift">
                 {{ csrf_token() }}
                 <input type="hidden" name="shift_id" value="{{ shift.id }}" />

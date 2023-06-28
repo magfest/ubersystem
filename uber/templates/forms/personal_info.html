@@ -1,6 +1,7 @@
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 {% set personal_info = personal_info or forms['personal_info'] %}
+{% set other_info = other_info or forms['other_info'] %}
 
 {# BLOCK NAMES in this form:
       name
@@ -11,7 +12,6 @@
 
   Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
-
 
 {% block name %}
 {% set name_read_only = name_ro or (page_ro and not (limited_write or contact_write)) %}
@@ -43,8 +43,8 @@
                     checked=copy_email or (attendee.group and attendee.email == attendee.group.email)) %}
   {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.copy_phone, [personal_info.cellphone], toggle_required=True, prop="readonly",
                     checked=copy_phone or (attendee.group and attendee.cellphone == attendee.group.phone)) %}
-{% else %}
-  {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.no_cellphone, [personal_info.cellphone], hide_on_checked=True, prop="disabled") %}
+{% elif attendee.staffing or (other_info and other_info is not none) %}
+  {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.no_cellphone, [personal_info.cellphone], hide_on_checked=True, prop="readonly") %}
 {% endif %}
 
 <div class="row g-3">

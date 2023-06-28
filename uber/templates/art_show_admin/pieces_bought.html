@@ -67,7 +67,7 @@ Invoice #{{ receipt.invoice_num }}
         <th>Artist Name</th>
         <th>Gallery</th>
         <th>Type</th>
-        <th class="text-right">Price</th>
+        <th class="text-end">Price</th>
       </tr>
       </thead>
       <tbody>
@@ -94,19 +94,19 @@ Invoice #{{ receipt.invoice_num }}
         <td> {{ piece.type_label }}
           {% if piece.print_run_num and piece.type == c.PRINT %}({{ piece.print_run_num }} of {{ piece.print_run_total }}){% endif %}
         </td>
-        <td class="text-right"> {{ piece.sale_price|format_currency }}
+        <td class="text-end"> {{ piece.sale_price|format_currency }}
         </td>
       </tr>
       {% endfor %}
       {% if receipt.pieces %}
-      <tr><td colspan="9" class="text-right">Subtotal: {{ (receipt.subtotal / 100)|format_currency }}</td></tr>
-      <tr><td colspan="9" class="text-right">Sales Tax ({{ c.SALES_TAX / 100 }}%): {{ (receipt.tax / 100)|format_currency }}</td></tr>
-      <tr><td colspan="9" class="text-right">Total Cost: {{ (receipt.total / 100)|format_currency }}</td></tr>
-      <tr><td colspan="9" class="text-right">Total Paid: {{ (receipt.paid / 100)|format_currency }}</td></tr>
+      <tr><td colspan="9" class="text-end">Subtotal: {{ (receipt.subtotal / 100)|format_currency }}</td></tr>
+      <tr><td colspan="9" class="text-end">Sales Tax ({{ c.SALES_TAX / 100 }}%): {{ (receipt.tax / 100)|format_currency }}</td></tr>
+      <tr><td colspan="9" class="text-end">Total Cost: {{ (receipt.total / 100)|format_currency }}</td></tr>
+      <tr><td colspan="9" class="text-end">Total Paid: {{ (receipt.paid / 100)|format_currency }}</td></tr>
       <tr><td colspan="9"></td></tr>
       {% if receipt.owed and receipt_open %}
-      <tr><td colspan="9" class="text-right">Owed: {{ (receipt.owed / 100)|format_currency }}</td></tr>
-      <tr><td colspan="9" class="text-right">
+      <tr><td colspan="9" class="text-end">Owed: {{ (receipt.owed / 100)|format_currency }}</td></tr>
+      <tr><td colspan="9" class="text-end">
         <form role="form" method="post" class="form form-inline" action="record_payment">
           <input type="hidden" name="id" value="{{ receipt.id }}" />
           <input type="hidden" name="type" value="{{ c.CASH }}" />
@@ -116,7 +116,7 @@ Invoice #{{ receipt.invoice_num }}
           <button type="submit" class="btn btn-success">Record Cash Payment</button>
         </form>
       </td></tr>
-      <tr><td colspan="9" class="text-right">
+      <tr><td colspan="9" class="text-end">
       <div class="form form-inline">
           <div class="input-group">
             <input type="hidden" id="original_total_cents" value="{{ receipt.owed }}" />
@@ -126,7 +126,7 @@ Invoice #{{ receipt.invoice_num }}
       </div>
       </td></tr>
       {% endif %}
-      <tr><td colspan="9" class="text-right">
+      <tr><td colspan="9" class="text-end">
         <form role="form" method="post" class="form form-inline" action="record_payment">
           <input type="hidden" name="id" value="{{ receipt.id }}" />
           <input type="hidden" name="type" value="{{ c.REFUND }}" />
@@ -137,10 +137,10 @@ Invoice #{{ receipt.invoice_num }}
         </form>
       </td></tr>
       {% if not receipt.owed %}
-      <tr><td colspan="9" class="text-right"><button class="btn btn-primary" id="print_receipt">Print{% if receipt_open %} & Close Out{% endif %} Receipt</button></td></tr>
+      <tr><td colspan="9" class="text-end"><button class="btn btn-primary" id="print_receipt">Print{% if receipt_open %} & Close Out{% endif %} Receipt</button></td></tr>
       {% endif %}
       {% for payment in receipt.art_show_payments %}
-      <tr><td colspan="9" class="text-right">
+      <tr><td colspan="9" class="text-end">
         <form role="form" method="post" action="undo_payment">
           {%- set payment_desc -%}
           {%- if payment.type == c.REFUND -%}

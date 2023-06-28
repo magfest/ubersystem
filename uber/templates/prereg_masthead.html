@@ -1,7 +1,9 @@
 {% block masthead %}
-<div class="card">
-    <div class="masthead"></div>
-    {% include 'preregistration/create_or_login_account.html' %}
-</div>
+<div class="masthead"></div>
+{% if homepage_account %}
+<div class="text-center card-body">{% include "preregistration/update_account.html" %}</div>
+{% elif logged_in_account %}
+<div class="text-center card-body">You are currently logged in as <strong>{{ logged_in_account.email }}</strong>. <a href="../preregistration/logout?return_to={{ c.PAGE_PATH }}" class="btn btn-sm btn-danger">Logout</a></div>
+{% endif %}
 &nbsp;
 {% endblock %}

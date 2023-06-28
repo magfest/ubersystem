@@ -17,7 +17,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from uber import receipt_items
 from uber.config import c
 from uber.custom_tags import email_only
-from uber.decorators import ajax, all_renderable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
+from uber.decorators import ajax, ajax_gettable, all_renderable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
 from uber.forms import attendee as attendee_form, load_forms
@@ -72,11 +72,11 @@ def check_account(session, email, password, confirm_password, skip_if_logged_in=
     if email and valid_email(email):
         return valid_email(email)
 
-    existing_account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(email)).first()
-    if existing_account and (old_email and existing_account.normalized_email != normalize_email(old_email)
-            or logged_in_account and logged_in_account.normalized_email != existing_account.normalized_email
+    existing_account = session.query(AttendeeAccount).filter_by(email=normalize_email(email)).first()
+    if existing_account and (old_email and existing_account.email != normalize_email(old_email)
+            or logged_in_account and logged_in_account.email != existing_account.email
             or not old_email and not logged_in_account):
-        return "There's already an account with that email address"
+        return "There's already an account with that email address."
     
     if update_password:
         if password and password != confirm_password:
@@ -87,7 +87,7 @@ def check_account(session, email, password, confirm_password, skip_if_logged_in=
 def set_up_new_account(session, attendee, email=None):
     email = email or attendee.email
     token = genpasswd(short=True)
-    account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(email)).first()
+    account = session.query(AttendeeAccount).filter_by(email=normalize_email(email)).first()
     if account:
         if account.password_reset:
             session.delete(account.password_reset)
@@ -202,6 +202,7 @@ class Root:
             }
 
     @check_if_can_reg
+    @requires_account()
     def dealer_registration(self, message='', invite_code=''):
         return self.form(badge_type=c.PSEUDO_DEALER_BADGE, message=message, invite_code=invite_code)
 
@@ -244,6 +245,7 @@ class Root:
     @cherrypy.expose(['post_form', 'post_dealer'])
     @redirect_if_at_con_to_kiosk
     @check_if_can_reg
+    @requires_account()
     def form(self, session, message='', edit_id=None, **params):
         """
         Our production NGINX config caches the page at /preregistration/form.
@@ -252,26 +254,26 @@ class Root:
         valid session cookie. Thus, this page is also exposed as "post_form".
         """
         params['id'] = 'None'   # security!
+        attendee = Attendee()
         group = Group()
         badges = params.get('badges', 0)
         name = params.get('name', '')
 
         if c.PAGE == 'post_dealer':
             params['badge_type'] = c.PSEUDO_DEALER_BADGE
-        elif not params.get('badge_type'):
+        elif cherrypy.request.method == 'POST' and not params.get('badge_type'):
             params['badge_type'] = c.ATTENDEE_BADGE
 
         if edit_id is not None:
             attendee = self._get_unsaved(
                 edit_id,
                 if_not_found=HTTPRedirect('form?message={}', 'That preregistration expired or has already been finalized.'))
-            attendee.apply(params, restricted=True)
-            forms = load_forms(params, attendee, attendee_form, ['PersonalInfo', 'BadgeExtras', 'Consents'])
             badges = getattr(attendee, 'badges', 0)
             name = getattr(attendee, 'name', '')
-        else:
-            attendee = session.attendee(params, ignore_csrf=True, restricted=True)
-            forms = load_forms({}, attendee, attendee_form, ['PersonalInfo', 'BadgeExtras', 'Consents'])
+
+        forms = load_forms(params, attendee, attendee_form, ['PersonalInfo', 'BadgeExtras', 'Consents'])
+        for form in forms.values():
+            form.populate_obj(attendee)
 
         if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
             # Both the Attendee class and Group class have identically named
@@ -357,18 +359,9 @@ class Root:
                 params['badges'] = 0
                 params['name'] = ''
 
-            if not message and c.ATTENDEE_ACCOUNTS_ENABLED:
-                attendee_account = session.current_attendee_account()
-                if not attendee_account:
-                    account_email, account_password = params.get('account_email'), params.get('account_password')
-                    if not account_email:
-                        account_email = attendee.email
-                    message = check_account(session, account_email, account_password, params.get('confirm_password'))
-                    if not message:
-                        attendee_account = session.create_attendee_account(account_email, account_password)
-                        cherrypy.session['attendee_account_id'] = attendee_account.id
-
             if not message:
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    attendee_account = session.current_attendee_account()
                 if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                     if attendee_account:
                         session.add_attendee_to_account(attendee, attendee_account)
@@ -494,7 +487,7 @@ class Root:
             'logged_in_account': session.current_attendee_account(),
             'message':    message,
             'attendee':   attendee,
-            'editing': editing,
+            'editing': editing if editing != "None" else None,
             'forms': forms,
         }
 
@@ -587,9 +580,7 @@ class Root:
     @ajax
     @credit_card
     def prereg_payment(self, session, message='', **params):
-        log.debug(listify(PreregCart.unpaid_preregs.values()))
         cart = PreregCart(listify(PreregCart.unpaid_preregs.values()))
-        log.debug(cart.targets)
         cart.set_total_cost()
         if not cart.total_cost:
             if not cart.models:
@@ -948,7 +939,7 @@ class Root:
 
         return {
             'group':   group,
-            'account': session.get_attendee_account_by_attendee(group.leader),
+            'homepage_account': session.get_attendee_account_by_attendee(group.leader),
             'logged_in_account': session.current_attendee_account(),
             'upgraded_badges': len([a for a in group.attendees if a.badge_type in c.BADGE_TYPE_PRICES]),
             'signnow_document': signnow_document,
@@ -1262,32 +1253,58 @@ class Root:
 
     def badge_updated(self, id, message=''):
         return {'id': id, 'message': message}
+    
+    @ajax_gettable
+    def validate_account_email(self, account_email, **params):
+        error = valid_email(account_email)
+        if error:
+            return {'success': False, 'message': error}
+        if c.SSO_EMAIL_DOMAINS:
+            local, domain = normalize_email(account_email, split_address=True)
+            if domain in c.SSO_EMAIL_DOMAINS:
+                return {'success': False, 'sso_email': True}
+        return {'success': True}
 
-    def login(self, session, message='', original_location=None, **params):
-        from uber.utils import create_valid_user_supplied_redirect_url, ensure_csrf_token_exists
-        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
+    @ajax
+    def login(self, session, **params):
+        from uber.utils import ensure_csrf_token_exists
 
-        if 'email' in params or 'login_email' in params:
-            email = params.get('login_email', params.get('email', ''))
-            password = params.get('login_password', params.get('password', ''))
-            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(email)).first()
-            if not account:
-                message = 'No account exists for that email address'
-            elif not bcrypt.hashpw(password, account.hashed) == account.hashed:
-                message = 'Incorrect password'
+        email = params.get('account_email') # This email has already been validated
+        password = params.get('account_password')
+        account = session.query(AttendeeAccount).filter_by(email=normalize_email(email)).first()
+        if account and not account.hashed:
+            return {'success': False, 'message': "We had an issue logging you into your account. Please contact an administrator."}
+        elif not account or not bcrypt.hashpw(password, account.hashed) == account.hashed:
+            return {'success': False, 'message': "Incorrect email/password combination."}
 
-            if not message:
-                cherrypy.session['attendee_account_id'] = account.id
-                ensure_csrf_token_exists()
-                raise HTTPRedirect(original_location)
+        cherrypy.session['attendee_account_id'] = account.id
+        ensure_csrf_token_exists()
+        return {'success': True}
+    
+    @ajax
+    def create_account(self, session, **params):
+        from uber.utils import ensure_csrf_token_exists
 
-        raise HTTPRedirect('../landing/index?message={}&original_location={}&email={}', message, original_location, params.get('email', ''))
+        email = params.get('account_email') # This email has already been validated
+        account = session.query(AttendeeAccount).filter_by(email=normalize_email(email)).first()
+        if account:
+            return {'success': False, 'message': "You already have an account. Please use the 'forgot your password' link. \
+                    Keep in mind your account may be from a prior year."}
+        password = params.get('new_password')
+        confirm_password = params.get('confirm_password')
+        message = check_account(session, email, password, confirm_password)
+        if message:
+            return {'success': False, 'message': message}
+        
+        new_account = session.create_attendee_account(email, password)
+        session.commit()
+
+        cherrypy.session['attendee_account_id'] = new_account.id
+        ensure_csrf_token_exists()
+        return {'success': True}
 
     @requires_account()
     def homepage(self, session, message=''):
-        if not cherrypy.session.get('attendee_account_id'):
-            raise HTTPRedirect('../landing/')
-
         account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id'))
 
         attendees_who_owe_money = {}
@@ -1301,7 +1318,7 @@ class Root:
 
         return {
             'message': message,
-            'account': account,
+            'homepage_account': account,
             'attendees_who_owe_money': attendees_who_owe_money,
         }
 
@@ -1313,7 +1330,7 @@ class Root:
             message = "Something went wrong. Please try again."
         if not attendee.email:
             message = "This attendee needs an email address to set up a new account."
-        if session.current_attendee_account() and normalize_email(attendee.email) == session.current_attendee_account().normalized_email:
+        if session.current_attendee_account() and normalize_email(attendee.email) == session.current_attendee_account().email:
             message = "You cannot grant an account to someone with the same email address as your account."
         if not message:
             set_up_new_account(session, attendee)
@@ -1323,7 +1340,7 @@ class Root:
     
     def logout(self, return_to=''):
         cherrypy.session.pop('attendee_account_id')
-        return_to = return_to or '/preregistration/login'
+        return_to = return_to or '/landing/index'
         raise HTTPRedirect('..{}?message={}', return_to, 'You have been logged out.')
 
     @id_required(Attendee)
@@ -1350,11 +1367,14 @@ class Root:
         placeholder = attendee.placeholder
 
         receipt = session.get_receipt_by_model(attendee)
-        forms = load_forms(params, attendee, attendee_form, ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents'])
+        form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo']
+        if placeholder:
+            form_list.append('Consents')
+        forms = load_forms(params, attendee, attendee_form, form_list)
 
         if cherrypy.request.method == 'POST' and not message:
-            attendee = session.attendee(params, restricted=True)
-            forms['personal_info'].populate_obj(attendee)
+            for form in forms.values():
+                form.populate_obj(attendee)
             attendee.placeholder = False
 
             message = check(attendee, prereg=True)
@@ -1384,19 +1404,16 @@ class Root:
         elif not message and not c.ATTENDEE_ACCOUNTS_ENABLED and attendee.badge_status == c.COMPLETED_STATUS:
             message = 'You are already registered but you may update your information with this form.'
 
-        group_credit = receipt_items.credit_calculation.items['Attendee']['group_discount'](attendee)
-
         return {
             'undoing_extra': undoing_extra,
             'return_to':     return_to,
             'attendee':      attendee,
-            'account':       session.get_attendee_account_by_attendee(attendee),
+            'homepage_account': session.get_attendee_account_by_attendee(attendee),
             'message':       message,
             'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
             'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
             'receipt':       session.get_receipt_by_model(attendee) if attendee.is_valid else None,
             'incomplete_txn':  receipt.get_last_incomplete_txn() if receipt else None,
-            'attendee_group_discount': (group_credit[1] / 100) if group_credit else 0,
             'forms': forms,
             'pii_consent':  params.get('pii_consent'),
         }
@@ -1436,7 +1453,12 @@ class Root:
         else:
             unassigned_group_reg, valid_placeholder = False, False
 
+        if 'PersonalInfo' in form_list and 'OtherInfo' in form_list:
+            del forms['other_info'].cellphone # TODO: Find a better way to handle these cases
+
         all_errors = defaultdict(list)
+        if not prereg:
+            preview_attendee = Attendee(**attendee.to_dict()) # TODO: Is there a better way to do this?
 
         for module in forms.values():
             extra_validators = defaultdict(list)
@@ -1446,8 +1468,7 @@ class Root:
                 else:
                     extra_validators[key].extend(val)
 
-            for key in module.field_list():
-                field = getattr(module, key, None)
+            for key, field in module.field_list:
                 extra_validators[key].extend(attendee_validators.form_validation.get_validations_by_field(key))
                 if field and (attendee.is_new or getattr(attendee, key, None) != field.data):
                     extra_validators[key].extend(attendee_validators.new_or_changed_validation.get_validations_by_field(key))
@@ -1456,12 +1477,13 @@ class Root:
             if not valid:
                 for key, val in module.errors.items():
                     all_errors[key].extend(val)
+            elif not prereg:
+                module.populate_obj(preview_attendee)
 
         if all_errors:
             return {"error": all_errors}
 
         if not prereg:
-            preview_attendee = session.attendee(params, restricted=True)
             for key, val in attendee_validators.post_form_validation.get_validation_dict().items():
                 for func in val:
                     message = func(preview_attendee)
@@ -1667,9 +1689,9 @@ class Root:
                 confirm_password = None
             else:
                 new_password = params.get('new_password')
-                confirm_password = params.get('confirm_new_password')
+                confirm_password = params.get('confirm_password')
             message = check_account(session, params.get('account_email'), new_password, confirm_password, 
-                                    False, new_password, account.normalized_email)
+                                    False, new_password, account.email)
 
         if not message:
             if new_password:
@@ -1681,7 +1703,7 @@ class Root:
     def reset_password(self, session, **params):
         if 'account_email' in params:
             account_email = params['account_email']
-            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(account_email)).first()
+            account = session.query(AttendeeAccount).filter_by(email=normalize_email(account_email)).first()
             if 'admin_url' in params:
                 success_url = "../{}message=Password reset email sent.".format(params['admin_url'])
             else:
@@ -1713,7 +1735,7 @@ class Root:
         if 'id' in params:
             account = session.attendee_account(params['id'])
         else:
-            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(account_email)).first()
+            account = session.query(AttendeeAccount).filter_by(email=normalize_email(account_email)).first()
         if not account or not account.password_reset:
             message = 'Invalid link. This link may have already been used or replaced.'
         elif account.password_reset.is_expired:
@@ -1727,7 +1749,7 @@ class Root:
         if cherrypy.request.method == 'POST':
             account_password = params.get('account_password')
             message = check_account(session, account_email, account_password, 
-                                    params.get('confirm_password'), False, True, account.normalized_email)
+                                    params.get('confirm_password'), False, True, account.email)
 
             if not message:
                 account.email = account_email

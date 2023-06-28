@@ -65,7 +65,7 @@ def comped_receipt_item(item):
 def assign_account_by_email(session, attendee, account_email):
     from uber.site_sections.preregistration import set_up_new_account
 
-    account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(account_email)).first()
+    account = session.query(AttendeeAccount).filter_by(email=normalize_email(account_email)).first()
     if not account:
         if c.ONE_MANAGER_PER_BADGE and attendee.managers:
             # It's too confusing for an admin to move someone to a new account and still see them on their old account
@@ -579,7 +579,7 @@ class Root:
             if normalize_email(new_email) == normalize_email(account.email):
                 message = "That is already the email address for this account!"
             else:
-                existing_account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(new_email)).first()
+                existing_account = session.query(AttendeeAccount).filter_by(email=normalize_email(new_email)).first()
                 if existing_account:
                     message = "That account already exists. You can instead reassign this account's attendees."
                 else:
@@ -659,10 +659,10 @@ class Root:
                 accounts_by_email = groupify(accounts, lambda a: normalize_email(a['email']))
 
                 existing_accounts = session.query(AttendeeAccount).filter(
-                    AttendeeAccount.normalized_email.in_(accounts_by_email.keys())) \
+                    AttendeeAccount.email.in_(accounts_by_email.keys())) \
                     .options(subqueryload(AttendeeAccount.attendees)).all()
                 for account in existing_accounts:
-                    existing_key = account.normalized_email
+                    existing_key = account.email
                     accounts_by_email.pop(existing_key, {})
                 accounts = list(chain(*accounts_by_email.values()))
 
