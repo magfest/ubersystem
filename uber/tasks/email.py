@@ -171,7 +171,7 @@ def send_automated_emails():
             for automated_email in automated_emails:
                 if automated_email.currently_sending:
                     if automated_email.last_send_time:
-                        if (datetime.now() - automated_email.last_send_time) < timedelta(seconds=600):
+                        if (datetime.now() - automated_email.last_send_time) < timedelta(hours=1):
                             # Looks like another thread is still running and hasn't timed out.
                             continue
                 automated_email.currently_sending = True
