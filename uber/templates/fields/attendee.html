@@ -597,7 +597,7 @@ $().ready(function() {
   </div>
 {% endif %}
 
-{% if full_read %}
+{% if full_read or c.SECURITY_ADMIN_ACCESS %}
 <div class="form-group">
   <label for="legal_name" class="col-sm-3 control-label">Name as appears on <span class="text-nowrap">Legal Photo ID</span></label>
   {% call macros.read_only_if(read_only, attendee.legal_name) %}
@@ -1029,7 +1029,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 {% endset %}
 
 
-{% if not c.COLLECT_EXACT_BIRTHDATE or full_read %}
+{% if not c.COLLECT_EXACT_BIRTHDATE or full_read or c.SECURITY_ADMIN_ACCESS %}
 {% set age %}
 {% set read_only = age_ro or page_ro %}
 <script type="text/javascript">
@@ -1210,7 +1210,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 
 
 {% set emergency_contact %}
-{% if full_read %}
+{% if full_read or c.SECURITY_ADMIN_ACCESS %}
 {% if attendee.is_new or not admin_area or c.HAS_REG_ADMIN_ACCESS %}
 {% set read_only = emergency_contact_ro or page_ro %}
 <div class="form-group">
@@ -1235,7 +1235,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 
 
 {% set onsite_contact %}
-{% if full_read %}
+{% if full_read or c.SECURITY_ADMIN_ACCESS %}
 {% if attendee.is_new or not admin_area or c.HAS_REG_ADMIN_ACCESS %}
 {% set read_only = onsite_contact_ro or page_ro %}
 <div class="form-group">
