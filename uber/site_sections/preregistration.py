@@ -956,7 +956,7 @@ class Root:
             'signnow_document': signnow_document,
             'signnow_link': signnow_link,
             'receipt': receipt,
-            'incomplete_txn': receipt.last_incomplete_txn if receipt else None,
+            'incomplete_txn': receipt.get_last_incomplete_txn() if receipt else None,
             'message': message
         }
 
@@ -1008,6 +1008,12 @@ class Root:
                 # Free group badges are considered 'registered' when they are actually claimed.
                 if group.cost == 0:
                     attendee.registered = localized_now()
+
+                receipt = session.get_receipt_by_model(attendee)
+                if not receipt:
+                    new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
+                    if new_receipt.current_amount_owed and not new_receipt.pending_total:
+                        raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=confirm')
 
                 if attendee.amount_unpaid:
                     raise HTTPRedirect('new_badge_payment?id={}&return_to=confirm', attendee.id)
@@ -1392,7 +1398,7 @@ class Root:
             'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
             'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
             'receipt':       session.get_receipt_by_model(attendee) if attendee.is_valid else None,
-            'incomplete_txn':  receipt.last_incomplete_txn if receipt else None,
+            'incomplete_txn':  receipt.get_last_incomplete_txn() if receipt else None,
             'attendee_group_discount': (group_credit[1] / 100) if group_credit else 0,
             'pii_consent':  params.get('pii_consent'),
         }
@@ -1443,6 +1449,10 @@ class Root:
         attendee = session.attendee(id)
         txn = session.receipt_transaction(txn_id)
 
+        error = txn.check_stripe_id()
+        if error:
+            return {'error': "Something went wrong with this payment. Please refresh the page and try again."}
+
         stripe_intent = txn.get_stripe_intent()
 
         if not stripe_intent:
@@ -1463,6 +1473,10 @@ class Root:
     def finish_pending_group_payment(self, session, id, txn_id, **params):
         group = session.group(id)
         txn = session.receipt_transaction(txn_id)
+
+        error = txn.check_stripe_id()
+        if error:
+            return {'error': "Something went wrong with this payment. Please refresh the page and try again."}
 
         stripe_intent = txn.get_stripe_intent()
 

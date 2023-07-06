@@ -38,17 +38,17 @@
                 $('#arrival-time' + suffix).datetimepicker({
                   sideBySide: true,
                   useCurrent: false,
-                  defaultDate: '{{ c.EPOCH.isoformat() }}',
-                  minDate: '{{ min_arrival_time.isoformat() }}',
-                  maxDate: '{{ max_arrival_time.isoformat() }}',
+                  defaultDate: '{{ c.EPOCH.isoformat()[:-6] }}',
+                  minDate: '{{ min_arrival_time.isoformat()[:-6] }}',
+                  maxDate: '{{ max_arrival_time.isoformat()[:-6] }}',
                   format: 'M/D/Y h:mm A'
                 });
                 $('#departure-time' + suffix).datetimepicker({
                   sideBySide: true,
                   useCurrent: false,
-                  defaultDate: '{{ c.ESCHATON.isoformat() }}',
-                  minDate: '{{ min_departure_time.isoformat() }}',
-                  maxDate: '{{ max_departure_time.isoformat() }}',
+                  defaultDate: '{{ c.ESCHATON.isoformat()[:-6] }}',
+                  minDate: '{{ min_departure_time.isoformat()[:-6] }}',
+                  maxDate: '{{ max_departure_time.isoformat()[:-6] }}',
                   format: 'M/D/Y h:mm A'
                 });
             }

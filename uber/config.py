@@ -309,7 +309,7 @@ class Config(_Overridable):
                     Attendee.paid == self.PAID_BY_GROUP,
                     Group.amount_paid > 0).count()
 
-                promo_code_badges = session.query(PromoCode).join(PromoCodeGroup).count()
+                promo_code_badges = session.query(PromoCode).join(PromoCodeGroup).filter(PromoCode.cost > 0).count()
 
                 return individuals + group_badges + promo_code_badges
 
@@ -1108,7 +1108,7 @@ c.START_TIME_OPTS = [
 
 c.SETUP_JOB_START = c.EPOCH - timedelta(days=c.SETUP_SHIFT_DAYS)
 c.TEARDOWN_JOB_END = c.ESCHATON + timedelta(days=1, hours=23) # Allow two full days for teardown shifts
-c.CON_TOTAL_LENGTH = int((c.TEARDOWN_JOB_END - c.SETUP_JOB_START).seconds / 3600)
+c.CON_TOTAL_DAYS = -(-(int((c.TEARDOWN_JOB_END - c.SETUP_JOB_START).total_seconds() // 3600)) // 24)
 c.PANEL_STRICT_LENGTH_OPTS = [opt for opt in c.PANEL_LENGTH_OPTS if opt != c.OTHER]
 
 c.EVENT_YEAR = c.EPOCH.strftime('%Y')

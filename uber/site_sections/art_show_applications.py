@@ -100,7 +100,7 @@ class Root:
             'message': message,
             'app': app,
             'receipt': receipt,
-            'incomplete_txn': receipt.last_incomplete_txn if receipt else None,
+            'incomplete_txn': receipt.get_last_incomplete_txn() if receipt else None,
             'account': session.get_attendee_account_by_attendee(app.attendee),
             'return_to': 'edit?id={}'.format(app.id),
         }
@@ -111,6 +111,10 @@ class Root:
     def finish_pending_payment(self, session, id, txn_id, **params):
         app = session.art_show_application(id)
         txn = session.receipt_transaction(txn_id)
+
+        error = txn.check_stripe_id()
+        if error:
+            return {'error': "Something went wrong with this payment. Please refresh the page and try again."}
 
         stripe_intent = txn.get_stripe_intent()
 

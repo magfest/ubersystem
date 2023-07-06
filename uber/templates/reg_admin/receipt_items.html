@@ -215,7 +215,7 @@
               label: 'Comp and Refund',
               className: 'btn-success',
               callback: function () {
-                $.post('comp_refund_receipt_item', {csrf_token: csrf_token, id: itemId, amount: result}, function (response) {
+                $.post('comp_refund_receipt_item', {csrf_token: csrf_token, id: itemId, amount: amount.substring(1)}, function (response) {
                   toastr.clear();
                   if (response.error) {
                     toastr.error(response.error);

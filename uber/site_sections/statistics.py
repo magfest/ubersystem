@@ -61,7 +61,7 @@ class RegistrationDataOneYear:
                 date_trunc_day(Attendee.registered),
                 func.count(date_trunc_day(Attendee.registered))
             ) \
-            .outerjoin(Attendee.group).outerjoin(Attendee.promo_code) \
+            .outerjoin(Attendee.group) \
             .filter(
                 (
                     (Attendee.group_id != None) &
@@ -70,15 +70,20 @@ class RegistrationDataOneYear:
                     (Group.amount_paid > 0)               # make sure they've paid something
                 ) | (                                     # OR
                     (Attendee.paid == c.HAS_PAID)         # if they're an attendee, make sure they're fully paid
-                ) | (
-                    (Attendee.promo_code != None) &
-                    (PromoCode.group_id != None) &
-                    (PromoCode.cost > 0)
                 )
             ) \
             .group_by(date_trunc_day(Attendee.registered)) \
             .order_by(date_trunc_day(Attendee.registered)) \
             .all()  # noqa: E711
+        
+        group_reg_per_day = session.query(
+            date_trunc_day(PromoCode.group_registered),
+            func.count(date_trunc_day(PromoCode.group_registered))
+            ) \
+        .filter(PromoCode.cost > 0) \
+        .group_by(date_trunc_day(PromoCode.group_registered)) \
+        .order_by(date_trunc_day(PromoCode.group_registered)) \
+        .all()
 
         # now, convert the query's data into the format we need.
         # SQL will skip days without registrations
@@ -87,10 +92,14 @@ class RegistrationDataOneYear:
         # create 365 elements in the final array
         self.registrations_per_day = self.num_days_to_report * [0]
 
-        for reg_data in reg_per_day:
-            day = reg_data[0]
-            reg_count = reg_data[1]
+        # merge attendee and promo code group reg
+        total_reg_per_day = defaultdict(int)
+        for k, v in dict(reg_per_day).items():
+            total_reg_per_day[k] += v
+        for k, v in dict(group_reg_per_day).items():
+            total_reg_per_day[k] += v
 
+        for day, reg_count in total_reg_per_day.items():
             day_offset = self.num_days_to_report - (self.end_date - day).days
             day_index = day_offset - 1
 

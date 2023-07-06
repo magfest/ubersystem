@@ -3,7 +3,7 @@ MAINTAINER RAMS Project "code@magfest.org"
 LABEL version.rams-core ="0.1"
 
 # install ghostscript and gettext-base
-RUN apt-get update && apt-get install -y ghostscript gettext-base vim && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y ghostscript dnsutils gettext-base vim && rm -rf /var/lib/apt/lists/*
 
 ADD requirements*.txt plugins/uber/
 ADD setup.py plugins/uber/

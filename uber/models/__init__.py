@@ -540,7 +540,7 @@ class MagModel:
 
     def timespan(self, minute_increment=1):
         def minutestr(dt):
-            return ':30' if dt.minute == 30 else ''
+            return '' if dt.minute == 0 else dt.strftime(':%M')
 
         timespan = timedelta(minutes=minute_increment * self.duration)
         endtime = self.start_time_local + timespan
@@ -990,6 +990,10 @@ class Session(SessionManager):
 
             if not txn.intent_id:
                 return "Can't refund a transaction that is not a Stripe payment."
+            
+            error = txn.check_stripe_id()
+            if error:
+                return "Error issuing refund: " + str(error)
 
             if not txn.charge_id:
                 charge_id = txn.check_paid_from_stripe()
@@ -1016,10 +1020,6 @@ class Session(SessionManager):
             from pockets.autolog import log
 
             refund_amount = amount or txn.amount_left
-
-            balance = stripe.Balance.retrieve()
-            if balance['available'][0]['amount'] < refund_amount:
-                return "We cannot currently refund this transaction. Please try again in a few days or contact an administrator."
 
             log.debug('REFUND: attempting to refund Stripe transaction with ID {} {} cents for {}',
                       txn.stripe_id, refund_amount, txn.desc)
