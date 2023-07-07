@@ -1172,8 +1172,7 @@ if c.PANELS_ENABLED:
         'panels/panel_accept_reminder.txt',
         lambda app: (
             c.PANELS_CONFIRM_DEADLINE
-            and app.status == c.ACCEPTED
-            and not app.confirmed
+            and app.confirm_deadline
             and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
         ident='panel_accept_reminder')
 
