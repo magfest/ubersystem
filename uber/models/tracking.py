@@ -146,9 +146,9 @@ class Tracking(MagModel):
             data = cls.format(diff)
             if len(diff) == 1 and 'badge_num' in diff and c.SHIFT_CUSTOM_BADGES:
                 action = c.AUTO_BADGE_SHIFT
-            if isinstance(instance, AutomatedEmail) and diff.startswith(("currently_sending", 
-                                                                         "last_send_time", 
-                                                                         "unapproved_count")):
+            if isinstance(instance, AutomatedEmail) and not diff.keys().isdisjoint(("currently_sending", 
+                                                                                    "last_send_time", 
+                                                                                    "unapproved_count")):
                 return
             elif not data:
                 return
