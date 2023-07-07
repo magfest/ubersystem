@@ -341,16 +341,19 @@ class ReceiptTransaction(MagModel):
         if not self.intent_id:
             return 0
         
+        last_refund_id = None
         refunded_total = 0
         for refund in stripe.Refund.list(payment_intent=self.intent_id):
             refunded_total += refund.amount
+            last_refund_id = refund.id
+            self.refund_id = self.refund_id or last_refund_id
         with Session() as session:
             other_txns = session.query(ReceiptTransaction).filter_by(intent_id=self.intent_id
                                                             ).filter(ReceiptTransaction.id != self.id)
             other_refunds = sum([txn.refunded for txn in other_txns])
         
         self.refunded = min(self.amount, refunded_total - other_refunds)
-        return self.refunded
+        return self.refunded, last_refund_id
 
     @property
     def cannot_delete_reason(self):

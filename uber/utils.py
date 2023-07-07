@@ -1085,11 +1085,13 @@ class Charge:
                 item = calculation(model)
                 if item:
                     try:
-                        desc, cost, count = item
+                        desc, cost, col_name, count = item
                     except ValueError:
                         # Unpack list of wrong size (no quantity provided).
-                        desc, cost = item
+                        desc, cost, col_name = item
                         count = 1
+
+                    default_val = getattr(model.__class__(), col_name, None) if col_name else None
                     if isinstance(cost, Iterable):
                         # A list of the same item at different prices, e.g., group badges
                         for price in cost:
@@ -1098,16 +1100,18 @@ class Charge:
                                                                 desc=desc,
                                                                 amount=price,
                                                                 count=cost[price],
-                                                                who=AdminAccount.admin_name() or 'non-admin'
+                                                                who=AdminAccount.admin_name() or 'non-admin',
+                                                                revert_change={col_name: default_val} if col_name else {}
                                                                 ))
                             else:
                                 receipt_items.append((desc, price, cost[price]))
                     elif receipt:
                         receipt_items.append(ReceiptItem(receipt_id=receipt.id,
-                                                          desc=desc,
-                                                          amount=cost,
-                                                          count=count,
-                                                          who=AdminAccount.admin_name() or 'non-admin'
+                                                         desc=desc,
+                                                         amount=cost,
+                                                         count=count,
+                                                         who=AdminAccount.admin_name() or 'non-admin',
+                                                         revert_change={col_name: default_val} if col_name else {}
                                                         ))
                     else:
                         receipt_items.append((desc, cost, count))
