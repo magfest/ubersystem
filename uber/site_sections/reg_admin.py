@@ -334,10 +334,17 @@ class Root:
 
             if txn.amount_left > 0:
                 prior_amount = txn.amount - txn.amount_left
-                new_amount = txn.update_amount_refunded()
-                if prior_amount != new_amount:
+                new_amount, last_refund_id = txn.update_amount_refunded()
+                if prior_amount < new_amount:
                     messages.append("Refund amount updated from {} to {}.".format(format_currency(prior_amount / 100),
                                                                               format_currency(new_amount / 100)))
+                    session.add(ReceiptTransaction(
+                        receipt_id=txn.receipt_id,
+                        refund_id=last_refund_id,
+                        amount=(new_amount - prior_amount) * -1,
+                        desc="Automatic refund of Stripe transaction " + txn.stripe_id,
+                        who=AdminAccount.admin_name() or 'non-admin'
+                    ))
 
             session.commit()
         else:
@@ -351,6 +358,7 @@ class Root:
     @ajax
     def refund_receipt_txn(self, session, id='', **params):
         txn = session.receipt_transaction(id)
+        return {'error': float(params.get('amount', 0)) * 100}
 
         error = session.refund_item_or_txn(amount=float(params.get('amount', 0)) * 100, txn=txn)
         if error:

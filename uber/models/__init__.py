@@ -1000,7 +1000,7 @@ class Session(SessionManager):
                 if not charge_id:
                     return "We could not find record of this payment being completed."
 
-            already_refunded = txn.update_amount_refunded()
+            already_refunded, last_refund_id = txn.update_amount_refunded()
             if txn.amount - already_refunded <= 0:
                 if already_refunded_error:
                     return "This payment has already been fully refunded."

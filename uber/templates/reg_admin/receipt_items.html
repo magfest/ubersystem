@@ -190,12 +190,12 @@
       callback: function (result) {
         $("#refundTxnDiv").html(form);
         if(result) {
-          $.post('refund_receipt_txn', {csrf_token: csrf_token, id: txnId, amount: $("#refundTxnForm [name='amount']").val() || 0}, function (response) {
+          $.post('refund_receipt_txn', {csrf_token: csrf_token, id: txnId, amount: refundAmt}, function (response) {
             toastr.clear();
             if (response.error) {
               toastr.error(response.error);
             } else {
-              toastr.info('Transaction refunded');
+              toastr.info(response.message);
               updateRow(response.refunded, ' td:last #amt-refunded', " ($" + (response.refund_total / 100).toFixed(2) + " refunded)");
               updateTotal(response.new_total, response.disable_button);
             }
@@ -204,6 +204,17 @@
       }
     });
   };
+
+  var compOrUndoRefundItem = function (page_handler, itemId, amount) {
+      $.post(page_handler, {csrf_token: csrf_token, id: itemId, amount: amount}, function (response) {
+        toastr.clear();
+        if (response.error) {
+          toastr.error(response.error);
+        } else {
+          window.location = 'receipt_items?id={{ model.id }}&message=' + response.message;
+        }
+      }, 'json');
+    }
 
   var refundItem = function (itemId, amount, count, canRevert) {
     var bootboxBtns = {
@@ -214,17 +225,10 @@
           comp: {
               label: 'Comp and Refund',
               className: 'btn-success',
-              callback: function () {
-                $.post('comp_refund_receipt_item', {csrf_token: csrf_token, id: itemId, amount: amount.substring(1)}, function (response) {
-                  toastr.clear();
-                  if (response.error) {
-                    toastr.error(response.error);
-                  } else {
-                    toastr.info('Transaction refunded');
-                    updateRow(response.refunded, ' td:last #amt-refunded', " ($" + (response.refund_total / 100).toFixed(2) + " refunded)");
-                    updateTotal(response.new_total, response.disable_button);
-                  }
-                }, 'json');
+              callback: function (result) {
+                if(result) {
+                  compOrUndoRefundItem('comp_refund_receipt_item', itemId, amount.substring(1))
+                }
               }
           }
         }
@@ -233,6 +237,11 @@
       bootboxBtns.revert = {
         label: 'Undo and Refund',
         className: 'btn-danger',
+        callback: function (result) {
+          if(result) {
+            compOrUndoRefundItem('undo_refund_receipt_item', itemId, amount.substring(1))
+          }
+        }
       }
     }
     
@@ -478,16 +487,16 @@
           {% endif %}
         </td>
         <td>
-          {% if item.refundable %}
+          {% if item.refundable and not item.method %} {# disabling transaction refunds for now #}
           <button class="btn btn-sm btn-warning"
-                  onClick="
-                  {% if item.method %}
-                  refundTxn('{{ item.id }}', '{{ (item.amount_left / 100)|format_currency }}')
-                  {% else %}
-                  refundItem('{{ item.id }}', '{{ (item.amount / 100)|format_currency }}', '{{ item.count }}', '{{ item.revert_change|yesno }}')
-                  {% endif %}"
-                  >
-                  Refund
+          onClick="
+            {% if item.method %}
+            refundTxn('{{ item.id }}', '{{ (item.amount_left / 100)|format_currency }}')">
+            Refund
+            {% else %}
+            refundItem('{{ item.id }}', '{{ (item.amount / 100)|format_currency }}', '{{ item.count }}', '{{ item.revert_change|yesno }}')">
+            Refund Item
+            {% endif %}
           </button>
           {% endif %}
         </td>
