@@ -224,7 +224,7 @@ class Root:
 
         payload = random.randrange(1024)
         task_run_time = -time.perf_counter()
-        response = ping.delay(payload).wait()
+        response = ping.delay(payload).wait(timeout=2)
         task_run_time += time.perf_counter()
 
         return json.dumps({
