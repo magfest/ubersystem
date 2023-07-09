@@ -164,9 +164,9 @@ class Root:
                 elif isinstance(col.type, Date):
                     val = datetime.strptime(val, date_format).date()
                 elif isinstance(col.type, Choice):
-                    val = Choice.convert_if_label(val)
+                    val = col.type.convert_if_label(val)
                 elif isinstance(col.type, MultiChoice):
-                    val = MultiChoice.convert_if_labels(val)
+                    val = col.type.convert_if_labels(val)
                 elif isinstance(col.type, Integer):
                     val = int(val)
                 elif isinstance(col.type, JSONB):

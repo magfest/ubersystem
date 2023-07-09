@@ -356,7 +356,7 @@ class MagModel:
             return []
 
         choices = dict(self.get_field(name).type.choices)
-        val = MultiChoice.convert_if_labels(self.get_field(name).type, val)
+        val = self.get_field(name).type.convert_if_labels(val)
         return [int(i) for i in str(val).split(',') if i and int(i) in choices]
 
     @suffix_property
