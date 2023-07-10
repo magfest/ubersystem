@@ -56,7 +56,17 @@
           <td>
             <ul style="padding-left:15px">
               {% if attendee.badge_type in c.BADGE_TYPE_PRICES %}
-              <li>{{ attendee.badge_type_label|replace(' ', '-') }}-level r{% else %}<li>R{% endif %}egistration for {{ c.EVENT_NAME }}{% if attendee.badges %} for {{ attendee.badges }} people{% endif %}{% if (attendee.default_badge_cost and attendee.age_discount|abs < attendee.default_badge_cost) or attendee.default_promo_code_group_cost %} ({{ ((attendee.default_badge_cost or attendee.default_promo_code_group_cost) - attendee.age_discount|abs)|format_currency }}){% endif %}</li>
+                {% set badge_cost = attendee.default_badge_cost + attendee.default_badge_upgrade_cost %}
+              {% elif (attendee.default_badge_cost and attendee.age_discount and attendee.age_discount|abs < attendee.default_badge_cost) or attendee.default_promo_code_group_cost %}
+                {% set badge_cost = (attendee.default_badge_cost or attendee.default_promo_code_group_cost) - attendee.age_discount|abs %}
+              {% elif attendee.promo_code %}
+                {% set badge_cost = attendee.badge_cost_without_promo_code %}
+              {% else %}
+                {% set badge_cost = 0 %}
+              {% endif %}
+              <li>{% if attendee.badge_type in c.BADGE_TYPE_PRICES %}{{ attendee.badge_type_label|replace(' ', '-') }}-level r{% else %}R{% endif %}egistration for {{ c.EVENT_NAME }}
+                {% if attendee.badges %} for {{ attendee.badges }} people{% endif %}
+                {% if badge_cost %} ({{ badge_cost|format_currency }}){% endif %}</li>
               {% if attendee.requested_hotel_info %}
                 <li>Requested hotel booking info</li>
               {% endif %}
