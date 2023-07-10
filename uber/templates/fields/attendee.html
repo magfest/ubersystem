@@ -945,8 +945,18 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
   <label for="staffing" class="col-sm-3 optional-field control-label">Want to Volunteer?</label>
   {% call macros.read_only_if(read_only, attendee.staffing|yesno) %}
   <div class="checkbox col-sm-6">
-    {% set staffing_readonly = not admin_area and attendee.shifts %}
-    <label for="staffing" {% if staffing_readonly %}title="Please {{ 'see Staffing Operations to change your volunteer status' if c.AT_THE_CON else 'unassign yourself from shifts before changing your volunteer status' }}"{% endif %}>
+    {% set staffing_readonly = False %}
+    {% if not admin_area %}
+      {% if attendee.badge_type in [c.CONTRACTOR_BADGE, c.STAFF_BADGE] %}
+      {% set staffing_readonly = True %}
+      {% set staffing_message = "This checkbox is required for Contractors, Volunteers, and Staff. Please contact Staffing Operations if you wish to change your status." %}
+      {% elif attendee.shifts %}
+      {% set staffing_readonly = True %}
+      {% set staffing_message = "Please " ~ 'see Staffing Operations to change your volunteer status.' if c.AT_THE_CON else 'unassign yourself from shifts before changing your volunteer status.' %}
+      {% endif %}
+    {% endif %}
+    {% set staffing_readonly = not admin_area and (attendee.badge_type in [c.CONTRACTOR_BADGE, c.STAFF_BADGE] or attendee.shifts) %}
+    <label for="staffing" {% if staffing_readonly %}title="{{ staffing_message }}"{% endif %}>
       {{ macros.checkbox(attendee, 'staffing', is_readonly=staffing_readonly, clientside_bool=clientside_bool) }}
       {% if admin_area %}
         This attendee is
