@@ -418,7 +418,7 @@ class MagModel:
                 return sum(item[0] * item[1] for item in cost_calc[1].items()) / 100
             except AttributeError:
                 if len(cost_calc) > 2:
-                    return cost_calc[1] * cost_calc[2] / 100
+                    return cost_calc[1] * (cost_calc[2] or 1) / 100
                 else:
                     return cost_calc[1] / 100
         except Exception:
