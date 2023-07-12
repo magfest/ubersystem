@@ -184,7 +184,7 @@ def send_automated_emails():
                 unapproved_count = 0
                 
                 model_instances = query_func(session)
-                log.info("Evaluating " + str(len(model_instances)) " instances of " + model.__name__)
+                log.info("Evaluating " + str(len(model_instances)) + " instances of " + model.__name__)
                 for model_instance in model_instances:
                     if model_instance.id not in automated_email.emails_by_fk_id:
                         if automated_email.would_send_if_approved(model_instance):
