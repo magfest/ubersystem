@@ -1,6 +1,6 @@
 from collections import Mapping
 from datetime import timedelta, datetime
-from time import sleep
+from time import sleep, time
 
 from celery.schedules import crontab
 from pockets import groupify, listify
@@ -159,6 +159,8 @@ def send_automated_emails():
     if not (c.DEV_BOX or c.SEND_EMAILS):
         return None
 
+    quantity_sent = 0
+    start_time = time()
     with Session() as session:
         active_automated_emails = session.query(AutomatedEmail) \
             .filter(*AutomatedEmail.filters_for_active) \
@@ -167,6 +169,7 @@ def send_automated_emails():
         automated_emails_by_model = groupify(active_automated_emails, 'model')
 
         for model, query_func in AutomatedEmailFixture.queries.items():
+            log.info("Sending automated emails for " + model.__name__)
             automated_emails = automated_emails_by_model.get(model.__name__, [])
             for automated_email in automated_emails:
                 if automated_email.currently_sending:
@@ -181,6 +184,7 @@ def send_automated_emails():
                 unapproved_count = 0
                 
                 model_instances = query_func(session)
+                log.info("Evaluating " + str(len(model_instances)) " instances of " + model.__name__)
                 for model_instance in model_instances:
                     if model_instance.id not in automated_email.emails_by_fk_id:
                         if automated_email.would_send_if_approved(model_instance):
@@ -188,6 +192,7 @@ def send_automated_emails():
                                 if model_instance.active_receipt:
                                     session.refresh_receipt_and_model(model_instance)
                                 automated_email.send_to(model_instance, delay=False)
+                                quantity_sent += 1
                             else:
                                 unapproved_count += 1
                             automated_email.last_send_time = datetime.now()
@@ -199,6 +204,7 @@ def send_automated_emails():
                     session.add(automated_email)
                     session.commit()
         
+        log.info("Sent " + str(quantity_sent) + " emails in " + str(time() - start_time) + " seconds")
         return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
 
         # TODO: Once we finish converting each AutomatedEmailFixture.filter
