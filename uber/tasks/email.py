@@ -183,7 +183,8 @@ def send_automated_emails():
                                 # Looks like another thread is still running and hasn't timed out.
                                 continue
                     automated_email.currently_sending = True
-                    automated_email.last_send_time = datetime.now()
+                    last_send_time = datetime.now()
+                    automated_email.last_send_time = last_send_time
                     session.add(automated_email)
                     session.commit()
                     unapproved_count = 0
@@ -202,7 +203,7 @@ def send_automated_emails():
                                     quantity_sent += 1
                                 else:
                                     unapproved_count += 1
-                        if datetime.now() - automated_email.last_send_time > (expiration / 2):
+                        if datetime.now() - last_send_time > (expiration / 2):
                             automated_email.last_send_time = datetime.now()
                             session.add(automated_email)
                             session.commit()
