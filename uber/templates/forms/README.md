@@ -9,7 +9,7 @@ We rely on the following frameworks and modules for our forms:
 - [WTForms](https://wtforms.readthedocs.io/en/3.0.x/) defines our forms as declarative data, along with many of their static properties. Each set of forms is organized in one file per type of entity, similar to our **models** folder, and they are found in **uber/forms/**. Inherited classes and other WTForms customizations are in **uber/forms/__init__.py**.
 - [Jinja2](https://jinja.palletsprojects.com/en/3.1.x/templates/) provides **macros** that render the scaffolding for fields (these macros call WTForms to render the fields themselves) and **blocks** that define sections of forms for appending fields or overriding.
   - Form macros are found in **uber/template/forms/macros.html** -- always use these macros rather than writing your own scaffolding.
-- [Bootstrap 5](https://getbootstrap.com/docs/5.0/) provides the styling and responsive layout for forms. Always use the grid layout ("col" divs contained inside "row g-3" divs) when adding fields.
+- [Bootstrap 5](https://getbootstrap.com/docs/5.0/) provides the styling and responsive layout for forms. Always use the grid layout ("col" divs contained inside "row g-sm-3" divs) when adding fields.
 
 ### Form Validations
 

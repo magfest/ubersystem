@@ -197,9 +197,13 @@ def requires_account(model=None):
                 message = ''
                 if not model and not attendee_account_id:
                     # These should all be pages like the prereg form
-                    message = 'Please log in or create an account to {}!'.format(
-                        "register" if c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form']
-                        else "fill out this application")
+                    if c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form']:
+                        message_add = ' to register'
+                    elif c.PAGE_PATH == '/preregistration/homepage':
+                        message_add = ''
+                    else:
+                        message_add = ' to fill out this application'
+                    message = 'Please log in or create an account to {}!'.format(message_add)
                     raise HTTPRedirect('../landing/index?message={}'.format(message), save_location=True)
                 elif attendee_account_id is None and admin_account_id is None:
                     message = 'You must log in to view this page.'

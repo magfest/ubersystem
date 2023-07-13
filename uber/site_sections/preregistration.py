@@ -1251,8 +1251,12 @@ class Root:
                 session.delete(shift)
             raise HTTPRedirect('{}?id={}&message={}', page_redirect, attendee.id, success_message)
 
-    def badge_updated(self, id, message=''):
-        return {'id': id, 'message': message}
+    def badge_updated(self, session, id, message=''):
+        return {
+            'id': id,
+            'message': message,
+            'homepage_account': session.current_attendee_account(),
+            }
     
     @ajax_gettable
     def validate_account_email(self, account_email, **params):
@@ -1296,7 +1300,7 @@ class Root:
         if message:
             return {'success': False, 'message': message}
         
-        new_account = session.create_attendee_account(email, password)
+        new_account = session.create_attendee_account(email, password=password)
         session.commit()
 
         cherrypy.session['attendee_account_id'] = new_account.id
@@ -1340,6 +1344,8 @@ class Root:
     
     def logout(self, return_to=''):
         cherrypy.session.pop('attendee_account_id')
+        for key in PreregCart.session_keys:
+            cherrypy.session.pop(key)
         return_to = return_to or '/landing/index'
         raise HTTPRedirect('..{}?message={}', return_to, 'You have been logged out.')
 
@@ -1395,7 +1401,6 @@ class Root:
                 raise HTTPRedirect(page + 'message=' + message)
 
         if not error:
-            log.debug("Refreshing receipt...")
             session.refresh_receipt_and_model(attendee)
 
         attendee.placeholder = placeholder

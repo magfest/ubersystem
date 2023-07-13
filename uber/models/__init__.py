@@ -1037,7 +1037,7 @@ class Session(SessionManager):
                         else:
                             message = valid_password(password) or valid_email(params.get('email', ''))
                         if not message:
-                            new_account = self.create_attendee_account(params.get('email', ''), password)
+                            new_account = self.create_attendee_account(params.get('email', ''), password=password)
                             self.add_attendee_to_account(attendee, new_account)
                             cherrypy.session['attendee_account_id'] = new_account.id
             return attendee, message
