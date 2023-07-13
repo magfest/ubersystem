@@ -200,15 +200,15 @@ def send_automated_emails():
                                 quantity_sent += 1
                             else:
                                 unapproved_count += 1
-                            if datetime.now() - automated_email.last_send_time > (expiration / 2):
-                                automated_email.last_send_time = datetime.now()
-                                session.add(automated_email)
-                                session.commit()
+                    if datetime.now() - automated_email.last_send_time > (expiration / 2):
+                        automated_email.last_send_time = datetime.now()
+                        session.add(automated_email)
+                        session.commit()
 
-                    automated_email.unapproved_count = unapproved_count
-                    automated_email.currently_sending = False
-                    session.add(automated_email)
-                    session.commit()
+                automated_email.unapproved_count = unapproved_count
+                automated_email.currently_sending = False
+                session.add(automated_email)
+                session.commit()
         
         log.info("Sent " + str(quantity_sent) + " emails in " + str(time() - start_time) + " seconds")
         return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
