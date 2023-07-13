@@ -171,8 +171,10 @@ def send_automated_emails():
         for model, query_func in AutomatedEmailFixture.queries.items():
             log.info("Sending automated emails for " + model.__name__)
             automated_emails = automated_emails_by_model.get(model.__name__, [])
+            log.info("Found " + str(len(automated_emails)) + " emails for " + model.__name__)
             for automated_email in automated_emails:
                 if automated_email.currently_sending:
+                    log.info(automated_email.ident + " is marked as currently sending")
                     if automated_email.last_send_time:
                         if (datetime.now() - automated_email.last_send_time) < timedelta(hours=1):
                             # Looks like another thread is still running and hasn't timed out.
@@ -183,6 +185,7 @@ def send_automated_emails():
                 session.commit()
                 unapproved_count = 0
                 
+                log.info("Loading instances for " + automated_email.ident)
                 model_instances = query_func(session)
                 log.info("Evaluating " + str(len(model_instances)) + " instances of " + model.__name__)
                 for model_instance in model_instances:
