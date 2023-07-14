@@ -757,7 +757,7 @@ class Root:
         else:
             desc = "At-door marked as paid"
 
-        session.add(Charge.create_receipt_transaction(receipt, desc, method=payment_method))
+        session.add(Charge.create_receipt_transaction(receipt, desc, method=payment_method, amount=receipt.current_amount_owed))
         
         attendee.reg_station = cherrypy.session.get('reg_station')
         session.commit()
