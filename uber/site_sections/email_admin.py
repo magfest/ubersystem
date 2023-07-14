@@ -5,7 +5,7 @@ from sqlalchemy import func, or_
 
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, public
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, AutomatedEmail, Email
 from uber.tasks.email import send_email
@@ -107,6 +107,7 @@ class Root:
             'message': output_msg,
         }
 
+    @public
     @ajax
     def resend_email(self, session, id):
         """
