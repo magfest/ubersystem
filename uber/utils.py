@@ -840,12 +840,15 @@ def get_api_service_from_server(target_server, api_token):
 
 
 def prepare_saml_request(request):
-    return {
+    saml_request = {
         'http_host': request.headers.get('Host', ''),
         'script_name': request.script_name + request.path_info,
         'get_data': request.params.copy() if request.method == 'GET' else {},
         'post_data': request.params.copy() if request.method == 'POST' else {},
     }
+    if c.FORCE_SAML_HTTPS:
+        saml_request['https'] = 'on'
+    return saml_request
 
 
 class request_cached_context:
