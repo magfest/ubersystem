@@ -207,6 +207,17 @@
     });
   };
 
+  var compOrUndoRefundItem = function (page_handler, itemId, amount) {
+      $.post(page_handler, {csrf_token: csrf_token, id: itemId, amount: amount}, function (response) {
+        toastr.clear();
+        if (response.error) {
+          toastr.error(response.error);
+        } else {
+          window.location = 'receipt_items?id={{ model.id }}&message=' + response.message;
+        }
+      }, 'json');
+    }
+
   var refundItem = function (itemId, amount, count, canRevert) {
     var bootboxBtns = {
           cancel: {
@@ -216,17 +227,10 @@
           comp: {
               label: 'Comp and Refund',
               className: 'btn-success',
-              callback: function () {
-                $.post('comp_refund_receipt_item', {csrf_token: csrf_token, id: itemId, amount: amount.substring(1)}, function (response) {
-                  $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
-                  if (response.error) {
-                    $("#message-alert").addClass("alert-danger").show().children('span').html(response.error);
-                  } else {
-                    $("#message-alert").addClass("alert-info").show().children('span').html('Transaction refunded');
-                    updateRow(response.refunded, ' td:last #amt-refunded', " ($" + (response.refund_total / 100).toFixed(2) + " refunded)");
-                    updateTotal(response.new_total, response.disable_button);
-                  }
-                }, 'json');
+              callback: function (result) {
+                if(result) {
+                  compOrUndoRefundItem('comp_refund_receipt_item', itemId, amount.substring(1))
+                }
               }
           }
         }
@@ -235,6 +239,11 @@
       bootboxBtns.revert = {
         label: 'Undo and Refund',
         className: 'btn-danger',
+        callback: function (result) {
+          if(result) {
+            compOrUndoRefundItem('undo_refund_receipt_item', itemId, amount.substring(1))
+          }
+        }
       }
     }
     
@@ -480,7 +489,7 @@
           {% endif %}
         </td>
         <td>
-          {% if item.refundable %}
+          {% if item.refundable and not item.method %} {# disabling transaction refunds for now #}
           <button class="btn btn-sm btn-warning"
                   onClick="
                   {% if item.method %}

@@ -42,6 +42,7 @@
 
             showErrorMessage = function(message='', alertId="message-alert") {
                 $("#" + alertId).addClass("alert-danger").show().children('span').html(message);
+                window.scrollTo(0,0);
             }
             hideMessage = function(alertId="message-alert") {
                 $("#" + alertId).hide();

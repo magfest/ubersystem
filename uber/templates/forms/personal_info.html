@@ -17,18 +17,18 @@
 {% set name_read_only = name_ro or (page_ro and not (limited_write or contact_write)) %}
 {% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}
 
-<div class="row g-3">
-<div class="col">{{ form_macros.form_input(personal_info.first_name, readonly=name_read_only) }}</div>
-<div class="col">{{ form_macros.form_input(personal_info.last_name, value=attendee_last_name, readonly=name_read_only) }}</div>
+<div class="row g-sm-3">
+<div class="col-12 col-sm-6">{{ form_macros.form_input(personal_info.first_name, readonly=name_read_only) }}</div>
+<div class="col-12 col-sm-6">{{ form_macros.form_input(personal_info.last_name, value=attendee_last_name, readonly=name_read_only) }}</div>
 </div>
 
 {% if attendee.legal_name or attendee.is_new or attendee.placeholder %}
-<div class="row g-3">
-  <div class="col">{{ form_macros.toggle_checkbox(personal_info.same_legal_name, [personal_info.legal_name], toggle_required=True, hide_on_checked=True, prop="readonly",
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">{{ form_macros.toggle_checkbox(personal_info.same_legal_name, [personal_info.legal_name], toggle_required=True, hide_on_checked=True, prop="readonly",
                    disabled=name_read_only, checked=same_legal_name or attendee.first_name != '' and attendee.legal_name == '') }}
   </div>
 
-  <div class="col">{{ form_macros.form_input(personal_info.legal_name, help_text=macros.popup_link("../static_views/legal_name.html", 'What does "Legal Photo ID" mean?'),
+  <div class="col-12 col-sm-6">{{ form_macros.form_input(personal_info.legal_name, help_text=macros.popup_link("../static_views/legal_name.html", 'What does "Legal Photo ID" mean?'),
               readonly=name_read_only) }}
   </div>
 </div>
@@ -47,12 +47,12 @@
   {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.no_cellphone, [personal_info.cellphone], hide_on_checked=True, prop="readonly") %}
 {% endif %}
 
-<div class="row g-3">
-  <div class="col">
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">
     {{ form_macros.form_input(personal_info.email, extra_field=email_extra_field, value=attendee_email, readonly=email_ro or (page_ro and not contact_write)) }}
   </div>
 
-  <div class="col">
+  <div class="col-12 col-sm-6">
     {{ form_macros.form_input(personal_info.cellphone, extra_field=cellphone_extra_field, readonly=cellphone_ro or (page_ro and not contact_write)) }}
   </div>
 </div>
@@ -60,8 +60,8 @@
 
 
 {% block age %}
-<div class="row g-3">
-  <div class="col">
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">
 {% if c.COLLECT_EXACT_BIRTHDATE %}
   {{ form_macros.form_input(personal_info.birthdate, readonly=age_ro or page_ro)}}
 {% else %}
@@ -69,7 +69,7 @@
 {% endif %}
   </div>
 
-  <div class="col">
+  <div class="col-12 col-sm-6">
     {% if c.CONSENT_FORM_URL and not admin_area %}
     <div class="alert alert-warning" role="alert">
       <em>
@@ -89,12 +89,12 @@
 {% if c.COLLECT_FULL_ADDRESS %}
   {{ form_macros.address_fields(attendee, personal_info) }}
 {% else %}
-<div class="row g-3">
-  <div class="col">
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">
     {{ form_macros.form_input(personal_info.zip_code, extra_field=form_macros.form_input(personal_info.international, disabled=address_ro or page_ro), readonly=address_ro or page_ro)}}
   </div>
 
-  <div class="col">
+  <div class="col-12 col-sm-6">
   </div>
 </div>
 {% endif %}
@@ -104,21 +104,21 @@
 {% block ec_info %}
 {% if admin_area and (full_read or c.HAS_REG_ADMIN_ACCESS) or (attendee.is_new or not admin_area) %}
 {% set onsite_extra_field = form_macros.toggle_checkbox(personal_info.no_onsite_contact, [personal_info.onsite_contact], toggle_required=True, hide_on_checked=True, prop="disabled") %}
-<div class="row g-3">
-  <div class="col">
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">
     {{ form_macros.form_input(personal_info.ec_name, readonly=emergency_contact_ro or page_ro) }}
   </div>
 
-  <div class="col">
+  <div class="col-12 col-sm-6">
     {{ form_macros.form_input(personal_info.ec_phone, readonly=emergency_contact_ro or page_ro) }}
   </div>
 </div>
 
-<div class="row g-3">
-  <div class="col">
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">
     {{ form_macros.form_input(personal_info.onsite_contact, extra_field=onsite_extra_field, readonly=emergency_contact_ro or page_ro, maxlength="500") }}
   </div>
-  <div class="col">
+  <div class="col-12 col-sm-6">
     <div class="alert alert-info" role="alert">
     Contact info for a trusted friend or friends who will be at or near the venue during the event.
     </div>

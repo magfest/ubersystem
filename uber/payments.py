@@ -65,6 +65,10 @@ class PreregCart:
         self._current_cost = 0
 
     @classproperty
+    def session_keys(cls):
+        return ['paid_preregs', 'unpaid_preregs', 'pending_preregs', 'payment_intent_id', 'universal_promo_codes']
+
+    @classproperty
     def paid_preregs(cls):
         return cherrypy.session.setdefault('paid_preregs', [])
 
@@ -415,7 +419,7 @@ class TransactionRequest:
             if not charge_id:
                 return "We could not find record of this payment being completed."
 
-        already_refunded = txn.update_amount_refunded()
+        already_refunded, last_refund_id = txn.update_amount_refunded()
         if txn.amount - already_refunded <= 0:
             return "This payment has already been fully refunded."
 
@@ -634,11 +638,11 @@ class ReceiptManager:
 
     @classmethod
     def create_new_receipt(cls, model, create_model=False, items=None):
-        from uber.models import AdminAccount, ModelReceipt, ReceiptItem
         """
         Iterates through the cost_calculations for this model and returns a list containing all non-null cost and credit items.
         This function is for use with new models to grab all their initial costs for creating or previewing a receipt.
         """
+        from uber.models import AdminAccount, ModelReceipt, ReceiptItem
         if not items:
             items = [uber.receipt_items.cost_calculation.items] + [uber.receipt_items.credit_calculation.items]
         receipt_items = []
@@ -649,11 +653,13 @@ class ReceiptManager:
                 item = calculation(model)
                 if item:
                     try:
-                        desc, cost, count = item
+                        desc, cost, col_name, count = item
                     except ValueError:
                         # Unpack list of wrong size (no quantity provided).
-                        desc, cost = item
+                        desc, cost, col_name = item
                         count = 1
+
+                    default_val = getattr(model.__class__(), col_name, None) if col_name else None
                     if isinstance(cost, Iterable):
                         # A list of the same item at different prices, e.g., group badges
                         for price in cost:
@@ -662,16 +668,18 @@ class ReceiptManager:
                                                                 desc=desc,
                                                                 amount=price,
                                                                 count=cost[price],
-                                                                who=AdminAccount.admin_name() or 'non-admin'
+                                                                who=AdminAccount.admin_name() or 'non-admin',
+                                                                revert_change={col_name: default_val} if col_name else {}
                                                                 ))
                             else:
                                 receipt_items.append((desc, price, cost[price]))
                     elif receipt:
                         receipt_items.append(ReceiptItem(receipt_id=receipt.id,
-                                                          desc=desc,
-                                                          amount=cost,
-                                                          count=count,
-                                                          who=AdminAccount.admin_name() or 'non-admin'
+                                                         desc=desc,
+                                                         amount=cost,
+                                                         count=count,
+                                                         who=AdminAccount.admin_name() or 'non-admin',
+                                                         revert_change={col_name: default_val} if col_name else {}
                                                         ))
                     else:
                         receipt_items.append((desc, cost, count))

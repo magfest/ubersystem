@@ -13,12 +13,9 @@
         Preregistration has sold out!
     {% endif %}
 {% endset %}
-<div class="panel card-primary">
-    <div class="card-header">
-        <h4 class="card-title">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h4>
-    </div>
+<h4 class="text-center">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h4>
 {% if not account.valid_attendees %}
-    <div class="card-body text-center">
+    <div class="card text-center">
         <h2 class="text-uppercase">You have no current registrations</h2>
         <p>{{ prereg_message }}</p>
         <p>
@@ -44,7 +41,6 @@
     </div>
 </div>
 {% else %}
-<div class="card-body">
     {% for attendee, money_owed in attendees_who_owe_money.items() %}
     {% if loop.first %}
     <div class="alert alert-warning" role="alert">
@@ -82,32 +78,20 @@
 <div class="tab-content">
     <div class="tab-pane{% if account.valid_single_badges %} active{% endif %}" id="single" role="tabpanel">
     {% for attendee in account.valid_single_badges %}
-    {% if loop.first %}
     <div class="card-body">
-    {% endif %}
-    <div class="row">
         {% include "preregistration/attendee_card.html" %}
     </div>
-    {% if loop.last %}
-    </div>
-    {% endif %}
     {% endfor %}
     </div>
     <div class="tab-pane{% if account.valid_group_badges %} active{% endif %}" id="group" role="tabpanel">
     {% for attendee in account.valid_group_badges %}
-    {% if loop.first %}
     <div class="card-body">
-    {% endif %}
     <div class="row">
         {% include "preregistration/attendee_card.html" %}
     </div>
-    {% if loop.last %}
     </div>
-    {% endif %}
     {% endfor %}
     </div>
-</div>
-</div>
 </div>
 {% endif %}
 {% if not account.valid_attendees %}

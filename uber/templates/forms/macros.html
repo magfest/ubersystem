@@ -184,29 +184,29 @@
 {%- endmacro %}
 
 {% macro address_fields(model, form_obj) %}
-<div class="row g-3">
-  <div class="col">
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">
     {{ form_input(form_obj.address1) }}
   </div>
-  <div class="col">
+  <div class="col-12 col-sm-6">
     {{ form_input(form_obj.address2) }}
   </div>
 </div>
-<div class="row g-3">
-  <div class="col">
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">
     {{ form_input(form_obj.country) }}
   </div>
-  <div class="col">
+  <div class="col-12 col-sm-6">
     {{ form_input(form_obj.region_us) }}
     {{ form_input(form_obj.region_canada) }}
     {{ form_input(form_obj.region) }}
   </div>
 </div>
-<div class="row g-3">
-  <div class="col">
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">
     {{ form_input(form_obj.city) }}
   </div>
-  <div class="col">
+  <div class="col-12 col-sm-6">
     {{ form_input(form_obj.zip_code) }}
   </div>
 </div>
