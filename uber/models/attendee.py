@@ -10,12 +10,12 @@ from pockets import cached_property, classproperty, groupify, listify, is_listy,
 from pockets.autolog import log
 from pytz import UTC
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import and_, case, exists, func, or_, select
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.dialects.postgresql.json import JSONB
-from sqlalchemy.orm import backref, column_property, subqueryload
+from sqlalchemy.orm import aliased, backref, column_property, subqueryload
 from sqlalchemy.schema import Column as SQLAlchemyColumn, ForeignKey, Index, Table, UniqueConstraint
 from sqlalchemy.types import Boolean, Date, Integer
 
@@ -483,7 +483,8 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not self.gets_any_kind_of_shirt:
             self.shirt = c.NO_SHIRT
 
-        self.badge_cost = self.calculate_badge_cost()
+        if not self.badge_cost:
+            self.badge_cost = self.calculate_badge_cost()
 
         if self.badge_cost == 0 and self.paid in [c.NOT_PAID, c.PAID_BY_GROUP]:
             self.paid = c.NEED_NOT_PAY
@@ -743,16 +744,18 @@ class Attendee(MagModel, TakesPaymentMixin):
         return uber.badge_funcs.get_real_badge_type(self.badge_type)
 
     @property
-    def badge_cost_without_promo_code(self):
-        return self.calculate_badge_cost(use_promo_code=False)
+    def badge_cost_with_promo_code(self):
+        return self.calculate_badge_cost(use_promo_code=True)
 
-    def calculate_badge_cost(self, use_promo_code=True):
+    def calculate_badge_cost(self, use_promo_code=False):
         if self.paid == c.NEED_NOT_PAY:
             return 0
         elif self.overridden_price is not None:
             return self.overridden_price
         elif self.is_dealer:
             return c.DEALER_BADGE_PRICE
+        elif self.promo_code_groups:
+            return c.get_group_price()
         else:
             cost = self.new_badge_cost
 
@@ -862,10 +865,34 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def amount_pending(self):
         return self.active_receipt.get('pending_total', 0)
+    
+    @hybrid_property
+    def has_receipt(self):
+        return self.active_receipt
+    
+    @has_receipt.expression
+    def has_receipt(cls):
+        from uber.models import ModelReceipt
+        return exists().select_from(ModelReceipt).where(
+            and_(ModelReceipt.owner_id == cls.id,
+                 ModelReceipt.owner_model == "Attendee",
+                 ModelReceipt.closed == None))
 
-    @property
+    @hybrid_property
     def is_paid(self):
         return self.active_receipt.get('current_amount_owed', None) == 0
+    
+    @is_paid.expression
+    def is_paid(cls):
+        from uber.models import ModelReceipt, Group
+
+        return case([(cls.paid == c.PAID_BY_GROUP, 
+                      exists().select_from(Group).where(cls.group_id == Group.id).where(Group.is_paid == True))],
+                    else_=(exists().select_from(ModelReceipt).where(
+                            and_(ModelReceipt.owner_id == cls.id,
+                                ModelReceipt.owner_model == "Attendee",
+                                ModelReceipt.closed == None,
+                                ModelReceipt.current_amount_owed == 0))))
 
     @hybrid_property
     def amount_paid(self):
@@ -923,7 +950,6 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     def calc_badge_cost_change(self, **kwargs):
         preview_attendee = Attendee(**self.to_dict())
-        promo_code_discount = self.calculate_badge_cost(use_promo_code=False) - self.calculate_badge_cost()
         new_cost = None
         if 'overridden_price' in kwargs:
             try:
@@ -942,7 +968,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not new_cost:
             new_cost = (preview_attendee.calculate_badge_cost() * 100) - current_cost
 
-        return current_cost, new_cost - (promo_code_discount * 100)
+        return current_cost, new_cost
 
     def calc_age_discount_change(self, birthdate):
         preview_attendee = Attendee(**self.to_dict())
@@ -950,6 +976,28 @@ class Attendee(MagModel, TakesPaymentMixin):
         current_discount = max(self.badge_cost * 100 * -1, self.age_discount * 100)
         new_discount = max(self.badge_cost * 100 * -1, preview_attendee.age_discount * 100)
 
+        if not new_discount:
+            return current_discount, current_discount * -1
+        elif not current_discount:
+            return current_discount, new_discount
+        else:
+            return current_discount, new_discount - current_discount
+        
+    def calc_promo_discount_change(self, promo_code):
+        badge_cost = self.calculate_badge_cost()
+        if self.promo_code:
+            current_discount = badge_cost - self.badge_cost_with_promo_code()
+        else:
+            current_discount = 0
+        
+        if promo_code:
+            from uber.models import Session, PromoCode
+            with Session() as session:
+                pc_obj = session.query(PromoCode).filter_by(code=promo_code).first()
+                new_discount = badge_cost - pc_obj.calculate_discounted_price(badge_cost)
+        else:
+            new_discount = 0
+        
         if not new_discount:
             return current_discount, current_discount * -1
         elif not current_discount:
@@ -982,20 +1030,37 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def is_valid(self):
+        if self.group and not self.group.is_valid:
+            return False
         return self.badge_status not in [c.PENDING_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS]
 
     @is_valid.expression
     def is_valid(cls):
-        return not_(cls.badge_status.in_([c.PENDING_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS]))
+        return not_(or_(
+            cls.badge_status.in_([c.PENDING_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS]),
+            exists().select_from(Group).where(cls.group_id == Group.id).where(Group.is_valid == False)))
+
+    @hybrid_property
+    def has_or_will_have_badge(self):
+        if self.group and not self.group.attendees_have_badges:
+            return False
+        return self.is_valid and self.badge_status not in [c.REFUNDED_STATUS, c.NOT_ATTENDING]
+    
+    @has_or_will_have_badge.expression
+    def has_or_will_have_badge(cls):
+        return and_(cls.is_valid,
+            not_(or_(
+            cls.badge_status.in_([c.REFUNDED_STATUS, c.NOT_ATTENDING]),
+            exists().select_from(Group).where(cls.group_id == Group.id).where(Group.attendees_have_badges == False))))
 
     @hybrid_property
     def has_badge(self):
-        return self.badge_status not in [c.PENDING_STATUS, c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS, c.NOT_ATTENDING, c.IMPORTED_STATUS]
+        return self.has_or_will_have_badge and self.badge_status != c.DEFERRED_STATUS
 
     @has_badge.expression
     def has_badge(cls):
-        return not_(cls.badge_status.in_(
-                [c.PENDING_STATUS, c.INVALID_STATUS, c.REFUNDED_STATUS, c.DEFERRED_STATUS, c.NOT_ATTENDING, c.IMPORTED_STATUS]))
+        return and_(cls.has_or_will_have_badge,
+                    not_(cls.badge_status == c.DEFERRED_STATUS))
 
     @property
     def volunteering_badge_or_ribbon(self):
@@ -1017,8 +1082,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             cls.ribbon.like('%{}%'.format(c.DEALER_RIBBON)),
             and_(
                 cls.paid == c.PAID_BY_GROUP,
-                Group.id == cls.group_id,
-                Group.is_dealer == True))  # noqa: E712
+                exists().select_from(Group).where(cls.group_id == Group.id).where(Group.is_dealer == True)))  # noqa: E712
 
     @property
     def is_checklist_admin(self):

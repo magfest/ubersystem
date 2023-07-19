@@ -4,7 +4,7 @@ import stripe
 from pytz import UTC
 from pockets.autolog import log
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, case, func, or_, select
 
 from sideboard.lib import request_cached_property
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -149,19 +149,29 @@ class ModelReceipt(MagModel):
                      ).where(and_(ReceiptTransaction.amount < 0, ReceiptTransaction.receipt_id == cls.id)
                      ).label('refund_total')
 
-    @property
+    @hybrid_property
     def current_amount_owed(self):
         return max(0, self.current_receipt_amount)
+    
+    @current_amount_owed.expression
+    def current_amount_owed(cls):
+        return case([(cls.current_receipt_amount > 0, cls.current_receipt_amount)],
+                    else_=0)
 
-    @property
+    @hybrid_property
     def current_receipt_amount(self):
         return self.item_total - self.txn_total
 
-    @property
+    @hybrid_property
     def item_total(self):
         return sum([(item.amount * item.count) for item in self.receipt_items])
+    
+    @item_total.expression
+    def item_total(cls):
+        return select([func.sum(ReceiptItem.amount * ReceiptItem.count)]
+                     ).where(ReceiptItem.receipt_id == cls.id).label('item_total')
 
-    @property
+    @hybrid_property
     def txn_total(self):
         return self.payment_total - self.refund_total
 

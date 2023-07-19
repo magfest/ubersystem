@@ -203,6 +203,9 @@ class Config(_Overridable):
     def get_group_price(self, dt=None):
         return self.get_attendee_price(dt) - self.GROUP_DISCOUNT
 
+    def get_table_price(self, table_count):
+        return sum(c.TABLE_PRICES[i] for i in range(1, 1 + int(float(table_count))))
+
     def get_badge_count_by_type(self, badge_type):
         """
         Returns the count of all badges of the given type that we've promised to
@@ -299,7 +302,7 @@ class Config(_Overridable):
                 return max(0, attendee_count - staff_count)
         else:
             with Session() as session:
-                attendees = session.query(Attendee)
+                attendees = session.attendees_with_badges()
                 individuals = attendees.filter(or_(
                     Attendee.paid == self.HAS_PAID,
                     Attendee.paid == self.REFUNDED)
