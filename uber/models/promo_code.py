@@ -183,6 +183,10 @@ class PromoCodeGroup(MagModel):
     @property
     def valid_codes(self):
         return [code for code in self.promo_codes if code.is_valid]
+    
+    @property
+    def used_promo_codes(self):
+        return [code for code in self.promo_codes if code.valid_used_by]
 
     @property
     def sorted_promo_codes(self):
