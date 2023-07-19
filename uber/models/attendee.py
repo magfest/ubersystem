@@ -509,6 +509,20 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def _status_adjustments(self):
+        if self.group and self.paid == c.PAID_BY_GROUP:
+            if not self.group.is_valid:
+                self.badge_status = c.INVALID_GROUP_STATUS
+            elif self.group.is_dealer and self.group.status != c.APPROVED:
+                self.badge_status = c.UNAPPROVED_DEALER_STATUS
+
+        if self.badge_status == c.INVALID_GROUP_STATUS and (not self.group or self.group.is_valid):
+            self.badge_status = c.NEW_STATUS
+        
+        if self.badge_status == c.UNAPPROVED_DEALER_STATUS and (not self.group or 
+                                                                not self.group.is_dealer or 
+                                                                self.group.status == c.APPROVED):
+            self.badge_status = c.NEW_STATUS
+
         if self.badge_status == c.WATCHED_STATUS and not self.banned:
             self.badge_status = c.NEW_STATUS
         
@@ -1030,30 +1044,21 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def is_valid(self):
-        if self.group and not self.group.is_valid:
-            return False
-        return self.badge_status not in [c.PENDING_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS]
+        return self.badge_status not in [c.PENDING_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS, c.INVALID_GROUP_STATUS]
 
     @is_valid.expression
     def is_valid(cls):
-        return not_(or_(
-            cls.badge_status.in_([c.PENDING_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS]),
-            exists().select_from(Group).where(cls.group_id == Group.id).where(Group.is_valid == False)))
+        return not_(cls.badge_status.in_([c.PENDING_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS, c.INVALID_GROUP_STATUS]))
 
     @hybrid_property
     def has_or_will_have_badge(self):
-        if self.group and not self.group.attendees_have_badges:
-            return False
-        return self.is_valid and self.badge_status not in [c.REFUNDED_STATUS, c.NOT_ATTENDING]
+        return self.is_valid and self.badge_status not in [c.REFUNDED_STATUS, c.NOT_ATTENDING, c.UNAPPROVED_DEALER_STATUS]
     
     @has_or_will_have_badge.expression
     def has_or_will_have_badge(cls):
-        aliasGroup = aliased(Group)
         return and_(cls.is_valid,
-            not_(or_(
-            cls.badge_status.in_([c.REFUNDED_STATUS, c.NOT_ATTENDING]),
-            exists().select_from(cls.__table__.join(aliasGroup.__table__, cls.group_id == aliasGroup.__table__.c.id)).where(aliasGroup.attendees_have_badges == False)
-            )))
+            not_(cls.badge_status.in_([c.REFUNDED_STATUS, c.NOT_ATTENDING, c.UNAPPROVED_DEALER_STATUS])
+            ))
 
     @hybrid_property
     def has_badge(self):

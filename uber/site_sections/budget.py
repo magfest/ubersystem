@@ -44,8 +44,7 @@ class Root:
         base_filter = [Attendee.has_or_will_have_badge]
 
         group_filter = base_filter + [Attendee.group_id != None, Attendee.paid == c.PAID_BY_GROUP]
-        aliasGroup = aliased(Group)
-        badge_cost_matters_filter = group_filter + [aliasGroup.id == Attendee.group_id, aliasGroup.cost > 0, aliasGroup.auto_recalc == True]
+        badge_cost_matters_filter = group_filter + [Group.cost > 0, Group.auto_recalc == True]
 
         group_counts = {}
         
@@ -54,10 +53,10 @@ class Root:
         group_counts['custom_price'] = session.query(Attendee).outerjoin(Attendee.group, aliased=True).filter(
             *group_filter).filter(Group.cost > 0, Group.auto_recalc == False).count()
         
-        paid_group_badges = get_grouped_costs(session, badge_cost_matters_filter + [Group.is_paid == True], [(aliasGroup, Attendee.group_id==aliasGroup.id)])
+        paid_group_badges = get_grouped_costs(session, badge_cost_matters_filter + [Group.is_paid == True], [Attendee.group])
         unpaid_group_badges = get_grouped_costs(session, 
                                                 badge_cost_matters_filter + [Group.has_receipt == True, Group.is_paid == False], 
-                                                [(aliasGroup, Attendee.group_id==aliasGroup.id)])
+                                                [Attendee.group])
 
         group_total = session.query(Attendee).filter(*group_filter).count()
 
@@ -89,10 +88,9 @@ class Root:
         unpaid_badges = get_grouped_costs(session, unpaid_ind_filter)
 
         receiptless_ind_filter = individual_filter + [Attendee.has_receipt == False]
-        receiptless_group_filter = badge_cost_matters_filter + [aliasGroup.has_receipt == False]
+        receiptless_group_filter = badge_cost_matters_filter + [Group.has_receipt == False]
 
-        for attendee in session.query(Attendee).outerjoin(aliasGroup, 
-                                                          Attendee.group_id==aliasGroup.id).filter(*receiptless_group_filter):
+        for attendee in session.query(Attendee).outerjoin(Attendee.group).filter(*receiptless_group_filter):
             if attendee.group.amount_unpaid == 0:
                 group_counts['free_groups'] += 1
             else:

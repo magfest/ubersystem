@@ -119,7 +119,7 @@ def group_discount(attendee):
 @credit_calculation.Attendee
 def promo_code_discount(attendee):
     if attendee.promo_code:
-        discount = attendee.calculate_badge_cost() - attendee.badge_cost_with_promo_code()
+        discount = attendee.calculate_badge_cost() - attendee.badge_cost_with_promo_code
         return ("Promo Code", discount * 100 * -1, None)
 
 
