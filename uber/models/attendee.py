@@ -1048,10 +1048,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @has_or_will_have_badge.expression
     def has_or_will_have_badge(cls):
+        aliasGroup = aliased(Group)
         return and_(cls.is_valid,
             not_(or_(
             cls.badge_status.in_([c.REFUNDED_STATUS, c.NOT_ATTENDING]),
-            exists().select_from(Group).where(cls.group_id == Group.id).where(Group.attendees_have_badges == False))))
+            exists().select_from(cls.__table__.join(aliasGroup.__table__, cls.group_id == aliasGroup.__table__.c.id)).where(aliasGroup.attendees_have_badges == False)
+            )))
 
     @hybrid_property
     def has_badge(self):
