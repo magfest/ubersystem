@@ -382,30 +382,9 @@ def allowed_to_register(attendee):
 
 
 @validation.Attendee
-@ignore_unassigned_and_placeholders
-def has_email(attendee):
-    if not attendee.email:
-        return 'Please enter an email address.'
-
-
-@validation.Attendee
 def attendee_email_valid(attendee):
     if attendee.email and attendee.orig_value_of('email') != attendee.email:
         return valid_email(attendee.email)
-
-
-@validation.Attendee
-@ignore_unassigned_and_placeholders
-def address(attendee):
-    if c.COLLECT_FULL_ADDRESS:
-        if not attendee.address1:
-            return 'Please enter a street address.'
-        if not attendee.city:
-            return 'Please enter a city.'
-        if not attendee.region and attendee.country in ['United States', 'Canada']:
-            return 'Please enter a state, province, or region.'
-        if not attendee.country:
-            return 'Please enter a country.'
 
 
 @validation.Attendee
@@ -441,12 +420,6 @@ def cellphone(attendee):
 
     if not attendee.no_cellphone and attendee.staffing_or_will_be and not attendee.cellphone:
         return "Phone number is required for volunteers (unless you don't own a cellphone)"
-
-
-@prereg_validation.Attendee
-def dealer_cellphone(attendee):
-    if attendee.badge_type == c.PSEUDO_DEALER_BADGE and not attendee.cellphone:
-        return 'Your phone number is required'
 
 
 @validation.Attendee
@@ -571,13 +544,6 @@ def not_in_range(attendee):
                                                                                     c.BADGES[attendee.badge_type_real], 
                                                                                     lower_bound, 
                                                                                     upper_bound)
-
-
-@validation.Attendee
-def invalid_badge_name(attendee):
-    if attendee.badge_printed_name and c.PRINTED_BADGE_DEADLINE and c.BEFORE_PRINTED_BADGE_DEADLINE \
-            and re.search(c.INVALID_BADGE_PRINTED_CHARS, attendee.badge_printed_name):
-        return 'Your printed badge name has invalid characters. Please use only alphanumeric characters and symbols.'
 
 
 WatchList.required = [

@@ -378,14 +378,14 @@
 {%- endmacro %}
 
 
-{% macro prereg_wizard(page_path, prereg_request_hotel_info_open) -%}
-  {%- if prereg_request_hotel_info_open -%}
+{% macro prereg_wizard(page_path, is_dealer) -%}
+  {%- if is_dealer -%}
     {%-
             set steps = [
-                (('form', 'post_form'), 'Enter Info'),
-                (('hotel',), 'Hotel Booking'),
-                (('index', 'preregistration', ''), 'Review & Pay'),
-                (('paid_preregistrations',), 'Done')]
+                (('dealer_registration', 'post_dealer'), 'Table Info'),
+                (('form', 'post_form'), 'Personal Info'),
+                (('additional_info'), 'Additional Info'),
+                (('dealer_confirmation',), 'Done')]
             -%}
   {% else %}
     {%-

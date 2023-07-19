@@ -66,7 +66,7 @@ class PreregCart:
 
     @classproperty
     def session_keys(cls):
-        return ['paid_preregs', 'unpaid_preregs', 'pending_preregs', 'payment_intent_id', 'universal_promo_codes']
+        return ['paid_preregs', 'unpaid_preregs', 'pending_preregs', 'pending_dealers', 'payment_intent_id', 'universal_promo_codes']
 
     @classproperty
     def paid_preregs(cls):
@@ -79,6 +79,10 @@ class PreregCart:
     @classproperty
     def pending_preregs(cls):
         return cherrypy.session.setdefault('pending_preregs', OrderedDict())
+    
+    @classproperty
+    def pending_dealers(cls):
+        return cherrypy.session.setdefault('pending_dealers', OrderedDict())
     
     @classproperty
     def payment_intent_id(cls):
@@ -120,7 +124,7 @@ class PreregCart:
         return promo_code_count
 
     @classmethod
-    def to_sessionized(cls, m, name='', badges=0):
+    def to_sessionized(cls, m, **params):
         from uber.models import Attendee, Group
         if is_listy(m):
             return [cls.to_sessionized(t) for t in m]
@@ -130,15 +134,20 @@ class PreregCart:
             d = m.to_dict(
                 Attendee.to_dict_default_attrs
                 + ['promo_code']
+                + ['group_id']
                 + list(Attendee._extra_apply_attrs_restricted))
-            d['name'] = name
-            d['badges'] = badges
+            for key in params:
+                if params.get(key):
+                    d[key] = params.get(key)
             return d
         elif isinstance(m, Group):
             return m.to_dict(
                 Group.to_dict_default_attrs
                 + ['attendees']
                 + list(Group._extra_apply_attrs_restricted))
+            for key in params:
+                if params.get(key):
+                    d[key] = params.get(key)
         else:
             raise AssertionError('{} is not an attendee or group'.format(m))
 

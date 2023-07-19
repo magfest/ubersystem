@@ -1,45 +1,55 @@
-{% macro form_input_extras(field, help_text='', extra_field=None) %}
-{% if help_text or field.description %}
+{% macro form_input_extras(field, help_text='', admin_text='', extra_field=None) %}
+  {% if not admin_area and (help_text or field.description) %}
     <div class="form-text">
     {{ help_text or field.description }}
     </div>
-{% endif %}
-{% if extra_field %}
+  {% elif admin_area and admin_text %}
+    <div class="form-text">
+    {{ admin_text }}
+    </div>
+  {% endif %}
+  {% if extra_field %}
     {{ extra_field }}
-{% endif %}
-    <div id="{{ field.id }}-validation" class="invalid-feedback"></div>
+  {% endif %}
+  <div id="{{ field.id }}-validation" class="invalid-feedback"></div>
 {% endmacro %}
 
-{% macro form_input(field, help_text='', extra_field=None, no_margin=False) %}
+{% macro form_input(field, help_text='', admin_text='', extra_field=None, no_margin=False) %}
 {% set type = field.meta.get_field_type(field) %}
 
 {% if type in ['checkbox','switch'] %}
 <div class="form-check{% if type == 'switch' %} form-switch{% endif %}">
   {{ field(class="form-check-input", checked=field.data, value=1, **kwargs) }}
   {{ field.label(class="form-check-label") }}
-  {{ form_input_extras(field, help_text, extra_field) }}
+  {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>
 {% elif type == 'inputgroup' %}
 <div class="form-text">{{ field.label }}</div>
 {{ field(class="form-control", **kwargs) }}
-{{ form_input_extras(field, help_text, extra_field) }}
+{{ form_input_extras(field, help_text, admin_text, extra_field) }}
 {% elif type == 'checkgroup' %}
 <div class="form-text">{{ field.label() }}</div>
-<div class="card card-body">
+<div class="card card-body{% if not no_margin %} mb-3{% endif %}">
     {{ field(**kwargs) }}
-    <div class="col col-6">{{ form_input_extras(field, help_text, extra_field) }}</div>
+    <div class="col col-6">{{ form_input_extras(field, help_text, admin_text, extra_field) }}</div>
 </div>
 {% elif type == 'select' %}
 <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
     {{ field(class="form-select", **kwargs) }}
     {{ field.label }}
-    {{ form_input_extras(field, help_text, extra_field) }}
+    {{ form_input_extras(field, help_text, admin_text, extra_field) }}
+</div>
+{% elif type == 'customselect' %}
+<div class="form-floating{% if not no_margin %} mb-3{% endif %}">
+    {{ field(**kwargs) }}
+    {{ field.label }}
+    {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>
 {% else %}
 <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
     {{ field(class="form-control", **kwargs) }}
     {{ field.label }}
-    {{ form_input_extras(field, help_text, extra_field) }}
+    {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>
 {% endif %}
 {% endmacro %}
@@ -229,7 +239,7 @@
           }
     }
     $(function() {
-        $('#{{ country_id }}').selectToAutocomplete().change(function() {
+        $('#{{ country_id }}').selectToAutocomplete().prop("required", false).change(function() {
             regionChange{{ country_id }}();
         });
         regionChange{{ country_id }}();
@@ -283,7 +293,7 @@
         } else {
           serverValidationPassed = true;
           if (go_to_cart != '') {
-            $("#prereg-form").find($("[name=go_to_cart]")).click();
+            $("#{{ form_id }}").find($("[name=go_to_cart]")).click();
           } else {
             $("#{{ form_id }}").submit();
           }

@@ -80,12 +80,6 @@ def out_of_badge_type(form, field):
         except AssertionError:
             raise ValidationError('We are sold out of {} badges.'.format(c.BADGES[badge_type]))
 
-@form_validation.badge_printed_name
-def invalid_characters(form, field):
-    if field.data and c.PRINTED_BADGE_DEADLINE and c.BEFORE_PRINTED_BADGE_DEADLINE \
-            and re.search(c.INVALID_BADGE_PRINTED_CHARS, field.data):
-        return 'Your printed badge name has invalid characters. Please use only alphanumeric characters and symbols.'
-
 @new_or_changed_validation.badge_printed_name
 def past_printed_deadline(form, field):
     if field.data in c.PREASSIGNED_BADGE_TYPES and c.PRINTED_BADGE_DEADLINE and c.AFTER_PRINTED_BADGE_DEADLINE:
@@ -95,17 +89,6 @@ def past_printed_deadline(form, field):
                 return
         raise ValidationError('{} badges have already been ordered, so you cannot change your printed badge name.'.format(
             c.BADGES[field.data]))
-
-@form_validation.birthdate
-def valid_format(form, field):
-    # TODO: Make WTForms use this message instead of the generic DateField invalid value message
-    if field.data and not isinstance(field.data, date):
-        raise StopValidation('Please use the format YYYY-MM-DD for your date of birth.')
-
-@form_validation.birthdate
-def reasonable_dob(form, field):
-    if field.data and field.data > date.today():
-        raise ValidationError('You cannot be born in the future.')
 
 @post_form_validation.birthdate
 def age_discount_after_paid(attendee):
@@ -153,15 +136,6 @@ def valid_format(form, field):
                                     'country code (e.g. +44) for your emergency contact number.')
         else:
             raise ValidationError('Please enter a 10-digit emergency contact number.')
-
-@form_validation.onsite_contact
-def required_or_no_contact(form, field):
-    if not hasattr(form, 'no_onsite_contact'):
-        return
-    
-    if not field.data and not form.no_onsite_contact.data:
-        raise ValidationError('Please enter contact information for at least one trusted friend onsite, ' \
-                                'or indicate that we should use your emergency contact information instead.')
 
 @post_form_validation.promo_code
 def promo_code_is_useful(attendee):
@@ -221,7 +195,6 @@ def banned_volunteer(attendee):
 
 
 ###### Admin-Only Validations ######
-
 @form_validation.badge_num
 def not_in_range(form, field):
     if not field.data or not hasattr(form, 'badge_type'):

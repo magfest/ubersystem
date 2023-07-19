@@ -736,7 +736,7 @@ class Root:
             desc = "At-door marked as paid"
 
         receipt_manager = ReceiptManager(receipt)
-        error = receipt_manager.create_payment_transaction(desc, method=payment_method)
+        error = receipt_manager.create_payment_transaction(desc, amount=receipt.current_amount_owed, method=payment_method)
         if error:
             return {'success': False, 'message': error}
         session.add_all(receipt_manager.items_to_add)

@@ -52,8 +52,10 @@ def load_forms(params, model, module, form_list, prefix_dict={}):
 
 
 class MagForm(Form):
-    skip_unassigned_placeholder_validators = {}
     field_aliases = {}
+
+    def get_optional_fields(self, model):
+        return []
 
     @classmethod
     def all_forms(cls):
@@ -133,7 +135,10 @@ class MagForm(Form):
             if column is not None:
                 setattr(obj, name, obj.coerce_column_data(column, field.data))
             else:
-                setattr(obj, name, field.data)
+                try:
+                    setattr(obj, name, field.data)
+                except AttributeError:
+                    pass # Probably just a collision between a property name and a form field name, e.g., 'badges' for GroupInfo
 
         for model_field_name, aliases in self.field_aliases.items():
             for aliased_field in reversed(aliases):
@@ -165,6 +170,8 @@ class MagForm(Form):
                 return 'text'
             elif isinstance(widget, wtforms_widgets.Select):
                 return 'select'
+            elif isinstance(widget, IntSelect):
+                return 'customselect'
             else:
                 return 'text'
 
@@ -240,21 +247,30 @@ class MagForm(Form):
 class AddressForm():
     field_aliases = {'region': ['region_us', 'region_canada']}
 
-    address1 = StringField('Address Line 1', default='', validators=[validators.InputRequired(message="Please enter a street address.")])
+    address1 = StringField('Address Line 1', default='', validators=[
+        validators.InputRequired(message="Please enter a street address.")
+        ])
     address2 = StringField('Address Line 2', default='')
-    city = StringField('City', default='', validators=[validators.InputRequired(message="Please enter a city.")])
+    city = StringField('City', default='', validators=[
+        validators.InputRequired(message="Please enter a city.")
+        ])
     region_us = SelectField('State', default='', choices=c.REGION_OPTS_US)
     region_canada = SelectField('Province', default='', choices=c.REGION_OPTS_CANADA)
     region = StringField('State/Province', default='')
     zip_code = StringField('Zip/Postal Code', default='')
-    country = SelectField('Country', default='', validators=[validators.InputRequired(message="Please enter a country.")], choices=c.COUNTRY_OPTS, widget=CountrySelect())
+    country = SelectField('Country', default='', validators=[
+        validators.InputRequired(message="Please enter a country.")
+        ], choices=c.COUNTRY_OPTS, widget=CountrySelect())
 
     def validate_region(form, field):
         if form.country.data not in ['United States', 'Canada'] and not field.data:
             raise ValidationError('Please enter a state, province, or region.')
     
     def validate_zip_code(form, field):
-        if (form.country.data == 'United States' or form.international.data) and not c.AT_OR_POST_CON and invalid_zip_code(field.data):
+        if (form.country.data == 'United States' or (not c.COLLECT_FULL_ADDRESS and 
+                                                     hasattr(form, 'international') and 
+                                                     not form.international.data)) \
+            and not c.AT_OR_POST_CON and invalid_zip_code(field.data):
             raise ValidationError('Please enter a valid 5 or 9-digit zip code.')
 
 

@@ -34,7 +34,7 @@
 
 <div class="card">
   <div class="card-body">
-    {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_OPEN) }}
+    {{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
 
       {% if cart.attendees or cart.groups %}
         {% include 'preregistration/index_payment_form.html' %}

@@ -523,6 +523,40 @@ def check_pii_consent(params, attendee=None):
         if needs_pii_consent and not has_pii_consent:
             return 'You must agree to allow us to store your personal information in order to register.'
     return ''
+    
+
+def validate_model(forms, model, preview_model, extra_validators_module=None):
+    from wtforms import validators
+
+    all_errors = defaultdict(list)
+
+    for module in forms.values():
+        module.populate_obj(preview_model) # We need a populated model BEFORE we get its optional fields below
+
+    for module in forms.values():
+        extra_validators = defaultdict(list)
+        for field_name in module.get_optional_fields(preview_model):
+            getattr(module, field_name).validators = [validators.Optional()]
+
+        if extra_validators_module:
+            for key, field in module.field_list:
+                extra_validators[key].extend(extra_validators_module.form_validation.get_validations_by_field(key))
+                if field and (model.is_new or getattr(model, key, None) != field.data):
+                    extra_validators[key].extend(extra_validators_module.new_or_changed_validation.get_validations_by_field(key))
+
+        valid = module.validate(extra_validators=extra_validators)
+        if not valid:
+            for key, val in module.errors.items():
+                all_errors[key].extend(val)
+
+    if extra_validators_module:
+        for key, val in extra_validators_module.post_form_validation.get_validation_dict().items():
+            for func in val:
+                message = func(preview_model)
+                if message:
+                    all_errors[key].append(message)
+    if all_errors:
+        return all_errors
 
 
 def check_csrf(csrf_token=None):

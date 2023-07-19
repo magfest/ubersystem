@@ -48,11 +48,8 @@ $().ready(function() {
 {% endset %}
 
 {% set prereg_intro %}
-{% if is_prereg_dealer %}
-  <h2 class="text-center">{{ c.DEALER_APP_TERM|title }}</h2>
-{% elif is_prereg_attendee %}
-  {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_OPEN) }}
-
+{{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
+{% if is_prereg_attendee %}
   <div class="form-horizontal">
     {% if c.DEV_BOX %}
       <div class="form-group row">
@@ -70,7 +67,7 @@ $().ready(function() {
       </div>
     {% endif %}
 
-    {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
+    {% if not is_prereg_dealer and c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
       <div class="form-group row">
         <p class="col-sm-9 col-sm-offset-3">
           <strong>{{ c.DEALER_TERM|capitalize }}s:</strong>
@@ -82,15 +79,8 @@ $().ready(function() {
         </p>
       </div>
     {% endif %}
-
-    <div class="form-group" id="reg-types">
-      <label class="col-sm-3 control-label">Registration Type</label>
-    </div>
   </div>
 {% endif %}
-<div id="bold-field-message" class="form-group">
-  <div class="col-sm-offset-3 col-sm-9 heading-label">Bold fields are required</div>
-</div>
 {% endset %}
 
 

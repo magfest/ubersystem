@@ -1,5 +1,6 @@
 {% extends "./preregistration/preregbase.html" %}
 {%- set is_prereg_attendee = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}
+{%- set is_prereg_dealer = c.PAGE_PATH in ['/preregistration/dealer_registration', 'preregistration/post_dealer'] or attendee and attendee.badge_type == c.PSEUDO_DEALER_BADGE -%}
 {% import 'forms/macros.html' as form_macros with context %}
 {% block title %}Additional Info{% endblock %}
 {% block backlink %}{% endblock %}
@@ -10,20 +11,33 @@
 {% include 'prereg_masthead.html' %}
 <div class="card">
   <div class="card-body">
-    {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_OPEN) }}
+    {{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
 
     {{ form_macros.form_validation('prereg-form', form_list=['OtherInfo'], include_disclaimers_modal=not editing) }}
 
-    <form method="post" id="prereg-form" action="additional_info" class="form-horizontal" role="form">
-        <input type="hidden" name="id" value="{{ attendee.id }}" />
-        {{ csrf_token() }}
-        {% include "forms/other_info.html" %}
-        &nbsp;
-        {% if editing and editing is not none %}
-        <button type="submit" class="btn btn-primary mt-3" value="Update">Update</button>
-        {% else %}
-        <button type="submit" class="btn btn-primary mt-3" value="Add to Cart">Add to Cart</button>
-        {% endif %}
+    {% if is_prereg_dealer %}
+    <div class="text-end">
+      <a href="dealer_registration?edit_id={{ attendee.group_id }}" class="btn btn-outline-primary mt-3">Edit Application</a>
+      <a href="form?dealer_id={{ attendee.group_id }}" class="btn btn-info mt-3">Edit Personal Info</a>
+    </div>
+    {% endif %}
+
+    <form method="post" id="additional-form" action="additional_info" class="form-horizontal" role="form">
+      {% if is_prereg_dealer %}
+      <input type="hidden" name="group_id" value="{{ attendee.group_id }}" />
+      {% else %}
+      <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
+      {% endif %}
+      {{ csrf_token() }}
+      {% include "forms/other_info.html" %}
+      &nbsp;
+      {% if editing %}
+      <button type="submit" class="btn btn-primary mt-3" value="Update">Update</button>
+      {% elif is_prereg_dealer %}
+      <button type="submit" class="btn btn-primary mt-3" value="Submit Application">Submit Application</button>
+      {% else %}
+      <button type="submit" class="btn btn-primary mt-3" value="Add to Cart">Add to Cart</button>
+      {% endif %}
     </form>
   </div>
 </div>

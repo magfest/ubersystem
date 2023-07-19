@@ -1,3 +1,6 @@
+import re
+from datetime import date
+
 from markupsafe import Markup
 from wtforms import (BooleanField, DateField, EmailField, Form, FormField,
                      HiddenField, SelectField, SelectMultipleField, IntegerField,
@@ -13,22 +16,40 @@ __all__ = ['AdminInfo', 'BadgeExtras', 'PersonalInfo', 'OtherInfo', 'Consents']
 
 class PersonalInfo(AddressForm, MagForm):
     badge_type = HiddenIntField('Badge Type')
-    first_name = StringField('First Name', render_kw={'autocomplete': "fname"})
-    last_name = StringField('Last Name', render_kw={'autocomplete': "lname"})
+    first_name = StringField('First Name', validators=[
+        validators.InputRequired("Please provide your first name.")
+        ], render_kw={'autocomplete': "fname"})
+    last_name = StringField('Last Name', validators=[
+        validators.InputRequired("Please provide your last name.")
+        ], render_kw={'autocomplete': "lname"})
     same_legal_name = BooleanField('The above name is exactly what appears on my Legal Photo ID.')
     legal_name = StringField('Name as appears on Legal Photo ID', render_kw={'placeholder': 'First and last name exactly as they appear on Photo ID'})
     email = EmailField('Email Address', validators=[
+        validators.InputRequired("Please enter an email address."),
         validators.Length(max=255, message="Email addresses cannot be longer than 255 characters."),
         validators.Email(granular_message=True),
         ],
         render_kw={'placeholder': 'test@example.com'})
     cellphone = TelField('Phone Number', render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
-    birthdate = DateField('Date of Birth', validators=[attendee_validators.attendee_age_checks])
-    age_group = SelectField('Age Group', choices=c.AGE_GROUPS)
-
-    ec_name = StringField('Emergency Contact Name', render_kw={'placeholder': 'Who we should contact if something happens to you'})
-    ec_phone = TelField('Emergency Contact Phone', render_kw={'placeholder': 'A valid phone number for your emergency contact'})
-    onsite_contact = TextAreaField('Onsite Contact', validators=[validators.Length(max=500, message="You have entered over 500 characters of onsite contact information. Please provide contact information for fewer friends.")], render_kw={'placeholder': 'Contact info for a trusted friend or friends who will be at or near the venue during the event'})
+    birthdate = DateField('Date of Birth', validators=[
+        validators.InputRequired("Please enter your date of birth.") if c.COLLECT_EXACT_BIRTHDATE else validators.Optional(),
+        attendee_validators.attendee_age_checks
+        ])
+    age_group = SelectField('Age Group', validators=[
+        validators.InputRequired("Please select your age group.") if not c.COLLECT_EXACT_BIRTHDATE else validators.Optional()
+        ], choices=c.AGE_GROUPS)
+    ec_name = StringField('Emergency Contact Name', validators=[
+        validators.InputRequired("Please tell us the name of your emergency contact.")
+        ], render_kw={'placeholder': 'Who we should contact if something happens to you'})
+    ec_phone = TelField('Emergency Contact Phone', validators=[
+        validators.InputRequired("Please give us an emergency contact phone number.")
+        ], render_kw={'placeholder': 'A valid phone number for your emergency contact'})
+    onsite_contact = TextAreaField('Onsite Contact', validators=[
+        validators.InputRequired("Please enter contact information for at least one trusted friend onsite, \
+                                 or indicate that we should use your emergency contact information instead."),
+        validators.Length(max=500, message="You have entered over 500 characters of onsite contact information. \
+                          Please provide contact information for fewer friends.")
+        ], render_kw={'placeholder': 'Contact info for a trusted friend or friends who will be at or near the venue during the event'})
 
     copy_email = BooleanField('Use my business email for my personal email.', default=False)
     copy_phone = BooleanField('Use my business phone number for my cellphone number.', default=False)
@@ -38,23 +59,46 @@ class PersonalInfo(AddressForm, MagForm):
     no_onsite_contact = BooleanField('My emergency contact is also on site with me at the event.')
     international = BooleanField('I\'m coming from outside the US.')
 
-    skip_unassigned_placeholder_validators = {
-        'first_name': [validators.InputRequired("Please provide your first name.")],
-        'last_name': [validators.InputRequired("Please provide your last name.")],
-        'email': [validators.InputRequired("Please enter an email address.")],
-        'birthdate': [validators.InputRequired("Please enter your date of birth.")] if c.COLLECT_EXACT_BIRTHDATE else [validators.Optional()],
-        'age_group': [validators.InputRequired("Please select your age group.")] if not c.COLLECT_EXACT_BIRTHDATE else [validators.Optional()],
-        'ec_name': [validators.InputRequired("Please tell us the name of your emergency contact.")],
-        'ec_phone': [validators.InputRequired("Please give us an emergency contact phone number.")],
-    }
+    def get_optional_fields(self, attendee):
+        optional_list = []
+        unassigned_group_reg = attendee.group_id and not attendee.first_name and not attendee.last_name
+        valid_placeholder = attendee.placeholder and attendee.first_name and attendee.last_name
+        if unassigned_group_reg or valid_placeholder:
+            optional_list.extend(['first_name', 'last_name', 'email', 'birthdate', 'age_group', 'ec_name', 'ec_phone',
+                                  'address1', 'city', 'region', 'zip_code', 'country'])
+
+        if self.copy_email.data:
+            optional_list.append('email')
+        if self.copy_phone.data or self.no_cellphone.data:
+            optional_list.append('cellphone')
+        if self.copy_address.data:
+            optional_list.extend(['address1', 'city', 'region', 'zip_code', 'country'])
+        if self.no_onsite_contact.data:
+            optional_list.append('onsite_contact')
+
+        return optional_list
+    
+    def validate_birthdate(form, field):
+        # TODO: Make WTForms use this message instead of the generic DateField invalid value message
+        if field.data and not isinstance(field.data, date):
+            raise StopValidation('Please use the format YYYY-MM-DD for your date of birth.')
+        elif field.data and field.data > date.today():
+            raise ValidationError('You cannot be born in the future.')
             
 
 class BadgeExtras(MagForm):
     badge_type = HiddenIntField('Badge Type')
-    amount_extra = HiddenIntField('Pre-order Merch', validators=[validators.NumberRange(min=0, message="Amount extra must be a number that is 0 or higher.")])
-    extra_donation = IntegerField('Extra Donation', validators=[validators.NumberRange(min=0, message="Extra donation must be a number that is 0 or higher.")], widget=DollarInput(), description=popup_link("../static_views/givingExtra.html", "Learn more"))
+    amount_extra = HiddenIntField('Pre-order Merch', validators=[
+        validators.NumberRange(min=0, message="Amount extra must be a number that is 0 or higher.")
+        ])
+    extra_donation = IntegerField('Extra Donation', validators=[
+        validators.NumberRange(min=0, message="Extra donation must be a number that is 0 or higher.")
+        ], widget=DollarInput(), description=popup_link("../static_views/givingExtra.html", "Learn more"))
     shirt = SelectField('Shirt Size', choices=c.SHIRT_OPTS, coerce=int)
-    badge_printed_name = StringField('Name Printed on Badge')
+    badge_printed_name = StringField('Name Printed on Badge', validators=[
+        validators.Regexp(c.VALID_BADGE_PRINTED_CHARS, message="Your printed badge name has invalid characters. \
+                          Please use only alphanumeric characters and symbols.")
+    ])
 
     def validate_shirt(form, field):
         if form.amount_extra.data > 0 and field.data == c.NO_SHIRT:

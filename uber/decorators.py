@@ -276,8 +276,11 @@ def ajax(func):
     @wraps(func)
     def returns_json(*args, **kwargs):
         cherrypy.response.headers['Content-Type'] = 'application/json'
-        assert cherrypy.request.method == 'POST', 'POST required, got {}'.format(cherrypy.request.method)
-        check_csrf(kwargs.pop('csrf_token', None))
+        try:
+            assert cherrypy.request.method == 'POST', 'POST required, got {}'.format(cherrypy.request.method)
+            check_csrf(kwargs.pop('csrf_token', None))
+        except Exception as e:
+            return json.dumps({'success': False, 'message': str(e), 'error': str(e)}, cls=serializer).encode('utf-8')
         return json.dumps(func(*args, **kwargs), cls=serializer).encode('utf-8')
     returns_json.ajax = True
     return returns_json

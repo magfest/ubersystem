@@ -6,7 +6,7 @@
 {% include 'prereg_masthead.html' %}
 <div class="card">
   <div class="card-body">
-    {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_OPEN) }}
+    {{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
 
     <h3>Would you like to be informed when hotel booking is available?</h3>
     <p>

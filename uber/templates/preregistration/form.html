@@ -31,24 +31,28 @@
 {% set original_location = ".." ~ c.PAGE_PATH %}
 <div class="card">
   <div class="card-body">
-  {{ attendee_fields.prereg_intro }}
+    {{ attendee_fields.prereg_intro }}
 
   {{ form_macros.form_validation('prereg-form') }}
 
 {#- The action is set to "post_form" or "post_dealer" in order to bypass the NGINX cache. -#}
-{% set post_action = 'post_dealer' if attendee.is_dealer else 'post_form' %}
-<form method="post" id="prereg-form" action="{{ post_action }}" class="form-horizontal" role="form">
-{% if not logged_in_account and c.ATTENDEE_ACCOUNTS_ENABLED %}
-<input type="hidden" name="account_email" class="copy-from-account-input"/>
-<input type="hidden" name="account_password" class="copy-from-account-input"/>
-<input type="hidden" name="confirm_password" class="copy-from-account-input"/>
+<form method="post" id="prereg-form" action="post_form" class="form-horizontal" role="form">
+{% if attendee.group_id %}
+<input type="hidden" name="group_id" value="{{ attendee.group_id }}" />
 {% endif %}
 {% if edit_id %}
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}
 {{ csrf_token() }}
 
+{% if forms and 'group_info' in forms %}
+  {% include "forms/group_info.html" %}
+{% elif attendee.badge_type == c.PSEUDO_DEALER_BADGE %}
+  <h3 class="text-center">{{ c.DEALER_TERM|title }} Personal Info</h3>
+  {{ forms['badge_extras'].badge_type }}
+{% else %}
   {% include "forms/badge_extras.html" %}
+{% endif %}
   {% include "forms/personal_info.html" %}
   {% include "forms/consents.html" %}
 
@@ -99,13 +103,13 @@
 
 <div class="form-group">
     <div class="col-sm-9 col-sm-offset-3">
-        {% if attendee.is_dealer %}
-            <button type="submit" class="btn btn-primary" value="Submit Application">Submit Application</button>
-        {% elif c.PAGE_PATH in ['/preregistration/form', '/preregistration/dealer_registration'] and not edit_id %}
+        {% if not edit_id %}
             <button type="submit" class="btn btn-primary" value="Next">Next</button>
         {% else %}
             <button type="submit" class="btn btn-primary" value="Update">Update</button>
+            {% if attendee.badge_type != c.PSEUDO_DEALER_BADGE %}
             <button type="submit" class="btn btn-primary" name="go_to_cart" value="1">Update & Go to Cart</button>
+            {% endif %}
         {% endif %}
 
         {% if edit_id or cart_not_empty %}

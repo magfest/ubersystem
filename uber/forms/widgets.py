@@ -3,23 +3,47 @@ from wtforms.widgets import NumberInput, html_params, CheckboxInput, Select
 from uber.config import c
 
 class MultiCheckbox():
+    """
+    Renders a MultiSelect field as a set of checkboxes, e.g., "What interests you?"
+    """
     def __call__(self, field, div_class='checkgroup', **kwargs):
         kwargs.setdefault('type', 'checkbox')
         field_id = kwargs.pop('id', field.id)
-        html = ['<div %s>' % html_params(id=field_id, class_=div_class)]
-        html.append('<fieldset>')
+        html = ['<div {}>'.format(html_params(class_=div_class))]
+        html.append('<fieldset {}>'.format(html_params(id=field_id)))
         for value, label, checked in field.iter_choices():
-            choice_id = '%s-%s' % (field_id, value)
+            choice_id = '{}-{}'.format(field_id, value)
             options = dict(kwargs, name=field.name, value=value, id=choice_id)
             if value == c.OTHER:
                 html.append('<br/>')
             if checked:
                 options['checked'] = 'checked'
-            html.append('<label for="%s" class="checkbox-label">' % choice_id)
-            html.append('<input %s /> ' % html_params(**options))
-            html.append('%s</label>' % label)
+            html.append('<label for="{}" class="checkbox-label">'.format(choice_id))
+            html.append('<input {} /> '.format(html_params(**options)))
+            html.append('{}</label>'.format(label))
         html.append('</fieldset>')
         html.append('</div>')
+        return Markup(''.join(html))
+
+
+class IntSelect():
+    """
+    Renders an Integer or Decimal field as a select dropdown, e.g., the "badges" dropdown for groups.
+    The list of choices must be provided on render and should be a list of (value, label) tuples.
+    Note that choices must include a null/zero option if you want one.
+    """
+
+    def __call__(self, field, choices, **kwargs):
+        field_id = kwargs.pop('id', field.id)
+        options = dict(kwargs, id=field_id, name=field.name)
+        html = ['<select class="form-select" {}>'.format(html_params(**options))]
+        for value, label in choices:
+            choice_id = '{}-{}'.format(field_id, value)
+            choice_options = dict(value=value, id=choice_id)
+            if value == field.data:
+                choice_options['selected'] = 'selected'
+            html.append('<option value="{}" {}>{}</option>'.format(value, html_params(**choice_options), label))
+        html.append('</select>')
         return Markup(''.join(html))
 
 
