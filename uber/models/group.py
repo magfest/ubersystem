@@ -80,7 +80,7 @@ class Group(MagModel, TakesPaymentMixin):
             self.approved = datetime.now(UTC)
         if self.leader and self.is_dealer:
             self.leader.ribbon = add_opt(self.leader.ribbon_ints, c.DEALER_RIBBON)
-        if not self.is_unpaid:
+        if not self.is_unpaid or self.orig_value_of('status') != self.status:
             for a in self.attendees:
                 a.presave_adjustments()
 
