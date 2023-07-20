@@ -13,7 +13,8 @@ class Root:
         promo_comped = session.attendees_with_badges().join(PromoCode).filter(Attendee.paid == c.NEED_NOT_PAY,
                                                                               or_(PromoCode.cost == None, 
                                                                                   PromoCode.cost == 0))
-        group_comped = session.attendees_with_badges().filter(Attendee.paid == c.PAID_BY_GROUP, Group.cost == 0)
+        group_comped = session.attendees_with_badges().join(Group, Attendee.group_id == Group.id)\
+                .filter(Attendee.paid == c.PAID_BY_GROUP, Group.cost == 0)
         all_comped = regular_comped.union(promo_comped, group_comped)
         claimed_comped = all_comped.filter(Attendee.placeholder == False)
         unclaimed_comped = all_comped.filter(Attendee.placeholder == True)
