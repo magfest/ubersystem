@@ -11,11 +11,6 @@ You can either allocate specific promo codes for each group member using your <a
 <br/><br/>
 You may edit your own registration <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ group.buyer.id }}">here</a>.
 
-{% if group.buyer.requested_hotel_info and c.PREREG_REQUEST_HOTEL_INFO_OPEN %}
-    <br/> <br/>
-    {% include "preregistration/hotel_disclaimer.html" %}
-{% endif %}
-
 {% if c.CONSENT_FORM_URL and group.buyer.age_group_conf['consent_form'] %}
     <br/> <br/>
     Because you are under 18, you must bring a <a href="{{ c.CONSENT_FORM_URL }}">signed and notarized parental

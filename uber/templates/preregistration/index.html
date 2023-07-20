@@ -65,9 +65,6 @@
               <li>{% if attendee.badge_type in c.BADGE_TYPE_PRICES %}{{ attendee.badge_type_label|replace(' ', '-') }}-level r{% else %}R{% endif %}egistration for {{ c.EVENT_NAME }}
                 {% if attendee.badges %} for {{ attendee.badges }} people{% endif %}
                 {% if badge_cost %} ({{ badge_cost|format_currency }}){% endif %}</li>
-              {% if attendee.requested_hotel_info %}
-                <li>Requested hotel booking info</li>
-              {% endif %}
               {% if attendee.age_discount and attendee.age_discount|abs > attendee.default_badge_cost and not attendee.promo_code_id %}
                 <li>Attendees who are {{ attendee.age_group_conf.desc|lower }} get in for free!</li>
               {% elif attendee.age_discount and attendee.age_group_conf.discount != 0 %}
@@ -100,9 +97,6 @@
           <td>
             <ul style="padding-left:15px">
               <li>{{ group.badges }} badges</li>
-              {% if group.requested_hotel_info %}
-                <li>Requested hotel booking info</li>
-              {% endif %}
               {% for swag in group.attendees.0.donation_swag|list + group.addons|list %}
                 <li>{{ swag }}</li>
               {% endfor %}

@@ -456,13 +456,9 @@ class Root:
                     if attendee.banned:
                         raise HTTPRedirect('banned?{}'.format(url_string))
 
-                    if c.PREREG_REQUEST_HOTEL_INFO_OPEN:
-                        hotel_page = 'hotel?edit_id={}' if edit_id else 'hotel?{}'.format(url_string)
-                        raise HTTPRedirect(hotel_page, interim_page_id)
-                    else:
-                        if edit_id and params.get('go_to_cart'):
-                            raise HTTPRedirect('index')
-                        raise HTTPRedirect('additional_info?{}{}'.format(url_string, "&editing={}".format(edit_id) if edit_id else ""))
+                    if edit_id and params.get('go_to_cart'):
+                        raise HTTPRedirect('index')
+                    raise HTTPRedirect('additional_info?{}{}'.format(url_string, "&editing={}".format(edit_id) if edit_id else ""))
 
         promo_code_group = None
         if attendee.promo_code:
@@ -505,39 +501,6 @@ class Root:
             'attendee':   attendee,
             'editing': editing,
             'forms': forms,
-        }
-
-    @redirect_if_at_con_to_kiosk
-    @check_if_can_reg
-    def hotel(self, session, message='', edit_id=None, requested_hotel_info=False, **params):
-        params['attendee_id'] = params.get('attendee_id') or edit_id
-        attendee, group = self._get_attendee_or_group(params)
-        if not id:
-            raise HTTPRedirect('form')
-
-        if not c.PREREG_REQUEST_HOTEL_INFO_OPEN:
-            if cherrypy.request.method == 'POST':
-                raise HTTPRedirect('index?message={}', 'Requests for hotel booking info have already been closed')
-            else:
-                raise HTTPRedirect('form?edit_id={}', id)
-
-        attendee = self._get_unsaved(id, if_not_found=HTTPRedirect('form?message={}', 'Could not find the given preregistration'))
-
-        is_group_leader = not attendee.is_unassigned and attendee.promo_code_groups > 0
-
-        if cherrypy.request.method == 'POST':
-            attendee.requested_hotel_info = requested_hotel_info
-            target = attendee
-            track_type = c.EDITED_PREREG if target.id in PreregCart.unpaid_preregs else c.UNPAID_PREREG
-            PreregCart.unpaid_preregs[target.id] = PreregCart.to_sessionized(attendee)
-            Tracking.track(track_type, attendee)
-            raise HTTPRedirect('index')
-        return {
-            'message': message,
-            'id': id,
-            'edit_id': edit_id,
-            'is_group_leader': is_group_leader,
-            'requested_hotel_info': attendee.requested_hotel_info if edit_id else True
         }
 
     def duplicate(self, session, **params):
@@ -1000,8 +963,7 @@ class Root:
                     'badge_cost',
                     'ribbon',
                     'paid',
-                    'overridden_price',
-                    'requested_hotel_info']
+                    'overridden_price']
 
                 attendee = group.unassigned[0]
                 for attr in attrs_to_preserve_from_unassigned_group_member:

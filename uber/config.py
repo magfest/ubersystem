@@ -490,41 +490,6 @@ class Config(_Overridable):
         return dict(self.PREREG_DONATION_OPTS)
 
     @property
-    def PREREG_REQUEST_HOTEL_INFO_DEADLINE(self):
-        """
-        The datetime at which the "Request Hotel Info" checkbox will NO LONGER
-        be shown during preregistration.
-        """
-        return self.PREREG_OPEN + timedelta(
-            hours=max(0, self.PREREG_REQUEST_HOTEL_INFO_DURATION))
-
-    @property
-    def PREREG_REQUEST_HOTEL_INFO_ENABLED(self):
-        """
-        Boolean which indicates whether the "Request Hotel Info" checkbox is
-        enabled generally, whether or not the deadline has passed.
-        """
-        return self.PREREG_REQUEST_HOTEL_INFO_DURATION > 0
-
-    @property
-    def PREREG_REQUEST_HOTEL_INFO_OPEN(self):
-        """
-        Boolean which indicates whether the "Request Hotel Info" checkbox is
-        enabled and currently open with preregistration.
-        """
-        if not self.PREREG_REQUEST_HOTEL_INFO_ENABLED:
-            return False
-        return not self.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE
-
-    @property
-    def PREREG_HOTEL_INFO_EMAIL_DATE(self):
-        """
-        Date at which the hotel booking link email becomes available to send.
-        """
-        return self.PREREG_REQUEST_HOTEL_INFO_DEADLINE + \
-            timedelta(hours=max(0, self.PREREG_HOTEL_INFO_EMAIL_WAIT_DURATION))
-
-    @property
     def ONE_WEEK_OR_TAKEDOWN_OR_EPOCH(self):
         week_from_now = c.EVENT_TIMEZONE.localize(datetime.combine(date.today() + timedelta(days=7), time(23, 59)))
         return min(week_from_now, c.UBER_TAKEDOWN, c.EPOCH)

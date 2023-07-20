@@ -1224,7 +1224,6 @@ class TaskUtils:
                 'badge_status': badge_status,
                 'paid': paid,
                 'placeholder': True,
-                'requested_hotel_info': True,
                 'admin_notes': 'Imported {} from {}{}{}'.format(
                     badge_label, import_from_url, new_admin_notes, old_admin_notes),
                 'past_years': attendee['all_years'],
@@ -1320,7 +1319,6 @@ class TaskUtils:
         attendee.update({
             'badge_status': c.IMPORTED_STATUS,
             'badge_num': None,
-            'requested_hotel_info': True,
             'past_years': attendee['all_years'],
         })
         if attendee.get('shirt', '') and attendee['shirt'] not in c.SHIRT_OPTS:
