@@ -56,8 +56,15 @@ class Root:
 
                         admin_account = session.create_admin_account(matching_attendee, generate_pwd=False)
                         all_access_group = session.query(AccessGroup).filter_by(name="All Access").first()
-                        if all_access_group:
-                            admin_account.access_groups.append(all_access_group)
+                        if not all_access_group:
+                            all_access_group = AccessGroup(
+                                name='All Access',
+                                access={section: '5' for section in c.ADMIN_PAGES}
+                            )
+                            session.add(all_access_group)
+                        
+                        admin_account.access_groups.append(all_access_group)
+                        session.commit()
                 if admin_account:
                     cherrypy.session['account_id'] = admin_account.id
 
