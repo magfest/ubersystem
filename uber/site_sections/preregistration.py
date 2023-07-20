@@ -17,7 +17,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from uber import receipt_items
 from uber.config import c
 from uber.custom_tags import email_only
-from uber.decorators import ajax, ajax_gettable, all_renderable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
+from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
 from uber.forms import attendee as attendee_forms, group as group_forms, load_forms
@@ -29,6 +29,21 @@ from uber.utils import add_opt, check, check_pii_consent, localized_now, normali
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager
 import uber.validations as validations
 
+
+def check_if_can_reg(is_dealer_reg=False):
+    if c.DEV_BOX:
+            pass  # Don't redirect to any of the pages below.
+    elif is_dealer_reg and not c.DEALER_REG_OPEN:
+        if c.AFTER_DEALER_REG_START:
+            return render('static_views/dealer_reg_closed.html')
+        else:
+            return render('static_views/dealer_reg_not_open.html')
+    elif not c.ATTENDEE_BADGE_AVAILABLE:
+        return render('static_views/prereg_soldout.html')
+    elif c.BEFORE_PREREG_OPEN and not is_dealer_reg:
+        return render('static_views/prereg_not_yet_open.html')
+    elif c.AFTER_PREREG_TAKEDOWN and not c.AT_THE_CON:
+        return render('static_views/prereg_closed.html')
 
 def check_post_con(klass):
     def wrapper(func):
@@ -172,8 +187,9 @@ class Root:
 
         return {'message': message}
 
-    @check_if_can_reg
     def index(self, session, message='', account_email='', account_password='', removed_id='', **params):
+        check_if_can_reg()
+
         if removed_id:
             existing_model = session.query(Attendee).filter_by(id=removed_id).first()
             if not existing_model:
@@ -213,14 +229,16 @@ class Root:
                         attendee.promo_group_name = real_code.group.name
             return {
                 'logged_in_account': session.current_attendee_account(),
+                'is_prereg_dealer': False,
                 'message': message,
                 'cart': cart,
                 'account_email': account_email or cart.attendees[0].email,
                 'account_password': account_password,
             }
 
-    @check_if_can_reg
     def reapply(self, session, id, **params):
+        check_if_can_reg(is_dealer_reg=True)
+
         old_attendee = session.attendee(id)
         old_attendee_dict = old_attendee.to_dict(c.UNTRANSFERABLE_ATTRS)
         del old_attendee_dict['id']
@@ -237,8 +255,8 @@ class Root:
         raise HTTPRedirect("dealer_registration?edit_id={}&repurchase=1&old_group_id={}", new_attendee.id, old_attendee.group.id)
         
 
-    @check_if_can_reg
     def repurchase(self, session, id, skip_confirm=False, **params):
+        check_if_can_reg()
         if skip_confirm or 'csrf_token' in params:
             old_attendee = session.attendee(id)
             old_attendee_dict = old_attendee.to_dict(c.UNTRANSFERABLE_ATTRS)
@@ -256,9 +274,10 @@ class Root:
         }
 
     @cherrypy.expose('post_dealer')
-    @check_if_can_reg
     @requires_account()
     def dealer_registration(self, session, message='', edit_id=None, **params):
+        check_if_can_reg(is_dealer_reg=True)
+
         if c.DEALER_INVITE_CODE and not edit_id:
             if not params.get('invite_code'):
                 raise HTTPRedirect("dealer_registration?message={}s must have an invite code to register.".format(c.DEALER_TERM.capitalize()))
@@ -300,6 +319,7 @@ class Root:
 
         return {
                 'logged_in_account': session.current_attendee_account(),
+                'is_prereg_dealer': True,
                 'forms': forms,
                 'message':    message,
                 'group':      group,
@@ -310,6 +330,8 @@ class Root:
             }
     
     def finish_dealer_reg(self, session, id, **params):
+        check_if_can_reg(is_dealer_reg=True)
+
         group = self._get_unsaved(id, PreregCart.pending_dealers)
         attendee = group.attendees[0]
 
@@ -352,9 +374,10 @@ class Root:
 
     @cherrypy.expose('post_form')
     @redirect_if_at_con_to_kiosk
-    @check_if_can_reg
     @requires_account()
     def form(self, session, message='', edit_id=None, **params):
+        is_dealer_reg = 'dealer_id' in params
+        check_if_can_reg(is_dealer_reg)
         """
         Our production NGINX config caches the page at /preregistration/form.
         Since it's cached, we CAN'T return a session cookie with the page. We
@@ -371,7 +394,7 @@ class Root:
         if cherrypy.request.method == 'POST' and not params.get('badge_type'):
             params['badge_type'] = c.ATTENDEE_BADGE
 
-        if 'dealer_id' in params:
+        if is_dealer_reg:
             group = self._get_unsaved(params['dealer_id'], PreregCart.pending_dealers)
             if group.attendees:
                 attendee = group.attendees[0]
@@ -412,6 +435,7 @@ class Root:
                 'name': name,
                 'badges': badges,
                 'invite_code': params.get('invite_code', ''),
+                'is_prereg_dealer': is_dealer_reg,
             }
 
         if cherrypy.request.method == 'POST':
@@ -467,6 +491,7 @@ class Root:
         return {
             'logged_in_account': session.current_attendee_account(),
             'loaded_from_group': loaded_from_group,
+            'is_prereg_dealer': is_dealer_reg,
             'message':    message,
             'attendee':   attendee,
             'forms': forms,
@@ -481,7 +506,11 @@ class Root:
         }
     
     def additional_info(self, session, message='', editing=None, **params):
+        is_dealer_reg = 'group_id' in params
+        check_if_can_reg(is_dealer_reg)
+
         attendee, group = self._get_attendee_or_group(params)
+
         forms = load_forms(params, attendee, attendee_forms, ['OtherInfo'])
 
         if cherrypy.request.method == "POST":
@@ -497,6 +526,7 @@ class Root:
             raise HTTPRedirect('index')
         return {
             'logged_in_account': session.current_attendee_account(),
+            'is_prereg_dealer': is_dealer_reg,
             'message':    message,
             'attendee':   attendee,
             'editing': editing,
@@ -504,6 +534,8 @@ class Root:
         }
 
     def duplicate(self, session, **params):
+        check_if_can_reg(is_dealer_reg='group_id' in params)
+
         attendee, group = self._get_attendee_or_group(params)
         orig = session.query(Attendee).filter_by(
             first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).first()
@@ -518,6 +550,8 @@ class Root:
         }
 
     def banned(self, **params):
+        check_if_can_reg(is_dealer_reg='group_id' in params)
+
         attendee, group = self._get_attendee_or_group(params)
         return {
             'attendee': attendee,
@@ -721,6 +755,7 @@ class Root:
                     pass  # this badge must have subsequently been transferred or deleted
             return {
                 'preregs': preregs,
+                'is_prereg_dealer': False,
                 'total_cost': total_cost,
                 'message': message
             }
@@ -761,7 +796,10 @@ class Root:
                 # Dealers always hit this page after signing their terms and conditions
                 # We want new dealers to see the confirmation page, and everyone else to go to their group page
                 raise HTTPRedirect('group_members?id={}&message={}', group.id, "Thank you for signing the terms and conditions!")
-        return {'group': group}
+        return {
+            'group': group,
+            'is_prereg_dealer': True
+            }
 
     @id_required(PromoCodeGroup)
     def group_promo_codes(self, session, id, message='', **params):

@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 from uber import receipt_items
 from uber.config import c
 from uber.custom_tags import email_only
-from uber.decorators import ajax, all_renderable, not_site_mappable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
+from uber.decorators import ajax, all_renderable, not_site_mappable, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, AccessGroup, AttendeeAccount, Attraction, Email, Group, ModelReceipt, PromoCode, PromoCodeGroup, \

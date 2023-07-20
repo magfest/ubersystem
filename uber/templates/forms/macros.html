@@ -304,10 +304,7 @@
 
   $(function () {
     $("#form-validations").hide();
-    {% if c.ATTENDEE_ACCOUNTS_ENABLED and not logged_in_account %}
-      {{ submit_validation_and_disclaimer("account-form", include_disclaimers_modal) }}
-    {% endif %}
-      {{ submit_validation_and_disclaimer(form_id, include_disclaimers_modal) }}
+    {{ submit_validation_and_disclaimer(form_id, include_disclaimers_modal) }}
 });
 </script>
 {%- endmacro %}

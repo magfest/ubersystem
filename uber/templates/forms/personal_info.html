@@ -85,6 +85,7 @@
 
 {% block address %}
 {% if c.COLLECT_FULL_ADDRESS %}
+{% if is_prereg_dealer %}
 <div class="row g-sm-3">
   <div class="col-12">
     {{ form_macros.toggle_checkbox(personal_info.copy_address, 
@@ -106,7 +107,6 @@
     }, 10);
    }) 
 </script>
-{% if is_prereg_dealer %}
 {% endif %}
   {{ form_macros.address_fields(attendee, personal_info) }}
 {% else %}

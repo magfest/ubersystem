@@ -1,6 +1,4 @@
 {% extends "base.html" %}
-{%- set is_prereg_attendee = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}
-{%- set is_prereg_dealer = c.PAGE_PATH in ['/preregistration/dealer_registration', 'preregistration/post_dealer'] or attendee and attendee.badge_type == c.PSEUDO_DEALER_BADGE -%}
 {% import "forms/attendee.html" as attendee_fields with context %}
 {% import "forms/group.html" as group_fields with context %}
 {% import "forms/account.html" as account_fields with context %}

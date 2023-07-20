@@ -69,33 +69,6 @@ def redirect_if_at_con_to_kiosk(func):
     return with_check
 
 
-def check_if_can_reg(func):
-    @wraps(func)
-    def with_check(*args, **kwargs):
-        is_dealer_get = c.HTTP_METHOD == 'GET' \
-                        and c.PAGE_PATH in ['/preregistration/dealer_registration', '/preregistration/post_dealer']
-        is_dealer_post = c.HTTP_METHOD == 'POST' and \
-            int(kwargs.get('badge_type', 0)) == c.PSEUDO_DEALER_BADGE and \
-            int(kwargs.get('tables', 0)) > 0
-        is_dealer_reg = is_dealer_get or is_dealer_post
-
-        if c.DEV_BOX:
-            pass  # Don't redirect to any of the pages below.
-        elif is_dealer_reg and not c.DEALER_REG_OPEN:
-            if c.AFTER_DEALER_REG_START:
-                return render('static_views/dealer_reg_closed.html')
-            else:
-                return render('static_views/dealer_reg_not_open.html')
-        elif not c.ATTENDEE_BADGE_AVAILABLE:
-            return render('static_views/prereg_soldout.html')
-        elif c.BEFORE_PREREG_OPEN and not is_dealer_reg:
-            return render('static_views/prereg_not_yet_open.html')
-        elif c.AFTER_PREREG_TAKEDOWN and not c.AT_THE_CON:
-            return render('static_views/prereg_closed.html')
-        return func(*args, **kwargs)
-    return with_check
-
-
 def check_for_encrypted_badge_num(func):
     """
     On some pages, we pass a 'badge_num' parameter that might EITHER be a literal

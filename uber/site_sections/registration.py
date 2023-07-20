@@ -17,11 +17,12 @@ from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.custom_tags import format_currency
-from uber.decorators import ajax, ajax_gettable, all_renderable, attendee_view, check_for_encrypted_badge_num, check_if_can_reg, credit_card, \
+from uber.decorators import ajax, ajax_gettable, all_renderable, attendee_view, check_for_encrypted_badge_num, credit_card, \
     csrf_protected, department_id_adapter, log_pageview, not_site_mappable, render, requires_account, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, AttendeeAccount, Department, Email, Group, Job, PageViewTracking, PrintJob, PromoCode, \
     PromoCodeGroup, Sale, Session, Shift, Tracking, WatchList
+from uber.site_sections.preregistration import check_if_can_reg
 from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
     localized_now, Order, normalize_email
 from uber.payments import TransactionRequest, ReceiptManager
@@ -563,9 +564,10 @@ class Root:
 
     @public
     @check_atd
-    @check_if_can_reg
     @requires_account()
     def register(self, session, message='', error_message='', **params):
+        check_if_can_reg()
+
         params['id'] = 'None'
         login_email = None
         payment_method = params.get('payment_method')

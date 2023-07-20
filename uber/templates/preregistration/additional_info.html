@@ -1,6 +1,4 @@
 {% extends "./preregistration/preregbase.html" %}
-{%- set is_prereg_attendee = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}
-{%- set is_prereg_dealer = c.PAGE_PATH in ['/preregistration/dealer_registration', 'preregistration/post_dealer'] or attendee and attendee.badge_type == c.PSEUDO_DEALER_BADGE -%}
 {% import 'forms/macros.html' as form_macros with context %}
 {% block title %}Additional Info{% endblock %}
 {% block backlink %}{% endblock %}
@@ -22,7 +20,7 @@
     </div>
     {% endif %}
 
-    <form method="post" id="additional-form" action="additional_info" class="form-horizontal" role="form">
+    <form method="post" id="prereg-form" action="additional_info" class="form-horizontal" role="form">
       {% if is_prereg_dealer %}
       <input type="hidden" name="group_id" value="{{ attendee.group_id }}" />
       {% else %}
