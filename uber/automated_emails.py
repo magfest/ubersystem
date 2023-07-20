@@ -126,12 +126,6 @@ class AutomatedEmailFixture:
         before = [d.active_before for d in when if d.active_before]
         self.active_before = max(before) if before else None
 
-    @property
-    def body(self):
-        return decorators.render_empty(os.path.join('emails', self.template))
-    
-    @property
-    def template_url(self):
         env = JinjaEnv.env()
         try:
             template_path = pathlib.Path(env.get_template(os.path.join('emails', self.template)).name)
@@ -139,6 +133,11 @@ class AutomatedEmailFixture:
             self.template_url = f"https://github.com/magfest/{self.template_plugin}/tree/main/{self.template_plugin}/{pathlib.Path(*template_path.parts[5:]).as_posix()}"
         except jinja2.exceptions.TemplateNotFound:
             self.template_url = ""
+        
+
+    @property
+    def body(self):
+        return decorators.render_empty(os.path.join('emails', self.template))
 
 
 # Payment reminder emails, including ones for groups, which are always safe to be here, since they just
@@ -1173,8 +1172,7 @@ if c.PANELS_ENABLED:
         'panels/panel_accept_reminder.txt',
         lambda app: (
             c.PANELS_CONFIRM_DEADLINE
-            and app.status == c.ACCEPTED
-            and not app.confirmed
+            and app.confirm_deadline
             and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
         ident='panel_accept_reminder')
 

@@ -16,14 +16,17 @@ x-dev-volumes:
   volumes:
     - &extra-plugin-1 $PWD/../covid:/app/plugins/covid
     - &extra-plugin-2 $PWD/../${COMPOSE_PROJECT_NAME}/:/app/plugins/${COMPOSE_PROJECT_NAME}
+    - &config-file $PWD/development-${COMPOSE_PROJECT_NAME}.ini:/app/plugins/uber/development.ini
 
 services:
   python-repl:
     container_name: ${COMPOSE_PROJECT_NAME}-python-repl
     build: .
     volumes:
+      - $PWD:/app/plugins/uber
       - *extra-plugin-1
       - *extra-plugin-2
+      - *config-file
       - $PWD/.pythonstartup.py:/app/.pythonstartup.py
     stdin_open: true
     tty: true
@@ -40,7 +43,7 @@ services:
     volumes:
       - *extra-plugin-1
       - *extra-plugin-2
-      - $PWD/development-${COMPOSE_PROJECT_NAME}.ini:/app/plugins/uber/development.ini
+      - *config-file
   celery-beat:
     extends:
       file: docker-compose.yml
@@ -48,6 +51,7 @@ services:
     volumes:
       - *extra-plugin-1
       - *extra-plugin-2
+      - *config-file
   celery-worker:
     extends:
       file: docker-compose.yml
@@ -55,3 +59,4 @@ services:
     volumes:
       - *extra-plugin-1
       - *extra-plugin-2
+      - *config-file

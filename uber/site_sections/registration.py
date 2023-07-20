@@ -138,7 +138,7 @@ class Root:
             message = ''
             
             attendee.group_id = params['group_opt'] or None
-            if params.get('no_badge_num') or not attendee.badge_num:
+            if c.NUMBERED_BADGES and (params.get('no_badge_num') or not attendee.badge_num):
                 if params.get('save') == 'save_check_in' and attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES:
                     message = "Please enter a badge number to check this attendee in"
                 else:
@@ -541,7 +541,7 @@ class Root:
     @csrf_protected
     def undo_checkin(self, session, id, pre_badge):
         attendee = session.attendee(id, allow_invalid=True)
-        attendee.checked_in, attendee.badge_num = None, pre_badge
+        attendee.checked_in, attendee.badge_num = None, pre_badge if pre_badge else None
         session.add(attendee)
         session.commit()
         return 'Attendee successfully un-checked-in'

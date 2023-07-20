@@ -357,7 +357,7 @@ class MagModel:
             return []
 
         choices = dict(self.get_field(name).type.choices)
-        val = MultiChoice.convert_if_labels(self.get_field(name).type, val)
+        val = self.get_field(name).type.convert_if_labels(val)
         return [int(i) for i in str(val).split(',') if i and int(i) in choices]
 
     @suffix_property
@@ -418,8 +418,8 @@ class MagModel:
             try:
                 return sum(item[0] * item[1] for item in cost_calc[1].items()) / 100
             except AttributeError:
-                if len(cost_calc) > 2:
-                    return cost_calc[1] * cost_calc[2] / 100
+                if len(cost_calc) > 3:
+                    return cost_calc[1] * cost_calc[3] / 100
                 else:
                     return cost_calc[1] / 100
         except Exception:
@@ -539,7 +539,7 @@ class MagModel:
 
     def timespan(self, minute_increment=1):
         def minutestr(dt):
-            return ':30' if dt.minute == 30 else ''
+            return '' if dt.minute == 0 else dt.strftime(':%M')
 
         timespan = timedelta(minutes=minute_increment * self.duration)
         endtime = self.start_time_local + timespan
