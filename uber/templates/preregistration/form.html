@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "./preregistration/preregbase.html" %}
 {% import "forms/attendee.html" as attendee_fields with context %}
 {% import "forms/group.html" as group_fields with context %}
 {% import "forms/account.html" as account_fields with context %}
@@ -25,7 +25,6 @@
   </script>
   {% endif %}
   {{ attendee_fields.amount_extra_js }}
-{% include 'prereg_masthead.html' %}
 {% set original_location = ".." ~ c.PAGE_PATH %}
 <div class="card">
   <div class="card-body">

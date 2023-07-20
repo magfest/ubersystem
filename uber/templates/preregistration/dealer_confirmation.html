@@ -2,7 +2,6 @@
 {% block title %}{{ c.DEALER_APP_TERM|title }} Received{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
-{% include 'prereg_masthead.html' %}
 <div class="card">
   <div class="card-body">
     {{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
