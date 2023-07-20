@@ -13,9 +13,20 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 {% block staffing %}
 {% set include_cellphone = (not personal_info or personal_info is none) and not other_info.cellphone.data %}
+{% set staffing_readonly = False %}
+{% if not admin_area %}
+    {% if attendee.badge_type in [c.CONTRACTOR_BADGE, c.STAFF_BADGE] %}
+    {% set staffing_readonly = True %}
+    {% set staffing_message = "This checkbox is required for Contractors, Volunteers, and Staff. Please contact Staffing Operations if you wish to change your status." %}
+    {% elif attendee.shifts %}
+    {% set staffing_readonly = True %}
+    {% set staffing_message = "Please " ~ 'see Staffing Operations to change your volunteer status.' if c.AT_THE_CON else 'unassign yourself from shifts before changing your volunteer status.' %}
+    {% endif %}
+{% endif %}
+{% set staffing_readonly = not admin_area and (attendee.badge_type in [c.CONTRACTOR_BADGE, c.STAFF_BADGE] or attendee.shifts) %}
 <div class="row g-sm-3">
     <div class="col-12">{{ form_macros.toggle_checkbox(other_info.staffing, 
-        [other_info.requested_dept_ids, other_info.cellphone] if include_cellphone else [other_info.requested_dept_ids]) }}</div>
+        [other_info.requested_dept_ids, other_info.cellphone] if include_cellphone else [other_info.requested_dept_ids], readonly=staffing_readonly, help_text=staffing_message if staffing_only else "") }}</div>
 </div>
 
 {% if include_cellphone %}

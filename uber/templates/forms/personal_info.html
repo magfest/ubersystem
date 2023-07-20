@@ -123,7 +123,8 @@
 
 
 {% block ec_info %}
-{% if admin_area and (full_read or c.HAS_REG_ADMIN_ACCESS or c.HAS_SECURITY_ADMIN_ACCESS) or (attendee.is_new or not admin_area) %}
+{% set ec_hidden_base = admin_area and (full_read or c.HAS_REG_ADMIN_ACCESS or c.HAS_SECURITY_ADMIN_ACCESS) or (attendee.is_new or not admin_area) %}
+{% if ec_hidden_base and personal_info.ec_name.data %}
 {% set onsite_extra_field = form_macros.toggle_checkbox(personal_info.no_onsite_contact, [personal_info.onsite_contact], toggle_required=True, hide_on_checked=True, prop="disabled") %}
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
@@ -134,7 +135,8 @@
     {{ form_macros.form_input(personal_info.ec_phone, readonly=emergency_contact_ro or page_ro) }}
   </div>
 </div>
-
+{% endif %}
+{% if ec_hidden_base and personal_info.onsite_contact.data %}
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
     {{ form_macros.form_input(personal_info.onsite_contact, extra_field=onsite_extra_field, readonly=emergency_contact_ro or page_ro, maxlength="500") }}
