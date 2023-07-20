@@ -147,20 +147,9 @@ AutomatedEmailFixture(
     Attendee,
     '{EVENT_NAME} registration confirmed',
     'reg_workflow/attendee_confirmation.html',
-    lambda a: a.paid == c.HAS_PAID and not a.promo_code_groups,
+    lambda a: (a.paid == c.HAS_PAID and not a.promo_code_groups) or 
+              (a.paid == c.NEED_NOT_PAY and (a.confirmed or a.promo_code_id)),
     # query=Attendee.paid == c.HAS_PAID,
-    needs_approval=False,
-    allow_at_the_con=True,
-    ident='attendee_payment_received')
-
-AutomatedEmailFixture(
-    Attendee,
-    '{EVENT_NAME} registration confirmed',
-    'reg_workflow/attendee_confirmation.html',
-    lambda a: a.paid == c.NEED_NOT_PAY and (a.confirmed or a.promo_code_id),
-    # query=and_(
-    #     Attendee.paid == c.NEED_NOT_PAY,
-    #     or_(Attendee.confirmed != None, Attendee.promo_code_id != None)),
     needs_approval=False,
     allow_at_the_con=True,
     ident='attendee_badge_confirmed')
