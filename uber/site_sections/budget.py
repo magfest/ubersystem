@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 from sqlalchemy.orm import joinedload, aliased
-from sqlalchemy import and_, or_, func
+from sqlalchemy import and_, or_, func, not_
 
 from uber.config import c
 from uber.decorators import all_renderable, log_pageview
@@ -65,6 +65,7 @@ class Root:
 
         pc_comped_badges = 0
         pc_unused_badges = defaultdict(int)
+        pc_group_total = session.query(Attendee).filter(*pc_group_filter).count()
 
         pc_group_leaders = session.query(Attendee).filter(Attendee.promo_code_groups != None).count()
         pc_group_badges = get_grouped_costs(session, paid_pc_group_filter, [Attendee.promo_code, PromoCode.group])
@@ -73,12 +74,13 @@ class Root:
             pc_comped_badges += len(group.used_promo_codes)
 
         for group in session.query(PromoCodeGroup).filter(PromoCodeGroup.total_cost > 0):
-            for code in group.valid_codes:
+            for code in group.unused_codes:
                 pc_unused_badges[code.cost] += 1
+                pc_group_total += 1
 
-        pc_group_total = session.query(Attendee).filter(*pc_group_filter).count()
-
-        individual_filter = base_filter + [Attendee.paid != c.PAID_BY_GROUP, Attendee.promo_code_group_name == None]
+        individual_filter = base_filter + [not_(Attendee.paid.in_([c.PAID_BY_GROUP, c.NEED_NOT_PAY])),
+                                           Attendee.promo_code_group_name == None,
+                                           Attendee.badge_cost > 0]
         paid_ind_filter = individual_filter + [Attendee.is_paid == True]
         unpaid_ind_filter = individual_filter + [Attendee.has_receipt == True, Attendee.is_paid == False]
 
@@ -102,8 +104,9 @@ class Root:
             else:
                 unpaid_badges[attendee.badge_cost] += 1
 
-        comped_badges = session.query(Attendee).filter(*base_filter).filter_by(paid=c.NEED_NOT_PAY).count()
-        individual_total = session.query(Attendee).filter(*individual_filter).count()
+        comped_badges = session.query(Attendee).filter(*base_filter).filter(Attendee.promo_code_group_name == None) \
+            .filter_by(paid=c.NEED_NOT_PAY).count()
+        individual_total = session.query(Attendee).filter(*individual_filter).count() + comped_badges
         
         return {
             'total_badges': attendees.count(),
@@ -222,8 +225,9 @@ class Root:
         not_unpaid_preordered_merch = 0
         not_unpaid_extra_donations = 0
 
-        for attendee in session.query(Attendee).filter(*base_filter).filter(or_(Attendee.amount_extra > 0,
-                                                                                Attendee.extra_donation > 0)):
+        for attendee in session.query(Attendee).filter(*base_filter).filter(Attendee.has_receipt == False).filter(
+                                                                        or_(Attendee.amount_extra > 0,
+                                                                            Attendee.extra_donation > 0)):
             if attendee.amount_unpaid == 0:
                 if attendee.amount_extra:
                     not_unpaid_preordered_merch += 1

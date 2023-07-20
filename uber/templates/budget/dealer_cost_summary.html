@@ -27,7 +27,7 @@
     <td>{{ all_paid_tables_sum|format_currency }}</td>
     <td></td>
   </tr>
-  {% for tables in paid_tables %}
+  {% for tables in paid_tables.keys()|sort() %}
   {% if loop.first %}
   <tr>
     <td></td><td></td><td></td>
@@ -49,7 +49,7 @@
     <td colspan="4">{{ paid_badges_total }} paid badges</td>
     <td>{{ (paid_badges_total * c.DEALER_BADGE_PRICE)|format_currency }}</td><td></td>
   </tr>
-  {% for count in paid_badges %}
+  {% for count in paid_badges.keys()|sort() %}
   {% if loop.first %}
   <tr>
     <td></td><td></td><td></td>
@@ -82,7 +82,7 @@
     <td colspan="4">{{ unpaid_tables_total }} unpaid tables</td>
     <td>({{ all_unpaid_tables_sum|format_currency }})</td><td></td>
   </tr>
-  {% for tables in unpaid_tables %}
+  {% for tables in unpaid_tables.keys()|sort() %}
   {% if loop.first %}
   <tr>
     <td></td><td></td><td></td>
@@ -103,7 +103,7 @@
     <td colspan="4">{{ unpaid_badges_total }} unpaid badges</td>
     <td>({{ (unpaid_badges_total * c.DEALER_BADGE_PRICE)|format_currency }})</td><td></td>
   </tr>
-  {% for count in unpaid_badges %}
+  {% for count in unpaid_badges.keys()|sort() %}
   {% if loop.first %}
   <tr>
     <td></td><td></td><td></td>

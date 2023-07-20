@@ -22,7 +22,7 @@
     <td>{{ paid_preordered_merch_sum|format_currency }}</td>
     <td></td>
   </tr>
-  {% for amount in paid_preordered_merch %}
+  {% for amount in paid_preordered_merch.keys()|sort() %}
   {% if loop.first %}
   <tr>
     <td></td><td></td><td></td>
@@ -45,7 +45,7 @@
     <td>{{ paid_extra_donations_sum|format_currency }}</td>
     <td></td>
   </tr>
-  {% for amount in paid_preordered_merch %}
+  {% for amount in paid_preordered_merch.keys()|sort() %}
   {% if loop.first %}
   <tr>
     <td></td><td></td><td></td>
@@ -74,7 +74,7 @@
     <td>{{ unpaid_preordered_merch_sum|format_currency }}</td>
     <td></td>
   </tr>
-  {% for amount in unpaid_preordered_merch %}
+  {% for amount in unpaid_preordered_merch.keys()|sort() %}
   {% if loop.first %}
   <tr>
     <td></td><td></td><td></td>
@@ -97,7 +97,7 @@
     <td>{{ unpaid_extra_donations_sum|format_currency }}</td>
     <td></td>
   </tr>
-  {% for amount in unpaid_preordered_merch %}
+  {% for amount in unpaid_preordered_merch.keys()|sort() %}
   {% if loop.first %}
   <tr>
     <td></td><td></td><td></td>

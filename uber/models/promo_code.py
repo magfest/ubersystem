@@ -185,6 +185,12 @@ class PromoCodeGroup(MagModel):
         return [code for code in self.promo_codes if code.is_valid]
     
     @property
+    def unused_codes(self):
+        # Bypasses codes' expiration date; only use this to count
+        # how many codes in a group went unused
+        return [code for code in self.promo_codes if code.uses_count == 0]
+    
+    @property
     def used_promo_codes(self):
         return [code for code in self.promo_codes if code.valid_used_by]
 

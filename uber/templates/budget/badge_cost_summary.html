@@ -26,7 +26,7 @@
     <td colspan="4">{{ group_badges_total }} paid group badges</td>
     <td>{{ group_badges_sum|format_currency }}</td>
   </tr>
-  {% for cost in group_badges %}
+  {% for cost in group_badges.keys()|sort() %}
   {% if loop.first %}
   <tr>
     <td></td><td></td><td></td>
@@ -45,7 +45,7 @@
     <td colspan="4">{{ unpaid_group_badges_total }} unpaid group badges</td>
     <td>({{ unpaid_group_sum|format_currency }})</td>
   </tr>
-  {% for cost in unpaid_group_badges %}
+  {% for cost in unpaid_group_badges.keys()|sort() %}
   {% if loop.first %}
   <tr>
     <td></td><td></td><td></td>
@@ -66,14 +66,15 @@
   </tr>
   <tr>
     <td></td><td></td>
-    <td colspan="4">{{ pc_comped_badges }} badges in free groups</td><td></td>
+    <td colspan="4">{{ pc_comped_badges }} claimed badges in free groups</td><td></td>
   </tr>
   <tr>
     <td></td><td></td>
-    <td colspan="4">{{ pc_claimed_badges_total }} claimed group badges</td>
+    <td colspan="4">{{ pc_claimed_badges_total }} claimed group badges
+      <br/>(note: if there are weird prices here, it may be because an admin gave an existing attendee a promo code group)</td>
     <td>{{ pc_claimed_badges_sum|format_currency }}</td>
   </tr>
-  {% for cost in pc_claimed_badges %}
+  {% for cost in pc_claimed_badges.keys()|sort() %}
   {% if loop.first %}
   <tr>
     <td></td><td></td><td></td>
@@ -92,7 +93,7 @@
     <td colspan="4">{{ pc_unused_badges_total }} unclaimed group badges</td>
     <td>{{ pc_unused_badges_sum|format_currency }}</td>
   </tr>
-  {% for cost in pc_unused_badges %}
+  {% for cost in pc_unused_badges.keys()|sort() %}
   {% if loop.first %}
   <tr>
     <td></td><td></td><td></td>
@@ -121,7 +122,7 @@
     <td colspan="4">{{ individual_badges_total }} paid badges</td>
     <td>{{ individual_badges_sum|format_currency }}</td>
   </tr>
-  {% for cost in individual_badges %}
+  {% for cost in individual_badges.keys()|sort() %}
   {% if loop.first %}
   <tr>
     <td></td><td></td><td></td>
@@ -140,7 +141,7 @@
     <td colspan="4">{{ unpaid_badges_total }} unpaid badges</td>
     <td>({{ unpaid_badges_sum|format_currency }})</td>
   </tr>
-  {% for cost in unpaid_badges %}
+  {% for cost in unpaid_badges.keys()|sort() %}
   {% if loop.first %}
   <tr>
     <td></td><td></td><td></td>
