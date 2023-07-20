@@ -296,7 +296,7 @@ class Config(_Overridable):
                     Attendee.paid == self.REFUNDED)
                 ).filter(Attendee.badge_status == self.COMPLETED_STATUS).count()
 
-                group_badges = attendees.filter(
+                group_badges = attendees.join(Attendee.group).filter(
                     Attendee.paid == self.PAID_BY_GROUP,
                     Group.amount_paid > 0).count()
 
