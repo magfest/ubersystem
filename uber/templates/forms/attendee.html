@@ -585,7 +585,7 @@ $().ready(function() {
   </div>
 {% endif %}
 
-{% if full_read %}
+{% if full_read or c.SECURITY_ADMIN_ACCESS %}
 <div class="form-group">
   <label for="legal_name" class="col-sm-3 control-label">Name as appears on <span class="text-nowrap">Legal Photo ID</span></label>
   {% call macros.read_only_if(read_only, attendee.legal_name) %}
@@ -903,8 +903,18 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
   <label for="staffing" class="col-sm-3 optional-field control-label">Want to Volunteer?</label>
   {% call macros.read_only_if(read_only, attendee.staffing|yesno) %}
   <div class="checkbox col-sm-6">
-    {% set staffing_readonly = not admin_area and attendee.shifts %}
-    <label for="staffing" {% if staffing_readonly %}title="Please {{ 'see Staffing Operations to change your volunteer status' if c.AT_THE_CON else 'unassign yourself from shifts before changing your volunteer status' }}"{% endif %}>
+    {% set staffing_readonly = False %}
+    {% if not admin_area %}
+      {% if attendee.badge_type in [c.CONTRACTOR_BADGE, c.STAFF_BADGE] %}
+      {% set staffing_readonly = True %}
+      {% set staffing_message = "This checkbox is required for Contractors, Volunteers, and Staff. Please contact Staffing Operations if you wish to change your status." %}
+      {% elif attendee.shifts %}
+      {% set staffing_readonly = True %}
+      {% set staffing_message = "Please " ~ 'see Staffing Operations to change your volunteer status.' if c.AT_THE_CON else 'unassign yourself from shifts before changing your volunteer status.' %}
+      {% endif %}
+    {% endif %}
+    {% set staffing_readonly = not admin_area and (attendee.badge_type in [c.CONTRACTOR_BADGE, c.STAFF_BADGE] or attendee.shifts) %}
+    <label for="staffing" {% if staffing_readonly %}title="{{ staffing_message }}"{% endif %}>
       {{ macros.checkbox(attendee, 'staffing', is_readonly=staffing_readonly, clientside_bool=clientside_bool) }}
       {% if admin_area %}
         This attendee is
@@ -987,7 +997,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 {% endset %}
 
 
-{% if not c.COLLECT_EXACT_BIRTHDATE or full_read %}
+{% if not c.COLLECT_EXACT_BIRTHDATE or full_read or c.SECURITY_ADMIN_ACCESS %}
 {% set age %}
 {% set read_only = age_ro or page_ro %}
 <script type="text/javascript">
@@ -1167,7 +1177,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 
 
 {% set emergency_contact %}
-{% if full_read %}
+{% if full_read or c.SECURITY_ADMIN_ACCESS or not attendee.ec_name or not attendee.ec_phone %}
 {% if attendee.is_new or not admin_area or c.HAS_REG_ADMIN_ACCESS %}
 {% set read_only = emergency_contact_ro or page_ro %}
 <div class="form-group">
@@ -1192,7 +1202,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 
 
 {% set onsite_contact %}
-{% if full_read %}
+{% if full_read or c.SECURITY_ADMIN_ACCESS or not attendee.onsite_contact %}
 {% if attendee.is_new or not admin_area or c.HAS_REG_ADMIN_ACCESS %}
 {% set read_only = onsite_contact_ro or page_ro %}
 <div class="form-group">
@@ -1718,7 +1728,7 @@ $(window).on("runJavaScript", function(){
         {{ options(group_opts,attendee.group.id) }}
       </select>
       <a id="group_link" href="" target="_blank">View this Group's Page</a>
-      {% if c.HAS_GROUP_ADMIN_ACCESS and not attendee.group %}
+      {% if c.HAS_GROUP_ADMIN_ACCESS and not attendee.group and not attendee.is_new %}
       <a id="new_group" href="../group_admin/new_group_from_attendee?id={{ attendee.id }}" target="_blank">Create New Group</a>
       {% endif %}
       <div id="unassigned" style="display:none ; color:red">

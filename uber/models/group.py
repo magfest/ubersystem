@@ -80,42 +80,9 @@ class Group(MagModel, TakesPaymentMixin):
             self.approved = datetime.now(UTC)
         if self.leader and self.is_dealer:
             self.leader.ribbon = add_opt(self.leader.ribbon_ints, c.DEALER_RIBBON)
-        if not self.is_unpaid:
+        if not self.is_unpaid or self.orig_value_of('status') != self.status:
             for a in self.attendees:
                 a.presave_adjustments()
-        
-    @property
-    def current_purchased_items(self):
-        purchased_items = {}
-        if not self.auto_recalc:
-            # ¯\_(ツ)_/¯
-            if self.cost:
-                purchased_items['group_total'] = self.cost
-        else:
-            # Groups tables and paid-by-group badges by cost
-            table_count = int(float(self.tables))
-            default_price = c.TABLE_PRICES['default_price']
-            more_tables = {default_price: 0}
-            for i in range(table_count):
-                if c.TABLE_PRICES[i] == default_price:
-                    more_tables[default_price] += 1
-                else:
-                    purchased_items['table_' + str(i) + '_cost'] = c.TABLE_PRICES[i]
-            if more_tables[default_price]:
-                cost_label = str(more_tables[default_price]) + '_extra_table{}_($'.format(
-                    's' if more_tables[default_price] > 1 else '') + str(default_price) + '_each)_cost'
-                purchased_items[cost_label] = default_price * more_tables[default_price]
-            
-            badges_by_cost = {}
-            for attendee in self.attendees:
-                if attendee.paid == c.PAID_BY_GROUP:
-                    badges_by_cost[attendee.badge_cost] = bool(badges_by_cost.get(attendee.badge_cost)) + 1
-            for cost in badges_by_cost:
-                cost_label = str(badges_by_cost[cost]) + '_badge{}_($'.format(
-                    's' if badges_by_cost[cost] > 1 else '') + str(cost) + '_each)_cost'
-                purchased_items[cost_label] = cost * badges_by_cost[cost]
-        
-        return purchased_items
 
     def calc_group_price_change(self, **kwargs):
         preview_group = Group(**self.to_dict())
@@ -215,6 +182,15 @@ class Group(MagModel, TakesPaymentMixin):
     @is_valid.expression
     def is_valid(cls):
         return not_(cls.status.in_([c.CANCELLED, c.DECLINED, c.IMPORTED]))
+    
+    @hybrid_property
+    def attendees_have_badges(self):
+        return self.is_valid and (not self.is_dealer or self.status == c.APPROVED)
+    
+    @attendees_have_badges.expression
+    def attendees_have_badges(cls):
+        return and_(cls.is_valid,
+                    or_(cls.is_dealer == False, cls.status == c.APPROVED))
 
     @property
     def new_ribbon(self):
@@ -322,10 +298,32 @@ class Group(MagModel, TakesPaymentMixin):
         if self.active_receipt:
             return self.active_receipt['item_total'] / 100
         return self.default_cost + self.amount_extra
+    
+    @hybrid_property
+    def has_receipt(self):
+        return self.active_receipt
+    
+    @has_receipt.expression
+    def has_receipt(cls):
+        from uber.models import ModelReceipt
+        return exists().select_from(ModelReceipt).where(
+            and_(ModelReceipt.owner_id == cls.id,
+                 ModelReceipt.owner_model == "Group",
+                 ModelReceipt.closed == None))
 
-    @property
+    @hybrid_property
     def is_paid(self):
         return self.active_receipt.get('current_amount_owed', None) == 0
+    
+    @is_paid.expression
+    def is_paid(cls):
+        from uber.models import ModelReceipt
+
+        return exists().select_from(ModelReceipt).where(
+            and_(ModelReceipt.owner_id == cls.id,
+                 ModelReceipt.owner_model == "Group",
+                 ModelReceipt.closed == None,
+                 ModelReceipt.current_amount_owed == 0))
 
     @property
     def amount_unpaid(self):

@@ -202,6 +202,9 @@ class Config(_Overridable):
     def get_group_price(self, dt=None):
         return self.get_attendee_price(dt) - self.GROUP_DISCOUNT
 
+    def get_table_price(self, table_count):
+        return sum(c.TABLE_PRICES[i] for i in range(1, 1 + int(float(table_count))))
+
     def get_badge_count_by_type(self, badge_type):
         """
         Returns the count of all badges of the given type that we've promised to
@@ -287,7 +290,7 @@ class Config(_Overridable):
                 return max(0, attendee_count - staff_count)
         else:
             with Session() as session:
-                attendees = session.query(Attendee)
+                attendees = session.attendees_with_badges()
                 individuals = attendees.filter(or_(
                     Attendee.paid == self.HAS_PAID,
                     Attendee.paid == self.REFUNDED)
@@ -1101,7 +1104,7 @@ c.START_TIME_OPTS = [
 
 c.SETUP_JOB_START = c.EPOCH - timedelta(days=c.SETUP_SHIFT_DAYS)
 c.TEARDOWN_JOB_END = c.ESCHATON + timedelta(days=1, hours=23) # Allow two full days for teardown shifts
-c.CON_TOTAL_LENGTH = int((c.TEARDOWN_JOB_END - c.SETUP_JOB_START).seconds / 3600)
+c.CON_TOTAL_DAYS = -(-(int((c.TEARDOWN_JOB_END - c.SETUP_JOB_START).total_seconds() // 3600)) // 24)
 c.PANEL_STRICT_LENGTH_OPTS = [opt for opt in c.PANEL_LENGTH_OPTS if opt != c.OTHER]
 
 c.EVENT_YEAR = c.EPOCH.strftime('%Y')

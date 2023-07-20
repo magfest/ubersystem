@@ -366,6 +366,7 @@ class Root:
     @ajax
     def refund_receipt_txn(self, session, id, amount, **params):
         txn = session.receipt_transaction(id)
+        return {'error': float(params.get('amount', 0)) * 100}
 
         refund = TransactionRequest(txn.receipt, amount=Decimal(amount) * 100)
         error = refund.refund_or_cancel(txn)
