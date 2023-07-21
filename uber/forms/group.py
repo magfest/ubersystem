@@ -7,12 +7,12 @@ from wtforms.validators import ValidationError, StopValidation
 from uber.config import c
 from uber.forms import AddressForm, MultiCheckbox, MagForm, IntSelect, SwitchInput, DollarInput, HiddenIntField
 from uber.custom_tags import popup_link, format_currency, pluralize, table_prices
-from uber.validations import attendee as attendee_validators
 
 __all__ = ['GroupInfo', 'ContactInfo', 'TableInfo']
 
 class GroupInfo(MagForm):
     name = StringField('Group Name', validators=[
+        validators.InputRequired(message="Please enter a group name."),
         validators.Length(max=40, message="Group names cannot be longer than 40 characters.")
         ])
     badges = IntegerField('Badges')
@@ -70,6 +70,10 @@ class TableInfo(MagForm):
 
     def tables_desc(self):
         return table_prices()
+    
+    def validate_categories(form, field):
+        if field.data and c.OTHER in field.data and not form.categories_text.data:
+            return "Please describe what 'other' categories your wares fall under."
     
     def get_optional_fields(self, group):
         if not group.is_dealer:

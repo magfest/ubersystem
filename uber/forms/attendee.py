@@ -78,13 +78,34 @@ class PersonalInfo(AddressForm, MagForm):
 
         return optional_list
     
+    def validate_onsite_contact(form, field):
+        if not field.data and not form.no_onsite_contact.data:
+            raise ValidationError('Please enter contact information for at least one trusted friend onsite, \
+                                 or indicate that we should use your emergency contact information instead.')
+    
     def validate_birthdate(form, field):
         # TODO: Make WTForms use this message instead of the generic DateField invalid value message
         if field.data and not isinstance(field.data, date):
             raise StopValidation('Please use the format YYYY-MM-DD for your date of birth.')
         elif field.data and field.data > date.today():
             raise ValidationError('You cannot be born in the future.')
-            
+        
+    def validate_cellphone(form, field):
+        if field.data and invalid_phone_number(field.data):
+            raise ValidationError('Your phone number was not a valid 10-digit US phone number. ' \
+                                    'Please include a country code (e.g. +44) for international numbers.')
+
+        if field.data and field.data == form.ec_phone.data:
+            raise ValidationError("Your phone number cannot be the same as your emergency contact number.")
+        
+    def validate_ec_phone(form, field):
+        if not form.international.data and invalid_phone_number(field.data):
+            if c.COLLECT_FULL_ADDRESS:
+                raise ValidationError('Please enter a 10-digit US phone number or include a ' \
+                                        'country code (e.g. +44) for your emergency contact number.')
+            else:
+                raise ValidationError('Please enter a 10-digit emergency contact number.')
+
 
 class BadgeExtras(MagForm):
     badge_type = HiddenIntField('Badge Type')
@@ -96,16 +117,19 @@ class BadgeExtras(MagForm):
         ], widget=DollarInput(), description=popup_link("../static_views/givingExtra.html", "Learn more"))
     shirt = SelectField('Shirt Size', choices=c.SHIRT_OPTS, coerce=int)
     badge_printed_name = StringField('Name Printed on Badge', validators=[
+        validators.Length(max=20, message="Your printed badge name is too long. \
+                          Please use less than 20 characters."),
         validators.Regexp(c.VALID_BADGE_PRINTED_CHARS, message="Your printed badge name has invalid characters. \
                           Please use only alphanumeric characters and symbols.")
-    ])
+        ], description="Badge names have a maximum of 20 characters.")
 
     def validate_shirt(form, field):
-        if form.amount_extra.data > 0 and field.data == c.NO_SHIRT:
+        if (form.amount_extra.data > 0 or form.badge_type.data in c.BADGE_TYPE_PRICES) and field.data == c.NO_SHIRT:
             raise ValidationError("Your shirt size is required.")
 
 
 class OtherInfo(MagForm):
+    promo_code = StringField('Promo Code')
     staffing = BooleanField('I am interested in volunteering!', widget=SwitchInput(), description=popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?"))
     requested_dept_ids = SelectMultipleField('Where do you want to help?', choices=c.JOB_INTEREST_OPTS, coerce=int, widget=MultiCheckbox())
     cellphone = TelField('Phone Number', description="A cellphone number is required for volunteers.", render_kw={'placeholder': 'A phone number we can use to contact you during the event'})

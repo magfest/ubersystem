@@ -12,12 +12,21 @@ from uber.forms.widgets import *
 from uber.model_checks import invalid_zip_code
 
 
+def get_override_attr(form, field_name, suffix):
+    return getattr(form, field_name + suffix, lambda: '')()
+
+
 def load_forms(params, model, module, form_list, prefix_dict={}):
     """
     Utility function for initializing several Form objects, since most form pages use multiple Form classes.
 
     Also adds aliases for common fields, e.g., mapping the `region` column to `region_us` and `region_canada`.
-    This is currently only designed to work with text fields and select fields with a [(val, label)] list of choices.
+    Aliases are currently only designed to work with text fields and select fields with a [(val, label)] list of choices.
+
+    After loading a form, each field's built-in validators are altered -- this allows us to alter what validations get
+    rendered on the page. We use get_optional_fields to mark fields as optional as dictated by their model, and
+    we look for a field_name_extra_validators function -- any validators that match existing validators will replace
+    them, and any extra validators will be added to the field.
 
     `params` should be a dictionary from a form submission, usually passed straight from the page handler.
     `model` is the object itself, e.g., the attendee we're loading the form for.
@@ -47,7 +56,20 @@ def load_forms(params, model, module, form_list, prefix_dict={}):
                 else:
                     alias_dict[aliased_field] = model_val
 
-        form_dict[re.sub(r'(?<!^)(?=[A-Z])', '_', cls).lower()] = form_cls(params, model, prefix=prefix_dict.get(cls, ''), data=alias_dict)
+        loaded_form = form_cls(params, model, prefix=prefix_dict.get(cls, ''), data=alias_dict)
+        optional_fields = loaded_form.get_optional_fields(model)
+
+        for name, field in loaded_form._fields.items():
+            if name in optional_fields:
+                field.validators = [validators.Optional()]
+            else:
+                extra_validators = get_override_attr(loaded_form, name, '_extra_validators')
+                if extra_validators:
+                    extra_validator_classes = map(lambda x: x.__class__, extra_validators)
+                    field.validators = [validator for validator in field.validators 
+                                        if validator.__class__ not in extra_validator_classes] + extra_validators
+
+        form_dict[re.sub(r'(?<!^)(?=[A-Z])', '_', cls).lower()] = loaded_form
     return form_dict
 
 
@@ -184,8 +206,8 @@ class MagForm(Form):
             """
             field_name = options.get('name', '')
             text_format_vars = {**getattr(form, 'extra_text_vars', {}), **self.text_vars}
-            field_label = self.get_override_attr(form, field_name, '_label') or unbound_field.kwargs.get('label', '') or unbound_field.args[0]
-            field_desc = self.get_override_attr(form, field_name, '_desc') or unbound_field.kwargs.get('description', '')
+            field_label = get_override_attr(form, field_name, '_label') or unbound_field.kwargs.get('label', '') or unbound_field.args[0]
+            field_desc = get_override_attr(form, field_name, '_desc') or unbound_field.kwargs.get('description', '')
 
             if 'label' in unbound_field.kwargs:
                 unbound_field.kwargs['label'] = self.format_field_text(field_label, text_format_vars)
@@ -200,9 +222,6 @@ class MagForm(Form):
             unbound_field.kwargs['render_kw'] = self.set_keyword_defaults(unbound_field, unbound_field.kwargs.get('render_kw', {}), field_name)
 
             return unbound_field.bind(form=form, **options)
-
-        def get_override_attr(self, form, field_name, suffix):
-            return getattr(form, field_name + suffix, lambda: '')()
 
         def format_field_text(self, text, format_vars):
             # Formats label text and descriptions to allow common config values to be included in the class declaration
