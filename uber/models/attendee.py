@@ -762,6 +762,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             return c.DEALER_BADGE_PRICE
         elif self.promo_code_groups:
             return c.get_group_price()
+        elif self.in_promo_code_group:
+            return self.promo_code.cost
         else:
             cost = self.new_badge_cost
 
