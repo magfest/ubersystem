@@ -87,28 +87,28 @@ loadForm("{{ tab_view }}");
       <!-- Nav tabs -->
       {% if not attendee.is_new %}
       <ul class="nav nav-tabs" role="tablist">
-          <li role="presentation" class="active">
-          <a href="#attendeeData" aria-controls="attendeeData" role="tab" data-toggle="tab" onClick="loadForm('Data')">
-          <i class="fa fa-user"></i>&nbsp;Data
-          </a>
+          <li class="nav-item" role="presentation" class="active">
+            <button class="nav-link" id="attendeeData-tab" onClick="loadForm('Data')" data-bs-toggle="tab" data-bs-target="#attendeeData" type="button" role="tab" aria-controls="attendeeData">
+              <i class="fa fa-user"></i>&nbsp;Data
+            </button>
           </li>
           {% if attendee.staffing and c.HAS_SHIFTS_ADMIN_ACCESS %}
-          <li role="presentation">
-          <a href="#attendeeShifts" aria-controls="attendeeShifts" role="tab" data-toggle="tab" onClick="loadForm('Shifts')">
-          <i class="fa fa-calendar"></i>&nbsp;Shifts
-          </a>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="attendeeShifts-tab" onClick="loadForm('Shifts')" data-bs-toggle="tab" data-bs-target="#attendeeShifts" type="button" role="tab" aria-controls="attendeeShifts">
+              <i class="fa fa-calendar"></i>&nbsp;Shifts
+            </button>
           </li>
           {% endif %}
-          <li role="presentation">
-          <a href="#attendeeHistory" aria-controls="attendeeHistory" role="tab" data-toggle="tab" onClick="loadForm('History')">
-          <i class="fa fa-time"></i>&nbsp;History
-          </a>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="attendeeHistory-tab" onClick="loadForm('History')" data-bs-toggle="tab" data-bs-target="#attendeeHistory" type="button" role="tab" aria-controls="attendeeHistory">
+              <i class="fa fa-time"></i>&nbsp;History
+            </button>
           </li>
           {% if attendee.banned and c.HAS_SECURITY_ADMIN_ACCESS %}
-          <li role="presentation">
-          <a href="#attendeeWatchlist" aria-controls="attendeeWatchlist" role="tab" data-toggle="tab" onClick="loadForm('Watchlist')">
-          <i class="fa fa-ban-circle"></i>&nbsp;Watchlist Entry
-          </a>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="attendeeWatchlist-tab" onClick="loadForm('Watchlist')" data-bs-toggle="tab" data-bs-target="#attendeeWatchlist" type="button" role="tab" aria-controls="attendeeWatchlist">
+              <i class="fa fa-ban-circle"></i>&nbsp;Watchlist Entry
+            </button>
           </li>
           {% endif %}
           <button class='btn btn-info pull-right' onClick="refreshTab()">

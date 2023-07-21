@@ -448,8 +448,15 @@
 
 {% macro receipt_table(receipt, items) %}
 <ul class="nav nav-tabs" role="tablist">
-  <li role="presentation" class="active"><a href="#{{ receipt.id }}-home" aria-controls="{{ receipt.id }}-home" role="tab" data-toggle="tab">Receipt</a></li>
-  <li role="presentation"><a href="#{{ receipt.id }}-history" aria-controls="{{ receipt.id }}-history" role="tab" data-toggle="tab">History</a></li>
+  <li class="nav-item" role="presentation" class="active">
+    <button class="nav-link" id="{{ receipt.id }}-home-tab" data-bs-toggle="tab" data-bs-target="#{{ receipt.id }}-home" type="button" role="tab" aria-controls="{{ receipt.id }}-home">
+      Receipt
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="{{ receipt.id }}-history-tab" data-bs-toggle="tab" data-bs-target="#{{ receipt.id }}-history" type="button" role="tab" aria-controls="{{ receipt.id }}-history">
+      History
+    </button>
 </ul>
 <div class="tab-content">
   <div role="tabpanel" class="tab-pane active" id="{{ receipt.id }}-home">

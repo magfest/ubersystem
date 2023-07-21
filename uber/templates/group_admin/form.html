@@ -18,16 +18,16 @@
   {% if not group.is_new %}
     <div role="tabpanel">
     <ul class="nav nav-tabs" role="tablist">
-    <li role="presentation">
-    <a href="#info" aria-controls="info" role="tab" data-toggle="tab">
-    <i class="fa fa-list"></i>&nbsp;Group Info
-    </a>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="info-tab" data-bs-toggle="tab" data-bs-target="#info" type="button" role="tab" aria-controls="info">
+        <i class="fa fa-list"></i>&nbsp;Group Info
+      </button>
     </li>
     {% if group.sorted_attendees%}
-    <li role="presentation">
-    <a href="#badges" aria-controls="badges" role="tab" data-toggle="tab">
-    <i class="fa fa-user"></i>&nbsp;Badges
-    </a>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="badges-tab" data-bs-toggle="tab" data-bs-target="#badges" type="button" role="tab" aria-controls="badges">
+        <i class="fa fa-user"></i>&nbsp;Badges
+      </button>
     </li>
     {% endif %}
     </ul>

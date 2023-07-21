@@ -51,10 +51,10 @@ $(document).ready(function() {
   </button>
 </h1>
   <ul class="nav nav-tabs" role="tablist">
-  <li {% if show == "admin" %}class="active"{% endif %}><a href="index?show=admin">Discount Codes</a></li>
-  <li {% if show == "group" %}class="active"{% endif %}><a href="index?show=group">Promo Code Group Codes</a></li>
-  <li {% if show == "overused" %}class="active"{% endif %}><a href="index?show=overused">Overused</a></li>
-  <li {% if show == "all" %}class="active"{% endif %}><a href="index?show=all">All</a></li>
+  <li class="nav-item" role="presentation" {% if show == "admin" %}class="active"{% endif %}><a href="index?show=admin">Discount Codes</a></li>
+  <li class="nav-item" role="presentation" {% if show == "group" %}class="active"{% endif %}><a href="index?show=group">Promo Code Group Codes</a></li>
+  <li class="nav-item" role="presentation" {% if show == "overused" %}class="active"{% endif %}><a href="index?show=overused">Overused</a></li>
+  <li class="nav-item" role="presentation" {% if show == "all" %}class="active"{% endif %}><a href="index?show=all">All</a></li>
 </ul>
 <br/>
 <div id="modal-delete-unused" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="title-delete-unused">
