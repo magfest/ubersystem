@@ -10,6 +10,7 @@ from wtforms.validators import ValidationError, StopValidation
 from uber.config import c
 from uber.forms import AddressForm, MultiCheckbox, MagForm, SwitchInput, DollarInput, HiddenIntField
 from uber.custom_tags import popup_link
+from uber.model_checks import invalid_phone_number
 from uber.validations import attendee as attendee_validators
 
 __all__ = ['AdminInfo', 'BadgeExtras', 'PersonalInfo', 'OtherInfo', 'Consents']
