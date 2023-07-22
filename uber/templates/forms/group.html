@@ -323,9 +323,7 @@
 {% set prefix = '' if 'group_admin' in c.PAGE_PATH else 'group_' %}
 {% if not read_only %}
   {% if not c.COLLECT_FULL_ADDRESS or not attendee or 'group_members' in c.PAGE_PATH %}
-    <script type="text/javascript">
-        {% include "region_opts.html" %}
-    </script>
+    {% include "region_opts.html" %}
   {% endif %}
   {% if not admin_area %}
   <div class="form-group">

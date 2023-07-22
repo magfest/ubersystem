@@ -36,7 +36,7 @@
 </ul>
 <div class="tab-content">
 <div class="row" style="padding: 10px;"></div>
-<div role="tabpanel" class="tab-pane" id="all">
+<div role="tabpanel" class="tab-pane" id="all" aria-labelledby="all-tab">
 <table class="table table-striped datatable">
 <thead><tr>
     <th>Claimed?</th>
@@ -67,10 +67,10 @@
 	</caption>
 </table>
 </div>
-<div role="tabpanel" class="tab-pane" id="promo">{% include '/reg_reports/comped_badges_promo.html' %}</div>
-<div role="tabpanel" class="tab-pane" id="group">{% include '/reg_reports/comped_badges_group.html' %}</div>
-<div role="tabpanel" class="tab-pane" id="staff">{% include '/reg_reports/comped_badges_staff.html' %}</div>
-<div role="tabpanel" class="tab-pane" id="other">{% include '/reg_reports/comped_badges_other.html' %}</div>
+<div role="tabpanel" class="tab-pane" id="promo" aria-labelledby="promo-tab">{% include '/reg_reports/comped_badges_promo.html' %}</div>
+<div role="tabpanel" class="tab-pane" id="group" aria-labelledby="group-tab">{% include '/reg_reports/comped_badges_group.html' %}</div>
+<div role="tabpanel" class="tab-pane" id="staff" aria-labelledby="staff-tab">{% include '/reg_reports/comped_badges_staff.html' %}</div>
+<div role="tabpanel" class="tab-pane" id="other" aria-labelledby="other-tab">{% include '/reg_reports/comped_badges_other.html' %}</div>
 </div>
 <script src="../static/js/window-hash-tabload.js" type="text/javascript"></script>
 {% endblock %}

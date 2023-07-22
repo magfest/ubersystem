@@ -10,6 +10,7 @@
   {% endif %}
   {% if extra_field %}
     {{ extra_field }}
+    <div id="{{ extra_field.id }}-validation" class="invalid-feedback"></div>
   {% endif %}
   <div id="{{ field.id }}-validation" class="invalid-feedback"></div>
 {% endmacro %}
@@ -18,14 +19,16 @@
 {% set type = field.meta.get_field_type(field) %}
 
 {% if type in ['checkbox','switch'] %}
-<div class="form-check{% if type == 'switch' %} form-switch{% endif %}">
+<div class="form-check{% if type == 'switch' %} form-switch{% endif %}{% if not no_margin %} mb-3{% endif %}">
   {{ field(class="form-check-input", checked=field.data, value=1, **kwargs) }}
   {{ field.label(class="form-check-label") }}
   {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>
 {% elif type == 'inputgroup' %}
 <div class="form-text">{{ field.label }}</div>
+<div class="input-group{% if not no_margin %} mb-3{% endif %}">
 {{ field(class="form-control", **kwargs) }}
+</div>
 {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 {% elif type == 'checkgroup' %}
 <div class="form-text">{{ field.label() }}</div>
@@ -69,7 +72,7 @@
 {{ toggle_fields_js(checkbox_field, target_fields, off_values=[1 if hide_on_checked == True else 0], toggle_required=toggle_required, prop=prop) }}
 {%- endmacro %}
 
-{% macro toggle_fields_js(source_field, target_fields, off_values=[], on_values=[], toggle_required=False, prop='visibility', hide_row=True) %}
+{% macro toggle_fields_js(source_field, target_fields, off_values=[], on_values=[], toggle_required=False, prop='visibility', closest_hide_selector='.row') %}
 {% set suffix = "_" ~ source_field.id %}
 <script type="text/javascript">
     var toggleField{{ suffix }} = function() {
@@ -101,10 +104,8 @@
             if ('{{ prop }}' == 'visibility') {
                 {% for target_field in target_fields %}
                     $('#{{ target_field.id }}').toggle(toggleOn);
-                    {% if hide_row %}
-                        $('#{{ target_field.id }}').closest('.row').toggle(toggleOn);
-                    {% else %}
-                        $('#{{ target_field.id }}').closest('.col').toggle(toggleOn);
+                    {% if closest_hide_selector %}
+                        $('#{{ target_field.id }}').closest('{{ closest_hide_selector }}').toggle(toggleOn);
                     {% endif %}
                 {% endfor %}
             } else {

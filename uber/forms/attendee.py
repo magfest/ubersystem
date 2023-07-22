@@ -90,7 +90,7 @@ class PersonalInfo(AddressForm, MagForm):
             raise StopValidation('Please use the format YYYY-MM-DD for your date of birth.')
         elif field.data and field.data > date.today():
             raise ValidationError('You cannot be born in the future.')
-        
+ 
     def validate_cellphone(form, field):
         if field.data and invalid_phone_number(field.data):
             raise ValidationError('Your phone number was not a valid 10-digit US phone number. ' \
@@ -126,18 +126,23 @@ class BadgeExtras(MagForm):
 
     def validate_shirt(form, field):
         if (form.amount_extra.data > 0 or form.badge_type.data in c.BADGE_TYPE_PRICES) and field.data == c.NO_SHIRT:
-            raise ValidationError("Your shirt size is required.")
+            raise ValidationError("Please select a shirt size.")
 
 
 class OtherInfo(MagForm):
     promo_code = StringField('Promo Code')
     staffing = BooleanField('I am interested in volunteering!', widget=SwitchInput(), description=popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?"))
     requested_dept_ids = SelectMultipleField('Where do you want to help?', choices=c.JOB_INTEREST_OPTS, coerce=int, widget=MultiCheckbox())
-    cellphone = TelField('Phone Number', description="A cellphone number is required for volunteers.", render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
+    cellphone = TelField('Phone Number', validators=[
+        validators.InputRequired("Phone number is required for volunteers (unless you don't own a cellphone)")
+        ], description="A cellphone number is required for volunteers.", render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
     no_cellphone = BooleanField('I won\'t have a phone with me during the event.')
     requested_accessibility_services = BooleanField('I would like to be contacted by the {EVENT_NAME} Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', widget=SwitchInput())
     interests = SelectMultipleField('What interests you?', choices=c.INTEREST_OPTS, coerce=int, validators=[validators.Optional()], widget=MultiCheckbox())
 
+    def get_optional_fields(self, attendee):
+        if not attendee.staffing_or_will_be or self.no_cellphone.data:
+            return ['cellphone']
 
 class Consents(MagForm):
     can_spam = BooleanField('Please send me emails relating to {EVENT_NAME} and {ORGANIZATION_NAME} in future years.', description=popup_link("../static_views/privacy.html", "View Our Spam Policy"))

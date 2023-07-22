@@ -6,8 +6,9 @@ from sqlalchemy.orm import subqueryload
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, log_pageview, site_mappable
 from uber.errors import HTTPRedirect
+from uber.forms import group as group_forms, load_forms
 from uber.models import Attendee, Email, Event, Group, GuestGroup, GuestMerch, PageViewTracking, Tracking
-from uber.utils import check, convert_to_absolute_url
+from uber.utils import check, convert_to_absolute_url, validate_model
 from uber.payments import ReceiptManager
 
 
@@ -59,20 +60,24 @@ class Root:
 
     @log_pageview
     def form(self, session, new_dealer='', message='', **params):
-        if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
+        if params.get('id') not in [None, '', 'None']:
             group = session.group(params.get('id'))
-            receipt_items = ReceiptManager.auto_update_receipt(group, session.get_receipt_by_model(group), params)
-            session.add_all(receipt_items)
+            if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
+                receipt_items = ReceiptManager.auto_update_receipt(group, session.get_receipt_by_model(group), params)
+                session.add_all(receipt_items)
+        else:
+            group = Group()
 
-        group = session.group(params, checkgroups=Group.all_checkgroups, bools=Group.all_bools)
+        if group.is_dealer or 'new_dealer' in params:
+            form_list = ['AdminTableInfo', 'ContactInfo']
+        else:
+            form_list = ['AdminGroupInfo']
 
-        group_params = dict(params)
-        for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city', 'phone', 'email_address']:
-            group_field_name = 'group_{}'.format(field_name)
-            if group_field_name in params:
-                group_params[field_name] = params.get(group_field_name, '')
-
-        group.apply(group_params)
+        forms = load_forms(params, group, group_forms, form_list)
+        for form in forms.values():
+            if hasattr(form, 'new_badge_type'):
+                form['new_badge_type'].data = group.leader.badge_type if group.leader else c.ATTENDEE_BADGE
+            form.populate_obj(group)
 
         if cherrypy.request.method == 'POST':
             new_with_leader = any(params.get(info) for info in ['first_name', 'last_name', 'email'])
@@ -89,7 +94,7 @@ class Root:
                     group.auto_recalc = False
                 session.add(group)
                 new_ribbon = params.get('ribbon', c.BAND if params.get('group_type') == str(c.BAND) else None)
-                new_badge_type = params.get('badge_type', c.ATTENDEE_BADGE)
+                new_badge_type = params.get('new_badge_type', c.ATTENDEE_BADGE)
                 test_permissions = Attendee(badge_type=new_badge_type, ribbon=new_ribbon, paid=c.PAID_BY_GROUP)
                 new_badge_status = c.PENDING_STATUS if not session.admin_can_create_attendee(test_permissions) else c.NEW_STATUS
                 message = session.assign_badges(
@@ -132,6 +137,7 @@ class Root:
         return {
             'message': message,
             'group': group,
+            'forms': forms,
             'group_type': params.get('group_type', ''),
             'badges': params.get('badges', group.badges if group else 0),
             'first_name': params.get('first_name', ''),
@@ -139,6 +145,25 @@ class Root:
             'email': params.get('email', ''),
             'new_dealer': new_dealer,
         }
+    
+    @ajax
+    def validate_dealer(self, session, form_list=[], **params):
+        if params.get('id') in [None, '', 'None']:
+            group = Group()
+        else:
+            group = session.group(params.get('id'))
+
+        if not form_list:
+            form_list = ['ContactInfo', 'AdminTableInfo']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+        forms = load_forms(params, group, group_forms, form_list)
+
+        all_errors = validate_model(forms, group, Group(**group.to_dict()))
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
 
     def history(self, session, id):
         group = session.group(id)

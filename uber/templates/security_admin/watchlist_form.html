@@ -36,7 +36,7 @@
 
     <div class="tab-content">
     <div class="row" style="padding: 10px;"></div>
-    <div role="tabpanel" class="tab-pane" id="info">
+    <div role="tabpanel" class="tab-pane" id="info" aria-labelledby="info-tab">
   {% else %}
     <div>
     <h3>Watchlist Entry Info</h3>
@@ -86,7 +86,7 @@
 
     {% if not entry.is_new and attendees %}
     </div>
-    <div role="tabpanel" class="tab-pane" id="attendees">
+    <div role="tabpanel" class="tab-pane" id="attendees" aria-labelledby="attendees-tab">
       <table class="table datatable table-striped">
       <thead>
       <tr>

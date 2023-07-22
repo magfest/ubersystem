@@ -1,5 +1,5 @@
 $('.nav-tabs button').click(function() {
-    window.location.hash = this.hash;
+    window.location.hash = $(this).data('bs-target');
 })
 $().ready(function() {
     var tabID = window.location.hash;

@@ -892,6 +892,15 @@ class Root:
     def group_members(self, session, id, message='', **params):
         group = session.group(id)
 
+        if group.is_dealer:
+            form_list = ['AdminTableInfo', 'ContactInfo']
+        else:
+            form_list = ['AdminGroupInfo']
+
+        forms = load_forms(params, group, group_forms, form_list)
+        for form in forms.values():
+            form.populate_obj(group)
+
         signnow_document = None
         signnow_link = ''
 
@@ -924,34 +933,17 @@ class Root:
                     signnow_link = signnow_document.get_dealer_signing_link(group)
 
         if cherrypy.request.method == 'POST':
-            # Both the Attendee class and Group class have identically named
-            # address fields. In order to distinguish the two sets of address
-            # fields in the params, the Group fields are prefixed with "group_"
-            # when the form is submitted. To prevent instantiating the Group object
-            # with the Attendee's address fields, we must clone the params and
-            # rename all the "group_" fields.
-            group_params = dict(params)
-            for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city', 'phone', 'email_address']:
-                group_field_name = 'group_{}'.format(field_name)
-                if group_field_name in params:
-                    group_params[field_name] = params.get(group_field_name, '')
+            session.commit()
+            if group.is_dealer:
+                send_email.delay(
+                    c.MARKETPLACE_EMAIL,
+                    c.MARKETPLACE_EMAIL,
+                    '{} Changed'.format(c.DEALER_APP_TERM.title()),
+                    render('emails/dealers/appchange_notification.html', {'group': group}, encoding=None),
+                    'html',
+                    model=group.to_dict('id'))
 
-            group.apply(group_params, restricted=True)
-            message = check(group, prereg=True)
-            if message:
-                session.rollback()
-            else:
-                session.commit()
-                if group.is_dealer:
-                    send_email.delay(
-                        c.MARKETPLACE_EMAIL,
-                        c.MARKETPLACE_EMAIL,
-                        '{} Changed'.format(c.DEALER_APP_TERM.title()),
-                        render('emails/dealers/appchange_notification.html', {'group': group}, encoding=None),
-                        'html',
-                        model=group.to_dict('id'))
-
-                message = 'Thank you! Your application has been updated.'
+            message = 'Thank you! Your application has been updated.'
 
             raise HTTPRedirect('group_members?id={}&message={}', group.id, message)
 
@@ -959,6 +951,7 @@ class Root:
 
         return {
             'group':   group,
+            'forms': forms,
             'homepage_account': session.get_attendee_account_by_attendee(group.leader),
             'logged_in_account': session.current_attendee_account(),
             'upgraded_badges': len([a for a in group.attendees if a.badge_type in c.BADGE_TYPE_PRICES]),
@@ -1402,22 +1395,20 @@ class Root:
                 form.populate_obj(attendee)
             attendee.placeholder = False
 
-            message = check(attendee, prereg=True)
-            if not message:
-                session.add(attendee)
-                session.commit()
-                if placeholder:
-                    attendee.confirmed = localized_now()
-                    message = 'Your registration has been confirmed'
-                else:
-                    message = 'Your information has been updated'
+            session.add(attendee)
+            session.commit()
+            if placeholder:
+                attendee.confirmed = localized_now()
+                message = 'Your registration has been confirmed'
+            else:
+                message = 'Your information has been updated'
 
-                page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
-                if not receipt:
-                    new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
-                    if new_receipt.current_amount_owed and not new_receipt.pending_total:
-                        raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)
-                raise HTTPRedirect(page + 'message=' + message)
+            page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
+            if not receipt:
+                new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
+                if new_receipt.current_amount_owed and not new_receipt.pending_total:
+                    raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)
+            raise HTTPRedirect(page + 'message=' + message)
 
         if not error:
             session.refresh_receipt_and_model(attendee)
@@ -1444,8 +1435,6 @@ class Root:
     
     @ajax
     def validate_dealer(self, session, form_list=[], **params):
-        prereg = False
-
         if params.get('id') in [None, '', 'None']:
             group = Group()
         else:
@@ -1546,6 +1535,16 @@ class Root:
         if error:
             return {'error': "Something went wrong with this payment. Please refresh the page and try again."}
 
+        if c.AUTHORIZENET_LOGIN_ID:
+            # Authorize.net doesn't actually have a concept of pending transactions,
+            # so there's no transaction to resume. Create a new one.
+            new_txn_requent = TransactionRequest(txn.receipt, attendee.email, txn.desc, txn.amount)
+            stripe_intent = new_txn_requent.stripe_or_authnet_intent()
+            txn.intent_id = stripe_intent.id
+            session.commit()
+        else:
+            stripe_intent = txn.get_stripe_intent()
+
         stripe_intent = txn.get_stripe_intent()
 
         if not stripe_intent:
@@ -1571,7 +1570,23 @@ class Root:
         if error:
             return {'error': "Something went wrong with this payment. Please refresh the page and try again."}
 
-        stripe_intent = txn.get_stripe_intent()
+        if c.AUTHORIZENET_LOGIN_ID:
+            # Authorize.net doesn't actually have a concept of pending transactions,
+            # so there's no transaction to resume. Create a new one.
+            receipt_email = ""
+            if group.leader:
+                receipt_email = group.leader.email
+            elif group.attendees:
+                receipt_email = group.attendees[0].email
+            new_txn_requent = TransactionRequest(txn.receipt, receipt_email, txn.desc, txn.amount)
+            stripe_intent = new_txn_requent.stripe_or_authnet_intent()
+            txn.intent_id = stripe_intent.id
+            session.commit()
+        else:
+            stripe_intent = txn.get_stripe_intent()
+
+        if not stripe_intent:
+            return {'error': "Something went wrong. Please contact us at {}.".format(c.REGDESK_EMAIL)}
 
         if stripe_intent.charges:
             return {'error': "This payment has already been finalized!"}

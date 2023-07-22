@@ -21,7 +21,7 @@ def dealer_other_category(form, field):
     
 @post_form_validation.none
 def edit_only_correct_statuses(group):
-    if group.status not in [c.WAITLISTED, c.UNAPPROVED]:
+    if group.status not in [c.WAITLISTED, c.CANCELLED, c.DECLINED]:
         return "You cannot change your {} after it has been {}.".format(c.DEALER_APP_TERM, group.status_label)
 
 ###### Admin-Only Validations ######

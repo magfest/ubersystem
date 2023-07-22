@@ -16,7 +16,7 @@ def get_override_attr(form, field_name, suffix):
     return getattr(form, field_name + suffix, lambda: '')()
 
 
-def load_forms(params, model, module, form_list, prefix_dict={}):
+def load_forms(params, model, module, form_list, prefix_dict={}, truncate_admin=True):
     """
     Utility function for initializing several Form objects, since most form pages use multiple Form classes.
 
@@ -32,7 +32,9 @@ def load_forms(params, model, module, form_list, prefix_dict={}):
     `model` is the object itself, e.g., the attendee we're loading the form for.
     `form_list` is a list of strings of which form classes to load, e.g., ['PersonalInfo', 'BadgeExtras', 'OtherInfo']
     `prefix_dict` is an optional dictionary to load some of the forms with a prefix. This is useful for loading forms with
-    conflicting field names on the same page, e.g., passing {'GroupInfo': 'group_'} will add group_ to all GroupInfo fields.
+        conflicting field names on the same page, e.g., passing {'GroupInfo': 'group_'} will add group_ to all GroupInfo fields.
+    `truncate_admin` is a flag that removes "admin_" from the beginning of the resulting form names, so that "AdminTableInfo"
+        is saved as "table_info." This is true by default to make building form templates easier.
 
     Returns a dictionary of form objects with the snake-case version of the form as the ID, e.g.,
     the PersonalInfo class will be returned as form_dict['personal_info'].
@@ -44,7 +46,8 @@ def load_forms(params, model, module, form_list, prefix_dict={}):
     for cls in form_list:
         form_cls = getattr(module, cls, None)
         if not form_cls:
-            break
+            log.error("We tried to load a form called {} from module {}, but it doesn't seem to exist!".format(cls, str(module)))
+            continue
 
         for model_field_name, aliases in form_cls.field_aliases.items():
             model_val = getattr(model, model_field_name)
@@ -69,7 +72,12 @@ def load_forms(params, model, module, form_list, prefix_dict={}):
                     field.validators = [validator for validator in field.validators 
                                         if validator.__class__ not in extra_validator_classes] + extra_validators
 
-        form_dict[re.sub(r'(?<!^)(?=[A-Z])', '_', cls).lower()] = loaded_form
+        form_label = re.sub(r'(?<!^)(?=[A-Z])', '_', cls).lower()
+        if truncate_admin and form_label.startswith('admin_'):
+            form_label = form_label[6:]
+
+        form_dict[form_label] = loaded_form
+
     return form_dict
 
 
@@ -83,8 +91,9 @@ class MagForm(Form):
     def all_forms(cls):
         # Get a list of all forms that inherit from MagForm
         for subclass in cls.__subclasses__():
+            module_name = subclass.__module__
             yield from subclass.all_forms()
-            yield subclass
+            yield (module_name, subclass)
 
     @classmethod
     def form_mixin(cls, form, model_str=''):
@@ -93,10 +102,13 @@ class MagForm(Form):
         elif not model_str:
             # Search through all form classes, only continue if there is ONE matching form
             match_count = 0
-            for target in cls.all_forms():
+            modules = []
+            for module_name, target in cls.all_forms():
                 if target.__name__ == form.__name__:
-                    match_count += 1
-                    real_target = target
+                    if module_name not in modules:
+                        match_count += 1
+                        real_target = target
+                        modules.append(module_name)
             if match_count == 0:
                 raise ValueError('Could not find a form with the name {}'.format(form.__name__))
             elif match_count > 1:

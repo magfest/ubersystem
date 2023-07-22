@@ -120,13 +120,13 @@ loadForm("{{ tab_view }}");
       <div class="tab-content">
         <div role="tabpanel" class="tab-pane active" id="attendeeData">{% include 'registration/attendee_data.html' %}</div>
         {% if attendee.staffing and c.HAS_SHIFTS_ADMIN_ACCESS %}
-        <div role="tabpanel" class="tab-pane" id="attendeeShifts"></div>
+        <div role="tabpanel" class="tab-pane" id="attendeeShifts" aria-labelledby="attendeeShifts-tab"></div>
         {% endif %}
         {% if not attendee.is_new %}
-        <div role="tabpanel" class="tab-pane" id="attendeeHistory"></div>
+        <div role="tabpanel" class="tab-pane" id="attendeeHistory" aria-labelledby="attendeeHistory-tab"></div>
         {% endif %}
         {% if attendee.banned and c.HAS_SECURITY_ADMIN_ACCESS %}
-        <div role="tabpanel" class="tab-pane" id="attendeeWatchlist"></div>
+        <div role="tabpanel" class="tab-pane" id="attendeeWatchlist" aria-labelledby="attendeeWatchlist-tab"></div>
         {% endif %}
       </div>
   </div>

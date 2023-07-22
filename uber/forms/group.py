@@ -8,14 +8,14 @@ from uber.config import c
 from uber.forms import AddressForm, MultiCheckbox, MagForm, IntSelect, SwitchInput, DollarInput, HiddenIntField
 from uber.custom_tags import popup_link, format_currency, pluralize, table_prices
 
-__all__ = ['GroupInfo', 'ContactInfo', 'TableInfo']
+__all__ = ['GroupInfo', 'ContactInfo', 'TableInfo', 'AdminGroupInfo', 'AdminTableInfo']
 
 class GroupInfo(MagForm):
     name = StringField('Group Name', validators=[
         validators.InputRequired(message="Please enter a group name."),
         validators.Length(max=40, message="Group names cannot be longer than 40 characters.")
         ])
-    badges = IntegerField('Badges')
+    badges = IntegerField('Badges', widget=IntSelect())
 
     def badges_label(self):
         return "Badges (" + format_currency(c.GROUP_PRICE) + " each)"
@@ -28,6 +28,16 @@ class GroupInfo(MagForm):
         else:
             return "You may add badges to your group later, but you must add at least {} badges at a time.".format(
                 c.MIN_GROUP_ADDITION)
+
+
+class AdminGroupInfo(GroupInfo):
+    guest_group_type = SelectField('Checklist Type', default="", choices=[('', 'N/A')] + c.GROUP_TYPE_OPTS, coerce=int)
+    can_add = BooleanField('This group may purchase additional badges.')
+    new_badge_type = SelectField('Badge Type', choices=c.BADGE_OPTS, coerce=int)
+    cost = IntegerField('Total Group Price', widget=DollarInput())
+    auto_recalc = BooleanField('Automatically recalculate this number.')
+    amount_paid = StringField('Amount Paid', render_kw={'disabled': "disabled"})
+    amount_refunded = StringField('Amount Refunded', render_kw={'disabled': "disabled"})
 
 
 class ContactInfo(AddressForm, MagForm):
@@ -43,7 +53,7 @@ class ContactInfo(AddressForm, MagForm):
         render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
 
 
-class TableInfo(MagForm):
+class TableInfo(GroupInfo):
     name = StringField('Table Name', validators=[
         validators.InputRequired(message="Please enter a table name."),
         validators.Length(max=40, message="Table names cannot be longer than 40 characters.")
@@ -51,7 +61,6 @@ class TableInfo(MagForm):
     description = StringField('Description', validators=[
         validators.InputRequired("Please provide a brief description of your business.")
         ], description="Please keep to one sentence.")
-    badges = IntegerField('Badges', widget=IntSelect(), description="The number of people working your table, including yourself.")
     tables = DecimalField('Tables', widget=IntSelect())
     website = StringField('Website', validators=[
         validators.InputRequired("Please enter your business' website address.")
@@ -67,6 +76,9 @@ class TableInfo(MagForm):
 
     def badges_label(self):
         return "Badges (" + format_currency(c.DEALER_BADGE_PRICE) + " each)"
+    
+    def badges_desc(self):
+        return "The number of people working your table, including yourself."
 
     def tables_desc(self):
         return table_prices()
@@ -80,3 +92,14 @@ class TableInfo(MagForm):
             return ['description', 'website', 'wares', 'categories',
                     'address1', 'city', 'region', 'zip_code', 'country']
         return []
+
+
+class AdminTableInfo(TableInfo, AdminGroupInfo):
+    status = SelectField('Status', choices=c.DEALER_STATUS_OPTS, coerce=int)
+    admin_notes = TextAreaField('Admin Notes')
+
+    def can_add_label(self):
+        if c.MAX_DEALERS:
+            return "This {} can add up to {} badges.".format(c.DEALER_TERM, c.MAX_DEALERS)
+        else:
+            return "This {} can add badges up to their personal maximum.".format(c.DEALER_TERM)

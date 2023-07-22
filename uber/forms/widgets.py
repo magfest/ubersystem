@@ -59,13 +59,12 @@ class NumberInputGroup(NumberInput):
         super().__init__(**kwargs)
 
     def __call__(self, field, **kwargs):
-        html = ['<div class="input-group mb-3">']
+        html = []
         if self.prefix:
             html.append('<span class="input-group-text">{}</span>'.format(self.prefix))
         html.append(super().__call__(field, **kwargs))
         if self.suffix:
             html.append('<span class="input-group-text">{}</span>'.format(self.suffix))
-        html.append('</div>')
 
         return Markup(''.join(html))
 

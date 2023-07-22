@@ -338,7 +338,7 @@ class ReceiptTransaction(MagModel):
             return refund.payment_intent
 
     def get_stripe_intent(self):
-        if not self.stripe_id:
+        if not self.stripe_id or c.AUTHORIZENET_LOGIN_ID:
             return
 
         intent_id = self.intent_id or self.get_intent_id_from_refund()
