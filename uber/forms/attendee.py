@@ -147,7 +147,8 @@ class OtherInfo(MagForm):
 class Consents(MagForm):
     can_spam = BooleanField('Please send me emails relating to {EVENT_NAME} and {ORGANIZATION_NAME} in future years.', description=popup_link("../static_views/privacy.html", "View Our Spam Policy"))
     pii_consent = BooleanField(Markup('<strong>Yes</strong>, I understand and agree that {ORGANIZATION_NAME} will store the personal information I provided above for the limited purposes of contacting me about my registration'),
-                               validators=[validators.InputRequired("You must agree to allow us to store your personal information in order to register.")])
+                               validators=[validators.InputRequired("You must agree to allow us to store your personal information in order to register.")
+                                           ], description=Markup('For more information please check out our <a href="{}" target="_blank">Privacy Policy</a>.'.format(c.PRIVACY_POLICY_URL)))
 
     def pii_consent_label(self):
         base_label = "<strong>Yes</strong>, I understand and agree that {ORGANIZATION_NAME} will store the personal information I provided above for the limited purposes of contacting me about my registration"
