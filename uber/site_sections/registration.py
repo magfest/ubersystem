@@ -668,7 +668,7 @@ class Root:
         receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = TransactionRequest(receipt, attendee.email, charge_desc)
-        message = charge.process_payment(receipt)
+        message = charge.process_payment()
         
         if message:
             return {'error': message}
@@ -755,7 +755,7 @@ class Root:
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = TransactionRequest(receipt, attendee.email, charge_desc)
 
-        message = charge.process_payment(receipt, payment_method=c.MANUAL)
+        message = charge.process_payment(payment_method=c.MANUAL)
         if message:
             return {'error': message}
         

@@ -872,7 +872,7 @@ class Root:
             session.rollback()
             return {'error': 'Our preregistration price has gone up since you tried to add more codes; please try again'}
         
-        message = charge.process_payment(receipt)
+        message = charge.process_payment()
         if message:
             return {'error': message}
 
@@ -1045,7 +1045,7 @@ class Root:
         charge_desc = "{}: {}".format(group.name, receipt.charge_description_list)
         charge = TransactionRequest(receipt, group.email, charge_desc)
 
-        message = charge.process_payment(receipt)
+        message = charge.process_payment()
         if message:
             return {'error': message}
         
@@ -1118,7 +1118,7 @@ class Root:
             session.rollback()
             return {'error': 'Our preregistration price has gone up since you tried to add the badges; please try again'}
         
-        message = charge.process_payment(receipt)
+        message = charge.process_payment()
         if message:
             return {'error': message}
 
@@ -1591,7 +1591,7 @@ class Root:
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = TransactionRequest(receipt, attendee.email, charge_desc)
 
-        message = charge.process_payment(receipt)
+        message = charge.process_payment()
         if message:
             return {'error': message}
 
@@ -1660,7 +1660,7 @@ class Root:
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = TransactionRequest(receipt, attendee.email, charge_desc)
 
-        message = charge.process_payment(receipt)
+        message = charge.process_payment()
         if message:
             return {'error': message}
 
