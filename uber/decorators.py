@@ -748,8 +748,6 @@ class WTFormValidation:
             all_validations[key] = list(dict.values())
         return all_validations
 
-form_validation, new_or_changed_validation, post_form_validation = WTFormValidation(), WTFormValidation(), WTFormValidation()
-
 
 class ReceiptItemConfig:
     def __init__(self):
