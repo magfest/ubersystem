@@ -139,16 +139,10 @@ class OtherInfo(MagForm):
     promo_code = StringField('Promo Code')
     staffing = BooleanField('I am interested in volunteering!', widget=SwitchInput(), description=popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?"))
     requested_dept_ids = SelectMultipleField('Where do you want to help?', choices=c.JOB_INTEREST_OPTS, coerce=int, widget=MultiCheckbox())
-    cellphone = TelField('Phone Number', validators=[
-        validators.InputRequired("Phone number is required for volunteers (unless you don't own a cellphone)")
-        ], description="A cellphone number is required for volunteers.", render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
+    cellphone = TelField('Phone Number', description="A cellphone number is required for volunteers.", render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
     no_cellphone = BooleanField('I won\'t have a phone with me during the event.')
     requested_accessibility_services = BooleanField('I would like to be contacted by the {EVENT_NAME} Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', widget=SwitchInput())
     interests = SelectMultipleField('What interests you?', choices=c.INTEREST_OPTS, coerce=int, validators=[validators.Optional()], widget=MultiCheckbox())
-
-    def get_optional_fields(self, attendee):
-        if not attendee.staffing_or_will_be or self.no_cellphone.data:
-            return ['cellphone']
         
     def get_non_admin_locked_fields(self, attendee):
         if attendee.is_new:
@@ -159,6 +153,10 @@ class OtherInfo(MagForm):
             locked_fields.append('staffing')
 
         return locked_fields
+    
+    def validate_cellphone(form, field):
+        if form.staffing.data and not field.data and not form.no_cellphone.data:
+            raise ValidationError("A phone number is required for volunteers (unless you don't own a cellphone)")
 
 class Consents(MagForm):
     can_spam = BooleanField('Please send me emails relating to {EVENT_NAME} and {ORGANIZATION_NAME} in future years.', description=popup_link("../static_views/privacy.html", "View Our Spam Policy"))
