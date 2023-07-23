@@ -536,7 +536,9 @@ def validate_model(forms, model, preview_model, extra_validators_module=None):
     for module in forms.values():
         extra_validators = defaultdict(list)
         for field_name in module.get_optional_fields(preview_model):
-            getattr(module, field_name).validators = [validators.Optional()]
+            field = getattr(module, field_name)
+            if field:
+                field.validators = [validators.Optional()]
 
         if extra_validators_module:
             for key, field in module.field_list:

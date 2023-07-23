@@ -11,7 +11,9 @@ from uber.custom_tags import format_currency
 from uber.models import Attendee, Session
 from uber.model_checks import invalid_zip_code, invalid_phone_number
 from uber.utils import get_age_from_birthday, get_age_conf_from_birthday
-from uber.decorators import form_validation, new_or_changed_validation, post_form_validation
+from uber.decorators import WTFormValidation
+
+form_validation, new_or_changed_validation, post_form_validation = WTFormValidation(), WTFormValidation(), WTFormValidation()
 
 """
 These should probably be rewritten as automatic changes with a message attached
@@ -203,6 +205,9 @@ def banned_volunteer(attendee):
 ###### Admin-Only Validations ######
 @post_form_validation.badge_num
 def not_in_range(attendee):
+    if not attendee.badge_num:
+        return
+    
     badge_type = get_real_badge_type(attendee.badge_type)
     lower_bound, upper_bound = c.BADGE_RANGES[badge_type]
     if not (lower_bound <= attendee.badge_num <= upper_bound):
