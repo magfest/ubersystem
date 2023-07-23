@@ -210,7 +210,7 @@ class Root:
             d.is_teardown_approval_exempt for d in volunteer.assigned_depts)
 
         if has_setup and has_teardown:
-            cal_length = c.CON_TOTAL_LENGTH
+            cal_length = c.CON_TOTAL_DAYS
         elif has_setup:
             cal_length = con_days + c.SETUP_SHIFT_DAYS
         elif has_teardown:

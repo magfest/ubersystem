@@ -143,9 +143,9 @@
     $('#start-time').datetimepicker({
       sideBySide: true,
       useCurrent: false,
-      defaultDate: '{{ min_date.isoformat() }}',
-      minDate: '{{ min_date.isoformat() }}',
-      maxDate: '{{ max_date.isoformat() }}',
+      defaultDate: '{{ min_date.isoformat()[:-6] }}',
+      minDate: '{{ min_date.isoformat()[:-6] }}',
+      maxDate: '{{ max_date.isoformat()[:-6] }}',
       format: 'M/D/Y h:mm A'
     });
   </script>

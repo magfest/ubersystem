@@ -12,18 +12,29 @@ from uber.forms.widgets import *
 from uber.model_checks import invalid_zip_code
 
 
-def load_forms(params, model, module, form_list, prefix_dict={}):
+def get_override_attr(form, field_name, suffix):
+    return getattr(form, field_name + suffix, lambda: '')()
+
+
+def load_forms(params, model, module, form_list, prefix_dict={}, truncate_admin=True):
     """
     Utility function for initializing several Form objects, since most form pages use multiple Form classes.
 
     Also adds aliases for common fields, e.g., mapping the `region` column to `region_us` and `region_canada`.
-    This is currently only designed to work with text fields and select fields with a [(val, label)] list of choices.
+    Aliases are currently only designed to work with text fields and select fields with a [(val, label)] list of choices.
+
+    After loading a form, each field's built-in validators are altered -- this allows us to alter what validations get
+    rendered on the page. We use get_optional_fields to mark fields as optional as dictated by their model, and
+    we look for a field_name_extra_validators function -- any validators that match existing validators will replace
+    them, and any extra validators will be added to the field.
 
     `params` should be a dictionary from a form submission, usually passed straight from the page handler.
     `model` is the object itself, e.g., the attendee we're loading the form for.
     `form_list` is a list of strings of which form classes to load, e.g., ['PersonalInfo', 'BadgeExtras', 'OtherInfo']
     `prefix_dict` is an optional dictionary to load some of the forms with a prefix. This is useful for loading forms with
-    conflicting field names on the same page, e.g., passing {'GroupInfo': 'group_'} will add group_ to all GroupInfo fields.
+        conflicting field names on the same page, e.g., passing {'GroupInfo': 'group_'} will add group_ to all GroupInfo fields.
+    `truncate_admin` is a flag that removes "admin_" from the beginning of the resulting form names, so that "AdminTableInfo"
+        is saved as "table_info." This is true by default to make building form templates easier.
 
     Returns a dictionary of form objects with the snake-case version of the form as the ID, e.g.,
     the PersonalInfo class will be returned as form_dict['personal_info'].
@@ -35,7 +46,8 @@ def load_forms(params, model, module, form_list, prefix_dict={}):
     for cls in form_list:
         form_cls = getattr(module, cls, None)
         if not form_cls:
-            break
+            log.error("We tried to load a form called {} from module {}, but it doesn't seem to exist!".format(cls, str(module)))
+            continue
 
         for model_field_name, aliases in form_cls.field_aliases.items():
             model_val = getattr(model, model_field_name)
@@ -47,20 +59,44 @@ def load_forms(params, model, module, form_list, prefix_dict={}):
                 else:
                     alias_dict[aliased_field] = model_val
 
-        form_dict[re.sub(r'(?<!^)(?=[A-Z])', '_', cls).lower()] = form_cls(params, model, prefix=prefix_dict.get(cls, ''), data=alias_dict)
+        loaded_form = form_cls(params, model, prefix=prefix_dict.get(cls, ''), data=alias_dict)
+        optional_fields = loaded_form.get_optional_fields(model)
+
+        for name, field in loaded_form._fields.items():
+            if name in optional_fields:
+                field.validators = [validators.Optional()]
+            else:
+                extra_validators = get_override_attr(loaded_form, name, '_extra_validators')
+                if extra_validators:
+                    extra_validator_classes = map(lambda x: x.__class__, extra_validators)
+                    field.validators = [validator for validator in field.validators 
+                                        if validator.__class__ not in extra_validator_classes] + extra_validators
+
+        form_label = re.sub(r'(?<!^)(?=[A-Z])', '_', cls).lower()
+        if truncate_admin and form_label.startswith('admin_'):
+            form_label = form_label[6:]
+
+        form_dict[form_label] = loaded_form
+
     return form_dict
 
 
 class MagForm(Form):
-    skip_unassigned_placeholder_validators = {}
     field_aliases = {}
+
+    def get_optional_fields(self, model):
+        return []
+
+    def get_non_admin_locked_fields(self, model):
+        return []
 
     @classmethod
     def all_forms(cls):
         # Get a list of all forms that inherit from MagForm
         for subclass in cls.__subclasses__():
+            module_name = subclass.__module__
             yield from subclass.all_forms()
-            yield subclass
+            yield (module_name, subclass)
 
     @classmethod
     def form_mixin(cls, form, model_str=''):
@@ -69,10 +105,13 @@ class MagForm(Form):
         elif not model_str:
             # Search through all form classes, only continue if there is ONE matching form
             match_count = 0
-            for target in cls.all_forms():
+            modules = []
+            for module_name, target in cls.all_forms():
                 if target.__name__ == form.__name__:
-                    match_count += 1
-                    real_target = target
+                    if module_name not in modules:
+                        match_count += 1
+                        real_target = target
+                        modules.append(module_name)
             if match_count == 0:
                 raise ValueError('Could not find a form with the name {}'.format(form.__name__))
             elif match_count > 1:
@@ -126,16 +165,32 @@ class MagForm(Form):
     def bool_list(self):
         return [(key, field) for key, field in self._fields.items() if field.type == 'BooleanField']
     
-    def populate_obj(self, obj):
-        """ Adds alias processing and data coercion to populate_obj. Note that we bypass fields' populate_obj. """
+    def populate_obj(self, obj, is_admin=False):
+        """
+        Adds alias processing, field locking, and data coercion to populate_obj.
+        Note that we bypass fields' populate_obj except when filling in aliased fields.
+        """
+        locked_fields = [] if is_admin else self.get_non_admin_locked_fields(obj)
+        log.debug(locked_fields)
         for name, field in self._fields.items():
+            if name in locked_fields:
+                log.warning("Someone tried to edit their {} value, but it was locked. \
+                            This is either a programming error or a malicious actor.".format(name))
+                continue
+
             column = obj.__table__.columns.get(name)
             if column is not None:
                 setattr(obj, name, obj.coerce_column_data(column, field.data))
             else:
-                setattr(obj, name, field.data)
+                try:
+                    setattr(obj, name, field.data)
+                except AttributeError:
+                    pass # Probably just a collision between a property name and a form field name, e.g., 'badges' for GroupInfo
 
         for model_field_name, aliases in self.field_aliases.items():
+            if model_field_name in locked_fields:
+                continue
+
             for aliased_field in reversed(aliases):
                 field_obj = getattr(self, aliased_field, None)
                 if field_obj and field_obj.data:
@@ -165,6 +220,8 @@ class MagForm(Form):
                 return 'text'
             elif isinstance(widget, wtforms_widgets.Select):
                 return 'select'
+            elif isinstance(widget, IntSelect):
+                return 'customselect'
             else:
                 return 'text'
 
@@ -177,8 +234,8 @@ class MagForm(Form):
             """
             field_name = options.get('name', '')
             text_format_vars = {**getattr(form, 'extra_text_vars', {}), **self.text_vars}
-            field_label = self.get_override_attr(form, field_name, '_label') or unbound_field.kwargs.get('label', '') or unbound_field.args[0]
-            field_desc = self.get_override_attr(form, field_name, '_desc') or unbound_field.kwargs.get('description', '')
+            field_label = get_override_attr(form, field_name, '_label') or unbound_field.kwargs.get('label', '') or unbound_field.args[0]
+            field_desc = get_override_attr(form, field_name, '_desc') or unbound_field.kwargs.get('description', '')
 
             if 'label' in unbound_field.kwargs:
                 unbound_field.kwargs['label'] = self.format_field_text(field_label, text_format_vars)
@@ -193,9 +250,6 @@ class MagForm(Form):
             unbound_field.kwargs['render_kw'] = self.set_keyword_defaults(unbound_field, unbound_field.kwargs.get('render_kw', {}), field_name)
 
             return unbound_field.bind(form=form, **options)
-
-        def get_override_attr(self, form, field_name, suffix):
-            return getattr(form, field_name + suffix, lambda: '')()
 
         def format_field_text(self, text, format_vars):
             # Formats label text and descriptions to allow common config values to be included in the class declaration
@@ -240,21 +294,30 @@ class MagForm(Form):
 class AddressForm():
     field_aliases = {'region': ['region_us', 'region_canada']}
 
-    address1 = StringField('Address Line 1', default='', validators=[validators.InputRequired(message="Please enter a street address.")])
+    address1 = StringField('Address Line 1', default='', validators=[
+        validators.InputRequired(message="Please enter a street address.")
+        ])
     address2 = StringField('Address Line 2', default='')
-    city = StringField('City', default='', validators=[validators.InputRequired(message="Please enter a city.")])
+    city = StringField('City', default='', validators=[
+        validators.InputRequired(message="Please enter a city.")
+        ])
     region_us = SelectField('State', default='', choices=c.REGION_OPTS_US)
     region_canada = SelectField('Province', default='', choices=c.REGION_OPTS_CANADA)
     region = StringField('State/Province', default='')
     zip_code = StringField('Zip/Postal Code', default='')
-    country = SelectField('Country', default='', validators=[validators.InputRequired(message="Please enter a country.")], choices=c.COUNTRY_OPTS, widget=CountrySelect())
+    country = SelectField('Country', default='', validators=[
+        validators.InputRequired(message="Please enter a country.")
+        ], choices=c.COUNTRY_OPTS, widget=CountrySelect())
 
     def validate_region(form, field):
         if form.country.data not in ['United States', 'Canada'] and not field.data:
             raise ValidationError('Please enter a state, province, or region.')
     
     def validate_zip_code(form, field):
-        if (form.country.data == 'United States' or form.international.data) and not c.AT_OR_POST_CON and invalid_zip_code(field.data):
+        if (form.country.data == 'United States' or (not c.COLLECT_FULL_ADDRESS and 
+                                                     hasattr(form, 'international') and 
+                                                     not form.international.data)) \
+            and not c.AT_OR_POST_CON and invalid_zip_code(field.data):
             raise ValidationError('Please enter a valid 5 or 9-digit zip code.')
 
 

@@ -743,8 +743,8 @@
     <div class="col-sm-stacked">
       <ul class="nav nav-pills nav-sm-stacked">
         {% for feature in attraction.features %}
-          <li role="presentation" class="{% if loop.index0 == 0 %}active{% endif %}">
-            <a href="#feature_{{ feature.id }}" data-toggle="pill">
+          <li role="presentation" class="nav-item">
+            <a class="nav-link{% if loop.index0 == 0 %} active{% endif %}" href="#feature_{{ feature.id }}" data-toggle="pill">
               <h3>{{ feature.name }}</h3>
             </a>
           </li>

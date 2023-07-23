@@ -61,7 +61,7 @@ Attendee.cost_changes = {
 Attendee.credit_changes = {
     'paid': ('Badge Comp', "calc_badge_comp_change"),
     'birthdate': ('Age Discount', "calc_age_discount_change"),
-    #'promo_code': ('Promo Code'), TODO
+    'promo_code': ('Promo Code', "calc_promo_discount_change"),
 }
 
 @cost_calculation.Attendee
@@ -114,6 +114,13 @@ def group_discount(attendee):
     if c.GROUP_DISCOUNT and attendee.qualifies_for_discounts and not attendee.age_discount and (
                 attendee.promo_code_groups or attendee.group):
         return ("Group Discount", c.GROUP_DISCOUNT * 100 * -1, None)
+    
+
+@credit_calculation.Attendee
+def promo_code_discount(attendee):
+    if attendee.promo_code:
+        discount = attendee.calculate_badge_cost() - attendee.badge_cost_with_promo_code
+        return ("Promo Code", discount * 100 * -1, None)
 
 
 Group.cost_changes = {
@@ -126,7 +133,7 @@ Group.cost_changes = {
 def table_cost(group):
     table_count = int(float(group.tables))
     if table_count and group.auto_recalc:
-        return ("{} Tables".format(table_count), sum(c.TABLE_PRICES[i] for i in range(1, 1 + table_count)) * 100, None)
+        return ("{} Tables".format(table_count), c.get_table_price(table_count) * 100, None)
 
 @cost_calculation.Group
 def badge_cost(group):

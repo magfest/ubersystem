@@ -57,7 +57,6 @@
                 <div class="col-sm-3">
                   <div class="input-group">
                     <input type="text" class="form-control" name="track" value="{{ app.track }}" />
-                    <div class="input-group-btn">
                       <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         Use Existing Track <span class="caret"></span>
                       </button>
@@ -66,7 +65,6 @@
                         <li><a href="#" onClick="setTrack('{{ track[0] }}')">{{ track[0] }}</a></li>
                         {% endfor %}
                       </ul>
-                    </div><!-- /btn-group -->
                   </div><!-- /input-group -->
                 </div><!-- /.col-sm-6 -->
                 <button type="submit" class="btn btn-primary">Update</button>

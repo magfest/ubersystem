@@ -17,11 +17,12 @@ from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.custom_tags import format_currency
-from uber.decorators import ajax, ajax_gettable, all_renderable, attendee_view, check_for_encrypted_badge_num, check_if_can_reg, credit_card, \
+from uber.decorators import ajax, ajax_gettable, all_renderable, attendee_view, check_for_encrypted_badge_num, credit_card, \
     csrf_protected, department_id_adapter, log_pageview, not_site_mappable, render, requires_account, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, AttendeeAccount, Department, Email, Group, Job, PageViewTracking, PrintJob, PromoCode, \
     PromoCodeGroup, Sale, Session, Shift, Tracking, WatchList
+from uber.site_sections.preregistration import check_if_can_reg
 from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
     localized_now, Order, normalize_email
 from uber.payments import TransactionRequest, ReceiptManager
@@ -138,7 +139,7 @@ class Root:
             message = ''
             
             attendee.group_id = params['group_opt'] or None
-            if params.get('no_badge_num') or not attendee.badge_num:
+            if c.NUMBERED_BADGES and (params.get('no_badge_num') or not attendee.badge_num):
                 if params.get('save') == 'save_check_in' and attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES:
                     message = "Please enter a badge number to check this attendee in"
                 else:
@@ -541,7 +542,7 @@ class Root:
     @csrf_protected
     def undo_checkin(self, session, id, pre_badge):
         attendee = session.attendee(id, allow_invalid=True)
-        attendee.checked_in, attendee.badge_num = None, pre_badge
+        attendee.checked_in, attendee.badge_num = None, pre_badge if pre_badge else None
         session.add(attendee)
         session.commit()
         return 'Attendee successfully un-checked-in'
@@ -563,9 +564,10 @@ class Root:
 
     @public
     @check_atd
-    @check_if_can_reg
     @requires_account()
     def register(self, session, message='', error_message='', **params):
+        check_if_can_reg()
+
         params['id'] = 'None'
         login_email = None
         payment_method = params.get('payment_method')
@@ -666,7 +668,7 @@ class Root:
         receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = TransactionRequest(receipt, attendee.email, charge_desc)
-        message = charge.process_payment(receipt)
+        message = charge.process_payment()
         
         if message:
             return {'error': message}
@@ -736,7 +738,7 @@ class Root:
             desc = "At-door marked as paid"
 
         receipt_manager = ReceiptManager(receipt)
-        error = receipt_manager.create_payment_transaction(desc, method=payment_method)
+        error = receipt_manager.create_payment_transaction(desc, amount=receipt.current_amount_owed, method=payment_method)
         if error:
             return {'success': False, 'message': error}
         session.add_all(receipt_manager.items_to_add)
@@ -753,7 +755,7 @@ class Root:
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = TransactionRequest(receipt, attendee.email, charge_desc)
 
-        message = charge.process_payment(receipt, payment_method=c.MANUAL)
+        message = charge.process_payment(payment_method=c.MANUAL)
         if message:
             return {'error': message}
         

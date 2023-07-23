@@ -1,7 +1,6 @@
 {% extends "preregistration/preregbase.html" %}
 {% block title %}Manage Your Registrations{% endblock %}
 {% block content %}
-{% include 'prereg_masthead.html' %}
 {% set account = homepage_account %}
 {% set dealer_reg_open = c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
 {% set prereg_message %}
@@ -71,8 +70,8 @@
     </div>
     {% if account.valid_single_badges and account.valid_group_badges %}
     <ul class="nav nav-pills" role="tablist">
-        <li role="presentation" class="active"><a href="#single" aria-controls="home" role="tab" data-toggle="tab">Registrations</a></li>
-        <li role="presentation"><a href="#group" aria-controls="profile" role="tab" data-toggle="tab">Group Registrations</a></li>
+        <li role="presentation" class="nav-item"><a class="nav-link active" href="#single" aria-controls="home" role="tab" data-toggle="tab">Registrations</a></li>
+        <li role="presentation" class="nav-item"><a class="nav-link" href="#group" aria-controls="profile" role="tab" data-toggle="tab">Group Registrations</a></li>
     </ul>
     {% endif %}
 <div class="tab-content">
@@ -134,7 +133,7 @@
     <div class="card-header">
         <h4 class="card-title">Cancelled Registrations</h4>
     </div>
-    <div class="table-responsive">
+    <div class="card-body">
         <table class="table table-striped datatable">
         <thead>
             <tr>

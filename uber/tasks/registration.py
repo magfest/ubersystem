@@ -146,6 +146,9 @@ def check_near_cap():
 
 @celery.schedule(timedelta(minutes=30))
 def check_missed_stripe_payments():
+    if c.AUTHORIZENET_LOGIN_ID:
+        return
+
     pending_ids = []
     paid_ids = []
     with Session() as session:

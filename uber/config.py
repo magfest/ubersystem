@@ -202,6 +202,9 @@ class Config(_Overridable):
     def get_group_price(self, dt=None):
         return self.get_attendee_price(dt) - self.GROUP_DISCOUNT
 
+    def get_table_price(self, table_count):
+        return sum(c.TABLE_PRICES[i] for i in range(1, 1 + int(float(table_count))))
+
     def get_badge_count_by_type(self, badge_type):
         """
         Returns the count of all badges of the given type that we've promised to
@@ -287,7 +290,7 @@ class Config(_Overridable):
                 return max(0, attendee_count - staff_count)
         else:
             with Session() as session:
-                attendees = session.query(Attendee)
+                attendees = session.attendees_with_badges()
                 individuals = attendees.filter(or_(
                     Attendee.paid == self.HAS_PAID,
                     Attendee.paid == self.REFUNDED)
@@ -485,41 +488,6 @@ class Config(_Overridable):
     @property
     def PREREG_DONATION_TIERS(self):
         return dict(self.PREREG_DONATION_OPTS)
-
-    @property
-    def PREREG_REQUEST_HOTEL_INFO_DEADLINE(self):
-        """
-        The datetime at which the "Request Hotel Info" checkbox will NO LONGER
-        be shown during preregistration.
-        """
-        return self.PREREG_OPEN + timedelta(
-            hours=max(0, self.PREREG_REQUEST_HOTEL_INFO_DURATION))
-
-    @property
-    def PREREG_REQUEST_HOTEL_INFO_ENABLED(self):
-        """
-        Boolean which indicates whether the "Request Hotel Info" checkbox is
-        enabled generally, whether or not the deadline has passed.
-        """
-        return self.PREREG_REQUEST_HOTEL_INFO_DURATION > 0
-
-    @property
-    def PREREG_REQUEST_HOTEL_INFO_OPEN(self):
-        """
-        Boolean which indicates whether the "Request Hotel Info" checkbox is
-        enabled and currently open with preregistration.
-        """
-        if not self.PREREG_REQUEST_HOTEL_INFO_ENABLED:
-            return False
-        return not self.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE
-
-    @property
-    def PREREG_HOTEL_INFO_EMAIL_DATE(self):
-        """
-        Date at which the hotel booking link email becomes available to send.
-        """
-        return self.PREREG_REQUEST_HOTEL_INFO_DEADLINE + \
-            timedelta(hours=max(0, self.PREREG_HOTEL_INFO_EMAIL_WAIT_DURATION))
 
     @property
     def ONE_WEEK_OR_TAKEDOWN_OR_EPOCH(self):
@@ -1101,7 +1069,7 @@ c.START_TIME_OPTS = [
 
 c.SETUP_JOB_START = c.EPOCH - timedelta(days=c.SETUP_SHIFT_DAYS)
 c.TEARDOWN_JOB_END = c.ESCHATON + timedelta(days=1, hours=23) # Allow two full days for teardown shifts
-c.CON_TOTAL_LENGTH = int((c.TEARDOWN_JOB_END - c.SETUP_JOB_START).seconds / 3600)
+c.CON_TOTAL_DAYS = -(-(int((c.TEARDOWN_JOB_END - c.SETUP_JOB_START).total_seconds() // 3600)) // 24)
 c.PANEL_STRICT_LENGTH_OPTS = [opt for opt in c.PANEL_LENGTH_OPTS if opt != c.OTHER]
 
 c.EVENT_YEAR = c.EPOCH.strftime('%Y')
@@ -1193,7 +1161,7 @@ c.WRISTBAND_COLORS = defaultdict(lambda: c.WRISTBAND_COLORS[c.DEFAULT_WRISTBAND]
 c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
 
 # Allows 0-9, a-z, A-Z, and a handful of punctuation characters
-c.INVALID_BADGE_PRINTED_CHARS = r'[^a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'
+c.VALID_BADGE_PRINTED_CHARS = r'[a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'
 c.EVENT_QR_ID = c.EVENT_QR_ID or c.EVENT_NAME_AND_YEAR.replace(' ', '_').lower()
 
 
@@ -1214,6 +1182,10 @@ if not c.AUTHORIZENET_LOGIN_ID:
 # appends '../static/foo.js' to this list, that adds <script src="../static/foo.js"></script> to
 # all of the pages on the site except for preregistration pages (for performance)
 c.JAVASCRIPT_INCLUDES = []
+
+
+dealer_status_label_lookup = {val: key for key, val in c.DEALER_STATUS_OPTS}
+c.DEALER_EDITABLE_STATUSES = [dealer_status_label_lookup[name] for name in c.DEALER_EDITABLE_STATUS_LIST]
 
 
 # A list of models that have properties defined for exporting for Guidebook

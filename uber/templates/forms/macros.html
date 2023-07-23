@@ -1,45 +1,58 @@
-{% macro form_input_extras(field, help_text='', extra_field=None) %}
-{% if help_text or field.description %}
+{% macro form_input_extras(field, help_text='', admin_text='', extra_field=None) %}
+  {% if not admin_area and (help_text or field.description) %}
     <div class="form-text">
     {{ help_text or field.description }}
     </div>
-{% endif %}
-{% if extra_field %}
+  {% elif admin_area and admin_text %}
+    <div class="form-text">
+    {{ admin_text }}
+    </div>
+  {% endif %}
+  {% if extra_field %}
     {{ extra_field }}
-{% endif %}
-    <div id="{{ field.id }}-validation" class="invalid-feedback"></div>
+    <div id="{{ extra_field.id }}-validation" class="invalid-feedback"></div>
+  {% endif %}
+  <div id="{{ field.id }}-validation" class="invalid-feedback"></div>
 {% endmacro %}
 
-{% macro form_input(field, help_text='', extra_field=None, no_margin=False) %}
+{% macro form_input(field, help_text='', admin_text='', extra_field=None, no_margin=False) %}
 {% set type = field.meta.get_field_type(field) %}
 
 {% if type in ['checkbox','switch'] %}
-<div class="form-check{% if type == 'switch' %} form-switch{% endif %}">
+<div class="form-check{% if type == 'switch' %} form-switch{% endif %}{% if not no_margin %} mb-3{% endif %}">
   {{ field(class="form-check-input", checked=field.data, value=1, **kwargs) }}
   {{ field.label(class="form-check-label") }}
-  {{ form_input_extras(field, help_text, extra_field) }}
+  {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>
 {% elif type == 'inputgroup' %}
 <div class="form-text">{{ field.label }}</div>
+<div class="input-group{% if not no_margin %} mb-3{% endif %}">
 {{ field(class="form-control", **kwargs) }}
-{{ form_input_extras(field, help_text, extra_field) }}
+</div>
+{{ form_input_extras(field, help_text, admin_text, extra_field) }}
 {% elif type == 'checkgroup' %}
 <div class="form-text">{{ field.label() }}</div>
-<div class="card card-body">
+<div class="card card-body{% if not no_margin %} mb-3{% endif %}">
     {{ field(**kwargs) }}
-    <div class="col col-6">{{ form_input_extras(field, help_text, extra_field) }}</div>
+    <div class="col col-6">{{ form_input_extras(field, help_text, admin_text, extra_field) }}</div>
 </div>
 {% elif type == 'select' %}
 <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
     {{ field(class="form-select", **kwargs) }}
     {{ field.label }}
-    {{ form_input_extras(field, help_text, extra_field) }}
+    {{ form_input_extras(field, help_text, admin_text, extra_field) }}
+</div>
+{% elif type == 'customselect' %}
+<div class="form-floating{% if not no_margin %} mb-3{% endif %}">
+    {{ field(**kwargs) }}
+    {{ field.label }}
+    {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>
 {% else %}
 <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
     {{ field(class="form-control", **kwargs) }}
     {{ field.label }}
-    {{ form_input_extras(field, help_text, extra_field) }}
+    {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>
 {% endif %}
 {% endmacro %}
@@ -59,7 +72,7 @@
 {{ toggle_fields_js(checkbox_field, target_fields, off_values=[1 if hide_on_checked == True else 0], toggle_required=toggle_required, prop=prop) }}
 {%- endmacro %}
 
-{% macro toggle_fields_js(source_field, target_fields, off_values=[], on_values=[], toggle_required=False, prop='visibility', hide_row=True) %}
+{% macro toggle_fields_js(source_field, target_fields, off_values=[], on_values=[], toggle_required=False, prop='visibility', closest_hide_selector='.row') %}
 {% set suffix = "_" ~ source_field.id %}
 <script type="text/javascript">
     var toggleField{{ suffix }} = function() {
@@ -91,10 +104,8 @@
             if ('{{ prop }}' == 'visibility') {
                 {% for target_field in target_fields %}
                     $('#{{ target_field.id }}').toggle(toggleOn);
-                    {% if hide_row %}
-                        $('#{{ target_field.id }}').closest('.row').toggle(toggleOn);
-                    {% else %}
-                        $('#{{ target_field.id }}').closest('.col').toggle(toggleOn);
+                    {% if closest_hide_selector %}
+                        $('#{{ target_field.id }}').closest('{{ closest_hide_selector }}').toggle(toggleOn);
                     {% endif %}
                 {% endfor %}
             } else {
@@ -117,7 +128,7 @@
 </script>
 {%- endmacro %}
 
-{% macro card_select(target_field, opts, text_class="text-center") %}
+{% macro card_select(target_field, opts, text_class="text-center", help_text="") %}
 {# 
     A set of card elements generated from opts. Each item in opts should include the following fields:
         name (str): The title displayed at the top of the card.
@@ -133,7 +144,9 @@
     Don't change it or the "Read More" links won't work.
 #}
 
-<div class="mt-3 form-text">{{ target_field.label }}</div>
+<div class="mt-3 form-text">{{ target_field.label }}
+  {% if not admin_area and (help_text or target_field.description) %}&nbsp; {{ help_text or target_field.description }}{% endif %}
+</div>
 <div class="card-group mt-0 mb-3">
 {% for opt in opts %}
 <div class="card {{ text_class }}">
@@ -229,7 +242,7 @@
           }
     }
     $(function() {
-        $('#{{ country_id }}').selectToAutocomplete().change(function() {
+        $('#{{ country_id }}').selectToAutocomplete().prop("required", false).change(function() {
             regionChange{{ country_id }}();
         });
         regionChange{{ country_id }}();
@@ -283,7 +296,7 @@
         } else {
           serverValidationPassed = true;
           if (go_to_cart != '') {
-            $("#prereg-form").find($("[name=go_to_cart]")).click();
+            $("#{{ form_id }}").find($("[name=go_to_cart]")).click();
           } else {
             $("#{{ form_id }}").submit();
           }
@@ -294,10 +307,7 @@
 
   $(function () {
     $("#form-validations").hide();
-    {% if c.ATTENDEE_ACCOUNTS_ENABLED and not logged_in_account %}
-      {{ submit_validation_and_disclaimer("account-form", include_disclaimers_modal) }}
-    {% endif %}
-      {{ submit_validation_and_disclaimer(form_id, include_disclaimers_modal) }}
+    {{ submit_validation_and_disclaimer(form_id, include_disclaimers_modal) }}
 });
 </script>
 {%- endmacro %}

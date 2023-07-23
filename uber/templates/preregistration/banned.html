@@ -3,7 +3,6 @@
 {% block backlink %}{% endblock %}
 {% block content %}
 
-{% include 'prereg_masthead.html' %}
 <div class="card">
   <div class="card-body">
     <h2> You may be banned from {{ c.EVENT_NAME }}! </h2>
@@ -17,10 +16,11 @@
 
     <table style="width:auto" align="center">
       <tr>
-        {%- set next_page = 'hotel?id=' + id if c.PREREG_REQUEST_HOTEL_INFO_OPEN else 'index' -%}
+        {%- set url_string = ("?group_id=" ~ duplicate.group_id) if duplicate.badge_type == c.PSEUDO_DEALER_BADGE else ("?attendee_id=" ~ (duplicate.group.id if duplicate.group else duplicate.id)) %}
+        {%- set next_page = "additional_info" ~ url_string -%}
         <td><a href="{{ next_page }}">I'm someone else, let me register!</a></td>
         <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
-        <td><a href="delete?id={{ attendee.id }}">Well never mind then!</a></td>
+        <td><a href="delete{{ url_string }}">Well never mind then!</a></td>
       </tr>
     </table>
 

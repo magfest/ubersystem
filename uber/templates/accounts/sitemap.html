@@ -3,9 +3,8 @@
 {% block content %}
 
 <div class="page-header"><h1>Site Map</h1></div>
-
 {% for section, pagelist in pages %}
-<div class="card">
+<div class="card mb-3">
   <div class="card-header">
     {% if pagelist|selectattr("name", "equalto", "Index")|list %}<a href="../{{ section }}/index">{{ section|replace("_", " ")|title }}</a>{% else %}
     {{ section|replace("_", " ")|title }}{% endif %}
@@ -15,7 +14,7 @@
     <ul class="nav nav-pills">
     {% for page in pagelist %}
       {% if page.name != "Index" %}
-      <li><a href="..{{ page.path }}">{{ page.name }}{% if page.is_download %} ⤓{% endif %}</a></li>
+      <li class="nav-item"><a class="nav-link" href="..{{ page.path }}">{{ page.name }}{% if page.is_download %} ⤓{% endif %}</a></li>
       {% endif %}
     {% endfor %}
     </ul>

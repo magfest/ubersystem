@@ -536,6 +536,14 @@ def int_options(minval, maxval, default=1):
     return safe_string('\n'.join(results))
 
 
+@JinjaEnv.jinja_export
+def int_choices(minval, maxval):
+    results = []
+    for i in range(minval, maxval+1):
+        results.append((i, str(i)))
+    return results
+
+
 RE_LOCATION = re.compile(r'(\(.*?\))')
 
 

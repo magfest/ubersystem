@@ -14,8 +14,6 @@
 
 {#- Setting some variables to keep the size of conditional clauses smaller. -#}
 {%- set is_prereg_confirm_email_enabled = attendee.is_new and c.PREREG_CONFIRM_EMAIL_ENABLED -%}
-{%- set is_after_request_hotel = c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE -%}
-{%- set is_after_hotel_email = c.AFTER_PREREG_HOTEL_INFO_EMAIL_DATE -%}
 {%- set group_id = group_id or attendee.group_id -%}
 
 {% set receipt_modal %}
@@ -48,11 +46,8 @@ $().ready(function() {
 {% endset %}
 
 {% set prereg_intro %}
-{% if is_prereg_dealer %}
-  <h2 class="text-center">{{ c.DEALER_APP_TERM|title }}</h2>
-{% elif is_prereg_attendee %}
-  {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_OPEN) }}
-
+{{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
+{% if is_prereg_attendee %}
   <div class="form-horizontal">
     {% if c.DEV_BOX %}
       <div class="form-group row">
@@ -70,7 +65,7 @@ $().ready(function() {
       </div>
     {% endif %}
 
-    {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
+    {% if not is_prereg_dealer and c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
       <div class="form-group row">
         <p class="col-sm-9 col-sm-offset-3">
           <strong>{{ c.DEALER_TERM|capitalize }}s:</strong>
@@ -82,15 +77,8 @@ $().ready(function() {
         </p>
       </div>
     {% endif %}
-
-    <div class="form-group" id="reg-types">
-      <label class="col-sm-3 control-label">Registration Type</label>
-    </div>
   </div>
 {% endif %}
-<div id="bold-field-message" class="form-group">
-  <div class="col-sm-offset-3 col-sm-9 heading-label">Bold fields are required</div>
-</div>
 {% endset %}
 
 
@@ -595,7 +583,7 @@ $().ready(function() {
   </div>
 {% endif %}
 
-{% if full_read %}
+{% if full_read or c.SECURITY_ADMIN_ACCESS %}
 <div class="form-group">
   <label for="legal_name" class="col-sm-3 control-label">Name as appears on <span class="text-nowrap">Legal Photo ID</span></label>
   {% call macros.read_only_if(read_only, attendee.legal_name) %}
@@ -913,8 +901,18 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
   <label for="staffing" class="col-sm-3 optional-field control-label">Want to Volunteer?</label>
   {% call macros.read_only_if(read_only, attendee.staffing|yesno) %}
   <div class="checkbox col-sm-6">
-    {% set staffing_readonly = not admin_area and attendee.shifts %}
-    <label for="staffing" {% if staffing_readonly %}title="Please {{ 'see Staffing Operations to change your volunteer status' if c.AT_THE_CON else 'unassign yourself from shifts before changing your volunteer status' }}"{% endif %}>
+    {% set staffing_readonly = False %}
+    {% if not admin_area %}
+      {% if attendee.badge_type in [c.CONTRACTOR_BADGE, c.STAFF_BADGE] %}
+      {% set staffing_readonly = True %}
+      {% set staffing_message = "This checkbox is required for Contractors, Volunteers, and Staff. Please contact Staffing Operations if you wish to change your status." %}
+      {% elif attendee.shifts %}
+      {% set staffing_readonly = True %}
+      {% set staffing_message = "Please " ~ 'see Staffing Operations to change your volunteer status.' if c.AT_THE_CON else 'unassign yourself from shifts before changing your volunteer status.' %}
+      {% endif %}
+    {% endif %}
+    {% set staffing_readonly = not admin_area and (attendee.badge_type in [c.CONTRACTOR_BADGE, c.STAFF_BADGE] or attendee.shifts) %}
+    <label for="staffing" {% if staffing_readonly %}title="{{ staffing_message }}"{% endif %}>
       {{ macros.checkbox(attendee, 'staffing', is_readonly=staffing_readonly, clientside_bool=clientside_bool) }}
       {% if admin_area %}
         This attendee is
@@ -997,7 +995,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 {% endset %}
 
 
-{% if not c.COLLECT_EXACT_BIRTHDATE or full_read %}
+{% if not c.COLLECT_EXACT_BIRTHDATE or full_read or c.SECURITY_ADMIN_ACCESS %}
 {% set age %}
 {% set read_only = age_ro or page_ro %}
 <script type="text/javascript">
@@ -1177,7 +1175,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 
 
 {% set emergency_contact %}
-{% if full_read %}
+{% if full_read or c.SECURITY_ADMIN_ACCESS or not attendee.ec_name or not attendee.ec_phone %}
 {% if attendee.is_new or not admin_area or c.HAS_REG_ADMIN_ACCESS %}
 {% set read_only = emergency_contact_ro or page_ro %}
 <div class="form-group">
@@ -1202,7 +1200,7 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 
 
 {% set onsite_contact %}
-{% if full_read %}
+{% if full_read or c.SECURITY_ADMIN_ACCESS or not attendee.onsite_contact %}
 {% if attendee.is_new or not admin_area or c.HAS_REG_ADMIN_ACCESS %}
 {% set read_only = onsite_contact_ro or page_ro %}
 <div class="form-group">
@@ -1321,55 +1319,6 @@ $(window).on("runJavaScript", function () {
   </div>
 {% endcall %}
 </div>
-{% endset %}
-
-
-{% set requested_hotel_info %}
-{% set read_only = requested_hotel_info_ro or page_ro %}
-{% if c.HOTELS_ENABLED and c.PREREG_REQUEST_HOTEL_INFO_DURATION > 0 and (admin_area or (not is_prereg_attendee and not is_after_request_hotel)) %}
-  {#-
-    In both the admin area and non-preregistration forms, we will display a
-    "Request Hotel Info" label and a checkbox.
-  -#}
-  <div class="form-group">
-    <label for="requested_hotel_info" class="col-sm-3 control-label optional-field">Request Hotel Info</label>
-    <div class="checkbox col-sm-9">
-      <label for="requested_hotel_info" class="checkbox-label{% if is_after_hotel_email %} disabled" title="Can&apos;t be changed after hotel email is ready to send{% endif %}">
-        {% if is_after_hotel_email %}
-          {#-
-            The deadline has passed; the checkbox is readonly, and
-            requested_hotel_info retains whatever value the attendee
-            already had.
-          -#}
-          <input type="hidden" name="requested_hotel_info" id="requested_hotel_info" value="{{ '1' if attendee.requested_hotel_info else '0' }}">
-          <input type="checkbox" value="1" disabled {% if attendee.requested_hotel_info %}checked{% endif %}>
-        {% else %}
-          {#-
-            The window is still open; we are very liberal with the checked
-            state of the checkbox. Unless the attendee has explicitly marked
-            requested_hotel_info as False, we check the box for them.
-          -#}
-          <input type="checkbox" name="requested_hotel_info" id="requested_hotel_info" value="1" {% if attendee.requested_hotel_info or attendee.is_placeholder or (group and group.requested_hotel_info) %}checked{% endif %}>
-        {% endif %}
-        Yes, tell me when hotels begin accepting reservations
-      </label>
-    </div>
-  </div>
-{% elif is_after_request_hotel %}
-  {#-
-    The deadline has passed; requested_hotel_info retains whatever value the
-    attendee already had. This will default to False for new and placholder
-    attendees.
-  -#}
-  <input type="hidden" name="requested_hotel_info" id="requested_hotel_info" value="{{ '1' if attendee.requested_hotel_info else '0' }}" />
-{% else %}
-  {#-
-    The window is still open; requested_hotel_info either retains whatever
-    value the attendee already had, or is set to True for new and placeholder
-    attendees.
-  -#}
-  <input type="hidden" name="requested_hotel_info" id="requested_hotel_info" value="{{ '1' if attendee.requested_hotel_info or attendee.is_placeholder else '0' }}" />
-{% endif %}
 {% endset %}
 
 
@@ -1728,7 +1677,7 @@ $(window).on("runJavaScript", function(){
         {{ options(group_opts,attendee.group.id) }}
       </select>
       <a id="group_link" href="" target="_blank">View this Group's Page</a>
-      {% if c.HAS_GROUP_ADMIN_ACCESS and not attendee.group %}
+      {% if c.HAS_GROUP_ADMIN_ACCESS and not attendee.group and not attendee.is_new %}
       <a id="new_group" href="../group_admin/new_group_from_attendee?id={{ attendee.id }}" target="_blank">Create New Group</a>
       {% endif %}
       <div id="unassigned" style="display:none ; color:red">

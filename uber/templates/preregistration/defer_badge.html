@@ -3,11 +3,8 @@
 {% block backlink %}{% endblock %}
 {% block title %}Defer Your {{ c.EVENT_NAME }} Registration{% endblock %}
 {% block content %}
-<script type="text/javascript">
-  {% include "region_opts.html" %}
-</script>
+{% include "region_opts.html" %}
 
-{% include 'prereg_masthead.html' %}
 <div class="card">
   <div class="card-body">
     <h3> Defer {{ attendee.full_name }}'s Registration </h3>

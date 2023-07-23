@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 from uber import receipt_items
 from uber.config import c
 from uber.custom_tags import email_only
-from uber.decorators import ajax, all_renderable, not_site_mappable, check_if_can_reg, credit_card, csrf_protected, id_required, log_pageview, \
+from uber.decorators import ajax, all_renderable, not_site_mappable, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, AccessGroup, AttendeeAccount, Attraction, Email, Group, ModelReceipt, PromoCode, PromoCodeGroup, \
@@ -56,8 +56,15 @@ class Root:
 
                         admin_account = session.create_admin_account(matching_attendee, generate_pwd=False)
                         all_access_group = session.query(AccessGroup).filter_by(name="All Access").first()
-                        if all_access_group:
-                            admin_account.access_groups.append(all_access_group)
+                        if not all_access_group:
+                            all_access_group = AccessGroup(
+                                name='All Access',
+                                access={section: '5' for section in c.ADMIN_PAGES}
+                            )
+                            session.add(all_access_group)
+                        
+                        admin_account.access_groups.append(all_access_group)
+                        session.commit()
                 if admin_account:
                     cherrypy.session['account_id'] = admin_account.id
 

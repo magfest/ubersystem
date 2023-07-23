@@ -52,11 +52,6 @@ Badges are not mailed out before the event, so your badge will be available for 
     </ul>
 {% endif %}
 
-{% if attendee.requested_hotel_info and c.PREREG_REQUEST_HOTEL_INFO_OPEN %}
-    <br/> <br/>
-    {% include "preregistration/hotel_disclaimer.html" %}
-{% endif %}
-
 {% include "emails/reg_workflow/reg_notes.html" %}
 
 <br/><br/>

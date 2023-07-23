@@ -523,6 +523,40 @@ def check_pii_consent(params, attendee=None):
         if needs_pii_consent and not has_pii_consent:
             return 'You must agree to allow us to store your personal information in order to register.'
     return ''
+    
+
+def validate_model(forms, model, preview_model, extra_validators_module=None):
+    from wtforms import validators
+
+    all_errors = defaultdict(list)
+
+    for module in forms.values():
+        module.populate_obj(preview_model) # We need a populated model BEFORE we get its optional fields below
+
+    for module in forms.values():
+        extra_validators = defaultdict(list)
+        for field_name in module.get_optional_fields(preview_model):
+            getattr(module, field_name).validators = [validators.Optional()]
+
+        if extra_validators_module:
+            for key, field in module.field_list:
+                extra_validators[key].extend(extra_validators_module.form_validation.get_validations_by_field(key))
+                if field and (model.is_new or getattr(model, key, None) != field.data):
+                    extra_validators[key].extend(extra_validators_module.new_or_changed_validation.get_validations_by_field(key))
+
+        valid = module.validate(extra_validators=extra_validators)
+        if not valid:
+            for key, val in module.errors.items():
+                all_errors[key].extend(val)
+
+    if extra_validators_module:
+        for key, val in extra_validators_module.post_form_validation.get_validation_dict().items():
+            for func in val:
+                message = func(preview_model)
+                if message:
+                    all_errors[key].append(message)
+    if all_errors:
+        return all_errors
 
 
 def check_csrf(csrf_token=None):
@@ -840,12 +874,15 @@ def get_api_service_from_server(target_server, api_token):
 
 
 def prepare_saml_request(request):
-    return {
+    saml_request = {
         'http_host': request.headers.get('Host', ''),
         'script_name': request.script_name + request.path_info,
         'get_data': request.params.copy() if request.method == 'GET' else {},
         'post_data': request.params.copy() if request.method == 'POST' else {},
     }
+    if c.FORCE_SAML_HTTPS:
+        saml_request['https'] = 'on'
+    return saml_request
 
 
 class request_cached_context:
@@ -1005,12 +1042,13 @@ class SignNowDocument:
         if self.access_token and not refresh:
             return
 
-        if not self.access_token and c.DEV_BOX and c.SIGNNOW_USERNAME and c.SIGNNOW_PASSWORD:
+        if c.DEV_BOX and c.SIGNNOW_USERNAME and c.SIGNNOW_PASSWORD:
             access_request = signnow_sdk.OAuth2.request_token(c.SIGNNOW_USERNAME, c.SIGNNOW_PASSWORD, '*')
             if 'error' in access_request:
                 self.error_message = "Error getting access token from SignNow using username and passsword: " + access_request['error']
             else:
                 self.access_token = access_request['access_token']
+                return
         elif not aws_secrets_client:
             self.error_message = "Couldn't get a SignNow access token because there was no AWS Secrets client. If you're on a development box, you can instead use a username and password."
         elif not c.AWS_SIGNNOW_SECRET_NAME:
@@ -1018,9 +1056,10 @@ class SignNowDocument:
         else:
             aws_secrets_client.get_signnow_secret()
             self.access_token = c.SIGNNOW_ACCESS_TOKEN
-        
-        if not self.access_token and not self.error_message:
-            self.error_message = "We tried to set an access token, but for some reason it failed."
+            return
+
+        if self.error_message:
+            log.error(self.error_message)
 
     def create_document(self, template_id, doc_title, folder_id='', uneditable_texts_list=None, fields={}):
         from requests import post, put
@@ -1098,6 +1137,32 @@ class SignNowDocument:
             self.error_message = "Error getting signing link: " + '; '.join([e['message'] for e in signing_request['errors']])
         else:
             return signing_request.get('url_no_signup')
+
+    def send_signing_invite(self, document_id, group, name):
+        self.set_access_token(refresh=True)
+
+        invite_payload = {
+            "to": [
+                { "email": group.email, "prefill_signature_name": name, "role_id": "", "role": "Signer", "order": 1 }
+            ],
+            "from": c.MARKETPLACE_EMAIL,
+            "cc": [],
+            "subject": "ACTION REQUIRED: {} {} Terms and Conditions".format(c.EVENT_NAME, c.DEALER_TERM.title()),
+            "message": "Congratulations on being accepted into the {} {}! Please click the button below to review and sign \
+                        the terms and conditions. You MUST sign this in order to complete your registration.".format(
+                        c.EVENT_NAME, c.DEALER_LOC_TERM.title()),
+            "redirect_uri": "{}/preregistration/group_members?id={}&message={}".format(c.REDIRECT_URL_BASE or c.URL_BASE, group.id, 
+                                                                                       "Thanks for signing! Please pay your application fee below.")
+            }
+        
+        log.debug(str(invite_payload))
+
+        invite_request = signnow_sdk.Document.invite(self.access_token, document_id, invite_payload)
+
+        if 'error' in invite_request:
+            self.error_message = "Error sending invite to sign: " + invite_request['error']
+        else:
+            return invite_request
 
     def get_download_link(self, document_id):
         self.set_access_token(refresh=True)
@@ -1187,7 +1252,6 @@ class TaskUtils:
                 'badge_status': badge_status,
                 'paid': paid,
                 'placeholder': True,
-                'requested_hotel_info': True,
                 'admin_notes': 'Imported {} from {}{}{}'.format(
                     badge_label, import_from_url, new_admin_notes, old_admin_notes),
                 'past_years': attendee['all_years'],
@@ -1283,7 +1347,6 @@ class TaskUtils:
         attendee.update({
             'badge_status': c.IMPORTED_STATUS,
             'badge_num': None,
-            'requested_hotel_info': True,
             'past_years': attendee['all_years'],
         })
         if attendee.get('shirt', '') and attendee['shirt'] not in c.SHIRT_OPTS:

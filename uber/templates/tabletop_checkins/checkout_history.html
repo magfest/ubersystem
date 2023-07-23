@@ -6,7 +6,7 @@
   <p>This game has been checked out {{ game.checkouts|length }} times.
     {% if game.checked_out %} It is currently checked out by {{ game.checked_out.attendee|form_link }} (Badge #{{ game.checked_out.attendee.badge_num }}).{% endif %}</p>
   </div>
-  <div class="table-responsive">
+  <div class="card-body">
     <table class="table table-hover table-striped">
       <thead>
       <tr>

@@ -19,11 +19,9 @@
       {% if checkout %}<input type="hidden" name="checkout" value="1" />{% endif %}
       <div class="input-group col-sm-6">
         <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
-        <span class="input-group-btn">
-          <button class="btn btn-outline-secondary" type="submit">
-              <i class="fa fa-search"></i>
-          </button>
-        </span>
+        <button class="btn btn-outline-secondary" type="submit">
+            <i class="fa fa-search"></i>
+        </button>
       </div>
     </form>
     {% if search_text %}<a href="artist_check_in_out{{ '?checkout=True' if checkout }}">View all artists who have {{ 'checked in' if checkout else 'not checked out' }}</a>{% endif %}
