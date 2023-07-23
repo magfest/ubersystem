@@ -79,6 +79,12 @@ class PersonalInfo(AddressForm, MagForm):
 
         return optional_list
     
+    def get_non_admin_locked_fields(self, attendee):
+        if attendee.is_new:
+            return []
+        
+        return ['badge_type', 'first_name', 'last_name', 'legal_name', 'same_legal_name']
+    
     def validate_onsite_contact(form, field):
         if not field.data and not form.no_onsite_contact.data:
             raise ValidationError('Please enter contact information for at least one trusted friend onsite, \
@@ -143,6 +149,16 @@ class OtherInfo(MagForm):
     def get_optional_fields(self, attendee):
         if not attendee.staffing_or_will_be or self.no_cellphone.data:
             return ['cellphone']
+        
+    def get_non_admin_locked_fields(self, attendee):
+        if attendee.is_new:
+            return []
+        
+        locked_fields = ['promo_code']
+        if attendee.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
+            locked_fields.append('staffing')
+
+        return locked_fields
 
 class Consents(MagForm):
     can_spam = BooleanField('Please send me emails relating to {EVENT_NAME} and {ORGANIZATION_NAME} in future years.', description=popup_link("../static_views/privacy.html", "View Our Spam Policy"))

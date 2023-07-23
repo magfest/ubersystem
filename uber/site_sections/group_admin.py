@@ -92,7 +92,7 @@ class Root:
         for form in forms.values():
             if hasattr(form, 'new_badge_type'):
                 form['new_badge_type'].data = group.leader.badge_type if group.leader else c.ATTENDEE_BADGE
-            form.populate_obj(group)
+            form.populate_obj(group, is_admin=True)
 
         signnow_last_emailed = None
         if c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status == c.APPROVED:

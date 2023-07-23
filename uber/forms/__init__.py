@@ -87,6 +87,9 @@ class MagForm(Form):
     def get_optional_fields(self, model):
         return []
 
+    def get_non_admin_locked_fields(self, model):
+        return []
+
     @classmethod
     def all_forms(cls):
         # Get a list of all forms that inherit from MagForm
@@ -162,9 +165,19 @@ class MagForm(Form):
     def bool_list(self):
         return [(key, field) for key, field in self._fields.items() if field.type == 'BooleanField']
     
-    def populate_obj(self, obj):
-        """ Adds alias processing and data coercion to populate_obj. Note that we bypass fields' populate_obj. """
+    def populate_obj(self, obj, is_admin=False):
+        """
+        Adds alias processing, field locking, and data coercion to populate_obj.
+        Note that we bypass fields' populate_obj except when filling in aliased fields.
+        """
+        locked_fields = [] if is_admin else self.get_non_admin_locked_fields(obj)
+        log.debug(locked_fields)
         for name, field in self._fields.items():
+            if name in locked_fields:
+                log.warning("Someone tried to edit their {} value, but it was locked. \
+                            This is either a programming error or a malicious actor.".format(name))
+                continue
+
             column = obj.__table__.columns.get(name)
             if column is not None:
                 setattr(obj, name, obj.coerce_column_data(column, field.data))
@@ -175,6 +188,9 @@ class MagForm(Form):
                     pass # Probably just a collision between a property name and a form field name, e.g., 'badges' for GroupInfo
 
         for model_field_name, aliases in self.field_aliases.items():
+            if model_field_name in locked_fields:
+                continue
+
             for aliased_field in reversed(aliases):
                 field_obj = getattr(self, aliased_field, None)
                 if field_obj and field_obj.data:

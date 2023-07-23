@@ -22,7 +22,7 @@
 {% set group, field_name = check_dealer_editable %}
 {% if not condition %}
   {{ caller() }}
-{% elif group and group.is_dealer and group.status == c.APPROVED and field_name in c.APPROVED_DEALER_EDITABLE_FIELDS %}
+{% elif group and group.is_dealer and group.status in c.DEALER_EDITABLE_STATUSES %}
   {{ caller() }}
 {% else %}
   <div class="col-sm-6 form-control-static">
@@ -414,7 +414,7 @@
 
 {% macro address_form(model, name_prefix='', model_prefix='', label_prefix='', update_international=False, is_required=False, is_readonly=False, check_dealer_editable=(None, '')) -%}
   {%- set group, field_name = check_dealer_editable -%}
-  {%- set is_readonly = False if group.is_dealer and group.status == c.APPROVED and field_name in c.APPROVED_DEALER_EDITABLE_FIELDS else is_readonly -%}
+  {%- set is_readonly = False if group.is_dealer and group.status in c.DEALER_EDITABLE_STATUSES else is_readonly -%}
   {%- set suffix = model.id|replace("-", "") -%}
   {%- set zip_code_attr = model_prefix ~ 'zip_code' -%}
   {%- set address1_attr = model_prefix ~ 'address1' -%}

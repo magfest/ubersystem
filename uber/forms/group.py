@@ -74,6 +74,18 @@ class TableInfo(GroupInfo):
     categories_text = StringField('Other')
     special_needs = TextAreaField('Special Needs', description="No guarantees that we can accommodate any requests.")
 
+    def get_optional_fields(self, group):
+        if not group.is_dealer:
+            return ['description', 'website', 'wares', 'categories',
+                    'address1', 'city', 'region', 'zip_code', 'country']
+        return []
+
+    def get_non_admin_locked_fields(self, group):
+        if group.is_new or group.status in c.DEALER_EDITABLE_STATUSES:
+            return []
+        
+        return list(self._fields.keys())
+
     def badges_label(self):
         return "Badges (" + format_currency(c.DEALER_BADGE_PRICE) + " each)"
     
@@ -86,13 +98,6 @@ class TableInfo(GroupInfo):
     def validate_categories(form, field):
         if field.data and c.OTHER in field.data and not form.categories_text.data:
             return "Please describe what 'other' categories your wares fall under."
-    
-    def get_optional_fields(self, group):
-        if not group.is_dealer:
-            return ['description', 'website', 'wares', 'categories',
-                    'address1', 'city', 'region', 'zip_code', 'country']
-        return []
-
 
 class AdminTableInfo(TableInfo, AdminGroupInfo):
     status = SelectField('Status', choices=c.DEALER_STATUS_OPTS, coerce=int)

@@ -1,5 +1,5 @@
 {% extends "preregistration/preregbase.html" %}
-{% set page_ro = True if group.status in [c.WAITLISTED, c.CANCELLED, c.DECLINED] else False %}
+{% set page_ro = group.status not in c.DEALER_EDITABLE_STATUSES %}
 {% import "forms/group.html" as group_fields with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 {% block title %}Group Members{% endblock %}
@@ -74,7 +74,7 @@
           {% include "forms/contact_info.html" %}
         {% endif %}
         {% include "groupextra.html" %}
-        {% if not page_ro or c.APPROVED_DEALER_EDITABLE_FIELDS and group.status == c.APPROVED %}
+        {% if not page_ro %}
         <button type="submit" class="btn btn-primary" value="Update Application">Update Application</button>
         <button type="submit" class="btn btn-danger" value="Cancel {{ c.DEALER_APP_TERM|title }}" form="cancel_dealer">Cancel Application</button>
         {% endif %}

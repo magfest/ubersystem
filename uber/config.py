@@ -1184,6 +1184,10 @@ if not c.AUTHORIZENET_LOGIN_ID:
 c.JAVASCRIPT_INCLUDES = []
 
 
+dealer_status_label_lookup = {val: key for key, val in c.DEALER_STATUS_OPTS}
+c.DEALER_EDITABLE_STATUSES = [dealer_status_label_lookup[name] for name in c.DEALER_EDITABLE_STATUS_LIST]
+
+
 # A list of models that have properties defined for exporting for Guidebook
 c.GUIDEBOOK_MODELS = [
     ('GuestGroup_guest', 'Guests'),
