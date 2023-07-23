@@ -768,34 +768,9 @@ class Root:
         raise HTTPRedirect('index?message={}&removed_id={}', message, id)
 
     @id_required(Group)
-    def dealer_confirmation(self, session, id, document_id=''):
+    def dealer_confirmation(self, session, id):
         group = session.group(id)
-        if c.SIGNNOW_DEALER_TEMPLATE_ID:
-            existing_doc = session.query(SignedDocument).filter_by(model="Group", fk_id=group.id).first()
-            if document_id:
-                if not existing_doc:
-                    new_doc = SignedDocument(fk_id=group.id,
-                                             model="Group",
-                                             document_id=document_id,
-                                             ident="terms_and_conditions",
-                                             signed=localized_now())
-                    session.add(new_doc)
-                elif not existing_doc.signed:
-                    existing_doc.signed = localized_now()
-                    session.add(existing_doc)
-            elif existing_doc and existing_doc.signed:
-                pass
-            else:
-                document = existing_doc or SignedDocument(fk_id=group.id, model="Group", ident="terms_and_conditions")
-                session.add(document)
-                redirect_link = document.get_dealer_signing_link(group)
-                if redirect_link:
-                    raise HTTPRedirect(redirect_link)
-            session.commit()
-            if group.status != c.UNAPPROVED:
-                # Dealers always hit this page after signing their terms and conditions
-                # We want new dealers to see the confirmation page, and everyone else to go to their group page
-                raise HTTPRedirect('group_members?id={}&message={}', group.id, "Thank you for signing the terms and conditions!")
+
         return {
             'group': group,
             'is_prereg_dealer': True
@@ -904,7 +879,7 @@ class Root:
         signnow_document = None
         signnow_link = ''
 
-        if group.is_dealer and c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_valid:
+        if group.is_dealer and c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_valid and group.status == c.APPROVED:
             signnow_document = session.query(SignedDocument).filter_by(model="Group", fk_id=group.id).first()
 
             if not signnow_document:
@@ -914,12 +889,15 @@ class Root:
                 session.add(signnow_document)
                 session.commit()
 
-            if signnow_document.signed:
+            signnow_link = signnow_document.link
+
+            if not signnow_link and signnow_document.signed:
                 d = SignNowDocument()
                 signnow_link = d.get_download_link(signnow_document.document_id)
                 if d.error_message:
+                    signnow_link = ""
                     log.error(d.error_message)
-            else:
+            elif not signnow_link:
                 signed = signnow_document.get_doc_signed_timestamp()
                 if signed:
                     signnow_document.signed = datetime.fromtimestamp(int(signed))
@@ -928,9 +906,15 @@ class Root:
                     d = SignNowDocument()
                     signnow_link = d.get_download_link(signnow_document.document_id)
                     if d.error_message:
+                        signnow_link = ""
                         log.error(d.error_message)
                 else:
-                    signnow_link = signnow_document.get_dealer_signing_link(group)
+                    signnow_link = signnow_document.create_dealer_signing_link(group)
+
+                if signnow_link:
+                    signnow_document.link = signnow_link
+                    session.add(signnow_document)
+                    session.commit()
 
         if cherrypy.request.method == 'POST':
             session.commit()

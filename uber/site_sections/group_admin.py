@@ -1,5 +1,8 @@
 import cherrypy
+
+from datetime import date, datetime, timedelta
 from pockets import readable_join
+from pytz import UTC
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import subqueryload
 
@@ -7,7 +10,7 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, log_pageview, site_mappable
 from uber.errors import HTTPRedirect
 from uber.forms import group as group_forms, load_forms
-from uber.models import Attendee, Email, Event, Group, GuestGroup, GuestMerch, PageViewTracking, Tracking
+from uber.models import Attendee, Email, Event, Group, GuestGroup, GuestMerch, PageViewTracking, Tracking, SignedDocument
 from uber.utils import check, convert_to_absolute_url, validate_model
 from uber.payments import ReceiptManager
 
@@ -57,6 +60,18 @@ class Root:
         session.add(group)
         
         raise HTTPRedirect('form?id={}&message={}', group.id, "Group successfully created.")
+    
+    def resend_signnow_link(self, session, id):
+        group = session.group(id)
+
+        document = session.query(SignedDocument).filter_by(model="Group", fk_id=id).first()
+        if not document:
+            raise HTTPRedirect("form?id={}&message={}").format(id, "SignNow document not found.")
+        
+        document.send_dealer_signing_invite(group)
+        document.last_emailed = datetime.now(UTC)
+        session.add(document)
+        raise HTTPRedirect("form?id={}&message={}", id, "SignNow link sent!")
 
     @log_pageview
     def form(self, session, new_dealer='', message='', **params):
@@ -79,48 +94,61 @@ class Root:
                 form['new_badge_type'].data = group.leader.badge_type if group.leader else c.ATTENDEE_BADGE
             form.populate_obj(group)
 
+        signnow_last_emailed = None
+        if c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status == c.APPROVED:
+            existing_doc = session.query(SignedDocument).filter_by(model="Group", fk_id=group.id).first()
+            if not existing_doc:
+                document = SignedDocument(fk_id=group.id, model="Group", ident="terms_and_conditions")
+                document.send_dealer_signing_invite(group)
+                document.last_emailed = datetime.now(UTC)
+                session.add(document)
+                existing_doc = document
+            signnow_last_emailed = existing_doc.last_emailed
+
+        group_info_form = forms.get('group_info', forms.get('table_info'))
+
         if cherrypy.request.method == 'POST':
             new_with_leader = any(params.get(info) for info in ['first_name', 'last_name', 'email'])
             message = message or self._required_message(params, ['name'])
             
-            if not message and group.is_new and (params.get('group_type') or new_dealer or group.is_dealer):
+            if not message and group.is_new and (params.get('guest_group_type') or new_dealer or group.is_dealer):
                 message = self._required_message(params, ['first_name', 'last_name', 'email'])
 
             if not message:
-                message = check(group)
-
-            if not message:
-                if group.is_new and params.get('group_type'):
-                    group.auto_recalc = False
                 session.add(group)
-                new_ribbon = params.get('ribbon', c.BAND if params.get('group_type') == str(c.BAND) else None)
-                new_badge_type = params.get('new_badge_type', c.ATTENDEE_BADGE)
-                test_permissions = Attendee(badge_type=new_badge_type, ribbon=new_ribbon, paid=c.PAID_BY_GROUP)
-                new_badge_status = c.PENDING_STATUS if not session.admin_can_create_attendee(test_permissions) else c.NEW_STATUS
-                message = session.assign_badges(
-                    group,
-                    int(params.get('badges', 0)) or int(new_with_leader),
-                    new_badge_type=new_badge_type,
-                    new_ribbon_type=new_ribbon,
-                    badge_status=new_badge_status,
-                    )
+
+                if group.is_new and params.get('guest_group_type'):
+                    group.auto_recalc = False
+
+                if group.is_new or group.badges != group_info_form.badges.data:
+                    new_ribbon = params.get('ribbon', c.BAND if params.get('guest_group_type') == str(c.BAND) else None)
+                    new_badge_type = params.get('new_badge_type', c.ATTENDEE_BADGE)
+                    test_permissions = Attendee(badge_type=new_badge_type, ribbon=new_ribbon, paid=c.PAID_BY_GROUP)
+                    new_badge_status = c.PENDING_STATUS if not session.admin_can_create_attendee(test_permissions) else c.NEW_STATUS
+                    message = session.assign_badges(
+                        group,
+                        int(params.get('badges', 0)) or int(new_with_leader),
+                        new_badge_type=new_badge_type,
+                        new_ribbon_type=new_ribbon,
+                        badge_status=new_badge_status,
+                        )
 
             if not message and group.is_new and new_with_leader:
+                session.commit()
+                leader = group.leader = group.attendees[0]
+                leader.first_name = params.get('first_name')
+                leader.last_name = params.get('last_name')
+                leader.email = params.get('email')
+                leader.placeholder = True
+                message = check(leader)
+                if message:
+                    session.delete(group)
                     session.commit()
-                    leader = group.leader = group.attendees[0]
-                    leader.first_name = params.get('first_name')
-                    leader.last_name = params.get('last_name')
-                    leader.email = params.get('email')
-                    leader.placeholder = True
-                    message = check(leader)
-                    if message:
-                        session.delete(group)
-                        session.commit()
 
             if not message:
-                if params.get('group_type'):
+                if params.get('guest_group_type'):
                     group.guest = group.guest or GuestGroup()
-                    group.guest.group_type = params.get('group_type')
+                    group.guest.group_type = params.get('guest_group_type')
                 
                 if group.is_new and group.is_dealer:
                     if group.status == c.APPROVED and group.amount_unpaid:
@@ -138,7 +166,8 @@ class Root:
             'message': message,
             'group': group,
             'forms': forms,
-            'group_type': params.get('group_type', ''),
+            'signnow_last_emailed': signnow_last_emailed,
+            'guest_group_type': params.get('guest_group_type', ''),
             'badges': params.get('badges', group.badges if group else 0),
             'first_name': params.get('first_name', ''),
             'last_name': params.get('last_name', ''),

@@ -7,13 +7,22 @@
 
   {% include "check_in.html" %}
   <div class="card card-body">
+
     {% if not group.is_new %} 
-    <h1>
-    <a class="btn btn-primary" href="../preregistration/group_members?id={{ group.id }}">View as Attendee</a>
-    {% if group.guest %} 
-    <a class="btn btn-info" href="../guests/index?id={{ group.guest.id }}">{{ group.guest.group_type_label }} Checklist</a>
-    {% endif %}
-    </h1>
+    <div class="row mb-3">
+      <div class="col text-start">
+      <a class="btn btn-primary" href="../preregistration/group_members?id={{ group.id }}">View as Attendee</a>
+      {% if group.guest %} 
+      <a class="btn btn-info" href="../guests/index?id={{ group.guest.id }}">{{ group.guest.group_type_label }} Checklist</a>
+      {% endif %}
+      </div>
+      {% if signnow_last_emailed %}
+      <div class="col text-end">
+      <em>This dealer was last emailed their SignNow document at {{ signnow_last_emailed|datetime_local }}.</em>
+      <a class="btn btn-warning" href="../group_admin/resend_signnow_link?id={{ group.id }}">Resend SignNow Link</a>
+      </div>
+      {% endif %}
+    </div>
     {% endif %}
 
   {% if not group.is_new %}

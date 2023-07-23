@@ -1042,12 +1042,13 @@ class SignNowDocument:
         if self.access_token and not refresh:
             return
 
-        if not self.access_token and c.DEV_BOX and c.SIGNNOW_USERNAME and c.SIGNNOW_PASSWORD:
+        if c.DEV_BOX and c.SIGNNOW_USERNAME and c.SIGNNOW_PASSWORD:
             access_request = signnow_sdk.OAuth2.request_token(c.SIGNNOW_USERNAME, c.SIGNNOW_PASSWORD, '*')
             if 'error' in access_request:
                 self.error_message = "Error getting access token from SignNow using username and passsword: " + access_request['error']
             else:
                 self.access_token = access_request['access_token']
+                return
         elif not aws_secrets_client:
             self.error_message = "Couldn't get a SignNow access token because there was no AWS Secrets client. If you're on a development box, you can instead use a username and password."
         elif not c.AWS_SIGNNOW_SECRET_NAME:
@@ -1055,9 +1056,10 @@ class SignNowDocument:
         else:
             aws_secrets_client.get_signnow_secret()
             self.access_token = c.SIGNNOW_ACCESS_TOKEN
-        
-        if not self.access_token and not self.error_message:
-            self.error_message = "We tried to set an access token, but for some reason it failed."
+            return
+
+        if self.error_message:
+            log.error(self.error_message)
 
     def create_document(self, template_id, doc_title, folder_id='', uneditable_texts_list=None, fields={}):
         from requests import post, put
@@ -1135,6 +1137,32 @@ class SignNowDocument:
             self.error_message = "Error getting signing link: " + '; '.join([e['message'] for e in signing_request['errors']])
         else:
             return signing_request.get('url_no_signup')
+
+    def send_signing_invite(self, document_id, group, name):
+        self.set_access_token(refresh=True)
+
+        invite_payload = {
+            "to": [
+                { "email": group.email, "prefill_signature_name": name, "role_id": "", "role": "Signer", "order": 1 }
+            ],
+            "from": c.MARKETPLACE_EMAIL,
+            "cc": [],
+            "subject": "ACTION REQUIRED: {} {} Terms and Conditions".format(c.EVENT_NAME, c.DEALER_TERM.title()),
+            "message": "Congratulations on being accepted into the {} {}! Please click the button below to review and sign \
+                        the terms and conditions. You MUST sign this in order to complete your registration.".format(
+                        c.EVENT_NAME, c.DEALER_LOC_TERM.title()),
+            "redirect_uri": "{}/preregistration/group_members?id={}&message={}".format(c.REDIRECT_URL_BASE or c.URL_BASE, group.id, 
+                                                                                       "Thanks for signing! Please pay your application fee below.")
+            }
+        
+        log.debug(str(invite_payload))
+
+        invite_request = signnow_sdk.Document.invite(self.access_token, document_id, invite_payload)
+
+        if 'error' in invite_request:
+            self.error_message = "Error sending invite to sign: " + invite_request['error']
+        else:
+            return invite_request
 
     def get_download_link(self, document_id):
         self.set_access_token(refresh=True)
