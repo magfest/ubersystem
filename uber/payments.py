@@ -909,7 +909,7 @@ class ReceiptManager:
                 try:
                     send_email.delay(
                         c.MARKETPLACE_EMAIL,
-                        c.MARKETPLACE_EMAIL,
+                        c.MARKETPLACE_NOTIFICATIONS_EMAIL,
                         '{} Payment Completed'.format(c.DEALER_TERM.title()),
                         render('emails/dealers/payment_notification.txt', {'group': model}, encoding=None),
                         model=model.to_dict('id'))

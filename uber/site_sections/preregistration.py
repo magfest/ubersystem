@@ -357,7 +357,7 @@ class Root:
         try:
             send_email.delay(
                 c.MARKETPLACE_EMAIL,
-                c.MARKETPLACE_EMAIL,
+                c.MARKETPLACE_NOTIFICATIONS_EMAIL,
                 '{} Received'.format(c.DEALER_APP_TERM.title()),
                 render('emails/dealers/reg_notification.txt', {'group': group}, encoding=None),
                 model=group.to_dict('id'))
@@ -921,7 +921,7 @@ class Root:
             if group.is_dealer:
                 send_email.delay(
                     c.MARKETPLACE_EMAIL,
-                    c.MARKETPLACE_EMAIL,
+                    c.MARKETPLACE_NOTIFICATIONS_EMAIL,
                     '{} Changed'.format(c.DEALER_APP_TERM.title()),
                     render('emails/dealers/appchange_notification.html', {'group': group}, encoding=None),
                     'html',
