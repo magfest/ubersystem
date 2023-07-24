@@ -1,7 +1,4 @@
 {% extends "base.html" %}
-{% block head_javascript %}
-    {{ super() }}
-{% endblock head_javascript %}
 {% block backlink %}
 {% if c.ATTENDEE_ACCOUNTS_ENABLED or c.HAS_REGISTRATION_ACCESS or c.HAS_GROUP_ADMIN_ACCESS %}
 <div class="pull-right" style="padding-top:5px;">
