@@ -671,7 +671,7 @@ def valid_password(password):
         return 'Password must contain at least one lowercase letter.'
     if 'uppercase_char' in c.PASSWORD_CONDITIONS and not re.search("[A-Z]", password):
         return 'Password must contain at least one uppercase letter.'
-    if 'any_char' in c.PASSWORD_CONDITIONS and not re.search("[A-Za-z]", password):
+    if 'letter' in c.PASSWORD_CONDITIONS and not re.search("[A-Za-z]", password):
         return 'Password must contain at least one letter.'
     if 'number' in c.PASSWORD_CONDITIONS and not re.search("[0-9]", password):
         return 'Password must contain at least one number.'
