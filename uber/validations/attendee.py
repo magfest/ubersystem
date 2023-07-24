@@ -106,28 +106,6 @@ def age_discount_after_paid(attendee):
             raise ValidationError('The date of birth you entered incurs a discount; \
                                   please email {} to change your badge and receive a refund'.format(c.REGDESK_EMAIL))
 
-@form_validation.cellphone
-def dealer_cellphone_required(form, field):
-    if not hasattr(form, 'badge_type'): # TODO: Is there a better way?
-        return
-
-    if form.badge_type.data == c.PSEUDO_DEALER_BADGE and not field.data:
-        raise StopValidation('A phone number is required for {}s.'.format(c.DEALER_TERM))
-
-@form_validation.cellphone
-def invalid_format(form, field):
-    if field.data and invalid_phone_number(field.data):
-        raise ValidationError('Your phone number was not a valid 10-digit US phone number. ' \
-                                'Please include a country code (e.g. +44) for international numbers.')
-
-@form_validation.cellphone
-def different_ec_phone(form, field):
-    if not hasattr(form, 'ec_phone'):
-        return
-
-    if field.data and field.data == form.ec_phone.data:
-        raise ValidationError("Your phone number cannot be the same as your emergency contact number.")
-
 @post_form_validation.cellphone
 def volunteers_cellphone_or_checkbox(attendee):
     if not attendee.no_cellphone and attendee.staffing_or_will_be and not attendee.cellphone:
