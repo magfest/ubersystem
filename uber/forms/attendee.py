@@ -141,7 +141,7 @@ class OtherInfo(MagForm):
     requested_dept_ids = SelectMultipleField('Where do you want to help?', choices=c.JOB_INTEREST_OPTS, coerce=int, widget=MultiCheckbox())
     cellphone = TelField('Phone Number', description="A cellphone number is required for volunteers.", render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
     no_cellphone = BooleanField('I won\'t have a phone with me during the event.')
-    requested_accessibility_services = BooleanField('I would like to be contacted by the {EVENT_NAME} Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', widget=SwitchInput())
+    requested_accessibility_services = BooleanField(f'I would like to be contacted by the {c.EVENT_NAME} Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', widget=SwitchInput())
     interests = SelectMultipleField('What interests you?', choices=c.INTEREST_OPTS, coerce=int, validators=[validators.Optional()], widget=MultiCheckbox())
         
     def get_non_admin_locked_fields(self, attendee):
@@ -159,13 +159,13 @@ class OtherInfo(MagForm):
             raise ValidationError("A phone number is required for volunteers (unless you don't own a cellphone)")
 
 class Consents(MagForm):
-    can_spam = BooleanField('Please send me emails relating to {EVENT_NAME} and {ORGANIZATION_NAME} in future years.', description=popup_link("../static_views/privacy.html", "View Our Spam Policy"))
-    pii_consent = BooleanField(Markup('<strong>Yes</strong>, I understand and agree that {ORGANIZATION_NAME} will store the personal information I provided above for the limited purposes of contacting me about my registration'),
+    can_spam = BooleanField(f'Please send me emails relating to {c.EVENT_NAME} and {c.ORGANIZATION_NAME} in future years.', description=popup_link("../static_views/privacy.html", "View Our Spam Policy"))
+    pii_consent = BooleanField(Markup(f'<strong>Yes</strong>, I understand and agree that {c.ORGANIZATION_NAME} will store the personal information I provided above for the limited purposes of contacting me about my registration'),
                                validators=[validators.InputRequired("You must agree to allow us to store your personal information in order to register.")
                                            ], description=Markup('For more information please check out our <a href="{}" target="_blank">Privacy Policy</a>.'.format(c.PRIVACY_POLICY_URL)))
 
     def pii_consent_label(self):
-        base_label = "<strong>Yes</strong>, I understand and agree that {ORGANIZATION_NAME} will store the personal information I provided above for the limited purposes of contacting me about my registration"
+        base_label = f"<strong>Yes</strong>, I understand and agree that {c.ORGANIZATION_NAME} will store the personal information I provided above for the limited purposes of contacting me about my registration"
         label = base_label
         if c.HOTELS_ENABLED:
             label += ', hotel accommodations'

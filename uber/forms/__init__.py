@@ -198,12 +198,6 @@ class MagForm(Form):
 
 
     class Meta:
-        text_vars = {
-            'EVENT_NAME': c.EVENT_NAME,
-            'EVENT_YEAR': c.EVENT_YEAR,
-            'ORGANIZATION_NAME': c.ORGANIZATION_NAME,
-            }
-
         def get_field_type(self, field):
             # Returns a key telling our Jinja2 form input macro how to render the scaffolding based on the widget
 
@@ -233,32 +227,21 @@ class MagForm(Form):
             - Add default rendering keywords to make fields function better in our forms
             """
             field_name = options.get('name', '')
-            text_format_vars = {**getattr(form, 'extra_text_vars', {}), **self.text_vars}
-            field_label = get_override_attr(form, field_name, '_label') or unbound_field.kwargs.get('label', '') or unbound_field.args[0]
-            field_desc = get_override_attr(form, field_name, '_desc') or unbound_field.kwargs.get('description', '')
+            if hasattr(form, field_name + '_label'):
+                field_label = get_override_attr(form, field_name, '_label')
+                if 'label' in unbound_field.kwargs:
+                    unbound_field.kwargs['label'] = field_label
+                elif unbound_field.args and isinstance(unbound_field.args[0], str):
+                    args_list = list(unbound_field.args)
+                    args_list[0] = field_label
+                    unbound_field.args = tuple(args_list)
 
-            if 'label' in unbound_field.kwargs:
-                unbound_field.kwargs['label'] = self.format_field_text(field_label, text_format_vars)
-            elif unbound_field.args and isinstance(unbound_field.args[0], str):
-                args_list = list(unbound_field.args)
-                args_list[0] = self.format_field_text(field_label, text_format_vars)
-                unbound_field.args = tuple(args_list)
-
-            if field_desc:
-                unbound_field.kwargs['description'] = self.format_field_text(field_desc, text_format_vars)
+            if hasattr(form, field_name + '_desc'):
+                unbound_field.kwargs['description'] = get_override_attr(form, field_name, '_desc')
             
             unbound_field.kwargs['render_kw'] = self.set_keyword_defaults(unbound_field, unbound_field.kwargs.get('render_kw', {}), field_name)
 
             return unbound_field.bind(form=form, **options)
-
-        def format_field_text(self, text, format_vars):
-            # Formats label text and descriptions to allow common config values to be included in the class declaration
-            was_markup = isinstance(text, Markup)
-            formatted_text = str(text).format(**format_vars)
-            
-            if was_markup:
-                return Markup(formatted_text)
-            return formatted_text
 
         def set_keyword_defaults(self, ufield, render_kw, field_name):
             # Changes the render_kw dictionary to implement some high-level defaults

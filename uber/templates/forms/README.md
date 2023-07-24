@@ -26,8 +26,6 @@ https://wtforms.readthedocs.io/en/3.0.x/fields/
 By default, labels and descriptions for fields are simple strings with automatic escaping for HTML/XML. Since this is not always desirable, here are a few ways to write more complex labels:
 
 - To include basic HTML (e.g., bolding or italicizing text), wrap the string in a Markup() object from the **markupsafe** library, e.g., `field_name = StringField(Markup('<b>Bold text</b>'))`
-- Some common basic variables are processed automatically, such as the event name and year. These variables are defined as `text_vars` in **uber/forms/__init__.py**. To use these variables, include them using Python string formatting syntax, e.g., `field_name = StringField(Markup('I love {EVENT_NAME}!'))`
-- To add additional variables to a form for auto-processing, add `extra_text_vars` under the form class definition, e.g., `extra_text_vars = {'ORGANIZATION_NAME': c.ORGANIZATION_NAME}`. You can of course always use `'Label text {}'.format(var)` to insert a variable into an individual label or description.
 - For complex display logic (e.g., building a label using multiple 'if' statements) add a function onto your form class named `field_name_label` or `field_name_desc`, e.g.:
   ```
   def pii_consent_label(self):
