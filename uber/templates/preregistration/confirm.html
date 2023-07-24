@@ -117,7 +117,7 @@
   
         {% block form_top %}{% endblock %}
 
-      {{ attendee_fields.prereg_intro }}
+      {% include 'forms/prereg_intro.html' %}
       {% include "forms/badge_extras.html" %}
       {% include "forms/personal_info.html" %}
       {% include "forms/other_info.html" %}

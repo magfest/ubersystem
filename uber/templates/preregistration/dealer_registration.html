@@ -1,5 +1,4 @@
 {% extends "./preregistration/preregbase.html" %}
-{% import "forms/attendee.html" as attendee_fields with context %}
 {% import "forms/group.html" as group_fields with context %}
 {% import "forms/account.html" as account_fields with context %}
 {% import 'forms/macros.html' as form_macros with context %}
@@ -27,7 +26,7 @@
 {% set original_location = ".." ~ c.PAGE_PATH %}
 <div class="card">
   <div class="card-body">
-  {{ attendee_fields.prereg_intro }}
+    {% include 'forms/prereg_intro.html' %}
 
   {{ form_macros.form_validation('dealer-form', 'validate_dealer') }}
 
