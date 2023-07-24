@@ -308,6 +308,8 @@ def get_age_conf_from_birthday(birthdate, today=None):
     for val, age_group in c.AGE_GROUP_CONFIGS.items():
         if val != c.AGE_UNKNOWN and age_group['min_age'] <= age and age <= age_group['max_age']:
             return age_group
+        
+    return c.AGE_GROUP_CONFIGS[c.AGE_UNKNOWN]
 
 
 class DateBase:
