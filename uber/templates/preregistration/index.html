@@ -64,9 +64,9 @@
               <li>{% if attendee.badge_type in c.BADGE_TYPE_PRICES %}{{ attendee.badge_type_label|replace(' ', '-') }}-level r{% else %}R{% endif %}egistration for {{ c.EVENT_NAME }}
                 {% if attendee.badges %} for {{ attendee.badges }} people{% endif %}
                 {% if badge_cost %} ({{ badge_cost|format_currency }}){% endif %}</li>
-              {% if attendee.age_discount and attendee.age_discount|abs > attendee.default_badge_cost and not attendee.promo_code_id %}
+              {% if attendee.qualifies_for_discounts and attendee.age_discount and attendee.age_discount|abs > attendee.default_badge_cost and not attendee.promo_code_id %}
                 <li>Attendees who are {{ attendee.age_group_conf.desc|lower }} get in for free!</li>
-              {% elif attendee.age_discount and attendee.age_group_conf.discount != 0 %}
+              {% elif attendee.qualifies_for_discounts and attendee.age_discount and attendee.age_group_conf.discount != 0 %}
                 <li>{{ attendee.age_group_conf.discount|format_currency }} discount for attendees who are {{ attendee.age_group_conf.desc|lower }}.</li>
               {% endif %}
               {% for swag in attendee.donation_swag|list + attendee.addons|list %}
