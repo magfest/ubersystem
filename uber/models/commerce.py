@@ -189,7 +189,7 @@ class ModelReceipt(MagModel):
 
         for txn in sorted(self.pending_txns, key=lambda t: t.added, reverse=True):
             if c.AUTHORIZENET_LOGIN_ID:
-                error = None # TODO: do we need anything here?
+                error = None
             else:
                 error = txn.check_stripe_id()
             if error or txn.amount != self.current_receipt_amount:
@@ -197,7 +197,8 @@ class ModelReceipt(MagModel):
                     txn.cancelled = datetime.now() # TODO: Add logs to txns/items and log the automatic cancellation reason?
                 if txn.amount != self.current_receipt_amount:
                     txn.amount = self.current_receipt_amount
-                    stripe.PaymentIntent.modify(txn.intent_id, amount = txn.amount)
+                    if not c.AUTHORIZENET_LOGIN_ID:
+                        stripe.PaymentIntent.modify(txn.intent_id, amount = txn.amount)
 
                 if self.session:
                     self.session.add(txn)
