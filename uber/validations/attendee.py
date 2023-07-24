@@ -8,7 +8,7 @@ from wtforms.validators import ValidationError, StopValidation
 from uber.badge_funcs import get_real_badge_type
 from uber.config import c
 from uber.custom_tags import format_currency
-from uber.models import Attendee, Session
+from uber.models import Attendee, Session, PromoCode, PromoCodeGroup
 from uber.model_checks import invalid_zip_code, invalid_phone_number
 from uber.utils import get_age_from_birthday, get_age_conf_from_birthday
 from uber.decorators import WTFormValidation
@@ -132,18 +132,6 @@ def different_ec_phone(form, field):
 def volunteers_cellphone_or_checkbox(attendee):
     if not attendee.no_cellphone and attendee.staffing_or_will_be and not attendee.cellphone:
         raise ValidationError("Volunteers and staffers must provide a cellphone number or indicate they do not have a cellphone.")
-
-@form_validation.ec_phone
-def valid_format(form, field):
-    if not hasattr(form, 'international'):
-        return
-    
-    if not form.international.data and invalid_phone_number(field.data):
-        if c.COLLECT_FULL_ADDRESS:
-            raise ValidationError('Please enter a 10-digit US phone number or include a ' \
-                                    'country code (e.g. +44) for your emergency contact number.')
-        else:
-            raise ValidationError('Please enter a 10-digit emergency contact number.')
 
 @post_form_validation.promo_code
 def promo_code_is_useful(attendee):
