@@ -4,7 +4,7 @@ Congratulations, "{{ app.name }}", the panel you submitted for {{ c.EVENT_NAME_A
 
 You must confirm you can still run the panel or your submission will automatically be put on the waitlist on {{ app.confirm_deadline|datetime_local }}. You can confirm by clicking this link: {{ c.URL_BASE }}/panels/confirm_panel?id={{ app.id }}
 
-After you confirm your attendance, we will send you another e-mail to confirm your availability on our schedule.
+After you confirm your attendance, we will send you another email to confirm your availability on our schedule.
 
 Yourself and all panelists will receive free admissions. If you have not yet registered you will receive a notification that we have begun registering you for the event, and you will need to follow the instruction in that email to finish your registration.
 

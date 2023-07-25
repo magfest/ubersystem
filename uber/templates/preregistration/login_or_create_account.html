@@ -5,7 +5,7 @@
     <form id="account-form">
       {{ csrf_token() }}
       <div class="mb-3">
-          <label for="account-email" class="form-label">E-Mail <span class="text-danger">*</span></label>
+          <label for="account-email" class="form-label">Email <span class="text-danger">*</span></label>
           <input type="email" id="account-email" class="form-control account-form-input" name="account_email" value="{{ account_email or '' }}" placeholder="{{ c.EVENT_NAME|replace(' ','')|lower }}@example.com" required />
       </div>
       <div class="mb-3 d-none">

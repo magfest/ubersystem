@@ -743,7 +743,7 @@ function arrayRemove(array, value) {
  <div ng-controller="ExampleController">
  <form novalidate class="simple-form">
  Name: <input type="text" ng-model="user.name" /><br />
- E-mail: <input type="email" ng-model="user.email" /><br />
+ Email: <input type="email" ng-model="user.email" /><br />
  Gender: <input type="radio" ng-model="user.gender" value="male" />male
  <input type="radio" ng-model="user.gender" value="female" />female<br />
  <button ng-click="reset()">RESET</button>
@@ -19991,7 +19991,7 @@ function badInputChecker(scope, element, attr, ctrl) {
       var validity = element.prop(VALIDITY_STATE_PROPERTY) || {};
       // Detect bug in FF35 for input[email] (https://bugzilla.mozilla.org/show_bug.cgi?id=1064430):
       // - also sets validity.badInput (should only be validity.typeMismatch).
-      // - see http://www.whatwg.org/specs/web-apps/current-work/multipage/forms.html#e-mail-state-(type=email)
+      // - see http://www.whatwg.org/specs/web-apps/current-work/multipage/forms.html#email-state-(type=email)
       // - can ignore this case as we can still read out the erroneous email...
       return validity.badInput && !validity.typeMismatch ? undefined : value;
     });
@@ -70581,7 +70581,7 @@ $.extend( $.validator, {
 		// http://jqueryvalidation.org/email-method/
 		email: function( value, element ) {
 
-			// From https://html.spec.whatwg.org/multipage/forms.html#valid-e-mail-address
+			// From https://html.spec.whatwg.org/multipage/forms.html#valid-email-address
 			// Retrieved 2014-01-14
 			// If you have a problem with this implementation, report a bug against the above spec
 			// Or use custom methods to implement your own email validation
