@@ -211,6 +211,9 @@
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
     {{ form_input(form_obj.country) }}
+    <div class="form-floating selectToAutocomplete">
+      <label for="{{ form_obj.country.id }}-selectToAutocomplete">{{ form_obj.country.label }}</label>
+    </div>
   </div>
   <div class="col-12 col-sm-6">
     {{ form_input(form_obj.region_us) }}
@@ -248,6 +251,10 @@
         $('#{{ country_id }}').selectToAutocomplete().prop("required", false).change(function() {
             regionChange{{ country_id }}();
         });
+        $('#{{ country_id }}').parents('.form-floating').addClass('visually-hidden');
+        $('#{{ country_id }}').siblings("input.form-control.ui-autocomplete-input").attr(
+          "id", "country-selectToAutocomplete").insertBefore('label[for="{{ country_id }}-selectToAutocomplete');
+        $('#{{ country_id }}-validation').insertAfter('label[for="{{ country_id }}-selectToAutocomplete');
         regionChange{{ country_id }}();
     })
 </script>

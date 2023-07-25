@@ -294,6 +294,14 @@ class AddressForm():
     def validate_region(form, field):
         if form.country.data not in ['United States', 'Canada'] and not field.data:
             raise ValidationError('Please enter a state, province, or region.')
+        
+    def validate_region_us(form, field):
+        if form.country.data == 'United States' and not field.data:
+            raise ValidationError('Please select a state.')
+    
+    def validate_region_canada(form, field):
+        if form.country.data == 'Canada' and not field.data:
+            raise ValidationError('Please select a province.')
     
     def validate_zip_code(form, field):
         if (form.country.data == 'United States' or (not c.COLLECT_FULL_ADDRESS and 

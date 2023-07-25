@@ -89,7 +89,9 @@ class CountrySelect(Select):
         options = dict(kwargs, value=value)
         if c.COUNTRY_ALT_SPELLINGS.get(value):
             options["data-alternative-spellings"] = c.COUNTRY_ALT_SPELLINGS[value]
-            if value in ['Australia', 'Canada', 'United States', 'United Kingdom']:
+            if value == 'United States':
+                options["data-relevancy-booster"] = 3
+            elif value in ['Australia', 'Canada', 'United Kingdom']:
                 options["data-relevancy-booster"] = 2
         if selected:
             options["selected"] = True
