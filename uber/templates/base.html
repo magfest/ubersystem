@@ -217,7 +217,7 @@
         };
 
         $(function() {
-            $(window).load(function() {
+            $(window).on('load', function() {
                 $(".loader").fadeOut("fast");
             });
 
@@ -389,7 +389,7 @@
             }
             // prevent people from paying after prereg closes
             {% if c.PRE_CON %}
-                if ($('#stripeModal').size()) {
+                if ($('#stripeModal') && $('#stripeModal').length) {
                     var prevHour = new Date().getHours();
                     var checkHour = function() {
                         var currHour = new Date().getHours();
