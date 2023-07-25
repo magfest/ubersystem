@@ -765,6 +765,7 @@ class Root:
         group = session.group(id)
 
         return {
+            'logged_in_account': session.current_attendee_account(),
             'group': group,
             'is_prereg_dealer': True
             }
