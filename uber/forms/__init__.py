@@ -171,7 +171,6 @@ class MagForm(Form):
         Note that we bypass fields' populate_obj except when filling in aliased fields.
         """
         locked_fields = [] if is_admin else self.get_non_admin_locked_fields(obj)
-        log.debug(locked_fields)
         for name, field in self._fields.items():
             if name in locked_fields:
                 log.warning("Someone tried to edit their {} value, but it was locked. \

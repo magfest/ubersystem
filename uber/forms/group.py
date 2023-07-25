@@ -97,7 +97,7 @@ class TableInfo(GroupInfo):
     
     def validate_categories(form, field):
         if field.data and c.OTHER in field.data and not form.categories_text.data:
-            return "Please describe what 'other' categories your wares fall under."
+            raise ValidationError("Please describe what 'other' categories your wares fall under.")
 
 class AdminTableInfo(TableInfo, AdminGroupInfo):
     status = SelectField('Status', choices=c.DEALER_STATUS_OPTS, coerce=int)

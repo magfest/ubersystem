@@ -10,7 +10,6 @@
   {% endif %}
   {% if extra_field %}
     {{ extra_field }}
-    <div id="{{ extra_field.id }}-validation" class="invalid-feedback"></div>
   {% endif %}
   <div id="{{ field.id }}-validation" class="invalid-feedback"></div>
 {% endmacro %}
@@ -31,10 +30,14 @@
 </div>
 {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 {% elif type == 'checkgroup' %}
-<div class="form-text">{{ field.label() }}</div>
 <div class="card card-body{% if not no_margin %} mb-3{% endif %}">
     {{ field(**kwargs) }}
-    <div class="col col-6">{{ form_input_extras(field, help_text, admin_text, extra_field) }}</div>
+    {% if extra_field %}
+    <div class="col col-6 mt-1">
+      {{ extra_field }}
+    </div>
+    {% endif %}
+    {{ form_input_extras(field, help_text, admin_text) }}
 </div>
 {% elif type == 'select' %}
 <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
@@ -81,7 +84,7 @@
         // Get the checked/unchecked status if the field is a checkbox, otherwise get the field's value
         if ($("#{{ source_field.id }}").is(':checkbox')) {
             toggleVal = $('#{{ source_field.id }}').prop('checked') ? "1" : "0";
-        } else if ($("#{{ source_field.id }}").is("div")) {
+        } else if ($("#{{ source_field.id }}").is("fieldset")) {
             // For checkgroup source fields, we only support a single on_value
             toggleOn = $('#{{ source_field.id }}-{{ on_values[0]|string }}').prop('checked') ? true : false;
         } else {
