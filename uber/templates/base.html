@@ -54,7 +54,7 @@
               $('[data-toggle="tooltip"]').tooltip();
             })
 
-            {% if not c.DEV_BOX %}jQuery.migrateMute = true;{% endif %
+            {% if not c.DEV_BOX %}jQuery.migrateMute = true;{% endif %}
 
             showErrorMessage = function(message='', alertId="message-alert") {
                 $("#" + alertId).addClass("alert-danger").show().children('span').html(message);
