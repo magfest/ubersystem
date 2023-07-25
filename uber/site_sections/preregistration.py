@@ -187,20 +187,8 @@ class Root:
 
         return {'message': message}
 
-    def index(self, session, message='', account_email='', account_password='', removed_id='', **params):
+    def index(self, session, message='', account_email='', account_password='', **params):
         check_if_can_reg()
-
-        if removed_id:
-            existing_model = session.query(Attendee).filter_by(id=removed_id).first()
-            if not existing_model:
-                existing_model = session.query(Group).filter_by(id=removed_id).first()
-            if existing_model:
-                existing_receipt = session.get_receipt_by_model(existing_model)
-                existing_model.badge_status = c.INVALID_STATUS
-                existing_receipt.closed = datetime.now()
-                session.add(existing_receipt)
-                session.add(existing_model)
-                session.commit()
 
         pending_preregs = PreregCart.pending_preregs.copy()
         for id in pending_preregs:
@@ -216,8 +204,6 @@ class Root:
             PreregCart.pending_preregs.pop(id)
 
         if not PreregCart.unpaid_preregs:
-            if PreregCart.paid_preregs:
-                raise HTTPRedirect('paid_preregistrations')
             raise HTTPRedirect('form?message={}', message) if message else HTTPRedirect('form')
         else:
             cart = PreregCart(listify(PreregCart.unpaid_preregs.values()))
@@ -754,12 +740,25 @@ class Root:
                 'message': message
             }
 
-    def delete(self, message='Preregistration deleted', **params):
+    def delete(self, session, message='Preregistration deleted.', **params):
         if 'id' or 'attendee_id' in params:
-            PreregCart.unpaid_preregs.pop(params.get("id", params.get("attendee_id")), None)
+            id = params.get("id", params.get("attendee_id"))
+            existing_model = session.query(Attendee).filter_by(id=id).first()
         elif 'group_id' in params:
-            PreregCart.unpaid_preregs.pop(params.get("group_id"), None)
-        raise HTTPRedirect('index?message={}&removed_id={}', message, id)
+            id = params.get("group_id")
+            existing_model = session.query(Group).filter_by(id=id).first()
+
+        PreregCart.unpaid_preregs.pop(id, None)
+        
+        if existing_model:
+            existing_receipt = session.get_receipt_by_model(existing_model)
+            existing_model.badge_status = c.INVALID_STATUS
+            existing_receipt.closed = datetime.now()
+            session.add(existing_receipt)
+            session.add(existing_model)
+            session.commit()
+
+        raise HTTPRedirect('index?message={}', message)
 
     @id_required(Group)
     def dealer_confirmation(self, session, id):
