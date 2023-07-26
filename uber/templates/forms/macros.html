@@ -11,7 +11,7 @@
   {% if extra_field %}
     {{ extra_field }}
   {% endif %}
-  <div id="{{ field.id }}-validation" class="invalid-feedback"></div>
+  <div id="{{ field.id }}-validation" class="invalid-feedback" role="alert"></div>
 {% endmacro %}
 
 {% macro form_input(field, help_text='', admin_text='', extra_field=None, no_margin=False) %}

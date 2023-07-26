@@ -2,10 +2,10 @@
 {% set page_ro = false %}
 {% set bootstrap5 = 'preregistration' in c.PAGE_PATH or 'landing' in c.PAGE_PATH or admin_area %}
 <!DOCTYPE HTML>
-<html>
+<html lang="en">
 <head>
     {{ macros.ie7_compatibility_check() }}
-    <title>{{ c.EVENT_NAME }} - {% block title %}{% endblock %}</title>
+    <title>{{ c.EVENT_NAME }} - {% block title %}{{ title_text }}{% endblock %}</title>
     <link rel="icon" href="../static/images/favicon.png" type="image/x-icon" />
 
     {% block head_styles %}
@@ -517,6 +517,7 @@
         {% block header %}{% endblock %}
         {% block alert %}<div class="alert alert-dismissible" role="alert" id="message-alert"><span></span><button type="button" class="btn-close" onClick="hideMessage()" aria-label="Close"></button></div>{% endblock %}
         {% block masthead %}{% endblock %}
+        {% if title_text %}<h1 class="visually-hidden">{{ title_text }}</h1>{% endif %}
         {% block content %}{% endblock %}
     </div>
     {% block footer %}{% endblock %}

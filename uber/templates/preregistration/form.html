@@ -3,7 +3,11 @@
 {% import "forms/group.html" as group_fields with context %}
 {% import "forms/account.html" as account_fields with context %}
 {% import 'forms/macros.html' as form_macros with context %}
-{% block title %}Preregistration{% endblock %}
+{% if is_prereg_dealer %}
+{% set title_text = "Dealer Registration Step 2 of 4: Personal Info" %}
+{% else %}
+{% set title_text = "Registration Step 1 of 4: Personal Info" %}
+{% endif %}
 {% block content %}
   {% if c.PAGE_PATH == '/preregistration/dealer_registration' %}
     {% include 'preregistration/disclaimer_popup.html' %}
@@ -45,7 +49,7 @@
 {% if forms and 'group_info' in forms %}
   {% include "forms/group_info.html" %}
 {% elif attendee.badge_type == c.PSEUDO_DEALER_BADGE %}
-  <h3 class="text-center">{{ c.DEALER_TERM|title }} Personal Info</h3>
+  <h2 class="h3 text-center">{{ c.DEALER_TERM|title }} Personal Info</h2>
   {{ forms['badge_extras'].badge_type }}
 {% else %}
   {% include "forms/badge_extras.html" %}

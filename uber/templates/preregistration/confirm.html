@@ -1,4 +1,4 @@
-{% extends "preregistration/preregbase.html" %}
+{% extends "./preregistration/preregbase.html" %}
 {% set name_ro = not attendee.placeholder %}
 {% set assigned_depts_ro = True %}
 {% set amount_extra_ro = True if attendee.badge_status == c.DEFERRED_STATUS else False %}
@@ -6,7 +6,7 @@
 {% set page_ro = not attendee.is_valid %}
 {% import "forms/attendee.html" as attendee_fields with context %}
 {% import 'forms/macros.html' as form_macros with context %}
-{% block title %}Confirm Your Details{% endblock %}
+{% set title_text = "Confirm Your Details %}
 {% block backlink %}
 {{ super() }}
 {% endblock %}

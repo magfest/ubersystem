@@ -1,7 +1,7 @@
-{% extends "base.html" %}
+{% extends "./preregistration/preregbase.html" %}
 {% import "forms/attendee.html" as attendee_fields with context %}
 {% block backlink %}{% endblock %}
-{% block title %}Transfer Your {{ c.EVENT_NAME }} Registration{% endblock %}
+{% set title_text = "Transfer Your " ~ c.EVENT_NAME ~ " Registration" %}
 {% block content %}
 
 <div class="card">

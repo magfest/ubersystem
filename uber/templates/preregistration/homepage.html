@@ -1,5 +1,5 @@
-{% extends "preregistration/preregbase.html" %}
-{% block title %}Manage Your Registrations{% endblock %}
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Manage Your Registrations" %}
 {% block content %}
 {% set account = homepage_account %}
 {% set dealer_reg_open = c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
@@ -12,10 +12,10 @@
         Preregistration has sold out!
     {% endif %}
 {% endset %}
-<h4 class="text-center">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h4>
+<h2 class="h4 text-center">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h2>
 {% if not account.valid_attendees %}
     <div class="card text-center">
-        <h2 class="text-uppercase">You have no current registrations</h2>
+        <span class="h2 text-uppercase">You have no current registrations</span>
         <p>{{ prereg_message }}</p>
         <p>
         {% if account.imported_single_badges and not prereg_message %}
@@ -98,7 +98,7 @@
     {% if loop.first %}
     <div class="card">
         <div class="card-header">
-            <h4 class="card-title">Pending Registrations</h4>
+            <h2 class="h4 card-title">Pending Registrations</h2>
         </div>
         <div class="card-footer">
     {% endif %}
@@ -115,7 +115,7 @@
 {% if loop.first %}
 <div class="card">
     <div class="card-header">
-        <h4 class="card-title">Past Registrations</h4>
+        <h2 class="h4 card-title">Past Registrations</h2>
     </div>
     <div class="card-footer">
 {% endif %}
@@ -131,7 +131,7 @@
 {% if loop.first %}
 <div class="panel card-danger">
     <div class="card-header">
-        <h4 class="card-title">Cancelled Registrations</h4>
+        <h2 class="h4 card-title">Cancelled Registrations</h2>
     </div>
     <div class="card-body">
         <table class="table table-striped datatable">

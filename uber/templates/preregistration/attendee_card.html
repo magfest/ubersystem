@@ -3,7 +3,7 @@
 {# You can also change the mini-card below or add more rows by changing rows #}
 
 {% set mini_card %}
-<h4 class="card-title">{{ attendee.first_name }} {{ attendee.last_name }}</h4>
+<span class="h4 card-title">{{ attendee.first_name }} {{ attendee.last_name }}</span>
 <p>"{{ attendee.badge_printed_name }}"</p>
 <p class="text-uppercase">{{ attendee.badge_type_label }}</p>
 {% endset %}
@@ -60,13 +60,13 @@
 <div class="card">
     {% if attendee.group %}
         <div class="col-sm-12 text-center">
-            <h4>
+            <span class="h4">
                 {% if attendee == attendee.group.leader %}Leader{% else %}Member{% endif %} of "{{ attendee.group.name }}"
                 {% if attendee == attendee.group.leader and attendee.group.status != c.IMPORTED %}
                 <span class="badge">{{ attendee.group.status_label }}</span>
                 <a href="group_members?id={{ attendee.group.id }}" class="btn btn-primary btn-xs"><i class="fa fa-pencil"></i>&nbsp;Edit</a>
                 {% endif %}
-            </h4>
+            </span>
         </div>
     {% endif %}
     <div class="row">

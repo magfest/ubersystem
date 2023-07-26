@@ -2,7 +2,7 @@
 {% import "forms/group.html" as group_fields with context %}
 {% import "forms/account.html" as account_fields with context %}
 {% import 'forms/macros.html' as form_macros with context %}
-{% block title %}Preregistration{% endblock %}
+{% set title_text = "Dealer Registration Step 1 of 4: Table Info" %}
 {% block content %}
   {% if c.PAGE_PATH == '/preregistration/dealer_registration' %}
     {% include 'preregistration/disclaimer_popup.html' %}
@@ -37,11 +37,11 @@
 {% endif %}
 {{ csrf_token() }}
 
-<h3 class="text-center">{{ c.DEALER_APP_TERM|title }} Info</h3>
+<h2 class="h3 text-center">{{ c.DEALER_APP_TERM|title }} Info</h2>
 
   {% include "forms/table_info.html" %}
 
-<h3 class="text-center">{{ c.DEALER_TERM|title }} Contact Info</h3>
+<h2 class="h3 text-center">{{ c.DEALER_TERM|title }} Contact Info</h2>
   {% include "forms/contact_info.html" %}
 
   {# Deprecated forms included for backwards compatibility with old plugins #}

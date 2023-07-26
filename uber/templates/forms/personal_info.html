@@ -24,7 +24,7 @@
 
 {% if attendee.legal_name or attendee.is_new or attendee.placeholder %}
 <div class="row g-sm-3">
-  <div class="col-12 col-sm-6">{{ form_macros.toggle_checkbox(personal_info.same_legal_name, [personal_info.legal_name], toggle_required=True, hide_on_checked=True, prop="readonly",
+  <div class="col-12 col-sm-6">{{ form_macros.toggle_checkbox(personal_info.same_legal_name, [personal_info.legal_name], toggle_required=True, hide_on_checked=True, prop="disabled",
                    disabled=name_read_only, checked=same_legal_name or attendee.first_name != '' and attendee.legal_name == '') }}
   </div>
 
@@ -39,10 +39,10 @@
 {% block contact_info %}
 {% set attendee_email = attendee.masked_email if limited_read else attendee.email %}
 {% if is_prereg_dealer %}
-  {% set email_extra_field = form_macros.toggle_checkbox(personal_info.copy_email, [personal_info.email], hide_on_checked=True, toggle_required=True, prop="readonly", checked=not personal_info.email.data and (edit_id or loaded_from_group)) %}
-  {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.copy_phone, [personal_info.cellphone], hide_on_checked=True, toggle_required=True, prop="readonly", checked=not personal_info.cellphone.data and (edit_id or loaded_from_group)) %}
+  {% set email_extra_field = form_macros.toggle_checkbox(personal_info.copy_email, [personal_info.email], hide_on_checked=True, toggle_required=True, prop="disabled", checked=not personal_info.email.data and (edit_id or loaded_from_group)) %}
+  {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.copy_phone, [personal_info.cellphone], hide_on_checked=True, toggle_required=True, prop="disabled", checked=not personal_info.cellphone.data and (edit_id or loaded_from_group)) %}
 {% elif attendee.staffing or (other_info and other_info is not none) %}
-  {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.no_cellphone, [personal_info.cellphone], hide_on_checked=True, prop="readonly") %}
+  {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.no_cellphone, [personal_info.cellphone], hide_on_checked=True, prop="disabled") %}
 {% endif %}
 
 <div class="row g-sm-3">
@@ -72,7 +72,7 @@
     <div class="alert alert-warning" role="alert">
       <em>
         Attendees under 18 <b>MUST</b> bring a signed (and notarized if not accompanied by parent or guardian during badge pickup) 
-        <a target="_blank" href="{{ c.CONSENT_FORM_URL }}">parental consent form</a>.
+        <a class="link-dark" target="_blank" href="{{ c.CONSENT_FORM_URL }}">parental consent form</a>.
       </em>
     </div>
     {% elif admin_area and attendee.birthdate %}
@@ -91,19 +91,19 @@
     {{ form_macros.toggle_checkbox(personal_info.copy_address, 
       [personal_info.address1, personal_info.address2, personal_info.city, personal_info.region_us, 
       personal_info.region_canada, personal_info.region, personal_info.zip_code, personal_info.country], 
-      hide_on_checked=True, toggle_required=True, prop="readonly", checked=not personal_info.address1.data and (edit_id or loaded_from_group)) }}
+      hide_on_checked=True, toggle_required=True, prop="disabled", checked=not personal_info.address1.data and (edit_id or loaded_from_group)) }}
   </div>
 </div>
 <script type="text/javascript">
   // selectToAutocomplete is a pain in my ass
   $("#copy_address").on('click', function() {
     setTimeout(function() {
-      $("input.form-control.ui-autocomplete-input").prop('readonly', $("#country").prop("readonly"));
+      $("#country-selectToAutocomplete").prop('disabled', $("#country").prop("disabled"));
     }, 10);
   })
   $().ready(function() { 
     setTimeout(function() {
-      $("input.form-control.ui-autocomplete-input").prop('readonly', $("#country").prop("readonly"));
+      $("country-selectToAutocomplete").prop('disabled', $("#country").prop("disabled"));
     }, 10);
    }) 
 </script>

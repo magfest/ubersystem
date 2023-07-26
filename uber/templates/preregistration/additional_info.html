@@ -1,6 +1,10 @@
 {% extends "./preregistration/preregbase.html" %}
 {% import 'forms/macros.html' as form_macros with context %}
-{% block title %}Additional Info{% endblock %}
+{% if is_prereg_dealer %}
+{% set title_text = "Dealer Registration Step 3 of 4: Additional Info" %}
+{% else %}
+{% set title_text = "Registration Step 2 of 4: Additional Info" %}
+{% endif %}
 {% block backlink %}{% endblock %}
 {% block content %}
 {% if not editing %}
