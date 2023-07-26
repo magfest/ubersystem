@@ -47,7 +47,7 @@
   <div class="modal-dialog" role="document">
     <div class="modal-content">
         <div class="modal-header">
-        <h4 class="modal-title text-center"></h4>
+        <span class="h4 modal-title text-center"></span>
         </div>
         <div class="modal-body text-start jumbotron">
         <div class="charge_desc" style="margin-bottom:10px;"></div>
@@ -55,19 +55,25 @@
             <form id="payment-form" class="d-none"
                 method="POST"
                 action="index">
-                <div class="form-row">
-                    <strong>Credit or debit card</strong>
-                    <input type="text" class="form-control" name="cardNumber" id="cardNumber" placeholder="Card Number"
+                <div class="row g-3">
+                    <div class="col-12 mb-3">
+                        <label for="cardNumber"><strong>Credit or debit card</strong></label>
+                        <input type="text" class="form-control" name="cardNumber" id="cardNumber" placeholder="Card Number"
                         inputmode="numeric" autocomplete="cc-number" autocorrect="off" aria-label="Credit or debit card number"/>
-                    &nbsp;
-                    <div class="input-group">
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-12 input-group mb-3">
+                        <label for="expMonth" class="visually-hidden">Two-digit credit or debit card expiration month</label>
                         <input type="text" class="form-control" name="expMonth" id="expMonth" placeholder="MM"
-                        inputmode="numeric" autocomplete="cc-exp-month" autocorrect="off" aria-label="Credit or debit card expiration month"/>
+                        inputmode="numeric" autocomplete="cc-exp-month" autocorrect="off" />
                         <span class="input-group-text">/</span>
+                        <label for="expYear" class="visually-hidden">Two-digit credit or debit card expiration year</label>
                         <input type="text" class="form-control" name="expYear" id="expYear" placeholder="YY"
-                        inputmode="numeric" autocomplete="cc-exp-year" autocorrect="off" aria-label="Credit or debit card expiration year"/>
+                        inputmode="numeric" autocomplete="cc-exp-year" autocorrect="off" />
+                        <label for="cardCode" class="visually-hidden">"Credit or debit card CVC/CVV</label>
                         <input type="text" class="form-control" name="cardCode" id="cardCode" placeholder="CVC"
-                        inputmode="numeric" autocomplete="cc-csc" autocorrect="off" aria-label="Credit or debit card CVC/CVV"/>
+                        inputmode="numeric" autocomplete="cc-csc" autocorrect="off" />
                     </div>
                     <div style="margin-top:10px;"><button class="btn btn-success">Submit Payment</button>
                     <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button></div>
