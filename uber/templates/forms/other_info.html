@@ -26,12 +26,12 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% set staffing_readonly = not admin_area and (attendee.badge_type in [c.CONTRACTOR_BADGE, c.STAFF_BADGE] or attendee.shifts) %}
 <div class="row g-sm-3">
     <div class="col-12">{{ form_macros.toggle_checkbox(other_info.staffing, 
-        [other_info.requested_dept_ids, other_info.cellphone] if include_cellphone else [other_info.requested_dept_ids], readonly=staffing_readonly, help_text=staffing_message if staffing_only else "") }}</div>
+        [other_info.requested_dept_ids, other_info.cellphone] if include_cellphone else [other_info.requested_dept_ids], toggle_required=True, readonly=staffing_readonly, help_text=staffing_message if staffing_only else "") }}</div>
 </div>
 
 {% if include_cellphone %}
 <div class="row g-sm-3">
-{% set cellphone_extra_field = form_macros.toggle_checkbox(other_info.no_cellphone, [other_info.cellphone], hide_on_checked=True, prop="disabled") %}
+{% set cellphone_extra_field = form_macros.toggle_checkbox(other_info.no_cellphone, [other_info.cellphone], hide_on_checked=True, toggle_required=True, prop="disabled") %}
     <div class="col-12">{{ form_macros.form_input(other_info.cellphone, extra_field=cellphone_extra_field, readonly=cellphone_ro or (page_ro and not contact_write), required=True) }}</div>
 </div>
 {% elif not personal_info or personal_info is none %}
