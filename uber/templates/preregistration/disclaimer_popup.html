@@ -9,7 +9,7 @@
       if(!$("#prereg-form")[0].checkValidity()) {
         $("#prereg-form")[0].reportValidity();
       } else {
-        $('#disclaimers_modal').modal("show");
+        bootstrap.Modal.getOrCreateInstance($('#disclaimers_modal')).show();
       }
     }
     {% else %}
@@ -22,7 +22,7 @@
         $("#prereg-form")[0].reportValidity();
         return false;
       }
-      $('#disclaimers_modal').modal("show");
+      bootstrap.Modal.getOrCreateInstance($('#disclaimers_modal')).show();
     }
     {% endif %}
     
@@ -33,7 +33,7 @@
         <div class="modal-content">
           <div class="modal-body">{% include "preregistration/disclaimers.html" %}</div>
           <div class="modal-footer">
-            <button class="btn btn-primary btn-lg" data-dismiss="modal" onClick="confirmDisclaimers()">
+            <button class="btn btn-primary btn-lg" data-bs-dismiss="modal" onClick="confirmDisclaimers()">
               I agree to the above
             </button>
           </div>

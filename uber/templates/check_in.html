@@ -6,7 +6,7 @@
 </div>
 
 <script type="text/javascript">
-checkInModal = $('#checkin_modal');
+checkInModal = new bootstrap.Modal($('#checkin_modal'));
 reg_station = {{ reg_station|default(0, true) }};
 printer_default_id = "{{ printer_default_id }}";
 printer_minor_id = "{{ printer_minor_id }}";
@@ -27,20 +27,20 @@ var loadCheckInFormModal = function (attendeeID, printerID='') {
             });
         } else {
             $("#message-alert").addClass("alert-danger").show().children('span').html("Form loading failed.");
-            checkInModal.modal('hide');
+            checkInModal.hide();
         }
     });
 }
 
 var loadCheckInModal = function (attendeeID) {
-    checkInModal.modal({show:true});
+    checkInModal.show();
     
     if (badge_printing_enabled && (!reg_station || !printer_default_id || !printer_minor_id)) {
     $('#checkin_modal .modal-content').load('../registration/printer_id_form?id=' + attendeeID, function() {
         if ($('.printer-id').length) {
         } else {
             $("#message-alert").addClass("alert-danger").show().children('span').html("Form loading failed.");
-            checkInModal.modal('hide');
+            checkInModal.hide();
         }
         });
     } else {
@@ -51,7 +51,7 @@ var loadCheckInModal = function (attendeeID) {
 // Hide modal on Esc keydown
 $(document).keydown(function(event) { 
     if (event.keyCode == 27) { 
-        checkInModal.modal('hide');
+        checkInModal.hide();
     }
 });
 
@@ -65,7 +65,7 @@ var checkIn = function (attendeeID) {
             $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
             var message = json.message;
             if (json.success) {
-                checkInModal.modal('hide');
+                checkInModal.hide();
                 message += ' &nbsp; <a href="#" onClick="undoCheckIn(\'' + attendeeID + '\', ' + json.pre_badge + ') ; return false">Undo</a>';
                 $('#paid_' + attendeeID).html(json.paid);
                 $('#cin_' + attendeeID).html(json.checked_in);

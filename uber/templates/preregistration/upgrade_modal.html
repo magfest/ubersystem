@@ -3,7 +3,7 @@
     <div class="modal-dialog modal-lg" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
           <span class="h4 modal-title" id="upgradeTitle">Add Upgrades</span>
         </div>
         <div class="modal-body">
@@ -23,7 +23,7 @@
             </table>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
           <button type="submit" id="upgrade-purchase" form="purchase-upgrades" type="button" class="btn btn-success">Purchase<span id="upgrade-preview-total"></span></button>
         </div>
       </div>
@@ -97,7 +97,7 @@
             if (result.error) {
                 $("#message-alert").addClass("alert-danger").show().children('span').html(result.error);
             } else if (result.success) {
-                $('#upgradeModal').modal('toggle');
+                bootstrap.Modal.getOrCreateInstance($('#upgradeModal')).toggle();
                 callStripeAction(autoTrigger=true);
             }
         });

@@ -131,7 +131,7 @@
         e.preventDefault();
         var id = $(this).closest('.attendee-row').data('attendee_id');
         $('#bidder_modals').find('.modal').removeClass('print_form');
-        $('#attendee_'+id).modal();
+        bootstrap.Modal.getOrCreateInstance($('#attendee_'+id)).show();
     };
 
     $(document).ready(function() {
@@ -168,8 +168,8 @@
                                 $('#attendee_'+response['attendee_id']).find('.bidder_num').text(response['bidder_num']);
                                 $('#attendee_'+response['attendee_id']).find('.bidder_id').val(response['bidder_id']);
                             } else {
-                                $modals.modal('hide');
-                                location.href = '?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode or "" }}&message='+response['success'];
+                              bootstrap.Modal.getOrCreateInstance($modals).hide();
+                              location.href = '?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode or "" }}&message='+response['success'];
                             }
                         } else {
                             $("#message-alert").addClass("alert-danger").show().children('span').html('', response['error'], {timeOut: 5000});

@@ -297,7 +297,7 @@
       $signupModal.toggleClass('soldout', isSoldout);
       $('.signup-event-label').html(eventLabel);
 
-      $signupModal.modal('show');
+      bootstrap.Modal.getOrCreateInstance($signupModal).show();
     });
 
     $container.on('click', '.btn-danger', function(event) {
@@ -351,7 +351,7 @@
   <div class="modal-dialog modal-md" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
         <h4 class="modal-title">
@@ -368,7 +368,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-outline-secondary btn-lg btn-xl" data-dismiss="modal">
+        <button class="btn btn-outline-secondary btn-lg btn-xl" data-bs-dismiss="modal">
           All Done!
         </button>
       </div>

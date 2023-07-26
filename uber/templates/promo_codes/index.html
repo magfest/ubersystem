@@ -61,13 +61,13 @@ $(document).ready(function() {
   <div class="modal-dialog modal-sm" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
         <h4 class="modal-title" id="title-delete-unused">Delete all unused promo codes?</h4>
       </div>
       <div class="modal-footer">
         <form method="post" action="delete_promo_codes" class="form-horizontal">
           {{ csrf_token() }}
-          <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Nevermind</button>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Nevermind</button>
           <button type="submit" class="btn btn-danger">Delete Unused</button>
         </form>
       </div>

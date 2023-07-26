@@ -124,6 +124,7 @@
                 {% endfor %}
             }
             {%- if toggle_required -%}
+            console.log(toggleOn);
                 {% for target_field in target_fields %}
                     $('#{{ target_field.id }}').prop('required', toggleOn);
                     $('#{{ target_field.id }}').siblings('label').children('.required-indicator').toggle(toggleOn);

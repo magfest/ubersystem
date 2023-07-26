@@ -74,7 +74,7 @@
             loginOrCreateAccount($form);
           }
         } else if (result.sso_email) {
-          $('#sso-notice-modal').modal("show");
+          bootstrap.Modal.getOrCreateInstance($('#sso-notice-modal')).show();
         } else {
           if (result.message) {
             showErrorMessage(result.message);

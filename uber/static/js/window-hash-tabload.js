@@ -3,8 +3,13 @@ $('.nav-tabs button').click(function() {
 })
 $().ready(function() {
     var tabID = window.location.hash;
-    var tab = $(tabID + '-tab');
-    if(tab.length) {
+    try {
+      var tab = $(tabID + '-tab');
+    } catch(error) {
+      new bootstrap.Tab($('.nav-tabs button').first()).show();
+      return false;
+    }
+    if(tab && tab.length) {
       new bootstrap.Tab(tab).show();
     } else {
       new bootstrap.Tab($('.nav-tabs button').first()).show();

@@ -14,7 +14,7 @@
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
         <h4 class="modal-title" id="piece_title_{{ real_piece.id or 'new' }}">{{ "Add" if not real_piece.id else "Edit" }} Art Show Piece</h4>
       </div>
 
@@ -87,7 +87,7 @@
         </div>
         <div class="modal-footer">
           <button type="submit" class="btn btn-primary save_piece"{% if readonly %} disabled{% endif %}>Save</button>
-          <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
         </div>
       </form>
     </div>
@@ -341,13 +341,13 @@
     };
 
     var addPieceModal = function() {
-        $('#piece_new').modal();
+      bootstrap.Modal.getOrCreateInstance($('#piece_new')).show();
     };
 
     var editPieceModal = function(e) {
         e.preventDefault();
         var id = $(this).closest('.piece-row').data('piece_id');
-        $('#piece_'+id).modal();
+        bootstrap.Modal.getOrCreateInstance($('#piece_'+id)).show();
     };
 
     $(document).ready(function() {
@@ -377,7 +377,7 @@
                         var response = $.parseJSON(responseText);
                         if (!response['error']) {
                             var $modals = $('#piece_modals').find('.modal');
-                            $modals.modal('hide');
+                            bootstrap.Modal.getOrCreateInstance($modals).hide();
                             location.href = '?id={{ app.id }}&message='+response['success'];
                         } else {
                             $("#message-alert").addClass("alert-danger").show().children('span').html('', response['error'], {timeOut: 5000});
