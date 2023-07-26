@@ -31,8 +31,8 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 {% if include_cellphone %}
 <div class="row g-sm-3">
-{% set cellphone_extra_field = form_macros.toggle_checkbox(other_info.no_cellphone, [other_info.cellphone], hide_on_checked=True, prop="readonly") %}
-    <div class="col-12">{{ form_macros.form_input(other_info.cellphone, extra_field=cellphone_extra_field, readonly=cellphone_ro or (page_ro and not contact_write)) }}</div>
+{% set cellphone_extra_field = form_macros.toggle_checkbox(other_info.no_cellphone, [other_info.cellphone], hide_on_checked=True, prop="disabled") %}
+    <div class="col-12">{{ form_macros.form_input(other_info.cellphone, extra_field=cellphone_extra_field, readonly=cellphone_ro or (page_ro and not contact_write), required=True) }}</div>
 </div>
 {% elif not personal_info or personal_info is none %}
 {# TODO: handle this better #}

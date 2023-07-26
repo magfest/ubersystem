@@ -1,7 +1,7 @@
 {% macro form_label(field, required=None) %}
 <label for="{{ field.label.field_id }}"
-{% for key in kwargs %} {{ key }}="{{ kwargs[key] }}"{% endfor %}>{{ field.label.text }}
-  {% if required == True or (required == None and field.flags.required) %} <span class="text-danger">*</span>{% endif %}</label>
+{% for key in kwargs %} {{ key }}="{{ kwargs[key] }}"{% endfor %}><span class="form-label">{{ field.label.text }}</span>
+  {% if required == True or (required == None and field.flags.required) %}<span class="required-indicator text-danger"> *</span>{% endif %}</label>
 {% endmacro %}
 
 {% macro form_input_extras(field, help_text='', admin_text='', extra_field=None) %}
@@ -126,6 +126,7 @@
             {%- if toggle_required -%}
                 {% for target_field in target_fields %}
                     $('#{{ target_field.id }}').prop('required', toggleOn);
+                    $('#{{ target_field.id }}').siblings('label').children('.required-indicator').toggle(toggleOn);
                 {% endfor %}
             {%- endif -%}
         {% endfor %}
@@ -157,12 +158,14 @@
 {% set label_required = kwargs['required'] if 'required' in kwargs else None %}
 
 <fieldset>
-  <legend class="mt-3 mb-0 form-text">{{ form_label(target_field, required=label_required) }}{% if not admin_area and (help_text or target_field.description) %}&nbsp; {{ help_text or target_field.description }}{% endif %}</legend>
+  <legend class="mt-3 mb-0 form-text">{{ target_field.label.text }}
+    {% if target_field.flags.required %}<span class="required-indicator text-danger"> *</span>{% endif %}
+    {% if not admin_area and (help_text or target_field.description) %}&nbsp; {{ help_text or target_field.description }}{% endif %}</legend>
 <div class="card-group mt-0 mb-3">
 {% for opt in opts %}
 <div class="card {{ text_class }}">
     <div class="card-header" style="transform: rotate(0);">
-        <label for="{{ opt.name }}-{{ opt.value }}" class="h5 card-title mb-0">
+        <label for="{{ target_field.id }}-{{ opt.value }}" class="h5 card-title mb-0">
             <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card"
             data-value="{{ opt.value }}">{{ opt.name }}</a>{% if opt.price %}: {{ opt.price|format_currency }}{% endif %}
         </label>
@@ -223,7 +226,7 @@
     <div class="form-floating selectToAutocomplete">
       <label for="{{ form_obj.country.id }}-selectToAutocomplete">
         {{ form_obj.country.label.text }}
-        {% if form_obj.country.flags.required %} <span class="text-danger">*</span>{% endif %}
+        {% if form_obj.country.flags.required %}<span class="required-indicator text-danger"> *</span>{% endif %}
       </label>
     </div>
   </div>
@@ -265,7 +268,7 @@
         });
         $('#{{ country_id }}').parents('.form-floating').addClass('visually-hidden');
         $('#{{ country_id }}').siblings("input.form-control.ui-autocomplete-input").attr(
-          "id", "country-selectToAutocomplete").insertBefore('label[for="{{ country_id }}-selectToAutocomplete');
+          "id", "{{ country_id }}-selectToAutocomplete").insertBefore('label[for="{{ country_id }}-selectToAutocomplete');
         $('#{{ country_id }}-validation').insertAfter('label[for="{{ country_id }}-selectToAutocomplete');
         regionChange{{ country_id }}();
     })
@@ -279,53 +282,52 @@
   var serverValidationPassed = false;
   
   var runServerValidations = function($form, go_to_cart) {
-    if(!$("#{{ form_id }}")[0].checkValidity()) {
-      $("#{{ form_id }}")[0].reportValidity();
-    } else {
-        var form_list = {{ form_list|safe }}.join(',')
-        if (form_list != '') {
-            form_list = '&form_list=' + form_list
-        }
-      $.post("{{ page_handler }}", $form.serialize() + form_list, function (response) {
-        $("#form-validations").hide().removeClass().addClass("alert").html("");
-        $(".is-invalid").each(function() {
-          var field_id = $(this).attr('id');
-          $(this).removeClass('is-invalid');
-          $("#" + field_id + "-validation").hide();
-        });
-        if (response.error) {
-          $("#form-validations").addClass("alert-danger").html(
-            "Please correct the following errors:" +
-            "<ul></ul>"
-            );
-          $.each(response.error, function(key, val) {
-            val = val.join(" ");
-            if ($("#" + key).length != 0) {
-              var field_label = $("label[for='" + key + "']").text();
-              $("#form-validations").find("ul").append("<li>" + field_label + ": " + val + "</li>");
-              $("#" + key).addClass("is-invalid");
-            } else {
-              $("#form-validations").find("ul").append("<li>" + val + "</li>");
-            }
-
-            if ($("#" + key + "-validation").length != 0)
-            {
-              $("#" + key + "-validation").html(val).show();
-            }
-          });
-          $("#form-validations").show();
-          $('html, body').animate({scrollTop: $("#form-validations").offset().top}, 50);
-        } else {
-          serverValidationPassed = true;
-          if (go_to_cart != '') {
-            $("#{{ form_id }}").find($("[name=go_to_cart]")).click();
-          } else {
-            $("#{{ form_id }}").submit();
-          }
-        }
-      }, 'json');
+    var form_list = {{ form_list|safe }}.join(',')
+    if (form_list != '') {
+        form_list = '&form_list=' + form_list
     }
-  }
+    console.log("Validating...")
+    $.post("{{ page_handler }}", $form.serialize() + form_list, function (response) {
+      $("#form-validations").hide().removeClass().addClass("alert").html("");
+      $(".is-invalid").each(function() {
+        var field_id = $(this).attr('id');
+        $(this).removeClass('is-invalid');
+        $("#" + field_id + "-validation").hide();
+      });
+      console.log(response)
+      if (response.error) {
+        $("#form-validations").addClass("alert-danger").html(
+          "Please correct the following errors:" +
+          "<ul></ul>"
+          );
+        $.each(response.error, function(key, val) {
+          val = val.join(" ");
+          if ($("#" + key).length != 0) {
+            var field_label = $("label[for='" + key + "'] .form-label").text();
+            $("#form-validations").find("ul").append("<li>" + field_label + ": " + val + "</li>");
+            $("#" + key).addClass("is-invalid");
+          } else {
+            $("#form-validations").find("ul").append("<li>" + val + "</li>");
+          }
+
+          if ($("#" + key + "-validation").length != 0)
+          {
+            $("#" + key + "-validation").html(val).show();
+          }
+        });
+        $("#form-validations").show();
+        $('html, body').animate({scrollTop: $("#form-validations").offset().top}, 50);
+      } else {
+        serverValidationPassed = true;
+        if (go_to_cart != '') {
+          $("#{{ form_id }}").find($("[name=go_to_cart]")).click();
+        } else {
+          $("#{{ form_id }}").submit();
+        }
+      }
+    }, 'json');
+  };
+  
 
   $(function () {
     $("#form-validations").hide();

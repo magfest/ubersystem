@@ -24,7 +24,9 @@ class PersonalInfo(AddressForm, MagForm):
         validators.InputRequired("Please provide your last name.")
         ], render_kw={'autocomplete': "lname"})
     same_legal_name = BooleanField('The above name is exactly what appears on my Legal Photo ID.')
-    legal_name = StringField('Name as appears on Legal Photo ID', render_kw={'placeholder': 'First and last name exactly as they appear on Photo ID'})
+    legal_name = StringField('Name as appears on Legal Photo ID', validators=[
+        validators.InputRequired("Please provide the name on your photo ID or indicate that your first and last name match your ID.")
+        ], render_kw={'placeholder': 'First and last name exactly as they appear on Photo ID'})
     email = EmailField('Email Address', validators=[
         validators.InputRequired("Please enter an email address."),
         validators.Length(max=255, message="Email addresses cannot be longer than 255 characters."),
@@ -61,19 +63,22 @@ class PersonalInfo(AddressForm, MagForm):
     international = BooleanField('I\'m coming from outside the US.')
 
     def get_optional_fields(self, attendee):
-        optional_list = []
         unassigned_group_reg = attendee.group_id and not attendee.first_name and not attendee.last_name
         valid_placeholder = attendee.placeholder and attendee.first_name and attendee.last_name
         if unassigned_group_reg or valid_placeholder:
-            optional_list.extend(['first_name', 'last_name', 'email', 'birthdate', 'age_group', 'ec_name', 'ec_phone',
-                                  'address1', 'city', 'region', 'zip_code', 'country'])
+            return ['first_name', 'last_name', 'legal_name', 'email', 'birthdate', 'age_group', 'ec_name', 'ec_phone',
+                    'address1', 'city', 'region', 'region_us', 'region_canada', 'zip_code', 'country', 'onsite_contact']
+        
+        optional_list = super().get_optional_fields(attendee)
 
+        if self.same_legal_name.data:
+            optional_list.append('legal_name')
         if self.copy_email.data:
             optional_list.append('email')
         if self.copy_phone.data or self.no_cellphone.data:
             optional_list.append('cellphone')
         if self.copy_address.data:
-            optional_list.extend(['address1', 'city', 'region', 'zip_code', 'country'])
+            optional_list.extend(['address1', 'city', 'region', 'region_us', 'region_canada', 'zip_code', 'country'])
         if self.no_onsite_contact.data:
             optional_list.append('onsite_contact')
 

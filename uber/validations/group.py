@@ -15,19 +15,14 @@ from uber.decorators import WTFormValidation
 
 form_validation, new_or_changed_validation, post_form_validation = WTFormValidation(), WTFormValidation(), WTFormValidation()
 
-###### Attendee-Facing Validations ######
-@form_validation.categories
-def dealer_other_category(form, field):
-    if field.data and c.OTHER in field.data and not form.categories_text.data:
-        return "Please describe what 'other' categories your wares fall under."
-    
+###### Attendee-Facing Validations ######    
 @post_form_validation.none
 def edit_only_correct_statuses(group):
-    if group.status not in [c.WAITLISTED, c.CANCELLED, c.DECLINED]:
+    if group.status not in c.DEALER_EDITABLE_STATUSES:
         return "You cannot change your {} after it has been {}.".format(c.DEALER_APP_TERM, group.status_label)
 
 ###### Admin-Only Validations ######
-@form_validation.cost
+
 def group_money(form, field):
     if not form.auto_recalc.data:
         try:

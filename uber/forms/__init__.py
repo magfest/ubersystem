@@ -277,37 +277,49 @@ class AddressForm():
     field_aliases = {'region': ['region_us', 'region_canada']}
 
     address1 = StringField('Address Line 1', default='', validators=[
-        validators.InputRequired(message="Please enter a street address.")
+        validators.InputRequired("Please enter a street address.")
         ])
     address2 = StringField('Address Line 2', default='')
     city = StringField('City', default='', validators=[
-        validators.InputRequired(message="Please enter a city.")
+        validators.InputRequired("Please enter a city.")
         ])
-    region_us = SelectField('State', default='', choices=c.REGION_OPTS_US)
-    region_canada = SelectField('Province', default='', choices=c.REGION_OPTS_CANADA)
-    region = StringField('State/Province', default='')
-    zip_code = StringField('Zip/Postal Code', default='')
+    region_us = SelectField('State', default='', validators=[
+        validators.InputRequired("Please select a state.")
+        ], choices=c.REGION_OPTS_US)
+    region_canada = SelectField('Province', default='', validators=[
+        validators.InputRequired("Please select a province.")
+        ], choices=c.REGION_OPTS_CANADA)
+    region = StringField('State/Province', default='', validators=[
+        validators.InputRequired("Please enter a state, province, or region.")
+        ])
+    zip_code = StringField('Zip/Postal Code', default='', validators=[
+        validators.InputRequired("Please enter a zip code." if c.COLLECT_FULL_ADDRESS else 
+                                 "Please enter a valid 5 or 9-digit zip code.")
+        ])
     country = SelectField('Country', default='', validators=[
-        validators.InputRequired(message="Please enter a country.")
+        validators.InputRequired("Please enter a country.")
         ], choices=c.COUNTRY_OPTS, widget=CountrySelect())
 
-    def validate_region(form, field):
-        if form.country.data not in ['United States', 'Canada'] and not field.data:
-            raise ValidationError('Please enter a state, province, or region.')
-        
-    def validate_region_us(form, field):
-        if form.country.data == 'United States' and not field.data:
-            raise ValidationError('Please select a state.')
-    
-    def validate_region_canada(form, field):
-        if form.country.data == 'Canada' and not field.data:
-            raise ValidationError('Please select a province.')
+    def get_optional_fields(self, model):
+        optional_list = super().get_optional_fields(model)
+
+        if not c.COLLECT_FULL_ADDRESS:
+            optional_list.extend(['address1', 'city', 'region', 'region_us', 'region_canada', 'country'])
+            if model.international or c.AT_OR_POST_CON:
+                optional_list.append('zip_code')
+        else:
+            if model.country == 'United States':
+                optional_list.extend(['region', 'region_canada'])
+            elif model.country == 'Canada':
+                optional_list.extend(['region', 'region_us'])
+            else:
+                optional_list.extend(['region_us', 'region_canada'])
+
+        return optional_list
     
     def validate_zip_code(form, field):
-        if (form.country.data == 'United States' or (not c.COLLECT_FULL_ADDRESS and 
-                                                     hasattr(form, 'international') and 
-                                                     not form.international.data)) \
-            and not c.AT_OR_POST_CON and invalid_zip_code(field.data):
+        if field.data and (form.country.data == 'United States' or (not c.COLLECT_FULL_ADDRESS and field.flags.required)) \
+            and invalid_zip_code(field.data):
             raise ValidationError('Please enter a valid 5 or 9-digit zip code.')
 
 

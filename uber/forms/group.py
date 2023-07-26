@@ -12,7 +12,7 @@ __all__ = ['GroupInfo', 'ContactInfo', 'TableInfo', 'AdminGroupInfo', 'AdminTabl
 
 class GroupInfo(MagForm):
     name = StringField('Group Name', validators=[
-        validators.InputRequired(message="Please enter a group name."),
+        validators.InputRequired("Please enter a group name."),
         validators.Length(max=40, message="Group names cannot be longer than 40 characters.")
         ])
     badges = IntegerField('Badges', widget=IntSelect())
@@ -51,11 +51,16 @@ class ContactInfo(AddressForm, MagForm):
         validators.InputRequired("Please enter your business' phone number."),
         ],
         render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
+    
+    def get_optional_fields(self, group):
+        optional_list = super().get_optional_fields(group)
+        
+        return optional_list
 
 
 class TableInfo(GroupInfo):
     name = StringField('Table Name', validators=[
-        validators.InputRequired(message="Please enter a table name."),
+        validators.InputRequired("Please enter a table name."),
         validators.Length(max=40, message="Table names cannot be longer than 40 characters.")
         ])
     description = StringField('Description', validators=[

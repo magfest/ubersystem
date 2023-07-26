@@ -1425,14 +1425,15 @@ class Root:
     
     @ajax
     def validate_dealer(self, session, form_list=[], **params):
-        if params.get('id') in [None, '', 'None']:
+        id = params.get('id', params.get('edit_id'))
+        if id in [None, '', 'None']:
             group = Group()
         else:
             try:
-                group = session.group(params.get('id'))
+                group = session.group(id)
             except NoResultFound:
                 group = self._get_unsaved(
-                    params.get('id'),
+                    id,
                     PreregCart.pending_dealers,
                     if_not_found=HTTPRedirect('dealer_registration?message={}', 'That application expired or has already been finalized.'))
 
@@ -1442,22 +1443,21 @@ class Root:
             form_list = [form_list]
         forms = load_forms(params, group, group_forms, form_list)
 
-        all_errors = validate_model(forms, group, Group(**group.to_dict()))
+        all_errors = validate_model(forms, group, Group(**group.to_dict()), validations.group)
         if all_errors:
             return {"error": all_errors}
 
-        return {"success": True}
-
     @ajax
     def validate_attendee(self, session, form_list=[], **params):
-        if params.get('id') in [None, '', 'None']:
+        id = params.get('id', params.get('edit_id'))
+        if id in [None, '', 'None']:
             attendee = Attendee()
         else:
             try:
-                attendee = session.attendee(params.get('id'))
+                attendee = session.attendee(id)
             except NoResultFound:
                 attendee = self._get_unsaved(
-                    params.get('id'),
+                    id,
                     if_not_found=HTTPRedirect('form?message={}', 'That preregistration expired or has already been finalized.'))
 
         if not form_list:

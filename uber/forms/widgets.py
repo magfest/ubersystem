@@ -11,7 +11,9 @@ class MultiCheckbox():
         field_id = kwargs.pop('id', field.id)
         html = ['<div {}>'.format(html_params(class_=div_class))]
         html.append('<fieldset {}>'.format(html_params(id=field_id)))
-        html.append('<legend class="form-text mt-0">{}</legend>'.format(field.label))
+        html.append('<legend class="form-text mt-0">{}{}</legend>'.format(field.label.text,
+                                                                          Markup(' <span class="required-indicator text-danger">*</span>')
+                                                                          if field.flags.required else ''))
         for value, label, checked in field.iter_choices():
             choice_id = '{}-{}'.format(field_id, value)
             options = dict(kwargs, name=field.name, value=value, id=choice_id)
