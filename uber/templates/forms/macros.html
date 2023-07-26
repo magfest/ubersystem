@@ -1,3 +1,9 @@
+{% macro form_label(field, required=None) %}
+<label for="{{ field.label.field_id }}"
+{% for key in kwargs %} {{ key }}="{{ kwargs[key] }}"{% endfor %}>{{ field.label.text }}
+  {% if required == True or (required == None and field.flags.required) %} <span class="text-danger">*</span>{% endif %}</label>
+{% endmacro %}
+
 {% macro form_input_extras(field, help_text='', admin_text='', extra_field=None) %}
   {% if not admin_area and (help_text or field.description) %}
     <div class="form-text">
@@ -16,15 +22,16 @@
 
 {% macro form_input(field, help_text='', admin_text='', extra_field=None, no_margin=False) %}
 {% set type = field.meta.get_field_type(field) %}
+{% set label_required = kwargs['required'] if 'required' in kwargs else None %}
 
 {% if type in ['checkbox','switch'] %}
 <div class="form-check{% if type == 'switch' %} form-switch{% endif %}{% if not no_margin %} mb-3{% endif %}">
   {{ field(class="form-check-input", checked=field.data, value=1, **kwargs) }}
-  {{ field.label(class="form-check-label") }}
+  {{ form_label(field, required=label_required, class="form-check-label") }}
   {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>
 {% elif type == 'inputgroup' %}
-<div class="form-text">{{ field.label }}</div>
+<div class="form-text">{{ form_label(field, required=label_required) }}</div>
 <div class="input-group{% if not no_margin %} mb-3{% endif %}">
 {{ field(class="form-control", **kwargs) }}
 </div>
@@ -42,19 +49,19 @@
 {% elif type == 'select' %}
 <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
     {{ field(class="form-select", **kwargs) }}
-    {{ field.label }}
+    {{ form_label(field, required=label_required) }}
     {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>
 {% elif type == 'customselect' %}
 <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
     {{ field(**kwargs) }}
-    {{ field.label }}
+    {{ form_label(field, required=label_required) }}
     {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>
 {% else %}
 <div class="form-floating{% if not no_margin %} mb-3{% endif %}">
     {{ field(class="form-control", **kwargs) }}
-    {{ field.label }}
+    {{ form_label(field, required=label_required) }}
     {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>
 {% endif %}
@@ -64,7 +71,7 @@
   {% set type = checkbox_field.meta.get_field_type(checkbox_field) %}
   <div class="form-check{% if type == 'switch' %} form-switch{% endif %}">
     {{ checkbox_field(class="form-check-input", value=1, **kwargs) }}
-    {{ checkbox_field.label(class="form-check-label") }}
+    {{ form_label(checkbox_field, required=label_required, class="form-check-label") }}
     {% if help_text or checkbox_field.description %}
       <div class="form-text">
         {{ help_text or checkbox_field.description }}
@@ -147,8 +154,10 @@
     Don't change it or the "Read More" links won't work.
 #}
 
+{% set label_required = kwargs['required'] if 'required' in kwargs else None %}
+
 <fieldset>
-  <legend class="mt-3 mb-0 form-text">{{ target_field.label }}{% if not admin_area and (help_text or target_field.description) %}&nbsp; {{ help_text or target_field.description }}{% endif %}</legend>
+  <legend class="mt-3 mb-0 form-text">{{ form_label(target_field, required=label_required) }}{% if not admin_area and (help_text or target_field.description) %}&nbsp; {{ help_text or target_field.description }}{% endif %}</legend>
 <div class="card-group mt-0 mb-3">
 {% for opt in opts %}
 <div class="card {{ text_class }}">
@@ -212,7 +221,10 @@
   <div class="col-12 col-sm-6">
     {{ form_input(form_obj.country) }}
     <div class="form-floating selectToAutocomplete">
-      <label for="{{ form_obj.country.id }}-selectToAutocomplete">{{ form_obj.country.label }}</label>
+      <label for="{{ form_obj.country.id }}-selectToAutocomplete">
+        {{ form_obj.country.label.text }}
+        {% if form_obj.country.flags.required %} <span class="text-danger">*</span>{% endif %}
+      </label>
     </div>
   </div>
   <div class="col-12 col-sm-6">
