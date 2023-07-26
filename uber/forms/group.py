@@ -36,8 +36,8 @@ class AdminGroupInfo(GroupInfo):
     new_badge_type = SelectField('Badge Type', choices=c.BADGE_OPTS, coerce=int)
     cost = IntegerField('Total Group Price', widget=DollarInput())
     auto_recalc = BooleanField('Automatically recalculate this number.')
-    amount_paid = StringField('Amount Paid', render_kw={'disabled': "disabled"})
-    amount_refunded = StringField('Amount Refunded', render_kw={'disabled': "disabled"})
+    amount_paid_dollars = StringField('Amount Paid', render_kw={'disabled': "disabled"})
+    amount_refunded_dollars = StringField('Amount Refunded', render_kw={'disabled': "disabled"})
 
 
 class ContactInfo(AddressForm, MagForm):

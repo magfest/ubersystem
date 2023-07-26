@@ -336,6 +336,14 @@ class Group(MagModel, TakesPaymentMixin):
     def amount_pending(self):
         return self.active_receipt.get('pending_total', 0)
 
+    @property
+    def amount_paid_dollars(self):
+        return self.amount_paid / 100
+    
+    @property
+    def amount_refunded_dollars(self):
+        return self.amount_refunded / 100
+
     @hybrid_property
     def amount_paid(self):
         return self.active_receipt.get('payment_total', 0)
