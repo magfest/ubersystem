@@ -276,7 +276,7 @@ class Root:
 
         if edit_id is not None:
             group = self._get_unsaved(edit_id, PreregCart.pending_dealers)
-            badges = getattr(group, 'badges', 0)
+            badges = getattr(group, 'badge_count', 0)
 
         if params.get('old_group_id'):
             old_group = session.group(params['old_group_id'])
@@ -293,7 +293,7 @@ class Root:
             if not message:
                 track_type = c.UNPAID_PREREG
                 PreregCart.pending_dealers[group.id] = PreregCart.to_sessionized(group,
-                                                                                 badges=params.get('badges'))
+                                                                                 badge_count=badges)
                 Tracking.track(track_type, group)
                 if 'go_to_cart' in params:
                     raise HTTPRedirect('additional_info?group_id={}'.format(group.id, "&editing={}".format(edit_id) if edit_id else ""))
@@ -333,7 +333,7 @@ class Root:
         
         attendee.paid = c.PAID_BY_GROUP
         group.attendees = [attendee]
-        session.assign_badges(group, group.badges)
+        session.assign_badges(group, group.badge_count)
         group.status = c.WAITLISTED if c.DEALER_REG_SOFT_CLOSED else c.UNAPPROVED
         attendee.ribbon = add_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
         attendee.badge_type = c.ATTENDEE_BADGE
@@ -419,8 +419,6 @@ class Root:
             }
 
         if cherrypy.request.method == 'POST':
-            message = message or check(attendee, prereg=True)
-
             if attendee.badge_type == c.PSEUDO_GROUP_BADGE:
                 message = "Please enter a group name" if not params.get('name') else message
             else:
@@ -433,8 +431,22 @@ class Root:
                 if 'group_id' in params and attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                     group = self._get_unsaved(params['group_id'], PreregCart.pending_dealers)
                     attendee.group_id = params['group_id']
+
+                    if params.get('copy_email'):
+                        attendee.email = group.email_address
+                    if params.get('copy_phone'):
+                        attendee.cellphone = group.phone
+                    if params.get('copy_address'):
+                        attendee.address1 = group.address1
+                        attendee.address2 = group.address2
+                        attendee.country = group.country
+                        attendee.region = group.region
+                        attendee.city = group.city
+                        attendee.zip_code = group.zip_code
+
                     group.attendees = [attendee]
-                    PreregCart.pending_dealers[group.id] = PreregCart.to_sessionized(group, badges=group.badges)
+                    PreregCart.pending_dealers[group.id] = PreregCart.to_sessionized(group,
+                                                                                     badge_count=group.badge_count)
                     Tracking.track(track_type, group)
                     url_string = "group_id={}".format(group.id)
                 else:
@@ -498,7 +510,7 @@ class Root:
                 form.populate_obj(attendee)
             if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                 group.attendees = [attendee]
-                PreregCart.pending_dealers[group.id] = PreregCart.to_sessionized(group, badges=group.badges)
+                PreregCart.pending_dealers[group.id] = PreregCart.to_sessionized(group, badge_count=group.badge_count)
                 raise HTTPRedirect('finish_dealer_reg?id={}', attendee.group_id)
             PreregCart.unpaid_preregs[attendee.id] = PreregCart.to_sessionized(attendee, name=attendee.name, badges=attendee.badges)
             Tracking.track(c.EDITED_PREREG, attendee)

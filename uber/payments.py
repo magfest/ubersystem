@@ -141,13 +141,14 @@ class PreregCart:
                     d[key] = params.get(key)
             return d
         elif isinstance(m, Group):
-            return m.to_dict(
+            d = m.to_dict(
                 Group.to_dict_default_attrs
                 + ['attendees']
                 + list(Group._extra_apply_attrs_restricted))
             for key in params:
                 if params.get(key):
                     d[key] = params.get(key)
+            return d
         else:
             raise AssertionError('{} is not an attendee or group'.format(m))
 
@@ -167,7 +168,10 @@ class PreregCart:
     @classmethod
     def from_sessionized_group(cls, d):
         d = dict(d, attendees=[cls.from_sessionized_attendee(a) for a in d.get('attendees', [])])
-        return uber.models.Group(_defer_defaults_=True, **d)
+        badge_count = d.pop('badge_count', 0)
+        g = uber.models.Group(_defer_defaults_=True, **d)
+        g.badge_count = d['badge_count'] = badge_count
+        return g
 
     @classmethod
     def from_sessionized_attendee(cls, d):
