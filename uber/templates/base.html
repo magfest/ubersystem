@@ -220,9 +220,11 @@
         };
 
         $(function() {
+            {% if c.PRE_CON and c.SLOW_LOAD_CHECK %}
             $(window).on('load', function() {
                 $(".loader").fadeOut("fast");
             });
+            {% endif %}
 
             // This nonsense is so we can have line breaks AND unescaped quotes in our messages
             var message = '{{ message|tojson|safe if message else "" }}';
