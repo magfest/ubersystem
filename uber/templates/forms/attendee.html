@@ -657,7 +657,7 @@ $().ready(function() {
       </label>
       <div class="col-sm-9">
         {% if c.PREREG_DONATION_DESCRIPTIONS or c.FORMATTED_DONATION_DESCRIPTIONS and not attendee.is_new and attendee.amount_extra %}
-          <div data-toggle="buttons" class="btn-group-inline">
+          <div data-bs-toggle="buttons" class="btn-group-inline">
             {% for tier in c.FORMATTED_DONATION_DESCRIPTIONS %}
               {% if tier in c.PREREG_DONATION_DESCRIPTIONS or attendee.amount_extra == tier.price %}
                 <label class="btn btn-outline-secondary btn-inline">

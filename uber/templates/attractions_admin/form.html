@@ -556,7 +556,7 @@
       $('a[href="' + activeTab + '"]').tab('show');
     }
 
-    $('body').on('click', 'a[data-toggle="pill"]', function (e) {
+    $('body').on('click', 'a[data-bs-toggle="pill"]', function (e) {
       e.preventDefault();
       var tab_name = this.getAttribute('href');
       if (history.pushState) {
@@ -571,7 +571,7 @@
     });
 
     $(window).on('popstate', function () {
-      var anchor = location.hash || $('a[data-toggle="pill"]').first().attr('href');
+      var anchor = location.hash || $('a[data-bs-toggle="pill"]').first().attr('href');
       $('a[href="' + anchor + '"]').tab('show');
     });
   });
@@ -663,8 +663,8 @@
     <button
         type="button"
         class="btn btn-xs btn-primary"
-        data-toggle="modal"
-        data-target="#edit_attraction"
+        data-bs-toggle="modal"
+        data-bs-target="#edit_attraction"
         title="Edit the {{ attraction.name }} Attraction">
       <i class="fa fa-cog"></i>
     </button>
@@ -744,7 +744,7 @@
       <ul class="nav nav-pills nav-sm-stacked">
         {% for feature in attraction.features %}
           <li role="presentation" class="nav-item">
-            <a class="nav-link{% if loop.index0 == 0 %} active{% endif %}" href="#feature_{{ feature.id }}" data-toggle="pill">
+            <a class="nav-link{% if loop.index0 == 0 %} active{% endif %}" href="#feature_{{ feature.id }}" data-bs-toggle="pill">
               <h3>{{ feature.name }}</h3>
             </a>
           </li>

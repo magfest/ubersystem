@@ -11,7 +11,7 @@
 
 {% macro upgrade_button(upgrade_btn_id, text="Upgrade") %}
 {% if receipt and receipt.current_amount_owed <= 0 and money_fields_ro %}
-  <a class="btn btn-sm btn-success" id="upgrade-{{ upgrade_btn_id }}-btn" data-toggle="modal" data-target="#upgradeModal">
+  <a class="btn btn-sm btn-success" id="upgrade-{{ upgrade_btn_id }}-btn" data-bs-toggle="modal" data-bs-target="#upgradeModal">
     <span class="glyphicon glyphicon-circle-arrow-up"></span> {{ text }}
   </a>
 {% endif %}
@@ -119,7 +119,7 @@
 
 
 {% macro button_radio_opts(field_name, choices, suffix='', default='', is_readonly=False, is_required=False) -%}
-  <div data-toggle="buttons" class="btn-group btn-group-toggle form-control-static">
+  <div data-bs-toggle="buttons" class="btn-group btn-group-toggle form-control-static">
     {% for choice in choices -%}
       {%- set value = choice[0] -%}
       {%- set label = choice[1] -%}

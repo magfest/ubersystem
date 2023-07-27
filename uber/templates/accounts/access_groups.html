@@ -157,7 +157,7 @@
           <tbody>
           {% for section in c.ADMIN_PAGES %}
             <tr>
-              <td class="clickable" data-toggle="collapse" id="{{ section }}" data-target=".{{ section }}">
+              <td class="clickable" data-bs-toggle="collapse" id="{{ section }}" data-bs-target=".{{ section }}">
                 <i class="fa fa-plus"></i>
               </td>
               <td>{{ section|replace('_', ' ')|title }}</td>

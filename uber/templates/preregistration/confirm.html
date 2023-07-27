@@ -54,7 +54,7 @@
             {% else %}
             <div class="alert alert-danger" role="alert">
               You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
-              Please <a href="" data-toggle="modal" data-target="#receiptModal">check your receipt here</a> to pay.
+              Please <a href="" data-bs-toggle="modal" data-bs-target="#receiptModal">check your receipt here</a> to pay.
             </div>
             {% endif %}
         {% elif attendee.badge_status == c.PENDING_STATUS %}
@@ -132,7 +132,7 @@
           {% endif %}
           {% endif %}
           {% if receipt %}
-            <a class="btn btn-info" data-toggle="modal" data-target="#receiptModal">
+            <a class="btn btn-info" data-bs-toggle="modal" data-bs-target="#receiptModal">
               <i class="fa fa-list-alt"></i> Receipt
             </a>
           {% endif %}

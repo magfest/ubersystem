@@ -30,7 +30,7 @@
             <label class="col-sm-3 control-label">Is This Piece For Sale?</label>
             {% set is_for_sale = not is_class and piece.valid_for_sale %}
             {% set not_for_sale = not is_class and not piece.valid_for_sale %}
-            <div class="btn-group btn-group-toggle col-sm-6" data-toggle="buttons">
+            <div class="btn-group btn-group-toggle col-sm-6" data-bs-toggle="buttons">
               <label class="btn btn-outline-secondary{% if is_for_sale %} active{% endif %}">
                 <input type="radio" name="for_sale" value="1" {% if is_for_sale %}checked="checked"{% endif %} autocomplete="off" required="required"> Yes
               </label>

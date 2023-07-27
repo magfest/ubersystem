@@ -51,7 +51,7 @@
         
         <script type="text/javascript">
             $(window).on("runJavaScript", function () {
-              $('[data-toggle="tooltip"]').tooltip();
+              $('[data-bs-toggle="tooltip"]').tooltip();
             })
 
             {% if not c.DEV_BOX %}jQuery.migrateMute = true;{% endif %}

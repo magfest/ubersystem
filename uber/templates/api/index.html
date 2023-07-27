@@ -84,7 +84,7 @@
 
   <h1>
     API Access{% if not admin_account.is_super_admin %} for {{ admin_account.attendee|form_link }}{% endif %}
-    <button type="button" class="btn btn-sm btn-primary pull-right" data-toggle="modal" data-target="#new_token">
+    <button type="button" class="btn btn-sm btn-primary pull-right" data-bs-toggle="modal" data-bs-target="#new_token">
       <i class="fa fa-plus"></i>
       New API Token
     </button>
