@@ -14,6 +14,7 @@ from sqlalchemy.sql.elements import not_
 from sqlalchemy.types import Boolean, Integer, Numeric
 
 from uber.config import c
+from uber.custom_tags import format_currency
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
@@ -337,12 +338,12 @@ class Group(MagModel, TakesPaymentMixin):
         return self.active_receipt.get('pending_total', 0)
 
     @property
-    def amount_paid_dollars(self):
-        return self.amount_paid / 100
+    def amount_paid_repr(self):
+        return format_currency(self.amount_paid / 100)
     
     @property
-    def amount_refunded_dollars(self):
-        return self.amount_refunded / 100
+    def amount_refunded_repr(self):
+        return format_currency(self.amount_refunded / 100)
 
     @hybrid_property
     def amount_paid(self):

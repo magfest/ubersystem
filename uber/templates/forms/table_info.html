@@ -49,10 +49,10 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     </div>
     {% if group.cost %}
     <div class="col-12 col-sm-3">
-        {{ form_macros.form_input(table_info.amount_paid_dollars) }}
+        {{ form_macros.form_input(table_info.amount_paid_repr) }}
     </div>
     <div class="col-12 col-sm-3">
-        {{ form_macros.form_input(table_info.amount_refunded_dollars) }}
+        {{ form_macros.form_input(table_info.amount_refunded_repr) }}
     </div>
     {% endif %}
 </div>
