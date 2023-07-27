@@ -1,15 +1,10 @@
 {% extends "./preregistration/preregbase.html" %}
-{% set name_ro = not attendee.placeholder %}
 {% set assigned_depts_ro = True %}
 {% set amount_extra_ro = True if attendee.badge_status == c.DEFERRED_STATUS else False %}
-{% set money_fields_ro = True if receipt %}
-{% set page_ro = not attendee.is_valid %}
+{% set money_fields_ro = True if receipt else False %}
 {% import "forms/attendee.html" as attendee_fields with context %}
 {% import 'forms/macros.html' as form_macros with context %}
-{% set title_text = "Confirm Your Details %}
-{% block backlink %}
-{{ super() }}
-{% endblock %}
+{% set title_text = "Confirm Your Details" %}
 {% block content %}
 
 <script type="text/javascript">
@@ -37,7 +32,6 @@
     {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_applications or attendee.is_group_leader %}
       {% include 'confirm_tabs.html' with context %}
     {% endif %}
-    {% block panel_top %}{% endblock %}
 
     {% if c.ART_SHOW_ENABLED and not attendee.is_new %}
       {% include 'art_show_common/art_show_agent.html' %}
@@ -114,10 +108,7 @@
         <input type="hidden" name="return_to" value="{{ return_to }}" />
         <input type="hidden" name="undoing_extra" value="{{ undoing_extra }}" />
         <input type="hidden" name="placeholder" value="" />
-  
-        {% block form_top %}{% endblock %}
 
-      {% include 'forms/prereg_intro.html' %}
       {% include "forms/badge_extras.html" %}
       {% include "forms/personal_info.html" %}
       {% include "forms/other_info.html" %}
