@@ -4,25 +4,6 @@
 {% import 'forms/macros.html' as form_macros with context %}
 {% set title_text = "Dealer Registration Step 1 of 4: Table Info" %}
 {% block content %}
-  {% if c.PAGE_PATH == '/preregistration/dealer_registration' %}
-    {% include 'preregistration/disclaimer_popup.html' %}
-  {% elif c.ATTENDEE_ACCOUNTS_ENABLED and not logged_in_account %}
-  <script type="text/javascript">
-    $(document).ready(function() {
-      $("#account-form").submit(function () { $("#prereg-form").submit(); });
-      $("#prereg-form").submit(function () { 
-        var success = validateAndIncludeAccountFields();
-          if (!success) {
-            return false;
-          }
-          if(!$(this)[0].checkValidity()) {
-            $(this)[0].reportValidity();
-            return false;
-          }
-        });
-    });
-  </script>
-  {% endif %}
 {% set original_location = ".." ~ c.PAGE_PATH %}
 <div class="card">
   <div class="card-body">

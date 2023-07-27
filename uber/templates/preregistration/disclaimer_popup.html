@@ -4,27 +4,9 @@
       disclaimersConfirmed = true;
       $("#prereg-form").submit();
     }
-    {% if logged_in_account or not c.ATTENDEE_ACCOUNTS_ENABLED %}
     var openDisclaimersModal = function() {
-      if(!$("#prereg-form")[0].checkValidity()) {
-        $("#prereg-form")[0].reportValidity();
-      } else {
-        bootstrap.Modal.getOrCreateInstance($('#disclaimers_modal')).show();
-      }
-    }
-    {% else %}
-    var openDisclaimersModal = function() {
-      var success = validateAndIncludeAccountFields();
-      if (!success) {
-        return false;
-      }
-      if(!$("#prereg-form")[0].checkValidity()) {
-        $("#prereg-form")[0].reportValidity();
-        return false;
-      }
       bootstrap.Modal.getOrCreateInstance($('#disclaimers_modal')).show();
     }
-    {% endif %}
     
   </script>
 
