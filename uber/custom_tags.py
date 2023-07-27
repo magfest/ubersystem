@@ -694,6 +694,8 @@ def stripe_form(action, model=None, **params):
         new_params['params'][key] = val
     new_params['action'] = action
     new_params['id'] = model.id if model else None
+    new_params['cc_full_name'] = model.full_name if hasattr(model, 'full_name') else params.get('full_name', '')
+    new_params['cc_zip_code'] = model.zip_code if hasattr(model, 'zip_code') else params.get('zip_code', '')
 
     return safe_string(render('preregistration/stripeForm.html', new_params).decode('utf-8'))
 

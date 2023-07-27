@@ -746,6 +746,7 @@ class Root:
                 except Exception:
                     pass  # this badge must have subsequently been transferred or deleted
             return {
+                'logged_in_account': session.current_attendee_account(),
                 'preregs': preregs,
                 'is_prereg_dealer': False,
                 'total_cost': total_cost,

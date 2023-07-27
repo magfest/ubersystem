@@ -1,12 +1,14 @@
+{% set full_name = cart.attendees[0].full_name if cart.attendees|length > 0 else "" %}
+{% set zip_code = cart.attendees[0].zip_code if cart.attendees|length > 0 else "" %}
+
 {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
 {% set original_location = ".." ~ c.PAGE_PATH %}
-{% if logged_in_account %}
 <div class="row">
     <div class="text-center">
       <a href="form">{{ macros.stripe_button("Add Another Registration") }}</a>
       or
     {% if cart.total_cost > 0 %}
-        {{ stripe_form('prereg_payment') }}
+        {{ stripe_form('prereg_payment', full_name=full_name, zip_code=zip_code) }}
     {% else %}
         <a href="process_free_prereg">{{ macros.stripe_button("Complete Registration!") }}</a>
     {% endif %}
@@ -14,31 +16,10 @@
 </div>
 {% else %}
 <div class="row">
-    <div class="col-sm-6 col-sm-offset-3">
-      <a href="form">{{ macros.stripe_button("Add Another Registration") }}</a>
-    </div>
-    <div class="col-sm-6 col-sm-offset-3 form-control-static">or</div>
-</div>
-
-  <div class="form-group" id="payment_button">
-    <div class="col-sm-6 col-sm-offset-3">
-        {% if cart.total_cost > 0 %}
-            {{ stripe_form('prereg_payment') }}
-        {% else %}
-            <a href="process_free_prereg">{{ macros.stripe_button("Complete Registration!") }}</a>
-        {% endif %}
-    </div>
-  </div>
-<script type="text/javascript">
-    $('#payment_button').insertAfter($('#confirm-password').parents('.form-group'));
-</script>
-{% endif %}
-{% else %}
-<div class="row">
     <div class="col-sm-8 col-sm-offset-2">
     <div class="col-sm-5 text-center">
         {% if cart.total_cost > 0 %}
-            {{ stripe_form('prereg_payment') }}
+            {{ stripe_form('prereg_payment', full_name=full_name, zip_code=zip_code) }}
         {% else %}
             <a href="process_free_prereg">{{ macros.stripe_button("Complete Registration!") }}</a>
         {% endif %}
