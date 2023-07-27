@@ -146,7 +146,7 @@
 </script>
 {%- endmacro %}
 
-{% macro card_select(target_field, opts, text_class="text-center", help_text="") %}
+{% macro card_select(target_field, opts, text_class="text-center", help_text="", disabled_opts=[], disabled_hover_text="Sold Out") %}
 {# 
     A set of card elements generated from opts. Each item in opts should include the following fields:
         name (str): The title displayed at the top of the card.
@@ -170,27 +170,44 @@
     {% if not admin_area and (help_text or target_field.description) %}&nbsp; {{ help_text or target_field.description }}{% endif %}</legend>
 <div class="card-group mt-0 mb-3">
 {% for opt in opts %}
-<div class="card {{ text_class }}">
-    <div class="card-header" style="transform: rotate(0);">
-        <label for="{{ target_field.id }}-{{ opt.value }}" class="h5 card-title mb-0">
-            <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card"
-            data-value="{{ opt.value }}">{{ opt.name }}</a>{% if opt.price %}: {{ opt.price|format_currency }}{% endif %}
-        </label>
-    </div>
-    <div class="card-body" style="transform: rotate(0);">
-    {% if opt.icon %}
-        <img src="{{ opt.icon }}" class="card-img" alt="{{ opt.name }} Icon">
-    {% endif %}
-        <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card"
-            data-value="{{ opt.value }}">{{ opt.desc|safe }}</a>
-            <input type="radio" id="{{ target_field.id }}-{{ opt.value }}" name="card-{{ target_field.id }}" class="visually-hidden" value="{{ opt.value }}" />
-    </div>
-    {% if opt.link %}
-    <div class="card-footer">
-        {{ macros.popup_link(opt.link, 'Read More') }}
-    </div>
-    {% endif %}
-</div>
+{% set disabled_card = opt.value in disabled_opts %}
+  <div class="card {{ text_class }}{% if disabled_card %} disabled-card bg-secondary text-white{% endif %}">
+      <div class="card-header" style="transform: rotate(0);">
+          <label for="{{ target_field.id }}-{{ opt.value }}" class="h5 card-title mb-0">
+            {% if disabled_card %}
+            {{ opt.name }}{% if opt.price %}: {{ opt.price|format_currency }}{% endif %}
+            {% else %}
+              <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card"
+              data-value="{{ opt.value }}">{{ opt.name }}</a>{% if opt.price %}: {{ opt.price|format_currency }}{% endif %}
+            {% endif %}
+          </label>
+      </div>
+      <div class="card-body" style="transform: rotate(0);">
+      {% if opt.icon %}
+          <img src="{{ opt.icon }}" class="card-img" alt="{{ opt.name }} Icon">
+      {% endif %}
+          {% if disabled_card %}
+          {{ opt.desc|safe }}
+          {% else %}
+          <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card"
+              data-value="{{ opt.value }}">{{ opt.desc|safe }}</a>
+              <input type="radio" id="{{ target_field.id }}-{{ opt.value }}" name="card-{{ target_field.id }}" class="visually-hidden" value="{{ opt.value }}" />
+          {% endif %}
+      </div>
+      {% if opt.link %}
+      <div class="card-footer">
+          {{ macros.popup_link(opt.link, 'Read More') }}
+      </div>
+      {% endif %}
+      {% if disabled_card %}
+      {% set rotate_deg = "-33" %}
+      <div class="disabled-overlay position-absolute h-100 w-100" style="background: rgba(0,0,0,0.66)">
+        <span style="text-shadow: 0px 0px 7px rgba(0, 0, 0, 1); transform: translateX(-50%) translateY(-50%) rotate(-15deg);" class="text-uppercase text-center position-absolute w-100 fw-bolder top-50 start-50 translate-middle h2">
+          {{ disabled_hover_text }}
+        </span>
+      </div>
+      {% endif %}
+  </div>
 {% endfor %}
 </div>
 </fieldset>
@@ -216,6 +233,14 @@
     });
     var makeBadgeMatchExtra = function () {}; // TODO: Remove
 </script>
+<style type="text/css">
+  .disabled-card .disabled-overlay {
+    display: none;
+}
+.disabled-card:hover .disabled-overlay {
+    display: block;
+}
+</style>
 {%- endmacro %}
 
 {% macro address_fields(model, form_obj) %}
