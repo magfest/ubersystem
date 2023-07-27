@@ -12,8 +12,8 @@ from uber.forms.widgets import *
 from uber.model_checks import invalid_zip_code
 
 
-def get_override_attr(form, field_name, suffix):
-    return getattr(form, field_name + suffix, lambda: '')()
+def get_override_attr(form, field_name, suffix, *args):
+    return getattr(form, field_name + suffix, lambda *args: '')(*args)
 
 
 def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=True, truncate_prefix='admin'):
@@ -25,8 +25,7 @@ def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=Tr
 
     After loading a form, each field's built-in validators are altered -- this allows us to alter what validations get
     rendered on the page. We use get_optional_fields to mark fields as optional as dictated by their model, and
-    we look for a field_name_extra_validators function -- any validators that match existing validators will replace
-    them, and any extra validators will be added to the field.
+    we look for a field_name_validators function to replace existing validators via event plugins.
 
     `params` should be a dictionary from a form submission, usually passed straight from the page handler.
     `model` is the object itself, e.g., the attendee we're loading the form for.
@@ -69,11 +68,9 @@ def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=Tr
             if name in optional_fields:
                 field.validators = [validators.Optional()]
             else:
-                extra_validators = get_override_attr(loaded_form, name, '_extra_validators')
-                if extra_validators:
-                    extra_validator_classes = map(lambda x: x.__class__, extra_validators)
-                    field.validators = [validator for validator in field.validators 
-                                        if validator.__class__ not in extra_validator_classes] + extra_validators
+                override_validators = get_override_attr(loaded_form, name, '_validators', field)
+                if override_validators:
+                    field.validators = override_validators
 
         form_label = re.sub(r'(?<!^)(?=[A-Z])', '_', cls).lower()
         if truncate_prefix and form_label.startswith(truncate_prefix + '_'):
