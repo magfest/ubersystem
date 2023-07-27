@@ -50,8 +50,9 @@
         <span class="h4 modal-title text-center"></span>
         </div>
         <div class="modal-body text-start jumbotron">
-        <div class="charge_desc" style="margin-bottom:10px;"></div>
         {% if c.AUTHORIZENET_LOGIN_ID %}
+        <div class="alert alert-dismissible" role="alert" id="cc-message-alert"><span></span><button type="button" class="btn-close" onClick="hideMessage('cc-message-alert')" aria-label="Close"></button></div>
+        <div class="charge_desc" style="margin-bottom:10px;"></div>
             <form id="payment-form" class="d-none"
                 method="POST"
                 action="index">
@@ -80,6 +81,7 @@
                 </div>
             </form>
         {% else %}
+        <div class="charge_desc" style="margin-bottom:10px;"></div>
         <form action="/charge" method="post" id="payment-form" class="d-none">
         <div class="form-row">
             <label for="card-element">
@@ -168,14 +170,14 @@ var collectAuthNetPayment = function (ref_id, email, desc, success_url, cancel_u
         apiLoginID: "{{ c.AUTHORIZENET_LOGIN_ID }}"
     };
 
-    bootstrap.Modal.getOrCreateInstance($('#stripeModal')).show();
-    $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+    stripeModal = new bootstrap.Modal($('#stripeModal'))
+
+    stripeModal.show();
+    $("#cc-message-alert").hide().removeClass().addClass("alert alert-dismissible").children("span").html("");
 
     var handleAuthNetResponse = function (response) {
         if (response.messages.resultCode === "Error") {
-            $("#message-alert").addClass("alert-danger").show().children('span').html(response.messages.message[0].text);
-            form.addClass('d-none');
-            $('#stripeModal').off('hidden.bs.modal');
+            showErrorMessage(response.messages.message[0].text, "cc-message-alert")
 
             var i = 0;
             while (i < response.messages.message.length) {
