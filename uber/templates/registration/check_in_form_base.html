@@ -127,7 +127,7 @@ $().ready(function() {
         <div class="form-group">
             <label for="birthdate" class="col-sm-3 control-label">Date of Birth</label>
             <div class="col-sm-6">
-                <input type="text" id="checkin-birthdate" name="birthdate" class="date" value="{{ attendee.birthdate|datetime("%Y-%m-%d")}}" />
+                <input type="text" id="checkin-birthdate" name="birthdate" class="date" value="{{ attendee.birthdate|datetime("%Y-%m-%d") }}" />
             </div>
         </div>
          {% if attendee.birthdate %}
@@ -337,7 +337,7 @@ $().ready(function() {
         });
     };
 
-    age = {{ attendee.age_now_or_at_con|default(0, true)}};
+    age = {{ attendee.age_now_or_at_con|default(0, true) }};
     if (age < 18 && $.field('printer_id')) {
         $.field('printer_id').val(printer_minor_id);
     } else if (age >= 18 && $.field('printer_id')) {

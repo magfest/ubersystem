@@ -39,7 +39,7 @@
 </div>
 
 <script type="text/javascript">
-age = {{ attendee.age_now_or_at_con|default(0, true)}};
+age = {{ attendee.age_now_or_at_con|default(0, true) }};
 
 if (age < 18) {
     $.field('printer_id').val(printer_minor_id);
