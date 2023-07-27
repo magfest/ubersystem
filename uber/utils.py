@@ -551,14 +551,15 @@ def validate_model(forms, model, preview_model, extra_validators_module=None):
         valid = module.validate(extra_validators=extra_validators)
         if not valid:
             for key, val in module.errors.items():
-                all_errors[key].extend(val)
+                all_errors[key].extend(map(str, val))
 
     if extra_validators_module:
         for key, val in extra_validators_module.post_form_validation.get_validation_dict().items():
             for func in val:
                 message = func(preview_model)
                 if message:
-                    all_errors[key].append(message)
+                    all_errors[key].append(str(message))
+
     if all_errors:
         return all_errors
 
