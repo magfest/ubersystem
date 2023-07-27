@@ -172,7 +172,8 @@ class MagForm(Form):
         """
         locked_fields = [] if is_admin else self.get_non_admin_locked_fields(obj)
         for name, field in self._fields.items():
-            if name in locked_fields:
+            obj_data = getattr(obj, name, None)
+            if name in locked_fields and obj_data and field.data != obj_data:
                 log.warning("Someone tried to edit their {} value, but it was locked. \
                             This is either a programming error or a malicious actor.".format(name))
                 continue

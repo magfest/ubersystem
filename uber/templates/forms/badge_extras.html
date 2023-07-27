@@ -38,7 +38,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {{ badge_extras.amount_extra }}
 {% if c.DONATIONS_ENABLED and (prereg_merch_available or attendee.amount_extra) %}
 <div class="row g-sm-3">
-{{ form_macros.card_select(badge_extras.amount_extra, c.FORMATTED_DONATION_DESCRIPTIONS_EXCLUSIVE)}}
+{{ form_macros.card_select(badge_extras.amount_extra, c.FORMATTED_DONATION_DESCRIPTIONS_EXCLUSIVE) }}
 </div>
 {{ form_macros.toggle_fields_js(badge_extras.amount_extra, [badge_extras.shirt], off_values=["0"], toggle_required=True) }}
 {% endif %}
@@ -55,7 +55,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% block donation %}
 {% if c.COLLECT_EXTRA_DONATION %}
 <div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.extra_donation, readonly=extra_donation_ro or money_fields_ro or page_ro) }}</div>
+    <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.extra_donation) }}</div>
 
     {% if not admin_area %}
     <div class="col-12 col-sm-6">

@@ -16,7 +16,6 @@ from uber.validations import attendee as attendee_validators
 __all__ = ['AdminInfo', 'BadgeExtras', 'PersonalInfo', 'OtherInfo', 'Consents']
 
 class PersonalInfo(AddressForm, MagForm):
-    badge_type = HiddenIntField('Badge Type')
     first_name = StringField('First Name', validators=[
         validators.InputRequired("Please provide your first name.")
         ], render_kw={'autocomplete': "fname"})
@@ -87,10 +86,18 @@ class PersonalInfo(AddressForm, MagForm):
         return optional_list
     
     def get_non_admin_locked_fields(self, attendee):
+        locked_fields = []
+
+        if not attendee.is_valid or attendee.badge_status == c.REFUNDED_STATUS:
+            return list(self._fields.keys())
+
         if attendee.is_new:
-            return []
+            return locked_fields
+
+        if attendee.placeholder:
+            return locked_fields
         
-        return ['badge_type', 'first_name', 'last_name', 'legal_name', 'same_legal_name']
+        return locked_fields + ['first_name', 'last_name', 'legal_name', 'same_legal_name']
     
     def validate_onsite_contact(form, field):
         if not field.data and not form.no_onsite_contact.data:
@@ -136,6 +143,22 @@ class BadgeExtras(MagForm):
         validators.Regexp(c.VALID_BADGE_PRINTED_CHARS, message="Your printed badge name has invalid characters. \
                           Please use only alphanumeric characters and symbols.")
         ], description="Badge names have a maximum of 20 characters.")
+    
+    def get_non_admin_locked_fields(self, attendee):
+        locked_fields = []
+
+        if attendee.is_new:
+            return locked_fields
+
+        if not attendee.is_valid or attendee.badge_status == c.REFUNDED_STATUS:
+            return list(self._fields.keys())
+        
+        if attendee.active_receipt:
+            locked_fields.extend(['badge_type', 'amount_extra', 'extra_donation'])
+        elif not c.BADGE_TYPE_PRICES:
+            locked_fields.append('badge_type')
+        
+        return locked_fields
 
     def validate_shirt(form, field):
         if (form.amount_extra.data > 0 or form.badge_type.data in c.BADGE_TYPE_PRICES) and field.data == c.NO_SHIRT:
@@ -149,10 +172,14 @@ class OtherInfo(MagForm):
     interests = SelectMultipleField('What interests you?', choices=c.INTEREST_OPTS, coerce=int, validators=[validators.Optional()], widget=MultiCheckbox())
         
     def get_non_admin_locked_fields(self, attendee):
-        if attendee.is_new:
-            return []
-        
         locked_fields = []
+
+        if attendee.is_new:
+            return locked_fields
+        
+        if not attendee.is_valid or attendee.badge_status == c.REFUNDED_STATUS:
+            return list(self._fields.keys())
+        
         if attendee.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
             locked_fields.append('staffing')
 
@@ -173,6 +200,12 @@ class Consents(MagForm):
     pii_consent = BooleanField(Markup(f'<strong>Yes</strong>, I understand and agree that {c.ORGANIZATION_NAME} will store the personal information I provided above for the limited purposes of contacting me about my registration'),
                                validators=[validators.InputRequired("You must agree to allow us to store your personal information in order to register.")
                                            ], description=Markup('For more information please check out our <a href="{}" target="_blank">Privacy Policy</a>.'.format(c.PRIVACY_POLICY_URL)))
+
+    def get_non_admin_locked_fields(self, attendee):
+        if attendee.is_new or attendee.placeholder:
+            return []
+        
+        return ['pii_consent']
 
     def pii_consent_label(self):
         base_label = f"<strong>Yes</strong>, I understand and agree that {c.ORGANIZATION_NAME} will store the personal information I provided above for the limited purposes of contacting me about my registration"

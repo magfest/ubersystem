@@ -23,10 +23,17 @@
 {% macro form_input(field, help_text='', admin_text='', extra_field=None, no_margin=False) %}
 {% set type = field.meta.get_field_type(field) %}
 {% set label_required = kwargs['required'] if 'required' in kwargs else None %}
-
+{% set disable_checkboxes = 'readonly' in kwargs or 'readonly' in field.render_kw %}
 {% if type in ['checkbox','switch'] %}
 <div class="form-check{% if type == 'switch' %} form-switch{% endif %}{% if not no_margin %} mb-3{% endif %}">
+  {% if disable_checkboxes %}
+  <input type="hidden" name="{{ field.id }}" value="{{ field.data }}" />
+  {{ field(class="form-check-input", checked=field.data, disabled=true, value=1, **kwargs) }}
+  {% else %}
   {{ field(class="form-check-input", checked=field.data, value=1, **kwargs) }}
+  {% endif %}
+
+  
   {{ form_label(field, required=label_required, class="form-check-label") }}
   {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>

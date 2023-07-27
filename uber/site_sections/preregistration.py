@@ -25,7 +25,7 @@ from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, Mod
                         ReceiptTransaction, SignedDocument, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, genpasswd, valid_email, \
-    valid_password, SignNowDocument, validate_model
+    valid_password, SignNowDocument, validate_model, disable_locked_fields
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager
 import uber.validations as validations
 
@@ -287,6 +287,7 @@ class Root:
         forms = load_forms(params, group, group_forms, ['ContactInfo', 'TableInfo'])
         for form in forms.values():
             form.populate_obj(group)
+            disable_locked_fields(form, group)
 
         if cherrypy.request.method == 'POST':
             message = check(group, prereg=True)
@@ -391,6 +392,7 @@ class Root:
         forms = load_forms(params, attendee, attendee_forms, ['PersonalInfo', 'BadgeExtras', 'Consents'])
         for form in forms.values():
             form.populate_obj(attendee)
+            disable_locked_fields(form, attendee)
 
         if cherrypy.request.method == 'POST' or edit_id is not None:
             if not message and attendee.badge_type not in c.PREREG_BADGE_TYPES:
@@ -505,9 +507,11 @@ class Root:
 
         forms = load_forms(params, attendee, attendee_forms, ['PreregOtherInfo'], truncate_prefix="prereg")
 
+        for form in forms.values():
+            form.populate_obj(attendee)
+            disable_locked_fields(form, attendee)
+
         if cherrypy.request.method == "POST":
-            for form in forms.values():
-                form.populate_obj(attendee)
             if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                 group.attendees = [attendee]
                 PreregCart.pending_dealers[group.id] = PreregCart.to_sessionized(group, badge_count=group.badge_count)
@@ -882,6 +886,7 @@ class Root:
         forms = load_forms(params, group, group_forms, form_list)
         for form in forms.values():
             form.populate_obj(group)
+            disable_locked_fields(form, group)
 
         signnow_document = None
         signnow_link = ''
@@ -1376,14 +1381,18 @@ class Root:
         placeholder = attendee.placeholder
 
         receipt = session.get_receipt_by_model(attendee)
-        form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo']
+        form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents']
         if placeholder:
             form_list.append('Consents')
         forms = load_forms(params, attendee, attendee_forms, form_list)
+        if not attendee.is_new and not attendee.placeholder:
+            forms['consents'].pii_consent.data = True
+
+        for form in forms.values():
+            form.populate_obj(attendee)
+            disable_locked_fields(form, attendee)
 
         if cherrypy.request.method == 'POST' and not message:
-            for form in forms.values():
-                form.populate_obj(attendee)
             attendee.placeholder = False
 
             session.add(attendee)
