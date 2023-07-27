@@ -25,10 +25,10 @@ loadAttendeeModal = function() {
         }
         });
     }
-    }
-    // Hide modal on Esc keydown
-    $(document).keydown(function(event) { 
-    if (event.keyCode == 27) { 
+}
+// Hide modal on Esc keydown
+$(document).keydown(function(event) {
+    if (attendee_modal != null && event.keyCode == 27) { 
         attendee_modal.hide();
     }
 });
