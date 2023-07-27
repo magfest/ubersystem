@@ -209,9 +209,8 @@
 
   var compOrUndoRefundItem = function (page_handler, itemId, amount) {
       $.post(page_handler, {csrf_token: csrf_token, id: itemId, amount: amount}, function (response) {
-        toastr.clear();
         if (response.error) {
-          toastr.error(response.error);
+          showErrorMessage(response.error);
         } else {
           window.location = 'receipt_items?id={{ model.id }}&message=' + response.message;
         }
@@ -374,7 +373,7 @@
   </p>
   
   <p>
-    If a payment was made and confirmed through {{ processor_str }}, you can refund part or all of it using the "Refund Transaction" button.
+    If a payment was made and confirmed through {{ processor_str }}, you can refund part or all of it using the "Refund Item" buttons.
     Note that some {{ processor_str }} payments may appear on multiple receipts, for example, when someone registers multiple badges in one transaction.
   </p>
 
@@ -601,7 +600,7 @@ There are no active receipts for this {{ model_str }}.
 </div>
 
 {% for other_receipt in other_receipts %}
-<div class="card">
+<div class="card mt-3">
   <div class="card-header">
     <h3 class="card-title">{{ other_receipt.owner_model }} Receipt</h3>
   </div>
@@ -612,7 +611,7 @@ There are no active receipts for this {{ model_str }}.
 {% endfor %}
 
 {% for closed_receipt in closed_receipts %}
-<div class="card">
+<div class="card mt-3">
   <div class="card-header">
     <h3 class="card-title">Closed Receipt ({{ closed_receipt.closed|datetime_local }})</h3>
   </div>

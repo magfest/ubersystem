@@ -360,15 +360,17 @@ class TransactionRequest:
                 return error
 
             if self.response.transactionStatus == "capturedPendingSettlement":
+                if amount != int(self.response.authAmount * 100):
+                    return "This transaction cannot be partially refunded until it's settled."
                 error = self.send_authorizenet_txn(txn_type=c.VOID, txn_id=txn.charge_id)
             elif self.response.transactionStatus != "settledSuccessfully":
-                return "This transaction cannot be refunded because of invalid status: {}".format(self.response.transactionStatus)
+                return "This transaction cannot be refunded because of an invalid status: {}.".format(self.response.transactionStatus)
             else:
                 if parse(str(self.response.submitTimeUTC)).replace(tzinfo=pytz.UTC) < datetime.now(pytz.UTC) - timedelta(days=180):
                     return "This transaction is more than 180 days old and cannot be refunded automatically."
 
                 if self.response.settleAmount * 100 < self.amount:
-                    return "This transaction was only for {} so it cannot be refunded {}".format(
+                    return "This transaction was only for {} so it cannot be refunded {}.".format(
                         format_currency(self.response.settleAmount),
                         format_currency(self.amount / 100))
                 cc_num = str(self.response.payment.creditCard.cardNumber)[-4:]
@@ -460,7 +462,7 @@ class TransactionRequest:
         
         self.receipt_manager.create_refund_transaction(txn.receipt,
                                                        "Automatic refund of transaction " + txn.stripe_id,
-                                                       self.response_id,
+                                                       str(self.response_id),
                                                        self.amount)
         self.receipt_manager.update_transaction_refund(txn, self.amount)
 
@@ -523,7 +525,7 @@ class TransactionRequest:
         
         transaction = apicontractsv1.transactionRequestType()
 
-        if 'token_desc' or 'cc_num' in params:
+        if 'token_desc' in params or 'cc_num' in params:
             paymentInfo = apicontractsv1.paymentType()
 
             if 'token_desc' in params:
@@ -641,13 +643,16 @@ class ReceiptManager:
                                                     ))
 
     def update_transaction_refund(self, txn, refund_amount):
+        from uber.models import Session
+
         txn.refunded += refund_amount
         self.items_to_add.append(txn)
 
-        model = self.get_model_by_receipt(txn.receipt)
-        if isinstance(model, uber.models.Attendee) and model.paid == c.HAS_PAID:
-            model.paid = c.REFUNDED
-            self.items_to_add.append(model)
+        with Session() as session:
+            model = session.get_model_by_receipt(txn.receipt)
+            if isinstance(model, uber.models.Attendee) and model.paid == c.HAS_PAID:
+                model.paid = c.REFUNDED
+                self.items_to_add.append(model)
 
     @classmethod
     def create_new_receipt(cls, model, create_model=False, items=None):

@@ -121,6 +121,10 @@ class ModelReceipt(MagModel):
     @property
     def pending_txns(self):
         return [txn for txn in self.receipt_txns if txn.is_pending_charge]
+    
+    @property
+    def refundable_txns(self):
+        return [txn for txn in self.receipt_txns if txn.refundable]
 
     @property
     def pending_total(self):
@@ -362,7 +366,7 @@ class ReceiptTransaction(MagModel):
     def update_amount_refunded(self):
         from uber.models import Session
         if c.AUTHORIZENET_LOGIN_ID or not self.intent_id:
-            return 0
+            return 0, ''
         
         last_refund_id = None
         refunded_total = 0

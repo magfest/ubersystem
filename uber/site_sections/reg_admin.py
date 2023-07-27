@@ -385,7 +385,7 @@ class Root:
     def process_full_refund(self, session, id='', attendee_id='', group_id=''):
         receipt = session.model_receipt(id)
         refund_total = 0
-        for txn in receipt.receipt_txns:
+        for txn in receipt.refundable_txns:
             refund = TransactionRequest(receipt, amount=txn.amount_left)
             error = refund.refund_or_skip(txn)
             if error:
