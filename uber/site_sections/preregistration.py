@@ -502,10 +502,8 @@ class Root:
         check_if_can_reg(is_dealer_reg)
 
         attendee, group = self._get_attendee_or_group(params)
-        if 'cellphone' not in params:
-            params['cellphone'] = attendee.cellphone
 
-        forms = load_forms(params, attendee, attendee_forms, ['OtherInfo'])
+        forms = load_forms(params, attendee, attendee_forms, ['PreregOtherInfo'], truncate_prefix="prereg")
 
         if cherrypy.request.method == "POST":
             for form in forms.values():
@@ -1470,9 +1468,6 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, attendee, attendee_forms, form_list, get_optional=False)
-
-        if 'PersonalInfo' in form_list and 'OtherInfo' in form_list:
-            del forms['other_info'].cellphone # TODO: Find a better way to handle these cases
         
         all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()), validations.attendee)
         if all_errors:

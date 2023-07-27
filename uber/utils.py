@@ -529,6 +529,7 @@ def check_pii_consent(params, attendee=None):
 
 def validate_model(forms, model, preview_model, extra_validators_module=None):
     from wtforms import validators
+    from wtforms.validators import ValidationError, StopValidation
 
     all_errors = defaultdict(list)
 
@@ -556,9 +557,12 @@ def validate_model(forms, model, preview_model, extra_validators_module=None):
     if extra_validators_module:
         for key, val in extra_validators_module.post_form_validation.get_validation_dict().items():
             for func in val:
-                message = func(preview_model)
-                if message:
-                    all_errors[key].append(str(message))
+                try:
+                    func(preview_model)
+                except (ValidationError, StopValidation) as e:
+                    all_errors[key].append(str(e))
+                    if isinstance(e, StopValidation):
+                        break
 
     if all_errors:
         return all_errors

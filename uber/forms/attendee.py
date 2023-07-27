@@ -33,7 +33,9 @@ class PersonalInfo(AddressForm, MagForm):
         validators.Email(granular_message=True),
         ],
         render_kw={'placeholder': 'test@example.com'})
-    cellphone = TelField('Phone Number', render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
+    cellphone = TelField('Phone Number', validators=[
+        validators.InputRequired("Please provide a phone number.")
+        ], render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
     birthdate = DateField('Date of Birth', validators=[
         validators.InputRequired("Please enter your date of birth.") if c.COLLECT_EXACT_BIRTHDATE else validators.Optional(),
         attendee_validators.attendee_age_checks
@@ -75,7 +77,7 @@ class PersonalInfo(AddressForm, MagForm):
             optional_list.append('legal_name')
         if self.copy_email.data:
             optional_list.append('email')
-        if self.copy_phone.data or self.no_cellphone.data:
+        if self.copy_phone.data or not attendee.is_dealer:
             optional_list.append('cellphone')
         if self.copy_address.data:
             optional_list.extend(['address1', 'city', 'region', 'region_us', 'region_canada', 'zip_code', 'country'])
@@ -141,11 +143,8 @@ class BadgeExtras(MagForm):
 
 
 class OtherInfo(MagForm):
-    promo_code = StringField('Promo Code')
     staffing = BooleanField('I am interested in volunteering!', widget=SwitchInput(), description=popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?"))
     requested_dept_ids = SelectMultipleField('Where do you want to help?', choices=c.JOB_INTEREST_OPTS, coerce=int, widget=MultiCheckbox())
-    cellphone = TelField('Phone Number', description="A cellphone number is required for volunteers.", render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
-    no_cellphone = BooleanField('I won\'t have a phone with me during the event.')
     requested_accessibility_services = BooleanField(f'I would like to be contacted by the {c.EVENT_NAME} Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', widget=SwitchInput())
     interests = SelectMultipleField('What interests you?', choices=c.INTEREST_OPTS, coerce=int, validators=[validators.Optional()], widget=MultiCheckbox())
         
@@ -153,15 +152,21 @@ class OtherInfo(MagForm):
         if attendee.is_new:
             return []
         
-        locked_fields = ['promo_code']
+        locked_fields = []
         if attendee.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
             locked_fields.append('staffing')
 
         return locked_fields
-    
-    def validate_cellphone(form, field):
-        if form.staffing.data and not field.data and not form.no_cellphone.data:
-            raise ValidationError("A phone number is required for volunteers (unless you don't own a cellphone)")
+
+
+class PreregOtherInfo(OtherInfo):
+    promo_code = StringField('Promo Code')
+    cellphone = TelField('Phone Number', description="A cellphone number is required for volunteers.", render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
+    no_cellphone = BooleanField('I won\'t have a phone with me during the event.')
+
+    def get_non_admin_locked_fields(self, attendee):
+        return super().get_non_admin_locked_fields(attendee)
+
 
 class Consents(MagForm):
     can_spam = BooleanField(f'Please send me emails relating to {c.EVENT_NAME} and {c.ORGANIZATION_NAME} in future years.', description=popup_link("../static_views/privacy.html", "View Our Spam Policy"))

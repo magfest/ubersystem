@@ -14,7 +14,7 @@
   <div class="card-body">
     {{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
 
-    {{ form_macros.form_validation('prereg-form', form_list=['OtherInfo'], include_disclaimers_modal=not editing) }}
+    {{ form_macros.form_validation('prereg-form', form_list=['PreregOtherInfo'], include_disclaimers_modal=not editing) }}
 
     {% if is_prereg_dealer %}
     <div class="text-end">

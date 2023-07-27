@@ -12,7 +12,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 #}
 
 {% block staffing %}
-{% set include_cellphone = (not personal_info or personal_info is none) and not other_info.cellphone.data %}
+{% set include_cellphone = 'cellphone' in other_info and not other_info.cellphone.data %}
 {% set staffing_readonly = False %}
 {% if not admin_area %}
     {% if attendee.badge_type in [c.CONTRACTOR_BADGE, c.STAFF_BADGE] %}
@@ -34,9 +34,8 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% set cellphone_extra_field = form_macros.toggle_checkbox(other_info.no_cellphone, [other_info.cellphone], hide_on_checked=True, toggle_required=True, prop="disabled") %}
     <div class="col-12">{{ form_macros.form_input(other_info.cellphone, extra_field=cellphone_extra_field, readonly=cellphone_ro or (page_ro and not contact_write), required=True) }}</div>
 </div>
-{% elif not personal_info or personal_info is none %}
-{# TODO: handle this better #}
-<input type="hidden" name="no_cellphone" value="{{ other_info.no_cellphone.data }}" />
+{% elif 'cellphone' in other_info %}
+<input type="hidden" name="cellphone" value="{{ other_info.cellphone.data }}" />
 {% endif %}
 
 {% if c.JOB_INTEREST_OPTS or c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}

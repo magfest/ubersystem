@@ -16,7 +16,7 @@ def get_override_attr(form, field_name, suffix):
     return getattr(form, field_name + suffix, lambda: '')()
 
 
-def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=True, truncate_admin=True):
+def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=True, truncate_prefix='admin'):
     """
     Utility function for initializing several Form objects, since most form pages use multiple Form classes.
 
@@ -35,8 +35,9 @@ def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=Tr
         conflicting field names on the same page, e.g., passing {'GroupInfo': 'group_'} will add group_ to all GroupInfo fields.
     `get_optional` is a flag that controls whether or not the forms' get_optional_fields() function is called. Set this to false
         when loading forms for validation, as the validate_model function in utils.py handles optional fields.
-    `truncate_admin` is a flag that removes "admin_" from the beginning of the resulting form names, so that "AdminTableInfo"
-        is saved as "table_info." This is true by default to make building form templates easier.
+    `truncate_prefix` allows you to remove a single word from the form, so e.g. a truncate_prefix of "admin" will make
+        "AdminTableInfo" saved as "table_info." This allows loading admin and prereg versions of forms while using
+        the same form template.
 
     Returns a dictionary of form objects with the snake-case version of the form as the ID, e.g.,
     the PersonalInfo class will be returned as form_dict['personal_info'].
@@ -75,8 +76,8 @@ def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=Tr
                                         if validator.__class__ not in extra_validator_classes] + extra_validators
 
         form_label = re.sub(r'(?<!^)(?=[A-Z])', '_', cls).lower()
-        if truncate_admin and form_label.startswith('admin_'):
-            form_label = form_label[6:]
+        if truncate_prefix and form_label.startswith(truncate_prefix + '_'):
+            form_label = form_label[(len(truncate_prefix) + 1):]
 
         form_dict[form_label] = loaded_form
 

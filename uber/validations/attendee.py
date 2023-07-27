@@ -111,6 +111,7 @@ def volunteers_cellphone_or_checkbox(attendee):
     if not attendee.no_cellphone and attendee.staffing_or_will_be and not attendee.cellphone:
         raise ValidationError("Volunteers and staffers must provide a cellphone number or indicate they do not have a cellphone.")
 
+
 @post_form_validation.promo_code
 def promo_code_is_useful(attendee):
     if attendee.promo_code:
@@ -152,6 +153,7 @@ def promo_code_has_uses_remaining(attendee):
         if (attendee.promo_code.uses_remaining - unpaid_uses_count) < 0:
             raise ValidationError('That promo code has been used too many times.')
 
+
 @post_form_validation.staffing
 def allowed_to_volunteer(attendee):
     if attendee.staffing_or_will_be \
@@ -159,7 +161,8 @@ def allowed_to_volunteer(attendee):
             and attendee.badge_type not in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] \
             and c.PRE_CON:
         raise ValidationError('Your interest is appreciated, but ' + c.EVENT_NAME + ' volunteers must be 18 or older.')
-    
+
+
 @post_form_validation.staffing
 def banned_volunteer(attendee):
     if attendee.staffing_or_will_be and attendee.full_name in c.BANNED_STAFFERS:
