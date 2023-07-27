@@ -16,7 +16,7 @@ def get_override_attr(form, field_name, suffix):
     return getattr(form, field_name + suffix, lambda: '')()
 
 
-def load_forms(params, model, module, form_list, prefix_dict={}, truncate_admin=True):
+def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=True, truncate_admin=True):
     """
     Utility function for initializing several Form objects, since most form pages use multiple Form classes.
 
@@ -33,6 +33,8 @@ def load_forms(params, model, module, form_list, prefix_dict={}, truncate_admin=
     `form_list` is a list of strings of which form classes to load, e.g., ['PersonalInfo', 'BadgeExtras', 'OtherInfo']
     `prefix_dict` is an optional dictionary to load some of the forms with a prefix. This is useful for loading forms with
         conflicting field names on the same page, e.g., passing {'GroupInfo': 'group_'} will add group_ to all GroupInfo fields.
+    `get_optional` is a flag that controls whether or not the forms' get_optional_fields() function is called. Set this to false
+        when loading forms for validation, as the validate_model function in utils.py handles optional fields.
     `truncate_admin` is a flag that removes "admin_" from the beginning of the resulting form names, so that "AdminTableInfo"
         is saved as "table_info." This is true by default to make building form templates easier.
 
@@ -60,7 +62,7 @@ def load_forms(params, model, module, form_list, prefix_dict={}, truncate_admin=
                     alias_dict[aliased_field] = model_val
 
         loaded_form = form_cls(params, model, prefix=prefix_dict.get(cls, ''), data=alias_dict)
-        optional_fields = loaded_form.get_optional_fields(model)
+        optional_fields = loaded_form.get_optional_fields(model) if get_optional else []
 
         for name, field in loaded_form._fields.items():
             if name in optional_fields:

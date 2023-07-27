@@ -502,6 +502,8 @@ class Root:
         check_if_can_reg(is_dealer_reg)
 
         attendee, group = self._get_attendee_or_group(params)
+        if 'cellphone' not in params:
+            params['cellphone'] = attendee.cellphone
 
         forms = load_forms(params, attendee, attendee_forms, ['OtherInfo'])
 
@@ -1441,11 +1443,13 @@ class Root:
             form_list = ['ContactInfo', 'TableInfo']
         elif isinstance(form_list, str):
             form_list = [form_list]
-        forms = load_forms(params, group, group_forms, form_list)
+        forms = load_forms(params, group, group_forms, form_list, get_optional=False)
 
         all_errors = validate_model(forms, group, Group(**group.to_dict()), validations.group)
         if all_errors:
             return {"error": all_errors}
+        
+        return {"success": True}
 
     @ajax
     def validate_attendee(self, session, form_list=[], **params):
@@ -1465,7 +1469,7 @@ class Root:
         elif isinstance(form_list, str):
             form_list = [form_list]
 
-        forms = load_forms(params, attendee, attendee_forms, form_list)
+        forms = load_forms(params, attendee, attendee_forms, form_list, get_optional=False)
 
         if 'PersonalInfo' in form_list and 'OtherInfo' in form_list:
             del forms['other_info'].cellphone # TODO: Find a better way to handle these cases
