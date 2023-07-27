@@ -7,6 +7,7 @@ from wtforms.validators import ValidationError, StopValidation
 from uber.config import c
 from uber.forms import AddressForm, MultiCheckbox, MagForm, IntSelect, SwitchInput, DollarInput, HiddenIntField
 from uber.custom_tags import popup_link, format_currency, pluralize, table_prices
+from uber.model_checks import invalid_phone_number
 
 __all__ = ['GroupInfo', 'ContactInfo', 'TableInfo', 'AdminGroupInfo', 'AdminTableInfo']
 
@@ -56,6 +57,11 @@ class ContactInfo(AddressForm, MagForm):
         optional_list = super().get_optional_fields(group)
         
         return optional_list
+    
+    def validate_phone(form, field):
+        if field.data and invalid_phone_number(field.data):
+            raise ValidationError('Your phone number was not a valid 10-digit US phone number. ' \
+                                    'Please include a country code (e.g. +44) for international numbers.')
 
 
 class TableInfo(GroupInfo):
