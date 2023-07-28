@@ -1,8 +1,5 @@
 {% extends "./preregistration/preregbase.html" %}
 {% set assigned_depts_ro = True %}
-{% set amount_extra_ro = True if attendee.badge_status == c.DEFERRED_STATUS else False %}
-{% set money_fields_ro = True if receipt else False %}
-{% import "forms/attendee.html" as attendee_fields with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 {% set title_text = "Confirm Your Details" %}
 {% block content %}
@@ -97,10 +94,12 @@
         {% endif %}
       {% endif %}
 
-      {% if money_fields_ro and not incomplete_txn %}
-        {% include 'preregistration/upgrade_modal.html' %}
+      {% if receipt %}
+        {% include 'forms/receipt_modal.html' %}
+        {% if not incomplete_txn %}
+          {% include 'preregistration/upgrade_modal.html' %}
+        {% endif %}
       {% endif %}
-      {{ attendee_fields.receipt_modal }}
 
       <form method="post" action="confirm" id="confirm">
         {{ csrf_token() }}

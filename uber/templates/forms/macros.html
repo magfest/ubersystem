@@ -171,7 +171,7 @@
 <div class="card-group mt-0 mb-3">
 {% for opt in opts %}
 {% set disabled_card = opt.value in disabled_opts %}
-  <div class="card {{ text_class }}{% if disabled_card %} disabled-card bg-secondary text-white{% endif %}">
+  <div class="card {{ text_class }}{% if disabled_card %} disabled-card bg-secondary text-white{% endif %}" style="max-width: 33%;">
       <div class="card-header" style="transform: rotate(0);">
           <label for="{{ target_field.id }}-{{ opt.value }}" class="h5 card-title mb-0">
             {% if disabled_card %}

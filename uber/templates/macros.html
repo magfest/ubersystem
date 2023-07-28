@@ -10,7 +10,7 @@
 
 
 {% macro upgrade_button(upgrade_btn_id, text="Upgrade") %}
-{% if receipt and receipt.current_amount_owed <= 0 and money_fields_ro %}
+{% if receipt and receipt.current_amount_owed <= 0 %}
   <a class="btn btn-sm btn-success" id="upgrade-{{ upgrade_btn_id }}-btn" data-bs-toggle="modal" data-bs-target="#upgradeModal">
     <span class="glyphicon glyphicon-circle-arrow-up"></span> {{ text }}
   </a>

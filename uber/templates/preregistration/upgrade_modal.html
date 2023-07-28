@@ -12,11 +12,9 @@
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
                 <input type="hidden" id="upgrade_badge_type" name="badge_type" value="{{ attendee.badge_type }}" />
                 <input type="hidden" name="receipt_id" value="{{ receipt.id }}" />
-                {{ attendee_fields.badge_buttons }}
-                {{ attendee_fields.amount_extra(read_only=False, form="purchase-upgrades") }}
-                {{ attendee_fields.badge_printed_name }}
-                {{ attendee_fields.shirt_size }}
-                {{ attendee_fields.extra_donation(read_only=False) }}
+                {% set upgrade_modal = true %}
+                {% include "forms/badge_extras.html" %}
+                {% set upgrade_modal = false %}
             </form>
             <table class="table table-striped" id="upgrade-preview">
                 <tbody></tbody>
@@ -33,6 +31,8 @@
 <script type="text/javascript">
     var costChangeDict = {};
     var lastAmountExtra; // I hate JavaScript
+    var upgradeModal = bootstrap.Modal.getOrCreateInstance($('#upgradeModal'))
+    console.log(upgradeModal)
     var updateReceiptPreview = function(colName, val=0) {
         if (colName == 'amount_extra' && lastAmountExtra !== undefined && val == lastAmountExtra) {
             return;
@@ -97,19 +97,11 @@
             if (result.error) {
                 $("#message-alert").addClass("alert-danger").show().children('span').html(result.error);
             } else if (result.success) {
-                bootstrap.Modal.getOrCreateInstance($('#upgradeModal')).toggle();
+                upgradeModal.hide();
                 callStripeAction(autoTrigger=true);
             }
         });
         });
-
-        // Hide upgrade buttons for badge type and amount extra if there's nothing to upgrade to
-        if (_(BADGE_TYPES.options).size() == 1) {
-            $('#upgrade-badge-type-btn').hide();
-        }
-        if($('input:radio[name=amount_extra]').size() == 1) {
-            $('#upgrade-amount-extra-btn').hide();
-        }
 
         // Always hide the button we use for the upgrade modal
         $("#upgrade-stripe-btn").hide();

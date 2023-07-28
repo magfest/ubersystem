@@ -2,6 +2,7 @@ import re
 from datetime import date
 
 from markupsafe import Markup
+from pockets.autolog import log
 from wtforms import (BooleanField, DateField, EmailField, Form, FormField,
                      HiddenField, SelectField, SelectMultipleField, IntegerField,
                      StringField, TelField, validators, TextAreaField)
@@ -129,7 +130,10 @@ class PersonalInfo(AddressForm, MagForm):
 
 
 class BadgeExtras(MagForm):
+    field_aliases = {'badge_type': ['upgrade_badge_type']}
+
     badge_type = HiddenIntField('Badge Type')
+    upgrade_badge_type = HiddenIntField('Badge Type')
     amount_extra = HiddenIntField('Pre-order Merch', validators=[
         validators.NumberRange(min=0, message="Amount extra must be a number that is 0 or higher.")
         ])
@@ -153,7 +157,7 @@ class BadgeExtras(MagForm):
         if not attendee.is_valid or attendee.badge_status == c.REFUNDED_STATUS:
             return list(self._fields.keys())
         
-        if attendee.active_receipt:
+        if attendee.active_receipt or attendee.badge_status == c.DEFERRED_STATUS:
             locked_fields.extend(['badge_type', 'amount_extra', 'extra_donation'])
         elif not c.BADGE_TYPE_PRICES:
             locked_fields.append('badge_type')
@@ -202,7 +206,7 @@ class Consents(MagForm):
                                            ], description=Markup('For more information please check out our <a href="{}" target="_blank">Privacy Policy</a>.'.format(c.PRIVACY_POLICY_URL)))
 
     def get_non_admin_locked_fields(self, attendee):
-        if attendee.is_new or attendee.placeholder:
+        if attendee.needs_pii_consent:
             return []
         
         return ['pii_consent']

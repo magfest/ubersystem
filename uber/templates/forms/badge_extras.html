@@ -13,24 +13,46 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 #}
 
 {% block badge_type %}
-{{ badge_extras.badge_type }}
-{% if c.BADGE_TYPE_PRICES %}
-    {% if attendee.badge_type not in c.PREREG_BADGE_TYPES and attendee.badge_type in c.BADGES %}
+{% if not upgrade_modal %}{{ badge_extras.badge_type }}{% endif %}
+
+{% if c.BADGE_TYPE_PRICES and (not receipt or upgrade_modal) %}
+    {% set attendee_badge_type_price = c.BADGE_TYPE_PRICES[attendee.badge_type] if attendee.badge_type in c.BADGE_TYPE_PRICES else 0 %}
+
+    {% if upgrade_modal or (attendee.badge_type not in c.PREREG_BADGE_TYPES and attendee.badge_type in c.BADGES) %}
         {% set badge_type_opts = [{
             'name': attendee.badge_type_label,
-            'desc': 'Allows access to the convention for its duration.',
+            'desc': 'Allows access to the convention for its duration.' if attendee_badge_type_price else 'An upgraded badge with perks.',
             'value': attendee.badge_type
             }] %}
         {% for opt in c.FORMATTED_BADGE_TYPES %}
-            {% if not loop.first %}{{ badge_type_opts.append(opt)|default("", True) }}{% endif %}
+            {% if not loop.first and (not opt.price or attendee_badge_type_price < opt.price) %}
+            {{ badge_type_opts.append(opt)|default("", True) }}
+            {% endif %}
         {% endfor %}
     {% else %}
         {% set badge_type_opts = c.FORMATTED_BADGE_TYPES %}
     {% endif %}
 
     <div class="row g-sm-3">
-    {{ form_macros.card_select(badge_extras.badge_type, badge_type_opts) }}
+    {{ form_macros.card_select(badge_extras.upgrade_badge_type if upgrade_modal else badge_extras.badge_type,
+                               badge_type_opts, disabled_opts=c.SOLD_OUT_BADGE_TYPES) }}
     </div>
+    {% if upgrade_modal %}
+    <script type="text/javascript">
+        $(function () {
+            $("#upgrade_badge_type").on('change', function() {
+                updateReceiptPreview('badge_type', this.value);
+            })
+        });
+    </script>
+    {% endif %}
+{% else %}
+<div class="row g-sm-3">
+    <div class="col-12 col-sm-6">
+        <div class="form-text">{{ badge_extras.badge_type.label.text }}</div>
+        <div class="form-control-plaintext h5">{{ attendee.badge_type_label }}{% if c.MAX_BADGE_TYPE_UPGRADE and attendee.badge_type != c.MAX_BADGE_TYPE_UPGRADE %}{{ macros.upgrade_button('badge-type') }}{% endif %}</div>
+    </div>
+</div>
 {% endif %}
 {% endblock %}
 
