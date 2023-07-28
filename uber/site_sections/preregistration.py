@@ -1369,10 +1369,6 @@ class Root:
             receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
             session.add_all(receipt_items)
 
-            # Stop unsetting these every time someone updates their info
-            params['agreed_to_volunteer_agreement'] = attendee.agreed_to_volunteer_agreement
-            params['reviewed_emergency_procedures'] = attendee.reviewed_emergency_procedures
-
         if attendee.badge_status == c.REFUNDED_STATUS:
             raise HTTPRedirect('repurchase?id={}', attendee.id)
 
@@ -1389,8 +1385,6 @@ class Root:
             disable_locked_fields(form, attendee)
 
         if cherrypy.request.method == 'POST' and not message:
-            attendee.placeholder = False
-
             session.add(attendee)
             session.commit()
             if placeholder:

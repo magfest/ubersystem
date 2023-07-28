@@ -99,10 +99,12 @@ class MagForm(Form):
             yield (module_name, subclass)
 
     @classmethod
-    def form_mixin(cls, form, model_str=''):
+    def form_mixin(cls, form):
         if form.__name__ == 'FormMixin':
             target = getattr(cls, form.__name__)
-        elif not model_str:
+        elif form.__name__ == cls.__name__:
+            target = cls
+        else:
             # Search through all form classes, only continue if there is ONE matching form
             match_count = 0
             modules = []
@@ -117,16 +119,11 @@ class MagForm(Form):
             elif match_count > 1:
                 raise ValueError('There is more than one form with the name {}. Please specify which model this form is for.'.format(form.__name__))
             target = real_target
-        else:
-            # Directly grab the right form from the appropriate module, if it exists
-            module = import_module('.' + model_str, 'uber.forms')
-            try:
-                target = getattr(module, form.__name__)
-            except AttributeError:
-                raise ValueError('No existing form in the uber.forms.{} module with the name {}'.format(model_str, form.__name__))
 
         for name in dir(form):
             if not name.startswith('_'):
+                if name in ['get_optional_fields', 'get_non_admin_locked_fields']:
+                    setattr(target, "super_" + name, getattr(target, name))
                 setattr(target, name, getattr(form, name))
         return target
 
@@ -238,6 +235,8 @@ class MagForm(Form):
 
             if hasattr(form, field_name + '_desc'):
                 unbound_field.kwargs['description'] = get_override_attr(form, field_name, '_desc')
+
+            
             
             unbound_field.kwargs['render_kw'] = self.set_keyword_defaults(unbound_field, unbound_field.kwargs.get('render_kw', {}), field_name)
 

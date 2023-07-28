@@ -33,7 +33,6 @@
   {{ field(class="form-check-input", checked=field.data, value=1, **kwargs) }}
   {% endif %}
 
-  
   {{ form_label(field, required=label_required, class="form-check-label") }}
   {{ form_input_extras(field, help_text, admin_text, extra_field) }}
 </div>
@@ -74,17 +73,8 @@
 {% endif %}
 {% endmacro %}
 
-{% macro toggle_checkbox(checkbox_field, target_fields, help_text='', toggle_required=False, hide_on_checked=False, prop='visibility') -%}
-  {% set type = checkbox_field.meta.get_field_type(checkbox_field) %}
-  <div class="form-check{% if type == 'switch' %} form-switch{% endif %}">
-    {{ checkbox_field(class="form-check-input", value=1, **kwargs) }}
-    {{ form_label(checkbox_field, required=label_required, class="form-check-label") }}
-    {% if help_text or checkbox_field.description %}
-      <div class="form-text">
-        {{ help_text or checkbox_field.description }}
-      </div>
-    {% endif %}
-  </div>
+{% macro toggle_checkbox(checkbox_field, target_fields, toggle_required=False, hide_on_checked=False, prop='visibility') -%}
+{{ form_input(checkbox_field, **kwargs) }}
 
 {{ toggle_fields_js(checkbox_field, target_fields, off_values=[1 if hide_on_checked == True else 0], toggle_required=toggle_required, prop=prop) }}
 {%- endmacro %}

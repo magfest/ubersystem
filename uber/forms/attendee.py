@@ -6,6 +6,7 @@ from pockets.autolog import log
 from wtforms import (BooleanField, DateField, EmailField, Form, FormField,
                      HiddenField, SelectField, SelectMultipleField, IntegerField,
                      StringField, TelField, validators, TextAreaField)
+from wtforms.widgets import HiddenInput
 from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
@@ -170,13 +171,18 @@ class BadgeExtras(MagForm):
 
 
 class OtherInfo(MagForm):
+    placeholder = BooleanField(widget=HiddenInput())
     staffing = BooleanField('I am interested in volunteering!', widget=SwitchInput(), description=popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?"))
     requested_dept_ids = SelectMultipleField('Where do you want to help?', choices=c.JOB_INTEREST_OPTS, coerce=int, widget=MultiCheckbox())
     requested_accessibility_services = BooleanField(f'I would like to be contacted by the {c.EVENT_NAME} Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', widget=SwitchInput())
     interests = SelectMultipleField('What interests you?', choices=c.INTEREST_OPTS, coerce=int, validators=[validators.Optional()], widget=MultiCheckbox())
         
     def get_non_admin_locked_fields(self, attendee):
-        locked_fields = []
+        locked_fields = [] 
+
+        if not attendee.placeholder:
+            # This is an admin field, but we need it on the confirmation page for placeholder attendees
+            locked_fields.append('placeholder')
 
         if attendee.is_new:
             return locked_fields
@@ -184,7 +190,7 @@ class OtherInfo(MagForm):
         if not attendee.is_valid or attendee.badge_status == c.REFUNDED_STATUS:
             return list(self._fields.keys())
         
-        if attendee.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
+        if attendee.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] or attendee.shifts:
             locked_fields.append('staffing')
 
         return locked_fields

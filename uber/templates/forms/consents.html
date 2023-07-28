@@ -17,6 +17,6 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 {% block required %}
 <div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.form_input(consents.pii_consent, checked=edit_id or loaded_from_group) }}</div>
+    <div class="col-12">{{ form_macros.form_input(consents.pii_consent, checked=attendee.is_new and (edit_id or loaded_from_group)) }}</div>
 </div>
 {% endblock %}
