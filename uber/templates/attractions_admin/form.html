@@ -332,7 +332,8 @@
       $('#attractionevent input.gap_hours').val(hours * sign);
       $('#attractionevent input.gap_minutes').val(minutes * sign);
       $('#edit_event_gap input[name="id"]').val(eventId);
-      bootstrap.Modal.getOrCreateInstance($('#edit_event_gap')).show();
+      var modal = bootstrap.Modal.getOrCreateInstance($('#edit_event_gap'));
+      modal.show();
     });
 
     $('#edit_event_gap').on('shown.bs.modal', function (event) {

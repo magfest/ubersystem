@@ -297,7 +297,8 @@
       $signupModal.toggleClass('soldout', isSoldout);
       $('.signup-event-label').html(eventLabel);
 
-      bootstrap.Modal.getOrCreateInstance($signupModal).show();
+      var modal = bootstrap.Modal.getOrCreateInstance($signupModal);
+      modal.show();
     });
 
     $container.on('click', '.btn-danger', function(event) {

@@ -109,7 +109,7 @@
           <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
               <div class="modal-header">
-                <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
                 <h4 class="modal-title" id="inventory_item_title_{{ item.id or type }}">{{ label }}</h4>
               </div>
               <form method="post" action="save_inventory_item" target="upload_frame" class="form-horizontal" role="form" enctype="multipart/form-data">
@@ -271,7 +271,8 @@
                   $inventoryItem = $('#inventory_item_' + $addInventory.val());
 
               $inventoryItem.find('.one_size').each(function() { onOneSizeChange.call(this); });
-              bootstrap.Modal.getOrCreateInstance($inventoryItem).show();
+              var modal = bootstrap.Modal.getOrCreateInstance($inventoryItem);
+              modal.show();
               $addInventory.val('');
             };
 
@@ -282,7 +283,8 @@
                   $inventoryItem = $('#inventory_item_' + itemId);
 
               $inventoryItem.find('.one_size').each(function() { onOneSizeChange.call(this); });
-              bootstrap.Modal.getOrCreateInstance($inventoryItem).show();
+              var modal = bootstrap.Modal.getOrCreateInstance($inventoryItem);
+              modal.show();
             };
 
             var onRemoveInventory = function(e) {
@@ -406,7 +408,8 @@
                           $modals.on('hidden.bs.modal', function (e) {
                             location.href = '?guest_id={{ guest.id }}';
                           });
-                          bootstrap.Modal.getOrCreateInstance($modals).hide();
+                          var modal = bootstrap.Modal.getOrCreateInstance($modals)
+                          modal.hide();
                         } else {
                           $("#message-alert").addClass("alert-danger").show().children('span').html('', response['error'], {timeOut: 5000});
                         }

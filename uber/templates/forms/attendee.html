@@ -22,7 +22,7 @@
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
         <h4 class="modal-title" id="receiptTitle">Receipt</h4>
       </div>
       <div class="modal-body">
@@ -38,7 +38,8 @@
 <script type="text/javascript">
 $().ready(function() {
   $('#receipt-stripe-btn').click(function() {
-    bootstrap.Modal.getOrCreateInstance($('#receiptModal')).toggle();
+    var modal = bootstrap.Modal.getOrCreateInstance($('#receiptModal'));
+    modal.toggle();
   })
 });
 </script>

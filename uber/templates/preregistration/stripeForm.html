@@ -283,7 +283,8 @@ var collectAuthNetPayment = function (ref_id, email, desc, success_url, cancel_u
 }
 {% else %}
 var collectStripePayment = function (client_secret, stripe_id, success_url, cancel_url) {
-    bootstrap.Modal.getOrCreateInstance($('#stripeModal')).show();
+    var stripeModal = bootstrap.Modal.getOrCreateInstance($('#stripeModal'));
+    sripeModal.show();
     $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
     var form = document.getElementById('payment-form');
     var stripe = Stripe('{{ c.STRIPE_PUBLIC_KEY }}');

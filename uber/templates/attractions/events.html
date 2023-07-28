@@ -80,12 +80,15 @@
       $('.signup-event-location').html($('#' + eventId + ' .event-location').html());
 
       {% if c.AT_THE_CON %}
-      bootstrap.Modal.getOrCreateInstance($signupModal).show();
+      var modal = bootstrap.Modal.getOrCreateInstance($signupModal)
+      modal.show();
       {% else %}
       if($event.hasClass('badge-num-required')) {
-        bootstrap.Modal.getOrCreateInstance($signupModal).show();
+        var modal = bootstrap.Modal.getOrCreateInstance($signupModal)
+        modal.show();
       } else {
-        bootstrap.Modal.getOrCreateInstance($altSignupModal).show();
+        var modal = bootstrap.Modal.getOrCreateInstance($altSignupModal)
+        modal.show();
       }
       {% endif %}
     });
@@ -117,8 +120,10 @@
     };
 
     $signupModal.find('.modal-footer .btn.modal-form-switch').on('click', function (event) {
-      bootstrap.Modal.getOrCreateInstance($signupModal).hide();
-      bootstrap.Modal.getOrCreateInstance($altSignupModal).show();
+      var signupModal = bootstrap.Modal.getOrCreateInstance($signupModal)
+      signupModal.hide();
+      var altSignupModal = bootstrap.Modal.getOrCreateInstance($altSignupModal);
+      altSignupModal.show();
     });
 
     $doneModal.find('.confirm-row .btn-success').on('click', function (event) {
@@ -152,8 +157,10 @@
         if (response) {
           updateGreeting(response['first_name'], response['badge_num'], $doneModal.find('.modal-title'));
           $doneModal.data('attendee', response);
-          bootstrap.Modal.getOrCreateInstance($signupModal).hide();
-          bootstrap.Modal.getOrCreateInstance($doneModal).show();
+          var signupModal = bootstrap.Modal.getOrCreateInstance($signupModal);
+          signupModal.hide();
+          var doneModal = bootstrap.Modal.getOrCreateInstance($doneModal);
+          doneModal.show();
         }
       });
     });
@@ -171,8 +178,10 @@
         if (response) {
           updateGreeting(response['first_name'], response['badge_num'], $doneModal.find('.modal-title'));
           $doneModal.data('attendee', response);
-          bootstrap.Modal.getOrCreateInstance($altSignupModal).hide();
-          bootstrap.Modal.getOrCreateInstance($doneModal).show();
+          var altSignupModal = bootstrap.Modal.getOrCreateInstance($altSignupModal);
+          altSignupModal.hide();
+          var doneModal = bootstrap.Modal.getOrCreateInstance($doneModal);
+          doneModal.show();
         }
       });
     });

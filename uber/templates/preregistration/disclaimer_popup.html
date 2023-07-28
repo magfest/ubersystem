@@ -5,7 +5,8 @@
       $("#prereg-form").submit();
     }
     var openDisclaimersModal = function() {
-      bootstrap.Modal.getOrCreateInstance($('#disclaimers_modal')).show();
+      var modal = bootstrap.Modal.getOrCreateInstance($('#disclaimers_modal'))
+      modal.show();
     }
     
   </script>

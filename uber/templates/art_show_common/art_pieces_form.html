@@ -14,7 +14,7 @@
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
         <h4 class="modal-title" id="piece_title_{{ real_piece.id or 'new' }}">{{ "Add" if not real_piece.id else "Edit" }} Art Show Piece</h4>
       </div>
 
@@ -341,13 +341,15 @@
     };
 
     var addPieceModal = function() {
-      bootstrap.Modal.getOrCreateInstance($('#piece_new')).show();
+      var modal = bootstrap.Modal.getOrCreateInstance($('#piece_new'))
+      modal.show();
     };
 
     var editPieceModal = function(e) {
         e.preventDefault();
         var id = $(this).closest('.piece-row').data('piece_id');
-        bootstrap.Modal.getOrCreateInstance($('#piece_'+id)).show();
+        var modal = bootstrap.Modal.getOrCreateInstance($('#piece_'+id));
+        modal.show();
     };
 
     $(document).ready(function() {
@@ -377,7 +379,8 @@
                         var response = $.parseJSON(responseText);
                         if (!response['error']) {
                             var $modals = $('#piece_modals').find('.modal');
-                            bootstrap.Modal.getOrCreateInstance($modals).hide();
+                            var modal = bootstrap.Modal.getOrCreateInstance($modals);
+                            modal.hide();
                             location.href = '?id={{ app.id }}&message='+response['success'];
                         } else {
                             $("#message-alert").addClass("alert-danger").show().children('span').html('', response['error'], {timeOut: 5000});

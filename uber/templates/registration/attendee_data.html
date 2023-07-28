@@ -10,7 +10,8 @@ $.field('placeholder').prop('checked', true);
 {% endif %}
 var saveAndClose = function() {
   $("#attendee_form").submit();
-  bootstrap.Modal.getOrCreateInstance($("#attendee_modal")).hide();
+  var attendeeModal = bootstrap.Modal.getOrCreateInstance($("#attendee_modal"));
+  attendeeModal.hide();
 };
   
 var updateAttendee = function(event){

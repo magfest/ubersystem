@@ -36,7 +36,8 @@ var toggleMarkButton = function (dropdown) {
 };
 loadCheckInForm = function () {
     $('#stripeModal').off('hidden.bs.modal');
-    bootstrap.Modal.getOrCreateInstance($('#stripeModal')).hide();
+    var stripeModal = bootstrap.Modal.getOrCreateInstance($('#stripeModal'))
+    stripeModal.hide();
     $('#stripeModal').remove();
     $('#checkin_modal').modal('show');
     $('#checkin_modal .modal-content').load('check_in_form?id={{ attendee.id }}', function () {
@@ -49,7 +50,8 @@ loadCheckInForm = function () {
 var resumeStripeAction = callStripeAction;
 var callStripeAction = function() {
     $('#checkin_modal').off('hidden.bs.modal');
-    bootstrap.Modal.getOrCreateInstance($('#checkin_modal')).hide();
+    checkinModal = bootstrap.Modal.getOrCreateInstance($('#checkin_modal'));
+    checkinModal.hide();
     $('#stripeModal').on('hidden.bs.modal', function (e) {
         $('#stripeModal').remove();
     })
