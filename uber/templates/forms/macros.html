@@ -188,6 +188,13 @@
       {% endif %}
           {% if disabled_card %}
           {{ opt.desc|safe }}
+          {% if disabled_card %}
+      <div class="disabled-overlay position-absolute top-0 start-0 h-100 w-100" style="background: rgba(0,0,0,0.66)">
+        <span style="text-shadow: 0px 0px 7px rgba(0, 0, 0, 1);" class="text-uppercase text-center position-absolute w-100 fw-bolder top-50 start-50 translate-middle h2">
+          {{ disabled_hover_text }}
+        </span>
+      </div>
+      {% endif %}
           {% else %}
           <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card"
               data-value="{{ opt.value }}">{{ opt.desc|safe }}</a>
@@ -197,14 +204,6 @@
       {% if opt.link %}
       <div class="card-footer">
           {{ macros.popup_link(opt.link, 'Read More') }}
-      </div>
-      {% endif %}
-      {% if disabled_card %}
-      {% set rotate_deg = "-33" %}
-      <div class="disabled-overlay position-absolute h-100 w-100" style="background: rgba(0,0,0,0.66)">
-        <span style="text-shadow: 0px 0px 7px rgba(0, 0, 0, 1); transform: translateX(-50%) translateY(-50%) rotate(-15deg);" class="text-uppercase text-center position-absolute w-100 fw-bolder top-50 start-50 translate-middle h2">
-          {{ disabled_hover_text }}
-        </span>
       </div>
       {% endif %}
   </div>
@@ -233,14 +232,6 @@
     });
     var makeBadgeMatchExtra = function () {}; // TODO: Remove
 </script>
-<style type="text/css">
-  .disabled-card .disabled-overlay {
-    display: none;
-}
-.disabled-card:hover .disabled-overlay {
-    display: block;
-}
-</style>
 {%- endmacro %}
 
 {% macro address_fields(model, form_obj) %}
