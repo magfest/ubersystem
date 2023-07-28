@@ -392,7 +392,6 @@ class Root:
         forms = load_forms(params, attendee, attendee_forms, ['PersonalInfo', 'BadgeExtras', 'Consents'])
         for form in forms.values():
             form.populate_obj(attendee)
-            disable_locked_fields(form, attendee)
 
         if cherrypy.request.method == 'POST' or edit_id is not None:
             if not message and attendee.badge_type not in c.PREREG_BADGE_TYPES:
@@ -509,7 +508,6 @@ class Root:
 
         for form in forms.values():
             form.populate_obj(attendee)
-            disable_locked_fields(form, attendee)
 
         if cherrypy.request.method == "POST":
             if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
@@ -1382,8 +1380,6 @@ class Root:
 
         receipt = session.get_receipt_by_model(attendee)
         form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents']
-        if placeholder:
-            form_list.append('Consents')
         forms = load_forms(params, attendee, attendee_forms, form_list)
         if not attendee.is_new and not attendee.placeholder:
             forms['consents'].pii_consent.data = True
@@ -1430,7 +1426,6 @@ class Root:
             'receipt':       session.get_receipt_by_model(attendee) if attendee.is_valid else None,
             'incomplete_txn':  receipt.get_last_incomplete_txn() if receipt else None,
             'forms': forms,
-            'pii_consent':  params.get('pii_consent'),
         }
     
     @ajax
