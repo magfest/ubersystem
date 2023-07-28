@@ -32,7 +32,7 @@
     var costChangeDict = {};
     var lastAmountExtra; // I hate JavaScript
     var upgradeModal = bootstrap.Modal.getOrCreateInstance($('#upgradeModal'))
-    console.log(upgradeModal)
+    
     var updateReceiptPreview = function(colName, val=0) {
         if (colName == 'amount_extra' && lastAmountExtra !== undefined && val == lastAmountExtra) {
             return;

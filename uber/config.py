@@ -358,6 +358,29 @@ class Config(_Overridable):
             for badge_type, desc in self.AT_THE_DOOR_BADGE_OPTS
             if self.BADGES[badge_type] in c.DAYS_OF_WEEK
         }
+    
+    @property
+    def FORMATTED_BADGE_TYPES(self):
+        badge_types = [{
+            'name': 'Attendee',
+            'desc': 'Allows access to the convention for its duration.',
+            'value': c.ATTENDEE_BADGE,
+            'price': c.get_attendee_price()
+            }]
+        for badge_type in c.BADGE_TYPE_PRICES:
+            badge_types.append({
+                'name': c.BADGES[badge_type],
+                'desc': 'Donate extra to get an upgraded badge with perks.',
+                'value': badge_type,
+                'price': c.BADGE_TYPE_PRICES[badge_type]
+            })
+        return badge_types
+    
+    @request_cached_property
+    @dynamic
+    def SOLD_OUT_BADGE_TYPES(self):
+        # Override in event plugin based on your specific badge types
+        return []
 
     @property
     def kickin_availability_matrix(self):

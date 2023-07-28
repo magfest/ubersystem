@@ -750,6 +750,25 @@ class Attendee(MagModel, TakesPaymentMixin):
         return uber.badge_funcs.get_real_badge_type(self.badge_type)
 
     @property
+    def available_badge_type_opts(self):
+        if self.is_new or self.badge_type == c.ATTENDEE_BADGE and self.is_unpaid:
+            return c.FORMATTED_BADGE_TYPES
+
+        badge_type_price = c.BADGE_TYPE_PRICES[self.badge_type] if self.badge_type in c.BADGE_TYPE_PRICES else 0
+        
+        badge_type_opts = [{
+            'name': self.badge_type_label,
+            'desc': 'An upgraded badge with perks.' if badge_type_price else 'Allows access to the convention for its duration.',
+            'value': self.badge_type
+            }]
+        
+        for opt in c.FORMATTED_BADGE_TYPES[1:]:
+            if 'price' not in opt or badge_type_price < opt['price']:
+                badge_type_opts.append(opt)
+
+        return badge_type_opts
+
+    @property
     def badge_cost_with_promo_code(self):
         return self.calculate_badge_cost(use_promo_code=True)
 
