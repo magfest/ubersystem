@@ -826,6 +826,9 @@ class ReceiptManager:
 
     @classmethod
     def auto_update_receipt(self, model, receipt, params):
+        if not receipt:
+            return
+        
         params = params.copy()
         receipt_items = []
 
@@ -852,8 +855,7 @@ class ReceiptManager:
         
         if params.get('power_fee', None) != None and c.POWER_PRICES.get(int(params.get('power'), 0), None) == None:
             receipt_item = self.add_receipt_item_from_param(model, receipt, 'power_fee', params)
-            if receipt_item:
-                receipt_items.append(receipt_item)
+            receipt_items += [receipt_item] if receipt_item else []
             params.pop('power')
             params.pop('power_fee')
         
@@ -862,12 +864,10 @@ class ReceiptManager:
         for param in params:
             if param in credit_changes:
                 receipt_item = self.add_receipt_item_from_param(model, receipt, param, params, 'process_receipt_credit_change')
-                if receipt_item:
-                    receipt_items.append(receipt_item)
+                receipt_items += [receipt_item] if receipt_item else []
             elif param in cost_changes:
                 receipt_item = self.add_receipt_item_from_param(model, receipt, param, params)
-                if receipt_item:
-                    receipt_items.append(receipt_item)
+                receipt_items += [receipt_item] if receipt_item else []
         
         return receipt_items
 
