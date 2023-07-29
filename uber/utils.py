@@ -536,6 +536,8 @@ def validate_model(forms, model, preview_model, extra_validators_module=None):
     for module in forms.values():
         module.populate_obj(preview_model) # We need a populated model BEFORE we get its optional fields below
 
+    
+
     for module in forms.values():
         extra_validators = defaultdict(list)
         for field_name in module.get_optional_fields(preview_model):
@@ -889,6 +891,7 @@ def prepare_saml_request(request):
         'get_data': request.params.copy() if request.method == 'GET' else {},
         'post_data': request.params.copy() if request.method == 'POST' else {},
     }
+    log.debug(saml_request)
     if c.FORCE_SAML_HTTPS:
         saml_request['https'] = 'on'
     return saml_request

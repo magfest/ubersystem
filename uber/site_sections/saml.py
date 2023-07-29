@@ -95,7 +95,6 @@ class Root:
                 session.commit()
 
                 redirect_url = req['post_data'].get('RelayState', '')
-                log.debug(req['post_data'])
                 log.debug(redirect_url)
 
                 if redirect_url:
