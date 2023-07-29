@@ -827,7 +827,7 @@ class ReceiptManager:
     @classmethod
     def auto_update_receipt(self, model, receipt, params):
         if not receipt:
-            return
+            return []
         
         params = params.copy()
         receipt_items = []

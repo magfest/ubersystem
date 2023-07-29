@@ -84,7 +84,7 @@ def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=Tr
 class MagForm(Form):
     field_aliases = {}
 
-    def get_optional_fields(self, model):
+    def get_optional_fields(self, model, is_admin=False):
         return []
 
     def get_non_admin_locked_fields(self, model):
@@ -175,7 +175,6 @@ class MagForm(Form):
                             This is either a programming error or a malicious actor.".format(name))
                 continue
 
-            log.debug(f"{name}: {field.data}")
             column = obj.__table__.columns.get(name)
             if column is not None:
                 setattr(obj, name, obj.coerce_column_data(column, field.data))
@@ -223,6 +222,8 @@ class MagForm(Form):
             - Get a label and description override from a function on the form class, if there is one
             - Format label and description text to process common variables
             - Add default rendering keywords to make fields function better in our forms
+
+            TODO: Changes to field attributes are permanent, so this code only needs to run once per field
             """
             field_name = options.get('name', '')
             if hasattr(form, field_name + '_label'):
@@ -299,8 +300,8 @@ class AddressForm():
         validators.InputRequired("Please enter a country.")
         ], choices=c.COUNTRY_OPTS, widget=CountrySelect())
 
-    def get_optional_fields(self, model):
-        optional_list = super().get_optional_fields(model)
+    def get_optional_fields(self, model, is_admin=False):
+        optional_list = super().get_optional_fields(model, is_admin)
 
         if not c.COLLECT_FULL_ADDRESS:
             optional_list.extend(['address1', 'city', 'region', 'region_us', 'region_canada', 'country'])

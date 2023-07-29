@@ -65,12 +65,13 @@ class PersonalInfo(AddressForm, MagForm):
     no_onsite_contact = BooleanField('My emergency contact is also on site with me at the event.')
     international = BooleanField('I\'m coming from outside the US.')
 
-    def get_optional_fields(self, attendee):
-        unassigned_group_reg = attendee.group_id and not attendee.first_name and not attendee.last_name
-        valid_placeholder = attendee.placeholder and attendee.first_name and attendee.last_name
-        if unassigned_group_reg or valid_placeholder:
-            return ['first_name', 'last_name', 'legal_name', 'email', 'birthdate', 'age_group', 'ec_name', 'ec_phone',
-                    'address1', 'city', 'region', 'region_us', 'region_canada', 'zip_code', 'country', 'onsite_contact']
+    def get_optional_fields(self, attendee, is_admin=False):
+        if is_admin:
+            unassigned_group_reg = attendee.group_id and not attendee.first_name and not attendee.last_name
+            valid_placeholder = attendee.placeholder and attendee.first_name and attendee.last_name
+            if unassigned_group_reg or valid_placeholder:
+                return ['first_name', 'last_name', 'legal_name', 'email', 'birthdate', 'age_group', 'ec_name', 'ec_phone',
+                        'address1', 'city', 'region', 'region_us', 'region_canada', 'zip_code', 'country', 'onsite_contact']
         
         optional_list = super().get_optional_fields(attendee)
 
@@ -78,7 +79,7 @@ class PersonalInfo(AddressForm, MagForm):
             optional_list.append('legal_name')
         if self.copy_email.data:
             optional_list.append('email')
-        if self.copy_phone.data or not attendee.is_dealer:
+        if self.copy_phone.data or self.no_cellphone.data or not attendee.is_dealer:
             optional_list.append('cellphone')
         if self.copy_address.data:
             optional_list.extend(['address1', 'city', 'region', 'region_us', 'region_canada', 'zip_code', 'country'])

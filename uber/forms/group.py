@@ -53,8 +53,8 @@ class ContactInfo(AddressForm, MagForm):
         ],
         render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
     
-    def get_optional_fields(self, group):
-        optional_list = super().get_optional_fields(group)
+    def get_optional_fields(self, group, is_admin=False):
+        optional_list = super().get_optional_fields(group, is_admin)
         
         return optional_list
     
@@ -85,7 +85,7 @@ class TableInfo(GroupInfo):
     categories_text = StringField('Other')
     special_needs = TextAreaField('Special Needs', description="No guarantees that we can accommodate any requests.")
 
-    def get_optional_fields(self, group):
+    def get_optional_fields(self, group, is_admin=False):
         if not group.is_dealer:
             return ['description', 'website', 'wares', 'categories',
                     'address1', 'city', 'region', 'zip_code', 'country']

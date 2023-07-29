@@ -527,7 +527,7 @@ def check_pii_consent(params, attendee=None):
     return ''
 
 
-def validate_model(forms, model, preview_model, extra_validators_module=None):
+def validate_model(forms, model, preview_model, extra_validators_module=None, is_admin=False):
     from wtforms import validators
     from wtforms.validators import ValidationError, StopValidation
 
@@ -536,11 +536,9 @@ def validate_model(forms, model, preview_model, extra_validators_module=None):
     for module in forms.values():
         module.populate_obj(preview_model) # We need a populated model BEFORE we get its optional fields below
 
-    
-
     for module in forms.values():
         extra_validators = defaultdict(list)
-        for field_name in module.get_optional_fields(preview_model):
+        for field_name in module.get_optional_fields(preview_model, is_admin):
             field = getattr(module, field_name)
             if field:
                 field.validators = [validators.Optional()]

@@ -389,6 +389,9 @@ class Root:
             name = getattr(attendee, 'name', '')
 
         forms = load_forms(params, attendee, attendee_forms, ['PersonalInfo', 'BadgeExtras', 'Consents'])
+        if edit_id or loaded_from_group:
+            forms['consents'].pii_consent.data = True
+
         for form in forms.values():
             form.populate_obj(attendee)
 
@@ -957,71 +960,80 @@ class Root:
             'message': message
         }
 
-    @requires_account(Group)
     def register_group_member(self, session, group_id, message='', **params):
         group = session.group(group_id, ignore_csrf=True)
-        attendee = session.attendee(params, restricted=True, ignore_csrf=True)
-        must_be_staffing = False
+        if params.get('id') in [None, '', 'None']:
+            attendee = Attendee()
+        else:
+            attendee = session.attendee(params.get('id'), ignore_csrf=True)
+
+        if not group.unassigned:
+            redirect_link = '..landing/index'
+            if c.ATTENDEE_ACCOUNTS_ENABLED and session.current_attendee_account():
+                redirect_link = '../preregistration/homepage'
+
+            redirect_link += '?message={}'
+
+            raise HTTPRedirect(
+                redirect_link,
+                'No more unassigned badges exist in this group')
+        elif attendee.first_name:
+            # Someone claimed this badge while we had the form open
+            # Grab the next one instead
+            attendee.id = group.unassigned[0].id
+
+        if cherrypy.request.method != 'POST':
+            attrs_to_preserve_from_unassigned_group_member = [
+                'id',
+                'group_id',
+                'badge_type',
+                'badge_num',
+                'badge_cost',
+                'staffing',
+                'ribbon',
+                'paid',
+                'overridden_price'
+                ]
+
+            attr_attendee = group.unassigned[0]
+            for attr in attrs_to_preserve_from_unassigned_group_member:
+                setattr(attendee, attr, getattr(attr_attendee, attr))
         
         if group.unassigned[0].staffing:
-            must_be_staffing = True
-            attendee.staffing = True
             params['staffing'] = True
 
-        message = check_pii_consent(params, attendee) or message
-        if not message and 'first_name' in params:
-            message = check(attendee, prereg=True)
-            if not message and not params['first_name']:
-                message = 'First and Last Name are required fields'
-            if not message:
-                if not group.unassigned:
-                    raise HTTPRedirect(
-                        'register_group_member?group_id={}&message={}',
-                        group_id,
-                        'No more unassigned badges exist in this group')
+        receipt = session.get_receipt_by_model(attendee)
+        form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents']
+        forms = load_forms(params, attendee, attendee_forms, form_list)
 
-                attrs_to_preserve_from_unassigned_group_member = [
-                    'id',
-                    'group_id',
-                    'badge_type',
-                    'badge_num',
-                    'badge_cost',
-                    'ribbon',
-                    'paid',
-                    'overridden_price']
+        for form in forms.values():
+            form.populate_obj(attendee)
 
-                attendee = group.unassigned[0]
-                for attr in attrs_to_preserve_from_unassigned_group_member:
-                    if attr in params:
-                        del params[attr]
+        if cherrypy.request.method == 'POST':
+            if params.get('id') not in [None, '', 'None']:
+                receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params)
+                session.add_all(receipt_items)
 
-                attendee.apply(params, restricted=True)
+            # Free group badges are considered 'registered' when they are actually claimed.
+            if group.cost == 0:
+                attendee.registered = localized_now()
 
-                if c.ATTENDEE_ACCOUNTS_ENABLED and session.current_attendee_account():
-                    session.add_attendee_to_account(attendee, session.current_attendee_account())
+            if c.ATTENDEE_ACCOUNTS_ENABLED and session.current_attendee_account():
+                session.add_attendee_to_account(attendee, session.current_attendee_account())
 
-                # Free group badges are considered 'registered' when they are actually claimed.
-                if group.cost == 0:
-                    attendee.registered = localized_now()
-
-                receipt = session.get_receipt_by_model(attendee)
-                if not receipt:
-                    new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
-                    if new_receipt.current_amount_owed and not new_receipt.pending_total:
-                        raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=confirm')
-
-                if attendee.amount_unpaid:
-                    raise HTTPRedirect('new_badge_payment?id={}&return_to=confirm', attendee.id)
-                else:
-                    raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Badge registered successfully')
+            if not receipt:
+                new_receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
+                if new_receipt.current_amount_owed and not new_receipt.pending_total:
+                    raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=confirm')
+            raise HTTPRedirect('badge_updated?id={}&message={}', attendee.id, 'Badge registered successfully')
 
         return {
+            'logged_in_account': session.current_attendee_account(),
             'message':  message,
-            'group_id': group_id,
             'group': group,
             'attendee': attendee,
-            'badge_cost': 0,
-            'must_be_staffing': must_be_staffing,
+            'forms': forms,
+            'locked_fields': [item for sublist in [form.get_non_admin_locked_fields(attendee) for form in forms.values()] for item in sublist]
         }
 
     @ajax
@@ -1265,7 +1277,7 @@ class Root:
 
     def badge_updated(self, session, id, message=''):
         return {
-            'id': id,
+            'attendee': session.attendee(id),
             'message': message,
             'homepage_account': session.current_attendee_account(),
             }
@@ -1359,15 +1371,7 @@ class Root:
     @requires_account(Attendee)
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
-        if params.get('id') in [None, '', 'None']:
-            attendee = Attendee()
-        else:
-            attendee = session.attendee(params.get('id'))
-
-        error = ''
-        if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-            receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
-            session.add_all(receipt_items)
+        attendee = session.attendee(params.get('id'))
 
         if attendee.badge_status == c.REFUNDED_STATUS:
             raise HTTPRedirect('repurchase?id={}', attendee.id)
@@ -1384,6 +1388,10 @@ class Root:
             form.populate_obj(attendee)
 
         if cherrypy.request.method == 'POST' and not message:
+            if params.get('id') not in [None, '', 'None']:
+                receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params)
+                session.add_all(receipt_items)
+
             session.add(attendee)
             session.commit()
             if placeholder:
@@ -1399,8 +1407,7 @@ class Root:
                     raise HTTPRedirect('new_badge_payment?id=' + attendee.id + '&return_to=' + return_to)
             raise HTTPRedirect(page + 'message=' + message)
 
-        if not error:
-            session.refresh_receipt_and_model(attendee)
+        session.refresh_receipt_and_model(attendee)
 
         attendee.placeholder = placeholder
         if not message and attendee.placeholder:
