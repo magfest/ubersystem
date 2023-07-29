@@ -90,11 +90,10 @@ class PersonalInfo(AddressForm, MagForm):
     def get_non_admin_locked_fields(self, attendee):
         locked_fields = []
 
-        if not attendee.is_valid or attendee.badge_status == c.REFUNDED_STATUS:
-            return list(self._fields.keys())
-
-        if attendee.is_new:
+        if attendee.is_new or attendee.badge_status == c.PENDING_STATUS:
             return locked_fields
+        elif not attendee.is_valid or attendee.badge_status == c.REFUNDED_STATUS:
+            return list(self._fields.keys())
 
         if attendee.placeholder:
             return locked_fields
