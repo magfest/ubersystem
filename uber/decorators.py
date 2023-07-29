@@ -168,14 +168,12 @@ def requires_account(model=None):
                 admin_account_id = cherrypy.session.get('account_id')
                 attendee_account_id = cherrypy.session.get('attendee_account_id')
                 message = ''
-                if not model and not attendee_account_id:
+                if not model and not attendee_account_id and c.PAGE_PATH != '/preregistration/homepage':
                     # These should all be pages like the prereg form
                     if c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form']:
-                        message_add = ' to register'
-                    elif c.PAGE_PATH == '/preregistration/homepage':
-                        message_add = ''
+                        message_add = 'register'
                     else:
-                        message_add = ' to fill out this application'
+                        message_add = 'fill out this application'
                     message = 'Please log in or create an account to {}!'.format(message_add)
                     raise HTTPRedirect('../landing/index?message={}'.format(message), save_location=True)
                 elif attendee_account_id is None and admin_account_id is None:
