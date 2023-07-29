@@ -92,7 +92,7 @@ class MagForm(Form):
 
     @classmethod
     def all_forms(cls):
-        # Get a list of all forms that inherit from MagForm
+        # Get a list of all forms that inherit from this form
         for subclass in cls.__subclasses__():
             module_name = subclass.__module__
             yield from subclass.all_forms()
@@ -235,8 +235,6 @@ class MagForm(Form):
 
             if hasattr(form, field_name + '_desc'):
                 unbound_field.kwargs['description'] = get_override_attr(form, field_name, '_desc')
-
-            
             
             unbound_field.kwargs['render_kw'] = self.set_keyword_defaults(unbound_field, unbound_field.kwargs.get('render_kw', {}), field_name)
 

@@ -527,13 +527,6 @@ def check_pii_consent(params, attendee=None):
     return ''
 
 
-def disable_locked_fields(form, model):
-    locked_fields = form.get_non_admin_locked_fields(model)
-    for name, field in form._fields.items():
-        if name in locked_fields:
-            field.render_kw['readonly'] = True
-    
-
 def validate_model(forms, model, preview_model, extra_validators_module=None):
     from wtforms import validators
     from wtforms.validators import ValidationError, StopValidation

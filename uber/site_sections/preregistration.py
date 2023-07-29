@@ -25,7 +25,7 @@ from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, Mod
                         ReceiptTransaction, SignedDocument, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, genpasswd, valid_email, \
-    valid_password, SignNowDocument, validate_model, disable_locked_fields
+    valid_password, SignNowDocument, validate_model
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager
 import uber.validations as validations
 
@@ -287,7 +287,6 @@ class Root:
         forms = load_forms(params, group, group_forms, ['ContactInfo', 'TableInfo'])
         for form in forms.values():
             form.populate_obj(group)
-            disable_locked_fields(form, group)
 
         if cherrypy.request.method == 'POST':
             message = check(group, prereg=True)
@@ -597,6 +596,8 @@ class Root:
             for attendee in cart.attendees:
                 if not message and attendee.promo_code_id:
                     message = check_prereg_promo_code(session, attendee)
+
+            # TODO: Add validations back!!
             
             if not message:
                 receipts = []
@@ -884,7 +885,6 @@ class Root:
         forms = load_forms(params, group, group_forms, form_list)
         for form in forms.values():
             form.populate_obj(group)
-            disable_locked_fields(form, group)
 
         signnow_document = None
         signnow_link = ''
@@ -946,6 +946,7 @@ class Root:
         return {
             'group':   group,
             'forms': forms,
+            'locked_fields': [item for sublist in [form.get_non_admin_locked_fields(group) for form in forms.values()] for item in sublist],
             'homepage_account': session.get_attendee_account_by_attendee(group.leader),
             'logged_in_account': session.current_attendee_account(),
             'upgraded_badges': len([a for a in group.attendees if a.badge_type in c.BADGE_TYPE_PRICES]),
@@ -958,7 +959,6 @@ class Root:
 
     @requires_account(Group)
     def register_group_member(self, session, group_id, message='', **params):
-        # Safe to ignore csrf tokens here, because an attacker would need to know the group id a priori
         group = session.group(group_id, ignore_csrf=True)
         attendee = session.attendee(params, restricted=True, ignore_csrf=True)
         must_be_staffing = False
@@ -1382,7 +1382,6 @@ class Root:
 
         for form in forms.values():
             form.populate_obj(attendee)
-            disable_locked_fields(form, attendee)
 
         if cherrypy.request.method == 'POST' and not message:
             session.add(attendee)
@@ -1420,6 +1419,7 @@ class Root:
             'receipt':       session.get_receipt_by_model(attendee) if attendee.is_valid else None,
             'incomplete_txn':  receipt.get_last_incomplete_txn() if receipt else None,
             'forms': forms,
+            'locked_fields': [item for sublist in [form.get_non_admin_locked_fields(attendee) for form in forms.values()] for item in sublist]
         }
     
     @ajax
