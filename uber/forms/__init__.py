@@ -52,14 +52,14 @@ def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=Tr
             continue
 
         for model_field_name, aliases in form_cls.field_aliases.items():
-            model_val = getattr(model, model_field_name)
+            alias_val = params.get(model_field_name, getattr(model, model_field_name))
             for aliased_field in aliases:
                 aliased_field_args = getattr(form_cls, aliased_field).kwargs
                 choices = aliased_field_args.get('choices')
                 if choices:
-                    alias_dict[aliased_field] = model_val if model_val in [val for val, label in choices] else aliased_field_args.get('default')
+                    alias_dict[aliased_field] = alias_val if alias_val in [val for val, label in choices] else aliased_field_args.get('default')
                 else:
-                    alias_dict[aliased_field] = model_val
+                    alias_dict[aliased_field] = alias_val
 
         loaded_form = form_cls(params, model, prefix=prefix_dict.get(cls, ''), data=alias_dict)
         optional_fields = loaded_form.get_optional_fields(model) if get_optional else []
@@ -175,6 +175,7 @@ class MagForm(Form):
                             This is either a programming error or a malicious actor.".format(name))
                 continue
 
+            log.debug(f"{name}: {field.data}")
             column = obj.__table__.columns.get(name)
             if column is not None:
                 setattr(obj, name, obj.coerce_column_data(column, field.data))

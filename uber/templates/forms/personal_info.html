@@ -24,12 +24,14 @@
 {% if attendee.legal_name or attendee.is_new or attendee.placeholder %}
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">{{ form_macros.toggle_checkbox(personal_info.same_legal_name, [personal_info.legal_name], toggle_required=True, hide_on_checked=True, prop="disabled",
-                   checked=same_legal_name or attendee.first_name != '' and attendee.legal_name == '') }}
+                   checked=attendee.first_name != '' and attendee.legal_name == '') }}
   </div>
 
   <div class="col-12 col-sm-6">{{ form_macros.form_input(personal_info.legal_name, help_text=macros.popup_link("../static_views/legal_name.html", 'What does "Legal Photo ID" mean?')) }}
   </div>
 </div>
+{% else %}
+<input type="hidden" id="same_legal_name" name="same_legal_name" {% if attendee.first_name != '' and attendee.legal_name == '' %}value="1" {% endif %}/>
 {% endif %}
 {% endblock %}
 
@@ -40,7 +42,7 @@
   {% set email_extra_field = form_macros.toggle_checkbox(personal_info.copy_email, [personal_info.email], hide_on_checked=True, toggle_required=True, prop="disabled", checked=group and loaded_from_group and attendee.email == group.email_address) %}
   {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.copy_phone, [personal_info.cellphone], hide_on_checked=True, toggle_required=True, prop="disabled", checked=group and loaded_from_group and attendee.cellphone == group.phone) %}
 {% elif attendee.staffing or (other_info and other_info is not none) %}
-  {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.no_cellphone, [personal_info.cellphone], hide_on_checked=True, prop="disabled") %}
+  {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.no_cellphone, [personal_info.cellphone], hide_on_checked=True, toggle_required=True if attendee.staffing else False, prop="disabled") %}
 {% endif %}
 
 <div class="row g-sm-3">
