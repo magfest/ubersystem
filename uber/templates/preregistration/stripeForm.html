@@ -47,8 +47,8 @@
   <div class="modal-dialog" role="document">
     <div class="modal-content">
         <div class="modal-body text-start jumbotron">
-        <div class="modal-title h4 text-muted">Payment to {{ c.ORGANIZATION_NAME }}</div>
         <div class="alert alert-dismissible" role="alert" id="cc-message-alert"><span></span><button type="button" class="btn-close" onClick="hideMessage('cc-message-alert')" aria-label="Close"></button></div>
+        <div class="modal-title h4 text-muted">Payment to {{ c.ORGANIZATION_NAME }}</div>
         <div class="row g-3">
             <div class="col-12">
                 <div class="form-text">Payment amount</div><div class="h4" id="paymentAmount"></div>
@@ -255,7 +255,7 @@ var collectAuthNetPayment = function (ref_id, email, desc, success_url, cancel_u
             },
             function(result) {
                 if (result.error) {
-                    $("#message-alert").addClass("alert-danger").show().children('span').html(result.error.message);
+                    showErrorMessage(result.error, "cc-message-alert");
                 } else {
                     // The payment has been processed!
                     processSuccessUrl(success_url);
@@ -267,10 +267,12 @@ var collectAuthNetPayment = function (ref_id, email, desc, success_url, cancel_u
     form.on('submit', function(event) {
         event.preventDefault();
         var cardData = {
+            fullName: $("#fullName").val(),
             cardNumber: $("#cardNumber").val(),
             month: $("#expMonth").val(),
             year: $("#expYear").val(),
-            cardCode: $("#cardCode").val()
+            cardCode: $("#cardCode").val(),
+            zip: $("#zip").val()
         };
 
         var secureData = {
@@ -285,7 +287,7 @@ var collectAuthNetPayment = function (ref_id, email, desc, success_url, cancel_u
 var collectStripePayment = function (client_secret, stripe_id, success_url, cancel_url) {
     var stripeModal = bootstrap.Modal.getOrCreateInstance($('#stripeModal'));
     sripeModal.show();
-    $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+    $("#cc-message-alert").hide().removeClass().addClass("alert").children("span").html("");
     var form = document.getElementById('payment-form');
     var stripe = Stripe('{{ c.STRIPE_PUBLIC_KEY }}');
     var elements = stripe.elements();
@@ -337,7 +339,7 @@ var collectStripePayment = function (client_secret, stripe_id, success_url, canc
             }).then(function(result) {
             if (result.error) {
                 // Show error to your customer (e.g., insufficient funds)
-                $("#message-alert").addClass("alert-danger").show().children('span').html(result.error.message);
+                showErrorMessage(result.error.message, "cc-message-alert")
             } else {
                 // The payment has been processed!
                 if (result.paymentIntent.status === 'succeeded') {
