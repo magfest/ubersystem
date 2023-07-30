@@ -496,7 +496,7 @@
         </td>
         <td>
           {% if item.refundable and not item.method %} {# disabling transaction refunds for now #}
-          <button class="btn btn-sm btn-warning"
+          <button class="btn btn-sm btn-warning text-nowrap"
                   onClick="
                   {% if item.method %}
                   refundTxn('{{ item.id }}', '{{ (item.amount_left / 100)|format_currency }}')">
@@ -508,23 +508,23 @@
           </button>
           {% endif %}
         </td>
-        <td>
+        <td class="text-nowrap">
           {% if item.available_actions %}
             {% for action in item.available_actions %}
               {% if action == 'refresh_receipt_txn' %}
-              <button class="btn btn-sm btn-info" onClick="refreshTxn('{{ item.id }}')">Refresh from {{ processor_str }}</button>
+              <button class="btn btn-sm btn-info text-nowrap" onClick="refreshTxn('{{ item.id }}')">Refresh from {{ processor_str }}</button>
               {% endif %}
               {% if action == 'cancel_receipt_txn' %}
-              <button class="btn btn-sm btn-danger" onClick="cancelTxn('{{ item.id }}')">Mark as Cancelled</button>
+              <button class="btn btn-sm btn-danger text-nowrap" onClick="cancelTxn('{{ item.id }}')">Mark as Cancelled</button>
               {% endif %}
               {% if action == 'comp_receipt_item' %}
-              <button class="btn btn-sm btn-success" onClick="compItem('{{ item.id }}', '{{ receipt.id }}')">Comp Item</button>
+              <button class="btn btn-sm btn-success text-nowrap" onClick="compItem('{{ item.id }}', '{{ receipt.id }}')">Comp Item</button>
               {% endif %}
               {% if action == 'undo_receipt_item' %}
-              <button class="btn btn-sm btn-danger" onClick="undoItem('{{ item.id }}', '{{ receipt.id }}')">Undo Item</button>
+              <button class="btn btn-sm btn-danger text-nowrap" onClick="undoItem('{{ item.id }}', '{{ receipt.id }}')">Undo Item</button>
               {% endif %}
               {% if action == 'remove_receipt_item' %}
-              <button class="btn btn-sm btn-danger" onClick="deleteItem('{{ item.id }}')">
+              <button class="btn btn-sm btn-danger text-nowrap" onClick="deleteItem('{{ item.id }}')">
                 Delete {{ "Transaction" if item.method else "Item" }}
               </button>
               {% endif %}

@@ -826,28 +826,49 @@ class ReceiptManager:
 
     @classmethod
     def auto_update_receipt(self, model, receipt, params):
+        from uber.models import Attendee, Group, ReceiptItem, AdminAccount
         if not receipt:
             return []
         
         params = params.copy()
         receipt_items = []
 
-        if params.get('no_override') and params.get('overridden_price') or params.get('overridden_price') == '':
-            params['overridden_price'] = None
-
         model_overridden_price = getattr(model, 'overridden_price', None)
-        model_auto_recalc = getattr(model, 'auto_recalc', True)
         overridden_unset = model_overridden_price and not params.get('overridden_price')
+        model_auto_recalc = getattr(model, 'auto_recalc', True)
         auto_recalc_unset = not model_auto_recalc and params.get('auto_recalc', None)
 
-        if (model_overridden_price and not overridden_unset) or (not model_auto_recalc and not auto_recalc_unset):
-            return []
+        if overridden_unset or auto_recalc_unset:
+            # Note: we can't use preview models here because the full default cost
+            # relies on non-dict-able properties, like groups' # of badges
+            if overridden_unset:
+                current_cost = model.overridden_price
+                model.overridden_price = None
+                new_cost = model.default_cost
 
-        if params.get('overridden_price'):
+                revert_change = {'overridden_price': model.overridden_price}
+            else:
+                current_cost = model.cost
+                model.auto_recalc = True
+                new_cost = model.default_cost
+
+                revert_change = {'auto_recalc': True, 'cost': model.cost}
+            
+            if new_cost != current_cost:
+                cost_change = new_cost - current_cost
+                receipt_items += [ReceiptItem(receipt_id=receipt.id,
+                                    desc=f"Reverting to default price from custom price of ${current_cost}",
+                                    amount=cost_change * 100,
+                                    count=1,
+                                    who=AdminAccount.admin_name() or 'non-admin',
+                                    revert_change=revert_change,
+                                )]
+
+        if not params.get('no_override') and params.get('overridden_price'):
             receipt_item = self.add_receipt_item_from_param(model, receipt, 'overridden_price', params)
             return [receipt_item] if receipt_item else []
         
-        if not params.get('auto_recalc', True):
+        if not params.get('auto_recalc'):
             receipt_item = self.add_receipt_item_from_param(model, receipt, 'cost', params)
             return [receipt_item] if receipt_item else []
         else:
