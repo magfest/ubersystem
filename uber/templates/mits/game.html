@@ -132,14 +132,14 @@
 <script type="text/javascript">
 var deleteDoc = function (id) {
     $.post('delete_document', {id: id, csrf_token: csrf_token}, function(message) {
-        $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+        hideMessageBox();
         $("#message-alert").addClass("alert-info").show().children('span').html(message);
         $('#' + id).remove();
     });
 };
 var deletePic = function (id) {
     $.post('delete_picture', {id: id, csrf_token: csrf_token}, function(message) {
-        $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+        hideMessageBox();
         $("#message-alert").addClass("alert-info").show().children('span').html(message);
         $('#' + id).remove();
     });

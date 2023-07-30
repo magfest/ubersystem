@@ -26,7 +26,7 @@ var loadCheckInFormModal = function (attendeeID, printerID='') {
                 $('#stripeModal').remove();
             });
         } else {
-            $("#message-alert").addClass("alert-danger").show().children('span').html("Form loading failed.");
+            showErrorMessage("Form loading failed.");
             checkInModal.hide();
         }
     });
@@ -39,7 +39,7 @@ var loadCheckInModal = function (attendeeID) {
     $('#checkin_modal .modal-content').load('../registration/printer_id_form?id=' + attendeeID, function() {
         if ($('.printer-id').length) {
         } else {
-            $("#message-alert").addClass("alert-danger").show().children('span').html("Form loading failed.");
+            showErrorMessage("Form loading failed.");
             checkInModal.hide();
         }
         });
@@ -62,7 +62,7 @@ var checkIn = function (attendeeID) {
         dataType: 'json',
         data: $("#check_in_form_" + attendeeID).serialize(),
         success: function (json) {
-            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+            hideMessageBox();
             var message = json.message;
             if (json.success) {
                 checkInModal.hide();
@@ -73,14 +73,14 @@ var checkIn = function (attendeeID) {
                 $('#num_' + attendeeID).parent().html(json.badge);
                 $("#message-alert").addClass("alert-success").show().children('span').html(message);
             } else {
-                $("#message-alert").addClass("alert-danger").show().children('span').html(message);
+                showErrorMessage(message);
             }
             if (json.increment) {
                 $('#checkin_count').html(1 + parseInt($("#checkin_count").text()));
             }
         },
         error: function () {
-            $("#message-alert").addClass("alert-danger").show().children('span').html('Unable to connect to server, please try again.');
+            showErrorMessage('Unable to connect to server, please try again.');
         }
     });
 };

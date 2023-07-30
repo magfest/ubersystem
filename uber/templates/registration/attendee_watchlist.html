@@ -11,7 +11,7 @@ var updateWatchlist = function () {
         window.location.hash = old_hash;
     })
     .fail(function(message) {
-        $("#message-alert").addClass("alert-danger").show().children('span').html(message);
+        showErrorMessage(message);
         window.location.hash = old_hash;
     });
   })

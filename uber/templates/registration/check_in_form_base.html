@@ -69,17 +69,17 @@ $("form[action='mark_as_paid']").submit(function (e) {
         dataType: 'json',
         data: data,
         success: function (json) {
-            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+            hideMessageBox();
             var message = json.message;
             if (json.success) {
                 $("#message-alert").addClass("alert-success").show().children('span').html(message);
                 loadCheckInForm();
             } else {
-                $("#message-alert").addClass("alert-danger").show().children('span').html(message);
+                showErrorMessage(message);
             }
         },
         error: function () {
-            $("#message-alert").addClass("alert-danger").show().children('span').html('Unable to connect to server, please try again.');
+            showErrorMessage('Unable to connect to server, please try again.');
         }
     });
 });
@@ -88,13 +88,13 @@ $('#stripe_frame').load(function() {
     this.contentDocument.body.innerHTML = '';
     
     if (responseText) {
-        $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+        hideMessageBox();
         var response = $.parseJSON(responseText);
         if (response['success'] == true) {
             $("#message-alert").addClass("alert-success").show().children('span').html(response['message']);
             loadCheckInForm();
         } else {
-            $("#message-alert").addClass("alert-danger").show().children('span').html('', response['message'], {timeOut: 1000});
+            showErrorMessage('', response['message'], {timeOut: 1000});
         }
     }
 });
@@ -304,7 +304,7 @@ $().ready(function() {
             '../registration/minor_check_form?attendee_id=' + attendeeID + '&printer_id=' + printerID + '&reprint_fee=' + reprintFee, function() {
         if ($('.minor-check-id').length) {
         } else {
-            $("#message-alert").addClass("alert-danger").show().children('span').html("Form loading failed.");
+            showErrorMessage("Form loading failed.");
             loadCheckInFormModal(attendeeID);
         }
         });
@@ -316,7 +316,7 @@ $().ready(function() {
             dataType: 'json',
             data: $("#check_in_form_" + attendeeID).serialize(),
             success: function (json) {
-                $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+                hideMessageBox();
                 var message = json.message;
                 if (json.success) {
                     if (json.minor_check) {
@@ -330,11 +330,11 @@ $().ready(function() {
                         loadCheckInFormModal(attendeeID);
                     }
                 } else {
-                    $("#message-alert").addClass("alert-danger").show().children('span').html(message);
+                    showErrorMessage(message);
                 }
             },
             error: function () {
-                $("#message-alert").addClass("alert-danger").show().children('span').html('Unable to connect to server, please try again.');
+                showErrorMessage('Unable to connect to server, please try again.');
             }
         });
     };

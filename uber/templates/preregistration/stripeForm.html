@@ -47,7 +47,7 @@
   <div class="modal-dialog" role="document">
     <div class="modal-content">
         <div class="modal-body text-start jumbotron">
-        <div class="alert alert-dismissible" role="alert" id="cc-message-alert"><span></span><button type="button" class="btn-close" onClick="hideMessage('cc-message-alert')" aria-label="Close"></button></div>
+        <div class="alert alert-dismissible" role="alert" id="cc-message-alert"><span></span><button type="button" class="btn-close" onClick="hideMessageBox('cc-message-alert')" aria-label="Close"></button></div>
         <div class="modal-title h4 text-muted">Payment to {{ c.ORGANIZATION_NAME }}</div>
         <div class="row g-3">
             <div class="col-12">
@@ -164,6 +164,7 @@ $('#stripeModal').detach().appendTo("body");
 stripe_action_params = {id: '{{ id }}'};
 
 var callStripeAction = function (autoTrigger=false) {
+    hideMessageBox();
     if (autoTrigger == false) {
         var $btn = $(this);
         $btn.prop('disabled', true);
@@ -176,7 +177,7 @@ var callStripeAction = function (autoTrigger=false) {
     function(result) {
         if (autoTrigger == false) { $btn.prop('disabled', false); }
         if (result.error) {
-            $("#message-alert").addClass("alert-danger").show().children('span').html(result.error);
+            showErrorMessage(result.error);
         } else if (result.stripe_intent) {
             var dollars = result.stripe_intent.amount / 100;
             dollars = dollars.toLocaleString("en-US", {style:"currency", currency:"USD"});
@@ -202,10 +203,11 @@ var processSuccessUrl = function(success_url) {
 }
 
 var processCancelUrl = function(result, form, card=null) {
+    hideMessageBox();
     if (result.redirect_url) {
         window.location.replace(result.redirect_url);
     } else if (result.message) {
-        $("#message-alert").addClass("alert-danger").show().children('span').html(result.message);
+        showErrorMessage(result.message);
         $(form).addClass('d-none');
         $('#stripeModal').off('hidden.bs.modal');
         if (card != null) {
@@ -229,7 +231,7 @@ var collectAuthNetPayment = function (ref_id, email, desc, success_url, cancel_u
     stripeModal = new bootstrap.Modal($('#stripeModal'))
 
     stripeModal.show();
-    $("#cc-message-alert").hide().removeClass().addClass("alert alert-dismissible").children("span").html("");
+    hideMessageBox("cc-message-alert");
 
     var handleAuthNetResponse = function (response) {
         if (response.messages.resultCode === "Error") {
@@ -332,6 +334,7 @@ var collectStripePayment = function (client_secret, stripe_id, success_url, canc
 
     form.addEventListener('submit', function(event) {
         event.preventDefault();
+        hideMessageBox("cc-message-alert");
         stripe.confirmCardPayment(client_secret, {
             payment_method: {
                 card: card

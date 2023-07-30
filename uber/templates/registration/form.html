@@ -25,12 +25,12 @@
         this.contentDocument.body.innerHTML = '';
         
         if (responseText) {
-            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+            hideMessageBox();
             var response = $.parseJSON(responseText);
             if (response['success'] == true) {
                 window.location.href = '../registration/form?id={{ attendee.id }}&message=' + response['message'];
             } else {
-                $("#message-alert").addClass("alert-danger").show().children('span').html('', response['message'], {timeOut: 1000});
+                showErrorMessage('', response['message'], {timeOut: 1000});
             }
         }
     });

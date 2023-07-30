@@ -16,7 +16,7 @@ var saveAndClose = function() {
   
 var updateAttendee = function(event){
     event.preventDefault();
-    $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+    hideMessageBox();
 
     var formData = $("#attendee_form").serializeArray();
     var old_hash = window.location.hash;
@@ -42,11 +42,11 @@ var updateAttendee = function(event){
               loadForm("Data");
               {% endif %}
             } else {
-              $("#message-alert").addClass("alert-danger").show().children('span').html(json.message);
+              showErrorMessage(json.message);
             }
         },
         error: function () {
-            $("#message-alert").addClass("alert-danger").show().children('span').html('Unable to connect to server, please try again.');
+            showErrorMessage('Unable to connect to server, please try again.');
         }
     });
     setTimeout(function(){ 

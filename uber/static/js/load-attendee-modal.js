@@ -19,7 +19,7 @@ loadAttendeeModal = function() {
             $(window).trigger( 'runJavaScript' );
         } else {
             // We got redirected -- likely to the login page -- so load it properly
-            $("#message-alert").addClass("alert-danger").show().children('span').html("Form loading failed.");
+            showErrorMessage("Form loading failed.");
             window.location.hash = ""; // prevent refresh loops
             window.location.reload();
         }

@@ -145,8 +145,8 @@ $().ready(function() {
                     togglePrices();
                 {% else %}
                     setBadge(REG_TYPES, 0);
-                    $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
-                    $("#message-alert").addClass("alert-danger").show().children('span').html('Group registration has closed.');
+                    hideMessageBox();
+                    showErrorMessage('Group registration has closed.');
                 {% endif %}
             }
         });

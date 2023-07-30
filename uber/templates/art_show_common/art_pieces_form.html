@@ -383,10 +383,10 @@
                             modal.hide();
                             location.href = '?id={{ app.id }}&message='+response['success'];
                         } else {
-                            $("#message-alert").addClass("alert-danger").show().children('span').html('', response['error'], {timeOut: 5000});
+                            showErrorMessage('', response['error'], {timeOut: 5000});
                         }
                     } catch(ex) {
-                        $("#message-alert").addClass("alert-danger").show().children('span').html('', 'There was an error saving the piece: ' + responseText.substring(0, 1024), {timeOut: 5000});
+                        showErrorMessage('', 'There was an error saving the piece: ' + responseText.substring(0, 1024), {timeOut: 5000});
                     }
                 }
             } finally {
@@ -419,7 +419,7 @@
                             },
                             success: function(response, status) {
                                 if (response['error']) {
-                                    $("#message-alert").addClass("alert-danger").show().children('span').html('There was an error removing the piece: ' + response['error']);
+                                    showErrorMessage('There was an error removing the piece: ' + response['error']);
                                 } else {
                                     dataTable.row(pieceRow).remove();
                                     dataTable.draw();
@@ -427,7 +427,7 @@
                                 }
                             },
                             error: function(response, status) {
-                                $("#message-alert").addClass("alert-danger").show().children('span').html('There was an error removing the item: ' + response);
+                                showErrorMessage('There was an error removing the item: ' + response);
                             }
                         });
                     }

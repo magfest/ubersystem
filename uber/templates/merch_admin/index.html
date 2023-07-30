@@ -145,7 +145,7 @@
             $confirm = $('#discount_confirm'),
             $checkButton = $('#discount_check');
         var reset = function () {
-            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+            hideMessageBox();
             $confirm.empty();
             $checkButton.show();
             $num.prop('disabled', false).val('');
@@ -153,12 +153,12 @@
         $num.prop('disabled', true);
         $confirm.empty();
         $checkButton.hide();
-        $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+        hideMessageBox();
         var params = {badge_num: $num.val(), csrf_token: csrf_token};
         $.post('redeem_merch_discount', params, function (checkResponse) {
             if (!checkResponse.message) {
                 reset();
-                $("#message-alert").addClass("alert-danger").show().children('span').html(checkResponse.error || 'An unexpected error occurred');
+                showErrorMessage(checkResponse.error || 'An unexpected error occurred');
             } else {
                 toastr[checkResponse.warning ? 'warning' : 'info'](checkResponse.message);
                 $confirm.append(
@@ -184,7 +184,7 @@
         });
 
         $('#message').ajaxError(function () {
-            $("#message-alert").addClass("alert-danger").show().children('span').html('Oh noes - the web server is down or something!!!!!');
+            showErrorMessage('Oh noes - the web server is down or something!!!!!');
         });
 
         $('input[type=text],input[type=number]').on('focus', function(event){

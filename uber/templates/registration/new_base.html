@@ -46,9 +46,9 @@
                 mpoints:        0,
                 csrf_token:     csrf_token,
             }, function(json) {
-                $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+                hideMessageBox();
                 if (!json.success) {
-                    $("#message-alert").addClass("alert-danger").show().children('span').html(json.message);
+                    showErrorMessage(json.message);
                 } else {
                     $('#badge_num').val('');
                     $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
@@ -95,17 +95,17 @@
                         dataType: 'json',
                         data: data,
                         success: function (json) {
-                            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+                            hideMessageBox();
                             var message = json.message;
                             if (json.success) {
                                 $("#message-alert").addClass("alert-info").show().children('span').html(message);
                                 refreshRow(currentForm);
                             } else {
-                                $("#message-alert").addClass("alert-danger").show().children('span').html(message);
+                                showErrorMessage(message);
                             }
                         },
                         error: function () {
-                            $("#message-alert").addClass("alert-danger").show().children('span').html('Unable to connect to server, please try again.');
+                            showErrorMessage('Unable to connect to server, please try again.');
                         }
                     });
 
@@ -139,18 +139,18 @@
                     dataType: 'json',
                     data: data,
                     success: function (json) {
-                        $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+                        hideMessageBox();
                         var message = json.message;
                         if (json.success) {
                             $("#message-alert").addClass("alert-info").show().children('span').html(message);
                             // Refresh the form
                             refreshRow(currentForm);
                         } else {
-                            $("#message-alert").addClass("alert-danger").show().children('span').html(message);
+                            showErrorMessage(message);
                         }
                     },
                     error: function () {
-                        $("#message-alert").addClass("alert-danger").show().children('span').html('Unable to connect to server, please try again.');
+                        showErrorMessage('Unable to connect to server, please try again.');
                     }
                 });
             });

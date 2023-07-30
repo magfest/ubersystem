@@ -38,7 +38,7 @@
             dataType: 'json',
             data: $("#printer_id_form").serialize(),
             success: function (json) {
-                $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+                hideMessageBox();
                 var message = json.message;
                 if (json.success) {
                     $("#message-alert").addClass("alert-success").show().children('span').html(message);
@@ -47,11 +47,11 @@
                     printer_minor_id = json.printer_minor_id;
                     loadCheckInFormModal(attendeeID);
                 } else {
-                    $("#message-alert").addClass("alert-danger").show().children('span').html(message);
+                    showErrorMessage(message);
                 }
             },
             error: function () {
-                $("#message-alert").addClass("alert-danger").show().children('span').html('Unable to connect to server, please try again.');
+                showErrorMessage('Unable to connect to server, please try again.');
             }
         });
     };

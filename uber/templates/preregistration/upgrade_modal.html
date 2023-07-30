@@ -54,7 +54,7 @@
         },
         function(result) {
           if (result.error) {
-            $("#message-alert").addClass("alert-danger").show().children('span').html(result.error);
+            showErrorMessage(result.error);
           } else {
             change_str = result.change > 0 ? "$" + result.change / 100 : "-$" + result.change * -1 / 100;
             costChangeDict[colName] = result.change;
@@ -95,7 +95,7 @@
         $.post('purchase_upgrades', $form.serialize(), function(result) {
             $btn.prop('disabled', false);
             if (result.error) {
-                $("#message-alert").addClass("alert-danger").show().children('span').html(result.error);
+                showErrorMessage(result.error);
             } else if (result.success) {
                 upgradeModal.hide();
                 callStripeAction(autoTrigger=true);

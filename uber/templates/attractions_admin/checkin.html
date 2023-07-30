@@ -149,7 +149,7 @@
         },
         success: function(response, status) {
           if(response && response['error']) {
-            $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'], '', {timeOut: 3000});
+            showErrorMessage(response['error'], '', {timeOut: 3000});
 
           } else if(response && response['result']) {
             updateAttendee(response['result']['attendee']);
@@ -182,7 +182,7 @@
           $badgeNum.focus();
         },
         error: function(response, status, statusText) {
-          $("#message-alert").addClass("alert-danger").show().children('span').html('Error searching badge number: ' + statusText, '', {timeOut: 3000});
+          showErrorMessage('Error searching badge number: ' + statusText, '', {timeOut: 3000});
           $badgeNum.focus();
         }
       });
@@ -212,7 +212,7 @@
           signupId = $signup.data('signupId');
       checkinSignup(signupId, function(response) {
         if(response && response['error']) {
-          $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], '', {timeOut: 3000});
         } else {
           $signup.addClass('checked-in').addClass('checked-in-force-visible');
         }
@@ -225,7 +225,7 @@
           signupId = $signup.data('signupId');
       undoCheckinSignup(signupId, function(response) {
         if(response && response['error']) {
-          $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], '', {timeOut: 3000});
         } else {
           $signup.removeClass('checked-in').removeClass('checked-in-force-visible');
         }

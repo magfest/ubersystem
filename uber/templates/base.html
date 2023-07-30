@@ -60,8 +60,8 @@
                 $("#" + alertId).addClass("alert-danger").show().children('span').html(message);
                 window.scrollTo(0,0);
             }
-            hideMessage = function(alertId="message-alert") {
-                $("#" + alertId).hide();
+            hideMessageBox = function(alertId="message-alert") {
+                $("#" + alertId).hide().removeClass().addClass("alert alert-dismissible").children("span").html("");
             }
         </script>
 
@@ -235,11 +235,11 @@
                     if (error_message.startsWith("ERROR: ")) {
                         error_message = error_message.substr(7)
                     }
-                    $("#message-alert").addClass("alert-danger").show().children('span').html(error_message);
+                    showErrorMessage(error_message);
                 } else if (message.length) {
                     message = message.slice(1,-1)
                     if (message.startsWith("ERROR: ")) {
-                        $("#message-alert").addClass("alert-danger").show().children('span').html(message.substr(7));
+                        showErrorMessage(message.substr(7));
                     } else if (message.startsWith("SUCCESS: ")) {
                         $("#message-alert").addClass("alert-success").show().children('span').html(message.substr(9));
                     } else {
@@ -516,7 +516,7 @@
         {% endif %}
         {% endblock %}
         {% block header %}{% endblock %}
-        {% block alert %}<div class="alert alert-dismissible" role="alert" id="message-alert"><span></span><button type="button" class="btn-close" onClick="hideMessage()" aria-label="Close"></button></div>{% endblock %}
+        {% block alert %}<div class="alert alert-dismissible" role="alert" id="message-alert"><span></span><button type="button" class="btn-close" onClick="hideMessageBox()" aria-label="Close"></button></div>{% endblock %}
         {% block masthead %}{% endblock %}
         {% if title_text %}<h1 class="visually-hidden">{{ title_text }}</h1>{% endif %}
         {% block content %}{% endblock %}

@@ -366,7 +366,7 @@
 
       var callback = function(response) {
         if(response && response['error']) {
-          $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], '', {timeOut: 3000});
         } else {
           var $event = $button.closest('.event');
           $event.css({'height': $event.height(), 'min-height': ''});
@@ -436,7 +436,7 @@
               },
               success: function(response, status) {
                 if (response['error']) {
-                    $("#message-alert").addClass("alert-danger").show().children('span').html('There was an error opening signups: ' + response['error']);
+                    showErrorMessage('There was an error opening signups: ' + response['error']);
                 } else {
                     $("#message-alert").addClass("alert-success").show().children('span').html('Signups for all ' + features[featureId] + ' events on ' + day + ' opened!', {timeOut: 2000});
                     $('#' + featureId + '_' + location + '_' + day + ' .open-signups').hide();
@@ -444,7 +444,7 @@
                 }
               },
               error: function(response, status) {
-                $("#message-alert").addClass("alert-danger").show().children('span').html(response);
+                showErrorMessage(response);
               }
           });
           }
@@ -476,7 +476,7 @@
               },
               success: function(response, status) {
                 if (response['error']) {
-                    $("#message-alert").addClass("alert-danger").show().children('span').html('There was an error closing signups: ' + response['error']);
+                    showErrorMessage('There was an error closing signups: ' + response['error']);
                 } else {
                     $("#message-alert").addClass("alert-success").show().children('span').html('Signups for all ' + features[featureId] + ' events on ' + day + ' closed!', {timeOut: 2000});
                     $('#' + featureId + '_' + location + '_' + day + ' .close-signups').hide();
@@ -484,7 +484,7 @@
                 }
               },
               error: function(response, status) {
-                $("#message-alert").addClass("alert-danger").show().children('span').html(response);
+                showErrorMessage(response);
               }
           });
           }
@@ -518,7 +518,7 @@
                 if (result) {
                   updateLocations(featureId, oldValue, newValue, function(response) {
                     if(response && response['error']) {
-                      $("#message-alert").addClass("alert-danger").show().children('span').html(response['error']);
+                      showErrorMessage(response['error']);
                       $select.val(oldValue);
                     } else {
                       window.location = window.location + '&message=Successfully merged rooms!';
@@ -532,7 +532,7 @@
           } else {
             updateLocations(featureId, oldValue, newValue, function(response) {
               if(response && response['error']) {
-                $("#message-alert").addClass("alert-danger").show().children('span').html(response['error']);
+                showErrorMessage(response['error']);
                 $select.val(oldValue);
               } else {
                 $select.data('initialValue', newValue);

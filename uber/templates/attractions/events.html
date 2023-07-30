@@ -108,12 +108,12 @@
             $('#' + eventId + ' .remaining-slots').text(response['remaining_slots']);
             callback(response);
           } else {
-            $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'] || 'Error signing up for event', '', {timeOut: 3000});
+            showErrorMessage(response['error'] || 'Error signing up for event', '', {timeOut: 3000});
             callback(false);
           }
         },
         error: function(response, status, statusText) {
-          $("#message-alert").addClass("alert-danger").show().children('span').html('Error signing up for event', '', {timeOut: 3000});
+          showErrorMessage('Error signing up for event', '', {timeOut: 3000});
           callback(false);
         }
       });
@@ -187,7 +187,7 @@
     });
 
     $modals.on('hide.bs.modal', function (event) {
-      $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+      hideMessageBox();
     });
 
     $modals.on('hidden.bs.modal', function (event) {

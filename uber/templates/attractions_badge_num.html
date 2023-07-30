@@ -92,9 +92,9 @@
 
       var errorMessage = function(response) {
         if (response && response['error']) {
-          $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], '', {timeOut: 3000});
         } else {
-          $("#message-alert").addClass("alert-danger").show().children('span').html('Unrecognized badge number: ' + badgeNum, '', {timeOut: 3000});
+          showErrorMessage('Unrecognized badge number: ' + badgeNum, '', {timeOut: 3000});
         }
         $badgeNum.focus();
       };

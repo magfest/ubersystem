@@ -59,7 +59,7 @@ loadForm = function(kw) {
       $(window).trigger( 'runJavaScript' );
       glyphicon_span.removeClass().addClass(glyphicon_class);
     } else {
-      $("#message-alert").addClass("alert-danger").show().children('span').html("Unable to connect to server, please try again.");
+      showErrorMessage("Unable to connect to server, please try again.");
       glyphicon_span.removeClass().addClass(glyphicon_class);
     }
   });
