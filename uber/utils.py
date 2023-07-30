@@ -889,7 +889,7 @@ def prepare_saml_request(request):
         'get_data': request.params.copy() if request.method == 'GET' else {},
         'post_data': request.params.copy() if request.method == 'POST' else {},
     }
-    log.debug(saml_request)
+
     if c.FORCE_SAML_HTTPS:
         saml_request['https'] = 'on'
     return saml_request
