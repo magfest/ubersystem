@@ -31,7 +31,7 @@ def valid_password(password, account):
 class Root:
     def index(self, session, message=''):
         attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
-            .filter(Attendee.first_name != '', Attendee.badge_status not in [c.INVALID_STATUS, c.WATCHED_STATUS])
+            .filter(Attendee.first_name != '', Attendee.is_valid == True)
 
         attendees = [
             (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))

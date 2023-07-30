@@ -680,7 +680,8 @@ class Config(_Overridable):
         from uber.models import Session, Attendee
         with Session() as session:
             count = session.query(Attendee).filter_by(amount_extra=kickin_level).filter(
-                    ~Attendee.badge_status.in_([c.INVALID_STATUS, c.IMPORTED_STATUS, c.REFUNDED_STATUS])).count()
+                    ~Attendee.badge_status.in_([c.INVALID_GROUP_STATUS, c.INVALID_STATUS, 
+                                                c.IMPORTED_STATUS, c.REFUNDED_STATUS])).count()
         return count
 
     @request_cached_property
