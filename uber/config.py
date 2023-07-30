@@ -1421,3 +1421,7 @@ if c.SAML_SP_SETTINGS["privateKey"]:
         }
     c.SAML_SETTINGS["idp"] = c.SAML_IDP_SETTINGS
     c.SAML_SETTINGS["sp"] = sp_settings
+    if c.DEV_BOX:
+        c.SAML_SETTINGS["debug"] = True
+    else:
+        c.SAML_SETTINGS["strict"] = True

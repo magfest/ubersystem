@@ -188,6 +188,7 @@ class Root:
 
             req = prepare_saml_request(cherrypy.request)
             auth = OneLogin_Saml2_Auth(req, c.SAML_SETTINGS)
+            log.debug(original_location)
             raise HTTPRedirect(auth.login(return_to=c.URL_ROOT + original_location))
 
         return {
