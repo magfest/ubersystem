@@ -925,7 +925,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         return select([ModelReceipt.payment_total]
                      ).where(and_(ModelReceipt.owner_id == cls.id,
-                                  ModelReceipt.owner_model == "Attendee")
+                                  ModelReceipt.owner_model == "Attendee",
+                                  ModelReceipt.closed == None)
                      ).label('amount_paid')
     
     @hybrid_property

@@ -355,7 +355,8 @@ class Group(MagModel, TakesPaymentMixin):
 
         return select([ModelReceipt.payment_total]
                      ).where(and_(ModelReceipt.owner_id == cls.id,
-                                  ModelReceipt.owner_model == "Group")
+                                  ModelReceipt.owner_model == "Group",
+                                  ModelReceipt.closed == None)
                      ).label('amount_paid')
     
     @hybrid_property
