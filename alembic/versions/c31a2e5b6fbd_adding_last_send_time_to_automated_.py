@@ -1,7 +1,7 @@
 """Adding last_send_time to automated emails
 
 Revision ID: c31a2e5b6fbd
-Revises: fa2deb095760
+Revises: 551b8ff65d33
 Create Date: 2022-12-28 07:18:23.125853
 
 """
@@ -9,7 +9,7 @@ Create Date: 2022-12-28 07:18:23.125853
 
 # revision identifiers, used by Alembic.
 revision = 'c31a2e5b6fbd'
-down_revision = 'fa2deb095760'
+down_revision = '551b8ff65d33'
 branch_labels = None
 depends_on = None
 
