@@ -98,7 +98,6 @@ def upgrade():
     op.drop_column('group', 'amount_paid_override')
     op.drop_column('group', 'refunded_items')
     op.drop_column('group', 'amount_refunded_override')
-    op.drop_index('ix_marketplace_application_amount_paid', table_name='marketplace_application')
     op.drop_column('marketplace_application', 'base_price')
     op.drop_column('marketplace_application', 'amount_paid')
     op.drop_table('receipt_item')
@@ -120,7 +119,6 @@ def upgrade():
 def downgrade():
     op.add_column('marketplace_application', sa.Column('amount_paid', sa.INTEGER(), server_default=sa.text('0'), autoincrement=False, nullable=False))
     op.add_column('marketplace_application', sa.Column('base_price', sa.INTEGER(), server_default=sa.text('0'), autoincrement=False, nullable=False))
-    op.create_index('ix_marketplace_application_amount_paid', 'marketplace_application', ['amount_paid'], unique=False)
     op.add_column('group', sa.Column('amount_refunded_override', sa.INTEGER(), server_default=sa.text('0'), autoincrement=False, nullable=False))
     op.add_column('group', sa.Column('refunded_items', postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'::jsonb"), autoincrement=False, nullable=False))
     op.add_column('group', sa.Column('amount_paid_override', sa.INTEGER(), server_default=sa.text('0'), autoincrement=False, nullable=False))

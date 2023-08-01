@@ -1,7 +1,7 @@
 """Add signed documents
 
 Revision ID: 4acd51ac5462
-Revises: 81b45e3d967c
+Revises: ed2acba6f8bd
 Create Date: 2022-06-28 03:19:40.614556
 
 """
@@ -9,7 +9,7 @@ Create Date: 2022-06-28 03:19:40.614556
 
 # revision identifiers, used by Alembic.
 revision = '4acd51ac5462'
-down_revision = '81b45e3d967c'
+down_revision = 'ed2acba6f8bd'
 branch_labels = None
 depends_on = None
 
