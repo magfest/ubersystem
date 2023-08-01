@@ -1,16 +1,13 @@
-{% extends "base.html" %}
-{% import "fields/attendee.html" as attendee_fields with context %}
+{% extends "./preregistration/preregbase.html" %}
+{% import "forms/attendee.html" as attendee_fields with context %}
 {% block backlink %}{% endblock %}
-{% block title %}Defer Your {{ c.EVENT_NAME }} Registration{% endblock %}
+{% set title_text = "Defer Your " ~ c.EVENT_NAME ~ " Registration" %}
 {% block content %}
-<script type="text/javascript">
-  {% include "region_opts.html" %}
-</script>
+{% include "region_opts.html" %}
 
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
-    <h3> Defer {{ attendee.full_name }}'s Registration </h3>
+<div class="card">
+  <div class="card-body">
+    <h2 class="h3"> Defer {{ attendee.full_name }}'s Registration </h2>
 
     <p>
       Are you sure you want to defer your {{ c.EVENT_NAME_AND_YEAR }} registration
@@ -37,7 +34,7 @@
         <div class="col-sm-6 col-sm-offset-3">
           <button type="submit" class="btn btn-warning">Yes, Defer My Badge to {{ c.EVENT_NAME }} {{ c.EVENT_YEAR|int + 1 }}</button>
         
-          <a href="confirm?id={{ attendee.id }}" class="btn btn-default">Nevermind</a>
+          <a href="confirm?id={{ attendee.id }}" class="btn btn-outline-secondary">Nevermind</a>
         </div>
       </div>
 

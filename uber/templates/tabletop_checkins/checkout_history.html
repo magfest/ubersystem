@@ -1,12 +1,12 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Checkout History for {{ game.name }} ({{ game.code }}){% endblock %}
 {% block content %}
-  <div class="panel panel-body"><h2> Checkout History for {{ game.name }} ({{ game.code }}) </h2>
+  <div class="card-body"><h2> Checkout History for {{ game.name }} ({{ game.code }}) </h2>
     <p class="text-center"><a href="index">Go back to Tabletop Checkin</a></p>
   <p>This game has been checked out {{ game.checkouts|length }} times.
     {% if game.checked_out %} It is currently checked out by {{ game.checked_out.attendee|form_link }} (Badge #{{ game.checked_out.attendee.badge_num }}).{% endif %}</p>
   </div>
-  <div class="table-responsive">
+  <div class="card-body">
     <table class="table table-hover table-striped">
       <thead>
       <tr>

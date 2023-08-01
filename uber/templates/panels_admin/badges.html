@@ -11,9 +11,9 @@
     var link = function (applicantId, attendeeId) {
         $.post('link_badge', {csrf_token: csrf_token, applicant_id: applicantId, attendee_id: attendeeId}, function (response) {
             if (response.error) {
-                toastr.error(response.error);
+                showErrorMessage(response.error);
             } else {
-                toastr.info('Linked panelist to ' + response.name);
+                $("#message-alert").addClass("alert-info").show().children('span').html('Linked panelist to ' + response.name);
                 hideRows(response.linked);
             }
         }, 'json');
@@ -21,9 +21,9 @@
     var create = function (applicantId) {
         $.post('create_badge', {csrf_token: csrf_token, applicant_id: applicantId}, function (response) {
             if (response.error) {
-                toastr.error(response.error);
+                showErrorMessage(response.error);
             } else {
-                toastr.info('Added panelist');
+                $("#message-alert").addClass("alert-info").show().children('span').html('Added panelist');
                 hideRows(response.added);
             }
         }, 'json');

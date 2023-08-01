@@ -29,7 +29,7 @@ extra money <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id 
 Badges are not mailed out before the event, so your badge will be available for pickup at the registration desk when you arrive at {{ c.EVENT_NAME }}.  Simply bring a photo ID{{ c.EXTRA_CHECKIN_DOCS }} to the registration desk, where you'll be provided with your badge.
 {% if c.DONATIONS_ENABLED and not attendee.amount_extra %}
     If you order any merchandise, you can pick those up at our merchandise booth.
-    The location and hours of the registration desk and merchandise booth will be e-mailed prior to the event.
+    The location and hours of the registration desk and merchandise booth will be emailed prior to the event.
 {% endif %}
 
 {% if attendee.amount_extra %}
@@ -50,11 +50,6 @@ Badges are not mailed out before the event, so your badge will be available for 
         <li>{{ addon }}</li>
     {% endfor %}
     </ul>
-{% endif %}
-
-{% if attendee.requested_hotel_info and c.PREREG_REQUEST_HOTEL_INFO_OPEN %}
-    <br/> <br/>
-    {% include "preregistration/hotel_disclaimer.html" %}
 {% endif %}
 
 {% include "emails/reg_workflow/reg_notes.html" %}

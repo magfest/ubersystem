@@ -5,7 +5,7 @@
 <script type="text/javascript">
     var undoSale = function(id) {
         $.post('../registration/undo_sale', {id: id, csrf_token: csrf_token}, function(message) {
-            toastr.remove();
+            hideMessageBox();
             window.location.replace('sales_charge_form?message=' + message);
         });
     };

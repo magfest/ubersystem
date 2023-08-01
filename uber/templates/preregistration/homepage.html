@@ -1,8 +1,7 @@
-{% extends "preregistration/preregbase.html" %}
-{% block title %}Manage Your Registrations{% endblock %}
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Manage Your Registrations" %}
 {% block content %}
-{% include 'prereg_masthead.html' %}
-{% include 'preregistration/update_account.html' %}
+{% set account = homepage_account %}
 {% set dealer_reg_open = c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
 {% set prereg_message %}
     {% if c.BEFORE_PREREG_OPEN %}
@@ -13,13 +12,10 @@
         Preregistration has sold out!
     {% endif %}
 {% endset %}
-<div class="panel panel-primary">
-    <div class="panel-heading">
-        <h4 class="panel-title">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h4>
-    </div>
+<h2 class="h4 text-center">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h2>
 {% if not account.valid_attendees %}
-    <div class="panel-body text-center">
-        <h2 class="text-uppercase">You have no current registrations</h2>
+    <div class="card text-center">
+        <span class="h2 text-uppercase">You have no current registrations</span>
         <p>{{ prereg_message }}</p>
         <p>
         {% if account.imported_single_badges and not prereg_message %}
@@ -44,10 +40,9 @@
     </div>
 </div>
 {% else %}
-<div class="panel-body">
     {% for attendee, money_owed in attendees_who_owe_money.items() %}
     {% if loop.first %}
-    <div class="alert alert-warning">
+    <div class="alert alert-warning" role="alert">
         The following attendees on your account have outstanding balances:
         <ul>
     {% endif %}
@@ -75,49 +70,37 @@
     </div>
     {% if account.valid_single_badges and account.valid_group_badges %}
     <ul class="nav nav-pills" role="tablist">
-        <li role="presentation" class="active"><a href="#single" aria-controls="home" role="tab" data-toggle="tab">Registrations</a></li>
-        <li role="presentation"><a href="#group" aria-controls="profile" role="tab" data-toggle="tab">Group Registrations</a></li>
+        <li role="presentation" class="nav-item"><a class="nav-link active" href="#single" aria-controls="home" role="tab" data-bs-toggle="tab">Registrations</a></li>
+        <li role="presentation" class="nav-item"><a class="nav-link" href="#group" aria-controls="profile" role="tab" data-bs-toggle="tab">Group Registrations</a></li>
     </ul>
     {% endif %}
 <div class="tab-content">
     <div class="tab-pane{% if account.valid_single_badges %} active{% endif %}" id="single" role="tabpanel">
     {% for attendee in account.valid_single_badges %}
-    {% if loop.first %}
-    <div class="panel-body">
-    {% endif %}
-    <div class="row">
+    <div class="card-body">
         {% include "preregistration/attendee_card.html" %}
     </div>
-    {% if loop.last %}
-    </div>
-    {% endif %}
     {% endfor %}
     </div>
     <div class="tab-pane{% if account.valid_group_badges %} active{% endif %}" id="group" role="tabpanel">
     {% for attendee in account.valid_group_badges %}
-    {% if loop.first %}
-    <div class="panel-body">
-    {% endif %}
+    <div class="card-body">
     <div class="row">
         {% include "preregistration/attendee_card.html" %}
     </div>
-    {% if loop.last %}
     </div>
-    {% endif %}
     {% endfor %}
     </div>
-</div>
-</div>
 </div>
 {% endif %}
 {% if not account.valid_attendees %}
     {% for attendee in account.pending_attendees %}
     {% if loop.first %}
-    <div class="panel panel-default">
-        <div class="panel-heading">
-            <h4 class="panel-title">Pending Registrations</h4>
+    <div class="card">
+        <div class="card-header">
+            <h2 class="h4 card-title">Pending Registrations</h2>
         </div>
-        <div class="panel-footer">
+        <div class="card-footer">
     {% endif %}
     <div class="row">
         {% include "preregistration/attendee_card.html" %}
@@ -130,11 +113,11 @@
 {% endif %}
 {% for attendee in account.imported_attendees %}
 {% if loop.first %}
-<div class="panel panel-default">
-    <div class="panel-heading">
-        <h4 class="panel-title">Past Registrations</h4>
+<div class="card">
+    <div class="card-header">
+        <h2 class="h4 card-title">Past Registrations</h2>
     </div>
-    <div class="panel-footer">
+    <div class="card-footer">
 {% endif %}
 <div class="row">
     {% include "preregistration/attendee_card.html" %}
@@ -146,11 +129,11 @@
 {% endfor %}
 {% for attendee in account.refunded_deferred_attendees %}
 {% if loop.first %}
-<div class="panel panel-danger">
-    <div class="panel-heading">
-        <h4 class="panel-title">Cancelled Registrations</h4>
+<div class="panel card-danger">
+    <div class="card-header">
+        <h2 class="h4 card-title">Cancelled Registrations</h2>
     </div>
-    <div class="table-responsive">
+    <div class="card-body">
         <table class="table table-striped datatable">
         <thead>
             <tr>
@@ -196,8 +179,8 @@
             'Once they create their account, you will no longer be able to manage their' +
             ' registration for them.',
           buttons: {
-            confirm: { label: '<span class="glyphicon glyphicon-plus"></span> Create Account', className: 'btn-success' },
-            cancel: { label: 'Nevermind', className: 'btn-default' }
+            confirm: { label: '<i class="fa fa-plus"></i> Create Account', className: 'btn-success' },
+            cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
           },
           callback: function (result) {
             if (result) {

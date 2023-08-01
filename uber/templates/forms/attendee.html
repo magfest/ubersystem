@@ -14,8 +14,6 @@
 
 {#- Setting some variables to keep the size of conditional clauses smaller. -#}
 {%- set is_prereg_confirm_email_enabled = attendee.is_new and c.PREREG_CONFIRM_EMAIL_ENABLED -%}
-{%- set is_after_request_hotel = c.AFTER_PREREG_REQUEST_HOTEL_INFO_DEADLINE -%}
-{%- set is_after_hotel_email = c.AFTER_PREREG_HOTEL_INFO_EMAIL_DATE -%}
 {%- set group_id = group_id or attendee.group_id -%}
 
 {% set receipt_modal %}
@@ -24,14 +22,14 @@
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
         <h4 class="modal-title" id="receiptTitle">Receipt</h4>
       </div>
       <div class="modal-body">
           {% include 'preregistration/receipt_table.html' %}
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
         {% if receipt.current_amount_owed and not receipt.pending_total %}{{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, stripe_button_id="receipt-stripe-btn") }}{% endif %}
       </div>
     </div>
@@ -40,7 +38,8 @@
 <script type="text/javascript">
 $().ready(function() {
   $('#receipt-stripe-btn').click(function() {
-    $('#receiptModal').modal('toggle');
+    var modal = bootstrap.Modal.getOrCreateInstance($('#receiptModal'));
+    modal.toggle();
   })
 });
 </script>
@@ -48,11 +47,8 @@ $().ready(function() {
 {% endset %}
 
 {% set prereg_intro %}
-{% if is_prereg_dealer %}
-  <h2 class="text-center">{{ c.DEALER_APP_TERM|title }}</h2>
-{% elif is_prereg_attendee %}
-  {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_OPEN) }}
-
+{{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
+{% if is_prereg_attendee %}
   <div class="form-horizontal">
     {% if c.DEV_BOX %}
       <div class="form-group row">
@@ -70,7 +66,7 @@ $().ready(function() {
       </div>
     {% endif %}
 
-    {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
+    {% if not is_prereg_dealer and c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
       <div class="form-group row">
         <p class="col-sm-9 col-sm-offset-3">
           <strong>{{ c.DEALER_TERM|capitalize }}s:</strong>
@@ -82,15 +78,8 @@ $().ready(function() {
         </p>
       </div>
     {% endif %}
-
-    <div class="form-group" id="reg-types">
-      <label class="col-sm-3 control-label">Registration Type</label>
-    </div>
   </div>
 {% endif %}
-<div id="bold-field-message" class="form-group">
-  <div class="col-sm-offset-3 col-sm-9 heading-label">Bold fields are required</div>
-</div>
 {% endset %}
 
 
@@ -115,13 +104,11 @@ $().ready(function() {
         });
     };
     setTimeout(checkCap, PREREG_CHECK_INTERVAL);
-
     var updateBadgeTypeHiddenInput = function(newBadgeType) {
         if ($.inArray($('input[name="badge_type"]').val(), PREREG_BADGE_TYPES) > -1) {
             $('input[name="badge_type"]').val(newBadgeType);
         }
     };
-
     var REG_TYPES = {
         row: '#reg-types',
         selector: '.reg-type-selector',
@@ -158,8 +145,8 @@ $().ready(function() {
                     togglePrices();
                 {% else %}
                     setBadge(REG_TYPES, 0);
-                    toastr.clear();
-                    toastr.error('Group registration has closed.');
+                    hideMessageBox();
+                    showErrorMessage('Group registration has closed.');
                 {% endif %}
             }
         });
@@ -471,7 +458,7 @@ $().ready(function() {
   {% endif %}
 {% elif c.AT_THE_CON and attendee.is_new %}
   <script>
-      window.setTimeout(toastr.clear, 10000);
+      window.setTimeout($("#message-alert").hide().removeClass().addClass("alert").children("span").html(""), 10000);
       var maybeWarn = function () {
           var types = {{ c.PRESOLD_ONEDAY_BADGE_TYPES|jsonize }};
           var badgeType = $.val('badge_type');
@@ -483,11 +470,11 @@ $().ready(function() {
       };
       $(window).on("runJavaScript", function () {
           {% if c.AT_THE_DOOR_BADGE_OPTS %}
-              $('#bold-field-message').detach().prependTo('.panel-body > .form-horizontal');
+              $('#bold-field-message').detach().prependTo('.card-body > .form-horizontal');
               $.field('badge_type').on('change', maybeWarn);
               maybeWarn();
           {% else %}
-              $('.panel').empty().append('<h1>All badges are sold out!</h1>');
+              $('.card').empty().append('<h1>All badges are sold out!</h1>');
           {% endif %}
       });
   </script>
@@ -626,7 +613,6 @@ $().ready(function() {
         updateReceiptPreview('amount_extra', $.val('amount_extra'));
       {% endif %}
     }
-    setVisible(formId + '.affiliate-row', $.val('amount_extra') > 0);
     {% if (attendee.num_event_shirts_owed or attendee.gets_staff_shirt) and c.STAFF_SHIRT_OPTS == c.SHIRT_OPTS %}
         setVisible(formId + '.shirt-row', true);
     {% else %}
@@ -640,9 +626,9 @@ $().ready(function() {
         setVisible(formId + '.season-row', $.val('amount_extra') >= {{ c.SEASON_LEVEL }});
     $.each($(formId + "input:radio[name='amount_extra']"), function() {
         $(this).parents('.btn').removeClass('active btn-primary');
-        $(this).parents('.btn').addClass('btn-default');
+        $(this).parents('.btn').addClass('btn-outline-secondary');
         if ($(this).val() == $.val('amount_extra')) {
-            $(this).parents('.btn').removeClass('btn-default');
+            $(this).parents('.btn').removeClass('btn-outline-secondary');
             $(this).parents('.btn').addClass('active btn-primary');
         }
     });
@@ -659,25 +645,6 @@ $().ready(function() {
                   width: '100%',
               }).select2('val', {{ attendee.amount_extra }});
           }
-          if ($.field('affiliate')) {
-              $.field('affiliate').select2({
-                  placeholder: "I don't care about this",
-                  allowClear: true,
-                  tags: true,
-                  data: {{ affiliates|jsonize }},
-                  width: '100%',
-                  createTag: function(params) {
-                      var term = $.trim(params.term);
-
-                      if (params.term === '') return null;
-
-                      return {
-                          id: params.term,
-                          text: params.term + ' (Add new)'
-                      }
-                  }
-              }).val({{ attendee.affiliate|default('', boolean=True)|jsonize }}).trigger('change');
-          }
       }
   });
 </script>
@@ -691,10 +658,10 @@ $().ready(function() {
       </label>
       <div class="col-sm-9">
         {% if c.PREREG_DONATION_DESCRIPTIONS or c.FORMATTED_DONATION_DESCRIPTIONS and not attendee.is_new and attendee.amount_extra %}
-          <div data-toggle="buttons" class="btn-group-inline">
+          <div data-bs-toggle="buttons" class="btn-group-inline">
             {% for tier in c.FORMATTED_DONATION_DESCRIPTIONS %}
               {% if tier in c.PREREG_DONATION_DESCRIPTIONS or attendee.amount_extra == tier.price %}
-                <label class="btn btn-default btn-inline">
+                <label class="btn btn-outline-secondary btn-inline">
                   <input type="radio"
                         name="amount_extra"
                         autocomplete="off"
@@ -747,16 +714,6 @@ $().ready(function() {
       <span class="col-sm-offset-3 col-sm-6"><strong>Pre-ordered merch packages are no longer available</strong>. Please visit our merchandise booth on-site for t-shirts and other swag!</span>
     </div>
   {% endif %}
-
-  <div class="affiliate-row extra-row form-group" style="display:none">
-    <label for="affiliate" class="col-sm-3 control-label optional-field">Affiliate</label>
-    <div class="col-sm-6">
-      <select name="affiliate">
-        <option value="" selected="selected"></option>
-      </select>
-    </div>
-    <div class="form-control-static">{{ macros.popup_link("../static_views/affiliates.html", "What's an affiliate?") }}</div>
-  </div>
 {% endif %}
 {% if c.DONATIONS_ENABLED and (admin_area or read_only) %}
 {% set can_upgrade_amount_extra = c.PREREG_DONATION_OPTS and c.PREREG_DONATION_OPTS|length > 1 and attendee.amount_extra < c.PREREG_DONATION_OPTS[-1][0] %}
@@ -780,7 +737,7 @@ $().ready(function() {
 {% set read_only = badge_printed_name_ro or page_ro %}
 {% if c.PRINTED_BADGE_DEADLINE %}
 {% if not admin_area %}
-  {%- set readonly_badge_name = c.after_printed_badge_deadline_by_type(attendee.badge_type) -%}
+  {%- set readonly_badge_name = c.AFTER_PRINTED_BADGE_DEADLINE -%}
   <div class="badge-row extra-row form-group" style="display:none">
     <label for="badge_printed_name" class="col-sm-3 control-label optional-field">Name Printed on Badge</label>
     <div class="col-sm-6">
@@ -892,7 +849,7 @@ $().ready(function() {
         <p class="help-block col-sm-9 col-sm-offset-3">
           <strong>This donation <em>is not a kick-in</em> and does not come with merchandise.</strong><br/>
           {{ c.ORGANIZATION_NAME }} is a 501(c)(3) charitable organization, and additional donations may be tax deductible.
-          Your employer may also have a charitable donation matching program. E-mail contact@magfest.org for details.
+          Your employer may also have a charitable donation matching program. Email contact@magfest.org for details.
         </p>
       {% endif %}
 {% endif %}
@@ -1153,9 +1110,8 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 {% set address %}
 {% set read_only = address_ro or page_ro %}
 {% if c.COLLECT_FULL_ADDRESS or attendee.shipping_fee_cost %}
+{% include "region_opts.html" %}
   <script type="text/javascript">
-      {% include "region_opts.html" %}
-
       var setInternational = function () {
           countryName = $.field('country').val();
           if(countryName == 'United States') {
@@ -1367,55 +1323,6 @@ $(window).on("runJavaScript", function () {
 {% endset %}
 
 
-{% set requested_hotel_info %}
-{% set read_only = requested_hotel_info_ro or page_ro %}
-{% if c.HOTELS_ENABLED and c.PREREG_REQUEST_HOTEL_INFO_DURATION > 0 and (admin_area or (not is_prereg_attendee and not is_after_request_hotel)) %}
-  {#-
-    In both the admin area and non-preregistration forms, we will display a
-    "Request Hotel Info" label and a checkbox.
-  -#}
-  <div class="form-group">
-    <label for="requested_hotel_info" class="col-sm-3 control-label optional-field">Request Hotel Info</label>
-    <div class="checkbox col-sm-9">
-      <label for="requested_hotel_info" class="checkbox-label{% if is_after_hotel_email %} disabled" title="Can&apos;t be changed after hotel email is ready to send{% endif %}">
-        {% if is_after_hotel_email %}
-          {#-
-            The deadline has passed; the checkbox is readonly, and
-            requested_hotel_info retains whatever value the attendee
-            already had.
-          -#}
-          <input type="hidden" name="requested_hotel_info" id="requested_hotel_info" value="{{ '1' if attendee.requested_hotel_info else '0' }}">
-          <input type="checkbox" value="1" disabled {% if attendee.requested_hotel_info %}checked{% endif %}>
-        {% else %}
-          {#-
-            The window is still open; we are very liberal with the checked
-            state of the checkbox. Unless the attendee has explicitly marked
-            requested_hotel_info as False, we check the box for them.
-          -#}
-          <input type="checkbox" name="requested_hotel_info" id="requested_hotel_info" value="1" {% if attendee.requested_hotel_info or attendee.is_placeholder or (group and group.requested_hotel_info) %}checked{% endif %}>
-        {% endif %}
-        Yes, tell me when hotels begin accepting reservations
-      </label>
-    </div>
-  </div>
-{% elif is_after_request_hotel %}
-  {#-
-    The deadline has passed; requested_hotel_info retains whatever value the
-    attendee already had. This will default to False for new and placholder
-    attendees.
-  -#}
-  <input type="hidden" name="requested_hotel_info" id="requested_hotel_info" value="{{ '1' if attendee.requested_hotel_info else '0' }}" />
-{% else %}
-  {#-
-    The window is still open; requested_hotel_info either retains whatever
-    value the attendee already had, or is set to True for new and placeholder
-    attendees.
-  -#}
-  <input type="hidden" name="requested_hotel_info" id="requested_hotel_info" value="{{ '1' if attendee.requested_hotel_info or attendee.is_placeholder else '0' }}" />
-{% endif %}
-{% endset %}
-
-
 {% set promo_code %}
 {% set read_only = promo_code_ro or page_ro %}
 {% if not read_only and c.HAS_REG_ADMIN_ACCESS %}
@@ -1429,7 +1336,7 @@ $(window).on("runJavaScript", function () {
               'set them to unpaid. They will be asked to pay the difference to complete their registration.',
               buttons: {
                   confirm: { label: 'Remove Promo Code', className: 'btn-danger' },
-                  cancel: { label: 'Nevermind', className: 'btn-default' }
+                  cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
               },
               callback: function(result) {
                   if (result) {

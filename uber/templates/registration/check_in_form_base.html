@@ -1,6 +1,6 @@
 {% import 'macros.html' as macros %}
 <div class="modal-header">
-  <button type="button" class="close" data-dismiss="modal">&times;</button>
+  <button type="button" class="close" data-bs-dismiss="modal">&times;</button>
   <h4 class="modal-title">Attendee Check-In{% if attendee.first_name %} - {{ attendee.full_name }}{% endif %}</h4>
 </div>
 <div class="modal-body">
@@ -36,7 +36,8 @@ var toggleMarkButton = function (dropdown) {
 };
 loadCheckInForm = function () {
     $('#stripeModal').off('hidden.bs.modal');
-    $('#stripeModal').modal('hide');
+    var stripeModal = bootstrap.Modal.getOrCreateInstance($('#stripeModal'))
+    stripeModal.hide();
     $('#stripeModal').remove();
     $('#checkin_modal').modal('show');
     $('#checkin_modal .modal-content').load('check_in_form?id={{ attendee.id }}', function () {
@@ -49,7 +50,8 @@ loadCheckInForm = function () {
 var resumeStripeAction = callStripeAction;
 var callStripeAction = function() {
     $('#checkin_modal').off('hidden.bs.modal');
-    $('#checkin_modal').modal('hide');
+    checkinModal = bootstrap.Modal.getOrCreateInstance($('#checkin_modal'));
+    checkinModal.hide();
     $('#stripeModal').on('hidden.bs.modal', function (e) {
         $('#stripeModal').remove();
     })
@@ -67,17 +69,17 @@ $("form[action='mark_as_paid']").submit(function (e) {
         dataType: 'json',
         data: data,
         success: function (json) {
-            toastr.clear();
+            hideMessageBox();
             var message = json.message;
             if (json.success) {
-                toastr.success(message);
+                $("#message-alert").addClass("alert-success").show().children('span').html(message);
                 loadCheckInForm();
             } else {
-                toastr.error(message);
+                showErrorMessage(message);
             }
         },
         error: function () {
-            toastr.error('Unable to connect to server, please try again.');
+            showErrorMessage('Unable to connect to server, please try again.');
         }
     });
 });
@@ -86,13 +88,13 @@ $('#stripe_frame').load(function() {
     this.contentDocument.body.innerHTML = '';
     
     if (responseText) {
-        toastr.clear();
+        hideMessageBox();
         var response = $.parseJSON(responseText);
         if (response['success'] == true) {
-            toastr.success(response['message']);
+            $("#message-alert").addClass("alert-success").show().children('span').html(response['message']);
             loadCheckInForm();
         } else {
-            toastr.error('', response['message'], {timeOut: 1000});
+            showErrorMessage('', response['message'], {timeOut: 1000});
         }
     }
 });
@@ -127,7 +129,7 @@ $().ready(function() {
         <div class="form-group">
             <label for="birthdate" class="col-sm-3 control-label">Date of Birth</label>
             <div class="col-sm-6">
-                <input type="text" id="checkin-birthdate" name="birthdate" class="date" value="{{ attendee.birthdate|datetime("%Y-%m-%d")}}" />
+                <input type="text" id="checkin-birthdate" name="birthdate" class="date" value="{{ attendee.birthdate|datetime("%Y-%m-%d") }}" />
             </div>
         </div>
          {% if attendee.birthdate %}
@@ -276,8 +278,8 @@ $().ready(function() {
 </form>
 </div>
 <div class="modal-footer">
-    <button class='btn btn-default btn-sm pull-left' onClick="refreshModal('{{ attendee.id }}')">
-        <span class="glyphicon glyphicon-refresh"></span>
+    <button class='btn btn-outline-secondary btn-sm pull-left' onClick="refreshModal('{{ attendee.id }}')">
+        <i class="fa fa-refresh"></i>
       </button>
   <div class="form-group">
   <div class="pull-right">
@@ -286,7 +288,7 @@ $().ready(function() {
         {% endif %}
       <button type="button" onClick="checkIn('{{ attendee.id }}')" class="btn btn-primary">Save & Check In</button>
 {% endif %}
-   <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+   <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
   </div>
   </div>
   </div>
@@ -302,7 +304,7 @@ $().ready(function() {
             '../registration/minor_check_form?attendee_id=' + attendeeID + '&printer_id=' + printerID + '&reprint_fee=' + reprintFee, function() {
         if ($('.minor-check-id').length) {
         } else {
-            toastr.error("Form loading failed.");
+            showErrorMessage("Form loading failed.");
             loadCheckInFormModal(attendeeID);
         }
         });
@@ -314,7 +316,7 @@ $().ready(function() {
             dataType: 'json',
             data: $("#check_in_form_" + attendeeID).serialize(),
             success: function (json) {
-                toastr.clear();
+                hideMessageBox();
                 var message = json.message;
                 if (json.success) {
                     if (json.minor_check) {
@@ -324,20 +326,20 @@ $().ready(function() {
                             loadMinorCheckForm(attendeeID, $.val('printer_id'), 0);
                         }
                     } else {
-                        toastr.success(message);
+                        $("#message-alert").addClass("alert-success").show().children('span').html(message);
                         loadCheckInFormModal(attendeeID);
                     }
                 } else {
-                    toastr.error(message);
+                    showErrorMessage(message);
                 }
             },
             error: function () {
-                toastr.error('Unable to connect to server, please try again.');
+                showErrorMessage('Unable to connect to server, please try again.');
             }
         });
     };
 
-    age = {{ attendee.age_now_or_at_con|default(0, true)}};
+    age = {{ attendee.age_now_or_at_con|default(0, true) }};
     if (age < 18 && $.field('printer_id')) {
         $.field('printer_id').val(printer_minor_id);
     } else if (age >= 18 && $.field('printer_id')) {

@@ -3,6 +3,7 @@ from uber.models.attendee import AttendeeAccount
 
 import cherrypy
 from datetime import datetime
+from decimal import Decimal
 from pockets import groupify
 from six import string_types
 from sqlalchemy import and_, or_, func
@@ -15,7 +16,8 @@ from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, s
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, Group, ModelReceipt, ReceiptItem, ReceiptTransaction, Tracking
 from uber.site_sections import devtools
-from uber.utils import Charge, check, get_api_service_from_server, normalize_email, valid_email, TaskUtils
+from uber.utils import check, get_api_service_from_server, normalize_email, valid_email, TaskUtils
+from uber.payments import ReceiptManager, TransactionRequest
 
 def check_custom_receipt_item_txn(params, is_txn=False):
     if not params.get('amount'):
@@ -44,7 +46,7 @@ def revert_receipt_item(session, item):
     receipt = item.receipt
     model = session.get_model_by_receipt(receipt)
     for col_name in item.revert_change:
-        receipt_item = Charge.process_receipt_upgrade_item(model, col_name, receipt=receipt, new_val=item.revert_change[col_name])
+        receipt_item = ReceiptManager.process_receipt_upgrade_item(model, col_name, receipt=receipt, new_val=item.revert_change[col_name])
         session.add(receipt_item)
         model.apply(item.revert_change, restricted=False)
     
@@ -63,7 +65,7 @@ def comped_receipt_item(item):
 def assign_account_by_email(session, attendee, account_email):
     from uber.site_sections.preregistration import set_up_new_account
 
-    account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(account_email)).first()
+    account = session.query(AttendeeAccount).filter_by(email=normalize_email(account_email)).first()
     if not account:
         if c.ONE_MANAGER_PER_BADGE and attendee.managers:
             # It's too confusing for an admin to move someone to a new account and still see them on their old account
@@ -220,19 +222,23 @@ class Root:
     @ajax
     def comp_refund_receipt_item(self, session, id='', **params):
         item = session.receipt_item(id)
-        actually_refunded = item.receipt_txn.refunded if item.receipt_txn else None
-        error = session.refund_item_or_txn(amount=float(params.get('amount', 0)) * 100, item=item)
-        if error:
-            return {'error': error}
-
-        actually_refunded = item.receipt_txn.refunded - actually_refunded
+        
+        if item.receipt_txn and item.receipt_txn.amount_left:
+            refund = TransactionRequest(item.receipt, amount=min(item.amount, item.receipt_txn.amount_left))
+            error = refund.refund_or_cancel(item.receipt_txn)
+            if error:
+                return {'error': error}
+            message_add = " and refunded."
+            session.add_all(refund.get_receipt_items_to_add())
+        else:
+            message_add = ". Its corresponding transaction was already fully refunded."
 
         credit_item = comped_receipt_item(item)
         session.add(credit_item)
         item.comped = True
         session.commit()
 
-        return {'message': "Item comped{}".format(" and refunded." if actually_refunded else ". Its corresponding transaction was already fully refunded.")}
+        return {'message': "Item comped{}".format(message_add)}
 
     @ajax
     def undo_refund_receipt_item(self, session, id='', **params):
@@ -243,18 +249,20 @@ class Root:
             session.rollback()
             return {'error': message}
 
-        actually_refunded = item.receipt_txn.refunded if item.receipt_txn else None
-
-        error = session.refund_item_or_txn(amount=float(params.get('amount', 0)) * 100, item=item)
-        if error:
-            session.rollback()
-            return {'error': error}
+        if item.receipt_txn and item.receipt_txn.amount_left:
+            refund = TransactionRequest(item.receipt, amount=min(item.amount, item.receipt_txn.amount_left))
+            error = refund.refund_or_cancel(item.receipt_txn)
+            if error:
+                return {'error': error}
+            message_add = " and refunded."
+            session.add_all(refund.get_receipt_items_to_add())
+        else:
+            message_add = ". Its corresponding transaction was already fully refunded."
         
-        actually_refunded = item.receipt_txn.refunded - actually_refunded
         item.reverted = True
         session.commit()
 
-        return {'message': "Item reverted{}".format(" and refunded." if actually_refunded else ". Its corresponding transaction was already fully refunded.")}
+        return {'message': "Item reverted{}".format(message_add)}
 
     @ajax
     def add_receipt_txn(self, session, id='', **params):
@@ -298,7 +306,7 @@ class Root:
         if txn.charge_id:
             return {'error': "You cannot cancel a completed Stripe payment."}
         
-        if txn.intent_id:
+        if txn.intent_id and not c.AUTHORIZENET_LOGIN_ID:
             error = txn.check_stripe_id()
             if error:
                 return {'error': "Error while checking this transaction: " + error}
@@ -356,11 +364,12 @@ class Root:
         }
 
     @ajax
-    def refund_receipt_txn(self, session, id='', **params):
+    def refund_receipt_txn(self, session, id, amount, **params):
         txn = session.receipt_transaction(id)
         return {'error': float(params.get('amount', 0)) * 100}
 
-        error = session.refund_item_or_txn(amount=float(params.get('amount', 0)) * 100, txn=txn)
+        refund = TransactionRequest(txn.receipt, amount=Decimal(amount) * 100)
+        error = refund.refund_or_cancel(txn)
         if error:
             return {'error': error}
 
@@ -376,13 +385,13 @@ class Root:
     def process_full_refund(self, session, id='', attendee_id='', group_id=''):
         receipt = session.model_receipt(id)
         refund_total = 0
-        for txn in receipt.receipt_txns:
-            error = session.preprocess_refund(txn)
-            if not error:
-                response = session.process_refund(txn=txn)
-                if isinstance(response, string_types):
-                    raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', attendee_id or group_id, response)
-                refund_total += response.amount
+        for txn in receipt.refundable_txns:
+            refund = TransactionRequest(receipt, amount=txn.amount_left)
+            error = refund.refund_or_skip(txn)
+            if error:
+                raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', attendee_id or group_id, error)
+            session.add_all(refund.get_receipt_items_to_add())
+            total_refunded += refund.amount
 
         receipt.closed = datetime.now()
         session.add(receipt)
@@ -578,7 +587,7 @@ class Root:
             if normalize_email(new_email) == normalize_email(account.email):
                 message = "That is already the email address for this account!"
             else:
-                existing_account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(new_email)).first()
+                existing_account = session.query(AttendeeAccount).filter_by(email=normalize_email(new_email)).first()
                 if existing_account:
                     message = "That account already exists. You can instead reassign this account's attendees."
                 else:
@@ -658,10 +667,10 @@ class Root:
                 accounts_by_email = groupify(accounts, lambda a: normalize_email(a['email']))
 
                 existing_accounts = session.query(AttendeeAccount).filter(
-                    AttendeeAccount.normalized_email.in_(accounts_by_email.keys())) \
+                    AttendeeAccount.email.in_(accounts_by_email.keys())) \
                     .options(subqueryload(AttendeeAccount.attendees)).all()
                 for account in existing_accounts:
-                    existing_key = account.normalized_email
+                    existing_key = account.email
                     accounts_by_email.pop(existing_key, {})
                 accounts = list(chain(*accounts_by_email.values()))
 

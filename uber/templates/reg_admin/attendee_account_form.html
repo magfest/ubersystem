@@ -2,21 +2,21 @@
 {% block title %}{{ account.email }} Attendee Account{% endblock %}
 {% block content %}
 <h3>{{ account.email }} Attendee Account</h3>
-<div class="panel panel-default">
-    <div class="panel-body">
+<div class="card">
+    <div class="card-body">
 <form class="form reset-form form-inline pull-left" method="post" action="../preregistration/reset_password">
     <input type="hidden" name="account_email" value="{{ account.email }}" />
     <input type="hidden" name="admin_url" value="reg_admin/attendee_account_form?id={{ account.id}}&" />
     {{ csrf_token() }}
     <button type="submit" class="btn btn-sm btn-warning">
-        <span class="glyphicon glyphicon-repeat"></span> Reset Password
+        <i class="fa fa-repeat"></i> Reset Password
     </button>
 </form>
 <form class="form delete-form form-inline pull-left" method="post" action="delete_attendee_account">
     <input type="hidden" name="id" value="{{ account.id }}" />
     {{ csrf_token() }}
     &nbsp;<button type="submit" class="btn btn-sm btn-danger">
-        <span class="glyphicon glyphicon-remove"></span> Delete Account
+        <i class="fa fa-remove"></i> Delete Account
     </button>
 </form>
 <form class="form email-form form-inline pull-left" method="post" action="attendee_account_form">
@@ -27,7 +27,7 @@
     </div>
     <div class="form-group">
         <button type="submit" class="btn btn-sm btn-info">
-        <span class="glyphicon glyphicon-arrow-right"></span> Change Account Email
+        <i class="fa fa-arrow-right"></i> Change Account Email
         </button>
     </div>
 </form>
@@ -35,11 +35,11 @@
 </div>
 {% for attendee in account.attendees %}
 {% if loop.first %}
-<div class="panel panel-default">
-    <div class="panel-heading">
+<div class="card">
+    <div class="card-header">
         Registrations
     </div>
-    <div class="table-responsive">
+    <div class="card-body">
         <table class="table table-striped datatable">
         <thead>
             <tr>
@@ -88,11 +88,9 @@
                     <div class="row">
                     <div class="input-group col-sm-9">
                         <input type="email" name="account_email" class="form-control" placeholder="Account Email Address" required />
-                        <span class="input-group-btn">
-                            <button type="submit" class="btn btn-primary">
-                                <span class="glyphicon glyphicon-plus"></span> Reassign
-                            </button>
-                        </span>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa fa-plus"></i> Reassign
+                        </button>
                     </div>
                     </div>
                 </form>
@@ -114,8 +112,8 @@
           backdrop: true,
           message: '<p>Are you sure you want to delete this account?</p>',
           buttons: {
-            confirm: { label: '<span class="glyphicon glyphicon-remove"></span> Delete', className: 'btn-danger' },
-            cancel: { label: 'Nevermind', className: 'btn-default' }
+            confirm: { label: '<i class="fa fa-remove"></i> Delete', className: 'btn-danger' },
+            cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
           },
           callback: function (result) {
             if (result) {

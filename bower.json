@@ -17,28 +17,23 @@
   ],
   "dependencies": {
     "lodash": "3.8.0",
-    "jquery": "2.1.4",
+    "jquery": "3.7.0",
     "jquery-ui": "1.11.4",
-    "bootstrap": "3.2.0",
     "moment": "2.19.3",
     "jquery-hoverIntent": "1.8.1",
     "select2": "4.0.0",
     "jQuery-contextMenu": "1.6.6",
-    "jquery-confirm": "2.3.1",
     "toastr": "2.1.1",
     "geocomplete": "1.6.5",
     "angular": "1.3.15",
     "angular-route": "1.3.15",
     "angular-bootstrap": "0.13.0",
-    "datatables": "1.10.8",
-    "bootbox": "4.4.0",
     "jquery-form": "3.46.0",
     "jquery-validation": "1.16.0",
     "eonasdan-bootstrap-datetimepicker": "4.17.47",
     "jQuery-Scanner-Detection": "git://github.com/escaleno-ltda/jQuery-Scanner-Detection.git#v1.2.1"
   },
   "resolutions": {
-    "jquery": ">= 1.9.0",
-    "bootstrap": "3.2.0"
+    "jquery": ">= 3.7.0"
   }
 }

@@ -16,9 +16,8 @@
     <form role="form" method="get" action="sales_search" id="search_form">
       <div class="input-group">
         <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
-        <span class="input-group-btn">
-          <button class="btn btn-default" type="submit">
-              <span class="glyphicon glyphicon-search"></span>
+          <button class="btn btn-outline-secondary" type="submit">
+              <i class="fa fa-search"></i>
           </button>
       </span>
       </div>
@@ -41,7 +40,7 @@
   </li>
   {% endfor %}
 </ul>
-<div class="panel panel-default">
+<div class="card">
   {% if page %}
   <table class="table table-striped" data-page-size="9999999">
     <thead>

@@ -14,20 +14,8 @@
         $.field('new_badge').on('click', showOrHideNewBadge);
     });
 </script>
-<div class="masthead"></div>
-{% if c.ATTENDEE_ACCOUNTS_ENABLED %}
-<div class="panel panel-default">
-  <div class="panel-body">
-    {% if logged_in_account %}
-    {% include 'preregistration/create_or_login_account.html' %}
-    {% else %}
-    {% include 'preregistration/login.html' %}
-    {% endif %}
-  </div>
-</div>
-{% endif %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     <h2>{{ c.EVENT_NAME }} Art Show Application</h2>
     {% if c.AFTER_ART_SHOW_DEADLINE and not c.HAS_ART_SHOW_ACCESS %}
     Unfortunately, the deadline for art show applications has passed and we are no longer accepting applications.
@@ -76,14 +64,6 @@
         </div>
         <div class="clearfix"></div>
         <p class="help-block col-sm-6 col-sm-offset-3">The confirmation number you received when you registered.</p>
-      </div>
-
-      <div class="new-badge">
-        {% if not logged_in_account %}
-        {% set no_email = True %}
-        {% include 'preregistration/create_account_fields.html' %}
-        {% endif %}
-        {% include 'art_show_applications/new_attendee_fields.html' %}
       </div>
 
       <h3>Art Information</h3>

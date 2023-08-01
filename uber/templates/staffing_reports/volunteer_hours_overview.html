@@ -1,10 +1,6 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Staffing Overview{% endblock %}
 {% block content %}
-  <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.5.2/js/dataTables.buttons.min.js"></script>
-  <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.5.2/js/buttons.html5.min.js"></script>
-  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
-  <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/1.5.2/css/buttons.dataTables.min.css">
   <script type="text/javascript">
       $.fn.dataTable.ext.search.push(
           function( settings, data, dataIndex ) {
@@ -76,7 +72,7 @@
       });
   </script>
 
-  <div class="panel panel-body"><h2> Volunteer Hours Overview </h2>
+  <div class="card-body"><h2> Volunteer Hours Overview </h2>
     <p class="text-center"><span id="show_all" class="show_or_hide_hotel"><a href="#">View all volunteers instead of only those who have been assigned hotel space</a>.</span>
       <span id="show_hotel"><a href="#">View only volunteers who have been assigned hotel space</a>.</span></p>
 
@@ -87,7 +83,7 @@
     <div class="pull-right"><h4>Filter by Hours Worked</h4>
       <p class="form-inline">Min: <input type="text" class="form-control" id="min_worked" name="min_worked">
         Max: <input type="text" class="form-control" id="max_worked" name="max_worked"></p></div></div>
-  <div class="table-responsive">
+  <div class="card-body">
     <table id="volunteer_hours"
            class="table table-hover"
            data-page-length="-1"

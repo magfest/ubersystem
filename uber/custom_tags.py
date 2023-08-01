@@ -175,7 +175,7 @@ def icon_yesno(value, icon=None, color=None):
     icon = icon or 'ok-sign,remove-sign,question-sign'
     color = color or 'success,danger,info'
     icon_opts, color_opts = icon.split(','), color.split(',')
-    html = "<span class='glyphicon glyphicon-{} text-{}'></span>"
+    html = "<i class='fa fa-{} text-{}'></i>"
     if len(icon_opts) < 2 or len(color_opts) < 2:
         return value  # Invalid arg.
     try:
@@ -252,6 +252,13 @@ def email_to_link(email=None):
     if not email:
         return ''
     return safe_string('<a href="mailto:{0}">{0}</a>'.format(jinja2.escape(email)))
+
+
+@JinjaEnv.jinja_filter
+def popup_link(href, text='<sup>?</sup>'):
+    return safe_string("<a onClick='window.open(&quot;{href}&quot;, &quot;info&quot;, " \
+        "&quot;toolbar=no,height=500,width=375,scrollbars=yes&quot;).focus();" \
+        "return false;' href='{href}'>{text}</a>".format(href=href, text=text))
 
 
 @JinjaEnv.jinja_filter
@@ -529,6 +536,14 @@ def int_options(minval, maxval, default=1):
     return safe_string('\n'.join(results))
 
 
+@JinjaEnv.jinja_export
+def int_choices(minval, maxval):
+    results = []
+    for i in range(minval, maxval+1):
+        results.append((i, str(i)))
+    return results
+
+
 RE_LOCATION = re.compile(r'(\(.*?\))')
 
 
@@ -679,6 +694,8 @@ def stripe_form(action, model=None, **params):
         new_params['params'][key] = val
     new_params['action'] = action
     new_params['id'] = model.id if model else None
+    new_params['cc_full_name'] = model.full_name if hasattr(model, 'full_name') else params.get('full_name', '')
+    new_params['cc_zip_code'] = model.zip_code if hasattr(model, 'zip_code') else params.get('zip_code', '')
 
     return safe_string(render('preregistration/stripeForm.html', new_params).decode('utf-8'))
 

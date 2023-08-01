@@ -28,7 +28,7 @@ from uber.models import MagModel
 from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, TakesPaymentMixin
-from uber.utils import add_opt, get_age_from_birthday, hour_day_format, localized_now, mask_string, normalize_email, \
+from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthday, hour_day_format, localized_now, mask_string, normalize_email_legacy, \
     remove_opt
 
 
@@ -213,13 +213,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     cellphone = Column(UnicodeText)
     no_cellphone = Column(Boolean, default=False)
 
-    # Represents a request for hotel booking info during preregistration
-    requested_hotel_info = Column(Boolean, default=False)
     requested_accessibility_services = Column(Boolean, default=False)
 
     interests = Column(MultiChoice(c.INTEREST_OPTS))
-    found_how = Column(UnicodeText)
-    comments = Column(UnicodeText)
+    found_how = Column(UnicodeText) # TODO: Remove?
+    comments = Column(UnicodeText) # TODO: Remove?
     for_review = Column(UnicodeText, admin_only=True)
     admin_notes = Column(UnicodeText, admin_only=True)
 
@@ -229,7 +227,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     badge_status = Column(Choice(c.BADGE_STATUS_OPTS), default=c.NEW_STATUS, index=True, admin_only=True)
     ribbon = Column(MultiChoice(c.RIBBON_OPTS), admin_only=True)
 
-    affiliate = Column(UnicodeText)
+    affiliate = Column(UnicodeText) # TODO: Remove
 
     # If [[staff_shirt]] is the same as [[shirt]], we only use the shirt column
     shirt = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)
@@ -471,9 +469,6 @@ class Attendee(MagModel, TakesPaymentMixin):
         if not self.hotel_pin or not self.hotel_pin.strip():
             self.hotel_pin = None
 
-        if not self.amount_extra:
-            self.affiliate = ''
-
         if self.birthdate == '':
             self.birthdate = None
 
@@ -638,10 +633,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def age_now_or_at_con(self):
         if not self.birthdate:
             return None
-        day = c.EPOCH.date() if date.today() <= c.EPOCH.date()\
-            else uber.utils.localized_now().date()
-        return day.year - self.birthdate.year - (
-            (day.month, day.day) < (self.birthdate.month, self.birthdate.day))
+        return get_age_from_birthday(self.birthdate, c.NOW_OR_AT_CON)
         
     @presave_adjustment
     def not_attending_need_not_pay(self):
@@ -758,6 +750,25 @@ class Attendee(MagModel, TakesPaymentMixin):
         return uber.badge_funcs.get_real_badge_type(self.badge_type)
 
     @property
+    def available_badge_type_opts(self):
+        if self.is_new or self.badge_type == c.ATTENDEE_BADGE and self.is_unpaid:
+            return c.FORMATTED_BADGE_TYPES
+
+        badge_type_price = c.BADGE_TYPE_PRICES[self.badge_type] if self.badge_type in c.BADGE_TYPE_PRICES else 0
+        
+        badge_type_opts = [{
+            'name': self.badge_type_label,
+            'desc': 'An upgraded badge with perks.' if badge_type_price else 'Allows access to the convention for its duration.',
+            'value': self.badge_type
+            }]
+        
+        for opt in c.FORMATTED_BADGE_TYPES[1:]:
+            if 'price' not in opt or badge_type_price < opt['price']:
+                badge_type_opts.append(opt)
+
+        return badge_type_opts
+
+    @property
     def badge_cost_with_promo_code(self):
         return self.calculate_badge_cost(use_promo_code=True)
 
@@ -770,6 +781,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             return c.DEALER_BADGE_PRICE
         elif self.promo_code_groups:
             return c.get_group_price()
+        elif self.in_promo_code_group:
+            return self.promo_code.cost
         else:
             cost = self.new_badge_cost
 
@@ -844,13 +857,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def age_group_conf(self):
         if self.birthdate:
-            day = c.EPOCH.date() if date.today() <= c.EPOCH.date() else localized_now().date()
-
-            attendee_age = get_age_from_birthday(self.birthdate, day)
-            for val, age_group in c.AGE_GROUP_CONFIGS.items():
-                if val != c.AGE_UNKNOWN and age_group['min_age'] <= attendee_age \
-                        and attendee_age <= age_group['max_age']:
-                    return age_group
+            return get_age_conf_from_birthday(self.birthdate, c.NOW_OR_AT_CON)
 
         return c.AGE_GROUP_CONFIGS[int(self.age_group or c.AGE_UNKNOWN)]
 
@@ -1171,7 +1178,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             from uber.models import Session
             with Session() as session:
                 admin = session.current_admin_account()
-                if not admin.is_admin:
+                if not admin.is_super_admin:
                     return "Custom badges have already been ordered so you cannot delete this badge."
 
     @property
@@ -1260,7 +1267,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def normalized_email(self):
-        return normalize_email(self.email)
+        return normalize_email_legacy(self.email)
 
     @normalized_email.expression
     def normalized_email(cls):
@@ -2153,14 +2160,6 @@ class AttendeeAccount(MagModel):
     @presave_adjustment
     def strip_email(self):
         self.email = self.email.strip()
-    
-    @hybrid_property
-    def normalized_email(self):
-        return normalize_email(self.email)
-
-    @normalized_email.expression
-    def normalized_email(cls):
-        return func.replace(func.lower(func.trim(cls.email)), '.', '')
 
     @property
     def has_only_one_badge(self):

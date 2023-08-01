@@ -194,7 +194,8 @@ class Root:
             donation_amounts = list(counts['donation_tiers'].keys())
             for index, amount in enumerate(donation_amounts):
                 next_amount = donation_amounts[index + 1] if index + 1 < len(donation_amounts) else six.MAXSIZE
-                if a.amount_extra >= amount and a.amount_extra < next_amount and a.badge_status not in [c.INVALID_STATUS, c.IMPORTED_STATUS, c.REFUNDED_STATUS]:
+                if a.amount_extra >= amount and a.amount_extra < next_amount and \
+                    a.badge_status not in [c.INVALID_GROUP_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS, c.REFUNDED_STATUS]:
                     counts['donation_tiers'][amount] = counts['donation_tiers'][amount] + 1
             if not a.checked_in:
                 is_paid = a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid
@@ -204,34 +205,6 @@ class Root:
         return {
             'counts': counts,
             'total_registrations': session.query(Attendee).count()
-        }
-
-    def affiliates(self, session):
-        class AffiliateCounts:
-            def __init__(self):
-                self.tally, self.total = 0, 0
-                self.amounts = {}
-
-            @property
-            def sorted(self):
-                return sorted(self.amounts.items())
-
-            def count(self, amount):
-                self.tally += 1
-                self.total += amount
-                self.amounts[amount] = 1 + self.amounts.get(amount, 0)
-
-        counts = defaultdict(AffiliateCounts)
-        for affiliate, amount in (session.query(Attendee.affiliate, Attendee.amount_extra)
-                                         .filter(Attendee.amount_extra > 0)):
-            counts['everything combined'].count(amount)
-            counts[affiliate or 'no affiliate selected'].count(amount)
-
-        return {
-            'counts': sorted(counts.items(), key=lambda tup: -tup[-1].total),
-            'registrations': session.query(Attendee).filter_by(paid=c.NEED_NOT_PAY).count(),
-            'quantities': [(desc, session.query(Attendee).filter(Attendee.amount_extra >= amount).count())
-                           for amount, desc in sorted(c.DONATION_TIERS.items()) if amount]
         }
 
     @csv_file

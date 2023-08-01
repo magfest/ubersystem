@@ -7,7 +7,7 @@
     <small><a href="../attractions">View Public Schedule</a></small>
     {% if c.HAS_ATTRACTIONS_ADMIN_ACCESS %}
       <a href="new" class="btn btn-primary pull-right">
-        <span class="glyphicon glyphicon-plus"></span>
+        <i class="fa fa-plus"></i>
         Create Attraction
       </a>
     {% endif %}
@@ -15,9 +15,9 @@
   {% if filtered %}
     <a class="btn btn-xs btn-plain" href="index">
   {% else %}
-    <a class="btn btn-xs btn-default" href="index?filtered=1">
+    <a class="btn btn-xs btn-outline-secondary" href="index?filtered=1">
   {% endif %}
-      <span class="glyphicon glyphicon-filter"></span>
+      <i class="fa fa-filter"></i>
       Show only my attractions
     </a>
 

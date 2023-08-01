@@ -6,12 +6,14 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, render, credit_card, requires_account
 from uber.errors import HTTPRedirect
 from uber.models import ArtShowApplication, ModelReceipt
+from uber.payments import TransactionRequest
 from uber.tasks.email import send_email
-from uber.utils import Charge, check
+from uber.utils import check
 
 
 @all_renderable(public=True)
 class Root:
+    @requires_account()
     def index(self, session, message='', **params):
         app = session.art_show_application(params, restricted=True,
                                            ignore_csrf=True)
@@ -101,7 +103,7 @@ class Root:
             'app': app,
             'receipt': receipt,
             'incomplete_txn': receipt.get_last_incomplete_txn() if receipt else None,
-            'account': session.get_attendee_account_by_attendee(app.attendee),
+            'homepage_account': session.get_attendee_account_by_attendee(app.attendee),
             'return_to': 'edit?id={}'.format(app.id),
         }
 
@@ -191,7 +193,7 @@ class Root:
             app.zip_code = app.attendee.zip_code
             app.country = app.attendee.country
 
-        from uber.model_checks import _invalid_zip_code
+        from uber.model_checks import invalid_zip_code
 
         if not app.address1:
             message = 'Please enter a street address.'
@@ -202,7 +204,7 @@ class Root:
         if not app.country:
             message = 'Please enter a country.'
         if app.country == 'United States':
-            if _invalid_zip_code(app.zip_code):
+            if invalid_zip_code(app.zip_code):
                 message = 'Enter a valid zip code'
 
         if message:
@@ -272,16 +274,17 @@ class Root:
         receipt = session.get_receipt_by_model(app, create_if_none="DEFAULT")
         
         charge_desc = "{}'s Art Show Application: {}".format(app.attendee.full_name, receipt.charge_description_list)
-        charge = Charge(app, amount=receipt.current_amount_owed, description=charge_desc)
+        charge = TransactionRequest(receipt, app.attendee.email, charge_desc)
         
-        stripe_intent = session.process_receipt_charge(receipt, charge)
+        message = charge.process_payment()
 
-        if isinstance(stripe_intent, string_types):
-            return {'error': stripe_intent}
+        if message:
+            return {'error': message}
         
+        session.add_all(charge.get_receipt_items_to_add())
         session.commit()
     
-        return {'stripe_intent': stripe_intent,
+        return {'stripe_intent': charge.intent,
                 'success_url': 'edit?id={}&message={}'.format(app.id,
                                                                 'Your payment has been accepted'),
                 'cancel_url': '../preregistration/cancel_payment'}

@@ -1,10 +1,10 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}{{ c.DEALER_APP_TERM|title }} Received{% endblock %}
-{% block backlink %}{% endblock %}
+{% set title_text = "Dealer Registration Step 4 of 4: " ~ c.DEALER_APP_TERM|title ~ " Received" %}
 {% block content %}
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
+    {{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
+
     <h2>{% if group.status == c.WAITLISTED %}You've been added to our waitlist!{% else %}Thanks for applying as a {{ c.DEALER_TERM }}!{% endif %}</h2>
 
     We've received your application for {{ group.name }} to purchase a {{ c.DEALER_REG_TERM }} for {{ c.EVENT_NAME }}.
@@ -35,8 +35,6 @@
     is not approved, you will be able to purchase badges for yourself and the number of assistants on the application
     at the pre-registration price of {{ c.BADGE_PRICE|format_currency }} when the waitlist is exhausted. You will receive an email
     when these badges are available for purchase.
-
-    {% include "preregistration/disclaimers.html" %}
   </div>
 </div>
 {% endblock %}

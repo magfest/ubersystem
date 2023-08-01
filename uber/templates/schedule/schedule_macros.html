@@ -20,7 +20,7 @@
 
 {% macro format_day_column(time) -%}
   {%- set has_day = (not time.hour and not time.minute) or (time <= c.EPOCH) or (time.hour == 12 and not time.minute) -%}
-  <td class="text-right {% if has_day %} has-day{% endif %}">
+  <td class="text-end {% if has_day %} has-day{% endif %}">
     <div class="content-wrapper">
       <div class="content">
         {% if has_day %}{{ time|datetime('%a') }}{% endif %}

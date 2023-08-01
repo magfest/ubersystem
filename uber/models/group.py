@@ -14,11 +14,12 @@ from sqlalchemy.sql.elements import not_
 from sqlalchemy.types import Boolean, Integer, Numeric
 
 from uber.config import c
+from uber.custom_tags import format_currency
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, TakesPaymentMixin
-from uber.utils import add_opt, Charge
+from uber.utils import add_opt
 
 
 __all__ = ['Group']
@@ -336,6 +337,14 @@ class Group(MagModel, TakesPaymentMixin):
     def amount_pending(self):
         return self.active_receipt.get('pending_total', 0)
 
+    @property
+    def amount_paid_repr(self):
+        return format_currency(self.amount_paid / 100)
+    
+    @property
+    def amount_refunded_repr(self):
+        return format_currency(self.amount_refunded / 100)
+
     @hybrid_property
     def amount_paid(self):
         return self.active_receipt.get('payment_total', 0)
@@ -398,17 +407,6 @@ class Group(MagModel, TakesPaymentMixin):
             return 0
         else:
             return c.MIN_GROUP_ADDITION
-
-    @property
-    def requested_hotel_info(self):
-        if self.leader:
-            return self.leader.requested_hotel_info
-        elif self.leader_id:  # unattached groups
-            for attendee in self.attendees:
-                if attendee.id == self.leader_id:
-                    return attendee.requested_hotel_info
-        else:
-            return any(a.requested_hotel_info for a in self.attendees)
 
     @property
     def physical_address(self):

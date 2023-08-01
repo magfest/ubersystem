@@ -1,25 +1,36 @@
-loadAttendeeModal = function() {
-form_link = window.location.hash
-if (form_link && form_link.includes('attendee_form')) {
-    form_link = form_link.substr(1);
-    $('#attendee_modal').modal({show:true});
-    $('#attendee_modal .modal-content').load('../registration/' + form_link, function(){
-    if ($('#attendeeData').length) {
-        $(window).trigger( 'runJavaScript' );
-    } else {
-        // We got redirected -- likely to the login page -- so load it properly
-        toastr.error("Form loading failed.");
-        window.location.hash = ""; // prevent refresh loops
-        window.location.reload();
-    }
-    });
+attendee_modal_element = $('#attendee_modal');
+attendee_modal = null;
+if (attendee_modal_element && attendee_modal_element.length) {
+    attendee_modal = new bootstrap.Modal($('#attendee_modal'));
 }
+
+loadAttendeeModal = function() {
+    if(attendee_modal == null) {
+        return false;
+    }
+    form_link = window.location.hash;
+    
+    if (form_link && form_link.includes('attendee_form')) {
+        form_link = form_link.substr(1);
+
+        attendee_modal.show();
+        $('#attendee_modal .modal-content').load('../registration/' + form_link, function(){
+        if ($('#attendeeData').length) {
+            $(window).trigger( 'runJavaScript' );
+        } else {
+            // We got redirected -- likely to the login page -- so load it properly
+            showErrorMessage("Form loading failed.");
+            window.location.hash = ""; // prevent refresh loops
+            window.location.reload();
+        }
+        });
+    }
 }
 // Hide modal on Esc keydown
-$(document).keydown(function(event) { 
-if (event.keyCode == 27) { 
-    $("#attendee_modal").modal('hide');
-}
+$(document).keydown(function(event) {
+    if (attendee_modal != null && event.keyCode == 27) { 
+        attendee_modal.hide();
+    }
 });
 $(document).ready(function () {
 loadAttendeeModal();
