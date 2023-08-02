@@ -26,6 +26,8 @@ if c.SENTRY['enabled']:
     import sentry_sdk
     sentry_sdk.init(
         dsn=c.SENTRY['dsn'],
+        environment=c.SENTRY['environment'],
+        release=c.SENTRY['release'],
 
         # Set traces_sample_rate to 1.0 to capture 100%
         # of transactions for performance monitoring.
