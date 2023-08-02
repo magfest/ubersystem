@@ -26,8 +26,5 @@ Jinja2==2.11.3
 requests==2.27.1
 signnow_python_sdk==2.0.1
 Authlib==1.0.1
-WTForms==3.0.0
 pyyaml==6.0
-pycountry==22.3.5
-python3-saml==1.15.0
 librabbitmq
