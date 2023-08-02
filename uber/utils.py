@@ -1271,6 +1271,7 @@ class TaskUtils:
                 
             del attendee['id']
             del attendee['all_years']
+            del attendee['badge_num']
 
             account_ids = attendee.get('attendee_account_ids', [])
 
