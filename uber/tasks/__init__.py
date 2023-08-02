@@ -12,8 +12,14 @@ celery = Celery('tasks')
 celery.conf.beat_schedule = {}
 celery.conf.beat_startup_tasks = []
 celery.conf.update(config_dict['celery'])
-celery.conf.update(broker_url=config_dict['secret']['broker_url'])
-celery.conf.update(result_backend=config_dict['secret']['broker_url'].replace("amqp://", "rpc://"))
+
+broker_url = config_dict['secret']['broker_url']
+if broker_url.startswith("amqps://"):
+    celery.conf.update(broker_use_ssl=True)
+    broker_url = broker_url.replace("amqps://", "amqp://")
+    
+celery.conf.update(broker_url=broker_url)
+celery.conf.update(result_backend=broker_url.replace("amqp://", "rpc://"))
 celery.conf.update(task_ignore_result=True)
 
 def celery_on_startup(fn, *args, **kwargs):
