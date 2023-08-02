@@ -1335,7 +1335,7 @@ class TaskUtils:
             except IntegrityError as e:
                 session.rollback()
                 if(isinstance(e.orig, UniqueViolation)):
-                    attendee.badge_num = 1001
+                    attendee.badge_num = None
                     session.add(attendee)
                     try:
                         session.commit()
