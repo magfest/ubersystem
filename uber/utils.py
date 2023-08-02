@@ -1327,11 +1327,27 @@ class TaskUtils:
                     session.add(account)
                 attendee.managers.append(account)
 
+            from sqlalchemy.exc import IntegrityError
+            from psycopg2.errors import UniqueViolation
+
             try:
                 session.commit()
-            except Exception as ex:
+            except IntegrityError as e:
                 session.rollback()
-                import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
+                if(isinstance(e.orig, UniqueViolation)):
+                    attendee.badge_num = 1001
+                    session.add(attendee)
+                    try:
+                        session.commit()
+                    except Exception as e:
+                        session.rollback()
+                        import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(e)
+                else:
+                    session.rollback()
+                    import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(e)
+            except Exception as e:
+                session.rollback()
+                import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(e)
             else:
                 import_job.completed = datetime.now()
             session.commit()
