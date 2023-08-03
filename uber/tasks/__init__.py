@@ -19,9 +19,6 @@ celery.conf.update(broker_url=broker_url)
 celery.conf.update(result_backend=broker_url.replace("amqps://", "rpc://"))
 celery.conf.update(task_ignore_result=True)
 
-celery.conf.update(result_backend=config_dict['secret']['broker_url'].replace("amqp://", "rpc://"))
-celery.conf.update(task_ignore_result=True)
-
 def celery_on_startup(fn, *args, **kwargs):
     celery.conf.beat_startup_tasks.append((celery.task(fn), args, kwargs))
 
