@@ -1,5 +1,5 @@
 cherrypy==17.3.0
-celery
+celery==4.1.1
 python-dateutil==2.6.0
 psycopg2
 py3k-bcrypt==0.3
@@ -27,4 +27,4 @@ requests==2.27.1
 signnow_python_sdk==2.0.1
 Authlib==1.0.1
 pyyaml==6.0
-librabbitmq
+librabbitmq==2.0.0
