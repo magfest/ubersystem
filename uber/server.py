@@ -23,6 +23,7 @@ from uber.utils import mount_site_sections, static_overrides
 mimetypes.init()
 
 if c.SENTRY['enabled']:
+    print("Sentry is enabled")
     import sentry_sdk
     sentry_sdk.init(
         dsn=c.SENTRY['dsn'],
@@ -34,6 +35,19 @@ if c.SENTRY['enabled']:
         # We recommend adjusting this value in production.
         traces_sample_rate=c.SENTRY['sample_rate'] / 100
     )
+
+    def start_transaction():
+        cherrypy.request.sentry_transaction = sentry_sdk.start_transaction(
+            name=f"{cherrypy.request.method} {cherrypy.request.path_info}",
+            op=f"{cherrypy.request.method} {cherrypy.request.path_info}",
+        )
+        cherrypy.request.sentry_transaction.__enter__()
+    cherrypy.tools.start_transaction = cherrypy.Tool('on_start_resource', start_transaction)
+
+    def report_sentry():
+        cherrypy.request.sentry_transaction.__exit__(None, None, None)
+    cherrypy.tools.report_sentry = cherrypy.Tool('on_end_request', report_sentry)
+
 
 def _add_email():
     [body] = cherrypy.response.body
