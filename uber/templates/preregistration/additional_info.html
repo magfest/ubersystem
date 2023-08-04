@@ -27,7 +27,7 @@
       {% if is_prereg_dealer %}
       <input type="hidden" name="group_id" value="{{ attendee.group_id }}" />
       {% else %}
-      <input type="hidden" name="id" value="{{ attendee.id }}" />
+      <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
       {% endif %}
       {{ csrf_token() }}
       {% include "forms/other_info.html" %}
