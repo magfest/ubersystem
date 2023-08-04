@@ -174,7 +174,6 @@ def send_automated_emails():
             for model, query_func in AutomatedEmailFixture.queries.items():
                 log.info("Sending automated emails for " + model.__name__)
                 automated_emails = automated_emails_by_model.get(model.__name__, [])
-                log.info("Found " + str(len(automated_emails)) + " emails for " + model.__name__)
                 for automated_email in automated_emails:
                     if automated_email.currently_sending:
                         log.info(automated_email.ident + " is marked as currently sending")
@@ -189,11 +188,8 @@ def send_automated_emails():
                     session.commit()
                     unapproved_count = 0
                     
-                    log.info("Loading instances for " + automated_email.ident)
                     model_instances = query_func(session)
-                    log.info("Finished loading instances")
                     for model_instance in model_instances:
-                        log.info("Checking " + str(model_instance.id))
                         if model_instance.id not in automated_email.emails_by_fk_id:
                             if automated_email.would_send_if_approved(model_instance):
                                 if automated_email.approved or not automated_email.needs_approval:
