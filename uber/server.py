@@ -23,7 +23,7 @@ from uber.utils import mount_site_sections, static_overrides
 
 mimetypes.init()
 
-if c.SENTRY['enabled'] and False:
+if c.SENTRY['enabled']:
     sentry_sdk.init(
         dsn=c.SENTRY['dsn'],
         environment=c.SENTRY['environment'],
