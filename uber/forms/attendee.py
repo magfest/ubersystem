@@ -168,6 +168,14 @@ class BadgeExtras(MagForm):
     def validate_shirt(form, field):
         if (form.amount_extra.data > 0 or form.badge_type.data in c.BADGE_TYPE_PRICES) and field.data == c.NO_SHIRT:
             raise ValidationError("Please select a shirt size.")
+        
+    def get_optional_fields(self, attendee, is_admin=False):        
+        optional_list = super().get_optional_fields(attendee)
+
+        if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES:
+            optional_list.append('badge_printed_name')
+
+        return optional_list
 
 
 class OtherInfo(MagForm):

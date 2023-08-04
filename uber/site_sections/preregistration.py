@@ -1457,7 +1457,7 @@ class Root:
 
     @ajax
     def validate_attendee(self, session, form_list=[], **params):
-        id = params.get('id', params.get('edit_id'))
+        id = params.get('id', params.get('edit_id', params.get('attendee_id')))
         if id in [None, '', 'None']:
             attendee = Attendee()
         else:
