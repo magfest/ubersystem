@@ -109,6 +109,7 @@ class PanelApplication(MagModel):
     affiliations = Column(UnicodeText)
     past_attendance = Column(UnicodeText)
     department = Column(Choice(c.PANEL_DEPT_OPTS), default=c.PANELS)
+    rating = Column(Choice(c.PANEL_RATING_OPTS), default=c.UNRATED)
     presentation = Column(Choice(c.PRESENTATION_OPTS))
     other_presentation = Column(UnicodeText)
     noise_level = Column(Choice(c.NOISE_LEVEL_OPTS))
@@ -159,7 +160,7 @@ class PanelApplication(MagModel):
     
     @property
     def confirm_deadline(self):
-        if self.accepted and c.PANELS_CONFIRM_DEADLINE:
+        if c.PANELS_CONFIRM_DEADLINE and self.has_been_accepted and not self.confirmed and not self.poc_id:
             confirm_deadline = timedelta(days=c.PANELS_CONFIRM_DEADLINE)
             return self.accepted + confirm_deadline
 
@@ -203,4 +204,4 @@ class EventFeedback(MagModel):
     headcount_starting = Column(Integer, default=0)
     headcount_during = Column(Integer, default=0)
     comments = Column(UnicodeText)
-    rating = Column(Choice(c.PANEL_RATING_OPTS), default=c.UNRATED)
+    rating = Column(Choice(c.PANEL_FEEDBACK_OPTS), default=c.UNRATED)

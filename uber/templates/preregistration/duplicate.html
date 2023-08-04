@@ -1,11 +1,10 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}You are already registered{% endblock %}
+{% set title_text = "You are already registered" %}
 {% block backlink %}{% endblock %}
 {% block content %}
 
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     <h2>You may already be registered</h2>
 
     We already have a {{ attendee.full_name }} with email address {{ attendee.email }} in our database with a
@@ -53,10 +52,11 @@
 
     <table style="width:auto" align="center">
     <tr>
-        {%- set next_page = 'hotel?id=' + id if c.PREREG_REQUEST_HOTEL_INFO_OPEN else 'index' -%}
+        {%- set url_string = ("?group_id=" ~ duplicate.group_id) if duplicate.badge_type == c.PSEUDO_DEALER_BADGE else ("?attendee_id=" ~ (duplicate.group.id if duplicate.group else duplicate.id)) %}
+        {%- set next_page = "additional_info" ~ url_string -%}
         <td><a href="{{ next_page }}">I'm someone else, let me register!</a></td>
         <td> &nbsp;&nbsp;&nbsp;&nbsp; </td>
-        <td><a href="delete?id={% if duplicate.group %}{{ duplicate.group.id }}{% else %}{{ duplicate.id }}{% endif %}&message=Duplicate badge canceled">Well never mind then!</a></td>
+        <td><a href="delete{{ url_string }}&message=Duplicate badge canceled">Well never mind then!</a></td>
     </tr>
     </table>
   </div>

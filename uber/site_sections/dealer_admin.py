@@ -141,7 +141,7 @@ class Root:
                 group.email_to_address,
                 subject,
                 email_text,
-                bcc=c.MARKETPLACE_EMAIL,
+                bcc=c.MARKETPLACE_NOTIFICATIONS_EMAIL,
                 model=group.to_dict('id'))
         if action == 'waitlisted':
             group.status = c.WAITLISTED

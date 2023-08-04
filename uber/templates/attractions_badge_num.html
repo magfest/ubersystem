@@ -85,16 +85,16 @@
 
       var attendeeData = $form.closest('.modal').data('attendee');
       if (attendeeData && ('' + badgeNum) === ('' + attendeeData['badge_num'])) {
-        toastr.warning("Hey, that's you!", '', {timeOut: 3000});
+        $("#message-alert").addClass("alert-warning").show().children('span').html("Hey, that's you!", '', {timeOut: 3000});
         $badgeNum.focus();
         return;
       }
 
       var errorMessage = function(response) {
         if (response && response['error']) {
-          toastr.error(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], '', {timeOut: 3000});
         } else {
-          toastr.error('Unrecognized badge number: ' + badgeNum, '', {timeOut: 3000});
+          showErrorMessage('Unrecognized badge number: ' + badgeNum, '', {timeOut: 3000});
         }
         $badgeNum.focus();
       };

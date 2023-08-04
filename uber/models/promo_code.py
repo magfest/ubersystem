@@ -170,13 +170,29 @@ class PromoCodeGroup(MagModel):
     def email(self):
         return self.buyer.email if self.buyer else None
 
-    @property
+    @hybrid_property
     def total_cost(self):
         return sum(code.cost for code in self.promo_codes if code.cost)
+    
+    @total_cost.expression
+    def total_cost(cls):
+        return select([func.sum(PromoCode.cost)]
+                     ).where(PromoCode.group_id == cls.id
+                     ).label('total_cost')
 
     @property
     def valid_codes(self):
         return [code for code in self.promo_codes if code.is_valid]
+    
+    @property
+    def unused_codes(self):
+        # Bypasses codes' expiration date; only use this to count
+        # how many codes in a group went unused
+        return [code for code in self.promo_codes if code.uses_count == 0]
+    
+    @property
+    def used_promo_codes(self):
+        return [code for code in self.promo_codes if code.valid_used_by]
 
     @property
     def sorted_promo_codes(self):
@@ -360,6 +376,15 @@ class PromoCode(MagModel):
     @is_expired.expression
     def is_expired(cls):
         return cls.expiration_date < localized_now()
+
+    @hybrid_property
+    def group_registered(self):
+        if self.group_id:
+            return self.group.registered
+        
+    @group_registered.expression
+    def group_registered(cls):
+        return select([PromoCodeGroup.registered]).where(PromoCodeGroup.id == cls.group_id).label('group_registered')
 
     @property
     def is_free(self):

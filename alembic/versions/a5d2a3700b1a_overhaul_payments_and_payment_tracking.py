@@ -125,7 +125,6 @@ def upgrade():
 def downgrade():
     op.add_column('marketplace_application', sa.Column('amount_paid', sa.INTEGER(), server_default=sa.text('0'), autoincrement=False, nullable=False))
     op.add_column('marketplace_application', sa.Column('base_price', sa.INTEGER(), server_default=sa.text('0'), autoincrement=False, nullable=False))
-    op.create_index('ix_marketplace_application_amount_paid', 'marketplace_application', ['amount_paid'], unique=False)
     op.add_column('group', sa.Column('amount_refunded_override', sa.INTEGER(), server_default=sa.text('0'), autoincrement=False, nullable=False))
     op.add_column('group', sa.Column('refunded_items', postgresql.JSON(astext_type=sa.Text()), server_default=sa.text("'{}'::JSON"), autoincrement=False, nullable=False))
     op.add_column('group', sa.Column('amount_paid_override', sa.INTEGER(), server_default=sa.text('0'), autoincrement=False, nullable=False))

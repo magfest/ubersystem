@@ -6,12 +6,12 @@ var updateWatchlist = function () {
     var old_hash = window.location.hash;
     $.post($(this).attr('action'), $(this).serializeArray())
     .success(function (json) {
-        toastr.info(json.message);
+        $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
         loadForm("Watchlist");
         window.location.hash = old_hash;
     })
     .fail(function(message) {
-        toastr.error(message);
+        showErrorMessage(message);
         window.location.hash = old_hash;
     });
   })
@@ -31,7 +31,7 @@ $("form[name='confirm_entry']").submit(function (event) {
           },
           cancel: {
               label: 'Nevermind',
-              className: 'btn-default'
+              className: 'btn-outline-secondary'
           }
       },
       callback: function (result) {
@@ -76,9 +76,9 @@ $("form[name='confirm_entry']").submit(function (event) {
   {% else %}
     {% for list in active_entries, inactive_entries %}
       {% set active = loop.cycle(True, False) %}
-      <div class="panel panel-default">
-      <div class="panel-heading"><h3 class="panel-title">{{ loop.cycle('Active', 'Inactive') }} Entries</h3></div>
-      <div class="panel-body">
+      <div class="card">
+      <div class="card-header"><h3 class="card-title">{{ loop.cycle('Active', 'Inactive') }} Entries</h3></div>
+      <div class="card-body">
         {% if active %}
           Active watchlist entries attempt to match themselves to new attendees,
           even if another attendee is already confirmed as matching. If an attendee

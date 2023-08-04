@@ -17,11 +17,11 @@
         </div>
     </div>
     {% if kiosk_mode %}
-    <input type="submit" class="hidden" />
+    <input type="submit" class="d-none" />
     {% else %}
     <div class="col-sm-3 col-sm-offset-3">
         <button class="btn btn-success" type="submit">Log in</button>
     </div>
-    <div class="col-sm-3 text-right"><a href="../preregistration/reset_password" target="_blank">Forgot your password?</a></div>
+    <div class="col-sm-3 text-end"><a href="../preregistration/reset_password">Forgot your password?</a></div>
     {% endif %}
 </form>

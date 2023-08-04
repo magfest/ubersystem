@@ -1,10 +1,9 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}Add Members to {{ group.name }}{% endblock %}
+{% set title_text = "Add Members to " ~ group.name %}
 {% block backlink %}{% endblock %}
 {% block content %}
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     <h2> Add Members to {{ group.name }} </h2>
 
     You've indicated you'd like to add {{ count }} {{ group.is_dealer|yesno(c.DEALER_HELPER_TERM + "s,group members") }}, at a cost of {{ (count|int * group.new_badge_cost)|format_currency }}.

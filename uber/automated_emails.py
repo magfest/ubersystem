@@ -12,7 +12,9 @@ ALREADY SENT FOR THAT CATEGORY TO RE-SEND.
 """
 
 import os
+import jinja2
 from datetime import datetime, timedelta
+import pathlib
 
 from pockets import listify
 from pytz import UTC
@@ -20,6 +22,7 @@ from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
 from uber import decorators
+from uber.jinja import JinjaEnv
 from uber.models import AdminAccount, Attendee, AttendeeAccount, ArtShowApplication, AutomatedEmail, Department, Group, \
     GuestGroup, IndieGame, IndieJudge, IndieStudio, MarketplaceApplication, MITSTeam, MITSApplicant, PanelApplication, \
     PanelApplicant, PromoCodeGroup, Room, RoomAssignment, Shift
@@ -123,6 +126,15 @@ class AutomatedEmailFixture:
         before = [d.active_before for d in when if d.active_before]
         self.active_before = max(before) if before else None
 
+        env = JinjaEnv.env()
+        try:
+            template_path = pathlib.Path(env.get_template(os.path.join('emails', self.template)).name)
+            self.template_plugin = template_path.parts[3]
+            self.template_url = f"https://github.com/magfest/{self.template_plugin}/tree/main/{self.template_plugin}/{pathlib.Path(*template_path.parts[5:]).as_posix()}"
+        except jinja2.exceptions.TemplateNotFound:
+            self.template_url = ""
+        
+
     @property
     def body(self):
         return decorators.render_empty(os.path.join('emails', self.template))
@@ -135,20 +147,9 @@ AutomatedEmailFixture(
     Attendee,
     '{EVENT_NAME} registration confirmed',
     'reg_workflow/attendee_confirmation.html',
-    lambda a: a.paid == c.HAS_PAID and not a.promo_code_groups,
+    lambda a: (a.paid == c.HAS_PAID and not a.promo_code_groups) or 
+              (a.paid == c.NEED_NOT_PAY and (a.confirmed or a.promo_code_id)),
     # query=Attendee.paid == c.HAS_PAID,
-    needs_approval=False,
-    allow_at_the_con=True,
-    ident='attendee_payment_received')
-
-AutomatedEmailFixture(
-    Attendee,
-    '{EVENT_NAME} registration confirmed',
-    'reg_workflow/attendee_confirmation.html',
-    lambda a: a.paid == c.NEED_NOT_PAY and (a.confirmed or a.promo_code_id),
-    # query=and_(
-    #     Attendee.paid == c.NEED_NOT_PAY,
-    #     or_(Attendee.confirmed != None, Attendee.promo_code_id != None)),
     needs_approval=False,
     allow_at_the_con=True,
     ident='attendee_badge_confirmed')
@@ -548,7 +549,7 @@ AutomatedEmailFixture(
     'Last Chance to Accept Your {EVENT_NAME} ({EVENT_DATE}) Badge',
     'placeholders/reminder.txt',
     lambda a: a.placeholder and not a.is_dealer,
-    when=days_before(7, c.PLACEHOLDER_DEADLINE),
+    when=days_before(7, c.PLACEHOLDER_DEADLINE if c.PLACEHOLDER_DEADLINE else c.UBER_TAKEDOWN),
     ident='badge_confirmation_reminder_last_chance')
 
 
@@ -1160,8 +1161,7 @@ if c.PANELS_ENABLED:
         'panels/panel_accept_reminder.txt',
         lambda app: (
             c.PANELS_CONFIRM_DEADLINE
-            and app.status == c.ACCEPTED
-            and not app.confirmed
+            and app.confirm_deadline
             and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
         ident='panel_accept_reminder')
 

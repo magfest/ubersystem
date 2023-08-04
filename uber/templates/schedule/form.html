@@ -33,7 +33,7 @@
     });
     {% if event.is_new %}
         var showOrHidePanelDetails = function() {
-            setVisible(".panel-details", !($.val('panel_id')))
+            setVisible(".card-details", !($.val('panel_id')))
         };
         $(function() {
             showOrHidePanelDetails();
@@ -85,19 +85,19 @@
     {% endfor %}
   </td>
 </tr>
-<tr class="panel-details">
+<tr class="card-details">
     <td valign="top">Panelists</td>
     <td>
         <a id="add" href="#" onClick="addPanelist(); return false">Add a Panelist</a>
     </td>
 </tr>
-<tr class="panel-details">
+<tr class="card-details">
     <td><b>Event Name:</b></td>
     <td>
         <input class="focus" type="text" name="name" value="{{ event.name }}" />
     </td>
 </tr>
-<tr class="panel-details">
+<tr class="card-details">
     <td valign="top">Description:</td>
     <td> <textarea rows="6" cols="40" name="description">{{ event.description }}</textarea> </td>
 </tr>

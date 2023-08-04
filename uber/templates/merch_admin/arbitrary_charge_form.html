@@ -4,7 +4,7 @@
 <script type="text/javascript">
     var undoSale = function(id) {
         $.post('undo_sale', {id: id, csrf_token: csrf_token}, function(message) {
-            toastr.remove();
+            hideMessageBox();
             window.location.replace('new?message=' + message);
         });
     };

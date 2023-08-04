@@ -38,17 +38,17 @@
                 $('#arrival-time' + suffix).datetimepicker({
                   sideBySide: true,
                   useCurrent: false,
-                  defaultDate: '{{ c.EPOCH.isoformat() }}',
-                  minDate: '{{ min_arrival_time.isoformat() }}',
-                  maxDate: '{{ max_arrival_time.isoformat() }}',
+                  defaultDate: '{{ c.EPOCH.isoformat()[:-6] }}',
+                  minDate: '{{ min_arrival_time.isoformat()[:-6] }}',
+                  maxDate: '{{ max_arrival_time.isoformat()[:-6] }}',
                   format: 'M/D/Y h:mm A'
                 });
                 $('#departure-time' + suffix).datetimepicker({
                   sideBySide: true,
                   useCurrent: false,
-                  defaultDate: '{{ c.ESCHATON.isoformat() }}',
-                  minDate: '{{ min_departure_time.isoformat() }}',
-                  maxDate: '{{ max_departure_time.isoformat() }}',
+                  defaultDate: '{{ c.ESCHATON.isoformat()[:-6] }}',
+                  minDate: '{{ min_departure_time.isoformat()[:-6] }}',
+                  maxDate: '{{ max_departure_time.isoformat()[:-6] }}',
                   format: 'M/D/Y h:mm A'
                 });
             }
@@ -66,8 +66,8 @@
 </script>
 
 <div id="travel_form_template" style="display: none;">
-  <div class="panel panel-default">
-    <div class="panel-body">
+  <div class="card">
+    <div class="card-body">
       <h2>Travel Plan #</h2>
       {{ guests_macros.travel_form(GuestDetailedTravelPlan) }}
     </div>
@@ -86,8 +86,8 @@
 
 <div id="travels_container">
   {% for op in detailed_travel_plans %}
-    <div class="panel panel-default">
-      <div class="panel-body">
+    <div class="card">
+      <div class="card-body">
         <h2>Travel Plan #{{ loop.index }}</h2>
         {{ guests_macros.travel_form(
             op,

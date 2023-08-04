@@ -1,16 +1,15 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}Badge Updated{% endblock %}
+{% set title_text = "Badge Updated" %}
 {% block backlink %}{% endblock %}
 {% block content %}
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     <h2>{{ message }}!</h2>
     <p>
       You have successfully {% if 'registered' in message or 'confirmed' in message %}confirmed{% elif 'transferred' in message %}transferred{% elif 'deferred' in message %}deferred{% else %}updated{% endif %} your registration.
       Thank you{% if 'payment' in message %} for your payment{% endif %}!
     </p>
-    {% if 'transferred' not in message %}<a href="confirm?id={{ id }}" class="btn btn-primary">Go Back to My Badge</a>{% endif %}
+    {% if 'transferred' not in message or not c.ATTENDEE_ACCOUNTS_ENABLED or (homepage_account and attendee in homepage_account.attendees) %}<a href="confirm?id={{ attendee.id }}" class="btn btn-primary">Go Back to My Badge</a>{% endif %}
   </div>
 </div>
 {% endblock %}

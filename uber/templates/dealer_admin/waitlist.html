@@ -20,8 +20,8 @@
           'each declined {{ c.DEALER_TERM }}.</p>' +
           '<p>This <b>CANNOT</b> be undone.</p>',
         buttons: {
-          confirm: { label: '<span class="glyphicon glyphicon-repeat"></span> Decline & Convert', className: 'btn-danger' },
-          cancel: { label: 'Nevermind', className: 'btn-default' }
+          confirm: { label: '<i class="fa fa-repeat"></i> Decline & Convert', className: 'btn-danger' },
+          cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
         },
         callback: function (result) {
           if (result) {
@@ -37,11 +37,11 @@
   <form id="form-decline" method="POST" action="waitlist" class="pull-right form-inline">
     <input type="hidden" name="decline_and_convert" value="1">
     <a href="../dealer_reports/waitlisted_group_info" class="btn btn-info">
-      <span class="glyphicon glyphicon-download-alt"></span>
+      <i class="fa fa-download-alt"></i>
       Waitlisted {{ c.DEALER_TERM|title }} Report
     </a>
     <button type="submit" class="btn btn-danger">
-      <span class="glyphicon glyphicon-repeat"></span>
+      <i class="fa fa-repeat"></i>
       Decline & Convert
     </button>
   </form>

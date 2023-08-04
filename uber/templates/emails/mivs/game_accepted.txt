@@ -1,4 +1,4 @@
-{{ game.studio.primary_contact_first_names }},
+Ahoy {{ game.studio.primary_contact_first_names }},
 
 Congratulations!  Your game submission ({{ game.title }}) has been chosen to be part of the {{ c.ESCHATON.year }} MAGFest Indie Videogame Showcase (MIVS)
 
@@ -18,16 +18,16 @@ Q: What is the covid policy for {{ c.ESCHATON.year }}?
 A: The Covid policy is outlined at {{ c.COVID_POLICIES_URL }} - By Accepting your spot in MIVS, you are agreeing to the COVID policy.
 
 Q: What's required of me and my team?
-A: You will be required to have yourself or someone from your team in your booth during MAGFest, from 10am to 6pm from Thursday to Saturday, and 10am to 3pm Sunday.
+A: You are be required to have yourself or someone from your team in your booth during our core hours. You can expect core hours to be around 12pm - 7pm everyday except for sunday which is 12pm-3pm.  A handbook will be given to you later which will have the exact times. 
 
 Q: Will I be able to get a room at the Gaylord?
 A: You will have the chance to purchase a room at the Gaylord for use by your team.
 
 Q: What will I have for setup?
-A: You will have 2 badges, 2 tables, 2 chairs, and power. The exact space each team has is still being analyzed, but will be larger than 10’x10’
+A: You will have 2 badges, 2 tables, 2 chairs, and power. You can expect the booth space to be 10’x10’
 
 
-We ask that you hold off on questions until after you Accept and information has had a chance to be distributed to you. If you need something answered to determine your participation, please email {{ c.MIVS_EMAIL|email_only }}
+If you need something answered to determine your participation, please email {{ c.MIVS_EMAIL|email_only }}, otherwise please accept now and more information will be sent to you.
 
 *** Dropping Out
 

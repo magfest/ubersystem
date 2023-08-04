@@ -7,6 +7,11 @@ set -e
 envsubst < "uber-development.ini.template" > /app/plugins/uber/development.ini
 envsubst < "sideboard-development.ini.template" > /app/development.ini
 
+if [ -n "${UBERSYSTEM_GIT_CONFIG}" ]; then
+    echo "Loading UBERSYSTEM_CONFIG from git repo ${UBERSYSTEM_GIT_CONFIG}"
+    /app/env/bin/python /app/plugins/uber/make_config.py --repo "${UBERSYSTEM_GIT_CONFIG}" --paths ${UBERSYSTEM_GIT_CONFIG_PATHS}
+fi
+
 if [ -n "${UBERSYSTEM_CONFIG}" ]; then
     echo "Parsing config from environment"
     /app/env/bin/python /app/plugins/uber/make_config.py
@@ -19,9 +24,9 @@ if [ "$1" = 'uber' ]; then
     /app/env/bin/python3 /app/sideboard/sep.py alembic upgrade heads
     /app/env/bin/python3 /app/sideboard/run_server.py
 elif [ "$1" = 'celery-beat' ]; then
-    /app/env/bin/celery -A uber.tasks beat --pidfile=
+    /app/env/bin/celery -A uber.tasks beat --loglevel=DEBUG --pidfile=
 elif [ "$1" = 'celery-worker' ]; then
-    /app/env/bin/celery -A uber.tasks worker
+    /app/env/bin/celery -A uber.tasks worker --loglevel=DEBUG
 else
     exec "$@"
 fi

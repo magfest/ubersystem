@@ -1,19 +1,18 @@
-{% import "fields/account.html" as account_fields with context %}
-<div class="panel panel-heading">
-<button class="btn btn-info" type="button" data-toggle="collapse" data-target="#update-account" aria-expanded="false" aria-controls="update-account">
-    <span class="glyphicon glyphicon-cog"></span> Account Settings
+{% import "forms/account.html" as account_fields with context %}
+<button class="btn btn-info pull-left" type="button" data-bs-toggle="collapse" data-bs-target="#update-account" aria-expanded="false" aria-controls="update-account">
+    <i class="fa fa-cog"></i> Account Settings
 </button>
 {% if c.PAGE_PATH != '/preregistration/homepage' %}
 <a href="../preregistration/homepage" class="btn btn-primary">Go to Homepage</a>
 {% endif %}
 <a href="../preregistration/logout" class="btn btn-danger pull-right">
-    <span class="glyphicon glyphicon-log-out"></span> Log Out
+    <i class="fa fa-log-out"></i> Log Out
 </a>
 <div class="collapse" id="update-account">
-    <div class="panel-body">
+    <div class="card-body">
         <form method="post" action="update_account" class="form-horizontal">
             {{ csrf_token() }}
-            <input type="hidden" name="id" value="{{ account.id }}" />
+            <input type="hidden" name="id" value="{{ homepage_account.id }}" />
             <div class="form-group">
                 <label for="current_password" class="col-sm-3 control-label">Current Password</label>
                 <div class="col-sm-6">
@@ -24,20 +23,20 @@
             <div class="form-group">
                 <label for="email" class="col-sm-3 control-label">Account Email</label>
                 <div class="col-sm-6">
-                    <input type="email" name="account_email" id="account_email" value="{{ account.email }}" class="form-control" placeholder="Account email address" required>
+                    <input type="email" name="account_email" id="account_email" value="{{ homepage_account.email }}" class="form-control" placeholder="Account email address" required>
                 </div>
             </div>
             <div class="form-group">
-                <label for="new_password" class="col-sm-3 control-label">New Password</label>
+                <label for="new-password" class="col-sm-3 control-label">New Password</label>
                 <div class="col-sm-6">
-                    <input type="password" name="new_password" id="new_password" value="" class="form-control" placeholder="Leave blank to keep current password">
+                    <input type="password" name="new_password" id="new-password" value="" class="form-control" placeholder="Leave blank to keep current password">
                 </div>
                 {{ account_fields.password_help }}
             </div>
             <div class="form-group">
-                <label for="confirm_new_password" class="col-sm-3 control-label">Confirm New Password</label>
+                <label for="confirm-password" class="col-sm-3 control-label">Confirm New Password</label>
                 <div class="col-sm-6">
-                    <input type="password" name="confirm_new_password" id="confirm_new_password" value="" class="form-control" placeholder="Leave blank to keep current password">
+                    <input type="password" name="confirm_password" id="confirm-password" value="" class="form-control" placeholder="Leave blank to keep current password">
                 </div>
             </div>
             <div class="col-sm-9 col-sm-offset-3">
@@ -47,7 +46,6 @@
             </div>
         </form>
     </div>
-</div>
 </div>
 
 {{ account_fields.new_password_validation }}

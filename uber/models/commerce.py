@@ -4,11 +4,12 @@ import stripe
 from pytz import UTC
 from pockets.autolog import log
 from residue import JSON, CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, case, func, or_, select
 
+from sideboard.lib import request_cached_property
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Integer
+from sqlalchemy.types import Boolean, Integer
 from sqlalchemy.orm import backref
 
 from uber.config import c
@@ -16,7 +17,7 @@ from uber.custom_tags import format_currency
 from uber.models import MagModel
 from uber.models.attendee import Attendee, AttendeeAccount, Group
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column
-from uber.utils import Charge
+from uber.payments import ReceiptManager
 
 
 __all__ = [
@@ -120,6 +121,10 @@ class ModelReceipt(MagModel):
     @property
     def pending_txns(self):
         return [txn for txn in self.receipt_txns if txn.is_pending_charge]
+    
+    @property
+    def refundable_txns(self):
+        return [txn for txn in self.receipt_txns if txn.refundable]
 
     @property
     def pending_total(self):
@@ -127,7 +132,7 @@ class ModelReceipt(MagModel):
 
     @hybrid_property
     def payment_total(self):
-        return sum([txn.receipt_share for txn in self.receipt_txns if not txn.cancelled and (txn.charge_id or txn.method != c.STRIPE and txn.amount > 0)])
+        return sum([txn.amount for txn in self.receipt_txns if not txn.cancelled and (txn.charge_id or txn.method != c.STRIPE and txn.amount > 0)])
     
     @payment_total.expression
     def payment_total(cls):
@@ -148,19 +153,29 @@ class ModelReceipt(MagModel):
                      ).where(and_(ReceiptTransaction.amount < 0, ReceiptTransaction.receipt_id == cls.id)
                      ).label('refund_total')
 
-    @property
+    @hybrid_property
     def current_amount_owed(self):
         return max(0, self.current_receipt_amount)
+    
+    @current_amount_owed.expression
+    def current_amount_owed(cls):
+        return case([(cls.current_receipt_amount > 0, cls.current_receipt_amount)],
+                    else_=0)
 
-    @property
+    @hybrid_property
     def current_receipt_amount(self):
         return self.item_total - self.txn_total
 
-    @property
+    @hybrid_property
     def item_total(self):
         return sum([(item.amount * item.count) for item in self.receipt_items])
+    
+    @item_total.expression
+    def item_total(cls):
+        return select([func.sum(ReceiptItem.amount * ReceiptItem.count)]
+                     ).where(ReceiptItem.receipt_id == cls.id).label('item_total')
 
-    @property
+    @hybrid_property
     def txn_total(self):
         return self.payment_total - self.refund_total
 
@@ -173,12 +188,52 @@ class ModelReceipt(MagModel):
                                                         "They" if self.current_receipt_amount >= 0 else "We",
                                                         format_currency(self.current_receipt_amount / 100))
 
-    @property
-    def last_incomplete_txn(self):
-        return sorted(self.pending_txns, key=lambda t: t.added, reverse=True)[0] if self.pending_txns else None
+    def get_last_incomplete_txn(self):
+        from uber.models import Session
+
+        for txn in sorted(self.pending_txns, key=lambda t: t.added, reverse=True):
+            if c.AUTHORIZENET_LOGIN_ID:
+                error = None
+            else:
+                error = txn.check_stripe_id()
+            if error or txn.amount != self.current_receipt_amount:
+                if error:
+                    txn.cancelled = datetime.now() # TODO: Add logs to txns/items and log the automatic cancellation reason?
+                if txn.amount != self.current_receipt_amount:
+                    txn.amount = self.current_receipt_amount
+                    if not c.AUTHORIZENET_LOGIN_ID:
+                        stripe.PaymentIntent.modify(txn.intent_id, amount = txn.amount)
+
+                if self.session:
+                    self.session.add(txn)
+                    self.session.commit()
+                else:
+                    with Session() as session:    
+                        session.add(txn)
+                        session.commit()
+                if not error:
+                    return txn
+            else:
+                return txn
 
 
 class ReceiptTransaction(MagModel):
+    """
+    Transactions have two key properties: whether or not they were done through Stripe,
+        and whether they represent a payment or a refund.
+
+    Refunds have a negative `amount`, payments have a positive `amount`.
+
+    Stripe payments will start with an `intent_id` and, if completed, have a `charge_id` set.
+    Stripe refunds will have a `refund_id`.
+
+    Stripe payments will track how much has been refunded for that transaction with `refunded` --
+        this is an important number to track because it helps prevent refund errors.
+
+    All payments keep a list of `receipt_items`. This lets admins track what has been paid for already,
+        plus it allows admins to refund Stripe payments per item.
+    """
+
     receipt_id = Column(UUID, ForeignKey('model_receipt.id', ondelete='SET NULL'), nullable=True)
     receipt = relationship('ModelReceipt', foreign_keys=receipt_id,
                            cascade='save-update, merge',
@@ -188,28 +243,56 @@ class ReceiptTransaction(MagModel):
     refund_id = Column(UnicodeText)
     method = Column(Choice(c.PAYMENT_METHOD_OPTS), default=c.STRIPE)
     amount = Column(Integer)
-    refunded = Column(Integer, nullable=True)
+    txn_total = Column(Integer, default=0)
+    refunded = Column(Integer, default=0)
     added = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     cancelled = Column(UTCDateTime, nullable=True)
     who = Column(UnicodeText)
     desc = Column(UnicodeText)
 
     @property
-    def receipt_share(self):
-        # I'm saving this for later
-        # return sum([item.total for item in self.receipt_items])
-            
-        return min(self.amount, sum([item.total_amount for item in self.receipt.receipt_items if item.added <= self.added]))
+    def available_actions(self):
+        # A list of actions that admins can do to this item.
+        # Each action corresponds to a function in reg_admin.py
 
-    def update_amount_refunded(self):
-        if not self.intent_id:
-            return
+        actions = []
+
+        if self.receipt.closed or self.cancelled or self.amount <= 0:
+            return actions
+
+        if self.intent_id:
+            if not c.AUTHORIZENET_LOGIN_ID:
+                actions.append('refresh_receipt_txn')
+            if not self.charge_id:
+                actions.append('cancel_receipt_txn')
+
+        if not self.stripe_id:
+            actions.append('remove_receipt_item')
         
-        refunded_total = 0
-        for refund in stripe.Refund.list(payment_intent=self.intent_id):
-            refunded_total += refund.amount
+        return actions
+
+    @property
+    def refundable(self):
+        return self.charge_id and self.amount_left
+
+    @property
+    def stripe_url(self):
+        if not self.stripe_id:
+            return ''
         
-        self.refunded = refunded_total
+        if c.AUTHORIZENET_LOGIN_ID:
+            if not self.charge_id:
+                return ''
+            if 'test' in c.AUTHORIZENET_ENDPOINT:
+                return "https://sandbox.authorize.net/ui/themes/sandbox/transaction/transactiondetail.aspx?transID={}".format(self.charge_id)
+            else:
+                return "{}".format(self.charge_id)
+        else:
+            return "https://dashboard.stripe.com/payments/{}".format(self.intent_id or self.get_intent_id_from_refund())
+
+    @property
+    def amount_left(self):
+        return self.amount - self.refunded
 
     @property
     def is_pending_charge(self):
@@ -218,24 +301,91 @@ class ReceiptTransaction(MagModel):
     @property
     def stripe_id(self):
         # Return the most relevant Stripe ID for admins
-        return self.charge_id or self.intent_id
+        return self.refund_id or self.charge_id or self.intent_id
+    
+    def check_stripe_id(self):
+        # Check all possible Stripe IDs for invalid request errors
+        # Stripe IDs become invalid if, for example, the Stripe API keys change
 
-    def get_stripe_intent(self):
-        if not self.stripe_id:
+        if c.AUTHORIZENET_LOGIN_ID or not self.stripe_id:
+            return
+        
+        refund_intent_id = None
+        if self.refund_id:
+            try:
+                refund = stripe.Refund.retrieve(self.refund_id)
+            except Exception as e:
+                return e.user_message
+            else:
+                refund_intent_id = refund.payment_intent
+
+        if self.intent_id or refund_intent_id:
+            try:
+                intent = stripe.PaymentIntent.retrieve(self.intent_id or refund_intent_id)
+            except Exception as e:
+                return e.user_message
+            
+        if self.charge_id:
+            try:
+                charge = stripe.Charge.retrieve(self.charge_id)
+            except Exception as e:
+                return e.user_message
+
+    def get_intent_id_from_refund(self):
+        if c.AUTHORIZENET_LOGIN_ID or not self.refund_id:
             return
 
         try:
-            return stripe.PaymentIntent.retrieve(self.intent_id)
+            refund = stripe.Refund.retrieve(self.refund_id)
+        except Exception as e:
+            log.error(e)
+        else:
+            return refund.payment_intent
+
+    def get_stripe_intent(self):
+        if not self.stripe_id or c.AUTHORIZENET_LOGIN_ID:
+            return
+
+        intent_id = self.intent_id or self.get_intent_id_from_refund()
+
+        try:
+            return stripe.PaymentIntent.retrieve(intent_id)
         except Exception as e:
             log.error(e)
 
     def check_paid_from_stripe(self):
-        if self.charge_id:
+        if self.charge_id or c.AUTHORIZENET_LOGIN_ID:
             return
 
         intent = self.get_stripe_intent()
         if intent and intent.charges:
-            return Charge.mark_paid_from_intent_id(self.intent_id, intent.charges.data[0].id)
+            new_charge_id = intent.charges.data[0].id
+            ReceiptManager.mark_paid_from_intent_id(self.intent_id, new_charge_id)
+            return new_charge_id
+
+    def update_amount_refunded(self):
+        from uber.models import Session
+        if c.AUTHORIZENET_LOGIN_ID or not self.intent_id:
+            return 0, ''
+        
+        last_refund_id = None
+        refunded_total = 0
+        for refund in stripe.Refund.list(payment_intent=self.intent_id):
+            refunded_total += refund.amount
+            last_refund_id = refund.id
+            self.refund_id = self.refund_id or last_refund_id
+        with Session() as session:
+            other_txns = session.query(ReceiptTransaction).filter_by(intent_id=self.intent_id
+                                                            ).filter(ReceiptTransaction.id != self.id)
+            other_refunds = sum([txn.refunded for txn in other_txns])
+        
+        self.refunded = min(self.amount, refunded_total - other_refunds)
+        return self.refunded, last_refund_id
+
+    @property
+    def cannot_delete_reason(self):
+        if self.stripe_id:
+            return "You cannot delete Stripe transactions."
 
 
 class ReceiptItem(MagModel):
@@ -243,13 +393,13 @@ class ReceiptItem(MagModel):
     receipt = relationship('ModelReceipt', foreign_keys=receipt_id,
                            cascade='save-update, merge',
                            backref=backref('receipt_items', cascade='save-update, merge'))
-    """
-    We don't want these columns yet, but I will later
     txn_id = Column(UUID, ForeignKey('receipt_transaction.id', ondelete='SET NULL'), nullable=True)
     receipt_txn = relationship('ReceiptTransaction', foreign_keys=txn_id,
                            cascade='save-update, merge',
-                           backref=backref('receipt_items', cascade='save-update, merge'))"""
+                           backref=backref('receipt_items', cascade='save-update, merge'))
     amount = Column(Integer)
+    comped = Column(Boolean, default=False)
+    reverted = Column(Boolean, default=False)
     count = Column(Integer, default=1)
     added = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     closed = Column(UTCDateTime, nullable=True)
@@ -261,4 +411,37 @@ class ReceiptItem(MagModel):
     def total_amount(self):
         return self.amount * self.count
 
+    @property
+    def paid(self):
+        if not self.closed:
+            return
+        return self.receipt_txn.added
 
+    @property
+    def available_actions(self):
+        # A list of actions that admins can do to this item.
+        # Each action should correspond to a function in reg_admin.py
+
+        actions = []
+
+        if self.receipt.closed:
+            return actions
+
+        if not self.closed:
+            actions.append('remove_receipt_item')
+
+        if not self.comped and self.amount > 0 and not self.reverted:
+            actions.append('comp_receipt_item')
+        if self.revert_change and not self.reverted and not self.comped:
+            actions.append('undo_receipt_item')
+
+        return actions
+
+    @property
+    def refundable(self):
+        return self.receipt_txn.refundable and not self.comped and not self.reverted
+
+    @property
+    def cannot_delete_reason(self):
+        if self.closed:
+            return "You cannot delete items with payments attached. If necessary, please delete or cancel the payment first."

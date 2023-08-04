@@ -1,5 +1,5 @@
 <div class="modal-header">
-    <button type="button" class="close" data-dismiss="modal">&times;</button>
+    <button type="button" class="close" data-bs-dismiss="modal">&times;</button>
     <h4 class="modal-title">Please Set Default Printer IDs</h4>
     </div>
     <div class="modal-body">
@@ -23,7 +23,7 @@
     <div class="form-group">
     <div class="pull-right">
         <button type="button" onClick="setPrinterIDs('{{ attendee_id }}')" class="btn btn-primary">Set Printer IDs</button>
-     <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
     </div>
     </div>
     </div>
@@ -38,20 +38,20 @@
             dataType: 'json',
             data: $("#printer_id_form").serialize(),
             success: function (json) {
-                toastr.clear();
+                hideMessageBox();
                 var message = json.message;
                 if (json.success) {
-                    toastr.success(message);
+                    $("#message-alert").addClass("alert-success").show().children('span').html(message);
                     reg_station = json.reg_station;
                     printer_default_id = json.printer_default_id;
                     printer_minor_id = json.printer_minor_id;
                     loadCheckInFormModal(attendeeID);
                 } else {
-                    toastr.error(message);
+                    showErrorMessage(message);
                 }
             },
             error: function () {
-                toastr.error('Unable to connect to server, please try again.');
+                showErrorMessage('Unable to connect to server, please try again.');
             }
         });
     };

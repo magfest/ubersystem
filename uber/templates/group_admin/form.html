@@ -1,55 +1,71 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% import "fields/group.html" as group_fields with context %}
+{% import "forms/group.html" as group_fields with context %}
+{% import 'forms/macros.html' as form_macros with context %}
 {% block title %}Group Form{% endblock %}
 {% block content %}
 {% include "group_admin/nav_menu.html" %}
 
   {% include "check_in.html" %}
+  <div class="card card-body">
 
     {% if not group.is_new %} 
-    <h1>
-    <a class="btn btn-primary" href="../preregistration/group_members?id={{ group.id }}">View as Attendee</a>
-    {% if group.guest %} 
-    <a class="btn btn-info" href="../guests/index?id={{ group.guest.id }}">{{ group.guest.group_type_label }} Checklist</a>
+    <div class="row mb-3">
+      <div class="col text-start">
+      <a class="btn btn-primary" href="../preregistration/group_members?id={{ group.id }}">View as Attendee</a>
+      {% if group.guest %} 
+      <a class="btn btn-info" href="../guests/index?id={{ group.guest.id }}">{{ group.guest.group_type_label }} Checklist</a>
+      {% endif %}
+      </div>
+      {% if signnow_last_emailed %}
+      <div class="col text-end">
+      <em>This dealer was last emailed their SignNow document at {{ signnow_last_emailed|datetime_local }}.</em>
+      <a class="btn btn-warning" href="../group_admin/resend_signnow_link?id={{ group.id }}">Resend SignNow Link</a>
+      </div>
+      {% endif %}
+    </div>
     {% endif %}
-    </h1> 
-    {% endif %}
-<div class="panel panel-body">
+
   {% if not group.is_new %}
-    <div role="tabpanel">
     <ul class="nav nav-tabs" role="tablist">
-    <li role="presentation">
-    <a href="#info" aria-controls="info" role="tab" data-toggle="tab">
-    <span class="glyphicon glyphicon-list"></span>&nbsp;Group Info
-    </a>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="group-info-tab" data-bs-toggle="tab" data-bs-target="#group-info" type="button" role="tab" aria-controls="group-info">
+        <i class="fa fa-list"></i>&nbsp;Group Info
+      </button>
     </li>
-    {% if group.sorted_attendees%}
-    <li role="presentation">
-    <a href="#badges" aria-controls="badges" role="tab" data-toggle="tab">
-    <span class="glyphicon glyphicon-user"></span>&nbsp;Badges
-    </a>
+    {% if group.sorted_attendees %}
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="attendees-tab" data-bs-toggle="tab" data-bs-target="#attendees" type="button" role="tab" aria-controls="attendees">
+        <i class="fa fa-user"></i>&nbsp;Badges
+      </button>
     </li>
     {% endif %}
     </ul>
-    </div>
 
     <div class="tab-content">
-    <div class="row" style="padding: 10px;"></div>
-    <div role="tabpanel" class="tab-pane" id="info">
+      &nbsp;
+    <div role="tabpanel" class="tab-pane" id="group-info" aria-labelledby="group-info-tab">
     {% else %}
     <div>
     <h3>Group Info</h3>
     {% endif %}
+    {{ form_macros.form_validation('group-form', 'validate_dealer' if new_dealer or group.is_dealer else 'validate_group') }}
       <form method="post" action="form" class="form-horizontal">
         {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ group.db_id }}" />
         <input type="hidden" name="new_dealer" value="{{ new_dealer or '' }}" />
 
+        {% if forms and 'group_info' in forms %}
+          {% include "forms/group_info.html" %}
+        {% elif forms and 'table_info' in forms %}
+        {% include "forms/table_info.html" %}
+        <button type="submit" class="btn btn-primary" value="Upload">Save</button>
+        <hr/>
+        <div class="form-text">Contact Info</div>
+          {% include "forms/contact_info.html" %}
+        {% endif %}
+
+        {# old fields, kept for reference as we migrate to new fields
         {{ group_fields.guest_group_type }}
-        {{ group_fields.group_name }}
-        {{ group_fields.badges_dropdown }}
-        {{ group_fields.tables }}
-        {{ group_fields.admin_notes }}
         {{ group_fields.new_badge_type }}
         {{ group_fields.new_badge_ribbon }}
 
@@ -60,28 +76,10 @@
         {% endif %}
         {{ group_fields.can_add }}
 
-        {{ group_fields.leader_info }}
-        {% if new_dealer or group.is_dealer or group.categories %}
-            {% if group.leader %}
-                <div class="form-group">
-                    <label class="col-sm-3 control-label">Phone Number</label>
-                    <div class="col-sm-6">
-                        {{ group.leader.cellphone }}
-                    </div>
-                </div>
-            {% endif %}
-
+        {{ group_fields.leader_info }} #}
+          
         {% if new_dealer %}
         <h3>Marketplace Info</h3>
-        {% endif %}
-
-          {{ group_fields.status }}
-          {{ group_fields.categories }}
-          {{ group_fields.wares }}
-          {{ group_fields.description }}
-          {{ group_fields.special_needs }}
-          {{ group_fields.website }}
-          {{ group_fields.address }}
         {% endif %}
 
         {% include "groupextra.html" %}
@@ -105,7 +103,7 @@
 
       {% if not group.is_new and group.sorted_attendees %}
       </div>
-      <div role="tabpanel" class="tab-pane" id="badges">
+      <div role="tabpanel" class="tab-pane" id="attendees" aria-labelledby="attendees-tab">
         <table class="table datatable table-striped">
         <thead>
         <tr>
@@ -169,7 +167,7 @@
         {% endif %}
         </div>
       </div>
-<script src="../static/js/window-hash-tabload.js" type="text/javascript"></script>
+      <script src="../static/js/window-hash-tabload.js" type="text/javascript"></script>
 {% if group.is_new %}
 <script type="text/javascript">
 $(function () {

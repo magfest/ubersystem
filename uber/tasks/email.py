@@ -1,6 +1,7 @@
 from collections.abc import Mapping
-from datetime import timedelta
-from time import sleep
+from datetime import timedelta, datetime
+from time import sleep, time
+import traceback
 
 from celery.schedules import crontab
 from pockets import groupify, listify
@@ -52,25 +53,33 @@ def send_email(
     if c.DEV_BOX:
         to, cc, bcc = map(lambda xs: list(filter(_is_dev_email, xs)), [to, cc, bcc])
 
+    record_email = False
+
     if c.SEND_EMAILS and to:
         message = {
             'bodyText' if format == 'text' else 'bodyHtml': body,
             'subject': subject,
             'charset': 'UTF-8',
             }
+        log.info('Attempting to send email {}', locals())
 
         try:
-            email_sender.sendEmail(
-            source=sender,
-            toAddresses=to,
-            ccAddresses=cc,
-            bccAddresses=bcc,
-            message=message)
+            error_msg = email_sender.sendEmail(
+                            source=sender,
+                            toAddresses=to,
+                            ccAddresses=cc,
+                            bccAddresses=bcc,
+                            message=message)
+            if error_msg:
+                log.error('Error while sending email: ' + error_msg)
+            else:
+                record_email = True
         except Exception as error:
             log.error('Error while sending email: {}'.format(error))
         sleep(0.1)  # Avoid hitting rate limit
     else:
         log.error('Email sending turned off, so unable to send {}', locals())
+        record_email = True if c.DEV_BOX else False
 
     if original_to:
         body = body.decode('utf-8') if isinstance(body, bytes) else body
@@ -87,24 +96,25 @@ def send_email(
             elif isinstance(model, Mapping):
                 fk_kwargs['automated_email_id'] = automated_email.get('id', None)
 
-        email = Email(
-            subject=subject,
-            body=body,
-            sender=sender,
-            to=','.join(original_to),
-            cc=','.join(original_cc),
-            bcc=','.join(original_bcc),
-            ident=ident,
-            **fk_kwargs)
+        if record_email:
+            email = Email(
+                subject=subject,
+                body=body,
+                sender=sender,
+                to=','.join(original_to),
+                cc=','.join(original_cc),
+                bcc=','.join(original_bcc),
+                ident=ident,
+                **fk_kwargs)
 
-        session = session or getattr(model, 'session', getattr(automated_email, 'session', None))
-        if session:
-            session.add(email)
-            session.commit()
-        else:
-            with Session() as session:
+            session = session or getattr(model, 'session', getattr(automated_email, 'session', None))
+            if session:
                 session.add(email)
                 session.commit()
+            else:
+                with Session() as session:
+                    session.add(email)
+                    session.commit()
 
 
 @celery.schedule(crontab(hour=6, minute=0, day_of_week=1))
@@ -150,39 +160,59 @@ def send_automated_emails():
     if not (c.DEV_BOX or c.SEND_EMAILS):
         return None
 
-    with Session() as session:
-        active_automated_emails = session.query(AutomatedEmail) \
-            .filter(*AutomatedEmail.filters_for_active) \
-            .options(joinedload(AutomatedEmail.emails)).all()
+    try:
+        expiration = timedelta(hours=1)
+        quantity_sent = 0
+        start_time = time()
+        with Session() as session:
+            active_automated_emails = session.query(AutomatedEmail) \
+                .filter(*AutomatedEmail.filters_for_active) \
+                .options(joinedload(AutomatedEmail.emails)).all()
 
-        for automated_email in active_automated_emails:
-            """ This appears to be breaking our email-sending process and I do not have the time or tools to figure it out
-            automated_email.currently_sending = True
-            session.add(automated_email)
-            session.commit()"""
-            automated_email.unapproved_count = 0
+            automated_emails_by_model = groupify(active_automated_emails, 'model')
 
-        automated_emails_by_model = groupify(active_automated_emails, 'model')
-
-        for model, query_func in AutomatedEmailFixture.queries.items():
-            model_instances = query_func(session)
-            for model_instance in model_instances:
+            for model, query_func in AutomatedEmailFixture.queries.items():
+                log.info("Sending automated emails for " + model.__name__)
                 automated_emails = automated_emails_by_model.get(model.__name__, [])
                 for automated_email in automated_emails:
-                    if model_instance.id not in automated_email.emails_by_fk_id:
-                        if automated_email.would_send_if_approved(model_instance):
-                            if automated_email.approved or not automated_email.needs_approval:
-                                automated_email.send_to(model_instance, delay=False)
-                            else:
-                                automated_email.unapproved_count += 1
-        
-        """ See the note above
-        for automated_email in active_automated_emails:
-            automated_email.currently_sending = False
-            session.add(automated_email)
-            session.commit()"""
+                    if automated_email.currently_sending:
+                        log.info(automated_email.ident + " is marked as currently sending")
+                        if automated_email.last_send_time:
+                            if (datetime.now() - automated_email.last_send_time) < expiration:
+                                # Looks like another thread is still running and hasn't timed out.
+                                continue
+                    automated_email.currently_sending = True
+                    last_send_time = datetime.now()
+                    automated_email.last_send_time = last_send_time
+                    session.add(automated_email)
+                    session.commit()
+                    unapproved_count = 0
+                    
+                    model_instances = query_func(session)
+                    for model_instance in model_instances:
+                        if model_instance.id not in automated_email.emails_by_fk_id:
+                            if automated_email.would_send_if_approved(model_instance):
+                                if automated_email.approved or not automated_email.needs_approval:
+                                    if model_instance.active_receipt:
+                                        session.refresh_receipt_and_model(model_instance)
+                                    automated_email.send_to(model_instance, delay=False)
+                                    quantity_sent += 1
+                                else:
+                                    unapproved_count += 1
+                        if datetime.now() - last_send_time > (expiration / 2):
+                            automated_email.last_send_time = datetime.now()
+                            session.add(automated_email)
+                            session.commit()
 
-        return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
+                    automated_email.unapproved_count = unapproved_count
+                    automated_email.currently_sending = False
+                    session.add(automated_email)
+                    session.commit()
+            
+            log.info("Sent " + str(quantity_sent) + " emails in " + str(time() - start_time) + " seconds")
+            return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
+    except:
+        traceback.print_exc()
 
         # TODO: Once we finish converting each AutomatedEmailFixture.filter
         #       into an AutomatedEmailFixture.query, we'll be able to remove

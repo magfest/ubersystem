@@ -1,16 +1,14 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}Preregistraton Successful{% endblock %}
-{% block backlink %}{% endblock %}
+{% set title_text = "Registration Step 4 of 4: Preregistration Successful" %}
 {% block content %}
 
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
-    {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_OPEN) }}
+<div class="card">
+  <div class="card-body">
+    {{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
 
     <div class="row">
       <div class="well col-md-offset-1 col-md-10">
-        <h1>Registration Complete</h1>
+        <h2>Registration Complete</h2>
         <p>
             Congratulations! Your registration was successful.
         </p>
@@ -62,8 +60,6 @@
         <a href="index" class="btn btn-primary">Add Another Registration</a>
       </div>
     </div>
-
-    {% include "preregistration/disclaimers.html" %}
   </div>
 </div>
 

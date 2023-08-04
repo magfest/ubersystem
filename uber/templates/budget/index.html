@@ -13,7 +13,7 @@
     <h1 class="text-center">({{ (total / 100)|format_currency }} total)</h1>
 </div>
 
-<div class="panel panel-default">
+<div class="card">
 <h3 class="center">Refund Receipt Items</h3>
   <table class="table table-striped export-datatable">
     <thead>
@@ -70,10 +70,6 @@
     </tbody>
   </table>
 </div>
-<script type="text/javascript" src="https://cdn.datatables.net/buttons/1.5.2/js/dataTables.buttons.min.js"></script>
-<script type="text/javascript" src="https://cdn.datatables.net/buttons/1.5.2/js/buttons.html5.min.js"></script>
-<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
-<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/1.5.2/css/buttons.dataTables.min.css">
 <script type="text/javascript">
 $().ready(function() {
   var dtable = $('.export-datatable').DataTable({

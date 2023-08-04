@@ -1,5 +1,5 @@
-{% extends "preregistration/preregbase.html" %}
-{% block title %}Group Members{% endblock %}
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Group Members" %}
 {% set attendee = group.buyer %}
 {% block content %}
   <script type="text/javascript">
@@ -10,8 +10,8 @@
       };
   </script>
   {% include 'prereg_masthead.html' %}
-  <div class="panel panel-default">
-  <div class="panel-body">
+  <div class="card">
+  <div class="card-body">
     {% include 'confirm_tabs.html' with context %}
 
     <h2> Members of "{{ group.name }}" </h2>
@@ -41,7 +41,7 @@
                   <input type="hidden" name="code" value="{{ code.code }}" />
                   <input type="hidden" name="group_id" value="{{ group.id }}" />
                   <button type="submit" class="btn btn-primary">Send Code</button>
-                  <button type="button" class="btn btn-default" onclick="toggleEmailForm('{{ code.code }}')">Cancel</button>
+                  <button type="button" class="btn btn-outline-secondary" onclick="toggleEmailForm('{{ code.code }}')">Cancel</button>
                 </span>
               </form>
             </td>

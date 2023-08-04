@@ -18,11 +18,9 @@
     <form role="form" method="get" action="bidder_signup" id="search_form">
       <div class="input-group">
         <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
-        <span class="input-group-btn">
-          <button class="btn btn-default" type="submit">
-              <span class="glyphicon glyphicon-search"></span>
-          </button>
-      </span>
+        <button class="btn btn-outline-secondary" type="submit">
+            <i class="fa fa-search"></i>
+        </button>
       </div>
     </form>
     {% if search_text %}<a href="bidder_signup">View all attendees with bidder numbers</a>{% endif %}
@@ -43,7 +41,7 @@
   </li>
   {% endfor %}
 </ul>
-<div class="panel panel-default">
+<div class="card">
   {% if page %}
   <table class="table table-striped" data-page-size="9999999">
     <thead>
@@ -133,7 +131,8 @@
         e.preventDefault();
         var id = $(this).closest('.attendee-row').data('attendee_id');
         $('#bidder_modals').find('.modal').removeClass('print_form');
-        $('#attendee_'+id).modal();
+        var modal = bootstrap.Modal.getOrCreateInstance($('#attendee_'+id));
+        modal.show();
     };
 
     $(document).ready(function() {
@@ -170,14 +169,15 @@
                                 $('#attendee_'+response['attendee_id']).find('.bidder_num').text(response['bidder_num']);
                                 $('#attendee_'+response['attendee_id']).find('.bidder_id').val(response['bidder_id']);
                             } else {
-                                $modals.modal('hide');
-                                location.href = '?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode or "" }}&message='+response['success'];
+                              var modal = bootstrap.Modal.getOrCreateInstance($modals);
+                              modal.hide();
+                              location.href = '?order={{ order }}&page={{ page }}&search_text={{ search_text|urlencode or "" }}&message='+response['success'];
                             }
                         } else {
-                            toastr.error('', response['error'], {timeOut: 5000});
+                            showErrorMessage('', response['error'], {timeOut: 5000});
                         }
                     } catch(ex) {
-                        toastr.error('', 'There was an error saving the bidder: ' + responseText.substring(0, 1024), {timeOut: 5000});
+                        showErrorMessage('', 'There was an error saving the bidder: ' + responseText.substring(0, 1024), {timeOut: 5000});
                     }
                 }
             } finally {

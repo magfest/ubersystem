@@ -35,7 +35,7 @@
     <input type="hidden" name="id" value="{{ guest_taxes.db_id }}" />
     
     {{ csrf_token() }}
-    {{ macros.checkbox(guest_taxes, 'w9_sent', label='I confirm that I have uploaded my W9 form at the document portal above.')}}
+    {{ macros.checkbox(guest_taxes, 'w9_sent', label='I confirm that I have uploaded my W9 form at the document portal above.') }}
     <br/>
     {% block form_extra %}{% endblock %}
     <input type="submit" class="btn btn-primary" value="Confirm Upload" />

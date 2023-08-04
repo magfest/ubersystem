@@ -172,7 +172,7 @@
 
       this.onDetectionError = function(response) {
         if (this.shouldShowErrorMessage()) {
-          toastr.warning(response['error'], '', {timeOut: 3000});
+          $("#message-alert").addClass("alert-warning").show().children('span').html(response['error'], '', {timeOut: 3000});
         }
 
         if (settings.focusOnError) {

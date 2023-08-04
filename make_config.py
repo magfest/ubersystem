@@ -1,5 +1,8 @@
 #!/app/env/bin/python3
 from configobj import ConfigObj
+import tempfile
+import argparse
+import pathlib
 import base64
 import gzip
 import yaml
@@ -7,6 +10,36 @@ import os
 
 root = os.environ.get("UBERSYSTEM_ROOT", "/app")
 config = os.environ.get("UBERSYSTEM_CONFIG", "[]")
+secrets = yaml.load(os.environ.get("UBERSYSTEM_SECRETS", "{}"), Loader=yaml.Loader)
+
+parser = argparse.ArgumentParser(
+    prog='make_config',
+    description='Generates ubersystem config files from compressed environment variables'
+)
+parser.add_argument("--repo", required=False, help="Optional git repo to pull config from, used for development")
+parser.add_argument("--paths", nargs="*", help="Configuration paths to use when loading from git repo")
+args = parser.parse_args()
+
+if args.repo:
+    repo_config = []
+    with tempfile.TemporaryDirectory() as temp:
+        print(f"Cloning config repo {args.repo} into {temp}")
+        os.system(f"git clone --depth=1 {args.repo} {temp}")
+        files = []
+        for path in args.paths:
+            print(f"Loading files from {path}")
+            parts = pathlib.PurePath(path).parts
+            for idx, part in enumerate(parts):
+                full_path = os.path.join(temp, *parts[:idx+1])
+                files.extend([os.path.join(full_path, x) for x in os.listdir(full_path) if x.endswith(".yaml")])
+        for filename in files:
+            print(f"Loading config from {filename}")
+            with open(filename, "rb") as FILE:
+                config_data = FILE.read()
+            zipped = gzip.compress(config_data)
+            encoded = base64.b64encode(zipped)
+            repo_config.append(encoded)
+    config = yaml.dump(repo_config, Dumper=yaml.Dumper, encoding="utf8")
 
 plugins = os.listdir(os.path.join(root, "plugins"))
 plugin_configs = {x: [] for x in plugins}
@@ -50,6 +83,8 @@ for plugin, configs in plugin_configs.items():
         config = configs[0]
         for override in configs[1:]:
             config.merge(override)
+        if plugin in secrets:
+            config.merge(ConfigObj(secrets[plugin]))
         config.filename = os.path.join(root, "plugins/", plugin, "development.ini")
         config.write()
         with open(os.path.join(root, "plugins/", plugin, "development.ini"), "r") as CONFIG:
@@ -57,8 +92,10 @@ for plugin, configs in plugin_configs.items():
 
 if sideboard_configs:
     config = sideboard_configs[0]
-    for override in configs[1:]:
+    for override in sideboard_configs[1:]:
         config.merge(override)
+    if "sideboard" in secrets:
+        config.merge(ConfigObj(secrets["sideboard"]))
     config.filename = os.path.join(root, "development.ini")
     config.write()
     with open(os.path.join(root, "development.ini"), "r") as CONFIG:

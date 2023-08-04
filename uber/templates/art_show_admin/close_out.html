@@ -14,8 +14,8 @@
 {% block admin_controls %}
 
 <h3>Close Out</h3>
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     <strong>Step 1</strong>: Enter the artist code and piece number and, if applicable, the bidder number of the bidder who won the piece.
     <form role="form" method="get" action="close_out" class="form-inline">
       <div class="form-group">
@@ -32,7 +32,7 @@
     </form>
   </div>
   {% if piece and (bidder or not bidder_num) %}
-  <div class="panel-body">
+  <div class="card-body">
     <strong>Step 2</strong>: Enter the status the piece should change to{% if bidder %} and the winning bid.<br/>
     <strong>This piece will be added to a receipt for {% if bidder.badge_printed_name %}{{ bidder.badge_printed_name }} ({% endif %}{{ bidder|form_link }}{{ ')' if bidder.badge_printed_name }} and they will be responsible for picking it up during Sales</strong>{% endif %}.
     <form role="form" method="post" action="close_out_piece" class="form-inline">

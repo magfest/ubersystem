@@ -9,11 +9,11 @@ app, c.PAGE_PATH,
 "index", "Return to App List", True
 ) }}
 
-<div class="panel panel-default">
+<div class="card">
 
   <h2>Marketplace Application Form{% if app.attendee %} for {{ app.attendee|form_link }}{% endif %}</a></h2>
 
-  <div class="panel-body">
+  <div class="card-body">
     <form method="post" id="new_agent" action="../marketplace/new_agent" role="form">
       <input type="hidden" name="admin" value="1" />
     </form>
