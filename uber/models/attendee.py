@@ -4,7 +4,7 @@ import re
 from datetime import date, datetime, timedelta
 from uuid import uuid4
 
-from sqlalchemy.sql.elements import not_
+from sqlalchemy.sql.expression import not_
 from dateutil import parser as dateparser
 from pockets import cached_property, classproperty, groupify, listify, is_listy, readable_join
 from pockets.autolog import log
@@ -1210,7 +1210,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @full_name.expression
     def full_name(cls):
         return case(
-            [(or_(cls.first_name == None, cls.first_name == ''), 'zzz')],  # noqa: E711
+            (or_(cls.first_name == None, cls.first_name == ''), 'zzz'),  # noqa: E711
             else_=func.lower(cls.first_name + ' ' + cls.last_name))
         
     @hybrid_property

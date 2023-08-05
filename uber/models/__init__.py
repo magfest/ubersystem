@@ -1741,7 +1741,7 @@ class Session(SessionManager):
                             except AttributeError:
                                 return None, 'ERROR: {} is not a valid attribute'.format(target)
                             # Are we a searchable property?
-                            if isinstance(getattr(Attendee,target) == search_term, sqlalchemy.sql.elements.BinaryExpression):
+                            if isinstance(getattr(Attendee,target) == search_term, sqlalchemy.sql.expression.BinaryExpression):
                                 attr_search_filter = self.get_truth(getattr(Attendee,target), op, search_term)
                             else:
                                 return None, 'ERROR: {} is not a searchable attribute'.format(target)

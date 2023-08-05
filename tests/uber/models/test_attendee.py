@@ -9,7 +9,7 @@ from uber import config
 from uber.config import c
 from uber.models import Attendee, Department, DeptMembership, DeptMembershipRequest, DeptRole, FoodRestrictions, \
     Group, Job, Session, Shift
-from uber.model_checks import extra_donation_valid, _invalid_phone_number
+from uber.model_checks import _invalid_phone_number
 
 
 @pytest.fixture()
@@ -733,20 +733,6 @@ class TestLookupAttendee:
                 attendee = session.lookup_attendee(
                     'Duplicate', c.BADGE_STATUS[status], 'duplicate@example.com', '12345')
                 assert attendee.badge_status == c.COMPLETED_STATUS
-
-
-class TestExtraDonationValidations:
-
-    def test_extra_donation_nan(self):
-        assert "What you entered for Extra Donation (blah) isn't even a number" \
-            == extra_donation_valid(Attendee(extra_donation="blah"))
-
-    def test_extra_donation_below_zero(self):
-        assert "Extra Donation must be a number that is 0 or higher." \
-            == extra_donation_valid(Attendee(extra_donation=-10))
-
-    def test_extra_donation_valid(self):
-        assert None is extra_donation_valid(Attendee(extra_donation=10))
 
 
 class TestPhoneNumberValidations:

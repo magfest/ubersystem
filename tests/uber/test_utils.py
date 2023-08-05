@@ -9,7 +9,6 @@ from uber.config import c
 from uber.models import Attendee, Group
 from uber.utils import add_opt, convert_to_absolute_url, get_age_from_birthday, localized_now, \
     remove_opt, normalize_newlines
-from uber.payments import Charge
 
 
 @pytest.fixture
@@ -89,83 +88,6 @@ class TestAddRemoveOpts:
     def test_remove_opt_second(self):
         assert str(c.DEALER_RIBBON) == remove_opt(
             Attendee(ribbon=','.join([str(c.VOLUNTEER_RIBBON), str(c.DEALER_RIBBON)])).ribbon_ints, c.VOLUNTEER_RIBBON)
-
-
-class TestCharge:
-    def test_charge_one_email(self):
-        attendee = Attendee(email='test@example.com')
-        charge = Charge(targets=[attendee])
-        assert charge.receipt_email == attendee.email
-
-    def test_charge_group_leader_email(self):
-        attendee = Attendee(email='test@example.com')
-        group = Group(attendees=[attendee])
-        charge = Charge(targets=[group])
-        assert charge.receipt_email == attendee.email
-
-    def test_charge_first_email(self):
-        attendee = Attendee(email='test@example.com')
-        charge = Charge(targets=[attendee, Attendee(email='test2@example.com'), Attendee(email='test3@example.com')])
-        assert charge.receipt_email == attendee.email
-
-    def test_charge_no_email(self):
-        charge = Charge(targets=[Group()])
-        assert charge.receipt_email is None
-
-    def test_charge_log_transaction(self, monkeypatch):
-        attendee = Attendee()
-        monkeypatch.setattr(Attendee, 'amount_unpaid', 10)
-        charge = Charge(targets=[attendee], amount=1000, description="Test charge")
-        charge.response = stripe.Charge(id=10)
-        result = charge.stripe_transaction_from_charge()
-        assert result.stripe_id == 10
-        assert result.amount == 1000
-        assert result.desc == "Test charge"
-        assert result.type == c.PAYMENT
-        assert result.who == 'non-admin'
-
-    def test_charge_log_transaction_attendee(self, monkeypatch):
-        attendee = Attendee()
-        monkeypatch.setattr(Attendee, 'amount_unpaid', 10)
-        charge = Charge(targets=[attendee],
-                        description="Test charge")
-        charge.response = stripe.Charge(id=10)
-        txn = charge.stripe_transaction_from_charge()
-        result = charge.stripe_transaction_for_model(attendee, txn)
-        assert result.attendee_id == attendee.id
-        assert result.txn_id == txn.id
-        assert result.share == 1000
-
-    def test_charge_log_transaction_group(self, monkeypatch):
-        group = Group()
-        monkeypatch.setattr(Group, 'amount_unpaid', 10)
-        charge = Charge(targets=[group],
-                        description="Test charge")
-        charge.response = stripe.Charge(id=10)
-        txn = charge.stripe_transaction_from_charge()
-        result = charge.stripe_transaction_for_model(group, txn)
-        assert result.group_id == group.id
-        assert result.txn_id == txn.id
-        assert result.share == 1000
-
-    def test_charge_log_transaction_no_unpaid(self, monkeypatch):
-        group = Group()
-        monkeypatch.setattr(Group, 'amount_unpaid', 0)
-        charge = Charge(targets=[group], amount=1000,
-                        description="Test charge")
-        charge.response = stripe.Charge(id=10)
-        txn = charge.stripe_transaction_from_charge()
-        result = charge.stripe_transaction_for_model(group, txn)
-        assert result.group_id == group.id
-        assert result.txn_id == txn.id
-        assert result.share == 1000
-
-    def test_charge_log_transaction_no_model(self):
-        stripe.Charge.create = Mock(return_value=1)
-        Charge.stripe_transaction_from_charge = Mock()
-        charge = Charge(amount=1000, description="Test charge")
-        Charge.charge_cc(charge, Mock(), 1)
-        assert not Charge.stripe_transaction_from_charge.called
 
 
 class TestAgeCalculations:

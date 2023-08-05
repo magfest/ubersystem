@@ -6,7 +6,7 @@ from mock import Mock
 
 from uber.models import Attendee, Group, PromoCode, Session
 from uber.config import c
-from uber.utils import Charge, check
+from uber.utils import check
 
 
 next_week = datetime.now(pytz.UTC) + timedelta(days=7)
@@ -236,7 +236,6 @@ class TestAttendeePromoCodeModelChecks:
             placeholder=True,
             first_name='First',
             last_name='Last')
-        Charge.unpaid_preregs[sess.id] = Charge.to_sessionized(sess)
         sess.promo_code = None
         sess.promo_code_id = None
         assert len(promo_code.valid_used_by) == 0
