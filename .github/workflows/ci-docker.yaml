@@ -36,3 +36,9 @@ jobs:
           context: "."
           push: true
           tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+
+      - name: Trigger Downstream Builds
+        run: |
+          curl -XPOST -u "${{secrets.PAT_USERNAME}}:${{secrets.PAT_TOKEN}}" -H "Accept: application/vnd.github.everest-preview+json" -H "Content-Type: application/json" https://api.github.com/repos/magfest/magprime/actions/workflows/ci-docker.yaml/dispatches --data '{"ref": "${{github.ref_name}}"}'
+          curl -XPOST -u "${{secrets.PAT_USERNAME}}:${{secrets.PAT_TOKEN}}" -H "Accept: application/vnd.github.everest-preview+json" -H "Content-Type: application/json" https://api.github.com/repos/magfest/magwest/actions/workflows/ci-docker.yaml/dispatches --data '{"ref": "${{github.ref_name}}"}'
+          curl -XPOST -u "${{secrets.PAT_USERNAME}}:${{secrets.PAT_TOKEN}}" -H "Accept: application/vnd.github.everest-preview+json" -H "Content-Type: application/json" https://api.github.com/repos/magfest/magstock/actions/workflows/ci-docker.yaml/dispatches --data '{"ref": "${{github.ref_name}}"}'
