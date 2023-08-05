@@ -62,13 +62,14 @@ def upgrade_sold_out(form, field):
 def child_group_leaders(attendee):
     if attendee.badge_type == c.PSEUDO_GROUP_BADGE and get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) < 13:
         raise ValidationError("Children under 13 cannot be group leaders.")
-
+"""
 @post_form_validation.badge_type
 def no_more_child_badges(attendee):
     # TODO: Review business logic here
     if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) < 18 \
             and not c.CHILD_BADGE_AVAILABLE:
         raise ValidationError("Unfortunately, we are sold out of badges for attendees under 18.")
+"""
 
 @new_or_changed_validation.badge_type
 def no_more_custom_badges(form, field):
