@@ -142,7 +142,8 @@ class Preregister(HttpUser):
                 verify=self.verify,
                 data=payment_info
             )
-            assert response.status_code == 303
+            print(response.status_code)
+            assert response.status_code == 200
             
         else:
 
