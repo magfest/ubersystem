@@ -744,7 +744,7 @@ class AttendeeAccountLookup:
             if not account:
                 raise HTTPError(404, 'No attendee account found with this ID')
 
-            attendees_to_export = account.valid_attendees if include_group else [a for a in account.attendees if not a.group]
+            attendees_to_export = account.valid_attendees if include_group else [a for a in account.valid_attendees if not a.group]
 
             attendees = _prepare_attendees_export(attendees_to_export, include_apps=full)
             return {

@@ -1403,6 +1403,13 @@ class TaskUtils:
                 import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
                 session.commit()
                 return
+            
+            if c.SSO_EMAIL_DOMAINS:
+                local, domain = normalize_email(account_to_import['email'], split_address=True)
+                if domain in c.SSO_EMAIL_DOMAINS:
+                    log.debug("Skipping account import for {} as it matches the SSO email domain.".format(account_to_import['email']))
+                    import_job.completed = datetime.now()
+                    return
 
             account = session.query(AttendeeAccount).filter(AttendeeAccount.email == normalize_email(account_to_import['email'])).first()
             if not account:
@@ -1427,19 +1434,22 @@ class TaskUtils:
                 pass
 
             for attendee in account_attendees:
-                # Try to match staff to their existing badge, which would be newer than the one we're importing
                 if attendee.get('badge_num', 0) in range(c.BADGE_RANGES[c.STAFF_BADGE][0], c.BADGE_RANGES[c.STAFF_BADGE][1]):
-                    old_badge_num = attendee['badge_num']
-                    existing_staff = session.query(Attendee).filter_by(badge_num=old_badge_num).first()
-                    if existing_staff:
-                        existing_staff.managers.append(account)
-                        session.add(existing_staff)
-                    else:
-                        new_staff = TaskUtils.basic_attendee_import(attendee)
-                        new_staff.badge_num = old_badge_num
-                        new_staff.managers.append(account)
-                        session.add(new_staff)
-                else:
+                    if not c.SSO_EMAIL_DOMAINS:
+                        # Try to match staff to their existing badge, which would be newer than the one we're importing
+                        old_badge_num = attendee['badge_num']
+                        existing_staff = session.query(Attendee).filter_by(badge_num=old_badge_num).first()
+                        if existing_staff:
+                            existing_staff.managers.append(account)
+                            session.add(existing_staff)
+                        else:
+                            new_staff = TaskUtils.basic_attendee_import(attendee)
+                            new_staff.badge_num = old_badge_num
+                            new_staff.managers.append(account)
+                            session.add(new_staff)
+                    # If SSO is used for attendee accounts, we don't import staff at all
+                elif attendee['badge_status'] not in [c.PENDING_STATUS, c.INVALID_STATUS, 
+                                                      c.IMPORTED_STATUS, c.INVALID_GROUP_STATUS]: # Workaround for a bug in the export, we can remove this check next year
                     new_attendee = TaskUtils.basic_attendee_import(attendee)
                     new_attendee.paid = c.NOT_PAID
                     
