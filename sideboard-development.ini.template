@@ -8,17 +8,12 @@ engine.autoreload.on = False
 server.socket_host = "${HOST}"
 server.socket_port = ${PORT}
 server.socket_timeout = 1
+server.thread_pool = 100
 tools.sessions.host = "${SESSION_HOST}"
 tools.sessions.port = ${SESSION_PORT}
 tools.sessions.prefix = "${SESSION_PREFIX}"
 tools.sessions.storage_type = "redis"
 tools.sessions.timeout = 60
-tools.sessions.prefix = ""
-tools.sessions.user = ""
-tools.sessions.password = ""
-tools.sessions.ssl = "false"
-tools.sessions.tls_skip_verify = "false"
-tools.sessions.is_sentinel = "false"
 
 [loggers]
 root = "DEBUG"
