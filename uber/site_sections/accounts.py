@@ -167,7 +167,7 @@ class Root:
 
     @public
     def login(self, session, message='', original_location=None, **params):
-        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
+        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='/accounts/homepage')
 
         if 'email' in params:
             try:
@@ -188,6 +188,9 @@ class Root:
 
             req = prepare_saml_request(cherrypy.request)
             auth = OneLogin_Saml2_Auth(req, c.SAML_SETTINGS)
+            login_redirect = auth.login(return_to=c.URL_ROOT + original_location)
+            log.debug(auth.get_last_request_id())
+            log.debug(auth.get_last_assertion_id())
 
             raise HTTPRedirect(auth.login(return_to=c.URL_ROOT + original_location))
 

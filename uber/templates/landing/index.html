@@ -47,11 +47,13 @@
             </p>
             {% endif %}
             
+            {% if not c.SSO_EMAIL_DOMAINS %}
             <p class="text-end">
                 <a class="btn btn-link btn-lg" href="../accounts/homepage" role="button">
                     Admin Login
                 </a>
             </p>
+            {% endif %}
             
             {% if not c.ATTENDEE_ACCOUNTS_ENABLED %}
             <p class="text-end">

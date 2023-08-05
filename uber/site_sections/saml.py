@@ -122,12 +122,10 @@ class Root:
                             redirect_url = None
                 
                 if not redirect_url:
-                    if not admin_account or not c.AT_THE_CON:
-                        redirect_url = "../preregistration/homepage"
-                    elif not account:
+                    if c.AT_THE_CON and admin_account:
                         redirect_url = "../accounts/homepage"
                     else:
-                        redirect_url = "../landing/login_select"
+                        redirect_url = "../preregistration/homepage"
 
                 raise HTTPRedirect(redirect_url)
             else:
