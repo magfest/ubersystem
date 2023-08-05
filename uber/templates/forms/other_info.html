@@ -53,7 +53,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% block interests %}
 {% if c.INTEREST_OPTS %}
 <div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(other_info.interests) }}</div>
+    <div class="col-12">{{ form_macros.form_input(other_info.interests) }}</div>
 </div>
 {% endif %}
 {% endblock %}
@@ -61,6 +61,6 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 {% block accessibility %}
 <div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(other_info.requested_accessibility_services) }}</div>
+    <div class="col-12">{{ form_macros.form_input(other_info.requested_accessibility_services) }}</div>
 </div>
 {% endblock %}
