@@ -91,7 +91,8 @@ class Attraction(MagModel):
         'Attendee',
         cascade='save-update,merge',
         secondary='admin_account',
-        uselist=False)
+        uselist=False,
+        viewonly=True)
     department = relationship(
         'Department',
         cascade='save-update,merge',
@@ -109,14 +110,17 @@ class Attraction(MagModel):
         primaryjoin='and_('
                     'AttractionFeature.attraction_id == Attraction.id,'
                     'AttractionFeature.is_public == True)',
+        viewonly=True,
         order_by='[AttractionFeature.name, AttractionFeature.id]')
     events = relationship(
         'AttractionEvent',
         backref='attraction',
+        viewonly=True,
         order_by='[AttractionEvent.start_time, AttractionEvent.id]')
     signups = relationship(
         'AttractionSignup',
         backref='attraction',
+        viewonly=True,
         order_by='[AttractionSignup.checkin_time, AttractionSignup.id]')
 
     @presave_adjustment
@@ -459,11 +463,13 @@ class AttractionSignup(MagModel):
         backref=backref(
             'signup',
             cascade='save-update,merge',
-            uselist=False),
+            uselist=False,
+            viewonly=True),
         primaryjoin='and_('
                     'AttractionSignup.attendee_id == foreign(AttractionNotification.attendee_id),'
                     'AttractionSignup.attraction_event_id == foreign(AttractionNotification.attraction_event_id))',
-        order_by='AttractionNotification.sent_time')
+        order_by='AttractionNotification.sent_time',
+        viewonly=True)
 
     __mapper_args__ = {'confirm_deleted_rows': False}
     __table_args__ = (UniqueConstraint('attraction_event_id', 'attendee_id'),)

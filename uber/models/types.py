@@ -68,7 +68,10 @@ def default_relationship(*args, **kwargs):
 
 
 # Alias Column and relationship to maintain backwards compatibility
-SQLAlchemy_Column, Column = Column, DefaultColumn
+class SQLAlchemy_Column(Column):
+    admin_only = None
+
+Column = DefaultColumn
 SQLAlchemy_relationship, relationship = relationship, default_relationship
 
 
@@ -271,7 +274,7 @@ class MultiChoice(TypeDecorator):
         return value
 
 
-def JSONColumnMixin(column_name, fields, admin_only=False):
+def JSONColumnMixin(column_name, fields):
     """
     Creates a new mixin class with a JSON column named column_name.
 
@@ -346,12 +349,6 @@ def JSONColumnMixin(column_name, fields, admin_only=False):
             setattr(self, attr, kwargs.pop(attr, ''))
         super(_Mixin, self).__init__(*args, **kwargs)
     _Mixin.__init__ = _Mixin__init__
-
-    def _Mixin__declare_last__(cls):
-        setattr(getattr(cls, column_name), 'admin_only', admin_only)
-        column = cls.__table__.columns.get(column_name)
-        setattr(column, 'admin_only', admin_only)
-    _Mixin.__declare_last__ = classmethod(_Mixin__declare_last__)
 
     def _Mixin__unqualify(cls, name):
         if name in getattr(cls, qualified_fields_name):

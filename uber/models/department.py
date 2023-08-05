@@ -175,7 +175,8 @@ class Department(MagModel):
                     'Department.id == DeptMembership.department_id, '
                     'DeptMembership.is_dept_head == True)',
         secondary='dept_membership',
-        order_by='Attendee.full_name')
+        order_by='Attendee.full_name',
+        viewonly=True)
     checklist_admins = relationship(
         'Attendee',
         backref=backref('checklist_admin_depts', order_by='Department.name'),
@@ -184,7 +185,8 @@ class Department(MagModel):
                     'Department.id == DeptMembership.department_id, '
                     'DeptMembership.is_checklist_admin == True)',
         secondary='dept_membership',
-        order_by='Attendee.full_name')
+        order_by='Attendee.full_name',
+        viewonly=True)
     members_with_inherent_role = relationship(
         'Attendee',
         backref=backref('depts_with_inherent_role', order_by='Department.name'),
@@ -193,7 +195,8 @@ class Department(MagModel):
                     'Department.id == DeptMembership.department_id, '
                     'DeptMembership.has_inherent_role)',
         secondary='dept_membership',
-        order_by='Attendee.full_name')
+        order_by='Attendee.full_name',
+        viewonly=True)
     members_who_can_admin_checklist = relationship(
         'Attendee',
         backref=backref('can_admin_checklist_depts', order_by='Department.name'),
@@ -204,7 +207,8 @@ class Department(MagModel):
                     'DeptMembership.is_checklist_admin == True, '
                     'DeptMembership.is_dept_head == True))',
         secondary='dept_membership',
-        order_by='Attendee.full_name')
+        order_by='Attendee.full_name',
+        viewonly=True)
     pocs = relationship(
         'Attendee',
         backref=backref('poc_depts', order_by='Department.name'),
@@ -213,7 +217,8 @@ class Department(MagModel):
                     'Department.id == DeptMembership.department_id, '
                     'DeptMembership.is_poc == True)',
         secondary='dept_membership',
-        order_by='Attendee.full_name')
+        order_by='Attendee.full_name',
+        viewonly=True)
     members = relationship(
         'Attendee',
         backref=backref('assigned_depts', order_by='Department.name'),
@@ -236,7 +241,8 @@ class Department(MagModel):
                     'DeptMembershipRequest.department_id == Department.id, '
                     'DeptMembershipRequest.department_id == None)',
         secondary='dept_membership_request',
-        order_by='Attendee.full_name')
+        order_by='Attendee.full_name',
+        viewonly=True)
     unassigned_requesting_attendees = relationship(
         'Attendee',
         cascade='save-update,merge,refresh-expire,expunge',
@@ -247,7 +253,8 @@ class Department(MagModel):
                     'DeptMembership.department_id == Department.id, '
                     'DeptMembership.attendee_id == DeptMembershipRequest.attendee_id))))',
         secondary='dept_membership_request',
-        order_by='Attendee.full_name')
+        order_by='Attendee.full_name',
+        viewonly=True)
     unassigned_explicitly_requesting_attendees = relationship(
         'Attendee',
         cascade='save-update,merge,refresh-expire,expunge',
@@ -257,7 +264,8 @@ class Department(MagModel):
                     'DeptMembership.department_id == Department.id, '
                     'DeptMembership.attendee_id == DeptMembershipRequest.attendee_id))))',
         secondary='dept_membership_request',
-        order_by='Attendee.full_name')
+        order_by='Attendee.full_name',
+        viewonly=True)
     parent = relationship(
         'Department',
         backref=backref('sub_depts', order_by='Department.name', cascade='all,delete-orphan'),
