@@ -22,7 +22,7 @@ pytz==2023.3
 pyyaml==6.0.1
 redis==4.6.0
 requests==2.31.0
-residue @ git+https://github.com/magfest/residue.git@288b3dda7b210d00081073ab0a05c1c392320b33
+residue @ git+https://github.com/magfest/residue.git@3935b8cce36f85f9c8a7837c52a88ee096f24d3d
 sentry-sdk==1.9.0
 signnow_python_sdk==2.0.1
 SQLAlchemy==1.4.49

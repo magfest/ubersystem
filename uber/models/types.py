@@ -63,7 +63,12 @@ def default_relationship(*args, **kwargs):
         cascade now defaults to 'all,delete-orphan'
     """
     kwargs.setdefault('load_on_pending', True)
-    kwargs.setdefault('cascade', 'all,delete-orphan')
+    if kwargs.get("viewonly", False):
+        # Recent versions of SQLAlchemy won't allow cascades that cause writes
+        # on viewonly relationships.
+        kwargs.setdefault('cascade', 'expunge,refresh-expire,merge')
+    else:
+        kwargs.setdefault('cascade', 'all,delete-orphan')
     return SQLAlchemy_relationship(*args, **kwargs)
 
 
@@ -173,6 +178,7 @@ class Choice(TypeDecorator):
     Utility class for storing the results of a dropdown as a database column.
     """
     impl = Integer
+    cache_ok = True
 
     def __init__(self, choices, *, allow_unspecified=False, **kwargs):
         """
@@ -266,7 +272,7 @@ class MultiChoice(TypeDecorator):
             label_lookup = {val: key for key, val in self.choices}
             label_lookup['Unknown'] = -1
             try:
-                vals = [label_lookup[label] for label in re.split('; |, |\*|\n| / ',value)]
+                vals = [label_lookup[label] for label in re.split(r'; |, |\*|\n| / ',value)]
             except KeyError:
                 # It's probably just a string list of the int values
                 return value

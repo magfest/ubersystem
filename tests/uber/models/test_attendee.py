@@ -719,7 +719,7 @@ class TestPhoneNumberValidations:
         '+49 033933-88213'
     ])
     def test_valid_number(self, number):
-        assert not invalid_phone_number(number)
+        assert not _invalid_phone_number(number)
 
     @pytest.mark.parametrize('number', [
         # invalid US numbers
@@ -742,5 +742,5 @@ class TestPhoneNumberValidations:
         '+44,4930222'
     ])
     def test_invalid_number(selfself, number):
-        assert invalid_phone_number(number)
+        assert _invalid_phone_number(number)
 

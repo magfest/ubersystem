@@ -46,7 +46,8 @@ class AdminAccount(MagModel):
         'ApiToken',
         primaryjoin='and_('
                     'AdminAccount.id == ApiToken.admin_account_id, '
-                    'ApiToken.revoked_time == None)')
+                    'ApiToken.revoked_time == None)',
+        viewonly=True)
 
     judge = relationship('IndieJudge', uselist=False, backref='admin_account')
     print_requests = relationship('PrintJob', backref='admin_account', cascade='save-update,merge,refresh-expire,expunge')

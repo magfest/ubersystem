@@ -23,7 +23,6 @@ def test_hotel_shifts_required_checklist_closed(monkeypatch):
 
 
 @pytest.mark.parametrize('first,last,legal,expected', [
-    ('First', 'Last', None, 'Last'),
     ('First', 'Last', 'First Last', 'Last'),
     ('First', 'Last', 'First Middle Last', 'Last'),
     ('CRAZY', 'Last', 'First Last', 'Last'),

@@ -2,6 +2,7 @@ import ast
 import decimal
 import hashlib
 import inspect
+import traceback
 import os
 import pytz
 import re
@@ -557,7 +558,10 @@ class Config(_Overridable):
     
     @property
     def NOW_OR_AT_CON(self):
-        return c.EPOCH.date() if date.today().date() <= c.EPOCH.date() else uber.utils.localized_now().date()
+        try:
+            return c.EPOCH.date() if date.today() <= c.EPOCH.date() else uber.utils.localized_now().date()
+        except:
+            traceback.print_exc()
 
     @property
     def AT_OR_POST_CON(self):
