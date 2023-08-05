@@ -37,13 +37,23 @@ class Root:
         req = prepare_saml_request(cherrypy.request)
         auth = OneLogin_Saml2_Auth(req, c.SAML_SETTINGS)
         auth.process_response()
+
+        assertion_id = auth.get_last_assertion_id()
+        
+        if c.REDIS_STORE.hget('processed_saml_assertions', assertion_id):
+            log.error("Existing SAML assertion was replayed: {}. This is either an attack or a programming error.".format(assertion_id))
+            raise HTTPRedirect("../landing/index?message={}", "Authentication unsuccessful.")
+
         errors = auth.get_errors()
         if not errors:
+            c.REDIS_STORE.hset('processed_saml_assertions', assertion_id, auth.get_last_assertion_not_on_or_after())
+
             if auth.is_authenticated():
                 account_email = auth.get_nameid()
                 admin_account = None
                 account = None
                 matching_attendee = session.query(Attendee).filter_by(is_valid=True, normalized_email=normalize_email_legacy(account_email)).first()
+                message = "We could not find any accounts from the email {}. Please contact your administrator.".format(account_email)
 
                 try:
                     admin_account = session.get_admin_account_by_email(account_email)
@@ -71,15 +81,19 @@ class Root:
                 try:
                     account = session.get_attendee_account_by_email(account_email)
                 except NoResultFound:
-                    account = session.create_attendee_account(account_email, match_existing_attendees=True)
+                    all_matching_attendees = session.query(Attendee).filter_by(normalized_email=normalize_email_legacy(account_email)).all()
+                    if all_matching_attendees:
+                        account = session.create_attendee_account(account_email)
+                        for attendee in all_matching_attendees:
+                            session.add_attendee_to_account(attendee, account)
+                    else:
+                        message = "We could not find any registrations matching the email {}.".format(account_email)
                 
                 if account:
                     cherrypy.session['attendee_account_id'] = account.id
 
                 if not admin_account and not account:
-                    raise HTTPRedirect("../landing/index?message={}",
-                                       "We could not find create any accounts from the email {}. \
-                                        Please contact your administrator.".format(account_email))
+                    raise HTTPRedirect("../landing/index?message={}", message)
                 
                 if admin_account:
                     attendee_to_update = admin_account.attendee
@@ -95,7 +109,6 @@ class Root:
                 session.commit()
 
                 redirect_url = req['post_data'].get('RelayState', '')
-                log.debug(redirect_url)
 
                 if redirect_url:
                     if OneLogin_Saml2_Utils.get_self_url(req) != redirect_url:
@@ -109,7 +122,7 @@ class Root:
                             redirect_url = None
                 
                 if not redirect_url:
-                    if not admin_account:
+                    if not admin_account or not c.AT_THE_CON:
                         redirect_url = "../preregistration/homepage"
                     elif not account:
                         redirect_url = "../accounts/homepage"

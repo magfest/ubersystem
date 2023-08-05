@@ -17,8 +17,8 @@ from uber.utils import localized_now, TaskUtils
 from uber.payments import ReceiptManager
 
 
-__all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_unassigned_volunteers',
-           'check_missed_stripe_payments']
+__all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_pending_badges',
+           'check_unassigned_volunteers', 'check_near_cap', 'check_missed_stripe_payments', 'process_api_queue']
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
