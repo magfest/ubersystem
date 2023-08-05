@@ -79,10 +79,10 @@
 {% endif %}
 {% endmacro %}
 
-{% macro toggle_checkbox(checkbox_field, target_fields, toggle_required=False, hide_on_checked=False, prop='visibility') -%}
+{% macro toggle_checkbox(checkbox_field, target_fields, toggle_required=False, hide_on_checked=False, prop='visibility', closest_hide_selector='.row') -%}
 {{ form_input(checkbox_field, **kwargs) }}
 
-{{ toggle_fields_js(checkbox_field, target_fields, off_values=[1 if hide_on_checked == True else 0], toggle_required=toggle_required, prop=prop) }}
+{{ toggle_fields_js(checkbox_field, target_fields, off_values=[1 if hide_on_checked == True else 0], toggle_required=toggle_required, prop=prop, closest_hide_selector=closest_hide_selector) }}
 {%- endmacro %}
 
 {% macro toggle_fields_js(source_field, target_fields, off_values=[], on_values=[], toggle_required=False, prop='visibility', closest_hide_selector='.row') %}

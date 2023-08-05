@@ -248,6 +248,19 @@ class Config(_Overridable):
     def DEALER_REG_SOFT_CLOSED(self):
         return self.AFTER_DEALER_REG_DEADLINE or self.DEALER_APPS >= self.MAX_DEALER_APPS \
             if self.MAX_DEALER_APPS else self.AFTER_DEALER_REG_DEADLINE
+
+    @property
+    def TABLE_OPTS(self):
+        return [(x, str(x)) for x in list(range(1, c.MAX_TABLES + 1))]
+
+    @property
+    def ADMIN_TABLE_OPTS(self):
+        return [(0, '0')] + c.TABLE_OPTS
+
+    @property
+    def PREREG_TABLE_OPTS(self):
+        return [(count, '{}: ${}'.format(desc, self.get_table_price(count)))
+              for count, desc in c.TABLE_OPTS]
             
     @property
     def ART_SHOW_OPEN(self):
@@ -1078,8 +1091,6 @@ for _name, _section in _config['age_groups'].items():
 
 c.TABLE_PRICES = defaultdict(lambda: _config['table_prices']['default_price'],
                              {int(k): v for k, v in _config['table_prices'].items() if k != 'default_price'})
-c.PREREG_TABLE_OPTS = list(range(1, c.MAX_TABLES + 1))
-c.ADMIN_TABLE_OPTS = [decimal.Decimal(x) for x in range(0, 9)]
 
 # Let admins remove door payment methods by making their label blank
 c.DOOR_PAYMENT_METHOD_OPTS = [opt for opt in c.DOOR_PAYMENT_METHOD_OPTS if opt[1]]

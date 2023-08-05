@@ -120,7 +120,7 @@
 {% else %}
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
-    {{ form_macros.form_input(personal_info.zip_code, extra_field=form_macros.form_input(personal_info.international, disabled=address_ro or page_ro)) }}
+    {{ form_macros.form_input(personal_info.zip_code, extra_field=form_macros.toggle_checkbox(personal_info.international, [personal_info.zip_code], hide_on_checked=True, toggle_required=True, prop='disabled')) }}
   </div>
 
   <div class="col-12 col-sm-6">

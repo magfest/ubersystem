@@ -22,6 +22,7 @@
                     {% include 'preregistration/login_or_create_account.html' %}
                 {% endif %}
             {% else %}
+            <div class="text-center">
             <div class="btn-group">
                 <a class="btn btn-primary btn-lg" href="../preregistration/form" role="button">
                     Register for {{ c.EVENT_NAME_AND_YEAR }}
@@ -31,6 +32,8 @@
                     Register as Dealer
                 </a>
                 {% endif %}
+            </div>
+            </div>
             {% endif %}
             {% endif %}
             {% if kiosk_mode %}

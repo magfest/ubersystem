@@ -301,11 +301,13 @@ class AddressForm():
         ], choices=c.COUNTRY_OPTS, widget=CountrySelect())
 
     def get_optional_fields(self, model, is_admin=False):
+        from uber.models import Group
+
         optional_list = super().get_optional_fields(model, is_admin)
 
-        if not c.COLLECT_FULL_ADDRESS:
+        if not c.COLLECT_FULL_ADDRESS and (not isinstance(model, Group) or not model.is_dealer):
             optional_list.extend(['address1', 'city', 'region', 'region_us', 'region_canada', 'country'])
-            if model.international or c.AT_OR_POST_CON:
+            if getattr(model, 'international', None) or c.AT_OR_POST_CON:
                 optional_list.append('zip_code')
         else:
             if model.country == 'United States':
@@ -318,7 +320,8 @@ class AddressForm():
         return optional_list
     
     def validate_zip_code(form, field):
-        if field.data and (form.country.data == 'United States' or (not c.COLLECT_FULL_ADDRESS and field.flags.required)) \
+        if field.data and (form.country.data == 'United States' or (
+            not c.COLLECT_FULL_ADDRESS and not form.country.data and field.flags.required)) \
             and invalid_zip_code(field.data):
             raise ValidationError('Please enter a valid 5 or 9-digit zip code.')
 

@@ -76,7 +76,7 @@ class TableInfo(GroupInfo):
     website = StringField('Website', validators=[
         validators.InputRequired("Please enter your business' website address.")
         ], description="The one you want us to link on our website, or where we can view your work to judge your application.")
-    wares = TextAreaField('Wares', validators=[
+    wares = TextAreaField('What do you sell?', validators=[
         validators.InputRequired("You must provide a detailed explanation of what you sell for us to evaluate your submission.")
         ], description="Please be detailed; include a link to view your wares. You must include links to what you sell or a portfolio otherwise you will be automatically waitlisted.")
     categories = SelectMultipleField('Categories', validators=[
@@ -102,9 +102,6 @@ class TableInfo(GroupInfo):
     
     def badges_desc(self):
         return "The number of people working your table, including yourself."
-
-    def tables_desc(self):
-        return table_prices()
     
     def validate_categories(form, field):
         if field.data and c.OTHER in field.data and not form.categories_text.data:
