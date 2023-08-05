@@ -20,6 +20,8 @@ jobs:
       - name: Build Test Docker Image
         uses: docker/build-push-action@v2
         with:
+          build-args:
+            - BRANCH=${{ github.ref_name }}
           context: "."
           push: false
           tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}-test
@@ -31,6 +33,8 @@ jobs:
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v2
         with:
+          build-args:
+            - BRANCH=${{ github.ref_name }}
           context: "."
           push: true
           tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}

@@ -1,4 +1,5 @@
-FROM ghcr.io/magfest/sideboard:next as build
+ARG BRANCH=main
+FROM ghcr.io/magfest/sideboard:${BRANCH} as build
 MAINTAINER RAMS Project "code@magfest.org"
 LABEL version.rams-core ="0.1"
 
@@ -43,7 +44,7 @@ ENV BROKER_VHOST=uber
 
 FROM build as test
 RUN /app/env/bin/pip install mock pytest
-CMD /app/env/bin/python3 -m pytest
+CMD /app/env/bin/python3 -m pytest plugins/uber
 
 FROM build as release
 ENTRYPOINT ["/usr/local/bin/uber-wrapper.sh"]
