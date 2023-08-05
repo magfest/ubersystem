@@ -12,7 +12,7 @@ ADD uber/_version.py plugins/uber/uber/
 RUN /app/env/bin/paver install_deps
 
 FROM ghcr.io/magfest/sideboard:${BRANCH} as build
-RUN apt-get update && apt-get install -y libxml2-dev libxmlsec1-dev git && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y libxml2-dev libxmlsec1-dev git gettext-base && rm -rf /var/lib/apt/lists/*
 COPY --from=install /app /app
 
 ADD uber-development.ini.template ./uber-development.ini.template
