@@ -1,16 +1,19 @@
 ARG BRANCH=main
-FROM ghcr.io/magfest/sideboard:${BRANCH} as build
+FROM ghcr.io/magfest/sideboard:${BRANCH} as install
 MAINTAINER RAMS Project "code@magfest.org"
 LABEL version.rams-core ="0.1"
 
-# install ghostscript and gettext-base
-RUN apt-get update && apt-get install -y ghostscript libxml2-dev libxmlsec1-dev dnsutils gettext-base vim && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y libxml2-dev libxmlsec1-dev git libpq-dev build-essential pkg-config && rm -rf /var/lib/apt/lists/*
 
 ADD requirements*.txt plugins/uber/
 ADD setup.py plugins/uber/
 ADD uber/_version.py plugins/uber/uber/
 
 RUN /app/env/bin/paver install_deps
+
+FROM ghcr.io/magfest/sideboard:${BRANCH} as build
+RUN apt-get update && apt-get install -y libxml2-dev libxmlsec1-dev && rm -rf /var/lib/apt/lists/*
+COPY --from=install /app /app
 
 ADD uber-development.ini.template ./uber-development.ini.template
 ADD sideboard-development.ini.template ./sideboard-development.ini.template
