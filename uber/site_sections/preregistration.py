@@ -25,7 +25,7 @@ from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, Mod
                         ReceiptTransaction, SignedDocument, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, genpasswd, valid_email, \
-    valid_password, SignNowDocument, validate_model
+    valid_password, SignNowDocument, validate_model, post_form_validate_model
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager
 import uber.validations as validations
 
@@ -599,8 +599,16 @@ class Root:
             for attendee in cart.attendees:
                 if not message and attendee.promo_code_id:
                     message = check_prereg_promo_code(session, attendee)
-
-            # TODO: Add validations back!!
+                if not message:
+                    form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents']
+                    forms = load_forms({}, attendee, attendee_forms, form_list)
+                    
+                    all_errors = validate_model(forms, attendee, validations.attendee)
+                    if all_errors:
+                        # Flatten the errors as we don't have fields on this page
+                        message = ' '.join([' '.join(val) for val in all_errors['error'].values()])
+                if message:
+                    break
             
             if not message:
                 receipts = []
