@@ -32,7 +32,7 @@ import uber.validations as validations
 
 def check_if_can_reg(is_dealer_reg=False):
     if c.DEV_BOX:
-            pass  # Don't redirect to any of the pages below.
+        pass  # Don't redirect to any of the pages below.
     elif is_dealer_reg and not c.DEALER_REG_OPEN:
         if c.AFTER_DEALER_REG_START:
             return render('static_views/dealer_reg_closed.html')
@@ -272,17 +272,18 @@ class Root:
 
         params['id'] = 'None'   # security!
         group = Group()
-        badges = params.get('badges', 0)
 
         if edit_id is not None:
             group = self._get_unsaved(edit_id, PreregCart.pending_dealers)
-            badges = getattr(group, 'badge_count', 0)
+            params['badges'] = params.get('badges', getattr(group, 'badge_count', 0))
 
         if params.get('old_group_id'):
             old_group = session.group(params['old_group_id'])
             old_group_dict = session.group(params['old_group_id']).to_dict(c.GROUP_REAPPLY_ATTRS)
             group.apply(old_group_dict, ignore_csrf=True, restricted=True)
-            badges = old_group.badges_purchased
+            params['badges'] = params.get('badges', old_group.badges_purchased)
+
+        badges = params.get('badges', 0)
 
         forms = load_forms(params, group, group_forms, ['ContactInfo', 'TableInfo'])
         for form in forms.values():
@@ -341,6 +342,13 @@ class Root:
         session.add_all([attendee, group])
         session.commit()
         try:
+            if c.NOTIFY_DEALER_APPLIED:
+                send_email.delay(
+                    c.MARKETPLACE_EMAIL,
+                    c.MARKETPLACE_NOTIFICATIONS_EMAIL,
+                    '{} Received'.format(c.DEALER_APP_TERM.title()),
+                    render('emails/dealers/reg_notification.txt', {'group': group}, encoding=None),
+                    model=group.to_dict('id'))
             send_email.delay(
                 c.MARKETPLACE_EMAIL,
                 attendee.email_to_address,
