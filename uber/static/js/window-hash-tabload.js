@@ -7,7 +7,6 @@ $().ready(function() {
       var tab = $(tabID + '-tab');
     } catch(error) {
       new bootstrap.Tab($('.nav-tabs button').first()).show();
-      return false;
     }
     if(tab && tab.length) {
       new bootstrap.Tab(tab).show();
