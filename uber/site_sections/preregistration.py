@@ -272,17 +272,18 @@ class Root:
 
         params['id'] = 'None'   # security!
         group = Group()
-        badges = params.get('badges', 0)
 
         if edit_id is not None:
             group = self._get_unsaved(edit_id, PreregCart.pending_dealers)
-            badges = getattr(group, 'badge_count', 0)
+            params['badges'] = params.get('badges', getattr(group, 'badge_count', 0))
 
         if params.get('old_group_id'):
             old_group = session.group(params['old_group_id'])
             old_group_dict = session.group(params['old_group_id']).to_dict(c.GROUP_REAPPLY_ATTRS)
             group.apply(old_group_dict, ignore_csrf=True, restricted=True)
-            badges = old_group.badges_purchased
+            params['badges'] = params.get('badges', old_group.badges_purchased)
+
+        badges = params.get('badges', 0)
 
         forms = load_forms(params, group, group_forms, ['ContactInfo', 'TableInfo'])
         for form in forms.values():
