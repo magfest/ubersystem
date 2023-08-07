@@ -18,7 +18,7 @@
 {% endblock %}
 
 {% block masthead %}
-<div class="masthead"><span class="visually-hidden">{{ c.ORGANIZATION_NAME }}</span></div>
+<div class="masthead"><span class="{{ "visually-hidden" if bootstrap5 else "hidden" }}">{{ c.ORGANIZATION_NAME }}</span></div>
 {% if homepage_account %}
 <div class="text-center card-body">{% include "preregistration/update_account.html" %}</div>
 {% elif logged_in_account %}

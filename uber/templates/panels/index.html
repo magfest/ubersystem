@@ -16,9 +16,8 @@
       });
   </script>
 
-  {% include 'prereg_masthead.html' %}
-  <div class="card">
-    <div class="card-body">
+  <div class="panel">
+    <div class="panel-body">
       <h2>{{ c.EVENT_NAME }} Panel Submission Form</h2>
 
       {% if c.AFTER_PANELS_DEADLINE and not c.HAS_PANELS_ADMIN_ACCESS %}

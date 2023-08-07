@@ -28,8 +28,8 @@
 </script>
 
 <div id="panelist_form_template" style="display: none;">
-  <div class="card">
-    <div class="card-body">
+  <div class="panel">
+    <div class="panel-body">
       <h2>Other Panelist #</h2>
       {{ panel_macros.panelist_form(PanelApplicant, require_cellphone=False, require_communication_pref=False) }}
     </div>
@@ -47,8 +47,8 @@
 
 <div id="panelists_container">
   {% for op in other_panelists %}
-    <div class="card">
-      <div class="card-body">
+    <div class="panel">
+      <div class="panel-body">
         <h2>Other Panelist #{{ loop.index }}</h2>
         {{ panel_macros.panelist_form(
             op,
