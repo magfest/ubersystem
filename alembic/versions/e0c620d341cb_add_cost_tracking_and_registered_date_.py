@@ -51,8 +51,10 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('promo_code', sa.Column('cost', sa.Integer(), nullable=True))
-    op.add_column('promo_code_group', sa.Column('registered', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False))
+    with op.batch_alter_table("promo_code") as batch_op:
+        batch_op.add_column(sa.Column('cost', sa.Integer(), nullable=True))
+    with op.batch_alter_table("promo_code_group") as batch_op:
+        batch_op.add_column(sa.Column('registered', residue.UTCDateTime(), server_default=sa.text(utcnow_server_default), nullable=False))
 
 
 def downgrade():

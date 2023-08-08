@@ -2,6 +2,7 @@ import ast
 import decimal
 import hashlib
 import inspect
+import traceback
 import os
 import pytz
 import re
@@ -174,6 +175,8 @@ class Config(_Overridable):
     For all of the datetime config options, we also define BEFORE_ and AFTER_ properties, e.g. you can
     check the booleans returned by c.BEFORE_PLACEHOLDER_DEADLINE or c.AFTER_PLACEHOLDER_DEADLINE
     """
+    def __init__(self):
+        self._PATH = cherrypy.request.path_info.replace(cherrypy.request.path_info.split('/')[-1], '').strip('/')
 
     def get_oneday_price(self, dt):
         return self.BADGE_PRICES['single_day'].get(dt.strftime('%A'), self.DEFAULT_SINGLE_DAY)
@@ -568,7 +571,10 @@ class Config(_Overridable):
     
     @property
     def NOW_OR_AT_CON(self):
-        return c.EPOCH.date() if date.today().date() <= c.EPOCH.date() else uber.utils.localized_now().date()
+        try:
+            return c.EPOCH.date() if date.today() <= c.EPOCH.date() else uber.utils.localized_now().date()
+        except:
+            traceback.print_exc()
 
     @property
     def AT_OR_POST_CON(self):
@@ -601,7 +607,11 @@ class Config(_Overridable):
 
     @property
     def PATH(self):
-        return cherrypy.request.path_info.replace(cherrypy.request.path_info.split('/')[-1], '').strip('/')
+        return self._PATH
+
+    @PATH.setter
+    def PATH(self, value):
+        self._PATH = value
 
     @request_cached_property
     @dynamic

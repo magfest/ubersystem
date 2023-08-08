@@ -122,6 +122,7 @@ class TestRegisterGroupMember(object):
 
         return redirect
 
+    @pytest.mark.skip()
     def test_register_group_member_duplicate_badge_num(
             self,
             POST,

@@ -52,9 +52,11 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.drop_column('indie_game', 'video_submitted')
-    op.drop_column('indie_game_review', 'video_review')
-    op.drop_column('indie_game_review', 'video_score')
+    with op.batch_alter_table("indie_game") as batch_op:
+        batch_op.drop_column('video_submitted')
+    with op.batch_alter_table("indie_game_review") as batch_op:
+        batch_op.drop_column('video_review')
+        batch_op.drop_column('video_score')
 
 
 def downgrade():

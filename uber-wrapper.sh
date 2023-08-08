@@ -28,5 +28,5 @@ elif [ "$1" = 'celery-beat' ]; then
 elif [ "$1" = 'celery-worker' ]; then
     /app/env/bin/celery -A uber.tasks worker --loglevel=DEBUG
 else
-exec "$@"
+    exec "$@"
 fi

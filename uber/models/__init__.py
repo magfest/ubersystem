@@ -20,9 +20,9 @@ from pytz import UTC
 from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
 from sideboard.lib import on_startup, stopped
 from sqlalchemy import and_, func, or_, not_
-from sqlalchemy.dialects.postgresql.json import JSONB
+from sqlalchemy.dialects.postgresql.json import JSON
 from sqlalchemy.event import listen
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Query, joinedload, subqueryload, aliased
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import MetaData
@@ -368,7 +368,7 @@ class MagModel:
         try:
             val = int(val)
         except ValueError:
-            log.debug('{} is not an int. Did we forget to migrate data for {} during a DB migration?', val, name)
+            log.debug('{} is not an int. Did we forget to migrate data for {} during a DB migration?'.format(val, name))
             return ''
 
         if val == -1:
@@ -376,7 +376,7 @@ class MagModel:
 
         label = self.get_field(name).type.choices.get(val)
         if not label:
-            log.debug('{} does not have a label for {}, check your enum generating code', name, val)
+            log.debug('{} does not have a label for {}, check your enum generating code'.format(name, val))
             return ''
         return label
 
@@ -718,7 +718,10 @@ class Session(SessionManager):
 
         def admin_attendee(self):
             if getattr(cherrypy, 'session', {}).get('account_id'):
-                return self.admin_account(cherrypy.session.get('account_id')).attendee
+                try:
+                    return self.admin_account(cherrypy.session.get('account_id')).attendee
+                except NoResultFound:
+                    return
 
         def current_attendee_account(self):
             if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id'):
@@ -1738,7 +1741,7 @@ class Session(SessionManager):
                             except AttributeError:
                                 return None, 'ERROR: {} is not a valid attribute'.format(target)
                             # Are we a searchable property?
-                            if isinstance(getattr(Attendee,target) == search_term, sqlalchemy.sql.elements.BinaryExpression):
+                            if isinstance(getattr(Attendee,target) == search_term, sqlalchemy.sql.expression.BinaryExpression):
                                 attr_search_filter = self.get_truth(getattr(Attendee,target), op, search_term)
                             else:
                                 return None, 'ERROR: {} is not a searchable attribute'.format(target)
@@ -1885,7 +1888,7 @@ class Session(SessionManager):
 
             test_developer_account = AdminAccount(
                 attendee=attendee,
-                hashed=bcrypt.hashpw('magfest', bcrypt.gensalt())
+                hashed=bcrypt.hashpw('magfest'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             )
             test_developer_account.access_groups.append(all_access_group)
 

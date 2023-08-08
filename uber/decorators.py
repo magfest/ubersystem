@@ -272,7 +272,7 @@ def ajax_gettable(func):
 
 
 def multifile_zipfile(func):
-    parameters = inspect.getargspec(func)
+    parameters = inspect.getfullargspec(func)
     if len(parameters[0]) == 3:
         func.site_mappable = True
         func.site_map_download = True
@@ -302,7 +302,7 @@ def _set_response_filename(base_filename):
 
 
 def xlsx_file(func):
-    parameters = inspect.getargspec(func)
+    parameters = inspect.getfullargspec(func)
     if len(parameters[0]) == 3:
         func.site_mappable = True
         func.site_map_download = True
@@ -339,7 +339,7 @@ def xlsx_file(func):
 
 
 def csv_file(func):
-    parameters = inspect.getargspec(func)
+    parameters = inspect.getfullargspec(func)
     if len(parameters[0]) == 3:
         func.site_mappable = True
         func.site_map_download = True
@@ -868,5 +868,5 @@ def check_id_for_model(model, **params):
                 message = "The ID provided was not found in our database."
 
     if message:
-        log.error("check_id {} error: {}: id={}", model.__name__, message, model_id)
+        log.error("check_id {} error: {}: id={}".format(model.__name__, message, model_id))
         raise HTTPRedirect('../preregistration/not_found?id={}&message={}', model_id, message)

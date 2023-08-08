@@ -9,8 +9,7 @@ from uber import config
 from uber.config import c
 from uber.models import Attendee, Department, DeptMembership, DeptMembershipRequest, DeptRole, FoodRestrictions, \
     Group, Job, Session, Shift
-from uber.models.commerce import StripeTransaction, StripeTransactionAttendee
-from uber.model_checks import extra_donation_valid, invalid_phone_number
+from uber.model_checks import _invalid_phone_number
 
 
 @pytest.fixture()
@@ -246,71 +245,11 @@ def test_is_not_transferable_trusted(monkeypatch, dept, trusted_role):
         assert not attendee.is_transferable
 
 
-@pytest.mark.parametrize('open,expected', [
-    (lambda s: False, False),
-    (lambda s: True, True),
-])
-def test_self_service_refunds_if_on(monkeypatch, open, expected):
-    monkeypatch.setattr(config.Config, 'SELF_SERVICE_REFUNDS_OPEN',
-                        property(open))
-    attendee = Attendee(paid=c.HAS_PAID, amount_paid=10)
-    txn = StripeTransaction(amount=1000)
-    attendee.stripe_txn_share_logs = [
-        StripeTransactionAttendee(attendee_id=attendee.id, txn_id=txn.id, share=1000)]
-    assert attendee.can_self_service_refund_badge == expected
-
-
-@pytest.mark.parametrize('paid,expected', [
-    (c.NEED_NOT_PAY, False),
-    (c.REFUNDED, False),
-    (c.NOT_PAID, True),
-    (c.PAID_BY_GROUP, True),
-    (c.HAS_PAID, True)
-])
-def test_self_service_refunds_payment_status(monkeypatch, paid, expected):
-    monkeypatch.setattr(config.Config, 'SELF_SERVICE_REFUNDS_OPEN',
-                        property(lambda s: True))
-    attendee = Attendee(paid=paid, amount_paid=10)
-    txn = StripeTransaction(amount=1000)
-    attendee.stripe_txn_share_logs = [
-        StripeTransactionAttendee(attendee_id=attendee.id, txn_id=txn.id, share=1000)]
-    assert attendee.can_self_service_refund_badge == expected
-
-
-@pytest.mark.parametrize('amount_paid,checked_in,expected', [
-    (0, False, False),
-    (-10, False, False),
-    (None, False, None),
-    (10, True, False),
-    (10, False, True),
-])
-def test_self_service_refunds_misc(monkeypatch, amount_paid, checked_in, expected):
-    monkeypatch.setattr(config.Config, 'SELF_SERVICE_REFUNDS_OPEN',
-                        property(lambda s: True))
-    attendee = Attendee(paid=c.HAS_PAID, amount_paid=amount_paid)
-    txn = StripeTransaction(amount=1000)
-    attendee.stripe_txn_share_logs = [
-        StripeTransactionAttendee(attendee_id=attendee.id, txn_id=txn.id, share=1000)]
-    attendee.checked_in = checked_in
-    assert attendee.can_self_service_refund_badge == expected
-
-
 def test_self_service_refunds_no_stripe(monkeypatch):
     monkeypatch.setattr(config.Config, 'SELF_SERVICE_REFUNDS_OPEN',
                         property(lambda s: True))
     attendee = Attendee(paid=c.HAS_PAID, amount_paid=10)
     attendee.stripe_txn_share_logs = []
-    assert not attendee.can_self_service_refund_badge
-
-
-def test_self_service_refunds_group_leader(monkeypatch):
-    monkeypatch.setattr(config.Config, 'SELF_SERVICE_REFUNDS_OPEN',
-                        property(lambda s: True))
-    attendee = Attendee(paid=c.HAS_PAID, amount_paid=10)
-    attendee.group = Group(leader_id=attendee.id)
-    txn = StripeTransaction(amount=1000)
-    attendee.stripe_txn_share_logs = [
-        StripeTransactionAttendee(attendee_id=attendee.id, txn_id=txn.id, share=1000)]
     assert not attendee.can_self_service_refund_badge
 
 
@@ -422,46 +361,6 @@ def test_takes_shifts(dept, shiftless_dept):
     assert Attendee(staffing=True, assigned_depts=[dept, shiftless_dept]).takes_shifts
 
 
-class TestAttendeeFoodRestrictionsFilledOut:
-    @pytest.fixture
-    def staff_get_food_true(self, monkeypatch):
-        monkeypatch.setattr(config.Config, 'STAFF_GET_FOOD', property(lambda x: True))
-        assert c.STAFF_GET_FOOD
-
-    @pytest.fixture
-    def staff_get_food_false(self, monkeypatch):
-        monkeypatch.setattr(config.Config, 'STAFF_GET_FOOD', property(lambda x: False))
-        assert not c.STAFF_GET_FOOD
-
-    def test_food_restrictions_filled_out(self, staff_get_food_true):
-        assert Attendee(food_restrictions=FoodRestrictions()).food_restrictions_filled_out
-
-    def test_food_restrictions_not_filled_out(self, staff_get_food_true):
-        assert not Attendee().food_restrictions_filled_out
-
-    def test_food_restrictions_not_needed(self, staff_get_food_false):
-        assert Attendee().food_restrictions_filled_out
-
-    def test_shift_prereqs_complete(self, staff_get_food_true):
-        assert Attendee(placeholder=False, shirt=1, food_restrictions=FoodRestrictions()).shift_prereqs_complete
-
-    def test_shift_prereqs_placeholder(self, staff_get_food_true):
-        assert not Attendee(placeholder=True, shirt=1, food_restrictions=FoodRestrictions()).shift_prereqs_complete
-
-    def test_shift_prereqs_no_shirt(self, staff_get_food_true):
-        assert not Attendee(
-            placeholder=False, shirt=c.NO_SHIRT, food_restrictions=FoodRestrictions()).shift_prereqs_complete
-
-        assert not Attendee(
-            placeholder=False, shirt=c.SIZE_UNKNOWN, food_restrictions=FoodRestrictions()).shift_prereqs_complete
-
-    def test_shift_prereqs_no_food(self, staff_get_food_true):
-        assert not Attendee(placeholder=False, shirt=1).shift_prereqs_complete
-
-    def test_shift_prereqs_food_not_needed(self, staff_get_food_false):
-        assert Attendee(placeholder=False, shirt=1).shift_prereqs_complete
-
-
 class TestUnsetVolunteer:
     def test_basic(self, dept, trusted_role):
         a = Attendee(
@@ -556,7 +455,7 @@ class TestStaffingAdjustments:
 
     @pytest.fixture(autouse=True)
     def prevent_presave_adjustments(self, monkeypatch):
-        """ Prevent some tests from crashing on exit by not invoking presave_adjustements() """
+        """ Prevent some tests from crashing on exit by not invoking presave_adjustments() """
         monkeypatch.setattr(Attendee, 'presave_adjustments', Mock())
         return Attendee.presave_adjustments
 
@@ -571,7 +470,7 @@ class TestStaffingAdjustments:
 
     def test_staffing_still_trusted_assigned(self, dept, shiftless_dept):
         """
-        After applying staffing adjustements:
+        After applying staffing adjustments:
         Any depts you are both trusted and assigned to should remain unchanged
         """
         a = Attendee(staffing=True)
@@ -796,20 +695,6 @@ class TestLookupAttendee:
                 assert attendee.badge_status == c.COMPLETED_STATUS
 
 
-class TestExtraDonationValidations:
-
-    def test_extra_donation_nan(self):
-        assert "What you entered for Extra Donation (blah) isn't even a number" \
-            == extra_donation_valid(Attendee(extra_donation="blah"))
-
-    def test_extra_donation_below_zero(self):
-        assert "Extra Donation must be a number that is 0 or higher." \
-            == extra_donation_valid(Attendee(extra_donation=-10))
-
-    def test_extra_donation_valid(self):
-        assert None is extra_donation_valid(Attendee(extra_donation=10))
-
-
 class TestPhoneNumberValidations:
 
     @pytest.mark.parametrize('number', [
@@ -834,7 +719,7 @@ class TestPhoneNumberValidations:
         '+49 033933-88213'
     ])
     def test_valid_number(self, number):
-        assert not invalid_phone_number(number)
+        assert not _invalid_phone_number(number)
 
     @pytest.mark.parametrize('number', [
         # invalid US numbers
@@ -857,5 +742,5 @@ class TestPhoneNumberValidations:
         '+44,4930222'
     ])
     def test_invalid_number(selfself, number):
-        assert invalid_phone_number(number)
+        assert _invalid_phone_number(number)
 

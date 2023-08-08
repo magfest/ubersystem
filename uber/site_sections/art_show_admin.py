@@ -475,8 +475,8 @@ class Root:
 
         import unicodedata
         filename = str(unicodedata.normalize('NFKD', piece.app.display_name).encode('ascii', 'ignore'))
-        filename = re.sub('[^\w\s-]', '', filename[1:]).strip().lower()
-        filename = re.sub('[-\s]+', '-', filename)
+        filename = re.sub(r'[^\w\s-]', '', filename[1:]).strip().lower()
+        filename = re.sub(r'[-\s]+', '-', filename)
         filename = filename + "_" + localized_now().strftime("%m%d%Y_%H%M")
 
         cherrypy.response.headers['Content-Disposition'] = 'attachment; filename={}.pdf'.format(filename)
@@ -487,7 +487,7 @@ class Root:
         search_text = search_text.strip()
         if search_text:
             order = order or 'badge_printed_name'
-            if re.match('\w-[0-9]{4}', search_text):
+            if re.match(r'\w-[0-9]{4}', search_text):
                 attendees = session.query(Attendee).join(Attendee.art_show_bidder).filter(
                     ArtShowBidder.bidder_num.ilike('%{}%'.format(search_text[2:])))
             else:
@@ -585,7 +585,7 @@ class Root:
         search_text = search_text.strip()
         if search_text:
             order = order or 'badge_num'
-            if re.match('\w-[0-9]{4}', search_text):
+            if re.match(r'\w-[0-9]{4}', search_text):
                 attendees = session.query(Attendee).join(Attendee.art_show_bidder).filter(
                     ArtShowBidder.bidder_num.ilike('%{}%'.format(search_text[2:])))
             else:
@@ -649,7 +649,7 @@ class Root:
         charge = None
 
         if search_text:
-            if re.match('\w+-[0-9]+', search_text):
+            if re.match(r'\w+-[0-9]+', search_text):
                 artist_id, piece_id = search_text.split('-')
                 pieces = session.query(ArtShowPiece).join(ArtShowPiece.app).filter(
                     ArtShowPiece.piece_id == int(piece_id),

@@ -52,9 +52,11 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.drop_column('attendee', 'print_pending')
-    op.drop_column('attendee', 'times_printed')
-    op.add_column('print_job', sa.Column('print_fee', sa.Integer(), server_default='0', nullable=False))
+    with op.batch_alter_table("attendee") as batch_op:
+        batch_op.drop_column('print_pending')
+        batch_op.drop_column('times_printed')
+    with op.batch_alter_table("print_job") as batch_op:
+        batch_op.add_column(sa.Column('print_fee', sa.Integer(), server_default='0', nullable=False))
 
 
 def downgrade():

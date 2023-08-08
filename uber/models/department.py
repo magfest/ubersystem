@@ -170,7 +170,6 @@ class Department(MagModel):
     dept_heads = relationship(
         'Attendee',
         backref=backref('headed_depts', order_by='Department.name'),
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
                     'Department.id == DeptMembership.department_id, '
                     'DeptMembership.is_dept_head == True)',
@@ -180,7 +179,6 @@ class Department(MagModel):
     checklist_admins = relationship(
         'Attendee',
         backref=backref('checklist_admin_depts', order_by='Department.name'),
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
                     'Department.id == DeptMembership.department_id, '
                     'DeptMembership.is_checklist_admin == True)',
@@ -190,7 +188,6 @@ class Department(MagModel):
     members_with_inherent_role = relationship(
         'Attendee',
         backref=backref('depts_with_inherent_role', order_by='Department.name'),
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
                     'Department.id == DeptMembership.department_id, '
                     'DeptMembership.has_inherent_role)',
@@ -200,7 +197,6 @@ class Department(MagModel):
     members_who_can_admin_checklist = relationship(
         'Attendee',
         backref=backref('can_admin_checklist_depts', order_by='Department.name'),
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
                     'Department.id == DeptMembership.department_id, '
                     'or_('
@@ -212,7 +208,6 @@ class Department(MagModel):
     pocs = relationship(
         'Attendee',
         backref=backref('poc_depts', order_by='Department.name'),
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
                     'Department.id == DeptMembership.department_id, '
                     'DeptMembership.is_poc == True)',
@@ -221,7 +216,7 @@ class Department(MagModel):
         viewonly=True)
     members = relationship(
         'Attendee',
-        backref=backref('assigned_depts', order_by='Department.name'),
+        backref=backref('assigned_depts', order_by='Department.name', viewonly=True),
         cascade='save-update,merge,refresh-expire,expunge',
         order_by='Attendee.full_name',
         secondary='dept_membership')
@@ -236,7 +231,6 @@ class Department(MagModel):
     requesting_attendees = relationship(
         'Attendee',
         backref=backref('requested_depts', order_by='Department.name'),
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='or_('
                     'DeptMembershipRequest.department_id == Department.id, '
                     'DeptMembershipRequest.department_id == None)',
@@ -245,7 +239,6 @@ class Department(MagModel):
         viewonly=True)
     unassigned_requesting_attendees = relationship(
         'Attendee',
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(or_('
                     'DeptMembershipRequest.department_id == Department.id, '
                     'DeptMembershipRequest.department_id == None), '
@@ -257,7 +250,6 @@ class Department(MagModel):
         viewonly=True)
     unassigned_explicitly_requesting_attendees = relationship(
         'Attendee',
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_('
                     'DeptMembershipRequest.department_id == Department.id, '
                     'not_(exists().where(and_('

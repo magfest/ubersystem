@@ -2,4 +2,3 @@
 pytest>=3.0.1
 mock>=1.0.1,<1.1
 coverage>=3.6
--e "git+https://github.com/magfest/sideboard#egg=sideboard"

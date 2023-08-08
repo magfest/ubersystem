@@ -361,8 +361,9 @@ def upgrade():
     for error in errors:
         print(error)
 
-    op.drop_column('stripe_transaction', 'fk_id')
-    op.drop_column('stripe_transaction', 'fk_model')
+    with op.batch_alter_table("stripe_transaction") as batch_op:
+        batch_op.drop_column('fk_id')
+        batch_op.drop_column('fk_model')
 
 
 def downgrade():

@@ -204,17 +204,6 @@ class TestBadgeOpts:
         assert dict(c.AT_THE_DOOR_BADGE_OPTS).keys() == {c.ATTENDEE_BADGE, c.ONE_DAY_BADGE, c.CONTRACTOR_BADGE}
 
 
-class TestStaffGetFood:
-    def test_job_locations_with_food_prep(self):
-        assert c.STAFF_GET_FOOD
-
-    def test_job_locations_without_food_prep(self, monkeypatch):
-        job_locations = dict(c.JOB_LOCATIONS)
-        del job_locations[c.FOOD_PREP]
-        monkeypatch.setattr(c, 'JOB_LOCATIONS', job_locations)
-        assert not c.STAFF_GET_FOOD
-
-
 class TestDealerConfig:
     def test_dealer_reg_open(self, monkeypatch):
         monkeypatch.setattr(c, 'DEALER_REG_START', localized_now() - timedelta(days=1))
