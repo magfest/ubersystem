@@ -159,12 +159,13 @@
 #}
 
 {% set label_required = kwargs['required'] if 'required' in kwargs else None %}
+{% set show_desc = not admin_area and help_text or target_field.description %}
 
 <fieldset>
-  <legend class="mt-3 mb-0 form-text">{{ target_field.label.text }}
-    {% if target_field.flags.required %}<span class="required-indicator text-danger"> *</span>{% endif %}
-    {% if not admin_area and (help_text or target_field.description) %}&nbsp; {{ help_text or target_field.description }}{% endif %}</legend>
-<div class="card-group mt-0 mb-3">
+  <legend class="mt-3 mb-0 form-text">
+    {{ target_field.label.text }}{% if target_field.flags.required %}<span class="required-indicator text-danger"> *</span>{% endif %}
+  </legend>
+<div class="card-group mt-0{% if not show_desc %} mb-3{% endif %}">
 {% for opt in opts %}
 {% set disabled_card = opt.value in disabled_opts %}
   <div class="card {{ text_class }}{% if disabled_card %} disabled-card bg-secondary text-white{% endif %}" style="max-width: 33%;">
@@ -182,20 +183,18 @@
       {% if opt.icon %}
           <img src="{{ opt.icon }}" class="card-img" alt="{{ opt.name }} Icon">
       {% endif %}
-          {% if disabled_card %}
+        {% if disabled_card %}
           {{ opt.desc|safe }}
-          {% if disabled_card %}
-      <div class="disabled-overlay position-absolute top-0 start-0 h-100 w-100" style="background: rgba(0,0,0,0.66)">
-        <span style="text-shadow: 0px 0px 7px rgba(0, 0, 0, 1);" class="text-uppercase text-center position-absolute w-100 fw-bolder top-50 start-50 translate-middle h2">
-          {{ disabled_hover_text }}
-        </span>
-      </div>
-      {% endif %}
-          {% else %}
+          <div class="disabled-overlay position-absolute top-0 start-0 h-100 w-100" style="background: rgba(0,0,0,0.66)">
+            <span style="text-shadow: 0px 0px 7px rgba(0, 0, 0, 1);" class="text-uppercase text-center position-absolute w-100 fw-bolder top-50 start-50 translate-middle h2">
+              {{ disabled_hover_text }}
+            </span>
+          </div>
+        {% else %}
           <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card"
               data-value="{{ opt.value }}">{{ opt.desc|safe }}</a>
               <input type="radio" id="{{ target_field.id }}-{{ opt.value }}" name="card-{{ target_field.id }}" class="visually-hidden" value="{{ opt.value }}" />
-          {% endif %}
+        {% endif %}
       </div>
       {% if opt.link %}
       <div class="card-footer">
@@ -205,6 +204,7 @@
   </div>
 {% endfor %}
 </div>
+{% if show_desc %}<div class="form-text mb-3">{{ help_text or target_field.description }}</div>{% endif %}
 </fieldset>
 
 <script type="text/javascript">
