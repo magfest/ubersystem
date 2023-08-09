@@ -604,10 +604,10 @@ class Root:
                     form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents']
                     forms = load_forms({}, attendee, attendee_forms, form_list)
                     
-                    all_errors = validate_model(forms, attendee, validations.attendee)
+                    all_errors = validate_model(forms, attendee, extra_validators_module=validations.attendee)
                     if all_errors:
                         # Flatten the errors as we don't have fields on this page
-                        message = ' '.join([' '.join(val) for val in all_errors['error'].values()])
+                        message = ' '.join([' '.join(val) for val in all_errors['error']])
                 if message:
                     break
             
