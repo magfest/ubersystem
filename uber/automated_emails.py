@@ -1133,7 +1133,7 @@ if c.PANELS_ENABLED:
 
     PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Application Has Been Received: {{ app.name }}',
-        'panels/panel_app_confirmation.txt',
+        'panels/application.html',
         lambda a: True,
         needs_approval=False,
         ident='panel_received')
