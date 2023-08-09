@@ -60,7 +60,9 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 
 {% block accessibility %}
+{% if c.ACCESSIBILITY_SERVICES_ENABLED %}
 <div class="row g-sm-3">
     <div class="col-12">{{ form_macros.form_input(other_info.requested_accessibility_services) }}</div>
 </div>
+{% endif %}
 {% endblock %}
