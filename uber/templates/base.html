@@ -522,7 +522,7 @@
         {% endif %}
         {% endblock %}
         {% block header %}{% endblock %}
-        {% block alert %}<div class="alert alert-dismissible" role="alert" id="message-alert"><span></span><button type="button" class="btn-close" onClick="hideMessageBox()" aria-label="Close"></button></div>{% endblock %}
+        {% block alert %}<div class="alert alert-dismissible" role="alert" id="message-alert"><span></span><button type="button" class="{% if bootstrap5 %}btn-close{% else %}close{% endif %}" onClick="hideMessageBox()" aria-label="Close">{% if not bootstrap5 %}<span aria-hidden="true">&times;</span>{% endif %}</button></div>{% endblock %}
         {% block masthead %}{% endblock %}
         {% if title_text %}<h1 class="visually-hidden">{{ title_text }}</h1>{% endif %}
         {% block content %}{% endblock %}

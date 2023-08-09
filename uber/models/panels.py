@@ -110,6 +110,7 @@ class PanelApplication(MagModel):
     past_attendance = Column(UnicodeText)
     department = Column(Choice(c.PANEL_DEPT_OPTS), default=c.PANELS)
     rating = Column(Choice(c.PANEL_RATING_OPTS), default=c.UNRATED)
+    granular_rating = Column(MultiChoice(c.PANEL_CONTENT_OPTS))
     presentation = Column(Choice(c.PRESENTATION_OPTS))
     other_presentation = Column(UnicodeText)
     noise_level = Column(Choice(c.NOISE_LEVEL_OPTS))
@@ -188,6 +189,9 @@ class PanelApplicant(SocialMediaMixin, MagModel):
     occupation = Column(UnicodeText)
     website = Column(UnicodeText)
     other_credentials = Column(UnicodeText)
+    guidebook_bio = Column(UnicodeText)
+    display_name = Column(UnicodeText)
+    public_display_name = Column(Boolean, default=False)
 
     @property
     def has_credentials(self):

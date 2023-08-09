@@ -53,16 +53,16 @@
     });
 </script>
 <div class="form-group">
-    <label class="col-sm-3 control-label">Panel Name</label>
+    <label class="form-text">Panel Name</label>
     <div class="col-sm-6">
         <input class="form-control" type="text" name="name" value="{{ app.name }}" required="required" />
     </div>
 </div>
 {% if c.PANEL_DEPT_OPTS|length > 1 %}
 <div class="form-group">
-    <label class="col-sm-3 control-label">Department</label>
+    <label class="form-text">Department</label>
     <div class="col-sm-6">
-        <select class="form-control" name="department">
+        <select class="form-select" name="department">
             {{ options(c.PANEL_DEPT_OPTS, app.department) }}
         </select>
     </div>
@@ -78,9 +78,9 @@
 {% endif %}
 {% if c.PANEL_RATING_OPTS|length > 1 %}
 <div class="form-group">
-    <label class="col-sm-3 control-label">Panel Content Rating</label>
+    <label class="form-text">Panel Content Rating</label>
     <div class="col-sm-6">
-        <select class="form-control" name="rating">
+        <select class="form-select" name="rating">
             {{ options(c.PANEL_RATING_OPTS, app.rating) }}
         </select>
     </div>
@@ -94,9 +94,9 @@
 </script>
 {% endif %}
 <div class="form-group">
-    <label class="col-sm-3 control-label">Type of Panel</label>
+    <label class="form-text">Type of Panel</label>
     <div class="col-sm-6">
-        <select name="presentation" class="form-control">
+        <select name="presentation" class="form-select">
             {{ options(c.PRESENTATION_OPTS, app.presentation) }}
         </select>
     </div>
@@ -105,24 +105,24 @@
         <input type="input" class="form-control" name="other_presentation" value="{{ app.other_presentation }}" placeholder="Please describe type of panel" />
     </div>
     <div class="clearfix"></div>
-    <p class="help-block col-sm-9 col-sm-offset-3" id="mod_help">
+    <p class="form-text col-sm-9 col-sm-offset-3" id="mod_help">
       Please include who will moderate the panel in the description. If you will not be moderating the panel, please add
       the moderator as a panelist at the bottom of this application.
     </p>
 </div>
 <div class="form-group">
-    <label class="col-sm-3 control-label">Panel Description</label>
+    <label class="form-text">Panel Description</label>
     <div class="col-sm-6">
         <textarea class="form-control" name="description" rows="4" required="required">{{ app.description }}</textarea>
     </div>
     <div class="clearfix"></div>
-    <p class="help-block col-sm-9 col-sm-offset-3">
+    <p class="form-text col-sm-9 col-sm-offset-3">
         Will appear as a subheading on the schedule. 200 words max. 18+ panels will not be accepted.
     </p>
 </div>
 {% if c.PANEL_CONTENT_OPTS|length > 1 %}
 <div class="form-group">
-    <label class="col-sm-3 control-label">Panel Content</label>
+    <label class="form-text">Panel Content</label>
     <div class="col-sm-9">
         {{ macros.checkgroup_opts(
               'granular_rating',
@@ -130,13 +130,13 @@
               defaults=app.granular_rating) }}
     </div>
     <div class="clearfix"></div>
-    <p class="help-block col-sm-9 col-sm-offset-3">Please select the checkboxes above to let us know what your panel content may contain, or select "None" if you are sure your panel will be for all ages.</p>
+    <p class="form-text col-sm-9 col-sm-offset-3">Please select the checkboxes above to let us know what your panel content may contain, or select "None" if you are sure your panel will be for all ages.</p>
 </div>
 
 <div class="form-group">
     <div class="col-sm-9 col-sm-offset-3">
         <strong>Do you want your content to be highlighted by the MAGScouts program?</strong>
-        <select class="form-control" name="magscouts_opt_in">
+        <select class="form-select" name="magscouts_opt_in">
             {{ options(c.PANEL_MAGSCOUTS_OPTS, app.magscouts_opt_in) }}
         </select>
     </div>
@@ -165,9 +165,9 @@
 </script>
 {% endif %}
 <div class="form-group">
-    <label class="col-sm-3 control-label">Expected Panel Length</label>
+    <label class="form-text">Expected Panel Length</label>
     <div class="col-sm-6">
-        <select class="form-control" name="length">
+        <select class="form-select" name="length">
             {{ options(c.PANEL_LENGTH_OPTS, app.length) }}
         </select>
     </div>
@@ -176,24 +176,24 @@
         <input type="text" class="form-control" name="length_text" value="{{ app.length_text }}" placeholder="Other length" />
     </div>
     <div class="clearfix"></div>
-    <p class="help-block col-sm-9 col-sm-offset-3">
+    <p class="form-text col-sm-9 col-sm-offset-3">
         An hour is typical, including time for Q&A.
     </p>
 </div>
 <div class="form-group"{% if poc_id %} style="display:none"{% endif %}>
-    <label class="col-sm-3 control-label">Why do you need the extra time?</label>
+    <label class="form-text">Why do you need the extra time?</label>
     <div class="col-sm-6">
         <textarea class="form-control" name="length_reason" rows="4">{{ app.length_reason }}</textarea>
     </div>
     <div class="clearfix"></div>
-    <p class="help-block col-sm-9 col-sm-offset-3">
+    <p class="form-text col-sm-9 col-sm-offset-3">
         Panels longer than 60 minutes are allowed, but discouraged unless you really need the extra time.
     </p>
 </div>
 <div class="form-group">
-    <label class="col-sm-3 control-label">Panel Noise Level</label>
+    <label class="form-text">Panel Noise Level</label>
     <div class="col-sm-6">
-        <select class="form-control" name="noise_level">
+        <select class="form-select" name="noise_level">
             <option value="">Please select an option</option>
             {{ options(c.NOISE_LEVEL_OPTS, app.noise_level) }}
         </select>
@@ -201,14 +201,14 @@
     <div class="clearfix"></div>
 </div>
 <div class="form-group">
-    <label class="col-sm-3 control-label">Is it okay to record or livestream your panel? </label>
+    <label class="form-text">Is it okay to record or livestream your panel? </label>
     <div class="col-sm-6">
-        <select class="form-control" name="livestream">
+        <select class="form-select" name="livestream">
             {{ options(c.LIVESTREAM_OPTS, app.livestream) }}
         </select>
     </div>
     <div class="clearfix"></div>
-    <p class="help-block col-sm-9 col-sm-offset-3">
+    <p class="form-text col-sm-9 col-sm-offset-3">
         While we don't record/live stream every panel, we attempt to record and post most panels to our YouTube channel after the event.
     </p>
 </div>
@@ -227,12 +227,12 @@
     </div>
 </div>
 <div class="form-group form-group-need_tables">
-    <label class="col-sm-3 control-label">Describe your table needs</label>
+    <label class="form-text">Describe your table needs</label>
     <div class="col-sm-6">
         <textarea class="form-control" name="tables_desc" rows="4">{{ app.tables_desc }}</textarea>
     </div>
     <div class="clearfix"></div>
-    <p class="help-block col-sm-9 col-sm-offset-3">
+    <p class="form-text col-sm-9 col-sm-offset-3">
         Our ability to reconfigure main panel rooms is very limited, but we have some alternative spaces that might be better suited for specific needs.
     </p>
 </div>
@@ -250,12 +250,12 @@
     </div>
 </div>
 <div class="form-group form-group-has_cost">
-    <label class="col-sm-3 control-label">Describe your material costs</label>
+    <label class="form-text">Describe your material costs</label>
     <div class="col-sm-6">
         <textarea class="form-control" name="cost_desc" rows="4">{{ app.cost_desc }}</textarea>
     </div>
     <div class="clearfix"></div>
-    <p class="help-block col-sm-9 col-sm-offset-3">
+    <p class="form-text col-sm-9 col-sm-offset-3">
         Please describe what materials you'll be providing and how much you'll need to charge attendees to participate.
     </p>
 </div>
@@ -268,7 +268,7 @@
 
 
 <div class="form-group">
-  <label class="col-sm-3 control-label optional-field">Technical Needs</label>
+  <label class="form-text optional-field">Technical Needs</label>
   <div class="col-sm-6">
     <textarea
       class="form-control"
@@ -277,7 +277,7 @@
       placeholder="Do you need any other technical equipment?">{{ app.other_tech_needs }}</textarea>
   </div>
   <div class="clearfix"></div>
-  <p class="help-block col-sm-9 col-sm-offset-3">
+  <p class="form-text col-sm-9 col-sm-offset-3">
     By default, each panel room will have a table with four microphones,
     power for a laptop, and connections for 1/8" audio and HDMI video. VGA support
     will <strong>not</strong> be available. If you need anything beyond this
@@ -288,7 +288,7 @@
 </div>
 
 <div class="form-group" id="audio_needs">
-  <label class="col-sm-3 control-label optional-field">Will you need a loud environment?</label>
+  <label class="form-text optional-field">Will you need a loud environment?</label>
   <div class="col-sm-9 checkbox">
   {{ macros.checkbox(app, 'is_loud', id="audio_needs", label="Yes, I require an environment to have a large volume presentation.", label_class="optional_field") }}
     </div>
