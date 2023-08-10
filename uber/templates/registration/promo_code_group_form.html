@@ -78,7 +78,7 @@
         <div class="form-group">
           <label for="attendee" class="col-sm-3 control-label">Buyer</label>
           <div class="col-sm-6">
-            <select class="form-control" id="attendee_id" name="buyer_id" required="required" onChange="setBuyerLink()">
+            <select class="form-select" id="attendee_id" name="buyer_id" required="required" onChange="setBuyerLink()">
               <option value="" selected="selected">Select an attendee</option>
               <option value="None">Create new attendee</option>
               {{ options(all_attendees, buyer_id) }}
@@ -103,7 +103,7 @@
         <div class="form-group">
           <label class="col-sm-3 control-label">Badges{% if not group.is_new %} to Add{% endif %}</label>
           <div class="col-sm-6">
-            <select class="form-control" name="badges">
+            <select class="form-select" name="badges">
               {{ int_options(0, 100, badges) }}
             </select>
           </div>

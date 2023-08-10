@@ -633,6 +633,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def age_now_or_at_con(self):
         if not self.birthdate:
             return None
+
         return get_age_from_birthday(self.birthdate, c.NOW_OR_AT_CON)
         
     @presave_adjustment
@@ -856,10 +857,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def age_group_conf(self):
-        if self.birthdate:
-            return get_age_conf_from_birthday(self.birthdate, c.NOW_OR_AT_CON)
-
-        return c.AGE_GROUP_CONFIGS[int(self.age_group or c.AGE_UNKNOWN)]
+        return get_age_conf_from_birthday(self.birthdate, c.NOW_OR_AT_CON)
 
     @property
     def total_cost(self):

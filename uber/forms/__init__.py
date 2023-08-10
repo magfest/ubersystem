@@ -342,3 +342,4 @@ class DictWrapper(dict):
 
 
 from uber.forms.attendee import *  # noqa: F401,E402,F403
+from uber.forms.group import *  # noqa: F401,E402,F403
