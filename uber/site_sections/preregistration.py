@@ -607,8 +607,16 @@ class Root:
             for attendee in cart.attendees:
                 if not message and attendee.promo_code_id:
                     message = check_prereg_promo_code(session, attendee)
-
-            # TODO: Add validations back!!
+                if not message:
+                    form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents']
+                    forms = load_forms({}, attendee, attendee_forms, form_list)
+                    
+                    all_errors = validate_model(forms, attendee, extra_validators_module=validations.attendee)
+                    if all_errors:
+                        # Flatten the errors as we don't have fields on this page
+                        message = ' '.join([' '.join(val) for val in all_errors['error']])
+                if message:
+                    break
             
             if not message:
                 receipts = []

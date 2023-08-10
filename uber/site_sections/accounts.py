@@ -51,8 +51,7 @@ class Root:
     def update(self, session, password='', message='', **params):
         if not params.get('attendee_id', '') and params.get('id', 'None') == 'None':
             message = "Please select an attendee to create an admin account for."
-        attendee = session.attendee(params['attendee_id'])
-
+        
         if not message:
             account = session.admin_account(params)
 
@@ -72,6 +71,7 @@ class Root:
             message = message or check(account)
         if not message:
             message = 'Account settings uploaded'
+            attendee = session.attendee(account.attendee_id)  # dumb temporary hack, will fix later with tests
             account.attendee = attendee
             session.add(account)
             if account.is_new and not c.AT_OR_POST_CON:
@@ -167,8 +167,20 @@ class Root:
 
     @public
     def login(self, session, message='', original_location=None, **params):
-        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
+        if c.SAML_SETTINGS:
+            from uber.utils import prepare_saml_request
+            from onelogin.saml2.auth import OneLogin_Saml2_Auth
 
+            if original_location:
+                redirect_url = c.URL_ROOT + create_valid_user_supplied_redirect_url(original_location, default_url='')
+            else:
+                redirect_url = ''
+
+            req = prepare_saml_request(cherrypy.request)
+            auth = OneLogin_Saml2_Auth(req, c.SAML_SETTINGS)
+            raise HTTPRedirect(auth.login(return_to=redirect_url))
+        
+        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='/accounts/homepage')
         if 'email' in params:
             try:
                 account = session.get_admin_account_by_email(params['email'])
@@ -181,15 +193,6 @@ class Root:
                 cherrypy.session['account_id'] = account.id
                 ensure_csrf_token_exists()
                 raise HTTPRedirect(original_location)
-
-        if c.SAML_SETTINGS:
-            from uber.utils import prepare_saml_request
-            from onelogin.saml2.auth import OneLogin_Saml2_Auth
-
-            req = prepare_saml_request(cherrypy.request)
-            auth = OneLogin_Saml2_Auth(req, c.SAML_SETTINGS)
-
-            raise HTTPRedirect(auth.login(return_to=c.URL_ROOT + original_location))
 
         return {
             'message': message,

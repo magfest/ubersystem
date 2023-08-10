@@ -5,6 +5,7 @@ import inspect
 import os
 import pytz
 import re
+import redis
 import uuid
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, time, timedelta
@@ -568,7 +569,7 @@ class Config(_Overridable):
     
     @property
     def NOW_OR_AT_CON(self):
-        return c.EPOCH.date() if date.today().date() <= c.EPOCH.date() else uber.utils.localized_now().date()
+        return c.EPOCH.date() if date.today() <= c.EPOCH.date() else uber.utils.localized_now().date()
 
     @property
     def AT_OR_POST_CON(self):
@@ -1000,6 +1001,9 @@ def _unrepr(d):
 _unrepr(_config['appconf'])
 c.APPCONF = _config['appconf'].dict()
 c.SENTRY = _config['sentry'].dict()
+c.REDISCONF = _config['redis'].dict()
+
+c.REDIS_STORE = redis.Redis(host=c.REDISCONF['host'], port=c.REDISCONF['port'], db=c.REDISCONF['db'], decode_responses=True)
 
 c.BADGE_PRICES = _config['badge_prices']
 for _opt, _val in chain(_config.items(), c.BADGE_PRICES.items()):
@@ -1033,13 +1037,13 @@ c.PRICE_LIMITS = {}
 for _opt, _val in c.BADGE_PRICES['attendee'].items():
     try:
         if ' ' in _opt:
-            date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d %H%M'))
+            price_date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d %H%M'))
         else:
-            date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))
+            price_date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))
     except ValueError:
         c.PRICE_LIMITS[int(_opt)] = _val
     else:
-        c.PRICE_BUMPS[date] = _val
+        c.PRICE_BUMPS[price_date] = _val
 c.ORDERED_PRICE_LIMITS = sorted([val for key, val in c.PRICE_LIMITS.items()])
 
 

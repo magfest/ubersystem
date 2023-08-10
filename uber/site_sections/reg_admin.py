@@ -625,7 +625,11 @@ class Root:
                     href_base = '{}/registration/form?id={}'
                 elif which_import == 'groups':
                     if params.get('dealers', ''):
-                        results = service.group.dealers(status=params.get('status', None))
+                        status = c.DEALER_STATUS.get(int(params.get('dealer_status', 0)), None)
+                        if not status:
+                            message = "Invalid group status."
+                        else:
+                            results = service.group.dealers(status=status)
                     else:
                         results = service.group.export(query=query)
                     results_name = 'groups'

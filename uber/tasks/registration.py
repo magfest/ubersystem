@@ -17,8 +17,8 @@ from uber.utils import localized_now, TaskUtils
 from uber.payments import ReceiptManager
 
 
-__all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_unassigned_volunteers',
-           'check_missed_stripe_payments']
+__all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_pending_badges',
+           'check_unassigned_volunteers', 'check_near_cap', 'check_missed_stripe_payments', 'process_api_queue']
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
@@ -174,12 +174,12 @@ def check_missed_stripe_payments():
 def process_api_queue():
     known_job_names = ['attendee_account_import', 'attendee_import', 'group_import']
     completed_jobs = {}
-    safety_limit = 1000
+    safety_limit = 500
     jobs_processed = 0
 
     with Session() as session:
         for job_name in known_job_names:
-            jobs_to_run = session.query(ApiJob).filter(ApiJob.job_name == job_name, ApiJob.queued == None).limit(1000)
+            jobs_to_run = session.query(ApiJob).filter(ApiJob.job_name == job_name, ApiJob.queued == None).limit(safety_limit)
             completed_jobs[job_name] = 0
 
             for job in jobs_to_run:

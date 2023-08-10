@@ -1056,7 +1056,7 @@ class Session(SessionManager):
             self.add(new_account)
             return new_account
 
-        def create_attendee_account(self, email=None, normalized_email=None, password=None, match_existing_attendees=False):
+        def create_attendee_account(self, email=None, normalized_email=None, password=None):
             from uber.models import Attendee, AttendeeAccount
             from uber.utils import normalize_email_legacy
 
@@ -1066,10 +1066,6 @@ class Session(SessionManager):
             new_account = AttendeeAccount(email=normalized_email, hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
             self.add(new_account)
 
-            if match_existing_attendees:
-                matching_attendees = self.query(Attendee).filter_by(normalized_email=normalize_email_legacy(email))
-                for attendee in matching_attendees:
-                    self.add_attendee_to_account(attendee, new_account)
             return new_account
 
         def add_attendee_to_account(self, attendee, account):
