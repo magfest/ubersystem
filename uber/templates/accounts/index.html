@@ -76,7 +76,6 @@ table form {
             <form class="form update-form" method="post" action="update">
               <input type="hidden" name="id" value="{{ account.id }}" />
               {{ csrf_token() }}
-              {{ account.access_groups_ids }}
               <div class="form-group">
                 {{ macros.checkgroup_opts(
                   'access_groups_ids',
