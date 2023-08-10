@@ -51,8 +51,7 @@ class Root:
     def update(self, session, password='', message='', **params):
         if not params.get('attendee_id', '') and params.get('id', 'None') == 'None':
             message = "Please select an attendee to create an admin account for."
-        attendee = session.attendee(params['attendee_id'])
-
+        
         if not message:
             account = session.admin_account(params)
 
@@ -72,6 +71,7 @@ class Root:
             message = message or check(account)
         if not message:
             message = 'Account settings uploaded'
+            attendee = session.attendee(account.attendee_id)  # dumb temporary hack, will fix later with tests
             account.attendee = attendee
             session.add(account)
             if account.is_new and not c.AT_OR_POST_CON:
