@@ -614,7 +614,7 @@ class Root:
                     all_errors = validate_model(forms, attendee, extra_validators_module=validations.attendee)
                     if all_errors:
                         # Flatten the errors as we don't have fields on this page
-                        message = ' '.join([' '.join(val) for val in all_errors['error']])
+                        message = " ".join(list(zip(*[all_errors]))[1])
                 if message:
                     break
             
@@ -1465,7 +1465,7 @@ class Root:
             form_list = [form_list]
         forms = load_forms(params, group, group_forms, form_list, get_optional=False)
 
-        all_errors = validate_model(forms, group, Group(**group.to_dict()), validations.group)
+        all_errors = validate_model(forms, group, Group(**group.to_dict()))
         if all_errors:
             return {"error": all_errors}
         
@@ -1491,7 +1491,7 @@ class Root:
 
         forms = load_forms(params, attendee, attendee_forms, form_list, get_optional=False)
         
-        all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()), validations.attendee)
+        all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()))
         if all_errors:
             return {"error": all_errors}
 

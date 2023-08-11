@@ -489,6 +489,8 @@ def check(model, *, prereg=False):
         for validator in v[model.__class__.__name__].values():
             message = validator(model)
             if message:
+                if isinstance(message, tuple):
+                    message = message[1]
                 errors.append(message)
     return "ERROR: " + "<br>".join(errors) if errors else None
 
@@ -527,9 +529,8 @@ def check_pii_consent(params, attendee=None):
     return ''
 
 
-def validate_model(forms, model, preview_model=None, extra_validators_module=None, is_admin=False):
+def validate_model(forms, model, preview_model=None, is_admin=False):
     from wtforms import validators
-    from wtforms.validators import ValidationError, StopValidation
 
     all_errors = defaultdict(list)
     
@@ -546,26 +547,24 @@ def validate_model(forms, model, preview_model=None, extra_validators_module=Non
             if field:
                 field.validators = [validators.Optional()]
 
-        if extra_validators_module:
-            for key, field in module.field_list:
-                extra_validators[key].extend(extra_validators_module.form_validation.get_validations_by_field(key))
-                if field and (model.is_new or getattr(model, key, None) != field.data):
-                    extra_validators[key].extend(extra_validators_module.new_or_changed_validation.get_validations_by_field(key))
+        # TODO: Do we need to check for custom validations or is this code performant enough to skip that?
+        for key, field in module.field_list:
+            extra_validators[key].extend(module.field_validation.get_validations_by_field(key))
+            if field and (model.is_new or getattr(model, key, None) != field.data):
+                extra_validators[key].extend(module.new_or_changed_validation.get_validations_by_field(key))
 
         valid = module.validate(extra_validators=extra_validators)
         if not valid:
             for key, val in module.errors.items():
                 all_errors[key].extend(map(str, val))
 
-    if extra_validators_module:
-        for key, val in extra_validators_module.post_form_validation.get_validation_dict().items():
-            for func in val:
-                try:
-                    func(preview_model)
-                except (ValidationError, StopValidation) as e:
-                    all_errors[key].append(str(e))
-                    if isinstance(e, StopValidation):
-                        break
+    validations = [uber.model_checks.validation.validations]
+    prereg_validations = [uber.model_checks.prereg_validation.validations] if not is_admin else []
+    for v in validations + prereg_validations:
+        for validator in v[model.__class__.__name__].values():
+            error_tuple = validator(preview_model)
+            if error_tuple:
+                all_errors[error_tuple[0]] = error_tuple[1]
 
     if all_errors:
         return all_errors

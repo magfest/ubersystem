@@ -1,6 +1,7 @@
 import re
 import cherrypy
 
+from collections import defaultdict, OrderedDict
 from importlib import import_module
 from markupsafe import Markup
 from wtforms import Form, StringField, SelectField, IntegerField, BooleanField, validators
@@ -81,8 +82,33 @@ def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=Tr
     return form_dict
 
 
+class CustomValidation:
+    def __init__(self):
+        self.validations = defaultdict(OrderedDict)
+
+    def __bool__(self):
+        return bool(self.validations)
+
+    def __getattr__(self, field_name):
+        def wrapper(func):
+            self.validations[field_name][func.__name__] = func
+            return func
+        return wrapper
+    
+    def get_validations_by_field(self, field_name):
+        field_validations = self.validations.get(field_name)
+        return list(field_validations.values()) if field_validations else []
+
+    def get_validation_dict(self):
+        all_validations = {}
+        for key, dict in self.validations.items():
+            all_validations[key] = list(dict.values())
+        return all_validations
+
+
 class MagForm(Form):
     field_aliases = {}
+    field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
 
     def get_optional_fields(self, model, is_admin=False):
         return []
@@ -342,3 +368,4 @@ class DictWrapper(dict):
 
 
 from uber.forms.attendee import *  # noqa: F401,E402,F403
+from uber.forms.group import *  # noqa: F401,E402,F403
