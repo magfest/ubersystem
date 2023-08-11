@@ -566,7 +566,9 @@ class Root:
     @check_atd
     @requires_account()
     def register(self, session, message='', error_message='', **params):
-        check_if_can_reg()
+        errors = check_if_can_reg()
+        if errors:
+            return errors
 
         params['id'] = 'None'
         login_email = None
