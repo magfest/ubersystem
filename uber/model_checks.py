@@ -1154,7 +1154,7 @@ def not_in_range(attendee):
 
 @validation.Attendee
 def dealer_needs_group(attendee):
-    if attendee.is_dealer and not attendee.badge_type == c.PSEUDO_DEALER_BADGE and not attendee.group_id:
+    if attendee.is_dealer and not attendee.group_id:
         return ('group_id', '{}s must be associated with a group'.format(c.DEALER_TERM))
 
 
