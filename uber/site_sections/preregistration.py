@@ -188,9 +188,7 @@ class Root:
         return {'message': message}
 
     def index(self, session, message='', account_email='', account_password='', **params):
-        errors = check_if_can_reg()
-        if errors:
-            return errors
+        check_if_can_reg()
 
         pending_preregs = PreregCart.pending_preregs.copy()
         for id in pending_preregs:
@@ -225,9 +223,7 @@ class Root:
             }
 
     def reapply(self, session, id, **params):
-        errors = check_if_can_reg(is_dealer_reg=True)
-        if errors:
-            return errors
+        check_if_can_reg(is_dealer_reg=True)
 
         old_attendee = session.attendee(id)
         old_attendee_dict = old_attendee.to_dict(c.UNTRANSFERABLE_ATTRS)
@@ -246,10 +242,7 @@ class Root:
         
 
     def repurchase(self, session, id, skip_confirm=False, **params):
-        errors = check_if_can_reg()
-        if errors:
-            return errors
-        
+        check_if_can_reg()
         if skip_confirm or 'csrf_token' in params:
             old_attendee = session.attendee(id)
             old_attendee_dict = old_attendee.to_dict(c.UNTRANSFERABLE_ATTRS)
@@ -269,9 +262,7 @@ class Root:
     @cherrypy.expose('post_dealer')
     @requires_account()
     def dealer_registration(self, session, message='', edit_id=None, **params):
-        errors = check_if_can_reg(is_dealer_reg=True)
-        if errors:
-            return errors
+        check_if_can_reg(is_dealer_reg=True)
 
         if c.DEALER_INVITE_CODE and not edit_id:
             if not params.get('invite_code'):
@@ -326,9 +317,7 @@ class Root:
             }
     
     def finish_dealer_reg(self, session, id, **params):
-        errors = check_if_can_reg(is_dealer_reg=True)
-        if errors:
-            return errors
+        check_if_can_reg(is_dealer_reg=True)
 
         group = self._get_unsaved(id, PreregCart.pending_dealers)
         attendee = group.attendees[0]
@@ -376,9 +365,7 @@ class Root:
     @requires_account()
     def form(self, session, message='', edit_id=None, **params):
         is_dealer_reg = 'dealer_id' in params
-        errors = check_if_can_reg(is_dealer_reg)
-        if errors:
-            return errors
+        check_if_can_reg(is_dealer_reg)
         """
         Our production NGINX config caches the page at /preregistration/form.
         Since it's cached, we CAN'T return a session cookie with the page. We
@@ -523,9 +510,7 @@ class Root:
     
     def additional_info(self, session, message='', editing=None, **params):
         is_dealer_reg = 'group_id' in params
-        errors = check_if_can_reg(is_dealer_reg)
-        if errors:
-            return errors
+        check_if_can_reg(is_dealer_reg)
 
         attendee, group = self._get_attendee_or_group(params)
 
@@ -553,9 +538,7 @@ class Root:
         }
 
     def duplicate(self, session, **params):
-        errors = check_if_can_reg(is_dealer_reg='group_id' in params)
-        if errors:
-            return errors
+        check_if_can_reg(is_dealer_reg='group_id' in params)
 
         attendee, group = self._get_attendee_or_group(params)
         orig = session.query(Attendee).filter_by(
@@ -571,9 +554,7 @@ class Root:
         }
 
     def banned(self, **params):
-        errors = check_if_can_reg(is_dealer_reg='group_id' in params)
-        if errors:
-            return errors
+        check_if_can_reg(is_dealer_reg='group_id' in params)
 
         attendee, group = self._get_attendee_or_group(params)
         return {
