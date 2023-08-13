@@ -74,20 +74,19 @@ class Root:
 
     @xlsx_file
     def all_sellers_application_info(self, out, session):
-        dealer_category_lookup = {val: key for key, val in c.DEALER_WARES_OPTS if key != c.OTHER}
-        dealer_category_labels = sorted(c.DEALER_WARES.values())
-        dealer_category_labels.remove(c.DEALER_WARES[c.OTHER])
-        header_row = [
+        out.writerow([
             'Table Name',
             'Description',
+            'Seller Name',
             'Tables',
             'Badges',
             'Website',
-            'What they sell'
-            ]
-        header_row.extend(dealer_category_labels)
-        header_row.extend(['Other', 'Special Requests'])
-        out.writerow(header_row)
+            'What they sell',
+            'Categories',
+            'Other Category',
+            'Special Requests',
+            ])
+
         dealer_groups = session.query(Group).filter(Group.is_dealer == True).all()
         
         def write_url_or_text(cell, is_url=False, last_cell=False):
@@ -99,23 +98,20 @@ class Root:
 
         for group in dealer_groups:
             wares_urls = extract_urls(group.wares)
+            full_name = group.leader.full_name if group.leader else ''
 
             row = [
                 group.name,
                 group.description,
+                full_name,
                 group.tables,
                 group.badges,
                 group.website,
                 group.wares,
-            ]
-            for x in range(len(dealer_category_lookup)):
-                current_cat_label = dealer_category_labels[x]
-                row.append("X" if dealer_category_lookup[current_cat_label] in group.categories_ints else "")
-
-            row.extend([
+                " / ".join(group.categories_labels),
                 group.categories_text,
                 group.special_needs,
-            ] + wares_urls)
+            ] + wares_urls
 
             for cell in row[:-1]:
                 write_url_or_text(cell, cell == group.website or cell in wares_urls)
