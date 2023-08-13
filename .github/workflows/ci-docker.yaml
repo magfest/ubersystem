@@ -32,7 +32,9 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - run: echo "plugins=$(echo "${{ toJSON(matrix.plugins) }}" | jq -c)" >> $GITHUB_ENV
+      - run: |
+        echo -n plugins= >> $GITHUB_ENV
+        echo "${{ toJSON(matrix.plugins) }}" | jq -c >> $GITHUB_ENV
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v2
