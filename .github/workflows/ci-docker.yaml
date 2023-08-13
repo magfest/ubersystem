@@ -39,7 +39,7 @@ jobs:
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v2
         with:
-          build-args: PLUGINS="${{ env.plugins }}"
+          build-args: PLUGINS=${{ env.plugins }}
           context: "."
           push: true
           tags: ghcr.io/${{ matrix.name }}
