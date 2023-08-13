@@ -42,7 +42,7 @@
         <td>
             {{ group.status_label }}
         </td>
-        <td><a href="{{ group.website }}" target="_blank">{{ group.website }}</a></td>
+        <td>{{ group.website|url_to_link(target="_blank", is_relative=False) }}</td>
         <td data-order="{{ group.badges_purchased }}" data-search="{{ group.badges_purchased }}"> {{ group.badges_purchased }} / {{ group.badges }} </td>
         <td>{{ group.tables }}</td>
         <td>{{ group.cost|format_currency }}</td>
