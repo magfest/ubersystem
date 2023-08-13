@@ -1,6 +1,7 @@
 from uber.config import c
 from uber.decorators import all_renderable, csv_file, xlsx_file
 from uber.models import Group
+from uber.utils import extract_urls
 
 
 @all_renderable()
@@ -27,13 +28,13 @@ class Root:
             ])
     
     @csv_file
-    def seller_table_info(self, out, session):
+    def approved_seller_table_info(self, out, session):
         out.writerow([
-            'Business Name',
             'Table Name',
             'Description',
             'URL',
-            'Point of Contact',
+            'Seller Name',
+            'Seller Legal Name',
             'Email',
             'Phone Number',
             'Address1',
@@ -47,16 +48,16 @@ class Root:
             'Cost',
             'Badges'
         ])
-        dealer_groups = session.query(Group).filter(Group.tables > 0).all()
+        dealer_groups = session.query(Group).filter(Group.is_dealer == True).all()
         for group in dealer_groups:
-            if group.status == c.APPROVED and group.is_dealer:
+            if group.status == c.APPROVED:
                 full_name = group.leader.full_name if group.leader else ''
                 out.writerow([
                     group.name,
-                    full_name,
                     group.description,
                     group.website,
-                    group.leader.legal_name or group.leader.full_name,
+                    full_name,
+                    group.leader.legal_name if group.leader else '',
                     group.email,
                     group.phone if group.phone else group.leader.cellphone,
                     group.address1,
@@ -70,6 +71,57 @@ class Root:
                     group.cost,
                     group.badges
                 ])
+
+    @xlsx_file
+    def all_sellers_application_info(self, out, session):
+        dealer_category_lookup = {val: key for key, val in c.DEALER_WARES_OPTS if key != c.OTHER}
+        dealer_category_labels = sorted(c.DEALER_WARES.values())
+        dealer_category_labels.remove(c.DEALER_WARES[c.OTHER])
+        header_row = [
+            'Table Name',
+            'Description',
+            'Tables',
+            'Badges',
+            'Website',
+            'What they sell'
+            ]
+        header_row.extend(dealer_category_labels)
+        header_row.extend(['Other', 'Special Requests'])
+        out.writerow(header_row)
+        dealer_groups = session.query(Group).filter(Group.is_dealer == True).all()
+        
+        def write_url_or_text(cell, is_url=False, last_cell=False):
+            if is_url:
+                url = cell if cell.startswith('http') else 'http://' + cell
+                out.writecell(cell, url=url, last_cell=last_cell)
+            else:
+                out.writecell(cell, format={'text_wrap': True}, last_cell=last_cell)
+
+        for group in dealer_groups:
+            wares_urls = extract_urls(group.wares)
+
+            row = [
+                group.name,
+                group.description,
+                group.tables,
+                group.badges,
+                group.website,
+                group.wares,
+            ]
+            for x in range(len(dealer_category_lookup)):
+                current_cat_label = dealer_category_labels[x]
+                row.append("X" if dealer_category_lookup[current_cat_label] in group.categories_ints else "")
+
+            row.extend([
+                group.categories_text,
+                group.special_needs,
+            ] + wares_urls)
+
+            for cell in row[:-1]:
+                write_url_or_text(cell, cell == group.website or cell in wares_urls)
+            
+            final_cell = row[-1:][0]
+            write_url_or_text(final_cell, final_cell == group.website or final_cell in wares_urls, last_cell=True)
 
     @xlsx_file
     def seller_comptroller_info(self, out, session):
