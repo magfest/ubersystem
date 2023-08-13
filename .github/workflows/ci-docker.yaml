@@ -4,6 +4,43 @@ name: Build Docker Image
 on: [push, workflow_dispatch]
 
 jobs:
+  downstream:
+    # This job reads $DOCKER_BUILDS to look for any downstream docker containers that
+    # depend on this branch and adds matrix jobs to build them in parallel.
+    runs-on: mikefarah/yq@master
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - id: set-matrix
+        run: echo "::set-output name=matrix::{\"include\":$(echo ${DOCKER_BUILDS} | yq -j -I 0 e '.branches.${{ github.ref_name }}' -)}"
+
+  build_downstream:
+    needs: downstream
+    strategy:
+      matrix: ${{ fromJson(needs.downstream.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v1
+
+      - name: Login to GHCR
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: jpribyl/action-docker-layer-caching@v0.1.1
+        continue-on-error: true
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v2
+        with:
+          build-args: PLUGINS=${{ matrix.plugins }}
+          context: "."
+          push: true
+          tags: ghcr.io/${{ matrix.name }}
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -16,6 +53,9 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: jpribyl/action-docker-layer-caching@v0.1.1
+        continue-on-error: true
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v2

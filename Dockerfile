@@ -1,9 +1,10 @@
 FROM ghcr.io/magfest/sideboard:main
+ARG PLUGINS="[]"
 MAINTAINER RAMS Project "code@magfest.org"
 LABEL version.rams-core ="0.1"
 
 # install ghostscript and gettext-base
-RUN apt-get update && apt-get install -y ghostscript libxml2-dev libxmlsec1-dev dnsutils gettext-base vim && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y ghostscript libxml2-dev libxmlsec1-dev dnsutils gettext-base vim jq && rm -rf /var/lib/apt/lists/*
 
 ADD requirements*.txt plugins/uber/
 ADD setup.py plugins/uber/
@@ -17,6 +18,8 @@ ADD uber-wrapper.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/uber-wrapper.sh
 ADD rebuild-config.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/rebuild-config.sh
+
+RUN echo $PLUGINS | jq -r '.[] | "git clone --depth 1 --branch \(.branch|@sh) \(.repo|@sh) \(.path|@sh)"' > install_plugins.sh && chmod +x install_plugins.sh && ./install_plugins.sh
 
 ADD . plugins/uber/
 
