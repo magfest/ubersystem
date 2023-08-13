@@ -1,3 +1,5 @@
+# syntax = docker/dockerfile:1.4.0
+
 FROM ghcr.io/magfest/sideboard:main
 ARG PLUGINS="[]"
 MAINTAINER RAMS Project "code@magfest.org"
@@ -19,7 +21,11 @@ RUN chmod +x /usr/local/bin/uber-wrapper.sh
 ADD rebuild-config.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/rebuild-config.sh
 
-RUN echo "$PLUGINS" | jq -r '.[] | "git clone --depth 1 --branch \(.branch|@sh) \(.repo|@sh) \(.path|@sh)"' > install_plugins.sh && chmod +x install_plugins.sh && ./install_plugins.sh
+RUN <<EOF cat >> PLUGINS.json
+$PLUGINS
+EOF
+
+RUN cat PLUGINS.json | jq -r '.[] | "git clone --depth 1 --branch \(.branch|@sh) \(.repo|@sh) \(.path|@sh)"' > install_plugins.sh && chmod +x install_plugins.sh && ./install_plugins.sh
 
 ADD . plugins/uber/
 

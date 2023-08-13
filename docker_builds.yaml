@@ -1,0 +1,75 @@
+branches:
+  main:
+    - name: magfest/magprime:main
+      plugins:
+        - repo: https://github.com/magfest/magprime
+          branch: main
+          path: plugins/magprime
+        - repo: https://github.com/magfest/covid.git
+          branch: main
+          path: plugins/covid
+    - name: magfest/magstock:main
+      plugins:
+        - repo: https://github.com/magfest/magstock
+          branch: main
+          path: plugins/magstock
+        - repo: https://github.com/magfest/covid.git
+          branch: main
+          path: plugins/covid
+    - name: magfest/magwest:main
+      plugins:
+        - repo: https://github.com/magfest/magwest
+          branch: main
+          path: plugins/magwest
+        - repo: https://github.com/magfest/covid.git
+          branch: main
+          path: plugins/covid
+  super2023:
+    - name: magfest/magprime:super2023
+      plugins:
+        - repo: https://github.com/magfest/magprime
+          branch: super2023
+          path: plugins/magprime
+        - repo: https://github.com/magfest/covid.git
+          branch: super2023
+          path: plugins/covid
+  super2022:
+    - name: magfest/magprime:super2022
+      plugins:
+        - repo: https://github.com/magfest/magprime
+          branch: super2022
+          path: plugins/magprime
+        - repo: https://github.com/magfest/covid.git
+          branch: super2022
+          path: plugins/covid
+  west2023:
+    - name: magfest/magwest:west2023
+      plugins:
+        - repo: https://github.com/magfest/magwest
+          branch: west2023
+          path: plugins/magwest
+        - repo: https://github.com/magfest/covid.git
+          branch: west2023
+          path: plugins/covid
+  west2022:
+    - name: magfest/magwest:west2022
+      plugins:
+        - repo: https://github.com/magfest/magwest
+          branch: west2022
+          path: plugins/magwest
+        - repo: https://github.com/magfest/covid.git
+          branch: west2022
+          path: plugins/covid
+  stock2023:
+    - name: magfest/magstock:stock2023
+      plugins:
+        - repo: https://github.com/magfest/magstock
+          branch: stock2023
+          path: plugins/magstock
+        - repo: https://github.com/magfest/covid.git
+          branch: stock2023
+          path: plugins/covid
+
+
+
+          
