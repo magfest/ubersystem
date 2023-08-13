@@ -1,4 +1,5 @@
 from datetime import datetime
+import traceback
 
 from pockets import groupify, listify
 from sqlalchemy import func, or_
@@ -132,6 +133,7 @@ class Root:
                         ident=email.ident)
                 session.commit()
             except Exception:
+                traceback.print_exc()
                 return {'success': False, 'message': 'Email not sent: unknown error.'}
             else:
                 return {'success': True, 'message': 'Email resent.'}
