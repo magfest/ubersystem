@@ -25,7 +25,7 @@ RUN <<EOF cat >> PLUGINS.json
 $PLUGINS
 EOF
 
-RUN cat PLUGINS.json | jq -r '.[] | "git clone --depth 1 --branch \(.branch|@sh) \(.repo|@sh) \(.path|@sh)"' > install_plugins.sh && chmod +x install_plugins.sh && ./install_plugins.sh
+RUN jq -r '.[] | "git clone --depth 1 --branch \(.branch|@sh) \(.repo|@sh) \(.path|@sh)"' PLUGINS.json > install_plugins.sh && chmod +x install_plugins.sh && ./install_plugins.sh
 
 ADD . plugins/uber/
 
