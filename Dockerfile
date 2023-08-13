@@ -1,4 +1,4 @@
-FROM ghcr.io/magfest/sideboard:celery_redis
+FROM ghcr.io/magfest/sideboard:main
 MAINTAINER RAMS Project "code@magfest.org"
 LABEL version.rams-core ="0.1"
 
