@@ -14,7 +14,7 @@ jobs:
       - id: set-matrix
         run: |
           echo "matrix={\"include\":$(echo "${{ vars.DOCKER_BUILDS }}" | yq -o=json -I 0 e '.branches.${{ github.ref_name }} // [{"name":"magfest/ubersystem:${{ github.ref_name }}", "plugins":[]}]' -)}" >> $GITHUB_OUTPUT
-          cat $GITHUB_OUTPUT | jq
+          cat $GITHUB_OUTPUT
 
   build_downstream:
     needs: downstream
