@@ -19,7 +19,7 @@ RUN chmod +x /usr/local/bin/uber-wrapper.sh
 ADD rebuild-config.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/rebuild-config.sh
 
-RUN echo $PLUGINS | jq -r '.[] | "git clone --depth 1 --branch \(.branch|@sh) \(.repo|@sh) \(.path|@sh)"' > install_plugins.sh && chmod +x install_plugins.sh && ./install_plugins.sh
+RUN echo "$PLUGINS" | jq -r '.[] | "git clone --depth 1 --branch \(.branch|@sh) \(.repo|@sh) \(.path|@sh)"' > install_plugins.sh && chmod +x install_plugins.sh && ./install_plugins.sh
 
 ADD . plugins/uber/
 
