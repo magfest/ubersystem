@@ -38,6 +38,7 @@ ENV BROKER_PORT=5672
 ENV BROKER_USER=celery
 ENV BROKER_PASS=celery
 ENV BROKER_VHOST=uber
+ENV BROKER_PREFIX=uber
 
 ENTRYPOINT ["/usr/local/bin/uber-wrapper.sh"]
 CMD ["uber"]
