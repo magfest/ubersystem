@@ -32,10 +32,12 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - run: echo ${{ matrix.plugins }}
+
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v2
         with:
-          build-args: PLUGINS=${{ matrix.plugins }}
+          build-args: PLUGINS="${{ matrix.plugins }}"
           context: "."
           push: true
           tags: ghcr.io/${{ matrix.name }}
