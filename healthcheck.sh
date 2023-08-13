@@ -9,7 +9,7 @@ set -e
 CMD="${1:-$(cat /proc/1/cmdline | strings -1 | tail -1)}"
 
 if [ "$CMD" = 'uber' ]; then
-    curl --fail http://$HOST:$PORT/uber/devtools/health
+    curl --fail http://$HOST:$PORT/uber/
 elif [ "$CMD" = 'celery-beat' ]; then
     # Beat seems to do a good job of dying when things go wrong.
     # If you know a good way to test its health please put it here.
