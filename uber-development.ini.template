@@ -4,3 +4,4 @@ url_root = "http://${HOSTNAME}:${PORT}"
 
 [secret]
 broker_url = "${BROKER_PROTOCOL}://${BROKER_USER}:${BROKER_PASS}@${BROKER_HOST}:${BROKER_PORT}/${BROKER_VHOST}"
+broker_prefix = "${BROKER_PREFIX}"

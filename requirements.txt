@@ -15,8 +15,7 @@ XlsxWriter==1.0.2
 uszipcode==0.2.6
 geopy==1.11.0
 twilio==6.10.0
-cherrys==0.4
-redis==2.10.6
+redis==4.3.6
 ics==0.4
 Pillow==8.3.2
 fpdf==1.7.2
