@@ -7,7 +7,7 @@ jobs:
   downstream:
     # This job reads $DOCKER_BUILDS to look for any downstream docker containers that
     # depend on this branch and adds matrix jobs to build them in parallel.
-    runs-on: mikefarah/yq@master
+    runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
