@@ -188,23 +188,6 @@ class MagModel:
         from uber.models.commerce import ReceiptTransaction
         return self.session.query(ReceiptTransaction).filter_by(fk_id=self.id).all()
 
-    @property
-    def active_receipt(self):
-        """
-        Returns a dictionary of this object's current active receipt, if there is one.
-        This lets us access various properties of the receipt as if they were directly
-        tied to the model without having to have an extra active Session().
-        """
-        from uber.models import Session, ModelReceipt
-        receipt_dict = {}
-        with Session() as session:
-            receipt = session.get_receipt_by_model(self)
-            if receipt:
-                receipt_dict = receipt.to_dict()
-                for property in ['item_total', 'txn_total', 'current_amount_owed', 'pending_total', 'payment_total', 'refund_total']:
-                    receipt_dict[property] = getattr(receipt, property)
-        return receipt_dict
-
     @cached_classproperty
     def unrestricted(cls):
         """
