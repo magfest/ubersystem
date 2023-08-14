@@ -13,7 +13,7 @@
                 <input type="hidden" id="upgrade_badge_type" name="badge_type" value="{{ attendee.badge_type }}" />
                 <input type="hidden" name="receipt_id" value="{{ receipt.id }}" />
                 {% set upgrade_modal = true %}
-                {% include "forms/badge_extras.html" %}
+                {% include "forms/attendee/badge_extras.html" %}
                 {% set upgrade_modal = false %}
             </form>
             <table class="table table-striped" id="upgrade-preview">
