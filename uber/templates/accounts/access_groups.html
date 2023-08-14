@@ -162,10 +162,10 @@
               </td>
               <td>{{ section|replace('_', ' ')|title }}</td>
               <td>
-                <select class="form-control select_access" id="{{ section }}_access" name="{{ section }}_access">{{ options(c.ACCESS_GROUP_WRITE_LEVEL_OPTS,access_group.access) }}</select>
+                <select class="form-select select_access" id="{{ section }}_access" name="{{ section }}_access">{{ options(c.ACCESS_GROUP_WRITE_LEVEL_OPTS,access_group.access) }}</select>
               </td>
               <td>
-                <select class="form-control select_read_only_access" id="{{ section }}_read_only_access" name="{{ section }}_read_only_access">{{ options(c.ACCESS_GROUP_READ_LEVEL_OPTS,access_group.read_only_access) }}</select>
+                <select class="form-select select_read_only_access" id="{{ section }}_read_only_access" name="{{ section }}_read_only_access">{{ options(c.ACCESS_GROUP_READ_LEVEL_OPTS,access_group.read_only_access) }}</select>
               </td>
             </tr>
             {% for page in c.ADMIN_PAGES[section] %}
@@ -173,10 +173,10 @@
                 <td></td>
                 <td><span class="col-sm-offset-1">{{ page }}</span></td>
                 <td>
-                  <select class="form-control select_access" id="{{ section }}_{{ page }}_access" name="{{ section }}_{{ page }}_access">{{ options(c.ACCESS_GROUP_WRITE_LEVEL_OPTS,access_group.access) }}</select>
+                  <select class="form-select select_access" id="{{ section }}_{{ page }}_access" name="{{ section }}_{{ page }}_access">{{ options(c.ACCESS_GROUP_WRITE_LEVEL_OPTS,access_group.access) }}</select>
                 </td>
                 <td>
-                  <select class="form-control select_read_only_access" id="{{ section }}_{{ page }}_read_only_access" name="{{ section }}_{{ page }}_read_only_access">{{ options(c.ACCESS_GROUP_READ_LEVEL_OPTS,access_group.read_only_access) }}</select>
+                  <select class="form-select select_read_only_access" id="{{ section }}_{{ page }}_read_only_access" name="{{ section }}_{{ page }}_read_only_access">{{ options(c.ACCESS_GROUP_READ_LEVEL_OPTS,access_group.read_only_access) }}</select>
                 </td>
               </tr>
             {% endfor %}

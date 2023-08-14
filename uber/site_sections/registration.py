@@ -566,7 +566,9 @@ class Root:
     @check_atd
     @requires_account()
     def register(self, session, message='', error_message='', **params):
-        check_if_can_reg()
+        errors = check_if_can_reg()
+        if errors:
+            return errors
 
         params['id'] = 'None'
         login_email = None
@@ -715,7 +717,7 @@ class Root:
         if not reg_station:
             message = "Please enter a number for this reg station"
             
-        if not message and not reg_station.isdigit() or not (0 <= int(reg_station) < 100):
+        if not message and (not reg_station.isdigit() or (reg_station.isdigit() and not (0 <= int(reg_station) < 100))):
             message = "Reg station must be a positive integer between 0 and 100"
 
         if not message:

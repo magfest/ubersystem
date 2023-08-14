@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta
 from pockets import readable_join
 from pytz import UTC
 from sqlalchemy import and_, or_
-from sqlalchemy.orm import subqueryload
+from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, log_pageview, site_mappable
@@ -28,16 +28,17 @@ class Root:
 
     def index(self, session, message='', show_all=None):
         if show_all:
-            groups = session.viewable_groups().limit(c.ROW_LOAD_LIMIT)
+            groups = session.viewable_groups()
         else:
-            groups = session.viewable_groups().filter(~Group.status.in_([c.DECLINED, c.IMPORTED, c.CANCELLED])).limit(c.ROW_LOAD_LIMIT)
-        dealer_groups = [group for group in groups if group.is_dealer]
+            groups = session.viewable_groups().filter(~Group.status.in_([c.DECLINED, c.IMPORTED, c.CANCELLED]))
+        dealer_groups = groups.filter(Group.is_dealer == True)
         return {
             'message': message,
-            'groups': groups.all(),
+            'groups': groups.options(joinedload(Group.attendees), joinedload(Group.leader), joinedload(Group.active_receipt)),
             'guest_checklist_items': GuestGroup(group_type=c.GUEST).sorted_checklist_items,
             'band_checklist_items': GuestGroup(group_type=c.BAND).sorted_checklist_items,
-            'dealer_groups':      len(dealer_groups),
+            'num_dealer_groups': dealer_groups.count(),
+            'dealer_groups':      dealer_groups.options(joinedload(Group.attendees), joinedload(Group.leader), joinedload(Group.active_receipt)),
             'dealer_badges':      sum(g.badges for g in dealer_groups),
             'tables':            sum(g.tables for g in dealer_groups),
             'show_all': show_all,

@@ -59,6 +59,12 @@ class ArtShowApplication(MagModel):
     us_only = Column(Boolean, default=False)
     admin_notes = Column(UnicodeText, admin_only=True)
     overridden_price = Column(Integer, nullable=True, admin_only=True)
+    active_receipt = relationship(
+        'ModelReceipt',
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(ArtShowApplication.id),'
+                        'ModelReceipt.owner_model == "ArtShowApplication",'
+                        'ModelReceipt.closed == None)')
 
     email_model_name = 'app'
 
@@ -133,7 +139,7 @@ class ArtShowApplication(MagModel):
             return 0
         else:
             if self.active_receipt:
-                return self.active_receipt['item_total'] / 100
+                return self.active_receipt.item_total / 100
             return self.potential_cost
 
     @property
@@ -177,15 +183,15 @@ class ArtShowApplication(MagModel):
 
     @property
     def amount_pending(self):
-        return self.active_receipt.get('pending_total', 0)
+        return self.active_receipt.pending_total if self.active_receipt else 0
 
     @property
     def amount_paid(self):
-        return self.active_receipt.get('payment_total', 0)
+        return self.active_receipt.payment_total if self.active_receipt else 0
 
     @property
     def amount_refunded(self):
-        return self.active_receipt.get('refund_total', 0)
+        return self.active_receipt.refund_total if self.active_receipt else 0
 
     @property
     def has_general_space(self):

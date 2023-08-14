@@ -85,7 +85,7 @@ class TableInfo(GroupInfo):
         validators.InputRequired("Please select at least one category your wares fall under.")
         ], choices=c.DEALER_WARES_OPTS, coerce=int, widget=MultiCheckbox())
     categories_text = StringField('Other')
-    special_needs = TextAreaField('Special Needs', description="No guarantees that we can accommodate any requests.")
+    special_needs = TextAreaField('Special Requests', description="No guarantees that we can accommodate any requests.")
 
     def get_optional_fields(self, group, is_admin=False):
         optional_list = super().get_optional_fields(group, is_admin)

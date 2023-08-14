@@ -728,6 +728,18 @@ def specify_rating(app):
         return 'Please select a content rating for your panel.'
 
 
+@validation.PanelApplication
+def specify_granular_rating(app):
+    if len(c.PANEL_CONTENT_OPTS) > 1 and not app.granular_rating:
+        return "Please select what your panel's content will contain, or None."
+
+
+@validation.PanelApplication
+def none_is_none_granular_rating(app):
+    if c.NONE in app.granular_rating_ints and len(app.granular_rating_ints) > 1:
+        return "You cannot select mature content for your panel and also 'None'."
+
+
 Attraction.required = [
     ('name', 'Name'),
     ('description', 'Description')

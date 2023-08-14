@@ -9,7 +9,7 @@
 </script>
 
   <div class="card-body">
-    {{ dealer_groups }} {{ c.DEALER_TERM }} groups ({{ dealer_badges }} badges, {{ tables }} tables)
+    {{ num_dealer_groups }} {{ c.DEALER_TERM }} groups ({{ dealer_badges }} badges, {{ tables }} tables)
     <span class="pull-right"><a href="index?show_all=true#dealers" class="btn btn-info">Show All {{ c.DEALER_TERM|title }}s</a>
     <a href="../dealer_admin/waitlist" class="btn btn-warning">Manage Waitlisted {{ c.DEALER_TERM|title }}s</a></span>
     <br/> <br/>
@@ -35,14 +35,14 @@
     </tr>
   </thead>
   <tbody>
-{% for group in groups if group.is_dealer and (show_all or (group.status not in [c.DECLINED, c.IMPORTED, c.CANCELLED])) %}
+{% for group in dealer_groups %}
     <tr{% if c.SIGNNOW_DEALER_TEMPLATE_ID and not group.signnow_document_signed or group.status in [c.DECLINED, c.CANCELLED] %} class="danger"{% endif %}>
         <td style="text-align:left" data-order="{{ group.name }}" data-search="{{ group.name }}"> 
           <a href="form?id={{ group.id }}">{{ group.name|default('?????', boolean=True) }}</a></td>
         <td>
             {{ group.status_label }}
         </td>
-        <td><a href="{{ group.website }}" target="_blank">{{ group.website }}</a></td>
+        <td>{{ group.website|url_to_link(target="_blank", is_relative=False) }}</td>
         <td data-order="{{ group.badges_purchased }}" data-search="{{ group.badges_purchased }}"> {{ group.badges_purchased }} / {{ group.badges }} </td>
         <td>{{ group.tables }}</td>
         <td>{{ group.cost|format_currency }}</td>
