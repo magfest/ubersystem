@@ -193,7 +193,7 @@ def send_automated_emails():
                         if model_instance.id not in automated_email.emails_by_fk_id:
                             if automated_email.would_send_if_approved(model_instance):
                                 if automated_email.approved or not automated_email.needs_approval:
-                                    if model_instance.active_receipt:
+                                    if getattr(model_instance, 'active_receipt', None):
                                         session.refresh_receipt_and_model(model_instance)
                                     automated_email.send_to(model_instance, delay=False)
                                     quantity_sent += 1
