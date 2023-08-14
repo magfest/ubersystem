@@ -717,7 +717,7 @@ class Root:
         if not reg_station:
             message = "Please enter a number for this reg station"
             
-        if not message and not reg_station.isdigit() or not (0 <= int(reg_station) < 100):
+        if not message and (not reg_station.isdigit() or (reg_station.isdigit() and not (0 <= int(reg_station) < 100))):
             message = "Reg station must be a positive integer between 0 and 100"
 
         if not message:
