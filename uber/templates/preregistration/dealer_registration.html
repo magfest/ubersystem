@@ -20,11 +20,11 @@
 
 <h2 class="h3 text-center mt-3">{{ c.DEALER_APP_TERM|title }} Info</h2>
 
-  {% include "forms/table_info.html" %}
+  {% include "forms/group/table_info.html" %}
 
 <h2 class="h3 text-center">{{ c.DEALER_TERM|title }} Contact Info</h2>
   {% include "forms/dealer_contact_intro.html" %}
-  {% include "forms/contact_info.html" %}
+  {% include "forms/attendee/contact_info.html" %}
 
   {# Deprecated forms included for backwards compatibility with old plugins #}
   {% include "groupform.html" %}

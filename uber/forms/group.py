@@ -5,7 +5,7 @@ from wtforms import (BooleanField, DecimalField, EmailField, Form, FormField,
 from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
-from uber.forms import AddressForm, MultiCheckbox, MagForm, IntSelect, SwitchInput, DollarInput, HiddenIntField
+from uber.forms import AddressForm, CustomValidation, MultiCheckbox, MagForm, IntSelect, SwitchInput, DollarInput, HiddenIntField
 from uber.custom_tags import popup_link, format_currency, pluralize, table_prices
 from uber.model_checks import invalid_phone_number
 
@@ -35,7 +35,9 @@ class AdminGroupInfo(GroupInfo):
     guest_group_type = SelectField('Checklist Type', default="", choices=[('', 'N/A')] + c.GROUP_TYPE_OPTS, coerce=int)
     can_add = BooleanField('This group may purchase additional badges.')
     new_badge_type = SelectField('Badge Type', choices=c.BADGE_OPTS, coerce=int)
-    cost = IntegerField('Total Group Price', widget=DollarInput())
+    cost = IntegerField('Total Group Price', validators=[
+        validators.NumberRange(min=0, message="Total Group Price must be a number that is 0 or higher.")
+    ], widget=DollarInput())
     auto_recalc = BooleanField('Automatically recalculate this number.')
     amount_paid_repr = StringField('Amount Paid', render_kw={'disabled': "disabled"})
     amount_refunded_repr = StringField('Amount Refunded', render_kw={'disabled': "disabled"})
@@ -86,10 +88,12 @@ class TableInfo(GroupInfo):
     special_needs = TextAreaField('Special Requests', description="No guarantees that we can accommodate any requests.")
 
     def get_optional_fields(self, group, is_admin=False):
+        optional_list = super().get_optional_fields(group, is_admin)
         if not group.is_dealer:
-            return ['description', 'website', 'wares', 'categories',
-                    'address1', 'city', 'region', 'zip_code', 'country']
-        return []
+            optional_list.extend(
+                ['description', 'website', 'wares', 'categories',
+                 'address1', 'city', 'region', 'zip_code', 'country'])
+        return optional_list
 
     def get_non_admin_locked_fields(self, group):
         if group.is_new or group.status in c.DEALER_EDITABLE_STATUSES:

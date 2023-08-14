@@ -16,14 +16,6 @@ class Root:
             'logged_in_account': session.current_attendee_account(),
             'kiosk_mode': cherrypy.session.get('kiosk_mode'),
         }
-    
-    @requires_account()
-    def login_select(self, session, **params):
-        
-        return {
-            'message': params.get('message')
-        }
-
 
     def invalid(self, **params):
         return {'message': params.get('message')}

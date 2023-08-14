@@ -55,13 +55,13 @@
         <input type="hidden" name="new_dealer" value="{{ new_dealer or '' }}" />
 
         {% if forms and 'group_info' in forms %}
-          {% include "forms/group_info.html" %}
+          {% include "forms/group/group_info.html" %}
         {% elif forms and 'table_info' in forms %}
-        {% include "forms/table_info.html" %}
+        {% include "forms/group/table_info.html" %}
         <button type="submit" class="btn btn-primary" value="Upload">Save</button>
         <hr/>
         <div class="form-text">Contact Info</div>
-          {% include "forms/contact_info.html" %}
+          {% include "forms/attendee/contact_info.html" %}
         {% endif %}
 
         {# old fields, kept for reference as we migrate to new fields

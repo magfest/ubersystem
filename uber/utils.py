@@ -504,6 +504,8 @@ def check(model, *, prereg=False):
         for validator in v[model.__class__.__name__].values():
             message = validator(model)
             if message:
+                if isinstance(message, tuple):
+                    message = message[1]
                 errors.append(message)
     return "ERROR: " + "<br>".join(errors) if errors else None
 
@@ -542,14 +544,16 @@ def check_pii_consent(params, attendee=None):
     return ''
 
 
-def validate_model(forms, model, preview_model, extra_validators_module=None, is_admin=False):
+def validate_model(forms, model, preview_model=None, is_admin=False):
     from wtforms import validators
-    from wtforms.validators import ValidationError, StopValidation
 
     all_errors = defaultdict(list)
-
-    for module in forms.values():
-        module.populate_obj(preview_model) # We need a populated model BEFORE we get its optional fields below
+    
+    if not preview_model:
+        preview_model = model
+    else:
+        for module in forms.values():
+            module.populate_obj(preview_model) # We need a populated model BEFORE we get its optional fields below
 
     for module in forms.values():
         extra_validators = defaultdict(list)
@@ -558,26 +562,24 @@ def validate_model(forms, model, preview_model, extra_validators_module=None, is
             if field:
                 field.validators = [validators.Optional()]
 
-        if extra_validators_module:
-            for key, field in module.field_list:
-                extra_validators[key].extend(extra_validators_module.form_validation.get_validations_by_field(key))
-                if field and (model.is_new or getattr(model, key, None) != field.data):
-                    extra_validators[key].extend(extra_validators_module.new_or_changed_validation.get_validations_by_field(key))
+        # TODO: Do we need to check for custom validations or is this code performant enough to skip that?
+        for key, field in module.field_list:
+            extra_validators[key].extend(module.field_validation.get_validations_by_field(key))
+            if field and (model.is_new or getattr(model, key, None) != field.data):
+                extra_validators[key].extend(module.new_or_changed_validation.get_validations_by_field(key))
 
         valid = module.validate(extra_validators=extra_validators)
         if not valid:
             for key, val in module.errors.items():
                 all_errors[key].extend(map(str, val))
 
-    if extra_validators_module:
-        for key, val in extra_validators_module.post_form_validation.get_validation_dict().items():
-            for func in val:
-                try:
-                    func(preview_model)
-                except (ValidationError, StopValidation) as e:
-                    all_errors[key].append(str(e))
-                    if isinstance(e, StopValidation):
-                        break
+    validations = [uber.model_checks.validation.validations]
+    prereg_validations = [uber.model_checks.prereg_validation.validations] if not is_admin else []
+    for v in validations + prereg_validations:
+        for validator in v[model.__class__.__name__].values():
+            error_tuple = validator(preview_model)
+            if error_tuple:
+                all_errors[error_tuple[0]] = error_tuple[1]
 
     if all_errors:
         return all_errors
@@ -1418,6 +1420,13 @@ class TaskUtils:
                 import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
                 session.commit()
                 return
+            
+            if c.SSO_EMAIL_DOMAINS:
+                local, domain = normalize_email(account_to_import['email'], split_address=True)
+                if domain in c.SSO_EMAIL_DOMAINS:
+                    log.debug("Skipping account import for {} as it matches the SSO email domain.".format(account_to_import['email']))
+                    import_job.completed = datetime.now()
+                    return
 
             account = session.query(AttendeeAccount).filter(AttendeeAccount.email == normalize_email(account_to_import['email'])).first()
             if not account:
@@ -1442,19 +1451,22 @@ class TaskUtils:
                 pass
 
             for attendee in account_attendees:
-                # Try to match staff to their existing badge, which would be newer than the one we're importing
                 if attendee.get('badge_num', 0) in range(c.BADGE_RANGES[c.STAFF_BADGE][0], c.BADGE_RANGES[c.STAFF_BADGE][1]):
-                    old_badge_num = attendee['badge_num']
-                    existing_staff = session.query(Attendee).filter_by(badge_num=old_badge_num).first()
-                    if existing_staff:
-                        existing_staff.managers.append(account)
-                        session.add(existing_staff)
-                    else:
-                        new_staff = TaskUtils.basic_attendee_import(attendee)
-                        new_staff.badge_num = old_badge_num
-                        new_staff.managers.append(account)
-                        session.add(new_staff)
-                else:
+                    if not c.SSO_EMAIL_DOMAINS:
+                        # Try to match staff to their existing badge, which would be newer than the one we're importing
+                        old_badge_num = attendee['badge_num']
+                        existing_staff = session.query(Attendee).filter_by(badge_num=old_badge_num).first()
+                        if existing_staff:
+                            existing_staff.managers.append(account)
+                            session.add(existing_staff)
+                        else:
+                            new_staff = TaskUtils.basic_attendee_import(attendee)
+                            new_staff.badge_num = old_badge_num
+                            new_staff.managers.append(account)
+                            session.add(new_staff)
+                    # If SSO is used for attendee accounts, we don't import staff at all
+                elif attendee['badge_status'] not in [c.PENDING_STATUS, c.INVALID_STATUS, 
+                                                      c.IMPORTED_STATUS, c.INVALID_GROUP_STATUS]: # Workaround for a bug in the export, we can remove this check next year
                     new_attendee = TaskUtils.basic_attendee_import(attendee)
                     new_attendee.paid = c.NOT_PAID
                     

@@ -10,14 +10,28 @@ from wtforms.widgets import HiddenInput
 from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
-from uber.forms import AddressForm, MultiCheckbox, MagForm, SwitchInput, DollarInput, HiddenIntField
+from uber.forms import AddressForm, MultiCheckbox, MagForm, SwitchInput, DollarInput, HiddenIntField, CustomValidation
 from uber.custom_tags import popup_link
 from uber.model_checks import invalid_phone_number
-from uber.validations import attendee as attendee_validators
 
-__all__ = ['AdminInfo', 'BadgeExtras', 'PersonalInfo', 'OtherInfo', 'Consents']
+from uber.badge_funcs import get_real_badge_type
+from uber.custom_tags import format_currency
+from uber.models import Attendee, Session, PromoCode, PromoCodeGroup
+from uber.model_checks import invalid_zip_code, invalid_phone_number
+from uber.utils import get_age_from_birthday, get_age_conf_from_birthday
+
+__all__ = ['AdminInfo', 'BadgeExtras', 'PersonalInfo', 'PreregOtherInfo', 'OtherInfo', 'Consents']
+
+def attendee_age_checks(form, field):
+    age_group_conf = get_age_conf_from_birthday(field.data, c.NOW_OR_AT_CON) \
+        if (hasattr(form, "birthdate") and form.birthdate.data) else field.data
+    if age_group_conf and not age_group_conf['can_register']:
+        raise ValidationError('Attendees {} years of age do not need to register, ' \
+            'but MUST be accompanied by a parent at all times!'.format(age_group_conf['desc'].lower()))
 
 class PersonalInfo(AddressForm, MagForm):
+    field_validation = CustomValidation()
+    
     first_name = StringField('First Name', validators=[
         validators.InputRequired("Please provide your first name.")
         ], render_kw={'autocomplete': "fname"})
@@ -39,7 +53,7 @@ class PersonalInfo(AddressForm, MagForm):
         ], render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
     birthdate = DateField('Date of Birth', validators=[
         validators.InputRequired("Please enter your date of birth.") if c.COLLECT_EXACT_BIRTHDATE else validators.Optional(),
-        attendee_validators.attendee_age_checks
+        attendee_age_checks
         ])
     age_group = SelectField('Age Group', validators=[
         validators.InputRequired("Please select your age group.") if not c.COLLECT_EXACT_BIRTHDATE else validators.Optional()
@@ -73,7 +87,7 @@ class PersonalInfo(AddressForm, MagForm):
                 return ['first_name', 'last_name', 'legal_name', 'email', 'birthdate', 'age_group', 'ec_name', 'ec_phone',
                         'address1', 'city', 'region', 'region_us', 'region_canada', 'zip_code', 'country', 'onsite_contact']
         
-        optional_list = super().get_optional_fields(attendee)
+        optional_list = super().get_optional_fields(attendee, is_admin)
 
         if self.same_legal_name.data:
             optional_list.append('legal_name')
@@ -101,27 +115,33 @@ class PersonalInfo(AddressForm, MagForm):
         
         return locked_fields + ['first_name', 'last_name', 'legal_name', 'same_legal_name']
     
-    def validate_onsite_contact(form, field):
+    @field_validation.onsite_contact
+    def require_onsite_contact(form, field):
         if not field.data and not form.no_onsite_contact.data:
             raise ValidationError('Please enter contact information for at least one trusted friend onsite, \
                                  or indicate that we should use your emergency contact information instead.')
     
-    def validate_birthdate(form, field):
+    @field_validation.birthdate
+    def birthdate_format(form, field):
         # TODO: Make WTForms use this message instead of the generic DateField invalid value message
         if field.data and not isinstance(field.data, date):
             raise StopValidation('Please use the format YYYY-MM-DD for your date of birth.')
         elif field.data and field.data > date.today():
             raise ValidationError('You cannot be born in the future.')
  
-    def validate_cellphone(form, field):
+    @field_validation.cellphone
+    def valid_cellphone(form, field):
         if field.data and invalid_phone_number(field.data):
             raise ValidationError('Your phone number was not a valid 10-digit US phone number. ' \
                                     'Please include a country code (e.g. +44) for international numbers.')
 
+    @field_validation.cellphone
+    def not_same_cellphone_ec(form, field):
         if field.data and field.data == form.ec_phone.data:
             raise ValidationError("Your phone number cannot be the same as your emergency contact number.")
-        
-    def validate_ec_phone(form, field):
+
+    @field_validation.ec_phone
+    def valid_ec_phone(form, field):
         if not form.international.data and invalid_phone_number(field.data):
             if c.COLLECT_FULL_ADDRESS:
                 raise ValidationError('Please enter a 10-digit US phone number or include a ' \
@@ -131,6 +151,7 @@ class PersonalInfo(AddressForm, MagForm):
 
 
 class BadgeExtras(MagForm):
+    field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
     field_aliases = {'badge_type': ['upgrade_badge_type']}
 
     badge_type = HiddenIntField('Badge Type')
@@ -164,18 +185,53 @@ class BadgeExtras(MagForm):
             locked_fields.append('badge_type')
         
         return locked_fields
-
-    def validate_shirt(form, field):
-        if (form.amount_extra.data > 0 or form.badge_type.data in c.BADGE_TYPE_PRICES) and field.data == c.NO_SHIRT:
-            raise ValidationError("Please select a shirt size.")
         
     def get_optional_fields(self, attendee, is_admin=False):        
-        optional_list = super().get_optional_fields(attendee)
+        optional_list = super().get_optional_fields(attendee, is_admin)
 
         if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES:
             optional_list.append('badge_printed_name')
 
         return optional_list
+    
+    @field_validation.shirt
+    def require_shirt(form, field):
+        if (form.amount_extra.data > 0 or form.badge_type.data in c.BADGE_TYPE_PRICES) and field.data == c.NO_SHIRT:
+            raise ValidationError("Please select a shirt size.")
+    
+    @new_or_changed_validation.amount_extra
+    def upgrade_sold_out(form, field):
+        currently_available_upgrades = [tier['value'] for tier in c.PREREG_DONATION_DESCRIPTIONS]
+        if field.data and field.data not in currently_available_upgrades:
+            raise ValidationError("The upgrade you have selected is sold out.")
+
+    @new_or_changed_validation.badge_type
+    def no_more_custom_badges(form, field):
+        if field.data in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE:
+            with Session() as session:
+                admin = session.current_admin_account()
+                if admin.is_super_admin:
+                    return
+        raise ValidationError('Custom badges have already been ordered, please choose a different badge type.')
+
+    @new_or_changed_validation.badge_type
+    def out_of_badge_type(form, field):
+        badge_type = get_real_badge_type(field.data)
+        with Session() as session:
+            try:
+                session.get_next_badge_num(badge_type)
+            except AssertionError:
+                raise ValidationError('We are sold out of {} badges.'.format(c.BADGES[badge_type]))
+
+    @new_or_changed_validation.badge_printed_name
+    def past_printed_deadline(form, field):
+        if field.data in c.PREASSIGNED_BADGE_TYPES and c.PRINTED_BADGE_DEADLINE and c.AFTER_PRINTED_BADGE_DEADLINE:
+            with Session() as session:
+                admin = session.current_admin_account()
+                if admin.is_super_admin:
+                    return
+        raise ValidationError('{} badges have already been ordered, so you cannot change your printed badge name.'.format(
+                c.BADGES[field.data]))
 
 
 class OtherInfo(MagForm):
@@ -241,5 +297,18 @@ class Consents(MagForm):
 
 
 class AdminInfo(MagForm):
+    field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
     placeholder = BooleanField('Placeholder')
     group_id = StringField('Group')
+
+    @new_or_changed_validation.badge_num
+    def dupe_badge_num(session, form, field):
+        existing_name = ''
+        if c.NUMBERED_BADGES and field.data \
+                and (not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE or c.AT_THE_CON):
+            existing = session.query(Attendee).filter_by(badge_num=field.data)
+            if not existing.count():
+                return
+            else:
+                existing_name = existing.first().full_name
+            raise ValidationError('That badge number already belongs to {!r}'.format(existing_name))

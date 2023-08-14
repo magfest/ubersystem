@@ -9,7 +9,7 @@ from sqlalchemy.orm import joinedload
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, log_pageview, site_mappable
 from uber.errors import HTTPRedirect
-from uber.forms import group as group_forms, load_forms
+from uber.forms import attendee as attendee_forms, group as group_forms, load_forms
 from uber.models import Attendee, Email, Event, Group, GuestGroup, GuestMerch, PageViewTracking, Tracking, SignedDocument
 from uber.utils import check, convert_to_absolute_url, validate_model
 from uber.payments import ReceiptManager
@@ -137,14 +137,13 @@ class Root:
             if not message and group.is_new and new_with_leader:
                 session.commit()
                 leader = group.leader = group.attendees[0]
-                leader.first_name = params.get('first_name')
-                leader.last_name = params.get('last_name')
-                leader.email = params.get('email')
                 leader.placeholder = True
-                message = check(leader)
-                if message:
+                forms = load_forms(params, leader, attendee_forms, ['PersonalInfo'])
+                all_errors = validate_model(forms, leader, Attendee(**leader.to_dict()), is_admin=True)
+                if all_errors:
                     session.delete(group)
                     session.commit()
+                    message = " ".join(list(zip(*[all_errors]))[1])
 
             if not message:
                 if params.get('guest_group_type'):

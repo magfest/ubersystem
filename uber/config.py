@@ -5,6 +5,7 @@ import inspect
 import os
 import pytz
 import re
+import redis
 import uuid
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, time, timedelta
@@ -1000,6 +1001,9 @@ def _unrepr(d):
 _unrepr(_config['appconf'])
 c.APPCONF = _config['appconf'].dict()
 c.SENTRY = _config['sentry'].dict()
+c.REDISCONF = _config['redis'].dict()
+
+c.REDIS_STORE = redis.Redis(host=c.REDISCONF['host'], port=c.REDISCONF['port'], db=c.REDISCONF['db'], decode_responses=True)
 
 c.BADGE_PRICES = _config['badge_prices']
 for _opt, _val in chain(_config.items(), c.BADGE_PRICES.items()):

@@ -6,6 +6,8 @@
     <a class="btn btn-outline-secondary" href="../registration/form?id={{ attendee.id }}">Admin Form</a>
     {% elif c.HAS_GROUP_ADMIN_ACCESS and group and not group.is_new %}
     <a class="btn btn-outline-secondary" href="../group_admin/form?id={{ group.id }}">Admin Form</a>
+    {% elif c.CURRENT_ADMIN %}
+    <a href="../accounts/homepage" class="btn btn-outline-secondary">Admin Area</a>
     {% endif %}
     {% if c.ATTENDEE_ACCOUNTS_ENABLED and logged_in_account and not account and c.PAGE_PATH != '/preregistration/homepage' %}
     <a class="btn btn-info" href="../preregistration/homepage">Homepage</a>

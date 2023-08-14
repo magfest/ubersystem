@@ -68,8 +68,9 @@ def configure_celery_logger(loglevel, logfile, format, colorize, **kwargs):
 from uber.tasks import attractions  # noqa: F401
 from uber.tasks import email  # noqa: F401
 from uber.tasks import health  # noqa: F401
-from uber.tasks import panels  # noqa: F401
 from uber.tasks import mivs  # noqa: F401
+from uber.tasks import panels  # noqa: F401
+from uber.tasks import redis # noqa: F401
 from uber.tasks import registration  # noqa: F401
 from uber.tasks import sms  # noqa: F401
 from uber.tasks import tabletop  # noqa: F401

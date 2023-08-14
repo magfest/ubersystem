@@ -511,7 +511,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def _status_adjustments(self):
-        if self.group and self.paid == c.PAID_BY_GROUP:
+        if self.group and self.paid == c.PAID_BY_GROUP and self.has_or_will_have_badge:
             if not self.group.is_valid:
                 self.badge_status = c.INVALID_GROUP_STATUS
             elif self.group.is_dealer and self.group.status != c.APPROVED:
