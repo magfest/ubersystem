@@ -12,6 +12,11 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% block name_badges %}
 <div class="row g-sm-3">
     <div class="col-12 col-sm-6">{{ form_macros.form_input(group_info.name) }}</div>
-    {% if is_prereg_attendee %}<div class="col-12 col-sm-6">{{ form_macros.form_input(group_info.badges, choices=int_choices(0 if admin_area else c.MIN_GROUP_SIZE, c.MAX_GROUP_SIZE)) }}</div>{% endif %}
+    {% if is_prereg_attendee %}<div class="col-12 col-sm-6">{{ form_macros.form_input(group_info.badges, choices=int_choices(0 if admin_area else c.MIN_GROUP_SIZE, c.MAX_GROUP_SIZE)) }}</div>
+    {% elif admin_area and not group.is_dealer %}<div class="col-12 col-sm-6">{{ form_macros.form_input(group_info.guest_group_type) }}</div>{% endif %}
 </div>
 {% endblock %}
+
+{% if admin_area %}
+{% include '/forms/group/admin_group_info.html' %}
+{% endif %}

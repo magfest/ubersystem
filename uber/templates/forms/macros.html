@@ -1,7 +1,8 @@
 {% macro form_label(field, required=None) %}
+{% set is_required = required == True or (required == None and field.flags.required) %}
 <label for="{{ field.label.field_id }}"
 {% for key in kwargs %} {{ key }}="{{ kwargs[key] }}"{% endfor %}><span class="form-label">{{ field.label.text }}</span>
-  {% if required == True or (required == None and field.flags.required) %}<span class="required-indicator text-danger"> *</span>{% endif %}</label>
+  <span class="required-indicator text-danger"{% if not is_required %} style="display: none"{% endif %}> *</span></label>
 {% endmacro %}
 
 {% macro form_input_extras(field, help_text='', admin_text='', extra_field=None) %}
@@ -101,6 +102,8 @@
             toggleVal = $("#{{ source_field.id }}").val();
         }
 
+        console.log(toggleVal)
+
         // Set whether we should toggle the target fields "on" or "off" based on the values provided
         // If no off_values or on_values were provided, we rely on truthiness instead
         if (toggleOn === undefined) {
@@ -114,24 +117,18 @@
         }
 
         {% for target_field in target_fields %}
-            if ('{{ prop }}' == 'visibility') {
-                {% for target_field in target_fields %}
-                    $('#{{ target_field.id }}').toggle(toggleOn);
-                    {% if closest_hide_selector %}
-                        $('#{{ target_field.id }}').closest('{{ closest_hide_selector }}').toggle(toggleOn);
-                    {% endif %}
-                {% endfor %}
-            } else {
-                {% for target_field in target_fields %}
-                    $('#{{ target_field.id }}').prop('{{ prop }}', !toggleOn);
-                {% endfor %}
-            }
-            {%- if toggle_required -%}
-                {% for target_field in target_fields %}
-                    $('#{{ target_field.id }}').prop('required', toggleOn);
-                    $('#{{ target_field.id }}').siblings('label').children('.required-indicator').toggle(toggleOn);
-                {% endfor %}
-            {%- endif -%}
+          {%- if prop == 'visibility' %}
+              $('#{{ target_field.id }}').toggle(toggleOn);
+              {%- if closest_hide_selector %}
+                  $('#{{ target_field.id }}').closest('{{ closest_hide_selector }}').toggle(toggleOn);
+              {%- endif %}
+          {%- elif prop %}
+              $('#{{ target_field.id }}').prop('{{ prop }}', {{ "!" if prop != 'required' else '' }}toggleOn);
+          {%- endif %}
+          {%- if toggle_required %}
+            $('#{{ target_field.id }}').prop('required', toggleOn);
+            $('#{{ target_field.id }}').siblings('label').children('.required-indicator').toggle(toggleOn);
+          {%- endif %}
         {% endfor %}
     }
 
