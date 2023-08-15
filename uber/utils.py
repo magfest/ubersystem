@@ -552,25 +552,24 @@ def validate_model(forms, model, preview_model=None, is_admin=False):
     if not preview_model:
         preview_model = model
     else:
-        for module in forms.values():
-            module.populate_obj(preview_model) # We need a populated model BEFORE we get its optional fields below
+        for form in forms.values():
+            form.populate_obj(preview_model) # We need a populated model BEFORE we get its optional fields below
 
-    for module in forms.values():
+    for form in forms.values():
         extra_validators = defaultdict(list)
-        for field_name in module.get_optional_fields(preview_model, is_admin):
-            field = getattr(module, field_name)
+        for field_name in form.get_optional_fields(preview_model, is_admin):
+            field = getattr(form, field_name)
             if field:
                 field.validators = [validators.Optional()]
 
         # TODO: Do we need to check for custom validations or is this code performant enough to skip that?
-        for key, field in module.field_list:
-            extra_validators[key].extend(module.field_validation.get_validations_by_field(key))
+        for key, field in form.field_list:
+            extra_validators[key].extend(form.field_validation.get_validations_by_field(key))
             if field and (model.is_new or getattr(model, key, None) != field.data):
-                extra_validators[key].extend(module.new_or_changed_validation.get_validations_by_field(key))
-
-        valid = module.validate(extra_validators=extra_validators)
+                extra_validators[key].extend(form.new_or_changed_validation.get_validations_by_field(key))
+        valid = form.validate(extra_validators=extra_validators)
         if not valid:
-            for key, val in module.errors.items():
+            for key, val in form.errors.items():
                 all_errors[key].extend(map(str, val))
 
     validations = [uber.model_checks.validation.validations]
