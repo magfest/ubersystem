@@ -22,12 +22,11 @@ from uber.utils import get_age_from_birthday, get_age_conf_from_birthday
 
 __all__ = ['AdminInfo', 'BadgeExtras', 'PersonalInfo', 'PreregOtherInfo', 'OtherInfo', 'Consents']
 
-def attendee_age_checks(form, field):
-    age_group_conf = get_age_conf_from_birthday(field.data, c.NOW_OR_AT_CON) \
-        if (hasattr(form, "birthdate") and form.birthdate.data) else field.data
-    if age_group_conf and not age_group_conf['can_register']:
-        raise ValidationError('Attendees {} years of age do not need to register, ' \
-            'but MUST be accompanied by a parent at all times!'.format(age_group_conf['desc'].lower()))
+# TODO: turn this into a proper validation class
+def valid_cellphone(form, field):
+    if field.data and invalid_phone_number(field.data):
+        raise ValidationError('The provided phone number was not a valid 10-digit US phone number. ' \
+                                'Please include a country code (e.g. +44) for international numbers.')
 
 class PersonalInfo(AddressForm, MagForm):
     field_validation = CustomValidation()
@@ -53,7 +52,6 @@ class PersonalInfo(AddressForm, MagForm):
         ], render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
     birthdate = DateField('Date of Birth', validators=[
         validators.InputRequired("Please enter your date of birth.") if c.COLLECT_EXACT_BIRTHDATE else validators.Optional(),
-        attendee_age_checks
         ])
     age_group = SelectField('Age Group', validators=[
         validators.InputRequired("Please select your age group.") if not c.COLLECT_EXACT_BIRTHDATE else validators.Optional()
@@ -128,12 +126,14 @@ class PersonalInfo(AddressForm, MagForm):
             raise StopValidation('Please use the format YYYY-MM-DD for your date of birth.')
         elif field.data and field.data > date.today():
             raise ValidationError('You cannot be born in the future.')
- 
-    @field_validation.cellphone
-    def valid_cellphone(form, field):
-        if field.data and invalid_phone_number(field.data):
-            raise ValidationError('Your phone number was not a valid 10-digit US phone number. ' \
-                                    'Please include a country code (e.g. +44) for international numbers.')
+        
+    @field_validation.birthdate
+    def attendee_age_checks(form, field):
+        age_group_conf = get_age_conf_from_birthday(field.data, c.NOW_OR_AT_CON) \
+            if (hasattr(form, "birthdate") and form.birthdate.data) else field.data
+        if age_group_conf and not age_group_conf['can_register']:
+            raise ValidationError('Attendees {} years of age do not need to register, ' \
+                'but MUST be accompanied by a parent at all times!'.format(age_group_conf['desc'].lower()))
 
     @field_validation.cellphone
     def not_same_cellphone_ec(form, field):
