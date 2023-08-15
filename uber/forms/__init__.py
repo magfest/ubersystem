@@ -68,6 +68,7 @@ def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=Tr
         for name, field in loaded_form._fields.items():
             if name in optional_fields:
                 field.validators = [validators.Optional()]
+                field.flags.required = False
             else:
                 override_validators = get_override_attr(loaded_form, name, '_validators', field)
                 if override_validators:
@@ -90,6 +91,10 @@ class CustomValidation:
         return bool(self.validations)
 
     def __getattr__(self, field_name):
+        if field_name == '_formfield':
+            # Stop WTForms from trying to process these objects as fields
+            raise AttributeError("No, we don't have that.")
+        
         def wrapper(func):
             self.validations[field_name][func.__name__] = func
             return func

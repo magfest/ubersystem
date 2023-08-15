@@ -1,4 +1,5 @@
 from markupsafe import Markup
+from pockets.autolog import log
 from wtforms import (BooleanField, DecimalField, EmailField, Form, FormField,
                      HiddenField, SelectField, SelectMultipleField, IntegerField,
                      StringField, TelField, validators, TextAreaField)
@@ -6,6 +7,7 @@ from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
 from uber.forms import AddressForm, CustomValidation, MultiCheckbox, MagForm, IntSelect, SwitchInput, DollarInput, HiddenIntField
+from uber.forms.attendee import valid_cellphone
 from uber.custom_tags import popup_link, format_currency, pluralize, table_prices
 from uber.model_checks import invalid_phone_number
 
@@ -17,6 +19,7 @@ class GroupInfo(MagForm):
         validators.Length(max=40, message="Group names cannot be longer than 40 characters.")
         ])
     badges = IntegerField('Badges', widget=IntSelect())
+    tables = DecimalField('Tables', widget=IntSelect())
 
     def badges_label(self):
         return "Badges (" + format_currency(c.GROUP_PRICE) + " each)"
@@ -32,15 +35,17 @@ class GroupInfo(MagForm):
 
 
 class AdminGroupInfo(GroupInfo):
-    guest_group_type = SelectField('Checklist Type', default="", choices=[('', 'N/A')] + c.GROUP_TYPE_OPTS, coerce=int)
+    guest_group_type = SelectField('Checklist Type', default=0, choices=[(0, 'N/A')] + c.GROUP_TYPE_OPTS, coerce=int)
     can_add = BooleanField('This group may purchase additional badges.')
     new_badge_type = SelectField('Badge Type', choices=c.BADGE_OPTS, coerce=int)
+    new_ribbons = SelectMultipleField('Badge Ribbons', choices=c.RIBBON_OPTS, coerce=int, widget=MultiCheckbox())
     cost = IntegerField('Total Group Price', validators=[
         validators.NumberRange(min=0, message="Total Group Price must be a number that is 0 or higher.")
     ], widget=DollarInput())
     auto_recalc = BooleanField('Automatically recalculate this number.')
     amount_paid_repr = StringField('Amount Paid', render_kw={'disabled': "disabled"})
     amount_refunded_repr = StringField('Amount Refunded', render_kw={'disabled': "disabled"})
+    admin_notes = TextAreaField('Admin Notes')
 
 
 class ContactInfo(AddressForm, MagForm):
@@ -74,7 +79,6 @@ class TableInfo(GroupInfo):
     description = StringField('Description', validators=[
         validators.InputRequired("Please provide a brief description of your business.")
         ], description="Please keep to one sentence.")
-    tables = DecimalField('Tables', widget=IntSelect())
     website = StringField('Website', validators=[
         validators.InputRequired("Please enter your business' website address.")
         ], description="The one you want us to link on our website, or where we can view your work to judge your application.")
@@ -113,10 +117,43 @@ class TableInfo(GroupInfo):
 
 class AdminTableInfo(TableInfo, AdminGroupInfo):
     status = SelectField('Status', choices=c.DEALER_STATUS_OPTS, coerce=int)
-    admin_notes = TextAreaField('Admin Notes')
 
     def can_add_label(self):
         if c.MAX_DEALERS:
             return "This {} can add up to {} badges.".format(c.DEALER_TERM, c.MAX_DEALERS)
         else:
             return "This {} can add badges up to their personal maximum.".format(c.DEALER_TERM)
+        
+class LeaderInfo(MagForm):
+    field_validation = CustomValidation()
+
+    leader_first_name = StringField('First Name', validators=[
+        validators.InputRequired("Please provide the group leader's first name.")
+        ])
+    leader_last_name = StringField('Last Name', validators=[
+        validators.InputRequired("Please provide the group leader's last name.")
+        ])
+    leader_email = EmailField('Email Address', validators=[
+        validators.InputRequired("Please enter an email address."),
+        validators.Length(max=255, message="Email addresses cannot be longer than 255 characters."),
+        validators.Email(granular_message=True),
+        ],
+        render_kw={'placeholder': 'test@example.com'})
+    leader_cellphone = TelField('Phone Number', validators=[
+        valid_cellphone
+        ])
+    
+    def get_optional_fields(self, group, is_admin=False):
+        optional_list = super().get_optional_fields(group, is_admin)
+
+        if not group.is_dealer and not group.guest and not getattr(group, 'guest_group_type', None):
+            optional_list.append('leader_email')
+
+            # This mess is required because including a field in this list prevents
+            # all validations from running if the field is not present
+            if not getattr(group, 'leader_cellphone', None) and not getattr(group, 'leader_email', None):
+                if not getattr(group, 'leader_first_name', None):
+                    optional_list.append('leader_last_name')
+                if not getattr(group, 'leader_last_name', None):
+                    optional_list.append('leader_first_name')
+        return optional_list
