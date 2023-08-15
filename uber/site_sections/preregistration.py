@@ -27,7 +27,6 @@ from uber.tasks.email import send_email
 from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, genpasswd, valid_email, \
     valid_password, SignNowDocument, validate_model
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager
-import uber.validations as validations
 
 
 def check_if_can_reg(is_dealer_reg=False):
