@@ -121,24 +121,10 @@
         'display_name',
         suffix=suffix,
         type='text',
-        label='Display Name',
-        help='A display name or group name to let people know who is hosting the panel. <br/>'|safe ~
-          macros.checkbox(
-                panelist,
-                'public_display_name',
-                label='<strong>Yes</strong>, you can use this display name on the public-facing schedule.'|safe,
-                suffix=suffix,
-                is_readonly=is_readonly),
+        label='Public Display Name',
+        help='A display name or group name to let people know who is hosting the panel. Leave this field blank if you do not want a name displayed.',
         is_readonly=is_readonly,
         is_admin=is_admin) }}
-    {% if is_readonly %}
-    {{ macros.checkbox(
-      panelist,
-      'public_display_name',
-      label='<strong>Yes</strong>, you can use this display name on the public-facing schedule.'|safe,
-      suffix=suffix,
-      is_readonly=is_readonly) }}
-    {% endif %}
   {%- endif %}
 
   {% if not is_readonly or (not is_class and panelist.has_social_media) -%}

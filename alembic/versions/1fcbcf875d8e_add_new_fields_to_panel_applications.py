@@ -55,7 +55,6 @@ def upgrade():
     with op.batch_alter_table("panel_applicant") as batch_op:
         batch_op.add_column(sa.Column('display_name', sa.Unicode(), server_default='', nullable=False))
         batch_op.add_column(sa.Column('guidebook_bio', sa.Unicode(), server_default='', nullable=False))
-        batch_op.add_column(sa.Column('public_display_name', sa.Boolean(), server_default='False', nullable=False))
     
     with op.batch_alter_table("panel_application") as batch_op:
         batch_op.add_column(sa.Column('granular_rating', sa.Unicode(), server_default='', nullable=False))
@@ -63,6 +62,5 @@ def upgrade():
 
 def downgrade():
     op.drop_column('panel_application', 'granular_rating')
-    op.drop_column('panel_applicant', 'public_display_name')
     op.drop_column('panel_applicant', 'guidebook_bio')
     op.drop_column('panel_applicant', 'display_name')

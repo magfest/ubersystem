@@ -63,6 +63,7 @@
     <label class="form-text">Department</label>
     <div class="col-sm-6">
         <select class="form-select" name="department">
+            <option value="">Please select an option</option>
             {{ options(c.PANEL_DEPT_OPTS, app.department) }}
         </select>
     </div>
@@ -71,7 +72,7 @@
 <script type="text/javascript">
     $().ready(function() {
         if ($.field('department')) {
-            $("select[name=department]").find('option[value="{{ c.PANELS }}"]').insertBefore($("select[name=department]").find('option:eq(0)'));
+            $("select[name=department]").find('option[value="{{ c.PANELS }}"]').insertBefore($("select[name=department]").find('option:eq(1)'));
         }
     });
 </script>
@@ -81,6 +82,7 @@
     <label class="form-text">Panel Content Rating</label>
     <div class="col-sm-6">
         <select class="form-select" name="rating">
+            <option value="">Please select an option</option>
             {{ options(c.PANEL_RATING_OPTS, app.rating) }}
         </select>
     </div>
@@ -97,6 +99,7 @@
     <label class="form-text">Type of Panel</label>
     <div class="col-sm-6">
         <select name="presentation" class="form-select">
+            <option value="">Please select an option</option>
             {{ options(c.PRESENTATION_OPTS, app.presentation) }}
         </select>
     </div>
