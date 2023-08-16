@@ -882,6 +882,8 @@ def get_api_service_from_server(target_server, api_token):
     Helper method that gets a service that can be used for API calls between servers.
     Returns the service or None, an error message or '', and a JSON-RPC URI
     """
+    import ssl
+
     target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
     uri = '{}/jsonrpc/'.format(target_url)
 
@@ -893,7 +895,7 @@ def get_api_service_from_server(target_server, api_token):
             message = 'Unrecognized hostname: {}'.format(target_server)
 
         if not message:
-            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
+            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token}, ssl_opts={'ssl_version': ssl.PROTOCOL_SSLv23})
 
     return service, message, target_url
 

@@ -8,7 +8,7 @@
 {% if panelist.website %}<li><strong>Website</strong>: {{ panelist.website }}</li>{% endif %}
 {% if panelist.other_credentials %}<li><strong>Other Experience</strong>: {{ panelist.other_credentials|linebreaksbr }}</li>{% endif %}
 {% if panelist.guidebook_bio %}<li><strong>Schedule Bio</strong>: {{ panelist.guidebook_bio|linebreaksbr }}</li>{% endif %}
-{% if panelist.display_name %}<li><strong>Display Name</strong>: {{ panelist.display_name }} ({% if panelist.public_display_name %}Public{% else %}Private{% endif %})</li>{% endif %}
+{% if panelist.display_name %}<li><strong>Display Name</strong>: {{ panelist.display_name }}</li>{% endif %}
 {% if panelist.has_social_media %}
     {% for name, label in panelist._social_media_fields.items() %}<li><strong>{{ label }}</strong>: {{ name }}</li>{% endfor %}
 {% endif %}
