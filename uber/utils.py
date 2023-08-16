@@ -851,14 +851,15 @@ def remove_opt(opts, other):
 def _server_to_url(server):
     if not server:
         return ''
+    protocol = 'https' if 'https' in server or 'http' not in server else 'http'
     host, _, path = urllib.parse.unquote(server).replace('http://', '').replace('https://', '').rstrip('/').partition('/')
     if path.startswith('reggie'):
-        return 'https://{}/reggie'.format(host)
+        return f'{protocol}://{host}/reggie'
     elif path.startswith('uber'):
-        return 'https://{}/uber'.format(host)
+        return f'{protocol}://{host}/uber'
     elif path in ['uber', 'rams']:
-        return 'https://{}/{}'.format(host, path)
-    return 'https://{}'.format(host)
+        f'{protocol}://{host}/{path}'
+    return f'{protocol}://{host}'
 
 
 def _server_to_host(server):
