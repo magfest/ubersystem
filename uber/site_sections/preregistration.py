@@ -80,6 +80,20 @@ def check_prereg_promo_code(session, attendee):
         session.commit()
         return "The promo code you're using for {} has been used too many times.".format(attendee.full_name)
 
+def update_prereg_cart(session):
+    pending_preregs = PreregCart.pending_preregs.copy()
+    for id in pending_preregs:
+        existing_model = session.query(Attendee).filter_by(id=id).first()
+        if not existing_model:
+            existing_model = session.query(Group).filter_by(id=id).first()
+        if existing_model:
+            receipt = session.refresh_receipt_and_model(existing_model)
+            if receipt.current_amount_owed or receipt.get_last_incomplete_txn():
+                PreregCart.unpaid_preregs[id] = PreregCart.pending_preregs[id]
+            else:
+                PreregCart.paid_preregs.append(PreregCart.pending_preregs[id])
+        PreregCart.pending_preregs.pop(id)
+
 def check_account(session, email, password, confirm_password, skip_if_logged_in=True, update_password=True, old_email=None):
     logged_in_account = session.current_attendee_account()
     if logged_in_account and skip_if_logged_in:
@@ -192,18 +206,7 @@ class Root:
         if errors:
             return errors
 
-        pending_preregs = PreregCart.pending_preregs.copy()
-        for id in pending_preregs:
-            existing_model = session.query(Attendee).filter_by(id=id).first()
-            if not existing_model:
-                existing_model = session.query(Group).filter_by(id=id).first()
-            if existing_model:
-                receipt = session.refresh_receipt_and_model(existing_model)
-                if receipt.current_amount_owed or receipt.get_last_incomplete_txn():
-                    PreregCart.unpaid_preregs[id] = PreregCart.pending_preregs[id]
-                else:
-                    PreregCart.paid_preregs.append(PreregCart.pending_preregs[id])
-            PreregCart.pending_preregs.pop(id)
+        update_prereg_cart(session)
 
         if not PreregCart.unpaid_preregs:
             raise HTTPRedirect('form?message={}', message) if message else HTTPRedirect('form')
@@ -609,6 +612,7 @@ class Root:
     @ajax
     @credit_card
     def prereg_payment(self, session, message='', **params):
+        update_prereg_cart(session)
         cart = PreregCart(listify(PreregCart.unpaid_preregs.values()))
         cart.set_total_cost()
         if not cart.total_cost:
@@ -660,7 +664,8 @@ class Root:
                         receipts.append(charge_receipt)
 
                 if not message:
-                    charge = TransactionRequest(receipt_email=params.get('account_email'),
+                    receipt_email = session.current_attendee_account().email if c.ATTENDEE_ACCOUNTS_ENABLED else cart.receipt_email
+                    charge = TransactionRequest(receipt_email=receipt_email,
                                                 description=cart.description,
                                                 amount=sum([receipt.current_amount_owed for receipt in receipts]))
                     message = charge.create_stripe_intent()
@@ -723,8 +728,8 @@ class Root:
                 'cancel_url': 'cancel_prereg_payment'}
     
     @ajax
-    def submit_authnet_charge(self, session, ref_id, amount, email, desc, token_desc, token_val, **params):
-        charge = TransactionRequest(receipt_email=email, description=desc, amount=amount)
+    def submit_authnet_charge(self, session, ref_id, amount, email, desc, customer_id, token_desc, token_val, **params):
+        charge = TransactionRequest(receipt_email=email, description=desc, amount=amount, customer_id=customer_id)
         error = charge.send_authorizenet_txn(token_desc=token_desc, token_val=token_val, intent_id=ref_id)
         if error:
             return {'error': error}
@@ -883,7 +888,8 @@ class Root:
                                 who='non-admin',
                             ))
         charge_desc = '{} extra badge{} for {}'.format(count, 's' if count > 1 else '', group.name)
-        charge = TransactionRequest(receipt_email=group.email, description=charge_desc, amount=c.get_group_price() * 100 * count)
+        receipt_email = session.current_attendee_account().email if c.ATTENDEE_ACCOUNTS_ENABLED else group.email
+        charge = TransactionRequest(receipt_email=receipt_email, description=charge_desc, amount=c.get_group_price() * 100 * count)
         if charge.dollar_amount % c.GROUP_PRICE:
             session.rollback()
             return {'error': 'Our preregistration price has gone up since you tried to add more codes; please try again'}
@@ -1597,7 +1603,9 @@ class Root:
             # Authorize.net doesn't actually have a concept of pending transactions,
             # so there's no transaction to resume. Create a new one.
             receipt_email = ""
-            if group.leader:
+            if c.ATTENDEE_ACCOUNTS_ENABLED:
+                receipt_email = session.current_attendee_account().email
+            elif group.leader:
                 receipt_email = group.leader.email
             elif group.attendees:
                 receipt_email = group.attendees[0].email

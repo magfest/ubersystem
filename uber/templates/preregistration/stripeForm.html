@@ -185,7 +185,9 @@ var callStripeAction = function (autoTrigger=false) {
             $('#stripeModal').find('#paymentAmount').text(dollars);
             $('#stripeModal').find('#chargeDesc').text(result.stripe_intent.description);
             {% if c.AUTHORIZENET_LOGIN_ID %}
-                collectAuthNetPayment(result.stripe_intent.id, result.stripe_intent.receipt_email, result.stripe_intent.description, result.success_url, cancel_url, result.stripe_intent.amount)
+                collectAuthNetPayment(result.stripe_intent.id, result.stripe_intent.receipt_email,
+                                      result.stripe_intent.description, result.stripe_intent.customer_id,
+                                      result.success_url, cancel_url, result.stripe_intent.amount)
             {% else %}
                 collectStripePayment(result.stripe_intent.client_secret, result.stripe_intent.id, result.success_url, cancel_url);
             {% endif %}
@@ -220,7 +222,7 @@ var processCancelUrl = function(result, form, card=null) {
 }
 
 {% if c.AUTHORIZENET_LOGIN_ID %}
-var collectAuthNetPayment = function (ref_id, email, desc, success_url, cancel_url, amount) {
+var collectAuthNetPayment = function (ref_id, email, desc, customer_id, success_url, cancel_url, amount) {
     var form = $('#payment-form');
     form.removeClass('d-none');
     var authData = {
@@ -251,6 +253,7 @@ var collectAuthNetPayment = function (ref_id, email, desc, success_url, cancel_u
                 amount: amount,
                 email: email,
                 desc: desc,
+                customer_id: customer_id,
                 token_desc: response.opaqueData.dataDescriptor,
                 token_val: response.opaqueData.dataValue,
                 csrf_token: csrf_token
