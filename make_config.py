@@ -26,7 +26,7 @@ for encoded in yaml.load(config, Loader=yaml.Loader):
     decoded = base64.b64decode(encoded)
     unzipped = gzip.decompress(decoded)
     parsed = yaml.load(unzipped, Loader=yaml.Loader)
-    
+
     sideboard_config = parsed.get("sideboard", {})
     if sideboard_config:
         sideboard_configs.append(ConfigObj(sideboard_config))
