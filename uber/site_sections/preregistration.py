@@ -888,8 +888,7 @@ class Root:
                                 who='non-admin',
                             ))
         charge_desc = '{} extra badge{} for {}'.format(count, 's' if count > 1 else '', group.name)
-        receipt_email = session.current_attendee_account().email if c.ATTENDEE_ACCOUNTS_ENABLED else group.email
-        charge = TransactionRequest(receipt_email=receipt_email, description=charge_desc, amount=c.get_group_price() * 100 * count)
+        charge = TransactionRequest(receipt_email=group.email, description=charge_desc, amount=c.get_group_price() * 100 * count)
         if charge.dollar_amount % c.GROUP_PRICE:
             session.rollback()
             return {'error': 'Our preregistration price has gone up since you tried to add more codes; please try again'}
@@ -1603,8 +1602,8 @@ class Root:
             # Authorize.net doesn't actually have a concept of pending transactions,
             # so there's no transaction to resume. Create a new one.
             receipt_email = ""
-            if c.ATTENDEE_ACCOUNTS_ENABLED:
-                receipt_email = session.current_attendee_account().email
+            if group.email:
+                receipt_email = group.email
             elif group.leader:
                 receipt_email = group.leader.email
             elif group.attendees:

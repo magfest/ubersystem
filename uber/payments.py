@@ -605,6 +605,7 @@ class TransactionRequest:
     def send_authorizenet_txn(self, txn_type=c.AUTHCAPTURE, **params):
         from decimal import Decimal
         payment_profile = None
+        order = None
         
         transaction = apicontractsv1.transactionRequestType()
 
@@ -640,7 +641,7 @@ class TransactionRequest:
         if 'txn_id' in params:
             transaction.refTransId = params.get("txn_id")
 
-        if self.description:
+        if self.description and not order:
             order = apicontractsv1.orderType()
             order.description = self.description
             transaction.order = order

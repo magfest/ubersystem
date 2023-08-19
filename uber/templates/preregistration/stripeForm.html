@@ -101,7 +101,7 @@
                     <div class="col-12">
                         <label for="zip" class="form-text">Zip Code</label>
                         <input type="text" class="form-control" name="zip" id="zip"
-                        inputmode="numeric" autocomplete="cc-number" autocorrect="off" value="{{ cc_zip_code }}" />
+                        autocomplete="cc-number" autocorrect="off" value="{{ cc_zip_code }}" />
                     </div>
                 </div>
                 <div class="row g-3 mt-2">
@@ -134,7 +134,6 @@
                     }
                 });
                 $("#cardCode").on("input", forceNumbers);
-                $("#zip").on("input", forceNumbers);
             </script>
         {% else %}
         <div class="charge_desc" style="margin-bottom:10px;"></div>
