@@ -268,6 +268,26 @@ class Root:
         return {
             'id': id
         }
+    
+    def resume_pending(self, session, id=None, account_id=None, **params):
+        if account_id:
+            pending_badges = session.attendee_account(account_id).pending_attendees
+        else:
+            pending_badges = [session.attendee(id)]
+
+        for badge in pending_badges:
+            PreregCart.pending_preregs[badge.id] = PreregCart.to_sessionized(badge)
+
+        update_prereg_cart(session)
+        if not PreregCart.unpaid_preregs:
+            message = "Successful payments found for all badges!"
+        elif len(PreregCart.unpaid_preregs) < len(pending_badges):
+            message = "Some badges have been marked as completed as we found successful payments for them."
+        else:
+            message = f"{len(pending_badges)} incomplete badges found." if c.ATTENDEE_ACCOUNTS_ENABLED \
+                        else "Please complete your registration below."
+
+        raise HTTPRedirect(f"index?message={message}")
 
     @cherrypy.expose('post_dealer')
     @requires_account()
