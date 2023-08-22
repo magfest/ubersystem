@@ -23,7 +23,7 @@ class MenuItem:
         self.name = name
         self.access_override = access_override
 
-    def append_menu_item(self, m):
+    def append_menu_item(self, m, position=None):
         """
         If we're appending a new menu item, and we aren't a submenu, convert us to one now.
         Create a new submenu and append a new item to it with the same name and href as us.
@@ -47,7 +47,10 @@ class MenuItem:
             self.submenu = [MenuItem(name=self.name, href=self.href)]
             self.href = None
 
-        self.submenu.append(m)
+        if position:
+            self.submenu.insert(position, m)
+        else:
+            self.submenu.append(m)
 
     def render_items_filtered_by_current_access(self):
         """
@@ -132,6 +135,8 @@ c.MENU = MenuItem(name='Root', submenu=[
     ]),
 ])
 
+if c.ATTENDEE_ACCOUNTS_ENABLED:
+    c.MENU['People'].append_menu_item(MenuItem(name='Attendee Accounts', href='../reg_admin/attendee_accounts'), position=1)
 
 if c.ATTRACTIONS_ENABLED:
     c.MENU['Schedule'].append_menu_item(MenuItem(name='Attractions', href='../attractions_admin/'))
