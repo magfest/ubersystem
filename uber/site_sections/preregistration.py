@@ -645,7 +645,13 @@ class Root:
                     message = check_prereg_promo_code(session, attendee)
                 if not message:
                     form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents']
-                    forms = load_forms({}, attendee, attendee_forms, form_list)
+                    # Populate checkboxes based on the model (I need a better solution for this)
+                    params = {}
+                    if not attendee.legal_name:
+                        params['same_legal_name'] = True
+                    params['pii_consent'] = True
+                    
+                    forms = load_forms(params, attendee, attendee_forms, form_list, checkboxes_present=False)
                     
                     all_errors = validate_model(forms, attendee, extra_validators_module=validations.attendee)
                     if all_errors:

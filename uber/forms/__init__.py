@@ -16,7 +16,7 @@ def get_override_attr(form, field_name, suffix, *args):
     return getattr(form, field_name + suffix, lambda *args: '')(*args)
 
 
-def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=True, truncate_prefix='admin'):
+def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=True, truncate_prefix='admin', checkboxes_present=True):
     """
     Utility function for initializing several Form objects, since most form pages use multiple Form classes.
 
@@ -61,7 +61,7 @@ def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=Tr
                 else:
                     alias_dict[aliased_field] = alias_val
 
-        loaded_form = form_cls(params, model, prefix=prefix_dict.get(cls, ''), data=alias_dict)
+        loaded_form = form_cls(params, model, checkboxes_present=checkboxes_present, prefix=prefix_dict.get(cls, ''), data=alias_dict)
         optional_fields = loaded_form.get_optional_fields(model) if get_optional else []
 
         for name, field in loaded_form._fields.items():
@@ -127,7 +127,7 @@ class MagForm(Form):
                 setattr(target, name, getattr(form, name))
         return target
 
-    def __init__(self, formdata=None, obj=None, prefix='', data=None, meta=None, **kwargs):
+    def __init__(self, formdata=None, obj=None, prefix='', data=None, meta=None, checkboxes_present=True, **kwargs):
         meta_obj = self._wtforms_meta()
         if meta is not None and isinstance(meta, dict):
             meta_obj.update_values(meta)
@@ -144,7 +144,7 @@ class MagForm(Form):
             field_in_obj = hasattr(obj, name)
             field_in_formdata = name in formdata
             if isinstance(field, BooleanField) and not field_in_formdata and field_in_obj:
-                if cherrypy.request.method == 'POST':
+                if cherrypy.request.method == 'POST' and checkboxes_present:
                     formdata[name] = False
                 else:
                     formdata[name] = getattr(obj, name)
