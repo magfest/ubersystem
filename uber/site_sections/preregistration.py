@@ -658,6 +658,7 @@ class Root:
                         # Flatten the errors as we don't have fields on this page
                         message = ' '.join([item for sublist in all_errors.values() for item in sublist])
                 if message:
+                    message += f" Please click 'Edit' next to {attendee.full_name}'s registration to fix any issues."
                     break
             
             if not message:
