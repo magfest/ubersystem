@@ -258,10 +258,10 @@ class ReceiptTransaction(MagModel):
 
         actions = []
 
-        if self.receipt.closed or self.cancelled or self.amount <= 0:
+        if self.receipt.closed or self.cancelled:
             return actions
 
-        if self.intent_id:
+        if self.intent_id and self.amount > 0:
             if not c.AUTHORIZENET_LOGIN_ID:
                 actions.append('refresh_receipt_txn')
             if not self.charge_id:
