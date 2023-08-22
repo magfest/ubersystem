@@ -152,8 +152,6 @@
         icon (optional str): The path for an icon for the card, e.g., ../static/icons/sponsor.png
         link (optional str): The path for a template. If present, a "Read more" link is added to the card that opens that template in a pop-up.
 
-    TODO: Card groups aren't responsive -- turn them off based on screen size?
-
     Note that transform: rotate(0) is used to contain our stretched links to the desired element.
     Don't change it or the "Read More" links won't work.
 #}
@@ -168,7 +166,7 @@
 <div class="card-group mt-0{% if not show_desc %} mb-3{% endif %}">
 {% for opt in opts %}
 {% set disabled_card = opt.value in disabled_opts %}
-  <div class="card {{ text_class }}{% if disabled_card %} disabled-card bg-secondary text-white{% endif %}" style="max-width: 33%;">
+  <div class="card {{ text_class }}{% if disabled_card %} disabled-card bg-secondary text-white{% endif %}" style="max-width: 18rem;">
       <div class="card-header" style="transform: rotate(0);">
           <label for="{{ target_field.id }}-{{ opt.value }}" class="h5 card-title mb-0">
             {% if disabled_card %}
