@@ -181,12 +181,12 @@ class ModelReceipt(MagModel):
 
     @property
     def total_str(self):
-        return "{} in {} - {} in {} = {} owe {}".format(format_currency(self.item_total / 100),
+        return "{} in {} and {} in {} = {} owe {}".format(format_currency(abs(self.item_total / 100)),
                                                         "Purchases" if self.item_total >= 0 else "Credit",
-                                                        format_currency(self.txn_total / 100),
+                                                        format_currency(abs(self.txn_total / 100)),
                                                         "Payments" if self.txn_total >= 0 else "Refunds",
                                                         "They" if self.current_receipt_amount >= 0 else "We",
-                                                        format_currency(self.current_receipt_amount / 100))
+                                                        format_currency(abs(self.current_receipt_amount / 100)))
 
     def get_last_incomplete_txn(self):
         from uber.models import Session
