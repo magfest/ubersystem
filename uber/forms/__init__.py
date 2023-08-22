@@ -277,27 +277,27 @@ class AddressForm():
     field_aliases = {'region': ['region_us', 'region_canada']}
 
     address1 = StringField('Address Line 1', default='', validators=[
-        validators.InputRequired("Please enter a street address.")
+        validators.DataRequired("Please enter a street address.")
         ])
     address2 = StringField('Address Line 2', default='')
     city = StringField('City', default='', validators=[
-        validators.InputRequired("Please enter a city.")
+        validators.DataRequired("Please enter a city.")
         ])
     region_us = SelectField('State', default='', validators=[
-        validators.InputRequired("Please select a state.")
+        validators.DataRequired("Please select a state.")
         ], choices=c.REGION_OPTS_US)
     region_canada = SelectField('Province', default='', validators=[
-        validators.InputRequired("Please select a province.")
+        validators.DataRequired("Please select a province.")
         ], choices=c.REGION_OPTS_CANADA)
     region = StringField('State/Province', default='', validators=[
-        validators.InputRequired("Please enter a state, province, or region.")
+        validators.DataRequired("Please enter a state, province, or region.")
         ])
     zip_code = StringField('Zip/Postal Code', default='', validators=[
-        validators.InputRequired("Please enter a zip code." if c.COLLECT_FULL_ADDRESS else 
+        validators.DataRequired("Please enter a zip code." if c.COLLECT_FULL_ADDRESS else 
                                  "Please enter a valid 5 or 9-digit zip code.")
         ])
     country = SelectField('Country', default='', validators=[
-        validators.InputRequired("Please enter a country.")
+        validators.DataRequired("Please enter a country.")
         ], choices=c.COUNTRY_OPTS, widget=CountrySelect())
 
     def get_optional_fields(self, model, is_admin=False):

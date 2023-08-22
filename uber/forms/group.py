@@ -13,7 +13,7 @@ __all__ = ['GroupInfo', 'ContactInfo', 'TableInfo', 'AdminGroupInfo', 'AdminTabl
 
 class GroupInfo(MagForm):
     name = StringField('Group Name', validators=[
-        validators.InputRequired("Please enter a group name."),
+        validators.DataRequired("Please enter a group name."),
         validators.Length(max=40, message="Group names cannot be longer than 40 characters.")
         ])
     badges = IntegerField('Badges', widget=IntSelect())
@@ -43,13 +43,13 @@ class AdminGroupInfo(GroupInfo):
 
 class ContactInfo(AddressForm, MagForm):
     email_address = EmailField('Email Address', validators=[
-        validators.InputRequired("Please enter your business email address."),
+        validators.DataRequired("Please enter your business email address."),
         validators.Length(max=255, message="Email addresses cannot be longer than 255 characters."),
         validators.Email(granular_message=True),
         ],
         render_kw={'placeholder': 'test@example.com'})
     phone = TelField('Phone Number', validators=[
-        validators.InputRequired("Please enter your business' phone number."),
+        validators.DataRequired("Please enter your business' phone number."),
         ],
         render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
     
@@ -66,21 +66,21 @@ class ContactInfo(AddressForm, MagForm):
 
 class TableInfo(GroupInfo):
     name = StringField('Table Name', validators=[
-        validators.InputRequired("Please enter a table name."),
+        validators.DataRequired("Please enter a table name."),
         validators.Length(max=40, message="Table names cannot be longer than 40 characters.")
         ])
     description = StringField('Description', validators=[
-        validators.InputRequired("Please provide a brief description of your business.")
+        validators.DataRequired("Please provide a brief description of your business.")
         ], description="Please keep to one sentence.")
     tables = DecimalField('Tables', widget=IntSelect())
     website = StringField('Website', validators=[
-        validators.InputRequired("Please enter your business' website address.")
+        validators.DataRequired("Please enter your business' website address.")
         ], description="The one you want us to link on our website, or where we can view your work to judge your application.")
     wares = TextAreaField('Wares', validators=[
-        validators.InputRequired("You must provide a detailed explanation of what you sell for us to evaluate your submission.")
+        validators.DataRequired("You must provide a detailed explanation of what you sell for us to evaluate your submission.")
         ], description="Please be detailed; include a link to view your wares. You must include links to what you sell or a portfolio otherwise you will be automatically waitlisted.")
     categories = SelectMultipleField('Categories', validators=[
-        validators.InputRequired("Please select at least one category your wares fall under.")
+        validators.DataRequired("Please select at least one category your wares fall under.")
         ], choices=c.DEALER_WARES_OPTS, coerce=int, widget=MultiCheckbox())
     categories_text = StringField('Other')
     special_needs = TextAreaField('Special Requests', description="No guarantees that we can accommodate any requests.")

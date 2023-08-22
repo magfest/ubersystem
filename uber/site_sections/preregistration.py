@@ -650,7 +650,7 @@ class Root:
                     all_errors = validate_model(forms, attendee, extra_validators_module=validations.attendee)
                     if all_errors:
                         # Flatten the errors as we don't have fields on this page
-                        message = ' '.join([' '.join(val) for val in all_errors['error']])
+                        message = ' '.join([item for sublist in all_errors.values() for item in sublist])
                 if message:
                     break
             
@@ -1549,6 +1549,7 @@ class Root:
 
     @ajax
     def purchase_upgrades(self, session, id, **params):
+        message = ''
         attendee = session.attendee(id)
         try:
             receipt = session.model_receipt(params.get('receipt_id'))
@@ -1559,11 +1560,19 @@ class Root:
             return {'error': "You already have an outstanding balance, please pay for your current items or contact registration"}
 
         receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
+        if not receipt_items:
+            return {'error': "There was an issue with adding your upgrade. Please contact the system administrator."}
         session.add_all(receipt_items)
 
-        attendee.apply(params, ignore_csrf=True, restricted=False)
-        message = check(attendee)
-        
+        # Get around locked field restrictions by applying the parameters directly
+        attendee.apply(params, ignore_csrf=True, restricted=True)
+
+        forms = load_forms(params, attendee, attendee_forms, ['BadgeExtras'])
+        all_errors = validate_model(forms, attendee, extra_validators_module=validations.attendee)
+        if all_errors:
+            # TODO: Make this work with the fields on the upgrade modal instead of flattening it all
+            message = ' '.join([item for sublist in all_errors.values() for item in sublist])
+
         if message:
             session.rollback()
             return {'error': message}

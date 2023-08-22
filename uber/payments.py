@@ -924,7 +924,7 @@ class ReceiptManager:
 
         model_overridden_price = getattr(model, 'overridden_price', None)
         overridden_unset = model_overridden_price and not params.get('overridden_price')
-        model_auto_recalc = getattr(model, 'auto_recalc', True)
+        model_auto_recalc = getattr(model, 'auto_recalc', True) if isinstance(model, Group) else None
         auto_recalc_unset = not model_auto_recalc and params.get('auto_recalc', None)
 
         if overridden_unset or auto_recalc_unset:
@@ -956,8 +956,8 @@ class ReceiptManager:
         if not params.get('no_override') and params.get('overridden_price'):
             receipt_item = self.add_receipt_item_from_param(model, receipt, 'overridden_price', params)
             return [receipt_item] if receipt_item else []
-        
-        if not params.get('auto_recalc'):
+
+        if not params.get('auto_recalc') and isinstance(model, Group):
             receipt_item = self.add_receipt_item_from_param(model, receipt, 'cost', params)
             return [receipt_item] if receipt_item else []
         else:
