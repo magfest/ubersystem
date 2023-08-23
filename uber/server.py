@@ -11,7 +11,6 @@ from pockets import is_listy
 from pockets.autolog import log
 from sideboard.jsonrpc import json_handler, ERR_INVALID_RPC, ERR_MISSING_FUNC, ERR_INVALID_PARAMS, \
     ERR_FUNC_EXCEPTION, ERR_INVALID_JSON
-from sideboard.server import jsonrpc_reset
 from sideboard.websockets import trigger_delayed_notifications
 
 from uber.config import c, Config
@@ -413,5 +412,5 @@ def register_jsonrpc(service, name=None):
     jsonrpc_services[name] = service
 
 
-jsonrpc_app = _make_jsonrpc_handler(jsonrpc_services, precall=jsonrpc_reset)
-cherrypy.tree.mount(jsonrpc_app, os.path.join(c.CHERRYPY_MOUNT_PATH, 'jsonrpc'), c.APPCONF)
+jsonrpc_app = _make_jsonrpc_handler(jsonrpc_services)
+cherrypy.tree.mount(jsonrpc_app, c.CHERRYPY_MOUNT_PATH + '/jsonrpc', c.APPCONF)
