@@ -1,0 +1,14 @@
+{
+	"name": "ubersystem",
+	"build": {
+		"dockerfile": "../Dockerfile"
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"eamodio.gitlens",
+                "ms-azuretools.vscode-docker"
+			]
+		}
+	}
+}
