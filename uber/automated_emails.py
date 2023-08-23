@@ -1080,7 +1080,7 @@ if c.MITS_ENABLED:
         ident='mits_tax_form')
 
     MITSEmailFixture(
-        'MITS 2019 Developer Perspective Feedback',
+        'MITS 2024 Developer Perspective Feedback',
         'mits/mits_feedback.txt',
         lambda team: team.accepted,
         ident='mits_feedback',
