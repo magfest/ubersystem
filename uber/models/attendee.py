@@ -796,7 +796,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         # All other badge type changes (i.e. those not to/from a badge type in BADGE_TYPE_PRICES)
         # use the attendee's actual current badge cost
 
-        base_badge_cost = self.new_badge_cost if self.paid == c.NEED_NOT_PAY else self.calculate_badge_cost()
+        base_badge_cost = self.new_badge_cost if self.paid == c.NEED_NOT_PAY else self.calculate_badge_cost() + self.age_discount
 
         if self.badge_type in c.BADGE_TYPE_PRICES and current_badge_type in c.BADGE_TYPE_PRICES:
             return c.BADGE_TYPE_PRICES[self.badge_type] - c.BADGE_TYPE_PRICES[current_badge_type]
