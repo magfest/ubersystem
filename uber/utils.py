@@ -201,8 +201,11 @@ def extract_urls(text):
     attendees put whitespace after each URL so we can match complex
     resources paths with a wide variety of characters.
     """
+    if not text:
+        return
+
     regex=r"\b((?:https?:\/\/)?(?:(?:www\.)?(?:[\da-z\.-]+)\.(?:[a-z]{2,6}))(?::[0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])?(?:\/\S*)*\/?)\b"
-    return re.findall(regex, text)
+    return re.findall(regex, text, re.IGNORECASE)
 
 
 def create_valid_user_supplied_redirect_url(url, default_url):
