@@ -1572,7 +1572,7 @@ class Root:
             return {'error': "Cannot find your receipt, please contact registration"}
         
         if receipt.open_receipt_items and receipt.current_amount_owed:
-            return {'error': "You already have an outstanding balance, please pay for your current items or contact registration"}
+            return {'error': "You already have an outstanding balance, please refresh the page to pay for your current items or contact {}".format(email_only(c.REGDESK_EMAIL))}
 
         receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
         if not receipt_items:
@@ -1617,10 +1617,8 @@ class Root:
         else:
             stripe_intent = txn.get_stripe_intent()
 
-        stripe_intent = txn.get_stripe_intent()
-
         if not stripe_intent:
-            return {'error': "Something went wrong. Please contact us at {}.".format(c.REGDESK_EMAIL)}
+            return {'error': "Something went wrong. Please contact us at {}.".format(email_only(c.REGDESK_EMAIL))}
 
         if stripe_intent.charges:
             return {'error': "This payment has already been finalized!"}
