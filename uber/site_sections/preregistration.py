@@ -667,6 +667,13 @@ class Root:
                     charge_receipt, charge_receipt_items = ReceiptManager.create_new_receipt(model, create_model=True)
                     existing_receipt = session.get_receipt_by_model(model)
                     if existing_receipt:
+                        # Multiple attendees can have the same transaction during pre-reg,
+                        # so we always cancel any incomplete transactions
+                        incomplete_txn = existing_receipt.get_last_incomplete_txn()
+                        if incomplete_txn:
+                            incomplete_txn.cancelled = datetime.now()
+                            session.add(incomplete_txn)
+
                         # If their registration costs changed, close their old receipt
                         compare_fields = ['amount', 'count', 'desc']
                         existing_items = [item.to_dict(compare_fields) for item in existing_receipt.receipt_items]
@@ -696,6 +703,7 @@ class Root:
                                                 description=cart.description,
                                                 amount=sum([receipt.current_amount_owed for receipt in receipts]))
                     message = charge.create_stripe_intent()
+                    log.debug(charge.intent)
 
         if message:
             return {'error': message}
