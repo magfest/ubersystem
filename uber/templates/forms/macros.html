@@ -326,8 +326,12 @@
           if ($("#" + key).length != 0 && $("#" + key).attr('type') != 'checkbox') {
             var field_label = $("label[for='" + key + "'] .form-label").text();
             if (field_label == '') { field_label = $("#" + key).children("legend").children(".form-label").text(); }
-            $("#form-validations").find("ul").append("<li>" + field_label + ": " + val + "</li>");
-            $("#" + key).addClass("is-invalid");
+            if (field_label == '') {
+              $("#form-validations").find("ul").append("<li>" + val + "</li>");
+            } else {
+              $("#form-validations").find("ul").append("<li>" + field_label + ": " + val + "</li>");
+              $("#" + key).addClass("is-invalid");
+            }
           } else {
             $("#form-validations").find("ul").append("<li>" + val + "</li>");
           }

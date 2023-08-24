@@ -137,80 +137,6 @@ def ignore_unassigned_and_placeholders(func):
     return with_skipping
 
 
-@prereg_validation.Attendee
-def group_leader_under_13(attendee):
-    if attendee.badge_type == c.PSEUDO_GROUP_BADGE and attendee.age_group_conf['val'] in [c.UNDER_6, c.UNDER_13]:
-        return "Children under 13 cannot be group leaders."
-
-
-@prereg_validation.Attendee
-def child_badge_over_13(attendee):
-    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.is_new and attendee.badge_type == c.CHILD_BADGE \
-            and attendee.age_now_or_at_con and attendee.age_now_or_at_con >= 13:
-        return "If you will be 13 or older at the start of {}, " \
-            "please select an Attendee badge instead of a 12 and Under badge.".format(c.EVENT_NAME)
-
-
-@prereg_validation.Attendee
-def attendee_badge_under_13(attendee):
-    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.is_new and attendee.badge_type == c.ATTENDEE_BADGE \
-            and attendee.age_now_or_at_con and attendee.age_now_or_at_con < 13:
-        return "If you will be 12 or younger at the start of {}, " \
-            "please select the 12 and Under badge instead of an Attendee badge.".format(c.EVENT_NAME)
-
-
-@prereg_validation.Attendee
-def total_cost_over_paid(attendee):
-    return
-    if (attendee.total_cost * 100) < attendee.amount_paid:
-        if (not attendee.orig_value_of('birthdate') or attendee.orig_value_of('birthdate') < attendee.birthdate) \
-                and attendee.age_group_conf['val'] in [c.UNDER_6, c.UNDER_13]:
-            return 'The date of birth you entered incurs a discount; ' \
-                'please email {} to change your badge and receive a refund'.format(c.REGDESK_EMAIL)
-        return 'You have already paid {}, you cannot reduce your extras below that.'.format(
-            format_currency(attendee.amount_paid / 100))
-
-
-@validation.Attendee
-def attendee_money(attendee):
-    if attendee.overridden_price is not None:
-        try:
-            overridden_price = int(float(attendee.overridden_price))
-            if overridden_price < 0:
-                return 'Overridden price must be a positive integer'
-        except Exception:
-            return 'Invalid overridden price ({})'.format(attendee.overridden_price)
-
-
-@validation.Attendee
-def invalid_badge_num(attendee):
-    if c.NUMBERED_BADGES and attendee.badge_num:
-        try:
-            assert int(attendee.badge_num) is not None
-        except Exception:
-            return '{!r} is not a valid badge number'.format(attendee.badge_num)
-
-
-@validation.Attendee
-def no_more_custom_badges(attendee):
-    if (attendee.badge_type != attendee.orig_value_of('badge_type') or attendee.is_new) \
-            and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
-        with Session() as session:
-            admin = session.current_admin_account()
-            if not admin.is_admin:
-                return 'Custom badges have already been ordered so you cannot use this badge type'
-
-
-@validation.Attendee
-def out_of_badge_type(attendee):
-    if attendee.badge_type != attendee.orig_value_of('badge_type'):
-        with Session() as session:
-            try:
-                session.get_next_badge_num(attendee.badge_type_real)
-            except AssertionError:
-                return 'There are no more badges available for that type'
-
-
 WatchList.required = [
     ('reason', 'Reason'),
     ('action', 'Action')
@@ -1042,20 +968,21 @@ def allowed_to_register(attendee):
 
 @prereg_validation.Attendee
 def child_group_leaders(attendee):
-    if attendee.badge_type == c.PSEUDO_GROUP_BADGE and get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) < 13:
+    if attendee.badge_type == c.PSEUDO_GROUP_BADGE and attendee.birthdate and \
+            get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) < 13:
         return ('badge_type', "Children under 13 cannot be group leaders.")
 
 
 @prereg_validation.Attendee
 def no_more_child_badges(attendee):
-    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) < 18 \
-            and not c.CHILD_BADGE_AVAILABLE:
+    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.birthdate and \
+            get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) < 18 and not c.CHILD_BADGE_AVAILABLE:
         return ('badge_type', "Unfortunately, we are sold out of badges for attendees under 18.")
 
 
 @prereg_validation.Attendee
 def child_badge_over_13(attendee):
-    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.badge_type == c.CHILD_BADGE \
+    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.birthdate and attendee.badge_type == c.CHILD_BADGE \
             and get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) >= 13:
         return ('badge_type', "If you will be 13 or older at the start of {}, " \
                                 "please select an Attendee badge instead of a 12 and Under badge.".format(c.EVENT_NAME))
@@ -1063,7 +990,7 @@ def child_badge_over_13(attendee):
 
 @prereg_validation.Attendee
 def attendee_badge_under_13(attendee):
-    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.badge_type == c.ATTENDEE_BADGE \
+    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.birthdate and attendee.badge_type == c.ATTENDEE_BADGE \
         and get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) < 13:
         return ('badge_type', "If you will be 12 or younger at the start of {}, " \
                                 "please select the 12 and Under badge instead of an Attendee badge.".format(c.EVENT_NAME))
@@ -1170,8 +1097,8 @@ def not_in_range(attendee):
 
 @validation.Attendee
 def dealer_needs_group(attendee):
-    if attendee.is_dealer and not attendee.group_id:
-        return ('group_id', '{}s must be associated with a group'.format(c.DEALER_TERM))
+    if attendee.is_dealer and not attendee.group_id and attendee.badge_type != c.PSEUDO_DEALER_BADGE:
+        return ('group_id', '{}s must be associated with a group'.format(c.DEALER_TERM.title()))
 
 
 @validation.Attendee

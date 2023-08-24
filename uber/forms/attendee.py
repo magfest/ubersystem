@@ -213,7 +213,7 @@ class BadgeExtras(MagForm):
                 admin = session.current_admin_account()
                 if admin.is_super_admin:
                     return
-        raise ValidationError('Custom badges have already been ordered, please choose a different badge type.')
+            raise ValidationError('Custom badges have already been ordered, please choose a different badge type.')
 
     @new_or_changed_validation.badge_type
     def out_of_badge_type(form, field):
