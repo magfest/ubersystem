@@ -30,7 +30,7 @@ from uber.payments import PreregCart, TransactionRequest, ReceiptManager
 
 
 def check_if_can_reg(is_dealer_reg=False):
-    if c.DEV_BOX and False:
+    if c.DEV_BOX:
         pass  # Don't redirect to any of the pages below.
     elif is_dealer_reg and not c.DEALER_REG_OPEN:
         if c.AFTER_DEALER_REG_START:
@@ -396,8 +396,8 @@ class Root:
     @redirect_if_at_con_to_kiosk
     @requires_account()
     def form(self, session, message='', edit_id=None, **params):
-        is_dealer_reg = 'dealer_id' in params
-        errors = check_if_can_reg(is_dealer_reg)
+        dealer_id = params.get('dealer_id', params.get('group_id', None))
+        errors = check_if_can_reg(bool(dealer_id))
         if errors:
             return errors
         """
@@ -416,14 +416,14 @@ class Root:
         if cherrypy.request.method == 'POST' and not params.get('badge_type'):
             params['badge_type'] = c.ATTENDEE_BADGE
 
-        if is_dealer_reg:
-            group = self._get_unsaved(params['dealer_id'], PreregCart.pending_dealers)
+        if dealer_id:
+            group = self._get_unsaved(dealer_id, PreregCart.pending_dealers)
             if group.attendees:
                 attendee = group.attendees[0]
                 loaded_from_group = True
             else:
                 attendee.badge_type = c.PSEUDO_DEALER_BADGE
-            attendee.group_id = params['dealer_id']
+            attendee.group_id = dealer_id
 
         if edit_id is not None:
             attendee = self._get_unsaved(edit_id)
@@ -460,7 +460,7 @@ class Root:
                 'name': name,
                 'badges': badges,
                 'invite_code': params.get('invite_code', ''),
-                'is_prereg_dealer': is_dealer_reg,
+                'is_prereg_dealer': bool(dealer_id),
             }
 
         if cherrypy.request.method == 'POST':
@@ -528,7 +528,7 @@ class Root:
         return {
             'logged_in_account': session.current_attendee_account(),
             'loaded_from_group': loaded_from_group,
-            'is_prereg_dealer': is_dealer_reg,
+            'is_prereg_dealer': bool(dealer_id),
             'message':    message,
             'attendee':   attendee,
             'forms': forms,
