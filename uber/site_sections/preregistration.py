@@ -30,7 +30,7 @@ from uber.payments import PreregCart, TransactionRequest, ReceiptManager
 
 
 def check_if_can_reg(is_dealer_reg=False):
-    if c.DEV_BOX:
+    if c.DEV_BOX and False:
         pass  # Don't redirect to any of the pages below.
     elif is_dealer_reg and not c.DEALER_REG_OPEN:
         if c.AFTER_DEALER_REG_START:
@@ -301,7 +301,7 @@ class Root:
                 raise HTTPRedirect("dealer_registration?message=Incorrect {} invite code.".format(c.DEALER_REG_TERM))
 
         params['id'] = 'None'   # security!
-        group = Group()
+        group = Group(tables=1)
 
         if edit_id is not None:
             group = self._get_unsaved(edit_id, PreregCart.pending_dealers)
@@ -1498,7 +1498,7 @@ class Root:
     def validate_dealer(self, session, form_list=[], **params):
         id = params.get('id', params.get('edit_id'))
         if id in [None, '', 'None']:
-            group = Group()
+            group = Group(tables=1)
         else:
             try:
                 group = session.group(id)
