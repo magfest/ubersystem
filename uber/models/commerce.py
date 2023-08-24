@@ -181,12 +181,12 @@ class ModelReceipt(MagModel):
 
     @property
     def total_str(self):
-        return "{} in {} - {} in {} = {} owe {}".format(format_currency(self.item_total / 100),
+        return "{} in {} and {} in {} = {} owe {}".format(format_currency(abs(self.item_total / 100)),
                                                         "Purchases" if self.item_total >= 0 else "Credit",
-                                                        format_currency(self.txn_total / 100),
+                                                        format_currency(abs(self.txn_total / 100)),
                                                         "Payments" if self.txn_total >= 0 else "Refunds",
                                                         "They" if self.current_receipt_amount >= 0 else "We",
-                                                        format_currency(self.current_receipt_amount / 100))
+                                                        format_currency(abs(self.current_receipt_amount / 100)))
 
     def get_last_incomplete_txn(self):
         from uber.models import Session
@@ -197,9 +197,10 @@ class ModelReceipt(MagModel):
             else:
                 error = txn.check_stripe_id()
             if error or txn.amount != self.current_receipt_amount:
-                if error:
+                if error or self.current_amount_owed == 0:
                     txn.cancelled = datetime.now() # TODO: Add logs to txns/items and log the automatic cancellation reason?
-                if txn.amount != self.current_receipt_amount:
+
+                if txn.amount != self.current_receipt_amount and self.current_amount_owed:
                     txn.amount = self.current_receipt_amount
                     if not c.AUTHORIZENET_LOGIN_ID:
                         stripe.PaymentIntent.modify(txn.intent_id, amount = txn.amount)
@@ -211,7 +212,7 @@ class ModelReceipt(MagModel):
                     with Session() as session:    
                         session.add(txn)
                         session.commit()
-                if not error:
+                if not error and not txn.cancelled:
                     return txn
             else:
                 return txn
@@ -257,10 +258,10 @@ class ReceiptTransaction(MagModel):
 
         actions = []
 
-        if self.receipt.closed or self.cancelled or self.amount <= 0:
+        if self.receipt.closed or self.cancelled:
             return actions
 
-        if self.intent_id:
+        if self.intent_id and self.amount > 0:
             if not c.AUTHORIZENET_LOGIN_ID:
                 actions.append('refresh_receipt_txn')
             if not self.charge_id:

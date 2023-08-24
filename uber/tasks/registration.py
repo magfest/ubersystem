@@ -1,8 +1,9 @@
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import stripe
 import time
+import pytz
 from celery.schedules import crontab
 from pockets.autolog import log
 from sqlalchemy import not_, or_
@@ -142,6 +143,49 @@ def check_near_cap():
             if not session.query(Email).filter_by(subject=subject).first() and actual_badges_left <= badges_left:
                 body = render('emails/badges_sold_alert.txt', {'badges_left': actual_badges_left}, encoding=None)
                 send_email.delay(c.ADMIN_EMAIL, [c.REGDESK_EMAIL, c.ADMIN_EMAIL], subject, body, model='n/a')
+
+
+@celery.schedule(timedelta(days=1))
+def email_pending_attendees():
+    already_emailed_accounts = []
+
+    with Session() as session:
+        four_days_old = datetime.now(pytz.UTC) - timedelta(hours=96)
+        pending_badges = session.query(Attendee).filter(Attendee.badge_status == c.PENDING_STATUS,
+                                                        or_(Attendee.registered < datetime.now(pytz.UTC) - timedelta(hours=24))
+                                                        ).order_by(Attendee.registered)
+        for badge in pending_badges:
+            if badge.registered < four_days_old:
+                session.delete(badge)
+                session.commit()
+            else:
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    email_to = badge.managers[0].email
+                    if email_to in already_emailed_accounts:
+                        continue
+                else:
+                    email_to = badge.email
+
+                email_ident = 'pending_badge_' + badge.id
+                already_emailed = session.query(Email.ident).filter(Email.ident == email_ident).first()
+
+                if already_emailed:
+                    if c.ATTENDEE_ACCOUNTS_ENABLED:
+                        already_emailed_accounts.append(email_to)
+                    continue
+
+                body = render('emails/reg_workflow/pending_badges.html',
+                              {'account': badge.managers[0] if badge.managers else None,
+                               'attendee': badge}, encoding=None)
+                send_email.delay(
+                    c.REGDESK_EMAIL,
+                    email_to,
+                    f"You have an incomplete {c.EVENT_NAME} registration!",
+                    body,
+                    model=badge.managers[0].to_dict() if c.ATTENDEE_ACCOUNTS_ENABLED else badge.to_dict(),
+                    ident=email_ident
+                )
+        
 
 
 @celery.schedule(timedelta(minutes=30))

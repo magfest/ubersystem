@@ -82,26 +82,26 @@
   {% include "groupform.html" %}
   {% include "regform.html" %}
 
-<div class="form-group">
-    <div class="col-sm-9 col-sm-offset-3">
-        {% if not edit_id %}
-            <button type="submit" class="btn btn-primary" value="Next">Next</button>
-        {% else %}
-            <button type="submit" class="btn btn-primary" value="Update">Update</button>
-            {% if attendee.badge_type != c.PSEUDO_DEALER_BADGE %}
-            <button type="submit" class="btn btn-primary" name="go_to_cart" value="1">Update & Go to Cart</button>
-            {% endif %}
-        {% endif %}
+  {% if not edit_id %}
+      <button type="submit" class="btn btn-primary" value="Next">Next</button>
+  {% else %}
+      <button type="submit" class="btn btn-primary" value="Update">Update</button>
+      {% if attendee.badge_type != c.PSEUDO_DEALER_BADGE %}
+      <button type="submit" class="btn btn-primary" name="go_to_cart" value="1">Update & Go to Cart</button>
+      {% endif %}
+  {% endif %}
 
-        {% if edit_id or cart_not_empty %}
-        <a href="index" class="btn btn-outline-secondary" value="Cancel">Cancel</a>
-        {% endif %}
-    </div>
-</div>
+  {% if edit_id or cart_not_empty %}
+  <a href="index" class="btn btn-outline-secondary" value="Cancel">Cancel</a>
+  {% endif %}
 
 </form>
-
 </div>
 </div>
-
+{% if is_prereg_dealer %}
+<script src="../static/js/warn-before-logout-dealer.js" type="text/javascript"></script>
+{% else %}
+<em class="form-text">Please note: your badge and any upgrades are not reserved until you complete the registration process, including payment.</em>
+{% if cart_not_empty %}<script src="../static/js/warn-before-logout.js" type="text/javascript"></script>{% endif %}
+{% endif %}
 {% endblock %}

@@ -27,10 +27,10 @@
     $('.record_payment_refund').prop('disabled', disable_button);
   }
   var showForm = function(receiptId, whichForm) {
-    $('#' + receiptId + whichForm).removeClass('hidden')
+    $('#' + receiptId + whichForm).removeClass('d-none')
   };
   var hideForm = function(receiptId, whichForm) {
-    $('#' + receiptId + whichForm).addClass('hidden')
+    $('#' + receiptId + whichForm).addClass('d-none')
   };
   var deleteItem = function (itemId) {
     bootbox.confirm({
@@ -323,13 +323,13 @@
       var submitForm = false;
       if (parseInt($("form[action='add_receipt_txn'] input[name='amount']").val()) > 0) {
         bootbox.confirm({
-          title: "Add Payment?",
+          title: "Record Payment?",
           message: "If you add a payment equal to what the attendee currently owes, " +
             "all open receipt items will be closed and marked as paid. " +
             "This cannot be undone. Are you sure?",
           buttons: {
               confirm: {
-                  label: 'Add Payment',
+                  label: 'Record Payment',
                   className: 'btn-success'
               },
               cancel: {
@@ -386,60 +386,64 @@
 {% macro receipt_item_form(type="purchase") %}
 <tr id="{{ receipt.id }}-{{ type }}-form" class="d-none">
   <td colspan="8">
-    <button type="button" class="close pull-left" aria-label="Close" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')"><span aria-hidden="true">&times;</span></button>
-    <form method="post" action="add_receipt_item" class="form-inline pull-right">
+    <button type="button" class="btn-close pull-left" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')" aria-label="Close"></button>
+    <form method="post" action="add_receipt_item">
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ receipt.id }}" />
       <input type="hidden" name="item_type" value="{{ type }}" />
-      <div class="form-group">
-        <label for="desc">Description</label>
-        <input type="text" name="desc" class="form-control" placeholder="{{ type|title }} Description" required>
-      </div>
-      <div class="form-group">
-        <label for="amount">Amount</label>
-        <div class="input-group">
-          <span class="input-group-addon">$</span>
-          <input type="number" name="amount" class="form-control" placeholder="0" required>
-          <span class="input-group-addon">.00</span>
+      <div class="row g-sm-3 justify-content-end">
+        <label for="desc" class="col-auto col-form-label">Description</label>
+        <div class="col-auto">
+          <input type="text" name="desc" class="form-control" placeholder="{{ type|title }} Description" required>
         </div>
+        <label for="amount" class="col-auto col-form-label">Amount</label>
+        <div class="col-auto">
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" name="amount" class="form-control" placeholder="0" required>
+            <span class="input-group-text">.00</span>
+          </div>
+        </div>
+        <label for="count" class="col-auto col-form-label">Quantity</label>
+        <div class="col-auto">
+            <input type="number" name="count" class="form-control" placeholder="1">
+        </div>
+        <button type="submit" class="col-2 btn {{ 'btn-primary' if type == 'purchase' else 'btn-success' }}">Record {{ type|title }}</button>
       </div>
-      <div class="form-group">
-        <label for="count">Quantity</label>
-          <input type="number" name="count" class="form-control" placeholder="1">
-      </div>
-      <button type="submit" class="btn {{ 'btn-primary' if type == 'purchase' else 'btn-success' }}">Add {{ type|title }}</button>
     </form>
   </td>
 </tr>
 {% endmacro %}
 {% macro receipt_txn_form(type="payment") %}
 <tr id="{{ receipt.id }}-{{ type }}-form" class="d-none">
-  <td colspan="7">
-    <button type="button" class="close pull-left" aria-label="Close" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')"><span aria-hidden="true">&times;</span></button>
-    <form method="post" action="add_receipt_txn" class="form-inline pull-right">
+  <td colspan="8">
+    <button type="button" class="btn-close pull-left" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')" aria-label="Close"></button>
+    <form method="post" action="add_receipt_txn">
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ receipt.id }}" />
       <input type="hidden" name="txn_type" value="{{ type }}" />
-      <div class="form-group">
-        <label for="amount">{{ type|title }} Method</label>
-        <select name="method" class="form-control">
-          <option value="">Select a Method</option>
-          {{ options(c.PAYMENT_METHOD_OPTS, c.CASH) }}
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="count">Amount</label>
-        <div class="input-group">
-          <span class="input-group-addon">$</span>
-          <input type="number" name="amount" class="form-control" placeholder="0" required>
-          <span class="input-group-addon">.00</span>
+      <div class="row g-sm-3 justify-content-end">
+        <label for="amount" class="col-auto col-form-label">{{ type|title }} Method</label>
+        <div class="col-auto">
+          <select name="method" class="form-select">
+            <option value="">Select a Method</option>
+            {{ options(c.PAYMENT_METHOD_OPTS, c.CASH) }}
+          </select>
         </div>
+        <label for="count" class="col-auto col-form-label">Amount</label>
+        <div class="col-auto">
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" name="amount" class="form-control" placeholder="0" required>
+            <span class="input-group-text">.00</span>
+          </div>
+        </div>
+        <label for="desc" class="col-auto col-form-label">Description</label>
+        <div class="col-auto">
+          <input type="text" name="desc" class="form-control" placeholder="Transaction Description">
+        </div>
+        <button type="submit" class="col-2 btn {{ 'btn-info' if type == 'payment' else 'btn-warning' }}">Record {{ type|title }}</button>
       </div>
-      <div class="form-group">
-        <label for="desc">Description</label>
-        <input type="text" name="desc" class="form-control" placeholder="Transaction Description">
-      </div>
-      <button type="submit" class="btn {{ 'btn-info' if type == 'payment' else 'btn-warning' }}">Add {{ type|title }}</button>
     </form>
   </td>
 </tr>
@@ -550,7 +554,7 @@
     <tr id="{{ receipt.id }}">
       <td colspan="8">
         <div class="btn-group pull-right" role="group">
-          <button class="btn btn-outline-secondary">Add:</button>
+          <button class="btn btn-outline-secondary">Record:</button>
           <button class="btn btn-primary" onClick="showForm('{{ receipt.id }}', '-purchase-form')">Purchase</button>
           <button class="btn btn-success" onClick="showForm('{{ receipt.id }}', '-credit-form')">Credit</button>
           <button class="btn btn-info record_payment_refund" onClick="showForm('{{ receipt.id }}', '-payment-form')"{% if receipt.current_receipt_amount == 0 %} disabled{% endif %}>Payment</button>
