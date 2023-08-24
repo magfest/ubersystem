@@ -47,8 +47,9 @@
 <button class="btn btn-info stripe-btn"{% if 'stripe_button_id' in params %} id="{{ params['stripe_button_id'] }}"{% endif %} onClick="callStripeAction();">
 <span class="display: block; min-height: 30px;">Pay with Card</span>
 </button>
-{% if not stripeModal and not c.AUTHORIZENET_LOGIN_ID %}
+{% if not stripeModal %}
 <div id="stripeModal" class="modal" style="color:black;" tabindex="-1" role="dialog" data-bs-backdrop="static">
+    {% if not c.AUTHORIZENET_LOGIN_ID %}
   <div class="modal-dialog" role="document">
     <div class="modal-content">
         <div class="modal-body text-start jumbotron">
@@ -64,6 +65,7 @@
                 <div class="form-text">Payment description</div><div class="h5" id="chargeDesc"></div>
             </div>
         </div>
+        
         <div class="charge_desc" style="margin-bottom:10px;"></div>
         <form action="/charge" method="post" id="payment-form" class="d-none">
         <div class="form-row">
@@ -83,6 +85,7 @@
         </div>
     </div>
   </div>
+  {% endif %}
 </div>
 <script type="text/javascript">
 $('#stripeModal').detach().appendTo("body");
