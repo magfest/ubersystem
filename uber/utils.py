@@ -201,8 +201,11 @@ def extract_urls(text):
     attendees put whitespace after each URL so we can match complex
     resources paths with a wide variety of characters.
     """
+    if not text:
+        return
+
     regex=r"\b((?:https?:\/\/)?(?:(?:www\.)?(?:[\da-z\.-]+)\.(?:[a-z]{2,6}))(?::[0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])?(?:\/\S*)*\/?)\b"
-    return re.findall(regex, text)
+    return re.findall(regex, text, re.IGNORECASE)
 
 
 def create_valid_user_supplied_redirect_url(url, default_url):
@@ -569,6 +572,7 @@ def validate_model(forms, model, preview_model=None, is_admin=False):
                 extra_validators[key].extend(form.new_or_changed_validation.get_validations_by_field(key))
         valid = form.validate(extra_validators=extra_validators)
         if not valid:
+            log.debug(form.errors)
             for key, val in form.errors.items():
                 all_errors[key].extend(map(str, val))
 
@@ -576,9 +580,11 @@ def validate_model(forms, model, preview_model=None, is_admin=False):
     prereg_validations = [uber.model_checks.prereg_validation.validations] if not is_admin else []
     for v in validations + prereg_validations:
         for validator in v[model.__class__.__name__].values():
-            error_tuple = validator(preview_model)
-            if error_tuple:
-                all_errors[error_tuple[0]] = error_tuple[1]
+            error = validator(preview_model)
+            if error and isinstance(error, tuple):
+                all_errors[error[0]].append(error[1])
+            elif error:
+                all_errors[''].append(error)
 
     if all_errors:
         return all_errors

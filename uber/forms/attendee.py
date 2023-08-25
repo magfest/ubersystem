@@ -32,38 +32,38 @@ class PersonalInfo(AddressForm, MagForm):
     field_validation = CustomValidation()
     
     first_name = StringField('First Name', validators=[
-        validators.InputRequired("Please provide your first name.")
+        validators.DataRequired("Please provide your first name.")
         ], render_kw={'autocomplete': "fname"})
     last_name = StringField('Last Name', validators=[
-        validators.InputRequired("Please provide your last name.")
+        validators.DataRequired("Please provide your last name.")
         ], render_kw={'autocomplete': "lname"})
     same_legal_name = BooleanField('The above name is exactly what appears on my Legal Photo ID.')
     legal_name = StringField('Name as appears on Legal Photo ID', validators=[
-        validators.InputRequired("Please provide the name on your photo ID or indicate that your first and last name match your ID.")
+        validators.DataRequired("Please provide the name on your photo ID or indicate that your first and last name match your ID.")
         ], render_kw={'placeholder': 'First and last name exactly as they appear on Photo ID'})
     email = EmailField('Email Address', validators=[
-        validators.InputRequired("Please enter an email address."),
+        validators.DataRequired("Please enter an email address."),
         validators.Length(max=255, message="Email addresses cannot be longer than 255 characters."),
         validators.Email(granular_message=True),
         ],
         render_kw={'placeholder': 'test@example.com'})
     cellphone = TelField('Phone Number', validators=[
-        validators.InputRequired("Please provide a phone number.")
+        validators.DataRequired("Please provide a phone number.")
         ], render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
     birthdate = DateField('Date of Birth', validators=[
-        validators.InputRequired("Please enter your date of birth.") if c.COLLECT_EXACT_BIRTHDATE else validators.Optional(),
+        validators.DataRequired("Please enter your date of birth.") if c.COLLECT_EXACT_BIRTHDATE else validators.Optional(),
         ])
     age_group = SelectField('Age Group', validators=[
-        validators.InputRequired("Please select your age group.") if not c.COLLECT_EXACT_BIRTHDATE else validators.Optional()
+        validators.DataRequired("Please select your age group.") if not c.COLLECT_EXACT_BIRTHDATE else validators.Optional()
         ], choices=c.AGE_GROUPS)
     ec_name = StringField('Emergency Contact Name', validators=[
-        validators.InputRequired("Please tell us the name of your emergency contact.")
+        validators.DataRequired("Please tell us the name of your emergency contact.")
         ], render_kw={'placeholder': 'Who we should contact if something happens to you'})
     ec_phone = TelField('Emergency Contact Phone', validators=[
-        validators.InputRequired("Please give us an emergency contact phone number.")
+        validators.DataRequired("Please give us an emergency contact phone number.")
         ], render_kw={'placeholder': 'A valid phone number for your emergency contact'})
     onsite_contact = TextAreaField('Onsite Contact', validators=[
-        validators.InputRequired("Please enter contact information for at least one trusted friend onsite, \
+        validators.DataRequired("Please enter contact information for at least one trusted friend onsite, \
                                  or indicate that we should use your emergency contact information instead."),
         validators.Length(max=500, message="You have entered over 500 characters of onsite contact information. \
                           Please provide contact information for fewer friends.")
@@ -152,7 +152,7 @@ class PersonalInfo(AddressForm, MagForm):
 
 class BadgeExtras(MagForm):
     field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
-    field_aliases = {'badge_type': ['upgrade_badge_type']}
+    field_aliases = {'badge_type': ['upgrade_badge_type'], 'shirt': ['staff_shirt']}
 
     badge_type = HiddenIntField('Badge Type')
     upgrade_badge_type = HiddenIntField('Badge Type')
@@ -163,6 +163,7 @@ class BadgeExtras(MagForm):
         validators.NumberRange(min=0, message="Extra donation must be a number that is 0 or higher.")
         ], widget=DollarInput(), description=popup_link("../static_views/givingExtra.html", "Learn more"))
     shirt = SelectField('Shirt Size', choices=c.SHIRT_OPTS, coerce=int)
+    staff_shirt = SelectField('Staff Shirt Size', choices=c.STAFF_SHIRT_OPTS, coerce=int)
     badge_printed_name = StringField('Name Printed on Badge', validators=[
         validators.Length(max=20, message="Your printed badge name is too long. \
                           Please use less than 20 characters."),
@@ -196,7 +197,8 @@ class BadgeExtras(MagForm):
     
     @field_validation.shirt
     def require_shirt(form, field):
-        if (form.amount_extra.data > 0 or form.badge_type.data in c.BADGE_TYPE_PRICES) and field.data == c.NO_SHIRT:
+        if (form.amount_extra.data > 0 or form.badge_type.data in c.BADGE_TYPE_PRICES) \
+            and (field.data == c.NO_SHIRT or not field.data):
             raise ValidationError("Please select a shirt size.")
     
     @new_or_changed_validation.amount_extra
@@ -212,7 +214,7 @@ class BadgeExtras(MagForm):
                 admin = session.current_admin_account()
                 if admin.is_super_admin:
                     return
-        raise ValidationError('Custom badges have already been ordered, please choose a different badge type.')
+            raise ValidationError('Custom badges have already been ordered, please choose a different badge type.')
 
     @new_or_changed_validation.badge_type
     def out_of_badge_type(form, field):
@@ -237,7 +239,7 @@ class BadgeExtras(MagForm):
 class OtherInfo(MagForm):
     placeholder = BooleanField(widget=HiddenInput())
     staffing = BooleanField('I am interested in volunteering!', widget=SwitchInput(), description=popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?"))
-    requested_dept_ids = SelectMultipleField('Where do you want to help?', choices=c.JOB_INTEREST_OPTS, coerce=int, widget=MultiCheckbox())
+    requested_dept_ids = SelectMultipleField('Where do you want to help?', choices=c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC if len(c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC) > 1 else c.JOB_INTEREST_OPTS, coerce=int, widget=MultiCheckbox())
     requested_accessibility_services = BooleanField(f'I would like to be contacted by the {c.EVENT_NAME} Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', widget=SwitchInput())
     interests = SelectMultipleField('What interests you?', choices=c.INTEREST_OPTS, coerce=int, validators=[validators.Optional()], widget=MultiCheckbox())
         

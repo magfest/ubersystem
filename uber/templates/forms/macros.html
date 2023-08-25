@@ -29,7 +29,7 @@
 {% endif %}
 
 {% set type = field.meta.get_field_type(field) %}
-{% set label_required = kwargs['required'] if 'required' in kwargs else None %}
+{% set label_required = kwargs['required'] if 'required' in kwargs else field.flags.required %}
 {% set disable_checkboxes = 'readonly' in kwargs or 'readonly' in field.render_kw %}
 {% if type in ['checkbox','switch'] %}
 <div class="form-check{% if type == 'switch' %} form-switch{% endif %}{% if not no_margin %} mb-3{% endif %}">
@@ -139,7 +139,7 @@
 </script>
 {%- endmacro %}
 
-{% macro card_select(target_field, opts, text_class="text-center", help_text="", disabled_opts=[], disabled_hover_text="Sold Out") %}
+{% macro card_select(target_field, opts, text_class="text-center", help_text="", disabled_opts=[], disabled_card_text="Sold Out") %}
 {# 
     A set of card elements generated from opts. Each item in opts should include the following fields:
         name (str): The title displayed at the top of the card.
@@ -149,26 +149,29 @@
         icon (optional str): The path for an icon for the card, e.g., ../static/icons/sponsor.png
         link (optional str): The path for a template. If present, a "Read more" link is added to the card that opens that template in a pop-up.
 
-    TODO: Card groups aren't responsive -- turn them off based on screen size?
-
     Note that transform: rotate(0) is used to contain our stretched links to the desired element.
     Don't change it or the "Read More" links won't work.
 #}
 
+{% set is_preview = 'landing' in c.PAGE_PATH %}
 {% set label_required = kwargs['required'] if 'required' in kwargs else None %}
-{% set show_desc = not admin_area and help_text or target_field.description %}
+{% set show_desc = not admin_area and not is_preview and (help_text or target_field.description) %}
 
+{% if is_preview %}
+<strong>The following badges are currently available:</strong>
+{% else %}
 <fieldset>
   <legend class="mt-3 mb-0 form-text">
     {{ target_field.label.text }}{% if target_field.flags.required %}<span class="required-indicator text-danger"> *</span>{% endif %}
   </legend>
+{% endif %}
 <div class="card-group mt-0{% if not show_desc %} mb-3{% endif %}">
 {% for opt in opts %}
 {% set disabled_card = opt.value in disabled_opts %}
-  <div class="card {{ text_class }}{% if disabled_card %} disabled-card bg-secondary text-white{% endif %}" style="max-width: 33%;">
+  <div class="card {{ text_class }}{% if disabled_card %} disabled-card bg-secondary text-white{% endif %}" style="max-width: 18rem;">
       <div class="card-header" style="transform: rotate(0);">
           <label for="{{ target_field.id }}-{{ opt.value }}" class="h5 card-title mb-0">
-            {% if disabled_card %}
+            {% if disabled_card or is_preview %}
             {{ opt.name }}{% if opt.price %}: {{ opt.price|format_currency }}{% endif %}
             {% else %}
               <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card"
@@ -180,13 +183,15 @@
       {% if opt.icon %}
           <img src="{{ opt.icon }}" class="card-img" alt="{{ opt.name }} Icon">
       {% endif %}
-        {% if disabled_card %}
+        {% if disabled_card or is_preview %}
           {{ opt.desc|safe }}
+          {% if disabled_card %}
           <div class="disabled-overlay position-absolute top-0 start-0 h-100 w-100" style="background: rgba(0,0,0,0.66)">
             <span style="text-shadow: 0px 0px 7px rgba(0, 0, 0, 1);" class="text-uppercase text-center position-absolute w-100 fw-bolder top-50 start-50 translate-middle h2">
-              {{ disabled_hover_text }}
+              {{ disabled_card_text }}
             </span>
           </div>
+          {% endif %}
         {% else %}
           <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card"
               data-value="{{ opt.value }}">{{ opt.desc|safe }}</a>
@@ -202,7 +207,9 @@
 {% endfor %}
 </div>
 {% if show_desc %}<div class="form-text mb-3">{{ help_text or target_field.description }}</div>{% endif %}
+{% if not is_preview %}
 </fieldset>
+{% endif %}
 
 <script type="text/javascript">
     var setField_{{ target_field.name }} = function(value) {
@@ -319,8 +326,12 @@
           if ($("#" + key).length != 0 && $("#" + key).attr('type') != 'checkbox') {
             var field_label = $("label[for='" + key + "'] .form-label").text();
             if (field_label == '') { field_label = $("#" + key).children("legend").children(".form-label").text(); }
-            $("#form-validations").find("ul").append("<li>" + field_label + ": " + val + "</li>");
-            $("#" + key).addClass("is-invalid");
+            if (field_label == '') {
+              $("#form-validations").find("ul").append("<li>" + val + "</li>");
+            } else {
+              $("#form-validations").find("ul").append("<li>" + field_label + ": " + val + "</li>");
+              $("#" + key).addClass("is-invalid");
+            }
           } else {
             $("#form-validations").find("ul").append("<li>" + val + "</li>");
           }

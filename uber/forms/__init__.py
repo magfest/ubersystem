@@ -17,7 +17,7 @@ def get_override_attr(form, field_name, suffix, *args):
     return getattr(form, field_name + suffix, lambda *args: '')(*args)
 
 
-def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=True, truncate_prefix='admin'):
+def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=True, truncate_prefix='admin', checkboxes_present=True):
     """
     Utility function for initializing several Form objects, since most form pages use multiple Form classes.
 
@@ -62,7 +62,7 @@ def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=Tr
                 else:
                     alias_dict[aliased_field] = alias_val
 
-        loaded_form = form_cls(params, model, prefix=prefix_dict.get(cls, ''), data=alias_dict)
+        loaded_form = form_cls(params, model, checkboxes_present=checkboxes_present, prefix=prefix_dict.get(cls, ''), data=alias_dict)
         optional_fields = loaded_form.get_optional_fields(model) if get_optional else []
 
         for name, field in loaded_form._fields.items():
@@ -158,7 +158,7 @@ class MagForm(Form):
                 setattr(target, name, getattr(form, name))
         return target
 
-    def __init__(self, formdata=None, obj=None, prefix='', data=None, meta=None, **kwargs):
+    def __init__(self, formdata=None, obj=None, prefix='', data=None, meta=None, checkboxes_present=True, **kwargs):
         meta_obj = self._wtforms_meta()
         if meta is not None and isinstance(meta, dict):
             meta_obj.update_values(meta)
@@ -175,7 +175,7 @@ class MagForm(Form):
             field_in_obj = hasattr(obj, name)
             field_in_formdata = name in formdata
             if isinstance(field, BooleanField) and not field_in_formdata and field_in_obj:
-                if cherrypy.request.method == 'POST':
+                if cherrypy.request.method == 'POST' and checkboxes_present:
                     formdata[name] = False
                 else:
                     formdata[name] = getattr(obj, name)
@@ -221,6 +221,8 @@ class MagForm(Form):
 
             for aliased_field in reversed(aliases):
                 field_obj = getattr(self, aliased_field, None)
+                # I'm pretty sure this prevents an aliased field from zeroing out a value
+                # Right now we prefer that but we may want to change it later
                 if field_obj and field_obj.data:
                     field_obj.populate_obj(obj, model_field_name)
 
@@ -308,27 +310,27 @@ class AddressForm():
     field_aliases = {'region': ['region_us', 'region_canada']}
 
     address1 = StringField('Address Line 1', default='', validators=[
-        validators.InputRequired("Please enter a street address.")
+        validators.DataRequired("Please enter a street address.")
         ])
     address2 = StringField('Address Line 2', default='')
     city = StringField('City', default='', validators=[
-        validators.InputRequired("Please enter a city.")
+        validators.DataRequired("Please enter a city.")
         ])
     region_us = SelectField('State', default='', validators=[
-        validators.InputRequired("Please select a state.")
+        validators.DataRequired("Please select a state.")
         ], choices=c.REGION_OPTS_US)
     region_canada = SelectField('Province', default='', validators=[
-        validators.InputRequired("Please select a province.")
+        validators.DataRequired("Please select a province.")
         ], choices=c.REGION_OPTS_CANADA)
     region = StringField('State/Province', default='', validators=[
-        validators.InputRequired("Please enter a state, province, or region.")
+        validators.DataRequired("Please enter a state, province, or region.")
         ])
     zip_code = StringField('Zip/Postal Code', default='', validators=[
-        validators.InputRequired("Please enter a zip code." if c.COLLECT_FULL_ADDRESS else 
+        validators.DataRequired("Please enter a zip code." if c.COLLECT_FULL_ADDRESS else 
                                  "Please enter a valid 5 or 9-digit zip code.")
         ])
     country = SelectField('Country', default='', validators=[
-        validators.InputRequired("Please enter a country.")
+        validators.DataRequired("Please enter a country.")
         ], choices=c.COUNTRY_OPTS, widget=CountrySelect())
 
     def get_optional_fields(self, model, is_admin=False):

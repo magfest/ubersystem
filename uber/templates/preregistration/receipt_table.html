@@ -1,11 +1,11 @@
 <table class="table table-striped" id="upgrade-preview">
     <tbody>
-      {% for item in receipt.all_sorted_items_and_txns|rejectattr("cancelled") %}
+      {% for item in receipt.all_sorted_items_and_txns|rejectattr("cancelled")|rejectattr("is_pending_charge") %}
       <tr>
         <td><span class='pull-right'>{{ item.desc }}{{ ": " if item.desc else "" }}</span></td>
         <td>
           {% if item.method %}
-          {{ (item.amount / 100)|format_currency(true) }} {{ "Paid" if item.amount > 0 else "Refunded" }} ({{ item.method_label }})
+          {{ (item.amount / 100)|format_currency(true) }} {{ "Paid" if item.amount > 0 else "Refunded" }}
           {% else %}
           {{ (item.amount / 100)|format_currency }}
           {% endif %}
@@ -15,17 +15,37 @@
         </td>
       </tr>
       {% endfor %}
-      {% if receipt.current_amount_owed %}
-      <tr><td colspan="2"></td></tr>
-      <tr>
-        <td colspan="2">
-          <span class='pull-right'>
-            <strong>Total: {{ (receipt.current_amount_owed / 100)|format_currency }}
+      {% if receipt.item_total > 0 %}
+        <tr><td colspan="2"></td></tr>
+        <tr>
+          <td>
+            <span class='pull-right'>
+              <strong>Total</strong>
+            </span>
+          </td>
+          <td> {{ (receipt.item_total / 100)|format_currency }} </td>
+        </tr>
+        <tr>
+          <td>
+            <span class='pull-right'>
+              <strong>Paid</strong>
+            </span>
+          </td>
+          <td> {{ ((receipt.payment_total - receipt.refund_total) / 100)|format_currency }} </td>
+        </tr>
+        {% if receipt.current_amount_owed %}
+          <tr>
+            <td>
+              <span class='pull-right'>
+                <strong>Owed</strong>
+              </span>
+            </td>
+            <td>
+              {{ (receipt.current_receipt_amount / 100)|format_currency }}
               {% if receipt.pending_total %}({{ (receipt.pending_total / 100)|format_currency }} pending){% endif %}
-            </strong>
-          </span>
-        </td>
-      </tr>
+            </td>
+          </tr>
+        {% endif %}
       {% endif %}
     </tbody>
 </table>

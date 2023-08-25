@@ -13,9 +13,17 @@
     <a class="btn btn-info" href="../preregistration/homepage">Homepage</a>
     {% endif %}
     {% if c.ATTENDEE_ACCOUNTS_ENABLED and logged_in_account %}
-    <a class="btn btn-danger" href="../preregistration/logout">Logout</a>
+    <a class="btn btn-danger" href="#" onClick="warnOrLogout()">Logout</a>
     {% endif %}
 </div>
+<script type="text/javascript">
+warnOrLogout = function() {
+    if (typeof(warnBeforeLogout) !== 'undefined') {
+        warnBeforeLogout();
+        return false;
+    } else { window.location = "../preregistration/logout"; }
+}
+</script>
 {% endif %}
 {% endblock %}
 

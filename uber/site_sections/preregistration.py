@@ -79,6 +79,20 @@ def check_prereg_promo_code(session, attendee):
         session.commit()
         return "The promo code you're using for {} has been used too many times.".format(attendee.full_name)
 
+def update_prereg_cart(session):
+    pending_preregs = PreregCart.pending_preregs.copy()
+    for id in pending_preregs:
+        existing_model = session.query(Attendee).filter_by(id=id).first()
+        if not existing_model:
+            existing_model = session.query(Group).filter_by(id=id).first()
+        if existing_model:
+            receipt = session.refresh_receipt_and_model(existing_model)
+            if receipt.current_amount_owed or receipt.get_last_incomplete_txn():
+                PreregCart.unpaid_preregs[id] = PreregCart.pending_preregs[id]
+            else:
+                PreregCart.paid_preregs.append(PreregCart.pending_preregs[id])
+        PreregCart.pending_preregs.pop(id)
+
 def check_account(session, email, password, confirm_password, skip_if_logged_in=True, update_password=True, old_email=None):
     logged_in_account = session.current_attendee_account()
     if logged_in_account and skip_if_logged_in:
@@ -191,18 +205,7 @@ class Root:
         if errors:
             return errors
 
-        pending_preregs = PreregCart.pending_preregs.copy()
-        for id in pending_preregs:
-            existing_model = session.query(Attendee).filter_by(id=id).first()
-            if not existing_model:
-                existing_model = session.query(Group).filter_by(id=id).first()
-            if existing_model:
-                receipt = session.refresh_receipt_and_model(existing_model)
-                if receipt.current_amount_owed or receipt.get_last_incomplete_txn():
-                    PreregCart.unpaid_preregs[id] = PreregCart.pending_preregs[id]
-                else:
-                    PreregCart.paid_preregs.append(PreregCart.pending_preregs[id])
-            PreregCart.pending_preregs.pop(id)
+        update_prereg_cart(session)
 
         if not PreregCart.unpaid_preregs:
             raise HTTPRedirect('form?message={}', message) if message else HTTPRedirect('form')
@@ -248,7 +251,6 @@ class Root:
         errors = check_if_can_reg()
         if errors:
             return errors
-        
         if skip_confirm or 'csrf_token' in params:
             old_attendee = session.attendee(id)
             old_attendee_dict = old_attendee.to_dict(c.UNTRANSFERABLE_ATTRS)
@@ -264,6 +266,26 @@ class Root:
         return {
             'id': id
         }
+    
+    def resume_pending(self, session, id=None, account_id=None, **params):
+        if account_id:
+            pending_badges = session.attendee_account(account_id).pending_attendees
+        else:
+            pending_badges = [session.attendee(id)]
+
+        for badge in pending_badges:
+            PreregCart.pending_preregs[badge.id] = PreregCart.to_sessionized(badge)
+
+        update_prereg_cart(session)
+        if not PreregCart.unpaid_preregs:
+            message = "Successful payments found for all badges!"
+        elif len(PreregCart.unpaid_preregs) < len(pending_badges):
+            message = "Some badges have been marked as completed as we found successful payments for them."
+        else:
+            message = f"{len(pending_badges)} incomplete badges found." if c.ATTENDEE_ACCOUNTS_ENABLED \
+                        else "Please complete your registration below."
+
+        raise HTTPRedirect(f"index?message={message}")
 
     @cherrypy.expose('post_dealer')
     @requires_account()
@@ -279,7 +301,7 @@ class Root:
                 raise HTTPRedirect("dealer_registration?message=Incorrect {} invite code.".format(c.DEALER_REG_TERM))
 
         params['id'] = 'None'   # security!
-        group = Group()
+        group = Group(tables=1)
 
         if edit_id is not None:
             group = self._get_unsaved(edit_id, PreregCart.pending_dealers)
@@ -374,8 +396,8 @@ class Root:
     @redirect_if_at_con_to_kiosk
     @requires_account()
     def form(self, session, message='', edit_id=None, **params):
-        is_dealer_reg = 'dealer_id' in params
-        errors = check_if_can_reg(is_dealer_reg)
+        dealer_id = params.get('dealer_id', params.get('group_id', None))
+        errors = check_if_can_reg(bool(dealer_id))
         if errors:
             return errors
         """
@@ -394,14 +416,14 @@ class Root:
         if cherrypy.request.method == 'POST' and not params.get('badge_type'):
             params['badge_type'] = c.ATTENDEE_BADGE
 
-        if is_dealer_reg:
-            group = self._get_unsaved(params['dealer_id'], PreregCart.pending_dealers)
+        if dealer_id:
+            group = self._get_unsaved(dealer_id, PreregCart.pending_dealers)
             if group.attendees:
                 attendee = group.attendees[0]
                 loaded_from_group = True
             else:
                 attendee.badge_type = c.PSEUDO_DEALER_BADGE
-            attendee.group_id = params['dealer_id']
+            attendee.group_id = dealer_id
 
         if edit_id is not None:
             attendee = self._get_unsaved(edit_id)
@@ -438,7 +460,7 @@ class Root:
                 'name': name,
                 'badges': badges,
                 'invite_code': params.get('invite_code', ''),
-                'is_prereg_dealer': is_dealer_reg,
+                'is_prereg_dealer': bool(dealer_id),
             }
 
         if cherrypy.request.method == 'POST':
@@ -506,7 +528,7 @@ class Root:
         return {
             'logged_in_account': session.current_attendee_account(),
             'loaded_from_group': loaded_from_group,
-            'is_prereg_dealer': is_dealer_reg,
+            'is_prereg_dealer': bool(dealer_id),
             'message':    message,
             'attendee':   attendee,
             'forms': forms,
@@ -615,6 +637,7 @@ class Root:
     @ajax
     @credit_card
     def prereg_payment(self, session, message='', **params):
+        update_prereg_cart(session)
         cart = PreregCart(listify(PreregCart.unpaid_preregs.values()))
         cart.set_total_cost()
         if not cart.total_cost:
@@ -627,13 +650,20 @@ class Root:
                     message = check_prereg_promo_code(session, attendee)
                 if not message:
                     form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents']
-                    forms = load_forms({}, attendee, attendee_forms, form_list)
+                    # Populate checkboxes based on the model (I need a better solution for this)
+                    params = {}
+                    if not attendee.legal_name:
+                        params['same_legal_name'] = True
+                    params['pii_consent'] = True
+                    
+                    forms = load_forms(params, attendee, attendee_forms, form_list, checkboxes_present=False)
                     
                     all_errors = validate_model(forms, attendee, extra_validators_module=validations.attendee)
                     if all_errors:
                         # Flatten the errors as we don't have fields on this page
                         message = " ".join(list(zip(*[all_errors]))[1])
                 if message:
+                    message += f" Please click 'Edit' next to {attendee.full_name}'s registration to fix any issues."
                     break
             
             if not message:
@@ -642,6 +672,13 @@ class Root:
                     charge_receipt, charge_receipt_items = ReceiptManager.create_new_receipt(model, create_model=True)
                     existing_receipt = session.get_receipt_by_model(model)
                     if existing_receipt:
+                        # Multiple attendees can have the same transaction during pre-reg,
+                        # so we always cancel any incomplete transactions
+                        incomplete_txn = existing_receipt.get_last_incomplete_txn()
+                        if incomplete_txn:
+                            incomplete_txn.cancelled = datetime.now()
+                            session.add(incomplete_txn)
+
                         # If their registration costs changed, close their old receipt
                         compare_fields = ['amount', 'count', 'desc']
                         existing_items = [item.to_dict(compare_fields) for item in existing_receipt.receipt_items]
@@ -666,10 +703,12 @@ class Root:
                         receipts.append(charge_receipt)
 
                 if not message:
-                    charge = TransactionRequest(receipt_email=params.get('account_email'),
+                    receipt_email = session.current_attendee_account().email if c.ATTENDEE_ACCOUNTS_ENABLED else cart.receipt_email
+                    charge = TransactionRequest(receipt_email=receipt_email,
                                                 description=cart.description,
                                                 amount=sum([receipt.current_amount_owed for receipt in receipts]))
                     message = charge.create_stripe_intent()
+                    log.debug(charge.intent)
 
         if message:
             return {'error': message}
@@ -729,8 +768,8 @@ class Root:
                 'cancel_url': 'cancel_prereg_payment'}
     
     @ajax
-    def submit_authnet_charge(self, session, ref_id, amount, email, desc, token_desc, token_val, **params):
-        charge = TransactionRequest(receipt_email=email, description=desc, amount=amount)
+    def submit_authnet_charge(self, session, ref_id, amount, email, desc, customer_id, token_desc, token_val, **params):
+        charge = TransactionRequest(receipt_email=email, description=desc, amount=amount, customer_id=customer_id)
         error = charge.send_authorizenet_txn(token_desc=token_desc, token_val=token_val, intent_id=ref_id)
         if error:
             return {'error': error}
@@ -1467,7 +1506,7 @@ class Root:
     def validate_dealer(self, session, form_list=[], **params):
         id = params.get('id', params.get('edit_id'))
         if id in [None, '', 'None']:
-            group = Group()
+            group = Group(tables=1)
         else:
             try:
                 group = session.group(id)
@@ -1530,6 +1569,7 @@ class Root:
 
     @ajax
     def purchase_upgrades(self, session, id, **params):
+        message = ''
         attendee = session.attendee(id)
         try:
             receipt = session.model_receipt(params.get('receipt_id'))
@@ -1537,14 +1577,22 @@ class Root:
             return {'error': "Cannot find your receipt, please contact registration"}
         
         if receipt.open_receipt_items and receipt.current_amount_owed:
-            return {'error': "You already have an outstanding balance, please pay for your current items or contact registration"}
+            return {'error': "You already have an outstanding balance, please refresh the page to pay for your current items or contact {}".format(email_only(c.REGDESK_EMAIL))}
 
         receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
+        if not receipt_items:
+            return {'error': "There was an issue with adding your upgrade. Please contact the system administrator."}
         session.add_all(receipt_items)
 
-        attendee.apply(params, ignore_csrf=True, restricted=False)
-        message = check(attendee)
-        
+        # Get around locked field restrictions by applying the parameters directly
+        attendee.apply(params, ignore_csrf=True, restricted=True)
+
+        forms = load_forms(params, attendee, attendee_forms, ['BadgeExtras'])
+        all_errors = validate_model(forms, attendee, extra_validators_module=validations.attendee)
+        if all_errors:
+            # TODO: Make this work with the fields on the upgrade modal instead of flattening it all
+            message = ' '.join([item for sublist in all_errors.values() for item in sublist])
+
         if message:
             session.rollback()
             return {'error': message}
@@ -1574,10 +1622,8 @@ class Root:
         else:
             stripe_intent = txn.get_stripe_intent()
 
-        stripe_intent = txn.get_stripe_intent()
-
         if not stripe_intent:
-            return {'error': "Something went wrong. Please contact us at {}.".format(c.REGDESK_EMAIL)}
+            return {'error': "Something went wrong. Please contact us at {}.".format(email_only(c.REGDESK_EMAIL))}
 
         if stripe_intent.charges:
             return {'error': "This payment has already been finalized!"}
@@ -1603,7 +1649,9 @@ class Root:
             # Authorize.net doesn't actually have a concept of pending transactions,
             # so there's no transaction to resume. Create a new one.
             receipt_email = ""
-            if group.leader:
+            if group.email:
+                receipt_email = group.email
+            elif group.leader:
                 receipt_email = group.leader.email
             elif group.attendees:
                 receipt_email = group.attendees[0].email

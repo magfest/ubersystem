@@ -29,18 +29,12 @@
   {# Deprecated forms included for backwards compatibility with old plugins #}
   {% include "groupform.html" %}
 
-<div class="form-group">
-    <div class="col-sm-9 col-sm-offset-3">
-        {% if edit_id %}
-            <button type="submit" class="btn btn-primary" name="go_to_cart" value="1">Update</button>
-        {% endif %}
-        <button type="submit" class="btn btn-{% if edit_id %}outline-{% endif %}primary" value="Next">Next</button>
-    </div>
-</div>
-
+  {% if edit_id %}
+      <button type="submit" class="btn btn-primary" name="go_to_cart" value="1">Update</button>
+  {% endif %}
+  <button type="submit" class="btn btn-{% if edit_id %}outline-{% endif %}primary" value="Next">Next</button>
 </form>
-
 </div>
 </div>
-
+<script src="../static/js/warn-before-logout-dealer.js" type="text/javascript"></script>
 {% endblock %}
