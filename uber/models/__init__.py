@@ -1869,7 +1869,7 @@ class Session(SessionManager):
                 placeholder=True,
                 first_name='Test',
                 last_name='Developer',
-                email='magfest@example.com',
+                email=c.TEST_ADMIN_EMAIL,
                 badge_type=c.ATTENDEE_BADGE,
             )
             self.add(attendee)
@@ -1881,8 +1881,11 @@ class Session(SessionManager):
 
             test_developer_account = AdminAccount(
                 attendee=attendee,
-                hashed=bcrypt.hashpw('magfest', bcrypt.gensalt())
             )
+
+            if not c.SAML_SETTINGS:
+                test_developer_account.hashed = bcrypt.hashpw('magfest', bcrypt.gensalt())
+            
             test_developer_account.access_groups.append(all_access_group)
 
             self.add(all_access_group)
