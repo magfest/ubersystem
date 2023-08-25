@@ -221,6 +221,8 @@ class MagForm(Form):
 
             for aliased_field in reversed(aliases):
                 field_obj = getattr(self, aliased_field, None)
+                # I'm pretty sure this prevents an aliased field from zeroing out a value
+                # Right now we prefer that but we may want to change it later
                 if field_obj and field_obj.data:
                     field_obj.populate_obj(obj, model_field_name)
 
