@@ -102,8 +102,6 @@
             toggleVal = $("#{{ source_field.id }}").val();
         }
 
-        console.log(toggleVal)
-
         // Set whether we should toggle the target fields "on" or "off" based on the values provided
         // If no off_values or on_values were provided, we rely on truthiness instead
         if (toggleOn === undefined) {
@@ -168,20 +166,21 @@
 <div class="card-group mt-0{% if not show_desc %} mb-3{% endif %}">
 {% for opt in opts %}
 {% set disabled_card = opt.value in disabled_opts %}
-  <div class="card {{ text_class }}{% if disabled_card %} disabled-card bg-secondary text-white{% endif %}" style="max-width: 18rem;">
+  <div class="card {{ target_field.name }}_card {{ text_class }}{% if disabled_card %} disabled-card bg-secondary text-white{% endif %}" style="max-width: 18rem;">
       <div class="card-header" style="transform: rotate(0);">
-          <label for="{{ target_field.id }}-{{ opt.value }}" class="h5 card-title mb-0">
+          <label for="{{ target_field.id }}-{{ opt.value }}" class="h5 card-title mb-0 text-nowrap">
             {% if disabled_card or is_preview %}
             {{ opt.name }}{% if opt.price %}: {{ opt.price|format_currency }}{% endif %}
             {% else %}
-              <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card"
-              data-value="{{ opt.value }}">{{ opt.name }}</a>{% if opt.price %}: {{ opt.price|format_currency }}{% endif %}
+              <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card_link">
+                {{ opt.name }}
+              </a>{% if opt.price %}: {{ opt.price|format_currency }}{% endif %}
             {% endif %}
           </label>
       </div>
       <div class="card-body" style="transform: rotate(0);">
       {% if opt.icon %}
-          <img src="{{ opt.icon }}" class="card-img" alt="{{ opt.name }} Icon">
+          <img src="{{ opt.icon }}" class="card-img mb-3" alt="{{ opt.name }} Icon">
       {% endif %}
         {% if disabled_card or is_preview %}
           {{ opt.desc|safe }}
@@ -193,14 +192,14 @@
           </div>
           {% endif %}
         {% else %}
-          <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card"
+          <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card_link"
               data-value="{{ opt.value }}">{{ opt.desc|safe }}</a>
               <input type="radio" id="{{ target_field.id }}-{{ opt.value }}" name="card-{{ target_field.id }}" class="visually-hidden" value="{{ opt.value }}" />
         {% endif %}
       </div>
       {% if opt.link %}
       <div class="card-footer">
-          {{ macros.popup_link(opt.link, 'Read More') }}
+          {{ opt.link|popup_link('Read More', 'link-light' if disabled_card else 'link-secondary') }}
       </div>
       {% endif %}
   </div>
@@ -215,17 +214,24 @@
     var setField_{{ target_field.name }} = function(value) {
         $("#{{ target_field.id }}").val(value).trigger('change');
         $(".{{ target_field.name }}_card").each(function(){
-            var header = $(this).parent().siblings('.card-header');
-            if(this.dataset.value == value) {
+            var header = $(this).children('.card-header');
+            var body = $(this).children('.card-body');
+            var footer = $(this).children('.card-footer');
+
+            if(body.find('a').length && body.find('a').data('value') == value) {
                 header.addClass('text-white bg-primary');
+                body.addClass('bg-light');
+                if (footer.length) { footer.addClass('text-white bg-primary').children('a').removeClass('link-secondary').addClass('link-light') };
             } else {
-                header.removeClass('text-white bg-primary border-primary');
+                header.removeClass('text-white bg-primary');
+                body.removeClass('bg-light');
+                if (footer.length) { footer.removeClass('text-white bg-primary').children('a').addClass('link-secondary').removeClass('link-light') };
             }
         });
     };
     $(function () {
         setField_{{ target_field.name }}("{{ target_field.data }}");
-        $('.{{ target_field.name }}_card').click(function(){
+        $('.{{ target_field.name }}_card_link').click(function(){
             setField_{{ target_field.name }}(this.dataset.value);
             return false;
         });

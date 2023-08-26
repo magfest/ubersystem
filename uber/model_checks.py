@@ -1005,6 +1005,12 @@ def age_discount_after_paid(attendee):
                                 please email {} to change your badge and receive a refund'.format(c.REGDESK_EMAIL))
 
 
+@prereg_validation.Attendee
+def require_staff_shirt_size(attendee):
+    if attendee.gets_staff_shirt and not attendee.shirt_size_marked:
+        return ('staff_shirt', "Please select a shirt size for your staff shirt.")
+
+
 @validation.Attendee
 def volunteers_cellphone_or_checkbox(attendee):
     if not attendee.no_cellphone and attendee.staffing_or_will_be and not attendee.cellphone:
