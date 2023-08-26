@@ -10,6 +10,7 @@ import uuid
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, time, timedelta
 from hashlib import sha512
+from markupsafe import Markup
 from itertools import chain
 
 import cherrypy
@@ -402,9 +403,11 @@ class Config(_Overridable):
             getattr(self, level + "_LEVEL"), getattr(self, level + "_AVAILABLE")]
             for level in ['SHIRT', 'SUPPORTER', 'SEASON']
         ])
-
+    
     @property
     def PREREG_DONATION_OPTS(self):
+        # TODO: Remove this once the admin form is converted to the new form system
+
         if not self.SHARED_KICKIN_STOCKS:
             return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS
                     if amt not in self.kickin_availability_matrix or self.kickin_availability_matrix[amt]]
@@ -420,6 +423,8 @@ class Config(_Overridable):
 
     @property
     def FORMATTED_DONATION_DESCRIPTIONS(self):
+        # TODO: Remove this once the admin form is converted to the new form system
+        
         """
         A list of the donation descriptions, formatted for use on attendee-facing pages.
         
@@ -450,7 +455,51 @@ class Config(_Overridable):
         return [dict(tier[1]) for tier in donation_list]
 
     @property
+    def SOLD_OUT_MERCH_TIERS(self):
+        if not self.SHARED_KICKIN_STOCKS:
+            return [price for price, available in self.kickin_availability_matrix.items() if available == False]
+
+        if self.BEFORE_SHIRT_DEADLINE and not self.SHIRT_AVAILABLE:
+            return [price for price, name in self.DONATION_TIERS.items() if price >= self.SHIRT_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
+            return [price for price, name in self.DONATION_TIERS.items() if price >= self.SUPPORTER_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SEASON_AVAILABLE:
+            return [price for price, name in self.DONATION_TIERS.items() if price >= self.SEASON_LEVEL]
+
+        return []
+
+    @property
+    def FORMATTED_MERCH_TIERS(self):
+        # Formats the data from DONATION_TIER_DESCRIPTIONS to match what the 'card_select' form macro expects.
+        
+        donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
+
+        donation_list = sorted(donation_list, key=lambda tier: tier[1]['price'])
+
+        merch_tiers = []
+
+        for entry in donation_list:
+            tier = entry[1].copy()
+            if '|' in tier['description']:
+                item_list = tier['description'].split('|')
+                formatted_desc = item_list[0]
+                for item in item_list[1:]:
+                    formatted_desc += "<hr class='m-2'>" + item
+                tier['desc'] = Markup(formatted_desc)
+            else:
+                tier['desc'] = tier['description']
+
+            tier.pop('description', '')
+            tier.pop('merch_items', '')
+
+            merch_tiers.append(tier)
+
+        return merch_tiers
+
+    @property
     def PREREG_DONATION_DESCRIPTIONS(self):
+        # TODO: Remove this once the admin form is converted to the new form system
+
         donation_list = self.FORMATTED_DONATION_DESCRIPTIONS
 
         # include only the items that are actually available for purchase
@@ -474,10 +523,6 @@ class Config(_Overridable):
     def FORMATTED_DONATION_DESCRIPTIONS_EXCLUSIVE(self):
         """
         A list of the donation descriptions, formatted for use on attendee-facing pages.
-        
-        This does NOT filter out unavailable kick-ins so we can use it on attendees' confirmation pages
-        to show unavailable kick-ins they've already purchased. To show only available kick-ins, use
-        PREREG_DONATION_DESCRIPTIONS.
         """
         donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
 

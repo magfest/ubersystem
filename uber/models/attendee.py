@@ -777,6 +777,19 @@ class Attendee(MagModel, TakesPaymentMixin):
         return badge_type_opts
 
     @property
+    def available_amount_extra_opts(self):
+        if self.is_new or self.amount_extra == 0 or self.is_unpaid:
+            return c.FORMATTED_MERCH_TIERS
+
+        preordered_merch_opts = []
+        
+        for opt in c.FORMATTED_MERCH_TIERS:
+            if 'price' not in opt or self.amount_extra <= opt['price']:
+                preordered_merch_opts.append(opt)
+
+        return preordered_merch_opts
+
+    @property
     def badge_cost_with_promo_code(self):
         return self.calculate_badge_cost(use_promo_code=True)
 

@@ -29,7 +29,7 @@ def valid_cellphone(form, field):
                                 'Please include a country code (e.g. +44) for international numbers.')
 
 class PersonalInfo(AddressForm, MagForm):
-    field_validation = CustomValidation()
+    field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
     
     first_name = StringField('First Name', validators=[
         validators.DataRequired("Please provide your first name.")
@@ -41,6 +41,13 @@ class PersonalInfo(AddressForm, MagForm):
     legal_name = StringField('Name as appears on Legal Photo ID', validators=[
         validators.DataRequired("Please provide the name on your photo ID or indicate that your first and last name match your ID.")
         ], render_kw={'placeholder': 'First and last name exactly as they appear on Photo ID'})
+    badge_printed_name = StringField('Name Printed on Badge', validators=[
+        validators.DataRequired("Please enter a name to be printed on your badge."),
+        validators.Length(max=20, message="Your printed badge name is too long. \
+                          Please use less than 20 characters."),
+        validators.Regexp(c.VALID_BADGE_PRINTED_CHARS, message="Your printed badge name has invalid characters. \
+                          Please use only alphanumeric characters and symbols.")
+        ], description="Badge names have a maximum of 20 characters.")
     email = EmailField('Email Address', validators=[
         validators.DataRequired("Please enter an email address."),
         validators.Length(max=255, message="Email addresses cannot be longer than 255 characters."),
@@ -82,10 +89,14 @@ class PersonalInfo(AddressForm, MagForm):
             unassigned_group_reg = attendee.group_id and not attendee.first_name and not attendee.last_name
             valid_placeholder = attendee.placeholder and attendee.first_name and attendee.last_name
             if unassigned_group_reg or valid_placeholder:
-                return ['first_name', 'last_name', 'legal_name', 'email', 'birthdate', 'age_group', 'ec_name', 'ec_phone',
-                        'address1', 'city', 'region', 'region_us', 'region_canada', 'zip_code', 'country', 'onsite_contact']
+                return ['first_name', 'last_name', 'legal_name', 'badge_printed_name', 'email', 'birthdate', 'age_group',
+                        'ec_name', 'ec_phone', 'address1', 'city', 'region', 'region_us', 'region_canada', 'zip_code', 'country', 
+                        'onsite_contact']
         
         optional_list = super().get_optional_fields(attendee, is_admin)
+
+        if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES:
+            optional_list.append('badge_printed_name')
 
         if self.same_legal_name.data:
             optional_list.append('legal_name')
@@ -112,6 +123,16 @@ class PersonalInfo(AddressForm, MagForm):
             return locked_fields
         
         return locked_fields + ['first_name', 'last_name', 'legal_name', 'same_legal_name']
+    
+    @new_or_changed_validation.badge_type
+    def past_printed_deadline(form, field):
+        if field.data in c.PREASSIGNED_BADGE_TYPES and c.PRINTED_BADGE_DEADLINE and c.AFTER_PRINTED_BADGE_DEADLINE:
+            with Session() as session:
+                admin = session.current_admin_account()
+                if admin.is_super_admin:
+                    return
+        raise ValidationError('{} badges have already been ordered, so you cannot change your printed badge name.'.format(
+                c.BADGES[field.data]))
     
     @field_validation.onsite_contact
     def require_onsite_contact(form, field):
@@ -152,7 +173,7 @@ class PersonalInfo(AddressForm, MagForm):
 
 class BadgeExtras(MagForm):
     field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
-    field_aliases = {'badge_type': ['upgrade_badge_type'], 'shirt': ['staff_shirt']}
+    field_aliases = {'badge_type': ['upgrade_badge_type']}
 
     badge_type = HiddenIntField('Badge Type')
     upgrade_badge_type = HiddenIntField('Badge Type')
@@ -164,12 +185,6 @@ class BadgeExtras(MagForm):
         ], widget=DollarInput(), description=popup_link("../static_views/givingExtra.html", "Learn more"))
     shirt = SelectField('Shirt Size', choices=c.SHIRT_OPTS, coerce=int)
     staff_shirt = SelectField('Staff Shirt Size', choices=c.STAFF_SHIRT_OPTS, coerce=int)
-    badge_printed_name = StringField('Name Printed on Badge', validators=[
-        validators.Length(max=20, message="Your printed badge name is too long. \
-                          Please use less than 20 characters."),
-        validators.Regexp(c.VALID_BADGE_PRINTED_CHARS, message="Your printed badge name has invalid characters. \
-                          Please use only alphanumeric characters and symbols.")
-        ], description="Badge names have a maximum of 20 characters.")
     
     def get_non_admin_locked_fields(self, attendee):
         locked_fields = []
@@ -190,9 +205,6 @@ class BadgeExtras(MagForm):
     def get_optional_fields(self, attendee, is_admin=False):        
         optional_list = super().get_optional_fields(attendee, is_admin)
 
-        if attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES:
-            optional_list.append('badge_printed_name')
-
         return optional_list
     
     @field_validation.shirt
@@ -203,9 +215,10 @@ class BadgeExtras(MagForm):
     
     @new_or_changed_validation.amount_extra
     def upgrade_sold_out(form, field):
-        currently_available_upgrades = [tier['value'] for tier in c.PREREG_DONATION_DESCRIPTIONS]
-        if field.data and field.data not in currently_available_upgrades:
+        if field.data and field.data in c.SOLD_OUT_MERCH_TIERS:
             raise ValidationError("The upgrade you have selected is sold out.")
+        elif field.data and getattr(c.kickin_availability_matrix, str(field.data), True) == False:
+            raise ValidationError("The upgrade you have selected is no longer available.")
 
     @new_or_changed_validation.badge_type
     def no_more_custom_badges(form, field):
@@ -224,16 +237,6 @@ class BadgeExtras(MagForm):
                 session.get_next_badge_num(badge_type)
             except AssertionError:
                 raise ValidationError('We are sold out of {} badges.'.format(c.BADGES[badge_type]))
-
-    @new_or_changed_validation.badge_printed_name
-    def past_printed_deadline(form, field):
-        if field.data in c.PREASSIGNED_BADGE_TYPES and c.PRINTED_BADGE_DEADLINE and c.AFTER_PRINTED_BADGE_DEADLINE:
-            with Session() as session:
-                admin = session.current_admin_account()
-                if admin.is_super_admin:
-                    return
-        raise ValidationError('{} badges have already been ordered, so you cannot change your printed badge name.'.format(
-                c.BADGES[field.data]))
 
 
 class OtherInfo(MagForm):
