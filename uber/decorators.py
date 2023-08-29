@@ -251,7 +251,8 @@ def ajax(func):
             assert cherrypy.request.method == 'POST', 'POST required, got {}'.format(cherrypy.request.method)
             check_csrf(kwargs.pop('csrf_token', None))
         except Exception as e:
-            return json.dumps({'success': False, 'message': str(e), 'error': str(e)}, cls=serializer).encode('utf-8')
+            message = "There was an issue submitting the form. Please refresh and try again."
+            return json.dumps({'success': False, 'message': message, 'error': message}, cls=serializer).encode('utf-8')
         return json.dumps(func(*args, **kwargs), cls=serializer).encode('utf-8')
     returns_json.ajax = True
     return returns_json

@@ -9,7 +9,7 @@
 <h1 class="text-center">{{ c.EVENT_NAME_AND_YEAR }} Registration</h1>
 {% block landing_info_box %}
 <div class="row g-sm-3 justify-content-center">
-    <div class="col-sm-9">{{ form_macros.card_select(badge_extras.badge_type, attendee.available_badge_type_opts, disabled_opts=c.SOLD_OUT_BADGE_TYPES, ) }}</div>
+    <div class="col-sm-10">{{ form_macros.card_select(badge_extras.badge_type, attendee.available_badge_type_opts, disabled_opts=c.SOLD_OUT_BADGE_TYPES, ) }}</div>
 </div>
 {% endblock %}
 
@@ -19,7 +19,20 @@
     {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
         {% if logged_in_account %}
         <div class="text-center">
-            <a class="btn btn-info btn-xl" href="../preregistration/homepage" role="button">Continue to Homepage</a>
+            {% if logged_in_account.attendees %}
+            <a class="btn btn-info btn-lg" href="../preregistration/homepage" role="button">Continue to Homepage</a>
+            {% else %}
+            <div class="btn-group">
+                <a class="btn btn-primary btn-lg" href="../preregistration/form" role="button">
+                    Register for {{ c.EVENT_NAME_AND_YEAR }}
+                </a>
+                {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
+                <a class="btn btn-success btn-lg" href="../preregistration/dealer_registration" role="button">
+                    Register as Dealer
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
         {% else %}
         {% block login_intro %}

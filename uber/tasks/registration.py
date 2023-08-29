@@ -182,6 +182,7 @@ def email_pending_attendees():
                     email_to,
                     f"You have an incomplete {c.EVENT_NAME} registration!",
                     body,
+                    format='html',
                     model=badge.managers[0].to_dict() if c.ATTENDEE_ACCOUNTS_ENABLED else badge.to_dict(),
                     ident=email_ident
                 )
