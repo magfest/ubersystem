@@ -10,7 +10,7 @@ from wtforms.widgets import HiddenInput
 from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
-from uber.forms import AddressForm, MultiCheckbox, MagForm, SwitchInput, DollarInput, HiddenIntField, CustomValidation
+from uber.forms import AddressForm, MultiCheckbox, MagForm, SwitchInput, NumberInputGroup, HiddenIntField, CustomValidation
 from uber.custom_tags import popup_link
 from uber.model_checks import invalid_phone_number
 
@@ -173,16 +173,14 @@ class PersonalInfo(AddressForm, MagForm):
 
 class BadgeExtras(MagForm):
     field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
-    field_aliases = {'badge_type': ['upgrade_badge_type']}
 
     badge_type = HiddenIntField('Badge Type')
-    upgrade_badge_type = HiddenIntField('Badge Type')
     amount_extra = HiddenIntField('Pre-order Merch', validators=[
         validators.NumberRange(min=0, message="Amount extra must be a number that is 0 or higher.")
         ])
     extra_donation = IntegerField('Extra Donation', validators=[
         validators.NumberRange(min=0, message="Extra donation must be a number that is 0 or higher.")
-        ], widget=DollarInput(), description=popup_link("../static_views/givingExtra.html", "Learn more"))
+        ], widget=NumberInputGroup(), description=popup_link("../static_views/givingExtra.html", "Learn more"))
     shirt = SelectField('Shirt Size', choices=c.SHIRT_OPTS, coerce=int)
     staff_shirt = SelectField('Staff Shirt Size', choices=c.STAFF_SHIRT_OPTS, coerce=int)
     

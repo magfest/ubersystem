@@ -24,7 +24,7 @@
 {% macro form_input(field, help_text='', admin_text='', extra_field=None, no_margin=False) %}
 
 {% set custom_kwargs = kwargs %}
-{% if locked_fields|default(None, true) and field.name in locked_fields %}
+{% if locked_fields|default(None, true) and field.name in locked_fields and not upgrade_modal %}
 {% set _ = custom_kwargs.update({'readonly': true}) %}
 {% endif %}
 
@@ -86,20 +86,21 @@
 {{ toggle_fields_js(checkbox_field, target_fields, off_values=[1 if hide_on_checked == True else 0], toggle_required=toggle_required, prop=prop, closest_hide_selector=closest_hide_selector) }}
 {%- endmacro %}
 
-{% macro toggle_fields_js(source_field, target_fields, off_values=[], on_values=[], toggle_required=False, prop='visibility', closest_hide_selector='.row') %}
-{% set suffix = "_" ~ source_field.id %}
+{% macro toggle_fields_js(source_field, target_fields, off_values=[], on_values=[], toggle_required=False, prop='visibility', closest_hide_selector='.row', source_field_id="") %}
+{% set source_id = source_field_id or source_field.id %}
+{% set suffix = "_" ~ source_id %}
 <script type="text/javascript">
     var toggleField{{ suffix }} = function() {
         var toggleOn, toggleVal;
 
         // Get the checked/unchecked status if the field is a checkbox, otherwise get the field's value
-        if ($("#{{ source_field.id }}").is(':checkbox')) {
-            toggleVal = $('#{{ source_field.id }}').prop('checked') ? "1" : "0";
-        } else if ($("#{{ source_field.id }}").is("fieldset")) {
+        if ($("#{{ source_id }}").is(':checkbox')) {
+            toggleVal = $('#{{ source_id }}').prop('checked') ? "1" : "0";
+        } else if ($("#{{ source_id }}").is("fieldset")) {
             // For checkgroup source fields, we only support a single on_value
-            toggleOn = $('#{{ source_field.id }}-{{ on_values[0]|string }}').prop('checked') ? true : false;
+            toggleOn = $('#{{ source_id }}-{{ on_values[0]|string }}').prop('checked') ? true : false;
         } else {
-            toggleVal = $("#{{ source_field.id }}").val();
+            toggleVal = $("#{{ source_id }}").val();
         }
 
         // Set whether we should toggle the target fields "on" or "off" based on the values provided
@@ -132,12 +133,12 @@
 
     $(function () {
         toggleField{{ suffix }}();
-        $('#{{ source_field.id }}').change(toggleField{{ suffix }});
+        $('#{{ source_id }}').change(toggleField{{ suffix }});
     });
 </script>
 {%- endmacro %}
 
-{% macro card_select(target_field, opts, text_class="text-center", help_text="", disabled_opts=[], disabled_card_text="Sold Out") %}
+{% macro card_select(target_field, opts, text_class="text-center", help_text="", disabled_opts=[], target_field_id="", disabled_card_text="Sold Out") %}
 {# 
     A set of card elements generated from opts. Each item in opts should include the following fields:
         name (str): The title displayed at the top of the card.
@@ -153,6 +154,7 @@
 
 {% set is_preview = 'landing' in c.PAGE_PATH %}
 {% set label_required = kwargs['required'] if 'required' in kwargs else None %}
+{% set field_id = target_field_id or target_field.id %}
 {% set show_desc = not admin_area and not is_preview and (help_text or target_field.description) %}
 
 {% if is_preview %}
@@ -168,7 +170,7 @@
 {% set disabled_card = opt.value in disabled_opts %}
   <div class="card {{ target_field.name }}_card {{ text_class }}{% if disabled_card %} disabled-card bg-secondary text-white{% endif %}" style="max-width: 18rem;">
       <div class="card-header" style="transform: rotate(0);">
-          <label for="{{ target_field.id }}-{{ opt.value }}" class="h5 card-title mb-0 text-nowrap">
+          <label for="{{ field_id }}-{{ opt.value }}" class="h5 card-title mb-0 text-nowrap">
             {% if disabled_card or is_preview %}
             {{ opt.name }}{% if opt.price %}: {{ opt.price|format_currency }}{% endif %}
             {% else %}
@@ -194,7 +196,7 @@
         {% else %}
           <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card_link"
               data-value="{{ opt.value }}">{{ opt.desc|safe }}</a>
-              <input type="radio" id="{{ target_field.id }}-{{ opt.value }}" name="card-{{ target_field.id }}" class="visually-hidden" value="{{ opt.value }}" />
+              <input type="radio" id="{{ field_id }}-{{ opt.value }}" name="card-{{ field_id }}" class="visually-hidden" value="{{ opt.value }}" />
         {% endif %}
       </div>
       {% if opt.link %}
@@ -212,7 +214,7 @@
 
 <script type="text/javascript">
     var setField_{{ target_field.name }} = function(value) {
-        $("#{{ target_field.id }}").val(value).trigger('change');
+        $("#{{ field_id }}").val(value).trigger('change');
         $(".{{ target_field.name }}_card").each(function(){
             var header = $(this).children('.card-header');
             var body = $(this).children('.card-body');

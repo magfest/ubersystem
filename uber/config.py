@@ -6,6 +6,7 @@ import os
 import pytz
 import re
 import redis
+import six
 import uuid
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, time, timedelta
@@ -109,6 +110,8 @@ class _Overridable:
 
     def make_integer_enums(self, config_section):
         def is_intstr(s):
+            if not isinstance(s, six.string_types):
+                return isinstance(s, int)
             if s and s[0] in ('-', '+'):
                 return str(s[1:]).isdigit()
             return str(s).isdigit()
@@ -467,6 +470,10 @@ class Config(_Overridable):
             return [price for price, name in self.DONATION_TIERS.items() if price >= self.SEASON_LEVEL]
 
         return []
+    
+    @property
+    def AVAILABLE_MERCH_TIERS(self):
+        return [price for price, name in self.DONATION_TIERS.items() if price not in self.SOLD_OUT_MERCH_TIERS]
 
     @property
     def FORMATTED_MERCH_TIERS(self):

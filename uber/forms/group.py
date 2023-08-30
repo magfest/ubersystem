@@ -6,7 +6,7 @@ from wtforms import (BooleanField, DecimalField, EmailField, Form, FormField,
 from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
-from uber.forms import AddressForm, CustomValidation, MultiCheckbox, MagForm, IntSelect, SwitchInput, DollarInput, HiddenIntField
+from uber.forms import AddressForm, CustomValidation, MultiCheckbox, MagForm, IntSelect, SwitchInput, NumberInputGroup, HiddenIntField
 from uber.forms.attendee import valid_cellphone
 from uber.custom_tags import popup_link, format_currency, pluralize, table_prices
 from uber.model_checks import invalid_phone_number
@@ -41,7 +41,7 @@ class AdminGroupInfo(GroupInfo):
     new_ribbons = SelectMultipleField('Badge Ribbons', choices=c.RIBBON_OPTS, coerce=int, widget=MultiCheckbox())
     cost = IntegerField('Total Group Price', validators=[
         validators.NumberRange(min=0, message="Total Group Price must be a number that is 0 or higher.")
-    ], widget=DollarInput())
+    ], widget=NumberInputGroup())
     auto_recalc = BooleanField('Automatically recalculate this number.')
     amount_paid_repr = StringField('Amount Paid', render_kw={'disabled': "disabled"})
     amount_refunded_repr = StringField('Amount Refunded', render_kw={'disabled': "disabled"})

@@ -9,9 +9,9 @@
 {%- endmacro %}
 
 
-{% macro upgrade_button(upgrade_btn_id, text="Upgrade") %}
+{% macro upgrade_button(upgrade_btn_id, text="Upgrade", extra_classes=" btn-sm") %}
 {% if receipt and receipt.current_amount_owed <= 0 %}
-  <a class="btn btn-sm btn-success" id="upgrade-{{ upgrade_btn_id }}-btn" data-bs-toggle="modal" data-bs-target="#upgradeModal">
+  <a class="btn btn-success{{ extra_classes }}" id="upgrade-{{ upgrade_btn_id }}-btn" data-bs-toggle="modal" data-bs-target="#upgradeModal">
     <span class="glyphicon glyphicon-circle-arrow-up"></span> {{ text }}
   </a>
 {% endif %}
