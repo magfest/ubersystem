@@ -658,7 +658,7 @@ class Root:
                     
                     forms = load_forms(params, attendee, attendee_forms, form_list, checkboxes_present=False)
                     
-                    all_errors = validate_model(forms, attendee, extra_validators_module=validations.attendee)
+                    all_errors = validate_model(forms, attendee)
                     if all_errors:
                         # Flatten the errors as we don't have fields on this page
                         message = " ".join(list(zip(*[all_errors]))[1])
@@ -1585,10 +1585,11 @@ class Root:
         session.add_all(receipt_items)
 
         # Get around locked field restrictions by applying the parameters directly
-        attendee.apply(params, ignore_csrf=True, restricted=True)
+        attendee.apply(params, restricted=False, ignore_csrf=True)
 
         forms = load_forms(params, attendee, attendee_forms, ['BadgeExtras'])
-        all_errors = validate_model(forms, attendee, extra_validators_module=validations.attendee)
+        
+        all_errors = validate_model(forms, attendee)
         if all_errors:
             # TODO: Make this work with the fields on the upgrade modal instead of flattening it all
             message = ' '.join([item for sublist in all_errors.values() for item in sublist])
