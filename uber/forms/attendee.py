@@ -182,7 +182,7 @@ class BadgeExtras(MagForm):
         ])
     extra_donation = IntegerField('Extra Donation', validators=[
         validators.NumberRange(min=0, message="Extra donation must be a number that is 0 or higher.")
-        ], widget=DollarInput(), description=popup_link("../static_views/givingExtra.html", "Learn more"))
+        ], widget=NumberInputGroup(), description=popup_link("../static_views/givingExtra.html", "Learn more"))
     shirt = SelectField('Shirt Size', choices=c.SHIRT_OPTS, coerce=int)
     staff_shirt = SelectField('Staff Shirt Size', choices=c.STAFF_SHIRT_OPTS, coerce=int)
     

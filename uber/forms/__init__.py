@@ -236,7 +236,7 @@ class MagForm(Form):
                 return 'switch'
             elif isinstance(widget, wtforms_widgets.CheckboxInput):
                 return 'checkbox'
-            elif isinstance(widget, (NumberInputGroup, DollarInput)):
+            elif isinstance(widget, NumberInputGroup):
                 return 'inputgroup'
             elif isinstance(widget, MultiCheckbox):
                 return 'checkgroup'
