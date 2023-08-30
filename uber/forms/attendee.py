@@ -173,6 +173,7 @@ class PersonalInfo(AddressForm, MagForm):
 
 class BadgeExtras(MagForm):
     field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
+    dynamic_choices_fields = {'shirt': lambda: c.SHIRT_OPTS, 'staff_shirt': lambda: c.STAFF_SHIRT_OPTS}
 
     badge_type = HiddenIntField('Badge Type')
     amount_extra = HiddenIntField('Pre-order Merch', validators=[
@@ -181,8 +182,8 @@ class BadgeExtras(MagForm):
     extra_donation = IntegerField('Extra Donation', validators=[
         validators.NumberRange(min=0, message="Extra donation must be a number that is 0 or higher.")
         ], widget=NumberInputGroup(), description=popup_link("../static_views/givingExtra.html", "Learn more"))
-    shirt = SelectField('Shirt Size', choices=c.SHIRT_OPTS, coerce=int)
-    staff_shirt = SelectField('Staff Shirt Size', choices=c.STAFF_SHIRT_OPTS, coerce=int)
+    shirt = SelectField('Shirt Size', coerce=int)
+    staff_shirt = SelectField('Staff Shirt Size', coerce=int)
     
     def get_non_admin_locked_fields(self, attendee):
         locked_fields = []
@@ -238,9 +239,11 @@ class BadgeExtras(MagForm):
 
 
 class OtherInfo(MagForm):
+    dynamic_choices_fields = {'requested_dept_ids': lambda: [(v[0], v[1]) for v in c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC] if len(c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC) > 1 else c.JOB_INTEREST_OPTS}
+
     placeholder = BooleanField(widget=HiddenInput())
     staffing = BooleanField('I am interested in volunteering!', widget=SwitchInput(), description=popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?"))
-    requested_dept_ids = SelectMultipleField('Where do you want to help?', choices=c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC if len(c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC) > 1 else c.JOB_INTEREST_OPTS, coerce=int, widget=MultiCheckbox())
+    requested_dept_ids = SelectMultipleField('Where do you want to help?', widget=MultiCheckbox()) # TODO: Show attendees department descriptions
     requested_accessibility_services = BooleanField(f'I would like to be contacted by the {c.EVENT_NAME} Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', widget=SwitchInput())
     interests = SelectMultipleField('What interests you?', choices=c.INTEREST_OPTS, coerce=int, validators=[validators.Optional()], widget=MultiCheckbox())
         

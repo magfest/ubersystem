@@ -52,6 +52,7 @@ def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=Tr
             log.error("We tried to load a form called {} from module {}, but it doesn't seem to exist!".format(cls, str(module)))
             continue
 
+        # Configure and populate fields in "aliased_fields", which are used to store different display logics for a single column
         for model_field_name, aliases in form_cls.field_aliases.items():
             alias_val = params.get(model_field_name, getattr(model, model_field_name))
             for aliased_field in aliases:
@@ -73,6 +74,10 @@ def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=Tr
                 override_validators = get_override_attr(loaded_form, name, '_validators', field)
                 if override_validators:
                     field.validators = override_validators
+            
+            # Refresh any choices for fields in "dynamic_choices_fields" so we can have up-to-date choices for select fields
+            if name in loaded_form.dynamic_choices_fields.keys():
+                field.choices = loaded_form.dynamic_choices_fields[name]()
 
         form_label = re.sub(r'(?<!^)(?=[A-Z])', '_', cls).lower()
         if truncate_prefix and form_label.startswith(truncate_prefix + '_'):
@@ -113,6 +118,7 @@ class CustomValidation:
 
 class MagForm(Form):
     field_aliases = {}
+    dynamic_choices_fields = {}
     field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
 
     def get_optional_fields(self, model, is_admin=False):
