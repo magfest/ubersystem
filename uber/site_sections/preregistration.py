@@ -1580,7 +1580,7 @@ class Root:
         session.add_all(receipt_items)
 
         # Get around locked field restrictions by applying the parameters directly
-        attendee.apply(params, ignore_csrf=True, restricted=True)
+        attendee.apply(params, restricted=False, ignore_csrf=True)
 
         forms = load_forms(params, attendee, attendee_forms, ['BadgeExtras'])
         all_errors = validate_model(forms, attendee, extra_validators_module=validations.attendee)
