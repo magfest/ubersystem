@@ -10,6 +10,8 @@ from jinja2.utils import open_if_exists
 from jinja2.exceptions import TemplateNotFound, TemplatesNotFound
 from sideboard.lib import request_cached_property
 
+from pockets.autolog import log
+
 from uber.config import c
 
 # This used to be in jinja2._compat, but that was removed in version 3.0.0
@@ -19,6 +21,9 @@ if sys.version_info[0] == 2:
 
 
 class MultiPathEnvironment(jinja2.Environment):
+    def __init__(self, base_template_paths=[], **kwargs):
+        self.base_template_paths = base_template_paths
+        jinja2.Environment.__init__(self, **kwargs)
 
     @request_cached_property
     def _templates_loaded_for_current_request(self):
@@ -27,11 +32,20 @@ class MultiPathEnvironment(jinja2.Environment):
     @lru_cache()
     def _get_matching_filenames(self, template):
         pieces = split_template_path(template)
+        search_paths = self.loader.searchpath
+
+        # Check to see if this template string specifies a plugin
+        for exact_path in self.base_template_paths:
+            if template.startswith(exact_path):
+                pieces = split_template_path(template.replace(exact_path, '', 1))
+                search_paths = [s for s in self.loader.searchpath if s.endswith(exact_path)]
+
         matching_filenames = []
-        for searchpath in self.loader.searchpath:
+        for searchpath in search_paths:
             filename = os.path.join(searchpath, *pieces)
             if os.path.exists(filename):
                 matching_filenames.append(filename)
+
         return matching_filenames
 
     def _load_template(self, name, globals, use_request_cache=True):
@@ -56,11 +70,11 @@ class MultiPathEnvironment(jinja2.Environment):
         if self.cache is not None:
             template = self.cache.get(cache_key)
             if template and (not self.auto_reload or template.is_up_to_date):
-                self._templates_loaded_for_current_request.add(template.filename)
+                
                 return template
 
         template = self.loader.load(self, filename, globals)
-        self._templates_loaded_for_current_request.add(template.filename)
+        
 
         if self.cache is not None:
             self.cache[cache_key] = template
@@ -143,16 +157,21 @@ class JinjaEnv:
     _filter_functions = {}
     _test_functions = {}
     _template_dirs = []
+    _base_template_paths = []
 
     @classmethod
     def insert_template_dir(cls, dirname):
         """
         Add another template directory we should search when looking up templates.
+        Also keeps a list of strings that templates can use to specify a plugin,
+        e.g., uber/templates/ will load the template in the base plugin.
         """
         if cls._env and cls._env.loader:
             cls._env.loader.searchpath.insert(0, dirname)
+            cls._env.base_template_paths.insert(0, '/'.join(dirname.split('/')[-2:]))
         else:
             cls._template_dirs.insert(0, dirname)
+            cls._base_template_paths.insert(0, '/'.join(dirname.split('/')[-2:]))
         cls.clear_cache()
 
     @classmethod
@@ -169,6 +188,7 @@ class JinjaEnv:
     @classmethod
     def _init_env(cls):
         env = MultiPathEnvironment(
+            base_template_paths=cls._base_template_paths,
             autoescape=True,
             loader=AbsolutePathLoader(cls._template_dirs),
             lstrip_blocks=True,
