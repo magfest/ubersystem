@@ -226,8 +226,8 @@
             {% endif %}
 
             // This nonsense is so we can have line breaks AND unescaped quotes in our messages
-            var message = '{{ message|tojson|safe if message else "" }}';
-            var error_message = '{{ error_message|tojson|safe if error_message else "" }}';
+            var message = '{{ message|sanitize_html|tojson if message else "" }}';
+            var error_message = '{{ error_message|sanitize_html|tojson if error_message else "" }}';
             if ($("#message-alert").length) {
                 $("#message-alert").hide();
                 if (error_message.length) {
