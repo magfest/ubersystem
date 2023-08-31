@@ -239,14 +239,14 @@ class BadgeExtras(MagForm):
 
 
 class OtherInfo(MagForm):
-    dynamic_choices_fields = {'requested_dept_ids': lambda: [(v[0], v[1]) for v in c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC] if len(c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC) > 1 else c.JOB_INTEREST_OPTS}
+    dynamic_choices_fields = {'requested_depts_ids': lambda: [(v[0], v[1]) for v in c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC] if len(c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC) > 1 else c.JOB_INTEREST_OPTS}
 
     placeholder = BooleanField(widget=HiddenInput())
     staffing = BooleanField('I am interested in volunteering!', widget=SwitchInput(), description=popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?"))
-    requested_dept_ids = SelectMultipleField('Where do you want to help?', widget=MultiCheckbox()) # TODO: Show attendees department descriptions
+    requested_depts_ids = SelectMultipleField('Where do you want to help?', widget=MultiCheckbox()) # TODO: Show attendees department descriptions
     requested_accessibility_services = BooleanField(f'I would like to be contacted by the {c.EVENT_NAME} Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', widget=SwitchInput())
     interests = SelectMultipleField('What interests you?', choices=c.INTEREST_OPTS, coerce=int, validators=[validators.Optional()], widget=MultiCheckbox())
-        
+
     def get_non_admin_locked_fields(self, attendee):
         locked_fields = [] 
 

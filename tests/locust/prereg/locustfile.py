@@ -102,7 +102,7 @@ class Preregister(HttpUser):
                 "csrf_token": csrf_token,
                 "staffing": "1",
                 "cellphone": cellphone,
-                "requested_dept_ids": "252431566",
+                "requested_depts_ids": "252431566",
                 "requested_accessibility_services": "1",
                 "form_list": "PreregOtherInfo"
             }

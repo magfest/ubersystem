@@ -1467,6 +1467,7 @@ class Root:
 
             session.add(attendee)
             session.commit()
+
             if placeholder:
                 attendee.confirmed = localized_now()
                 message = 'Your registration has been confirmed'
