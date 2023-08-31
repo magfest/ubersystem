@@ -212,7 +212,7 @@ class DealerReg(HttpUser):
             "form_list": "PreregOtherInfo"
         }
         if is_staffing:
-            additional_info["requested_dept_ids"] = random.sample(departments, random.randrange(len(departments)+1))
+            additional_info["requested_depts_ids"] = random.sample(departments, random.randrange(len(departments)+1))
         additional_info["interests"] = random.sample(interests, random.randrange(len(interests)+1))
         if random.randrange(2):
             additional_info["requested_accessibility_services"] = "1"

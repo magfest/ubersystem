@@ -4,9 +4,10 @@ import cherrypy
 from collections import defaultdict, OrderedDict
 from importlib import import_module
 from markupsafe import Markup
-from wtforms import Form, StringField, SelectField, IntegerField, BooleanField, validators
+from wtforms import Form, StringField, SelectField, SelectMultipleField, IntegerField, BooleanField, validators
 import wtforms.widgets.core as wtforms_widgets
 from wtforms.validators import Optional, ValidationError, StopValidation
+from wtforms.utils import unset_value
 from pockets.autolog import log
 from uber.config import c
 from uber.forms.widgets import *
@@ -63,7 +64,7 @@ def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=Tr
                 else:
                     alias_dict[aliased_field] = alias_val
 
-        loaded_form = form_cls(params, model, checkboxes_present=checkboxes_present, prefix=prefix_dict.get(cls, ''), data=alias_dict)
+        loaded_form = form_cls(params, model, prefix=prefix_dict.get(cls, ''))
         optional_fields = loaded_form.get_optional_fields(model) if get_optional else []
 
         for name, field in loaded_form._fields.items():
@@ -74,10 +75,12 @@ def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=Tr
                 override_validators = get_override_attr(loaded_form, name, '_validators', field)
                 if override_validators:
                     field.validators = override_validators
-            
+
             # Refresh any choices for fields in "dynamic_choices_fields" so we can have up-to-date choices for select fields
             if name in loaded_form.dynamic_choices_fields.keys():
                 field.choices = loaded_form.dynamic_choices_fields[name]()
+
+        loaded_form.process(params, model, checkboxes_present=checkboxes_present, data=alias_dict)
 
         form_label = re.sub(r'(?<!^)(?=[A-Z])', '_', cls).lower()
         if truncate_prefix and form_label.startswith(truncate_prefix + '_'):
@@ -164,11 +167,8 @@ class MagForm(Form):
                 setattr(target, name, getattr(form, name))
         return target
 
-    def __init__(self, formdata=None, obj=None, prefix='', data=None, meta=None, checkboxes_present=True, **kwargs):
-        meta_obj = self._wtforms_meta()
-        if meta is not None and isinstance(meta, dict):
-            meta_obj.update_values(meta)
-        super(Form, self).__init__(self._unbound_fields, meta=meta_obj, prefix=prefix)
+    def process(self, formdata=None, obj=None, data=None, extra_filters=None, checkboxes_present=True, **kwargs):
+        formdata = self.meta.wrap_formdata(self, formdata)
         
         # Special form data preprocessing!
         #
@@ -177,19 +177,23 @@ class MagForm(Form):
         # in which case we set it to false
         #
         # We also convert our MultiChoice value (a string) into the list of strings that WTForms expects
+
         for name, field in self._fields.items():
             field_in_obj = hasattr(obj, name)
             field_in_formdata = name in formdata
+            use_blank_formdata = cherrypy.request.method == 'POST' and checkboxes_present
             if isinstance(field, BooleanField) and not field_in_formdata and field_in_obj:
-                if cherrypy.request.method == 'POST' and checkboxes_present:
-                    formdata[name] = False
+                formdata[name] = False if use_blank_formdata else getattr(obj, name)
+            elif (isinstance(field, SelectMultipleField) or hasattr(obj, 'all_checkgroups') and name in obj.all_checkgroups
+                  ) and not field_in_formdata:
+                if use_blank_formdata:
+                    formdata[name] = []
+                elif field_in_obj and isinstance(getattr(obj, name), str):
+                    formdata[name] = getattr(obj, name).split(',')
                 else:
                     formdata[name] = getattr(obj, name)
-            elif hasattr(obj, 'all_checkgroups') and not field_in_formdata and field_in_obj and \
-                name in obj.all_checkgroups and isinstance(getattr(obj, name), str):
-                formdata[name] = getattr(obj, name).split(',')
 
-        super().__init__(formdata, obj, prefix, data, meta, **kwargs)
+        super().process(formdata, obj, data, extra_filters, **kwargs)
 
     @property
     def field_list(self):

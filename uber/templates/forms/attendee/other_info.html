@@ -30,7 +30,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% endif %}
 <div class="row g-sm-3">
     <div class="col-12">{{ form_macros.toggle_checkbox(other_info.staffing, 
-        [other_info.requested_dept_ids, other_info.cellphone] if include_cellphone else [other_info.requested_dept_ids], toggle_required=True, help_text=staffing_message) }}</div>
+        [other_info.requested_depts_ids, other_info.cellphone] if include_cellphone else [other_info.requested_depts_ids], toggle_required=True, help_text=staffing_message) }}</div>
 </div>
 
 {% if include_cellphone %}
@@ -44,7 +44,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 {% if c.JOB_INTEREST_OPTS or c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
 <div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.form_input(other_info.requested_dept_ids) }}</div>
+    <div class="col-12">{{ form_macros.form_input(other_info.requested_depts_ids) }}</div>
 </div>
 {% endif %}
 {% endblock %}
