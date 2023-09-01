@@ -126,14 +126,16 @@ class AutomatedEmailFixture:
         before = [d.active_before for d in when if d.active_before]
         self.active_before = max(before) if before else None
 
+    def update_template_plugin_info(self):
         env = JinjaEnv.env()
         try:
             template_path = pathlib.Path(env.get_or_select_template(os.path.join('emails', self.template)).filename)
-            self.template_plugin = template_path.parts[3]
-            self.template_url = f"https://github.com/magfest/{self.template_plugin}/tree/main/{self.template_plugin}/{pathlib.Path(*template_path.parts[5:]).as_posix()}"
+            self.template_plugin_name = template_path.parts[3]
+            self.template_url = f"https://github.com/magfest/{self.template_plugin_name}/tree/main/{self.template_plugin_name}/{pathlib.Path(*template_path.parts[5:]).as_posix()}"
         except jinja2.exceptions.TemplateNotFound:
+            self.template_plugin_name = "ERROR: TEMPLATE NOT FOUND"
             self.template_url = ""
-        
+        return self.template_plugin_name, self.template_url
 
     @property
     def body(self):
