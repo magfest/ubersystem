@@ -51,7 +51,11 @@
               require{{ email.unapproved_count|pluralize('s', '') }} approval
             {% endif %}
           </td>
-          <td><a href="{{ email.fixture.template_url }}" target="_blank">{{ email.fixture.template_plugin }}</a></td>
+          <td>
+            {% if email.fixture.template_url %}
+            <a href="{{ email.fixture.template_url }}" target="_blank">{{ email.fixture.template_plugin_name }}</a>
+            {% else %}{{ email.fixture.template_plugin_name }}{% endif %}
+          </td>
           <td>{{ email.sender }}</td>
           <td>{{ email.sent_email_count }}</td>
           <td>{{ email.unapproved_count }}</td>

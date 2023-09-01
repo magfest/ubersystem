@@ -31,6 +31,7 @@ class Root:
         return {'emails': session.query(Email).filter_by(**params).order_by(Email.when).all()}
 
     def pending(self, session, message=''):
+        AutomatedEmail.reconcile_fixtures()
         emails_with_count = session.query(AutomatedEmail, AutomatedEmail.email_count).filter(
             AutomatedEmail.subject != '', AutomatedEmail.sender != '',).all()
         emails = []
