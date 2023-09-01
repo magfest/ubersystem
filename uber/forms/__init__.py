@@ -185,7 +185,7 @@ class MagForm(Form):
             if isinstance(field, BooleanField) and not field_in_formdata and field_in_obj:
                 formdata[name] = False if use_blank_formdata else getattr(obj, name)
             elif (isinstance(field, SelectMultipleField) or hasattr(obj, 'all_checkgroups') and name in obj.all_checkgroups
-                  ) and not field_in_formdata:
+                  ) and not field_in_formdata and field_in_obj:
                 if use_blank_formdata:
                     formdata[name] = []
                 elif field_in_obj and isinstance(getattr(obj, name), str):
