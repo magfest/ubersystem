@@ -6,7 +6,7 @@
   <script type="text/javascript">
       DISABLE_STRIPE_BUTTONS_ON_CLICK = false;
   </script>
-  <script src="../static/js/servertimecheck.js" type="text/javascript"></script>
+  {{ "js/servertimecheck.js"|serve_static_content }}
 
   <h2>Payment for {{ attendee.full_name }}</h2>
 

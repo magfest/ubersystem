@@ -1212,6 +1212,10 @@ if not c.AUTHORIZENET_LOGIN_ID:
 # all of the pages on the site except for preregistration pages (for performance)
 c.JAVASCRIPT_INCLUDES = []
 
+# If receiving static content from a CDN, define a dictionary of strings where the key is the
+# relative URL of the resource (e.g., theme/prereg.css) and the value is the hash for that resource
+c.STATIC_HASH_LIST = {}
+
 
 dealer_status_label_lookup = {val: key for key, val in c.DEALER_STATUS_OPTS}
 c.DEALER_EDITABLE_STATUSES = [dealer_status_label_lookup[name] for name in c.DEALER_EDITABLE_STATUS_LIST]

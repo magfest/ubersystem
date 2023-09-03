@@ -42,9 +42,9 @@
   </div>
 </div>
 {% if is_prereg_dealer %}
-<script src="../static/js/warn-before-logout-dealer.js" type="text/javascript"></script>
+{{ "js/warn-before-logout-dealer.js"|serve_static_content }}
 {% else %}
 <em class="form-text">Please note: your badge and any upgrades are not reserved until you complete the registration process, including payment.</em>
-<script src="../static/js/warn-before-logout.js" type="text/javascript"></script>
+{{ "js/warn-before-logout.js"|serve_static_content }}
 {% endif %}
 {% endblock %}

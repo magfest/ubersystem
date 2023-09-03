@@ -167,7 +167,7 @@
         {% endif %}
         </div>
       </div>
-      <script src="../static/js/window-hash-tabload.js" type="text/javascript"></script>
+      {{ "js/window-hash-tabload.js"|serve_static_content }}
 {% if group.is_new %}
 <script type="text/javascript">
 $(function () {
