@@ -1418,6 +1418,7 @@ class TaskUtils:
             if not account:
                 del account_to_import['id']
                 account = AttendeeAccount().apply(account_to_import, restricted=False)
+                account.email = normalize_email(account.email)
                 session.add(account)
 
             try:
