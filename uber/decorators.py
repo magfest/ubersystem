@@ -176,7 +176,8 @@ def requires_account(model=None):
                         message_add = 'fill out this application'
                     message = 'Please log in or create an account to {}!'.format(message_add)
                     raise HTTPRedirect('../landing/index?message={}'.format(message), save_location=True)
-                elif attendee_account_id is None and admin_account_id is None:
+                elif attendee_account_id is None and admin_account_id is None or \
+                        attendee_account_id is None and c.PAGE_PATH == '/preregistration/homepage':
                     message = 'You must log in to view this page.'
                 elif kwargs.get('id') and model:
                     check_id_for_model(model, **kwargs)
