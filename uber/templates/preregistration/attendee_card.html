@@ -3,9 +3,11 @@
 {# You can also change the mini-card below or add more rows by changing rows #}
 
 {% set mini_card %}
-<span class="h4 card-title">{{ attendee.first_name }} {{ attendee.last_name }}</span>
-<p>"{{ attendee.badge_printed_name }}"</p>
-<p class="text-uppercase">{{ attendee.badge_type_label }}</p>
+<div class="card text-dark bg-light">
+    <span class="h4 mt-3">{{ attendee.first_name }} {{ attendee.last_name }}</span>
+    <p>"{{ attendee.badge_printed_name }}"</p>
+    <p class="text-uppercase">{{ attendee.badge_type_label }}</p>
+</div>
 {% endset %}
 
 {% set row1 %}
@@ -40,7 +42,7 @@
     <strong>Email:</strong> {{ attendee.email }}
 </div>
 <div class="col-12 col-sm-6">
-    <strong>Volunteer?</strong> {{ attendee.staffing|icon_yesno("ok-sign,remove-sign","success,danger") }}</span>
+    <strong>Volunteer?</strong> {{ attendee.staffing|icon_yesno("check-circle,times-circle","success,danger") }}</span>
 </div>
 {% endset %}
 
@@ -57,15 +59,16 @@
 
 {% include 'attendee_card_extra.html' %}
 
-<div class="card">
+
     {% if attendee.group %}
-        <div class="col-sm-12 text-center">
+        <div class="col-sm-12 text-center mb-2">
             <span class="h4">
                 {% if attendee == attendee.group.leader %}Leader{% else %}Member{% endif %} of "{{ attendee.group.name }}"
                 {% if attendee == attendee.group.leader and attendee.group.status != c.IMPORTED %}
                 <span class="badge">{{ attendee.group.status_label }}</span>
-                <a href="group_members?id={{ attendee.group.id }}" class="btn btn-primary btn-xs"><i class="fa fa-pencil"></i>&nbsp;Edit</a>
+                <a href="group_members?id={{ attendee.group.id }}" class="btn btn-primary btn-sm"><i class="fa fa-pencil"></i>&nbsp;Edit {{ "Application" if attendee.group.is_dealer else "Group" }}</a>
                 {% endif %}
+                <hr/>
             </span>
         </div>
     {% endif %}
@@ -93,7 +96,7 @@
                 {% elif attendee.is_valid or attendee.badge_status == c.PENDING_STATUS %}
                     {% set multiple_buttons = c.ART_SHOW_OPEN or c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE or attendee.art_show_applications or attendee.marketplace_applications %}
                     {% if multiple_buttons %}
-                    <div class="btn-group pull-right" role="group" aria-label="...">
+                    <div class="btn-group pull-right mt-2" role="group">
                     {% endif %}
                     <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-info" value="Edit">
                         <i class="fa fa-pencil"></i> Edit Details
@@ -127,4 +130,3 @@
                 {% endif %}
         </div>
     </div>
-</div>

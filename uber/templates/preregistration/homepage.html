@@ -12,9 +12,9 @@
         Preregistration has sold out!
     {% endif %}
 {% endset %}
-<h2 class="h4 text-center">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h2>
+<h2 class="text-center fst-italic mt-3">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h2>
 {% if not account.valid_attendees %}
-    <div class="card text-center">
+    <div class="text-center">
         <span class="h2 text-uppercase">You have no current registrations</span>
         <p>{{ prereg_message }}</p>
         <p>
@@ -22,7 +22,7 @@
             {% if account.imported_attendees|length == 1 %}
             <a href="../preregistration/repurchase?id={{ account.imported_attendees[0].id }}&skip_confirm=true" class="btn btn-info"> Import last year's registration</a>
             {% else %}
-                Select a registration to import below.
+            Select a registration below to purchase a badge for this year. You will be able to review and edit your information before purchasing.
             {% endif %}
         {% elif not prereg_message %}
             <a href="../preregistration/form" class="btn btn-primary">Register Now!</a>
@@ -32,13 +32,14 @@
             {% if account.imported_attendees|length == 1 and account.imported_attendees[0].is_group_leader %}
                 <a href="../preregistration/reapply?id={{ account.imported_attendees[0].id }}" class="btn btn-success">Reapply with last year's dealer application</a>
             {% else %}
-                Select a registration to import below. If you were a dealer assistant last year, ask the dealer to reapply.
+                Select a registration below to purchase a badge for this year. You will be able to review and edit your information before purchasing.
+                
+                <br/><br/>If you were a dealer assistant last year, ask the dealer to log into their account and reapply.
             {% endif %}
         {% elif dealer_reg_open %}
             <a href="../preregistration/dealer_registration" class="btn btn-success">Apply as Dealer</a>
         {% endif %}
     </div>
-</div>
 {% else %}
     {% for attendee, money_owed in attendees_who_owe_money.items() %}
     {% if loop.first %}
@@ -54,11 +55,23 @@
     </div>
     {% endif %}
     {% endfor %}
+
+    {% for attendee in account.valid_group_badges %}
+    <div class="card card-body mb-3">
+        {% include "preregistration/attendee_card.html" %}
+    </div>
+    {% endfor %}
+    {% for attendee in account.valid_single_badges %}
+    <div class="card card-body mb-3">
+        {% include "preregistration/attendee_card.html" %}
+    </div>
+    {% endfor %}
+
     <div class="text-center">
         {% if not prereg_message or dealer_reg_open %}
-        <div class="btn-group">
+        <div class="btn-group mb-3">
             {% if not prereg_message %}
-            <a href="../preregistration/form" class="btn btn-primary">Add Registration(s)</a>
+            <a href="../preregistration/form" class="btn btn-primary">Add More Registration(s)</a>
             {% endif %}
             {% if dealer_reg_open %}
             <a href="../preregistration/dealer_registration" class="btn btn-success">Apply as Dealer</a>
@@ -68,39 +81,23 @@
         {{ prereg_message }}
         {% endif %}
     </div>
-    {% if account.valid_single_badges and account.valid_group_badges %}
-    <ul class="nav nav-pills" role="tablist">
-        <li role="presentation" class="nav-item"><a class="nav-link active" href="#single" aria-controls="home" role="tab" data-bs-toggle="tab">Registrations</a></li>
-        <li role="presentation" class="nav-item"><a class="nav-link" href="#group" aria-controls="group" role="tab" data-bs-toggle="tab">Group Registrations</a></li>
-    </ul>
-    {% endif %}
-<div class="tab-content">
-    <div class="tab-pane{% if account.valid_single_badges %} active{% endif %}" id="single" role="tabpanel">
-    {% for attendee in account.valid_single_badges %}
-    <div class="card-body">
-        {% include "preregistration/attendee_card.html" %}
-    </div>
-    {% endfor %}
-    </div>
-    <div class="tab-pane{% if account.valid_group_badges %} active{% endif %}" id="group" role="tabpanel">
-    {% for attendee in account.valid_group_badges %}
-    <div class="card-body">
-        {% include "preregistration/attendee_card.html" %}
-    </div>
-    {% endfor %}
-    </div>
-</div>
 {% endif %}
+{% for attendee in account.imported_attendees %}
+    {% if loop.first %}
+        <h2 class="text-center fst-italic mt-3">Past Registrations</h2>
+        {% if not account.valid_attendees %}<div class="col-10">{% endif %}
+    {% endif %}
+    <div class="card card-body mb-3">
+    {% include "preregistration/attendee_card.html" %}
+    </div>
+    {% if loop.last and not account.valid_attendees %}</div>{% endif %}
+{% endfor %}
 {% if not account.valid_attendees %}
     {% for attendee in account.pending_attendees %}
     {% if loop.first %}
-    <div class="card">
-        <div class="card-header">
-            <h2 class="h4 card-title">Pending Registrations</h2>
-        </div>
-        <div class="card-footer">
+        <h2 class="text-center fst-italic mt-3">Pending Registrations</h2>
     {% endif %}
-    <div class="row">
+    <div class="card card-body mb-3">
         {% include "preregistration/attendee_card.html" %}
     </div>
     {% if loop.last %}
@@ -109,22 +106,6 @@
     {% endif %}
     {% endfor %}
 {% endif %}
-{% for attendee in account.imported_attendees %}
-{% if loop.first %}
-<div class="card">
-    <div class="card-header">
-        <h2 class="h4 card-title">Past Registrations</h2>
-    </div>
-    <div class="card-footer">
-{% endif %}
-<div class="row">
-    {% include "preregistration/attendee_card.html" %}
-</div>
-{% if loop.last %}
-</div>
-</div>
-{% endif %}
-{% endfor %}
 {% for attendee in account.refunded_deferred_attendees %}
 {% if loop.first %}
 <div class="panel card-danger">
