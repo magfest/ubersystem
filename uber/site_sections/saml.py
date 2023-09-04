@@ -102,8 +102,8 @@ class Root:
                 
                 if attendee_to_update:
                     saml_data = auth.get_attributes()
-                    attendee_to_update.first_name = saml_data.get("firstName", [admin_account.attendee.first_name])[0]
-                    attendee_to_update.last_name = saml_data.get("lastName", [admin_account.attendee.last_name])[0]
+                    attendee_to_update.first_name = saml_data.get("firstName", [attendee_to_update.first_name])[0]
+                    attendee_to_update.last_name = saml_data.get("lastName", [attendee_to_update.last_name])[0]
                     session.add(attendee_to_update)
 
                 session.commit()
