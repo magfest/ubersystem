@@ -2155,6 +2155,7 @@ class AttendeeAccount(MagModel):
     attendees = relationship(
         'Attendee', backref='managers', cascade='save-update,merge,refresh-expire,expunge',
         secondary='attendee_attendee_account')
+    imported = Column(Boolean, default=False)
 
     email_model_name = 'account'
 
