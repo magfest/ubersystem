@@ -9,7 +9,7 @@
     {% elif c.AFTER_PREREG_TAKEDOWN and not c.AT_THE_CON %}
         Preregistration has closed for the year.
     {% elif not c.ATTENDEE_BADGE_AVAILABLE %}
-        Preregistration has sold out!
+        {{ c.EVENT_NAME_AND_YEAR }} has sold out!
     {% endif %}
 {% endset %}
 <h2 class="text-center fst-italic mt-3">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h2>
@@ -20,7 +20,7 @@
         <p>
         {% if account.imported_single_badges and not prereg_message %}
             {% if account.imported_attendees|length == 1 %}
-            <a href="../preregistration/repurchase?id={{ account.imported_attendees[0].id }}&skip_confirm=true" class="btn btn-info"> Import last year's registration</a>
+            <a href="../preregistration/repurchase?id={{ account.imported_attendees[0].id }}&skip_confirm=true" class="btn btn-info">Import last year's registration</a>
             {% else %}
             Select a registration below to purchase a badge for this year. You will be able to review and edit your information before purchasing.
             {% endif %}
@@ -56,6 +56,8 @@
     {% endif %}
     {% endfor %}
 
+    {% if prereg_message %}{{ prereg_message }}{% endif %}
+
     {% for attendee in account.valid_group_badges %}
     <div class="card card-body mb-3">
         {% include "preregistration/attendee_card.html" %}
@@ -77,8 +79,6 @@
             <a href="../preregistration/dealer_registration" class="btn btn-success">Apply as Dealer</a>
             {% endif %}
         </div>
-        {% else %}
-        {{ prereg_message }}
         {% endif %}
     </div>
 {% endif %}
@@ -96,6 +96,10 @@
     {% for attendee in account.pending_attendees %}
     {% if loop.first %}
         <h2 class="text-center fst-italic mt-3">Pending Registrations</h2>
+        <div class="text-center mt-1 mb-1">
+            <a href="../preregistration/resume_pending?account_id={{ account.id }}" class="btn btn-primary">Add All Pending Badges to Cart</a>
+            <br><span class="form-text">You will be able to edit or delete registrations before paying.</span>
+        </div>
     {% endif %}
     <div class="card card-body mb-3">
         {% include "preregistration/attendee_card.html" %}

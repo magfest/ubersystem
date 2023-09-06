@@ -93,7 +93,13 @@
                     </a>
                     {% endif %}
                     </div>
-                {% elif attendee.is_valid or attendee.badge_status == c.PENDING_STATUS %}
+                {% elif attendee.badge_status == c.PENDING_STATUS %}
+                    <div class="pull-right">
+                        <a href="../preregistration/resume_pending?id={{ attendee.id }}" class="btn btn-primary">
+                            Add to Cart &nbsp;<i class="fa fa-plus"></i>
+                        </a>
+                    </div>
+                {% elif attendee.is_valid %}
                     {% set multiple_buttons = c.ART_SHOW_OPEN or c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE or attendee.art_show_applications or attendee.marketplace_applications %}
                     {% if multiple_buttons %}
                     <div class="btn-group pull-right mt-2" role="group">
