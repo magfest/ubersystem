@@ -541,7 +541,7 @@ class TransactionRequest:
                 )
             self.customer_id = customer.id if customer else None
 
-    def create_authorizenet_payment_profile(self, paymentInfo):
+    def create_authorizenet_payment_profile(self, paymentInfo, first_name='', last_name=''):
         # There seems to be no way to directly associate customer profiles with transactions
         # Instead we need to create "payment profile", fill it with the token, use the
         # payment profile as payment, then delete it because the token is single-use
@@ -550,6 +550,13 @@ class TransactionRequest:
 
         profile = apicontractsv1.customerPaymentProfileType()
         profile.payment = paymentInfo
+
+        if first_name:
+            billTo = apicontractsv1.customerAddressType()
+            billTo.firstName = first_name
+            billTo.lastName = last_name
+            profile.billTo = billTo
+
         createCustomerPaymentRequest = apicontractsv1.createCustomerPaymentProfileRequest()
         createCustomerPaymentRequest.merchantAuthentication = self.merchant_auth
         createCustomerPaymentRequest.paymentProfile = profile
@@ -629,7 +636,9 @@ class TransactionRequest:
                     transaction.order = order
 
                 if self.customer_id:
-                    payment_profile = self.create_authorizenet_payment_profile(paymentInfo)
+                    payment_profile = self.create_authorizenet_payment_profile(paymentInfo,
+                                                                               params.get('first_name', ''),
+                                                                               params.get('last_name', ''))
             elif 'cc_num' in params:
                 # This is only for refunds, hence the lack of expiration date
                 creditCard = apicontractsv1.creditCardType()

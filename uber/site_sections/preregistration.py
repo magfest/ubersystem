@@ -765,7 +765,8 @@ class Root:
     @ajax
     def submit_authnet_charge(self, session, ref_id, amount, email, desc, customer_id, token_desc, token_val, **params):
         charge = TransactionRequest(receipt_email=email, description=desc, amount=amount, customer_id=customer_id)
-        error = charge.send_authorizenet_txn(token_desc=token_desc, token_val=token_val, intent_id=ref_id)
+        error = charge.send_authorizenet_txn(token_desc=token_desc, token_val=token_val, intent_id=ref_id,
+                                             first_name=params.get('first_name', ''), last_name=params.get('last_name', ''))
         if error:
             return {'error': error}
         else:

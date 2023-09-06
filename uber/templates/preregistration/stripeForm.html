@@ -209,6 +209,8 @@ var handleAuthNetResponse = function (response) {
                 customer_id: authnet_customer_id,
                 token_desc: response.opaqueData.dataDescriptor,
                 token_val: response.opaqueData.dataValue,
+                first_name: response.customerInformation.firstName,
+                last_name: response.customerInformation.lastName,
                 csrf_token: csrf_token
             },
             function(result) {
