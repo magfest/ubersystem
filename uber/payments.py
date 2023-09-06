@@ -497,6 +497,7 @@ class TransactionRequest:
             else:
                 getCustomerRequest.email = self.receipt_email
             getCustomerRequestController = apicontrollers.getCustomerProfileController(getCustomerRequest)
+            getCustomerRequestController.setenvironment(c.AUTHORIZENET_ENDPOINT)
             getCustomerRequestController.execute()
         
             response = getCustomerRequestController.getresponse()
@@ -509,6 +510,7 @@ class TransactionRequest:
                     createCustomerRequest.profile = apicontractsv1.customerProfileType(email=self.receipt_email)
 
                     createCustomerRequestController = apicontrollers.createCustomerProfileController(createCustomerRequest)
+                    createCustomerRequestController.setenvironment(c.AUTHORIZENET_ENDPOINT)
                     createCustomerRequestController.execute()
 
                     response = createCustomerRequestController.getresponse()
@@ -554,6 +556,7 @@ class TransactionRequest:
         createCustomerPaymentRequest.customerProfileId = self.customer_id
 
         createCustomerPaymentController = apicontrollers.createCustomerPaymentProfileController(createCustomerPaymentRequest)
+        createCustomerPaymentController.setenvironment(c.AUTHORIZENET_ENDPOINT)
         createCustomerPaymentController.execute()
 
         response = createCustomerPaymentController.getresponse()
@@ -574,6 +577,7 @@ class TransactionRequest:
         deleteCustomerPaymentProfile.customerPaymentProfileId = payment_profile.paymentProfile.paymentProfileId
 
         controller = apicontrollers.deleteCustomerPaymentProfileController(deleteCustomerPaymentProfile)
+        controller.setenvironment(c.AUTHORIZENET_ENDPOINT)
         controller.execute()
 
         response = controller.getresponse()
@@ -606,7 +610,6 @@ class TransactionRequest:
         from decimal import Decimal
         payment_profile = None
         order = None
-        log.debug(self.receipt_email)
         
         transaction = apicontractsv1.transactionRequestType()
 
