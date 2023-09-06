@@ -606,6 +606,7 @@ class TransactionRequest:
         from decimal import Decimal
         payment_profile = None
         order = None
+        log.debug(self.receipt_email)
         
         transaction = apicontractsv1.transactionRequestType()
 
