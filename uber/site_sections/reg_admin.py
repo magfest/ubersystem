@@ -391,7 +391,7 @@ class Root:
             if error:
                 raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', attendee_id or group_id, error)
             session.add_all(refund.get_receipt_items_to_add())
-            total_refunded += refund.amount
+            refund_total += refund.amount
 
         receipt.closed = datetime.now()
         session.add(receipt)
