@@ -56,7 +56,9 @@
     {% endif %}
     {% endfor %}
 
-    {% if prereg_message %}{{ prereg_message }}{% endif %}
+    {% if prereg_message %}
+        <div class="text-center mt-3 mb-2 text-danger">{{ prereg_message }}</div>
+    {% endif %}
 
     {% for attendee in account.valid_group_badges %}
     <div class="card card-body mb-3">
