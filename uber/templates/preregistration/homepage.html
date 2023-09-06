@@ -12,7 +12,6 @@
         {{ c.EVENT_NAME_AND_YEAR }} has sold out!
     {% endif %}
 {% endset %}
-<h2 class="text-center fst-italic mt-3">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h2>
 {% if not account.valid_attendees %}
     <div class="text-center">
         <span class="h2 text-uppercase">You have no current registrations</span>
@@ -41,6 +40,7 @@
         {% endif %}
     </div>
 {% else %}
+<h2 class="text-center fst-italic mt-3">{{ c.EVENT_NAME_AND_YEAR }} Registrations</h2>
     {% for attendee, money_owed in attendees_who_owe_money.items() %}
     {% if loop.first %}
     <div class="alert alert-warning" role="alert">
