@@ -1350,6 +1350,8 @@ class TaskUtils:
                 if not account:
                     del account_to_import['id']
                     account = AttendeeAccount().apply(account_to_import, restricted=False)
+                    account.email = normalize_email(account.email)
+                    account.imported = True
                     session.add(account)
                 attendee.managers.append(account)
 
@@ -1440,6 +1442,8 @@ class TaskUtils:
             if not account:
                 del account_to_import['id']
                 account = AttendeeAccount().apply(account_to_import, restricted=False)
+                account.email = normalize_email(account.email)
+                account.imported = True
                 session.add(account)
 
             try:
@@ -1568,6 +1572,8 @@ class TaskUtils:
                     if not account:
                         del account_to_import['id']
                         account = AttendeeAccount().apply(account_to_import, restricted=False)
+                        account.email = normalize_email(account.email)
+                        account.imported = True
                         session.add(account)
                     new_attendee.managers.append(account)
 

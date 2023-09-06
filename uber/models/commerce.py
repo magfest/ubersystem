@@ -287,7 +287,7 @@ class ReceiptTransaction(MagModel):
             if 'test' in c.AUTHORIZENET_ENDPOINT:
                 return "https://sandbox.authorize.net/ui/themes/sandbox/transaction/transactiondetail.aspx?transID={}".format(self.charge_id)
             else:
-                return "{}".format(self.charge_id)
+                return "https://account.authorize.net/ui/themes/anet/transaction/transactiondetail.aspx?transid={}".format(self.charge_id)
         else:
             return "https://dashboard.stripe.com/payments/{}".format(self.intent_id or self.get_intent_id_from_refund())
 

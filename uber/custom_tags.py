@@ -6,6 +6,7 @@ https://github.com/django/django/blob/4696078832f486ba63f0783a0795294b3d80d862/L
 """
 
 import binascii
+import bleach
 import html
 import inspect
 import json
@@ -24,6 +25,7 @@ from dateutil.relativedelta import relativedelta
 from markupsafe import Markup
 from phonenumbers import PhoneNumberFormat
 from pockets import fieldify, unfieldify, listify, readable_join
+from pockets.autolog import log
 from sideboard.lib import serializer
 
 from uber.config import c
@@ -299,6 +301,26 @@ def format_currency(value, show_abs=False):
 @JinjaEnv.jinja_filter
 def remove_newlines(string):
     return string.replace('\n', ' ')
+
+
+@JinjaEnv.jinja_filter
+def sanitize_html(text, **kw):
+    if not kw:
+        kw = {'tags': ['br'] + bleach.sanitizer.ALLOWED_TAGS}
+
+    return Markup(bleach.clean(text, **kw))
+
+
+@JinjaEnv.jinja_filter
+def serve_static_content(relative_url):
+    hash = c.STATIC_HASH_LIST.get(relative_url, None)
+    hash_str = f' integrity="{hash}" crossorigin="anonymous"' if hash and c.STATIC_URL.startswith('http') else ''
+    if relative_url.endswith('.css'):
+        return Markup(f'<link rel="stylesheet" type="text/css" href="{c.STATIC_URL}{relative_url}"{hash_str} />')
+    elif relative_url.endswith('.js'):
+        return Markup(f'<script type="text/javascript" src="{c.STATIC_URL}{relative_url}"{hash_str}></script>')
+    else:
+        return "WARNING: Unsupported static content!"
 
 
 form_link_site_sections = {}

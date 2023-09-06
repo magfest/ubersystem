@@ -168,8 +168,7 @@ AutomatedEmailFixture(
     AttendeeAccount,
     '{EVENT_NAME} account creation confirmed',
     'reg_workflow/account_confirmation.html',
-    lambda a: not a.password_reset and (
-              a.created.when_local > c.PREREG_OPEN or a.has_dealer and a.created.when_local > c.DEALER_REG_START),
+    lambda a: not a.imported and a.hashed and not a.password_reset,
     needs_approval=False,
     allow_at_the_con=True,
     ident='attendee_account_confirmed')

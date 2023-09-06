@@ -9,7 +9,7 @@
 </div>
 <br>
 {% if not email.active_when_label %}
-{% set active_when_text = "It will be sent as soon as it's approved." %}
+{% set active_when_text = "It will be sent as soon as it's approved." if email.needs_approval else "" %}
 {% else %}
 {% set active_when_text = "It will be sent " + email.active_when_label + "." %}
 {% endif %}
