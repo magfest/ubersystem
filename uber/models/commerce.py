@@ -132,7 +132,7 @@ class ModelReceipt(MagModel):
 
     @hybrid_property
     def payment_total(self):
-        return sum([txn.amount for txn in self.receipt_txns if not txn.cancelled and (txn.charge_id or txn.method != c.STRIPE and txn.amount > 0)])
+        return sum([txn.amount for txn in self.receipt_txns if not txn.cancelled and (txn.charge_id or txn.intent_id == '' and txn.amount > 0)])
     
     @payment_total.expression
     def payment_total(cls):
