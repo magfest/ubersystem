@@ -2,6 +2,7 @@
 {% import 'forms/macros.html' as form_macros with context %}
 {% set prereg_merch_available = c.FORMATTED_MERCH_TIERS and c.PREREG_DONATION_OPTS|length > 1 %}
 {% set badge_extras = badge_extras or forms['badge_extras'] %}
+{%- set is_prereg_attendee = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}
 
 {# BLOCK NAMES in this form:
     badge_type
@@ -24,7 +25,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
                                 attendee.available_badge_type_opts, disabled_opts=c.SOLD_OUT_BADGE_TYPES,
                                 target_field_id=id_upgrade_prepend ~ "badge_type") }}
     </div>
-{% else %}
+{% elif not is_prereg_attendee %}
     <div class="row g-sm-3">
         <div class="col-12 col-sm-6">
             <div class="form-text">{{ badge_extras.badge_type.label.text }}</div>

@@ -18,7 +18,7 @@ def get_override_attr(form, field_name, suffix, *args):
     return getattr(form, field_name + suffix, lambda *args: '')(*args)
 
 
-def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=True, truncate_prefix='admin', checkboxes_present=True):
+def load_forms(params, model, form_list, prefix_dict={}, get_optional=True, truncate_prefix='admin', checkboxes_present=True):
     """
     Utility function for initializing several Form objects, since most form pages use multiple Form classes.
 
@@ -47,10 +47,11 @@ def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=Tr
     form_dict = {}
     alias_dict = {}
 
-    for cls in form_list:
-        form_cls = getattr(module, cls, None)
-        if not form_cls:
-            log.error("We tried to load a form called {} from module {}, but it doesn't seem to exist!".format(cls, str(module)))
+    for form_name in form_list:
+        try:
+            form_cls = MagForm.find_form_class(form_name)
+        except ValueError as e:
+            log.error(str(e))
             continue
 
         # Configure and populate fields in "aliased_fields", which are used to store different display logics for a single column
@@ -64,7 +65,7 @@ def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=Tr
                 else:
                     alias_dict[aliased_field] = alias_val
 
-        loaded_form = form_cls(params, model, prefix=prefix_dict.get(cls, ''))
+        loaded_form = form_cls(params, model, prefix=prefix_dict.get(form_name, ''))
         optional_fields = loaded_form.get_optional_fields(model) if get_optional else []
 
         for name, field in loaded_form._fields.items():
@@ -82,7 +83,7 @@ def load_forms(params, model, module, form_list, prefix_dict={}, get_optional=Tr
 
         loaded_form.process(params, model, checkboxes_present=checkboxes_present, data=alias_dict)
 
-        form_label = re.sub(r'(?<!^)(?=[A-Z])', '_', cls).lower()
+        form_label = re.sub(r'(?<!^)(?=[A-Z])', '_', form_name).lower()
         if truncate_prefix and form_label.startswith(truncate_prefix + '_'):
             form_label = form_label[(len(truncate_prefix) + 1):]
 
@@ -139,26 +140,30 @@ class MagForm(Form):
             yield (module_name, subclass)
 
     @classmethod
+    def find_form_class(cls, form_name):
+        # Search through all form classes, only continue if there is ONE matching form
+        match_count = 0
+        modules = []
+        for module_name, target in cls.all_forms():
+            if target.__name__ == form_name:
+                if module_name not in modules:
+                    match_count += 1
+                    real_target = target
+                    modules.append(module_name)
+        if match_count == 0:
+            raise ValueError('Could not find a form with the name {}'.format(form_name))
+        elif match_count > 1:
+            raise ValueError('There is more than one form with the name {}. Please specify which model this form is for.'.format(form_name))
+        return real_target
+
+    @classmethod
     def form_mixin(cls, form):
         if form.__name__ == 'FormMixin':
             target = getattr(cls, form.__name__)
         elif form.__name__ == cls.__name__:
             target = cls
         else:
-            # Search through all form classes, only continue if there is ONE matching form
-            match_count = 0
-            modules = []
-            for module_name, target in cls.all_forms():
-                if target.__name__ == form.__name__:
-                    if module_name not in modules:
-                        match_count += 1
-                        real_target = target
-                        modules.append(module_name)
-            if match_count == 0:
-                raise ValueError('Could not find a form with the name {}'.format(form.__name__))
-            elif match_count > 1:
-                raise ValueError('There is more than one form with the name {}. Please specify which model this form is for.'.format(form.__name__))
-            target = real_target
+            target = cls.find_form_class(form.__name__)
 
         for name in dir(form):
             if not name.startswith('_'):

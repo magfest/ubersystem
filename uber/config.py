@@ -2,6 +2,7 @@ import ast
 import decimal
 import hashlib
 import inspect
+import math
 import os
 import pytz
 import re
@@ -456,6 +457,51 @@ class Config(_Overridable):
                 entry[1]['all_descriptions'] += list(zip(descriptions, links))
 
         return [dict(tier[1]) for tier in donation_list]
+    
+    @property
+    def UNAVAILABLE_REG_TYPES(self):
+        unavailable_types = []
+
+        if c.GROUPS_ENABLED and c.AFTER_GROUP_PREREG_TAKEDOWN:
+            unavailable_types.append(c.PSEUDO_GROUP_BADGE)
+        
+        if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and not c.CHILD_BADGE_AVAILABLE:
+            unavailable_types.append(c.CHILD_BADGE)
+
+        return unavailable_types
+
+    @property
+    def FORMATTED_REG_TYPES(self):
+        # Returns a formatted list to help attendees select between different types of registrations,
+        # particularly between individual reg, group reg, and a child badge. Note that all values
+        # should correspond to a badge type and will change the hidden badge type input on the prereg page
+        
+        reg_type_opts = [{
+            'name': "Attendee",
+            'desc': "A single registration; you can register more before paying.",
+            'value': c.ATTENDEE_BADGE,
+            'price': c.BADGE_PRICE,
+            }]
+        
+        if c.GROUPS_ENABLED:
+            reg_type_opts.append({
+                'name': "Group Leader",
+                'desc': Markup(f"Register a group of {c.MIN_GROUP_SIZE} people or more at ${c.GROUP_PRICE} per badge. \
+                               <br/><br/><span class='form-text'>Please purchase badges for children 12 and under separate from your group.</span>"),
+                'value': c.PSEUDO_GROUP_BADGE,
+                'price': c.GROUP_PRICE,
+            })
+        
+        if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
+            reg_type_opts.append({
+                'name': "12 and Under",
+                'desc': Markup("Attendees 12 and younger must be accompanied by an adult with a valid Attendee badge. \
+                               <br/><br/><span class='form-text text-danger'>Price is always half that of the Single Attendee badge price.</span>"),
+                'value': c.CHILD_BADGE,
+                'price': str(c.BADGE_PRICE - math.ceil(c.BADGE_PRICE / 2)),
+            })
+
+        return reg_type_opts
 
     @property
     def SOLD_OUT_MERCH_TIERS(self):

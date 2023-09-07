@@ -315,7 +315,7 @@ class Root:
 
         badges = params.get('badges', 0)
 
-        forms = load_forms(params, group, group_forms, ['ContactInfo', 'TableInfo'])
+        forms = load_forms(params, group, ['ContactInfo', 'TableInfo'])
         for form in forms.values():
             form.populate_obj(group)
 
@@ -430,7 +430,10 @@ class Root:
             badges = getattr(attendee, 'badges', 0)
             name = getattr(attendee, 'name', '')
 
-        forms = load_forms(params, attendee, attendee_forms, ['PersonalInfo', 'BadgeExtras', 'Consents'])
+        forms_list = ['PersonalInfo', 'BadgeExtras', 'Consents']
+        if c.GROUPS_ENABLED:
+            forms_list.append('GroupInfo')
+        forms = load_forms(params, attendee, forms_list)
         if edit_id or loaded_from_group:
             forms['consents'].pii_consent.data = True
 
@@ -440,12 +443,6 @@ class Root:
         if cherrypy.request.method == 'POST' or edit_id is not None:
             if not message and attendee.badge_type not in c.PREREG_BADGE_TYPES:
                 message = 'Invalid badge type!'
-            if not message and attendee.promo_code and params.get('promo_code') != attendee.promo_code_code and cherrypy.request.method == 'POST':
-                attendee.promo_code = None
-            if not message and c.BADGE_PROMO_CODES_ENABLED and params.get('promo_code'):
-                if session.lookup_promo_or_group_code(params.get('promo_code'), PromoCodeGroup):
-                    PreregCart.universal_promo_codes[attendee.id] = params.get('promo_code')
-                message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
 
         if message:
             return {
@@ -550,12 +547,20 @@ class Root:
 
         attendee, group = self._get_attendee_or_group(params)
 
-        forms = load_forms(params, attendee, attendee_forms, ['PreregOtherInfo'], truncate_prefix="prereg")
+        forms = load_forms(params, attendee, ['PreregOtherInfo'], truncate_prefix="prereg")
 
         for form in forms.values():
             form.populate_obj(attendee)
 
         if cherrypy.request.method == "POST":
+            if attendee.promo_code and params.get('promo_code') != attendee.promo_code_code and cherrypy.request.method == 'POST':
+                attendee.promo_code = None
+            if c.BADGE_PROMO_CODES_ENABLED and params.get('promo_code'):
+                if session.lookup_promo_or_group_code(params.get('promo_code'), PromoCodeGroup):
+                    PreregCart.universal_promo_codes[attendee.id] = params.get('promo_code')
+                message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
+                # TODO: handle message
+                
             if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                 group.attendees = [attendee]
                 PreregCart.pending_dealers[group.id] = PreregCart.to_sessionized(group, badge_count=group.badge_count)
@@ -607,6 +612,9 @@ class Root:
         cart.set_total_cost()
         if cart.total_cost <= 0:
             for attendee in cart.attendees:
+                attendee.paid = c.NEED_NOT_PAY
+                attendee.badge_status = c.COMPLETED_STATUS
+                
                 if attendee.id in cherrypy.session.setdefault('imported_attendee_ids', {}):
                     old_attendee = session.attendee(cherrypy.session['imported_attendee_ids'][attendee.id])
                     old_attendee.current_attendee = attendee
@@ -656,7 +664,7 @@ class Root:
                         params['same_legal_name'] = True
                     params['pii_consent'] = True
                     
-                    forms = load_forms(params, attendee, attendee_forms, form_list, checkboxes_present=False)
+                    forms = load_forms(params, attendee, form_list, checkboxes_present=False)
                     
                     all_errors = validate_model(forms, attendee)
                     if all_errors:
@@ -958,7 +966,7 @@ class Root:
         else:
             form_list = ['AdminGroupInfo']
 
-        forms = load_forms(params, group, group_forms, form_list)
+        forms = load_forms(params, group, form_list)
         for form in forms.values():
             form.populate_obj(group)
 
@@ -1077,7 +1085,7 @@ class Root:
 
         receipt = session.get_receipt_by_model(attendee)
         form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents']
-        forms = load_forms(params, attendee, attendee_forms, form_list)
+        forms = load_forms(params, attendee, form_list)
 
         for form in forms.values():
             form.populate_obj(attendee)
@@ -1453,7 +1461,7 @@ class Root:
 
         receipt = session.get_receipt_by_model(attendee)
         form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents']
-        forms = load_forms(params, attendee, attendee_forms, form_list)
+        forms = load_forms(params, attendee, form_list)
         if not attendee.is_new and not attendee.placeholder:
             forms['consents'].pii_consent.data = True
 
@@ -1521,7 +1529,7 @@ class Root:
             form_list = ['ContactInfo', 'TableInfo']
         elif isinstance(form_list, str):
             form_list = [form_list]
-        forms = load_forms(params, group, group_forms, form_list, get_optional=False)
+        forms = load_forms(params, group, form_list, get_optional=False)
 
         all_errors = validate_model(forms, group, Group(**group.to_dict()))
         if all_errors:
@@ -1547,7 +1555,7 @@ class Root:
         elif isinstance(form_list, str):
             form_list = [form_list]
 
-        forms = load_forms(params, attendee, attendee_forms, form_list, get_optional=False)
+        forms = load_forms(params, attendee, form_list, get_optional=False)
         
         all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()))
         if all_errors:
@@ -1588,7 +1596,7 @@ class Root:
         # Get around locked field restrictions by applying the parameters directly
         attendee.apply(params, restricted=False, ignore_csrf=True)
 
-        forms = load_forms(params, attendee, attendee_forms, ['BadgeExtras'])
+        forms = load_forms(params, attendee, ['BadgeExtras'])
         
         all_errors = validate_model(forms, attendee)
         if all_errors:
