@@ -140,7 +140,7 @@ class ModelReceipt(MagModel):
                      ).where(ReceiptTransaction.receipt_id == cls.id
                      ).where(ReceiptTransaction.cancelled == None
                      ).where(or_(ReceiptTransaction.charge_id != None,
-                                and_(ReceiptTransaction.method != c.STRIPE, ReceiptTransaction.amount > 0))
+                                and_(ReceiptTransaction.amount > 0, ReceiptTransaction.intent_id == ''))
                      ).label('payment_total')
 
     @hybrid_property
