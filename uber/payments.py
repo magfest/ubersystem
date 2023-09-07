@@ -504,6 +504,9 @@ class TransactionRequest:
             if response is not None:
                 if response.messages.resultCode == "Ok" and hasattr(response, 'profile') == True:
                     self.customer_id = str(response.profile.customerProfileId)
+                    if hasattr(response.profile, 'paymentProfiles') == True:
+                        for paymentProfile in response.profile.paymentProfiles:
+                            self.delete_authorizenet_payment_profile(str(paymentProfile.customerPaymentProfileId))
                 elif response.messages.message.code == 'E00040':
                     createCustomerRequest = apicontractsv1.createCustomerProfileRequest()
                     createCustomerRequest.merchantAuthentication = self.merchant_auth
@@ -577,11 +580,14 @@ class TransactionRequest:
         else:
             log.error("Failed to create customer payment profile %s" % response.messages.message[0]['text'].text)
     
-    def delete_authorizenet_payment_profile(self, payment_profile):
+    def delete_authorizenet_payment_profile(self, payment_profile_id):
+        if not self.customer_id:
+            return
+
         deleteCustomerPaymentProfile = apicontractsv1.deleteCustomerPaymentProfileRequest()
         deleteCustomerPaymentProfile.merchantAuthentication = self.merchant_auth
-        deleteCustomerPaymentProfile.customerProfileId = payment_profile.customerProfileId
-        deleteCustomerPaymentProfile.customerPaymentProfileId = payment_profile.paymentProfile.paymentProfileId
+        deleteCustomerPaymentProfile.customerProfileId = self.customer_id
+        deleteCustomerPaymentProfile.customerPaymentProfileId = payment_profile_id
 
         controller = apicontrollers.deleteCustomerPaymentProfileController(deleteCustomerPaymentProfile)
         controller.setenvironment(c.AUTHORIZENET_ENDPOINT)
@@ -590,7 +596,7 @@ class TransactionRequest:
         response = controller.getresponse()
 
         if (response.messages.resultCode!="Ok"):
-            log.error(f"Failed to delete customer paymnet profile with customer profile id \
+            log.error(f"Failed to delete customer payment profile with customer profile id \
                       {deleteCustomerPaymentProfile.customerProfileId}: {response.messages.message[0]['text'].text}")
 
 
@@ -639,6 +645,7 @@ class TransactionRequest:
                     payment_profile = self.create_authorizenet_payment_profile(paymentInfo,
                                                                                params.get('first_name', ''),
                                                                                params.get('last_name', ''))
+
             elif 'cc_num' in params:
                 # This is only for refunds, hence the lack of expiration date
                 creditCard = apicontractsv1.creditCardType()
@@ -682,9 +689,6 @@ class TransactionRequest:
                     
                     if txn_type in [c.AUTHCAPTURE, c.CAPTURE]:
                         ReceiptManager.mark_paid_from_intent_id(params.get('intent_id'), auth_txn_id)
-
-                    if payment_profile:
-                        self.delete_authorizenet_payment_profile(payment_profile)
                 else:
                     report_critical_exception(msg="{} {}".format(
                         str(response.transactionResponse.errors.error[0].errorCode),
