@@ -88,7 +88,7 @@ def update_prereg_cart(session):
             existing_model = session.query(Group).filter_by(id=id).first()
         if existing_model:
             receipt = session.refresh_receipt_and_model(existing_model)
-            if receipt and (receipt.current_amount_owed or receipt.get_last_incomplete_txn()):
+            if receipt and receipt.current_amount_owed:
                 PreregCart.unpaid_preregs[id] = PreregCart.pending_preregs[id]
             elif receipt:
                 PreregCart.paid_preregs.append(PreregCart.pending_preregs[id])
