@@ -499,7 +499,7 @@
           {% endif %}
         </td>
         <td>
-          {% if item.refundable %} {# disabling transaction refunds for now #}
+          {% if item.refundable and not item.method %} {# disabling transaction refunds for now #}
           <button class="btn btn-sm btn-warning text-nowrap"
                   onClick="
                   {% if item.method %}
