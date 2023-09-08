@@ -376,7 +376,8 @@ class TransactionRequest:
                         format_currency(self.response.settleAmount),
                         format_currency(self.amount / 100))
                 cc_num = str(self.response.payment.creditCard.cardNumber)[-4:]
-                error = self.send_authorizenet_txn(txn_type=c.REFUND, amount=amount, cc_num=cc_num, txn_id=txn.charge_id)
+                zip = str(self.response.billTo.zip)
+                error = self.send_authorizenet_txn(txn_type=c.REFUND, amount=amount, cc_num=cc_num, zip=zip, txn_id=txn.charge_id)
             if error:
                 return 'An unexpected problem occurred: ' + str(error)
         else:
@@ -652,6 +653,9 @@ class TransactionRequest:
                 creditCard.cardNumber = params.get("cc_num")
                 creditCard.expirationDate = "XXXX"
                 paymentInfo.creditCard = creditCard
+                billTo = apicontractsv1.customerAddressType()
+                billTo.zip = params.get("zip")
+                transaction.billTo = billTo
             
             if payment_profile:
                 transaction.profile = payment_profile
