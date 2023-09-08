@@ -170,6 +170,7 @@ let authnet_desc = '';
 let authnet_customer_id = '';
 let authnet_success_url = '';
 let authnet_cancel_url = '';
+let authnet_loaded = false;
 
 var collectAuthNetPayment = function (ref_id, email, desc, customer_id, success_url, cancel_url, amount) {
     authnet_ref_id = ref_id;
@@ -182,10 +183,14 @@ var collectAuthNetPayment = function (ref_id, email, desc, customer_id, success_
 
     $('#authNetPayButton').attr("data-acceptUIFormBtnTxt", "Pay $" + (amount / 100).toFixed(2));
 
-    loadJS("https://js{{ 'test' if 'test' in c.AUTHORIZENET_ENDPOINT else '' }}.authorize.net/v3/AcceptUI.js", function() {
+    if(authnet_loaded == false) {
+        loadJS("https://js{{ 'test' if 'test' in c.AUTHORIZENET_ENDPOINT else '' }}.authorize.net/v3/AcceptUI.js", function() {
+            $('#authNetPayButton').trigger("click");
+        });
+        authnet_loaded = true;
+    } else {
         $('#authNetPayButton').trigger("click");
     }
-    );
 }
 
 var handleAuthNetResponse = function (response) {
