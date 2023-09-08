@@ -235,17 +235,21 @@ class Root:
         old_attendee = session.attendee(id)
         old_attendee_dict = old_attendee.to_dict(c.UNTRANSFERABLE_ATTRS)
         del old_attendee_dict['id']
-
         new_attendee = Attendee(**old_attendee_dict)
-        
-        new_attendee_dict = PreregCart.to_sessionized(new_attendee)
-        new_attendee_dict['badge_type'] = c.PSEUDO_DEALER_BADGE
+        new_attendee.badge_type = c.PSEUDO_DEALER_BADGE
+
+        old_group = session.group(old_attendee.group.id)
+        old_group_dict = old_group.to_dict(c.GROUP_REAPPLY_ATTRS)
+        del old_group_dict['id']
+        new_group = Group(**old_group_dict)
+
+        new_attendee.group_id = new_group.id
+        new_group.attendees = [new_attendee]
 
         cherrypy.session.setdefault('imported_attendee_ids', {})[new_attendee.id] = id
 
-        PreregCart.unpaid_preregs[new_attendee.id] = new_attendee_dict
-        Tracking.track(c.UNPAID_PREREG, new_attendee)
-        raise HTTPRedirect("dealer_registration?edit_id={}&repurchase=1&old_group_id={}", new_attendee.id, old_attendee.group.id)
+        PreregCart.pending_dealers[new_group.id] = PreregCart.to_sessionized(new_group, badge_count=old_group.badges_purchased)
+        raise HTTPRedirect("dealer_registration?edit_id={}", new_group.id)
         
 
     def repurchase(self, session, id, skip_confirm=False, **params):
@@ -308,12 +312,6 @@ class Root:
         if edit_id is not None:
             group = self._get_unsaved(edit_id, PreregCart.pending_dealers)
             params['badges'] = params.get('badges', getattr(group, 'badge_count', 0))
-
-        if params.get('old_group_id'):
-            old_group = session.group(params['old_group_id'])
-            old_group_dict = session.group(params['old_group_id']).to_dict(c.GROUP_REAPPLY_ATTRS)
-            group.apply(old_group_dict, ignore_csrf=True, restricted=True)
-            params['badges'] = params.get('badges', old_group.badges_purchased)
 
         badges = params.get('badges', 0)
 
