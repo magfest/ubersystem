@@ -641,9 +641,8 @@ class TransactionRequest:
         payment_profile = None
         order = None
 
-        params_str = [f"{name}: {params[name]}\n" for name in params]
-        log.debug(f"Transaction {self.tracking_id} building an AuthNet transaction request, request type \
-                  '{c.AUTHNET_TXN_TYPES[txn_type]}'.\nParams: {params_str}")
+        params_str = [f"{name}: {params[name]}" for name in params]
+        log.debug(f"Transaction {self.tracking_id} building an AuthNet transaction request, request type '{c.AUTHNET_TXN_TYPES[txn_type]}'. Params: {params_str}")
         
         transaction = apicontractsv1.transactionRequestType()
 
