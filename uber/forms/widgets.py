@@ -39,6 +39,8 @@ class IntSelect():
     def __call__(self, field, choices, **kwargs):
         field_id = kwargs.pop('id', field.id)
         options = dict(kwargs, id=field_id, name=field.name)
+        if 'readonly' in options:
+            options['disabled'] = True
         html = ['<select class="form-select" {}>'.format(html_params(**options))]
         for value, label in choices:
             choice_id = '{}-{}'.format(field_id, value)
