@@ -281,12 +281,10 @@ class TransactionRequest:
         self.intent, self.response, self.receipt_manager = None, None, None
         self.tracking_id = str(uuid4())
 
-        log.debug(f"Transaction {self.tracking_id} started with {amount} amount, {receipt_email} receipt email, \
-                  {description} description, and {customer_id} customer ID.")
+        log.debug(f"Transaction {self.tracking_id} started with {amount} amount, {receipt_email} receipt email, {description} description, and {customer_id} customer ID.")
 
         if receipt:
-            log.debug(f"Transaction {self.tracking_id} initialized with receipt id {receipt.id}, \
-                      which has {receipt.current_amount_owed} balance due.")
+            log.debug(f"Transaction {self.tracking_id} initialized with receipt id {receipt.id}, which has {receipt.current_amount_owed} balance due.")
             self.receipt_manager = ReceiptManager(receipt)
             if not self.amount:
                 self.amount = receipt.current_amount_owed
@@ -498,6 +496,7 @@ class TransactionRequest:
             return
         
         if c.AUTHORIZENET_LOGIN_ID:
+            log.debug(f"Transaction {self.tracking_id} getting or creating a customer with ID {customer_id} and email {self.receipt_email}")
             getCustomerRequest = apicontractsv1.getCustomerProfileRequest()
             getCustomerRequest.merchantAuthentication = self.merchant_auth
             if customer_id:
@@ -512,10 +511,13 @@ class TransactionRequest:
             if response is not None:
                 if response.messages.resultCode == "Ok" and hasattr(response, 'profile') == True:
                     self.customer_id = str(response.profile.customerProfileId)
+                    log.debug(f"Transaction {self.tracking_id} retrieved customer {self.customer_id}")
                     if hasattr(response.profile, 'paymentProfiles') == True:
                         for paymentProfile in response.profile.paymentProfiles:
+                            log.debug(f"Transaction {self.tracking_id} deleting payment profile ID {str(paymentProfile.customerPaymentProfileId)} from customer {self.customer_id}")
                             self.delete_authorizenet_payment_profile(str(paymentProfile.customerPaymentProfileId))
                 elif response.messages.message.code == 'E00040':
+                    log.debug(f"Transaction {self.tracking_id} did not find customer, creating a new one...")
                     createCustomerRequest = apicontractsv1.createCustomerProfileRequest()
                     createCustomerRequest.merchantAuthentication = self.merchant_auth
                     createCustomerRequest.profile = apicontractsv1.customerProfileType(email=self.receipt_email)
@@ -529,10 +531,9 @@ class TransactionRequest:
                     if (response.messages.resultCode=="Ok"):
                         self.customer_id = str(response.customerProfileId)
                     else:
-                        log.error("Failed to create customer payment profile. %s" % response.messages.message[0]['text'].text)
+                        log.error(f"Transaction {self.tracking_id} failed to create customer payment profile. {str(response.messages.message[0]['code'].text)}: {str(response.messages.message[0]['text'].text)}")
                 else:
-                    log.error(f"Failed to retrieve customer profile for AuthNet. {response.messages.message[0].code}: \
-                              {response.messages.message[0].text}")
+                    log.error(f"Transaction {self.tracking_id} failed to retrieve customer profile. {str(response.messages.message[0]['code'].text)}: {str(response.messages.message[0]['text'].text)}")
             else:
                 log.error(f"Failed to retrieve customer profile for AuthNet: no response received.")
             return
@@ -586,8 +587,7 @@ class TransactionRequest:
             profileToCharge.paymentProfile = apicontractsv1.paymentProfile()
             profileToCharge.paymentProfile.paymentProfileId = str(response.customerPaymentProfileId)
 
-            log.debug(f"Transaction {self.tracking_id} successfully created a payment profile (ID \
-                      {str(response.customerPaymentProfileId)}) for customer {self.customer_id}")
+            log.debug(f"Transaction {self.tracking_id} successfully created a payment profile (ID {str(response.customerPaymentProfileId)}) for customer {self.customer_id}")
 
             return profileToCharge
         else:
