@@ -279,8 +279,14 @@ class TransactionRequest:
         self.description = description
         self.customer_id = customer_id
         self.intent, self.response, self.receipt_manager = None, None, None
+        self.tracking_id = str(uuid4())
+
+        log.debug(f"Transaction {self.tracking_id} started with {amount} amount, {receipt_email} receipt email, \
+                  {description} description, and {customer_id} customer ID.")
 
         if receipt:
+            log.debug(f"Transaction {self.tracking_id} initialized with receipt id {receipt.id}, \
+                      which has {receipt.current_amount_owed} balance due.")
             self.receipt_manager = ReceiptManager(receipt)
             if not self.amount:
                 self.amount = receipt.current_amount_owed
@@ -327,7 +333,7 @@ class TransactionRequest:
         try:
             self.intent = self.stripe_or_authnet_intent()
         except Exception as e:
-            error_txt = 'Got an error while creating a Stripe intent'
+            error_txt = 'Got an error while creating a Stripe intent for transaction {self.tracking_id}'
             report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
             return 'An unexpected problem occurred while setting up payment: ' + str(e)
         
@@ -343,7 +349,8 @@ class TransactionRequest:
                 customer_id=self.customer_id
             )
         else:
-            log.debug('Creating Stripe Intent to charge {} cents for {}', self.amount, self.description)
+            log.debug('Transaction {self.tracking_id}: creating Stripe Intent to charge {} cents for {}',
+                      self.amount, self.description)
 
             return stripe.PaymentIntent.create(
                 payment_method_types=['card'],
@@ -552,6 +559,8 @@ class TransactionRequest:
         #
         # I love technology
 
+        log.debug(f"Transaction {self.tracking_id} creating a payment profile for customer {self.customer_id}")
+
         profile = apicontractsv1.customerPaymentProfileType()
         profile.payment = paymentInfo
 
@@ -577,9 +586,13 @@ class TransactionRequest:
             profileToCharge.paymentProfile = apicontractsv1.paymentProfile()
             profileToCharge.paymentProfile.paymentProfileId = str(response.customerPaymentProfileId)
 
+            log.debug(f"Transaction {self.tracking_id} successfully created a payment profile (ID \
+                      {str(response.customerPaymentProfileId)}) for customer {self.customer_id}")
+
             return profileToCharge
         else:
-            log.error("Failed to create customer payment profile %s" % response.messages.message[0]['text'].text)
+            log.error(f"Transaction {self.tracking_id} failed to create customer payment profile: \
+                      {response.messages.message[0]['text'].text}")
     
     def delete_authorizenet_payment_profile(self, payment_profile_id):
         if not self.customer_id:
@@ -614,8 +627,11 @@ class TransactionRequest:
         if response is not None:
             if response.messages.resultCode == apicontractsv1.messageTypeEnum.Ok:
                 self.response = response.transaction
+                log.debug(f"Transaction {self.tracking_id} requested and received {txn_id} from AuthNet.")
                 return
             elif response.messages is not None:
+                log.error(f"Transaction {self.tracking_id} requested {txn_id} from AuthNet but received an error: \
+                          {response.messages.message[0]['code'].text}: {response.messages.message[0]['text'].text}")
                 return 'Failed to get transaction details from AuthNet. {}: {}'.format(response.messages.message[0]['code'].text,response.messages.message[0]['text'].text)
 
         return response
@@ -624,6 +640,10 @@ class TransactionRequest:
         from decimal import Decimal
         payment_profile = None
         order = None
+
+        params_str = [f"{name}: {params[name]}\n" for name in params]
+        log.debug(f"Transaction {self.tracking_id} building an AuthNet transaction request, request type \
+                  '{c.AUTHNET_TXN_TYPES[txn_type]}'.\nParams: {params_str}")
         
         transaction = apicontractsv1.transactionRequestType()
 
@@ -690,14 +710,15 @@ class TransactionRequest:
                 if hasattr(response.transactionResponse, 'messages') == True:
                     self.response = response.transactionResponse
                     auth_txn_id = str(self.response.transId)
+
+                    log.debug(f"Transaction {self.tracking_id} request successful. Transaction ID: {auth_txn_id}")
                     
                     if txn_type in [c.AUTHCAPTURE, c.CAPTURE]:
                         ReceiptManager.mark_paid_from_intent_id(params.get('intent_id'), auth_txn_id)
                 else:
-                    report_critical_exception(msg="{} {}".format(
-                        str(response.transactionResponse.errors.error[0].errorCode),
-                        str(response.transactionResponse.errors.error[0].errorText)
-                    ), subject='ERROR: Authorize.net error')
+                    error_code = str(response.transactionResponse.errors.error[0].errorCode)
+                    error_msg = str(response.transactionResponse.errors.error[0].errorText)
+                    log.debug(f"Transaction {self.tracking_id} request did not receive a transaction response! {error_code}: {error_msg}")
 
                     return str(response.transactionResponse.errors.error[0].errorText)
             else:
@@ -708,11 +729,11 @@ class TransactionRequest:
                     error_code = response.messages.message[0]['code'].text
                     error_msg = response.messages.message[0]['text'].text
                     
-                report_critical_exception(msg="{} {}".format(str(error_code), str(error_msg)), subject='ERROR: Authorize.net error')
+                log.debug(f"Transaction {self.tracking_id} request failed! {error_code}: {error_msg}")
                     
                 return str(error_msg)
         else:
-            log.error(f"Transaction request to AuthNet failed: no response received.")
+            log.error(f"Transaction {self.tracking_id} request to AuthNet failed: no response received.")
         
 
 class ReceiptManager:
