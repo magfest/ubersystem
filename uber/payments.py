@@ -30,7 +30,7 @@ from sideboard.lib import threadlocal
 
 import uber
 from uber.config import c, _config, signnow_sdk
-from uber.custom_tags import format_currency
+from uber.custom_tags import format_currency, email_only
 from uber.errors import CSRFException, HTTPRedirect
 from uber.utils import report_critical_exception
 
@@ -531,7 +531,7 @@ class TransactionRequest:
                     if (response.messages.resultCode=="Ok"):
                         self.customer_id = str(response.customerProfileId)
                     else:
-                        log.error(f"Transaction {self.tracking_id} failed to create customer payment profile. {str(response.messages.message[0]['code'].text)}: {str(response.messages.message[0]['text'].text)}")
+                        log.error(f"Transaction {self.tracking_id} failed to create customer profile. {str(response.messages.message[0]['code'].text)}: {str(response.messages.message[0]['text'].text)}")
                 else:
                     log.error(f"Transaction {self.tracking_id} failed to retrieve customer profile. {str(response.messages.message[0]['code'].text)}: {str(response.messages.message[0]['text'].text)}")
             else:
@@ -556,7 +556,7 @@ class TransactionRequest:
     def create_authorizenet_payment_profile(self, paymentInfo, first_name='', last_name=''):
         # There seems to be no way to directly associate customer profiles with transactions
         # Instead we need to create "payment profile", fill it with the token, use the
-        # payment profile as payment, then delete it because the token is single-use
+        # payment profile as payment
         #
         # I love technology
 
@@ -591,8 +591,7 @@ class TransactionRequest:
 
             return profileToCharge
         else:
-            log.error(f"Transaction {self.tracking_id} failed to create customer payment profile: \
-                      {response.messages.message[0]['text'].text}")
+            log.error(f"Transaction {self.tracking_id} failed to create customer payment profile: {response.messages.message[0]['text'].text}")
     
     def delete_authorizenet_payment_profile(self, payment_profile_id):
         if not self.customer_id:
@@ -665,6 +664,8 @@ class TransactionRequest:
                     payment_profile = self.create_authorizenet_payment_profile(paymentInfo,
                                                                                params.get('first_name', ''),
                                                                                params.get('last_name', ''))
+                    if not payment_profile:
+                        return f"Could not complete payment. Please contact us at {email_only(c.REGDESK_EMAIL)}"
 
             elif 'cc_num' in params:
                 # This is only for refunds, hence the lack of expiration date
