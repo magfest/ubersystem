@@ -528,8 +528,10 @@ class TransactionRequest:
 
                     response = createCustomerRequestController.getresponse()
 
-                    if (response.messages.resultCode=="Ok"):
+                    if response and (response.messages.resultCode=="Ok"):
                         self.customer_id = str(response.customerProfileId)
+                    elif not response:
+                        log.error(f"Transaction {self.tracking_id} failed to create customer profile. No response received.")
                     else:
                         log.error(f"Transaction {self.tracking_id} failed to create customer profile. {str(response.messages.message[0]['code'].text)}: {str(response.messages.message[0]['text'].text)}")
                 else:
