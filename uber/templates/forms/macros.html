@@ -86,7 +86,7 @@
 {{ toggle_fields_js(checkbox_field, target_fields, off_values=[1 if hide_on_checked == True else 0], toggle_required=toggle_required, prop=prop, closest_hide_selector=closest_hide_selector) }}
 {%- endmacro %}
 
-{% macro toggle_fields_js(source_field, target_fields, off_values=[], on_values=[], toggle_required=False, prop='visibility', closest_hide_selector='.row', source_field_id="") %}
+{% macro toggle_fields_js(source_field, target_fields, off_values=[], on_values=[], toggle_required=False, prop='visibility', closest_hide_selector='.row', source_field_id='') %}
 {% set source_id = source_field_id or source_field.id %}
 {% set suffix = "_" ~ source_id %}
 <script type="text/javascript">
@@ -174,9 +174,9 @@
             {% if disabled_card or is_preview %}
             {{ opt.name }}{% if opt.price %}: {{ opt.price|format_currency }}{% endif %}
             {% else %}
-              <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card_link">
-                {{ opt.name }}
-              </a>{% if opt.price %}: {{ opt.price|format_currency }}{% endif %}
+              <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card_link"
+                data-value="{{ opt.value }}">
+                {{ opt.name }}</a>{% if opt.price %}: {{ opt.price|format_currency }}{% endif %}
             {% endif %}
           </label>
       </div>

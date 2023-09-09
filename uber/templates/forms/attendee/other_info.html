@@ -5,6 +5,7 @@
 
 {# BLOCK NAMES in this form:
     hidden
+    promo_code
     staffing
     interests
     accessibility
@@ -15,6 +16,14 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% block hidden %}
 {% if not admin_area and attendee.placeholder %}
 {{ other_info.placeholder(value=false) }}
+{% endif %}
+{% endblock %}
+
+{% block promo_code %}
+{% if 'promo_code_code' in other_info %}
+<div class="row g-sm-3">
+    <div class="col-12 col-sm-6">{{ form_macros.form_input(other_info.promo_code_code, help_text="" if not editing or not other_info.promo_code_code.data else "This might look different from the code you entered earlier.") }}</div>
+</div>
 {% endif %}
 {% endblock %}
 

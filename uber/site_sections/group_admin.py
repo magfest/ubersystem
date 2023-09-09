@@ -96,7 +96,7 @@ class Root:
         if group.is_new:
             form_list.append('LeaderInfo')
 
-        forms = load_forms(params, group, group_forms, form_list)
+        forms = load_forms(params, group, form_list)
         for form_name, form in forms.items():
             if hasattr(form, 'new_badge_type'):
                 form['new_badge_type'].data = group.leader.badge_type if group.leader else c.ATTENDEE_BADGE
@@ -141,7 +141,7 @@ class Root:
                 leader.badge_typ = group.new_badge_type
                 leader.ribbon_ints = group.new_ribbons
                 leader_params = {key[7:]: val for key, val in params.items() if key.startswith('leader_')}
-                forms = load_forms(leader_params, leader, attendee_forms, ['PersonalInfo'])
+                forms = load_forms(leader_params, leader, ['PersonalInfo'])
                 all_errors = validate_model(forms, leader, Attendee(**leader.to_dict()), is_admin=True)
                 if all_errors:
                     session.delete(group)
@@ -192,7 +192,7 @@ class Root:
                 form_list.append('LeaderInfo')
         elif isinstance(form_list, str):
             form_list = [form_list]
-        forms = load_forms(params, group, group_forms, form_list, get_optional=False)
+        forms = load_forms(params, group, form_list, get_optional=False)
 
         all_errors = validate_model(forms, group, Group(**group.to_dict()), is_admin=True)
         if all_errors:

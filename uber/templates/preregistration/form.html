@@ -26,16 +26,22 @@
 {% endif %}
 {{ csrf_token() }}
 
+{% include "forms/prereg_fields.html" %}
+
 {% if forms and 'group_info' in forms %}
   {% include "forms/group/group_info.html" %}
-{% elif attendee.badge_type == c.PSEUDO_DEALER_BADGE %}
+{% endif %}
+
+{% if attendee.badge_type == c.PSEUDO_DEALER_BADGE %}
+{# Dealer reg does not involve payment, so they cannot select badge add-ons until after applying. #}
   <h2 class="h3 text-center">{{ c.DEALER_TERM|title }} Personal Info</h2>
   {{ forms['badge_extras'].badge_type }}
 {% else %}
   {% include "forms/attendee/badge_extras.html" %}
 {% endif %}
-  {% include "forms/attendee/personal_info.html" %}
-  {% include "forms/attendee/consents.html" %}
+
+{% include "forms/attendee/personal_info.html" %}
+{% include "forms/attendee/consents.html" %}
 
 {# old fields, kept for reference as we migrate to new fields
   {% include "forms/attendee/other_info.html" %}

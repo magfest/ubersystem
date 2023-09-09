@@ -12,7 +12,7 @@ class Root:
         if 'exit_kiosk' in params:
             cherrypy.session['kiosk_mode'] = False
 
-        forms = load_forms({}, Attendee(), attendee_forms, ['BadgeExtras'])
+        forms = load_forms({}, Attendee(), ['BadgeExtras'])
 
         return {
             'message': params.get('message', ''),
