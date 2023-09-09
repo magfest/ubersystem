@@ -174,7 +174,8 @@
             {% if disabled_card or is_preview %}
             {{ opt.name }}{% if opt.price %}: {{ opt.price|format_currency }}{% endif %}
             {% else %}
-              <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card_link">
+              <a href="#" class="card-link stretched-link text-reset text-decoration-none {{ target_field.name }}_card_link"
+                data-value="{{ opt.value }}">
                 {{ opt.name }}</a>{% if opt.price %}: {{ opt.price|format_currency }}{% endif %}
             {% endif %}
           </label>

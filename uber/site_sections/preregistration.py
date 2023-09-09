@@ -60,7 +60,7 @@ def check_post_con(klass):
             setattr(klass, name, wrapper(method))
     return klass
 
-def check_prereg_promo_code(session, attendee):
+def check_prereg_promo_code(session, attendee, codes_in_cart=defaultdict(int)):
     """
     Prevents double-use of promo codes if two people have the same promo code in their cart but only one use is remaining.
     If the attendee originally entered a 'universal' group code, which we track via PreregCart.universal_promo_codes,
@@ -68,7 +68,7 @@ def check_prereg_promo_code(session, attendee):
     """
     promo_code = session.query(PromoCode).filter(PromoCode.id==attendee.promo_code_id).with_for_update().one()
     
-    if not promo_code.is_unlimited and not promo_code.uses_remaining:
+    if not promo_code.is_unlimited and (not promo_code.uses_remaining or promo_code.uses_remaining - codes_in_cart[promo_code.code] <= 0):
         universal_code = PreregCart.universal_promo_codes.get(attendee.id)
         if universal_code:
             message = session.add_promo_code_to_attendee(attendee, universal_code)
@@ -77,7 +77,7 @@ def check_prereg_promo_code(session, attendee):
             return ""
         attendee.promo_code_id = None
         session.commit()
-        return "The promo code you're using for {} has been used too many times.".format(attendee.full_name)
+        return "The promo code you're using for {} has been used already.".format(attendee.full_name)
 
 def update_prereg_cart(session):
     pending_preregs = PreregCart.pending_preregs.copy()
@@ -553,13 +553,13 @@ class Root:
             form.populate_obj(attendee)
 
         if cherrypy.request.method == "POST":
-            if attendee.promo_code and params.get('promo_code') != attendee.promo_code_code and cherrypy.request.method == 'POST':
+            submitted_promo_code = params.get('promo_code_code')
+            if attendee.promo_code and submitted_promo_code != attendee.promo_code_code and cherrypy.request.method == 'POST':
                 attendee.promo_code = None
-            if c.BADGE_PROMO_CODES_ENABLED and params.get('promo_code'):
-                if session.lookup_promo_or_group_code(params.get('promo_code'), PromoCodeGroup):
-                    PreregCart.universal_promo_codes[attendee.id] = params.get('promo_code')
-                message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
-                # TODO: handle message
+            if c.BADGE_PROMO_CODES_ENABLED and submitted_promo_code:
+                if session.lookup_promo_or_group_code(submitted_promo_code, PromoCodeGroup):
+                    PreregCart.universal_promo_codes[attendee.id] = submitted_promo_code
+                message = session.add_promo_code_to_attendee(attendee, submitted_promo_code)
                 
             if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                 group.attendees = [attendee]
@@ -611,18 +611,21 @@ class Root:
         cart = PreregCart(listify(PreregCart.unpaid_preregs.values()))
         cart.set_total_cost()
         if cart.total_cost <= 0:
+            used_codes = defaultdict(int)
             for attendee in cart.attendees:
                 attendee.paid = c.NEED_NOT_PAY
                 attendee.badge_status = c.COMPLETED_STATUS
-                
+
                 if attendee.id in cherrypy.session.setdefault('imported_attendee_ids', {}):
                     old_attendee = session.attendee(cherrypy.session['imported_attendee_ids'][attendee.id])
                     old_attendee.current_attendee = attendee
                     session.add(old_attendee)
                     del cherrypy.session['imported_attendee_ids'][attendee.id]
 
-                if attendee.promo_code_id:
-                    message = check_prereg_promo_code(session, attendee)
+                if attendee.promo_code_code:
+                    message = check_prereg_promo_code(session, attendee, used_codes)
+                    if not message:
+                        used_codes[attendee.promo_code_code] += 1
                 
                 if message:
                     session.rollback()
@@ -653,10 +656,12 @@ class Root:
                 HTTPRedirect('form?message={}', 'Your preregistration has already been finalized')
             message = 'Your total cost was $0. Your credit card has not been charged.'
         else:
+            used_codes = defaultdict(int)
             for attendee in cart.attendees:
-                if not message and attendee.promo_code_id:
-                    message = check_prereg_promo_code(session, attendee)
+                if not message and attendee.promo_code_code:
+                    message = check_prereg_promo_code(session, attendee, used_codes)
                 if not message:
+                    used_codes[attendee.promo_code_code] += 1
                     form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents']
                     # Populate checkboxes based on the model (I need a better solution for this)
                     params = {}
@@ -669,7 +674,8 @@ class Root:
                     all_errors = validate_model(forms, attendee)
                     if all_errors:
                         # Flatten the errors as we don't have fields on this page
-                        message = " ".join(list(zip(*[all_errors]))[1])
+                        log.debug(all_errors)
+                        ' '.join([item for sublist in all_errors.values() for item in sublist])
                 if message:
                     message += f" Please click 'Edit' next to {attendee.full_name}'s registration to fix any issues."
                     break

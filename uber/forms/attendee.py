@@ -208,7 +208,7 @@ class BadgeExtras(MagForm):
     
     @field_validation.shirt
     def require_shirt(form, field):
-        if (form.amount_extra.data > 0 or form.badge_type.data in c.BADGE_TYPE_PRICES) \
+        if (form.amount_extra.data and form.amount_extra.data > 0 or form.badge_type.data in c.BADGE_TYPE_PRICES) \
             and (field.data == c.NO_SHIRT or not field.data):
             raise ValidationError("Please select a shirt size.")
     
@@ -267,12 +267,31 @@ class OtherInfo(MagForm):
 
 
 class PreregOtherInfo(OtherInfo):
-    promo_code = StringField('Promo Code')
+    new_or_changed_validation = CustomValidation()
+
+    promo_code_code = StringField('Promo Code')
     cellphone = TelField('Phone Number', description="A cellphone number is required for volunteers.", render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
     no_cellphone = BooleanField('I won\'t have a phone with me during the event.')
 
     def get_non_admin_locked_fields(self, attendee):
         return super().get_non_admin_locked_fields(attendee)
+    
+    @new_or_changed_validation.promo_code_code
+    def promo_code_valid(form, field):
+        if field.data:
+            with Session() as session:
+                code = session.lookup_promo_code(field.data)
+                if not code:
+                    group = session.lookup_promo_or_group_code(field.data, PromoCodeGroup)
+                    if not group:
+                        raise ValidationError("The promo code you entered is invalid.")
+                    elif not group.valid_codes:
+                        raise ValidationError(f"There are no more badges left in the group {group.name}.")
+                else:
+                    if code.is_expired:
+                        raise ValidationError("That promo code has expired.")
+                    elif code.uses_remaining <= 0 and not code.is_unlimited:
+                        raise ValidationError("That promo code has been used already.")
 
 
 class Consents(MagForm):
@@ -308,13 +327,14 @@ class AdminInfo(MagForm):
     group_id = StringField('Group')
 
     @new_or_changed_validation.badge_num
-    def dupe_badge_num(session, form, field):
+    def dupe_badge_num(form, field):
         existing_name = ''
         if c.NUMBERED_BADGES and field.data \
                 and (not c.SHIFT_CUSTOM_BADGES or c.AFTER_PRINTED_BADGE_DEADLINE or c.AT_THE_CON):
-            existing = session.query(Attendee).filter_by(badge_num=field.data)
-            if not existing.count():
-                return
-            else:
-                existing_name = existing.first().full_name
+            with Session() as session:
+                existing = session.query(Attendee).filter_by(badge_num=field.data)
+                if not existing.count():
+                    return
+                else:
+                    existing_name = existing.first().full_name
             raise ValidationError('That badge number already belongs to {!r}'.format(existing_name))
