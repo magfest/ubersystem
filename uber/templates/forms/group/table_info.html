@@ -62,6 +62,10 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
                                             required=True) }}
         </div>
     </div>
+{% else %}
+<div class="row g-sm-3">
+    <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.tables, choices=c.PREREG_TABLE_OPTS, required=True) }}</div>
+</div>
 {% endif %}
 {% endblock %}
 

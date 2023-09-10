@@ -100,8 +100,10 @@ class TableInfo(GroupInfo):
         return optional_list
 
     def get_non_admin_locked_fields(self, group):
-        if group.is_new or group.status in c.DEALER_EDITABLE_STATUSES:
+        if group.is_new:
             return []
+        elif group.status in c.DEALER_EDITABLE_STATUSES:
+            return ['tables']
         
         return list(self._fields.keys())
 

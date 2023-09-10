@@ -12,7 +12,7 @@
     <strong>These are not valid badges</strong> and you will not be able to pick them up at the event.
     {% else %}
     You're <em>almost</em> done buying a badge for {{ attendee.full_name }}, but your payment did not complete.
-    Unless you receiveed a separate confirmation email with the subject "{{ c.EVENT_NAME }} registration confirmed",
+    Unless you received a separate email for {{ attendee.full_name }} with the subject "{{ c.EVENT_NAME }} registration confirmed",
     {{ attendee.full_name }} <strong>does not have a valid badge</strong> for {{ c.EVENT_NAME }}.
     {% endif %}
     </p>
@@ -34,7 +34,7 @@
     <p>
         To check your registered badges, 
         {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
-        <a href="{{ c.URL_BASE }}/preregistration/homepage" target="_blank">log in to your homepage</a>
+        <a href="{{ c.URL_BASE }}/preregistration/homepage" target="_blank">log in to your homepage</a>.
         {% else %}
         <a href="{{ c.URL_BASE }}/preregistration/check_if_preregistered" target="_blank">enter your email address here</a>.
         {% endif %}

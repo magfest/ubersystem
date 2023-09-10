@@ -64,12 +64,12 @@
         <div class="col-sm-12 text-center mb-2">
             <span class="h4">
                 {% if attendee == attendee.group.leader %}Leader{% else %}Member{% endif %} of "{{ attendee.group.name }}"
-                {% if attendee == attendee.group.leader and attendee.group.status != c.IMPORTED %}
-                <span class="badge">{{ attendee.group.status_label }}</span>
-                <a href="group_members?id={{ attendee.group.id }}" class="btn btn-primary btn-sm"><i class="fa fa-pencil"></i>&nbsp;Edit {{ "Application" if attendee.group.is_dealer else "Group" }}</a>
-                {% endif %}
-                <hr/>
             </span>
+            <span class="badge bg-secondary">{{ attendee.group.status_label }}</span>
+            {% if attendee == attendee.group.leader %}
+            <a href="group_members?id={{ attendee.group.id }}" class="btn btn-primary btn-sm pull-right"><i class="fa fa-pencil"></i>&nbsp;View/Edit {{ "Application" if attendee.group.is_dealer else "Group" }}</a>
+            {% endif %}
+            <hr/>
         </div>
     {% endif %}
     <div class="row">
@@ -93,7 +93,13 @@
                     </a>
                     {% endif %}
                     </div>
-                {% elif attendee.is_valid or attendee.badge_status == c.PENDING_STATUS %}
+                {% elif attendee.badge_status == c.PENDING_STATUS %}
+                    <div class="pull-right">
+                        <a href="../preregistration/resume_pending?id={{ attendee.id }}" class="btn btn-primary">
+                            Add to Cart &nbsp;<i class="fa fa-plus"></i>
+                        </a>
+                    </div>
+                {% elif attendee.is_valid %}
                     {% set multiple_buttons = c.ART_SHOW_OPEN or c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE or attendee.art_show_applications or attendee.marketplace_applications %}
                     {% if multiple_buttons %}
                     <div class="btn-group pull-right mt-2" role="group">
