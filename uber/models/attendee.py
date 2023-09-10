@@ -432,7 +432,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     # =========================
     games = relationship('TabletopGame', backref='attendee')
     checkouts = relationship('TabletopCheckout', backref='attendee')
-    entrants = relationship('TabletopEntrant', backref='attendee')
     
     # =========================
     # badge printing
