@@ -639,7 +639,7 @@ if c.PRINTED_BADGE_DEADLINE:
         when=days_before(7, c.PRINTED_BADGE_DEADLINE),
         ident='volunteer_personalized_badge_reminder')
 
-    if [badge_type for badge_type in c.PREASSIGNED_BADGE_TYPES if badge_type not in [c.STAFF_BADGE, c.CONTRATOR_BADGE]]:
+    if [badge_type for badge_type in c.PREASSIGNED_BADGE_TYPES if badge_type not in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]]:
         AutomatedEmailFixture(
             Attendee,
             'Personalized {EVENT_NAME} ({EVENT_DATE}) badges will be ordered next week',
