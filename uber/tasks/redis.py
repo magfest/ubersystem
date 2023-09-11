@@ -27,8 +27,8 @@ def expire_processed_saml_assertions():
     
     rsession = c.REDIS_STORE.pipeline()
     
-    for key, val in c.REDIS_STORE.hscan('processed_saml_assertions')[1].items():
+    for key, val in c.REDIS_STORE.hscan(c.REDIS_PREFIX + 'processed_saml_assertions')[1].items():
         if int(val) < datetime.utcnow().timestamp():
-            rsession.hdel('processed_saml_assertions', key)
+            rsession.hdel(c.REDIS_PREFIX + 'processed_saml_assertions', key)
     
     rsession.execute()
