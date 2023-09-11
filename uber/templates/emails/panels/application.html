@@ -10,7 +10,7 @@
 {% if panelist.guidebook_bio %}<li><strong>Schedule Bio</strong>: {{ panelist.guidebook_bio|linebreaksbr }}</li>{% endif %}
 {% if panelist.display_name %}<li><strong>Display Name</strong>: {{ panelist.display_name }}</li>{% endif %}
 {% if panelist.has_social_media %}
-    <li><strong>Social Media</strong>: {{ panelist.social_media_info|replace("\n", ";") }}</li>
+    <li><strong>Social Media</strong>: {{ panelist.social_media_info|replace(" \n", "; ") }}</li>
 {% endif %}
 {%- endmacro -%}
 
