@@ -164,14 +164,15 @@ AutomatedEmailFixture(
               a.badge_type == c.ATTENDEE_BADGE and a.paid == c.NEED_NOT_PAY and not a.admin_account,
     ident='claim_deferred_badge')
 
-AutomatedEmailFixture(
-    AttendeeAccount,
-    '{EVENT_NAME} account creation confirmed',
-    'reg_workflow/account_confirmation.html',
-    lambda a: not a.imported and a.hashed and not a.password_reset,
-    needs_approval=False,
-    allow_at_the_con=True,
-    ident='attendee_account_confirmed')
+if c.ATTENDEE_ACCOUNTS_ENABLED:
+    AutomatedEmailFixture(
+        AttendeeAccount,
+        '{EVENT_NAME} account creation confirmed',
+        'reg_workflow/account_confirmation.html',
+        lambda a: not a.imported and a.hashed and not a.password_reset,
+        needs_approval=False,
+        allow_at_the_con=True,
+        ident='attendee_account_confirmed')
 
 AutomatedEmailFixture(
     PromoCodeGroup,
@@ -214,6 +215,7 @@ AutomatedEmailFixture(
     #     Attendee.amount_extra != 0,
     #     Attendee.amount_paid >= Attendee.amount_extra),
     needs_approval=False,
+    sender=c.MERCH_EMAIL,
     ident='group_extra_payment_received')
 
 
@@ -637,13 +639,14 @@ if c.PRINTED_BADGE_DEADLINE:
         when=days_before(7, c.PRINTED_BADGE_DEADLINE),
         ident='volunteer_personalized_badge_reminder')
 
-    AutomatedEmailFixture(
-        Attendee,
-        'Personalized {EVENT_NAME} ({EVENT_DATE}) badges will be ordered next week',
-        'personalized_badges/reminder.txt',
-        lambda a: a.badge_type in c.PREASSIGNED_BADGE_TYPES and not a.placeholder,
-        when=days_before(7, c.PRINTED_BADGE_DEADLINE),
-        ident='personalized_badge_reminder')
+    if [badge_type for badge_type in c.PREASSIGNED_BADGE_TYPES if badge_type not in [c.STAFF_BADGE, c.CONTRATOR_BADGE]]:
+        AutomatedEmailFixture(
+            Attendee,
+            'Personalized {EVENT_NAME} ({EVENT_DATE}) badges will be ordered next week',
+            'personalized_badges/reminder.txt',
+            lambda a: a.badge_type in c.PREASSIGNED_BADGE_TYPES and not a.placeholder,
+            when=days_before(7, c.PRINTED_BADGE_DEADLINE),
+            ident='personalized_badge_reminder')
 
 
 # MAGFest requires signed and notarized parental consent forms for anyone under 18.  This automated email reminder to

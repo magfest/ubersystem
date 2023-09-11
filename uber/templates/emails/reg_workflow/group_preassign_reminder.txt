@@ -1,6 +1,6 @@
 {{ group.leader.first_name }},
 
-Our records indicate that your group ({{ group.name|safe }}) currently has some unassigned badges.  Although you can assign badges at our registration desk, this takes significantly longer than simply having everyone show up to pick up the badges which are already listed under their names. Additionally, the group leader must be present whenever these unassigned badges are claimed.
+Our records indicate that your group ({{ group.name|safe }}) currently has some unassigned badges.  It is imperative you assign these badges before the event. If someone from your group attempts to pick up a badge before it is assigned to them, they will be instructed to contact you to assign the badge to them so they can pick it up. We cannot assign them a badge unless you are present.
 
 If you already know who's coming with your group, we highly encourage you to use the following link to pre-assign your badges: {{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}
 
