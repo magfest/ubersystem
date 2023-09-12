@@ -151,7 +151,7 @@ class Root:
             if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
                 message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
 
-            if not message:
+            if not message and not attendee.placeholder:
                 message = check(attendee)
 
             if not message:
@@ -1075,7 +1075,7 @@ class Root:
             if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
                 message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
 
-        if not message:
+        if not message and not attendee.placeholder:
             message = check(attendee)
 
         if not message:
