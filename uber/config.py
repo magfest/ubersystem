@@ -20,7 +20,7 @@ import signnow_python_sdk
 from pockets import keydefaultdict, nesteddefaultdict, unwrap
 from pockets.autolog import log
 from sideboard.lib import cached_property, parse_config, request_cached_property
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from sqlalchemy.orm import joinedload, subqueryload
 
 import uber
@@ -795,6 +795,29 @@ class Config(_Overridable):
                     ~Attendee.badge_status.in_([c.INVALID_GROUP_STATUS, c.INVALID_STATUS, 
                                                 c.IMPORTED_STATUS, c.REFUNDED_STATUS])).count()
         return count
+    
+    def get_shirt_count(self, shirt_enum_key):
+        from uber.models import Session, Attendee
+        with Session() as session:
+            shirt_count = 0
+
+            base_filters = [Attendee.shirt == shirt_enum_key,
+                           ~Attendee.badge_status.in_([c.INVALID_GROUP_STATUS, c.INVALID_STATUS, 
+                                                c.IMPORTED_STATUS, c.REFUNDED_STATUS])]
+            base_query = session.query(Attendee).filter(*base_filters)
+            
+            # Paid event shirts
+            shirt_count += base_query.filter(Attendee.amount_extra >= c.SHIRT_LEVEL).count()
+
+            if c.SHIRTS_PER_STAFFER > 0:
+                staff_event_shirts = session.query(func.sum(Attendee.num_event_shirts)).filter(*base_filters).filter(
+                    Attendee.badge_type == c.STAFF_BADGE, Attendee.num_event_shirts != -1).scalar()
+                shirt_count += staff_event_shirts or 0
+
+            if c.HOURS_FOR_SHIRT:
+                shirt_count += base_query.filter(Attendee.ribbon.contains(c.VOLUNTEER_RIBBON)).count()
+            
+        return shirt_count
 
     @request_cached_property
     @dynamic
@@ -1273,9 +1296,13 @@ c.WEIGHT_OPTS = (
 c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'visibility', 'required_roles_ids', 'extra15']
 
 c.PREREG_SHIRT_OPTS = sorted(c.PREREG_SHIRT_OPTS if c.PREREG_SHIRT_OPTS else c.SHIRT_OPTS)[1:]
+c.PREREG_SHIRTS = {key: val for key, val in c.PREREG_SHIRT_OPTS}
 c.STAFF_SHIRT_OPTS = sorted(c.STAFF_SHIRT_OPTS if len(c.STAFF_SHIRT_OPTS) > 1 else c.SHIRT_OPTS)
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + sorted(list(c.SHIRT_OPTS))
 c.MERCH_STAFF_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + sorted(list(c.STAFF_SHIRT_OPTS))
+shirt_label_lookup = {val: key for key, val in c.SHIRT_OPTS}
+c.SHIRT_SIZE_STOCKS = {shirt_label_lookup[val]: key for key, val in c.SHIRT_STOCK_OPTS}
+
 c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
 
 c.DONATION_TIER_ITEMS = {}

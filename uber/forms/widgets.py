@@ -32,13 +32,13 @@ class MultiCheckbox():
 class IntSelect():
     """
     Renders an Integer or Decimal field as a select dropdown, e.g., the "badges" dropdown for groups.
-    The list of choices can be provided on int or during render and should be a list of (value, label) tuples.
+    The list of choices can be provided on init or during render and should be a list of (value, label) tuples.
     Note that choices must include a null/zero option if you want one.
     """
     def __init__(self, choices=None, **kwargs):
         self.choices = choices
 
-    def __call__(self, field, choices, **kwargs):
+    def __call__(self, field, choices=None, **kwargs):
         choices = choices or self.choices
         field_id = kwargs.pop('id', field.id)
         options = dict(kwargs, id=field_id, name=field.name)

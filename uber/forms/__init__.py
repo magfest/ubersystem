@@ -378,6 +378,39 @@ class HiddenIntField(IntegerField):
     widget = wtforms_widgets.HiddenInput()
 
 
+class SelectAvailableField(SelectField):
+    """
+    A select field that takes a flat list `sold_out_list` and compares each option to that list.
+    If an option is in the list, `sold_out_text` is displayed alongside it.
+    To avoid type errors, the values in `sold_out_list` are coerced to the `coerce` value passed on init.
+    """
+    
+    def __init__(self, label=None, validators=None, coerce=str, choices=None, validate_choice=True,
+                 sold_out_list_func=[], sold_out_text="(SOLD OUT!)", **kwargs):
+        super().__init__(label, validators, coerce, choices, validate_choice, **kwargs)
+        self.sold_out_list_func = sold_out_list_func
+        self.sold_out_text = sold_out_text
+
+    def get_sold_out_list(self):
+        return [self.coerce(val) for val in self.sold_out_list_func()]
+    
+    def _choices_generator(self, choices):
+        sold_out_list = self.get_sold_out_list()
+        if not choices:
+            _choices = []
+        elif isinstance(choices[0], (list, tuple)):
+            _choices = choices
+        else:
+            _choices = zip(choices, choices)
+
+        for value, label in _choices:
+            coerced_val = self.coerce(value)
+            if coerced_val in sold_out_list:
+                label = f"{label} {self.sold_out_text}"
+
+            yield (value, label, coerced_val == self.data)
+
+
 class DictWrapper(dict):
     def getlist(self, arg):
         if arg in self:
