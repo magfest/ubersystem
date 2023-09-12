@@ -147,6 +147,8 @@ def check_near_cap():
 
 @celery.schedule(timedelta(days=1))
 def email_pending_attendees():
+    return
+
     already_emailed_accounts = []
 
     with Session() as session:

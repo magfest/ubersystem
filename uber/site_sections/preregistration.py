@@ -87,9 +87,9 @@ def update_prereg_cart(session):
             existing_model = session.query(Group).filter_by(id=id).first()
         if existing_model:
             receipt = session.refresh_receipt_and_model(existing_model)
-            if receipt.current_amount_owed or receipt.get_last_incomplete_txn():
+            if receipt and receipt.current_amount_owed:
                 PreregCart.unpaid_preregs[id] = PreregCart.pending_preregs[id]
-            else:
+            elif receipt:
                 PreregCart.paid_preregs.append(PreregCart.pending_preregs[id])
         PreregCart.pending_preregs.pop(id)
 
@@ -234,17 +234,21 @@ class Root:
         old_attendee = session.attendee(id)
         old_attendee_dict = old_attendee.to_dict(c.UNTRANSFERABLE_ATTRS)
         del old_attendee_dict['id']
-
         new_attendee = Attendee(**old_attendee_dict)
-        
-        new_attendee_dict = PreregCart.to_sessionized(new_attendee)
-        new_attendee_dict['badge_type'] = c.PSEUDO_DEALER_BADGE
+        new_attendee.badge_type = c.PSEUDO_DEALER_BADGE
+
+        old_group = session.group(old_attendee.group.id)
+        old_group_dict = old_group.to_dict(c.GROUP_REAPPLY_ATTRS)
+        del old_group_dict['id']
+        new_group = Group(**old_group_dict)
+
+        new_attendee.group_id = new_group.id
+        new_group.attendees = [new_attendee]
 
         cherrypy.session.setdefault('imported_attendee_ids', {})[new_attendee.id] = id
 
-        PreregCart.unpaid_preregs[new_attendee.id] = new_attendee_dict
-        Tracking.track(c.UNPAID_PREREG, new_attendee)
-        raise HTTPRedirect("dealer_registration?edit_id={}&repurchase=1&old_group_id={}", new_attendee.id, old_attendee.group.id)
+        PreregCart.pending_dealers[new_group.id] = PreregCart.to_sessionized(new_group, badge_count=old_group.badges_purchased)
+        raise HTTPRedirect("dealer_registration?edit_id={}", new_group.id)
         
 
     def repurchase(self, session, id, skip_confirm=False, **params):
@@ -306,12 +310,6 @@ class Root:
         if edit_id is not None:
             group = self._get_unsaved(edit_id, PreregCart.pending_dealers)
             params['badges'] = params.get('badges', getattr(group, 'badge_count', 0))
-
-        if params.get('old_group_id'):
-            old_group = session.group(params['old_group_id'])
-            old_group_dict = session.group(params['old_group_id']).to_dict(c.GROUP_REAPPLY_ATTRS)
-            group.apply(old_group_dict, ignore_csrf=True, restricted=True)
-            params['badges'] = params.get('badges', old_group.badges_purchased)
 
         badges = params.get('badges', 0)
 
@@ -684,7 +682,7 @@ class Root:
                 receipts = []
                 for model in cart.models:
                     charge_receipt, charge_receipt_items = ReceiptManager.create_new_receipt(model, create_model=True)
-                    existing_receipt = session.get_receipt_by_model(model)
+                    existing_receipt = session.refresh_receipt_and_model(model)
                     if existing_receipt:
                         # Multiple attendees can have the same transaction during pre-reg,
                         # so we always cancel any incomplete transactions
@@ -703,7 +701,9 @@ class Root:
                         for item in new_items:
                             del item['id']
 
-                        if existing_items != new_items:
+                        diff_list = [x for x in existing_items + new_items if x not in existing_items or x not in new_items]
+
+                        if diff_list:
                             existing_receipt.closed = datetime.now()
                             session.add(existing_receipt)
                         else:
@@ -784,7 +784,8 @@ class Root:
     @ajax
     def submit_authnet_charge(self, session, ref_id, amount, email, desc, customer_id, token_desc, token_val, **params):
         charge = TransactionRequest(receipt_email=email, description=desc, amount=amount, customer_id=customer_id)
-        error = charge.send_authorizenet_txn(token_desc=token_desc, token_val=token_val, intent_id=ref_id)
+        error = charge.send_authorizenet_txn(token_desc=token_desc, token_val=token_val, intent_id=ref_id,
+                                             first_name=params.get('first_name', ''), last_name=params.get('last_name', ''))
         if error:
             return {'error': error}
         else:

@@ -28,8 +28,8 @@ from uber.models import MagModel
 from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, TakesPaymentMixin
-from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthday, hour_day_format, localized_now, mask_string, normalize_email_legacy, \
-    remove_opt
+from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthday, hour_day_format, localized_now, mask_string, \
+    normalize_email, normalize_email_legacy, remove_opt
 
 
 __all__ = ['Attendee', 'AttendeeAccount', 'FoodRestrictions']
@@ -2168,6 +2168,10 @@ class AttendeeAccount(MagModel):
     @presave_adjustment
     def strip_email(self):
         self.email = self.email.strip()
+
+    @presave_adjustment
+    def normalize_email(self):
+        self.email = normalize_email(self.email)
 
     @property
     def has_only_one_badge(self):
