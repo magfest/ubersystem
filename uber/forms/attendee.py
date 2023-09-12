@@ -10,7 +10,7 @@ from wtforms.widgets import HiddenInput
 from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
-from uber.forms import AddressForm, MultiCheckbox, MagForm, SwitchInput, NumberInputGroup, HiddenIntField, CustomValidation
+from uber.forms import AddressForm, MultiCheckbox, MagForm, SelectAvailableField, SwitchInput, NumberInputGroup, HiddenIntField, CustomValidation
 from uber.custom_tags import popup_link
 from uber.model_checks import invalid_phone_number
 
@@ -182,7 +182,8 @@ class BadgeExtras(MagForm):
     extra_donation = IntegerField('Extra Donation', validators=[
         validators.NumberRange(min=0, message="Extra donation must be a number that is 0 or higher.")
         ], widget=NumberInputGroup(), description=popup_link("../static_views/givingExtra.html", "Learn more"))
-    shirt = SelectField('Shirt Size', coerce=int)
+    shirt = SelectAvailableField('Shirt Size', coerce=int,
+                                 sold_out_list_func=lambda: list(c.REDIS_STORE.smembers(c.REDIS_PREFIX + 'sold_out_shirt_sizes')))
     staff_shirt = SelectField('Staff Shirt Size', coerce=int)
     
     def get_non_admin_locked_fields(self, attendee):
@@ -211,6 +212,11 @@ class BadgeExtras(MagForm):
         if (form.amount_extra.data and form.amount_extra.data > 0 or form.badge_type.data in c.BADGE_TYPE_PRICES) \
             and (field.data == c.NO_SHIRT or not field.data):
             raise ValidationError("Please select a shirt size.")
+        
+    @new_or_changed_validation.shirt
+    def shirt_size_sold_out(form, field):
+        if field.data in field.get_sold_out_list():
+            raise ValidationError(f"Sorry, we're sold out of {c.PREREG_SHIRTS[field.data]} shirts!")
     
     @new_or_changed_validation.amount_extra
     def upgrade_sold_out(form, field):

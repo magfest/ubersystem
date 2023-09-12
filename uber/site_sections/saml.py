@@ -40,13 +40,13 @@ class Root:
 
         assertion_id = auth.get_last_assertion_id()
         
-        if c.REDIS_STORE.hget('processed_saml_assertions', assertion_id):
+        if c.REDIS_STORE.hget(c.REDIS_PREFIX + 'processed_saml_assertions', assertion_id):
             log.error("Existing SAML assertion was replayed: {}. This is either an attack or a programming error.".format(assertion_id))
             raise HTTPRedirect("../landing/index?message={}", "Authentication unsuccessful.")
 
         errors = auth.get_errors()
         if not errors:
-            c.REDIS_STORE.hset('processed_saml_assertions', assertion_id, auth.get_last_assertion_not_on_or_after())
+            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'processed_saml_assertions', assertion_id, auth.get_last_assertion_not_on_or_after())
 
             if auth.is_authenticated():
                 account_email = auth.get_nameid()

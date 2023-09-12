@@ -132,7 +132,7 @@ class ModelReceipt(MagModel):
 
     @hybrid_property
     def payment_total(self):
-        return sum([txn.amount for txn in self.receipt_txns if not txn.cancelled and (txn.charge_id or txn.method != c.STRIPE and txn.amount > 0)])
+        return sum([txn.amount for txn in self.receipt_txns if not txn.cancelled and (txn.charge_id or txn.intent_id == '' and txn.amount > 0)])
     
     @payment_total.expression
     def payment_total(cls):
@@ -140,7 +140,7 @@ class ModelReceipt(MagModel):
                      ).where(ReceiptTransaction.receipt_id == cls.id
                      ).where(ReceiptTransaction.cancelled == None
                      ).where(or_(ReceiptTransaction.charge_id != None,
-                                and_(ReceiptTransaction.method != c.STRIPE, ReceiptTransaction.amount > 0))
+                                and_(ReceiptTransaction.amount > 0, ReceiptTransaction.intent_id == ''))
                      ).label('payment_total')
 
     @hybrid_property
@@ -196,12 +196,12 @@ class ModelReceipt(MagModel):
                 error = None
             else:
                 error = txn.check_stripe_id()
-            if error or txn.amount != self.current_receipt_amount:
+            if error or txn.amount != self.current_amount_owed:
                 if error or self.current_amount_owed == 0:
                     txn.cancelled = datetime.now() # TODO: Add logs to txns/items and log the automatic cancellation reason?
 
-                if txn.amount != self.current_receipt_amount and self.current_amount_owed:
-                    txn.amount = self.current_receipt_amount
+                if txn.amount != self.current_amount_owed and self.current_amount_owed:
+                    txn.amount = self.current_amount_owed
                     if not c.AUTHORIZENET_LOGIN_ID:
                         stripe.PaymentIntent.modify(txn.intent_id, amount = txn.amount)
 

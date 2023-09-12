@@ -30,7 +30,7 @@ from sideboard.lib import threadlocal
 
 import uber
 from uber.config import c, _config, signnow_sdk
-from uber.custom_tags import format_currency
+from uber.custom_tags import format_currency, email_only
 from uber.errors import CSRFException, HTTPRedirect
 from uber.utils import report_critical_exception
 
@@ -279,8 +279,12 @@ class TransactionRequest:
         self.description = description
         self.customer_id = customer_id
         self.intent, self.response, self.receipt_manager = None, None, None
+        self.tracking_id = str(uuid4())
+
+        log.debug(f"Transaction {self.tracking_id} started with {amount} amount, {receipt_email} receipt email, {description} description, and {customer_id} customer ID.")
 
         if receipt:
+            log.debug(f"Transaction {self.tracking_id} initialized with receipt id {receipt.id}, which has {receipt.current_amount_owed} balance due.")
             self.receipt_manager = ReceiptManager(receipt)
             if not self.amount:
                 self.amount = receipt.current_amount_owed
@@ -327,7 +331,7 @@ class TransactionRequest:
         try:
             self.intent = self.stripe_or_authnet_intent()
         except Exception as e:
-            error_txt = 'Got an error while creating a Stripe intent'
+            error_txt = 'Got an error while creating a Stripe intent for transaction {self.tracking_id}'
             report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
             return 'An unexpected problem occurred while setting up payment: ' + str(e)
         
@@ -343,7 +347,8 @@ class TransactionRequest:
                 customer_id=self.customer_id
             )
         else:
-            log.debug('Creating Stripe Intent to charge {} cents for {}', self.amount, self.description)
+            log.debug('Transaction {self.tracking_id}: creating Stripe Intent to charge {} cents for {}',
+                      self.amount, self.description)
 
             return stripe.PaymentIntent.create(
                 payment_method_types=['card'],
@@ -376,7 +381,8 @@ class TransactionRequest:
                         format_currency(self.response.settleAmount),
                         format_currency(self.amount / 100))
                 cc_num = str(self.response.payment.creditCard.cardNumber)[-4:]
-                error = self.send_authorizenet_txn(txn_type=c.REFUND, amount=amount, cc_num=cc_num, txn_id=txn.charge_id)
+                zip = str(self.response.billTo.zip)
+                error = self.send_authorizenet_txn(txn_type=c.REFUND, amount=amount, cc_num=cc_num, zip=zip, txn_id=txn.charge_id)
             if error:
                 return 'An unexpected problem occurred: ' + str(error)
         else:
@@ -490,6 +496,7 @@ class TransactionRequest:
             return
         
         if c.AUTHORIZENET_LOGIN_ID:
+            log.debug(f"Transaction {self.tracking_id} getting or creating a customer with ID {customer_id} and email {self.receipt_email}")
             getCustomerRequest = apicontractsv1.getCustomerProfileRequest()
             getCustomerRequest.merchantAuthentication = self.merchant_auth
             if customer_id:
@@ -504,7 +511,13 @@ class TransactionRequest:
             if response is not None:
                 if response.messages.resultCode == "Ok" and hasattr(response, 'profile') == True:
                     self.customer_id = str(response.profile.customerProfileId)
+                    log.debug(f"Transaction {self.tracking_id} retrieved customer {self.customer_id}")
+                    if hasattr(response.profile, 'paymentProfiles') == True:
+                        for paymentProfile in response.profile.paymentProfiles:
+                            log.debug(f"Transaction {self.tracking_id} deleting payment profile ID {str(paymentProfile.customerPaymentProfileId)} from customer {self.customer_id}")
+                            self.delete_authorizenet_payment_profile(str(paymentProfile.customerPaymentProfileId))
                 elif response.messages.message.code == 'E00040':
+                    log.debug(f"Transaction {self.tracking_id} did not find customer, creating a new one...")
                     createCustomerRequest = apicontractsv1.createCustomerProfileRequest()
                     createCustomerRequest.merchantAuthentication = self.merchant_auth
                     createCustomerRequest.profile = apicontractsv1.customerProfileType(email=self.receipt_email)
@@ -515,13 +528,14 @@ class TransactionRequest:
 
                     response = createCustomerRequestController.getresponse()
 
-                    if (response.messages.resultCode=="Ok"):
+                    if response and (response.messages.resultCode=="Ok"):
                         self.customer_id = str(response.customerProfileId)
+                    elif not response:
+                        log.error(f"Transaction {self.tracking_id} failed to create customer profile. No response received.")
                     else:
-                        log.error("Failed to create customer payment profile. %s" % response.messages.message[0]['text'].text)
+                        log.error(f"Transaction {self.tracking_id} failed to create customer profile. {str(response.messages.message[0]['code'].text)}: {str(response.messages.message[0]['text'].text)}")
                 else:
-                    log.error(f"Failed to retrieve customer profile for AuthNet. {response.messages.message[0].code}: \
-                              {response.messages.message[0].text}")
+                    log.error(f"Transaction {self.tracking_id} failed to retrieve customer profile. {str(response.messages.message[0]['code'].text)}: {str(response.messages.message[0]['text'].text)}")
             else:
                 log.error(f"Failed to retrieve customer profile for AuthNet: no response received.")
             return
@@ -541,15 +555,24 @@ class TransactionRequest:
                 )
             self.customer_id = customer.id if customer else None
 
-    def create_authorizenet_payment_profile(self, paymentInfo):
+    def create_authorizenet_payment_profile(self, paymentInfo, first_name='', last_name=''):
         # There seems to be no way to directly associate customer profiles with transactions
         # Instead we need to create "payment profile", fill it with the token, use the
-        # payment profile as payment, then delete it because the token is single-use
+        # payment profile as payment
         #
         # I love technology
 
+        log.debug(f"Transaction {self.tracking_id} creating a payment profile for customer {self.customer_id}")
+
         profile = apicontractsv1.customerPaymentProfileType()
         profile.payment = paymentInfo
+
+        if first_name:
+            billTo = apicontractsv1.customerAddressType()
+            billTo.firstName = first_name
+            billTo.lastName = last_name
+            profile.billTo = billTo
+
         createCustomerPaymentRequest = apicontractsv1.createCustomerPaymentProfileRequest()
         createCustomerPaymentRequest.merchantAuthentication = self.merchant_auth
         createCustomerPaymentRequest.paymentProfile = profile
@@ -566,15 +589,20 @@ class TransactionRequest:
             profileToCharge.paymentProfile = apicontractsv1.paymentProfile()
             profileToCharge.paymentProfile.paymentProfileId = str(response.customerPaymentProfileId)
 
+            log.debug(f"Transaction {self.tracking_id} successfully created a payment profile (ID {str(response.customerPaymentProfileId)}) for customer {self.customer_id}")
+
             return profileToCharge
         else:
-            log.error("Failed to create customer payment profile %s" % response.messages.message[0]['text'].text)
+            log.error(f"Transaction {self.tracking_id} failed to create customer payment profile: {response.messages.message[0]['text'].text}")
     
-    def delete_authorizenet_payment_profile(self, payment_profile):
+    def delete_authorizenet_payment_profile(self, payment_profile_id):
+        if not self.customer_id:
+            return
+
         deleteCustomerPaymentProfile = apicontractsv1.deleteCustomerPaymentProfileRequest()
         deleteCustomerPaymentProfile.merchantAuthentication = self.merchant_auth
-        deleteCustomerPaymentProfile.customerProfileId = payment_profile.customerProfileId
-        deleteCustomerPaymentProfile.customerPaymentProfileId = payment_profile.paymentProfile.paymentProfileId
+        deleteCustomerPaymentProfile.customerProfileId = self.customer_id
+        deleteCustomerPaymentProfile.customerPaymentProfileId = payment_profile_id
 
         controller = apicontrollers.deleteCustomerPaymentProfileController(deleteCustomerPaymentProfile)
         controller.setenvironment(c.AUTHORIZENET_ENDPOINT)
@@ -583,7 +611,7 @@ class TransactionRequest:
         response = controller.getresponse()
 
         if (response.messages.resultCode!="Ok"):
-            log.error(f"Failed to delete customer paymnet profile with customer profile id \
+            log.error(f"Failed to delete customer payment profile with customer profile id \
                       {deleteCustomerPaymentProfile.customerProfileId}: {response.messages.message[0]['text'].text}")
 
 
@@ -600,8 +628,11 @@ class TransactionRequest:
         if response is not None:
             if response.messages.resultCode == apicontractsv1.messageTypeEnum.Ok:
                 self.response = response.transaction
+                log.debug(f"Transaction {self.tracking_id} requested and received {txn_id} from AuthNet.")
                 return
             elif response.messages is not None:
+                log.error(f"Transaction {self.tracking_id} requested {txn_id} from AuthNet but received an error: \
+                          {response.messages.message[0]['code'].text}: {response.messages.message[0]['text'].text}")
                 return 'Failed to get transaction details from AuthNet. {}: {}'.format(response.messages.message[0]['code'].text,response.messages.message[0]['text'].text)
 
         return response
@@ -610,6 +641,9 @@ class TransactionRequest:
         from decimal import Decimal
         payment_profile = None
         order = None
+
+        params_str = [f"{name}: {params[name]}" for name in params]
+        log.debug(f"Transaction {self.tracking_id} building an AuthNet transaction request, request type '{c.AUTHNET_TXN_TYPES[txn_type]}'. Params: {params_str}")
         
         transaction = apicontractsv1.transactionRequestType()
 
@@ -629,13 +663,21 @@ class TransactionRequest:
                     transaction.order = order
 
                 if self.customer_id:
-                    payment_profile = self.create_authorizenet_payment_profile(paymentInfo)
+                    payment_profile = self.create_authorizenet_payment_profile(paymentInfo,
+                                                                               params.get('first_name', ''),
+                                                                               params.get('last_name', ''))
+                    if not payment_profile:
+                        return f"Could not complete payment. Please contact us at {email_only(c.REGDESK_EMAIL)}"
+
             elif 'cc_num' in params:
                 # This is only for refunds, hence the lack of expiration date
                 creditCard = apicontractsv1.creditCardType()
                 creditCard.cardNumber = params.get("cc_num")
                 creditCard.expirationDate = "XXXX"
                 paymentInfo.creditCard = creditCard
+                billTo = apicontractsv1.customerAddressType()
+                billTo.zip = params.get("zip")
+                transaction.billTo = billTo
             
             if payment_profile:
                 transaction.profile = payment_profile
@@ -670,17 +712,15 @@ class TransactionRequest:
                 if hasattr(response.transactionResponse, 'messages') == True:
                     self.response = response.transactionResponse
                     auth_txn_id = str(self.response.transId)
+
+                    log.debug(f"Transaction {self.tracking_id} request successful. Transaction ID: {auth_txn_id}")
                     
                     if txn_type in [c.AUTHCAPTURE, c.CAPTURE]:
                         ReceiptManager.mark_paid_from_intent_id(params.get('intent_id'), auth_txn_id)
-
-                    if payment_profile:
-                        self.delete_authorizenet_payment_profile(payment_profile)
                 else:
-                    report_critical_exception(msg="{} {}".format(
-                        str(response.transactionResponse.errors.error[0].errorCode),
-                        str(response.transactionResponse.errors.error[0].errorText)
-                    ), subject='ERROR: Authorize.net error')
+                    error_code = str(response.transactionResponse.errors.error[0].errorCode)
+                    error_msg = str(response.transactionResponse.errors.error[0].errorText)
+                    log.debug(f"Transaction {self.tracking_id} request did not receive a transaction response! {error_code}: {error_msg}")
 
                     return str(response.transactionResponse.errors.error[0].errorText)
             else:
@@ -691,11 +731,11 @@ class TransactionRequest:
                     error_code = response.messages.message[0]['code'].text
                     error_msg = response.messages.message[0]['text'].text
                     
-                report_critical_exception(msg="{} {}".format(str(error_code), str(error_msg)), subject='ERROR: Authorize.net error')
+                log.debug(f"Transaction {self.tracking_id} request failed! {error_code}: {error_msg}")
                     
                 return str(error_msg)
         else:
-            log.error(f"Transaction request to AuthNet failed: no response received.")
+            log.error(f"Transaction {self.tracking_id} request to AuthNet failed: no response received.")
         
 
 class ReceiptManager:
