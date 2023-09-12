@@ -3,8 +3,8 @@ hostname = "${HOSTNAME}"
 url_root = "http://${HOSTNAME}:${PORT}"
 
 [redis]
-host = "${SESSION_HOST}"
-port = ${SESSION_PORT}
+host = "${REDIS_HOST}"
+port = ${REDIS_PORT}
 
 [secret]
 broker_url = "${BROKER_PROTOCOL}://${BROKER_USER}:${BROKER_PASS}@${BROKER_HOST}:${BROKER_PORT}/${BROKER_VHOST}"
