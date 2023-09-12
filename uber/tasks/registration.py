@@ -189,6 +189,9 @@ def email_pending_attendees():
                     model=badge.managers[0].to_dict() if c.ATTENDEE_ACCOUNTS_ENABLED else badge.to_dict(),
                     ident=email_ident
                 )
+                
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    already_emailed_accounts.append(email_to)
         
 
 

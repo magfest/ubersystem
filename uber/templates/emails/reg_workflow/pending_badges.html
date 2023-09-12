@@ -1,7 +1,7 @@
 <html>
 <head></head>
 <body>
-    <strong>You haven't finished registering for {{ c.EVENT_NAME}} ({{ event_dates() }})!</strong>
+    <p><strong>You haven't finished registering for {{ c.EVENT_NAME}} ({{ event_dates() }})!</strong></p>
 
     <p>
     {% if c.ATTENDEE_ACCOUNTS_ENABLED and account.pending_attendees|length > 1 %}
@@ -22,7 +22,7 @@
         We understand that some people encountered a technical issue while attempting to pay for their registration, 
         and we have now fixed all the issues we're aware of. If you attempted to register and were unable to complete 
         payment, please try your payment again. If you run into any further issues, please email 
-        <a href="registration@furfest.org" target="_blank">registration@furfest.org</a>
+        <a href="registration@furfest.org" target="_blank">registration@furfest.org</a>.
     </p>
     {% endif %}
 
