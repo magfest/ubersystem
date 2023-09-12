@@ -147,17 +147,18 @@ def check_near_cap():
 
 @celery.schedule(timedelta(days=1))
 def email_pending_attendees():
-    return
-
     already_emailed_accounts = []
 
     with Session() as session:
         four_days_old = datetime.now(pytz.UTC) - timedelta(hours=96)
         pending_badges = session.query(Attendee).filter(Attendee.badge_status == c.PENDING_STATUS,
-                                                        or_(Attendee.registered < datetime.now(pytz.UTC) - timedelta(hours=24))
+                                                        Attendee.registered < datetime.now(pytz.UTC) - timedelta(hours=24)
                                                         ).order_by(Attendee.registered)
         for badge in pending_badges:
-            if badge.registered < four_days_old:
+            # Update `compare_date` to prevent early deletion of badges registered before a certain date
+            # Implemented for MFF 2023 but let's be honest, we'll probably need it again
+            compare_date = max(badge.registered, datetime(2023, 9, 12))
+            if compare_date < four_days_old:
                 session.delete(badge)
                 session.commit()
             else:
@@ -178,7 +179,7 @@ def email_pending_attendees():
 
                 body = render('emails/reg_workflow/pending_badges.html',
                               {'account': badge.managers[0] if badge.managers else None,
-                               'attendee': badge}, encoding=None)
+                               'attendee': badge, 'compare_date': compare_date}, encoding=None)
                 send_email.delay(
                     c.REGDESK_EMAIL,
                     email_to,
