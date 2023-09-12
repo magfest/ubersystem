@@ -24,10 +24,11 @@
         payment, please try your payment again. If you run into any further issues, please email 
         <a href="registration@furfest.org" target="_blank">registration@furfest.org</a>.
     </p>
-    {% endif %}
-
+    <p> If these issues affected you, you can
+    {% else %}
     <p>
         If this was a mistake, you can
+    {% endif %}
         <a href="{{ c.URL_BASE }}/preregistration/resume_pending?{% if c.ATTENDEE_ACCOUNTS_ENABLED %}account_id={{ account.id }}{% else %}id={{ attendee.id }}{% endif %}" target="_blank">
             finish registering and pay here</a>.
         <strong>Incomplete badges are deleted after three days</strong> so please do not delay.
