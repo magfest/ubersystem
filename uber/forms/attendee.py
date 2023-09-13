@@ -238,11 +238,12 @@ class BadgeExtras(MagForm):
 
 
 class OtherInfo(MagForm):
+    field_validation = CustomValidation()
     dynamic_choices_fields = {'requested_depts_ids': lambda: [(v[0], v[1]) for v in c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC] if len(c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC) > 1 else c.JOB_INTEREST_OPTS}
 
     placeholder = BooleanField(widget=HiddenInput())
     staffing = BooleanField('I am interested in volunteering!', widget=SwitchInput(), description=popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?"))
-    requested_depts_ids = SelectMultipleField('Where do you want to help?', widget=MultiCheckbox()) # TODO: Show attendees department descriptions
+    requested_depts_ids = SelectMultipleField('Where do you want to help?', coerce=int, widget=MultiCheckbox()) # TODO: Show attendees department descriptions
     requested_accessibility_services = BooleanField(f'I would like to be contacted by the {c.EVENT_NAME} Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', widget=SwitchInput())
     interests = SelectMultipleField('What interests you?', choices=c.INTEREST_OPTS, coerce=int, validators=[validators.Optional()], widget=MultiCheckbox())
 
@@ -264,12 +265,20 @@ class OtherInfo(MagForm):
 
         return locked_fields
 
+    @field_validation.requested_depts_ids
+    def select_requested_depts(form, field):
+        if form.staffing.data and not field.data:
+            raise ValidationError('Please select the department(s) you would like to work for, or "Anything".')
+
 
 class PreregOtherInfo(OtherInfo):
     new_or_changed_validation = CustomValidation()
 
     promo_code_code = StringField('Promo Code')
-    cellphone = TelField('Phone Number', description="A cellphone number is required for volunteers.", render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
+    cellphone = TelField('Phone Number', description="A cellphone number is required for volunteers.", validators=[
+        # Required in model_checks because the staffing property is too complex to rely on per-form logic
+        valid_cellphone
+        ], render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
     no_cellphone = BooleanField('I won\'t have a phone with me during the event.')
 
     def get_non_admin_locked_fields(self, attendee):
