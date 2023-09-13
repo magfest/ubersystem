@@ -495,7 +495,7 @@ class Config(_Overridable):
         if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
             reg_type_opts.append({
                 'name': "12 and Under",
-                'desc': Markup("Attendees 12 and younger must be accompanied by an adult with a valid Attendee badge. \
+                'desc': Markup(f"Attendees 12 and younger at the start of {c.EVENT_NAME} must be accompanied by an adult with a valid Attendee badge. \
                                <br/><br/><span class='form-text text-danger'>Price is always half that of the Single Attendee badge price.</span>"),
                 'value': c.CHILD_BADGE,
                 'price': str(c.BADGE_PRICE - math.ceil(c.BADGE_PRICE / 2)),
