@@ -4,7 +4,7 @@ Congratulations, you have been selected to be a judge for the {{ c.ESCHATON.year
 
 To be a judge for this year, please follow this link to update your status and preferences : <a href="{{ c.URL_BASE }}/mivs_judging" target="_mivs_judge">{{ c.URL_BASE }}/mivs_judging</a>. You will have to log in using this email address and the password that you received in an earlier email.
 
-The Start date for Judging this year is September 12th and will go until {{ c.MIVS_JUDGING_DEADLINE|datetime_local }}
+Judging will begin soon and go until {{ c.MIVS_JUDGING_DEADLINE|datetime_local }}
 
 As a judge, you'll be responsible for judging a dozen games. Expect to spend at least 15 minutes per game to get a good idea for how the games feels. 
 
