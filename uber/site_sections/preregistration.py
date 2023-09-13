@@ -394,6 +394,9 @@ class Root:
     @redirect_if_at_con_to_kiosk
     @requires_account()
     def form(self, session, message='', edit_id=None, **params):
+        # Help prevent data leaking between people registering on the same computer
+        cherrypy.session.pop('paid_preregs')
+
         dealer_id = params.get('dealer_id', params.get('group_id', None))
         errors = check_if_can_reg(bool(dealer_id))
         if errors:
@@ -832,7 +835,9 @@ class Root:
         if not PreregCart.paid_preregs:
             raise HTTPRedirect('index')
         else:
-            PreregCart.pending_preregs.clear()
+            for key in [key for key in PreregCart.session_keys if key != 'paid_preregs']:
+                cherrypy.session.pop(key)
+
             preregs = [session.merge(PreregCart.from_sessionized(d)) for d in PreregCart.paid_preregs]
             for prereg in preregs:
                 try:
