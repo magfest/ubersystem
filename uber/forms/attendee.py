@@ -25,8 +25,8 @@ __all__ = ['AdminInfo', 'BadgeExtras', 'PersonalInfo', 'PreregOtherInfo', 'Other
 # TODO: turn this into a proper validation class
 def valid_cellphone(form, field):
     if field.data and invalid_phone_number(field.data):
-        raise ValidationError('The provided phone number was not a valid 10-digit US phone number. ' \
-                                'Please include a country code (e.g. +44) for international numbers.')
+        raise ValidationError('Please provide a valid 10-digit US phone number or ' \
+                                'include a country code (e.g. +44) for international numbers.')
 
 class PersonalInfo(AddressForm, MagForm):
     field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
@@ -55,7 +55,8 @@ class PersonalInfo(AddressForm, MagForm):
         ],
         render_kw={'placeholder': 'test@example.com'})
     cellphone = TelField('Phone Number', validators=[
-        validators.DataRequired("Please provide a phone number.")
+        validators.DataRequired("Please provide a phone number."),
+        valid_cellphone
         ], render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
     birthdate = DateField('Date of Birth', validators=[
         validators.DataRequired("Please enter your date of birth.") if c.COLLECT_EXACT_BIRTHDATE else validators.Optional(),
@@ -67,7 +68,8 @@ class PersonalInfo(AddressForm, MagForm):
         validators.DataRequired("Please tell us the name of your emergency contact.")
         ], render_kw={'placeholder': 'Who we should contact if something happens to you'})
     ec_phone = TelField('Emergency Contact Phone', validators=[
-        validators.DataRequired("Please give us an emergency contact phone number.")
+        validators.DataRequired("Please give us an emergency contact phone number."),
+        valid_cellphone
         ], render_kw={'placeholder': 'A valid phone number for your emergency contact'})
     onsite_contact = TextAreaField('Onsite Contact', validators=[
         validators.DataRequired("Please enter contact information for at least one trusted friend onsite, \
@@ -160,15 +162,6 @@ class PersonalInfo(AddressForm, MagForm):
     def not_same_cellphone_ec(form, field):
         if field.data and field.data == form.ec_phone.data:
             raise ValidationError("Your phone number cannot be the same as your emergency contact number.")
-
-    @field_validation.ec_phone
-    def valid_ec_phone(form, field):
-        if not form.international.data and invalid_phone_number(field.data):
-            if c.COLLECT_FULL_ADDRESS:
-                raise ValidationError('Please enter a 10-digit US phone number or include a ' \
-                                        'country code (e.g. +44) for your emergency contact number.')
-            else:
-                raise ValidationError('Please enter a 10-digit emergency contact number.')
 
 
 class BadgeExtras(MagForm):

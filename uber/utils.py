@@ -563,7 +563,7 @@ def validate_model(forms, model, preview_model=None, is_admin=False):
         for field_name in form.get_optional_fields(preview_model, is_admin):
             field = getattr(form, field_name)
             if field:
-                field.validators = [validators.Optional()]
+                field.validators = [validators.Optional()] + [validator for validator in field.validators if not isinstance(validator, (validators.DataRequired, validators.InputRequired))]
 
         # TODO: Do we need to check for custom validations or is this code performant enough to skip that?
         for key, field in form.field_list:

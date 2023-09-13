@@ -70,7 +70,7 @@ def load_forms(params, model, form_list, prefix_dict={}, get_optional=True, trun
 
         for name, field in loaded_form._fields.items():
             if name in optional_fields:
-                field.validators = [validators.Optional()]
+                field.validators = [validators.Optional()] + [validator for validator in field.validators if not isinstance(validator, (validators.DataRequired, validators.InputRequired))]
                 field.flags.required = False
             else:
                 override_validators = get_override_attr(loaded_form, name, '_validators', field)
