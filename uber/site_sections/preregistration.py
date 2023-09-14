@@ -1366,7 +1366,7 @@ class Root:
     def login(self, session, **params):
         email = params.get('account_email') # This email has already been validated
         password = params.get('account_password')
-        account = session.query(AttendeeAccount).filter_by(email=normalize_email(email)).first()
+        account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email=normalize_email_legacy(email)).first()
         if account and not account.hashed:
             return {'success': False, 'message': "We had an issue logging you into your account. Please contact an administrator."}
         elif not account or not bcrypt.hashpw(password, account.hashed) == account.hashed:
