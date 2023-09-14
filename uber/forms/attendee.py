@@ -239,7 +239,7 @@ class BadgeExtras(MagForm):
 
 class OtherInfo(MagForm):
     field_validation = CustomValidation()
-    dynamic_choices_fields = {'requested_depts_ids': lambda: [(v[0], v[1]) for v in c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC] if len(c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC) > 1 else c.JOB_INTEREST_OPTS}
+    dynamic_choices_fields = {'requested_depts_ids': lambda: [(v[0], v[1]) for v in c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC]}
 
     placeholder = BooleanField(widget=HiddenInput())
     staffing = BooleanField('I am interested in volunteering!', widget=SwitchInput(), description=popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?"))
@@ -267,7 +267,7 @@ class OtherInfo(MagForm):
 
     @field_validation.requested_depts_ids
     def select_requested_depts(form, field):
-        if form.staffing.data and not field.data:
+        if form.staffing.data and not field.data and len(c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC) > 1:
             raise ValidationError('Please select the department(s) you would like to work for, or "Anything".')
 
 

@@ -1280,8 +1280,6 @@ c.REGION_OPTS_CANADA = [('', 'Select a province')] + sorted([(region.name, regio
 
 c.MAX_BADGE = max(xs[1] for xs in c.BADGE_RANGES.values())
 
-c.JOB_LOCATION_OPTS.sort(key=lambda tup: tup[1])
-
 c.JOB_PAGE_OPTS = (
     ('index',    'Calendar View'),
     ('signups',  'Signups View'),
