@@ -300,12 +300,6 @@ class Department(MagModel):
             except ValueError:
                 return department
 
-        if isinstance(department, int):
-            # This is the same algorithm used by the migration script to
-            # convert c.JOB_LOCATIONS into department ids in the database.
-            prefix = '{:07x}'.format(department)
-            return prefix + str(uuid.uuid5(cls.NAMESPACE, str(department)))[7:]
-
         return department.id
 
     def checklist_item_for_slug(self, slug):

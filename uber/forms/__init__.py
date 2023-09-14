@@ -70,7 +70,7 @@ def load_forms(params, model, form_list, prefix_dict={}, get_optional=True, trun
 
         for name, field in loaded_form._fields.items():
             if name in optional_fields:
-                field.validators = [validators.Optional()]
+                field.validators = [validators.Optional()] + [validator for validator in field.validators if not isinstance(validator, (validators.DataRequired, validators.InputRequired))]
                 field.flags.required = False
             else:
                 override_validators = get_override_attr(loaded_form, name, '_validators', field)
@@ -368,9 +368,8 @@ class AddressForm():
         return optional_list
     
     def validate_zip_code(form, field):
-        if field.data and (form.country.data == 'United States' or (
-            not c.COLLECT_FULL_ADDRESS and not form.country.data and field.flags.required)) \
-            and invalid_zip_code(field.data):
+        if field.data and invalid_zip_code(field.data) and (
+            not form.international.data or c.COLLECT_FULL_ADDRESS and form.country.data == 'United States'):
             raise ValidationError('Please enter a valid 5 or 9-digit zip code.')
 
 

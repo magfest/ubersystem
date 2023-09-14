@@ -414,7 +414,6 @@ class AttendeeLookup:
         'is_dept_head': True,
         'ribbon_labels': True,
         'public_id': True,
-        'covid_ready': True,
     }
 
     fields_full = dict(fields, **{

@@ -51,7 +51,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 <input type="hidden" name="cellphone" value="{{ other_info.cellphone.data }}" />
 {% endif %}
 
-{% if c.JOB_INTEREST_OPTS or c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
+{% if c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
 <div class="row g-sm-3">
     <div class="col-12">{{ form_macros.form_input(other_info.requested_depts_ids) }}</div>
 </div>

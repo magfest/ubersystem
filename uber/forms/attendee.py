@@ -25,8 +25,8 @@ __all__ = ['AdminInfo', 'BadgeExtras', 'PersonalInfo', 'PreregOtherInfo', 'Other
 # TODO: turn this into a proper validation class
 def valid_cellphone(form, field):
     if field.data and invalid_phone_number(field.data):
-        raise ValidationError('The provided phone number was not a valid 10-digit US phone number. ' \
-                                'Please include a country code (e.g. +44) for international numbers.')
+        raise ValidationError('Please provide a valid 10-digit US phone number or ' \
+                                'include a country code (e.g. +44) for international numbers.')
 
 class PersonalInfo(AddressForm, MagForm):
     field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
@@ -55,7 +55,8 @@ class PersonalInfo(AddressForm, MagForm):
         ],
         render_kw={'placeholder': 'test@example.com'})
     cellphone = TelField('Phone Number', validators=[
-        validators.DataRequired("Please provide a phone number.")
+        validators.DataRequired("Please provide a phone number."),
+        valid_cellphone
         ], render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
     birthdate = DateField('Date of Birth', validators=[
         validators.DataRequired("Please enter your date of birth.") if c.COLLECT_EXACT_BIRTHDATE else validators.Optional(),
@@ -67,7 +68,8 @@ class PersonalInfo(AddressForm, MagForm):
         validators.DataRequired("Please tell us the name of your emergency contact.")
         ], render_kw={'placeholder': 'Who we should contact if something happens to you'})
     ec_phone = TelField('Emergency Contact Phone', validators=[
-        validators.DataRequired("Please give us an emergency contact phone number.")
+        validators.DataRequired("Please give us an emergency contact phone number."),
+        valid_cellphone
         ], render_kw={'placeholder': 'A valid phone number for your emergency contact'})
     onsite_contact = TextAreaField('Onsite Contact', validators=[
         validators.DataRequired("Please enter contact information for at least one trusted friend onsite, \
@@ -161,15 +163,6 @@ class PersonalInfo(AddressForm, MagForm):
         if field.data and field.data == form.ec_phone.data:
             raise ValidationError("Your phone number cannot be the same as your emergency contact number.")
 
-    @field_validation.ec_phone
-    def valid_ec_phone(form, field):
-        if not form.international.data and invalid_phone_number(field.data):
-            if c.COLLECT_FULL_ADDRESS:
-                raise ValidationError('Please enter a 10-digit US phone number or include a ' \
-                                        'country code (e.g. +44) for your emergency contact number.')
-            else:
-                raise ValidationError('Please enter a 10-digit emergency contact number.')
-
 
 class BadgeExtras(MagForm):
     field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
@@ -245,11 +238,12 @@ class BadgeExtras(MagForm):
 
 
 class OtherInfo(MagForm):
-    dynamic_choices_fields = {'requested_depts_ids': lambda: [(v[0], v[1]) for v in c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC] if len(c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC) > 1 else c.JOB_INTEREST_OPTS}
+    field_validation = CustomValidation()
+    dynamic_choices_fields = {'requested_depts_ids': lambda: [(v[0], v[1]) for v in c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC]}
 
     placeholder = BooleanField(widget=HiddenInput())
     staffing = BooleanField('I am interested in volunteering!', widget=SwitchInput(), description=popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?"))
-    requested_depts_ids = SelectMultipleField('Where do you want to help?', widget=MultiCheckbox()) # TODO: Show attendees department descriptions
+    requested_depts_ids = SelectMultipleField('Where do you want to help?', coerce=int, widget=MultiCheckbox()) # TODO: Show attendees department descriptions
     requested_accessibility_services = BooleanField(f'I would like to be contacted by the {c.EVENT_NAME} Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', widget=SwitchInput())
     interests = SelectMultipleField('What interests you?', choices=c.INTEREST_OPTS, coerce=int, validators=[validators.Optional()], widget=MultiCheckbox())
 
@@ -271,12 +265,20 @@ class OtherInfo(MagForm):
 
         return locked_fields
 
+    @field_validation.requested_depts_ids
+    def select_requested_depts(form, field):
+        if form.staffing.data and not field.data and len(c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC) > 1:
+            raise ValidationError('Please select the department(s) you would like to work for, or "Anything".')
+
 
 class PreregOtherInfo(OtherInfo):
     new_or_changed_validation = CustomValidation()
 
     promo_code_code = StringField('Promo Code')
-    cellphone = TelField('Phone Number', description="A cellphone number is required for volunteers.", render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
+    cellphone = TelField('Phone Number', description="A cellphone number is required for volunteers.", validators=[
+        # Required in model_checks because the staffing property is too complex to rely on per-form logic
+        valid_cellphone
+        ], render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
     no_cellphone = BooleanField('I won\'t have a phone with me during the event.')
 
     def get_non_admin_locked_fields(self, attendee):

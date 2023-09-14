@@ -11,12 +11,11 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 #}
 
 {% block badges_tables %}
-{% set max_badges = c.MAX_GROUP_SIZE %}
 
 <div class="row g-sm-3">
     <div class="col-12 col-sm-6">{{ form_macros.form_input(group_info.tables, choices=c.ADMIN_TABLE_OPTS) }}</div>
     <div class="col-12 col-sm-6">{{ form_macros.form_input(group_info.badges,
-                                        choices=int_choices(1, max_badges),
+                                        choices=int_choices(1, c.MAX_GROUP_SIZE),
                                         extra_field=form_macros.form_input(group_info.can_add),
                                         admin_text="[" ~ group.badges_purchased ~ " badge" ~ group.badges_purchased|pluralize ~ " purchased]" if not group.is_new else "",
                                         required=True) }}

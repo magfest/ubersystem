@@ -818,7 +818,6 @@ class Session(SessionManager):
                 
             return_dict['panels_admin'] = self.query(Attendee).filter(
                                                  or_(Attendee.ribbon.contains(c.PANELIST_RIBBON),
-                                                     Attendee.panel_interest == True,
                                                      Attendee.panel_applications != None,
                                                      Attendee.assigned_panelists != None,
                                                      Attendee.panel_applicants != None,

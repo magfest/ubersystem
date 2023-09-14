@@ -81,7 +81,6 @@
   {{ attendee_fields.comments }}
   {{ attendee_fields.requested_accessibility_services }}
   {{ attendee_fields.can_spam }}
-  {{ attendee_fields.panel_interest }}
   {{ attendee_fields.pii_consent_checkbox }} #}
 
   {# Deprecated forms included for backwards compatibility with old plugins #}
@@ -107,7 +106,7 @@
 {% if is_prereg_dealer %}
 {{ "js/warn-before-logout-dealer.js"|serve_static_content }}
 {% else %}
-<em class="form-text">Please note: your badge and any upgrades are not reserved until you complete the registration process, including payment.</em>
+<div class="text-center"><em class="badge bg-dark fw-normal">Please note: your badge and any upgrades are not reserved until you complete the registration process, including payment.</em></div>
 {% if cart_not_empty %}{{ "js/warn-before-logout.js"|serve_static_content }}{% endif %}
 {% endif %}
 {% endblock %}

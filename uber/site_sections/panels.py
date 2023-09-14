@@ -95,7 +95,6 @@ class Root:
             'other_panelists': other_panelists,
             'coc_agreement': params.get('coc_agreement'),
             'data_agreement': params.get('data_agreement'),
-            'covid_agreement': params.get('covid_agreement'),
             'verify_tos': params.get('verify_tos'),
             'verify_poc': params.get('verify_poc'),
             'verify_waiting': params.get('verify_waiting'),

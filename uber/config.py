@@ -495,7 +495,7 @@ class Config(_Overridable):
         if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
             reg_type_opts.append({
                 'name': "12 and Under",
-                'desc': Markup("Attendees 12 and younger must be accompanied by an adult with a valid Attendee badge. \
+                'desc': Markup(f"Attendees 12 and younger at the start of {c.EVENT_NAME} must be accompanied by an adult with a valid Attendee badge. \
                                <br/><br/><span class='form-text text-danger'>Price is always half that of the Single Attendee badge price.</span>"),
                 'value': c.CHILD_BADGE,
                 'price': str(c.BADGE_PRICE - math.ceil(c.BADGE_PRICE / 2)),
@@ -1279,8 +1279,6 @@ c.REGION_OPTS_US = [('', 'Select a state')] + sorted([(region.name, region.name)
 c.REGION_OPTS_CANADA = [('', 'Select a province')] + sorted([(region.name, region.name) for region in list(pycountry.subdivisions.get(country_code='CA'))])
 
 c.MAX_BADGE = max(xs[1] for xs in c.BADGE_RANGES.values())
-
-c.JOB_LOCATION_OPTS.sort(key=lambda tup: tup[1])
 
 c.JOB_PAGE_OPTS = (
     ('index',    'Calendar View'),

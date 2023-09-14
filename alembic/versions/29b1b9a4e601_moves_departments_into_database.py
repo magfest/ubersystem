@@ -103,9 +103,10 @@ def all_dept_ids_from_existing_locations(locations):
                 dept_ids.append(department_id)
     return dept_ids
 
-
-job_location_to_department_id = {i: _dept_id_from_location(i) for i in c.JOB_LOCATIONS.keys()}
-job_interests_to_department_id = {i: job_location_to_department_id[i] for i in c.JOB_INTERESTS.keys() if i in job_location_to_department_id}
+job_locations = getattr(c, 'JOB_LOCATIONS', {})
+job_interests = getattr(c, 'JOB_INTERESTS', {})
+job_location_to_department_id = {i: _dept_id_from_location(i) for i in job_locations.keys()}
+job_interests_to_department_id = {i: job_location_to_department_id[i] for i in job_interests.keys() if i in job_location_to_department_id}
 
 
 job_table = table(
@@ -192,7 +193,8 @@ dept_membership_dept_role_table = table(
 
 def _upgrade_job_departments():
     connection = op.get_bind()
-    for value, name in c.JOB_LOCATIONS.items():
+    job_locations = getattr(c, 'JOB_LOCATIONS', {})
+    for value, name in job_locations.items():
         department_id = job_location_to_department_id[value]
         op.execute(
             department_table.insert().values({
