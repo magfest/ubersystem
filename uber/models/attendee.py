@@ -2167,6 +2167,14 @@ class AttendeeAccount(MagModel):
     def normalize_email(self):
         self.email = normalize_email(self.email)
 
+    @hybrid_property
+    def normalized_email(self):
+        return normalize_email_legacy(self.email)
+
+    @normalized_email.expression
+    def normalized_email(cls):
+        return func.replace(func.lower(func.trim(cls.email)), '.', '')
+
     @property
     def has_only_one_badge(self):
         return len(self.attendees) == 1
