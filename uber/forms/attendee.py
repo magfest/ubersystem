@@ -243,7 +243,7 @@ class OtherInfo(MagForm):
 
     placeholder = BooleanField(widget=HiddenInput())
     staffing = BooleanField('I am interested in volunteering!', widget=SwitchInput(), description=popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?"))
-    requested_depts_ids = SelectMultipleField('Where do you want to help?', coerce=int, widget=MultiCheckbox()) # TODO: Show attendees department descriptions
+    requested_depts_ids = SelectMultipleField('Where do you want to help?', widget=MultiCheckbox()) # TODO: Show attendees department descriptions
     requested_accessibility_services = BooleanField(f'I would like to be contacted by the {c.EVENT_NAME} Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', widget=SwitchInput())
     interests = SelectMultipleField('What interests you?', choices=c.INTEREST_OPTS, coerce=int, validators=[validators.Optional()], widget=MultiCheckbox())
 
@@ -264,11 +264,6 @@ class OtherInfo(MagForm):
             locked_fields.append('staffing')
 
         return locked_fields
-
-    @field_validation.requested_depts_ids
-    def select_requested_depts(form, field):
-        if form.staffing.data and not field.data and len(c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC) > 1:
-            raise ValidationError('Please select the department(s) you would like to work for, or "Anything".')
 
 
 class PreregOtherInfo(OtherInfo):
