@@ -59,7 +59,6 @@
 
 {% include 'attendee_card_extra.html' %}
 
-
     {% if attendee.group %}
         <div class="col-sm-12 text-center mb-2">
             <span class="h4">
@@ -100,10 +99,8 @@
                         </a>
                     </div>
                 {% elif attendee.is_valid %}
-                    {% set multiple_buttons = c.ART_SHOW_OPEN or c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE or attendee.art_show_applications or attendee.marketplace_applications %}
-                    {% if multiple_buttons %}
                     <div class="btn-group pull-right mt-2" role="group">
-                    {% endif %}
+                    {% include 'preregistration/card_buttons.html' %}
                     <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-info" value="Edit">
                         <i class="fa fa-pencil"></i> Edit Details
                     </a>
@@ -129,9 +126,7 @@
                     </a>
                     {% endif %}
                     {% endif %}
-                    {% if multiple_buttons %}
                     </div>
-                    {% endif %}
                 </div>
                 {% endif %}
         </div>

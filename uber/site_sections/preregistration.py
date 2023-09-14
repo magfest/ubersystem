@@ -24,7 +24,7 @@ from uber.forms import attendee as attendee_forms, group as group_forms, load_fo
 from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, ModelReceipt, PromoCode, PromoCodeGroup, \
                         ReceiptTransaction, SignedDocument, Tracking
 from uber.tasks.email import send_email
-from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, genpasswd, valid_email, \
+from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
     valid_password, SignNowDocument, validate_model
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager
 import uber.validations as validations
@@ -1404,12 +1404,21 @@ class Root:
             if receipt and receipt.current_amount_owed and attendee.is_valid:
                 attendees_who_owe_money[attendee.full_name] = receipt.current_amount_owed
 
+        account_attendee = None
+        account_attendees = session.valid_attendees().filter(~Attendee.badge_status.in_([c.REFUNDED_STATUS, c.NOT_ATTENDING])
+                                                             ).filter(Attendee.normalized_email == normalize_email_legacy(account.email))
+        if account_attendees.count() == 1:
+            account_attendee = account_attendees.first()
+            if account_attendee not in account.attendees:
+                account_attendee = None
+
         if not account:
             raise HTTPRedirect('../landing/index')
 
         return {
             'message': message,
             'homepage_account': account,
+            'account_attendee': account_attendee,
             'attendees_who_owe_money': attendees_who_owe_money,
         }
 

@@ -2153,7 +2153,7 @@ class AttendeeAccount(MagModel):
     hashed = Column(UnicodeText, private=True)
     password_reset = relationship('PasswordReset', backref='attendee_account', uselist=False)
     attendees = relationship(
-        'Attendee', backref='managers', cascade='save-update,merge,refresh-expire,expunge',
+        'Attendee', backref='managers', order_by='Attendee.registered', cascade='save-update,merge,refresh-expire,expunge',
         secondary='attendee_attendee_account')
     imported = Column(Boolean, default=False)
 
