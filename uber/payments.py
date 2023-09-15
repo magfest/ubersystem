@@ -289,7 +289,7 @@ class TransactionRequest:
             if not self.amount:
                 self.amount = receipt.current_amount_owed
             if create_receipt_item:
-                self.receipt_manager.create_custom_receipt_item(self.receipt, self.description, self.amount)
+                self.receipt_manager.create_receipt_item(receipt, self.description, self.amount)
 
         if c.AUTHORIZENET_LOGIN_ID:
             self.merchant_auth = apicontractsv1.merchantAuthenticationType(
@@ -777,6 +777,16 @@ class ReceiptManager:
                                                     who=AdminAccount.admin_name() or 'non-admin'
                                                     ))
 
+    def create_receipt_item(self, receipt, desc, amount):
+        from uber.models import AdminAccount, ReceiptItem
+
+        self.items_to_add.append(ReceiptItem(receipt_id=receipt.id,
+                                    desc=desc,
+                                    amount=amount * 100,
+                                    count=1,
+                                    who=AdminAccount.admin_name() or 'non-admin'
+                                ))
+
     def update_transaction_refund(self, txn, refund_amount):
         from uber.models import Session
 
@@ -1043,17 +1053,6 @@ class ReceiptManager:
                 return receipt_item
         except Exception as e:
             log.error(str(e))
-
-    @classmethod
-    def create_custom_receipt_item(self, receipt, desc, amount):
-        from uber.models import AdminAccount, ReceiptItem
-
-        self.items_to_add.append(ReceiptItem(receipt_id=receipt.id,
-                                    desc=desc,
-                                    amount=amount * 100,
-                                    count=1,
-                                    who=AdminAccount.admin_name() or 'non-admin'
-                                ))
 
     @staticmethod
     def mark_paid_from_intent_id(intent_id, charge_id):
