@@ -71,11 +71,11 @@ def send_email(
                             bccAddresses=bcc,
                             message=message)
             if error_msg:
-                log.error('Error while sending email: ' + error_msg)
+                log.error('Error while sending email: ' + str(error_msg))
             else:
                 record_email = True
         except Exception as error:
-            log.error('Error while sending email: {}'.format(error))
+            log.error('Error while sending email: {}'.format(str(error)))
         sleep(0.1)  # Avoid hitting rate limit
     else:
         log.error('Email sending turned off, so unable to send {}', locals())

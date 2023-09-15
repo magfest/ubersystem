@@ -38,6 +38,8 @@
   {{ forms['badge_extras'].badge_type }}
 {% else %}
   {% include "forms/attendee/badge_extras.html" %}
+  {# hidden field to keep promo code if an attendee clicked the group invite link #}
+  <input type="hidden" name="promo_code_code" value="{{ promo_code_code }}" />
 {% endif %}
 
 {% include "forms/attendee/personal_info.html" %}
