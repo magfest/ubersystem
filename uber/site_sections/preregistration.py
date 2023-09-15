@@ -60,6 +60,14 @@ def check_post_con(klass):
             setattr(klass, name, wrapper(method))
     return klass
 
+def _add_promo_code(session, attendee, submitted_promo_code):
+    if attendee.promo_code and submitted_promo_code != attendee.promo_code_code:
+        attendee.promo_code = None
+    if c.BADGE_PROMO_CODES_ENABLED and submitted_promo_code:
+        if session.lookup_promo_or_group_code(submitted_promo_code, PromoCodeGroup):
+            PreregCart.universal_promo_codes[attendee.id] = submitted_promo_code
+        session.add_promo_code_to_attendee(attendee, submitted_promo_code)
+
 def check_prereg_promo_code(session, attendee, codes_in_cart=defaultdict(int)):
     """
     Prevents double-use of promo codes if two people have the same promo code in their cart but only one use is remaining.
@@ -462,6 +470,8 @@ class Root:
             }
 
         if cherrypy.request.method == 'POST':
+            _add_promo_code(session, attendee, params.get('promo_code_code'))
+
             if attendee.badge_type == c.PSEUDO_GROUP_BADGE:
                 message = "Please enter a group name" if not params.get('name') else message
             else:
@@ -554,13 +564,7 @@ class Root:
             form.populate_obj(attendee)
 
         if cherrypy.request.method == "POST":
-            submitted_promo_code = params.get('promo_code_code')
-            if attendee.promo_code and submitted_promo_code != attendee.promo_code_code and cherrypy.request.method == 'POST':
-                attendee.promo_code = None
-            if c.BADGE_PROMO_CODES_ENABLED and submitted_promo_code:
-                if session.lookup_promo_or_group_code(submitted_promo_code, PromoCodeGroup):
-                    PreregCart.universal_promo_codes[attendee.id] = submitted_promo_code
-                message = session.add_promo_code_to_attendee(attendee, submitted_promo_code)
+            _add_promo_code(session, attendee, params.get('promo_code_code'))
                 
             if attendee.badge_type == c.PSEUDO_DEALER_BADGE:
                 group.attendees = [attendee]
@@ -886,13 +890,14 @@ class Root:
     def group_promo_codes(self, session, id, message='', **params):
         group = session.promo_code_group(id)
 
-        sent_code_emails = session.query(Email).filter_by(subject='Claim a "{}" group badge for {}'.format(
-            group.name, c.EVENT_NAME)).order_by(Email.when)
+        sent_code_emails = session.query(Email.ident, Email.to, func.max(Email.when)).filter(Email.ident.contains("pc_group_invite_")).order_by(func.max(Email.when)).group_by(Email.ident, Email.to).all()
 
-        emailed_codes = {}
+        emailed_codes = defaultdict(str)
 
         for code in group.sorted_promo_codes:
-            emailed_codes.update({code.code: email.to for email in sent_code_emails if code.code in email.body})
+            all_recipients = sorted([(email_to, sent) for (ident, email_to, sent) in sent_code_emails if ident == f"pc_group_invite_{code.code}"], key=lambda x: x[1], reverse=True)
+            if all_recipients:
+                emailed_codes[code.code] = all_recipients[0][0]
 
         return {
             'group': group,
@@ -915,8 +920,9 @@ class Root:
                     params.get('email'),
                     'Claim a {} badge in "{}"'.format(c.EVENT_NAME, code.group.name),
                     render('emails/reg_workflow/promo_code_invite.txt', {'code': code}, encoding=None),
-                    model=code.to_dict('id'))
-                raise HTTPRedirect('group_promo_codes?id={}&message={}'.format(group_id, "Email sent!"))
+                    model=code.to_dict('id'),
+                    ident="pc_group_invite_" + code.code)
+                raise HTTPRedirect('group_promo_codes?id={}&message={}'.format(group_id, f"Email sent to {params.get('email', '')}!"))
             else:
                 raise HTTPRedirect('group_promo_codes?id={}&message={}'.format(group_id, message))
 
@@ -939,16 +945,10 @@ class Root:
     def pay_for_extra_codes(self, session, id, count):
         from uber.models import ReceiptItem
         group = session.promo_code_group(id)
-        receipt = session.get_receipt_by_model(group.buyer)
+        receipt = session.get_receipt_by_model(group.buyer, create_if_none="DEFAULT")
         count = int(count)
-        session.add(ReceiptItem(receipt_id=receipt.id,
-                                desc='Extra badge for {}'.format(group.name),
-                                amount=c.get_group_price() * 100,
-                                count=count,
-                                who='non-admin',
-                            ))
         charge_desc = '{} extra badge{} for {}'.format(count, 's' if count > 1 else '', group.name)
-        charge = TransactionRequest(receipt_email=group.email, description=charge_desc, amount=c.get_group_price() * 100 * count)
+        charge = TransactionRequest(receipt, receipt_email=group.email, description=charge_desc, amount=c.get_group_price() * 100 * count)
         if charge.dollar_amount % c.GROUP_PRICE:
             session.rollback()
             return {'error': 'Our preregistration price has gone up since you tried to add more codes; please try again'}
