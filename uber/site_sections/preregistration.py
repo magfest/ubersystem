@@ -945,16 +945,10 @@ class Root:
     def pay_for_extra_codes(self, session, id, count):
         from uber.models import ReceiptItem
         group = session.promo_code_group(id)
-        receipt = session.get_receipt_by_model(group.buyer)
+        receipt = session.get_receipt_by_model(group.buyer, create_if_none="DEFAULT")
         count = int(count)
-        session.add(ReceiptItem(receipt_id=receipt.id,
-                                desc='Extra badge for {}'.format(group.name),
-                                amount=c.get_group_price() * 100,
-                                count=count,
-                                who='non-admin',
-                            ))
         charge_desc = '{} extra badge{} for {}'.format(count, 's' if count > 1 else '', group.name)
-        charge = TransactionRequest(receipt_email=group.email, description=charge_desc, amount=c.get_group_price() * 100 * count)
+        charge = TransactionRequest(receipt, receipt_email=group.email, description=charge_desc, amount=c.get_group_price() * 100 * count)
         if charge.dollar_amount % c.GROUP_PRICE:
             session.rollback()
             return {'error': 'Our preregistration price has gone up since you tried to add more codes; please try again'}

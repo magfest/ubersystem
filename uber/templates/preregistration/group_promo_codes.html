@@ -63,23 +63,25 @@
 
     {% if group.min_badges_addable %}
       <div id="add" style="display:none">
-        <form class="form-inline" method="get" action="add_promo_codes">
+        <p>
+          Enter the number of extra codes to purchase for <strong>{{ c.GROUP_PRICE|format_currency }}</strong> per code.&nbsp;
+            {%- set hours_remaining = group.hours_remaining_in_grace_period -%}
+            {%- if hours_remaining > 0 -%}
+              You have {{ humanize_timedelta(hours=hours_remaining, granularity='minutes') }}
+              remaining to add individual codes. After that you'll have to add at
+              least {{ c.MIN_GROUP_ADDITION }} codes at a time.
+            {%- else -%}
+              You can't add fewer than {{ group.min_badges_addable }} codes to an existing group.
+            {%- endif -%}
+        </p>
+        <form class="row" method="get" action="add_promo_codes">
           <input type="hidden" name="id" value="{{ group.id }}" />
-          <p>
-            Enter the number of extra codes to purchase for <strong>{{ c.GROUP_PRICE|format_currency }}</strong> per code.&nbsp;
-              {%- set hours_remaining = group.hours_remaining_in_grace_period -%}
-              {%- if hours_remaining > 0 -%}
-                You have {{ humanize_timedelta(hours=hours_remaining, granularity='minutes') }}
-                remaining to add individual codes. After that you'll have to add at
-                least {{ c.MIN_GROUP_ADDITION }} codes at a time.
-              {%- else -%}
-                You can't add fewer than {{ group.min_badges_addable }} codes to an existing group.
-              {%- endif -%}
-          </p>
-          <select class="form-control" name="count">
-            {{ int_options(group.min_badges_addable, 10) }}
-          </select>
-          <input class="btn btn-primary" type="submit" value="Add Promo Codes">
+          <div class="col-8 col-sm-4">
+            <select class="form-select" name="count">
+              {{ int_options(group.min_badges_addable, 10) }}
+            </select>
+          </div>
+          <div class="col"><input class="btn btn-primary" type="submit" value="Add Promo Codes"></div>
         </form>
       </div>
 
