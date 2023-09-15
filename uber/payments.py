@@ -273,7 +273,7 @@ class PreregCart:
     
 
 class TransactionRequest:
-    def __init__(self, receipt=None, receipt_email='', description='', amount=0, customer_id=None):
+    def __init__(self, receipt=None, receipt_email='', description='', amount=0, customer_id=None, create_receipt_item=False):
         self.amount = int(amount)
         self.receipt_email = receipt_email
         self.description = description
@@ -288,6 +288,8 @@ class TransactionRequest:
             self.receipt_manager = ReceiptManager(receipt)
             if not self.amount:
                 self.amount = receipt.current_amount_owed
+            if create_receipt_item:
+                self.receipt_manager.create_custom_receipt_item(self.receipt, self.description, self.amount)
 
         if c.AUTHORIZENET_LOGIN_ID:
             self.merchant_auth = apicontractsv1.merchantAuthenticationType(
@@ -963,13 +965,20 @@ class ReceiptManager:
         if not receipt:
             return []
         
-        params = params.copy()
+        changed_params = {}
+        for key, val in params.items():
+            column = model.__table__.columns.get(key)
+            if column is not None:
+                coerced_val = model.coerce_column_data(column, val)
+                if coerced_val != getattr(model, key, None):
+                    changed_params[key] = coerced_val
+
         receipt_items = []
 
         model_overridden_price = getattr(model, 'overridden_price', None)
-        overridden_unset = model_overridden_price and not params.get('overridden_price')
+        overridden_unset = model_overridden_price and not changed_params.get('overridden_price')
         model_auto_recalc = getattr(model, 'auto_recalc', True) if isinstance(model, Group) else None
-        auto_recalc_unset = not model_auto_recalc and params.get('auto_recalc', None)
+        auto_recalc_unset = not model_auto_recalc and changed_params.get('auto_recalc', None)
 
         if overridden_unset or auto_recalc_unset:
             # Note: we can't use preview models here because the full default cost
@@ -997,30 +1006,30 @@ class ReceiptManager:
                                     revert_change=revert_change,
                                 )]
 
-        if not params.get('no_override') and params.get('overridden_price'):
-            receipt_item = self.add_receipt_item_from_param(model, receipt, 'overridden_price', params)
+        if not changed_params.get('no_override') and changed_params.get('overridden_price'):
+            receipt_item = self.add_receipt_item_from_param(model, receipt, 'overridden_price', changed_params)
             return [receipt_item] if receipt_item else []
 
-        if not params.get('auto_recalc') and isinstance(model, Group):
-            receipt_item = self.add_receipt_item_from_param(model, receipt, 'cost', params)
+        if not changed_params.get('auto_recalc') and isinstance(model, Group):
+            receipt_item = self.add_receipt_item_from_param(model, receipt, 'cost', changed_params)
             return [receipt_item] if receipt_item else []
         else:
-            params.pop('cost', None)
+            changed_params.pop('cost', None)
         
-        if params.get('power_fee', None) != None and c.POWER_PRICES.get(int(params.get('power'), 0), None) == None:
-            receipt_item = self.add_receipt_item_from_param(model, receipt, 'power_fee', params)
+        if changed_params.get('power_fee', None) != None and c.POWER_PRICES.get(int(changed_params.get('power'), 0), None) == None:
+            receipt_item = self.add_receipt_item_from_param(model, receipt, 'power_fee', changed_params)
             receipt_items += [receipt_item] if receipt_item else []
-            params.pop('power')
-            params.pop('power_fee')
+            changed_params.pop('power')
+            changed_params.pop('power_fee')
         
         cost_changes = getattr(model.__class__, 'cost_changes', [])
         credit_changes = getattr(model.__class__, 'credit_changes', [])
-        for param in params:
+        for param in changed_params:
             if param in credit_changes:
-                receipt_item = self.add_receipt_item_from_param(model, receipt, param, params, 'process_receipt_credit_change')
+                receipt_item = self.add_receipt_item_from_param(model, receipt, param, changed_params, 'process_receipt_credit_change')
                 receipt_items += [receipt_item] if receipt_item else []
             elif param in cost_changes:
-                receipt_item = self.add_receipt_item_from_param(model, receipt, param, params)
+                receipt_item = self.add_receipt_item_from_param(model, receipt, param, changed_params)
                 receipt_items += [receipt_item] if receipt_item else []
         
         return receipt_items
@@ -1034,6 +1043,17 @@ class ReceiptManager:
                 return receipt_item
         except Exception as e:
             log.error(str(e))
+
+    @classmethod
+    def create_custom_receipt_item(self, receipt, desc, amount):
+        from uber.models import AdminAccount, ReceiptItem
+
+        self.items_to_add.append(ReceiptItem(receipt_id=receipt.id,
+                                    desc=desc,
+                                    amount=amount * 100,
+                                    count=1,
+                                    who=AdminAccount.admin_name() or 'non-admin'
+                                ))
 
     @staticmethod
     def mark_paid_from_intent_id(intent_id, charge_id):
