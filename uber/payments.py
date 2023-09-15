@@ -782,7 +782,7 @@ class ReceiptManager:
 
         self.items_to_add.append(ReceiptItem(receipt_id=receipt.id,
                                     desc=desc,
-                                    amount=amount * 100,
+                                    amount=amount,
                                     count=1,
                                     who=AdminAccount.admin_name() or 'non-admin'
                                 ))
