@@ -13,7 +13,7 @@ class Root:
             'Group Leader\'s Name',
             'Table Name',
             'Website URL',
-            'What They Sell',
+            'What They Sell'
         ])
 
         dealer_groups = session.query(Group).filter(Group.tables > 0).all()
@@ -78,6 +78,7 @@ class Root:
             'Table Name',
             'Description',
             'Seller Name',
+            'Email',
             'Tables',
             'Badges',
             'Website',
@@ -104,6 +105,7 @@ class Root:
                 group.name,
                 group.description,
                 full_name,
+                group.email,
                 group.tables,
                 group.badges,
                 group.website,
