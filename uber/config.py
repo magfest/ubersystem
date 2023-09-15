@@ -309,13 +309,14 @@ class Config(_Overridable):
                 return max(0, attendee_count - staff_count)
         else:
             with Session() as session:
-                attendees = session.attendees_with_badges()
-                individuals = attendees.filter(or_(
+                attendees = session.query(Attendee)
+                individuals = attendees.filter(Attendee.has_badge == True, or_(
                     Attendee.paid == self.HAS_PAID,
                     Attendee.paid == self.REFUNDED)
                 ).filter(Attendee.badge_status == self.COMPLETED_STATUS).count()
 
-                group_badges = attendees.filter(
+                group_badges = attendees.join(Attendee.group).filter(
+                    Attendee.has_badge == True,
                     Attendee.paid == self.PAID_BY_GROUP,
                     Group.amount_paid > 0).count()
 

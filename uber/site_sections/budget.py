@@ -39,7 +39,7 @@ class Root:
         }
 
     def badge_cost_summary(self, session):
-        attendees = session.attendees_with_badges()
+        attendees = session.query(Attendee)
 
         base_filter = [Attendee.has_or_will_have_badge]
 
