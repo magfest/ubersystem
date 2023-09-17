@@ -168,17 +168,16 @@ def requires_account(model=None):
                 admin_account_id = cherrypy.session.get('account_id')
                 attendee_account_id = cherrypy.session.get('attendee_account_id')
                 message = ''
-                if not model and not attendee_account_id:
+                if not model and not attendee_account_id and c.PAGE_PATH != '/preregistration/homepage':
                     # These should all be pages like the prereg form
                     if c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form']:
-                        message_add = ' to register'
-                    elif c.PAGE_PATH == '/preregistration/homepage':
-                        message_add = ''
+                        message_add = 'register'
                     else:
-                        message_add = ' to fill out this application'
+                        message_add = 'fill out this application'
                     message = 'Please log in or create an account to {}!'.format(message_add)
                     raise HTTPRedirect('../landing/index?message={}'.format(message), save_location=True)
-                elif attendee_account_id is None and admin_account_id is None:
+                elif attendee_account_id is None and admin_account_id is None or \
+                        attendee_account_id is None and c.PAGE_PATH == '/preregistration/homepage':
                     message = 'You must log in to view this page.'
                 elif kwargs.get('id') and model:
                     check_id_for_model(model, **kwargs)
@@ -253,7 +252,8 @@ def ajax(func):
             assert cherrypy.request.method == 'POST', 'POST required, got {}'.format(cherrypy.request.method)
             check_csrf(kwargs.pop('csrf_token', None))
         except Exception as e:
-            return json.dumps({'success': False, 'message': str(e), 'error': str(e)}, cls=serializer).encode('utf-8')
+            message = "There was an issue submitting the form. Please refresh and try again."
+            return json.dumps({'success': False, 'message': message, 'error': message}, cls=serializer).encode('utf-8')
         return json.dumps(func(*args, **kwargs), cls=serializer).encode('utf-8')
     returns_json.ajax = True
     return returns_json

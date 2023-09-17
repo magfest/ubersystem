@@ -28,8 +28,8 @@ from uber.models import MagModel
 from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, TakesPaymentMixin
-from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthday, hour_day_format, localized_now, mask_string, normalize_email_legacy, \
-    remove_opt
+from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthday, hour_day_format, localized_now, mask_string, \
+    normalize_email, normalize_email_legacy, remove_opt
 
 
 __all__ = ['Attendee', 'AttendeeAccount', 'FoodRestrictions']
@@ -504,7 +504,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def _status_adjustments(self):
-        if self.group and self.paid == c.PAID_BY_GROUP:
+        if self.group and self.paid == c.PAID_BY_GROUP and self.has_or_will_have_badge:
             if not self.group.is_valid:
                 self.badge_status = c.INVALID_GROUP_STATUS
             elif self.group.is_dealer and self.group.status != c.APPROVED:
@@ -750,6 +750,25 @@ class Attendee(MagModel, TakesPaymentMixin):
         return uber.badge_funcs.get_real_badge_type(self.badge_type)
 
     @property
+    def available_badge_type_opts(self):
+        if self.is_new or self.badge_type == c.ATTENDEE_BADGE and self.is_unpaid:
+            return c.FORMATTED_BADGE_TYPES
+
+        badge_type_price = c.BADGE_TYPE_PRICES[self.badge_type] if self.badge_type in c.BADGE_TYPE_PRICES else 0
+        
+        badge_type_opts = [{
+            'name': self.badge_type_label,
+            'desc': 'An upgraded badge with perks.' if badge_type_price else 'Allows access to the convention for its duration.',
+            'value': self.badge_type
+            }]
+        
+        for opt in c.FORMATTED_BADGE_TYPES[1:]:
+            if 'price' not in opt or badge_type_price < opt['price']:
+                badge_type_opts.append(opt)
+
+        return badge_type_opts
+
+    @property
     def badge_cost_with_promo_code(self):
         return self.calculate_badge_cost(use_promo_code=True)
 
@@ -777,7 +796,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         # All other badge type changes (i.e. those not to/from a badge type in BADGE_TYPE_PRICES)
         # use the attendee's actual current badge cost
 
-        base_badge_cost = self.new_badge_cost if self.paid == c.NEED_NOT_PAY else self.calculate_badge_cost()
+        base_badge_cost = self.new_badge_cost if self.paid == c.NEED_NOT_PAY else self.calculate_badge_cost() + self.age_discount
 
         if self.badge_type in c.BADGE_TYPE_PRICES and current_badge_type in c.BADGE_TYPE_PRICES:
             return c.BADGE_TYPE_PRICES[self.badge_type] - c.BADGE_TYPE_PRICES[current_badge_type]
@@ -906,7 +925,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         return select([ModelReceipt.payment_total]
                      ).where(and_(ModelReceipt.owner_id == cls.id,
-                                  ModelReceipt.owner_model == "Attendee")
+                                  ModelReceipt.owner_model == "Attendee",
+                                  ModelReceipt.closed == None)
                      ).label('amount_paid')
     
     @hybrid_property
@@ -2133,14 +2153,27 @@ class AttendeeAccount(MagModel):
     hashed = Column(UnicodeText, private=True)
     password_reset = relationship('PasswordReset', backref='attendee_account', uselist=False)
     attendees = relationship(
-        'Attendee', backref='managers', cascade='save-update,merge,refresh-expire,expunge',
+        'Attendee', backref='managers', order_by='Attendee.registered', cascade='save-update,merge,refresh-expire,expunge',
         secondary='attendee_attendee_account')
+    imported = Column(Boolean, default=False)
 
     email_model_name = 'account'
 
     @presave_adjustment
     def strip_email(self):
         self.email = self.email.strip()
+
+    @presave_adjustment
+    def normalize_email(self):
+        self.email = normalize_email(self.email)
+
+    @hybrid_property
+    def normalized_email(self):
+        return normalize_email_legacy(self.email)
+
+    @normalized_email.expression
+    def normalized_email(cls):
+        return func.replace(func.lower(func.trim(cls.email)), '.', '')
 
     @property
     def has_only_one_badge(self):

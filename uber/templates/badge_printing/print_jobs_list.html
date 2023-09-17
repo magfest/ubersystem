@@ -19,7 +19,7 @@ var loadPrintJobs = function(flag) {
           $(window).trigger( 'runJavaScript' );
       } else {
           // We got redirected -- likely to the login page -- so load it properly
-          $("#message-alert").addClass("alert-danger").show().children('span').html("Loading failed.");
+          showErrorMessage("Loading failed.");
           window.location.hash = ""; // prevent refresh loops
           window.location.reload();
       }

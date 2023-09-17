@@ -188,7 +188,7 @@ class Root:
             form_list = [form_list]
         forms = load_forms(params, group, group_forms, form_list)
 
-        all_errors = validate_model(forms, group, Group(**group.to_dict()))
+        all_errors = validate_model(forms, group, Group(**group.to_dict()), is_admin=True)
         if all_errors:
             return {"error": all_errors}
 

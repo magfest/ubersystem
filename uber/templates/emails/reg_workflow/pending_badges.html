@@ -1,0 +1,54 @@
+<html>
+<head></head>
+<body>
+    <p><strong>You haven't finished registering for {{ c.EVENT_NAME}} ({{ event_dates() }})!</strong></p>
+
+    <p>
+    {% if c.ATTENDEE_ACCOUNTS_ENABLED and account.pending_attendees|length > 1 %}
+    You have {{ account.pending_attendees|length }} badges that are registered, but not paid for. These badges are for:
+    <ul>
+        {% for attendee in account.pending_attendees %}<li>{{ attendee.full_name }}</li>{% endfor %}
+    </ul>
+    <strong>These are not valid badges</strong> and you will not be able to pick them up at the event.
+    {% else %}
+    You're <em>almost</em> done buying a badge for {{ attendee.full_name }}, but your payment did not complete.
+    Unless you received a separate email for {{ attendee.full_name }} with the subject "{{ c.EVENT_NAME }} registration confirmed",
+    {{ attendee.full_name }} <strong>does not have a valid badge</strong> for {{ c.EVENT_NAME }}.
+    {% endif %}
+    </p>
+
+    {% if attendee.registered != compare_date %}
+    <p>
+        We understand that some people encountered a technical issue while attempting to pay for their registration, 
+        and we have now fixed all the issues we're aware of. If you attempted to register and were unable to complete 
+        payment, please try your payment again. If you run into any further issues, please email 
+        <a href="registration@furfest.org" target="_blank">registration@furfest.org</a>.
+    </p>
+    <p> If these issues affected your registration or you wish to pay for your pending registration, you can
+    {% else %}
+    <p>
+        If this was a mistake, you can
+    {% endif %}
+        <a href="{{ c.URL_BASE }}/preregistration/resume_pending?{% if c.ATTENDEE_ACCOUNTS_ENABLED %}account_id={{ account.id }}{% else %}id={{ attendee.id }}{% endif %}" target="_blank">
+            finish registering and pay here</a>.
+        <strong>Incomplete badges are deleted after three days</strong> so please do not delay.
+    </p>
+
+    <p>
+        <strong>This is the ONLY email you will receive</strong> for 
+        {% if c.ATTENDEE_ACCOUNTS_ENABLED and account.pending_attendees|length > 1 %}these badges{% else %}this badge{% endif %}
+        {% if c.ATTENDEE_ACCOUNTS_ENABLED %} (if your account has multiple incomplete badges, you may receive multiple emails){% endif %}.
+         If you have received a confirmation email{% if c.ATTENDEE_ACCOUNTS_ENABLED and account.pending_attendees|length > 1 %}
+          for these badges{% endif %}, you can simply ignore this email.
+    </p>
+    <p>
+        To check your registered badges, 
+        {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+        <a href="{{ c.URL_BASE }}/preregistration/homepage" target="_blank">log in to your homepage</a>.
+        {% else %}
+        <a href="{{ c.URL_BASE }}/preregistration/check_if_preregistered" target="_blank">enter your email address here</a>.
+        {% endif %}
+    </p>
+
+</body>
+</html>

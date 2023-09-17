@@ -1,10 +1,10 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}Confirmation Not Found{% endblock %}
+{% set title_text = "Confirmation Not Found" %}
 {% block backlink %}{% endblock %}
 {% block content %}
 <div class="card">
   <div class="card-body">
-    <h3>Confirmation Number Not Valid: {{ id }}</h3>
+    <h2 class="h3">Confirmation Number Not Valid: {{ id }}</h2>
 
     <p>
       The {{ c.EVENT_NAME }} confirmation number {{ id }} you are trying to access is not valid.<br>

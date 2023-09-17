@@ -39,7 +39,7 @@
 </div>
 
 <script type="text/javascript">
-age = {{ attendee.age_now_or_at_con|default(0, true)}};
+age = {{ attendee.age_now_or_at_con|default(0, true) }};
 
 if (age < 18) {
     $.field('printer_id').val(printer_minor_id);
@@ -60,11 +60,11 @@ printBadge = function ($form) {
                     $("#message-alert").addClass("alert-success").show().children('span').html(json.message);
                 }
             } else {
-            $("#message-alert").addClass("alert-danger").show().children('span').html(json.message);
+            showErrorMessage(json.message);
             }
         },
         error: function () {
-            $("#message-alert").addClass("alert-danger").show().children('span').html('Unable to connect to server, please try again.');
+            showErrorMessage('Unable to connect to server, please try again.');
         }
     });
 }
@@ -72,7 +72,7 @@ printBadge = function ($form) {
 $('.print-badge').on('submit', function (event) {
     var $form = $(this);
     event.preventDefault();
-    $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+    hideMessageBox();
     if($.val('printer_id') == printer_default_id && age < 18) {
         bootbox.confirm({
             backdrop: true,

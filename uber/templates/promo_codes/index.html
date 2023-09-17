@@ -46,7 +46,7 @@ $(document).ready(function() {
 <h1>
   Promo Codes
   <small><a href="generate_promo_codes">Generate new promo codes</a></small>
-  <button class="btn btn-sm btn-danger pull-right" data-toggle="modal" data-target="#modal-delete-unused">
+  <button class="btn btn-sm btn-danger pull-right" data-bs-toggle="modal" data-bs-target="#modal-delete-unused">
     Delete Unused
   </button>
 </h1>
@@ -61,13 +61,13 @@ $(document).ready(function() {
   <div class="modal-dialog modal-sm" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
         <h4 class="modal-title" id="title-delete-unused">Delete all unused promo codes?</h4>
       </div>
       <div class="modal-footer">
         <form method="post" action="delete_promo_codes" class="form-horizontal">
           {{ csrf_token() }}
-          <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Nevermind</button>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Nevermind</button>
           <button type="submit" class="btn btn-danger">Delete Unused</button>
         </form>
       </div>

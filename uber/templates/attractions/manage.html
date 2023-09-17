@@ -166,7 +166,7 @@
       var callback = function(response) {
         if(response && response['error']) {
           $optout.prop('checked', !isOptedOut)
-          $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], '', {timeOut: 3000});
         } else {
           var message = isOptedOut ?
             'Attraction signups disabled':
@@ -198,7 +198,7 @@
       var callback = function(response) {
         if(response && response['error']) {
           $optout.prop('checked', !isOptedOut)
-          $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], '', {timeOut: 3000});
         } else {
           $("#message-alert").addClass("alert-success").show().children('span').html('Communication prefs updated', '', {timeOut: 3000});
         }
@@ -236,19 +236,19 @@
             $('#' + eventId + ' .remaining-slots').text(response['remaining_slots']);
             callback(response);
           } else {
-            $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'] || 'Error signing up for event', '', {timeOut: 3000});
+            showErrorMessage(response['error'] || 'Error signing up for event', '', {timeOut: 3000});
             callback(false);
           }
         },
         error: function(response, status, statusText) {
-          $("#message-alert").addClass("alert-danger").show().children('span').html('Error signing up for event', '', {timeOut: 3000});
+          showErrorMessage('Error signing up for event', '', {timeOut: 3000});
           callback(false);
         }
       });
     };
 
     $signupModal.on('hide.bs.modal', function (event) {
-      $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+      hideMessageBox();
     });
 
     $signupModal.on('show.bs.modal', function (event) {
@@ -297,7 +297,8 @@
       $signupModal.toggleClass('soldout', isSoldout);
       $('.signup-event-label').html(eventLabel);
 
-      $signupModal.modal('show');
+      var modal = bootstrap.Modal.getOrCreateInstance($signupModal);
+      modal.show();
     });
 
     $container.on('click', '.btn-danger', function(event) {
@@ -308,7 +309,7 @@
 
       var callback = function(response) {
         if(response && response['error']) {
-          $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], '', {timeOut: 3000});
         } else {
           $signup.fadeOut();
           $("#message-alert").addClass("alert-success").show().children('span').html('Signup for ' + eventLabel + ' successfully cancelled', '', {timeOut: 3000});
@@ -351,7 +352,7 @@
   <div class="modal-dialog modal-md" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
         <h4 class="modal-title">
@@ -368,7 +369,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-outline-secondary btn-lg btn-xl" data-dismiss="modal">
+        <button class="btn btn-outline-secondary btn-lg btn-xl" data-bs-dismiss="modal">
           All Done!
         </button>
       </div>

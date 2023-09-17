@@ -27,10 +27,10 @@
     $('.record_payment_refund').prop('disabled', disable_button);
   }
   var showForm = function(receiptId, whichForm) {
-    $('#' + receiptId + whichForm).removeClass('hidden')
+    $('#' + receiptId + whichForm).removeClass('d-none')
   };
   var hideForm = function(receiptId, whichForm) {
-    $('#' + receiptId + whichForm).addClass('hidden')
+    $('#' + receiptId + whichForm).addClass('d-none')
   };
   var deleteItem = function (itemId) {
     bootbox.confirm({
@@ -51,9 +51,9 @@
       callback: function (result) {
         if(result) {
           $.post('remove_receipt_item', {csrf_token: csrf_token, id: itemId}, function (response) {
-            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+            hideMessageBox();
             if (response.error) {
-              $("#message-alert").addClass("alert-danger").show().children('span').html(response.error);
+              showErrorMessage(response.error);
             } else {
               $("#message-alert").addClass("alert-info").show().children('span').html('Item deleted');
               hideRow(response.removed);
@@ -83,9 +83,9 @@
       callback: function (result) {
         if(result) {
           $.post('comp_receipt_item', {csrf_token: csrf_token, id: itemId}, function (response) {
-            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+            hideMessageBox();
             if (response.error) {
-              $("#message-alert").addClass("alert-danger").show().children('span').html(response.error);
+              showErrorMessage(response.error);
             } else {
               window.location = 'receipt_items?id={{ model.id }}&message=Receipt item comped'
             }
@@ -112,9 +112,9 @@
       callback: function (result) {
         if(result) {
           $.post('undo_receipt_item', {csrf_token: csrf_token, id: itemId}, function (response) {
-            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+            hideMessageBox();
             if (response.error) {
-              $("#message-alert").addClass("alert-danger").show().children('span').html(response.error);
+              showErrorMessage(response.error);
             } else {
               window.location = 'receipt_items?id={{ model.id }}&message=Receipt item reverted'
             }
@@ -129,7 +129,7 @@
       if (response.refresh) {
         window.location.href = 'receipt_items?id={{ model.id }}&message=' + response.message;
       } else {
-        $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+        hideMessageBox();
         $("#message-alert").addClass("alert-info").show().children('span').html(response.message);
       }
     }, 'json');
@@ -155,9 +155,9 @@
       callback: function (result) {
         if(result) {
           $.post('cancel_receipt_txn', {csrf_token: csrf_token, id: txnId}, function (response) {
-            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+            hideMessageBox();
             if (response.error) {
-              $("#message-alert").addClass("alert-danger").show().children('span').html(response.error);
+              showErrorMessage(response.error);
             } else {
               $("#message-alert").addClass("alert-info").show().children('span').html('Transaction cancelled');
               updateRow(response.cancelled, ' td:last', "<em>Cancelled " + response.time + ".</em>");
@@ -193,9 +193,9 @@
         $("#refundTxnDiv").html(form);
         if(result) {
           $.post('refund_receipt_txn', {csrf_token: csrf_token, id: txnId, amount: $("#refundTxnForm [name='amount']").val() || 0}, function (response) {
-            $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+            hideMessageBox();
             if (response.error) {
-              $("#message-alert").addClass("alert-danger").show().children('span').html(response.error);
+              showErrorMessage(response.error);
             } else {
               $("#message-alert").addClass("alert-info").show().children('span').html('Transaction refunded');
               updateRow(response.refunded, ' td:last #amt-refunded', " ($" + (response.refund_total / 100).toFixed(2) + " refunded)");
@@ -209,9 +209,8 @@
 
   var compOrUndoRefundItem = function (page_handler, itemId, amount) {
       $.post(page_handler, {csrf_token: csrf_token, id: itemId, amount: amount}, function (response) {
-        toastr.clear();
         if (response.error) {
-          toastr.error(response.error);
+          showErrorMessage(response.error);
         } else {
           window.location = 'receipt_items?id={{ model.id }}&message=' + response.message;
         }
@@ -259,9 +258,9 @@
   var addPayment = function ($form, $btn) {
     $.post('add_receipt_txn', $form.serialize(), function(result) {
       $btn.prop('disabled', false);
-      $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+      hideMessageBox();
       if (result.error) {
-        $("#message-alert").addClass("alert-danger").show().children('span').html(result.error);
+        showErrorMessage(result.error);
       } else if (result.success) {
         window.location = 'receipt_items?id={{ model.id }}&message=Receipt item added'
       }
@@ -306,10 +305,10 @@
       event.preventDefault();
       $btn.prop('disabled', true);
       $.post('add_receipt_item', $form.serialize(), function(result) {
-        $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+        hideMessageBox();
         $btn.prop('disabled', false);
         if (result.error) {
-          $("#message-alert").addClass("alert-danger").show().children('span').html(result.error);
+          showErrorMessage(result.error);
         } else if (result.success) {
           window.location = 'receipt_items?id={{ model.id }}&message=Receipt item added'
         }
@@ -324,13 +323,13 @@
       var submitForm = false;
       if (parseInt($("form[action='add_receipt_txn'] input[name='amount']").val()) > 0) {
         bootbox.confirm({
-          title: "Add Payment?",
+          title: "Record Payment?",
           message: "If you add a payment equal to what the attendee currently owes, " +
             "all open receipt items will be closed and marked as paid. " +
             "This cannot be undone. Are you sure?",
           buttons: {
               confirm: {
-                  label: 'Add Payment',
+                  label: 'Record Payment',
                   className: 'btn-success'
               },
               cancel: {
@@ -374,7 +373,7 @@
   </p>
   
   <p>
-    If a payment was made and confirmed through {{ processor_str }}, you can refund part or all of it using the "Refund Transaction" button.
+    If a payment was made and confirmed through {{ processor_str }}, you can refund part or all of it using the "Refund Item" buttons.
     Note that some {{ processor_str }} payments may appear on multiple receipts, for example, when someone registers multiple badges in one transaction.
   </p>
 
@@ -387,60 +386,64 @@
 {% macro receipt_item_form(type="purchase") %}
 <tr id="{{ receipt.id }}-{{ type }}-form" class="d-none">
   <td colspan="8">
-    <button type="button" class="close pull-left" aria-label="Close" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')"><span aria-hidden="true">&times;</span></button>
-    <form method="post" action="add_receipt_item" class="form-inline pull-right">
+    <button type="button" class="btn-close pull-left" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')" aria-label="Close"></button>
+    <form method="post" action="add_receipt_item">
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ receipt.id }}" />
       <input type="hidden" name="item_type" value="{{ type }}" />
-      <div class="form-group">
-        <label for="desc">Description</label>
-        <input type="text" name="desc" class="form-control" placeholder="{{ type|title }} Description" required>
-      </div>
-      <div class="form-group">
-        <label for="amount">Amount</label>
-        <div class="input-group">
-          <span class="input-group-addon">$</span>
-          <input type="number" name="amount" class="form-control" placeholder="0" required>
-          <span class="input-group-addon">.00</span>
+      <div class="row g-sm-3 justify-content-end">
+        <label for="desc" class="col-auto col-form-label">Description</label>
+        <div class="col-auto">
+          <input type="text" name="desc" class="form-control" placeholder="{{ type|title }} Description" required>
         </div>
+        <label for="amount" class="col-auto col-form-label">Amount</label>
+        <div class="col-auto">
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" name="amount" class="form-control" placeholder="0" required>
+            <span class="input-group-text">.00</span>
+          </div>
+        </div>
+        <label for="count" class="col-auto col-form-label">Quantity</label>
+        <div class="col-auto">
+            <input type="number" name="count" class="form-control" placeholder="1">
+        </div>
+        <button type="submit" class="col-2 btn {{ 'btn-primary' if type == 'purchase' else 'btn-success' }}">Record {{ type|title }}</button>
       </div>
-      <div class="form-group">
-        <label for="count">Quantity</label>
-          <input type="number" name="count" class="form-control" placeholder="1">
-      </div>
-      <button type="submit" class="btn {{ 'btn-primary' if type == 'purchase' else 'btn-success' }}">Add {{ type|title }}</button>
     </form>
   </td>
 </tr>
 {% endmacro %}
 {% macro receipt_txn_form(type="payment") %}
 <tr id="{{ receipt.id }}-{{ type }}-form" class="d-none">
-  <td colspan="7">
-    <button type="button" class="close pull-left" aria-label="Close" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')"><span aria-hidden="true">&times;</span></button>
-    <form method="post" action="add_receipt_txn" class="form-inline pull-right">
+  <td colspan="8">
+    <button type="button" class="btn-close pull-left" onClick="hideForm('{{ receipt.id }}', '-{{ type }}-form')" aria-label="Close"></button>
+    <form method="post" action="add_receipt_txn">
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ receipt.id }}" />
       <input type="hidden" name="txn_type" value="{{ type }}" />
-      <div class="form-group">
-        <label for="amount">{{ type|title }} Method</label>
-        <select name="method" class="form-control">
-          <option value="">Select a Method</option>
-          {{ options(c.PAYMENT_METHOD_OPTS, c.CASH) }}
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="count">Amount</label>
-        <div class="input-group">
-          <span class="input-group-addon">$</span>
-          <input type="number" name="amount" class="form-control" placeholder="0" required>
-          <span class="input-group-addon">.00</span>
+      <div class="row g-sm-3 justify-content-end">
+        <label for="amount" class="col-auto col-form-label">{{ type|title }} Method</label>
+        <div class="col-auto">
+          <select name="method" class="form-select">
+            <option value="">Select a Method</option>
+            {{ options(c.PAYMENT_METHOD_OPTS, c.CASH) }}
+          </select>
         </div>
+        <label for="count" class="col-auto col-form-label">Amount</label>
+        <div class="col-auto">
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" name="amount" class="form-control" placeholder="0" required>
+            <span class="input-group-text">.00</span>
+          </div>
+        </div>
+        <label for="desc" class="col-auto col-form-label">Description</label>
+        <div class="col-auto">
+          <input type="text" name="desc" class="form-control" placeholder="Transaction Description">
+        </div>
+        <button type="submit" class="col-2 btn {{ 'btn-info' if type == 'payment' else 'btn-warning' }}">Record {{ type|title }}</button>
       </div>
-      <div class="form-group">
-        <label for="desc">Description</label>
-        <input type="text" name="desc" class="form-control" placeholder="Transaction Description">
-      </div>
-      <button type="submit" class="btn {{ 'btn-info' if type == 'payment' else 'btn-warning' }}">Add {{ type|title }}</button>
     </form>
   </td>
 </tr>
@@ -497,7 +500,7 @@
         </td>
         <td>
           {% if item.refundable and not item.method %} {# disabling transaction refunds for now #}
-          <button class="btn btn-sm btn-warning"
+          <button class="btn btn-sm btn-warning text-nowrap"
                   onClick="
                   {% if item.method %}
                   refundTxn('{{ item.id }}', '{{ (item.amount_left / 100)|format_currency }}')">
@@ -509,23 +512,24 @@
           </button>
           {% endif %}
         </td>
-        <td>
+        <td class="text-nowrap">
           {% if item.available_actions %}
             {% for action in item.available_actions %}
               {% if action == 'refresh_receipt_txn' %}
-              <button class="btn btn-sm btn-info" onClick="refreshTxn('{{ item.id }}')">Refresh from {{ processor_str }}</button>
+              <button class="btn btn-sm btn-info text-nowrap" onClick="refreshTxn('{{ item.id }}')">Refresh from {{ processor_str }}</button>
               {% endif %}
               {% if action == 'cancel_receipt_txn' %}
-              <button class="btn btn-sm btn-danger" onClick="cancelTxn('{{ item.id }}')">Mark as Cancelled</button>
+              <em class="text-wrap">This payment is pending. This {{ model_str }} can re-try the payment on their confirmation page.</em>
+              <br/><button class="btn btn-sm btn-danger text-nowrap" onClick="cancelTxn('{{ item.id }}')">Mark as Cancelled</button>
               {% endif %}
               {% if action == 'comp_receipt_item' %}
-              <button class="btn btn-sm btn-success" onClick="compItem('{{ item.id }}', '{{ receipt.id }}')">Comp Item</button>
+              <button class="btn btn-sm btn-success text-nowrap" onClick="compItem('{{ item.id }}', '{{ receipt.id }}')">Comp Item</button>
               {% endif %}
               {% if action == 'undo_receipt_item' %}
-              <button class="btn btn-sm btn-danger" onClick="undoItem('{{ item.id }}', '{{ receipt.id }}')">Undo Item</button>
+              <button class="btn btn-sm btn-danger text-nowrap" onClick="undoItem('{{ item.id }}', '{{ receipt.id }}')">Undo Item</button>
               {% endif %}
               {% if action == 'remove_receipt_item' %}
-              <button class="btn btn-sm btn-danger" onClick="deleteItem('{{ item.id }}')">
+              <button class="btn btn-sm btn-danger text-nowrap" onClick="deleteItem('{{ item.id }}')">
                 Delete {{ "Transaction" if item.method else "Item" }}
               </button>
               {% endif %}
@@ -551,7 +555,7 @@
     <tr id="{{ receipt.id }}">
       <td colspan="8">
         <div class="btn-group pull-right" role="group">
-          <button class="btn btn-outline-secondary">Add:</button>
+          <button class="btn btn-outline-secondary">Record:</button>
           <button class="btn btn-primary" onClick="showForm('{{ receipt.id }}', '-purchase-form')">Purchase</button>
           <button class="btn btn-success" onClick="showForm('{{ receipt.id }}', '-credit-form')">Credit</button>
           <button class="btn btn-info record_payment_refund" onClick="showForm('{{ receipt.id }}', '-payment-form')"{% if receipt.current_receipt_amount == 0 %} disabled{% endif %}>Payment</button>
@@ -601,7 +605,7 @@ There are no active receipts for this {{ model_str }}.
 </div>
 
 {% for other_receipt in other_receipts %}
-<div class="card">
+<div class="card mt-3">
   <div class="card-header">
     <h3 class="card-title">{{ other_receipt.owner_model }} Receipt</h3>
   </div>
@@ -612,7 +616,7 @@ There are no active receipts for this {{ model_str }}.
 {% endfor %}
 
 {% for closed_receipt in closed_receipts %}
-<div class="card">
+<div class="card mt-3">
   <div class="card-header">
     <h3 class="card-title">Closed Receipt ({{ closed_receipt.closed|datetime_local }})</h3>
   </div>

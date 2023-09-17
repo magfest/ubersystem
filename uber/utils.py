@@ -308,6 +308,8 @@ def get_age_conf_from_birthday(birthdate, today=None):
     for val, age_group in c.AGE_GROUP_CONFIGS.items():
         if val != c.AGE_UNKNOWN and age_group['min_age'] <= age and age <= age_group['max_age']:
             return age_group
+        
+    return c.AGE_GROUP_CONFIGS[c.AGE_UNKNOWN]
 
 
 class DateBase:
@@ -523,19 +525,23 @@ def check_pii_consent(params, attendee=None):
         if needs_pii_consent and not has_pii_consent:
             return 'You must agree to allow us to store your personal information in order to register.'
     return ''
-    
 
-def validate_model(forms, model, preview_model, extra_validators_module=None):
+
+def validate_model(forms, model, preview_model=None, extra_validators_module=None, is_admin=False):
     from wtforms import validators
+    from wtforms.validators import ValidationError, StopValidation
 
     all_errors = defaultdict(list)
-
-    for module in forms.values():
-        module.populate_obj(preview_model) # We need a populated model BEFORE we get its optional fields below
+    
+    if not preview_model:
+        preview_model = model
+    else:
+        for module in forms.values():
+            module.populate_obj(preview_model) # We need a populated model BEFORE we get its optional fields below
 
     for module in forms.values():
         extra_validators = defaultdict(list)
-        for field_name in module.get_optional_fields(preview_model):
+        for field_name in module.get_optional_fields(preview_model, is_admin):
             field = getattr(module, field_name)
             if field:
                 field.validators = [validators.Optional()]
@@ -549,14 +555,18 @@ def validate_model(forms, model, preview_model, extra_validators_module=None):
         valid = module.validate(extra_validators=extra_validators)
         if not valid:
             for key, val in module.errors.items():
-                all_errors[key].extend(val)
+                all_errors[key].extend(map(str, val))
 
     if extra_validators_module:
         for key, val in extra_validators_module.post_form_validation.get_validation_dict().items():
             for func in val:
-                message = func(preview_model)
-                if message:
-                    all_errors[key].append(message)
+                try:
+                    func(preview_model)
+                except (ValidationError, StopValidation) as e:
+                    all_errors[key].append(str(e))
+                    if isinstance(e, StopValidation):
+                        break
+
     if all_errors:
         return all_errors
 
@@ -671,7 +681,7 @@ def valid_password(password):
         return 'Password must contain at least one lowercase letter.'
     if 'uppercase_char' in c.PASSWORD_CONDITIONS and not re.search("[A-Z]", password):
         return 'Password must contain at least one uppercase letter.'
-    if 'any_char' in c.PASSWORD_CONDITIONS and not re.search("[A-Za-z]", password):
+    if 'letter' in c.PASSWORD_CONDITIONS and not re.search("[A-Za-z]", password):
         return 'Password must contain at least one letter.'
     if 'number' in c.PASSWORD_CONDITIONS and not re.search("[0-9]", password):
         return 'Password must contain at least one number.'
@@ -882,6 +892,7 @@ def prepare_saml_request(request):
         'get_data': request.params.copy() if request.method == 'GET' else {},
         'post_data': request.params.copy() if request.method == 'POST' else {},
     }
+
     if c.FORCE_SAML_HTTPS:
         saml_request['https'] = 'on'
     return saml_request
@@ -1263,6 +1274,7 @@ class TaskUtils:
                 
             del attendee['id']
             del attendee['all_years']
+            del attendee['badge_num']
 
             account_ids = attendee.get('attendee_account_ids', [])
 
@@ -1316,14 +1328,32 @@ class TaskUtils:
                 if not account:
                     del account_to_import['id']
                     account = AttendeeAccount().apply(account_to_import, restricted=False)
+                    account.email = normalize_email(account.email)
+                    account.imported = True
                     session.add(account)
                 attendee.managers.append(account)
 
+            from sqlalchemy.exc import IntegrityError
+            from psycopg2.errors import UniqueViolation
+
             try:
                 session.commit()
-            except Exception as ex:
+            except IntegrityError as e:
                 session.rollback()
-                import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
+                if(isinstance(e.orig, UniqueViolation)):
+                    attendee.badge_num = None
+                    session.add(attendee)
+                    try:
+                        session.commit()
+                    except Exception as e:
+                        session.rollback()
+                        import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(e)
+                else:
+                    session.rollback()
+                    import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(e)
+            except Exception as e:
+                session.rollback()
+                import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(e)
             else:
                 import_job.completed = datetime.now()
             session.commit()
@@ -1378,11 +1408,20 @@ class TaskUtils:
                 import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
                 session.commit()
                 return
+            
+            if c.SSO_EMAIL_DOMAINS:
+                local, domain = normalize_email(account_to_import['email'], split_address=True)
+                if domain in c.SSO_EMAIL_DOMAINS:
+                    log.debug("Skipping account import for {} as it matches the SSO email domain.".format(account_to_import['email']))
+                    import_job.completed = datetime.now()
+                    return
 
             account = session.query(AttendeeAccount).filter(AttendeeAccount.email == normalize_email(account_to_import['email'])).first()
             if not account:
                 del account_to_import['id']
                 account = AttendeeAccount().apply(account_to_import, restricted=False)
+                account.email = normalize_email(account.email)
+                account.imported = True
                 session.add(account)
 
             try:
@@ -1402,19 +1441,22 @@ class TaskUtils:
                 pass
 
             for attendee in account_attendees:
-                # Try to match staff to their existing badge, which would be newer than the one we're importing
                 if attendee.get('badge_num', 0) in range(c.BADGE_RANGES[c.STAFF_BADGE][0], c.BADGE_RANGES[c.STAFF_BADGE][1]):
-                    old_badge_num = attendee['badge_num']
-                    existing_staff = session.query(Attendee).filter_by(badge_num=old_badge_num).first()
-                    if existing_staff:
-                        existing_staff.managers.append(account)
-                        session.add(existing_staff)
-                    else:
-                        new_staff = TaskUtils.basic_attendee_import(attendee)
-                        new_staff.badge_num = old_badge_num
-                        new_staff.managers.append(account)
-                        session.add(new_staff)
-                else:
+                    if not c.SSO_EMAIL_DOMAINS:
+                        # Try to match staff to their existing badge, which would be newer than the one we're importing
+                        old_badge_num = attendee['badge_num']
+                        existing_staff = session.query(Attendee).filter_by(badge_num=old_badge_num).first()
+                        if existing_staff:
+                            existing_staff.managers.append(account)
+                            session.add(existing_staff)
+                        else:
+                            new_staff = TaskUtils.basic_attendee_import(attendee)
+                            new_staff.badge_num = old_badge_num
+                            new_staff.managers.append(account)
+                            session.add(new_staff)
+                    # If SSO is used for attendee accounts, we don't import staff at all
+                elif attendee['badge_status'] not in [c.PENDING_STATUS, c.INVALID_STATUS, 
+                                                      c.IMPORTED_STATUS, c.INVALID_GROUP_STATUS]: # Workaround for a bug in the export, we can remove this check next year
                     new_attendee = TaskUtils.basic_attendee_import(attendee)
                     new_attendee.paid = c.NOT_PAID
                     
@@ -1508,6 +1550,8 @@ class TaskUtils:
                     if not account:
                         del account_to_import['id']
                         account = AttendeeAccount().apply(account_to_import, restricted=False)
+                        account.email = normalize_email(account.email)
+                        account.imported = True
                         session.add(account)
                     new_attendee.managers.append(account)
 

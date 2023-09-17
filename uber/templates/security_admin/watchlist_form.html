@@ -61,7 +61,7 @@
     <div class="form-group" id="audio_needs">
       <label class="col-sm-3 control-label">Active?</label>
       <div class="col-sm-9 checkbox">
-        {{ macros.checkbox(entry, "active", label="This entry will automatically place matching attendees in the On Hold status")}}
+        {{ macros.checkbox(entry, "active", label="This entry will automatically place matching attendees in the On Hold status") }}
       </div>
     </div>
     
@@ -112,5 +112,5 @@
     
     {% endif %}
     </div>
-<script src="../static/js/window-hash-tabload.js" type="text/javascript"></script>
+{{ "js/window-hash-tabload.js"|serve_static_content }}
 {% endblock %}

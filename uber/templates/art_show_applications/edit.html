@@ -5,11 +5,11 @@
 {% include "region_opts.html" %}
 {% include "prereg_masthead.html" %}
 {% set attendee = app.attendee %}
-<div class="card">
-  <div class="card-header">
+<div class="panel">
+  <div class="panel-header">
     Art Show Application Information
   </div>
-  <div class="card-body">
+  <div class="panel-body">
     {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.badge_status != c.NOT_ATTENDING or attendee.marketplace_applications %}
       {% include 'confirm_tabs.html' with context %}
     {% endif %}
@@ -22,6 +22,7 @@
               <div class="alert alert-warning" role="alert">
                 You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
                 with an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.
+                Please contact us at {{ c.ART_SHOW_EMAIL|email_only|email_to_link }} if you need to change your purchases or if you have any questions.
                 <br/><br/>Click here to complete your payment: {{ stripe_form('finish_pending_payment', app, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}
               </div>
             {% else %}

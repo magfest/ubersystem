@@ -80,12 +80,15 @@
       $('.signup-event-location').html($('#' + eventId + ' .event-location').html());
 
       {% if c.AT_THE_CON %}
-      $signupModal.modal('show');
+      var modal = bootstrap.Modal.getOrCreateInstance($signupModal)
+      modal.show();
       {% else %}
       if($event.hasClass('badge-num-required')) {
-        $signupModal.modal('show');
+        var modal = bootstrap.Modal.getOrCreateInstance($signupModal)
+        modal.show();
       } else {
-        $altSignupModal.modal('show');
+        var modal = bootstrap.Modal.getOrCreateInstance($altSignupModal)
+        modal.show();
       }
       {% endif %}
     });
@@ -105,20 +108,22 @@
             $('#' + eventId + ' .remaining-slots').text(response['remaining_slots']);
             callback(response);
           } else {
-            $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'] || 'Error signing up for event', '', {timeOut: 3000});
+            showErrorMessage(response['error'] || 'Error signing up for event', '', {timeOut: 3000});
             callback(false);
           }
         },
         error: function(response, status, statusText) {
-          $("#message-alert").addClass("alert-danger").show().children('span').html('Error signing up for event', '', {timeOut: 3000});
+          showErrorMessage('Error signing up for event', '', {timeOut: 3000});
           callback(false);
         }
       });
     };
 
     $signupModal.find('.modal-footer .btn.modal-form-switch').on('click', function (event) {
-      $signupModal.modal('hide');
-      $altSignupModal.modal('show');
+      var signupModal = bootstrap.Modal.getOrCreateInstance($signupModal)
+      signupModal.hide();
+      var altSignupModal = bootstrap.Modal.getOrCreateInstance($altSignupModal);
+      altSignupModal.show();
     });
 
     $doneModal.find('.confirm-row .btn-success').on('click', function (event) {
@@ -152,8 +157,10 @@
         if (response) {
           updateGreeting(response['first_name'], response['badge_num'], $doneModal.find('.modal-title'));
           $doneModal.data('attendee', response);
-          $signupModal.modal('hide');
-          $doneModal.modal('show');
+          var signupModal = bootstrap.Modal.getOrCreateInstance($signupModal);
+          signupModal.hide();
+          var doneModal = bootstrap.Modal.getOrCreateInstance($doneModal);
+          doneModal.show();
         }
       });
     });
@@ -171,14 +178,16 @@
         if (response) {
           updateGreeting(response['first_name'], response['badge_num'], $doneModal.find('.modal-title'));
           $doneModal.data('attendee', response);
-          $altSignupModal.modal('hide');
-          $doneModal.modal('show');
+          var altSignupModal = bootstrap.Modal.getOrCreateInstance($altSignupModal);
+          altSignupModal.hide();
+          var doneModal = bootstrap.Modal.getOrCreateInstance($doneModal);
+          doneModal.show();
         }
       });
     });
 
     $modals.on('hide.bs.modal', function (event) {
-      $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+      hideMessageBox();
     });
 
     $modals.on('hidden.bs.modal', function (event) {
@@ -231,7 +240,7 @@
   <div class="modal-dialog modal-md" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
         <h4 class="modal-title">
@@ -265,7 +274,7 @@
         {% if not feature.badge_num_required %}
           <button class="btn btn-outline-secondary btn-lg btn-xl modal-form-switch">Sign up without badge #</button>
         {% endif %}
-        <button class="btn btn-outline-secondary btn-lg btn-xl" data-dismiss="modal">Nevermind</button>
+        <button class="btn btn-outline-secondary btn-lg btn-xl" data-bs-dismiss="modal">Nevermind</button>
       </div>
     </div>
   </div>
@@ -276,7 +285,7 @@
   <div class="modal-dialog modal-md" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
         <h4 class="modal-title">
@@ -323,7 +332,7 @@
           <button class="btn btn-success btn-lg btn-xl">
               <i class="fa fa-ok"></i> Sign up
           </button>
-          <button class="btn btn-outline-secondary btn-lg btn-xl" data-dismiss="modal">Nevermind</button>
+          <button class="btn btn-outline-secondary btn-lg btn-xl" data-bs-dismiss="modal">Nevermind</button>
         </div>
       </form>
     </div>
@@ -335,7 +344,7 @@
   <div class="modal-dialog modal-md" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
         <h4 class="modal-title">
@@ -363,7 +372,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-outline-secondary btn-lg btn-xl" data-dismiss="modal">
+        <button class="btn btn-outline-secondary btn-lg btn-xl" data-bs-dismiss="modal">
           All Done!
         </button>
       </div>

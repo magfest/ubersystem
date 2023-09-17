@@ -1,7 +1,10 @@
 {% extends "./preregistration/preregbase.html" %}
 {% import 'forms/macros.html' as form_macros with context %}
-{% block title %}Additional Info{% endblock %}
-{% block backlink %}{% endblock %}
+{% if is_prereg_dealer %}
+{% set title_text = "Dealer Registration Step 3 of 4: Additional Info" %}
+{% else %}
+{% set title_text = "Registration Step 2 of 4: Additional Info" %}
+{% endif %}
 {% block content %}
 {% if not editing %}
 {% include 'preregistration/disclaimer_popup.html' %}
@@ -10,7 +13,7 @@
   <div class="card-body">
     {{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
 
-    {{ form_macros.form_validation('prereg-form', form_list=['OtherInfo'], include_disclaimers_modal=not editing) }}
+    {{ form_macros.form_validation('prereg-form', form_list=['PreregOtherInfo'], include_disclaimers_modal=not editing) }}
 
     {% if is_prereg_dealer %}
     <div class="text-end">
@@ -19,7 +22,7 @@
     </div>
     {% endif %}
 
-    <form method="post" id="prereg-form" action="additional_info" class="form-horizontal" role="form">
+    <form novalidate method="post" id="prereg-form" action="additional_info" class="form-horizontal" role="form">
       {% if is_prereg_dealer %}
       <input type="hidden" name="group_id" value="{{ attendee.group_id }}" />
       {% else %}
@@ -38,4 +41,10 @@
     </form>
   </div>
 </div>
+{% if is_prereg_dealer %}
+{{ "js/warn-before-logout-dealer.js"|serve_static_content }}
+{% else %}
+<em class="form-text">Please note: your badge and any upgrades are not reserved until you complete the registration process, including payment.</em>
+{{ "js/warn-before-logout.js"|serve_static_content }}
+{% endif %}
 {% endblock %}

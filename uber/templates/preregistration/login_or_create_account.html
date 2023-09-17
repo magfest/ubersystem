@@ -1,11 +1,11 @@
 {% import "forms/account.html" as account_fields with context %}
 {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
 <div class="row justify-content-center">
-  <div class="col-6">
+  <div class="col-10 col-sm-9 col-md-6">
     <form id="account-form">
       {{ csrf_token() }}
       <div class="mb-3">
-          <label for="account-email" class="form-label">E-Mail <span class="text-danger">*</span></label>
+          <label for="account-email" class="form-label">Email <span class="text-danger">*</span></label>
           <input type="email" id="account-email" class="form-control account-form-input" name="account_email" value="{{ account_email or '' }}" placeholder="{{ c.EVENT_NAME|replace(' ','')|lower }}@example.com" required />
       </div>
       <div class="mb-3 d-none">
@@ -21,7 +21,7 @@
           <label for="confirm-password" class="control-label">Confirm Password <span class="text-danger">*</span></label>
           <input id="confirm-password" type="password" class="form-control account-form-input" name="confirm_password" value="{{ confirm_password or '' }}" placeholder="Confirm Password" />
       </div>
-      <div class="mb-1"><div class="text-end"><a href="../preregistration/reset_password" target="_blank">Forgot your password?</a></div></div>
+      <div class="mb-1"><div class="text-end"><a href="../preregistration/reset_password">Forgot your password?</a></div></div>
       <div class="mb-1"><button id="login-submit" class="btn btn-primary w-100" type="submit" name="login">Login</button></div>
       <div class="mb-1"><button id="create-submit" class="btn btn-outline-primary w-100" type="submit" name="create">Create Account</button></div>
 
@@ -35,7 +35,7 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="sso-notice">Are You {{ c.EVENT_NAME }} Staff?</h5>
+        <span class="h5 modal-title" id="sso-notice">Are You {{ c.EVENT_NAME }} Staff?</span>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
@@ -74,7 +74,8 @@
             loginOrCreateAccount($form);
           }
         } else if (result.sso_email) {
-          $('#sso-notice-modal').modal("show");
+          var modal = bootstrap.Modal.getOrCreateInstance($('#sso-notice-modal'));
+          modal.show();
         } else {
           if (result.message) {
             showErrorMessage(result.message);

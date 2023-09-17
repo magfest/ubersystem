@@ -8,7 +8,7 @@ from wtforms.validators import ValidationError, StopValidation
 from uber.badge_funcs import get_real_badge_type
 from uber.config import c
 from uber.custom_tags import format_currency
-from uber.models import Attendee, Session
+from uber.models import Attendee, Session, PromoCode, PromoCodeGroup
 from uber.model_checks import invalid_zip_code, invalid_phone_number
 from uber.utils import get_age_from_birthday, get_age_conf_from_birthday
 from uber.decorators import WTFormValidation
@@ -106,44 +106,11 @@ def age_discount_after_paid(attendee):
             raise ValidationError('The date of birth you entered incurs a discount; \
                                   please email {} to change your badge and receive a refund'.format(c.REGDESK_EMAIL))
 
-@form_validation.cellphone
-def dealer_cellphone_required(form, field):
-    if not hasattr(form, 'badge_type'): # TODO: Is there a better way?
-        return
-
-    if form.badge_type.data == c.PSEUDO_DEALER_BADGE and not field.data:
-        raise StopValidation('A phone number is required for {}s.'.format(c.DEALER_TERM))
-
-@form_validation.cellphone
-def invalid_format(form, field):
-    if field.data and invalid_phone_number(field.data):
-        raise ValidationError('Your phone number was not a valid 10-digit US phone number. ' \
-                                'Please include a country code (e.g. +44) for international numbers.')
-
-@form_validation.cellphone
-def different_ec_phone(form, field):
-    if not hasattr(form, 'ec_phone'):
-        return
-
-    if field.data and field.data == form.ec_phone.data:
-        raise ValidationError("Your phone number cannot be the same as your emergency contact number.")
-
 @post_form_validation.cellphone
 def volunteers_cellphone_or_checkbox(attendee):
     if not attendee.no_cellphone and attendee.staffing_or_will_be and not attendee.cellphone:
         raise ValidationError("Volunteers and staffers must provide a cellphone number or indicate they do not have a cellphone.")
 
-@form_validation.ec_phone
-def valid_format(form, field):
-    if not hasattr(form, 'international'):
-        return
-    
-    if not form.international.data and invalid_phone_number(field.data):
-        if c.COLLECT_FULL_ADDRESS:
-            raise ValidationError('Please enter a 10-digit US phone number or include a ' \
-                                    'country code (e.g. +44) for your emergency contact number.')
-        else:
-            raise ValidationError('Please enter a 10-digit emergency contact number.')
 
 @post_form_validation.promo_code
 def promo_code_is_useful(attendee):
@@ -186,6 +153,7 @@ def promo_code_has_uses_remaining(attendee):
         if (attendee.promo_code.uses_remaining - unpaid_uses_count) < 0:
             raise ValidationError('That promo code has been used too many times.')
 
+
 @post_form_validation.staffing
 def allowed_to_volunteer(attendee):
     if attendee.staffing_or_will_be \
@@ -193,7 +161,8 @@ def allowed_to_volunteer(attendee):
             and attendee.badge_type not in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] \
             and c.PRE_CON:
         raise ValidationError('Your interest is appreciated, but ' + c.EVENT_NAME + ' volunteers must be 18 or older.')
-    
+
+
 @post_form_validation.staffing
 def banned_volunteer(attendee):
     if attendee.staffing_or_will_be and attendee.full_name in c.BANNED_STAFFERS:

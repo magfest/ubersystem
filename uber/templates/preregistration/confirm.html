@@ -1,15 +1,7 @@
-{% extends "preregistration/preregbase.html" %}
-{% set name_ro = not attendee.placeholder %}
+{% extends "./preregistration/preregbase.html" %}
 {% set assigned_depts_ro = True %}
-{% set amount_extra_ro = True if attendee.badge_status == c.DEFERRED_STATUS else False %}
-{% set money_fields_ro = True if receipt %}
-{% set page_ro = not attendee.is_valid %}
-{% import "forms/attendee.html" as attendee_fields with context %}
 {% import 'forms/macros.html' as form_macros with context %}
-{% block title %}Confirm Your Details{% endblock %}
-{% block backlink %}
-{{ super() }}
-{% endblock %}
+{% set title_text = "Confirm Your Details" %}
 {% block content %}
 
 <script type="text/javascript">
@@ -37,12 +29,10 @@
     {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_applications or attendee.is_group_leader %}
       {% include 'confirm_tabs.html' with context %}
     {% endif %}
-    {% block panel_top %}{% endblock %}
 
-    {% if c.ART_SHOW_ENABLED and not attendee.is_new %}
+    {% if c.AFTER_ART_SHOW_REG_START and not attendee.is_new %}
       {% include 'art_show_common/art_show_agent.html' %}
     {% endif %}
-    {{ form_macros.form_validation('confirm', form_list=['PersonalInfo', 'BadgeExtras', 'OtherInfo']) }}
 
       {% if not attendee.is_valid %}
       <div class="alert alert-danger" role="alert">
@@ -55,12 +45,14 @@
             <div class="alert alert-warning" role="alert">
               You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
               with an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.
+              Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you need to change your purchases or if you have any questions.
               <br/><br/>Click here to complete your payment: {{ stripe_form('finish_pending_payment', attendee, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}
             </div>
             {% else %}
             <div class="alert alert-danger" role="alert">
               You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
-              Please <a href="" data-toggle="modal" data-target="#receiptModal">check your receipt here</a> to pay.
+              Please <a href="" data-bs-toggle="modal" data-bs-target="#receiptModal">check your receipt here</a> to pay or 
+              contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you need to change your purchases or if you have any questions.
             </div>
             {% endif %}
         {% elif attendee.badge_status == c.PENDING_STATUS %}
@@ -103,21 +95,21 @@
         {% endif %}
       {% endif %}
 
-      {% if money_fields_ro and not incomplete_txn %}
-        {% include 'preregistration/upgrade_modal.html' %}
+      {% if receipt %}
+        {% include 'forms/receipt_modal.html' %}
+        {% if not incomplete_txn %}
+          {% include 'preregistration/upgrade_modal.html' %}
+        {% endif %}
       {% endif %}
-      {{ attendee_fields.receipt_modal }}
 
-      <form method="post" action="confirm" id="confirm">
+      {{ form_macros.form_validation('confirm') }}
+
+      <form novalidate method="post" action="confirm" id="confirm">
         {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ attendee.id }}" />
         <input type="hidden" name="return_to" value="{{ return_to }}" />
         <input type="hidden" name="undoing_extra" value="{{ undoing_extra }}" />
-        <input type="hidden" name="placeholder" value="" />
-  
-        {% block form_top %}{% endblock %}
 
-      {{ attendee_fields.prereg_intro }}
       {% include "forms/badge_extras.html" %}
       {% include "forms/personal_info.html" %}
       {% include "forms/other_info.html" %}
@@ -141,7 +133,7 @@
           {% endif %}
           {% endif %}
           {% if receipt %}
-            <a class="btn btn-info" data-toggle="modal" data-target="#receiptModal">
+            <a class="btn btn-info" data-bs-toggle="modal" data-bs-target="#receiptModal">
               <i class="fa fa-list-alt"></i> Receipt
             </a>
           {% endif %}

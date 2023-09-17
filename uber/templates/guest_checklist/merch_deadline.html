@@ -109,7 +109,7 @@
           <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
               <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
                 <h4 class="modal-title" id="inventory_item_title_{{ item.id or type }}">{{ label }}</h4>
               </div>
               <form method="post" action="save_inventory_item" target="upload_frame" class="form-horizontal" role="form" enctype="multipart/form-data">
@@ -120,7 +120,7 @@
                 </div>
                 <div class="modal-footer">
                   <button type="submit" class="btn btn-primary save_inventory">Save</button>
-                  <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancel</button>
+                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                 </div>
               </form>
             </div>
@@ -271,7 +271,8 @@
                   $inventoryItem = $('#inventory_item_' + $addInventory.val());
 
               $inventoryItem.find('.one_size').each(function() { onOneSizeChange.call(this); });
-              $inventoryItem.modal();
+              var modal = bootstrap.Modal.getOrCreateInstance($inventoryItem);
+              modal.show();
               $addInventory.val('');
             };
 
@@ -282,7 +283,8 @@
                   $inventoryItem = $('#inventory_item_' + itemId);
 
               $inventoryItem.find('.one_size').each(function() { onOneSizeChange.call(this); });
-              $inventoryItem.modal();
+              var modal = bootstrap.Modal.getOrCreateInstance($inventoryItem);
+              modal.show();
             };
 
             var onRemoveInventory = function(e) {
@@ -312,7 +314,7 @@
                                 },
                                 success: function(response, status) {
                                   if (response['error']) {
-                                    $("#message-alert").addClass("alert-danger").show().children('span').html('There was an error removing the item: ' + response['error']);
+                                    showErrorMessage('There was an error removing the item: ' + response['error']);
                                   } else {
                                     dataTable.row($inventoryRow).remove();
                                     dataTable.draw();
@@ -323,7 +325,7 @@
                                   }
                                 },
                                 error: function(response, status) {
-                                  $("#message-alert").addClass("alert-danger").show().children('span').html('There was an error removing the item: ' + response);
+                                  showErrorMessage('There was an error removing the item: ' + response);
                                 }
                             });
                         }
@@ -406,12 +408,13 @@
                           $modals.on('hidden.bs.modal', function (e) {
                             location.href = '?guest_id={{ guest.id }}';
                           });
-                          $modals.modal('hide');
+                          var modal = bootstrap.Modal.getOrCreateInstance($modals)
+                          modal.hide();
                         } else {
-                          $("#message-alert").addClass("alert-danger").show().children('span').html('', response['error'], {timeOut: 5000});
+                          showErrorMessage('', response['error'], {timeOut: 5000});
                         }
                       } catch(ex) {
-                        $("#message-alert").addClass("alert-danger").show().children('span').html('', 'There was an error saving the form: ' + responseText.substring(0, 1024), {timeOut: 5000});
+                        showErrorMessage('', 'There was an error saving the form: ' + responseText.substring(0, 1024), {timeOut: 5000});
                       }
                     }
                   } finally {

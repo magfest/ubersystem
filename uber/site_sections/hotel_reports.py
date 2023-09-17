@@ -550,7 +550,7 @@ class Root:
                 a.hotel_pin = new_hotel_pin
             session.commit()
 
-        headers = ['First Name', 'Last Name', 'E-mail Address', 'LoginID']
+        headers = ['First Name', 'Last Name', 'Email Address', 'LoginID']
         for count in range(2, 21):
             headers.append('LoginID{}'.format(count))
 

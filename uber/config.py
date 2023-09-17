@@ -5,6 +5,7 @@ import inspect
 import os
 import pytz
 import re
+import redis
 import uuid
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, time, timedelta
@@ -296,7 +297,7 @@ class Config(_Overridable):
                     Attendee.paid == self.REFUNDED)
                 ).filter(Attendee.badge_status == self.COMPLETED_STATUS).count()
 
-                group_badges = attendees.join(Attendee.group).filter(
+                group_badges = attendees.filter(
                     Attendee.paid == self.PAID_BY_GROUP,
                     Group.amount_paid > 0).count()
 
@@ -358,6 +359,29 @@ class Config(_Overridable):
             for badge_type, desc in self.AT_THE_DOOR_BADGE_OPTS
             if self.BADGES[badge_type] in c.DAYS_OF_WEEK
         }
+    
+    @property
+    def FORMATTED_BADGE_TYPES(self):
+        badge_types = [{
+            'name': 'Attendee',
+            'desc': 'Allows access to the convention for its duration.',
+            'value': c.ATTENDEE_BADGE,
+            'price': c.get_attendee_price()
+            }]
+        for badge_type in c.BADGE_TYPE_PRICES:
+            badge_types.append({
+                'name': c.BADGES[badge_type],
+                'desc': 'Donate extra to get an upgraded badge with perks.',
+                'value': badge_type,
+                'price': c.BADGE_TYPE_PRICES[badge_type]
+            })
+        return badge_types
+    
+    @request_cached_property
+    @dynamic
+    def SOLD_OUT_BADGE_TYPES(self):
+        # Override in event plugin based on your specific badge types
+        return []
 
     @property
     def kickin_availability_matrix(self):
@@ -532,7 +556,7 @@ class Config(_Overridable):
     
     @property
     def NOW_OR_AT_CON(self):
-        return c.EPOCH.date() if date.today().date() <= c.EPOCH.date() else uber.utils.localized_now().date()
+        return c.EPOCH.date() if date.today() <= c.EPOCH.date() else uber.utils.localized_now().date()
 
     @property
     def AT_OR_POST_CON(self):
@@ -657,7 +681,8 @@ class Config(_Overridable):
         from uber.models import Session, Attendee
         with Session() as session:
             count = session.query(Attendee).filter_by(amount_extra=kickin_level).filter(
-                    ~Attendee.badge_status.in_([c.INVALID_STATUS, c.IMPORTED_STATUS, c.REFUNDED_STATUS])).count()
+                    ~Attendee.badge_status.in_([c.INVALID_GROUP_STATUS, c.INVALID_STATUS, 
+                                                c.IMPORTED_STATUS, c.REFUNDED_STATUS])).count()
         return count
 
     @request_cached_property
@@ -962,6 +987,10 @@ def _unrepr(d):
 
 _unrepr(_config['appconf'])
 c.APPCONF = _config['appconf'].dict()
+c.SENTRY = _config['sentry'].dict()
+c.REDISCONF = _config['redis'].dict()
+
+c.REDIS_STORE = redis.Redis(host=c.REDISCONF['host'], port=c.REDISCONF['port'], db=c.REDISCONF['db'], decode_responses=True)
 
 c.BADGE_PRICES = _config['badge_prices']
 for _opt, _val in chain(_config.items(), c.BADGE_PRICES.items()):
@@ -995,13 +1024,13 @@ c.PRICE_LIMITS = {}
 for _opt, _val in c.BADGE_PRICES['attendee'].items():
     try:
         if ' ' in _opt:
-            date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d %H%M'))
+            price_date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d %H%M'))
         else:
-            date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))
+            price_date = c.EVENT_TIMEZONE.localize(datetime.strptime(_opt, '%Y-%m-%d'))
     except ValueError:
         c.PRICE_LIMITS[int(_opt)] = _val
     else:
-        c.PRICE_BUMPS[date] = _val
+        c.PRICE_BUMPS[price_date] = _val
 c.ORDERED_PRICE_LIMITS = sorted([val for key, val in c.PRICE_LIMITS.items()])
 
 
@@ -1182,6 +1211,10 @@ if not c.AUTHORIZENET_LOGIN_ID:
 # appends '../static/foo.js' to this list, that adds <script src="../static/foo.js"></script> to
 # all of the pages on the site except for preregistration pages (for performance)
 c.JAVASCRIPT_INCLUDES = []
+
+# If receiving static content from a CDN, define a dictionary of strings where the key is the
+# relative URL of the resource (e.g., theme/prereg.css) and the value is the hash for that resource
+c.STATIC_HASH_LIST = {}
 
 
 dealer_status_label_lookup = {val: key for key, val in c.DEALER_STATUS_OPTS}
@@ -1397,3 +1430,7 @@ if c.SAML_SP_SETTINGS["privateKey"]:
         }
     c.SAML_SETTINGS["idp"] = c.SAML_IDP_SETTINGS
     c.SAML_SETTINGS["sp"] = sp_settings
+    if c.DEV_BOX:
+        c.SAML_SETTINGS["debug"] = True
+    else:
+        c.SAML_SETTINGS["strict"] = True

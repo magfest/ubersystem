@@ -1,7 +1,7 @@
 """Add last email send time for signed documents.
 
 Revision ID: 551b8ff65d33
-Revises: ed2acba6f8bd
+Revises: 517103c57a08
 Create Date: 2023-07-23 01:50:10.008953
 
 """
@@ -9,7 +9,7 @@ Create Date: 2023-07-23 01:50:10.008953
 
 # revision identifiers, used by Alembic.
 revision = '551b8ff65d33'
-down_revision = 'ed2acba6f8bd'
+down_revision = '517103c57a08'
 branch_labels = None
 depends_on = None
 

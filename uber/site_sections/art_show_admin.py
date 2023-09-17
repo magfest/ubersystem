@@ -39,7 +39,7 @@ class Root:
         app_paid = 0 if new_app else app.amount_paid
 
         attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
-            .filter(Attendee.first_name != '', Attendee.badge_status not in [c.INVALID_STATUS, c.WATCHED_STATUS])
+            .filter(Attendee.first_name != '', Attendee.is_valid == True, Attendee.badge_status != c.WATCHED_STATUS)
 
         attendees = [
             (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))

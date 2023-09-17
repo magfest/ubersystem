@@ -973,7 +973,8 @@ class Session(SessionManager):
             return self.query(AttendeeAccount).filter_by(email=normalize_email(email)).one()
 
         def get_admin_account_by_email(self, email):
-            return self.query(AdminAccount).join(Attendee).filter(Attendee.email == normalize_email(email)).one()
+            from uber.utils import normalize_email_legacy
+            return self.query(AdminAccount).join(Attendee).filter(Attendee.normalized_email == normalize_email_legacy(email)).one()
 
         def no_email(self, subject):
             return not self.query(Email).filter_by(subject=subject).all()
@@ -985,7 +986,7 @@ class Session(SessionManager):
                 zip_code=zip_code
             ).filter(
                 Attendee.normalized_email == normalize_email(email),
-                Attendee.badge_status != c.INVALID_STATUS
+                Attendee.is_valid == True
             ).limit(10).all()
 
             if attendees:
@@ -993,7 +994,10 @@ class Session(SessionManager):
                     c.COMPLETED_STATUS: 0,
                     c.NEW_STATUS: 1,
                     c.REFUNDED_STATUS: 2,
-                    c.DEFERRED_STATUS: 3})
+                    c.DEFERRED_STATUS: 3,
+                    c.WATCHED_STATUS: 4,
+                    c.UNAPPROVED_DEALER_STATUS: 5,
+                    c.NOT_ATTENDING: 6})
 
                 attendees = sorted(
                     attendees, key=lambda a: statuses[a.badge_status])
@@ -1015,7 +1019,7 @@ class Session(SessionManager):
                             'The confirmation number you entered is not valid, ' \
                             'or there is no matching badge.'
 
-                if attendee.badge_status in [c.INVALID_STATUS, c.WATCHED_STATUS]:
+                if not attendee.is_valid:
                     return None, \
                            'This badge is invalid. Please contact registration.'
             else:
@@ -1053,7 +1057,7 @@ class Session(SessionManager):
             self.add(new_account)
             return new_account
 
-        def create_attendee_account(self, email=None, normalized_email=None, password=None, match_existing_attendees=False):
+        def create_attendee_account(self, email=None, normalized_email=None, password=None):
             from uber.models import Attendee, AttendeeAccount
             from uber.utils import normalize_email_legacy
 
@@ -1063,10 +1067,6 @@ class Session(SessionManager):
             new_account = AttendeeAccount(email=normalized_email, hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
             self.add(new_account)
 
-            if match_existing_attendees:
-                matching_attendees = self.query(Attendee).filter_by(normalized_email=normalize_email_legacy(email))
-                for attendee in matching_attendees:
-                    self.add_attendee_to_account(attendee, new_account)
             return new_account
 
         def add_attendee_to_account(self, attendee, account):
@@ -1870,7 +1870,7 @@ class Session(SessionManager):
                 placeholder=True,
                 first_name='Test',
                 last_name='Developer',
-                email='magfest@example.com',
+                email=c.TEST_ADMIN_EMAIL,
                 badge_type=c.ATTENDEE_BADGE,
             )
             self.add(attendee)
@@ -1882,8 +1882,11 @@ class Session(SessionManager):
 
             test_developer_account = AdminAccount(
                 attendee=attendee,
-                hashed=bcrypt.hashpw('magfest', bcrypt.gensalt())
             )
+
+            if not c.SAML_SETTINGS:
+                test_developer_account.hashed = bcrypt.hashpw('magfest', bcrypt.gensalt())
+            
             test_developer_account.access_groups.append(all_access_group)
 
             self.add(all_access_group)
@@ -2139,7 +2142,7 @@ def _attendee_validity_check():
         allow_invalid = kwargs.pop('allow_invalid', False)
         attendee = orig_getter(self, *args, **kwargs)
         if not allow_invalid and not attendee.is_new and \
-           not self.current_admin_account and not attendee.badge_status == c.INVALID_STATUS:
+           not self.current_admin_account and not attendee.is_valid:
             raise HTTPRedirect('../preregistration/invalid_badge?id={}', attendee.id)
         else:
             return attendee

@@ -32,9 +32,9 @@
             dataType: 'json',
             data: $shiftsForm.serialize(),
             success: function(result) {
-                $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+                hideMessageBox();
                 if (result && result.error) {
-                  $("#message-alert").addClass("alert-danger").show().children('span').html(result.error);
+                  showErrorMessage(result.error);
                 } else if (result && result.departments) {
                   $targetUrl.html(result.target_url || '&nbsp;');
                   $fromDepartment.find('option').remove();
@@ -46,11 +46,11 @@
                   $('#hidden_api').val($("form[action='import_shifts'] input[name='api_token']").val());
                   $departmentsBlock.show();
                 } else {
-                  $("#message-alert").addClass("alert-danger").show().children('span').html('Did not find any results.');
+                  showErrorMessage('Did not find any results.');
                 }
             },
             error: function() {
-                $("#message-alert").addClass("alert-danger").show().children('span').html('Unable to connect to server, please try again.');
+                showErrorMessage('Unable to connect to server, please try again.');
             }
         });
     });

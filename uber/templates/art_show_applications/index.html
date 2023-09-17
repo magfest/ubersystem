@@ -14,9 +14,8 @@
         $.field('new_badge').on('click', showOrHideNewBadge);
     });
 </script>
-<div class="masthead"></div>
-<div class="card">
-  <div class="card-body">
+<div class="panel">
+  <div class="panel-body">
     <h2>{{ c.EVENT_NAME }} Art Show Application</h2>
     {% if c.AFTER_ART_SHOW_DEADLINE and not c.HAS_ART_SHOW_ACCESS %}
     Unfortunately, the deadline for art show applications has passed and we are no longer accepting applications.

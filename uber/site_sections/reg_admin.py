@@ -16,7 +16,7 @@ from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, s
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, Group, ModelReceipt, ReceiptItem, ReceiptTransaction, Tracking
 from uber.site_sections import devtools
-from uber.utils import check, get_api_service_from_server, normalize_email, valid_email, TaskUtils
+from uber.utils import check, get_api_service_from_server, normalize_email, normalize_email_legacy, valid_email, TaskUtils
 from uber.payments import ReceiptManager, TransactionRequest
 
 def check_custom_receipt_item_txn(params, is_txn=False):
@@ -385,13 +385,13 @@ class Root:
     def process_full_refund(self, session, id='', attendee_id='', group_id=''):
         receipt = session.model_receipt(id)
         refund_total = 0
-        for txn in receipt.receipt_txns:
+        for txn in receipt.refundable_txns:
             refund = TransactionRequest(receipt, amount=txn.amount_left)
             error = refund.refund_or_skip(txn)
             if error:
                 raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', attendee_id or group_id, error)
             session.add_all(refund.get_receipt_items_to_add())
-            total_refunded += refund.amount
+            refund_total += refund.amount
 
         receipt.closed = datetime.now()
         session.add(receipt)
@@ -625,7 +625,11 @@ class Root:
                     href_base = '{}/registration/form?id={}'
                 elif which_import == 'groups':
                     if params.get('dealers', ''):
-                        results = service.group.dealers(status=params.get('status', None))
+                        status = c.DEALER_STATUS.get(int(params.get('dealer_status', 0)), None)
+                        if not status:
+                            message = "Invalid group status."
+                        else:
+                            results = service.group.dealers(status=status)
                     else:
                         results = service.group.export(query=query)
                     results_name = 'groups'
@@ -644,7 +648,7 @@ class Root:
                 attendees_by_name_email = groupify(attendees, lambda a: (
                     a['first_name'].lower(),
                     a['last_name'].lower(),
-                    normalize_email(a['email']),
+                    normalize_email_legacy(a['email']),
                 ))
 
                 filters = [

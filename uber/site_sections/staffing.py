@@ -264,7 +264,7 @@ class Root:
 
     @public
     def login(self, session, message='',  first_name='', last_name='', email='', zip_code='', original_location=None):
-        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='index')
+        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='/staffing/index')
 
         if first_name or last_name or email or zip_code:
             try:

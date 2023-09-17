@@ -11,6 +11,9 @@ class MultiCheckbox():
         field_id = kwargs.pop('id', field.id)
         html = ['<div {}>'.format(html_params(class_=div_class))]
         html.append('<fieldset {}>'.format(html_params(id=field_id)))
+        html.append('<legend class="form-text mt-0"><span class="form-label">{}</span>{}</legend>'.format(field.label.text,
+                                                                          Markup(' <span class="required-indicator text-danger">*</span>')
+                                                                          if field.flags.required else ''))
         for value, label, checked in field.iter_choices():
             choice_id = '{}-{}'.format(field_id, value)
             options = dict(kwargs, name=field.name, value=value, id=choice_id)
@@ -36,6 +39,8 @@ class IntSelect():
     def __call__(self, field, choices, **kwargs):
         field_id = kwargs.pop('id', field.id)
         options = dict(kwargs, id=field_id, name=field.name)
+        if 'readonly' in options:
+            options['disabled'] = True
         html = ['<select class="form-select" {}>'.format(html_params(**options))]
         for value, label in choices:
             choice_id = '{}-{}'.format(field_id, value)
@@ -88,7 +93,9 @@ class CountrySelect(Select):
         options = dict(kwargs, value=value)
         if c.COUNTRY_ALT_SPELLINGS.get(value):
             options["data-alternative-spellings"] = c.COUNTRY_ALT_SPELLINGS[value]
-            if value in ['Australia', 'Canada', 'United States', 'United Kingdom']:
+            if value == 'United States':
+                options["data-relevancy-booster"] = 3
+            elif value in ['Australia', 'Canada', 'United Kingdom']:
                 options["data-relevancy-booster"] = 2
         if selected:
             options["selected"] = True

@@ -22,6 +22,7 @@ from uuid import uuid4
 import cherrypy
 import phonenumbers
 import stripe
+from authorizenet import apicontractsv1, apicontrollers
 from phonenumbers import PhoneNumberFormat
 from pockets import cached_property, classproperty, floor_datetime, is_listy, listify
 from pockets.autolog import log
@@ -29,7 +30,7 @@ from sideboard.lib import threadlocal
 
 import uber
 from uber.config import c, _config, signnow_sdk
-from uber.custom_tags import format_currency
+from uber.custom_tags import format_currency, email_only
 from uber.errors import CSRFException, HTTPRedirect
 from uber.utils import report_critical_exception
 
@@ -44,15 +45,17 @@ class MockStripeIntent(dict):
     case anything goes wrong. This class lets us use Stripe's workflow in our page handlers with 
     minimal disruptions.
     """
-    def __init__(self, amount, description, receipt_email=''):
+    def __init__(self, amount, description, receipt_email='', customer_id=''):
         self.id = str(uuid4()).replace('-', '')[:20]
         self.amount = amount
         self.description = description
         self.receipt_email = receipt_email
+        self.customer_id = customer_id
         self.charges = None
 
         # And now for the serializable info!
-        dict.__init__(self, id=self.id, amount=amount, description=description, receipt_email=receipt_email, charges=self.charges)
+        dict.__init__(self, id=self.id, amount=amount, description=description, receipt_email=receipt_email,
+                      customer_id = customer_id, charges=self.charges)
 
 
 class PreregCart:
@@ -141,13 +144,14 @@ class PreregCart:
                     d[key] = params.get(key)
             return d
         elif isinstance(m, Group):
-            return m.to_dict(
+            d = m.to_dict(
                 Group.to_dict_default_attrs
                 + ['attendees']
                 + list(Group._extra_apply_attrs_restricted))
             for key in params:
                 if params.get(key):
                     d[key] = params.get(key)
+            return d
         else:
             raise AssertionError('{} is not an attendee or group'.format(m))
 
@@ -167,7 +171,10 @@ class PreregCart:
     @classmethod
     def from_sessionized_group(cls, d):
         d = dict(d, attendees=[cls.from_sessionized_attendee(a) for a in d.get('attendees', [])])
-        return uber.models.Group(_defer_defaults_=True, **d)
+        badge_count = d.pop('badge_count', 0)
+        g = uber.models.Group(_defer_defaults_=True, **d)
+        g.badge_count = d['badge_count'] = badge_count
+        return g
 
     @classmethod
     def from_sessionized_attendee(cls, d):
@@ -196,9 +203,18 @@ class PreregCart:
                 names.append("{} plus {} badges ({})".format(getattr(m, 'full_name', None), int(m.badges) - 1, m.name))
             else:
                 group_name = getattr(m, 'name', None)
-                names.append(group_name or getattr(m, 'full_name', None))
+                attendee_name = getattr(m, 'full_name', None)
+                badge_name = getattr(m, 'badge_printed_name', None)
+                if attendee_name and badge_name:
+                    attendee_name = attendee_name + f" ({badge_name})"
+                names.append(group_name or attendee_name)
 
         return ', '.join(names)
+
+    @cached_property
+    def receipt_email(self):
+        email = self.models[0].email if self.models and self.models[0].email else ''
+        return email[0] if isinstance(email, list) else email 
 
     @cached_property
     def targets(self):
@@ -257,20 +273,23 @@ class PreregCart:
     
 
 class TransactionRequest:
-    def __init__(self, receipt=None, receipt_email='', description='', amount=0):
+    def __init__(self, receipt=None, receipt_email='', description='', amount=0, customer_id=None):
         self.amount = int(amount)
         self.receipt_email = receipt_email
         self.description = description
+        self.customer_id = customer_id
         self.intent, self.response, self.receipt_manager = None, None, None
+        self.tracking_id = str(uuid4())
+
+        log.debug(f"Transaction {self.tracking_id} started with {amount} amount, {receipt_email} receipt email, {description} description, and {customer_id} customer ID.")
 
         if receipt:
+            log.debug(f"Transaction {self.tracking_id} initialized with receipt id {receipt.id}, which has {receipt.current_amount_owed} balance due.")
             self.receipt_manager = ReceiptManager(receipt)
             if not self.amount:
                 self.amount = receipt.current_amount_owed
 
         if c.AUTHORIZENET_LOGIN_ID:
-            from authorizenet import apicontractsv1
-
             self.merchant_auth = apicontractsv1.merchantAuthenticationType(
                 name=c.AUTHORIZENET_LOGIN_ID,
                 transactionKey=c.AUTHORIZENET_LOGIN_KEY
@@ -312,40 +331,32 @@ class TransactionRequest:
         try:
             self.intent = self.stripe_or_authnet_intent()
         except Exception as e:
-            error_txt = 'Got an error while creating a Stripe intent'
+            error_txt = 'Got an error while creating a Stripe intent for transaction {self.tracking_id}'
             report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
             return 'An unexpected problem occurred while setting up payment: ' + str(e)
         
     def stripe_or_authnet_intent(self):
+        if not self.customer_id:
+            self.get_or_create_customer()
+
         if c.AUTHORIZENET_LOGIN_ID:
             return MockStripeIntent(
                 amount=self.amount,
                 description=self.description,
-                receipt_email=self.receipt_email
+                receipt_email=self.receipt_email,
+                customer_id=self.customer_id
             )
         else:
-            log.debug('Creating Stripe Intent to charge {} cents for {}', self.amount, self.description)
-            customer = None
-            if self.receipt_email:
-                customer_list = stripe.Customer.list(
-                    email=self.receipt_email,
-                    limit=1,
-                )
-                if customer_list:
-                    customer = customer_list.data[0]
-                else:
-                    customer = stripe.Customer.create(
-                        description=self.receipt_email,
-                        email=self.receipt_email,
-                    )
+            log.debug('Transaction {self.tracking_id}: creating Stripe Intent to charge {} cents for {}',
+                      self.amount, self.description)
 
             return stripe.PaymentIntent.create(
                 payment_method_types=['card'],
                 amount=self.amount,
                 currency='usd',
                 description=self.description,
-                receipt_email=customer.email if self.receipt_email else None,
-                customer=customer.id if customer else None,
+                receipt_email=self.receipt_email,
+                customer=self.customer_id,
             )
         
     def stripe_or_authnet_refund(self, txn, amount):
@@ -356,19 +367,22 @@ class TransactionRequest:
                 return error
 
             if self.response.transactionStatus == "capturedPendingSettlement":
+                if amount != int(self.response.authAmount * 100):
+                    return "This transaction cannot be partially refunded until it's settled."
                 error = self.send_authorizenet_txn(txn_type=c.VOID, txn_id=txn.charge_id)
             elif self.response.transactionStatus != "settledSuccessfully":
-                return "This transaction cannot be refunded because of invalid status: {}".format(self.response.transactionStatus)
+                return "This transaction cannot be refunded because of an invalid status: {}.".format(self.response.transactionStatus)
             else:
                 if parse(str(self.response.submitTimeUTC)).replace(tzinfo=pytz.UTC) < datetime.now(pytz.UTC) - timedelta(days=180):
                     return "This transaction is more than 180 days old and cannot be refunded automatically."
 
                 if self.response.settleAmount * 100 < self.amount:
-                    return "This transaction was only for {} so it cannot be refunded {}".format(
+                    return "This transaction was only for {} so it cannot be refunded {}.".format(
                         format_currency(self.response.settleAmount),
                         format_currency(self.amount / 100))
                 cc_num = str(self.response.payment.creditCard.cardNumber)[-4:]
-                error = self.send_authorizenet_txn(txn_type=c.REFUND, amount=amount, cc_num=cc_num, txn_id=txn.charge_id)
+                zip = str(self.response.billTo.zip)
+                error = self.send_authorizenet_txn(txn_type=c.REFUND, amount=amount, cc_num=cc_num, zip=zip, txn_id=txn.charge_id)
             if error:
                 return 'An unexpected problem occurred: ' + str(error)
         else:
@@ -456,7 +470,7 @@ class TransactionRequest:
         
         self.receipt_manager.create_refund_transaction(txn.receipt,
                                                        "Automatic refund of transaction " + txn.stripe_id,
-                                                       self.response_id,
+                                                       str(self.response_id),
                                                        self.amount)
         self.receipt_manager.update_transaction_refund(txn, self.amount)
 
@@ -476,10 +490,132 @@ class TransactionRequest:
         
         if message:
             return message
+        
+    def get_or_create_customer(self, customer_id=''):
+        if not self.receipt_email:
+            return
+        
+        if c.AUTHORIZENET_LOGIN_ID:
+            log.debug(f"Transaction {self.tracking_id} getting or creating a customer with ID {customer_id} and email {self.receipt_email}")
+            getCustomerRequest = apicontractsv1.getCustomerProfileRequest()
+            getCustomerRequest.merchantAuthentication = self.merchant_auth
+            if customer_id:
+                getCustomerRequest.customerProfileId = customer_id
+            else:
+                getCustomerRequest.email = self.receipt_email
+            getCustomerRequestController = apicontrollers.getCustomerProfileController(getCustomerRequest)
+            getCustomerRequestController.setenvironment(c.AUTHORIZENET_ENDPOINT)
+            getCustomerRequestController.execute()
+        
+            response = getCustomerRequestController.getresponse()
+            if response is not None:
+                if response.messages.resultCode == "Ok" and hasattr(response, 'profile') == True:
+                    self.customer_id = str(response.profile.customerProfileId)
+                    log.debug(f"Transaction {self.tracking_id} retrieved customer {self.customer_id}")
+                    if hasattr(response.profile, 'paymentProfiles') == True:
+                        for paymentProfile in response.profile.paymentProfiles:
+                            log.debug(f"Transaction {self.tracking_id} deleting payment profile ID {str(paymentProfile.customerPaymentProfileId)} from customer {self.customer_id}")
+                            self.delete_authorizenet_payment_profile(str(paymentProfile.customerPaymentProfileId))
+                elif response.messages.message.code == 'E00040':
+                    log.debug(f"Transaction {self.tracking_id} did not find customer, creating a new one...")
+                    createCustomerRequest = apicontractsv1.createCustomerProfileRequest()
+                    createCustomerRequest.merchantAuthentication = self.merchant_auth
+                    createCustomerRequest.profile = apicontractsv1.customerProfileType(email=self.receipt_email)
+
+                    createCustomerRequestController = apicontrollers.createCustomerProfileController(createCustomerRequest)
+                    createCustomerRequestController.setenvironment(c.AUTHORIZENET_ENDPOINT)
+                    createCustomerRequestController.execute()
+
+                    response = createCustomerRequestController.getresponse()
+
+                    if response and (response.messages.resultCode=="Ok"):
+                        self.customer_id = str(response.customerProfileId)
+                    elif not response:
+                        log.error(f"Transaction {self.tracking_id} failed to create customer profile. No response received.")
+                    else:
+                        log.error(f"Transaction {self.tracking_id} failed to create customer profile. {str(response.messages.message[0]['code'].text)}: {str(response.messages.message[0]['text'].text)}")
+                else:
+                    log.error(f"Transaction {self.tracking_id} failed to retrieve customer profile. {str(response.messages.message[0]['code'].text)}: {str(response.messages.message[0]['text'].text)}")
+            else:
+                log.error(f"Failed to retrieve customer profile for AuthNet: no response received.")
+            return
+        
+
+        if self.receipt_email:
+            customer_list = stripe.Customer.list(
+                email=self.receipt_email,
+                limit=1,
+            )
+            if customer_list:
+                customer = customer_list.data[0]
+            else:
+                customer = stripe.Customer.create(
+                    description=self.receipt_email,
+                    email=self.receipt_email,
+                )
+            self.customer_id = customer.id if customer else None
+
+    def create_authorizenet_payment_profile(self, paymentInfo, first_name='', last_name=''):
+        # There seems to be no way to directly associate customer profiles with transactions
+        # Instead we need to create "payment profile", fill it with the token, use the
+        # payment profile as payment
+        #
+        # I love technology
+
+        log.debug(f"Transaction {self.tracking_id} creating a payment profile for customer {self.customer_id}")
+
+        profile = apicontractsv1.customerPaymentProfileType()
+        profile.payment = paymentInfo
+
+        if first_name:
+            billTo = apicontractsv1.customerAddressType()
+            billTo.firstName = first_name
+            billTo.lastName = last_name
+            profile.billTo = billTo
+
+        createCustomerPaymentRequest = apicontractsv1.createCustomerPaymentProfileRequest()
+        createCustomerPaymentRequest.merchantAuthentication = self.merchant_auth
+        createCustomerPaymentRequest.paymentProfile = profile
+        createCustomerPaymentRequest.customerProfileId = self.customer_id
+
+        createCustomerPaymentController = apicontrollers.createCustomerPaymentProfileController(createCustomerPaymentRequest)
+        createCustomerPaymentController.setenvironment(c.AUTHORIZENET_ENDPOINT)
+        createCustomerPaymentController.execute()
+
+        response = createCustomerPaymentController.getresponse()
+        if (response.messages.resultCode=="Ok"):
+            profileToCharge = apicontractsv1.customerProfilePaymentType()
+            profileToCharge.customerProfileId = self.customer_id
+            profileToCharge.paymentProfile = apicontractsv1.paymentProfile()
+            profileToCharge.paymentProfile.paymentProfileId = str(response.customerPaymentProfileId)
+
+            log.debug(f"Transaction {self.tracking_id} successfully created a payment profile (ID {str(response.customerPaymentProfileId)}) for customer {self.customer_id}")
+
+            return profileToCharge
+        else:
+            log.error(f"Transaction {self.tracking_id} failed to create customer payment profile: {response.messages.message[0]['text'].text}")
+    
+    def delete_authorizenet_payment_profile(self, payment_profile_id):
+        if not self.customer_id:
+            return
+
+        deleteCustomerPaymentProfile = apicontractsv1.deleteCustomerPaymentProfileRequest()
+        deleteCustomerPaymentProfile.merchantAuthentication = self.merchant_auth
+        deleteCustomerPaymentProfile.customerProfileId = self.customer_id
+        deleteCustomerPaymentProfile.customerPaymentProfileId = payment_profile_id
+
+        controller = apicontrollers.deleteCustomerPaymentProfileController(deleteCustomerPaymentProfile)
+        controller.setenvironment(c.AUTHORIZENET_ENDPOINT)
+        controller.execute()
+
+        response = controller.getresponse()
+
+        if (response.messages.resultCode!="Ok"):
+            log.error(f"Failed to delete customer payment profile with customer profile id \
+                      {deleteCustomerPaymentProfile.customerProfileId}: {response.messages.message[0]['text'].text}")
+
 
     def get_authorizenet_txn(self, txn_id):
-        from authorizenet import apicontractsv1, apicontrollers
-
         transaction = apicontractsv1.getTransactionDetailsRequest()
         transaction.merchantAuthentication = self.merchant_auth
         transaction.transId = txn_id
@@ -492,34 +628,26 @@ class TransactionRequest:
         if response is not None:
             if response.messages.resultCode == apicontractsv1.messageTypeEnum.Ok:
                 self.response = response.transaction
+                log.debug(f"Transaction {self.tracking_id} requested and received {txn_id} from AuthNet.")
                 return
-                print('Successfully got transaction details!')
-
-                print('Transaction Id : %s' % response.transaction.transId)
-                print('Transaction Type : %s' % response.transaction.transactionType)
-                print('Transaction Status : %s' % response.transaction.transactionStatus)
-                print('Auth Amount : %.2f' % response.transaction.authAmount)
-                print('Settle Amount : %.2f' % response.transaction.settleAmount)
-                if hasattr(response.transaction, 'tax') == True:
-                    print('Tax : %s' % response.transaction.tax.amount)
-                if hasattr(response.transaction, 'profile'):
-                    print('Customer Profile Id : %s' % response.transaction.profile.customerProfileId)
-
-                if response.messages is not None:
-                    print('Message Code : %s' % response.messages.message[0]['code'].text)
-                    print('Message Text : %s' % response.messages.message[0]['text'].text)
             elif response.messages is not None:
-                return 'Failed to get transaction details. {}: {}'.format(response.messages.message[0]['code'].text,response.messages.message[0]['text'].text)
+                log.error(f"Transaction {self.tracking_id} requested {txn_id} from AuthNet but received an error: \
+                          {response.messages.message[0]['code'].text}: {response.messages.message[0]['text'].text}")
+                return 'Failed to get transaction details from AuthNet. {}: {}'.format(response.messages.message[0]['code'].text,response.messages.message[0]['text'].text)
 
         return response
     
     def send_authorizenet_txn(self, txn_type=c.AUTHCAPTURE, **params):
-        from authorizenet import apicontractsv1, apicontrollers
         from decimal import Decimal
+        payment_profile = None
+        order = None
+
+        params_str = [f"{name}: {params[name]}" for name in params]
+        log.debug(f"Transaction {self.tracking_id} building an AuthNet transaction request, request type '{c.AUTHNET_TXN_TYPES[txn_type]}'. Params: {params_str}")
         
         transaction = apicontractsv1.transactionRequestType()
 
-        if 'token_desc' or 'cc_num' in params:
+        if 'token_desc' in params or 'cc_num' in params:
             paymentInfo = apicontractsv1.paymentType()
 
             if 'token_desc' in params:
@@ -527,18 +655,39 @@ class TransactionRequest:
                 opaqueData.dataDescriptor = params.get("token_desc")
                 opaqueData.dataValue = params.get("token_val")
                 paymentInfo.opaqueData = opaqueData
+
+                if self.description and 'intent_id' in params:
+                    order = apicontractsv1.orderType()
+                    order.invoiceNumber = params.get('intent_id', '')
+                    order.description = self.description
+                    transaction.order = order
+
+                if self.customer_id:
+                    payment_profile = self.create_authorizenet_payment_profile(paymentInfo,
+                                                                               params.get('first_name', ''),
+                                                                               params.get('last_name', ''))
+                    if not payment_profile:
+                        return f"Could not complete payment. Please contact us at {email_only(c.REGDESK_EMAIL)}"
+
             elif 'cc_num' in params:
+                # This is only for refunds, hence the lack of expiration date
                 creditCard = apicontractsv1.creditCardType()
                 creditCard.cardNumber = params.get("cc_num")
                 creditCard.expirationDate = "XXXX"
                 paymentInfo.creditCard = creditCard
+                billTo = apicontractsv1.customerAddressType()
+                billTo.zip = params.get("zip")
+                transaction.billTo = billTo
             
-            transaction.payment = paymentInfo
+            if payment_profile:
+                transaction.profile = payment_profile
+            else:
+                transaction.payment = paymentInfo
 
         if 'txn_id' in params:
             transaction.refTransId = params.get("txn_id")
 
-        if self.description:
+        if self.description and not order:
             order = apicontractsv1.orderType()
             order.description = self.description
             transaction.order = order
@@ -552,7 +701,6 @@ class TransactionRequest:
         transactionRequest.merchantAuthentication = self.merchant_auth
         transactionRequest.transactionRequest = transaction
         
-        # Create the controller and get response
         transactionController = apicontrollers.createTransactionController(transactionRequest)
         transactionController.setenvironment(c.AUTHORIZENET_ENDPOINT)
         transactionController.execute()
@@ -560,30 +708,21 @@ class TransactionRequest:
         response = transactionController.getresponse()
 
         if response is not None:
-        # Check to see if the API request was successfully received and acted upon
             if response.messages.resultCode == "Ok":
-                # Since the API request was successful, look for a transaction response
-                # and parse it to display the results of authorizing the card
                 if hasattr(response.transactionResponse, 'messages') == True:
                     self.response = response.transactionResponse
                     auth_txn_id = str(self.response.transId)
-                    
-                    print ('Successfully created transaction with Transaction ID: %s' % auth_txn_id)
-                    print ('Transaction Response Code: %s' % response.transactionResponse.responseCode)
-                    print ('Message Code: %s' % response.transactionResponse.messages.message[0].code)
-                    print ('Auth Code: %s' % response.transactionResponse.authCode)
-                    print ('Description: %s' % response.transactionResponse.messages.message[0].description)
+
+                    log.debug(f"Transaction {self.tracking_id} request successful. Transaction ID: {auth_txn_id}")
                     
                     if txn_type in [c.AUTHCAPTURE, c.CAPTURE]:
                         ReceiptManager.mark_paid_from_intent_id(params.get('intent_id'), auth_txn_id)
                 else:
-                    report_critical_exception(msg="{} {}".format(
-                        str(response.transactionResponse.errors.error[0].errorCode),
-                        str(response.transactionResponse.errors.error[0].errorText)
-                    ), subject='ERROR: Authorize.net error')
+                    error_code = str(response.transactionResponse.errors.error[0].errorCode)
+                    error_msg = str(response.transactionResponse.errors.error[0].errorText)
+                    log.debug(f"Transaction {self.tracking_id} request did not receive a transaction response! {error_code}: {error_msg}")
 
                     return str(response.transactionResponse.errors.error[0].errorText)
-            # Or, print errors if the API request wasn't successful
             else:
                 if hasattr(response, 'transactionResponse') == True and hasattr(response.transactionResponse, 'errors') == True:
                     error_code = response.transactionResponse.errors.error[0].errorCode
@@ -592,11 +731,11 @@ class TransactionRequest:
                     error_code = response.messages.message[0]['code'].text
                     error_msg = response.messages.message[0]['text'].text
                     
-                report_critical_exception(msg="{} {}".format(str(error_code), str(error_msg)), subject='ERROR: Authorize.net error')
+                log.debug(f"Transaction {self.tracking_id} request failed! {error_code}: {error_msg}")
                     
                 return str(error_msg)
         else:
-            return "No response???"
+            log.error(f"Transaction {self.tracking_id} request to AuthNet failed: no response received.")
         
 
 class ReceiptManager:
@@ -637,13 +776,16 @@ class ReceiptManager:
                                                     ))
 
     def update_transaction_refund(self, txn, refund_amount):
+        from uber.models import Session
+
         txn.refunded += refund_amount
         self.items_to_add.append(txn)
 
-        model = self.get_model_by_receipt(txn.receipt)
-        if isinstance(model, uber.models.Attendee) and model.paid == c.HAS_PAID:
-            model.paid = c.REFUNDED
-            self.items_to_add.append(model)
+        with Session() as session:
+            model = session.get_model_by_receipt(txn.receipt)
+            if isinstance(model, uber.models.Attendee) and model.paid == c.HAS_PAID:
+                model.paid = c.REFUNDED
+                self.items_to_add.append(model)
 
     @classmethod
     def create_new_receipt(cls, model, create_model=False, items=None):
@@ -817,25 +959,49 @@ class ReceiptManager:
 
     @classmethod
     def auto_update_receipt(self, model, receipt, params):
+        from uber.models import Attendee, Group, ReceiptItem, AdminAccount
+        if not receipt:
+            return []
+        
         params = params.copy()
         receipt_items = []
 
-        if params.get('no_override') and params.get('overridden_price') or params.get('overridden_price') == '':
-            params['overridden_price'] = None
-
         model_overridden_price = getattr(model, 'overridden_price', None)
-        model_auto_recalc = getattr(model, 'auto_recalc', True)
         overridden_unset = model_overridden_price and not params.get('overridden_price')
+        model_auto_recalc = getattr(model, 'auto_recalc', True) if isinstance(model, Group) else None
         auto_recalc_unset = not model_auto_recalc and params.get('auto_recalc', None)
 
-        if (model_overridden_price and not overridden_unset) or (not model_auto_recalc and not auto_recalc_unset):
-            return []
+        if overridden_unset or auto_recalc_unset:
+            # Note: we can't use preview models here because the full default cost
+            # relies on non-dict-able properties, like groups' # of badges
+            if overridden_unset:
+                current_cost = model.overridden_price
+                model.overridden_price = None
+                new_cost = model.default_cost
 
-        if params.get('overridden_price'):
+                revert_change = {'overridden_price': model.overridden_price}
+            else:
+                current_cost = model.cost
+                model.auto_recalc = True
+                new_cost = model.default_cost
+
+                revert_change = {'auto_recalc': True, 'cost': model.cost}
+            
+            if new_cost != current_cost:
+                cost_change = new_cost - current_cost
+                receipt_items += [ReceiptItem(receipt_id=receipt.id,
+                                    desc=f"Reverting to default price from custom price of ${current_cost}",
+                                    amount=cost_change * 100,
+                                    count=1,
+                                    who=AdminAccount.admin_name() or 'non-admin',
+                                    revert_change=revert_change,
+                                )]
+
+        if not params.get('no_override') and params.get('overridden_price'):
             receipt_item = self.add_receipt_item_from_param(model, receipt, 'overridden_price', params)
             return [receipt_item] if receipt_item else []
-        
-        if not params.get('auto_recalc', True):
+
+        if not params.get('auto_recalc') and isinstance(model, Group):
             receipt_item = self.add_receipt_item_from_param(model, receipt, 'cost', params)
             return [receipt_item] if receipt_item else []
         else:
@@ -843,8 +1009,7 @@ class ReceiptManager:
         
         if params.get('power_fee', None) != None and c.POWER_PRICES.get(int(params.get('power'), 0), None) == None:
             receipt_item = self.add_receipt_item_from_param(model, receipt, 'power_fee', params)
-            if receipt_item:
-                receipt_items.append(receipt_item)
+            receipt_items += [receipt_item] if receipt_item else []
             params.pop('power')
             params.pop('power_fee')
         
@@ -853,12 +1018,10 @@ class ReceiptManager:
         for param in params:
             if param in credit_changes:
                 receipt_item = self.add_receipt_item_from_param(model, receipt, param, params, 'process_receipt_credit_change')
-                if receipt_item:
-                    receipt_items.append(receipt_item)
+                receipt_items += [receipt_item] if receipt_item else []
             elif param in cost_changes:
                 receipt_item = self.add_receipt_item_from_param(model, receipt, param, params)
-                if receipt_item:
-                    receipt_items.append(receipt_item)
+                receipt_items += [receipt_item] if receipt_item else []
         
         return receipt_items
 

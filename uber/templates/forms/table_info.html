@@ -49,10 +49,10 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     </div>
     {% if group.cost %}
     <div class="col-12 col-sm-3">
-        {{ form_macros.form_input(table_info.amount_paid) }}
+        {{ form_macros.form_input(table_info.amount_paid_repr) }}
     </div>
     <div class="col-12 col-sm-3">
-        {{ form_macros.form_input(table_info.amount_refunded) }}
+        {{ form_macros.form_input(table_info.amount_refunded_repr) }}
     </div>
     {% endif %}
 </div>
@@ -105,17 +105,22 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% block badges_tables %}
 {% if is_prereg_dealer or admin_area %}
     <div class="row g-sm-3">
-        <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.tables, choices=c.ADMIN_TABLE_OPTS if admin_area else c.PREREG_TABLE_OPTS) }}</div>
+        <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.tables, choices=c.ADMIN_TABLE_OPTS if admin_area else c.PREREG_TABLE_OPTS, required=True) }}</div>
         <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.badges,
                                             choices=int_choices(1, max_badges),
                                             extra_field=form_macros.form_input(table_info.can_add) if admin_area else None,
-                                            admin_text="[" ~ group.badges_purchased ~ " badge" ~ group.badges_purchased|pluralize ~ " purchased]" if not group.is_new else "") }}
+                                            admin_text="[" ~ group.badges_purchased ~ " badge" ~ group.badges_purchased|pluralize ~ " purchased]" if not group.is_new else "",
+                                            required=True) }}
             {% if admin_area %}
                 {{ form_macros.form_input(table_info.new_badge_type, admin_text="Only affects newly added badges.") }}
                 {{ form_macros.toggle_fields_js(table_info.badges, [table_info.new_badge_type], off_values=range(table_info.badges.data + 1)|list, closest_hide_selector='.form-floating') }}
             {% endif %}
         </div>
     </div>
+{% else %}
+<div class="row g-sm-3">
+    <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.tables, choices=c.PREREG_TABLE_OPTS, required=True) }}</div>
+</div>
 {% endif %}
 {% endblock %}
 

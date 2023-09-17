@@ -20,7 +20,7 @@
           {% endif %}
         {% endif %}
 
-        {{ attendee_fields.prereg_intro }}
+        {% include 'forms/prereg_intro.html' %}
         {{ attendee_fields.payment_method }}
         {{ attendee_fields.badge_type }}
         {{ attendee_fields.name }}

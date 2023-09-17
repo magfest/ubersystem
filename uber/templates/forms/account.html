@@ -4,8 +4,8 @@
     {% if c.PASSWORD_CONDITIONS %}
         and contain at least 
     {% for entry in c.PASSWORD_CONDITIONS %}
-    {% if not loop.first %}, {% endif %}
-    {% if loop.last %}and {% endif %}
+    {% if not loop.first and c.PASSWORD_CONDITIONS|length > 2 %}, {% elif not loop.first %} {% endif %}
+    {% if loop.last %}and {% if c.PASSWORD_CONDITIONS|length <= 2 %}at least {% endif %}{% endif %}
     one {{ entry.split('_')[0] }}{% if entry.split('_')[1] %} letter{% endif %}{% if entry.split('_')[0] == 'special' %} character [{{ c.PASSWORD_SPECIAL_CHARS }}]{% endif %}
     {% endfor %}.
     {% endif %}

@@ -2,11 +2,11 @@
 <html>
 <head>
     <title>Tabletop Checkins</title>
-    <link rel="stylesheet" href="../static/deps/combined.css" />
-    <link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
-    <script src="../static/deps/combined.js"></script>
+    {{ "deps/combined.css"|serve_static_content }}
+    {{ "styles/styles.css"|serve_static_content }}
+    {{ "deps/combined.js"|serve_static_content }}
     <script src="../angular/magfest.js"></script>
-    <script src="../static/angular-apps/tabletop_checkins/app.js"></script>
+    {{ "angular-apps/tabletop_checkins/app.js"|serve_static_content }}
     <script>
         var GAMES = {{ games|jsonize }};          // Game service checks for this global variable to get preloaded data
         var ATTENDEES = {{ attendees|jsonize }};  // Attendee service checks for this global variable to get preloaded data

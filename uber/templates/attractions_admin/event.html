@@ -56,7 +56,7 @@
           signupId = $button.data('signupId');
       checkinSignup(signupId, function(response) {
         if(response && response['error']) {
-          $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], '', {timeOut: 3000});
         } else {
           var $checkinTd = $button.closest('td'),
               $cancelButton = $checkinTd.closest('tr').find('.controls button'),
@@ -74,7 +74,7 @@
           signupId = $button.data('signupId');
       undoCheckinSignup(signupId, function(response) {
         if(response && response['error']) {
-          $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], '', {timeOut: 3000});
         } else {
           var $checkinTd = $button.closest('td'),
               $cancelButton = $checkinTd.closest('tr').find('.controls button'),
@@ -103,7 +103,7 @@
           if (result) {
             cancelSignup(signupId, function(response) {
               if(response && response['error']) {
-                $("#message-alert").addClass("alert-danger").show().children('span').html(response['error'], '', {timeOut: 3000});
+                showErrorMessage(response['error'], '', {timeOut: 3000});
               } else {
                 var $signupRow = $button.closest('tr');
                 $signupRow.fadeOut(function() {
@@ -192,7 +192,7 @@
       <input type="submit" name="save" class="btn btn-primary" value="Save">
       <div class="btn-group save_another">
         <button type="submit" name="save_another_0" class="btn btn-primary">Save & Add Another</button>
-        <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           <span class="caret"></span>
           <span class="sr-only">Toggle Dropdown</span>
         </button>

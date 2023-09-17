@@ -61,7 +61,7 @@ There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view.
     $('.ajax-link').on('click', function (event) {
         var $link = $(this);
         event.preventDefault();
-        $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
+        hideMessageBox();
         $.ajax({
             method: 'GET',
             url: $link.attr('href'),
@@ -69,7 +69,7 @@ There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view.
                 if (json.success) {
                     $("#message-alert").addClass("alert-success").show().children('span').html(json.message);
                 } else {
-                    $("#message-alert").addClass("alert-danger").show().children('span').html(json.message);
+                    showErrorMessage(json.message);
                 }
                 $link.hide()
                 if (json.queued) {
@@ -85,7 +85,7 @@ There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view.
                 }
             },
             error: function () {
-                $("#message-alert").addClass("alert-danger").show().children('span').html('Unable to connect to server, please try again.');
+                showErrorMessage('Unable to connect to server, please try again.');
             }
         });
     });

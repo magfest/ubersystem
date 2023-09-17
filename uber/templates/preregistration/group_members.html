@@ -1,8 +1,8 @@
-{% extends "preregistration/preregbase.html" %}
+{% extends "./preregistration/preregbase.html" %}
 {% set page_ro = group.status not in c.DEALER_EDITABLE_STATUSES %}
 {% import "forms/group.html" as group_fields with context %}
 {% import 'forms/macros.html' as form_macros with context %}
-{% block title %}Group Members{% endblock %}
+{% set title_text = "Group Members" %}
 {% block content %}
 <script type="text/javascript">
     $().ready(function() {
@@ -63,7 +63,7 @@
     {% if group.is_dealer %}
       {{ group_fields.status }}
       {{ group_fields.signed_document }}
-      <h5>"{{ group.name }}" Information</h5>
+      <h2 class="h5">"{{ group.name }}" Information</h2>
       {{ form_macros.form_validation('group-form', 'validate_dealer' if group.is_dealer else 'validate_group') }}
       <form method="post" action="group_members" class="form-horizontal" role="form">
         <input type="hidden" name="id" value="{{ group.id }}" />
@@ -86,7 +86,7 @@
 
 {% if group.status not in [c.CANCELLED, c.DECLINED] %}
 <hr/>
-<h5> Members of "{{ group.name }}" </h5>
+<h2 class="h5"> Members of "{{ group.name }}" </h2>
 
 {% if group.amount_unpaid and not group.is_dealer %}
     <div style="text-align:center">

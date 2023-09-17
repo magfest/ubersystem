@@ -13,24 +13,29 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 #}
 
 {% block badge_type %}
-{{ badge_extras.badge_type }}
-{% if c.BADGE_TYPE_PRICES %}
-    {% if attendee.badge_type not in c.PREREG_BADGE_TYPES and attendee.badge_type in c.BADGES %}
-        {% set badge_type_opts = [{
-            'name': attendee.badge_type_label,
-            'desc': 'Allows access to the convention for its duration.',
-            'value': attendee.badge_type
-            }] %}
-        {% for opt in c.FORMATTED_BADGE_TYPES %}
-            {% if not loop.first %}{{ badge_type_opts.append(opt)|default("", True) }}{% endif %}
-        {% endfor %}
-    {% else %}
-        {% set badge_type_opts = c.FORMATTED_BADGE_TYPES %}
-    {% endif %}
+{% if not upgrade_modal %}{{ badge_extras.badge_type }}{% endif %}
 
-    <div class="row g-sm-3">
-    {{ form_macros.card_select(badge_extras.badge_type, badge_type_opts) }}
+{% if c.BADGE_TYPE_PRICES and (not receipt or upgrade_modal) %}
+<div class="row g-sm-3">
+{{ form_macros.card_select(badge_extras.upgrade_badge_type if upgrade_modal else badge_extras.badge_type,
+                            attendee.available_badge_type_opts, disabled_opts=c.SOLD_OUT_BADGE_TYPES) }}
+</div>
+{% if upgrade_modal %}
+    <script type="text/javascript">
+        $(function () {
+            $("#upgrade_badge_type").on('change', function() {
+                updateReceiptPreview('badge_type', this.value);
+            })
+        });
+    </script>
+{% endif %}
+{% else %}
+<div class="row g-sm-3">
+    <div class="col-12 col-sm-6">
+        <div class="form-text">{{ badge_extras.badge_type.label.text }}</div>
+        <div class="form-control-plaintext h5">{{ attendee.badge_type_label }}{% if c.MAX_BADGE_TYPE_UPGRADE and attendee.badge_type != c.MAX_BADGE_TYPE_UPGRADE %}{{ macros.upgrade_button('badge-type') }}{% endif %}</div>
     </div>
+</div>
 {% endif %}
 {% endblock %}
 
@@ -38,7 +43,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {{ badge_extras.amount_extra }}
 {% if c.DONATIONS_ENABLED and (prereg_merch_available or attendee.amount_extra) %}
 <div class="row g-sm-3">
-{{ form_macros.card_select(badge_extras.amount_extra, c.FORMATTED_DONATION_DESCRIPTIONS_EXCLUSIVE)}}
+{{ form_macros.card_select(badge_extras.amount_extra, c.FORMATTED_DONATION_DESCRIPTIONS_EXCLUSIVE) }}
 </div>
 {{ form_macros.toggle_fields_js(badge_extras.amount_extra, [badge_extras.shirt], off_values=["0"], toggle_required=True) }}
 {% endif %}
@@ -55,14 +60,14 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% block donation %}
 {% if c.COLLECT_EXTRA_DONATION %}
 <div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.extra_donation, readonly=extra_donation_ro or money_fields_ro or page_ro) }}</div>
+    <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.extra_donation) }}</div>
 
     {% if not admin_area %}
     <div class="col-12 col-sm-6">
         <div class="alert alert-warning" role="alert">
         <strong>This donation <em>is not a kick-in</em> and does not come with merchandise.</strong><br/>
         {{ c.ORGANIZATION_NAME }} is a 501(c)(3) charitable organization, and additional donations may be tax deductible.
-        Your employer may also have a charitable donation matching program. E-mail contact@magfest.org for details.
+        Your employer may also have a charitable donation matching program. Email contact@magfest.org for details.
         </div>
     </div>
     {% endif %}

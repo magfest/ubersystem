@@ -146,8 +146,8 @@ $("form[action='update']").ajaxForm(function(response){
     if(response.success == true) {
       window.location.href = 'index?message=' + response.message;
     } else {
-      $("#message-alert").hide().removeClass().addClass("alert").children("span").html("");
-      $("#message-alert").addClass("alert-danger").show().children('span').html(response.message);
+      hideMessageBox();
+      showErrorMessage(response.message);
     }
 });
 </script>
