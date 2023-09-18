@@ -120,7 +120,7 @@ class Root:
 
         stripe_intent = txn.get_stripe_intent()
 
-        if stripe_intent.charges:
+        if stripe_intent.status == "succeeded":
             return {'error': "This payment has already been finalized!"}
 
         return {'stripe_intent': stripe_intent,

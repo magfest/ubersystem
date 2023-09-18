@@ -359,7 +359,7 @@ class ReceiptTransaction(MagModel):
             return
 
         intent = self.get_stripe_intent()
-        if intent and intent.charges:
+        if intent and intent.status == "succeeded":
             new_charge_id = intent.charges.data[0].id
             ReceiptManager.mark_paid_from_intent_id(self.intent_id, new_charge_id)
             return new_charge_id
