@@ -98,9 +98,9 @@ class Root:
 
         forms = load_forms(params, group, form_list)
         for form_name, form in forms.items():
-            if hasattr(form, 'new_badge_type'):
+            if hasattr(form, 'new_badge_type') and not params.get('new_badge_type'):
                 form['new_badge_type'].data = group.leader.badge_type if group.leader else c.ATTENDEE_BADGE
-            if hasattr(form, 'new_ribbons'):
+            if hasattr(form, 'new_ribbons') and not params.get('new_ribbons'):
                 form['new_ribbons'].data = group.leader.ribbon_ints if group.leader else []
             form.populate_obj(group, is_admin=True)
 
@@ -128,7 +128,7 @@ class Root:
                 new_badge_status = c.PENDING_STATUS if not session.admin_can_create_attendee(test_permissions) else c.NEW_STATUS
                 message = session.assign_badges(
                     group,
-                    group.badges or int(bool(group.leader_first_name)),
+                    group_info_form.badges.data or int(bool(group.leader_first_name)),
                     new_badge_type=group.new_badge_type,
                     new_ribbon_type=group.new_ribbons,
                     badge_status=new_badge_status,
@@ -138,7 +138,7 @@ class Root:
                 session.commit()
                 leader = group.leader = group.attendees[0]
                 leader.placeholder = True
-                leader.badge_typ = group.new_badge_type
+                leader.badge_type = group.new_badge_type
                 leader.ribbon_ints = group.new_ribbons
                 leader_params = {key[7:]: val for key, val in params.items() if key.startswith('leader_')}
                 forms = load_forms(leader_params, leader, ['PersonalInfo'])
