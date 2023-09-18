@@ -79,7 +79,7 @@ def check_prereg_promo_code(session, attendee, codes_in_cart=defaultdict(int)):
     if not promo_code.is_unlimited and (not promo_code.uses_remaining or promo_code.uses_remaining - codes_in_cart[promo_code.code] <= 0):
         universal_code = PreregCart.universal_promo_codes.get(attendee.id)
         if universal_code:
-            message = session.add_promo_code_to_attendee(attendee, universal_code)
+            message = session.add_promo_code_to_attendee(attendee, universal_code, codes_in_cart)
             if message:
                 return "There are no more badges left in the group {} is trying to claim a badge in.".format(attendee.full_name)
             return ""
@@ -679,7 +679,6 @@ class Root:
                     all_errors = validate_model(forms, attendee)
                     if all_errors:
                         # Flatten the errors as we don't have fields on this page
-                        log.debug(all_errors)
                         ' '.join([item for sublist in all_errors.values() for item in sublist])
                 if message:
                     message += f" Please click 'Edit' next to {attendee.full_name}'s registration to fix any issues."
@@ -729,7 +728,6 @@ class Root:
                                                 description=cart.description,
                                                 amount=sum([receipt.current_amount_owed for receipt in receipts]))
                     message = charge.create_stripe_intent()
-                    log.debug(charge.intent)
 
         if message:
             return {'error': message}
