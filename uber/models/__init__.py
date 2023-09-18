@@ -1127,7 +1127,7 @@ class Session(SessionManager):
         def lookup_agent_code(self, code):
             return self.query(ArtShowApplication).filter_by(agent_code=code).all()
 
-        def add_promo_code_to_attendee(self, attendee, code):
+        def add_promo_code_to_attendee(self, attendee, code, used_codes=defaultdict(int)):
             """
             Convenience method for adding a promo code to an attendee.
 
@@ -1142,6 +1142,10 @@ class Session(SessionManager):
                     should be added.
                 code (str): The promo code as typed by an end user, or an
                     empty string to unset the promo code.
+                used_codes (defaultdict(int)): A list of codes already used
+                    but not added to the session, e.g., in PreregCart.
+                    These codes are flattened to the list, as they're only
+                    used here to check for used PromoCodeGroup codes.
 
             Returns:
                 str: Either a failure message or an empty string
@@ -1149,7 +1153,7 @@ class Session(SessionManager):
             """
             code = code.strip() if code else ''
             if code:
-                attendee.promo_code = self.lookup_promo_code(code)
+                attendee.promo_code = self.lookup_promo_code(code, list(used_codes.keys()))
                 if attendee.promo_code:
                     attendee.promo_code_id = attendee.promo_code.id
                     return ''
@@ -1161,7 +1165,7 @@ class Session(SessionManager):
                 attendee.promo_code_id = None
                 return ''
 
-        def lookup_promo_code(self, code):
+        def lookup_promo_code(self, code, used_codes=[]):
             """
             Convenience method for finding a promo code by id or code.
             Accounts for PromoCodeGroups.
@@ -1178,10 +1182,9 @@ class Session(SessionManager):
                 return promo_code
 
             group = self.lookup_promo_or_group_code(code, PromoCodeGroup)
-            if not group:
-                return None
-
-            return group.valid_codes[0] if group.valid_codes else None
+            if group:
+                unused_valid_codes = [code for code in group.valid_codes if code.code not in used_codes]
+                return unused_valid_codes[0] if unused_valid_codes else None
 
         def lookup_promo_or_group_code(self, code, model=PromoCode):
             """
