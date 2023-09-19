@@ -362,6 +362,9 @@ class Root:
         for panel in panel_applications:
             panels[panel.event.start_time][panel.event.location] = panel
 
+        if not panels:
+            raise HTTPRedirect('../accounts/homepage?message={}', "No panels have been scheduled yet!")
+
         curr_time, last_time = min(panels).astimezone(c.EVENT_TIMEZONE), max(panels).astimezone(c.EVENT_TIMEZONE)
         out.writerow(['Panel Starts'] + [c.EVENT_LOCATIONS[room] for room in c.PANEL_ROOMS])
         while curr_time <= last_time:
