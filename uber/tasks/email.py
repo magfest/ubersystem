@@ -1,5 +1,6 @@
 from collections import Mapping
 from datetime import timedelta, datetime
+import pytz
 from time import sleep, time
 import traceback
 
@@ -179,11 +180,11 @@ def send_automated_emails():
                     if automated_email.currently_sending:
                         log.info(automated_email.ident + " is marked as currently sending")
                         if automated_email.last_send_time:
-                            if (datetime.now() - automated_email.last_send_time) < expiration:
+                            if (datetime.now(pytz.UTC) - automated_email.last_send_time) < expiration:
                                 # Looks like another thread is still running and hasn't timed out.
                                 continue
                     automated_email.currently_sending = True
-                    last_send_time = datetime.now()
+                    last_send_time = datetime.now(pytz.UTC)
                     automated_email.last_send_time = last_send_time
                     session.add(automated_email)
                     session.commit()
@@ -203,8 +204,8 @@ def send_automated_emails():
                                     quantity_sent += 1
                                 else:
                                     unapproved_count += 1
-                        if datetime.now() - last_send_time > (expiration / 2):
-                            automated_email.last_send_time = datetime.now()
+                        if datetime.now(pytz.UTC) - last_send_time > (expiration / 2):
+                            automated_email.last_send_time = datetime.now(pytz.UTC)
                             session.add(automated_email)
                             session.commit()
 
