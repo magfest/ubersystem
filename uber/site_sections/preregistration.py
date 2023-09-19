@@ -80,6 +80,7 @@ def check_prereg_promo_code(session, attendee, codes_in_cart=defaultdict(int)):
         universal_code = PreregCart.universal_promo_codes.get(attendee.id)
         if universal_code:
             message = session.add_promo_code_to_attendee(attendee, universal_code, codes_in_cart)
+            session.commit()
             if message:
                 return "There are no more badges left in the group {} is trying to claim a badge in.".format(attendee.full_name)
             return ""
