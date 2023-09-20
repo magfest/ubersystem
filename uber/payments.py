@@ -803,6 +803,7 @@ class ReceiptManager:
             for calculation in i[model.__class__.__name__].values():
                 item = calculation(model)
                 if item:
+                    log.debug(item)
                     try:
                         desc, cost, col_name, count = item
                     except ValueError:

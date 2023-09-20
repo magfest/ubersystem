@@ -519,7 +519,9 @@
         {% endif %}
         {% endblock %}
         {% block header %}{% endblock %}
-        {% block alert %}<div class="alert alert-dismissible" role="alert" id="message-alert"><span></span><button type="button" class="btn-close" onClick="hideMessageBox()" aria-label="Close"></button></div>{% endblock %}
+        {% block alert %}
+        <div class="alert alert-dismissible" role="alert" id="message-alert"><span></span>{% if bootstrap5 %}<button type="button" class="btn-close" onClick="hideMessageBox()" aria-label="Close"></button>{% else %}<button type="button" class="close" onClick="hideMessageBox()" aria-label="Close"><span aria-hidden="true">&times;</span></button>{% endif %}</div>
+        {% endblock %}
         {% block masthead %}{% endblock %}
         {% if title_text %}<h1 class="visually-hidden">{{ title_text }}</h1>{% endif %}
         {% block content %}{% endblock %}
