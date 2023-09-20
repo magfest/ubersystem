@@ -45,7 +45,7 @@
   </li>
 {% endfor %}
 {% for art_show_app in attendee.art_show_applications %}
-  <li class="nav-item" role="presentation">
+  <li class="nav-item{% if 'art_show_applications' in c.PAGE_PATH and not bootstrap5 %} active{% endif %}" role="presentation">
     <a href="../art_show_applications/edit?id={{ art_show_app.id }}" class="nav-link{% if 'art_show_applications' in c.PAGE_PATH %} active{% endif %}">
       <i class="fa fa-picture"></i> Art Show Application{% if art_show_app.display_name != art_show_app.attendee.full_name %} ({{ art_show_app.display_name }}){% endif %}
     </a>

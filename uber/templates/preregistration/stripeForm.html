@@ -30,7 +30,7 @@
 </style>
 {% if c.AUTHORIZENET_LOGIN_ID %}
     <button type="button"
-        class="AcceptUI d-none"
+        class="AcceptUI {% if bootstrap5 %}d-none{% else %}hidden{% endif %}"
         id="authNetPayButton"
         data-billingAddressOptions='{"show":true, "required":true}' 
         data-apiLoginID="{{ c.AUTHORIZENET_LOGIN_ID }}" 

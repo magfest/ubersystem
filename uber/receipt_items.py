@@ -32,19 +32,19 @@ def overridden_app_cost(app):
 
 @cost_calculation.ArtShowApplication
 def panel_cost(app):
-    return ("General Panel", c.COST_PER_PANEL * 100, app.panels, None) if app.panels else None
+    return ("General Panel", c.COST_PER_PANEL * 100, 'panels', app.panels) if app.panels else None
 
 @cost_calculation.ArtShowApplication
 def table_cost(app):
-    return ("General Table", c.COST_PER_TABLE * 100, app.tables, None) if app.tables else None
+    return ("General Table", c.COST_PER_TABLE * 100, 'tables', app.tables) if app.tables else None
 
 @cost_calculation.ArtShowApplication
 def mature_panel_cost(app):
-    return ("Mature Panel", c.COST_PER_PANEL * 100, app.panels_ad, None) if app.panels_ad else None
+    return ("Mature Panel", c.COST_PER_PANEL * 100, 'panels_ad', app.panels_ad) if app.panels_ad else None
 
 @cost_calculation.ArtShowApplication
 def mature_table_cost(app):
-    return ("Mature Table", c.COST_PER_TABLE * 100, app.tables_ad, None) if app.tables_ad else None
+    return ("Mature Table", c.COST_PER_TABLE * 100, 'tables_ad', app.tables_ad) if app.tables_ad else None
 
 @cost_calculation.ArtShowApplication
 def mailing_fee_cost(app):
@@ -151,7 +151,7 @@ def badge_cost(group):
 @cost_calculation.Group
 def set_cost(group):
     if not group.auto_recalc:
-        return ("Custom fee for group {}".format(group.name), group.cost * 100, None)
+        return ("Custom fee for group {}".format(group.name), group.cost * 100, 'cost')
 
 
 @cost_calculation.Attendee

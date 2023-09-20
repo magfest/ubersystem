@@ -78,10 +78,6 @@
       </div>
 
       <div class="new-badge">
-        {% if not logged_in_account %}
-        {% set no_email = True %}
-        {% include 'preregistration/create_account_fields.html' %}
-        {% endif %}
         {% include 'marketplace/new_attendee_fields.html' %}
       </div>
 
