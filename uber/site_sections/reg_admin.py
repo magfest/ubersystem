@@ -65,7 +65,7 @@ def comped_receipt_item(item):
 def assign_account_by_email(session, attendee, account_email):
     from uber.site_sections.preregistration import set_up_new_account
 
-    account = session.query(AttendeeAccount).filter_by(email=normalize_email(account_email)).first()
+    account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(account_email)).first()
     if not account:
         if c.ONE_MANAGER_PER_BADGE and attendee.managers:
             # It's too confusing for an admin to move someone to a new account and still see them on their old account
@@ -513,7 +513,7 @@ class Root:
         if not show_all:
             attendees = attendees.filter_by(is_valid=True, is_unassigned=False)
         if email_contains:
-            attendees = attendees.filter(Attendee.normalized_email.contains(normalize_email(email_contains)))
+            attendees = attendees.filter(Attendee.normalized_email.contains(normalize_email_legacy(email_contains)))
         
         new_account = 0
         assigned = 0
@@ -584,10 +584,10 @@ class Root:
 
         new_email = params.get('new_account_email', '')
         if cherrypy.request.method == 'POST' and new_email:
-            if normalize_email(new_email) == normalize_email(account.email):
+            if normalize_email(normalize_email_legacy(new_email)) == normalize_email(account.normalized_email):
                 message = "That is already the email address for this account!"
             else:
-                existing_account = session.query(AttendeeAccount).filter_by(email=normalize_email(new_email)).first()
+                existing_account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(new_email)).first()
                 if existing_account:
                     message = "That account already exists. You can instead reassign this account's attendees."
                 else:

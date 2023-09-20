@@ -1324,7 +1324,7 @@ class TaskUtils:
                 except Exception as ex:
                     import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
 
-                account = session.query(AttendeeAccount).filter(AttendeeAccount.email == normalize_email(account_to_import['email'])).first()
+                account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email_legacy(account_to_import['email'])).first()
                 if not account:
                     del account_to_import['id']
                     account = AttendeeAccount().apply(account_to_import, restricted=False)
@@ -1416,7 +1416,7 @@ class TaskUtils:
                     import_job.completed = datetime.now()
                     return
 
-            account = session.query(AttendeeAccount).filter(AttendeeAccount.email == normalize_email(account_to_import['email'])).first()
+            account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email_legacy(account_to_import['email'])).first()
             if not account:
                 del account_to_import['id']
                 account = AttendeeAccount().apply(account_to_import, restricted=False)
@@ -1546,7 +1546,7 @@ class TaskUtils:
                     except Exception as ex:
                         import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
 
-                    account = session.query(AttendeeAccount).filter(AttendeeAccount.email == normalize_email(account_to_import['email'])).first()
+                    account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email_legacy(account_to_import['email'])).first()
                     if not account:
                         del account_to_import['id']
                         account = AttendeeAccount().apply(account_to_import, restricted=False)
