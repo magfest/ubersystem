@@ -1923,7 +1923,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def staffer_hotel_eligibility(self):
-        if self.badge_type == c.STAFF_BADGE:
+        if self.badge_type == c.STAFF_BADGE and (self.is_new or self.orig_value_of('badge_type') != c.STAFF_BADGE):
             self.hotel_eligible = True
 
     @presave_adjustment
