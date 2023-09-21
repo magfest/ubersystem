@@ -5,6 +5,7 @@ import cherrypy
 from datetime import datetime
 from decimal import Decimal
 from pockets import groupify
+from pockets.autolog import log
 from six import string_types
 from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import joinedload, raiseload, subqueryload
@@ -49,8 +50,12 @@ def revert_receipt_item(session, item):
         receipt_item = ReceiptManager.process_receipt_upgrade_item(model, col_name, receipt=receipt, new_val=item.revert_change[col_name])
         session.add(receipt_item)
         model.apply(item.revert_change, restricted=False)
+
+    error = check(model)
+    if not error:
+        session.add(model)
     
-    return check(model)
+    return error
 
 
 def comped_receipt_item(item):
@@ -228,7 +233,7 @@ class Root:
             error = refund.refund_or_cancel(item.receipt_txn)
             if error:
                 return {'error': error}
-            message_add = " and refunded."
+            message_add = f" and its transaction {refund.refund_str}."
             session.add_all(refund.get_receipt_items_to_add())
         else:
             message_add = ". Its corresponding transaction was already fully refunded."
@@ -254,8 +259,12 @@ class Root:
             error = refund.refund_or_cancel(item.receipt_txn)
             if error:
                 return {'error': error}
-            message_add = " and refunded."
-            session.add_all(refund.get_receipt_items_to_add())
+            message_add = f" and its transaction {refund.refund_str}."
+            log.debug(session.new)
+            log.debug(session.dirty)
+            items_to_add = refund.get_receipt_items_to_add()
+            log.debug(items_to_add)
+            session.add_all(items_to_add)
         else:
             message_add = ". Its corresponding transaction was already fully refunded."
         
