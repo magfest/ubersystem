@@ -33,7 +33,12 @@
     <strong>Name on Badge:</strong> {{ attendee.badge_printed_name }}
 </div>
 <div class="col-12 col-sm-6">
-    <strong>Purchased:</strong> {{ attendee.registered|full_date_local }}
+    <strong>Purchased:</strong> 
+    {% if attendee.badge_status == c.IMPORTED_STATUS %}
+        Last Year
+    {% else %}
+        {{ attendee.registered|full_date_local }}
+    {% endif %}
 </div>
 {% endset %}
 

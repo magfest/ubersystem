@@ -84,16 +84,6 @@
         {% endif %}
     </div>
 {% endif %}
-{% for attendee in account.imported_attendees %}
-    {% if loop.first %}
-        <h2 class="text-center fst-italic mt-3">Past Registrations</h2>
-        {% if not account.valid_attendees %}<div class="col-10">{% endif %}
-    {% endif %}
-    <div class="card card-body mb-3">
-    {% include "preregistration/attendee_card.html" %}
-    </div>
-    {% if loop.last and not account.valid_attendees %}</div>{% endif %}
-{% endfor %}
 {% if not account.valid_attendees %}
     {% for attendee in account.pending_attendees %}
     {% if loop.first %}
@@ -112,6 +102,16 @@
     {% endif %}
     {% endfor %}
 {% endif %}
+{% for attendee in account.imported_attendees %}
+    {% if loop.first %}
+        <h2 class="text-center fst-italic mt-3">Past Registrations</h2>
+        {% if not account.valid_attendees %}<div class="col-10">{% endif %}
+    {% endif %}
+    <div class="card card-body mb-3">
+    {% include "preregistration/attendee_card.html" %}
+    </div>
+    {% if loop.last and not account.valid_attendees %}</div>{% endif %}
+{% endfor %}
 {% for attendee in account.refunded_deferred_attendees %}
 {% if loop.first %}
 <div class="panel card-danger">
