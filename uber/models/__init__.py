@@ -1059,9 +1059,8 @@ class Session(SessionManager):
 
         def create_attendee_account(self, email=None, normalized_email=None, password=None):
             from uber.models import Attendee, AttendeeAccount
-            from uber.utils import normalize_email_legacy
 
-            new_account = AttendeeAccount(normalized_email=normalize_email_legacy(email), hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
+            new_account = AttendeeAccount(email=email, hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
             self.add(new_account)
 
             return new_account
