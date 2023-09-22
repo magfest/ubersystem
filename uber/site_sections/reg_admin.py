@@ -187,6 +187,7 @@ class Root:
         if isinstance(item_or_txn, ReceiptTransaction):
             for item in item_or_txn.receipt_items:
                 item.closed = None
+                item.txn_id = None
                 session.add(item)
 
         receipt = item_or_txn.receipt
@@ -233,6 +234,12 @@ class Root:
             error = refund.refund_or_cancel(item.receipt_txn)
             if error:
                 return {'error': error}
+            
+            model = session.get_model_by_receipt(item.receipt)
+            if isinstance(model, Attendee) and model.paid == c.HAS_PAID:
+                model.paid = c.REFUNDED
+                session.merge(model)
+
             message_add = f" and its transaction {refund.refund_str}."
             session.add_all(refund.get_receipt_items_to_add())
         else:
@@ -259,12 +266,14 @@ class Root:
             error = refund.refund_or_cancel(item.receipt_txn)
             if error:
                 return {'error': error}
+            
+            model = session.get_model_by_receipt(item.receipt)
+            if isinstance(model, Attendee) and model.paid == c.HAS_PAID:
+                model.paid = c.REFUNDED
+                session.merge(model)
+            
             message_add = f" and its transaction {refund.refund_str}."
-            log.debug(session.new)
-            log.debug(session.dirty)
-            items_to_add = refund.get_receipt_items_to_add()
-            log.debug(items_to_add)
-            session.add_all(items_to_add)
+            session.add_all(refund.get_receipt_items_to_add())
         else:
             message_add = ". Its corresponding transaction was already fully refunded."
         
@@ -276,6 +285,7 @@ class Root:
     @ajax
     def add_receipt_txn(self, session, id='', **params):
         receipt = session.model_receipt(id)
+        model = session.get_model_by_receipt(item.receipt)
 
         message = check_custom_receipt_item_txn(params, is_txn=True)
         if message:
@@ -285,13 +295,17 @@ class Root:
 
         if params.get('txn_type', '') == 'refund':
             amount = amount * -1
+            if isinstance(model, Attendee) and model.paid == c.HAS_PAID:
+                model.paid = c.REFUNDED
+                session.add(model)
 
-        session.add(ReceiptTransaction(receipt_id=receipt.id,
-                                       amount=amount * 100,
-                                       method=params.get('method'),
-                                       desc=params['desc'],
-                                       who=AdminAccount.admin_name() or 'non-admin'
-                                    ))
+        new_txn = ReceiptTransaction(receipt_id=receipt.id,
+                                     amount=amount * 100,
+                                     method=params.get('method'),
+                                     desc=params['desc'],
+                                     who=AdminAccount.admin_name() or 'non-admin'
+                                    )
+        session.add(new_txn)
 
         try:
             session.commit()
@@ -299,10 +313,13 @@ class Root:
             session.rollback()
             return {'error': "Encountered an exception while trying to save transaction."}
 
-        if (receipt.item_total - receipt.txn_total) <= 0:
+        if (receipt.item_total - receipt.txn_total) <= 0 and amount > 0:
             for item in receipt.open_receipt_items:
+                item.txn_id = item.txn_id or new_txn.id
                 item.closed = datetime.now()
                 session.add(item)
+            if isinstance(model, Attendee) and model.paid == c.NOT_PAID:
+                model.paid = c.HAS_PAID
 
             session.commit()
 
@@ -326,6 +343,7 @@ class Root:
         txn.cancelled = datetime.now()
         for item in txn.receipt_items:
             item.closed = None
+            item.txn_id = None
             session.add(item)
         txn.receipt_items = []
         session.commit()
