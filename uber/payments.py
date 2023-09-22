@@ -641,6 +641,7 @@ class TransactionRequest:
     
     def send_authorizenet_txn(self, txn_type=c.AUTHCAPTURE, **params):
         from decimal import Decimal
+
         payment_profile = None
         order = None
 
@@ -695,6 +696,7 @@ class TransactionRequest:
             transaction.order = order
 
         transaction.transactionType = c.AUTHNET_TXN_TYPES[txn_type]
+        transaction.customerIP = cherrypy.request.remote.ip
 
         if self.amount:
             transaction.amount = Decimal(int(self.amount) / 100)

@@ -29,6 +29,7 @@
 }
 </style>
 {% if c.AUTHORIZENET_LOGIN_ID %}
+{% set bootstrap5 = 'preregistration' in c.PAGE_PATH or 'landing' in c.PAGE_PATH or admin_area %}
     <button type="button"
         class="AcceptUI {% if bootstrap5 %}d-none{% else %}hidden{% endif %}"
         id="authNetPayButton"
