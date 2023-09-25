@@ -285,7 +285,7 @@ class Root:
     @ajax
     def add_receipt_txn(self, session, id='', **params):
         receipt = session.model_receipt(id)
-        model = session.get_model_by_receipt(item.receipt)
+        model = session.get_model_by_receipt(receipt)
 
         message = check_custom_receipt_item_txn(params, is_txn=True)
         if message:
