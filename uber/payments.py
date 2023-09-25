@@ -780,16 +780,8 @@ class ReceiptManager:
                                                     ))
 
     def update_transaction_refund(self, txn, refund_amount):
-        from uber.models import Session
-
         txn.refunded += refund_amount
         self.items_to_add.append(txn)
-
-        with Session() as session:
-            model = session.get_model_by_receipt(txn.receipt)
-            if isinstance(model, uber.models.Attendee) and model.paid == c.HAS_PAID:
-                model.paid = c.REFUNDED
-                self.items_to_add.append(model)
 
     @classmethod
     def create_new_receipt(cls, model, create_model=False, items=None):
