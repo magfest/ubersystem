@@ -278,6 +278,7 @@ class TransactionRequest:
         self.receipt_email = receipt_email
         self.description = description
         self.customer_id = customer_id
+        self.refund_str = "refunded" # Set to "voided" when applicable to better inform admins
         self.intent, self.response, self.receipt_manager = None, None, None
         self.tracking_id = str(uuid4())
 
@@ -369,6 +370,7 @@ class TransactionRequest:
             if self.response.transactionStatus == "capturedPendingSettlement":
                 if amount != int(self.response.authAmount * 100):
                     return "This transaction cannot be partially refunded until it's settled."
+                self.refund_str = "voided"
                 error = self.send_authorizenet_txn(txn_type=c.VOID, txn_id=txn.charge_id)
             elif self.response.transactionStatus != "settledSuccessfully":
                 return "This transaction cannot be refunded because of an invalid status: {}.".format(self.response.transactionStatus)
@@ -639,6 +641,7 @@ class TransactionRequest:
     
     def send_authorizenet_txn(self, txn_type=c.AUTHCAPTURE, **params):
         from decimal import Decimal
+
         payment_profile = None
         order = None
 
@@ -693,6 +696,7 @@ class TransactionRequest:
             transaction.order = order
 
         transaction.transactionType = c.AUTHNET_TXN_TYPES[txn_type]
+        transaction.customerIP = cherrypy.request.remote.ip
 
         if self.amount:
             transaction.amount = Decimal(int(self.amount) / 100)

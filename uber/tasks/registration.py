@@ -159,7 +159,7 @@ def email_pending_attendees():
             # Implemented for MFF 2023 but let's be honest, we'll probably need it again
             compare_date = max(badge.registered, datetime(2023, 9, 12, tzinfo=pytz.UTC))
             if compare_date < four_days_old:
-                session.delete(badge)
+                badge.badge_status = c.INVALID_STATUS
                 session.commit()
             else:
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
