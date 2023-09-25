@@ -180,7 +180,10 @@ class Root:
                                'Confirmation email sent')
 
     def confirmation(self, session, id):
-        return {'app': session.art_show_application(id)}
+        return {
+            'app': session.art_show_application(id),
+            'logged_in_account': session.current_attendee_account(),
+        }
 
     def mailing_address(self, session, message='', **params):
         app = session.art_show_application(params)

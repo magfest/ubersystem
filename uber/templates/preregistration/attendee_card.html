@@ -33,7 +33,12 @@
     <strong>Name on Badge:</strong> {{ attendee.badge_printed_name }}
 </div>
 <div class="col-12 col-sm-6">
-    <strong>Purchased:</strong> {{ attendee.registered|full_date_local }}
+    <strong>Purchased:</strong> 
+    {% if attendee.badge_status == c.IMPORTED_STATUS %}
+        Last Year
+    {% else %}
+        {{ attendee.registered|full_date_local }}
+    {% endif %}
 </div>
 {% endset %}
 
@@ -58,7 +63,6 @@
 {% set rows = [row1,row2,row3,row4,row5] %}
 
 {% include 'attendee_card_extra.html' %}
-
 
     {% if attendee.group %}
         <div class="col-sm-12 text-center mb-2">
@@ -100,10 +104,8 @@
                         </a>
                     </div>
                 {% elif attendee.is_valid %}
-                    {% set multiple_buttons = c.ART_SHOW_OPEN or c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE or attendee.art_show_applications or attendee.marketplace_applications %}
-                    {% if multiple_buttons %}
                     <div class="btn-group pull-right mt-2" role="group">
-                    {% endif %}
+                    {% include 'preregistration/card_buttons.html' %}
                     <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-info" value="Edit">
                         <i class="fa fa-pencil"></i> Edit Details
                     </a>
@@ -129,9 +131,7 @@
                     </a>
                     {% endif %}
                     {% endif %}
-                    {% if multiple_buttons %}
                     </div>
-                    {% endif %}
                 </div>
                 {% endif %}
         </div>

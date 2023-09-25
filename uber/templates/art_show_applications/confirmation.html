@@ -1,9 +1,8 @@
 {% extends "./preregistration/preregbase.html" %}
 {% block title %}Art Show Application Received{% endblock %}
-{% block backlink %}{% endblock %}
 {% block content %}
-<div class="panel" style="padding:15px;">
-  <h2>{% if c.AFTER_ART_SHOW_WAITLIST %}You've been added to our waitlist!
+<div class="panel panel-default" style="padding:15px;">
+  <h2 style="margin-top: 5px;">{% if c.AFTER_ART_SHOW_WAITLIST %}You've been added to our waitlist!
     {% else %}Thanks for applying for the Art Show!{% endif %}</h2>
 
   We've received your application for the {{ c.EVENT_NAME }} Art Show. You applied for {{ app.panels }}

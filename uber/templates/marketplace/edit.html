@@ -2,7 +2,6 @@
 {% block title %}Marketplace Application{% endblock %}
 {% block content %}
 {% set payment_includes_badge = app.attendee.badge_cost and app.attendee.amount_unpaid > app.total_cost %}
-{% include "prereg_masthead.html" %}
 {% set attendee = app.attendee %}
 <div class="card">
   <div class="card-header">

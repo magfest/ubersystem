@@ -181,6 +181,14 @@ class Group(MagModel, TakesPaymentMixin):
         badges.
         """
         return [a for a in self.attendees if a.is_unassigned and a.paid == c.PAID_BY_GROUP]
+    
+    @hybrid_property
+    def normalized_name(self):
+        return self.name.strip().lower()
+
+    @normalized_name.expression
+    def normalized_name(cls):
+        return func.lower(func.trim(cls.name))
 
     @hybrid_property
     def is_valid(self):

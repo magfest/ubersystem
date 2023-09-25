@@ -975,6 +975,9 @@ def child_group_leaders(attendee):
 
 @prereg_validation.Attendee
 def no_more_child_badges(attendee):
+    if not attendee.is_new and not attendee.badge_status == c.PENDING_STATUS:
+        return
+
     if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.birthdate and \
             get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) < 18 and not c.CHILD_BADGE_AVAILABLE:
         return ('badge_type', "Unfortunately, we are sold out of badges for attendees under 18.")
@@ -982,6 +985,9 @@ def no_more_child_badges(attendee):
 
 @prereg_validation.Attendee
 def child_badge_over_13(attendee):
+    if not attendee.is_new and not attendee.badge_status == c.PENDING_STATUS:
+        return
+
     if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.birthdate and attendee.badge_type == c.CHILD_BADGE \
             and get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) >= 13:
         return ('badge_type', "If you will be 13 or older at the start of {}, " \
@@ -990,6 +996,9 @@ def child_badge_over_13(attendee):
 
 @prereg_validation.Attendee
 def attendee_badge_under_13(attendee):
+    if not attendee.is_new and not attendee.badge_status == c.PENDING_STATUS:
+        return
+
     if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.birthdate and attendee.badge_type == c.ATTENDEE_BADGE \
         and get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) < 13:
         return ('badge_type', "If you will be 12 or younger at the start of {}, " \

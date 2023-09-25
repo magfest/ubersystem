@@ -34,7 +34,7 @@ from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
-from uber.utils import check_csrf, normalize_email, normalize_phone, DeptChecklistConf, report_critical_exception, \
+from uber.utils import check_csrf, normalize_email_legacy, normalize_phone, DeptChecklistConf, report_critical_exception, \
     valid_email, valid_password
 from uber.payments import ReceiptManager
 
@@ -952,7 +952,7 @@ class Session(SessionManager):
                 Attendee.watchlist_id == None).all()
 
         def get_attendee_account_by_email(self, email):
-            return self.query(AttendeeAccount).filter_by(email=normalize_email(email)).one()
+            return self.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(email)).one()
 
         def get_admin_account_by_email(self, email):
             from uber.utils import normalize_email_legacy
@@ -967,7 +967,7 @@ class Session(SessionManager):
                 last_name=last_name,
                 zip_code=zip_code
             ).filter(
-                Attendee.normalized_email == normalize_email(email),
+                Attendee.normalized_email == normalize_email_legacy(email),
                 Attendee.is_valid == True
             ).limit(10).all()
 
@@ -1041,12 +1041,8 @@ class Session(SessionManager):
 
         def create_attendee_account(self, email=None, normalized_email=None, password=None):
             from uber.models import Attendee, AttendeeAccount
-            from uber.utils import normalize_email_legacy
 
-            if email:
-                normalized_email = uber.utils.normalize_email(email)
-
-            new_account = AttendeeAccount(email=normalized_email, hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
+            new_account = AttendeeAccount(email=email, hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
             self.add(new_account)
 
             return new_account
@@ -1058,7 +1054,7 @@ class Session(SessionManager):
                 account.attendees.append(attendee)
 
         def match_attendee_to_account(self, attendee):
-            existing_account = self.query(AttendeeAccount).filter_by(email=normalize_email(attendee.email)).first()
+            existing_account = self.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(attendee.email)).first()
             if existing_account:
                 self.add_attendee_to_account(attendee, existing_account)
 
@@ -1607,6 +1603,7 @@ class Session(SessionManager):
             attendees = self.query(Attendee) \
                             .outerjoin(Attendee.group) \
                             .outerjoin(Attendee.promo_code) \
+                            .outerjoin(Attendee.managers) \
                             .outerjoin(aliased_pcg, PromoCode.group) \
                             .options(
                                 joinedload(Attendee.group),
@@ -1685,9 +1682,11 @@ class Session(SessionManager):
                         target, term, search_term, op = self.parse_attr_search_terms(search_text)
 
                         if target == 'email':
-                            attr_search_filter = Attendee.normalized_email.icontains(normalize_email(search_term))
+                            attr_search_filter = Attendee.normalized_email.contains(normalize_email_legacy(search_term))
+                        elif target == 'account_email':
+                            attr_search_filter = AttendeeAccount.normalized_email.contains(normalize_email_legacy(search_term))
                         elif target == 'group':
-                            attr_search_filter = Group.name.icontains(search_term.strip())
+                            attr_search_filter = Group.normalized_name.contains(search_term.strip().lower())
                         elif target == 'has_ribbon':
                             attr_search_filter = Attendee.ribbon == Attendee.ribbon.type.convert_if_labels(search_term.title())
                         elif target in Attendee.searchable_bools:
