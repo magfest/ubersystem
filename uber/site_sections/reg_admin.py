@@ -5,6 +5,7 @@ import cherrypy
 from datetime import datetime
 from decimal import Decimal
 from pockets import groupify
+from pockets.autolog import log
 from six import string_types
 from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import joinedload, raiseload, subqueryload
@@ -49,8 +50,12 @@ def revert_receipt_item(session, item):
         receipt_item = ReceiptManager.process_receipt_upgrade_item(model, col_name, receipt=receipt, new_val=item.revert_change[col_name])
         session.add(receipt_item)
         model.apply(item.revert_change, restricted=False)
+
+    error = check(model)
+    if not error:
+        session.add(model)
     
-    return check(model)
+    return error
 
 
 def comped_receipt_item(item):
@@ -65,7 +70,7 @@ def comped_receipt_item(item):
 def assign_account_by_email(session, attendee, account_email):
     from uber.site_sections.preregistration import set_up_new_account
 
-    account = session.query(AttendeeAccount).filter_by(email=normalize_email(account_email)).first()
+    account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(account_email)).first()
     if not account:
         if c.ONE_MANAGER_PER_BADGE and attendee.managers:
             # It's too confusing for an admin to move someone to a new account and still see them on their old account
@@ -182,6 +187,7 @@ class Root:
         if isinstance(item_or_txn, ReceiptTransaction):
             for item in item_or_txn.receipt_items:
                 item.closed = None
+                item.txn_id = None
                 session.add(item)
 
         receipt = item_or_txn.receipt
@@ -228,7 +234,13 @@ class Root:
             error = refund.refund_or_cancel(item.receipt_txn)
             if error:
                 return {'error': error}
-            message_add = " and refunded."
+            
+            model = session.get_model_by_receipt(item.receipt)
+            if isinstance(model, Attendee) and model.paid == c.HAS_PAID:
+                model.paid = c.REFUNDED
+                session.merge(model)
+
+            message_add = f" and its transaction {refund.refund_str}."
             session.add_all(refund.get_receipt_items_to_add())
         else:
             message_add = ". Its corresponding transaction was already fully refunded."
@@ -254,7 +266,13 @@ class Root:
             error = refund.refund_or_cancel(item.receipt_txn)
             if error:
                 return {'error': error}
-            message_add = " and refunded."
+            
+            model = session.get_model_by_receipt(item.receipt)
+            if isinstance(model, Attendee) and model.paid == c.HAS_PAID:
+                model.paid = c.REFUNDED
+                session.merge(model)
+            
+            message_add = f" and its transaction {refund.refund_str}."
             session.add_all(refund.get_receipt_items_to_add())
         else:
             message_add = ". Its corresponding transaction was already fully refunded."
@@ -267,6 +285,7 @@ class Root:
     @ajax
     def add_receipt_txn(self, session, id='', **params):
         receipt = session.model_receipt(id)
+        model = session.get_model_by_receipt(item.receipt)
 
         message = check_custom_receipt_item_txn(params, is_txn=True)
         if message:
@@ -276,13 +295,17 @@ class Root:
 
         if params.get('txn_type', '') == 'refund':
             amount = amount * -1
+            if isinstance(model, Attendee) and model.paid == c.HAS_PAID:
+                model.paid = c.REFUNDED
+                session.add(model)
 
-        session.add(ReceiptTransaction(receipt_id=receipt.id,
-                                       amount=amount * 100,
-                                       method=params.get('method'),
-                                       desc=params['desc'],
-                                       who=AdminAccount.admin_name() or 'non-admin'
-                                    ))
+        new_txn = ReceiptTransaction(receipt_id=receipt.id,
+                                     amount=amount * 100,
+                                     method=params.get('method'),
+                                     desc=params['desc'],
+                                     who=AdminAccount.admin_name() or 'non-admin'
+                                    )
+        session.add(new_txn)
 
         try:
             session.commit()
@@ -290,10 +313,13 @@ class Root:
             session.rollback()
             return {'error': "Encountered an exception while trying to save transaction."}
 
-        if (receipt.item_total - receipt.txn_total) <= 0:
+        if (receipt.item_total - receipt.txn_total) <= 0 and amount > 0:
             for item in receipt.open_receipt_items:
+                item.txn_id = item.txn_id or new_txn.id
                 item.closed = datetime.now()
                 session.add(item)
+            if isinstance(model, Attendee) and model.paid == c.NOT_PAID:
+                model.paid = c.HAS_PAID
 
             session.commit()
 
@@ -317,6 +343,7 @@ class Root:
         txn.cancelled = datetime.now()
         for item in txn.receipt_items:
             item.closed = None
+            item.txn_id = None
             session.add(item)
         txn.receipt_items = []
         session.commit()
@@ -513,7 +540,7 @@ class Root:
         if not show_all:
             attendees = attendees.filter_by(is_valid=True, is_unassigned=False)
         if email_contains:
-            attendees = attendees.filter(Attendee.normalized_email.contains(normalize_email(email_contains)))
+            attendees = attendees.filter(Attendee.normalized_email.contains(normalize_email_legacy(email_contains)))
         
         new_account = 0
         assigned = 0
@@ -584,10 +611,10 @@ class Root:
 
         new_email = params.get('new_account_email', '')
         if cherrypy.request.method == 'POST' and new_email:
-            if normalize_email(new_email) == normalize_email(account.email):
+            if normalize_email(normalize_email_legacy(new_email)) == normalize_email(account.normalized_email):
                 message = "That is already the email address for this account!"
             else:
-                existing_account = session.query(AttendeeAccount).filter_by(email=normalize_email(new_email)).first()
+                existing_account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(new_email)).first()
                 if existing_account:
                     message = "That account already exists. You can instead reassign this account's attendees."
                 else:

@@ -24,7 +24,7 @@ from uber.forms import attendee as attendee_forms, group as group_forms, load_fo
 from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, ModelReceipt, PromoCode, PromoCodeGroup, \
                         ReceiptTransaction, SignedDocument, Tracking
 from uber.tasks.email import send_email
-from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, genpasswd, valid_email, \
+from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
     valid_password, SignNowDocument, validate_model
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager
 
@@ -109,12 +109,15 @@ def check_account(session, email, password, confirm_password, skip_if_logged_in=
 
     if email and valid_email(email):
         return valid_email(email)
+    
+    super_normalized_old_email = normalize_email_legacy(normalize_email(old_email))
 
-    existing_account = session.query(AttendeeAccount).filter_by(email=normalize_email(email)).first()
-    if existing_account and (old_email and existing_account.email != normalize_email(old_email)
-            or logged_in_account and logged_in_account.email != existing_account.email
+    existing_account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(email)).first()
+    if existing_account and (old_email and normalize_email_legacy(normalize_email(existing_account.email)) != super_normalized_old_email
             or not old_email and not logged_in_account):
         return "There's already an account with that email address."
+    elif logged_in_account and logged_in_account.normalized_email != existing_account.normalized_email:
+        return "You cannot reset someone's password while logged in as someone else."
     
     if update_password:
         if password and password != confirm_password:
@@ -125,7 +128,7 @@ def check_account(session, email, password, confirm_password, skip_if_logged_in=
 def set_up_new_account(session, attendee, email=None):
     email = email or attendee.email
     token = genpasswd(short=True)
-    account = session.query(AttendeeAccount).filter_by(email=normalize_email(email)).first()
+    account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(email)).first()
     if account:
         if account.password_reset:
             session.delete(account.password_reset)
@@ -1391,7 +1394,7 @@ class Root:
     def login(self, session, **params):
         email = params.get('account_email') # This email has already been validated
         password = params.get('account_password')
-        account = session.query(AttendeeAccount).filter_by(email=normalize_email(email)).first()
+        account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email_legacy(email)).first()
         if account and not account.hashed:
             return {'success': False, 'message': "We had an issue logging you into your account. Please contact an administrator."}
         elif not account or not bcrypt.hashpw(password, account.hashed) == account.hashed:
@@ -1403,7 +1406,7 @@ class Root:
     @ajax
     def create_account(self, session, **params):
         email = params.get('account_email') # This email has already been validated
-        account = session.query(AttendeeAccount).filter_by(email=normalize_email(email)).first()
+        account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(email)).first()
         if account:
             return {'success': False, 'message': "You already have an account. Please use the 'forgot your password' link. \
                     Keep in mind your account may be from a prior year."}
@@ -1429,12 +1432,21 @@ class Root:
             if receipt and receipt.current_amount_owed and attendee.is_valid:
                 attendees_who_owe_money[attendee.full_name] = receipt.current_amount_owed
 
+        account_attendee = None
+        account_attendees = session.valid_attendees().filter(~Attendee.badge_status.in_([c.REFUNDED_STATUS, c.NOT_ATTENDING])
+                                                             ).filter(Attendee.normalized_email == normalize_email_legacy(account.email))
+        if account_attendees.count() == 1:
+            account_attendee = account_attendees.first()
+            if account_attendee not in account.attendees:
+                account_attendee = None
+
         if not account:
             raise HTTPRedirect('../landing/index')
 
         return {
             'message': message,
             'homepage_account': account,
+            'account_attendee': account_attendee,
             'attendees_who_owe_money': attendees_who_owe_money,
         }
 
@@ -1446,7 +1458,7 @@ class Root:
             message = "Something went wrong. Please try again."
         if not attendee.email:
             message = "This attendee needs an email address to set up a new account."
-        if session.current_attendee_account() and normalize_email(attendee.email) == session.current_attendee_account().email:
+        if session.current_attendee_account() and normalize_email_legacy(attendee.email) == session.current_attendee_account().normalized_email:
             message = "You cannot grant an account to someone with the same email address as your account."
         if not message:
             set_up_new_account(session, attendee)
@@ -1821,7 +1833,7 @@ class Root:
     def reset_password(self, session, **params):
         if 'account_email' in params:
             account_email = params['account_email']
-            account = session.query(AttendeeAccount).filter_by(email=normalize_email(account_email)).first()
+            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(account_email)).first()
             if 'admin_url' in params:
                 success_url = "../{}message=Password reset email sent.".format(params['admin_url'])
             else:
@@ -1853,7 +1865,7 @@ class Root:
         if 'id' in params:
             account = session.attendee_account(params['id'])
         else:
-            account = session.query(AttendeeAccount).filter_by(email=normalize_email(account_email)).first()
+            account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(account_email)).first()
         if not account or not account.password_reset:
             message = 'Invalid link. This link may have already been used or replaced.'
         elif account.password_reset.is_expired:
@@ -1870,7 +1882,7 @@ class Root:
                                     params.get('confirm_password'), False, True, account.email)
 
             if not message:
-                account.email = account_email
+                account.email = normalize_email(account_email)
                 account.hashed = bcrypt.hashpw(account_password, bcrypt.gensalt())
                 session.delete(account.password_reset)
                 for attendee in account.attendees:

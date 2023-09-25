@@ -2158,7 +2158,7 @@ class AttendeeAccount(MagModel):
     hashed = Column(UnicodeText, private=True)
     password_reset = relationship('PasswordReset', backref='attendee_account', uselist=False)
     attendees = relationship(
-        'Attendee', backref='managers', cascade='save-update,merge,refresh-expire,expunge',
+        'Attendee', backref='managers', order_by='Attendee.registered', cascade='save-update,merge,refresh-expire,expunge',
         secondary='attendee_attendee_account')
     imported = Column(Boolean, default=False)
 
@@ -2171,6 +2171,14 @@ class AttendeeAccount(MagModel):
     @presave_adjustment
     def normalize_email(self):
         self.email = normalize_email(self.email)
+
+    @hybrid_property
+    def normalized_email(self):
+        return normalize_email_legacy(self.email)
+
+    @normalized_email.expression
+    def normalized_email(cls):
+        return func.replace(func.lower(func.trim(cls.email)), '.', '')
 
     @property
     def has_only_one_badge(self):

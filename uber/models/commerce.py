@@ -440,7 +440,7 @@ class ReceiptItem(MagModel):
 
     @property
     def refundable(self):
-        return self.receipt_txn.refundable and not self.comped and not self.reverted
+        return self.receipt_txn.refundable and not self.comped and not self.reverted and self.amount > 0
 
     @property
     def cannot_delete_reason(self):
