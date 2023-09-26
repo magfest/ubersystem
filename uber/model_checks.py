@@ -926,10 +926,8 @@ def discounted_price(app):
 
 
 ArtShowPiece.required = [('name', 'Name'),
-                         ('for_sale','If this piece is for sale'),
                          ('gallery', 'Gallery'),
-                         ('type', 'Type'),
-                         ('media', 'Media')]
+                         ('type', 'Type')]
 
 
 @validation.ArtShowPiece
@@ -960,6 +958,12 @@ def print_run_if_print(piece):
                 return "A piece's edition number cannot be higher than the total print run"
         except Exception:
             return "What you entered for the print edition or run total ({}/{}) isn't even a number".format(piece.print_run_num, piece.print_run_total)
+
+
+@validation.ArtShowPiece
+def media_if_original(piece):
+    if piece.type == c.ORIGINAL and not piece.media:
+        return "Please describe what medium your original art is on."
 
 
 @validation.ArtShowPiece

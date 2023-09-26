@@ -4,7 +4,7 @@
 <div><a href="index">Go Back</a></div>
 
 {% for email in emails  %}
-<div class="card card-body">
+<div class="card">
     <h3>{{ email.subject }} ({{ email.when|full_datetime_local }})</h3>
     <h4>To:
       {% if email.fk_id %}
