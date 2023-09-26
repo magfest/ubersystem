@@ -696,7 +696,7 @@ class TransactionRequest:
             transaction.order = order
 
         transaction.transactionType = c.AUTHNET_TXN_TYPES[txn_type]
-        transaction.customerIP = cherrypy.request.remote.ip
+        transaction.customerIP = cherrypy.request.headers.get('X-Forwarded-For', cherrypy.request.remote.ip)
 
         if self.amount:
             transaction.amount = Decimal(int(self.amount) / 100)

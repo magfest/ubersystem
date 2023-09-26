@@ -392,6 +392,7 @@ class Root:
     @redirect_if_at_con_to_kiosk
     @requires_account()
     def form(self, session, message='', edit_id=None, **params):
+        log.debug(cherrypy.request.headers.get('X-Forwarded-For', cherrypy.request.remote.ip))
         is_dealer_reg = 'dealer_id' in params
         errors = check_if_can_reg(is_dealer_reg)
         if errors:
