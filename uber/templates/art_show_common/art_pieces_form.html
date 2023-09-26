@@ -348,7 +348,7 @@
 
     var disableOrEnablePrices = function() {
         var sale_checked = $(this).closest("input[type=radio][name=for_sale]:checked");
-        var form_group = $(this).parent('form');
+        var form_group = $(this).parents('form');
         var no_sale_or_unselected = (!sale_checked.val() || sale_checked.val() == 0);
         var no_qs_checked = form_group.find('input[name=no_quick_sale]').prop('checked');
 
