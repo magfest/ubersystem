@@ -1067,7 +1067,14 @@ class Session(SessionManager):
             return new_account
 
         def add_attendee_to_account(self, attendee, account):
-            if c.ONE_MANAGER_PER_BADGE and attendee.managers and account.hashed != '':
+            from uber.utils import normalize_email
+
+            unclaimed_account = account.hashed != ''
+            if c.SSO_EMAIL_DOMAINS:
+                local, domain = normalize_email(account.email, split_address=True)
+                unclaimed_account = unclaimed_account and domain not in c.SSO_EMAIL_DOMAINS
+
+            if c.ONE_MANAGER_PER_BADGE and attendee.managers and not unclaimed_account:
                 attendee.managers.clear()
             if attendee not in account.attendees:
                 account.attendees.append(attendee)
