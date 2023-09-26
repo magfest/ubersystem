@@ -927,7 +927,8 @@ class Root:
                                 who='non-admin',
                             ))
         charge_desc = '{} extra badge{} for {}'.format(count, 's' if count > 1 else '', group.name)
-        charge = TransactionRequest(receipt_email=group.email, description=charge_desc, amount=c.get_group_price() * 100 * count)
+        charge = TransactionRequest(receipt, receipt_email=group.email, description=charge_desc,
+                                    amount=c.get_group_price() * 100 * count, create_receipt_item=True)
         if charge.dollar_amount % c.GROUP_PRICE:
             session.rollback()
             return {'error': 'Our preregistration price has gone up since you tried to add more codes; please try again'}
@@ -1184,11 +1185,12 @@ class Root:
                                 who='non-admin',
                             ))
         charge_desc = '{} extra badge{} for {}'.format(count, 's' if count > 1 else '', group.name)
-        charge = TransactionRequest(receipt, group.email, charge_desc, group.new_badge_cost * count * 100)
+        charge = TransactionRequest(receipt, group.email, charge_desc,
+                                    group.new_badge_cost * count * 100, create_receipt_item=True)
         if charge.dollar_amount % group.new_badge_cost:
             session.rollback()
             return {'error': 'Our preregistration price has gone up since you tried to add the badges; please try again'}
-        
+
         message = charge.process_payment()
         if message:
             return {'error': message}

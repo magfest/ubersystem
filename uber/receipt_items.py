@@ -32,18 +32,30 @@ def overridden_app_cost(app):
 
 @cost_calculation.ArtShowApplication
 def panel_cost(app):
+    if app.overridden_price != None:
+        return
+
     return ("General Panel", c.COST_PER_PANEL * 100, 'panels', app.panels) if app.panels else None
 
 @cost_calculation.ArtShowApplication
 def table_cost(app):
+    if app.overridden_price != None:
+        return
+
     return ("General Table", c.COST_PER_TABLE * 100, 'tables', app.tables) if app.tables else None
 
 @cost_calculation.ArtShowApplication
 def mature_panel_cost(app):
+    if app.overridden_price != None:
+        return
+
     return ("Mature Panel", c.COST_PER_PANEL * 100, 'panels_ad', app.panels_ad) if app.panels_ad else None
 
 @cost_calculation.ArtShowApplication
 def mature_table_cost(app):
+    if app.overridden_price != None:
+        return
+
     return ("Mature Table", c.COST_PER_TABLE * 100, 'tables_ad', app.tables_ad) if app.tables_ad else None
 
 @cost_calculation.ArtShowApplication
