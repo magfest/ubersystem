@@ -971,21 +971,13 @@ class ReceiptManager:
         from uber.models import Attendee, Group, ReceiptItem, AdminAccount
         if not receipt:
             return []
-        
-        changed_params = {}
-        for key, val in params.items():
-            column = model.__table__.columns.get(key)
-            if column is not None:
-                coerced_val = model.coerce_column_data(column, val)
-                if coerced_val != getattr(model, key, None):
-                    changed_params[key] = coerced_val
 
         receipt_items = []
 
         model_overridden_price = getattr(model, 'overridden_price', None)
-        overridden_unset = model_overridden_price and not changed_params.get('overridden_price')
+        overridden_unset = model_overridden_price and not params.get('overridden_price')
         model_auto_recalc = getattr(model, 'auto_recalc', True) if isinstance(model, Group) else None
-        auto_recalc_unset = not model_auto_recalc and changed_params.get('auto_recalc', None)
+        auto_recalc_unset = not model_auto_recalc and params.get('auto_recalc', None)
 
         if overridden_unset or auto_recalc_unset:
             # Note: we can't use preview models here because the full default cost
@@ -1013,21 +1005,29 @@ class ReceiptManager:
                                     revert_change=revert_change,
                                 )]
 
-        if not changed_params.get('no_override') and changed_params.get('overridden_price'):
-            receipt_item = self.add_receipt_item_from_param(model, receipt, 'overridden_price', changed_params)
+        if not params.get('no_override') and params.get('overridden_price'):
+            receipt_item = self.add_receipt_item_from_param(model, receipt, 'overridden_price', params)
             return [receipt_item] if receipt_item else []
 
-        if not changed_params.get('auto_recalc') and isinstance(model, Group):
-            receipt_item = self.add_receipt_item_from_param(model, receipt, 'cost', changed_params)
+        if not params.get('auto_recalc') and isinstance(model, Group):
+            receipt_item = self.add_receipt_item_from_param(model, receipt, 'cost', params)
             return [receipt_item] if receipt_item else []
         else:
-            changed_params.pop('cost', None)
+            params.pop('cost', None)
         
-        if changed_params.get('power_fee', None) != None and c.POWER_PRICES.get(int(changed_params.get('power'), 0), None) == None:
-            receipt_item = self.add_receipt_item_from_param(model, receipt, 'power_fee', changed_params)
+        if params.get('power_fee', None) != None and c.POWER_PRICES.get(int(params.get('power'), 0), None) == None:
+            receipt_item = self.add_receipt_item_from_param(model, receipt, 'power_fee', params)
             receipt_items += [receipt_item] if receipt_item else []
-            changed_params.pop('power')
-            changed_params.pop('power_fee')
+            params.pop('power')
+            params.pop('power_fee')
+
+        changed_params = {}
+        for key, val in params.items():
+            column = model.__table__.columns.get(key)
+            if column is not None:
+                coerced_val = model.coerce_column_data(column, val)
+                if coerced_val != getattr(model, key, None):
+                    changed_params[key] = coerced_val
         
         cost_changes = getattr(model.__class__, 'cost_changes', [])
         credit_changes = getattr(model.__class__, 'credit_changes', [])
