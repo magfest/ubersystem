@@ -2170,7 +2170,7 @@ class AttendeeAccount(MagModel):
 
     @presave_adjustment
     def normalize_email(self):
-        self.email = normalize_email(self.email)
+        self.email = normalize_email(self.email).lower()
 
     @hybrid_property
     def normalized_email(self):

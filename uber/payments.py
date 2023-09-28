@@ -290,7 +290,7 @@ class TransactionRequest:
             if not self.amount:
                 self.amount = receipt.current_amount_owed
             if create_receipt_item:
-                self.receipt_manager.create_receipt_item(receipt, self.description, self.amount)
+                self.receipt_manager.create_custom_receipt_item(receipt, self.description, self.amount)
 
         if c.AUTHORIZENET_LOGIN_ID:
             self.merchant_auth = apicontractsv1.merchantAuthenticationType(
@@ -698,7 +698,7 @@ class TransactionRequest:
             transaction.order = order
 
         transaction.transactionType = c.AUTHNET_TXN_TYPES[txn_type]
-        transaction.customerIP = cherrypy.request.remote.ip
+        transaction.customerIP = cherrypy.request.headers.get('X-Forwarded-For', cherrypy.request.remote.ip)
 
         if self.amount:
             transaction.amount = Decimal(int(self.amount) / 100)
@@ -792,16 +792,18 @@ class ReceiptManager:
                                 ))
 
     def update_transaction_refund(self, txn, refund_amount):
-        from uber.models import Session
-
         txn.refunded += refund_amount
         self.items_to_add.append(txn)
 
-        with Session() as session:
-            model = session.get_model_by_receipt(txn.receipt)
-            if isinstance(model, uber.models.Attendee) and model.paid == c.HAS_PAID:
-                model.paid = c.REFUNDED
-                self.items_to_add.append(model)
+    def create_custom_receipt_item(self, receipt, desc, amount):
+        from uber.models import AdminAccount, ReceiptItem
+
+        self.items_to_add.append(ReceiptItem(receipt_id=receipt.id,
+                                    desc=desc,
+                                    amount=amount,
+                                    count=1,
+                                    who=AdminAccount.admin_name() or 'non-admin'
+                                ))
 
     @classmethod
     def create_new_receipt(cls, model, create_model=False, items=None):
@@ -979,14 +981,6 @@ class ReceiptManager:
         from uber.models import Attendee, Group, ReceiptItem, AdminAccount
         if not receipt:
             return []
-        
-        changed_params = {}
-        for key, val in params.items():
-            column = model.__table__.columns.get(key)
-            if column is not None:
-                coerced_val = model.coerce_column_data(column, val)
-                if coerced_val != getattr(model, key, None):
-                    changed_params[key] = coerced_val
 
         receipt_items = []
 
@@ -1034,8 +1028,16 @@ class ReceiptManager:
         if changed_params.get('power_fee', None) != None and c.POWER_PRICES.get(int(changed_params.get('power'), 0), None) == None:
             receipt_item = self.add_receipt_item_from_param(model, receipt, 'power_fee', changed_params)
             receipt_items += [receipt_item] if receipt_item else []
-            changed_params.pop('power')
-            changed_params.pop('power_fee')
+            params.pop('power')
+            params.pop('power_fee')
+
+        changed_params = {}
+        for key, val in params.items():
+            column = model.__table__.columns.get(key)
+            if column is not None:
+                coerced_val = model.coerce_column_data(column, val)
+                if coerced_val != getattr(model, key, None):
+                    changed_params[key] = coerced_val
         
         cost_changes = getattr(model.__class__, 'cost_changes', [])
         credit_changes = getattr(model.__class__, 'credit_changes', [])

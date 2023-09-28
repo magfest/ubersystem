@@ -2,7 +2,7 @@
 {% block title %}Example Automated Emails{% endblock %}
 {% block content %}
 
-<div class="card card-body">
+<div class="card">
 <h2>{{ (examples|default([(None, email)], True)|first).1.subject }}</h2>
 <div class="center">
   <a href="pending">Return to pending email list</a>

@@ -5,7 +5,7 @@
   <div id="group-type-opts" style="display:none;">
     {{ options(c.GROUP_TYPE_OPTS) }}
   </div>
-<div class="card card-body">
+<div class="card">
   <h1>
   <a class="btn btn-primary" href="form">Add a Group</a>
   {% if c.HAS_DEALER_ADMIN_ACCESS %}<a class="btn btn-success" href="form?id=None&new_dealer=true">Add a {{ c.DEALER_TERM|title }}</a>{% endif %}

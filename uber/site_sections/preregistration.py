@@ -110,7 +110,7 @@ def check_account(session, email, password, confirm_password, skip_if_logged_in=
     if email and valid_email(email):
         return valid_email(email)
     
-    super_normalized_old_email = normalize_email_legacy(normalize_email(old_email))
+    super_normalized_old_email = normalize_email_legacy(normalize_email(old_email)) if old_email else ''
 
     existing_account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(email)).first()
     if existing_account and (old_email and normalize_email_legacy(normalize_email(existing_account.email)) != super_normalized_old_email
