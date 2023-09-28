@@ -27,7 +27,7 @@
     {% if c.BY_MAIL_US_ONLY and (not readonly or app.delivery_method == c.BY_MAIL) %}
     <div id="us_only_checkbox">
       <label for="us_only" class="form-check-label">
-        <input type="checkbox" class="form-check-input" id="us_only" name="us_only" value="1" {% if app.us_only %}checked {% endif %}/>
+        <input type="checkbox" class="form-check-input" id="us_only" name="us_only" value="1" {% if app.us_only %}checked {% endif %}{% if readonly %}disabled {% endif %}/>
         I verify that my mailing address will be in the continental US.
       </label>
       {% if not readonly %}
