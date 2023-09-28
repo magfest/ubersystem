@@ -137,7 +137,7 @@
     {% if readonly %}
       {{ app.description }}
     {% else %}
-      <textarea class="form-control" name="description" id="description" rows="4"></textarea>
+      <textarea class="form-control" name="description" id="description" rows="4">{{ app.description }}</textarea>
       {% if not admin_area %}<p class="form-text">A short description of your artwork.</p>{% endif %}
     {% endif %}
   </div>
@@ -146,7 +146,7 @@
     {% if readonly %}
       {{ app.website }}
     {% else %}
-      <input type="text" class="form-control" name="website" id="website"/>
+      <input type="text" class="form-control" name="website" id="website" value="{{ app.website }}"/>
       {% if not admin_area %}<p class="form-text">If you do not have a website showing your work, please enter 'N/A' and contact {{ c.ART_SHOW_EMAIL|email_only|email_to_link }} after submitting your application.</p>{% endif %}
     {% endif %}
   </div>
@@ -154,11 +154,11 @@
 
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
-    <label for="special_requests" class="form-text">Special Requests</label>
+    <label for="special_needs" class="form-text">Special Requests</label>
     {% if readonly %}
-      {{ app.special_requests|default("N/A") }}
+      {{ app.special_needs|default("N/A") }}
     {% else %}
-      <textarea class="form-control" name="special_requests" id="special_requests" rows="4"></textarea>
+      <textarea class="form-control" name="special_needs" id="special_needs" rows="4">{{ app.special_needs }}</textarea>
       {% if not admin_area %}<p class="form-text">We cannot guarantee that we will accommodate all requests.</p>{% endif %}
     {% endif %}
   </div>
