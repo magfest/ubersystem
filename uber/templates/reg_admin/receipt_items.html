@@ -207,8 +207,8 @@
     });
   };
 
-  var compOrUndoRefundItem = function (page_handler, itemId, amount) {
-      $.post(page_handler, {csrf_token: csrf_token, id: itemId, amount: amount}, function (response) {
+  var compOrUndoRefundItem = function (page_handler, itemId, amount, exclude_fees = false) {
+      $.post(page_handler, {csrf_token: csrf_token, id: itemId, amount: amount, exclude_fees: exclude_fees}, function (response) {
         if (response.error) {
           showErrorMessage(response.error);
         } else {
@@ -221,7 +221,7 @@
     var bootboxBtns = {
           cancel: {
               label: 'Nevermind',
-              className: 'btn-default',
+              className: 'btn-outline-secondary',
           },
           comp: {
               label: 'Comp and Refund',
@@ -244,6 +244,17 @@
           }
         }
       }
+      {% if not c.AUTHORIZENET_LOGIN_ID %}
+      bootboxBtns.revertExcludeFees = {
+        label: 'Undo and Refund Excluding Fees',
+        className: 'btn-danger',
+        callback: function (result) {
+          if(result) {
+            compOrUndoRefundItem('undo_refund_receipt_item', itemId, amount.substring(1), true)
+          }
+        }
+      }
+      {% endif %}
     }
     
     bootbox.dialog({
@@ -285,6 +296,34 @@
       callback: function (result) {
         if(result) {
           window.location = 'process_full_refund?id=' + receiptId +
+          {% if attendee %}
+          '&attendee_id={{ attendee.id }}'
+          {% else %}
+          '&group_id={{ group.id }}'
+          {% endif %}
+        }
+      }
+    });
+  };
+
+  var mostlyFullRefund = function (receiptId, fee_str) {
+    bootbox.confirm({
+      title: "Refund and Cancel Registration?",
+      message: "This will refund ALL existing {{ processor_str }} transactions that have not already been refunded, "+
+               "minus " + fee_str + " in processing fees. It will also cancel this {{ model_str }}'s registration. Are you sure?",
+      buttons: {
+          confirm: {
+              label: 'Fully Refund and Cancel',
+              className: 'btn-danger'
+          },
+          cancel: {
+              label: 'Nevermind',
+              className: 'btn-outline-secondary'
+          }
+      },
+      callback: function (result) {
+        if(result) {
+          window.location = 'process_full_refund?id=' + receiptId + '&exclude_fees=True' +
           {% if attendee %}
           '&attendee_id={{ attendee.id }}'
           {% else %}
@@ -597,6 +636,10 @@
 {% if receipt %}
   {{ receipt_table(receipt, receipt.all_sorted_items_and_txns) }}
   <button class="btn btn-danger" onClick="fullRefund('{{ receipt.id }}')">Refund and Cancel This {{ model_str|title }}</button>
+  {% if not c.AUTHORIZENET_LOGIN_ID %}
+  OR
+  <button class="btn btn-danger" onClick="mostlyFullRefund('{{ receipt.id }}', '{{ (receipt.remaining_processing_fees / 100)|format_currency }}')">Refund and Cancel This {{ model_str|title }} Excluding Processing Fees</button>
+  {% endif %}
 {% else %}
 There are no active receipts for this {{ model_str }}.
 <br/><a href="create_receipt?id={{ model.id }}" class="btn btn-success">Create Default Receipt</a> <a href="create_receipt?id={{ model.id }}&blank=true" class="btn btn-info">Create Blank Receipt</a>

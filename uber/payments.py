@@ -701,7 +701,7 @@ class TransactionRequest:
         transaction.customerIP = cherrypy.request.headers.get('X-Forwarded-For', cherrypy.request.remote.ip)
 
         if self.amount:
-            transaction.amount = Decimal(int(self.amount) / 100)
+            transaction.amount = Decimal(int(self.amount)) / Decimal(100)
 
         transactionRequest = apicontractsv1.createTransactionRequest()
         transactionRequest.merchantAuthentication = self.merchant_auth
@@ -985,9 +985,9 @@ class ReceiptManager:
         receipt_items = []
 
         model_overridden_price = getattr(model, 'overridden_price', None)
-        overridden_unset = model_overridden_price and not changed_params.get('overridden_price')
+        overridden_unset = model_overridden_price and not params.get('overridden_price')
         model_auto_recalc = getattr(model, 'auto_recalc', True) if isinstance(model, Group) else None
-        auto_recalc_unset = not model_auto_recalc and changed_params.get('auto_recalc', None)
+        auto_recalc_unset = not model_auto_recalc and params.get('auto_recalc', None)
 
         if overridden_unset or auto_recalc_unset:
             # Note: we can't use preview models here because the full default cost
@@ -1015,18 +1015,18 @@ class ReceiptManager:
                                     revert_change=revert_change,
                                 )]
 
-        if not changed_params.get('no_override') and changed_params.get('overridden_price'):
-            receipt_item = self.add_receipt_item_from_param(model, receipt, 'overridden_price', changed_params)
+        if not params.get('no_override') and params.get('overridden_price'):
+            receipt_item = self.add_receipt_item_from_param(model, receipt, 'overridden_price', params)
             return [receipt_item] if receipt_item else []
 
-        if not changed_params.get('auto_recalc') and isinstance(model, Group):
-            receipt_item = self.add_receipt_item_from_param(model, receipt, 'cost', changed_params)
+        if not params.get('auto_recalc') and isinstance(model, Group):
+            receipt_item = self.add_receipt_item_from_param(model, receipt, 'cost', params)
             return [receipt_item] if receipt_item else []
         else:
-            changed_params.pop('cost', None)
+            params.pop('cost', None)
         
-        if changed_params.get('power_fee', None) != None and c.POWER_PRICES.get(int(changed_params.get('power'), 0), None) == None:
-            receipt_item = self.add_receipt_item_from_param(model, receipt, 'power_fee', changed_params)
+        if params.get('power_fee', None) != None and c.POWER_PRICES.get(int(params.get('power'), 0), None) == None:
+            receipt_item = self.add_receipt_item_from_param(model, receipt, 'power_fee', params)
             receipt_items += [receipt_item] if receipt_item else []
             params.pop('power')
             params.pop('power_fee')

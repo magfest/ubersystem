@@ -264,7 +264,18 @@ class Root:
             return {'error': message}
 
         if item.receipt_txn and item.receipt_txn.amount_left:
-            refund = TransactionRequest(item.receipt, amount=min(item.amount, item.receipt_txn.amount_left))
+            refund_amount = min(item.amount, item.receipt_txn.amount_left)
+            if params.get('exclude_fees'):
+                processing_fees = item.receipt_txn.calc_partial_processing_fee(refund_amount)
+                session.add(ReceiptItem(
+                    receipt_id=item.receipt.id,
+                    desc=f"Processing Fees for Refunding {item.desc}",
+                    amount=processing_fees,
+                    who=AdminAccount.admin_name() or 'non-admin',
+                ))
+                refund_amount -= processing_fees
+
+            refund = TransactionRequest(item.receipt, amount=refund_amount)
             error = refund.refund_or_cancel(item.receipt_txn)
             if error:
                 return {'error': error}
@@ -411,11 +422,22 @@ class Root:
         }
     
     @not_site_mappable
-    def process_full_refund(self, session, id='', attendee_id='', group_id=''):
+    def process_full_refund(self, session, id='', attendee_id='', group_id='', exclude_fees=False):
         receipt = session.model_receipt(id)
         refund_total = 0
         for txn in receipt.refundable_txns:
-            refund = TransactionRequest(receipt, amount=txn.amount_left)
+            refund_amount = txn.amount_left
+            if exclude_fees:
+                processing_fees = txn.calc_partial_processing_fee(txn.amount_left)
+                session.add(ReceiptItem(
+                    receipt_id=txn.receipt.id,
+                    desc=f"Processing Fees for Full Refund of {txn.desc}",
+                    amount=processing_fees,
+                    who=AdminAccount.admin_name() or 'non-admin',
+                ))
+                refund_amount -= processing_fees
+
+            refund = TransactionRequest(receipt, amount=refund_amount)
             error = refund.refund_or_skip(txn)
             if error:
                 raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', attendee_id or group_id, error)
