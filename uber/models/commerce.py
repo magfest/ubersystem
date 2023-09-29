@@ -318,7 +318,7 @@ class ReceiptTransaction(MagModel):
         # Return the most relevant Stripe ID for admins
         return self.refund_id or self.charge_id or self.intent_id
     
-    @request_cached_property
+    @property
     def total_processing_fee(self):
         if self.processing_fee and self.amount == self.txn_total:
             return self.processing_fee

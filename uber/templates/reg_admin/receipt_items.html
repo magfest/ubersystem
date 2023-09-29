@@ -279,10 +279,20 @@
   };
 
   var fullRefund = function (receiptId) {
+    let message = '';
+    {% if group_leader_receipt and not receipt %}
+      message = "This will refund this attendee's group leader the cost of one badge.";
+    {% else %}
+      let extra_message = '';
+      {% if group_leader_receipt %}
+        extra_message = " for this attendee, plus the cost of one badge for their group leader";
+      {% endif %}
+      message = "This will refund ALL existing {{ processor_str }} transactions that have not already been refunded" + 
+                extra_message + ".";
+    {% endif %}
     bootbox.confirm({
       title: "Refund and Cancel Registration?",
-      message: "This will refund ALL existing {{ processor_str }} transactions that have not already been refunded. " +
-               "It will also cancel this {{ model_str }}'s registration. Are you sure?",
+      message: message + " It will also cancel this {{ model_str }}'s registration. Are you sure?",
       buttons: {
           confirm: {
               label: 'Fully Refund and Cancel',
@@ -306,11 +316,24 @@
     });
   };
 
-  var mostlyFullRefund = function (receiptId, fee_str) {
+  var mostlyFullRefund = function (receiptId, fee_str, group_leader_fee_str = '') {
+    let message = '';
+    {% if group_leader_receipt and not receipt %}
+      message = "This will refund this attendee's group leader the cost of one badge minus " + fee_str + " in processing fees. It will also";
+    {% else %}
+      let extra_message = '';
+      {% if group_leader_receipt %}
+        extra_message = " It will also refund their group leader the cost of one badge minus " + group_leader_fee_str + " in processing fees, and it will";
+      {% else %}
+        extra_message = " It will also"
+      {% endif %}
+      message = "This will refund ALL existing {{ processor_str }} transactions that have not already been refunded, " + 
+                "minus " + fee_str + " in processing fees." + extra_message
+    {% endif %}
+
     bootbox.confirm({
       title: "Refund and Cancel Registration?",
-      message: "This will refund ALL existing {{ processor_str }} transactions that have not already been refunded, "+
-               "minus " + fee_str + " in processing fees. It will also cancel this {{ model_str }}'s registration. Are you sure?",
+      message: message + " cancel this {{ model_str }}'s registration. Are you sure?",
       buttons: {
           confirm: {
               label: 'Fully Refund and Cancel',
@@ -439,8 +462,7 @@
         <div class="col-auto">
           <div class="input-group">
             <span class="input-group-text">$</span>
-            <input type="number" name="amount" class="form-control" placeholder="0" required>
-            <span class="input-group-text">.00</span>
+            <input type="number" name="amount" class="form-control" placeholder="0" required step=".01">
           </div>
         </div>
         <label for="count" class="col-auto col-form-label">Quantity</label>
@@ -638,11 +660,15 @@
   <button class="btn btn-danger" onClick="fullRefund('{{ receipt.id }}')">Refund and Cancel This {{ model_str|title }}</button>
   {% if not c.AUTHORIZENET_LOGIN_ID %}
   OR
-  <button class="btn btn-danger" onClick="mostlyFullRefund('{{ receipt.id }}', '{{ (receipt.remaining_processing_fees / 100)|format_currency }}')">Refund and Cancel This {{ model_str|title }} Excluding Processing Fees</button>
+  <button class="btn btn-danger" onClick="mostlyFullRefund('{{ receipt.id }}', '{{ (receipt.remaining_processing_fees / 100)|format_currency }}', '{{ (group_processing_fee / 100)|format_currency if group_leader_receipt else '' }}')">Refund and Cancel This {{ model_str|title }} Excluding Processing Fees</button>
   {% endif %}
 {% else %}
-There are no active receipts for this {{ model_str }}.
-<br/><a href="create_receipt?id={{ model.id }}" class="btn btn-success">Create Default Receipt</a> <a href="create_receipt?id={{ model.id }}&blank=true" class="btn btn-info">Create Blank Receipt</a>
+  There are no active receipts for this {{ model_str }}.
+  <br/><a href="create_receipt?id={{ model.id }}" class="btn btn-success">Create Default Receipt</a> <a href="create_receipt?id={{ model.id }}&blank=true" class="btn btn-info">Create Blank Receipt</a>
+  {% if group_leader_receipt and attendee and attendee.badge_status != c.REFUNDED_STATUS %}
+  <button class="btn btn-danger" onClick="fullRefund('{{ group_leader_receipt.id }}')">Refund Badge Cost To Group Leader</button>
+  <button class="btn btn-danger" onClick="mostlyFullRefund('{{ group_leader_receipt.id }}', '{{ (group_processing_fee / 100)|format_currency }}')">Refund Badge Cost To Group Leader Excluding Processing Fees</a>
+  {% endif %}
 {% endif %}
 </div>
 </div>
