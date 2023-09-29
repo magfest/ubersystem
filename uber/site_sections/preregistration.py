@@ -1350,9 +1350,6 @@ class Root:
             if attendee.paid == c.HAS_PAID:
                 attendee.paid = c.REFUNDED
 
-        if attendee.in_promo_code_group:
-            attendee.promo_code = None
-
         # if attendee is part of a group, we must delete attendee and remove them from the group
         if attendee.group:
             session.assign_badges(

@@ -9,7 +9,7 @@ import six
 from pytz import UTC
 from dateutil import parser as dateparser
 from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import func, select, CheckConstraint
+from sqlalchemy import exists, func, select, CheckConstraint
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.schema import Index, ForeignKey
 from sqlalchemy.types import Integer
@@ -172,13 +172,17 @@ class PromoCodeGroup(MagModel):
 
     @hybrid_property
     def total_cost(self):
-        return sum(code.cost for code in self.promo_codes if code.cost)
+        return sum(code.cost for code in self.paid_codes if code.cost)
     
     @total_cost.expression
     def total_cost(cls):
         return select([func.sum(PromoCode.cost)]
-                     ).where(PromoCode.group_id == cls.id
+                     ).where(PromoCode.group_id == cls.id).where(PromoCode.refunded == False
                      ).label('total_cost')
+    
+    @property
+    def paid_codes(self):
+        return [code for code in self.promo_codes if not code.refunded]
 
     @property
     def valid_codes(self):
@@ -456,6 +460,16 @@ class PromoCode(MagModel):
     def uses_remaining_str(self):
         uses = self.uses_remaining
         return 'Unlimited uses' if uses is None else '{} use{} remaining'.format(uses, '' if uses == 1 else 's')
+    
+    @hybrid_property
+    def refunded(self):
+        return self.used_by and self.used_by[0].badge_status == c.REFUNDED_STATUS
+    
+    @refunded.expression
+    def refunded(cls):
+        from uber.models import Attendee
+        return exists().select_from(Attendee).where(cls.id == Attendee.promo_code_id
+                                            ).where(Attendee.badge_status == c.REFUNDED_STATUS)
 
     @presave_adjustment
     def _attribute_adjustments(self):

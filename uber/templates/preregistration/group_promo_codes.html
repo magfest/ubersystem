@@ -17,7 +17,7 @@
     {% include 'confirm_tabs.html' with context %}
 
     <h2> Members of "{{ group.name }}" </h2>
-    <p>You have bought {{ group.promo_codes|length }} promo codes for a total of {{ group.total_cost|format_currency }} (not including your badge).</p>
+    <p>You have bought {{ group.paid_codes|length }} promo codes for a total of {{ group.total_cost|format_currency }} (not including your badge).</p>
 
     <p>{% if group.valid_codes %}Anyone can claim one of the {{ group.valid_codes|length }} remaining badges in this group using either an unclaimed promo code below or this group's universal code, <strong>{{ group.code }}</strong>.
     {% else %}All promo codes have been claimed. Please email us at {{ c.REGDESK_EMAIL|email_to_link }} if a promo code was claimed in error.{% endif %}</p>
@@ -28,6 +28,7 @@
           <th>Promo Code</th>
           <th>Used By</th>
           <th>Last Sent To</th>
+          <th></th>
         </tr>
       </thead>
     {% for code in group.sorted_promo_codes %}
@@ -55,6 +56,7 @@
         </td>
       {% endif %}
       <td>{% if emailed_codes[code.code] %}{{ emailed_codes[code.code] }}{% endif %}</td>
+      <td>{% if code.refunded %}<em>Refunded</em>{% endif %}</td>
       </tr>
     {% endfor %}
   </table>
