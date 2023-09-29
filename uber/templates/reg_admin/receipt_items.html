@@ -489,19 +489,19 @@
   {% endmacro %}
 
 {% macro receipt_table(receipt, items) %}
-<ul class="nav nav-tabs" role="tablist">
-  <li class="nav-item" role="presentation" class="active">
-    <button class="nav-link" id="{{ receipt.id }}-home-tab" data-bs-toggle="tab" data-bs-target="#{{ receipt.id }}-home" type="button" role="tab" aria-controls="{{ receipt.id }}-home">
+<ul class="nav nav-tabs" role="tablist" id="tabs-{{ receipt.id }}">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="receipt-tab-{{ receipt.id }}" data-bs-toggle="tab" data-bs-target="#receipt-{{ receipt.id }}" type="button" role="tab" aria-controls="receipt-{{ receipt.id }}">
       Receipt
     </button>
   </li>
   <li class="nav-item" role="presentation">
-    <button class="nav-link" id="{{ receipt.id }}-history-tab" data-bs-toggle="tab" data-bs-target="#{{ receipt.id }}-history" type="button" role="tab" aria-controls="{{ receipt.id }}-history">
+    <button class="nav-link" id="history-tab-{{ receipt.id }}" data-bs-toggle="tab" data-bs-target="#history-{{ receipt.id }}" type="button" role="tab" aria-controls="history-{{ receipt.id }}">
       History
     </button>
 </ul>
 <div class="tab-content">
-  <div role="tabpanel" class="tab-pane active" id="{{ receipt.id }}-home">
+  <div role="tabpanel" class="tab-pane active" id="receipt-{{ receipt.id }}">
   <table class="table table-striped">
     <thead><tr>
       <th>Added</th>
@@ -605,8 +605,8 @@
     {% endif %}
   </table>
 </div>
-<div role="tabpanel" class="tab-pane" id="{{ receipt.id }}-history" aria-labelledby="{{ receipt.id }}-history-tab">
-  <table class="table-striped table-bordered table-condensed">
+<div role="tabpanel" class="tab-pane" id="history-{{ receipt.id }}">
+  <table class="table table-striped table-bordered table-sm">
     <thead><tr>
       <th>Which</th>
       <th>What</th>
