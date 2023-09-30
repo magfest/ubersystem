@@ -392,7 +392,7 @@ class days_after(DateBase):
             days = 0
 
         if days < 0:
-            raise ValueError("'days' paramater must be >= 0. days={}".format(days))
+            raise ValueError("'days' parameter must be >= 0. days={}".format(days))
 
         self.starting_date = None if not deadline else deadline + timedelta(days=days)
 
@@ -422,10 +422,10 @@ class days_before(DateBase):
     """
     def __init__(self, days, deadline, until=None):
         if days <= 0:
-            raise ValueError("'days' paramater must be > 0. days={}".format(days))
+            raise ValueError("'days' parameter must be > 0. days={}".format(days))
 
         if until and days <= until:
-            raise ValueError("'days' paramater must be less than 'until'. days={}, until={}".format(days, until))
+            raise ValueError("'days' parameter must be less than 'until'. days={}, until={}".format(days, until))
 
         self.days, self.deadline, self.until = days, deadline, until
 
@@ -454,6 +454,79 @@ class days_before(DateBase):
     @property
     def active_when(self):
         if not self.deadline:
+            return ''
+
+        start_txt = self.starting_date.strftime(self._when_dateformat)
+        end_txt = self.ending_date.strftime(self._when_dateformat)
+
+        return 'between {} and {}'.format(start_txt, end_txt)
+
+
+class days_between(DateBase):
+    """
+    Returns true if today is between two deadlines, with optional values for days before and after each deadline.
+
+    :param: days - number of days before deadline to start
+    :param: deadline - datetime of the deadline
+    :param: until - (optional) number of days prior to deadline to end (default: 0)
+
+    Examples:
+        days_between((14, c.POSITRON_BEAM_DEADLINE), (5, c.EPOCH))() - True if it's 14 days before c.POSITRON_BEAM_DEADLINE and 5 days before c.EPOCH
+        days_between((c.WARP_COIL_DEADLINE, 5), c.EPOCH)() - True if it's 5 days after c.WARP_COIL_DEADLINE up to c.EPOCH
+    """
+    def __init__(self, first_deadline_tuple, second_deadline_tuple):
+        self.errors = []
+
+        self.starting_date = self.process_deadline_tuple(first_deadline_tuple)
+        self.ending_date = self.process_deadline_tuple(second_deadline_tuple)
+
+        if self.errors:
+            raise ValueError(f"{' '.join(self.errors)} Please use the following format: \
+                             optional days_before(int), deadline(datetime), optional days_after(int). \
+                             Note that you cannot set both days_before and days_after.")        
+
+        assert self.starting_date < self.ending_date
+
+    def process_deadline_tuple(self, deadline_tuple):
+        days_before, deadline, days_after = None, None, None
+
+        try:
+            first_val, second_val = deadline_tuple
+            if isinstance(first_val, int) and isinstance(second_val, int):
+                self.errors.append(f"Couldn't find a deadline in the tuple: {deadline_tuple}.")
+                return
+            elif isinstance(first_val, int):
+                days_before, deadline, days_after = first_val, second_val, 0
+            elif isinstance(second_val, int):
+                days_before, deadline, days_after = 0, first_val, second_val
+            else:
+                self.errors.append(f"Malformed tuple: {deadline_tuple}.")
+                return
+        except TypeError:
+            days_before, deadline, days_after = 0, deadline_tuple, 0
+
+        if days_before:
+            return deadline - timedelta(days=days_before)
+        else:
+            return deadline + timedelta(days=days_after)
+
+    def __call__(self):
+        if not self.starting_date or not self.ending_date:
+            return False
+
+        return self.starting_date < self.now() < self.ending_date
+
+    @property
+    def active_after(self):
+        return self.starting_date
+
+    @property
+    def active_before(self):
+        return self.ending_date
+
+    @property
+    def active_when(self):
+        if not self.starting_date or not self.ending_date:
             return ''
 
         start_txt = self.starting_date.strftime(self._when_dateformat)
