@@ -2176,6 +2176,12 @@ class AttendeeAccount(MagModel):
         return func.replace(func.lower(func.trim(cls.email)), '.', '')
 
     @property
+    def is_sso_account(self):
+        if c.SSO_EMAIL_DOMAINS:
+            local, domain = normalize_email(self.email, split_address=True)
+            return domain in c.SSO_EMAIL_DOMAINS
+
+    @property
     def has_only_one_badge(self):
         return len(self.attendees) == 1
 

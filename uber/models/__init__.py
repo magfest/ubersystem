@@ -1069,10 +1069,7 @@ class Session(SessionManager):
         def add_attendee_to_account(self, attendee, account):
             from uber.utils import normalize_email
 
-            unclaimed_account = account.hashed != ''
-            if c.SSO_EMAIL_DOMAINS:
-                local, domain = normalize_email(account.email, split_address=True)
-                unclaimed_account = unclaimed_account and domain not in c.SSO_EMAIL_DOMAINS
+            unclaimed_account = account.hashed != '' and not account.is_sso_account
 
             if c.ONE_MANAGER_PER_BADGE and attendee.managers and not unclaimed_account:
                 attendee.managers.clear()

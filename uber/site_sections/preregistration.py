@@ -128,17 +128,19 @@ def set_up_new_account(session, attendee, email=None):
     else:
         account = session.create_attendee_account(email)
         session.add_attendee_to_account(attendee, account)
-    session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token, bcrypt.gensalt())))
 
-    body = render('emails/accounts/new_account.html', {
-            'attendee': attendee, 'account_email': email, 'token': token}, encoding=None)
-    send_email.delay(
-        c.ADMIN_EMAIL,
-        email,
-        c.EVENT_NAME + ' Account Setup',
-        body,
-        format='html',
-        model=account.to_dict('id'))
+    if not account.is_sso_account:
+        session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token, bcrypt.gensalt())))
+
+        body = render('emails/accounts/new_account.html', {
+                'attendee': attendee, 'account_email': email, 'token': token}, encoding=None)
+        send_email.delay(
+            c.ADMIN_EMAIL,
+            email,
+            c.EVENT_NAME + ' Account Setup',
+            body,
+            format='html',
+            model=account.to_dict('id'))
 
 @all_renderable(public=True)
 @check_post_con
@@ -1811,15 +1813,25 @@ class Root:
             account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(account_email)).first()
             if 'admin_url' in params:
                 success_url = "../{}message=Password reset email sent.".format(params['admin_url'])
+                sso_url = "../{}message=SSO accounts do not have passwords.".format(params['admin_url'])
             else:
                 success_url = "../landing/index?message=Check your email for a password reset link."
+                sso_url = "../landing/index?message=Please log in via the staff login link!"
             if not account:
                 # Avoid letting attendees de facto search for other attendees by email
+                if c.SSO_EMAIL_DOMAINS:
+                    local, domain = normalize_email(account_email, split_address=True)
+                    if domain in c.SSO_EMAIL_DOMAINS:
+                        raise HTTPRedirect(sso_url)
                 raise HTTPRedirect(success_url)
+
             if account.password_reset:
                 session.delete(account.password_reset)
                 session.commit()
-
+            
+            if account.is_sso_account:
+                raise HTTPRedirect(sso_url)
+            
             token = genpasswd(short=True)
             session.add(PasswordReset(attendee_account=account, hashed=bcrypt.hashpw(token, bcrypt.gensalt())))
 

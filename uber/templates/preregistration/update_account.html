@@ -1,7 +1,9 @@
 {% import "forms/account.html" as account_fields with context %}
+{% if not homepage_account.is_sso_account %}
 <button class="btn btn-info pull-left" type="button" data-bs-toggle="collapse" data-bs-target="#update-account" aria-expanded="false" aria-controls="update-account">
     <i class="fa fa-cog"></i> Account Settings
 </button>
+{% endif %}
 {% if c.PAGE_PATH != '/preregistration/homepage' %}
 <a href="../preregistration/homepage" class="btn btn-primary">Go to Homepage</a>
 {% endif %}
@@ -9,6 +11,7 @@
     <i class="fa fa-log-out"></i> Log Out
 </a>
 <div class="clearfix"></div>
+{% if not homepage_account.is_sso_account %}
 <div class="collapse" id="update-account">
     <div class="card-body">
         <form method="post" action="update_account" class="form-horizontal">
@@ -48,5 +51,6 @@
         </form>
     </div>
 </div>
+{% endif %}
 
 {{ account_fields.new_password_validation }}
