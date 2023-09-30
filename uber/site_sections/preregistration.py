@@ -745,7 +745,7 @@ class Root:
             pending_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
             if pending_attendee:
                 pending_attendee.apply(attendee.to_dict(), restricted=True)
-                if attendee.badges:
+                if attendee.badges and pending_attendee.promo_code_groups:
                     pc_group = pending_attendee.promo_code_groups[0]
                     pc_group.name = attendee.name
 
@@ -755,6 +755,9 @@ class Root:
                         session.add_codes_to_pc_group(pc_group, pc_codes - pending_codes)
                     elif pc_codes < pending_codes:
                         session.remove_codes_from_pc_group(pc_group, pending_codes - pc_codes)
+                elif attendee.badges:
+                    pc_group = session.create_promo_code_group(pending_attendee, attendee.name, int(attendee.badges) - 1)
+                    session.add(pc_group)
                 elif pending_attendee.promo_code_groups:
                     pc_group = pending_attendee.promo_code_groups[0]
                     session.delete(pc_group)
@@ -1349,9 +1352,6 @@ class Root:
                 .format(format_currency(total_refunded / 100))
             if attendee.paid == c.HAS_PAID:
                 attendee.paid = c.REFUNDED
-
-        if attendee.in_promo_code_group:
-            attendee.promo_code = None
 
         # if attendee is part of a group, we must delete attendee and remove them from the group
         if attendee.group:

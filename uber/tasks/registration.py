@@ -217,7 +217,7 @@ def check_missed_stripe_payments():
         payment_intent = event.data.object
         if payment_intent.id in pending_ids:
             paid_ids.append(payment_intent.id)
-            ReceiptManager.mark_paid_from_intent_id(payment_intent.id, payment_intent.charges.data[0].id)
+            ReceiptManager.mark_paid_from_stripe_intent(payment_intent)
     return paid_ids
 
 

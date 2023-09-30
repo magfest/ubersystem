@@ -722,7 +722,7 @@ class TransactionRequest:
                     log.debug(f"Transaction {self.tracking_id} request successful. Transaction ID: {auth_txn_id}")
                     
                     if txn_type in [c.AUTHCAPTURE, c.CAPTURE]:
-                        ReceiptManager.mark_paid_from_intent_id(params.get('intent_id'), auth_txn_id)
+                        ReceiptManager.mark_paid_from_ids(params.get('intent_id'), auth_txn_id)
                 else:
                     error_code = str(response.transactionResponse.errors.error[0].errorCode)
                     error_msg = str(response.transactionResponse.errors.error[0].errorText)
@@ -1062,16 +1062,35 @@ class ReceiptManager:
             log.error(str(e))
 
     @staticmethod
-    def mark_paid_from_intent_id(intent_id, charge_id):
+    def mark_paid_from_stripe_intent(payment_intent):
+        if not payment_intent.charges.data:
+            log.error(f"Tried to mark payments with intent ID {payment_intent.id} as paid but that intent doesn't have a charge!")
+            return []
+
+        if payment_intent.status != "succeeded":
+            log.error(f"Tried to mark payments with intent ID {payment_intent.id} as paid but the charge on this intent wasn't successful!")
+            return []
+        
+        ReceiptManager.mark_paid_from_ids(payment_intent.id, payment_intent.charges.data[0].id)
+        
+    @staticmethod
+    def mark_paid_from_ids(intent_id, charge_id):
         from uber.models import Attendee, ArtShowApplication, MarketplaceApplication, Group, ReceiptTransaction, Session
         from uber.tasks.email import send_email
         from uber.decorators import render
-        
+
         session = Session().session
         matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).filter(
             ReceiptTransaction.charge_id == '').all()
-
+        
+        if not matching_txns:
+            log.debug(f"Tried to mark payments with intent ID {intent_id} as paid but we couldn't find any!")
+            return []
+        
         for txn in matching_txns:
+            if not c.AUTHORIZENET_LOGIN_ID:
+                txn.processing_fee = txn.calc_processing_fee()
+
             txn.charge_id = charge_id
             session.add(txn)
             txn_receipt = txn.receipt

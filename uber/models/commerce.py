@@ -104,11 +104,11 @@ class ModelReceipt(MagModel):
     
     @property
     def total_processing_fees(self):
-        return sum([txn.calc_partial_processing_fee(txn.amount) for txn in self.refundable_txns])
+        return sum([txn.calc_processing_fee(txn.amount) for txn in self.refundable_txns])
     
     @property
     def remaining_processing_fees(self):
-        return sum([txn.calc_partial_processing_fee(txn.amount_left) for txn in self.refundable_txns])
+        return sum([txn.calc_processing_fee(txn.amount_left) for txn in self.refundable_txns])
 
     @property
     def open_receipt_items(self):
@@ -189,6 +189,10 @@ class ModelReceipt(MagModel):
 
     @property
     def total_str(self):
+        if self.closed:
+            return "{} in {}".format(format_currency(abs(self.txn_total / 100)),
+                                                        "Payments" if self.txn_total >= 0 else "Refunds")
+
         return "{} in {} and {} in {} = {} owe {}".format(format_currency(abs(self.item_total / 100)),
                                                         "Purchases" if self.item_total >= 0 else "Credit",
                                                         format_currency(abs(self.txn_total / 100)),
@@ -283,7 +287,8 @@ class ReceiptTransaction(MagModel):
 
     @property
     def refundable(self):
-        return self.charge_id and self.amount_left and self.amount > 0
+        return not self.receipt.closed and self.charge_id and self.amount > 0 and \
+            self.amount_left and self.amount_left != self.calc_processing_fee()
 
     @property
     def stripe_url(self):
@@ -313,8 +318,9 @@ class ReceiptTransaction(MagModel):
         # Return the most relevant Stripe ID for admins
         return self.refund_id or self.charge_id or self.intent_id
     
-    def get_processing_fee(self):
-        if self.processing_fee:
+    @property
+    def total_processing_fee(self):
+        if self.processing_fee and self.amount == self.txn_total:
             return self.processing_fee
 
         if c.AUTHORIZENET_LOGIN_ID:
@@ -326,14 +332,17 @@ class ReceiptTransaction(MagModel):
         
         return intent.charges.data[0].balance_transaction.fee_details[0].amount
     
-    def calc_partial_processing_fee(self, refund_amount):
+    def calc_processing_fee(self, amount=0):
         from decimal import Decimal
 
-        if not refund_amount:
-            return 0
+        if not amount:
+            if self.processing_fee:
+                return self.processing_fee
+
+            amount = self.amount
         
-        refund_pct = Decimal(refund_amount) / Decimal(self.txn_total)
-        return refund_pct * Decimal(self.get_processing_fee())
+        refund_pct = Decimal(amount) / Decimal(self.txn_total)
+        return int(refund_pct * Decimal(self.total_processing_fee))
     
     def check_stripe_id(self):
         # Check all possible Stripe IDs for invalid request errors
@@ -392,7 +401,7 @@ class ReceiptTransaction(MagModel):
         intent = intent or self.get_stripe_intent()
         if intent and intent.status == "succeeded":
             new_charge_id = intent.charges.data[0].id
-            ReceiptManager.mark_paid_from_intent_id(self.intent_id, new_charge_id)
+            ReceiptManager.mark_paid_from_stripe_intent(intent)
             return new_charge_id
 
     def update_amount_refunded(self):
