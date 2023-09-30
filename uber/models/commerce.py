@@ -342,7 +342,7 @@ class ReceiptTransaction(MagModel):
             amount = self.amount
         
         refund_pct = Decimal(amount) / Decimal(self.txn_total)
-        return refund_pct * Decimal(self.total_processing_fee)
+        return int(refund_pct * Decimal(self.total_processing_fee))
     
     def check_stripe_id(self):
         # Check all possible Stripe IDs for invalid request errors

@@ -514,7 +514,7 @@ class Root:
             ))
 
             if exclude_fees:
-                processing_fees = int(txn.calc_processing_fee(group_refund_amount))
+                processing_fees = txn.calc_processing_fee(group_refund_amount)
                 session.add(ReceiptItem(
                     receipt_id=txn.receipt.id,
                     desc=f"Processing Fees for Refund of {model.full_name}'s Promo Code",
