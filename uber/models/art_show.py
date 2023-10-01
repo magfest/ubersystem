@@ -138,10 +138,7 @@ class ArtShowApplication(MagModel):
 
     @property
     def potential_cost(self):
-        if self.overridden_price is not None:
-            return self.overridden_price
-        else:
-            return self.default_cost or 0
+        return self.default_cost or 0
 
     def calc_app_price_change(self, **kwargs):
         preview_app = ArtShowApplication(**self.to_dict())
