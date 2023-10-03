@@ -10,7 +10,7 @@ geopy==1.11.0
 ics==0.4
 Jinja2==2.11.3
 phonenumbers==8.8.1
-Pillow==8.3.2
+Pillow==10.0.1
 pockets==0.6.2
 psycopg2==2.9.6
 py3k-bcrypt==0.3
