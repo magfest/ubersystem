@@ -510,11 +510,12 @@ class Attendee(MagModel, TakesPaymentMixin):
             elif self.group.is_dealer and self.group.status != c.APPROVED:
                 self.badge_status = c.UNAPPROVED_DEALER_STATUS
 
-        if self.badge_status == c.INVALID_GROUP_STATUS and (not self.group or self.group.is_valid):
+        if self.badge_status == c.INVALID_GROUP_STATUS and (not self.group or self.group.is_valid or self.paid != c.PAID_BY_GROUP):
             self.badge_status = c.NEW_STATUS
         
         if self.badge_status == c.UNAPPROVED_DEALER_STATUS and (not self.group or 
                                                                 not self.group.is_dealer or 
+                                                                self.paid != c.PAID_BY_GROUP or
                                                                 self.group.status == c.APPROVED):
             self.badge_status = c.NEW_STATUS
 
@@ -536,7 +537,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         elif self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name and (
                     self.paid in [c.HAS_PAID, c.NEED_NOT_PAY, c.REFUNDED]
                     or self.paid == c.PAID_BY_GROUP
-                    and self.group_id
+                    and self.group
                     and not self.group.is_unpaid):
             self.badge_status = c.COMPLETED_STATUS
 
@@ -983,8 +984,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             new_cost = preview_attendee.calculate_badge_prices_cost(self.badge_type) * 100
         if 'ribbon' in kwargs:
             add_opt(preview_attendee.ribbon_ints, int(kwargs['ribbon']))
-        if 'paid' in kwargs:
-            preview_attendee.paid = int(kwargs['paid'])
 
         current_cost = self.calculate_badge_cost() * 100
         if not new_cost:
