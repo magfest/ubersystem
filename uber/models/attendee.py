@@ -1030,13 +1030,13 @@ class Attendee(MagModel, TakesPaymentMixin):
     def calc_badge_comp_change(self, paid):
         preview_attendee = Attendee(**self.to_dict())
         paid = int(paid)
-        comped_or_refunded = [c.NEED_NOT_PAY, c.REFUNDED]
+        free_badge_statuses = [c.NEED_NOT_PAY, c.REFUNDED, c.PAID_BY_GROUP]
         preview_attendee.paid = paid
-        if paid != c.NEED_NOT_PAY and self.paid != c.NEED_NOT_PAY:
+        if paid not in free_badge_statuses and self.paid not in free_badge_statuses:
             return 0, 0
-        elif self.paid in comped_or_refunded and paid in comped_or_refunded:
+        elif self.paid in free_badge_statuses and paid in free_badge_statuses:
             return 0, 0
-        elif paid == c.NEED_NOT_PAY:
+        elif paid in free_badge_statuses:
             return 0, self.badge_cost * -1 * 100
         else:
             badge_cost = preview_attendee.calculate_badge_cost() * 100
