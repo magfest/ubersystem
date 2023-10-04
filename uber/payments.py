@@ -1095,6 +1095,9 @@ class ReceiptManager:
             session.add(txn)
             txn_receipt = txn.receipt
 
+            if txn.cancelled != None:
+                txn.cancelled == None
+
             for item in txn.receipt_items:
                 item.closed = datetime.now()
                 session.add(item)
