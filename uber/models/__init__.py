@@ -1035,6 +1035,8 @@ class Session(SessionManager):
                 password = genpasswd()
             
             new_account = AdminAccount(attendee=attendee, hashed=bcrypt.hashpw(password, bcrypt.gensalt()))
+            if 'judge' in params:
+                new_account.judge = params.pop('judge')
             new_account.apply(params)
             self.add(new_account)
             return new_account
