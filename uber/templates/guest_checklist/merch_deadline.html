@@ -20,7 +20,7 @@
     </td>
   </tr>
   {% block deadline_extra %}
-  {% if HAS_ROCK_ISLAND and guest.merch.selling_merch == c.ROCK_ISLAND and guest.merch_status %}
+  {% if HAS_ROCK_ISLAND and guest.merch_status and guest.merch.selling_merch == c.ROCK_ISLAND %}
     <tr>
       <td></td>
       <td>{{ macros.checklist_image(guest.merch.inventory) }} <b><a href="merch?guest_id={{ guest.id }}">Rock Island Inventory</a></b></td>

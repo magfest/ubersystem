@@ -27,8 +27,8 @@ Use the link above to let us know if you would like to host any autograph sessio
     <div class="col-sm-6 col-sm-offset-3">
       <select name="rock_island_autographs" class="form-control">
         <option value="">Please select an option...</option>
-        <option value="1" {% if guest.autograph.rock_island_autographs %}selected {% endif %}>Yes</option>
-        <option value="0" {% if guest.autograph.rock_island_autographs == False %}selected {% endif %}>No</option>
+        <option value="1" {% if guest_autograph.rock_island_autographs %}selected {% endif %}>Yes</option>
+        <option value="0" {% if guest_autograph.rock_island_autographs == False %}selected {% endif %}>No</option>
       </select>
     </div>
 </div>
@@ -36,7 +36,7 @@ Use the link above to let us know if you would like to host any autograph sessio
     <label class="col-sm-3 control-label">Length of Sessions (hours)</label>
     <div class="col-sm-6">
       <select name="rock_island_length" class="form-control">
-        {% set rock_island_length_hours = guest.autograph.rock_island_length//60 %}
+        {% set rock_island_length_hours = guest_autograph.rock_island_length//60 %}
         {{ int_options(1, 2, rock_island_length_hours) }}
       </select>
     </div>
