@@ -108,7 +108,7 @@ def check_account(session, email, password, confirm_password, skip_if_logged_in=
     if existing_account and (old_email and normalize_email_legacy(normalize_email(existing_account.email)) != super_normalized_old_email
             or not old_email and not logged_in_account):
         return "There's already an account with that email address."
-    elif logged_in_account and logged_in_account.normalized_email != existing_account.normalized_email:
+    elif existing_account and logged_in_account and logged_in_account.normalized_email != existing_account.normalized_email:
         return "You cannot reset someone's password while logged in as someone else."
     
     if update_password:

@@ -12,45 +12,44 @@
 </a>
 <div class="clearfix"></div>
 {% if not homepage_account.is_sso_account %}
-<div class="collapse" id="update-account">
+&nbsp;
+<div class="collapse text-start" id="update-account">
+    <div class="card">
     <div class="card-body">
-        <form method="post" action="update_account" class="form-horizontal">
+        <form method="post" action="update_account">
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ homepage_account.id }}" />
-            <div class="form-group">
-                <label for="current_password" class="col-sm-3 control-label">Current Password</label>
-                <div class="col-sm-6">
-                    <input type="password" name="current_password" id="current_password" value="" class="form-control" placeholder="Enter account password to make changes" required>
+            <div class="row g-sm-3">
+                <div class="col-12 col-sm-6">
+                    <label for="current_password" class="form-text">Current Password</label>
+                <input type="password" name="current_password" id="current_password" value="" class="form-control" placeholder="Enter account password to make changes" required>
                 </div>
             </div>
             <hr>
-            <div class="form-group">
-                <label for="email" class="col-sm-3 control-label">Account Email</label>
-                <div class="col-sm-6">
+            <div class="row g-sm-3">
+                <div class="col-12 col-sm-6">
+                    <label for="email" class="form-text">Account Email</label>
                     <input type="email" name="account_email" id="account_email" value="{{ homepage_account.email }}" class="form-control" placeholder="Account email address" required>
                 </div>
             </div>
-            <div class="form-group">
-                <label for="new-password" class="col-sm-3 control-label">New Password</label>
-                <div class="col-sm-6">
+            <div class="row g-sm-3">
+                <div class="col-12 col-sm-6">
+                    <label for="new-password" class="form-text">New Password</label>
                     <input type="password" name="new_password" id="new-password" value="" class="form-control" placeholder="Leave blank to keep current password">
+                    {{ account_fields.password_help }}
                 </div>
-                {{ account_fields.password_help }}
-            </div>
-            <div class="form-group">
-                <label for="confirm-password" class="col-sm-3 control-label">Confirm New Password</label>
-                <div class="col-sm-6">
+                <div class="col-12 col-sm-6">
+                    <label for="confirm-password" class="form-text">Confirm New Password</label>
                     <input type="password" name="confirm_password" id="confirm-password" value="" class="form-control" placeholder="Leave blank to keep current password">
                 </div>
             </div>
-            <div class="col-sm-9 col-sm-offset-3">
-                <button type="submit" class="btn btn-primary" id="accountUpdateButton">
-                Update Account Info
-                </button>
-            </div>
+            <button type="submit" class="btn btn-primary" id="accountUpdateButton">
+            Update Account Info
+            </button>
         </form>
     </div>
+    </div>
 </div>
-{% endif %}
 
 {{ account_fields.new_password_validation }}
+{% endif %}
