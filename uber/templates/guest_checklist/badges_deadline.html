@@ -9,11 +9,11 @@
     {% block deadline_text %}
       {% if guest.all_badges_claimed %}
         You have already assigned all badges which have been assigned to your group, but you may change who your
-        complementary badges are assigned to using the link above anytime until the start of {{ c.EVENT_NAME }}.
+        complimentary badges are assigned to using the link above anytime until the start of {{ c.EVENT_NAME }}.
       {% else %}
-        You currently have {{ guest.group.floating|length }} unassigned complementary
+        <p>You currently have {{ guest.group.floating|length }} unassigned complimentary
         badge{{ guest.group.floating|length|pluralize }} available to your group.  You may use the link above to
-        assign these badges.
+        assign these badges.</p>
       {% endif %}
       <br/><br/>
       By default, each guest receives a badge for themselves, plus an additional badge.

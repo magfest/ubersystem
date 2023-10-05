@@ -1,7 +1,7 @@
   <tr>
     <td width="25">{{ macros.checklist_image(guest.panel_status) }}</td>
     <td><b><a href="panel?guest_id={{ guest.id }}">
-      {% block deadline_headline %}Add a Panel{% endblock %}</a></b></td>
+      {% block deadline_headline %}Run a Panel{% endblock %}</a></b></td>
     <td><i>Deadline:</i> {{ guest.deadline_from_model('panel')|datetime_local }}</td>
   </tr>
   <tr>

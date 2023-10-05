@@ -1,0 +1,12 @@
+{% extends "guest_checklist/charity_deadline.html" %}
+
+{% block deadline_text %}
+{% if guest.charity_status %}
+    You have already indicated your charity preferences, but you may update them using the link above.
+{% else %}
+    {{ c.EVENT_NAME }} hosts a yearly charity auction, with 100% of proceeds going to 
+    <a href="http://childsplaycharity.org/" target="_blank">Child's Play</a>. 
+    Use the link above to indicate if you would be willing to donate any signed merchandise to the auction or 
+    would be able to assist in any other way.
+{% endif %}
+{% endblock %}
