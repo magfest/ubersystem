@@ -956,9 +956,9 @@ class Root:
         group = session.group(id)
 
         if group.is_dealer:
-            form_list = ['AdminTableInfo', 'ContactInfo']
+            form_list = ['TableInfo', 'ContactInfo']
         else:
-            form_list = ['AdminGroupInfo']
+            form_list = ['GroupInfo']
 
         forms = load_forms(params, group, group_forms, form_list)
         for form in forms.values():
