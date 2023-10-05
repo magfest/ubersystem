@@ -13,9 +13,15 @@
   <h2>{% if guest.group_type == c.GUEST %}Guests & Events Checklist for {{ guest.group.name }}
     {% else %}{{ guest.group_type_label }} Checklist for {{ guest.group.name }}{% endif %}</h2>
 
-  {% if guest.group_type == c.GUEST %}This checklist will help make sure {{ c.EVENT_NAME }} has all the group, panel, activity, and
+  {% if guest.group_type == c.GUEST %}
+    This checklist will help make sure {{ c.EVENT_NAME }} has all the group, panel, activity, and 
     support information we need from you before the event.
-  {% else %}Here is a list of things which {{ c.EVENT_NAME }} needs from you before the event.{% endif %}
+  {% elif guest.group_type == c.BAND %}
+    Please fill out the following checklist items by no later than the dates indicated on each individual item. 
+    If you have any questions, please contact {{ c.BAND_EMAIL|email_only|email_to_link }} or your provided liaison.
+  {% else %}
+    Here is a list of things which {{ c.EVENT_NAME }} needs from you before the event.
+  {% endif %}
   <br/><br/>
 
   <table style="width:auto">

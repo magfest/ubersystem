@@ -6,64 +6,50 @@
   {% if guest.merch_status %}
     You have already indicated your merchandise preferences, but you may update them using the link above.
   {% else %}
-    We need you to tell us whether you have any merchandise to sell{% if HAS_ROCK_ISLAND %},
-    and whether you intend to participate in our "Rock Island" program where we sell your merchandise so that you do
-    not need to staff your own table{% endif %}.
+    Use the link above to provide details on any merchandise you are bringing to 
+    sell{% if HAS_ROCK_ISLAND %} in 'Rock Island', our volunteer-run merch booth{% endif %}.
   {% endif %}
 {% endblock %}
 
 {% block form_desc %}
-  {{ super() }}
+  <p>MAGFest will provide access to our Rock Island Merch Department during the event.</p>
 
-    <p>
-        For mainstage performers, on the night of your performance, a full table will also be provided immediately across 
-        from the entrance to the concert hall for merchandise sales and signings.
-    </p>
+  <p>
+    <a href="../static/RockIsland.pdf">
+      Click here for more info about our Rock Island service!
+    </a>
+  </p>
+
+  <p>
+      For mainstage performers, on the night of your performance, a full table will also be provided immediately across 
+      from the entrance to the concert hall for merchandise sales and signings.
+  </p>
 {% endblock %}
 
 {% block form_extra %}
   {{ super() }}
 
-  <div id="coverage" style="display:none">
-    {% if c.REQUIRE_DEDICATED_GUEST_TABLE_PRESENCE %}
-      <div class="form-group">
-        <div class="col-sm-9 col-sm-offset-3 checkbox">
-          <label class="checkbox-label">
-            <input type="checkbox" name="coverage" value="yes" />
-            I commit to staffing our table in the marketplace at least <b>8 hours per day</b>.
-          </label>
-        </div>
-      </div>
-      <div class="form-group">
-        <div class="col-sm-9 col-sm-offset-3 checkbox">
-          <label class="checkbox-label">
-            <input type="checkbox" name="warning" value="yes" />
-            I acknowledge that failing to staff our table for <b>8 hours per day</b> will revoke
-            the privilege of selling our merchandise from our own dedicated table in the future.
-          </label>
-        </div>
-      </div>
-    {% endif %}
+  <div class="form-group" id="confirm-ri-faq">
+    <div class="col-sm-9 col-sm-offset-3 checkbox">
+      {{ macros.toggle_checkbox(
+          '#save-merch-button',
+          'I acknowledge that I have read & understood the <a href="../static/RockIsland.pdf">Rock Island FAQ</a>, including the hours and policies.'|safe,
+          suffix='_agreed_ri_faq',
+          mode='#save-merch-button',
+          hide_on_checked=False,
+          checked=agreed_to_ri_faq) }}
+    </div>
   </div>
 
   <script>
-      var checkCoverage = function() {
-          var isDedicated = $.val('selling_merch') === {{ c.OWN_TABLE }};
-          setVisible('#coverage', isDedicated);
-
-          {% if c.REQUIRE_DEDICATED_GUEST_TABLE_PRESENCE %}
-              var allChecked = $.field('coverage').prop('checked') && $.field('warning').prop('checked');
-              $('input[type="submit"]').prop('disabled', isDedicated && !allChecked);
-          {% endif %}
-      };
-
-      $(function () {
-          checkCoverage();
-          {% if c.REQUIRE_DEDICATED_GUEST_TABLE_PRESENCE %}
-            $.field('warning').on('click', checkCoverage);
-            $.field('coverage').on('click', checkCoverage);
-          {% endif %}
-          $.field('selling_merch').on('change', checkCoverage);
-      });
+    var showOrRIFaq = function() {
+      setVisible('#confirm-ri-faq', $.val('selling_merch') === {{ c.ROCK_ISLAND }});
+      $('#save-merch-button').prop('disabled', $.val('selling_merch') === {{ c.ROCK_ISLAND }} && !$('#toggle_visibility_agreed_ri_faq').prop('checked'));
+    };
+    $(function () {
+      $("[name='selling_merch'] option[value='{{ c.OWN_TABLE }}']").remove();
+      showOrRIFaq();
+      $.field('selling_merch').on('change', showOrRIFaq);
+    });
   </script>
 {% endblock %}

@@ -226,7 +226,8 @@ class Root:
             'guest': guest,
             'guest_merch': guest_merch,
             'group': group_params or guest.group,
-            'message': message
+            'message': message,
+            'agreed_to_ri_faq': guest.group_type == c.BAND and guest_merch and guest_merch.orig_value_of('selling_merch') != c.NO_MERCH and guest_merch.poc_address1,
         }
 
     @ajax
@@ -296,6 +297,7 @@ class Root:
         guest_autograph = session.guest_autograph(params)
         if cherrypy.request.method == 'POST':
             guest_autograph.length = 60 * int(params['length'])  # Convert hours to minutes
+            guest_autograph.rock_island_length = 60 * int(params['rock_island_length'])  # Convert hours to minutes
             guest.autograph = guest_autograph
             session.add(guest_autograph)
             raise HTTPRedirect('index?id={}&message={}', guest.id, 'Your autograph sessions have been saved')
