@@ -3,6 +3,7 @@ from six import string_types
 from pockets.autolog import log
 
 from uber.config import c
+from uber.custom_tags import email_only
 from uber.decorators import ajax, all_renderable, render, credit_card, requires_account
 from uber.errors import HTTPRedirect
 from uber.models import ArtShowApplication, ModelReceipt
@@ -118,7 +119,18 @@ class Root:
         if error:
             return {'error': "Something went wrong with this payment. Please refresh the page and try again."}
 
-        stripe_intent = txn.get_stripe_intent()
+        if c.AUTHORIZENET_LOGIN_ID:
+            # Authorize.net doesn't actually have a concept of pending transactions,
+            # so there's no transaction to resume. Create a new one.
+            new_txn_requent = TransactionRequest(txn.receipt, app.attendee.email, txn.desc, txn.amount)
+            stripe_intent = new_txn_requent.stripe_or_authnet_intent()
+            txn.intent_id = stripe_intent.id
+            session.commit()
+        else:
+            stripe_intent = txn.get_stripe_intent()
+
+        if not stripe_intent:
+            return {'error': "Something went wrong. Please contact us at {}.".format(email_only(c.REGDESK_EMAIL))}
 
         if stripe_intent.charges:
             return {'error': "This payment has already been finalized!"}
