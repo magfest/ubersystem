@@ -170,7 +170,7 @@ class ArtShowApplication(MagModel):
 
     @property
     def amount_unpaid(self):
-        return max(0, self.total_cost - (self.amount_paid / 100))
+        return max(0, ((self.total_cost * 100) - self.amount_paid) / 100)
 
     @property
     def amount_pending(self):

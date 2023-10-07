@@ -3,9 +3,9 @@
 {% block content %}
 
 <ol class="breadcrumb">
-  <li><a href="../accounts/homepage">Home</a></li>
-  <li>Art Show</li>
-  <li class="active">Admin</li>
+  <li class="breadcrumb-item"><a href="../accounts/homepage">Home</a></li>
+  <li class="breadcrumb-item">Art Show</li>
+  <li class="breadcrumb-item active">Admin</li>
 </ol>
 
 <div class="card">
@@ -32,7 +32,9 @@
     <th>General Tables</th>
     <th>Mature Panels</th>
     <th>Mature Tables</th>
-    <th>Art Show Cost</th>
+    <th>Cost</th>
+    <th>Owed</th>
+    <th>Paid</th>
     <th>Admin Notes</th>
 </tr></thead>
 {% for app in applications %}
@@ -48,7 +50,9 @@
         <td>{{ app.tables }}</td>
         <td>{{ app.panels_ad }}</td>
         <td>{{ app.tables_ad }}</td>
-        <td>{{ app.total_cost|format_currency }}{% if app.amount_paid %} ({{ (app.amount_paid / 100)|format_currency }} unpaid){% endif %}</td>
+        <td>{{ app.total_cost|format_currency }}</td>
+        <td>{{ app.amount_unpaid|format_currency }}</td>
+        <td>{{ (app.amount_paid / 100)|format_currency }}</td>
         <td>{{ app.admin_notes }}</td>
     </tr>
 {% endfor %}
