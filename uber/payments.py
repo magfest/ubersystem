@@ -1086,7 +1086,7 @@ class ReceiptManager:
                 try:
                     send_email.delay(
                         c.ART_SHOW_EMAIL,
-                        c.ART_SHOW_EMAIL,
+                        c.ART_SHOW_NOTIFICATIONS_EMAIL,
                         'Art Show Payment Received',
                         render('emails/art_show/payment_notification.txt',
                             {'app': model}, encoding=None),

@@ -50,7 +50,7 @@ class Root:
                 session.add(app)
                 send_email.delay(
                     c.ART_SHOW_EMAIL,
-                    c.ART_SHOW_EMAIL,
+                    c.ART_SHOW_NOTIFICATIONS_EMAIL,
                     'Art Show Application Received',
                     render('emails/art_show/reg_notification.txt',
                            {'app': app}, encoding=None), model=app.to_dict('id'))
