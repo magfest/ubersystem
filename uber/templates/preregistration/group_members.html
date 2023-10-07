@@ -5,9 +5,8 @@
 {% set title_text = "Group Members" %}
 {% block content %}
 <script type="text/javascript">
-    $().ready(function() {
-        $("form[action='unset_group_member']").submit(function(event){
-            var formToSubmit = this;
+  var unsetMemberConfirm = function(event) {
+    var formToSubmit = this;
             event.preventDefault();
             bootbox.confirm({
                 message: "This will permanently unassign this person's badge. They will receive an email about this. Are you sure?",
@@ -27,16 +26,17 @@
                     }
                 }
             });
-        })
+  }
 
-        $("form[action='../dealer_admin/cancel_dealer']").submit(function(event){
+  var cancelConfirm = function(event) {
             var formToSubmit = this;
             event.preventDefault();
             bootbox.confirm({
-                message: "This will permanently cancel this application. All registered badges in the group will be converted to individual badges. Are you sure?",
+                title: "Cancel Dealer Application?",
+                message: "This will permanently cancel your application. All registered badges in the group will be converted to individual badges. Are you sure?",
                 buttons: {
                     confirm: {
-                        label: 'Cancel Application',
+                        label: 'Yes, Cancel My Application',
                         className: 'btn-danger'
                     },
                     cancel: {
@@ -50,7 +50,11 @@
                     }
                 }
             });
-        })
+        }
+    $().ready(function() {
+        $("form[action='unset_group_member']").submit(unsetMemberConfirm);
+
+        $("form[action='../preregistration/cancel_dealer']").submit(cancelConfirm);
     });
 </script>
 
@@ -65,7 +69,7 @@
       {{ group_fields.signed_document }}
       <h2 class="h5">"{{ group.name }}" Information</h2>
       {{ form_macros.form_validation('group-form', 'validate_dealer' if group.is_dealer else 'validate_group') }}
-      <form method="post" action="group_members" class="form-horizontal" role="form">
+      <form method="post" action="group_members" role="form">
         <input type="hidden" name="id" value="{{ group.id }}" />
         {% if forms and 'group_info' in forms %}
           {% include "forms/group_info.html" %}
@@ -74,12 +78,12 @@
           {% include "forms/contact_info.html" %}
         {% endif %}
         {% include "groupextra.html" %}
-        {% if not page_ro %}
+        {% if group.status in c.DEALER_EDITABLE_STATUSES %}
         <button type="submit" class="btn btn-primary" value="Update Application">Update Application</button>
         <button type="submit" class="btn btn-danger" value="Cancel {{ c.DEALER_APP_TERM|title }}" form="cancel_dealer">Cancel Application</button>
         {% endif %}
       </form>
-        <form method="post" id="cancel_dealer" action="../dealer_admin/cancel_dealer" class="form-horizontal" role="form">
+        <form method="post" id="cancel_dealer" action="../preregistration/cancel_dealer" class="form-horizontal" role="form">
           <input type="hidden" name="id" value="{{ group.id }}" />
         </form>
     {% endif%}

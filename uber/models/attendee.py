@@ -1150,7 +1150,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def can_abandon_badge(self):
         return not self.amount_paid and (
             not self.paid == c.NEED_NOT_PAY or self.in_promo_code_group
-        ) and not self.is_group_leader and not self.checked_in
+        ) and (not self.is_group_leader or not self.group.is_valid) and not self.checked_in
 
     @property
     def can_self_service_refund_badge(self):
@@ -2194,11 +2194,11 @@ class AttendeeAccount(MagModel):
 
     @property
     def valid_single_badges(self):
-        return [attendee for attendee in self.valid_attendees if not attendee.group]
+        return [attendee for attendee in self.valid_attendees if not attendee.group or not attendee.group.is_valid]
 
     @property
     def valid_group_badges(self):
-        return [attendee for attendee in self.valid_attendees if attendee.group]
+        return [attendee for attendee in self.valid_attendees if attendee.group and attendee.group.is_valid]
 
     @property
     def imported_attendees(self):

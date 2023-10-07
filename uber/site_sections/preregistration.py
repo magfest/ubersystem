@@ -25,7 +25,7 @@ from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, Mod
                         ReceiptTransaction, SignedDocument, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
-    valid_password, SignNowDocument, validate_model
+    valid_password, SignNowDocument, validate_model, remove_opt
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager
 import uber.validations as validations
 
@@ -1027,7 +1027,6 @@ class Root:
             'locked_fields': [item for sublist in [form.get_non_admin_locked_fields(group) for form in forms.values()] for item in sublist],
             'homepage_account': session.get_attendee_account_by_attendee(group.leader),
             'logged_in_account': session.current_attendee_account(),
-            'upgraded_badges': len([a for a in group.attendees if a.badge_type in c.BADGE_TYPE_PRICES]),
             'signnow_document': signnow_document,
             'signnow_link': signnow_link,
             'receipt': receipt,
@@ -1204,6 +1203,38 @@ class Root:
         return {'stripe_intent': charge.intent,
                 'success_url': 'group_members?id={}&message={}'.format(
                     group.id, 'Your payment has been accepted and the badges have been added to your group')}
+    
+    def cancel_dealer(self, session, id):
+        from uber.site_sections.dealer_admin import decline_and_convert_dealer_group
+        group = session.group(id)
+        has_assistants = group.badges_purchased - len(group.floating) > 1
+        decline_and_convert_dealer_group(session,
+                                         group,
+                                         c.CANCELLED,
+                                         f'Converted badge from {c.DEALER_REG_TERM} "{group.name}" cancelling their application.',
+                                         email_leader=False)
+
+        message = "Dealer application cancelled.{} You may purchase your own badge using the form below.".format(
+                    " Assistants have been emailed a link to purchase their badges." if has_assistants else "")
+
+        raise HTTPRedirect('../preregistration/new_badge_payment?id={}&message={}', group.leader.id, message)
+    
+    def purchase_dealer_badge(self, session, id):
+        from uber.site_sections.dealer_admin import convert_dealer_badge
+        from uber.custom_tags import datetime_local_filter
+        attendee = session.attendee(id)
+        convert_dealer_badge(session, attendee, f"Self-purchased dealer badge {datetime_local_filter(datetime.now())}.")
+        session.add(attendee)
+        session.commit()
+        
+        raise HTTPRedirect(f'new_badge_payment?id={attendee.id}&return_to=confirm')
+    
+    def dealer_signed_document(self, session, id):
+        message = 'Thanks for signing!'
+        group = session.group(id)
+        if group.amount_unpaid:
+            message += ' Please pay your application fee below.'
+        raise HTTPRedirect(f'group_members?id={id}&message={message}')
 
     @id_required(Attendee)
     @requires_account(Attendee)
@@ -1333,7 +1364,7 @@ class Root:
             attendee.promo_code = None
 
         # if attendee is part of a group, we must delete attendee and remove them from the group
-        if attendee.group:
+        if attendee.group and attendee.group.is_valid:
             session.assign_badges(
                 attendee.group,
                 attendee.group.badges + 1,
@@ -1349,7 +1380,9 @@ class Root:
             attendee.badge_status = new_status
             for shift in attendee.shifts:
                 session.delete(shift)
-            raise HTTPRedirect('{}?id={}&message={}', page_redirect, attendee.id, success_message)
+            raise HTTPRedirect('{}?id={}&message={}', 
+                               'homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else page_redirect, 
+                               attendee.id, success_message)
 
     def badge_updated(self, session, id, message=''):
         return {

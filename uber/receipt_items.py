@@ -27,7 +27,7 @@ ArtShowApplication.cost_changes = {
 
 @cost_calculation.ArtShowApplication
 def overridden_app_cost(app):
-    if app.status == c.APPROVED and app.overridden_price != None:
+    if app.overridden_price != None:
         return ("Art Show Application (Custom Price)", app.overridden_price * 100, 'overridden_price')
 
 @cost_calculation.ArtShowApplication
@@ -66,6 +66,7 @@ def mailing_fee_cost(app):
 Attendee.cost_changes = {
     'overridden_price': ('Custom Badge Price', "calc_badge_cost_change"),
     'badge_type': ('Badge ({})', "calc_badge_cost_change", c.BADGES),
+    'ribbon': ('Ribbon ({})', "calc_badge_cost_change", c.RIBBONS),
     'amount_extra': ('Kickin ({})', None, c.DONATION_TIERS),
     'extra_donation': ('Extra Donation', None),
 }

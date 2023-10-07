@@ -9,7 +9,7 @@
             Refunds are no longer available.
         {% elif attendee.amount_paid and c.BEFORE_REFUND_START %}
             Refunds will open at {{ c.REFUND_START|datetime_local }}.
-        {% elif attendee.is_group_leader %}
+        {% elif attendee.is_group_leader and attendee.group.is_valid %}
             As a leader of a group, you cannot abandon your badge.
         {% elif attendee.amount_paid %}
             We cannot automatically refund your badge at the moment due to technical difficulties.
