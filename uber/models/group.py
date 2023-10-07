@@ -259,7 +259,8 @@ class Group(MagModel, TakesPaymentMixin):
     @badges_purchased.expression
     def badges_purchased(cls):
         from uber.models import Attendee
-        return exists().where(and_(Attendee.group_id == cls.id, Attendee.paid == c.PAID_BY_GROUP))
+        return select([func.count(Attendee.id)]
+                      ).where(and_(Attendee.group_id == cls.id, Attendee.paid == c.PAID_BY_GROUP)).label('badges_purchased')
 
     @property
     def badges(self):
@@ -286,7 +287,6 @@ class Group(MagModel, TakesPaymentMixin):
                 total_badge_cost += attendee.badge_cost
 
         return total_badge_cost
-
 
     @property
     def new_badge_cost(self):
