@@ -721,7 +721,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             section_list.append('mits_admin')
         if self.group and self.group.guest and self.group.guest.group_type == c.MIVS:
             section_list.append('mivs_admin')
-        if self.art_show_applications or self.art_show_bidder or self.art_show_purchases:
+        if self.art_show_applications or self.art_show_bidder or self.art_show_purchases or self.art_agent_applications:
             section_list.append('art_show_admin')
         if self.marketplace_applications:
             section_list.append('marketplace_admin')
@@ -1150,7 +1150,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     def can_abandon_badge(self):
         return not self.amount_paid and (
             not self.paid == c.NEED_NOT_PAY or self.in_promo_code_group
-        ) and (not self.is_group_leader or not self.group.is_valid) and not self.checked_in
+        ) and (not self.is_group_leader or not self.group.is_valid) and not self.checked_in and (
+            not self.art_show_applications or not self.art_show_applications[0].is_valid
+        ) and (not self.art_agent_applications or not any(app.is_valid for app in self.art_agent_applications))
 
     @property
     def can_self_service_refund_badge(self):

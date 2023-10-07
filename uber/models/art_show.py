@@ -126,6 +126,10 @@ class ArtShowApplication(MagModel):
             return "Mailing address required"
         if self.attendee.placeholder and self.attendee.badge_status != c.NOT_ATTENDING:
             return "Missing registration info"
+        
+    @hybrid_property
+    def is_valid(self):
+        return self.status != c.DECLINED
 
     @property
     def total_cost(self):
