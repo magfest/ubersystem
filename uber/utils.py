@@ -1182,7 +1182,7 @@ class SignNowDocument:
                 fields_request = response.json()
 
                 if 'errors' in fields_request:
-                    self.error_message = "Error setting up text fields: " + '; '.join([e['message'] for e in fields_request['errors']])
+                    self.error_message = "Error setting up fields: " + '; '.join([e['message'] for e in fields_request['errors']])
                     return None
 
         if folder_id:
@@ -1225,20 +1225,19 @@ class SignNowDocument:
             return signing_request.get('url_no_signup')
 
     def send_signing_invite(self, document_id, group, name):
+        from uber.custom_tags import email_only
         self.set_access_token(refresh=True)
 
         invite_payload = {
             "to": [
-                { "email": group.email, "prefill_signature_name": name, "role_id": "", "role": "Signer", "order": 1 }
+                { "email": group.email, "prefill_signature_name": name, "role": "Dealer", "order": 1 }
             ],
-            "from": c.MARKETPLACE_EMAIL,
+            "from": email_only(c.MARKETPLACE_EMAIL),
             "cc": [],
             "subject": "ACTION REQUIRED: {} {} Terms and Conditions".format(c.EVENT_NAME, c.DEALER_TERM.title()),
-            "message": "Congratulations on being accepted into the {} {}! Please click the button below to review and sign \
-                        the terms and conditions. You MUST sign this in order to complete your registration.".format(
+            "message": "Congratulations on being accepted into the {} {}! Please click the button below to review and sign the terms and conditions. You MUST sign this in order to complete your registration.".format(
                         c.EVENT_NAME, c.DEALER_LOC_TERM.title()),
-            "redirect_uri": "{}/preregistration/group_members?id={}&message={}".format(c.REDIRECT_URL_BASE or c.URL_BASE, group.id, 
-                                                                                       "Thanks for signing! Please pay your application fee below.")
+            "redirect_uri": "{}/preregistration/group_members?id={}".format(c.REDIRECT_URL_BASE or c.URL_BASE, group.id)
             }
         
         log.debug(str(invite_payload))

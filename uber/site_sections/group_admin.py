@@ -11,7 +11,7 @@ from uber.decorators import ajax, all_renderable, csrf_protected, log_pageview, 
 from uber.errors import HTTPRedirect
 from uber.forms import group as group_forms, load_forms
 from uber.models import Attendee, Email, Event, Group, GuestGroup, GuestMerch, PageViewTracking, Tracking, SignedDocument
-from uber.utils import check, convert_to_absolute_url, validate_model
+from uber.utils import check, convert_to_absolute_url, validate_model, add_opt
 from uber.payments import ReceiptManager
 
 
@@ -105,6 +105,10 @@ class Root:
                 document.last_emailed = datetime.now(UTC)
                 session.add(document)
                 existing_doc = document
+            if not existing_doc.last_emailed:
+                existing_doc.send_dealer_signing_invite(group)
+                existing_doc.last_emailed = datetime.now(UTC)
+                session.add(existing_doc)
             signnow_last_emailed = existing_doc.last_emailed
 
         group_info_form = forms.get('group_info', forms.get('table_info'))
