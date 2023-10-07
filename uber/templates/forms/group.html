@@ -71,7 +71,7 @@
         <li>{{ (group.amount_paid / 100)|format_currency or '$0' }} paid{% if group.amount_unpaid %} so far</li>
           <li>{{ group.amount_unpaid|format_currency }} unpaid</li>
           </ul>
-          <br/>{{ stripe_form('process_group_payment', group) }}
+          <p>{{ stripe_form('process_group_payment', group) }}</p>
         {% else %}
         {% if receipt and receipt.current_amount_owed and incomplete_txn %}
         <br/><br/>

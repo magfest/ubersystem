@@ -174,7 +174,7 @@
     <div id="add" style="display:none">
       <form method="get" action="add_group_members">
         <input type="hidden" name="id" value="{{ group.id }}" />
-        <div class="row g-3">
+        <div class="row g-sm-3">
           {%- set min_badges = group.min_badges_addable -%}
           {%- set members = group.is_dealer|yesno(c.DEALER_HELPER_TERM + "s,group members") -%}
           Enter the number of {{ members }} to add.

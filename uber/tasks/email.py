@@ -1,5 +1,6 @@
 from collections import Mapping
 from datetime import timedelta, datetime
+import pytz
 from time import sleep, time
 import traceback
 
@@ -172,28 +173,28 @@ def send_automated_emails():
             automated_emails_by_model = groupify(active_automated_emails, 'model')
 
             for model, query_func in AutomatedEmailFixture.queries.items():
-                log.info("Sending automated emails for " + model.__name__)
+                log.debug("Sending automated emails for " + model.__name__)
                 automated_emails = automated_emails_by_model.get(model.__name__, [])
-                log.info("Found " + str(len(automated_emails)) + " emails for " + model.__name__)
+                log.debug("Found " + str(len(automated_emails)) + " emails for " + model.__name__)
                 for automated_email in automated_emails:
                     if automated_email.currently_sending:
-                        log.info(automated_email.ident + " is marked as currently sending")
+                        log.debug(automated_email.ident + " is marked as currently sending")
                         if automated_email.last_send_time:
-                            if (datetime.now() - automated_email.last_send_time) < expiration:
+                            if (datetime.now(pytz.UTC) - automated_email.last_send_time) < expiration:
                                 # Looks like another thread is still running and hasn't timed out.
                                 continue
                     automated_email.currently_sending = True
-                    last_send_time = datetime.now()
+                    last_send_time = datetime.now(pytz.UTC)
                     automated_email.last_send_time = last_send_time
                     session.add(automated_email)
                     session.commit()
                     unapproved_count = 0
                     
-                    log.info("Loading instances for " + automated_email.ident)
+                    log.debug("Loading instances for " + automated_email.ident)
                     model_instances = query_func(session)
-                    log.info("Finished loading instances")
+                    log.debug("Finished loading instances")
                     for model_instance in model_instances:
-                        log.info("Checking " + str(model_instance.id))
+                        log.debug("Checking " + str(model_instance.id))
                         if model_instance.id not in automated_email.emails_by_fk_id:
                             if automated_email.would_send_if_approved(model_instance):
                                 if automated_email.approved or not automated_email.needs_approval:
@@ -203,8 +204,8 @@ def send_automated_emails():
                                     quantity_sent += 1
                                 else:
                                     unapproved_count += 1
-                        if datetime.now() - last_send_time > (expiration / 2):
-                            automated_email.last_send_time = datetime.now()
+                        if datetime.now(pytz.UTC) - last_send_time > (expiration / 2):
+                            automated_email.last_send_time = datetime.now(pytz.UTC)
                             session.add(automated_email)
                             session.commit()
 

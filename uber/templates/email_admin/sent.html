@@ -4,7 +4,8 @@
 <div><a href="index">Go Back</a></div>
 
 {% for email in emails  %}
-<div class="card card-body">
+<div class="card">
+  <div class="card-body">
     <h3>{{ email.subject }} ({{ email.when|full_datetime_local }})</h3>
     <h4>To:
       {% if email.fk_id %}
@@ -19,7 +20,8 @@
         <input type="hidden" name="id" value="{{ email.id }}" />
         <button class="btn btn-primary" type="submit">Resend Email</button>
     </form>
-    </div>
+  </div>
+</div>
     <br/>
 {% endfor %}
 {{ "js/resend-email-form.js"|serve_static_content }}

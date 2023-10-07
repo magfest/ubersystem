@@ -273,7 +273,7 @@ class PreregCart:
     
 
 class TransactionRequest:
-    def __init__(self, receipt=None, receipt_email='', description='', amount=0, customer_id=None):
+    def __init__(self, receipt=None, receipt_email='', description='', amount=0, customer_id=None, create_receipt_item=False):
         self.amount = int(amount)
         self.receipt_email = receipt_email
         self.description = description
@@ -289,6 +289,8 @@ class TransactionRequest:
             self.receipt_manager = ReceiptManager(receipt)
             if not self.amount:
                 self.amount = receipt.current_amount_owed
+            if create_receipt_item:
+                self.receipt_manager.create_custom_receipt_item(receipt, self.description, self.amount)
 
         if c.AUTHORIZENET_LOGIN_ID:
             self.merchant_auth = apicontractsv1.merchantAuthenticationType(
@@ -696,7 +698,7 @@ class TransactionRequest:
             transaction.order = order
 
         transaction.transactionType = c.AUTHNET_TXN_TYPES[txn_type]
-        transaction.customerIP = cherrypy.request.remote.ip
+        transaction.customerIP = cherrypy.request.headers.get('X-Forwarded-For', cherrypy.request.remote.ip)
 
         if self.amount:
             transaction.amount = Decimal(int(self.amount) / 100)
@@ -780,16 +782,18 @@ class ReceiptManager:
                                                     ))
 
     def update_transaction_refund(self, txn, refund_amount):
-        from uber.models import Session
-
         txn.refunded += refund_amount
         self.items_to_add.append(txn)
 
-        with Session() as session:
-            model = session.get_model_by_receipt(txn.receipt)
-            if isinstance(model, uber.models.Attendee) and model.paid == c.HAS_PAID:
-                model.paid = c.REFUNDED
-                self.items_to_add.append(model)
+    def create_custom_receipt_item(self, receipt, desc, amount):
+        from uber.models import AdminAccount, ReceiptItem
+
+        self.items_to_add.append(ReceiptItem(receipt_id=receipt.id,
+                                    desc=desc,
+                                    amount=amount,
+                                    count=1,
+                                    who=AdminAccount.admin_name() or 'non-admin'
+                                ))
 
     @classmethod
     def create_new_receipt(cls, model, create_model=False, items=None):
@@ -967,8 +971,7 @@ class ReceiptManager:
         from uber.models import Attendee, Group, ReceiptItem, AdminAccount
         if not receipt:
             return []
-        
-        params = params.copy()
+
         receipt_items = []
 
         model_overridden_price = getattr(model, 'overridden_price', None)
@@ -1017,15 +1020,23 @@ class ReceiptManager:
             receipt_items += [receipt_item] if receipt_item else []
             params.pop('power')
             params.pop('power_fee')
+
+        changed_params = {}
+        for key, val in params.items():
+            column = model.__table__.columns.get(key)
+            if column is not None:
+                coerced_val = model.coerce_column_data(column, val)
+                if coerced_val != getattr(model, key, None):
+                    changed_params[key] = coerced_val
         
         cost_changes = getattr(model.__class__, 'cost_changes', [])
         credit_changes = getattr(model.__class__, 'credit_changes', [])
-        for param in params:
+        for param in changed_params:
             if param in credit_changes:
-                receipt_item = self.add_receipt_item_from_param(model, receipt, param, params, 'process_receipt_credit_change')
+                receipt_item = self.add_receipt_item_from_param(model, receipt, param, changed_params, 'process_receipt_credit_change')
                 receipt_items += [receipt_item] if receipt_item else []
             elif param in cost_changes:
-                receipt_item = self.add_receipt_item_from_param(model, receipt, param, params)
+                receipt_item = self.add_receipt_item_from_param(model, receipt, param, changed_params)
                 receipt_items += [receipt_item] if receipt_item else []
         
         return receipt_items

@@ -19,7 +19,7 @@ class Root:
                                            ignore_csrf=True)
         attendee = None
 
-        if not c.ART_SHOW_OPEN:
+        if not c.ART_SHOW_OPEN and not c.DEV_BOX:
             return render('static_views/art_show_closed.html') if c.AFTER_ART_SHOW_DEADLINE \
                 else render('static_views/art_show_not_open.html')
 
@@ -135,20 +135,31 @@ class Root:
         piece = session.art_show_piece(params, restricted=restricted, bools=['for_sale', 'no_quick_sale'])
         app = session.art_show_application(app_id)
 
-        if cherrypy.request.method == 'POST':
-            piece.app_id = app.id
-            piece.app = app
-            message = check(piece)
-            if not message:
-                session.add(piece)
-                if not restricted and 'voice_auctioned' not in params:
-                    piece.voice_auctioned = False
-                elif not restricted and 'voice_auctioned' in params and params['voice_auctioned']:
-                    piece.voice_auctioned = True
-                session.commit()
+        if not params.get('name'):
+            message += "ERROR: Please enter a name for this piece."
+        if not params.get('gallery'):
+            message += "<br>" if not params.get('name') else "ERROR: "
+            message += "Please select which gallery you will hang this piece in."
+        if not params.get('type'):
+            message += "<br>" if not params.get('gallery') or not params.get('name') else "ERROR: "
+            message += "Please choose whether this piece is a print or an original."
+        if message:
+            return {'error': message}
 
-        return {'error': message,
-                'success': 'Piece "{}" successfully saved'.format(piece.name)}
+        piece.app_id = app.id
+        piece.app = app
+        message = check(piece)
+        if message:
+            return {'error': message}
+        
+        session.add(piece)
+        if not restricted and 'voice_auctioned' not in params:
+            piece.voice_auctioned = False
+        elif not restricted and 'voice_auctioned' in params and params['voice_auctioned']:
+            piece.voice_auctioned = True
+        session.commit()
+
+        return {'success': 'Piece "{}" successfully saved'.format(piece.name)}
 
     @ajax
     def remove_art_show_piece(self, session, id, **params):

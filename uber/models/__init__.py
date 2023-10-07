@@ -1057,17 +1057,21 @@ class Session(SessionManager):
             self.add(new_account)
             return new_account
 
-        def create_attendee_account(self, email=None, normalized_email=None, password=None):
-            from uber.models import Attendee, AttendeeAccount
-            from uber.utils import normalize_email_legacy
+        def create_attendee_account(self, email=None, password=None):
+            from uber.models import AttendeeAccount
+            from uber.utils import normalize_email
 
-            new_account = AttendeeAccount(normalized_email=normalize_email_legacy(email), hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
+            new_account = AttendeeAccount(email=normalize_email(email), hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
             self.add(new_account)
 
             return new_account
 
         def add_attendee_to_account(self, attendee, account):
-            if c.ONE_MANAGER_PER_BADGE and attendee.managers and account.hashed != '':
+            from uber.utils import normalize_email
+
+            unclaimed_account = account.hashed != '' and not account.is_sso_account
+
+            if c.ONE_MANAGER_PER_BADGE and attendee.managers and not unclaimed_account:
                 attendee.managers.clear()
             if attendee not in account.attendees:
                 account.attendees.append(attendee)
