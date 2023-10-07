@@ -13,13 +13,15 @@
     <h3 class="card-title">Art Show Applications</h3>
   </div>
   <div class="card-body">
-    <a class="btn btn-outline-secondary" href="form?new_app=True">Add an application</a>
-    <div class="pull-right form-inline">
-      <div class="form-group">
-        <div class="control-label">Status</div> <div class="input-group" id="status_filter"></div>
+    <div class="row g-sm-3 mb-3">
+      <div class="col-6"><a class="btn btn-outline-secondary" href="form?new_app=True">Add an application</a></div>
+      <div class="col-6">
+        <div class="row g-sm-3">
+          <div class="col-8 text-end col-form-label-sm">Status:</div><div class="col-4" id="status_filter"></div>
+        </div>
       </div>
     </div>
-  </div>
+  
 <table class="table table-striped datatable">
 <thead><tr>
     <th>Name</th>
@@ -54,4 +56,5 @@
 		<ul class="pagination"></ul>
 	</caption>
 </table>
+</div>
 {% endblock %}

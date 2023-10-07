@@ -1126,9 +1126,6 @@ class Session(SessionManager):
 
             return attendee, message
         
-        def art_show_apps(self):
-            return self.query(ArtShowApplication).options(joinedload('attendee')).all()
-
         def attendee_from_art_show_app(self, **params):
             attendee, message = self.create_or_find_attendee_by_id(**params)
             if message:
