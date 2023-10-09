@@ -1,4 +1,5 @@
 import cherrypy
+from pockets.autolog import log
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload, subqueryload
 
@@ -7,45 +8,63 @@ from uber.custom_tags import pluralize
 from uber.decorators import ajax, all_renderable, csrf_protected, log_pageview, render
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Email, Group, PageViewTracking, Tracking
+from uber.payments import ReceiptManager
 from uber.tasks.email import send_email
 from uber.utils import check, remove_opt, Order
 
 
-def _is_attendee_disentangled(attendee):
+def convert_dealer_badge(session, attendee, admin_note=''):
     """
-    Returns True if the attendee has an unpaid badge and does not have any
-    other roles in the system.
+    Takes a dealer badge and converts it to an attendee badge. This does NOT remove the badge from the group, as
+    keeping the badge with the group is important if the group is still waitlisted or for events that import badges.
+    Instead, it removes their Dealer ribbon and sets them to no longer being paid by group, then updates or creates
+    their receipt accordingly.
     """
-    entangled_ribbons = set(
-        getattr(c, r, -1)
-        for r in ['BAND', 'DEPT_HEAD_RIBBON', 'PANELIST_RIBBON'])
-    return attendee.paid not in [c.HAS_PAID, c.NEED_NOT_PAY, c.REFUNDED] \
-        and entangled_ribbons.isdisjoint(attendee.ribbon_ints) \
-        and not attendee.admin_account \
-        and not attendee.shifts
+    
+    receipt = session.get_receipt_by_model(attendee)
+    receipt_items = []
+
+    if attendee.paid not in [c.HAS_PAID, c.NEED_NOT_PAY]:
+        receipt_item = ReceiptManager.process_receipt_credit_change(attendee, 'paid', c.NOT_PAID, receipt)
+        receipt_items += [receipt_item] if receipt_item else []
+        attendee.paid = c.NOT_PAID
+        attendee.badge_status = c.NEW_STATUS
+        session.add(attendee)
+        session.commit()
+
+    receipt_item = ReceiptManager.process_receipt_credit_change(attendee, 'ribbon', remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON), receipt)
+    receipt_items += [receipt_item] if receipt_item else []
+    attendee.ribbon = remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
+    if admin_note:
+        attendee.append_admin_note(admin_note)
+    attendee.badge_cost = None # Triggers re-calculating the base badge price on save
+
+    if receipt and receipt.item_total != int(attendee.default_cost * 100):
+        session.add_all(receipt_items)
+    else:
+        session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
 
 
-def _is_dealer_convertible(attendee):
+def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_note='', email_leader=True, delete_group=False):
+    from uber.models import AdminAccount
     """
-    Returns True if a waitlisted dealer can be converted into a new, unpaid
-    attendee badge.
+    Cancels a dealer group and converts its assigned badges to individual badges that can be purchased for 
+    the attendee price at the time they registered.
+    `group` is the group to convert.
+    `status` sets the status for the group. If `delete_group` is true, this is ignored.
+    `admin_note` defines the admin note to append to every converted attendee. If blank, a note is generated 
+        based on the current logged-in admin.
+    `email_leader` controls whether or not the group leader is emailed. Set to False for any calls to this function generated
+        by the group leader, e.g., the Cancel Application button on the group members page.
+    `delete_group` removes all assigned attendees from the group and deletes it instead of changing its status. This is best
+        for cases where the number of declined groups fed to this function is enormous and you are very sure you will never 
+        need to look at them again.
     """
-    return attendee.badge_type == c.ATTENDEE_BADGE \
-        and _is_attendee_disentangled(attendee)
-    # It looks like a lot of dealers have helpers that didn't get assigned
-    # a dealer ribbon. We still want to convert those badges, so we can't
-    # trust they'll have a dealer ribbon. I think this is safe because we
-    # won't even get this far if it isn't a dealer group in the first place
-    #     and c.DEALER_RIBBON in attendee.ribbon_ints
-
-
-def _decline_and_convert_dealer_group(session, group, status=c.DECLINED):
-    """
-    Deletes the waitlisted dealer group and converts all of the group members
-    to the appropriate badge type. Unassigned, unpaid badges will be deleted.
-    """
-    admin_note = 'Converted badge from waitlisted {} "{}".'.format(c.DEALER_REG_TERM, group.name)
-    group.status = status
+    if not admin_note:
+        if delete_group:
+            admin_note = f'Converted badge from {AdminAccount.admin_name()} declining and converting {c.DEALER_REG_TERM} "{group.name}.'
+        else:
+            admin_note = f'Converted badge from {AdminAccount.admin_name()} setting {c.DEALER_REG_TERM} "{group.name}" to {c.DEALER_STATUS[status]}.'
 
     if not group.is_unpaid:
         group.tables = 0
@@ -60,25 +79,16 @@ def _decline_and_convert_dealer_group(session, group, status=c.DECLINED):
     badges_converted = 0
 
     for attendee in list(group.attendees):
-        if _is_dealer_convertible(attendee):
-            attendee.badge_status = c.INVALID_STATUS
-
-            if not attendee.is_unassigned:
-                new_attendee = Attendee()
-                for attr in c.UNTRANSFERABLE_ATTRS:
-                    setattr(new_attendee, attr, getattr(attendee, attr))
-                new_attendee.overridden_price = attendee.new_badge_cost
-                new_attendee.badge_cost = attendee.new_badge_cost
-                new_attendee.append_admin_note(admin_note)
-                session.add(new_attendee)
-
+        if not attendee.is_unassigned:
+            convert_dealer_badge(session, attendee, admin_note)
+            if email_leader or attendee != group.leader:
                 try:
                     send_email.delay(
                         c.MARKETPLACE_EMAIL,
-                        new_attendee.email_to_address,
+                        attendee.email_to_address,
                         'Do you still want to come to {}?'.format(c.EVENT_NAME),
                         render('emails/dealers/badge_converted.html', {
-                            'attendee': new_attendee,
+                            'attendee': attendee,
                             'group': group}, encoding=None),
                         format='html',
                         model=attendee.to_dict('id'))
@@ -86,13 +96,20 @@ def _decline_and_convert_dealer_group(session, group, status=c.DECLINED):
                 except Exception:
                     emails_failed += 1
 
-                badges_converted += 1
-        else:
-            if attendee.paid not in [c.HAS_PAID, c.NEED_NOT_PAY]:
-                attendee.paid = c.NOT_PAID
+            badges_converted += 1
+        elif not delete_group:
+            attendee.badge_status = c.INVALID_GROUP_STATUS
 
-            attendee.append_admin_note(admin_note)
-            attendee.ribbon = remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
+        if delete_group:
+            group.attendees.remove(attendee)
+
+        session.add(attendee)
+        session.commit()
+
+    if delete_group:
+        session.delete(group)
+    else:
+        group.status = status
 
     for count, template in [
             (badges_converted, '{} badge{} converted'),
@@ -123,7 +140,7 @@ class Root:
             message = ''
             if decline_and_convert:
                 for group in groups:
-                    _decline_and_convert_dealer_group(session, group)
+                    decline_and_convert_dealer_group(session, group, delete_group=True)
                 message = 'All waitlisted {}s have been declined and converted to regular attendee badges'\
                     .format(c.DEALER_TERM)
             raise HTTPRedirect('../group_admin/index?message={}#dealers', message)
@@ -146,14 +163,7 @@ class Root:
         if action == 'waitlisted':
             group.status = c.WAITLISTED
         else:
-            message = _decline_and_convert_dealer_group(session, group)
+            message = decline_and_convert_dealer_group(session, group)
         session.commit()
         return {'success': True,
                 'message': message}
-
-    def cancel_dealer(self, session, id):
-        group = session.group(id)
-        _decline_and_convert_dealer_group(session, group, c.CANCELLED)
-        message = "Sorry you couldn't make it! Group members have been emailed confirmations for individual badges."
-
-        raise HTTPRedirect('../preregistration/group_members?id={}&message={}', group.id, message)

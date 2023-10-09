@@ -85,7 +85,7 @@ class Group(MagModel, TakesPaymentMixin):
             self.cost = 0
         if self.status == c.APPROVED and not self.approved:
             self.approved = datetime.now(UTC)
-        if self.leader and self.is_dealer:
+        if self.leader and self.is_dealer and self.leader.paid == c.PAID_BY_GROUP:
             self.leader.ribbon = add_opt(self.leader.ribbon_ints, c.DEALER_RIBBON)
         if not self.is_unpaid or self.orig_value_of('status') != self.status:
             for a in self.attendees:
@@ -265,7 +265,8 @@ class Group(MagModel, TakesPaymentMixin):
     @badges_purchased.expression
     def badges_purchased(cls):
         from uber.models import Attendee
-        return exists().where(and_(Attendee.group_id == cls.id, Attendee.paid == c.PAID_BY_GROUP))
+        return select([func.count(Attendee.id)]
+                      ).where(and_(Attendee.group_id == cls.id, Attendee.paid == c.PAID_BY_GROUP)).label('badges_purchased')
 
     @property
     def badges(self):
@@ -292,7 +293,6 @@ class Group(MagModel, TakesPaymentMixin):
                 total_badge_cost += attendee.badge_cost
 
         return total_badge_cost
-
 
     @property
     def new_badge_cost(self):

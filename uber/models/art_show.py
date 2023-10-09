@@ -132,6 +132,10 @@ class ArtShowApplication(MagModel):
             return "Mailing address required"
         if self.attendee.placeholder and self.attendee.badge_status != c.NOT_ATTENDING:
             return "Missing registration info"
+        
+    @hybrid_property
+    def is_valid(self):
+        return self.status != c.DECLINED
 
     @property
     def total_cost(self):
@@ -140,14 +144,11 @@ class ArtShowApplication(MagModel):
         else:
             if self.active_receipt:
                 return self.active_receipt.item_total / 100
-            return self.potential_cost
+            return self.default_cost
 
     @property
     def potential_cost(self):
-        if self.overridden_price is not None:
-            return self.overridden_price
-        else:
-            return self.default_cost or 0
+        return self.default_cost or 0
 
     def calc_app_price_change(self, **kwargs):
         preview_app = ArtShowApplication(**self.to_dict())
@@ -179,7 +180,7 @@ class ArtShowApplication(MagModel):
 
     @property
     def amount_unpaid(self):
-        return max(0, self.total_cost - (self.amount_paid / 100))
+        return max(0, ((self.total_cost * 100) - self.amount_paid) / 100)
 
     @property
     def amount_pending(self):

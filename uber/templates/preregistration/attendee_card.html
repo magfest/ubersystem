@@ -64,7 +64,7 @@
 
 {% include 'attendee_card_extra.html' %}
 
-    {% if attendee.group %}
+    {% if attendee.group and attendee.group.is_valid %}
         <div class="col-sm-12 text-center mb-2">
             <span class="h4">
                 {% if attendee == attendee.group.leader %}Leader{% else %}Member{% endif %} of "{{ attendee.group.name }}"

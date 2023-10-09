@@ -30,10 +30,6 @@
       {% include 'confirm_tabs.html' with context %}
     {% endif %}
 
-    {% if c.ART_SHOW_ENABLED and c.AFTER_ART_SHOW_REG_START and not attendee.is_new %}
-      {% include 'art_show_common/art_show_agent.html' %}
-    {% endif %}
-
       {% if not attendee.is_valid %}
       <div class="alert alert-danger" role="alert">
         Your registration is currently marked as <strong>{{ attendee.badge_status_label }}</strong>
@@ -94,6 +90,10 @@
           </div> 
         {% endif %}
       {% endif %}
+
+    {% if c.AFTER_ART_SHOW_REG_START and not attendee.is_new %}
+      {% include 'art_show_common/art_show_agent.html' %}
+    {% endif %}
 
       {% if receipt %}
         {% include 'forms/receipt_modal.html' %}

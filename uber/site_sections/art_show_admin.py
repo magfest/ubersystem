@@ -7,6 +7,7 @@ import math
 from decimal import Decimal
 from six import string_types
 from sqlalchemy import or_, and_
+from sqlalchemy.orm import joinedload
 from io import BytesIO
 
 from uber.config import c
@@ -23,7 +24,7 @@ class Root:
     def index(self, session, message=''):
         return {
             'message': message,
-            'applications': session.art_show_apps()
+            'applications': session.query(ArtShowApplication).options(joinedload(ArtShowApplication.attendee))
         }
 
     def form(self, session, new_app='', message='', **params):

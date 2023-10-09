@@ -213,9 +213,11 @@ class ModelReceipt(MagModel):
                     txn.cancelled = datetime.now() # TODO: Add logs to txns/items and log the automatic cancellation reason?
 
                 if txn.amount != self.current_amount_owed and self.current_amount_owed:
-                    txn.amount = self.current_amount_owed
                     if not c.AUTHORIZENET_LOGIN_ID:
+                        txn.amount = self.current_amount_owed
                         stripe.PaymentIntent.modify(txn.intent_id, amount = txn.amount)
+                    else:
+                        txn.cancelled = datetime.now()
 
                 if self.session:
                     self.session.add(txn)

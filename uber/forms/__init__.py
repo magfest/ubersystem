@@ -36,9 +36,9 @@ def load_forms(params, model, form_list, prefix_dict={}, get_optional=True, trun
         conflicting field names on the same page, e.g., passing {'GroupInfo': 'group_'} will add group_ to all GroupInfo fields.
     `get_optional` is a flag that controls whether or not the forms' get_optional_fields() function is called. Set this to false
         when loading forms for validation, as the validate_model function in utils.py handles optional fields.
-    `truncate_prefix` allows you to remove a single word from the form, so e.g. a truncate_prefix of "admin" will make
-        "AdminTableInfo" saved as "table_info." This allows loading admin and prereg versions of forms while using
-        the same form template.
+    `truncate_prefix` allows you to remove a single word from the form, so e.g. a truncate_prefix of "admin" will save
+        "AdminTableInfo" as "table_info." This allows loading admin and prereg versions of forms while using the 
+        same form template.
 
     Returns a dictionary of form objects with the snake-case version of the form as the ID, e.g.,
     the PersonalInfo class will be returned as form_dict['personal_info'].

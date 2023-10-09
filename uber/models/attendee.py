@@ -516,11 +516,12 @@ class Attendee(MagModel, TakesPaymentMixin):
             elif self.group.is_dealer and self.group.status != c.APPROVED:
                 self.badge_status = c.UNAPPROVED_DEALER_STATUS
 
-        if self.badge_status == c.INVALID_GROUP_STATUS and (not self.group or self.group.is_valid):
+        if self.badge_status == c.INVALID_GROUP_STATUS and (not self.group or self.group.is_valid or self.paid != c.PAID_BY_GROUP):
             self.badge_status = c.NEW_STATUS
         
         if self.badge_status == c.UNAPPROVED_DEALER_STATUS and (not self.group or 
                                                                 not self.group.is_dealer or 
+                                                                self.paid != c.PAID_BY_GROUP or
                                                                 self.group.status == c.APPROVED):
             self.badge_status = c.NEW_STATUS
 
@@ -542,7 +543,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         elif self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name and (
                     self.paid in [c.HAS_PAID, c.NEED_NOT_PAY, c.REFUNDED]
                     or self.paid == c.PAID_BY_GROUP
-                    and self.group_id
+                    and self.group
                     and not self.group.is_unpaid):
             self.badge_status = c.COMPLETED_STATUS
 
@@ -727,7 +728,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             section_list.append('mits_admin')
         if self.group and self.group.guest and self.group.guest.group_type == c.MIVS:
             section_list.append('mivs_admin')
-        if self.art_show_applications or self.art_show_bidder or self.art_show_purchases:
+        if self.art_show_applications or self.art_show_bidder or self.art_show_purchases or self.art_agent_applications:
             section_list.append('art_show_admin')
         if self.marketplace_applications:
             section_list.append('marketplace_admin')
@@ -988,8 +989,6 @@ class Attendee(MagModel, TakesPaymentMixin):
             new_cost = preview_attendee.calculate_badge_prices_cost(self.badge_type) * 100
         if 'ribbon' in kwargs:
             add_opt(preview_attendee.ribbon_ints, int(kwargs['ribbon']))
-        if 'paid' in kwargs:
-            preview_attendee.paid = int(kwargs['paid'])
 
         current_cost = self.calculate_badge_cost() * 100
         if not new_cost:
@@ -1035,13 +1034,13 @@ class Attendee(MagModel, TakesPaymentMixin):
     def calc_badge_comp_change(self, paid):
         preview_attendee = Attendee(**self.to_dict())
         paid = int(paid)
-        comped_or_refunded = [c.NEED_NOT_PAY, c.REFUNDED]
+        free_badge_statuses = [c.NEED_NOT_PAY, c.REFUNDED, c.PAID_BY_GROUP]
         preview_attendee.paid = paid
-        if paid != c.NEED_NOT_PAY and self.paid != c.NEED_NOT_PAY:
+        if paid not in free_badge_statuses and self.paid not in free_badge_statuses:
             return 0, 0
-        elif self.paid in comped_or_refunded and paid in comped_or_refunded:
+        elif self.paid in free_badge_statuses and paid in free_badge_statuses:
             return 0, 0
-        elif paid == c.NEED_NOT_PAY:
+        elif paid in free_badge_statuses:
             return 0, self.badge_cost * -1 * 100
         else:
             badge_cost = preview_attendee.calculate_badge_cost() * 100
@@ -1156,7 +1155,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     def can_abandon_badge(self):
         return not self.amount_paid and (
             not self.paid == c.NEED_NOT_PAY or self.in_promo_code_group
-        ) and not self.is_group_leader and not self.checked_in
+        ) and (not self.is_group_leader or not self.group.is_valid) and not self.checked_in and (
+            not self.art_show_applications or not self.art_show_applications[0].is_valid
+        ) and (not self.art_agent_applications or not any(app.is_valid for app in self.art_agent_applications))
 
     @property
     def can_self_service_refund_badge(self):
@@ -2181,6 +2182,12 @@ class AttendeeAccount(MagModel):
         return func.replace(func.lower(func.trim(cls.email)), '.', '')
 
     @property
+    def is_sso_account(self):
+        if c.SSO_EMAIL_DOMAINS:
+            local, domain = normalize_email(self.email, split_address=True)
+            return domain in c.SSO_EMAIL_DOMAINS
+
+    @property
     def has_only_one_badge(self):
         return len(self.attendees) == 1
 
@@ -2194,11 +2201,11 @@ class AttendeeAccount(MagModel):
 
     @property
     def valid_single_badges(self):
-        return [attendee for attendee in self.valid_attendees if not attendee.group]
+        return [attendee for attendee in self.valid_attendees if not attendee.group or not attendee.group.is_valid]
 
     @property
     def valid_group_badges(self):
-        return [attendee for attendee in self.valid_attendees if attendee.group]
+        return [attendee for attendee in self.valid_attendees if attendee.group and attendee.group.is_valid]
 
     @property
     def imported_attendees(self):

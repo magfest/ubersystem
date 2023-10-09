@@ -816,7 +816,7 @@ class Session(SessionManager):
                         )
                 )
                 
-            return_dict['panels_admin'] = self.query(Attendee).filter(
+            return_dict['panels_admin'] = self.query(Attendee).outerjoin(PanelApplicant).filter(
                                                  or_(Attendee.ribbon.contains(c.PANELIST_RIBBON),
                                                      Attendee.panel_applications != None,
                                                      Attendee.assigned_panelists != None,
@@ -828,6 +828,17 @@ class Session(SessionManager):
                     .join(GuestGroup, Group.id == GuestGroup.group_id).filter(
                         and_(Group.id == Attendee.group_id, GuestGroup.group_id == Group.id, GuestGroup.group_type == c.MIVS)
                     ))
+            return_dict['art_show_admin'] = self.query(Attendee
+                                                       ).outerjoin(
+                                                           ArtShowApplication, 
+                                                           or_(ArtShowApplication.attendee_id == Attendee.id,
+                                                               ArtShowApplication.agent_id == Attendee.id)
+                                                        ).outerjoin(ArtShowBidder).filter(
+                                                            or_(Attendee.art_show_bidder != None,
+                                                                Attendee.art_show_purchases != None,
+                                                                Attendee.art_show_applications != None,
+                                                                Attendee.art_agent_applications != None)
+                                                        )
             return return_dict
             
         def viewable_attendees(self):
@@ -1053,10 +1064,7 @@ class Session(SessionManager):
         def add_attendee_to_account(self, attendee, account):
             from uber.utils import normalize_email
 
-            unclaimed_account = account.hashed != ''
-            if c.SSO_EMAIL_DOMAINS:
-                local, domain = normalize_email(account.email, split_address=True)
-                unclaimed_account = unclaimed_account and domain not in c.SSO_EMAIL_DOMAINS
+            unclaimed_account = account.hashed != '' and not account.is_sso_account
 
             if c.ONE_MANAGER_PER_BADGE and attendee.managers and not unclaimed_account:
                 attendee.managers.clear()
@@ -1113,9 +1121,6 @@ class Session(SessionManager):
 
             return attendee, message
         
-        def art_show_apps(self):
-            return self.query(ArtShowApplication).options(joinedload('attendee')).all()
-
         def attendee_from_art_show_app(self, **params):
             attendee, message = self.create_or_find_attendee_by_id(**params)
             if message:

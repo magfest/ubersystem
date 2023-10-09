@@ -26,7 +26,7 @@ from uber.jinja import JinjaEnv
 from uber.models import AdminAccount, Attendee, AttendeeAccount, ArtShowApplication, AutomatedEmail, Department, Group, \
     GuestGroup, IndieGame, IndieJudge, IndieStudio, MarketplaceApplication, MITSTeam, MITSApplicant, PanelApplication, \
     PanelApplicant, PromoCodeGroup, Room, RoomAssignment, Shift
-from uber.utils import after, before, days_after, days_before, localized_now, DeptChecklistConf
+from uber.utils import after, before, days_after, days_before, days_between, localized_now, DeptChecklistConf
 
 
 class AutomatedEmailFixture:
@@ -169,7 +169,7 @@ if c.ATTENDEE_ACCOUNTS_ENABLED:
         AttendeeAccount,
         '{EVENT_NAME} account creation confirmed',
         'reg_workflow/account_confirmation.html',
-        lambda a: not a.imported and a.hashed and not a.password_reset,
+        lambda a: not a.imported and a.hashed and not a.password_reset and not a.is_sso_account,
         needs_approval=False,
         allow_at_the_con=True,
         ident='attendee_account_confirmed')
@@ -313,7 +313,7 @@ if c.ART_SHOW_ENABLED:
         'Reminder to pay for your {EVENT_NAME} Art Show application',
         'art_show/payment_reminder.txt',
         lambda a: a.status == c.APPROVED and a.is_unpaid,
-        when=days_before(14, c.ART_SHOW_PAYMENT_DUE),
+        when=days_between((14, c.ART_SHOW_PAYMENT_DUE), (1, c.EPOCH)),
         ident='art_show_payment_reminder')
 
     ArtShowAppEmailFixture(
@@ -334,7 +334,7 @@ if c.ART_SHOW_ENABLED:
         '{EVENT_NAME} Art Show MAIL IN Instructions',
         'art_show/mailing_in.html',
         lambda a: a.status == c.APPROVED and not a.is_unpaid and a.delivery_method == c.BY_MAIL,
-        when=days_before(40, c.ART_SHOW_DEADLINE),
+        when=days_between((c.ART_SHOW_REG_START, 13), (16, c.ART_SHOW_WAITLIST)),
         ident='art_show_mail_in')
 
 

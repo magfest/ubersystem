@@ -16,26 +16,32 @@
 <h2>{{ c.EVENT_NAME }} Art Show Application</h2>
 <div class="card">
   <div class="card-body">
+    {% if c.DEV_BOX %}
+      <div class="alert alert-info">
+        <strong> You are on a development box.
+          {% if c.BEFORE_ART_SHOW_REG_START %}
+            Otherwise, you would be automatically redirected to <a href="../static_views/art_show_not_open.html">the "art show reg not yet open" page</a>.
+          {% elif c.AFTER_ART_SHOW_DEADLINE and not c.AT_THE_CON %}
+            Otherwise, you would be automatically redirected to <a href="../static_views/art_show_closed.html">the "art show reg closed" page</a>.
+          {% endif %}
+        </strong>
+      </div>
+    {% endif %}
     {% if c.AFTER_ART_SHOW_DEADLINE and not c.HAS_ART_SHOW_ACCESS %}
       <p>Unfortunately, the deadline for art show applications has passed and we are no longer accepting applications.</p>
     {% else %}
-      {% if c.AFTER_ART_SHOW_DEADLINE and c.HAS_ART_SHOW_ACCESS %}
-        <p style="color:red">
-          Art show applications have closed, but because you are a logged in
-          administrator you can submit a new application using this form.
-        </p>
-      {% endif %}
       {% if c.AFTER_ART_SHOW_WAITLIST %}
         <p style="color:orange">
           The deadline for art show applications has passed. You may still submit an application to be put on our waiting
           list. Applications will close completely on {{ c.ART_SHOW_DEADLINE|datetime_local }}.
+          Space is limited and may be filled prior to the application window closing.
         </p>
       {% endif %}
 
     <p>Art show applications are due by {{ c.ART_SHOW_WAITLIST|datetime_local }}. Any applications submitted after this
     date will be automatically waitlisted. Applications will close completely on
     {{ c.ART_SHOW_DEADLINE|datetime_local }}. Please review the {{ c.EVENT_NAME }} Art Show rules
-    <a href="{{ c.ART_SHOW_RULES_URL }}" target="_blank">here</a>.</p>
+    <a href="{{ c.ART_SHOW_RULES_URL }}" target="_blank">here</a>. Space is limited and may be filled prior to the application window closing.</p>
 
     <form method="post" action="index" role="form">
       <h3>Your Information</h3>
