@@ -1217,7 +1217,7 @@ class Root:
         message = "Dealer application cancelled.{} You may purchase your own badge using the form below.".format(
                     " Assistants have been emailed a link to purchase their badges." if has_assistants else "")
 
-        raise HTTPRedirect('../preregistration/new_badge_payment?id={}&message={}', group.leader.id, message)
+        raise HTTPRedirect('../preregistration/new_badge_payment?id={}&message={}&return_to=confirm', group.leader.id, message)
     
     def purchase_dealer_badge(self, session, id):
         from uber.site_sections.dealer_admin import convert_dealer_badge
