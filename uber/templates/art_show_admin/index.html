@@ -3,9 +3,9 @@
 {% block content %}
 
 <ol class="breadcrumb">
-  <li><a href="../accounts/homepage">Home</a></li>
-  <li>Art Show</li>
-  <li class="active">Admin</li>
+  <li class="breadcrumb-item"><a href="../accounts/homepage">Home</a></li>
+  <li class="breadcrumb-item">Art Show</li>
+  <li class="breadcrumb-item active">Admin</li>
 </ol>
 
 <div class="card">
@@ -13,13 +13,15 @@
     <h3 class="card-title">Art Show Applications</h3>
   </div>
   <div class="card-body">
-    <a class="btn btn-outline-secondary" href="form?new_app=True">Add an application</a>
-    <div class="pull-right form-inline">
-      <div class="form-group">
-        <div class="control-label">Status</div> <div class="input-group" id="status_filter"></div>
+    <div class="row g-sm-3 mb-3">
+      <div class="col-6"><a class="btn btn-outline-secondary" href="form?new_app=True">Add an application</a></div>
+      <div class="col-6">
+        <div class="row g-sm-3">
+          <div class="col-8 text-end col-form-label-sm">Status:</div><div class="col-4" id="status_filter"></div>
+        </div>
       </div>
     </div>
-  </div>
+  
 <table class="table table-striped datatable">
 <thead><tr>
     <th>Name</th>
@@ -30,7 +32,8 @@
     <th>General Tables</th>
     <th>Mature Panels</th>
     <th>Mature Tables</th>
-    <th>Art Show Cost</th>
+    <th>Cost</th>
+    <th>Owed</th>
     <th>Admin Notes</th>
 </tr></thead>
 {% for app in applications %}
@@ -46,7 +49,8 @@
         <td>{{ app.tables }}</td>
         <td>{{ app.panels_ad }}</td>
         <td>{{ app.tables_ad }}</td>
-        <td>{{ app.total_cost|default(app.potential_cost)|format_currency }}{% if app.amount_unpaid %} ({{ (app.amount_unpaid)|format_currency }} unpaid){% endif %}</td>
+        <td>{{ app.total_cost|format_currency }}</td>
+        <td>{{ app.amount_unpaid|format_currency }}</td>
         <td>{{ app.admin_notes }}</td>
     </tr>
 {% endfor %}
@@ -54,4 +58,5 @@
 		<ul class="pagination"></ul>
 	</caption>
 </table>
+</div>
 {% endblock %}

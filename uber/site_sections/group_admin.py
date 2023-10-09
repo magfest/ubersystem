@@ -12,7 +12,7 @@ from uber.decorators import ajax, all_renderable, csrf_protected, log_pageview, 
 from uber.errors import HTTPRedirect
 from uber.forms import attendee as attendee_forms, group as group_forms, load_forms
 from uber.models import Attendee, Email, Event, Group, GuestGroup, GuestMerch, PageViewTracking, Tracking, SignedDocument
-from uber.utils import check, convert_to_absolute_url, validate_model
+from uber.utils import check, convert_to_absolute_url, validate_model, add_opt
 from uber.payments import ReceiptManager
 
 
@@ -80,6 +80,8 @@ class Root:
 
     @log_pageview
     def form(self, session, new_dealer='', message='', **params):
+        from uber.site_sections.dealer_admin import decline_and_convert_dealer_group
+
         if params.get('id') not in [None, '', 'None']:
             group = session.group(params.get('id'))
             if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
@@ -113,6 +115,10 @@ class Root:
                 document.last_emailed = datetime.now(UTC)
                 session.add(document)
                 existing_doc = document
+            if not existing_doc.last_emailed:
+                existing_doc.send_dealer_signing_invite(group)
+                existing_doc.last_emailed = datetime.now(UTC)
+                session.add(existing_doc)
             signnow_last_emailed = existing_doc.last_emailed
 
         group_info_form = forms.get('group_info', forms.get('table_info'))
@@ -164,8 +170,15 @@ class Root:
                     else:
                         raise HTTPRedirect(
                             'index?message={}', group.name + ' is uploaded as ' + group.status_label)
+                elif group.is_dealer:
+                    if group.status == c.DECLINED and group.orig_value_of('status') != c.DECLINED:
+                        message = decline_and_convert_dealer_group(session, group)
+                    if group.status == c.APPROVED and group.orig_value_of('status') != c.APPROVED:
+                        for attendee in group.attendees:
+                            attendee.ribbon = add_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
+                            session.add(attendee)
                     
-                raise HTTPRedirect('form?id={}&message={} has been saved', group.id, group.name)
+                raise HTTPRedirect('form?id={}&message={}', group.id, message or (group.name + " has been saved"))
 
         return {
             'message': message,

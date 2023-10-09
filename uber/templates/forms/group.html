@@ -22,7 +22,7 @@
     <p><a href="{{ signnow_link }}" class="btn btn-primary" target="_blank">
       {% if group.signnow_document %}Finish Signing{% else %}Review and Sign{% endif %}
     </a></p>
-    <p>Make sure to click "DONE" in the top right to confirm your signature.</p>
+    <p>Make sure to click "Finish" in the top right to confirm your signature.</p>
   </div>
   {% endif %}
 {% endif %}
@@ -53,69 +53,77 @@
       </div>
     {% endcall %}
   </div>
+  <script type="text/javascript">
+    var unapprove = function(action, convert) {
+      if (!$.val("email_text")) {
+        $("#setstatus").prepend('<div style="color:red">You must enter an email message.</div>');
+      } else {
+        $("button").attr("disabled", true);
+        $.post("../dealer_admin/unapprove", {
+          id: "{{ group.id }}",
+          action: action,
+          convert: convert,
+          csrf_token: csrf_token,
+          email_text: $.val("email_text")
+        }, function(json) {
+          if (json.message) {
+            window.location = "index?message="+ json.message + "#dealers";
+          } else {
+            $("#status").text("Waitlisted");
+          }
+        }, 'json');
+      }
+    }
+  </script>
 {% else %}
   {# Always read-only for attendees #}
   {% if group.status == c.APPROVED %}
     <div class="alert alert-success pb-0" role="alert">
-    Congratulations, your {{ c.DEALER_APP_TERM }} has been <strong>approved</strong>!
+    <p>Congratulations, your {{ c.DEALER_APP_TERM }} has been <strong>approved</strong>!</p>
     {% if group.cost %}
-      <br/><br/>Here is your group's cost breakdown:
+      <p>Here is your group's cost breakdown:</p>
       <ul>
         {% if group.auto_recalc %}
           <li>{{ group.default_table_cost|format_currency }} for {% if group.tables_repr %}a {{ group.tables_repr }}{% else %}{{ group.tables }} table{{ group.tables|pluralize }}{% endif %}</li>
-          <li>{{ group.default_badge_cost|format_currency }} for {{ group.badges_purchased }} badge{{ group.badges_purchased|pluralize }}
-            {% if upgraded_badges %}(including {{ upgraded_badges }} upgraded badge{{ upgraded_badges|pluralize }}){% endif %}</li>
+          {% if group.badges_purchased %}
+            <li>{{ group.default_badge_cost|format_currency }} for {{ group.badges_purchased }} badge{{ group.badges_purchased|pluralize }}</li>
+          {% endif %}
         {% else %}
           <li>{{ group.cost|format_currency }} total cost</li>
         {% endif %}
-        <li>{{ (group.amount_paid / 100)|format_currency or '$0' }} paid{% if group.amount_unpaid %} so far</li>
-          <li>{{ group.amount_unpaid|format_currency }} unpaid</li>
+        <li>{{ (group.amount_paid / 100)|format_currency or '$0' }} paid{% if group.amount_unpaid %} so far{% endif %}</li>
+        {% if group.amount_unpaid %}
+            <li>{{ group.amount_unpaid|format_currency }} unpaid</li>
           </ul>
-          <br/>{{ stripe_form('process_group_payment', group) }}
+          <p>{{ stripe_form('process_group_payment', group) }}</p>
         {% else %}
-        {% if receipt and receipt.current_amount_owed and incomplete_txn %}
-        <br/><br/>
-        You currently have an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.
-              <br/><br/>Click here to complete your payment: {{ stripe_form('finish_pending_group_payment', group, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}
-        {% endif %}
-          </li></ul>
+          </ul>
+          {% if receipt and receipt.current_amount_owed and incomplete_txn %}
+            <p>You currently have an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.</p>
+            <p>Click here to complete your payment: {{ stripe_form('finish_pending_group_payment', group, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}</p>
+          {% endif %}
         {% endif %}
     {% endif %}
+    </div>
   {% elif group.status == c.CANCELLED %}
-    <div class="alert alert-info" role="alert">
-    You have <strong>cancelled</strong> your {{ c.DEALER_APP_TERM }}. If this was a mistake, please contact us at
-    <a href="mailto:{{ c.MARKETPLACE_EMAIL }}">{{ c.MARKETPLACE_EMAIL }}</a>.
+    <div class="alert alert-info pb-0" role="alert">
+      <p>You have <strong>cancelled</strong> your {{ c.DEALER_APP_TERM }}. If this was a mistake, please contact us at
+      <a href="mailto:{{ c.MARKETPLACE_EMAIL }}">{{ c.MARKETPLACE_EMAIL }}</a>.</p>
+    </div>
   {% else %}
-    <div class="alert alert-{{ 'danger' if group.status == c.DECLINED else 'warning' }}" role="alert">
-    Your {{ c.DEALER_APP_TERM }} {{ 'is' if group.status == c.UNAPPROVED else 'has been' }} <strong>{{ group.status_label }}</strong>.
+    <div class="alert alert-{{ 'danger' if group.status == c.DECLINED else 'warning' }} pb-0" role="alert">
+      <p>Your {{ c.DEALER_APP_TERM }} {{ 'is' if group.status == c.UNAPPROVED else 'has been' }} <strong>{{ group.status_label }}</strong>.</p>
+      {% if group.status != c.UNAPPROVED and group.leader and group.leader.paid == c.PAID_BY_GROUP and c.DEALER_BADGE_PRICE == c.INITIAL_ATTENDEE %}
+        <p>If you'd like to attend the event regardless of your application status, you can purchase your badge now by clicking the button below. Your {{ c.DEALER_APP_TERM }} will remain {{ group.status_label }}.</p>
+        <p><a class="btn btn-success" href="../preregistration/purchase_dealer_badge?id={{ group.leader.id }}">Purchase Badge Now</a></p>
+      {% endif %}
       {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and group.leader %}
-      <br/><br/>If you would like, you may instead
-      <a href="../marketplace/index?attendee_id={{ group.leader.id }}" target="_blank">apply for a table in the Marketplace.</a>{% endif %}
+        <p>If you would like, you may instead
+        <a href="../marketplace/index?attendee_id={{ group.leader.id }}" target="_blank">apply for a table in the Marketplace.</a></p>
+      {% endif %}
+    </div>
   {% endif %}
-  </div>
 {% endif %}
-<script type="text/javascript">
-  var unapprove = function(action, convert) {
-    if (!$.val("email_text")) {
-      $("#setstatus").prepend('<div style="color:red">You must enter an email message.</div>');
-    } else {
-      $("button").attr("disabled", true);
-      $.post("../dealer_admin/unapprove", {
-        id: "{{ group.id }}",
-        action: action,
-        convert: convert,
-        csrf_token: csrf_token,
-        email_text: $.val("email_text")
-      }, function(json) {
-        if (json.message) {
-          window.location = "index?message="+ json.message + "#dealers";
-        } else {
-          $("#status").text("Waitlisted");
-        }
-      }, 'json');
-    }
-  }
-</script>
 {% endset %}
 
 

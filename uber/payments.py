@@ -1,35 +1,18 @@
-import importlib
-import math
-import os
-import random
-import re
-import string
-import traceback
-import json
 import pytz
 from typing import Iterable
-import urllib
-from collections import defaultdict, OrderedDict
-from datetime import date, datetime, timedelta
+from collections import OrderedDict
+from datetime import datetime, timedelta
 from dateutil.parser import parse
-from glob import glob
-from os.path import basename
-from random import randrange
-from rpctools.jsonrpc import ServerProxy
-from urllib.parse import urlparse, urljoin
 from uuid import uuid4
 
 import cherrypy
-import phonenumbers
 import stripe
 from authorizenet import apicontractsv1, apicontrollers
-from phonenumbers import PhoneNumberFormat
-from pockets import cached_property, classproperty, floor_datetime, is_listy, listify
+from pockets import cached_property, classproperty, is_listy, listify
 from pockets.autolog import log
-from sideboard.lib import threadlocal
 
 import uber
-from uber.config import c, _config, signnow_sdk
+from uber.config import c
 from uber.custom_tags import format_currency, email_only
 from uber.errors import CSRFException, HTTPRedirect
 from uber.utils import report_critical_exception
@@ -821,7 +804,6 @@ class ReceiptManager:
             for calculation in i[model.__class__.__name__].values():
                 item = calculation(model)
                 if item:
-                    log.debug(item)
                     try:
                         desc, cost, col_name, count = item
                     except ValueError:
@@ -1039,6 +1021,12 @@ class ReceiptManager:
                 if coerced_val != getattr(model, key, None):
                     changed_params[key] = coerced_val
         
+        if isinstance(model, Group):
+            # "badges" is a property and not a column, so we have to include it explicitly
+            maybe_badges_update = params.get('badges', None)
+            if maybe_badges_update != None and maybe_badges_update != model.badges:
+                changed_params['badges'] = maybe_badges_update
+        
         cost_changes = getattr(model.__class__, 'cost_changes', [])
         credit_changes = getattr(model.__class__, 'credit_changes', [])
         for param in changed_params:
@@ -1071,7 +1059,7 @@ class ReceiptManager:
             log.error(f"Tried to mark payments with intent ID {payment_intent.id} as paid but the charge on this intent wasn't successful!")
             return []
         
-        ReceiptManager.mark_paid_from_ids(payment_intent.id, payment_intent.charges.data[0].id)
+        return ReceiptManager.mark_paid_from_ids(payment_intent.id, payment_intent.charges.data[0].id)
         
     @staticmethod
     def mark_paid_from_ids(intent_id, charge_id):
@@ -1094,6 +1082,9 @@ class ReceiptManager:
             txn.charge_id = charge_id
             session.add(txn)
             txn_receipt = txn.receipt
+
+            if txn.cancelled != None:
+                txn.cancelled == None
 
             for item in txn.receipt_items:
                 item.closed = datetime.now()
@@ -1127,7 +1118,7 @@ class ReceiptManager:
                 try:
                     send_email.delay(
                         c.ART_SHOW_EMAIL,
-                        c.ART_SHOW_EMAIL,
+                        c.ART_SHOW_NOTIFICATIONS_EMAIL,
                         'Art Show Payment Received',
                         render('emails/art_show/payment_notification.txt',
                             {'app': model}, encoding=None),

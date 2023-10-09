@@ -9,7 +9,7 @@
             Refunds are no longer available.
         {% elif attendee.amount_paid and c.BEFORE_REFUND_START %}
             Refunds will open at {{ c.REFUND_START|datetime_local }}.
-        {% elif attendee.is_group_leader %}
+        {% elif attendee.is_group_leader and attendee.group.is_valid %}
             As a leader of a group, you cannot abandon your badge.
         {% elif attendee.amount_paid %}
             We cannot automatically refund your badge at the moment due to technical difficulties.
@@ -24,6 +24,14 @@
         {% endif %}contact us at {{ c.REGDESK_EMAIL|email_only }}{% if c.SELF_SERVICE_REFUNDS_OPEN %} to make sure your refund gets processed.{% endif %}
         {% endif %}
     {% endset %}
+
+    {# Problems that attendees should not contact registration over: #}
+    {% if attendee.art_show_applications %}
+        {% set abandon_hover_text %}Please contact {{ c.ART_SHOW_EMAIL|email_only }} to cancel your art show application first.{% endset %}
+    {% elif attendee.art_agent_applications %}
+        {% set abandon_hover_text %}Please ask the artist you're agenting for to assign a new agent first.{% endset %}
+    {% endif %}
+
     <span class="tooltip-wrapper" tabindex="0" data-bs-toggle="tooltip" data-placement="top"{% if must_keep %} title="{{ abandon_hover_text }}"{% endif %}>
     {% endif %}
 <button type="submit" form="abandon_badge" alt="{{ abandon_hover_text }}" id="abandon_button" class="btn btn-danger"
