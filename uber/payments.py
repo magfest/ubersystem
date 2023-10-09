@@ -1059,7 +1059,7 @@ class ReceiptManager:
             log.error(f"Tried to mark payments with intent ID {payment_intent.id} as paid but the charge on this intent wasn't successful!")
             return []
         
-        ReceiptManager.mark_paid_from_ids(payment_intent.id, payment_intent.charges.data[0].id)
+        return ReceiptManager.mark_paid_from_ids(payment_intent.id, payment_intent.charges.data[0].id)
         
     @staticmethod
     def mark_paid_from_ids(intent_id, charge_id):
