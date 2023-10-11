@@ -48,6 +48,9 @@ class SignedDocument(MagModel):
         if document and document.get('signatures'):
             return document['signatures'][0].get('created')
         
+        if d.error_message:
+            log.error(d.error_message)
+        
     def send_dealer_signing_invite(self, group):
         d = SignNowDocument()
 
@@ -60,12 +63,12 @@ class SignedDocument(MagModel):
                                                  folder_id=c.SIGNNOW_DEALER_FOLDER_ID,
                                                  uneditable_texts_list=group.signnow_texts_list,
                                                  fields={} if c.SIGNNOW_ENV == 'eval' else {'printed_name': first_name + " " + last_name})
-            if d.error_message:
-                self.document_id = None
-                log.error(d.error_message)
 
         if self.document_id and not self.signed:
-            log.debug(d.send_signing_invite(self.document_id, group, first_name + " " + last_name))
+            d.send_signing_invite(self.document_id, group, first_name + " " + last_name)
+
+        if d.error_message:
+                log.error(d.error_message)
 
     def create_dealer_signing_link(self, group):
         d = SignNowDocument()
@@ -80,12 +83,14 @@ class SignedDocument(MagModel):
                                                  uneditable_texts_list=group.signnow_texts_list,
                                                  fields={} if c.SIGNNOW_ENV == 'eval' else {'printed_name': first_name + " " + last_name})
             if d.error_message:
-                self.document_id = None
                 log.error(d.error_message)
 
         if self.document_id and not self.signed:
-            return d.get_signing_link(self.document_id,
+            link = d.get_signing_link(self.document_id,
                                       first_name,
                                       last_name,
                                       (c.REDIRECT_URL_BASE or c.URL_BASE) + '/preregistration/group_members?id={}'
                                       .format(group.id))
+            if d.error_message:
+                log.error(d.error_message)
+            return link

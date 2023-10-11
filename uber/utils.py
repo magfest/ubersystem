@@ -1108,6 +1108,8 @@ class SignNowDocument:
         self.access_token = None
         self.error_message = ''
         self.set_access_token()
+        if self.error_message:
+            log.error(self.error_message)
 
     @property
     def api_call_headers(self):
@@ -1144,9 +1146,6 @@ class SignNowDocument:
             self.access_token = c.SIGNNOW_ACCESS_TOKEN
             return
 
-        if self.error_message:
-            log.error(self.error_message)
-
     def create_document(self, template_id, doc_title, folder_id='', uneditable_texts_list=None, fields={}):
         from requests import post, put
         from json import dumps, loads
@@ -1157,7 +1156,6 @@ class SignNowDocument:
         
             if 'error' in document_request:
                 self.error_message = "Error creating document from template with token {}: {}".format(self.access_token, document_request['error'])
-                return None
 
         if self.error_message:
             return None
@@ -1210,6 +1208,8 @@ class SignNowDocument:
         """
 
         self.set_access_token(refresh=True)
+        if self.error_message:
+            return None
 
         response = post(signnow_sdk.Config().get_base_url() + '/link', headers=self.api_call_headers,
         data=dumps({
@@ -1227,6 +1227,8 @@ class SignNowDocument:
     def send_signing_invite(self, document_id, group, name):
         from uber.custom_tags import email_only
         self.set_access_token(refresh=True)
+        if self.error_message:
+            return None
 
         invite_payload = {
             "to": [
@@ -1239,8 +1241,6 @@ class SignNowDocument:
                         c.EVENT_NAME, c.DEALER_LOC_TERM.title()),
             "redirect_uri": "{}/preregistration/group_members?id={}".format(c.REDIRECT_URL_BASE or c.URL_BASE, group.id)
             }
-        
-        log.debug(str(invite_payload))
 
         invite_request = signnow_sdk.Document.invite(self.access_token, document_id, invite_payload)
 
@@ -1251,6 +1251,9 @@ class SignNowDocument:
 
     def get_download_link(self, document_id):
         self.set_access_token(refresh=True)
+        if self.error_message:
+            return None
+
         download_request = signnow_sdk.Document.download_link(self.access_token, document_id)
 
         if 'error' in download_request:
@@ -1260,6 +1263,9 @@ class SignNowDocument:
     
     def get_document_details(self, document_id):
         self.set_access_token(refresh=True)
+        if self.error_message:
+            return None
+
         document_request = signnow_sdk.Document.get(self.access_token, document_id)
 
         if 'error' in document_request:
