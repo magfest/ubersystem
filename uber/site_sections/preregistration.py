@@ -999,10 +999,10 @@ class Root:
                 else:
                     signnow_link = signnow_document.create_dealer_signing_link(group)
 
-                if signnow_link:
-                    signnow_document.link = signnow_link
-                    session.add(signnow_document)
-                    session.commit()
+            if signnow_link and signnow_document.signed:
+                signnow_document.link = signnow_link
+                session.add(signnow_document)
+                session.commit()
 
         if cherrypy.request.method == 'POST':
             session.commit()
