@@ -39,7 +39,7 @@
   {% for item, completed_item in checklist %}
     <tr>
         <td width="25">
-          <i class="fa fa-{% if completed_item %}check{% else %}unchecked{% endif %}"></i>
+          <i class="fa fa-{% if completed_item %}check-{% endif %}square-o"></i>
         </td>
         <td>
           <b>{{ item.name }}</b>{% if completed_item %} – Completed by {{ completed_item.attendee|form_link }}{% endif %}
