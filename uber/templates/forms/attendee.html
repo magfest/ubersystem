@@ -986,13 +986,6 @@ If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXT
 
 {% set setup_teardown %}
 {% set read_only = setup_teardown_ro or page_ro %}
-<div class="form-group staffing staffing-checked">
-  <label class="col-sm-3 control-label">Approved for Setup/Teardown</label>
-  <div class="checkbox col-sm-9">
-    {{ macros.checkbox(attendee, 'can_work_setup', label='Approved for setup', is_readonly=read_only, clientside_bool=clientside_bool) }} <br/>
-    {{ macros.checkbox(attendee, 'can_work_teardown', label='Approved for teardown', is_readonly=read_only, clientside_bool=clientside_bool) }}
-  </div>
-</div>
 {% endset %}
 
 
