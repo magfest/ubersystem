@@ -373,6 +373,20 @@ class Root:
             'min_departure_time': GuestDetailedTravelPlan.min_departure_time,
             'max_departure_time': GuestDetailedTravelPlan.max_departure_time,
         }
+    
+    def hospitality(self, session, guest_id, message='', **params):
+        guest = session.guest_group(guest_id)
+        guest_hospitality = session.guest_hospitality(params, restricted=True)
+        if cherrypy.request.method == 'POST':
+            guest.hospitality = guest_hospitality
+            session.add(guest_hospitality)
+            raise HTTPRedirect('index?id={}&message={}', guest.id, 'Thank you for completing the questionnaire!')
+
+        return {
+            'guest': guest,
+            'guest_hospitality': guest.hospitality or guest_hospitality,
+            'message': message
+        }
 
     def mivs_core_hours(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)

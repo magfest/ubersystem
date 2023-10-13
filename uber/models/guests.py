@@ -22,7 +22,7 @@ from uber.utils import filename_extension
 __all__ = [
     'GuestGroup', 'GuestInfo', 'GuestBio', 'GuestTaxes', 'GuestStagePlot',
     'GuestPanel', 'GuestMerch', 'GuestCharity', 'GuestAutograph',
-    'GuestInterview', 'GuestTravelPlans', 'GuestDetailedTravelPlan']
+    'GuestInterview', 'GuestTravelPlans', 'GuestDetailedTravelPlan', 'GuestHospitality']
 
 
 class GuestGroup(MagModel):
@@ -47,6 +47,7 @@ class GuestGroup(MagModel):
     autograph = relationship('GuestAutograph', backref=backref('guest', load_on_pending=True), uselist=False)
     interview = relationship('GuestInterview', backref=backref('guest', load_on_pending=True), uselist=False)
     travel_plans = relationship('GuestTravelPlans', backref=backref('guest', load_on_pending=True), uselist=False)
+    hospitality = relationship('GuestHospitality', backref=backref('guest', load_on_pending=True), uselist=False)
 
     email_model_name = 'guest'
 
@@ -655,6 +656,12 @@ class GuestTravelPlans(MagModel):
     @property
     def num_detailed_travel_plans(self):
         return len(self.detailed_travel_plans)
+
+
+class GuestHospitality(MagModel):
+    guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
+    completed = Column(Boolean, default=False)
+
 
 class GuestDetailedTravelPlan(MagModel):
     travel_plans_id = Column(UUID, ForeignKey('guest_travel_plans.id'), nullable=True)

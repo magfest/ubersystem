@@ -1527,9 +1527,9 @@ c.ROCK_ISLAND_GROUPS = [getattr(c, group.upper()) for group in c.ROCK_ISLAND_GRO
 
 # A list of checklist items for display on the guest group admin page
 c.GUEST_CHECKLIST_ITEMS = [
+    {'name': 'bio', 'header': 'Announcement Info Provided'},
     {'name': 'panel', 'header': 'Panel'},
     {'name': 'mc', 'header': 'MC'},
-    {'name': 'bio', 'header': 'Bio Provided'},
     {'name': 'info', 'header': 'Agreement Completed'},
     {'name': 'taxes', 'header': 'W9 Uploaded', 'is_link': True},
     {'name': 'merch', 'header': 'Merch'},
@@ -1540,6 +1540,7 @@ c.GUEST_CHECKLIST_ITEMS = [
     {'name': 'interview'},
     {'name': 'travel_plans'},
     {'name': 'rehearsal'},
+    {'name': 'hospitality'},
 ]
 
 # Generate the possible template prefixes per step
