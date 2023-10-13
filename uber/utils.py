@@ -1238,14 +1238,13 @@ class SignNowRequest:
         last_name = self.group.leader.last_name if self.group.leader else ''
 
         if self.document.document_id and not self.document.signed:
-            link = self.get_signing_link(self.document_id,
-                                         first_name,
+            link = self.get_signing_link(first_name,
                                          last_name,
                                          (c.REDIRECT_URL_BASE or c.URL_BASE) + '/preregistration/group_members?id={}'
                                          .format(self.group.id))
             return link
     
-    def get_signing_link(self, document_id, first_name="", last_name="", redirect_uri=""):
+    def get_signing_link(self, first_name="", last_name="", redirect_uri=""):
         from requests import post
         from json import dumps, loads
 
@@ -1259,13 +1258,13 @@ class SignNowRequest:
             dict: A dictionary representing the JSON response containing the signing links for the document.
         """
 
-        self.set_access_token(refresh=True)
-        if self.error_message:
-            return None
+        if not self.document:
+            self.error_message = "Tried to send a signing link without a document attached to the request!"
+            return
 
         response = post(signnow_sdk.Config().get_base_url() + '/link', headers=self.api_call_headers,
         data=dumps({
-            "document_id": document_id,
+            "document_id": self.document.document_id,
             "firstname": first_name,
             "lastname": last_name,
             "redirect_uri": redirect_uri
