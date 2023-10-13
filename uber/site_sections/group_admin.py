@@ -70,9 +70,13 @@ class Root:
             raise HTTPRedirect("form?id={}&message={}").format(id, "SignNow document not found.")
         
         signnow_request.send_dealer_signing_invite()
-        signnow_request.document.last_emailed = datetime.now(UTC)
-        session.add(signnow_request.document)
-        raise HTTPRedirect("form?id={}&message={}", id, "SignNow link sent!")
+        if signnow_request.error_message:
+            log.error(signnow_request.error_message)
+            raise HTTPRedirect("form?id={}&message={}", id, f"Error sending SignNow link: {signnow_request.error_message}")
+        else:
+            signnow_request.document.last_emailed = datetime.now(UTC)
+            session.add(signnow_request.document)
+            raise HTTPRedirect("form?id={}&message={}", id, "SignNow link sent!")
 
     @log_pageview
     def form(self, session, new_dealer='', message='', **params):
