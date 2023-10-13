@@ -97,9 +97,10 @@ class Root:
             if model.in_promo_code_group and model.promo_code.group.buyer:
                 group_leader_receipt = session.get_receipt_by_model(model.promo_code.group.buyer)
                 potential_refund_amount = model.promo_code.cost * 100
-                txn = sorted([txn for txn in group_leader_receipt.refundable_txns if txn.amount_left >= potential_refund_amount],
-                                key=lambda x: x.added)[0]
-                group_processing_fee = txn.calc_processing_fee(potential_refund_amount)
+                if group_leader_receipt:
+                    txn = sorted([txn for txn in group_leader_receipt.refundable_txns if txn.amount_left >= potential_refund_amount],
+                                    key=lambda x: x.added)[0]
+                    group_processing_fee = txn.calc_processing_fee(potential_refund_amount)
         except NoResultFound:
             try:
                 model = session.group(id)
