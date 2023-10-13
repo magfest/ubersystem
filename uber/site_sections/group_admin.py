@@ -69,7 +69,7 @@ class Root:
         if not signnow_request.document:
             raise HTTPRedirect("form?id={}&message={}").format(id, "SignNow document not found.")
         
-        signnow_request.send_dealer_signing_invite(group)
+        signnow_request.send_dealer_signing_invite()
         signnow_request.document.last_emailed = datetime.now(UTC)
         session.add(signnow_request.document)
         raise HTTPRedirect("form?id={}&message={}", id, "SignNow link sent!")
