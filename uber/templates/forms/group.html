@@ -16,11 +16,11 @@
       $('#tc-link').insertAfter($("button[form='cancel_dealer']"));
     });
   </script>
-  {% else %}
+  {% elif signnow_link %}
   <div class="alert alert-danger pb-0" role="alert">
     <p>We need you to sign our terms and conditions for vending at {{ c.EVENT_NAME }}.</p>
     <p><a href="{{ signnow_link }}" class="btn btn-primary" target="_blank">
-      {% if group.signnow_document %}Finish Signing{% else %}Review and Sign{% endif %}
+      Review and Sign
     </a></p>
     <p>Make sure to click "Finish" in the top right to confirm your signature.</p>
   </div>

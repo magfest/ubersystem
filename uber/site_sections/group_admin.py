@@ -65,13 +65,13 @@ class Root:
     def resend_signnow_link(self, session, id):
         group = session.group(id)
 
-        document = session.query(SignedDocument).filter_by(model="Group", fk_id=id).first()
-        if not document:
+        signnow_request = SignNowRequest(session=session, group=group)
+        if not signnow_request.document:
             raise HTTPRedirect("form?id={}&message={}").format(id, "SignNow document not found.")
         
-        document.send_dealer_signing_invite(group)
-        document.last_emailed = datetime.now(UTC)
-        session.add(document)
+        signnow_request.send_dealer_signing_invite(group)
+        signnow_request.document.last_emailed = datetime.now(UTC)
+        session.add(signnow_request.document)
         raise HTTPRedirect("form?id={}&message={}", id, "SignNow link sent!")
 
     @log_pageview
