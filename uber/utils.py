@@ -1127,7 +1127,7 @@ class SignNowRequest:
                 last_name = group.leader.last_name if group.leader else ''
                 self.group_leader_name = first_name + ' ' + last_name
             
-            if not self.document.document_id:
+            if self.document and not self.document.document_id:
                 self.document.document_id = self.create_document(
                     template_id=c.SIGNNOW_DEALER_TEMPLATE_ID,
                     doc_title="MFF {} Dealer Terms - {}".format(c.EVENT_YEAR, group.name),
