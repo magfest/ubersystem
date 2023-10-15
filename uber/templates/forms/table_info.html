@@ -38,6 +38,28 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     </div>
     <div class="col-12 col-sm-6">{{ form_macros.form_input(table_info.admin_notes) }}</div>
 </div>
+<script type="text/javascript">
+    var unapprove = function(action, convert) {
+      if (!$.val("email_text")) {
+        $("#setstatus").prepend('<div style="color:red">You must enter an email message.</div>');
+      } else {
+        $("button").attr("disabled", true);
+        $.post("../dealer_admin/unapprove", {
+          id: "{{ group.id }}",
+          action: action,
+          convert: convert,
+          csrf_token: csrf_token,
+          email_text: $.val("email_text")
+        }, function(json) {
+          if (json.message) {
+            window.location = "index?message="+ json.message + "#dealers";
+          } else {
+            $("#status").text("Waitlisted");
+          }
+        }, 'json');
+      }
+    }
+</script>
 {% endif %}
 {% endblock %}
 
