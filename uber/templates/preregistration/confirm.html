@@ -91,7 +91,7 @@
         {% endif %}
       {% endif %}
 
-    {% if c.AFTER_ART_SHOW_REG_START and not attendee.is_new %}
+    {% if c.ART_SHOW_ENABLED and c.AFTER_ART_SHOW_REG_START and not attendee.is_new %}
       {% include 'art_show_common/art_show_agent.html' %}
     {% endif %}
 
