@@ -1552,11 +1552,7 @@ $(window).on("runJavaScript", function(){
     {% if attendee.is_inherently_transferable %}
     This attendee can currently transfer their badge.
     {% elif attendee.cannot_transfer_reason %}
-    This attendee cannot transfer their badge under any circumstances because
-    {% for reason in attendee.cannot_transfer_reason %}
-    {% if loop.last and attendee.cannot_transfer_reason|length > 1 %} and {% endif %}
-    {{ reason }}{% if attendee.cannot_transfer_reason|length > 2 %}, {% endif %}
-    {% endfor %}.
+    This attendee cannot transfer their badge under any circumstances because {{ attendee.cannot_transfer_reason|readable_join }}.
     {% else %}
     <label for='can_transfer' class="checkbox-label">
       {{ macros.checkbox(attendee, 'can_transfer', is_readonly=read_only, clientside_bool=clientside_bool) }} Make this attendee's badge always transferable

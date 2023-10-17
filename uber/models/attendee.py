@@ -1329,6 +1329,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def cannot_transfer_reason(self):
+        from uber.custom_tags import readable_join
+
         reasons = []
         if self.admin_account:
             reasons.append("they have an admin account")
@@ -1336,7 +1338,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             reasons.append("their badge type ({}) is not transferable".format(self.badge_type_label))
         if self.has_role_somewhere:
             reasons.append("they are a department head, checklist admin, or point of contact for the following departments: {}".format(
-                                ", ".join([membership.department.name for membership in self.dept_memberships_with_role])))
+                                readable_join(self.get_labels_for_memberships('dept_memberships_with_role'))))
         return reasons
     
     @presave_adjustment
@@ -1653,6 +1655,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def requested_depts_labels(self):
         return [d.name for d in self.requested_depts]
+    
+    def get_labels_for_memberships(self, prop_name):
+        # Takes a string for one of the 'depts_memberships' properties on the Attendee model
+        # (e.g., dept_memberships_where_can_admin_checklist) and returns a list of department names
+        return [membership.department.name for membership in getattr(self, prop_name, [])]
 
     @property
     def assigned_depts_ids(self):
