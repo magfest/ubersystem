@@ -118,7 +118,8 @@ class Root:
                 if not signnow_signed:
                     signnow_signed = signnow_request.get_doc_signed_timestamp()
                     if signnow_signed:
-                        signnow_request.document.signed = datetime.fromtimestamp(int(signnow_signed))
+                        signnow_signed = datetime.fromtimestamp(int(signnow_signed))
+                        signnow_request.document.signed = signnow_signed
                         signnow_link = ''
                         signnow_request.document.link = signnow_link
 
