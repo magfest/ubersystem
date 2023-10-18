@@ -296,8 +296,8 @@ class Root:
         guest = session.guest_group(guest_id)
         guest_autograph = session.guest_autograph(params)
         if cherrypy.request.method == 'POST':
-            guest_autograph.length = 60 * int(params['length'])  # Convert hours to minutes
-            guest_autograph.rock_island_length = 60 * int(params['rock_island_length'])  # Convert hours to minutes
+            guest_autograph.length = 60 * int(params.get('length'), 0)  # Convert hours to minutes
+            guest_autograph.rock_island_length = 60 * int(params.get('rock_island_length', 0))  # Convert hours to minutes
             guest.autograph = guest_autograph
             session.add(guest_autograph)
             raise HTTPRedirect('index?id={}&message={}', guest.id, 'Your autograph sessions have been saved')
