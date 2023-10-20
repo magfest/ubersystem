@@ -1440,7 +1440,7 @@ class Root:
         return {'success': True}
 
     @requires_account()
-    def homepage(self, session, message=''):
+    def homepage(self, session, message='', **params):
         account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id'))
 
         attendees_who_owe_money = {}
