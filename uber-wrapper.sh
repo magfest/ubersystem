@@ -11,7 +11,7 @@ if [ ! -s /app/development.ini ]; then
     envsubst < "sideboard-development.ini.template" > /app/development.ini
     if [ -n "${UBERSYSTEM_GIT_CONFIG}" ]; then
         echo "Loading UBERSYSTEM_CONFIG from git repo ${UBERSYSTEM_GIT_CONFIG}"
-        /app/env/bin/python /app/plugins/uber/make_config.py --repo "${UBERSYSTEM_GIT_CONFIG}" --paths ${UBERSYSTEM_GIT_CONFIG_PATHS} --overwrite
+        /app/env/bin/python /app/plugins/uber/make_config.py --repo "${UBERSYSTEM_GIT_CONFIG}" --environment "${UBERSYSTEM_GIT_CONFIG_ENV}" --servername "${UBERSYSTEM_GIT_CONFIG_SERVERNAME}" --overwrite
     fi
 
     if [ -n "${UBERSYSTEM_CONFIG}" ]; then
