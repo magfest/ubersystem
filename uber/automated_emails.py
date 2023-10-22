@@ -162,6 +162,7 @@ AutomatedEmailFixture(
     'placeholders/deferred.html',
     lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN and \
               a.badge_type == c.ATTENDEE_BADGE and a.paid == c.NEED_NOT_PAY and not a.admin_account,
+    when=after(c.PREREG_OPEN),
     ident='claim_deferred_badge')
 
 if c.ATTENDEE_ACCOUNTS_ENABLED:
@@ -552,6 +553,7 @@ AutomatedEmailFixture(
     'Last Chance to Accept Your {EVENT_NAME} ({EVENT_DATE}) Badge',
     'placeholders/reminder.txt',
     lambda a: a.placeholder and not a.is_dealer,
+    needs_approval=False,
     when=days_before(7, c.PLACEHOLDER_DEADLINE if c.PLACEHOLDER_DEADLINE else c.UBER_TAKEDOWN),
     ident='badge_confirmation_reminder_last_chance')
 

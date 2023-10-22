@@ -645,7 +645,6 @@ def validate_model(forms, model, preview_model=None, is_admin=False):
                 extra_validators[key].extend(form.new_or_changed_validation.get_validations_by_field(key))
         valid = form.validate(extra_validators=extra_validators)
         if not valid:
-            log.debug(form.errors)
             for key, val in form.errors.items():
                 all_errors[key].extend(map(str, val))
 

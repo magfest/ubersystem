@@ -1026,7 +1026,7 @@ def require_staff_shirt_size(attendee):
 
 @validation.Attendee
 def volunteers_cellphone_or_checkbox(attendee):
-    if not attendee.no_cellphone and attendee.staffing_or_will_be and not attendee.cellphone:
+    if not attendee.placeholder and not attendee.no_cellphone and attendee.staffing_or_will_be and not attendee.cellphone:
         return ('cellphone', "Volunteers and staffers must provide a cellphone number or indicate they do not have a cellphone.")
 
 

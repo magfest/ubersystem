@@ -147,13 +147,14 @@ class Root:
                 leader.badge_type = group.new_badge_type
                 leader.ribbon_ints = group.new_ribbons
                 leader_params = {key[7:]: val for key, val in params.items() if key.startswith('leader_')}
-                forms = load_forms(leader_params, leader, ['PersonalInfo'])
-                all_errors = validate_model(forms, leader, Attendee(**leader.to_dict()), is_admin=True)
+                leader_forms = load_forms(leader_params, leader, ['PersonalInfo'])
+                all_errors = validate_model(leader_forms, leader, Attendee(**leader.to_dict()), is_admin=True)
                 if all_errors:
                     session.delete(group)
                     session.commit()
-                    message = " ".join(list(zip(*[all_errors]))[1])
+                    message = ' '.join([item for sublist in all_errors.values() for item in sublist])
                 else:
+                    forms['personal_info'] = leader_forms['personal_info']
                     forms['personal_info'].populate_obj(leader)
 
             if not message:
