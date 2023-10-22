@@ -1,15 +1,29 @@
 # docker-compose for development of ubersystem
+x-uber: &uber
+  build: .
+  environment: 
+    - &uber-db-connect DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
+  volumes:
+    - $PWD:/app/plugins/uber
+  links:
+      - db
+      - redis
+      - rabbitmq
 
 services: 
   web:
-    build: .
+    <<: *uber
     ports:
       - 80:80
     environment:
-      - DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
+      - *uber-db-connect
       - PORT=80
-    volumes:
-      - $PWD:/app/plugins/uber
+  celery-beat:
+    <<: *uber
+    command: ['celery-beat']
+  celery-worker:
+    <<: *uber
+    command: ['celery-worker']
   db:
     image: postgres
     environment:
@@ -26,17 +40,3 @@ services:
       - RABBITMQ_DEFAULT_USER=celery
       - RABBITMQ_DEFAULT_PASS=celery
       - RABBITMQ_DEFAULT_VHOST=uber
-  celery-beat:
-    build: .
-    command: ['celery-beat']
-    environment:
-      - DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
-    volumes:
-      - $PWD:/app/plugins/uber
-  celery-worker:
-    build: .
-    command: ['celery-worker']
-    environment:
-      - DB_CONNECTION_STRING=postgresql://uber_db:uber_db@db:5432/uber_db
-    volumes:
-      - $PWD:/app/plugins/uber

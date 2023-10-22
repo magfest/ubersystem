@@ -7,7 +7,7 @@
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ game.db_id }}" />
 
-    {{ macros.form_group(game, 'name', is_required=True)}}
+    {{ macros.form_group(game, 'name', is_required=True) }}
     
     <div class="form-group">
         <label class="col-sm-3 control-label">Rules/Document</label>
@@ -17,7 +17,7 @@
         <p class="help-block col-sm-9 col-sm-offset-3">
             {% for doc in game.documents|sort(attribute='filename') %}
                 <span id="{{ doc.id }}"
-                {% if loop.first %} class="tooltip-wrapper" data-toggle="tooltip" title="You must always have at least one document uploaded."{% endif %}>
+                {% if loop.first %} class="tooltip-wrapper" data-bs-toggle="tooltip" title="You must always have at least one document uploaded."{% endif %}>
                 <a target="_blank" href="{{ doc.url }}">{{ doc.filename }}</a>
                 <button type="button" class="btn btn-xs btn-danger delete_doc" 
                 {% if loop.first %}disabled="disabled"{% else %}
@@ -46,7 +46,7 @@
         </p>
     </div>
 
-    {{ macros.form_group(game, 'description', type="textarea", is_required=True)}}
+    {{ macros.form_group(game, 'description', type="textarea", is_required=True) }}
     <div class="form-group">
         <label class="col-sm-3 control-label">Age Group</label>
         <div class="col-sm-6">
@@ -60,7 +60,7 @@
         </p>
     </div>
     {{ macros.form_group(game, 'age_explanation', label="Rating Explanation", type="textarea", help="Please explain what content your game has that rates it for the age category you selected.") }}
-    {{ macros.form_group(game, 'max_players', is_required=True)}}
+    {{ macros.form_group(game, 'max_players', is_required=True) }}
     {{ macros.form_group(game, 'copyrighted', type='radio_buttons', label="Copyrighted Materials", help="Does your game contain copyrighted materials?", is_required=True) }}
 
     {% if game.team.status == c.ACCEPTED %}
@@ -132,15 +132,15 @@
 <script type="text/javascript">
 var deleteDoc = function (id) {
     $.post('delete_document', {id: id, csrf_token: csrf_token}, function(message) {
-        toastr.remove();
-        toastr.info(message);
+        hideMessageBox();
+        $("#message-alert").addClass("alert-info").show().children('span').html(message);
         $('#' + id).remove();
     });
 };
 var deletePic = function (id) {
     $.post('delete_picture', {id: id, csrf_token: csrf_token}, function(message) {
-        toastr.remove();
-        toastr.info(message);
+        hideMessageBox();
+        $("#message-alert").addClass("alert-info").show().children('span').html(message);
         $('#' + id).remove();
     });
 };

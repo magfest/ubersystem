@@ -1,12 +1,9 @@
 {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
-{% set original_location = ".." ~ c.PAGE_PATH %}
-{% if logged_in_account %}
-{% include '/preregistration/create_or_login_account.html' %}
 <div class="row">
     <div class="text-center">
       <a href="form">{{ macros.stripe_button("Add Another Registration") }}</a>
       or
-    {% if charge.total_cost > 0 %}
+    {% if cart.total_cost > 0 %}
         {{ stripe_form('prereg_payment') }}
     {% else %}
         <a href="process_free_prereg">{{ macros.stripe_button("Complete Registration!") }}</a>
@@ -15,42 +12,14 @@
 </div>
 {% else %}
 <div class="row">
-    <div class="col-sm-6 col-sm-offset-3">
-      <a href="form">{{ macros.stripe_button("Add Another Registration") }}</a>
-    </div>
-    <div class="col-sm-6 col-sm-offset-3 form-control-static">or</div>
-</div>
-  
-{% include '/preregistration/create_or_login_account.html' %}
-  <div class="form-group" id="payment_button">
-    <div class="col-sm-6 col-sm-offset-3">
-        {% if charge.total_cost > 0 %}
+    <div class="text-center">
+        {% if cart.total_cost > 0 %}
             {{ stripe_form('prereg_payment') }}
         {% else %}
             <a href="process_free_prereg">{{ macros.stripe_button("Complete Registration!") }}</a>
         {% endif %}
+        <br/>or
+        <br/><a href="form">{{ macros.stripe_button("Add Another Registration") }}</a>
     </div>
-  </div>
-<script type="text/javascript">
-    $('#payment_button').insertAfter($('#confirm_new_password').parents('.form-group'));
-</script>
-{% endif %}
-{% else %}
-<div class="row">
-    <div class="col-sm-8 col-sm-offset-2">
-    <div class="col-sm-5 text-center">
-        {% if charge.total_cost > 0 %}
-            {{ stripe_form('prereg_payment') }}
-        {% else %}
-            <a href="process_free_prereg">{{ macros.stripe_button("Complete Registration!") }}</a>
-        {% endif %}
-    </div>
-    <div class="col-sm-2 text-center">
-        or
-    </div>
-    <div class="col-sm-5 text-center">
-        <a href="form">{{ macros.stripe_button("Add Another Registration") }}</a>
-    </div>
-  </div>
 </div>
 {% endif %}

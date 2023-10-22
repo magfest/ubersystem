@@ -11,6 +11,7 @@ server.socket_timeout = 1
 server.thread_pool = 100
 tools.sessions.host = "${SESSION_HOST}"
 tools.sessions.port = ${SESSION_PORT}
+tools.sessions.prefix = "${SESSION_PREFIX}"
 tools.sessions.storage_type = "redis"
 tools.sessions.timeout = 60
 

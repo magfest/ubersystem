@@ -145,7 +145,7 @@
             $confirm = $('#discount_confirm'),
             $checkButton = $('#discount_check');
         var reset = function () {
-            toastr.clear();
+            hideMessageBox();
             $confirm.empty();
             $checkButton.show();
             $num.prop('disabled', false).val('');
@@ -153,12 +153,12 @@
         $num.prop('disabled', true);
         $confirm.empty();
         $checkButton.hide();
-        toastr.clear();
+        hideMessageBox();
         var params = {badge_num: $num.val(), csrf_token: csrf_token};
         $.post('redeem_merch_discount', params, function (checkResponse) {
             if (!checkResponse.message) {
                 reset();
-                toastr.error(checkResponse.error || 'An unexpected error occurred');
+                showErrorMessage(checkResponse.error || 'An unexpected error occurred');
             } else {
                 toastr[checkResponse.warning ? 'warning' : 'info'](checkResponse.message);
                 $confirm.append(
@@ -166,7 +166,7 @@
                         params.apply = 'true';
                         $.post('redeem_merch_discount', params, function (applyResponse) {
                             reset();
-                            toastr.info(applyResponse.message || applyResponse.error);
+                            $("#message-alert").addClass("alert-info").show().children('span').html(applyResponse.message || applyResponse.error);
                         });
                     }).text(checkResponse.warning ? 'Redeem Anyway' : 'Redeem')
                 ).append('<span>&nbsp;&nbsp;</span>').append(
@@ -184,7 +184,7 @@
         });
 
         $('#message').ajaxError(function () {
-            toastr.error('Oh noes - the web server is down or something!!!!!');
+            showErrorMessage('Oh noes - the web server is down or something!!!!!');
         });
 
         $('input[type=text],input[type=number]').on('focus', function(event){
@@ -236,24 +236,11 @@
                             $('#give #staff-shirt').val(resp.shirt);
                         }
 
-                        if (resp.swadges_available || !resp.gets_swadge) {
-                            $('#give').append(
-                                $('<button>Give Merch</button>').click(function () {
-                                    giveMerch('', resp.id, staffMerch, $("#shirt").val(), resp.gets_swadge);
-                                })
-                            );
-                        } else {
-                            $('#give').append(
-                                $('<button>Give Merch WITH Swadge</button>').click(function () {
-                                    giveMerch('', resp.id, staffMerch, $("#shirt").val(), true);
-                                })
-                            );
-                            $('#give').append(
-                                $('<button>Give Merch WITHOUT Swadge</button>').click(function () {
-                                    giveMerch('', resp.id, staffMerch, $("#shirt").val(), false);
-                                })
-                            );
-                        }
+                        $('#give').append(
+                            $('<button>Give Merch</button>').click(function () {
+                                giveMerch('', resp.id, staffMerch, $("#shirt").val(), resp.gets_swadge);
+                            })
+                        );
 
                         {% if c.OUT_OF_SHIRTS %}
                             $("#give").append(

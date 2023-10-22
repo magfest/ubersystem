@@ -59,7 +59,7 @@
 
     $btnShowSoldout.on('click', function(event) {
       var isShowing = $btnShowSoldout.hasClass('btn-plain');
-      $btnShowSoldout.toggleClass('btn-default', isShowing);
+      $btnShowSoldout.toggleClass('btn-outline-secondary', isShowing);
       $btnShowSoldout.toggleClass('btn-plain', !isShowing);
       $('body').toggleClass('show-soldout', !isShowing);
     });
@@ -80,12 +80,15 @@
       $('.signup-event-location').html($('#' + eventId + ' .event-location').html());
 
       {% if c.AT_THE_CON %}
-      $signupModal.modal('show');
+      var modal = bootstrap.Modal.getOrCreateInstance($signupModal)
+      modal.show();
       {% else %}
       if($event.hasClass('badge-num-required')) {
-        $signupModal.modal('show');
+        var modal = bootstrap.Modal.getOrCreateInstance($signupModal)
+        modal.show();
       } else {
-        $altSignupModal.modal('show');
+        var modal = bootstrap.Modal.getOrCreateInstance($altSignupModal)
+        modal.show();
       }
       {% endif %}
     });
@@ -105,20 +108,22 @@
             $('#' + eventId + ' .remaining-slots').text(response['remaining_slots']);
             callback(response);
           } else {
-            toastr.error(response['error'] || 'Error signing up for event', '', {timeOut: 3000});
+            showErrorMessage(response['error'] || 'Error signing up for event', '', {timeOut: 3000});
             callback(false);
           }
         },
         error: function(response, status, statusText) {
-          toastr.error('Error signing up for event', '', {timeOut: 3000});
+          showErrorMessage('Error signing up for event', '', {timeOut: 3000});
           callback(false);
         }
       });
     };
 
     $signupModal.find('.modal-footer .btn.modal-form-switch').on('click', function (event) {
-      $signupModal.modal('hide');
-      $altSignupModal.modal('show');
+      var signupModal = bootstrap.Modal.getOrCreateInstance($signupModal)
+      signupModal.hide();
+      var altSignupModal = bootstrap.Modal.getOrCreateInstance($altSignupModal);
+      altSignupModal.show();
     });
 
     $doneModal.find('.confirm-row .btn-success').on('click', function (event) {
@@ -134,7 +139,7 @@
           if (response['remaining_slots'] === response['old_remaining_slots']) {
             message = ' was already signed up for ';
           }
-          toastr.info($attendee.html() + message + $eventLabel.html());
+          $("#message-alert").addClass("alert-info").show().children('span').html($attendee.html() + message + $eventLabel.html());
           hideBadgeNumConfirm($doneModal, true);
         } else {
           hideBadgeNumConfirm($doneModal, false);
@@ -152,8 +157,10 @@
         if (response) {
           updateGreeting(response['first_name'], response['badge_num'], $doneModal.find('.modal-title'));
           $doneModal.data('attendee', response);
-          $signupModal.modal('hide');
-          $doneModal.modal('show');
+          var signupModal = bootstrap.Modal.getOrCreateInstance($signupModal);
+          signupModal.hide();
+          var doneModal = bootstrap.Modal.getOrCreateInstance($doneModal);
+          doneModal.show();
         }
       });
     });
@@ -171,14 +178,16 @@
         if (response) {
           updateGreeting(response['first_name'], response['badge_num'], $doneModal.find('.modal-title'));
           $doneModal.data('attendee', response);
-          $altSignupModal.modal('hide');
-          $doneModal.modal('show');
+          var altSignupModal = bootstrap.Modal.getOrCreateInstance($altSignupModal);
+          altSignupModal.hide();
+          var doneModal = bootstrap.Modal.getOrCreateInstance($doneModal);
+          doneModal.show();
         }
       });
     });
 
     $modals.on('hide.bs.modal', function (event) {
-      toastr.clear();
+      hideMessageBox();
     });
 
     $modals.on('hidden.bs.modal', function (event) {
@@ -203,9 +212,9 @@
         } else {
           var icon = '';
           if (attendeeData['notification_pref'] === {{ Attendee._NOTIFICATION_EMAIL }}) {
-            icon = '<span class="glyphicon glyphicon-envelope"></span> ';
+            icon = '<i class="fa fa-envelope"></i> ';
           } else if (attendeeData['notification_pref'] === {{ Attendee._NOTIFICATION_TEXT }}) {
-            icon = '<span class="glyphicon glyphicon-phone"></span> ';
+            icon = '<i class="fa fa-phone"></i> ';
           }
           $notificationPref.html(
             'You will be notified at ' +
@@ -231,7 +240,7 @@
   <div class="modal-dialog modal-md" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
         <h4 class="modal-title">
@@ -263,9 +272,9 @@
       </div>
       <div class="modal-footer">
         {% if not feature.badge_num_required %}
-          <button class="btn btn-default btn-lg btn-xl modal-form-switch">Sign up without badge #</button>
+          <button class="btn btn-outline-secondary btn-lg btn-xl modal-form-switch">Sign up without badge #</button>
         {% endif %}
-        <button class="btn btn-default btn-lg btn-xl" data-dismiss="modal">Nevermind</button>
+        <button class="btn btn-outline-secondary btn-lg btn-xl" data-bs-dismiss="modal">Nevermind</button>
       </div>
     </div>
   </div>
@@ -276,7 +285,7 @@
   <div class="modal-dialog modal-md" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
         <h4 class="modal-title">
@@ -321,9 +330,9 @@
         </div>
         <div class="modal-footer">
           <button class="btn btn-success btn-lg btn-xl">
-              <span class="glyphicon glyphicon-ok"></span> Sign up
+              <i class="fa fa-check"></i> Sign up
           </button>
-          <button class="btn btn-default btn-lg btn-xl" data-dismiss="modal">Nevermind</button>
+          <button class="btn btn-outline-secondary btn-lg btn-xl" data-bs-dismiss="modal">Nevermind</button>
         </div>
       </form>
     </div>
@@ -335,7 +344,7 @@
   <div class="modal-dialog modal-md" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
         <h4 class="modal-title">
@@ -363,7 +372,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-default btn-lg btn-xl" data-dismiss="modal">
+        <button class="btn btn-outline-secondary btn-lg btn-xl" data-bs-dismiss="modal">
           All Done!
         </button>
       </div>
@@ -371,12 +380,11 @@
   </div>
 </div>
 
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     {% block body %}
       <a class="btn btn-success btn-back" href="{{ feature.attraction.slug }}">
-        <span class="glyphicon glyphicon-chevron-left"></span>
+        <i class="fa fa-chevron-left"></i>
         <span class="hidden-xxs">{{ feature.attraction.name }}</span>
         <span class="visible-xxs-inline">Back</span>
       </a>
@@ -389,8 +397,8 @@
       {%- set is_multi_day = available_events_by_day|length > 1 -%}
       {% if available_events_by_day %}
         <div class="filter-bar">
-          <button id="btn_show_soldout" class="btn btn-default btn-xs">
-            <span class="glyphicon glyphicon-filter"></span>
+          <button id="btn_show_soldout" class="btn btn-outline-secondary btn-xs">
+            <i class="fa fa-filter"></i>
             Include sold out
           </button>
         </div>
@@ -422,7 +430,7 @@
                 data-event-start-time="{{ event.start_time_label }}">
               <div class="hover-btn-title">
                 <button class="btn btn-success btn-next btn-next-sm pull-right">
-                  <span class="glyphicon glyphicon-ok"></span>
+                  <i class="fa fa-check"></i>
                 </button>
                 <h2><span class="bling-icon"></span> {{ event.time_span_label }}</h2>
                 <em class="text-nowrap">{{ event.duration_label }}</em>

@@ -17,14 +17,15 @@ from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.custom_tags import format_currency
-from uber.decorators import ajax, ajax_gettable, all_renderable, attendee_view, check_for_encrypted_badge_num, check_if_can_reg, credit_card, \
-    csrf_protected, department_id_adapter, log_pageview, not_site_mappable, render, site_mappable, public
+from uber.decorators import ajax, ajax_gettable, all_renderable, attendee_view, check_for_encrypted_badge_num, credit_card, \
+    csrf_protected, department_id_adapter, log_pageview, not_site_mappable, render, requires_account, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, AttendeeAccount, Department, Email, Group, Job, PageViewTracking, PrintJob, PromoCode, \
     PromoCodeGroup, Sale, Session, Shift, Tracking, WatchList
-from uber.site_sections.preregistration import check_account
-from uber.utils import add_opt, check, check_pii_consent, Charge, get_page, hour_day_format, \
+from uber.site_sections.preregistration import check_if_can_reg
+from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
     localized_now, Order, normalize_email
+from uber.payments import TransactionRequest, ReceiptManager
 
 
 def pre_checkin_check(attendee, group):
@@ -71,7 +72,8 @@ class Root:
         if c.DEV_BOX and not int(page):
             page = 1
 
-        filter = Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS, c.WATCHED_STATUS]) if not invalid else None
+        filter = Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS, c.WATCHED_STATUS, c.UNAPPROVED_DEALER_STATUS]
+                                           ) if not invalid else None
         attendees = session.query(Attendee) if invalid else session.query(Attendee).filter(filter)
         total_count = attendees.count()
         count = 0
@@ -127,9 +129,9 @@ class Root:
     @log_pageview
     def form(self, session, message='', return_to='', **params):
         if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-            message = session.auto_update_receipt(session.attendee(params.get('id')), params)
-            if message:
-                log.error("Error while auto-updating attendee receipt: {}".format(message))
+            attendee = session.attendee(params.get('id'))
+            receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
+            session.add_all(receipt_items)
 
         attendee = session.attendee(
             params, checkgroups=Attendee.all_checkgroups, bools=Attendee.all_bools, allow_invalid=True)
@@ -138,7 +140,7 @@ class Root:
             message = ''
             
             attendee.group_id = params['group_opt'] or None
-            if params.get('no_badge_num') or not attendee.badge_num:
+            if c.NUMBERED_BADGES and (params.get('no_badge_num') or not attendee.badge_num):
                 if params.get('save') == 'save_check_in' and attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES:
                     message = "Please enter a badge number to check this attendee in"
                 else:
@@ -150,7 +152,7 @@ class Root:
             if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
                 message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
 
-            if not message:
+            if not message and not attendee.placeholder:
                 message = check(attendee)
 
             if not message:
@@ -211,17 +213,12 @@ class Root:
                 group_id: unassigned
                 for group_id, unassigned in session.query(Attendee.group_id, func.count('*')).filter(
                     Attendee.group_id != None, Attendee.first_name == '').group_by(Attendee.group_id).all()},
-            'Charge': Charge if cherrypy.session.get('reg_station') else None,
+            'payment_enabled': True if cherrypy.session.get('reg_station') else False,
             'reg_station': cherrypy.session.get('reg_station', ''),
             'printer_default_id': cherrypy.session.get('printer_default_id', ''),
             'printer_minor_id': cherrypy.session.get('printer_minor_id', ''),
             'receipt': receipt,
         }  # noqa: E711
-
-        return {
-            'message':  message,
-            'attendee': attendee
-        }
 
     def promo_code_groups(self, session, message=''):
         groups = session.query(PromoCodeGroup).order_by(PromoCodeGroup.name).all()
@@ -504,7 +501,6 @@ class Root:
         return {
             'attendee': attendee,
             'groups': groups,
-            'Charge': Charge,
         }
 
     @check_for_encrypted_badge_num
@@ -547,7 +543,7 @@ class Root:
     @csrf_protected
     def undo_checkin(self, session, id, pre_badge):
         attendee = session.attendee(id, allow_invalid=True)
-        attendee.checked_in, attendee.badge_num = None, pre_badge
+        attendee.checked_in, attendee.badge_num = None, pre_badge if pre_badge else None
         session.add(attendee)
         session.commit()
         return 'Attendee successfully un-checked-in'
@@ -569,8 +565,12 @@ class Root:
 
     @public
     @check_atd
-    @check_if_can_reg
+    @requires_account()
     def register(self, session, message='', error_message='', **params):
+        errors = check_if_can_reg()
+        if errors:
+            return errors
+
         params['id'] = 'None'
         login_email = None
         payment_method = params.get('payment_method')
@@ -590,38 +590,21 @@ class Root:
 
         attendee = session.attendee(params, restricted=True, ignore_csrf=True)
         error_message = error_message or check_pii_consent(params, attendee)
-        if not error_message and 'first_name' in params:
-            if c.ATTENDEE_ACCOUNTS_ENABLED:
-                if login_email:
-                    account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email(login_email)).first()
-                    if not account:
-                        error_message = 'No account exists for that email address'
-                    elif not bcrypt.hashpw(login_password, account.hashed) == account.hashed:
-                        error_message = 'Incorrect password'
-                    else:
-                        new_or_existing_account = account
-                else:
-                    error_message = check_account(session, account_email, account_password, params.get('confirm_password'))
-            
-            if not error_message:
-                if not payment_method and (not c.BADGE_PRICE_WAIVED or c.BEFORE_BADGE_PRICE_WAIVED):
-                    error_message = 'Please select a payment type'
-                elif payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
-                    error_message = 'Email address is required to pay with a credit card at our registration desk'
-                elif attendee.badge_type not in [badge for badge, desc in c.AT_THE_DOOR_BADGE_OPTS]:
-                    error_message = 'No hacking allowed!'
-                else:
-                    error_message = check(attendee)
+        if not error_message and 'first_name' in params:            
+            if not payment_method and (not c.BADGE_PRICE_WAIVED or c.BEFORE_BADGE_PRICE_WAIVED):
+                error_message = 'Please select a payment type'
+            elif payment_method == c.MANUAL and not re.match(c.EMAIL_RE, attendee.email):
+                error_message = 'Email address is required to pay with a credit card at our registration desk'
+            elif attendee.badge_type not in [badge for badge, desc in c.AT_THE_DOOR_BADGE_OPTS]:
+                error_message = 'No hacking allowed!'
+            else:
+                error_message = check(attendee)
 
             if not error_message and c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
                 error_message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
             if not error_message:
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
-                    if not login_email:
-                        new_or_existing_account = session.current_attendee_account()
-                    if not new_or_existing_account:
-                        new_or_existing_account = session.create_attendee_account(account_email, account_password)
-                    session.add_attendee_to_account(attendee, new_or_existing_account)
+                    new_or_existing_account = session.current_attendee_account()
                     if not in_kiosk_mode:
                         cherrypy.session['attendee_account_id'] = new_or_existing_account.id
 
@@ -687,18 +670,19 @@ class Root:
         attendee = session.attendee(id)
         receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = Charge(attendee, amount=receipt.current_amount_owed, description=charge_desc)
-        stripe_intent = session.process_receipt_charge(receipt, charge)
+        charge = TransactionRequest(receipt, attendee.email, charge_desc)
+        message = charge.process_payment()
         
-        if isinstance(stripe_intent, string_types):
-            return {'error': stripe_intent}
+        if message:
+            return {'error': message}
         
+        session.add_all(charge.get_receipt_items_to_add())
         session.commit()
         if cherrypy.session.get('kiosk_mode'):
             success_url = 'register?message={}'.format(c.AT_DOOR_PREPAID_MSG)
         else:
             success_url = 'at_door_complete?id={}&message={}'.format(attendee.id, c.AT_DOOR_PREPAID_MSG)
-        return {'stripe_intent': stripe_intent,
+        return {'stripe_intent': charge.intent,
                 'success_url': success_url}
 
     def comments(self, session, order='last_name'):
@@ -727,7 +711,6 @@ class Root:
                                          Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
                                          *restrict_to)
                                  .order_by(Attendee.registered.desc()).all(),
-            'Charge': Charge
         }  # noqa: E711
 
     @not_site_mappable
@@ -735,7 +718,7 @@ class Root:
         if not reg_station:
             message = "Please enter a number for this reg station"
             
-        if not message and not reg_station.isdigit() or not (0 <= int(reg_station) < 100):
+        if not message and (not reg_station.isdigit() or (reg_station.isdigit() and not (0 <= int(reg_station) < 100))):
             message = "Reg station must be a positive integer between 0 and 100"
 
         if not message:
@@ -757,7 +740,11 @@ class Root:
         else:
             desc = "At-door marked as paid"
 
-        session.add(Charge.create_receipt_transaction(receipt, desc, method=payment_method))
+        receipt_manager = ReceiptManager(receipt)
+        error = receipt_manager.create_payment_transaction(desc, amount=receipt.current_amount_owed, method=payment_method)
+        if error:
+            return {'success': False, 'message': error}
+        session.add_all(receipt_manager.items_to_add)
         
         attendee.reg_station = cherrypy.session.get('reg_station')
         session.commit()
@@ -769,14 +756,15 @@ class Root:
         attendee = session.attendee(id)
         receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = Charge(attendee, amount=receipt.current_amount_owed, description=charge_desc)
+        charge = TransactionRequest(receipt, attendee.email, charge_desc)
 
-        stripe_intent = session.process_receipt_charge(receipt, charge, payment_method=c.MANUAL)
-        if isinstance(stripe_intent, string_types):
-            return {'error': stripe_intent}
+        message = charge.process_payment(payment_method=c.MANUAL)
+        if message:
+            return {'error': message}
         
+        session.add_all(charge.get_receipt_items_to_add())
         session.commit()
-        return {'stripe_intent': stripe_intent, 'success_url': ''}
+        return {'stripe_intent': charge.intent, 'success_url': ''}
 
     @check_for_encrypted_badge_num
     @csrf_protected
@@ -1052,9 +1040,9 @@ class Root:
     @attendee_view
     def update_attendee(self, session, message='', success=False, **params):
         if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-            message = session.auto_update_receipt(session.attendee(params.get('id')), params)
-            if message:
-                log.error("Error while auto-updating attendee receipt: {}".format(message))
+            attendee = session.attendee(params.get('id'))
+            receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
+            session.add_all(receipt_items)
 
         for key in params:
             if params[key] == "false":
@@ -1088,7 +1076,7 @@ class Root:
             if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
                 message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
 
-        if not message:
+        if not message and not attendee.placeholder:
             message = check(attendee)
 
         if not message:

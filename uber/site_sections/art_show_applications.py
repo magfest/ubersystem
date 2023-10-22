@@ -3,21 +3,24 @@ from six import string_types
 from pockets.autolog import log
 
 from uber.config import c
+from uber.custom_tags import email_only
 from uber.decorators import ajax, all_renderable, render, credit_card, requires_account
 from uber.errors import HTTPRedirect
 from uber.models import ArtShowApplication, ModelReceipt
+from uber.payments import TransactionRequest
 from uber.tasks.email import send_email
-from uber.utils import Charge, check
+from uber.utils import check
 
 
 @all_renderable(public=True)
 class Root:
+    @requires_account()
     def index(self, session, message='', **params):
         app = session.art_show_application(params, restricted=True,
                                            ignore_csrf=True)
         attendee = None
 
-        if not c.ART_SHOW_OPEN:
+        if not c.ART_SHOW_OPEN and not c.DEV_BOX:
             return render('static_views/art_show_closed.html') if c.AFTER_ART_SHOW_DEADLINE \
                 else render('static_views/art_show_not_open.html')
 
@@ -47,7 +50,7 @@ class Root:
                 session.add(app)
                 send_email.delay(
                     c.ART_SHOW_EMAIL,
-                    c.ART_SHOW_EMAIL,
+                    c.ART_SHOW_NOTIFICATIONS_EMAIL,
                     'Art Show Application Received',
                     render('emails/art_show/reg_notification.txt',
                            {'app': app}, encoding=None), model=app.to_dict('id'))
@@ -100,8 +103,8 @@ class Root:
             'message': message,
             'app': app,
             'receipt': receipt,
-            'incomplete_txn': receipt.last_incomplete_txn if receipt else None,
-            'account': session.get_attendee_account_by_attendee(app.attendee),
+            'incomplete_txn': receipt.get_last_incomplete_txn() if receipt else None,
+            'homepage_account': session.get_attendee_account_by_attendee(app.attendee),
             'return_to': 'edit?id={}'.format(app.id),
         }
 
@@ -112,9 +115,24 @@ class Root:
         app = session.art_show_application(id)
         txn = session.receipt_transaction(txn_id)
 
-        stripe_intent = txn.get_stripe_intent()
+        error = txn.check_stripe_id()
+        if error:
+            return {'error': "Something went wrong with this payment. Please refresh the page and try again."}
 
-        if stripe_intent.charges:
+        if c.AUTHORIZENET_LOGIN_ID:
+            # Authorize.net doesn't actually have a concept of pending transactions,
+            # so there's no transaction to resume. Create a new one.
+            new_txn_requent = TransactionRequest(txn.receipt, app.attendee.email, txn.desc, txn.amount)
+            stripe_intent = new_txn_requent.stripe_or_authnet_intent()
+            txn.intent_id = stripe_intent.id
+            session.commit()
+        else:
+            stripe_intent = txn.get_stripe_intent()
+
+        if not stripe_intent:
+            return {'error': "Something went wrong. Please contact us at {}.".format(email_only(c.REGDESK_EMAIL))}
+
+        if stripe_intent.status == "succeeded":
             return {'error': "This payment has already been finalized!"}
 
         return {'stripe_intent': stripe_intent,
@@ -129,20 +147,31 @@ class Root:
         piece = session.art_show_piece(params, restricted=restricted, bools=['for_sale', 'no_quick_sale'])
         app = session.art_show_application(app_id)
 
-        if cherrypy.request.method == 'POST':
-            piece.app_id = app.id
-            piece.app = app
-            message = check(piece)
-            if not message:
-                session.add(piece)
-                if not restricted and 'voice_auctioned' not in params:
-                    piece.voice_auctioned = False
-                elif not restricted and 'voice_auctioned' in params and params['voice_auctioned']:
-                    piece.voice_auctioned = True
-                session.commit()
+        if not params.get('name'):
+            message += "ERROR: Please enter a name for this piece."
+        if not params.get('gallery'):
+            message += "<br>" if not params.get('name') else "ERROR: "
+            message += "Please select which gallery you will hang this piece in."
+        if not params.get('type'):
+            message += "<br>" if not params.get('gallery') or not params.get('name') else "ERROR: "
+            message += "Please choose whether this piece is a print or an original."
+        if message:
+            return {'error': message}
 
-        return {'error': message,
-                'success': 'Piece "{}" successfully saved'.format(piece.name)}
+        piece.app_id = app.id
+        piece.app = app
+        message = check(piece)
+        if message:
+            return {'error': message}
+        
+        session.add(piece)
+        if not restricted and 'voice_auctioned' not in params:
+            piece.voice_auctioned = False
+        elif not restricted and 'voice_auctioned' in params and params['voice_auctioned']:
+            piece.voice_auctioned = True
+        session.commit()
+
+        return {'success': 'Piece "{}" successfully saved'.format(piece.name)}
 
     @ajax
     def remove_art_show_piece(self, session, id, **params):
@@ -174,7 +203,10 @@ class Root:
                                'Confirmation email sent')
 
     def confirmation(self, session, id):
-        return {'app': session.art_show_application(id)}
+        return {
+            'app': session.art_show_application(id),
+            'logged_in_account': session.current_attendee_account(),
+        }
 
     def mailing_address(self, session, message='', **params):
         app = session.art_show_application(params)
@@ -187,7 +219,7 @@ class Root:
             app.zip_code = app.attendee.zip_code
             app.country = app.attendee.country
 
-        from uber.model_checks import _invalid_zip_code
+        from uber.model_checks import invalid_zip_code
 
         if not app.address1:
             message = 'Please enter a street address.'
@@ -198,7 +230,7 @@ class Root:
         if not app.country:
             message = 'Please enter a country.'
         if app.country == 'United States':
-            if _invalid_zip_code(app.zip_code):
+            if invalid_zip_code(app.zip_code):
                 message = 'Enter a valid zip code'
 
         if message:
@@ -268,16 +300,17 @@ class Root:
         receipt = session.get_receipt_by_model(app, create_if_none="DEFAULT")
         
         charge_desc = "{}'s Art Show Application: {}".format(app.attendee.full_name, receipt.charge_description_list)
-        charge = Charge(app, amount=receipt.current_amount_owed, description=charge_desc)
+        charge = TransactionRequest(receipt, app.attendee.email, charge_desc, create_receipt_item=True)
         
-        stripe_intent = session.process_receipt_charge(receipt, charge)
+        message = charge.process_payment()
 
-        if isinstance(stripe_intent, string_types):
-            return {'error': stripe_intent}
+        if message:
+            return {'error': message}
         
+        session.add_all(charge.get_receipt_items_to_add())
         session.commit()
     
-        return {'stripe_intent': stripe_intent,
+        return {'stripe_intent': charge.intent,
                 'success_url': 'edit?id={}&message={}'.format(app.id,
                                                                 'Your payment has been accepted'),
                 'cancel_url': '../preregistration/cancel_payment'}

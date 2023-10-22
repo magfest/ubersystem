@@ -31,7 +31,7 @@ $(document).ready(function() {
                 'paid, will lose their discounted badge price. This cannot be undone.',
             buttons: {
                 confirm: { label: 'Delete Promo Code', className: 'btn-danger' },
-                cancel: { label: 'Nevermind', className: 'btn-default' }
+                cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
             },
             callback: function(result) {
                 if (result) {
@@ -46,28 +46,28 @@ $(document).ready(function() {
 <h1>
   Promo Codes
   <small><a href="generate_promo_codes">Generate new promo codes</a></small>
-  <button class="btn btn-sm btn-danger pull-right" data-toggle="modal" data-target="#modal-delete-unused">
+  <button class="btn btn-sm btn-danger pull-right" data-bs-toggle="modal" data-bs-target="#modal-delete-unused">
     Delete Unused
   </button>
 </h1>
   <ul class="nav nav-tabs" role="tablist">
-  <li {% if show == "admin" %}class="active"{% endif %}><a href="index?show=admin">Discount Codes</a></li>
-  <li {% if show == "group" %}class="active"{% endif %}><a href="index?show=group">Promo Code Group Codes</a></li>
-  <li {% if show == "overused" %}class="active"{% endif %}><a href="index?show=overused">Overused</a></li>
-  <li {% if show == "all" %}class="active"{% endif %}><a href="index?show=all">All</a></li>
+  <li class="nav-item" role="presentation" {% if show == "admin" %}class="active"{% endif %}><a href="index?show=admin">Discount Codes</a></li>
+  <li class="nav-item" role="presentation" {% if show == "group" %}class="active"{% endif %}><a href="index?show=group">Promo Code Group Codes</a></li>
+  <li class="nav-item" role="presentation" {% if show == "overused" %}class="active"{% endif %}><a href="index?show=overused">Overused</a></li>
+  <li class="nav-item" role="presentation" {% if show == "all" %}class="active"{% endif %}><a href="index?show=all">All</a></li>
 </ul>
 <br/>
 <div id="modal-delete-unused" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="title-delete-unused">
   <div class="modal-dialog modal-sm" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
         <h4 class="modal-title" id="title-delete-unused">Delete all unused promo codes?</h4>
       </div>
       <div class="modal-footer">
         <form method="post" action="delete_promo_codes" class="form-horizontal">
           {{ csrf_token() }}
-          <button type="button" class="btn btn-default" data-dismiss="modal">Nevermind</button>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Nevermind</button>
           <button type="submit" class="btn btn-danger">Delete Unused</button>
         </form>
       </div>
@@ -135,7 +135,7 @@ $(document).ready(function() {
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ promo_code.id }}" />
             <button type="submit" class="btn btn-sm btn-primary update-button">
-              <span class="glyphicon glyphicon-ok"></span>
+              <i class="fa fa-check"></i>
             </button>
           </form>
           <form method="post" action="delete_promo_codes">
@@ -145,7 +145,7 @@ $(document).ready(function() {
             <div title="Promo codes that have already been used cannot be deleted" style="display: inline-block;">
             {% endif %}
             <button class="btn btn-sm btn-danger delete-button {% if promo_code.uses_count > 0 %}disabled{% endif %}" data-code="{{ promo_code.code }}">
-              <span class="glyphicon glyphicon-trash"></span>
+              <i class="fa fa-trash"></i>
             </button>
             {% if promo_code.uses_count > 0 %}
             </div>

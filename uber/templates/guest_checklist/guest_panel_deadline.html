@@ -1,2 +1,20 @@
 {% extends "guest_checklist/panel_deadline.html" %}
+
 {% block deadline_headline %}Add Your Panels{% endblock %}
+
+{% block deadline_text %}
+    {% if not guest.group.leader.panel_applications %}
+        What panels and/or events are you hosting at {{ c.EVENT_NAME }}? Please submit an application for each.
+    {% else %}
+        You have already submitted {{ guest.group.leader.panel_applications|length }} panel/event
+        idea{{ guest.group.leader.panel_applications|length|pluralize }}.
+        {% if c.APP_LIMIT %}
+        You may submit up to {{ c.APP_LIMIT }} applications for review.
+        {% endif %}
+    {% endif %}
+    <script type="text/javascript">
+        $(function() {
+            $('a[href^="panel"]').prop("href", "../panels/guest?poc_id={{ guest.group.leader.id }}&return_to=../guests/index?id={{ guest.id }}");
+        });
+    </script>
+{% endblock %}

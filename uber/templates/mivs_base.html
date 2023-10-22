@@ -7,7 +7,7 @@
     table td, table th { padding: 5px; }
     table td ul { margin: 0px; }
 
-    .panel-body .dataTables_wrapper {
+    .card-body .dataTables_wrapper {
       margin-left: -15px;
       margin-right: -15px;
     }
@@ -46,9 +46,8 @@
   };
 </script>
 
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="{{ "card" if bootstrap5 else "panel" }}">
+  <div class="{{ "card" if bootstrap5 else "panel" }}-body">
     {% block body %}{% endblock %}
   </div>
 </div>

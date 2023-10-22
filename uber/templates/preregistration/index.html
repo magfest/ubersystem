@@ -1,6 +1,5 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}Preregistration{% endblock %}
-{% block backlink %}{% endblock %}
+{% set title_text = "Registration Step 3 of 4: Review & Pay" %}
 {% block content %}
 
 <script type="text/javascript">
@@ -17,7 +16,7 @@
                   },
                   cancel: {
                       label: 'Nevermind',
-                      className: 'btn-default'
+                      className: 'btn-outline-secondary'
                   }
               },
               callback: function (result) {
@@ -30,39 +29,46 @@
     });
 </script>
 
-{% include 'prereg_masthead.html' %}
 
-<div class="panel panel-default">
-  <div class="panel-body">
-    {{ macros.prereg_wizard(c.PAGE_PATH, c.PREREG_REQUEST_HOTEL_INFO_OPEN) }}
+<div class="card">
+  <div class="card-body">
+    {{ macros.prereg_wizard(c.PAGE_PATH, is_prereg_dealer) }}
 
-      {% if charge.attendees or charge.groups %}
+      {% if cart.attendees or cart.groups %}
         {% include 'preregistration/index_payment_form.html' %}
-  </div>
-
+  <br/>
   <table class="charge table table-striped">
+    <caption class="visually-hidden">A table listing the preregistrations currently in your cart. 
+      Column one shows the name associated with the preregistration along with a list of purchased items and discounts,
+      column two details the total price of the preregistration,
+      and column three gives options to modify or delete the preregistration.</caption>
     <thead>
       <tr>
-        <th>Preregistration</th>
-        <th data-hide="phone" data-sort-ignore="true">Details</th>
-        <th data-type="numeric">Price</th>
-        <th data-sort-ignore="true"></th>
+        <th scope="col">Preregistration</th>
+        <th scope="col" data-hide="phone" data-sort-ignore="true">Details</th>
+        <th scope="col" data-type="numeric">Price</th>
+        <th scope="col" data-sort-ignore="true"></th>
       </tr>
     </thead>
     <tbody>
-      {% for attendee in charge.attendees %}
+      {% for attendee in cart.attendees %}
         <tr>
           <td>{{ attendee.full_name }}{% if attendee.badges %} ({{ attendee.name }}){% endif %}</td>
           <td>
             <ul style="padding-left:15px">
               {% if attendee.badge_type in c.BADGE_TYPE_PRICES %}
-              <li>{{ attendee.badge_type_label|replace(' ', '-') }}-level r{% else %}<li>R{% endif %}egistration for {{ c.EVENT_NAME }}{% if attendee.badges %} for {{ attendee.badges }} people{% endif %}{% if (attendee.default_badge_cost and attendee.age_discount|abs < attendee.default_badge_cost) or attendee.default_promo_code_group_cost %} ({{ ((attendee.default_badge_cost or attendee.default_promo_code_group_cost) - attendee.age_discount|abs)|format_currency }}){% endif %}</li>
-              {% if attendee.requested_hotel_info %}
-                <li>Requested hotel booking info</li>
+                {% set badge_cost = attendee.default_badge_cost + attendee.default_badge_upgrade_cost %}
+              {% elif (attendee.default_badge_cost and attendee.age_discount|abs < attendee.default_badge_cost) or attendee.default_promo_code_group_cost %}
+                {% set badge_cost = (attendee.default_badge_cost or attendee.default_promo_code_group_cost) - attendee.age_discount|abs %}
+              {% else %}
+                {% set badge_cost = 0 %}
               {% endif %}
-              {% if attendee.age_discount and attendee.age_discount|abs > attendee.default_badge_cost and not attendee.promo_code_id %}
+              <li>{% if attendee.badge_type in c.BADGE_TYPE_PRICES %}{{ attendee.badge_type_label|replace(' ', '-') }}-level r{% else %}R{% endif %}egistration for {{ c.EVENT_NAME }}
+                {% if attendee.badges %} for {{ attendee.badges }} people{% endif %}
+                {% if badge_cost %} ({{ badge_cost|format_currency }}){% endif %}</li>
+              {% if attendee.qualifies_for_discounts and attendee.age_discount and attendee.age_discount|abs > attendee.default_badge_cost and not attendee.promo_code_id %}
                 <li>Attendees who are {{ attendee.age_group_conf.desc|lower }} get in for free!</li>
-              {% elif attendee.age_discount and attendee.age_group_conf.discount != 0 %}
+              {% elif attendee.qualifies_for_discounts and attendee.age_discount and attendee.age_group_conf.discount != 0 %}
                 <li>{{ attendee.age_group_conf.discount|format_currency }} discount for attendees who are {{ attendee.age_group_conf.desc|lower }}.</li>
               {% endif %}
               {% for swag in attendee.donation_swag|list + attendee.addons|list %}
@@ -80,21 +86,23 @@
           <td>
               {{ attendee.default_cost|format_currency }}
           </td>
-          <td>
-            <a href="form?edit_id={{ attendee.id }}">Edit</a> / <a href="delete?id={{ attendee.id }}">Delete</a>
+          <td class="text-nowrap">
+            <span id="edit-{{ attendee.first_name }}-{{ attendee.last_name }}">
+              <a href="form?edit_id={{ attendee.id }}" aria-describedby="edit-{{ attendee.first_name }}-{{ attendee.last_name }}">Edit</a>
+            </span> / 
+            <span id="delete-{{ attendee.first_name }}-{{ attendee.last_name }}">
+              <a href="delete?id={{ attendee.id }}" aria-describedby="delete-{{ attendee.first_name }}-{{ attendee.last_name }}">Delete</a>
+            </span>
           </td>
         </tr>
       {% endfor %}
 
-      {% for group in charge.groups %}
+      {% for group in cart.groups %}
         <tr>
           <td>{{ group.name }}</td>
           <td>
             <ul style="padding-left:15px">
               <li>{{ group.badges }} badges</li>
-              {% if group.requested_hotel_info %}
-                <li>Requested hotel booking info</li>
-              {% endif %}
               {% for swag in group.attendees.0.donation_swag|list + group.addons|list %}
                 <li>{{ swag }}</li>
               {% endfor %}
@@ -102,18 +110,22 @@
           </td>
           <td>{{ group.default_cost|format_currency }}</td>
           <td>
-            <a href="form?edit_id={{ group.id }}">Edit</a> /
-            <a href="delete?id={{ group.id }}">Delete</a>
+            <span id="edit-{{ group.name }}">
+              <a href="form?edit_id={{ group.id }}" aria-describedby="edit-{{ group.name }}">Edit</a>
+            </span> /
+            <span id="delete-{{ group.name }}">
+              <a href="delete?id={{ group.id }}" aria-describedby="delete-{{ group.name }}">Delete</a>
+            </span>
           </td>
         </tr>
       {% endfor %}
     </tbody>
-    {% if charge.has_targets %}
+    {% if cart.has_targets %}
       <tfoot>
         <tr>
           <th></th>
           <th style="text-align:right;"><i>Total:</i></th>
-          <th><b>{{ charge.dollar_amount|format_currency }}</b></th>
+          <th><b>{{ cart.dollar_amount|format_currency }}</b></th>
           <th></th>
         </tr>
       </tfoot>
@@ -121,8 +133,10 @@
   </table>
   {% endif %}
 
-  <div class="panel-body">
+  <div class="card-body">
     {% include "preregistration/disclaimers.html" %}
   </div>
 </div>
+<div class="text-center"><em class="badge bg-dark fw-normal">Please note: your badge and any upgrades are not reserved until you complete the registration process, including payment.</em></div>
+{{ "js/warn-before-logout.js"|serve_static_content }}
 {% endblock %}

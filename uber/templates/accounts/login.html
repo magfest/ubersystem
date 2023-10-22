@@ -4,7 +4,7 @@
 {% block content %}
 
 <!-- Custom styles for this template -->
-<link href="../static/styles/login.css" rel="stylesheet">
+{{ "styles/login.css"|serve_static_content }}
 
 <div class="container">
   <form class="form-signin" role="form" method="post" action="../accounts/login">

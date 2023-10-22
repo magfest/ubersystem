@@ -61,7 +61,7 @@ class RegistrationDataOneYear:
                 date_trunc_day(Attendee.registered),
                 func.count(date_trunc_day(Attendee.registered))
             ) \
-            .outerjoin(Attendee.group).outerjoin(Attendee.promo_code) \
+            .outerjoin(Attendee.group) \
             .filter(
                 (
                     (Attendee.group_id != None) &
@@ -70,15 +70,20 @@ class RegistrationDataOneYear:
                     (Group.amount_paid > 0)               # make sure they've paid something
                 ) | (                                     # OR
                     (Attendee.paid == c.HAS_PAID)         # if they're an attendee, make sure they're fully paid
-                ) | (
-                    (Attendee.promo_code != None) &
-                    (PromoCode.group_id != None) &
-                    (PromoCode.cost > 0)
                 )
             ) \
             .group_by(date_trunc_day(Attendee.registered)) \
             .order_by(date_trunc_day(Attendee.registered)) \
             .all()  # noqa: E711
+        
+        group_reg_per_day = session.query(
+            date_trunc_day(PromoCode.group_registered),
+            func.count(date_trunc_day(PromoCode.group_registered))
+            ) \
+        .filter(PromoCode.cost > 0) \
+        .group_by(date_trunc_day(PromoCode.group_registered)) \
+        .order_by(date_trunc_day(PromoCode.group_registered)) \
+        .all()
 
         # now, convert the query's data into the format we need.
         # SQL will skip days without registrations
@@ -87,10 +92,18 @@ class RegistrationDataOneYear:
         # create 365 elements in the final array
         self.registrations_per_day = self.num_days_to_report * [0]
 
-        for reg_data in reg_per_day:
-            day = reg_data[0]
-            reg_count = reg_data[1]
+        # merge attendee and promo code group reg
+        total_reg_per_day = defaultdict(int)
+        for k, v in dict(reg_per_day).items():
+            if not k:
+                continue
+            total_reg_per_day[k] += v
+        for k, v in dict(group_reg_per_day).items():
+            if not k:
+                continue
+            total_reg_per_day[k] += v
 
+        for day, reg_count in total_reg_per_day.items():
             day_offset = self.num_days_to_report - (self.end_date - day).days
             day_index = day_offset - 1
 
@@ -161,11 +174,16 @@ class Root:
         for label, opts in count_labels.items():
             for val, desc in opts:
                 counts[label][desc] = 0
-        stocks = c.BADGE_PRICES['stocks']
+        badge_stocks = c.BADGE_PRICES['stocks']
         for var in c.BADGE_VARS:
             badge_type = getattr(c, var)
-            counts['stocks'][c.BADGES[badge_type]] = stocks.get(var.lower(), 'no limit set')
-            counts['counts'][c.BADGES[badge_type]] = c.get_badge_count_by_type(badge_type)
+            counts['badge_stocks'][c.BADGES[badge_type]] = badge_stocks.get(var.lower(), 'no limit set')
+            counts['badge_counts'][c.BADGES[badge_type]] = c.get_badge_count_by_type(badge_type)
+
+        shirt_stocks = c.SHIRT_SIZE_STOCKS
+        for shirt_enum_key in c.PREREG_SHIRTS.keys():
+            counts['shirt_stocks'][c.PREREG_SHIRTS[shirt_enum_key]] = shirt_stocks.get(shirt_enum_key, 'no limit set')
+            counts['shirt_counts'][c.PREREG_SHIRTS[shirt_enum_key]] = c.REDIS_STORE.hget(c.REDIS_PREFIX + 'shirt_counts', shirt_enum_key)
 
         for a in session.query(Attendee).options(joinedload(Attendee.group)):
             counts['paid'][a.paid_label] += 1
@@ -185,7 +203,8 @@ class Root:
             donation_amounts = list(counts['donation_tiers'].keys())
             for index, amount in enumerate(donation_amounts):
                 next_amount = donation_amounts[index + 1] if index + 1 < len(donation_amounts) else six.MAXSIZE
-                if a.amount_extra >= amount and a.amount_extra < next_amount and a.badge_status not in [c.INVALID_STATUS, c.IMPORTED_STATUS, c.REFUNDED_STATUS]:
+                if a.amount_extra >= amount and a.amount_extra < next_amount and \
+                    a.badge_status not in [c.INVALID_GROUP_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS, c.REFUNDED_STATUS]:
                     counts['donation_tiers'][amount] = counts['donation_tiers'][amount] + 1
             if not a.checked_in:
                 is_paid = a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid
@@ -195,34 +214,6 @@ class Root:
         return {
             'counts': counts,
             'total_registrations': session.query(Attendee).count()
-        }
-
-    def affiliates(self, session):
-        class AffiliateCounts:
-            def __init__(self):
-                self.tally, self.total = 0, 0
-                self.amounts = {}
-
-            @property
-            def sorted(self):
-                return sorted(self.amounts.items())
-
-            def count(self, amount):
-                self.tally += 1
-                self.total += amount
-                self.amounts[amount] = 1 + self.amounts.get(amount, 0)
-
-        counts = defaultdict(AffiliateCounts)
-        for affiliate, amount in (session.query(Attendee.affiliate, Attendee.amount_extra)
-                                         .filter(Attendee.amount_extra > 0)):
-            counts['everything combined'].count(amount)
-            counts[affiliate or 'no affiliate selected'].count(amount)
-
-        return {
-            'counts': sorted(counts.items(), key=lambda tup: -tup[-1].total),
-            'registrations': session.query(Attendee).filter_by(paid=c.NEED_NOT_PAY).count(),
-            'quantities': [(desc, session.query(Attendee).filter(Attendee.amount_extra >= amount).count())
-                           for amount, desc in sorted(c.DONATION_TIERS.items()) if amount]
         }
 
     @csv_file

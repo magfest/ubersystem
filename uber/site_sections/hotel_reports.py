@@ -527,28 +527,20 @@ class Root:
                 out.writerow(list(row.values()))
 
     @csv_file
-    def requested_hotel_info(self, out, session):
-        eligibility_filters = []
-        if c.PREREG_REQUEST_HOTEL_INFO_DURATION > 0:
-            eligibility_filters.append(Attendee.requested_hotel_info == True)  # noqa: E711
-        if c.PREREG_HOTEL_ELIGIBILITY_CUTOFF:
-            eligibility_filters.append(or_(
-                Attendee.registered <= c.PREREG_HOTEL_ELIGIBILITY_CUTOFF,
-                and_(Attendee.paid == c.NEED_NOT_PAY, Attendee.promo_code == None))
-            )
+    def attendee_hotel_pins(self, out, session):
+        hotel_query = session.query(Attendee).filter(Attendee.email != '', Attendee.is_valid == True,
+                                                     ~Attendee.badge_status.in_([c.REFUNDED_STATUS,
+                                                                                 c.NOT_ATTENDING,
+                                                                                 c.DEFERRED_STATUS]),
+                                                     or_(Attendee.badge_type != c.STAFF_BADGE, Attendee.hotel_eligible == True))
 
-        hotel_query = session.query(Attendee).filter(*eligibility_filters).filter(
-            Attendee.badge_status.notin_([c.INVALID_STATUS, c.REFUNDED_STATUS, c.PENDING_STATUS]),
-            Attendee.email != '',
-        )  # noqa: E712
-
-        attendees_without_hotel_pin = hotel_query.filter(*eligibility_filters).filter(or_(
+        attendees_without_hotel_pin = hotel_query.filter(or_(
             Attendee.hotel_pin == None,
             Attendee.hotel_pin == '',
         )).all()  # noqa: E711
 
         if attendees_without_hotel_pin:
-            hotel_pin_rows = session.query(Attendee.hotel_pin).filter(*eligibility_filters).filter(
+            hotel_pin_rows = session.query(Attendee.hotel_pin).filter(
                 Attendee.hotel_pin != None,
                 Attendee.hotel_pin != '',
             ).all()  # noqa: E711
@@ -562,7 +554,7 @@ class Root:
                 a.hotel_pin = new_hotel_pin
             session.commit()
 
-        headers = ['First Name', 'Last Name', 'E-mail Address', 'LoginID']
+        headers = ['First Name', 'Last Name', 'Email Address', 'LoginID']
         for count in range(2, 21):
             headers.append('LoginID{}'.format(count))
 

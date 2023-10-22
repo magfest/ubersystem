@@ -1,12 +1,12 @@
-{% extends "preregistration/preregbase.html" %}
-{% set page_ro = True if group.status in [c.APPROVED, c.CANCELLED, c.DECLINED] else False %}
-{% import "fields/group.html" as group_fields with context %}
-{% block title %}Group Members{% endblock %}
+{% extends "./preregistration/preregbase.html" %}
+{% set page_ro = group.status not in c.DEALER_EDITABLE_STATUSES %}
+{% import "forms/group.html" as group_fields with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set title_text = "Group Members" %}
 {% block content %}
 <script type="text/javascript">
-    $().ready(function() {
-        $("form[action='unset_group_member']").submit(function(event){
-            var formToSubmit = this;
+  var unsetMemberConfirm = function(event) {
+    var formToSubmit = this;
             event.preventDefault();
             bootbox.confirm({
                 message: "This will permanently unassign this person's badge. They will receive an email about this. Are you sure?",
@@ -17,7 +17,7 @@
                     },
                     cancel: {
                         label: 'Nevermind',
-                        className: 'btn-default'
+                        className: 'btn-outline-secondary'
                     }
                 },
                 callback: function (result) {
@@ -26,21 +26,22 @@
                     }
                 }
             });
-        })
+  }
 
-        $("form[action='../dealer_admin/cancel_dealer']").submit(function(event){
+  var cancelConfirm = function(event) {
             var formToSubmit = this;
             event.preventDefault();
             bootbox.confirm({
-                message: "This will permanently cancel this application. All registered badges in the group will be converted to individual badges. Are you sure?",
+                title: "Cancel Dealer Application?",
+                message: "This will permanently cancel your application. All registered badges in the group will be converted to individual badges. Are you sure?",
                 buttons: {
                     confirm: {
-                        label: 'Cancel Application',
+                        label: 'Yes, Cancel My Application',
                         className: 'btn-danger'
                     },
                     cancel: {
                         label: 'Nevermind',
-                        className: 'btn-default'
+                        className: 'btn-outline-secondary'
                     }
                 },
                 callback: function (result) {
@@ -49,16 +50,16 @@
                     }
                 }
             });
-        })
+        }
+    $().ready(function() {
+        $("form[action='unset_group_member']").submit(unsetMemberConfirm);
+
+        $("form[action='../preregistration/cancel_dealer']").submit(cancelConfirm);
     });
 </script>
 
-{% include 'prereg_masthead.html' %}
-{% if account %}
-  {% include 'preregistration/update_account.html' %}
-{% endif %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     {% if group.leader %}
     {% set attendee = group.leader %}
     {% include 'confirm_tabs.html' with context %}
@@ -66,29 +67,30 @@
     {% if group.is_dealer %}
       {{ group_fields.status }}
       {{ group_fields.signed_document }}
-      <h2>"{{ group.name }}" Information</h2>
-      <form method="post" action="group_members" class="form-horizontal" role="form">
+      <h2 class="h5">"{{ group.name }}" Information</h2>
+      {{ form_macros.form_validation('group-form', 'validate_dealer' if group.is_dealer else 'validate_group') }}
+      <form method="post" action="group_members" role="form">
         <input type="hidden" name="id" value="{{ group.id }}" />
-        {% if not page_ro or 'name' in c.APPROVED_DEALER_EDITABLE_FIELDS and group.status == c.APPROVED %}{{ group_fields.group_name }}{% endif %}
-        {{ group_fields.categories }}
-        {{ group_fields.wares }}
-        {{ group_fields.description }}
-        {{ group_fields.special_needs }}
-        {{ group_fields.website }}
-        {{ group_fields.address }}
+        {% if forms and 'group_info' in forms %}
+          {% include "forms/group/group_info.html" %}
+        {% elif forms and 'table_info' in forms %}
+          {% include "forms/group/table_info.html" %}
+          {% include "forms/group/contact_info.html" %}
+        {% endif %}
         {% include "groupextra.html" %}
-        {% if not page_ro or c.APPROVED_DEALER_EDITABLE_FIELDS and group.status == c.APPROVED %}
+        {% if group.status in c.DEALER_EDITABLE_STATUSES %}
         <button type="submit" class="btn btn-primary" value="Update Application">Update Application</button>
         <button type="submit" class="btn btn-danger" value="Cancel {{ c.DEALER_APP_TERM|title }}" form="cancel_dealer">Cancel Application</button>
         {% endif %}
       </form>
-        <form method="post" id="cancel_dealer" action="../dealer_admin/cancel_dealer" class="form-horizontal" role="form">
+        <form method="post" id="cancel_dealer" action="../preregistration/cancel_dealer" class="form-horizontal" role="form">
           <input type="hidden" name="id" value="{{ group.id }}" />
         </form>
     {% endif%}
 
 {% if group.status not in [c.CANCELLED, c.DECLINED] %}
-<h2> Members of "{{ group.name }}" </h2>
+<hr/>
+<h2 class="h5"> Members of "{{ group.name }}" </h2>
 
 {% if group.amount_unpaid and not group.is_dealer %}
     <div style="text-align:center">
@@ -114,7 +116,7 @@
     If a {{ group.is_dealer|yesno("planned " + c.DEALER_HELPER_TERM + ",group member") }} cannot attend, you may use the "This person
     isn't coming" button next to their entry on the list below to unset their badge, which may then be assigned to
     someone else. Upgraded badges may only be transferred directly between two people; please contact us at
-    <a href="{{ c.CONTACT_URL }}">{{ c.CONTACT_URL }}</a> if you wish to transfer badges.
+    {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you wish to transfer badges.
 </div>
 
 <br/> <b>Here are the badges for your group:</b>
@@ -124,7 +126,7 @@
         <td><ul style="margin: 5px 0; padding-right: 0"><li></li></ul></td>
         {% if attendee.first_name %}
             <td style="padding-right: 10px">
-                {% if attendee.is_group_leader or c.ATTENDEE_ACCOUNTS_ENABLED and attendee in current_account.attendees %}
+                {% if attendee.is_group_leader or c.ATTENDEE_ACCOUNTS_ENABLED and attendee in logged_in_account.attendees %}
                   <a href="confirm?id={{ attendee.id }}">{{ attendee.full_name }}</a>
                 {% else %}{{ attendee.full_name }}{% endif %}
             </td>
@@ -166,7 +168,7 @@
 
         <br/>{% if group.is_dealer and group.min_badges_addable %}
         You may purchase up to <strong>{{ group.dealer_badges_remaining }}</strong> additional badges.<br/><br/>
-        {% elif group.is_dealer and group.amount_unpaid %}
+        {% elif group.is_dealer and group.amount_unpaid and group.dealer_badges_remaining %}
         You may purchase up to <strong>{{ group.dealer_badges_remaining }}</strong> additional badges after you are approved and paid.<br/><br/>
         {% elif group.is_dealer %}
         Please contact us at <strong>{{ c.MARKETPLACE_EMAIL|email_only|email_to_link }}</strong> if you wish to purchase additional badges.
@@ -174,11 +176,11 @@
 
 {% if group.min_badges_addable %}
     <div id="add" style="display:none">
-      <form class="form-inline" method="get" action="add_group_members">
+      <form method="get" action="add_group_members">
         <input type="hidden" name="id" value="{{ group.id }}" />
-        <p>
+        <div class="row g-sm-3">
           {%- set min_badges = group.min_badges_addable -%}
-          {%- set members = group.is_dealer|yesno(c.DEALER_HELPER_TERM + ",group members") -%}
+          {%- set members = group.is_dealer|yesno(c.DEALER_HELPER_TERM + "s,group members") -%}
           Enter the number of {{ members }} to add.
           {% if min_badges > 1 -%}
             {%- set hours_remaining = group.hours_remaining_in_grace_period -%}
@@ -191,15 +193,19 @@
               You can't add fewer than {{ group.min_badges_addable }} badges to an existing group.
             {%- endif -%}
           {%- endif -%}
-        </p>
-        <select class="form-control" name="count">
+        </div>
+        <div class="row">
+        <div class="col-auto">
+          <select class="form-select" name="count">
           {%- if group.is_dealer -%}
             {{ int_options(min_badges, group.dealer_badges_remaining) }}
           {%- else -%}
             {{ int_options(min_badges, 10) }}
           {%- endif -%}
-        </select>
-        <input class="btn btn-primary" type="submit" value="{{ group.is_dealer|yesno("Add " + c.DEALER_HELPER_TERM + ",Add Group Members") }}">
+          </select>
+        </div>
+        <div class="col-auto"><input class="btn btn-primary" type="submit" value="{{ group.is_dealer|yesno("Add " + c.DEALER_HELPER_TERM + ",Add Group Members") }}"></div>
+        </div>
       </form>
     </div>
 
@@ -221,5 +227,6 @@
     </script>
 {% endif %}
 {% endif %}
+</div>
 </div>
 {% endblock %}

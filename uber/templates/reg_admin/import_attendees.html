@@ -107,7 +107,7 @@
     <input class="btn btn-primary" name="dealers" type="submit" value="Import All Dealers" />
     </div>
     <div class="col-sm-6">
-    <select name="dealer_status" class="form-control" onChange="showOrHideAllButtons();">
+    <select name="dealer_status" class="form-control">
       <option value="" selected="selected">Any Status</option>
       {{ options(c.DEALER_STATUS_OPTS) }}
     </select>
@@ -166,7 +166,7 @@
 
 {% if existing_attendees %}
   <h3>Existing Attendees</h3>
-  <table id="existing_attendees" class="table table-responsive form">
+  <table id="existing_attendees" class="table table-hover form">
     <thead>
       <tr>
         <th>Email</th>
@@ -190,7 +190,7 @@
     <input type="hidden" name="target_server" value="{{ target_server }}">
     <input type="hidden" name="api_token" value="{{ api_token }}">
     <input type="hidden" name="query" value="{{ query }}">
-    <table id="matching_attendees" class="table table-responsive table-bordered">
+    <table id="matching_attendees" class="table table-hover table-bordered">
       <thead>
         <tr>
           <th></th>
@@ -233,7 +233,7 @@
           {{ options([
             (c.NEW_STATUS, 'New'),
             (c.IMPORTED_STATUS, 'Imported')
-            ], default=c.NEW_STATUS)}}
+            ], default=c.NEW_STATUS) }}
         </select>
         <select name="badge_type" class="form-control">
           {{ options([
@@ -250,7 +250,7 @@
 
 {% if existing_accounts %}
   <h3>Existing Attendee Accounts</h3>
-  <table id="existing_accounts" class="table table-responsive form">
+  <table id="existing_accounts" class="table table-hover form">
     <thead>
       <tr>
         <th>Email</th>
@@ -276,7 +276,7 @@
     <input type="hidden" name="target_server" value="{{ target_server }}">
     <input type="hidden" name="api_token" value="{{ api_token }}">
     <input type="hidden" name="query" value="{{ query }}">
-    <table id="matching_accounts" class="table table-responsive table-bordered">
+    <table id="matching_accounts" class="table table-hover table-bordered">
       <thead>
         <tr>
           <th></th>
@@ -312,7 +312,7 @@
 
 {% if existing_groups %}
   <h3>Existing Groups</h3>
-  <table id="existing_groups" class="table table-responsive form">
+  <table id="existing_groups" class="table table-hover form">
     <thead>
       <tr>
         <th>Name</th>
@@ -340,7 +340,7 @@
     <input type="hidden" name="target_server" value="{{ target_server }}">
     <input type="hidden" name="api_token" value="{{ api_token }}">
     <input type="hidden" name="query" value="{{ query }}">
-    <table id="matching_groups" class="table table-responsive table-bordered">
+    <table id="matching_groups" class="table table-hover table-bordered">
       <thead>
         <tr>
           <th></th>

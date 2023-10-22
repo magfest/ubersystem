@@ -33,11 +33,6 @@ application at the pre-registration price of {{ c.BADGE_PRICE|format_currency }}
 IF YOU APPLIED FOR A MARKETPLACE SPOT. Your ability to purchase the badges will happen after the waitlist is exhausted if you are
 not approved to vend.
 
-{% if group.requested_hotel_info and c.PREREG_REQUEST_HOTEL_INFO_OPEN -%}
-    <br/> <br/>
-    {% include "preregistration/hotel_disclaimer.html" %}
-{%- endif %}
-
 <br/> <br/> <u>{{ c.DEALER_LOC_TERM|title }} Rules and Information</u>
 {% include "static_views/dealerRules.html" %}
 

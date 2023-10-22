@@ -1,13 +1,16 @@
-$('.nav-tabs a').click(function() {
-    window.location.hash = this.hash;
+$('.nav-tabs button').click(function() {
+    window.location.hash = $(this).data('bs-target');
 })
 $().ready(function() {
     var tabID = window.location.hash;
-    tabID = tabID.slice(1,);
-    var tab = $('.nav-tabs a[href="#' + tabID + '"]');
-    if(tab.length) {
-      tab.tab('show');
+    try {
+      var tab = $(tabID + '-tab');
+    } catch(error) {
+      new bootstrap.Tab($('.nav-tabs button').first()).show();
+    }
+    if(tab && tab.length) {
+      new bootstrap.Tab(tab).show();
     } else {
-      $('.nav-tabs a').first().tab('show');
+      new bootstrap.Tab($('.nav-tabs button').first()).show();
     }
 })

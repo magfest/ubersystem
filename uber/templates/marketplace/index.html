@@ -14,20 +14,19 @@
         $.field('new_badge').on('click', showOrHideNewBadge);
     });
 </script>
-<div class="masthead"></div>
 {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     {% if logged_in_account %}
-    {% include 'preregistration/create_or_login_account.html' %}
+    {% include 'preregistration/login_or_create_account.html' %}
     {% else %}
     {% include 'preregistration/login.html' %}
     {% endif %}
   </div>
 </div>
 {% endif %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     <h2>{{ c.EVENT_NAME }} Marketplace Application</h2>
     {% if c.AFTER_MARKETPLACE_DEADLINE and not c.HAS_MARKETPLACE_ACCESS %}
     Unfortunately, the deadline for marketplace applications has passed and we are no longer accepting applications.
@@ -79,10 +78,6 @@
       </div>
 
       <div class="new-badge">
-        {% if not logged_in_account %}
-        {% set no_email = True %}
-        {% include 'preregistration/create_account_fields.html' %}
-        {% endif %}
         {% include 'marketplace/new_attendee_fields.html' %}
       </div>
 

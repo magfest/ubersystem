@@ -24,18 +24,18 @@
   <h2>{% block form_title %}Completed W9 for {{ guest.group.name }}{% endblock %}</h2>
 
   {% block form_desc %}
-    Please use our secure document portal below to upload a W9 for the person to whom the check will be issued. We will issue 1099 forms to applicable parties at the end of the tax year.
-    <br/><br/>You can find a blank W9 form <a target="_blank" href="https://www.irs.gov/pub/irs-pdf/fw9.pdf">here</a>.
+    <p>Please use our secure document portal below to upload a W9 for the person to whom the check will be issued. We will issue 1099 forms to applicable parties at the end of the tax year.</p>
+    <p>You can find a blank W9 form <a target="_blank" href="https://www.irs.gov/pub/irs-pdf/fw9.pdf">here</a>.</p>
   {% endblock %}
 
-  <br/><br/><a href="{{ c.SECURE_DOCUMENT_URL }}" class="btn btn-info" target="_blank">Secure Document Portal</a>
+  <p><a href="{{ c.SECURE_DOCUMENT_URL }}" class="btn btn-info" target="_blank">Secure Document Portal</a></p>
 
-  <br/><br/><form method="post" action="w9">
+  <form method="post" action="w9">
     <input type="hidden" name="guest_id" value="{{ guest.id }}" />
     <input type="hidden" name="id" value="{{ guest_taxes.db_id }}" />
     
     {{ csrf_token() }}
-    {{ macros.checkbox(guest_taxes, 'w9_sent', label='I confirm that I have uploaded my W9 form at the document portal above.')}}
+    {{ macros.checkbox(guest_taxes, 'w9_sent', label='I confirm that I have uploaded my W9 form at the document portal above.') }}
     <br/>
     {% block form_extra %}{% endblock %}
     <input type="submit" class="btn btn-primary" value="Confirm Upload" />

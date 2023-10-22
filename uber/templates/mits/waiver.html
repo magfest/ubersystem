@@ -50,19 +50,9 @@
       at any time for any reason.</li>
   </ul>
 
-  <p>Most of the time one of my assistants or Josh or I will around the demo space for you to be able to contact me, however, in case none of
-    us is in the area, and you need to get in touch with me or Josh, my assistant department head, you can text my personal cell at
-    (804) 398-2549 and Josh’s at (571) 419-4469. He is the on-duty head of department from 10am to 6pm and I am the on duty head from 6pm to 4am.
-    Call only if it is very urgent, as there are many teams and most of those has 2 or 3 people. If we accepted calls for every problem we
-    would never be able to solve any problem. As a warning, sometimes we have bad signal in the hotel, but most of the time it should be okay.
-    I am looking forward to an awesome event this year and to give your teams this opportunity!</p>
-
-  <p>~Janus
-  <br/>(David Boyd)</p>
-
   {% if team.waiver_signed %}
   <strong>{{ team.waiver_signature }}</strong> signed this waiver at {{ team.waiver_signed|datetime_local }}.
-  <br/><a href="index" class="btn btn-default">Go Back to Application</a>
+  <br/><a href="index" class="btn btn-outline-secondary">Go Back to Application</a>
   {% else %}
   <form method="post" action="waiver" class="form-horizontal" role="form">
     {{ csrf_token() }}

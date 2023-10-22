@@ -1,96 +1,52 @@
-{% extends "base.html" %}
-{%- set is_prereg_attendee = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}
-{%- set is_prereg_dealer = c.PAGE_PATH in ['/preregistration/dealer_registration', 'preregistration/post_dealer'] or attendee and attendee.badge_type == c.PSEUDO_DEALER_BADGE -%}
-{% import "fields/attendee.html" as attendee_fields with context %}
-{% import "fields/group.html" as group_fields with context %}
-{% import "fields/account.html" as account_fields with context %}
-{% block title %}Preregistration{% endblock %}
+{% extends "./preregistration/preregbase.html" %}
+{% import "forms/attendee.html" as attendee_fields with context %}
+{% import "forms/group.html" as group_fields with context %}
+{% import "forms/account.html" as account_fields with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% if is_prereg_dealer %}
+{% set title_text = "Dealer Registration Step 2 of 4: Personal Info" %}
+{% else %}
+{% set title_text = "Registration Step 1 of 4: Personal Info" %}
+{% endif %}
 {% block content %}
-  {% if (is_prereg_attendee or is_prereg_dealer) and not edit_id %}
-    <script type="text/javascript">
-      var disclaimersConfirmed = false;
-      var confirmDisclaimers = function () {
-        disclaimersConfirmed = true;
-        $("#prereg-form").submit();
-      }
-      {% if logged_in_account or not c.ATTENDEE_ACCOUNTS_ENABLED %}
-      var openDisclaimersModal = function() {
-        if(!$("#prereg-form")[0].checkValidity()) {
-          $("#prereg-form")[0].reportValidity();
-        } else {
-          $('#disclaimers_modal').modal("show");
-        }
-      }
-      {% endif %}
-      $(function () {
-        $("#prereg-form").submit(function () { 
-        if(!disclaimersConfirmed) {
-          openDisclaimersModal();
-          return false;
-        }});
-      });
-    </script>
-  {% endif %}
-  {{ attendee_fields.amount_extra_js }}
-{% include 'prereg_masthead.html' %}
 {% set original_location = ".." ~ c.PAGE_PATH %}
-{% if (is_prereg_dealer or logged_in_account) and c.ATTENDEE_ACCOUNTS_ENABLED %}
-<div class="panel panel-default">
-  <div class="panel-body">
-    {% include 'preregistration/create_or_login_account.html' %}
-  </div>
-</div>
-{% if not logged_in_account %}
-<script type="text/javascript">
-  var openDisclaimersModal = function() {
-    var success = validateAndIncludeAccountFields();
-    if (!success) {
-      return false;
-    }
-    if(!$("#prereg-form")[0].checkValidity()) {
-      $("#prereg-form")[0].reportValidity();
-      return false;
-    }
-    $('#disclaimers_modal').modal("show");
-  }
-$(document).ready(function() {
-  $("#account-form").submit(function () { openDisclaimersModal(); });
-})
-</script>
-{% endif %}
-{% elif c.ATTENDEE_ACCOUNTS_ENABLED %}
-<div class="panel panel-default">
-  <div class="panel-body">
-    <div id="login-link" class="text-center">
-      Already have an account? <a href="#" class="btn btn-xs btn-primary" id="show-login-form">Log in</a>
-    </div>
-    {% include 'preregistration/login.html' %}
-  </div>
-</div>
-<script type="text/javascript">
-  $('#login-form').hide();
-  $('#show-login-form').on('click', function() {
-    $('#login-form').show();
-    $('#login-link').hide();
-  });
-</script>
-{% endif %}
-<div class="panel panel-default">
-  <div class="panel-body">
-  {{ attendee_fields.prereg_intro }}
+<div class="card">
+  <div class="card-body">
+    {% include 'forms/prereg_intro.html' %}
 
-{#- The action is set to "post_form" or "post_dealer" in order to bypass the NGINX cache. -#}
-{% set post_action = 'post_dealer' if attendee.is_dealer else 'post_form' %}
-<form method="post" id="prereg-form" action="{{ post_action }}" class="form-horizontal" role="form">
-{% if is_prereg_dealer and c.ATTENDEE_ACCOUNTS_ENABLED %}
-<input type="hidden" name="account_email" class="copy-from-account-input"/>
-<input type="hidden" name="account_password" class="copy-from-account-input"/>
-<input type="hidden" name="confirm_password" class="copy-from-account-input"/>
+  {{ form_macros.form_validation('prereg-form') }}
+
+{#- The action is set to "post_form" in order to bypass the NGINX cache. -#}
+<form novalidate method="post" id="prereg-form" action="post_form" class="form-horizontal" role="form">
+{% if attendee.group_id %}
+<input type="hidden" name="group_id" value="{{ attendee.group_id }}" />
 {% endif %}
 {% if edit_id %}
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}
+{{ csrf_token() }}
 
+{% include "forms/prereg_fields.html" %}
+
+{% if forms and 'group_info' in forms %}
+  {% include "forms/group/group_info.html" %}
+{% endif %}
+
+{% if attendee.badge_type == c.PSEUDO_DEALER_BADGE %}
+{# Dealer reg does not involve payment, so they cannot select badge add-ons until after applying. #}
+  <h2 class="h3 text-center">{{ c.DEALER_TERM|title }} Personal Info</h2>
+  {{ forms['badge_extras'].badge_type }}
+{% else %}
+  {% include "forms/attendee/badge_extras.html" %}
+  {# hidden field to keep promo code if an attendee clicked the group invite link #}
+  <input type="hidden" name="promo_code_code" value="{{ promo_code_code }}" />
+{% endif %}
+
+{% include "forms/attendee/personal_info.html" %}
+{% include "forms/attendee/consents.html" %}
+
+{# old fields, kept for reference as we migrate to new fields
+  {% include "forms/attendee/other_info.html" %}
   {{ group_fields.group_name }}
   {{ group_fields.badges_dropdown }}
   {% if is_prereg_dealer %}
@@ -127,48 +83,32 @@ $(document).ready(function() {
   {{ attendee_fields.comments }}
   {{ attendee_fields.requested_accessibility_services }}
   {{ attendee_fields.can_spam }}
-  {{ attendee_fields.panel_interest }}
-  {{ attendee_fields.pii_consent_checkbox }}
+  {{ attendee_fields.pii_consent_checkbox }} #}
 
   {# Deprecated forms included for backwards compatibility with old plugins #}
   {% include "groupform.html" %}
   {% include "regform.html" %}
 
-<div class="form-group">
-    <div class="col-sm-9 col-sm-offset-3">
-        {% if attendee.is_dealer %}
-            <button type="button" onClick="openDisclaimersModal()" class="btn btn-primary" value="Submit Application">Submit Application</button>
-        {% elif not edit_id %}
-            <button type="button" onClick="openDisclaimersModal()" class="btn btn-primary" value="Add to Cart">Add to Cart</button>
-        {% else %}
-            <button type="submit" class="btn btn-primary" value="Update">Update</button>
-        {% endif %}
+  {% if not edit_id %}
+      <button type="submit" class="btn btn-primary" value="Next">Next</button>
+  {% else %}
+      <button type="submit" class="btn btn-primary" value="Update">Update</button>
+      {% if attendee.badge_type != c.PSEUDO_DEALER_BADGE %}
+      <button type="submit" class="btn btn-primary" name="go_to_cart" value="1">Update & Go to Cart</button>
+      {% endif %}
+  {% endif %}
 
-        {% if edit_id or cart_not_empty %}
-        <a href="index" class="btn btn-default" value="Cancel">Cancel</a>
-        {% endif %}
-    </div>
-</div>
+  {% if edit_id or cart_not_empty %}
+  <a href="index" class="btn btn-outline-secondary" value="Cancel">Cancel</a>
+  {% endif %}
 
 </form>
-
-<div class="modal fade" id="disclaimers_modal" role="dialog">
-  <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-body">{% include "preregistration/disclaimers.html" %}</div>
-        <div class="modal-footer">
-          <button class="btn btn-primary btn-lg" data-dismiss="modal" onClick="confirmDisclaimers()">
-            I agree to the above
-          </button>
-        </div>
-      </div>
-  </div>
-</div>
-<script type="text/javascript">
-  
-</script>
-
 </div>
 </div>
-
+{% if is_prereg_dealer %}
+{{ "js/warn-before-logout-dealer.js"|serve_static_content }}
+{% else %}
+<div class="text-center"><em class="badge bg-dark fw-normal">Please note: your badge and any upgrades are not reserved until you complete the registration process, including payment.</em></div>
+{% if cart_not_empty %}{{ "js/warn-before-logout.js"|serve_static_content }}{% endif %}
+{% endif %}
 {% endblock %}

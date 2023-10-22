@@ -18,17 +18,17 @@
   {% if not entry.is_new %}
     <div role="tabpanel">
     <ul class="nav nav-tabs" role="tablist">
-    <li role="presentation">
-    <a href="#info" aria-controls="info" role="tab" data-toggle="tab">
-    <span class="glyphicon glyphicon-list"></span>&nbsp;Watchlist Entry
-    </a>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="info-tab" data-bs-toggle="tab" data-bs-target="#info" type="button" role="tab" aria-controls="info">
+        <i class="fa fa-list"></i>&nbsp;Watchlist Entry
+      </button>
     </li>
     {% set attendees = entry.attendees + entry.attendee_guesses %}
     {% if attendees %}
-      <li role="presentation">
-      <a href="#attendees" aria-controls="attendees" role="tab" data-toggle="tab">
-      <span class="glyphicon glyphicon-user"></span>&nbsp;Matching Attendees
-      </a>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="attendees-tab" data-bs-toggle="tab" data-bs-target="#attendees" type="button" role="tab" aria-controls="attendees">
+          <i class="fa fa-user"></i>&nbsp;Matching Attendees
+        </button>
       </li>
     {% endif %}
     </ul>
@@ -36,7 +36,7 @@
 
     <div class="tab-content">
     <div class="row" style="padding: 10px;"></div>
-    <div role="tabpanel" class="tab-pane" id="info">
+    <div role="tabpanel" class="tab-pane" id="info" aria-labelledby="info-tab">
   {% else %}
     <div>
     <h3>Watchlist Entry Info</h3>
@@ -61,7 +61,7 @@
     <div class="form-group" id="audio_needs">
       <label class="col-sm-3 control-label">Active?</label>
       <div class="col-sm-9 checkbox">
-        {{ macros.checkbox(entry, "active", label="This entry will automatically place matching attendees in the On Hold status")}}
+        {{ macros.checkbox(entry, "active", label="This entry will automatically place matching attendees in the On Hold status") }}
       </div>
     </div>
     
@@ -86,7 +86,7 @@
 
     {% if not entry.is_new and attendees %}
     </div>
-    <div role="tabpanel" class="tab-pane" id="attendees">
+    <div role="tabpanel" class="tab-pane" id="attendees" aria-labelledby="attendees-tab">
       <table class="table datatable table-striped">
       <thead>
       <tr>
@@ -112,5 +112,5 @@
     
     {% endif %}
     </div>
-<script src="../static/js/window-hash-tabload.js" type="text/javascript"></script>
+{{ "js/window-hash-tabload.js"|serve_static_content }}
 {% endblock %}

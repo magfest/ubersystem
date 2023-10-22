@@ -92,7 +92,7 @@ var addPromoCodeWords = function(partOfSpeechIndex) {
             $.each(response.words, function(index, word) {
                 var html = '<span class="label label-' + style + ' ' + partOfSpeech + '" style="display: none;"> ' +
                   '<span class="word"> ' + word + ' </span> ' +
-                  '<a href="#"><span class="glyphicon glyphicon-remove"></span></a> ' +
+                  '<a href="#"><i class="fa fa-remove"></i></a> ' +
                   '</span> ';
                 $labels.append(html);
             });
@@ -207,7 +207,7 @@ $(document).ready(function() {
             message: '<h4>Clear all promo code ' + partOfSpeech + 's?</h4>',
             buttons: {
                 confirm: { label: 'Clear All ' + _.startCase(partOfSpeech) + 's', className: 'btn-danger' },
-                cancel: { label: 'Nevermind', className: 'btn-default' }
+                cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
             },
             callback: function(result) {
                 if (result) {
@@ -247,18 +247,18 @@ $(document).ready(function() {
               href="#promo-code-single"
               aria-controls="promo-code-single"
               role="tab"
-              data-toggle="tab"
+              data-bs-toggle="tab"
               data-is_single_promo_code="1"
-              class="btn btn-default {% if is_single_promo_code %}active{% endif %}">
+              class="btn btn-outline-secondary {% if is_single_promo_code %}active{% endif %}">
             Just one promo code
           </a>
           <a
               href="#promo-code-multi"
               aria-controls="promo-code-multi"
               role="tab"
-              data-toggle="tab"
+              data-bs-toggle="tab"
               data-is_single_promo_code="0"
-              class="btn btn-default {% if not is_single_promo_code %}active{% endif %}">
+              class="btn btn-outline-secondary {% if not is_single_promo_code %}active{% endif %}">
             A bunch of promo codes
           </a>
         </div>
@@ -319,7 +319,7 @@ $(document).ready(function() {
 
     <div id="discount-group" class="form-group">
       <label class="col-sm-3 control-label">
-        <select class="form-control width-auto" name="discount_type" onchange="onDiscountTypeChanged()">
+        <select class="form-select width-auto" name="discount_type" onchange="onDiscountTypeChanged()">
           {{ options(c.PROMO_CODE_DISCOUNT_TYPE_OPTS, discount_type) }}
         </select>
         <div class="help-block discount-type-desc">
@@ -358,8 +358,8 @@ $(document).ready(function() {
 </div>
 
 {% if promo_codes %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     <form method="post" action="delete_promo_codes">
       <input type="hidden" name="id" value="{% for code in promo_codes -%}{{code.id}}{% if not loop.last %},{% endif %}{%- endfor %}"/>
       <button class="btn btn-danger">Undo Generate Promo Codes</button>
@@ -406,7 +406,7 @@ $(document).ready(function() {
     <div id="{{part_of_speech}}s" class="words col-sm-6 col-md-3">
       <h4>
         {{part_of_speech|title}}s
-        <button class="btn btn-clear btn-xs btn-default pull-right" data-part_of_speech_index="{{part_of_speech_index}}">
+        <button class="btn btn-clear btn-xs btn-outline-secondary pull-right" data-part_of_speech_index="{{part_of_speech_index}}">
           Clear All
         </button>
       </h4>
@@ -414,7 +414,7 @@ $(document).ready(function() {
         {% for word in word_list -%}
         <span class="label label-{{style}} {{part_of_speech}}">
           <span class="word">{{ word }}</span>
-          <a href="#"><span class="glyphicon glyphicon-remove"></span></a>
+          <a href="#"><i class="fa fa-remove"></i></a>
         </span>
         {%- endfor %}
       </div>

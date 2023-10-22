@@ -1,0 +1,116 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set prereg_merch_available = c.FORMATTED_MERCH_TIERS and c.PREREG_DONATION_OPTS|length > 1 %}
+{% set badge_extras = badge_extras or forms['badge_extras'] %}
+{%- set is_prereg_attendee = c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form'] -%}
+
+{# BLOCK NAMES in this form:
+    badge_type
+    add_ons
+    perk_info
+    donation
+    upgrade_modal_js
+
+Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+{% set id_upgrade_prepend = "upgrade_" if upgrade_modal else "" %}
+
+{% block badge_type %}
+{{ badge_extras.badge_type(id=id_upgrade_prepend ~ "badge_type") }}
+
+{% if c.BADGE_TYPE_PRICES and (not receipt or upgrade_modal) %}
+    <div class="row g-sm-3">
+    {{ form_macros.card_select(badge_extras.badge_type,
+                                attendee.available_badge_type_opts, disabled_opts=c.SOLD_OUT_BADGE_TYPES,
+                                target_field_id=id_upgrade_prepend ~ "badge_type") }}
+    </div>
+{% elif not is_prereg_attendee %}
+    <div class="row g-sm-3">
+        <div class="col-12 col-sm-6">
+            <div class="form-text">{{ badge_extras.badge_type.label.text }}</div>
+            <div class="form-control-plaintext h5">{{ attendee.badge_type_label }}{% if c.MAX_BADGE_TYPE_UPGRADE and attendee.badge_type != c.MAX_BADGE_TYPE_UPGRADE %}{{ macros.upgrade_button('badge-type') }}{% endif %}</div>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block add_ons %}
+{{ badge_extras.amount_extra(id=id_upgrade_prepend ~ "amount_extra") }}
+
+{% if c.DONATIONS_ENABLED and (not receipt or upgrade_modal) %}
+    <div class="row g-sm-3">
+    {{ form_macros.card_select(badge_extras.amount_extra,
+                                attendee.available_amount_extra_opts, disabled_opts=c.SOLD_OUT_MERCH_TIERS,
+                                target_field_id=id_upgrade_prepend ~ "amount_extra") }}
+    </div>
+    {{ form_macros.toggle_fields_js(badge_extras.amount_extra, [badge_extras.shirt], off_values=["0"], toggle_required=True, 
+                                    closest_hide_selector='.row' if not attendee.gets_staff_shirt or c.SHIRT_OPTS == c.STAFF_SHIRT_OPTS else '.form-floating',
+                                    source_field_id=id_upgrade_prepend ~ "amount_extra") }}
+{% else %}
+    <div class="row g-sm-3">
+        <div class="col-12 col-sm-6">
+            <div class="form-text">{{ badge_extras.amount_extra.label.text }}</div>
+            <div class="form-control-plaintext h5">{{ attendee.amount_extra_label }}{% if c.AVAILABLE_MERCH_TIERS and attendee.amount_extra < c.AVAILABLE_MERCH_TIERS[-1] %}{{ macros.upgrade_button('amount-extra') }}{% endif %}</div>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block perk_info %}
+{% if (c.DONATIONS_ENABLED and (not receipt or upgrade_modal)) or attendee.gets_any_kind_of_shirt %}
+<div class="row g-sm-3">
+    {% if attendee.gets_staff_shirt and c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
+        <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.staff_shirt, required=True) }}</div>
+    {% endif %}
+    {% if c.DONATIONS_ENABLED or attendee.num_event_shirts_owed > 0 or (attendee.gets_staff_shirt and c.SHIRT_OPTS == c.STAFF_SHIRT_OPTS) %}
+        <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.shirt) }}</div>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block donation %}
+{% if c.COLLECT_EXTRA_DONATION %}
+<div class="row g-sm-3">
+    <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.extra_donation, id=id_upgrade_prepend ~ "extra_donation") }}</div>
+
+    {% if not admin_area %}
+    <div class="col-12 col-sm-6">
+        <div class="alert alert-warning" role="alert">
+        <strong>This donation <em>is not a kick-in</em> and does not come with merchandise.</strong><br/>
+        {{ c.ORGANIZATION_NAME }} is a 501(c)(3) charitable organization, and additional donations may be tax deductible.
+        Your employer may also have a charitable donation matching program. Contact us at {{ c.CONTACT_URL }} for details.
+        </div>
+    </div>
+    {% endif %}
+
+    {% if receipt and not upgrade_modal and not admin_area %}
+        <div class="form-text">&nbsp;</div>
+        <div class="col-12 col-sm-6">{{ macros.upgrade_button('extra-donation', extra_classes="") }}</div>
+    {% endif %}
+
+    {% if c.EXTRA_DONATION_URL %}
+    <div class="col-12 col-sm-6">If you're interested in kicking in an extra donation, you can{% if c.COLLECT_EXTRA_DONATION %} also{% endif %} do so at any time of year at <a href="{{ c.EXTRA_DONATION_URL }}" target="_blank">{{ c.EXTRA_DONATION_URL }}</a>!</div>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block upgrade_modal_js %}
+{% if upgrade_modal %}
+<script type="text/javascript">
+    $(function () {
+        $("#upgrade_badge_type").on('change', function() {
+            updateReceiptPreview('badge_type', this.value);
+        })
+        $("#upgrade_amount_extra").on('change', function() {
+            updateReceiptPreview('amount_extra', this.value);
+        })
+        $("#upgrade_extra_donation").on('blur', function() {
+            updateReceiptPreview('extra_donation', this.value);
+        })
+    });
+</script>
+{% endif %}
+{% endblock %}

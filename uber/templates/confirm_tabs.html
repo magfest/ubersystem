@@ -26,41 +26,41 @@
 
 <ul class="nav nav-tabs" role="tablist">
   {% if attendee.is_group_leader and attendee.group %}
-  <li role="presentation"{% if 'group_members' in c.PAGE_PATH %} class="active"{% endif %}>
-    <a href="../preregistration/group_members?id={{ attendee.group.id }}">
-      <span class="glyphicon glyphicon-briefcase"></span> {% if attendee.group.is_dealer %}Dealer Application{% else %}Manage {{ attendee.group.name }}{% endif %}
+  <li class="nav-item" role="presentation">
+    <a href="../preregistration/group_members?id={{ attendee.group.id }}" class="nav-link{% if 'group_members' in c.PAGE_PATH %} active{% endif %}">
+      <i class="fa fa-briefcase"></i> {% if attendee.group.is_dealer %}Dealer Application{% else %}Manage {{ attendee.group.name }}{% endif %}
     </a>
   </li>
   {% endif %}
-  <li role="presentation"{% if 'confirm' in c.PAGE_PATH %} class="active"{% endif %}>
-    <a href="../preregistration/confirm?id={{ attendee.id }}">
-      <span class="glyphicon glyphicon-user"></span> {{ attendee.full_name }}'s Info
+  <li class="nav-item" role="presentation">
+    <a href="../preregistration/confirm?id={{ attendee.id }}" class="nav-link{% if 'confirm' in c.PAGE_PATH %} active{% endif %}">
+      <i class="fa fa-user"></i> {{ attendee.full_name }}'s Info
     </a>
   </li>
 {% for group in attendee.promo_code_groups %}
-  <li role="presentation"{% if 'group_promo_codes' in c.PAGE_PATH %} class="active"{% endif %}>
-    <a href="../preregistration/group_promo_codes?id={{ group.id }}">
-      <span class="glyphicon glyphicon-tags"></span> Manage {{ group.name }}
+  <li class="nav-item" role="presentation">
+    <a href="../preregistration/group_promo_codes?id={{ group.id }}" class="nav-link{% if 'group_promo_codes' in c.PAGE_PATH %} active{% endif %}">
+      <i class="fa fa-tags"></i> Manage {{ group.name }}
     </a>
   </li>
 {% endfor %}
 {% for art_show_app in attendee.art_show_applications %}
-  <li role="presentation"{% if 'art_show_applications' in c.PAGE_PATH %} class="active"{% endif %}>
-    <a href="../art_show_applications/edit?id={{ art_show_app.id }}">
-      <span class="glyphicon glyphicon-picture"></span> Art Show Application{% if art_show_app.display_name != art_show_app.attendee.full_name %} ({{ art_show_app.display_name }}){% endif %}
+  <li class="nav-item{% if 'art_show_applications' in c.PAGE_PATH and not bootstrap5 %} active{% endif %}" role="presentation">
+    <a href="../art_show_applications/edit?id={{ art_show_app.id }}" class="nav-link{% if 'art_show_applications' in c.PAGE_PATH %} active{% endif %}">
+      <i class="fa fa-picture"></i> Art Show Application{% if art_show_app.display_name != art_show_app.attendee.full_name %} ({{ art_show_app.display_name }}){% endif %}
     </a>
   </li>
 {% endfor %}
 {% for marketplace_app in attendee.marketplace_applications %}
-  <li role="presentation"{% if 'marketplace' in c.PAGE_PATH %} class="active"{% endif %}>
-    <a href="../marketplace/edit?id={{ marketplace_app.id }}">
-      <span class="glyphicon glyphicon-shopping-cart"></span> Marketplace Application{% if marketplace_app.business_name %} ({{ marketplace_app.business_name }}){% endif %}
+  <li class="nav-item" role="presentation">
+    <a href="../marketplace/edit?id={{ marketplace_app.id }}" class="nav-link{% if 'marketplace' in c.PAGE_PATH %} active{% endif %}">
+      <i class="fa fa-shopping-cart"></i> Marketplace Application{% if marketplace_app.business_name %} ({{ marketplace_app.business_name }}){% endif %}
     </a>
   </li>
 {% endfor %}
 {% if c.ATTRACTIONS_ENABLED and attractions %}
-  <li role="presentation"{% if 'manage' in c.PAGE_PATH %} class="active"{% endif %}>
-    <a href="../attractions/manage?id={{ attendee.id }}">
+  <li class="nav-item" role="presentation">
+    <a href="../attractions/manage?id={{ attendee.id }}" class="nav-link{% if 'manage' in c.PAGE_PATH %} active{% endif %}">
       <span class="bling-icon"></span> Attraction Signups
     </a>
   </li>

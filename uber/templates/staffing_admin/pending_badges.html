@@ -8,9 +8,9 @@
       var approve = function (id) {
           $.post('approve_badge', {csrf_token: csrf_token, id: id}, function (response) {
               if (response.error) {
-                  toastr.error(response.error);
+                  showErrorMessage(response.error);
               } else {
-                  toastr.info('Badge approved');
+                  $("#message-alert").addClass("alert-info").show().children('span').html('Badge approved');
                   hideRows(response.added);
               }
           }, 'json');

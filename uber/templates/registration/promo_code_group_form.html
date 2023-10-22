@@ -32,15 +32,15 @@
           },
           cancel: {
               label: 'Nevermind',
-              className: 'btn-default'
+              className: 'btn-outline-secondary'
           }
       },
       callback: function (result) {
         if(result) {
           $.post('remove_group_code', {csrf_token: csrf_token, id: codeId}, function (response) {
-            toastr.clear();
+            hideMessageBox();
             if (response.error) {
-              toastr.error(response.error);
+              showErrorMessage(response.error);
             } else {
               window.location = 'promo_code_group_form?id={{ group.id }}&message=Code deleted'
             }
@@ -53,8 +53,8 @@
         setBuyerLink();
     });
   </script>
-  <div class="panel panel-default">
-    <div class="panel-body">
+  <div class="card">
+    <div class="card-body">
       {% if group.is_new %}
         <h3>New Promo Code Group</h3>
       {% else %}
@@ -78,7 +78,7 @@
         <div class="form-group">
           <label for="attendee" class="col-sm-3 control-label">Buyer</label>
           <div class="col-sm-6">
-            <select class="form-control" id="attendee_id" name="buyer_id" required="required" onChange="setBuyerLink()">
+            <select class="form-select" id="attendee_id" name="buyer_id" required="required" onChange="setBuyerLink()">
               <option value="" selected="selected">Select an attendee</option>
               <option value="None">Create new attendee</option>
               {{ options(all_attendees, buyer_id) }}
@@ -103,7 +103,7 @@
         <div class="form-group">
           <label class="col-sm-3 control-label">Badges{% if not group.is_new %} to Add{% endif %}</label>
           <div class="col-sm-6">
-            <select class="form-control" name="badges">
+            <select class="form-select" name="badges">
               {{ int_options(0, 100, badges) }}
             </select>
           </div>
@@ -155,7 +155,13 @@
           
           <td>{{ code.created.when|datetime_local }}</td>
           <td>{{ code.cost|format_currency }}</td>
-          <td>{% if not code.valid_used_by %}<button class="btn btn-sm btn-danger" onClick="deleteCode('{{ code.id }}')"><span class="glyphicon glyphicon-remove"></span></button>{% endif %}</td>
+          <td>
+            {% if not code.valid_used_by %}
+              <button class="btn btn-sm btn-danger" onClick="deleteCode('{{ code.id }}')"><i class="fa fa-remove"></i></button>
+            {% elif code.refunded %}
+              <em>Refunded</em>
+            {% endif %}
+          </td>
         </tr>
       {% endfor -%}
       </tbody>

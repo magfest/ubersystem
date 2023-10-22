@@ -124,12 +124,12 @@
 {% endblock %}
 {% block page_script %}
 {% if c.AFTER_SHIFTS_CREATED %}
-<script src="../static/deps/combined.min.js"></script>
+{{ "deps/combined.min.js"|serve_static_content }}
 <script src="../angular/magfest.js"></script>
 
-<script type="text/javascript" src="../static/js/moment.js"></script>
+{{ "js/moment.js"|serve_static_content }}
 
-<script type="text/javascript" src="../static/fullcalendar-5.3.2/lib/main.min.js"></script>
+{{ "fullcalendar-5.3.2/lib/main.min.js"|serve_static_content }}
 
 <script type="text/javascript">
   var eventList = new Array();

@@ -2,10 +2,10 @@
 <html>
 <head>
     <title>Hotel Rooms</title>
-    <link rel="stylesheet" type="text/css" href="../static/styles/styles.css" />
-    <script src="../static/deps/combined.js"></script>
+    {{ "styles/styles.css"|serve_static_content }}
+    {{ "deps/combined.js"|serve_static_content }}
     <script src="../angular/static_magfest.js"></script>
-    <script src="../static/angular-apps/hotel/app.js"></script>
+    {{ "angular-apps/hotel/app.js"|serve_static_content }}
     <script type="text/javascript">
         var ROOM_DUMP = {{ dump|jsonize }};  // the Hotel service checks for a global variable with this name to preload the data
         angular.module('hotel')

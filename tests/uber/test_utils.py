@@ -7,8 +7,9 @@ from mock import Mock
 
 from uber.config import c
 from uber.models import Attendee, Group
-from uber.utils import add_opt, convert_to_absolute_url, Charge, get_age_from_birthday, localized_now, \
+from uber.utils import add_opt, convert_to_absolute_url, get_age_from_birthday, localized_now, \
     remove_opt, normalize_newlines
+from uber.payments import Charge
 
 
 @pytest.fixture

@@ -13,9 +13,8 @@
     };
 </script>
 
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     <h2>Feedback for {{ event.name }}</h2>
     <form method="post" action="panel_feedback" class="form-horizontal" role="form">
         {{ csrf_token() }}
@@ -24,7 +23,7 @@
         <div class="form-group">
             <label class="col-sm-2 control-label">Rating:</label>
             <div class="col-sm-6">
-                <select class="form-control" name="rating">
+                <select class="form-select" name="rating">
                     {{ options(c.PANEL_FEEDBACK_OPTS, feedback.rating) }}
                 </select>
             </div>

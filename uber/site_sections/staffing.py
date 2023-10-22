@@ -210,7 +210,7 @@ class Root:
             d.is_teardown_approval_exempt for d in volunteer.assigned_depts)
 
         if has_setup and has_teardown:
-            cal_length = c.CON_TOTAL_LENGTH
+            cal_length = c.CON_TOTAL_DAYS
         elif has_setup:
             cal_length = con_days + c.SETUP_SHIFT_DAYS
         elif has_teardown:
@@ -264,7 +264,7 @@ class Root:
 
     @public
     def login(self, session, message='',  first_name='', last_name='', email='', zip_code='', original_location=None):
-        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='index')
+        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='/staffing/index')
 
         if first_name or last_name or email or zip_code:
             try:

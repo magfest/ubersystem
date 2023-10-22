@@ -54,10 +54,7 @@ class Root:
                     session.add(attendee)
 
                 password = genpasswd()
-                attendee.admin_account = AdminAccount(
-                    judge=judge,
-                    hashed=bcrypt.hashpw(password, bcrypt.gensalt())
-                )
+                attendee.admin_account = session.create_admin_account(attendee, password, judge=judge)
                 email_body = render('emails/accounts/new_account.txt', {
                     'password': password,
                     'account': attendee.admin_account,

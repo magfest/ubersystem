@@ -1,6 +1,5 @@
 from uber.config import c
 from uber.decorators import all_renderable, csv_file
-from uber.utils import localized_now
 
 from sqlalchemy import func
 

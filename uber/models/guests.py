@@ -22,7 +22,7 @@ from uber.utils import filename_extension
 __all__ = [
     'GuestGroup', 'GuestInfo', 'GuestBio', 'GuestTaxes', 'GuestStagePlot',
     'GuestPanel', 'GuestMerch', 'GuestCharity', 'GuestAutograph',
-    'GuestInterview', 'GuestTravelPlans', 'GuestDetailedTravelPlan']
+    'GuestInterview', 'GuestTravelPlans', 'GuestDetailedTravelPlan', 'GuestHospitality']
 
 
 class GuestGroup(MagModel):
@@ -47,6 +47,7 @@ class GuestGroup(MagModel):
     autograph = relationship('GuestAutograph', backref=backref('guest', load_on_pending=True), uselist=False)
     interview = relationship('GuestInterview', backref=backref('guest', load_on_pending=True), uselist=False)
     travel_plans = relationship('GuestTravelPlans', backref=backref('guest', load_on_pending=True), uselist=False)
+    hospitality = relationship('GuestHospitality', backref=backref('guest', load_on_pending=True), uselist=False)
 
     email_model_name = 'guest'
 
@@ -129,6 +130,12 @@ class GuestGroup(MagModel):
     @property
     def taxes_status(self):
         return "Not Needed" if not self.payment else self.status('taxes')
+    
+    @property
+    def merch_status(self):
+        if self.merch and self.merch.selling_merch == c.ROCK_ISLAND and not self.merch.poc_address1:
+            return None
+        return self.status('merch')
 
     @property
     def panel_status(self):
@@ -237,6 +244,7 @@ class GuestBio(MagModel):
     twitch = Column(UnicodeText)
     bandcamp = Column(UnicodeText)
     discord = Column(UnicodeText)
+    spotify = Column(UnicodeText)
     other_social_media = Column(UnicodeText)
     teaser_song_url = Column(UnicodeText)
 
@@ -284,6 +292,7 @@ class GuestStagePlot(MagModel):
     guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
     filename = Column(UnicodeText)
     content_type = Column(UnicodeText)
+    notes = Column(UnicodeText)
 
     @property
     def url(self):
@@ -616,6 +625,8 @@ class GuestAutograph(MagModel):
     guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
     num = Column(Integer, default=0)
     length = Column(Integer, default=60)  # session length in minutes
+    rock_island_autographs = Column(Boolean, nullable=True)
+    rock_island_length = Column(Integer, default=60) # session length in minutes
 
     @presave_adjustment
     def no_length_if_zero_autographs(self):
@@ -645,6 +656,12 @@ class GuestTravelPlans(MagModel):
     @property
     def num_detailed_travel_plans(self):
         return len(self.detailed_travel_plans)
+
+
+class GuestHospitality(MagModel):
+    guest_id = Column(UUID, ForeignKey('guest_group.id'), unique=True)
+    completed = Column(Boolean, default=False)
+
 
 class GuestDetailedTravelPlan(MagModel):
     travel_plans_id = Column(UUID, ForeignKey('guest_travel_plans.id'), nullable=True)

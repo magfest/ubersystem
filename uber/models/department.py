@@ -11,6 +11,7 @@ from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Float, Integer
 
 from uber.config import c
+from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.attendee import Attendee
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column
@@ -159,8 +160,8 @@ class Department(MagModel):
     solicits_volunteers = Column(Boolean, default=True)
     is_shiftless = Column(Boolean, default=False)
     parent_id = Column(UUID, ForeignKey('department.id'), nullable=True)
-    is_setup_approval_exempt = Column(Boolean, default=False)
-    is_teardown_approval_exempt = Column(Boolean, default=False)
+    is_setup_approval_exempt = Column(Boolean, default=True)
+    is_teardown_approval_exempt = Column(Boolean, default=True)
     max_consecutive_minutes = Column(Integer, default=0)
 
     jobs = relationship('Job', backref='department')
@@ -272,6 +273,14 @@ class Department(MagModel):
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='Department.id',
         single_parent=True)
+    
+    @presave_adjustment
+    def force_approval_exempt(self):
+        # We used to have a system where departments would approve staffers for
+        # setup and teardown shifts -- we're getting rid of this option, which
+        # is most easily accomplished by making all departments always exempt
+        self.is_setup_approval_exempt = True
+        self.is_teardown_approval_exempt = True
 
     @hybrid_property
     def member_count(self):
@@ -299,12 +308,6 @@ class Department(MagModel):
                 department = int(department)
             except ValueError:
                 return department
-
-        if isinstance(department, int):
-            # This is the same algorithm used by the migration script to
-            # convert c.JOB_LOCATIONS into department ids in the database.
-            prefix = '{:07x}'.format(department)
-            return prefix + str(uuid.uuid5(cls.NAMESPACE, str(department)))[7:]
 
         return department.id
 

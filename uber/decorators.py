@@ -69,33 +69,6 @@ def redirect_if_at_con_to_kiosk(func):
     return with_check
 
 
-def check_if_can_reg(func):
-    @wraps(func)
-    def with_check(*args, **kwargs):
-        is_dealer_get = c.HTTP_METHOD == 'GET' \
-                        and c.PAGE_PATH in ['/preregistration/dealer_registration', '/preregistration/post_dealer']
-        is_dealer_post = c.HTTP_METHOD == 'POST' and \
-            int(kwargs.get('badge_type', 0)) == c.PSEUDO_DEALER_BADGE and \
-            int(kwargs.get('tables', 0)) > 0
-        is_dealer_reg = is_dealer_get or is_dealer_post
-
-        if c.DEV_BOX:
-            pass  # Don't redirect to any of the pages below.
-        elif is_dealer_reg and not c.DEALER_REG_OPEN:
-            if c.AFTER_DEALER_REG_START:
-                return render('static_views/dealer_reg_closed.html')
-            else:
-                return render('static_views/dealer_reg_not_open.html')
-        elif not c.ATTENDEE_BADGE_AVAILABLE:
-            return render('static_views/prereg_soldout.html')
-        elif c.BEFORE_PREREG_OPEN and not is_dealer_reg:
-            return render('static_views/prereg_not_yet_open.html')
-        elif c.AFTER_PREREG_TAKEDOWN and not c.AT_THE_CON:
-            return render('static_views/prereg_closed.html')
-        return func(*args, **kwargs)
-    return with_check
-
-
 def check_for_encrypted_badge_num(func):
     """
     On some pages, we pass a 'badge_num' parameter that might EITHER be a literal
@@ -195,8 +168,17 @@ def requires_account(model=None):
                 admin_account_id = cherrypy.session.get('account_id')
                 attendee_account_id = cherrypy.session.get('attendee_account_id')
                 message = ''
-                if attendee_account_id is None and admin_account_id is None:
-                    message = 'You are not logged in'
+                if not model and not attendee_account_id and c.PAGE_PATH != '/preregistration/homepage':
+                    # These should all be pages like the prereg form
+                    if c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form']:
+                        message_add = 'register'
+                    else:
+                        message_add = 'fill out this application'
+                    message = 'Please log in or create an account to {}!'.format(message_add)
+                    raise HTTPRedirect('../landing/index?message={}'.format(message), save_location=True)
+                elif attendee_account_id is None and admin_account_id is None or \
+                        attendee_account_id is None and c.PAGE_PATH == '/preregistration/homepage':
+                    message = 'You must log in to view this page.'
                 elif kwargs.get('id') and model:
                     check_id_for_model(model, **kwargs)
                     if model == Attendee:
@@ -213,12 +195,12 @@ def requires_account(model=None):
                     account = session.query(AttendeeAccount).get(attendee_account_id) if attendee_account_id else None
                     
                     if not account or account not in attendee.managers:
-                        message = 'You do not have permission to view this page'
+                        message = 'You do not have permission to view this page.'
 
                 if message:
                     if admin_account_id:
                         raise HTTPRedirect('../accounts/homepage?message={}'.format(message))
-                    raise HTTPRedirect('../preregistration/login?message={}'.format(message), save_location=True)
+                    raise HTTPRedirect('../landing/index?message={}'.format(message), save_location=True)
             return func(*args, **kwargs)
         return protected
     return model_requires_account
@@ -235,7 +217,7 @@ def requires_admin(func=None, inherent_role=None, override_access=None):
                 with uber.models.Session() as session:
                     message = check_can_edit_dept(session, department_id, inherent_role, override_access)
                     if message:
-                        raise HTTPRedirect('../landing/invalid?message={}'.format(message))
+                        raise HTTPRedirect('../accounts/homepage?message={}'.format(message), save_location=True)
             return func(*args, **kwargs)
         return _protected
 
@@ -266,8 +248,12 @@ def ajax(func):
     @wraps(func)
     def returns_json(*args, **kwargs):
         cherrypy.response.headers['Content-Type'] = 'application/json'
-        assert cherrypy.request.method == 'POST', 'POST required, got {}'.format(cherrypy.request.method)
-        check_csrf(kwargs.pop('csrf_token', None))
+        try:
+            assert cherrypy.request.method == 'POST', 'POST required, got {}'.format(cherrypy.request.method)
+            check_csrf(kwargs.pop('csrf_token', None))
+        except Exception as e:
+            message = "There was an issue submitting the form. Please refresh and try again."
+            return json.dumps({'success': False, 'message': message, 'error': message}, cls=serializer).encode('utf-8')
         return json.dumps(func(*args, **kwargs), cls=serializer).encode('utf-8')
     returns_json.ajax = True
     return returns_json
@@ -578,7 +564,7 @@ def render(template_name_list, data=None, encoding='utf-8'):
 
 def render_empty(template_name_list):
     env = JinjaEnv.env()
-    template = env.get_or_select_template(template_name_list, use_request_cache=False)
+    template = env.get_or_select_template(template_name_list)
     return open(template.filename, 'rb').read().decode('utf-8')
 
 
@@ -608,11 +594,13 @@ def renderable(func):
         except CSRFException as e:
             message = "Your CSRF token is invalid. Please go back and try again."
             uber.server.log_exception_with_verbose_context(msg=str(e))
-            raise HTTPRedirect("../landing/invalid?message={}", message)
+            if not c.DEV_BOX:
+                raise HTTPRedirect("../landing/invalid?message={}", message)
         except (AssertionError, ValueError) as e:
             message = str(e)
             uber.server.log_exception_with_verbose_context(msg=message)
-            raise HTTPRedirect("../landing/invalid?message={}", message)
+            if not c.DEV_BOX:
+                raise HTTPRedirect("../landing/invalid?message={}", message)
         except TypeError as e:
             # Very restrictive pattern so we don't accidentally match legit errors
             pattern = r"^{}\(\) missing 1 required positional argument: '\S*?id'$".format(func.__name__)
@@ -620,7 +608,8 @@ def renderable(func):
                 # NOTE: We are NOT logging the exception if the user entered an invalid URL
                 message = 'Looks like you tried to access a page without all the query parameters. '\
                           'Please go back and try again.'
-                raise HTTPRedirect("../landing/invalid?message={}", message)
+                if not c.DEV_BOX:
+                    raise HTTPRedirect("../landing/invalid?message={}", message)
             else:
                 raise
 

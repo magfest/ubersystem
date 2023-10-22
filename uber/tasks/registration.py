@@ -1,8 +1,9 @@
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import stripe
 import time
+import pytz
 from celery.schedules import crontab
 from pockets.autolog import log
 from sqlalchemy import not_, or_
@@ -13,11 +14,12 @@ from uber.decorators import render
 from uber.models import ApiJob, Attendee, Email, Session, ReceiptTransaction
 from uber.tasks.email import send_email
 from uber.tasks import celery
-from uber.utils import Charge, localized_now, TaskUtils
+from uber.utils import localized_now, TaskUtils
+from uber.payments import ReceiptManager
 
 
-__all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_unassigned_volunteers',
-           'check_missed_stripe_payments']
+__all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_pending_badges',
+           'check_unassigned_volunteers', 'check_near_cap', 'check_missed_stripe_payments', 'process_api_queue']
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
@@ -143,8 +145,61 @@ def check_near_cap():
                 send_email.delay(c.ADMIN_EMAIL, [c.REGDESK_EMAIL, c.ADMIN_EMAIL], subject, body, model='n/a')
 
 
+@celery.schedule(timedelta(days=1))
+def email_pending_attendees():
+    already_emailed_accounts = []
+
+    with Session() as session:
+        four_days_old = datetime.now(pytz.UTC) - timedelta(hours=96)
+        pending_badges = session.query(Attendee).filter(Attendee.badge_status == c.PENDING_STATUS,
+                                                        Attendee.registered < datetime.now(pytz.UTC) - timedelta(hours=24)
+                                                        ).order_by(Attendee.registered)
+        for badge in pending_badges:
+            # Update `compare_date` to prevent early deletion of badges registered before a certain date
+            # Implemented for MFF 2023 but let's be honest, we'll probably need it again
+            compare_date = max(badge.registered, datetime(2023, 9, 25, tzinfo=pytz.UTC))
+            if compare_date < four_days_old:
+                badge.badge_status = c.INVALID_STATUS
+                session.commit()
+            else:
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    email_to = badge.managers[0].email
+                    if email_to in already_emailed_accounts:
+                        continue
+                else:
+                    email_to = badge.email
+
+                email_ident = 'pending_badge_' + badge.id
+                already_emailed = session.query(Email.ident).filter(Email.ident == email_ident).first()
+
+                if already_emailed:
+                    if c.ATTENDEE_ACCOUNTS_ENABLED:
+                        already_emailed_accounts.append(email_to)
+                    continue
+
+                body = render('emails/reg_workflow/pending_badges.html',
+                              {'account': badge.managers[0] if badge.managers else None,
+                               'attendee': badge, 'compare_date': compare_date}, encoding=None)
+                send_email.delay(
+                    c.REGDESK_EMAIL,
+                    email_to,
+                    f"You have an incomplete {c.EVENT_NAME} registration!",
+                    body,
+                    format='html',
+                    model=badge.managers[0].to_dict() if c.ATTENDEE_ACCOUNTS_ENABLED else badge.to_dict(),
+                    ident=email_ident
+                )
+                
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    already_emailed_accounts.append(email_to)
+        
+
+
 @celery.schedule(timedelta(minutes=30))
 def check_missed_stripe_payments():
+    if c.AUTHORIZENET_LOGIN_ID:
+        return
+
     pending_ids = []
     paid_ids = []
     with Session() as session:
@@ -162,7 +217,7 @@ def check_missed_stripe_payments():
         payment_intent = event.data.object
         if payment_intent.id in pending_ids:
             paid_ids.append(payment_intent.id)
-            Charge.mark_paid_from_intent_id(payment_intent.id, payment_intent.charges.data[0].id)
+            ReceiptManager.mark_paid_from_stripe_intent(payment_intent)
     return paid_ids
 
 
@@ -170,12 +225,12 @@ def check_missed_stripe_payments():
 def process_api_queue():
     known_job_names = ['attendee_account_import', 'attendee_import', 'group_import']
     completed_jobs = {}
-    safety_limit = 1000
+    safety_limit = 500
     jobs_processed = 0
 
     with Session() as session:
         for job_name in known_job_names:
-            jobs_to_run = session.query(ApiJob).filter(ApiJob.job_name == job_name, ApiJob.queued == None).limit(1000)
+            jobs_to_run = session.query(ApiJob).filter(ApiJob.job_name == job_name, ApiJob.queued == None).limit(safety_limit)
             completed_jobs[job_name] = 0
 
             for job in jobs_to_run:

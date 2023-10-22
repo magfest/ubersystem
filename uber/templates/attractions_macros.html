@@ -40,7 +40,7 @@
           </div>
           <div class="col-xs-6" style="padding-left: 8px;">
             <button class="btn btn-lg btn-success" style="width: 100%">
-              <span class="glyphicon glyphicon-ok"></span> Sign up
+              <i class="fa fa-check"></i> Sign up
             </button>
           </div>
         </div>
@@ -52,10 +52,10 @@
             </div>
             <div class="controls pull-right">
               <button class="btn btn-lg btn-danger">
-                <span class="glyphicon glyphicon-remove"></span>
+                <i class="fa fa-remove"></i>
               </button>
               <button class="btn btn-lg btn-success">
-                <span class="glyphicon glyphicon-ok"></span>
+                <i class="fa fa-check"></i>
               </button>
             </div>
           </div>
@@ -77,16 +77,16 @@
         class="form-control"
         value="{{ value.strftime('%-m/%-d/%Y %-I:%M %p') }}">
     <span class="input-group-addon">
-      <span class="glyphicon glyphicon-calendar"></span>
+      <i class="fa fa-calendar"></i>
     </span>
   </div>
   <script>
     $('#{{ html_id }} input[name="{{ field_name }}"]').datetimepicker({
       sideBySide: true,
       useCurrent: false,
-      defaultDate: '{{ value.isoformat() }}',
-      minDate: '{{ c.EPOCH.isoformat() }}',
-      maxDate: '{{ c.ESCHATON.isoformat() }}',
+      defaultDate: '{{ value.isoformat()[:-6] }}',
+      minDate: '{{ c.EPOCH.isoformat()[:-6] }}',
+      maxDate: '{{ c.ESCHATON.isoformat()[:-6] }}',
       format: 'M/D/Y h:mm A'
     });
   </script>
@@ -222,7 +222,7 @@
           <select name="advance_notices" class="form-control" style="width: auto; display: inline-block;">
             {{ options(attraction._ADVANCE_NOTICES_OPTS, attraction.advance_notices) }}
           </select>
-          <span class="glyphicon glyphicon-plus-sign"></span>
+          <i class="fa fa-plus-sign"></i>
         </div>
       </div>
     </div>

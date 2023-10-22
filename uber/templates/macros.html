@@ -9,9 +9,9 @@
 {%- endmacro %}
 
 
-{% macro upgrade_button(upgrade_btn_id, text="Upgrade") %}
-{% if receipt and receipt.current_amount_owed <= 0 and money_fields_ro %}
-  <a class="btn btn-sm btn-success" id="upgrade-{{ upgrade_btn_id }}-btn" data-toggle="modal" data-target="#upgradeModal">
+{% macro upgrade_button(upgrade_btn_id, text="Upgrade", extra_classes=" btn-sm") %}
+{% if receipt and receipt.current_amount_owed <= 0 %}
+  <a class="btn btn-success{{ extra_classes }}" id="upgrade-{{ upgrade_btn_id }}-btn" data-bs-toggle="modal" data-bs-target="#upgradeModal">
     <span class="glyphicon glyphicon-circle-arrow-up"></span> {{ text }}
   </a>
 {% endif %}
@@ -22,7 +22,7 @@
 {% set group, field_name = check_dealer_editable %}
 {% if not condition %}
   {{ caller() }}
-{% elif group and group.is_dealer and group.status == c.APPROVED and field_name in c.APPROVED_DEALER_EDITABLE_FIELDS %}
+{% elif group and group.is_dealer and group.status in c.DEALER_EDITABLE_STATUSES %}
   {{ caller() }}
 {% else %}
   <div class="col-sm-6 form-control-static">
@@ -50,7 +50,7 @@
 {%- endmacro %}
 
 
-{% macro checkbox(model, field_name, id=None, label=None, label_class=None, is_readonly=False, title=None, clientside_bool=False, is_required=False) -%}
+{% macro checkbox(model, field_name, id=None, label=None, label_class=None, suffix='', is_readonly=False, title=None, clientside_bool=False, is_required=False) -%}
   {%- set is_class = model is class -%}
   {%- set is_checked = not is_class and model[field_name] -%}
   {% set true_val, false_val = ('true', 'false') if clientside_bool else ('1', '0') %}
@@ -62,7 +62,7 @@
   {% if is_readonly %}
     <input
         type="hidden"
-        name="{{ field_name }}"
+        name="{{ field_name }}{{ suffix }}"
         id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
         value="{% if is_checked %}{{ true_val }}{% else %}{{ false_val }}{% endif %}" />
     <input
@@ -73,7 +73,7 @@
   {% else %}
     <input
         type="checkbox"
-        name="{{ field_name }}"
+        name="{{ field_name }}{{ suffix }}"
         id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
         {% if not label and title %} title="{{ title }}"{% endif %}
         {% if not clientside_bool %}value="1"{% endif %}
@@ -119,7 +119,7 @@
 
 
 {% macro button_radio_opts(field_name, choices, suffix='', default='', is_readonly=False, is_required=False) -%}
-  <div data-toggle="buttons" class="btn-group btn-group-toggle form-control-static">
+  <div data-bs-toggle="buttons" class="btn-group btn-group-toggle form-control-static">
     {% for choice in choices -%}
       {%- set value = choice[0] -%}
       {%- set label = choice[1] -%}
@@ -127,7 +127,7 @@
       {%- set has_value = value == default -%}
       {%- if not is_readonly or has_value -%}
         <label
-            class="btn btn-default{% if is_readonly %} disabled{% endif %}{% if has_value %} active{% endif %}"
+            class="btn btn-outline-secondary{% if is_readonly %} disabled{% endif %}{% if has_value %} active{% endif %}"
             {% if desc %}title="{{ desc }}"{% endif %}>
             <input
                 type="radio"
@@ -183,9 +183,10 @@
     is_required=False,
     size=6,
     form_class='',
-    static_wrap=False) -%}
+    static_wrap=False,
+    is_admin=False) -%}
   <div class="form-group {{ form_class }}">
-    <label class="col-sm-3 control-label{% if not is_required %} optional-field{% endif %}">
+    <label class="{{ 'form-text' if is_admin else 'col-sm-3 control-label' }}{% if not is_required %} optional-field{% endif %}">
       {{ label }}
     </label>
     <div class="col-sm-{{ size }}">
@@ -231,7 +232,7 @@
   {%- set is_url = url_field or url_text or url_is_relative or type == 'url' -%}
   {%- set url_field = url_field if url_field else field -%}
   {% if not is_readonly or has_value %}
-    {% call form_group_scaffolding(label if label else field|unfieldify, help if not is_readonly else False, is_required, form_class=form_class) %}
+    {% call form_group_scaffolding(label if label else field|unfieldify, help if not is_readonly else False, is_required, form_class=form_class, is_admin=is_admin) %}
       {%- if is_readonly -%}
         <div class="form-control-static">
           {%- if type == 'email' -%}
@@ -297,7 +298,7 @@
   {%- set has_other_value = not is_class and other_field and model[other_field] -%}
   {%- set is_other_value_visible = not is_readonly or has_other_value -%}
   {%- set is_wrapped = not is_readonly or has_value or desc -%}
-  {% call form_group_scaffolding(label if label else field|unfieldify, help if not is_readonly else False, is_required, 9, form_class, is_wrapped) %}
+  {% call form_group_scaffolding(label if label else field|unfieldify, help if not is_readonly else False, is_required, 9, form_class, is_wrapped, is_admin=is_admin) %}
     {%- if desc and not is_admin -%}<p>{{ desc }}</p>{%- endif -%}
 
     {% if not is_readonly or has_value %}
@@ -378,19 +379,20 @@
 {%- endmacro %}
 
 
-{% macro prereg_wizard(page_path, prereg_request_hotel_info_open) -%}
-  {%- if prereg_request_hotel_info_open -%}
+{% macro prereg_wizard(page_path, is_dealer) -%}
+  {%- if is_dealer -%}
     {%-
             set steps = [
-                (('form', 'post_form'), 'Enter Info'),
-                (('hotel',), 'Hotel Booking'),
-                (('index', 'preregistration', ''), 'Review & Pay'),
-                (('paid_preregistrations',), 'Done')]
+                (('dealer_registration', 'post_dealer'), 'Table Info'),
+                (('form', 'post_form'), 'Personal Info'),
+                (('additional_info'), 'Additional Info'),
+                (('dealer_confirmation',), 'Done')]
             -%}
   {% else %}
     {%-
             set steps = [
-                (('form', 'post_form'), 'Enter Info'),
+                (('form', 'post_form'), 'Personal Info'),
+                (('additional_info'), 'Additional Info'),
                 (('index', 'preregistration', ''), 'Review & Pay'),
                 (('paid_preregistrations',), 'Done')]
             -%}
@@ -400,7 +402,7 @@
   {%- set vars = {'is_complete': False} -%}
   <div class="row bs-wizard">
     {% for url, text in steps -%}
-      <div class="col-xs-{{ col_size }} bs-wizard-step {% if page_path|basename in url -%}active{%- if vars.update({'is_complete': True}) -%}{%- endif -%}{%- elif vars.is_complete -%}disabled{%- else -%}complete{%- endif %}">
+      <div class="col bs-wizard-step {% if page_path|basename in url -%}active{%- if vars.update({'is_complete': True}) -%}{%- endif -%}{%- elif vars.is_complete -%}disabled{%- else -%}complete{%- endif %}">
         <div class="text-center bs-wizard-stepnum">Step {{ loop.index }}</div>
         <div class="progress"><div class="progress-bar"></div></div>
         <a class="bs-wizard-dot"></a>
@@ -413,7 +415,7 @@
 
 {% macro address_form(model, name_prefix='', model_prefix='', label_prefix='', update_international=False, is_required=False, is_readonly=False, check_dealer_editable=(None, '')) -%}
   {%- set group, field_name = check_dealer_editable -%}
-  {%- set is_readonly = False if group.is_dealer and group.status == c.APPROVED and field_name in c.APPROVED_DEALER_EDITABLE_FIELDS else is_readonly -%}
+  {%- set is_readonly = False if group.is_dealer and group.status in c.DEALER_EDITABLE_STATUSES else is_readonly -%}
   {%- set suffix = model.id|replace("-", "") -%}
   {%- set zip_code_attr = model_prefix ~ 'zip_code' -%}
   {%- set address1_attr = model_prefix ~ 'address1' -%}

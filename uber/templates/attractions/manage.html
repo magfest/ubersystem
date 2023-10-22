@@ -150,7 +150,7 @@
 
     var toggleShowCheckedIn = function(isShowing) {
       $showCheckedInButton.toggleClass('btn-plain', !isShowing);
-      $showCheckedInButton.toggleClass('btn-default', isShowing);
+      $showCheckedInButton.toggleClass('btn-outline-secondary', isShowing);
       $container.toggleClass('show-checked-in', !isShowing);
     };
     toggleShowCheckedIn({{ has_unchecked_in|string|lower }});
@@ -166,12 +166,12 @@
       var callback = function(response) {
         if(response && response['error']) {
           $optout.prop('checked', !isOptedOut)
-          toastr.error(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], '', {timeOut: 3000});
         } else {
           var message = isOptedOut ?
             'Attraction signups disabled':
             'Attraction signups re-enabled';
-          toastr.success(message, '', {timeOut: 3000});
+          $("#message-alert").addClass("alert-success").show().children('span').html(message, '', {timeOut: 3000});
         }
       };
 
@@ -198,9 +198,9 @@
       var callback = function(response) {
         if(response && response['error']) {
           $optout.prop('checked', !isOptedOut)
-          toastr.error(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], '', {timeOut: 3000});
         } else {
-          toastr.success('Communication prefs updated', '', {timeOut: 3000});
+          $("#message-alert").addClass("alert-success").show().children('span').html('Communication prefs updated', '', {timeOut: 3000});
         }
       };
 
@@ -236,19 +236,19 @@
             $('#' + eventId + ' .remaining-slots').text(response['remaining_slots']);
             callback(response);
           } else {
-            toastr.error(response['error'] || 'Error signing up for event', '', {timeOut: 3000});
+            showErrorMessage(response['error'] || 'Error signing up for event', '', {timeOut: 3000});
             callback(false);
           }
         },
         error: function(response, status, statusText) {
-          toastr.error('Error signing up for event', '', {timeOut: 3000});
+          showErrorMessage('Error signing up for event', '', {timeOut: 3000});
           callback(false);
         }
       });
     };
 
     $signupModal.on('hide.bs.modal', function (event) {
-      toastr.clear();
+      hideMessageBox();
     });
 
     $signupModal.on('show.bs.modal', function (event) {
@@ -272,7 +272,7 @@
           if (response['remaining_slots'] === response['old_remaining_slots']) {
             message = ' was already signed up for ';
           }
-          toastr.info($attendee.html() + message + eventLabel);
+          $("#message-alert").addClass("alert-info").show().children('span').html($attendee.html() + message + eventLabel);
           hideBadgeNumConfirm($signupModal, true);
         } else {
           hideBadgeNumConfirm($signupModal, false);
@@ -297,7 +297,8 @@
       $signupModal.toggleClass('soldout', isSoldout);
       $('.signup-event-label').html(eventLabel);
 
-      $signupModal.modal('show');
+      var modal = bootstrap.Modal.getOrCreateInstance($signupModal);
+      modal.show();
     });
 
     $container.on('click', '.btn-danger', function(event) {
@@ -308,10 +309,10 @@
 
       var callback = function(response) {
         if(response && response['error']) {
-          toastr.error(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], '', {timeOut: 3000});
         } else {
           $signup.fadeOut();
-          toastr.success('Signup for ' + eventLabel + ' successfully cancelled', '', {timeOut: 3000});
+          $("#message-alert").addClass("alert-success").show().children('span').html('Signup for ' + eventLabel + ' successfully cancelled', '', {timeOut: 3000});
         }
       };
 
@@ -320,7 +321,7 @@
         message: '<p>Are you sure you want to cancel your signup for ' + eventLabel + '?</p>',
         buttons: {
           confirm: { label: 'Cancel Signup', className: 'btn-danger' },
-          cancel: { label: 'Nevermind', className: 'btn-default' }
+          cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
         },
         callback: function (result) {
           if (result) {
@@ -351,7 +352,7 @@
   <div class="modal-dialog modal-md" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
         <h4 class="modal-title">
@@ -368,7 +369,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-default btn-lg btn-xl" data-dismiss="modal">
+        <button class="btn btn-outline-secondary btn-lg btn-xl" data-bs-dismiss="modal">
           All Done!
         </button>
       </div>
@@ -376,9 +377,8 @@
   </div>
 </div>
 
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     {% block body %}
       {% include 'confirm_tabs.html' with context %}
       <div id="container">
@@ -419,7 +419,7 @@
                         name="notification_pref"
                         value="{{ attendee._NOTIFICATION_EMAIL }}"
                         {%- if attendee.notification_pref == attendee._NOTIFICATION_EMAIL%} checked="checked"{% endif %}>
-                    <span class="glyphicon glyphicon-envelope"></span> Email
+                    <i class="fa fa-envelope"></i> Email
                   </label>
                   <div class="form-control form-control-static">{{ attendee.email }}</div>
                 </div>
@@ -434,7 +434,7 @@
                         value="{{ attendee._NOTIFICATION_TEXT }}"
                         {%- if not attendee.cellphone %} disabled="disabled"{% endif %}
                         {%- if attendee.notification_pref == attendee._NOTIFICATION_TEXT %} checked="checked"{% endif %}>
-                    <span class="glyphicon glyphicon-phone"></span> Text
+                    <i class="fa fa-phone"></i> Text
                   </label>
                   <div class="form-control form-control-static">
                     {% if attendee.cellphone %}
@@ -454,7 +454,7 @@
                         name="notification_pref"
                         value="{{ attendee._NOTIFICATION_NONE }}"
                         {%- if attendee.notification_pref == attendee._NOTIFICATION_NONE %} checked="checked"{% endif %}>
-                    <span class="glyphicon glyphicon-ban-circle"></span> None
+                    <i class="fa fa-ban-circle"></i> None
                   </label>
                   <div class="input-group-addon form-control form-control-static">
                     <em>Don't notify me about my signups</em>
@@ -468,13 +468,13 @@
         <h2>
           Signups
           <small>
-            <a href="index"><span class="glyphicon glyphicon-check"></span> Browse attractions & sign up for events!</a>
+            <a href="index"><i class="fa fa-check"></i> Browse attractions & sign up for events!</a>
           </small>
         </h2>
         {% if signups %}
           {% if has_checked_in %}
-            <button id="filter" class="btn btn-xs btn-xs btn-default">
-              <span class="glyphicon glyphicon-filter"></span>
+            <button id="filter" class="btn btn-xs btn-xs btn-outline-secondary">
+              <i class="fa fa-filter"></i>
               Show Already Checked In
             </button>
           {% endif %}
@@ -489,11 +489,11 @@
                   data-event-label="{{ signup.event.feature.attraction.name }} – {{ signup.event.label }}">
                 <div class="hover-btn-title">
                   <button class="btn btn-sm btn-danger pull-right checked-in-hidden">
-                    <span class="glyphicon glyphicon-remove"></span>
+                    <i class="fa fa-remove"></i>
                     Cancel<span class="hidden-xs"> Signup</span>
                   </button>
                   <button class="btn btn-sm btn-success pull-right hidden-soldout">
-                    <span class="glyphicon glyphicon-check"></span>
+                    <i class="fa fa-check"></i>
                     <span class="hidden-xs">Sign up </span>Friends
                   </button>
                   <h2>

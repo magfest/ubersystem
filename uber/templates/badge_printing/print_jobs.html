@@ -1,10 +1,10 @@
 {% if jobs|length == c.ROW_LOAD_LIMIT %}
-<div class="panel panel-body">
+<div class="card-body">
 There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view. Please use another view to see complete print jobs.
 </div>
 {% endif %}
 
-<div class="panel panel-default">
+<div class="card">
     <table class="table table-striped datatable" data-order="[[ 0, &quot;desc&quot; ]]">
     <thead><tr>
         <th>Created</th>
@@ -61,15 +61,15 @@ There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view.
     $('.ajax-link').on('click', function (event) {
         var $link = $(this);
         event.preventDefault();
-        toastr.clear();
+        hideMessageBox();
         $.ajax({
             method: 'GET',
             url: $link.attr('href'),
             success: function (json) {
                 if (json.success) {
-                    toastr.success(json.message);
+                    $("#message-alert").addClass("alert-success").show().children('span').html(json.message);
                 } else {
-                    toastr.error(json.message);
+                    showErrorMessage(json.message);
                 }
                 $link.hide()
                 if (json.queued) {
@@ -85,7 +85,7 @@ There is a limit of <strong>{{ c.ROW_LOAD_LIMIT }}</strong> print jobs per view.
                 }
             },
             error: function () {
-                toastr.error('Unable to connect to server, please try again.');
+                showErrorMessage('Unable to connect to server, please try again.');
             }
         });
     });

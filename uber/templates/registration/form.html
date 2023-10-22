@@ -1,17 +1,17 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% import "fields/attendee.html" as attendee_fields with context %}
+{% import "forms/attendee.html" as attendee_fields with context %}
 {% block title %}Attendee Form - {{ attendee.full_name }}{% endblock %}
 {% block content %}
 {% include "check_in.html" %}
 
 {% include "registration/menu.html" %}
 
-<div class="panel panel-default">
-<div class="panel-body">
+<div class="card">
+<div class="card-body">
 {% if c.AT_THE_CON and receipt and receipt.current_amount_owed and not attendee.is_new %}
     <div class="alert alert-warning center" role="alert">
     <h4>{{ attendee.full_name }} currently owes <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.</h4>
-    {% if Charge %}
+    {% if payment_enabled %}
     {{ stripe_form('manual_reg_charge', attendee) }}
     {% else %}
     Please instruct them to pay at an at-door or manager station.
@@ -25,12 +25,12 @@
         this.contentDocument.body.innerHTML = '';
         
         if (responseText) {
-            toastr.clear();
+            hideMessageBox();
             var response = $.parseJSON(responseText);
             if (response['success'] == true) {
                 window.location.href = '../registration/form?id={{ attendee.id }}&message=' + response['message'];
             } else {
-                toastr.error('', response['message'], {timeOut: 1000});
+                showErrorMessage('', response['message'], {timeOut: 1000});
             }
         }
     });
@@ -99,7 +99,6 @@
 {{ attendee_fields.found_how }}
 {{ attendee_fields.comments }}
 {{ attendee_fields.can_spam }}
-{{ attendee_fields.panel_interest }}
 {{ attendee_fields.attractions_opt_out }}
 
 {% block post_regform %}{% endblock %}
@@ -120,7 +119,6 @@
 {{ attendee_fields.merch }}
 {{ attendee_fields.staff_merch }}
 {{ attendee_fields.regdesk_info }}
-{{ attendee_fields.requested_hotel_info }}
 {{ attendee_fields.requested_accessibility_services }}
 {{ attendee_fields.for_review }}
 {{ attendee_fields.admin_notes }}

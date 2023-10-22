@@ -1,45 +1,22 @@
-{% extends "base.html" %}
-{% import "fields/attendee.html" as attendee_fields with context %}
-{% block title %}Register Group Member{% endblock %}
-{% block backlink %}{% endblock %}
+{% extends "./preregistration/preregbase.html" %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set title_text = "Register Group Member" %}
 {% block content %}
 
-{{ attendee_fields.amount_extra_js }}
+{{ form_macros.form_validation('register_group_member') }}
 
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
-    <form method="post" action="register_group_member" class="form-horizontal">
+<div class="card">
+  <div class="card-body">
+    <form novalidate method="post" action="register_group_member" id="register_group_member">
       {{ csrf_token() }}
-      <input type="hidden" name="id" value="{{ attendee.db_id }}" />
-      <input type="hidden" name="group_id" value="{{ group_id }}" />
+      <input type="hidden" name="id" value="{{ attendee.id }}" />
+      <input type="hidden" name="group_id" value="{{ group.id }}" />
 
-      {{ attendee_fields.badge_buttons }}
-      {{ attendee_fields.badge_type }}
-      {{ attendee_fields.prereg_intro }}
-      {{ attendee_fields.name }}
-      {{ attendee_fields.amount_extra() }}
-      {{ attendee_fields.badge_printed_name }}
-      {{ attendee_fields.shirt_size }}
-      {{ attendee_fields.extra_donation() }}
-      {% if not must_be_staffing %}
-        {{ attendee_fields.staffing }}
-        {{ attendee_fields.job_interests }}
-      {% endif %}
-      {{ attendee_fields.age }}
-      {{ attendee_fields.email }}
-      {{ attendee_fields.address }}
-      {{ attendee_fields.emergency_contact }}
-      {{ attendee_fields.onsite_contact }}
-      {{ attendee_fields.cellphone }}
-      {{ attendee_fields.promo_code }}
-      {{ attendee_fields.interests }}
-      {{ attendee_fields.found_how }}
-      {{ attendee_fields.comments }}
-      {{ attendee_fields.can_spam }}
-      {{ attendee_fields.promo_code }}
-      {{ attendee_fields.requested_accessibility_services }}
-      {{ attendee_fields.pii_consent_checkbox }}
+      {% include "forms/attendee/badge_extras.html" %}
+      {% include "forms/attendee/personal_info.html" %}
+      {% include "forms/attendee/other_info.html" %}
+      {% include "forms/attendee/consents.html" %}
+
       {# Deprecated form included for backwards compatibility with old plugins #}
       {% include "regform.html" %}
 

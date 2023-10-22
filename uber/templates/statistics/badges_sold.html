@@ -2,15 +2,15 @@
 {% block title %}Badges Sold Graph{% endblock %}
 {% block head_javascript %}
     {{ super() }}
-    <script type="text/javascript" src="../static/analytics/lib/Chart.js"></script>
+    {{ "analytics/lib/Chart.js"|serve_static_content }}
     <script type="text/javascript">
         var current_attendance_data = {{ current_registrations|jsonize }};
     </script>
-    <script type="text/javascript" src="../static/analytics/attendance.js"></script>
+    {{ "analytics/attendance.js"|serve_static_content }}
 {% endblock %}
 {% block head_styles %}
     {{ super() }}
-    <link rel="stylesheet" type="text/css" href="../static/analytics/analytics.css" />
+    {{ "analytics/analytics.css"|serve_static_content }}
 {% endblock %}
 {% block content %}
 

@@ -5,7 +5,8 @@
   <div id="group-type-opts" style="display:none;">
     {{ options(c.GROUP_TYPE_OPTS) }}
   </div>
-
+<div class="card">
+  <div class="card-body">
   <h1>
   <a class="btn btn-primary" href="form">Add a Group</a>
   {% if c.HAS_DEALER_ADMIN_ACCESS %}<a class="btn btn-success" href="form?id=None&new_dealer=true">Add a {{ c.DEALER_TERM|title }}</a>{% endif %}
@@ -13,44 +14,42 @@
 
   <div role="tabpanel">
   <ul class="nav nav-tabs" role="tablist">
-  <li role="presentation">
-  <a href="#all" aria-controls="all" role="tab" data-toggle="tab">
-  <span class="glyphicon glyphicon-list"></span>&nbsp;All Groups
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab" aria-controls="all">
+      <i class="fa fa-list"></i>&nbsp;All Groups</button>
   </a>
   </li>
   {% if c.HAS_GUEST_ADMIN_ACCESS %}
-  <li role="presentation">
-  <a href="#guests" aria-controls="guests" role="tab" data-toggle="tab">
-  <span class="glyphicon glyphicon-star"></span>&nbsp;Guests
-  </a>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="guests-tab" data-bs-toggle="tab" data-bs-target="#guests" type="button" role="tab" aria-controls="guests">
+      <i class="fa fa-star"></i>&nbsp;Guests
+    </button>
   </li>
   {% endif %}
   {% if c.HAS_BAND_ADMIN_ACCESS %}
-  <li role="presentation">
-  <a href="#bands" aria-controls="bands" role="tab" data-toggle="tab">
-  <span class="glyphicon glyphicon-music"></span>&nbsp;Bands
-  </a>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="bands-tab" data-bs-toggle="tab" data-bs-target="#bands" type="button" role="tab" aria-controls="bands">
+      <i class="fa fa-music"></i>&nbsp;Bands
+    </button>
   </li>
   {% endif %}
-  {% if c.HAS_MIVS_ADMIN_ACCESS %}
-  <li role="presentation">
-  <a href="#mivs" aria-controls="mivs" role="tab" data-toggle="tab">
-  <span class="glyphicon glyphicon-floppy-disk"></span>&nbsp;MIVS
-  </a>
+  {% if c.MIVS_ENABLED and c.HAS_MIVS_ADMIN_ACCESS %}
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="mivs-tab" data-bs-toggle="tab" data-bs-target="#mivs" type="button" role="tab" aria-controls="mivs">
+      <i class="fa fa-floppy-disk"></i>&nbsp;MIVS
+    </button>
   </li>
   {% endif %}
   {% if c.HAS_DEALER_ADMIN_ACCESS %}
-  <li role="presentation">
-  <a href="#dealers" aria-controls="dealers" role="tab" data-toggle="tab">
-  <span class="glyphicon glyphicon-usd"></span>&nbsp;Marketplace
-  </a>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="dealers-tab" data-bs-toggle="tab" data-bs-target="#dealers" type="button" role="tab" aria-controls="dealers">
+      <i class="fa fa-usd"></i>&nbsp;Marketplace
+    </button>
   </li>
   {% endif %}
   </ul>
   <div class="tab-content">
-  <div class="row" style="padding: 10px;"></div>
-  <div role="tabpanel" class="tab-pane" id="all">
-    <div class="panel panel-body">
+  <div role="tabpanel" class="tab-pane" id="all" aria-labelledby="all-tab">
     <table class="datatable table table-striped">
       <thead>
       <tr>
@@ -80,22 +79,22 @@
       {% endfor -%}
       </tbody>
     </table>
-    </div>
-  
   </div>
   {% if c.HAS_GUEST_ADMIN_ACCESS %}
-  <div role="tabpanel" class="tab-pane" id="guests">{% include '/group_admin/guests.html' %}</div>
+  <div role="tabpanel" class="tab-pane" id="guests" aria-labelledby="guests-tab">{% include '/group_admin/guests.html' %}</div>
   {% endif %}
   {% if c.HAS_BAND_ADMIN_ACCESS %}
-  <div role="tabpanel" class="tab-pane" id="bands">{% with band = True %}{% include '/group_admin/guests.html' %}{% endwith %}</div>
+  <div role="tabpanel" class="tab-pane" id="bands" aria-labelledby="bands-tab">{% with band = True %}{% include '/group_admin/guests.html' %}{% endwith %}</div>
   {% endif %}
-  {% if c.HAS_MIVS_ADMIN_ACCESS %}
-  <div role="tabpanel" class="tab-pane" id="mivs">{% include '/group_admin/mivs.html' %}</div>
+  {% if c.MIVS_ENABLED and c.HAS_MIVS_ADMIN_ACCESS %}
+  <div role="tabpanel" class="tab-pane" id="mivs" aria-labelledby="mivs-tab">{% include '/group_admin/mivs.html' %}</div>
   {% endif %}
   {% if c.HAS_DEALER_ADMIN_ACCESS %}
-  <div role="tabpanel" class="tab-pane" id="dealers">{% include '/group_admin/dealers.html' %}</div>
+  <div role="tabpanel" class="tab-pane" id="dealers" aria-labelledby="dealers-tab">{% include '/group_admin/dealers.html' %}</div>
   {% endif %}
   </div>
   </div>
-  <script src="../static/js/window-hash-tabload.js" type="text/javascript"></script>
+  </div>
+</div>
+  {{ "js/window-hash-tabload.js"|serve_static_content }}
 {% endblock %}

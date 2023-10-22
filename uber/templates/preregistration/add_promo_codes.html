@@ -1,10 +1,9 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}Add Badge Codes to {{ group.name }}{% endblock %}
+{% set title_text = "Add Badge Codes to " ~ group.name %}
 {% block backlink %}{% endblock %}
 {% block content %}
-  {% include 'prereg_masthead.html' %}
-  <div class="panel panel-default">
-    <div class="panel-body">
+  <div class="card">
+    <div class="card-body">
       <h2> Add Badge Codes to {{ group.name }} </h2>
 
       You've indicated you'd like to add {{ count }} promo code{{ count|int|pluralize }}, at a cost of {{ (count|int * c.GROUP_PRICE)|format_currency }}.

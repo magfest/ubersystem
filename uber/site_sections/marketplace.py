@@ -6,7 +6,8 @@ from uber.decorators import ajax, all_renderable, render, credit_card, requires_
 from uber.errors import HTTPRedirect
 from uber.models import MarketplaceApplication
 from uber.tasks.email import send_email
-from uber.utils import Charge, check
+from uber.utils import check
+from uber.payments import TransactionRequest
 
 
 @all_renderable(public=True)
@@ -106,16 +107,17 @@ class Root:
         receipt = session.get_receipt_by_model(app, create_if_none="DEFAULT")
         
         charge_desc = "{}'s Marketplace Application: {}".format(app.attendee.full_name, receipt.charge_description_list)
-        charge = Charge(app, amount=receipt.current_amount_owed, description=charge_desc)
+        charge = TransactionRequest(receipt, app.attendee.email, charge_desc, create_receipt_item=True)
         
-        stripe_intent = session.process_receipt_charge(receipt, charge)
+        message = charge.process_payment()
 
-        if isinstance(stripe_intent, string_types):
-            return {'error': stripe_intent}
+        if message:
+            return {'error': message}
         
+        session.add_all(charge.get_receipt_items_to_add())
         session.commit()
         
-        return {'stripe_intent': stripe_intent,
+        return {'stripe_intent': charge.intent,
                 'success_url': 'edit?id={}&message={}'.format(app.id,
                                                               'Your payment has been accepted'),
                 'cancel_url': '../preregistration/cancel_payment'}

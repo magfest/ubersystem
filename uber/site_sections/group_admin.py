@@ -1,13 +1,19 @@
 import cherrypy
+
+from datetime import date, datetime, timedelta
 from pockets import readable_join
+from pockets.autolog import log
+from pytz import UTC
 from sqlalchemy import and_, or_
-from sqlalchemy.orm import subqueryload
+from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, log_pageview, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, Email, Event, Group, GuestGroup, GuestMerch, PageViewTracking, Tracking
-from uber.utils import Charge, check, convert_to_absolute_url
+from uber.forms import attendee as attendee_forms, group as group_forms, load_forms
+from uber.models import Attendee, Email, Event, Group, GuestGroup, GuestMerch, PageViewTracking, Tracking, SignedDocument
+from uber.utils import check, convert_to_absolute_url, validate_model, add_opt
+from uber.payments import ReceiptManager
 
 
 @all_renderable()
@@ -22,17 +28,21 @@ class Root:
         return ''
 
     def index(self, session, message='', show_all=None):
-        if show_all:
-            groups = session.viewable_groups().limit(c.ROW_LOAD_LIMIT)
-        else:
-            groups = session.viewable_groups().filter(~Group.status.in_([c.DECLINED, c.IMPORTED, c.CANCELLED])).limit(c.ROW_LOAD_LIMIT)
-        dealer_groups = [group for group in groups if group.is_dealer]
+        groups = session.viewable_groups()
+        dealer_groups = groups.filter(Group.is_dealer == True)
+        guest_groups = groups.join(Group.guest)
+
+        if not show_all:
+            dealer_groups = dealer_groups.filter(~Group.status.in_([c.DECLINED, c.IMPORTED, c.CANCELLED]))
+
         return {
             'message': message,
-            'groups': groups.all(),
+            'groups': groups.options(joinedload(Group.attendees), joinedload(Group.leader), joinedload(Group.active_receipt)),
+            'guest_groups': guest_groups.options(joinedload(Group.attendees), joinedload(Group.leader)),
             'guest_checklist_items': GuestGroup(group_type=c.GUEST).sorted_checklist_items,
             'band_checklist_items': GuestGroup(group_type=c.BAND).sorted_checklist_items,
-            'dealer_groups':      len(dealer_groups),
+            'num_dealer_groups': dealer_groups.count(),
+            'dealer_groups':      dealer_groups.options(joinedload(Group.attendees), joinedload(Group.leader), joinedload(Group.active_receipt)),
             'dealer_badges':      sum(g.badges for g in dealer_groups),
             'tables':            sum(g.tables for g in dealer_groups),
             'show_all': show_all,
@@ -55,64 +65,102 @@ class Root:
         session.add(group)
         
         raise HTTPRedirect('form?id={}&message={}', group.id, "Group successfully created.")
+    
+    def resend_signnow_link(self, session, id):
+        group = session.group(id)
+
+        document = session.query(SignedDocument).filter_by(model="Group", fk_id=id).first()
+        if not document:
+            raise HTTPRedirect("form?id={}&message={}").format(id, "SignNow document not found.")
+        
+        document.send_dealer_signing_invite(group)
+        document.last_emailed = datetime.now(UTC)
+        session.add(document)
+        raise HTTPRedirect("form?id={}&message={}", id, "SignNow link sent!")
 
     @log_pageview
     def form(self, session, new_dealer='', message='', **params):
-        if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-            message = session.auto_update_receipt(session.group(params.get('id')), params)
+        from uber.site_sections.dealer_admin import decline_and_convert_dealer_group
 
-        group = session.group(params, checkgroups=Group.all_checkgroups, bools=Group.all_bools)
+        if params.get('id') not in [None, '', 'None']:
+            group = session.group(params.get('id'))
+            if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
+                receipt_items = ReceiptManager.auto_update_receipt(group, session.get_receipt_by_model(group), params)
+                session.add_all(receipt_items)
+        else:
+            group = Group(tables=1) if new_dealer else Group()
 
-        group_params = dict(params)
-        for field_name in ['country', 'region', 'zip_code', 'address1', 'address2', 'city', 'phone', 'email_address']:
-            group_field_name = 'group_{}'.format(field_name)
-            if group_field_name in params:
-                group_params[field_name] = params.get(group_field_name, '')
+        if group.is_dealer:
+            form_list = ['AdminTableInfo', 'ContactInfo']
+        else:
+            form_list = ['AdminGroupInfo']
 
-        group.apply(group_params)
+        if group.is_new:
+            form_list.append('LeaderInfo')
+
+        forms = load_forms(params, group, form_list)
+        for form_name, form in forms.items():
+            if hasattr(form, 'new_badge_type') and not params.get('new_badge_type'):
+                form['new_badge_type'].data = group.leader.badge_type if group.leader else c.ATTENDEE_BADGE
+            if hasattr(form, 'new_ribbons') and not params.get('new_ribbons'):
+                form['new_ribbons'].data = group.leader.ribbon_ints if group.leader else []
+            form.populate_obj(group, is_admin=True)
+
+        signnow_last_emailed = None
+        if c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status == c.APPROVED:
+            existing_doc = session.query(SignedDocument).filter_by(model="Group", fk_id=group.id).first()
+            if not existing_doc:
+                document = SignedDocument(fk_id=group.id, model="Group", ident="terms_and_conditions")
+                document.send_dealer_signing_invite(group)
+                document.last_emailed = datetime.now(UTC)
+                session.add(document)
+                existing_doc = document
+            if not existing_doc.last_emailed:
+                existing_doc.send_dealer_signing_invite(group)
+                existing_doc.last_emailed = datetime.now(UTC)
+                session.add(existing_doc)
+            signnow_last_emailed = existing_doc.last_emailed
+
+        group_info_form = forms.get('group_info', forms.get('table_info'))
 
         if cherrypy.request.method == 'POST':
-            new_with_leader = any(params.get(info) for info in ['first_name', 'last_name', 'email'])
-            message = message or self._required_message(params, ['name'])
-            
-            if not message and group.is_new and (params.get('group_type') or new_dealer or group.is_dealer):
-                message = self._required_message(params, ['first_name', 'last_name', 'email'])
+            session.add(group)
 
-            if not message:
-                message = check(group)
+            if group.is_new and group.guest_group_type:
+                group.auto_recalc = False
 
-            if not message:
-                if group.is_new and params.get('group_type'):
-                    group.auto_recalc = False
-                session.add(group)
-                new_ribbon = params.get('ribbon', c.BAND if params.get('group_type') == str(c.BAND) else None)
-                new_badge_type = params.get('badge_type', c.ATTENDEE_BADGE)
-                test_permissions = Attendee(badge_type=new_badge_type, ribbon=new_ribbon, paid=c.PAID_BY_GROUP)
+            if group.is_new or group.badges != group_info_form.badges.data:
+                test_permissions = Attendee(badge_type=group.new_badge_type, ribbon=group.new_ribbons, paid=c.PAID_BY_GROUP)
                 new_badge_status = c.PENDING_STATUS if not session.admin_can_create_attendee(test_permissions) else c.NEW_STATUS
                 message = session.assign_badges(
                     group,
-                    int(params.get('badges', 0)) or int(new_with_leader),
-                    new_badge_type=new_badge_type,
-                    new_ribbon_type=new_ribbon,
+                    group_info_form.badges.data or int(bool(group.leader_first_name)),
+                    new_badge_type=group.new_badge_type,
+                    new_ribbon_type=group.new_ribbons,
                     badge_status=new_badge_status,
                     )
 
-            if not message and group.is_new and new_with_leader:
+            if not message and group.is_new and group.leader_first_name:
+                session.commit()
+                leader = group.leader = group.attendees[0]
+                leader.placeholder = True
+                leader.badge_type = group.new_badge_type
+                leader.ribbon_ints = group.new_ribbons
+                leader_params = {key[7:]: val for key, val in params.items() if key.startswith('leader_')}
+                leader_forms = load_forms(leader_params, leader, ['PersonalInfo'])
+                all_errors = validate_model(leader_forms, leader, Attendee(**leader.to_dict()), is_admin=True)
+                if all_errors:
+                    session.delete(group)
                     session.commit()
-                    leader = group.leader = group.attendees[0]
-                    leader.first_name = params.get('first_name')
-                    leader.last_name = params.get('last_name')
-                    leader.email = params.get('email')
-                    leader.placeholder = True
-                    message = check(leader)
-                    if message:
-                        session.delete(group)
-                        session.commit()
+                    message = ' '.join([item for sublist in all_errors.values() for item in sublist])
+                else:
+                    forms['personal_info'] = leader_forms['personal_info']
+                    forms['personal_info'].populate_obj(leader)
 
             if not message:
-                if params.get('group_type'):
+                if group.guest_group_type:
                     group.guest = group.guest or GuestGroup()
-                    group.guest.group_type = params.get('group_type')
+                    group.guest.group_type = group.guest_group_type
                 
                 if group.is_new and group.is_dealer:
                     if group.status == c.APPROVED and group.amount_unpaid:
@@ -123,19 +171,48 @@ class Root:
                     else:
                         raise HTTPRedirect(
                             'index?message={}', group.name + ' is uploaded as ' + group.status_label)
+                elif group.is_dealer:
+                    if group.status == c.DECLINED and group.orig_value_of('status') != c.DECLINED:
+                        message = decline_and_convert_dealer_group(session, group)
+                    if group.status == c.APPROVED and group.orig_value_of('status') != c.APPROVED:
+                        for attendee in group.attendees:
+                            attendee.ribbon = add_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
+                            session.add(attendee)
                     
-                raise HTTPRedirect('form?id={}&message={} has been saved', group.id, group.name)
+                raise HTTPRedirect('form?id={}&message={}', group.id, message or (group.name + " has been saved"))
 
         return {
             'message': message,
             'group': group,
-            'group_type': params.get('group_type', ''),
-            'badges': params.get('badges', group.badges if group else 0),
-            'first_name': params.get('first_name', ''),
-            'last_name': params.get('last_name', ''),
-            'email': params.get('email', ''),
+            'forms': forms,
+            'signnow_last_emailed': signnow_last_emailed,
             'new_dealer': new_dealer,
         }
+    
+    @ajax
+    def validate_group(self, session, form_list=[], new_dealer='', **params):
+        if params.get('id') in [None, '', 'None']:
+            group = Group()
+        else:
+            group = session.group(params.get('id'))
+
+        if not form_list:
+            if group.is_dealer or new_dealer:
+                form_list = ['AdminTableInfo', 'ContactInfo']
+            else:
+                form_list = ['AdminGroupInfo']
+
+            if group.is_new:
+                form_list.append('LeaderInfo')
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+        forms = load_forms(params, group, form_list, get_optional=False)
+
+        all_errors = validate_model(forms, group, Group(**group.to_dict()), is_admin=True)
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
 
     def history(self, session, id):
         group = session.group(id)

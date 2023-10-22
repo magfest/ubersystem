@@ -414,7 +414,6 @@ class AttendeeLookup:
         'is_dept_head': True,
         'ribbon_labels': True,
         'public_id': True,
-        'covid_ready': True,
     }
 
     fields_full = dict(fields, **{
@@ -744,7 +743,7 @@ class AttendeeAccountLookup:
             if not account:
                 raise HTTPError(404, 'No attendee account found with this ID')
 
-            attendees_to_export = account.valid_attendees if include_group else [a for a in account.attendees if not a.group]
+            attendees_to_export = account.valid_attendees if include_group else [a for a in account.valid_attendees if not a.group]
 
             attendees = _prepare_attendees_export(attendees_to_export, include_apps=full)
             return {
@@ -773,7 +772,7 @@ class AttendeeAccountLookup:
             else:
                 email_accounts = []
                 if emails:
-                    email_accounts = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email.in_(list(emails.keys()))) \
+                    email_accounts = session.query(AttendeeAccount).filter(AttendeeAccount.email.in_(list(emails.keys()))) \
                         .options(subqueryload(AttendeeAccount.attendees)).order_by(AttendeeAccount.email, AttendeeAccount.id).all()
 
                 known_emails = set(a.normalized_email for a in email_accounts)

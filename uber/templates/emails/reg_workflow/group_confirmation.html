@@ -25,11 +25,6 @@ Your {{ group.is_dealer|yesno(c.DEALER_REG_TERM + ",group") }} ({{ group.name }}
     {% endif %}
 {% endif %}
 
-{% if group.leader.requested_hotel_info and c.PREREG_REQUEST_HOTEL_INFO_OPEN %}
-    <br/> <br/>
-    {% include "preregistration/hotel_disclaimer.html" %}
-{% endif %}
-
 {% if c.CONSENT_FORM_URL and group.leader.age_group_conf['consent_form'] %}
     <br/> <br/>
     Because you are under 18, you must bring a <a href="{{ c.CONSENT_FORM_URL }}">signed and notarized parental
@@ -40,11 +35,11 @@ Your {{ group.is_dealer|yesno(c.DEALER_REG_TERM + ",group") }} ({{ group.name }}
 {% endif %}
 
 <br/> <br/>
-Badges are not mailed out before the event, so badges for your group will be available for pickup at the
-registration desk when you arrive at {{ c.EVENT_NAME }}. Inform your group to bring a photo ID{{ c.EXTRA_CHECKIN_DOCS }} to the registration
+Badges are not mailed out before the event, so your group members may pick up their badge at the
+registration desk when they arrive at {{ c.EVENT_NAME }}. Inform your group to bring a photo ID{{ c.EXTRA_CHECKIN_DOCS }} to the registration
 desk, where they'll be provided with their badge. If anyone in your group pre-ordered a t-shirt or other merch package,
 they can pick those up at our merchandise booth. The location and
-hours of the registration desk and merchandise booth will be e-mailed prior to the event.
+hours of the registration desk and merchandise booth will be emailed prior to the event.
 <br/> <br/>
 You can always <a href="{{ c.URL_BASE }}/preregistration/group_members?id={{ group.id }}">use this link</a> to manage your group.
 

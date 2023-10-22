@@ -7,6 +7,7 @@ import math
 from decimal import Decimal
 from six import string_types
 from sqlalchemy import or_, and_
+from sqlalchemy.orm import joinedload
 from io import BytesIO
 
 from uber.config import c
@@ -14,7 +15,8 @@ from uber.decorators import ajax, all_renderable, credit_card, public
 from uber.errors import HTTPRedirect
 from uber.models import ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, \
                         Attendee, Tracking, ArbitraryCharge
-from uber.utils import Charge, check, get_static_file_path, localized_now, Order
+from uber.utils import check, get_static_file_path, localized_now, Order
+from uber.payments import TransactionRequest, ReceiptManager
 
 
 @all_renderable()
@@ -22,7 +24,7 @@ class Root:
     def index(self, session, message=''):
         return {
             'message': message,
-            'applications': session.art_show_apps()
+            'applications': session.query(ArtShowApplication).options(joinedload(ArtShowApplication.attendee))
         }
 
     def form(self, session, new_app='', message='', **params):
@@ -30,13 +32,15 @@ class Root:
             app = session.art_show_application(params, ignore_csrf=True, bools=['us_only'])
         else:
             if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-                message = session.auto_update_receipt(session.art_show_application(params.get('id')), params)
+                app = session.art_show_application(params.get('id'))
+                receipt_items = ReceiptManager.auto_update_receipt(app, session.get_receipt_by_model(app), params)
+                session.add_all(receipt_items)
             app = session.art_show_application(params, bools=['us_only'])
         attendee = None
         app_paid = 0 if new_app else app.amount_paid
 
         attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
-            .filter(Attendee.first_name != '', Attendee.badge_status not in [c.INVALID_STATUS, c.WATCHED_STATUS])
+            .filter(Attendee.first_name != '', Attendee.is_valid == True, Attendee.badge_status != c.WATCHED_STATUS)
 
         attendees = [
             (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
@@ -790,25 +794,25 @@ class Root:
     def purchases_charge(self, session, id, amount, receipt_id):
         receipt = session.art_show_receipt(receipt_id)
         attendee = session.attendee(id)
-        charge = Charge(attendee,
-                        amount=int(float(amount)),
-                        description='{}ayment for {}\'s art show purchases'.format(
-                            'P' if int(float(amount)) == receipt.total else 'Partial p',
-                            attendee.full_name))
-        stripe_intent = charge.create_stripe_intent()
-        message = stripe_intent if isinstance(stripe_intent, string_types) else ''
+        charge = TransactionRequest(receipt, 
+                                    receipt_email=attendee.email,
+                                    description='{}ayment for {}\'s art show purchases'.format(
+                                                    'P' if int(float(amount)) == receipt.total else 'Partial p',
+                                                    attendee.full_name),
+                                    amount=int(float(amount)))
+        message = charge.create_stripe_intent()
         if message:
             return {'error': message}
         else:
             payment = ArtShowPayment(
                 receipt=receipt,
-                amount=charge.total_cost,
+                amount=charge.intent.amount,
                 type=c.STRIPE,
             )
             session.add(payment)
             session.commit()
             return {
-                'stripe_intent': stripe_intent,
+                'stripe_intent': charge.intent,
                 'success_url': 'pieces_bought?id={}&message={}'.format(attendee.id, 'Charge successfully processed'),
                 'cancel_url': 'cancel_payment?id={}'.format(payment.id)
             }
@@ -836,9 +840,8 @@ class Root:
     @ajax
     @credit_card
     def sales_charge(self, session, id, amount, description):
-        charge = Charge(amount=100 * float(amount), description=description)
-        stripe_intent = charge.create_stripe_intent()
-        message = stripe_intent if isinstance(stripe_intent, string_types) else ''
+        charge = TransactionRequest(amount=100 * float(amount), description=description)
+        message = charge.create_stripe_intent()
         if message:
             return {'error': message}
         else:
@@ -846,6 +849,6 @@ class Root:
                 amount=charge.dollar_amount,
                 what=charge.description,
             ))
-            return {'stripe_intent': stripe_intent,
+            return {'stripe_intent': charge.intent,
                     'success_url': 'sales_charge_form?message={}'.format('Charge successfully processed'),
                     'cancel_url': '../merch_admin/cancel_arbitrary_charge'}

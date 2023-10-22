@@ -1,0 +1,74 @@
+{% macro panelist_info(panelist) %}
+<li><strong>Name</strong>: {{ panelist.first_name }} {{ panelist.last_name }}</li>
+<li><strong>Email</strong>: {{ panelist.email }}</li>
+<li><strong>Phone</strong>: {{ panelist.cellphone }}</li>
+{% if panelist.pronouns or panelist.other_pronouns %}<li><strong>Pronouns</strong>: {{ panelist.pronouns_labels|join(', ') }}{% if panelist.other_pronouns %} (Other: {{ panelist.other_pronouns }}){% endif %}</li>{% endif %}
+{% if panelist.communication_pref or panelist.other_communication_pref %}<li><strong>Communication Preference</strong>: {{ panelist.communication_pref_labels|join(', ') }}{% if panelist.other_communication_pref %} (Other: {{ panelist.other_communication_pref }}){% endif %}</li>{% endif %}
+{% if panelist.occupation %}<li><strong>Occupation</strong>: {{ panelist.occupation }}</li>{% endif %}
+{% if panelist.website %}<li><strong>Website</strong>: {{ panelist.website }}</li>{% endif %}
+{% if panelist.other_credentials %}<li><strong>Other Experience</strong>: {{ panelist.other_credentials|linebreaksbr }}</li>{% endif %}
+{% if panelist.guidebook_bio %}<li><strong>Schedule Bio</strong>: {{ panelist.guidebook_bio|linebreaksbr }}</li>{% endif %}
+{% if panelist.display_name %}<li><strong>Display Name</strong>: {{ panelist.display_name }}</li>{% endif %}
+{% if panelist.has_social_media %}
+    <li><strong>Social Media</strong>: {{ panelist.social_media_info|replace(" \n", "; ") }}</li>
+{% endif %}
+{%- endmacro -%}
+
+<html>
+<head></head>
+<body>
+{{ app.submitter.first_name }},
+
+<br/><br/>Thanks for your interest in contributing a panel to {{ c.EVENT_NAME }} this coming {{ event_dates() }}! Your application for the panel "{{ app.name }}" has been received and is now being reviewed.
+
+<br/><br/>We will continue accepting applications until {{ c.PANELS_DEADLINE|datetime_local }}. Decision notifications will be sent out {{ c.EXPECTED_RESPONSE }}.
+
+<br/><br/>Meanwhile, if you want to make any changes to this application, or if you have any questions or concerns, please don't hesitate to reach out to us at {{ c.PANELS_EMAIL|email_only }}.
+
+<br/><br/>Note that if accepted, your day and time will be manually scheduled <strong>based on the availability you specified on your submission</strong>, which you can review below. If this availability has changed, please let us know as soon as possible, as we will not be reaching out again for availability before scheduling.
+
+<strong>Panel Information</strong>
+<ul>
+    <li><strong>Name</strong>: {{ app.name }}</li>
+    <li><strong>Department</strong>: {{ app.department_label }}</li>
+    <li><strong>Type</strong>: {{ app.presentation_label }}{% if app.presentation == c.OTHER %} ({{ app.other_presentation }}){% endif %}</li>
+    <li><strong>Description</strong>: {{ app.description }}</li>
+    {% if c.PANEL_RATING_OPTS|length > 1 %}<li><strong>Rating</strong>: {{ app.rating_label }}</li>{% endif %}
+    {% if c.PANEL_CONTENT_OPTS|length > 1 %}
+    <li><strong>Mature Content</strong>: {{ app.granular_rating_labels|join(', ') }}</li>
+    <li><strong>Opted in to MAGScouts</strong>: {{ "N/A" if app.magscouts_opt_in == c.NO_CHOICE else app.magscouts_opt_in_label }}</li>
+    {% endif %}
+    <li><strong>Tabletop Related</strong>: {{ app.tabletop|yesno|title }}</li>
+    <li><strong>Expected Length</strong>: {{ app.length_label if app.length != c.OTHER and not app.length_text else app.length_text }}</li>
+    {% if app.length_reason %}<li><strong>Reason for Length</strong>: {{ app.length_reason }}</li>{% endif %}
+    <li><strong>Noise Level</strong>: {{ app.noise_level_label }}</li>
+    <li><strong>Recording or Livestreaming:</strong> {{ app.livestream_label }}</li>
+    {% if app.tables_desc %}<li><strong>Special Table Set-up</strong>: {{ app.tables_desc }}</li>{% endif %}
+    {% if app.cost_desc %}<li><strong>Upfront Cost and Materials</strong>: {{ app.cost_desc }}</li>{% endif %}
+    {% if app.available %}<li><strong>Availability</strong>: {{ app.available|linebreaksbr }}</li>{% endif %}
+    {% if app.unavailable %}<li><strong>Unavailability</strong>: {{ app.unavailable|linebreaksbr }}</li>{% endif %}
+    {% if app.tech_needs or app.other_tech_needs %}<li><strong>Technical Needs</strong>: {{ app.tech_needs_labels|join(', ') }}{% if app.other_tech_needs %} (Other: {{ app.other_tech_needs }}){% endif %}</li>{% endif %}
+    {% if app.presentation == c.MUSIC %}<li><strong>Loud Environment Requested</strong>: {{ app.is_loud|yesno }}</li>{% endif %}
+    {% if app.extra_info %}<li><strong>Extra Info for Internal Use</strong>: {{ app.extra_info }}</li>{% endif %}
+    {% if app.panelist_bringing %}<li><strong>You Are Bringing</strong>: {{ app.panelist_bringing }}</li>{% endif %}
+    {% if app.affiliations %}<li><strong>Affiliations</strong>: {{ app.affiliations|linebreaksbr }}</li>{% endif %}
+    {% if app.past_attendance %}<li><strong>Past Attendance</strong>: {{ app.past_attendance }}</li>{% endif %}
+</ul>
+
+<strong>Your Information</strong>
+<ul>
+    {{ panelist_info(app.submitter) }}
+</ul>
+
+{% for panelist in app.other_panelists %}
+{% if loop.first %}<strong>Other Panelists' Information</strong><ul>{% endif %}
+    {{ panelist_info(panelist) }}
+{% if loop.last %}</ul>{% endif %}
+{% endfor %}
+
+Thanks again, and we look forward to seeing you in {{ c.EPOCH|datetime_local("%B") }}!
+
+<br/> <br/> {{ c.PANELS_EMAIL_SIGNATURE }}
+
+</body>
+</html>

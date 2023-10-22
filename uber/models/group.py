@@ -14,11 +14,12 @@ from sqlalchemy.sql.elements import not_
 from sqlalchemy.types import Boolean, Integer, Numeric
 
 from uber.config import c
+from uber.custom_tags import format_currency
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, TakesPaymentMixin
-from uber.utils import add_opt, Charge
+from uber.utils import add_opt
 
 
 __all__ = ['Group']
@@ -64,6 +65,12 @@ class Group(MagModel, TakesPaymentMixin):
     leader = relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
     studio = relationship('IndieStudio', uselist=False, backref='group')
     guest = relationship('GuestGroup', backref='group', uselist=False)
+    active_receipt = relationship(
+        'ModelReceipt',
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(Group.id),'
+                        'ModelReceipt.owner_model == "Group",'
+                        'ModelReceipt.closed == None)',)
 
     _repr_attr_names = ['name']
 
@@ -78,44 +85,11 @@ class Group(MagModel, TakesPaymentMixin):
             self.cost = 0
         if self.status == c.APPROVED and not self.approved:
             self.approved = datetime.now(UTC)
-        if self.leader and self.is_dealer:
+        if self.leader and self.is_dealer and self.leader.paid == c.PAID_BY_GROUP:
             self.leader.ribbon = add_opt(self.leader.ribbon_ints, c.DEALER_RIBBON)
-        if not self.is_unpaid:
+        if not self.is_unpaid or self.orig_value_of('status') != self.status:
             for a in self.attendees:
                 a.presave_adjustments()
-        
-    @property
-    def current_purchased_items(self):
-        purchased_items = {}
-        if not self.auto_recalc:
-            # ¯\_(ツ)_/¯
-            if self.cost:
-                purchased_items['group_total'] = self.cost
-        else:
-            # Groups tables and paid-by-group badges by cost
-            table_count = int(float(self.tables))
-            default_price = c.TABLE_PRICES['default_price']
-            more_tables = {default_price: 0}
-            for i in range(table_count):
-                if c.TABLE_PRICES[i] == default_price:
-                    more_tables[default_price] += 1
-                else:
-                    purchased_items['table_' + str(i) + '_cost'] = c.TABLE_PRICES[i]
-            if more_tables[default_price]:
-                cost_label = str(more_tables[default_price]) + '_extra_table{}_($'.format(
-                    's' if more_tables[default_price] > 1 else '') + str(default_price) + '_each)_cost'
-                purchased_items[cost_label] = default_price * more_tables[default_price]
-            
-            badges_by_cost = {}
-            for attendee in self.attendees:
-                if attendee.paid == c.PAID_BY_GROUP:
-                    badges_by_cost[attendee.badge_cost] = bool(badges_by_cost.get(attendee.badge_cost)) + 1
-            for cost in badges_by_cost:
-                cost_label = str(badges_by_cost[cost]) + '_badge{}_($'.format(
-                    's' if badges_by_cost[cost] > 1 else '') + str(cost) + '_each)_cost'
-                purchased_items[cost_label] = cost * badges_by_cost[cost]
-        
-        return purchased_items
 
     def calc_group_price_change(self, **kwargs):
         preview_group = Group(**self.to_dict())
@@ -207,6 +181,14 @@ class Group(MagModel, TakesPaymentMixin):
         badges.
         """
         return [a for a in self.attendees if a.is_unassigned and a.paid == c.PAID_BY_GROUP]
+    
+    @hybrid_property
+    def normalized_name(self):
+        return self.name.strip().lower()
+
+    @normalized_name.expression
+    def normalized_name(cls):
+        return func.lower(func.trim(cls.name))
 
     @hybrid_property
     def is_valid(self):
@@ -215,6 +197,15 @@ class Group(MagModel, TakesPaymentMixin):
     @is_valid.expression
     def is_valid(cls):
         return not_(cls.status.in_([c.CANCELLED, c.DECLINED, c.IMPORTED]))
+    
+    @hybrid_property
+    def attendees_have_badges(self):
+        return self.is_valid and (not self.is_dealer or self.status == c.APPROVED)
+    
+    @attendees_have_badges.expression
+    def attendees_have_badges(cls):
+        return and_(cls.is_valid,
+                    or_(cls.is_dealer == False, cls.status == c.APPROVED))
 
     @property
     def new_ribbon(self):
@@ -274,7 +265,8 @@ class Group(MagModel, TakesPaymentMixin):
     @badges_purchased.expression
     def badges_purchased(cls):
         from uber.models import Attendee
-        return exists().where(and_(Attendee.group_id == cls.id, Attendee.paid == c.PAID_BY_GROUP))
+        return select([func.count(Attendee.id)]
+                      ).where(and_(Attendee.group_id == cls.id, Attendee.paid == c.PAID_BY_GROUP)).label('badges_purchased')
 
     @property
     def badges(self):
@@ -302,7 +294,6 @@ class Group(MagModel, TakesPaymentMixin):
 
         return total_badge_cost
 
-
     @property
     def new_badge_cost(self):
         return c.DEALER_BADGE_PRICE if self.is_dealer else c.get_group_price()
@@ -320,15 +311,28 @@ class Group(MagModel, TakesPaymentMixin):
             return 0
 
         if self.active_receipt:
-            return self.active_receipt['item_total'] / 100
+            return self.active_receipt.item_total / 100
         return self.default_cost + self.amount_extra
 
-    @property
+    @hybrid_property
     def is_paid(self):
-        return self.active_receipt.get('current_amount_owed', None) == 0
+        return self.active_receipt and self.active_receipt.current_amount_owed == 0
+    
+    @is_paid.expression
+    def is_paid(cls):
+        from uber.models import ModelReceipt
+
+        return exists().select_from(ModelReceipt).where(
+            and_(ModelReceipt.owner_id == cls.id,
+                 ModelReceipt.owner_model == "Group",
+                 ModelReceipt.closed == None,
+                 ModelReceipt.current_amount_owed == 0))
 
     @property
     def amount_unpaid(self):
+        if self.is_dealer and self.status != c.APPROVED:
+            return 0
+
         if self.registered:
             return max(0, ((self.total_cost * 100) - self.amount_paid - self.amount_pending) / 100)
         else:
@@ -336,11 +340,19 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def amount_pending(self):
-        return self.active_receipt.get('pending_total', 0)
+        return self.active_receipt.pending_total if self.active_receipt else 0
+
+    @property
+    def amount_paid_repr(self):
+        return format_currency(self.amount_paid / 100)
+    
+    @property
+    def amount_refunded_repr(self):
+        return format_currency(self.amount_refunded / 100)
 
     @hybrid_property
     def amount_paid(self):
-        return self.active_receipt.get('payment_total', 0)
+        return self.active_receipt.payment_total if self.active_receipt else 0
     
     @amount_paid.expression
     def amount_paid(cls):
@@ -348,12 +360,13 @@ class Group(MagModel, TakesPaymentMixin):
 
         return select([ModelReceipt.payment_total]
                      ).where(and_(ModelReceipt.owner_id == cls.id,
-                                  ModelReceipt.owner_model == "Group")
+                                  ModelReceipt.owner_model == "Group",
+                                  ModelReceipt.closed == None)
                      ).label('amount_paid')
     
     @hybrid_property
     def amount_refunded(self):
-        return self.active_receipt.get('refund_total', 0)
+        return self.active_receipt.refund_total if self.active_receipt else 0
     
     @amount_refunded.expression
     def amount_refunded(cls):
@@ -400,17 +413,6 @@ class Group(MagModel, TakesPaymentMixin):
             return 0
         else:
             return c.MIN_GROUP_ADDITION
-
-    @property
-    def requested_hotel_info(self):
-        if self.leader:
-            return self.leader.requested_hotel_info
-        elif self.leader_id:  # unattached groups
-            for attendee in self.attendees:
-                if attendee.id == self.leader_id:
-                    return attendee.requested_hotel_info
-        else:
-            return any(a.requested_hotel_info for a in self.attendees)
 
     @property
     def physical_address(self):

@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html>
   <head>
-    <link href="../static/deps/combined.min.css" rel="stylesheet">
+    {{ "deps/combined.min.css"|serve_static_content }}
     <title>Oh no, something went wrong!</title>
     <style>
       html, body{
@@ -78,7 +78,7 @@
   <body>
     <div class="container text-center">
       <h1>Oh no, something went wrong!</h1>
-      <div class="description text-left">
+      <div class="description text-start">
         <p class="message">{{ message }}</p>
         <p class="contact">If you need further assistance please contact {{ c.DEVELOPER_EMAIL }}. Here's a donut for your trouble:</p>
       </div>
@@ -93,7 +93,7 @@
 </pre>
       <p>
         <a class="btn btn-primary btn-xl" onclick="window.history.back()" role="button">
-          <span class="glyphicon glyphicon-chevron-left"></span>
+          <i class="fa fa-chevron-left"></i>
           Go Back
         </a>
       </p>

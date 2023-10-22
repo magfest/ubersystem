@@ -108,8 +108,9 @@ class PanelApplication(MagModel):
     available = Column(UnicodeText)
     affiliations = Column(UnicodeText)
     past_attendance = Column(UnicodeText)
-    department = Column(Choice(c.PANEL_DEPT_OPTS), default=c.PANELS)
+    department = Column(Choice(c.PANEL_DEPT_OPTS))
     rating = Column(Choice(c.PANEL_RATING_OPTS), default=c.UNRATED)
+    granular_rating = Column(MultiChoice(c.PANEL_CONTENT_OPTS))
     presentation = Column(Choice(c.PRESENTATION_OPTS))
     other_presentation = Column(UnicodeText)
     noise_level = Column(Choice(c.NOISE_LEVEL_OPTS))
@@ -160,7 +161,7 @@ class PanelApplication(MagModel):
     
     @property
     def confirm_deadline(self):
-        if self.accepted and c.PANELS_CONFIRM_DEADLINE:
+        if c.PANELS_CONFIRM_DEADLINE and self.has_been_accepted and not self.confirmed and not self.poc_id:
             confirm_deadline = timedelta(days=c.PANELS_CONFIRM_DEADLINE)
             return self.accepted + confirm_deadline
 
@@ -188,6 +189,8 @@ class PanelApplicant(SocialMediaMixin, MagModel):
     occupation = Column(UnicodeText)
     website = Column(UnicodeText)
     other_credentials = Column(UnicodeText)
+    guidebook_bio = Column(UnicodeText)
+    display_name = Column(UnicodeText)
 
     @property
     def has_credentials(self):

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html>
+<style>
+table, th, td {
+  border:0px solid black;
+}
+th {
+  text-align: left;
+}
+
+.group{
+    display:inline-block;
+}
+</style>
+
+
+<script type="text/javascript">
+
+function check(thebutton, thedivision) {
+    if (document.getElementById(thebutton).checked) {
+        document.getElementById(thedivision).style.display = 'block';
+    }
+    else document.getElementById(thedivision).style.display = 'none';
+
+}
+
+</script>
+
+
+
+<body>
+
+<h1 style="background-color:DodgerBlue;">Resource Management 2022</h1>
+
+<p>To get the mpoints and cash where they need to be when they need to be.</p>
+
+<form action="https://docs.google.com/forms/u/0/d/e/1FAIpQLSdCDgPJcBE-bpjZ0bBG7qfky3DZv6g-cxzLf2ezkw1qTvFwAg/formResponse"
+oninput="totalmpoints.value=(Number(ThurOne.value)+Number(FriOne.value)+Number(SatOne.value)+Number(SunOne.value))
++5*(Number(ThurFive.value)+Number(FriFive.value)+Number(SatFive.value)+Number(SunFive.value))
++10*(Number(ThurTen.value)+Number(FriTen.value)+Number(SatTen.value)+Number(SunTen.value))
++20*(Number(ThurTwen.value)+Number(FriTwen.value)+Number(SatTwen.value)+Number(SunTwen.value))">
+
+  <div class="group">
+    <label for="email">Your email:</label>
+    <br>
+    <input type="email" id="email" required name="emailAddress">
+  </div>
+  <br>  <br>
+  
+  <div class="group">
+    <label for="legalname">What is your legal name?</label>
+    <br>
+    <input type="text" id="legalname" required name="entry.1443263257">
+  </div>
+  <br><br>
+
+  <div class="group">
+    <label for="handle">What is your MAG handle/nickname (for example, your slack name)?</label>
+    <br>
+    <input type="text" id="handle" required name="entry.1947995237">
+  </div>
+  <br><br>
+
+  <div class="group">
+    <label for="department">Which department are you filling this out for? (If you have multiple subdepartments, feel free to fill out this form multiple times.)</label>
+    <br>
+    <input type="text" id="department" required name="entry.4134150">
+  </div>
+  <br><br>
+  
+  <p>Does your department give out Mpoints as prizes (or change)?</p>
+  <input type="radio" id="mpointyes" name="entry.1053306224" value="Yes" onclick="javascript:check('mpointyes', 'mpointgroup')" required>
+  <label for="mpointyes">Yes</label><br>
+  <input type="radio" id="mpointno" name="entry.1053306224" value="No" onclick="javascript:check('mpointyes', 'mpointgroup')" required checked>
+  <label for="mpointno">No</label><br>
+
+  <p>Does your department take cash from attendees (or are you Marketplace)?</p>
+  <input type="radio" id="cashyes" name="entry.1241612016" value="Yes" onclick="javascript:check('cashyes', 'cashgroup')" required>
+  <label for="cashyes">Yes</label><br>
+  <input type="radio" id="cashno" name="entry.1241612016" value="No" onclick="javascript:check('cashyes', 'cashgroup')" required checked>
+  <label for="cashno">No</label><br>
+
+    <div id="mpointgroup" style="display:none">
+      <h2>Mpoints</h2>
+
+      <p>Mpoints. Who can accept them, how many, and when? If you want to know what you did previously (including after-the-event feedback), contact me on slack at @BlueHatDave or email: <a href="mailto:treasury@magfest.org">treasury@magfest.org</a></p>
+
+      <p>Who in your department is authorized to accept/make decisions about mpoints? Please write their legal names here, or the appropriate role in Uber/Reggie for me to grab them from. One per row, please.</p>
+      <textarea rows="6" cols="60" name="entry.586777600" placeholder="Enter legal names please (for mpoints)"></textarea>
+      <br>
+      
+      <br>
+      [Please leave unnecessary table entries blank]
+      <br>
+      <br>
+
+       <table style="width:100%">
+        <tr>
+          <th>Mpoint <br> Denomination</th>
+          <th>Thursday</th>
+          <th>Friday</th>
+          <th>Saturday</th>
+          <th>Sunday</th>
+        </tr>
+        <tr>
+          <td>$1</td>
+          <td><input type="number" id="ThurOne" name="entry.1287787771" min="0"><br></td>
+          <td><input type="number" id="FriOne" name="entry.1671823080" min="0"><br></td>
+          <td><input type="number" id="SatOne" name="entry.2082422151" min="0"><br></td>
+          <td><input type="number" id="SunOne" name="entry.1517849374" min="0"><br></td>
+        </tr>
+        <tr>
+          <td>$5</td>
+          <td><input type="number" id="ThurFive" name="entry.1510450310" min="0"><br></td>
+          <td><input type="number" id="FriFive" name="entry.1014460068" min="0"><br></td>
+          <td><input type="number" id="SatFive" name="entry.1330556948" min="0"><br></td>
+          <td><input type="number" id="SunFive" name="entry.1483597950" min="0"><br></td>
+        </tr>
+        <tr>
+          <td>$10</td>
+          <td><input type="number" id="ThurTen" name="entry.1666277094" min="0"><br></td>
+          <td><input type="number" id="FriTen" name="entry.1936959399" min="0"><br></td>
+          <td><input type="number" id="SatTen" name="entry.153028795" min="0"><br></td>
+          <td><input type="number" id="SunTen" name="entry.1582943797" min="0"><br></td>
+        </tr>
+        <tr>
+          <td>$20</td>
+          <td><input type="number" id="ThurTwen" name="entry.726339309" min="0"><br></td>
+          <td><input type="number" id="FriTwen" name="entry.2072535542" min="0"><br></td>
+          <td><input type="number" id="SatTwen" name="entry.1226249274" min="0"><br></td>
+          <td><input type="number" id="SunTwen" name="entry.1947196541" min="0"><br></td>
+        </tr>
+        <tr>
+          <td>Delivery time?</td>
+          <td><!input type="time" id="ThurTime" name="entry.1067300032" min="09:30", max="23:30", step="300">
+          <select id="ThurTime" name="entry.1067300032">
+            <option value="nope">No Delivery Today</option>
+            <option value="9:30am-11:00am">9:30am-11:00am</option>
+            <option value="11:30am-1:00pm">11:30am-1:00pm</option>
+            <option value="1:40pm-2:20pm">1:40pm-2:20pm</option>
+            <option value="2:40pm-3:20pm">2:40pm-3:20pm</option>
+            <option value="3:40pm-4:20pm">3:40pm-4:20pm</option>
+            <option value="5:00pm-6:30pm">5:00pm-6:30pm</option>
+            <option value="7:40pm-8:20pm">7:40pm-8:20pm</option>
+            <option value="8:40pm-9:20pm">8:40pm-9:20pm</option>
+            <option value="11:00pm-11:30pm">11:00pm-11:30pm</option>
+            <option value="Custom">Custom (Put in comments)</option>
+          </select>
+          <br></td>
+          <td><!input type="time" id="FriTime" name="entry.958057874" min="09:30", max="23:30", step="300">
+          <select id="FriTime" name="entry.958057874">
+            <option value="nope">No Delivery Today</option>
+            <option value="9:30am-11:00am">9:30am-11:00am</option>
+            <option value="11:30am-1:00pm">11:30am-1:00pm</option>
+            <option value="1:40pm-2:20pm">1:40pm-2:20pm</option>
+            <option value="2:40pm-3:20pm">2:40pm-3:20pm</option>
+            <option value="3:40pm-4:20pm">3:40pm-4:20pm</option>
+            <option value="5:00pm-6:30pm">5:00pm-6:30pm</option>
+            <option value="7:40pm-8:20pm">7:40pm-8:20pm</option>
+            <option value="8:40pm-9:20pm">8:40pm-9:20pm</option>
+            <option value="11:00pm-11:30pm">11:00pm-11:30pm</option>
+            <option value="Custom">Custom (Put in comments)</option>
+          </select>
+          <br></td>
+          <td><!input type="time" id="SatTime" name="entry.2031739590" min="09:30", max="23:30", step="300">
+          <select id="SatTime" name="entry.2031739590">
+            <option value="nope">No Delivery Today</option>
+            <option value="9:30am-11:00am">9:30am-11:00am</option>
+            <option value="11:30am-1:00pm">11:30am-1:00pm</option>
+            <option value="1:40pm-2:20pm">1:40pm-2:20pm</option>
+            <option value="2:40pm-3:20pm">2:40pm-3:20pm</option>
+            <option value="3:40pm-4:20pm">3:40pm-4:20pm</option>
+            <option value="5:00pm-6:30pm">5:00pm-6:30pm</option>
+            <option value="7:40pm-8:20pm">7:40pm-8:20pm</option>
+            <option value="8:40pm-9:20pm">8:40pm-9:20pm</option>
+            <option value="11:00pm-11:30pm">11:00pm-11:30pm</option>
+            <option value="Custom">Custom (Put in comments)</option>
+          </select>
+          <br></td>
+          <td><!input type="time" id="SunTime" name="entry.291144372" min="09:30", max="17:30", step="300">
+          <select id="SunTime" name="entry.291144372">
+            <option value="nope">No Delivery Today</option>
+            <option value="9:30am-11:00am">9:30am-11:00am</option>
+            <option value="11:30am-1:00pm">11:30am-1:00pm</option>
+            <option value="1:40pm-2:20pm">1:40pm-2:20pm</option>
+            <option value="2:40pm-3:20pm">2:40pm-3:20pm</option>
+            <option value="3:40pm-4:20pm">3:40pm-4:20pm</option>
+            <option value="5:00pm-6:30pm">5:00pm-6:30pm</option>
+            <option value="7:40pm-8:20pm">7:40pm-8:20pm</option>
+            <option value="8:40pm-9:20pm">8:40pm-9:20pm</option>
+            <option value="11:00pm-11:30pm">11:00pm-11:30pm</option>
+            <option value="Custom">Custom (Put in comments)</option>
+          </select>
+          <br></td>
+        </tr>
+      </table>
+      
+      <br>
+      You are requesting a total of <b style="color:ForestGreen;border:1px solid ForestGreen">$
+      <output name="totalmpoints", for="ThurOne FriOne SatOne SunOne ThurFive FriFive SatFive SunFive
+       ThurTen FriTen SatTen SunTen ThurTwen FriTwen SatTwen SunTwen"></output></b>
+      mpoints for your department.
+      
+      <p>Any questions or comments related to your department's mpoints?</p>
+      <textarea rows="6" cols="60" name="entry.578661144" placeholder="Mpoint comments and questions"></textarea>
+      <br>
+    </div>
+  
+
+    <div id="cashgroup" style="display:none">
+      <h2>Cash</h2>
+
+      <p>What times and how many cash boxes will your department need, and who do you trust with them?</p>
+      <p>We have pretty good records of denominations appropriate to departments. If you're wondering what those are, or want to make changes, contact me on slack at @BlueHatDave or email: <a href="mailto:treasury@magfest.org">treasury@magfest.org</a></p>
+
+      <p>Who in your department is authorized to accept/make decisions about cash? Please write their legal names here, or the appropriate role in Uber/Reggie for me to grab them from. One per row, please.</p>
+      <textarea rows="6" cols="60" name="entry.2107023208" placeholder="Enter legal names please (for cash)"></textarea>
+      <br>
+      <h2 style="color:Red">Very Important:</h2> <p>Make sure everybody on this list has signed <a href="https://docs.google.com/document/d/1LQZEPywHNBxJ1AuoAtkdbnZoh2Rdljmzizk96-e6Cxc/edit">https://docs.google.com/document/d/1LQZEPywHNBxJ1AuoAtkdbnZoh2Rdljmzizk96-e6Cxc/edit</a> by event. This is to help out our harried accountant. Also for legal reasons.</p>
+      <br>
+
+       <table style="width:60%">
+        <tr>
+          <th>Day</th>
+          <th>Department opening time? <br> (When should we make the morning drop-off/first refresh?)</th>
+          <th>Department closing time? <br> (When should we make the pickup/last refresh?)</th>
+          <th>Refresh interval? <br> (1-14 hours) <br> [leave blank if unnecessary]</th>
+        </tr>
+        <tr>
+          <td>Thursday</td>
+          <td><!input type="time" id="ThurOpen" name="entry.1608255917" min="09:30", max="23:30", step="300">
+          <select id="ThurOpen" name="entry.1608255917">
+            <option value="nope">No Cash Today</option>
+            <option value="9:30am-11:00am">9:30am-11:00am</option>
+            <option value="11:30am-1:00pm">11:30am-1:00pm</option>
+            <option value="1:40pm-2:20pm">1:40pm-2:20pm</option>
+            <option value="2:40pm-3:20pm">2:40pm-3:20pm</option>
+            <option value="3:40pm-4:20pm">3:40pm-4:20pm</option>
+            <option value="5:00pm-6:30pm">5:00pm-6:30pm</option>
+            <option value="7:40pm-8:20pm">7:40pm-8:20pm</option>
+            <option value="8:40pm-9:20pm">8:40pm-9:20pm</option>
+            <option value="11:00pm-11:30pm">11:00pm-11:30pm</option>
+            <option value="Custom">Custom (Put in comments)</option>
+          </select>
+          <br></td>
+          <td><!input type="time" id="ThurClose" name="entry.255702922" min="09:30", max="23:30", step="300">
+          <select id="ThurClose" name="entry.255702922">
+            <option value="nope">Not Closing Today</option>
+            <option value="1:40pm-2:20pm">1:40pm-2:20pm</option>
+            <option value="2:40pm-3:20pm">2:40pm-3:20pm</option>
+            <option value="3:40pm-4:20pm">3:40pm-4:20pm</option>
+            <option value="5:00pm-6:30pm">5:00pm-6:30pm</option>
+            <option value="7:40pm-8:20pm">7:40pm-8:20pm</option>
+            <option value="8:40pm-9:20pm">8:40pm-9:20pm</option>
+            <option value="11:00pm-11:30pm">11:00pm-11:30pm</option>
+            <option value="Custom">Custom (Put in comments)</option>
+          </select>
+          <br></td>
+          <td><input type="number" id="ThurInterval" name="entry.1400383798" min="1" max="14"><br></td>
+        </tr>
+        <tr>
+          <td>Friday</td>
+          <td><!input type="time" id="FriOpen" name="entry.1892144529" min="09:30", max="23:30", step="300">
+          <select id="FriOpen" name="entry.1892144529">
+            <option value="nope">No Cash Today</option>
+            <option value="9:30am-11:00am">9:30am-11:00am</option>
+            <option value="11:30am-1:00pm">11:30am-1:00pm</option>
+            <option value="1:40pm-2:20pm">1:40pm-2:20pm</option>
+            <option value="2:40pm-3:20pm">2:40pm-3:20pm</option>
+            <option value="3:40pm-4:20pm">3:40pm-4:20pm</option>
+            <option value="5:00pm-6:30pm">5:00pm-6:30pm</option>
+            <option value="7:40pm-8:20pm">7:40pm-8:20pm</option>
+            <option value="8:40pm-9:20pm">8:40pm-9:20pm</option>
+            <option value="11:00pm-11:30pm">11:00pm-11:30pm</option>
+            <option value="Custom">Custom (Put in comments)</option>
+          </select>
+          <br></td>
+          <td><!input type="time" id="FriClose" name="entry.986954833" min="09:30", max="23:30", step="300">
+          <select id="FriClose" name="entry.986954833">
+            <option value="nope">Not Closing Today</option>
+            <option value="9:30am-11:00am">9:30am-11:00am</option>
+            <option value="11:30am-1:00pm">11:30am-1:00pm</option>
+            <option value="1:40pm-2:20pm">1:40pm-2:20pm</option>
+            <option value="2:40pm-3:20pm">2:40pm-3:20pm</option>
+            <option value="3:40pm-4:20pm">3:40pm-4:20pm</option>
+            <option value="5:00pm-6:30pm">5:00pm-6:30pm</option>
+            <option value="7:40pm-8:20pm">7:40pm-8:20pm</option>
+            <option value="8:40pm-9:20pm">8:40pm-9:20pm</option>
+            <option value="11:00pm-11:30pm">11:00pm-11:30pm</option>
+            <option value="Custom">Custom (Put in comments)</option>
+          </select>
+          <br></td>
+          <td><input type="number" id="FriInterval" name="entry.648656065" min="1" max="14"><br></td>
+        </tr>
+        <tr>
+          <td>Saturday</td>
+          <td><!input type="time" id="SatOpen" name="entry.85529970" min="09:30", max="23:30", step="300">
+          <select id="SatOpen" name="entry.85529970">
+            <option value="nope">No Cash Today</option>
+            <option value="9:30am-11:00am">9:30am-11:00am</option>
+            <option value="11:30am-1:00pm">11:30am-1:00pm</option>
+            <option value="1:40pm-2:20pm">1:40pm-2:20pm</option>
+            <option value="2:40pm-3:20pm">2:40pm-3:20pm</option>
+            <option value="3:40pm-4:20pm">3:40pm-4:20pm</option>
+            <option value="5:00pm-6:30pm">5:00pm-6:30pm</option>
+            <option value="7:40pm-8:20pm">7:40pm-8:20pm</option>
+            <option value="8:40pm-9:20pm">8:40pm-9:20pm</option>
+            <option value="11:00pm-11:30pm">11:00pm-11:30pm</option>
+            <option value="Custom">Custom (Put in comments)</option>
+          </select>
+          <br></td>
+          <td><!input type="time" id="SatClose" name="entry.204365953" min="09:30", max="23:30", step="300">
+          <select id="SatClose" name="entry.204365953">
+            <option value="nope">Not Closing Today</option>
+            <option value="9:30am-11:00am">9:30am-11:00am</option>
+            <option value="11:30am-1:00pm">11:30am-1:00pm</option>
+            <option value="1:40pm-2:20pm">1:40pm-2:20pm</option>
+            <option value="2:40pm-3:20pm">2:40pm-3:20pm</option>
+            <option value="3:40pm-4:20pm">3:40pm-4:20pm</option>
+            <option value="5:00pm-6:30pm">5:00pm-6:30pm</option>
+            <option value="7:40pm-8:20pm">7:40pm-8:20pm</option>
+            <option value="8:40pm-9:20pm">8:40pm-9:20pm</option>
+            <option value="11:00pm-11:30pm">11:00pm-11:30pm</option>
+            <option value="Custom">Custom (Put in comments)</option>
+          </select>
+          <br></td>
+          <td><input type="number" id="SatInterval" name="entry.1559326573" min="1" max="14"><br></td>
+        </tr>
+        <tr>
+          <td>Sunday</td>
+          <td><!input type="time" id="SunOpen" name="entry.1519417155" min="09:30", max="17:30", step="300">
+          <select id="SunOpen" name="entry.1519417155">
+            <option value="nope">No Cash Today</option>
+            <option value="9:30am-11:00am">9:30am-11:00am</option>
+            <option value="11:30am-1:00pm">11:30am-1:00pm</option>
+            <option value="1:40pm-2:20pm">1:40pm-2:20pm</option>
+            <option value="2:40pm-3:20pm">2:40pm-3:20pm</option>
+            <option value="3:40pm-4:20pm">3:40pm-4:20pm</option>
+            <option value="Custom">Custom (Put in comments)</option>
+          </select>
+          <br></td>
+          <td><!input type="time" id="SunClose" name="entry.1171123896" min="09:30", max="17:30", step="300">
+          <select id="SunClose" name="entry.1171123896">
+            <option value="nope">Not Closing Today (REALLY?)</option>
+            <option value="9:30am-11:00am">9:30am-11:00am</option>
+            <option value="11:30am-1:00pm">11:30am-1:00pm</option>
+            <option value="1:40pm-2:20pm">1:40pm-2:20pm</option>
+            <option value="2:40pm-3:20pm">2:40pm-3:20pm</option>
+            <option value="3:40pm-4:20pm">3:40pm-4:20pm</option>
+            <option value="5:00pm-6:30pm">5:00pm-6:30pm</option>
+            <option value="Custom">Custom (Put in comments)</option>
+          </select>
+          <br></td>
+          <td><input type="number" id="SunInterval" name="entry.794857205" min="1" max="7"><br></td>
+        </tr>
+      </table>
+      
+      <p>Any questions or comments related to your department's cash boxes?</p>
+      <textarea rows="6" cols="60" name="entry.889535989" placeholder="Cash box comments and questions"></textarea>
+      <br>
+    </div>
+  
+  <h2 style="background-color:Red;color:White">If you get an error on the next page, just hit TRY AGAIN and you'll be fine.</h2>
+  
+  <input type="submit" value="Submit">
+</form>
+
+</body>
+</html>

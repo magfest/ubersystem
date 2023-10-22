@@ -1,38 +1,11 @@
 {% extends "base.html" %}
-{% import "fields/attendee.html" as attendee_fields with context %}
+{% import "forms/attendee.html" as attendee_fields with context %}
 {% block title %}At the Door Registration{% endblock %}
 {% block backlink %}{% endblock %}
 {% block content %}
 
-  {% include 'prereg_masthead.html' %}
-  {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
-  <div class="panel panel-default">
-    <div class="panel-body">
-      {% include 'preregistration/create_or_login_account.html' %}
-    </div>
-  </div>
-  {% if not logged_in_account %}
-  <script type="text/javascript">
-  $(document).ready(function() {
-    $("#account-form").submit(function () { $("#reg-form").submit(); });
-    {% if kiosk_mode %}$("#login-form").submit(function () { $("#reg-form").submit(); });{% endif %}
-    {% if logging_in %}$('#login-tab').click();{% endif %}
-    $("#reg-form").submit(function () { 
-      var success = validateAndIncludeAccountFields();
-          if (!success) {
-            return false;
-          }
-          if(!$(this)[0].checkValidity()) {
-            $(this)[0].reportValidity();
-            return false;
-          }
-        });
-  })
-  </script>
-  {% endif %}
-  {% endif %}
-  <div class="panel panel-default">
-    <div class="panel-body">
+  <div class="card">
+    <div class="card-body">
       <form method="post" action="register" id="reg-form" autocomplete="off" class="form-horizontal">
         {{ csrf_token() }}
         {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
@@ -45,7 +18,7 @@
           {% endif %}
         {% endif %}
 
-        {{ attendee_fields.prereg_intro }}
+        {% include 'forms/prereg_intro.html' %}
         {{ attendee_fields.payment_method }}
         {{ attendee_fields.badge_type }}
         {{ attendee_fields.name }}
@@ -65,7 +38,6 @@
         {{ attendee_fields.comments }}
         {{ attendee_fields.requested_accessibility_services }}
         {{ attendee_fields.can_spam }}
-        {{ attendee_fields.panel_interest }}
         {{ attendee_fields.pii_consent_checkbox }}
 
         {# Deprecated forms included for backwards compatibility with old plugins #}

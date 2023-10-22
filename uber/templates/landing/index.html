@@ -1,182 +1,97 @@
-<!DOCTYPE HTML>
-<html>
-<head>
-    <link rel="icon" href="../static/images/favicon.png" type="image/x-icon" />
-    <link href="../static/deps/combined.min.css" rel="stylesheet">
-    <title>{{ c.EVENT_NAME }} Registration</title>
-    <style>
-        html, body{
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            /** To edit this background, follow this link:
-            http://svgeneration.com/generate/Graph-Paper?size=20&background=ffffff&lines=cccccc&line-width=1&turbulence=0.1&
-            */
-            background-color: #ffffff;background-image:url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSczMDAnIGhlaWdodD0nMzAwJyB2aWV3Qm94PScwIDAgMzAwIDMwMCc+Cgk8ZGVmcz4KCQk8cGF0dGVybiBpZD0nYmx1ZXN0cmlwZScgcGF0dGVyblVuaXRzPSd1c2VyU3BhY2VPblVzZScgeD0nMCcgeT0nMCcgd2lkdGg9JzIwJyBoZWlnaHQ9JzIwJyB2aWV3Qm94PScwIDAgNDAgNDAnID4KCQk8cmVjdCB3aWR0aD0nMTEwJScgaGVpZ2h0PScxMTAlJyBmaWxsPScjZmZmZmZmJy8+CgkJCTxwYXRoIGQ9J00xLDFoNDB2NDBoLTQwdi00MCcgZmlsbC1vcGFjaXR5PScwJyBzdHJva2Utd2lkdGg9JzEnIHN0cm9rZS1kYXNoYXJyYXk9JzAsMSwxJyBzdHJva2U9JyNjY2NjY2MnLz4KCQk8L3BhdHRlcm4+IAoJCTxmaWx0ZXIgaWQ9J2Z1enonIHg9JzAnIHk9JzAnPgoJCQk8ZmVUdXJidWxlbmNlIHR5cGU9J3R1cmJ1bGVuY2UnIHJlc3VsdD0ndCcgYmFzZUZyZXF1ZW5jeT0nLjIgLjMnIG51bU9jdGF2ZXM9JzUnIHN0aXRjaFRpbGVzPSdzdGl0Y2gnLz4KCQkJPGZlQ29sb3JNYXRyaXggdHlwZT0nc2F0dXJhdGUnIGluPSd0JyB2YWx1ZXM9JzAnLz4KCQk8L2ZpbHRlcj4KCTwvZGVmcz4KCTxyZWN0IHdpZHRoPScxMDAlJyBoZWlnaHQ9JzEwMCUnIGZpbGw9J3VybCgjYmx1ZXN0cmlwZSknLz4KPHJlY3Qgd2lkdGg9JzEwMCUnIGhlaWdodD0nMTAwJScgZmlsdGVyPSd1cmwoI2Z1enopJyBvcGFjaXR5PScwLjEnLz4KPC9zdmc+Cg==');
-        }
-        .container-fluid{
-            height: 100%;
-            display: table;
-            width: 100%;
-            padding: 0;
-        }
-        .jumbotron {background-color: #ffffff;background-image:url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSczMDAnIGhlaWdodD0nMzAwJyB2aWV3Qm94PScwIDAgMzAwIDMwMCc+Cgk8ZGVmcz4KCQk8cGF0dGVybiBpZD0nYmx1ZXN0cmlwZScgcGF0dGVyblVuaXRzPSd1c2VyU3BhY2VPblVzZScgeD0nMCcgeT0nMCcgd2lkdGg9JzIwJyBoZWlnaHQ9JzIwJyB2aWV3Qm94PScwIDAgNDAgNDAnID4KCQk8cmVjdCB3aWR0aD0nMTEwJScgaGVpZ2h0PScxMTAlJyBmaWxsPScjZmZmZmZmJy8+CgkJCTxwYXRoIGQ9J00xLDFoNDB2NDBoLTQwdi00MCcgZmlsbC1vcGFjaXR5PScwJyBzdHJva2Utd2lkdGg9JzEnIHN0cm9rZS1kYXNoYXJyYXk9JzAsMSwxJyBzdHJva2U9JyNjY2NjY2MnLz4KCQk8L3BhdHRlcm4+IAoJCTxmaWx0ZXIgaWQ9J2Z1enonIHg9JzAnIHk9JzAnPgoJCQk8ZmVUdXJidWxlbmNlIHR5cGU9J3R1cmJ1bGVuY2UnIHJlc3VsdD0ndCcgYmFzZUZyZXF1ZW5jeT0nLjIgLjMnIG51bU9jdGF2ZXM9JzUnIHN0aXRjaFRpbGVzPSdzdGl0Y2gnLz4KCQkJPGZlQ29sb3JNYXRyaXggdHlwZT0nc2F0dXJhdGUnIGluPSd0JyB2YWx1ZXM9JzAnLz4KCQk8L2ZpbHRlcj4KCTwvZGVmcz4KCTxyZWN0IHdpZHRoPScxMDAlJyBoZWlnaHQ9JzEwMCUnIGZpbGw9J3VybCgjYmx1ZXN0cmlwZSknLz4KPHJlY3Qgd2lkdGg9JzEwMCUnIGhlaWdodD0nMTAwJScgZmlsdGVyPSd1cmwoI2Z1enopJyBvcGFjaXR5PScwLjEnLz4KPC9zdmc+Cg==');}
-        .centering {
-            float: none;
-            margin: 0 auto;
-        }
-        .btn-xl {
-            padding: 24px 36px;
-            font-size: 42px;
-            border-radius: 12px;
-        }
-    </style>
-    <script src="../static/deps/combined.min.js" type="text/javascript"></script>
-    <script type="text/javascript">
-    var parseQueryString = function(queryString) {
-            var params = {}, temp, i, len, queries = queryString.split('&');
-            for (i = 0, len = queries.length; i < len; i++) {
-              if(queries[i]) {
-                temp = queries[i].split('=');
-                params[temp[0]] = temp[1];
-              }
-            }
-            return params;
-        };
+{% extends "preregistration/preregbase.html" %}
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
 
-        var replaceQueryParam = function(queryParam, value) {
-            var queryString = window.location.search.substring(1);
-            var params = parseQueryString(queryString);
-            if (_.has(params, queryParam) || value) {
-                if (value) {
-                    params[queryParam] = value;
-                } else {
-                    delete params[queryParam];
-                }
-                queryString = $.param(params);
-            }
-            if (queryString) {
-                queryString = '?' + queryString;
-            }
-            return queryString;
-        };
+{% block masthead %}{% endblock %}
+{% block title %}{{ c.EVENT_NAME }} Registration{% endblock %}
+{% block content %}
+<img src="../static/images/landing-logo.png" width="100%">
+<h1 class="text-center">{{ c.EVENT_NAME_AND_YEAR }} Registration</h1>
+{% block landing_info_box %}
+{% if c.BADGE_TYPE_PRICES %}
+<div class="row g-sm-3 justify-content-center">
+    <div class="col-8 col-sm-10 text-center">{{ form_macros.card_select(badge_extras.badge_type, attendee.available_badge_type_opts, disabled_opts=c.SOLD_OUT_BADGE_TYPES, ) }}</div>
+</div>
+{% endif %}
+{% endblock %}
 
-        var replaceQueryParamInUrl = function(queryParam, value) {
-          try {
-              // Replace the query parameter in the web browser's address bar
-              if (history && history.replaceState) {
-                  var hash = window.location.hash;
-                  var queryString = replaceQueryParam(queryParam, value);
-                  history.replaceState({}, document.title, window.location.pathname + queryString + hash);
-                  return true;
-              }
-          } catch(ex) {
-              // Don't let any errors here disrupt the rest of the app!
-              try { console.log(ex); } catch(ex) {}
-          }
-          return false;
-        };
-    $(function() {
-            $(window).load(function() {
-                $(".loader").fadeOut("fast");
-            });
-            toastr.options = {
-                closeButton: true,
-                debug: false,
-                positionClass: "toast-top-right",
-                onclick: null,
-                showDuration: "300",
-                hideDuration: "1000",
-                timeOut: "0",
-                extendedTimeOut: "0",
-                showEasing: "swing",
-                hideEasing: "linear",
-                showMethod: "fadeIn",
-                hideMethod: "fadeOut",
-                onShown: function() {
-                  replaceQueryParamInUrl('message');
-                }
-            };
-            var message = '{{ message or '' }}';
-            var error_message = '{{ error_message }}';
-            if (error_message.length) {
-                toastr.error(error_message);
-            } else if (message.length) {
-                toastr.info(message);
-            };
-        }
-        )
-        </script>
-</head>
-<body>
-    <div class="jumbotron">
-        <div class="container-fluid">
-            <div class="row-fluid">
-                <div class="col-xs-12">
-                    <h1 class="text-center">{{ c.EVENT_NAME_AND_YEAR }} Registration<br><br></h1>
-                    {% if kiosk_mode %}
-                    <div class="text-center">
-                        <a class="btn btn-success btn-xl" href="../preregistration/form" role="button">Register for {{ c.EVENT_NAME_AND_YEAR }}</a>
-                    </div>
-                    {% else %}
-                    {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
-                        {% if logged_in_account %}
-                        <div class="text-center">
-                            <a class="btn btn-info btn-xl" href="../preregistration/homepage" role="button">Continue to Homepage</a>
-                        </div>
-                        {% else %}
-                        <div class="col-sm-6 col-sm-offset-3">
-                            <h2>Log in</h2>
-                        </div>
-                            {% include 'preregistration/login.html' %}
-                        {% endif %}
-                            <br><h2 class="text-center">or</h2><br/>
-                    {% endif %}
-                        <div class="text-center">
-                            <div class="btn-group">
-                            <a class="btn btn-primary btn-lg" href="../preregistration/form" role="button">
-                                {% if c.ATTENDEE_ACCOUNTS_ENABLED and logged_in_account %}Add New Registration{% elif c.ATTENDEE_ACCOUNTS_ENABLED %}Create New Account{% else %}Register for {{ c.EVENT_NAME_AND_YEAR }}{% endif %}
-                            </a>
-                            {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
-                            <a class="btn btn-success btn-lg" href="../preregistration/dealer_registration" role="button">
-                                Register as Dealer
-                            </a>
-                            {% endif %}
-                            </div>
-                            <br><br>
-                        </div>
-                    {% endif %}
-                    {% if kiosk_mode %}
-                    <p class="text-right">
-                        <a class="btn btn-link btn-lg" href="../landing/index?exit_kiosk=True" role="button">
-                            Exit Kiosk Mode
-                        </a>
-                    </p>
-                    {% elif c.AT_THE_CON and c.ATTENDEE_ACCOUNTS_ENABLED %}
-                    <p class="text-right">
-                        <a class="btn btn-link btn-lg" href="../registration/register?kiosk_mode=True" role="button">
-                            Enter Kiosk Mode
-                        </a>
-                    </p>
-                    {% endif %}
-                    <p class="text-right">
-                        <a class="btn btn-link btn-lg" href="../accounts/homepage" role="button">
-                            Admin Login
-                        </a>
-                    </p>
-                    <p class="text-right">
-                        <a class="btn btn-link btn-lg" href="../staffing/login" role="button">
-                            Staff/Volunteer Login
-                        </a>
-                    </p>
-                    <p class="text-right">
-                        <a class="btn btn-link btn-lg" href="../preregistration/check_if_preregistered" role="button">
-                            Check If Registered
-                        </a>
-                    </p>
-                </div>
+{% if kiosk_mode %}
+    <a class="btn btn-success btn-xl" href="../preregistration/form" role="button">Register for {{ c.EVENT_NAME_AND_YEAR }}</a>
+{% else %}
+    {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+        {% if logged_in_account %}
+        <div class="text-center">
+            {% if logged_in_account.attendees %}
+            <a class="btn btn-info btn-lg" href="../preregistration/homepage" role="button">Continue to Homepage</a>
+            {% else %}
+            <div class="btn-group">
+                <a class="btn btn-primary btn-lg" href="../preregistration/form" role="button">
+                    Register for {{ c.EVENT_NAME_AND_YEAR }}
+                </a>
+                {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
+                <a class="btn btn-success btn-lg" href="../preregistration/dealer_registration" role="button">
+                    Register as Dealer
+                </a>
+                {% endif %}
             </div>
+            {% endif %}
         </div>
+        {% else %}
+        {% block login_intro %}
+        <div class="text-center">
+            <h2>Log in</h2>
+        </div>
+        {% endblock %}
+            {% include 'preregistration/login_or_create_account.html' %}
+        {% endif %}
+    {% else %}
+    <div class="text-center">
+    <div class="btn-group">
+        <a class="btn btn-primary btn-lg" href="../preregistration/form" role="button">
+            Register for {{ c.EVENT_NAME_AND_YEAR }}
+        </a>
+        {% if c.DEALER_REG_START and c.DEALER_REG_PUBLIC and c.DEALER_REG_OPEN %}
+        <a class="btn btn-success btn-lg" href="../preregistration/dealer_registration" role="button">
+            Register as Dealer
+        </a>
+        {% endif %}
     </div>
-</body>
-</html>
+    </div>
+    {% endif %}
+{% endif %}
+{% if kiosk_mode %}
+<p class="text-end">
+    <a class="btn btn-link btn-lg" href="../landing/index?exit_kiosk=True" role="button">
+        Exit Kiosk Mode
+    </a>
+</p>
+{% elif c.AT_THE_CON and c.ATTENDEE_ACCOUNTS_ENABLED %}
+<p class="text-end">
+    <a class="btn btn-link btn-lg" href="../registration/register?kiosk_mode=True" role="button">
+        Enter Kiosk Mode
+    </a>
+</p>
+{% endif %}
+
+{% if not c.SSO_EMAIL_DOMAINS %}
+<p class="text-end">
+    <a class="btn btn-link btn-lg" href="../accounts/homepage" role="button">
+        Admin Login
+    </a>
+</p>
+{% endif %}
+
+{% if not c.ATTENDEE_ACCOUNTS_ENABLED %}
+<p class="text-end">
+    <a class="btn btn-link btn-lg" href="../staffing/login" role="button">
+        Staff/Volunteer Login
+    </a>
+</p>
+
+<p class="text-end">
+    <a class="btn btn-link btn-lg" href="../preregistration/check_if_preregistered" role="button">
+        Check If Registered
+    </a>
+</p>
+{% endif %}
+{% endblock %}

@@ -2,16 +2,12 @@
 {% block title %}Marketplace Application{% endblock %}
 {% block content %}
 {% set payment_includes_badge = app.attendee.badge_cost and app.attendee.amount_unpaid > app.total_cost %}
-<div class="masthead"></div>
 {% set attendee = app.attendee %}
-{% if account %}
-  {% include 'preregistration/update_account.html' %}
-{% endif %}
-<div class="panel panel-default">
-  <div class="panel-heading">
+<div class="card">
+  <div class="card-header">
     Marketplace Application
   </div>
-  <div class="panel-body">
+  <div class="card-body">
     {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_applications %}
       {% include 'confirm_tabs.html' with context %}
     {% endif %}

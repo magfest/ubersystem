@@ -1,5 +1,5 @@
 {% set checklist_items = band_checklist_items if band else guest_checklist_items %}
-  <div class="table-responsive panel panel-default">
+  <div class="card-body">
     <table class="datatable table table-striped" data-info="false">
       <thead>
       <tr>
@@ -12,7 +12,7 @@
       </tr>
       </thead>
       <tbody>
-      {% for group in groups if group.guest and (group.guest.group_type == c.BAND if band else group.guest.group_type == c.GUEST) -%}
+      {% for group in guest_groups if (group.guest.group_type == c.BAND if band else group.guest.group_type not in [c.BAND, c.MIVS]) -%}
         <tr id="{{ group.id }}" class="{{ group.guest.group_type_label|lower|replace(' ','_') if group.guest else "" }} group-row">
           <td>
             <a href="form?id={{ group.id }}" target="_blank">{{ group.name }}</a>
@@ -20,8 +20,8 @@
                 {% if group.guest -%}
                   &nbsp;
                   <div class="btn-group" role="group" aria-label="...">
-                  <a href="checklist_info?id={{ group.guest.id }}" class="btn btn-xs btn-default"><span class="glyphicon glyphicon-cog" data-toggle="tooltip" title="{{ group.guest.group_type_label }} Info"></span></a>
-                  <a href="../guests/index?id={{ group.guest.id }}" class="btn btn-xs btn-primary"><span class="glyphicon glyphicon-check" data-toggle="tooltip" title="{{ group.guest.group_type_label }} Checklist"></span></a>
+                  <a href="checklist_info?id={{ group.guest.id }}" class="btn btn-xs btn-outline-secondary"><i class="fa fa-cog" data-bs-toggle="tooltip" title="{{ group.guest.group_type_label }} Info"></i></a>
+                  <a href="../guests/index?id={{ group.guest.id }}" class="btn btn-xs btn-primary"><i class="fa fa-check" data-bs-toggle="tooltip" title="{{ group.guest.group_type_label }} Checklist"></i></a>
                   </div>
                 {% endif %}
             </span>

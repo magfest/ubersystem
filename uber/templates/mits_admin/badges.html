@@ -12,9 +12,9 @@
     var link = function (teamId, applicantId, attendeeId) {
         $.post('link_badge', {csrf_token: csrf_token, applicant_id: applicantId, attendee_id: attendeeId}, function (response) {
             if (response.error) {
-                toastr.error(response.error);
+                showErrorMessage(response.error);
             } else {
-                toastr.info('Linked applicant to ' + response.name);
+                $("#message-alert").addClass("alert-info").show().children('span').html('Linked applicant to ' + response.name);
                 hideRow(applicantId);
                 setCompCount(teamId, response.comp_count);
             }
@@ -23,9 +23,9 @@
     var create = function (teamId, applicantId) {
         $.post('create_badge', {csrf_token: csrf_token, applicant_id: applicantId}, function (response) {
             if (response.error) {
-                toastr.error(response.error);
+                showErrorMessage(response.error);
             } else {
-                toastr.info('Added new attendee badge for applicant');
+                $("#message-alert").addClass("alert-info").show().children('span').html('Added new attendee badge for applicant');
                 hideRow(applicantId);
                 setCompCount(teamId, response.comp_count);
             }

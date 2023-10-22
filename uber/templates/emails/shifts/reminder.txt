@@ -4,7 +4,7 @@ Thanks again for signing up to volunteer at {{ c.EVENT_NAME }}!  You are not cur
 
 Please sign up for shifts at {{ c.URL_BASE }}/staffing/login?first_name={{ attendee.first_name|urlencode }}&last_name={{ attendee.last_name|urlencode }}&email={{ attendee.email|urlencode }}&zip_code={{ attendee.zip_code|urlencode }} -- if you need to, you can verify/update your personal information at {{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}
 
-After August 11, you cannot drop shifts, but you can continue to sign up for shifts through the event. Counts will be taken for perks August 1.
+After {{ c.DROP_SHIFTS_DEADLINE.astimezone(c.EVENT_TIMEZONE).strftime('%B %-e') }}, you cannot drop shifts, but you can continue to sign up for shifts through the event.
 
 Please let us know if you have any questions.
 

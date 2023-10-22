@@ -97,7 +97,7 @@ for plugin, configs in plugin_configs.items():
 
 if sideboard_configs:
     config = sideboard_configs[0]
-    for override in configs[1:]:
+    for override in sideboard_configs[1:]:
         config.merge(override)
     if "sideboard" in secrets:
         config.merge(ConfigObj(secrets["sideboard"]))

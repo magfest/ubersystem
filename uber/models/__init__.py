@@ -34,8 +34,9 @@ from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
 from uber.models.types import Choice, DefaultColumn as Column, MultiChoice
-from uber.utils import Charge, check_csrf, normalize_email, normalize_phone, DeptChecklistConf, report_critical_exception, \
+from uber.utils import check_csrf, normalize_email_legacy, normalize_phone, DeptChecklistConf, report_critical_exception, \
     valid_email, valid_password
+from uber.payments import ReceiptManager
 
 
 def _make_getter(model):
@@ -175,7 +176,7 @@ class MagModel:
         Because things like discounts exist, we ensure default_cost will never
         return a negative value.
         """
-        receipt, receipt_items = Charge.create_new_receipt(self)
+        receipt, receipt_items = ReceiptManager.create_new_receipt(self)
             
         return max(0, sum([(cost * count) for desc, cost, count in receipt_items]) / 100)
 
@@ -186,23 +187,6 @@ class MagModel:
         """
         from uber.models.commerce import ReceiptTransaction
         return self.session.query(ReceiptTransaction).filter_by(fk_id=self.id).all()
-
-    @property
-    def active_receipt(self):
-        """
-        Returns a dictionary of this object's current active receipt, if there is one.
-        This lets us access various properties of the receipt as if they were directly
-        tied to the model without having to have an extra active Session().
-        """
-        from uber.models import Session, ModelReceipt
-        receipt_dict = {}
-        with Session() as session:
-            receipt = session.get_receipt_by_model(self)
-            if receipt:
-                receipt_dict = receipt.to_dict()
-                for property in ['item_total', 'txn_total', 'current_amount_owed', 'pending_total', 'payment_total', 'refund_total']:
-                    receipt_dict[property] = getattr(receipt, property)
-        return receipt_dict
 
     @cached_classproperty
     def unrestricted(cls):
@@ -356,7 +340,7 @@ class MagModel:
             return []
 
         choices = dict(self.get_field(name).type.choices)
-        val = MultiChoice.convert_if_labels(self.get_field(name).type, val)
+        val = self.get_field(name).type.convert_if_labels(val)
         return [int(i) for i in str(val).split(',') if i and int(i) in choices]
 
     @suffix_property
@@ -417,8 +401,8 @@ class MagModel:
             try:
                 return sum(item[0] * item[1] for item in cost_calc[1].items()) / 100
             except AttributeError:
-                if len(cost_calc) > 2:
-                    return cost_calc[1] * cost_calc[2] / 100
+                if len(cost_calc) > 3:
+                    return cost_calc[1] * cost_calc[3] / 100
                 else:
                     return cost_calc[1] / 100
         except Exception:
@@ -430,6 +414,70 @@ class MagModel:
         from uber.models.tracking import Tracking
         query = self.session.query(Tracking).filter_by(fk_id=instance.id, action=action).order_by(Tracking.when.desc())
         return query.first() if last_only else query.all()
+
+    def coerce_column_data(self, column, value):
+        if isinstance(value, six.string_types):
+            value = value.strip()
+
+        try:
+            if value is None:
+                return  # Totally fine for value to be None
+
+            elif value == '' and isinstance(column.type, (Float, Numeric, Choice, Integer, UTCDateTime, Date)):
+                return None
+
+            elif isinstance(column.type, Boolean):
+                if isinstance(value, six.string_types):
+                    return value.strip().lower() not in ('f', 'false', 'n', 'no', '0')
+                return bool(value)
+
+            elif isinstance(column.type, Float):
+                return float(value)
+
+            elif isinstance(column.type, Numeric):
+                if isinstance(value, six.string_types) and value.endswith('.0'):
+                    return int(value[:-2])
+                else:
+                    return int(float(value))
+
+            elif isinstance(column.type, (MultiChoice)):
+                if isinstance(value, list):
+                    value = ','.join(map(lambda x: str(x).strip(), value))
+                else:
+                    value = str(value).strip()
+                return column.type.convert_if_labels(value)
+
+            elif isinstance(column.type, Choice):
+                return column.type.convert_if_label(value)
+
+            elif isinstance(column.type, Integer):
+                value = int(float(value))
+
+            elif isinstance(column.type, UTCDateTime):
+                try:
+                    value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
+                except ValueError:
+                    value = dateparser.parse(value)
+
+                if not value.tzinfo:
+                    return c.EVENT_TIMEZONE.localize(value)
+                else:
+                    return value
+
+            elif isinstance(column.type, Date):
+                try:
+                    value = datetime.strptime(value, c.DATE_FORMAT)
+                except ValueError:
+                    value = dateparser.parse(value)
+                return value.date()
+
+            elif isinstance(column.type, JSONB) and isinstance(value, str):
+                return json.loads(value)
+
+        except Exception as error:
+            log.debug(
+                'Ignoring error coercing value for column {}.{}: {}', self.__tablename__, column.name, error)
+        return value
 
     def apply(self, params, *, bools=(), checkgroups=(), restricted=True, ignore_csrf=True):
         """
@@ -443,73 +491,7 @@ class MagModel:
         for column in self.__table__.columns:
             if (not restricted or column.name in self.unrestricted) and column.name in params and column.name != 'id':
                 value = params[column.name]
-                if isinstance(value, six.string_types):
-                    value = value.strip()
-
-                try:
-                    if value is None:
-                        pass  # Totally fine for value to be None
-
-                    elif isinstance(column.type, Float):
-                        if value == '':
-                            value = None
-                        else:
-                            value = float(value)
-
-                    elif isinstance(column.type, Numeric):
-                        if value == '':
-                            value = None
-                        elif isinstance(value, six.string_types) and value.endswith('.0'):
-                            value = int(value[:-2])
-                        else:
-                            value = int(float(value))
-
-                    elif isinstance(column.type, (MultiChoice)):
-                        if isinstance(value, list):
-                            value = ','.join(map(lambda x: str(x).strip(), value))
-                        else:
-                            value = str(value).strip()
-                        value = column.type.convert_if_labels(value)
-
-                    elif isinstance(column.type, Choice):
-                        if value == '':
-                            value = None
-                        else:
-                            value = column.type.convert_if_label(value)
-
-                    elif isinstance(column.type, Integer):
-                        if value == '':
-                            value = None
-                        else:
-                            value = int(float(value))
-
-                    elif isinstance(column.type, UTCDateTime):
-                        if value == '':
-                            value = None
-                        try:
-                            value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
-                        except ValueError:
-                            value = dateparser.parse(value)
-                        if not value.tzinfo:
-                            value = c.EVENT_TIMEZONE.localize(value)
-
-                    elif isinstance(column.type, Date):
-                        if value == '':
-                            value = None
-                        try:
-                            value = datetime.strptime(value, c.DATE_FORMAT)
-                        except ValueError:
-                            value = dateparser.parse(value)
-                        value = value.date()
-
-                    elif isinstance(column.type, JSONB) and isinstance(value, str):
-                        value = json.loads(value)
-
-                except Exception as error:
-                    log.debug(
-                        'Ignoring error coercing value for column {}.{}: {}', self.__tablename__, column.name, error)
-
-                setattr(self, column.name, value)
+                setattr(self, column.name, self.coerce_column_data(column, value))
 
         for column in self.__table__.columns:
             if (not restricted or column.name in self.unrestricted) \
@@ -540,7 +522,7 @@ class MagModel:
 
     def timespan(self, minute_increment=1):
         def minutestr(dt):
-            return ':30' if dt.minute == 30 else ''
+            return '' if dt.minute == 0 else dt.strftime(':%M')
 
         timespan = timedelta(minutes=minute_increment * self.duration)
         endtime = self.start_time_local + timespan
@@ -834,9 +816,8 @@ class Session(SessionManager):
                         )
                 )
                 
-            return_dict['panels_admin'] = self.query(Attendee).filter(
+            return_dict['panels_admin'] = self.query(Attendee).outerjoin(PanelApplicant).filter(
                                                  or_(Attendee.ribbon.contains(c.PANELIST_RIBBON),
-                                                     Attendee.panel_interest == True,
                                                      Attendee.panel_applications != None,
                                                      Attendee.assigned_panelists != None,
                                                      Attendee.panel_applicants != None,
@@ -847,6 +828,17 @@ class Session(SessionManager):
                     .join(GuestGroup, Group.id == GuestGroup.group_id).filter(
                         and_(Group.id == Attendee.group_id, GuestGroup.group_id == Group.id, GuestGroup.group_type == c.MIVS)
                     ))
+            return_dict['art_show_admin'] = self.query(Attendee
+                                                       ).outerjoin(
+                                                           ArtShowApplication, 
+                                                           or_(ArtShowApplication.attendee_id == Attendee.id,
+                                                               ArtShowApplication.agent_id == Attendee.id)
+                                                        ).outerjoin(ArtShowBidder).filter(
+                                                            or_(Attendee.art_show_bidder != None,
+                                                                Attendee.art_show_purchases != None,
+                                                                Attendee.art_show_applications != None,
+                                                                Attendee.art_agent_applications != None)
+                                                        )
             return return_dict
             
         def viewable_attendees(self):
@@ -910,170 +902,6 @@ class Session(SessionManager):
                 job.to_dict(fields)
                 for job in jobs if (job.required_roles or frozenset(job.minutes) not in restricted_minutes)]
 
-        def update_receipt_item_from_param(self, model, receipt, param_name, params, func_name='process_receipt_upgrade_item'):
-            charge_func = getattr(Charge, func_name)
-            try:
-                receipt_item = charge_func(model, param_name, receipt=receipt, new_val=params[param_name])
-                if receipt_item.amount != 0:
-                    self.add(receipt_item)
-            except Exception as e:
-                self.rollback()
-                log.error(str(e))
-
-        def auto_update_receipt(self, model, params):
-            params = params.copy()
-            receipt = self.get_receipt_by_model(model)
-            if not receipt:
-                return
-
-            if params.get('no_override') and params.get('overridden_price') or params.get('overridden_price') == '':
-                params['overridden_price'] = None
-
-            model_overridden_price = getattr(model, 'overridden_price', None)
-            model_auto_recalc = getattr(model, 'auto_recalc', True)
-            overridden_unset = model_overridden_price and not params.get('overridden_price')
-            auto_recalc_unset = not model_auto_recalc and params.get('auto_recalc', None)
-
-            if (model_overridden_price and not overridden_unset) or (not model_auto_recalc and not auto_recalc_unset):
-                return
-
-            if params.get('overridden_price'):
-                return self.update_receipt_item_from_param(model, receipt, 'overridden_price', params)
-            
-            if not params.get('auto_recalc', True):
-                return self.update_receipt_item_from_param(model, receipt, 'cost', params)
-            else:
-                params.pop('cost', None)
-            
-            if params.get('power_fee', None) != None and c.POWER_PRICES.get(int(params.get('power'), 0), None) == None:
-                error = self.update_receipt_item_from_param(model, receipt, 'power_fee', params)
-                if error:
-                    return error
-                params.pop('power')
-                params.pop('power_fee')
-            
-            cost_changes = getattr(model.__class__, 'cost_changes', [])
-            credit_changes = getattr(model.__class__, 'credit_changes', [])
-            for param in params:
-                if param in credit_changes:
-                    error = self.update_receipt_item_from_param(model, receipt, param, params, 'process_receipt_credit_change')
-                    if error:
-                        return error
-                elif param in cost_changes:
-                    error = self.update_receipt_item_from_param(model, receipt, param, params)
-                    if error:
-                        return error
-
-        def refund_item_or_txn(self, amount=0, txn=None, item=None):
-            if item:
-                txn = txn or item.receipt_txn
-
-            if not txn:
-                return "Transaction not found for this receipt item."
-
-            error = self.preprocess_refund(txn, amount, bool(item))
-            if error:
-                return error
-
-            response = self.process_refund(txn, amount)
-            if response and isinstance(response, six.string_types):
-                return response
-
-        def preprocess_refund(self, txn, amount=0, already_refunded_error=True):
-            """
-            Performs error checks and updates transactions to prepare them for process_refund.
-            Call this to skip over transactions that can't be refunded or if you always want 
-            the Stripe response from process_refund. Otherwise, call refund_item_or_txn instead.
-            """
-            from uber.custom_tags import format_currency
-            from uber.models import Attendee
-
-            if not txn.intent_id:
-                return "Can't refund a transaction that is not a Stripe payment."
-
-            if not txn.charge_id:
-                charge_id = txn.check_paid_from_stripe()
-                if not charge_id:
-                    return "We could not find record of this payment being completed."
-
-            already_refunded = txn.update_amount_refunded()
-            if txn.amount - already_refunded <= 0:
-                if already_refunded_error:
-                    return "This payment has already been fully refunded."
-
-            refund_amount = int(amount or (txn.amount - already_refunded))
-            if txn.amount - already_refunded < refund_amount:
-                return "There is not enough left on this transaction to refund {}.".format(format_currency(refund_amount / 100))                
-
-        def process_refund(self, txn, amount=0):
-            """
-            Attempts to refund a given Stripe transaction. Either call this after preprocess_refund
-            or call refund_item_or_txn instead.
-
-            Returns either an error message, a Stripe Refund() object, or None if the transaction had no successful charges
-            """
-            import stripe
-            from pockets.autolog import log
-
-            refund_amount = amount or txn.amount_left
-
-            balance = stripe.Balance.retrieve()
-            if balance['available'][0]['amount'] < refund_amount:
-                return "We cannot currently refund this transaction. Please try again in a few days or contact an administrator."
-
-            log.debug('REFUND: attempting to refund Stripe transaction with ID {} {} cents for {}',
-                      txn.stripe_id, refund_amount, txn.desc)
-
-            try:
-                response = stripe.Refund.create(
-                            payment_intent=txn.intent_id, amount=int(refund_amount), reason='requested_by_customer')
-            except Exception as e:
-                error_txt = 'Error while calling process_refund' \
-                            '(self, stripeID={!r})'.format(txn.stripe_id)
-                report_critical_exception(
-                    msg=error_txt,
-                    subject='ERROR: MAGFest Stripe invalid request error')
-                return 'An unexpected problem occurred: ' + str(e)
-            else:
-                self.add(ReceiptTransaction(
-                    receipt_id=txn.receipt.id,
-                    refund_id=response.id,
-                    amount=refund_amount * -1,
-                    desc="Automatic refund of Stripe transaction " + txn.stripe_id,
-                    who=uber.models.AdminAccount.admin_name() or 'non-admin'
-                ))
-
-                self.add(txn)
-                txn.refunded += refund_amount
-
-                model = self.get_model_by_receipt(txn.receipt)
-                if isinstance(model, Attendee) and model.paid == c.HAS_PAID:
-                    model.paid = c.REFUNDED
-                    self.add(model)
-                
-                self.commit()
-                self.refresh(txn)
-                return response
-
-        def process_receipt_charge(self, receipt, charge, payment_method=c.STRIPE):
-            """
-            Creates the stripe intent and receipt transaction for a given charge object.
-            Most methods should call this instead of calling create_stripe_intent and 
-            create_receipt_transaction directly.
-            """
-            stripe_intent = charge.create_stripe_intent()
-            if isinstance(stripe_intent, six.string_types):
-                self.rollback()
-                return stripe_intent
-
-            receipt_txn = Charge.create_receipt_transaction(receipt, charge.description, stripe_intent.id, method=payment_method)
-            if isinstance(receipt_txn, six.string_types):
-                self.rollback()
-                return receipt_txn
-
-            self.add(receipt_txn)
-            return stripe_intent
-
         def possible_match_list(self):
             possibles = defaultdict(list)
             for a in self.valid_attendees():
@@ -1134,8 +962,12 @@ class Session(SessionManager):
                     ),
                 Attendee.watchlist_id == None).all()
 
-        def get_account_by_email(self, email):
-            return self.query(AdminAccount).join(Attendee).filter(func.lower(Attendee.email) == func.lower(email)).one()
+        def get_attendee_account_by_email(self, email):
+            return self.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(email)).one()
+
+        def get_admin_account_by_email(self, email):
+            from uber.utils import normalize_email_legacy
+            return self.query(AdminAccount).join(Attendee).filter(Attendee.normalized_email == normalize_email_legacy(email)).one()
 
         def no_email(self, subject):
             return not self.query(Email).filter_by(subject=subject).all()
@@ -1146,8 +978,8 @@ class Session(SessionManager):
                 last_name=last_name,
                 zip_code=zip_code
             ).filter(
-                Attendee.normalized_email == normalize_email(email),
-                Attendee.badge_status != c.INVALID_STATUS
+                Attendee.normalized_email == normalize_email_legacy(email),
+                Attendee.is_valid == True
             ).limit(10).all()
 
             if attendees:
@@ -1155,7 +987,10 @@ class Session(SessionManager):
                     c.COMPLETED_STATUS: 0,
                     c.NEW_STATUS: 1,
                     c.REFUNDED_STATUS: 2,
-                    c.DEFERRED_STATUS: 3})
+                    c.DEFERRED_STATUS: 3,
+                    c.WATCHED_STATUS: 4,
+                    c.UNAPPROVED_DEALER_STATUS: 5,
+                    c.NOT_ATTENDING: 6})
 
                 attendees = sorted(
                     attendees, key=lambda a: statuses[a.badge_status])
@@ -1177,7 +1012,7 @@ class Session(SessionManager):
                             'The confirmation number you entered is not valid, ' \
                             'or there is no matching badge.'
 
-                if attendee.badge_status in [c.INVALID_STATUS, c.WATCHED_STATUS]:
+                if not attendee.is_valid:
                     return None, \
                            'This badge is invalid. Please contact registration.'
             else:
@@ -1199,26 +1034,45 @@ class Session(SessionManager):
                         else:
                             message = valid_password(password) or valid_email(params.get('email', ''))
                         if not message:
-                            new_account = self.create_attendee_account(params.get('email', ''), password)
+                            new_account = self.create_attendee_account(params.get('email', ''), password=password)
                             self.add_attendee_to_account(attendee, new_account)
                             cherrypy.session['attendee_account_id'] = new_account.id
             return attendee, message
 
-        def create_attendee_account(self, email, password=None):
-            from uber.models import AttendeeAccount
+        def create_admin_account(self, attendee, password='', generate_pwd=True, **params):
+            from uber.utils import genpasswd
 
-            new_account = AttendeeAccount(email=email, hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
+            if not password and generate_pwd:
+                password = genpasswd()
+            
+            new_account = AdminAccount(attendee=attendee, hashed=bcrypt.hashpw(password, bcrypt.gensalt()))
+            if 'judge' in params:
+                new_account.judge = params.pop('judge')
+            new_account.apply(params)
             self.add(new_account)
             return new_account
 
+        def create_attendee_account(self, email=None, password=None):
+            from uber.models import AttendeeAccount
+            from uber.utils import normalize_email
+
+            new_account = AttendeeAccount(email=normalize_email(email), hashed=bcrypt.hashpw(password, bcrypt.gensalt()) if password else '')
+            self.add(new_account)
+
+            return new_account
+
         def add_attendee_to_account(self, attendee, account):
-            if c.ONE_MANAGER_PER_BADGE and attendee.managers and account.hashed != '':
+            from uber.utils import normalize_email
+
+            unclaimed_account = account.hashed != '' and not account.is_sso_account
+
+            if c.ONE_MANAGER_PER_BADGE and attendee.managers and not unclaimed_account:
                 attendee.managers.clear()
             if attendee not in account.attendees:
                 account.attendees.append(attendee)
 
         def match_attendee_to_account(self, attendee):
-            existing_account = self.query(AttendeeAccount).filter_by(normalized_email=normalize_email(attendee.email)).first()
+            existing_account = self.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(attendee.email)).first()
             if existing_account:
                 self.add_attendee_to_account(attendee, existing_account)
 
@@ -1229,12 +1083,11 @@ class Session(SessionManager):
             receipt = receipt_select.first()
 
             if not receipt and create_if_none:
-                receipt, receipt_items = Charge.create_new_receipt(model, create_model=True)
+                receipt, receipt_items = ReceiptManager.create_new_receipt(model, create_model=True)
 
                 self.add(receipt)
                 if create_if_none != "BLANK":
-                    for item in receipt_items:
-                        self.add(item)
+                    self.add_all(receipt_items)
                 self.commit()
             return receipt
 
@@ -1242,6 +1095,20 @@ class Session(SessionManager):
             cls = getattr(uber.models, receipt.owner_model)
             if cls:
                 return self.query(cls).filter_by(id=receipt.owner_id).first()
+
+        def refresh_receipt_and_model(self, model):
+            receipt = self.get_receipt_by_model(model)
+            if receipt:
+                for txn in receipt.pending_txns:
+                    txn.check_paid_from_stripe()
+                self.refresh(receipt)
+            
+            try:
+                self.refresh(model)
+            except sqlalchemy.exc.InvalidRequestError:
+                # Non-persistent object, so nothing to refresh
+                pass
+            return receipt
 
         def attendee_from_marketplace_app(self, **params):
             attendee, message = self.create_or_find_attendee_by_id(**params)
@@ -1254,9 +1121,6 @@ class Session(SessionManager):
 
             return attendee, message
         
-        def art_show_apps(self):
-            return self.query(ArtShowApplication).options(joinedload('attendee')).all()
-
         def attendee_from_art_show_app(self, **params):
             attendee, message = self.create_or_find_attendee_by_id(**params)
             if message:
@@ -1274,21 +1138,7 @@ class Session(SessionManager):
         def lookup_agent_code(self, code):
             return self.query(ArtShowApplication).filter_by(agent_code=code).all()
 
-        def refresh_receipt_and_model(self, model):
-            receipt = self.get_receipt_by_model(model)
-            if receipt:
-                for txn in receipt.pending_txns:
-                    txn.check_paid_from_stripe()
-                self.refresh(receipt)
-            
-            try:
-                self.refresh(model)
-            except sqlalchemy.exc.InvalidRequestError:
-                # Non-persistent object, so nothing to refresh
-                pass
-            return receipt
-
-        def add_promo_code_to_attendee(self, attendee, code):
+        def add_promo_code_to_attendee(self, attendee, code, used_codes=defaultdict(int)):
             """
             Convenience method for adding a promo code to an attendee.
 
@@ -1303,6 +1153,10 @@ class Session(SessionManager):
                     should be added.
                 code (str): The promo code as typed by an end user, or an
                     empty string to unset the promo code.
+                used_codes (defaultdict(int)): A list of codes already used
+                    but not added to the session, e.g., in PreregCart.
+                    These codes are flattened to the list, as they're only
+                    used here to check for used PromoCodeGroup codes.
 
             Returns:
                 str: Either a failure message or an empty string
@@ -1310,7 +1164,7 @@ class Session(SessionManager):
             """
             code = code.strip() if code else ''
             if code:
-                attendee.promo_code = self.lookup_promo_code(code)
+                attendee.promo_code = self.lookup_promo_code(code, list(used_codes.keys()))
                 if attendee.promo_code:
                     attendee.promo_code_id = attendee.promo_code.id
                     return ''
@@ -1322,7 +1176,7 @@ class Session(SessionManager):
                 attendee.promo_code_id = None
                 return ''
 
-        def lookup_promo_code(self, code):
+        def lookup_promo_code(self, code, used_codes=[]):
             """
             Convenience method for finding a promo code by id or code.
             Accounts for PromoCodeGroups.
@@ -1339,10 +1193,9 @@ class Session(SessionManager):
                 return promo_code
 
             group = self.lookup_promo_or_group_code(code, PromoCodeGroup)
-            if not group:
-                return None
-
-            return group.valid_codes[0] if group.valid_codes else None
+            if group:
+                unused_valid_codes = [code for code in group.valid_codes if code.code not in used_codes]
+                return unused_valid_codes[0] if unused_valid_codes else None
 
         def lookup_promo_or_group_code(self, code, model=PromoCode):
             """
@@ -1765,6 +1618,7 @@ class Session(SessionManager):
             attendees = self.query(Attendee) \
                             .outerjoin(Attendee.group) \
                             .outerjoin(Attendee.promo_code) \
+                            .outerjoin(Attendee.managers) \
                             .outerjoin(aliased_pcg, PromoCode.group) \
                             .options(
                                 joinedload(Attendee.group),
@@ -1843,9 +1697,11 @@ class Session(SessionManager):
                         target, term, search_term, op = self.parse_attr_search_terms(search_text)
 
                         if target == 'email':
-                            attr_search_filter = Attendee.normalized_email.icontains(normalize_email(search_term))
+                            attr_search_filter = Attendee.normalized_email.contains(normalize_email_legacy(search_term))
+                        elif target == 'account_email':
+                            attr_search_filter = AttendeeAccount.normalized_email.contains(normalize_email_legacy(search_term))
                         elif target == 'group':
-                            attr_search_filter = Group.name.icontains(search_term.strip())
+                            attr_search_filter = Group.normalized_name.contains(search_term.strip().lower())
                         elif target == 'has_ribbon':
                             attr_search_filter = Attendee.ribbon == Attendee.ribbon.type.convert_if_labels(search_term.title())
                         elif target in Attendee.searchable_bools:
@@ -1997,22 +1853,6 @@ class Session(SessionManager):
             self.add(Shift(attendee=attendee, job=job))
             self.commit()
 
-        def affiliates(self):
-            amounts = defaultdict(
-                int, {a: -i for i, a in enumerate(c.DEFAULT_AFFILIATES)})
-
-            query = self.query(Attendee.affiliate, Attendee.amount_extra) \
-                .filter(and_(Attendee.amount_extra > 0, Attendee.affiliate != ''))
-
-            for aff, amt in query:
-                amounts[aff] += amt
-
-            return [{
-                'id': aff,
-                'text': aff,
-                'total': max(0, amt)
-            } for aff, amt in sorted(amounts.items(), key=lambda tup: -tup[1])]
-
         def insert_test_admin_account(self):
             """
             Insert a test admin into the database with username
@@ -2029,7 +1869,7 @@ class Session(SessionManager):
                 placeholder=True,
                 first_name='Test',
                 last_name='Developer',
-                email='magfest@example.com',
+                email=c.TEST_ADMIN_EMAIL,
                 badge_type=c.ATTENDEE_BADGE,
             )
             self.add(attendee)
@@ -2041,8 +1881,11 @@ class Session(SessionManager):
 
             test_developer_account = AdminAccount(
                 attendee=attendee,
-                hashed=bcrypt.hashpw('magfest', bcrypt.gensalt())
             )
+
+            if not c.SAML_SETTINGS:
+                test_developer_account.hashed = bcrypt.hashpw('magfest', bcrypt.gensalt())
+            
             test_developer_account.access_groups.append(all_access_group)
 
             self.add(all_access_group)
@@ -2298,7 +2141,7 @@ def _attendee_validity_check():
         allow_invalid = kwargs.pop('allow_invalid', False)
         attendee = orig_getter(self, *args, **kwargs)
         if not allow_invalid and not attendee.is_new and \
-           not self.current_admin_account and not attendee.badge_status == c.INVALID_STATUS:
+           not self.current_admin_account and not attendee.is_valid:
             raise HTTPRedirect('../preregistration/invalid_badge?id={}', attendee.id)
         else:
             return attendee

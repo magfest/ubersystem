@@ -13,7 +13,7 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, credit_card
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Tracking, ArbitraryCharge, MarketplaceApplication
-from uber.utils import Charge, check, localized_now, Order, remove_opt
+from uber.utils import check, localized_now, Order, remove_opt
 
 
 @all_renderable()
@@ -32,7 +32,7 @@ class Root:
         attendee = None
 
         attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
-            .filter(Attendee.first_name != '', Attendee.badge_status not in [c.INVALID_STATUS, c.WATCHED_STATUS])
+            .filter(Attendee.first_name != '', Attendee.is_valid == True, Attendee.badge_status != c.WATCHED_STATUS)
 
         attendees = [
             (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))

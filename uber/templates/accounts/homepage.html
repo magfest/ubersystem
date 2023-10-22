@@ -2,7 +2,7 @@
 {% block title %}Homepage{% endblock %}
 {% block content %}
 {% if c.ADMIN_ACCESS_SET %}
-<div class="panel panel-body">
+<div class="card-body">
 <a href="#attendee_form?id=None" class="btn btn-primary">Add new attendee</a>
 {% if c.HAS_SHIFTS_ADMIN_ACCESS %}
 <a class="btn btn-info" href="../shifts_admin/staffers?department=All">View volunteers in your department(s)</a>
@@ -13,22 +13,22 @@
 </div>
 <strong>View attendees by type:</strong>
 <div class="btn-group" style="padding-bottom:10px;">
-<button class="btn btn-default attendee-types" id="created" onClick="loadViewableAttendees('created')">Created By You</button>
+<button class="btn btn-outline-secondary attendee-types" id="created" onClick="loadViewableAttendees('created')">Created By You</button>
 {% for section in site_sections %}
-<button class="btn btn-default attendee-types" id="{{ section }}" onClick="loadViewableAttendees('{{ section }}')">{{ section[:-6]|title }}</button>
+<button class="btn btn-outline-secondary attendee-types" id="{{ section }}" onClick="loadViewableAttendees('{{ section }}')">{{ section[:-6]|title }}</button>
 {% endfor %}
 </div>
 <div id="viewable_attendees"></div>
 <script type="text/javascript">
 var loadViewableAttendees = function(query) {
-  $('.attendee-types').removeClass('btn-primary btn-default').addClass('btn-default');
-  $('#' + query).addClass('btn-primary').removeClass('btn-default');
+  $('.attendee-types').removeClass('btn-primary btn-outline-secondary').addClass('btn-outline-secondary');
+  $('#' + query).addClass('btn-primary').removeClass('btn-outline-secondary');
     $('#viewable_attendees').load('../accounts/attendees?query=' + query, function(){
       if ($('#viewable_attendees').length) {
           $(window).trigger( 'runJavaScript' );
       } else {
           // We got redirected -- likely to the login page -- so load it properly
-          toastr.error("Loading failed.");
+          showErrorMessage("Loading failed.");
           window.location.hash = ""; // prevent refresh loops
           window.location.reload();
       }

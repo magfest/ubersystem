@@ -7,7 +7,7 @@
 <form method="post" action="form" class="form-horizontal" role="form">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ app.id }}" />
-    {% include "panel_app_form.html" %}
+    {% include "panel_app_form_new.html" %}
     <div class="form-group">
     <label class="col-sm-3 control-label">When are you NOT available?</label>
     <div class="col-sm-6">

@@ -18,8 +18,6 @@ from uuid import uuid4
 
 import cherrypy
 import phonenumbers
-import stripe
-from authlib.integrations.requests_client import OAuth2Session
 from phonenumbers import PhoneNumberFormat
 from pockets import cached_property, classproperty, floor_datetime, is_listy, listify
 from pockets.autolog import log
@@ -125,7 +123,17 @@ def normalize_newlines(text):
         return ''
 
 
-def normalize_email(email):
+def normalize_email(email, split_address=False):
+    from email_validator import validate_email
+    response = validate_email(email, check_deliverability=False)
+    if split_address:
+        return response['local'], response['domain']
+    return response['email']
+
+
+def normalize_email_legacy(email):
+    # We're trialing a new way to normalize email for attendee accounts
+    # This is for attendee records themselves
     return email.strip().lower().replace('.', '')
 
 
@@ -180,6 +188,24 @@ def url_domain(url):
     url = re.sub(r'^https?:/', '', url)
     url = re.sub(r'^www\.', '', url)
     return url.split('/', 1)[0].strip('@#?=. ')
+
+
+def extract_urls(text):
+    """
+    Extract all URLs from a block of text and returns them in a list.
+    Designed for use with attendee-submitted URLs, e.g., URLs inside
+    seller application fields.
+
+    This is a simplified version of https://stackoverflow.com/a/50790119.
+    We don't look for IP addresses of any kind, and we assume that
+    attendees put whitespace after each URL so we can match complex
+    resources paths with a wide variety of characters.
+    """
+    if not text:
+        return
+
+    regex=r"\b((?:https?:\/\/)?(?:(?:www\.)?(?:[\da-z\.-]+)\.(?:[a-z]{2,6}))(?::[0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])?(?:\/\S*)*\/?)\b"
+    return re.findall(regex, text, re.IGNORECASE)
 
 
 def create_valid_user_supplied_redirect_url(url, default_url):
@@ -287,6 +313,23 @@ def get_age_from_birthday(birthdate, today=None):
     return today.year - birthdate.year - upcoming_birthday
 
 
+def get_age_conf_from_birthday(birthdate, today=None):
+    """
+    Combines get_age_from_birthday with our age configuration groups
+    to allow easy access to age-related config when doing validations.
+    """
+    if not birthdate:
+        return c.AGE_GROUP_CONFIGS[c.AGE_UNKNOWN]
+
+    age = get_age_from_birthday(birthdate, today)
+
+    for val, age_group in c.AGE_GROUP_CONFIGS.items():
+        if val != c.AGE_UNKNOWN and age_group['min_age'] <= age and age <= age_group['max_age']:
+            return age_group
+        
+    return c.AGE_GROUP_CONFIGS[c.AGE_UNKNOWN]
+
+
 class DateBase:
     _when_dateformat = '%m/%d'
 
@@ -367,7 +410,7 @@ class days_after(DateBase):
             days = 0
 
         if days < 0:
-            raise ValueError("'days' paramater must be >= 0. days={}".format(days))
+            raise ValueError("'days' parameter must be >= 0. days={}".format(days))
 
         self.starting_date = None if not deadline else deadline + timedelta(days=days)
 
@@ -397,10 +440,10 @@ class days_before(DateBase):
     """
     def __init__(self, days, deadline, until=None):
         if days <= 0:
-            raise ValueError("'days' paramater must be > 0. days={}".format(days))
+            raise ValueError("'days' parameter must be > 0. days={}".format(days))
 
         if until and days <= until:
-            raise ValueError("'days' paramater must be less than 'until'. days={}, until={}".format(days, until))
+            raise ValueError("'days' parameter must be less than 'until'. days={}, until={}".format(days, until))
 
         self.days, self.deadline, self.until = days, deadline, until
 
@@ -437,6 +480,79 @@ class days_before(DateBase):
         return 'between {} and {}'.format(start_txt, end_txt)
 
 
+class days_between(DateBase):
+    """
+    Returns true if today is between two deadlines, with optional values for days before and after each deadline.
+
+    :param: days - number of days before deadline to start
+    :param: deadline - datetime of the deadline
+    :param: until - (optional) number of days prior to deadline to end (default: 0)
+
+    Examples:
+        days_between((14, c.POSITRON_BEAM_DEADLINE), (5, c.EPOCH))() - True if it's 14 days before c.POSITRON_BEAM_DEADLINE and 5 days before c.EPOCH
+        days_between((c.WARP_COIL_DEADLINE, 5), c.EPOCH)() - True if it's 5 days after c.WARP_COIL_DEADLINE up to c.EPOCH
+    """
+    def __init__(self, first_deadline_tuple, second_deadline_tuple):
+        self.errors = []
+
+        self.starting_date = self.process_deadline_tuple(first_deadline_tuple)
+        self.ending_date = self.process_deadline_tuple(second_deadline_tuple)
+
+        if self.errors:
+            raise ValueError(f"{' '.join(self.errors)} Please use the following format: \
+                             optional days_before(int), deadline(datetime), optional days_after(int). \
+                             Note that you cannot set both days_before and days_after.")        
+
+        assert self.starting_date < self.ending_date
+
+    def process_deadline_tuple(self, deadline_tuple):
+        days_before, deadline, days_after = None, None, None
+
+        try:
+            first_val, second_val = deadline_tuple
+            if isinstance(first_val, int) and isinstance(second_val, int):
+                self.errors.append(f"Couldn't find a deadline in the tuple: {deadline_tuple}.")
+                return
+            elif isinstance(first_val, int):
+                days_before, deadline, days_after = first_val, second_val, 0
+            elif isinstance(second_val, int):
+                days_before, deadline, days_after = 0, first_val, second_val
+            else:
+                self.errors.append(f"Malformed tuple: {deadline_tuple}.")
+                return
+        except TypeError:
+            days_before, deadline, days_after = 0, deadline_tuple, 0
+
+        if days_before:
+            return deadline - timedelta(days=days_before)
+        else:
+            return deadline + timedelta(days=days_after)
+
+    def __call__(self):
+        if not self.starting_date or not self.ending_date:
+            return False
+
+        return self.starting_date < self.now() < self.ending_date
+
+    @property
+    def active_after(self):
+        return self.starting_date
+
+    @property
+    def active_before(self):
+        return self.ending_date
+
+    @property
+    def active_when(self):
+        if not self.starting_date or not self.ending_date:
+            return ''
+
+        start_txt = self.starting_date.strftime(self._when_dateformat)
+        end_txt = self.ending_date.strftime(self._when_dateformat)
+
+        return 'between {} and {}'.format(start_txt, end_txt)
+
+
 # ======================================================================
 # Security
 # ======================================================================
@@ -464,6 +580,8 @@ def check(model, *, prereg=False):
         for validator in v[model.__class__.__name__].values():
             message = validator(model)
             if message:
+                if isinstance(message, tuple):
+                    message = message[1]
                 errors.append(message)
     return "ERROR: " + "<br>".join(errors) if errors else None
 
@@ -500,6 +618,48 @@ def check_pii_consent(params, attendee=None):
         if needs_pii_consent and not has_pii_consent:
             return 'You must agree to allow us to store your personal information in order to register.'
     return ''
+
+
+def validate_model(forms, model, preview_model=None, is_admin=False):
+    from wtforms import validators
+
+    all_errors = defaultdict(list)
+    
+    if not preview_model:
+        preview_model = model
+    else:
+        for form in forms.values():
+            form.populate_obj(preview_model) # We need a populated model BEFORE we get its optional fields below
+
+    for form in forms.values():
+        extra_validators = defaultdict(list)
+        for field_name in form.get_optional_fields(preview_model, is_admin):
+            field = getattr(form, field_name)
+            if field:
+                field.validators = [validators.Optional()] + [validator for validator in field.validators if not isinstance(validator, (validators.DataRequired, validators.InputRequired))]
+
+        # TODO: Do we need to check for custom validations or is this code performant enough to skip that?
+        for key, field in form.field_list:
+            extra_validators[key].extend(form.field_validation.get_validations_by_field(key))
+            if field and (model.is_new or getattr(model, key, None) != field.data):
+                extra_validators[key].extend(form.new_or_changed_validation.get_validations_by_field(key))
+        valid = form.validate(extra_validators=extra_validators)
+        if not valid:
+            for key, val in form.errors.items():
+                all_errors[key].extend(map(str, val))
+
+    validations = [uber.model_checks.validation.validations]
+    prereg_validations = [uber.model_checks.prereg_validation.validations] if not is_admin else []
+    for v in validations + prereg_validations:
+        for validator in v[model.__class__.__name__].values():
+            error = validator(preview_model)
+            if error and isinstance(error, tuple):
+                all_errors[error[0]].append(error[1])
+            elif error:
+                all_errors[''].append(error)
+
+    if all_errors:
+        return all_errors
 
 
 def check_csrf(csrf_token=None):
@@ -612,6 +772,8 @@ def valid_password(password):
         return 'Password must contain at least one lowercase letter.'
     if 'uppercase_char' in c.PASSWORD_CONDITIONS and not re.search("[A-Z]", password):
         return 'Password must contain at least one uppercase letter.'
+    if 'letter' in c.PASSWORD_CONDITIONS and not re.search("[A-Za-z]", password):
+        return 'Password must contain at least one letter.'
     if 'number' in c.PASSWORD_CONDITIONS and not re.search("[0-9]", password):
         return 'Password must contain at least one number.'
     if 'special_char' in c.PASSWORD_CONDITIONS and not re.search("[{}]".format(c.PASSWORD_SPECIAL_CHARS), password):
@@ -767,14 +929,15 @@ def remove_opt(opts, other):
 def _server_to_url(server):
     if not server:
         return ''
+    protocol = 'https' if 'https' in server or 'http' not in server else 'http'
     host, _, path = urllib.parse.unquote(server).replace('http://', '').replace('https://', '').rstrip('/').partition('/')
     if path.startswith('reggie'):
-        return 'https://{}/reggie'.format(host)
+        return f'{protocol}://{host}/reggie'
     elif path.startswith('uber'):
-        return 'https://{}/uber'.format(host)
+        return f'{protocol}://{host}/uber'
     elif path in ['uber', 'rams']:
-        return 'https://{}/{}'.format(host, path)
-    return 'https://{}'.format(host)
+        f'{protocol}://{host}/{path}'
+    return f'{protocol}://{host}'
 
 
 def _server_to_host(server):
@@ -798,6 +961,8 @@ def get_api_service_from_server(target_server, api_token):
     Helper method that gets a service that can be used for API calls between servers.
     Returns the service or None, an error message or '', and a JSON-RPC URI
     """
+    import ssl
+
     target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
     uri = '{}/jsonrpc/'.format(target_url)
 
@@ -809,9 +974,22 @@ def get_api_service_from_server(target_server, api_token):
             message = 'Unrecognized hostname: {}'.format(target_server)
 
         if not message:
-            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
+            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token}, ssl_opts={'ssl_version': ssl.PROTOCOL_SSLv23})
 
     return service, message, target_url
+
+
+def prepare_saml_request(request):
+    saml_request = {
+        'http_host': request.headers.get('Host', ''),
+        'script_name': request.script_name + request.path_info,
+        'get_data': request.params.copy() if request.method == 'GET' else {},
+        'post_data': request.params.copy() if request.method == 'POST' else {},
+    }
+
+    if c.FORCE_SAML_HTTPS:
+        saml_request['https'] = 'on'
+    return saml_request
 
 
 class request_cached_context:
@@ -946,555 +1124,6 @@ class OAuthRequest:
                     self.redirect_uri + "process_logout")
 
 
-class Charge:
-
-    def __init__(self, targets=(), amount=0, description=None, receipt_email=''):
-        self._targets = listify(targets)
-        self._description = description
-        self._receipt_email = receipt_email
-        self._current_cost = amount
-
-    @classproperty
-    def paid_preregs(cls):
-        return cherrypy.session.setdefault('paid_preregs', [])
-
-    @classproperty
-    def unpaid_preregs(cls):
-        return cherrypy.session.setdefault('unpaid_preregs', OrderedDict())
-
-    @classproperty
-    def pending_preregs(cls):
-        return cherrypy.session.setdefault('pending_preregs', OrderedDict())
-    
-    @classproperty
-    def stripe_intent_id(cls):
-        return cherrypy.session.get('stripe_intent_id', '')
-    
-    @classproperty
-    def universal_promo_codes(cls):
-        return cherrypy.session.setdefault('universal_promo_codes', {})
-
-    @classmethod
-    def get_unpaid_promo_code_uses_count(cls, id, already_counted_attendee_ids=None):
-        attendees_with_promo_code = set()
-        if already_counted_attendee_ids:
-            attendees_with_promo_code.update(listify(already_counted_attendee_ids))
-
-        promo_code_count = 0
-
-        targets = [t for t in cls.unpaid_preregs.values() if '_model' in t]
-        for target in targets:
-            if target['_model'] == 'Attendee':
-                if target.get('id') not in attendees_with_promo_code \
-                        and target.get('promo_code') \
-                        and target['promo_code'].get('id') == id:
-                    attendees_with_promo_code.add(target.get('id'))
-                    promo_code_count += 1
-
-            elif target['_model'] == 'Group':
-                for attendee in target.get('attendees', []):
-                    if attendee.get('id') not in attendees_with_promo_code \
-                            and attendee.get('promo_code') \
-                            and attendee['promo_code'].get('id') == id:
-                        attendees_with_promo_code.add(attendee.get('id'))
-                        promo_code_count += 1
-
-            elif target['_model'] == 'PromoCode' and target.get('id') == id:
-                # Should never get here
-                promo_code_count += 1
-
-        return promo_code_count
-
-    @classmethod
-    def to_sessionized(cls, m, name='', badges=0):
-        from uber.models import Attendee, Group
-        if is_listy(m):
-            return [cls.to_sessionized(t) for t in m]
-        elif isinstance(m, dict):
-            return m
-        elif isinstance(m, Attendee):
-            d = m.to_dict(
-                Attendee.to_dict_default_attrs
-                + ['promo_code']
-                + list(Attendee._extra_apply_attrs_restricted))
-            d['name'] = name
-            d['badges'] = badges
-            return d
-        elif isinstance(m, Group):
-            return m.to_dict(
-                Group.to_dict_default_attrs
-                + ['attendees']
-                + list(Group._extra_apply_attrs_restricted))
-        else:
-            raise AssertionError('{} is not an attendee or group'.format(m))
-
-    @classmethod
-    def from_sessionized(cls, d):
-        if is_listy(d):
-            return [cls.from_sessionized(t) for t in d]
-        elif isinstance(d, dict):
-            assert d['_model'] in {'Attendee', 'Group'}
-            if d['_model'] == 'Group':
-                return cls.from_sessionized_group(d)
-            else:
-                return cls.from_sessionized_attendee(d)
-        else:
-            return d
-
-    @classmethod
-    def from_sessionized_group(cls, d):
-        d = dict(d, attendees=[cls.from_sessionized_attendee(a) for a in d.get('attendees', [])])
-        return uber.models.Group(_defer_defaults_=True, **d)
-
-    @classmethod
-    def from_sessionized_attendee(cls, d):
-        if d.get('promo_code'):
-            d = dict(d, promo_code=uber.models.PromoCode(_defer_defaults_=True, **d['promo_code']))
-
-        # These aren't valid properties on the model, so they're removed and re-added
-        name = d.pop('name', '')
-        badges = d.pop('badges', 0)
-        a = uber.models.Attendee(_defer_defaults_=True, **d)
-        a.name = d['name'] = name
-        a.badges = d['badges'] = badges
-
-        return a
-
-    @classmethod
-    def get(cls, payment_id):
-        charge = cherrypy.session.pop(payment_id, None)
-        if charge:
-            return cls(**charge)
-        else:
-            raise HTTPRedirect('../preregistration/credit_card_retry')
-
-    @classmethod
-    def create_new_receipt(cls, model, create_model=False, items=None):
-        """
-        Iterates through the cost_calculations for this model and returns a list containing all non-null cost and credit items.
-        This function is for use with new models to grab all their initial costs for creating or previewing a receipt.
-        """
-        from uber.models import AdminAccount, ModelReceipt, ReceiptItem
-        if not items:
-            items = [uber.receipt_items.cost_calculation.items] + [uber.receipt_items.credit_calculation.items]
-        receipt_items = []
-        receipt = ModelReceipt(owner_id=model.id, owner_model=model.__class__.__name__) if create_model else None
-        
-        for i in items:
-            for calculation in i[model.__class__.__name__].values():
-                item = calculation(model)
-                if item:
-                    try:
-                        desc, cost, count = item
-                    except ValueError:
-                        # Unpack list of wrong size (no quantity provided).
-                        desc, cost = item
-                        count = 1
-                    if isinstance(cost, Iterable):
-                        # A list of the same item at different prices, e.g., group badges
-                        for price in cost:
-                            if receipt:
-                                receipt_items.append(ReceiptItem(receipt_id=receipt.id,
-                                                                desc=desc,
-                                                                amount=price,
-                                                                count=cost[price],
-                                                                who=AdminAccount.admin_name() or 'non-admin'
-                                                                ))
-                            else:
-                                receipt_items.append((desc, price, cost[price]))
-                    elif receipt:
-                        receipt_items.append(ReceiptItem(receipt_id=receipt.id,
-                                                          desc=desc,
-                                                          amount=cost,
-                                                          count=count,
-                                                          who=AdminAccount.admin_name() or 'non-admin'
-                                                        ))
-                    else:
-                        receipt_items.append((desc, cost, count))
-        
-        return receipt, receipt_items
-
-    @classmethod
-    def calc_simple_cost_change(cls, model, col_name, new_val):
-        """
-        Takes an instance of a model and attempts to calculate a simple cost change
-        based on a column name. Used for columns where the cost is the column, e.g.,
-        extra_donation and amount_extra.
-        """
-        model_dict = model.to_dict()
-
-        if model_dict.get(col_name) == None:
-            return None, None
-        
-        if not new_val:
-            new_val = 0
-        
-        return (model_dict[col_name] * 100, (int(new_val) - model_dict[col_name]) * 100)
-
-    @classmethod
-    def process_receipt_credit_change(cls, model, col_name, new_val, receipt=None):
-        from uber.models import AdminAccount, ReceiptItem
-
-        credit_change_tuple = model.credit_changes.get(col_name)
-        if credit_change_tuple:
-            credit_change_name = credit_change_tuple[0]
-            credit_change_func = credit_change_tuple[1]
-
-            change_func = getattr(model, credit_change_func)
-            old_discount, discount_change = change_func(**{col_name: new_val})
-            if old_discount >= 0 and discount_change < 0:
-                verb = "Added"
-            elif old_discount < 0 and discount_change >= 0 and old_discount == discount_change * -1:
-                verb = "Removed"
-            else:
-                verb = "Changed"
-            discount_desc = "{} {}".format(credit_change_name, verb)
-            
-            if col_name == 'birthdate':
-                old_val = datetime.strftime(getattr(model, col_name), c.TIMESTAMP_FORMAT)
-            else:
-                old_val = getattr(model, col_name)
-
-            if receipt:
-                return ReceiptItem(receipt_id=receipt.id,
-                                   desc=discount_desc,
-                                   amount=discount_change,
-                                   who=AdminAccount.admin_name() or 'non-admin',
-                                   revert_change={col_name: old_val},
-                                )
-            else:
-                return (discount_desc, discount_change)
-
-    @classmethod
-    def process_receipt_upgrade_item(cls, model, col_name, new_val, receipt=None, count=1):
-        """
-        Finds the cost of a receipt item to add to an existing receipt.
-        This uses the cost_changes dictionary defined on each model in receipt_items.py,
-        calling it with the extra keyword arguments provided. If no function is specified,
-        we use calc_simple_cost_change instead.
-        
-        If a ModelReceipt is provided, a new ReceiptItem is created and returned.
-        Otherwise, the raw values are returned so attendees can preview their receipt 
-        changes.
-        """
-        from uber.models import AdminAccount, ReceiptItem
-        from uber.models.types import Choice
-
-        try:
-            new_val = int(new_val)
-        except Exception:
-            pass # It's fine if this is not a number
-
-        if col_name != 'badges' and isinstance(model.__table__.columns.get(col_name).type, Choice):
-            increase_term, decrease_term = "Upgrading", "Downgrading"
-        else:
-            increase_term, decrease_term = "Increasing", "Decreasing"
-
-        cost_change_tuple = model.cost_changes.get(col_name)
-        if not cost_change_tuple:
-            cost_change_name = col_name.replace('_', ' ').title()
-            old_cost, cost_change = cls.calc_simple_cost_change(model, col_name, new_val)
-        else:
-            cost_change_name = cost_change_tuple[0]
-            cost_change_func = cost_change_tuple[1]
-            if len(cost_change_tuple) > 2:
-                cost_change_name = cost_change_name.format(*[dictionary.get(new_val, str(new_val)) for dictionary in cost_change_tuple[2:]])
-            
-            if not cost_change_func:
-                old_cost, cost_change = cls.calc_simple_cost_change(model, col_name, new_val)
-            else:
-                change_func = getattr(model, cost_change_func)
-                old_cost, cost_change = change_func(**{col_name: new_val})
-
-        is_removable_item = col_name != 'badge_type'
-        if not old_cost and is_removable_item:
-            cost_desc = "Adding {}".format(cost_change_name)
-        elif cost_change * -1 == old_cost and is_removable_item: # We're crediting the full amount of the item
-            cost_desc = "Removing {}".format(cost_change_name)
-        elif cost_change > 0:
-            cost_desc = "{} {}".format(increase_term, cost_change_name)
-        else:
-            cost_desc = "{} {}".format(decrease_term, cost_change_name)
-
-        if col_name == 'tables':
-            old_val = int(getattr(model, col_name))
-        else:
-            old_val = getattr(model, col_name)
-
-        if receipt:
-            return ReceiptItem(receipt_id=receipt.id,
-                                desc=cost_desc,
-                                amount=cost_change,
-                                count=count,
-                                who=AdminAccount.admin_name() or 'non-admin',
-                                revert_change={col_name: old_val},
-                            )
-        else:
-            return (cost_desc, cost_change, count)
-
-    def prereg_receipt_preview(self):
-        """
-        Returns a list of tuples where tuple[0] is the name of a group of items,
-        and tuple[1] is a list of cost item tuples from create_new_receipt
-        
-        This lets us show the attendee a nice display of what they're buying
-        ... whenever we get around to actually using it that way
-        """
-        from uber.models import PromoCodeGroup
-
-        items_preview = []
-        for model in self.models:
-            if getattr(model, 'badges', None) and getattr(model, 'name') and isinstance(model, uber.models.Attendee):
-                items_group = ("{} plus {} badges ({})".format(getattr(model, 'full_name', None), int(model.badges) - 1, model.name), [])
-                x, receipt_items = Charge.create_new_receipt(PromoCodeGroup())
-            else:
-                group_name = getattr(model, 'name', None)
-                items_group = (group_name or getattr(model, 'full_name', None), [])
-            
-            x, receipt_items = Charge.create_new_receipt(model)
-            items_group[1].extend(receipt_items)
-            
-            items_preview.append(items_group)
-
-        return items_preview
-
-    def set_total_cost(self):
-        preview_receipt_groups = self.prereg_receipt_preview()
-        for group in preview_receipt_groups:
-            self._current_cost += sum([(item[1] * item[2]) for item in group[1]])
-
-    @property
-    def has_targets(self):
-        return not not self._targets
-
-    @cached_property
-    def total_cost(self):
-        return self._current_cost
-
-    @cached_property
-    def dollar_amount(self):
-        return self.total_cost // 100
-
-    @cached_property
-    def description(self):
-        return self._description or self.names
-
-    @cached_property
-    def receipt_email(self):
-        email = self.models[0].email if self.models and self.models[0].email else self._receipt_email
-        return email[0] if isinstance(email, list) else email  
-
-    @cached_property
-    def names(self):
-        names = []
-
-        for m in self.models:
-            if getattr(m, 'badges', None) and getattr(m, 'name') and isinstance(m, uber.models.Attendee):
-                names.append("{} plus {} badges ({})".format(getattr(m, 'full_name', None), int(m.badges) - 1, m.name))
-            else:
-                group_name = getattr(m, 'name', None)
-                names.append(group_name or getattr(m, 'full_name', None))
-
-        return ', '.join(names)
-
-    @cached_property
-    def targets(self):
-        return self.to_sessionized(self._targets)
-
-    @cached_property
-    def models(self):
-        return self.from_sessionized(self._targets)
-
-    @cached_property
-    def attendees(self):
-        return [m for m in self.models if isinstance(m, uber.models.Attendee)]
-
-    @cached_property
-    def groups(self):
-        return [m for m in self.models if isinstance(m, uber.models.Group)]
-
-    def create_stripe_intent(self, amount=0, receipt_email='', description=''):
-        """
-        Creates a Stripe Intent, which is what Stripe uses to process payments.
-        After calling this, call create_receipt_transaction with the Stripe Intent's ID
-        and the receipt to add the new transaction to the receipt.
-        """
-        from uber.custom_tags import format_currency
-
-        amount = amount or self.total_cost
-        receipt_email = receipt_email or self.receipt_email
-        description = description or self.description
-
-        if not amount or amount <= 0:
-            log.error('Was asked for a Stripe Intent but the currently owed amount is invalid: {}'.format(amount))
-            return "There was an error calculating the amount. Please refresh the page or contact the system admin."
-
-        if amount > 999999:
-            return "We cannot charge {}. Please make sure your total is below $9,999.".format(format_currency(amount / 100))
-
-        log.debug('Creating Stripe Intent to charge {} cents for {}', amount, description)
-        try:
-            customer = None
-            if receipt_email:
-                customer_list = stripe.Customer.list(
-                    email=receipt_email,
-                    limit=1,
-                )
-                if customer_list:
-                    customer = customer_list.data[0]
-                else:
-                    customer = stripe.Customer.create(
-                        description=receipt_email,
-                        email=receipt_email,
-                    )
-
-            stripe_intent = stripe.PaymentIntent.create(
-                payment_method_types=['card'],
-                amount=int(amount),
-                currency='usd',
-                description=description,
-                receipt_email=customer.email if receipt_email else None,
-                customer=customer.id if customer else None,
-            )
-
-            return stripe_intent
-        except Exception as e:
-            error_txt = 'Got an error while calling create_stripe_intent()'
-            report_critical_exception(msg=error_txt, subject='ERROR: MAGFest Stripe invalid request error')
-            return 'An unexpected problem occurred while setting up payment: ' + str(e)
-
-    @classmethod
-    def create_receipt_transaction(self, receipt, desc='', intent_id='', amount=0, method=c.STRIPE):
-        txn_total = amount
-        
-        if intent_id:
-            intent = stripe.PaymentIntent.retrieve(intent_id)
-            txn_total = intent.amount
-            if not amount:
-                amount = txn_total
-        
-        if amount <= 0:
-            return "There was an issue recording your payment."
-
-        return uber.models.ReceiptTransaction(
-            receipt_id=receipt.id,
-            intent_id=intent_id,
-            amount=amount,
-            txn_total=txn_total or amount,
-            receipt_items=receipt.open_receipt_items,
-            desc=desc,
-            method=method,
-            who=uber.models.AdminAccount.admin_name() or 'non-admin'
-        )
-
-    @staticmethod
-    def update_refunded_from_stripe(intent_id, total_refund, preferred_txn=None):
-        from uber.models import Session
-
-        refund_left = total_refund
-
-        session = Session()
-        matching_txns = session.query(uber.models.ReceiptTransaction).filter_by(intent_id=intent_id).all()
-
-        current_total = sum([txn.refunded for txn in matching_txns])
-        if current_total == total_refund:
-            session.close()
-            return
-
-        if preferred_txn:
-            preferred_txn.refunded = min(preferred_txn.amount, total_refund - current_total + preferred_txn.refunded)
-            refund_left = total_refund - current_total - preferred_txn.amount_left
-            session.add(preferred_txn)
-            if not refund_left:
-                session.commit()
-                session.close()
-                return preferred_txn
-
-        for txn in matching_txns:
-            txn.refunded = min(txn.amount, refund_left)
-            session.add(txn)
-
-            refund_left = refund_left - txn.amount
-            if not refund_left:
-                session.commit()
-                session.close()
-                return matching_txns
-
-
-    @staticmethod
-    def mark_paid_from_intent_id(intent_id, charge_id):
-        from uber.models import Attendee, ArtShowApplication, MarketplaceApplication, Group, Session
-        from uber.tasks.email import send_email
-        from uber.decorators import render
-        
-        session = Session().session
-        matching_txns = session.query(uber.models.ReceiptTransaction).filter_by(intent_id=intent_id).filter(
-                                                                        uber.models.ReceiptTransaction.charge_id == '').all()
-
-        for txn in matching_txns:
-            txn.charge_id = charge_id
-            session.add(txn)
-            txn_receipt = txn.receipt
-
-            for item in txn.receipt_items:
-                item.closed = datetime.now()
-                session.add(item)
-
-            session.commit()
-
-            model = session.get_model_by_receipt(txn_receipt)
-            if isinstance(model, Attendee) and model.is_paid:
-                if model.badge_status == c.PENDING_STATUS:
-                    model.badge_status = c.NEW_STATUS
-                if model.paid in [c.NOT_PAID, c.PENDING]:
-                    model.paid = c.HAS_PAID
-            if isinstance(model, Group) and model.is_paid:
-                model.paid = c.HAS_PAID
-            session.add(model)
-
-            session.commit()
-
-            if model and isinstance(model, Group) and model.is_dealer and not txn.receipt.open_receipt_items:
-                try:
-                    send_email.delay(
-                        c.MARKETPLACE_EMAIL,
-                        c.MARKETPLACE_EMAIL,
-                        '{} Payment Completed'.format(c.DEALER_TERM.title()),
-                        render('emails/dealers/payment_notification.txt', {'group': model}, encoding=None),
-                        model=model.to_dict('id'))
-                except Exception:
-                    log.error('Unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
-            if model and isinstance(model, ArtShowApplication) and not txn.receipt.open_receipt_items:
-                try:
-                    send_email.delay(
-                        c.ART_SHOW_EMAIL,
-                        c.ART_SHOW_EMAIL,
-                        'Art Show Payment Received',
-                        render('emails/art_show/payment_notification.txt',
-                            {'app': model}, encoding=None),
-                        model=model.to_dict('id'))
-                except Exception:
-                    log.error('Unable to send Art Show payment confirmation email', exc_info=True)
-            if model and isinstance(model, MarketplaceApplication) and not txn.receipt.open_receipt_items:
-                send_email.delay(
-                    c.MARKETPLACE_APP_EMAIL,
-                    c.MARKETPLACE_APP_EMAIL,
-                    'Marketplace Payment Received',
-                    render('emails/marketplace/payment_notification.txt',
-                        {'app': model}, encoding=None),
-                    model=model.to_dict('id'))
-                send_email.delay(
-                    c.MARKETPLACE_APP_EMAIL,
-                    model.email_to_address,
-                    'Marketplace Payment Received',
-                    render('emails/marketplace/payment_confirmation.txt',
-                        {'app': model}, encoding=None),
-                    model=model.to_dict('id'))
-
-        session.close()
-        return matching_txns
-
-
 class SignNowDocument:    
     def __init__(self):
         self.access_token = None
@@ -1520,12 +1149,13 @@ class SignNowDocument:
         if self.access_token and not refresh:
             return
 
-        if not self.access_token and c.DEV_BOX and c.SIGNNOW_USERNAME and c.SIGNNOW_PASSWORD:
+        if c.DEV_BOX and c.SIGNNOW_USERNAME and c.SIGNNOW_PASSWORD:
             access_request = signnow_sdk.OAuth2.request_token(c.SIGNNOW_USERNAME, c.SIGNNOW_PASSWORD, '*')
             if 'error' in access_request:
                 self.error_message = "Error getting access token from SignNow using username and passsword: " + access_request['error']
             else:
                 self.access_token = access_request['access_token']
+                return
         elif not aws_secrets_client:
             self.error_message = "Couldn't get a SignNow access token because there was no AWS Secrets client. If you're on a development box, you can instead use a username and password."
         elif not c.AWS_SIGNNOW_SECRET_NAME:
@@ -1533,9 +1163,10 @@ class SignNowDocument:
         else:
             aws_secrets_client.get_signnow_secret()
             self.access_token = c.SIGNNOW_ACCESS_TOKEN
-        
-        if not self.access_token and not self.error_message:
-            self.error_message = "We tried to set an access token, but for some reason it failed."
+            return
+
+        if self.error_message:
+            log.error(self.error_message)
 
     def create_document(self, template_id, doc_title, folder_id='', uneditable_texts_list=None, fields={}):
         from requests import post, put
@@ -1572,7 +1203,7 @@ class SignNowDocument:
                 fields_request = response.json()
 
                 if 'errors' in fields_request:
-                    self.error_message = "Error setting up text fields: " + '; '.join([e['message'] for e in fields_request['errors']])
+                    self.error_message = "Error setting up fields: " + '; '.join([e['message'] for e in fields_request['errors']])
                     return None
 
         if folder_id:
@@ -1613,6 +1244,31 @@ class SignNowDocument:
             self.error_message = "Error getting signing link: " + '; '.join([e['message'] for e in signing_request['errors']])
         else:
             return signing_request.get('url_no_signup')
+
+    def send_signing_invite(self, document_id, group, name):
+        from uber.custom_tags import email_only
+        self.set_access_token(refresh=True)
+
+        invite_payload = {
+            "to": [
+                { "email": group.email, "prefill_signature_name": name, "role": "Dealer", "order": 1 }
+            ],
+            "from": email_only(c.MARKETPLACE_EMAIL),
+            "cc": [],
+            "subject": "ACTION REQUIRED: {} {} Terms and Conditions".format(c.EVENT_NAME, c.DEALER_TERM.title()),
+            "message": "Congratulations on being accepted into the {} {}! Please click the button below to review and sign the terms and conditions. You MUST sign this in order to complete your registration.".format(
+                        c.EVENT_NAME, c.DEALER_LOC_TERM.title()),
+            "redirect_uri": "{}/preregistration/group_members?id={}".format(c.REDIRECT_URL_BASE or c.URL_BASE, group.id)
+            }
+        
+        log.debug(str(invite_payload))
+
+        invite_request = signnow_sdk.Document.invite(self.access_token, document_id, invite_payload)
+
+        if 'error' in invite_request:
+            self.error_message = "Error sending invite to sign: " + invite_request['error']
+        else:
+            return invite_request
 
     def get_download_link(self, document_id):
         self.set_access_token(refresh=True)
@@ -1702,7 +1358,6 @@ class TaskUtils:
                 'badge_status': badge_status,
                 'paid': paid,
                 'placeholder': True,
-                'requested_hotel_info': True,
                 'admin_notes': 'Imported {} from {}{}{}'.format(
                     badge_label, import_from_url, new_admin_notes, old_admin_notes),
                 'past_years': attendee['all_years'],
@@ -1712,6 +1367,7 @@ class TaskUtils:
                 
             del attendee['id']
             del attendee['all_years']
+            del attendee['badge_num']
 
             account_ids = attendee.get('attendee_account_ids', [])
 
@@ -1761,18 +1417,36 @@ class TaskUtils:
                 except Exception as ex:
                     import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
 
-                account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email(account_to_import['email'])).first()
+                account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email_legacy(account_to_import['email'])).first()
                 if not account:
                     del account_to_import['id']
                     account = AttendeeAccount().apply(account_to_import, restricted=False)
+                    account.email = normalize_email(account.email)
+                    account.imported = True
                     session.add(account)
                 attendee.managers.append(account)
 
+            from sqlalchemy.exc import IntegrityError
+            from psycopg2.errors import UniqueViolation
+
             try:
                 session.commit()
-            except Exception as ex:
+            except IntegrityError as e:
                 session.rollback()
-                import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(ex)
+                if(isinstance(e.orig, UniqueViolation)):
+                    attendee.badge_num = None
+                    session.add(attendee)
+                    try:
+                        session.commit()
+                    except Exception as e:
+                        session.rollback()
+                        import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(e)
+                else:
+                    session.rollback()
+                    import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(e)
+            except Exception as e:
+                session.rollback()
+                import_job.errors += "; {}".format(str(ex)) if import_job.errors else str(e)
             else:
                 import_job.completed = datetime.now()
             session.commit()
@@ -1798,7 +1472,6 @@ class TaskUtils:
         attendee.update({
             'badge_status': c.IMPORTED_STATUS,
             'badge_num': None,
-            'requested_hotel_info': True,
             'past_years': attendee['all_years'],
         })
         if attendee.get('shirt', '') and attendee['shirt'] not in c.SHIRT_OPTS:
@@ -1828,11 +1501,20 @@ class TaskUtils:
                 import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
                 session.commit()
                 return
+            
+            if c.SSO_EMAIL_DOMAINS:
+                local, domain = normalize_email(account_to_import['email'], split_address=True)
+                if domain in c.SSO_EMAIL_DOMAINS:
+                    log.debug("Skipping account import for {} as it matches the SSO email domain.".format(account_to_import['email']))
+                    import_job.completed = datetime.now()
+                    return
 
-            account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email(account_to_import['email'])).first()
+            account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email_legacy(account_to_import['email'])).first()
             if not account:
                 del account_to_import['id']
                 account = AttendeeAccount().apply(account_to_import, restricted=False)
+                account.email = normalize_email(account.email)
+                account.imported = True
                 session.add(account)
 
             try:
@@ -1852,19 +1534,22 @@ class TaskUtils:
                 pass
 
             for attendee in account_attendees:
-                # Try to match staff to their existing badge, which would be newer than the one we're importing
                 if attendee.get('badge_num', 0) in range(c.BADGE_RANGES[c.STAFF_BADGE][0], c.BADGE_RANGES[c.STAFF_BADGE][1]):
-                    old_badge_num = attendee['badge_num']
-                    existing_staff = session.query(Attendee).filter_by(badge_num=old_badge_num).first()
-                    if existing_staff:
-                        existing_staff.managers.append(account)
-                        session.add(existing_staff)
-                    else:
-                        new_staff = TaskUtils.basic_attendee_import(attendee)
-                        new_staff.badge_num = old_badge_num
-                        new_staff.managers.append(account)
-                        session.add(new_staff)
-                else:
+                    if not c.SSO_EMAIL_DOMAINS:
+                        # Try to match staff to their existing badge, which would be newer than the one we're importing
+                        old_badge_num = attendee['badge_num']
+                        existing_staff = session.query(Attendee).filter_by(badge_num=old_badge_num).first()
+                        if existing_staff:
+                            existing_staff.managers.append(account)
+                            session.add(existing_staff)
+                        else:
+                            new_staff = TaskUtils.basic_attendee_import(attendee)
+                            new_staff.badge_num = old_badge_num
+                            new_staff.managers.append(account)
+                            session.add(new_staff)
+                    # If SSO is used for attendee accounts, we don't import staff at all
+                elif attendee['badge_status'] not in [c.PENDING_STATUS, c.INVALID_STATUS, 
+                                                      c.IMPORTED_STATUS, c.INVALID_GROUP_STATUS]: # Workaround for a bug in the export, we can remove this check next year
                     new_attendee = TaskUtils.basic_attendee_import(attendee)
                     new_attendee.paid = c.NOT_PAID
                     
@@ -1954,10 +1639,12 @@ class TaskUtils:
                     except Exception as ex:
                         import_job.errors += "; {}".format("; ".join(str(ex))) if import_job.errors else "; ".join(str(ex))
 
-                    account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email(account_to_import['email'])).first()
+                    account = session.query(AttendeeAccount).filter(AttendeeAccount.normalized_email == normalize_email_legacy(account_to_import['email'])).first()
                     if not account:
                         del account_to_import['id']
                         account = AttendeeAccount().apply(account_to_import, restricted=False)
+                        account.email = normalize_email(account.email)
+                        account.imported = True
                         session.add(account)
                     new_attendee.managers.append(account)
 

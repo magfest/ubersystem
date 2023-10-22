@@ -1,15 +1,14 @@
-{% extends "preregistration/preregbase.html" %}
-{% block title %}Pay for Badge{% endblock %}
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Pay for Badge" %}
 {% block backlink %}
 {{ super() }}
 {% endblock %}
 {% block content %}
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-    <div class="panel-heading">
+<div class="card">
+    <div class="card-header">
         Registration Payment
       </div>
-    <div class="panel-body">
+    <div class="card-body">
         In order to complete your registration, please pay for the following items:
         {% include 'preregistration/receipt_table.html' %}
         {{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, return_to=return_to) }}

@@ -1,14 +1,7 @@
-{% extends "preregistration/preregbase.html" %}
-{% set name_ro = not attendee.placeholder %}
+{% extends "./preregistration/preregbase.html" %}
 {% set assigned_depts_ro = True %}
-{% set amount_extra_ro = True if attendee.badge_status == c.DEFERRED_STATUS else False %}
-{% set money_fields_ro = True if receipt %}
-{% set page_ro = not attendee.is_valid %}
-{% import "fields/attendee.html" as attendee_fields with context %}
-{% block title %}Confirm Your Details{% endblock %}
-{% block backlink %}
-{{ super() }}
-{% endblock %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set title_text = "Confirm Your Details" %}
 {% block content %}
 
 <script type="text/javascript">
@@ -27,53 +20,45 @@
       {% endif %}
   });
 </script>
-{{ attendee_fields.amount_extra_js }}
 
-{% include 'prereg_masthead.html' %}
-{% if account %}
-  {% include 'preregistration/update_account.html' %}
-{% endif %}
-<div class="panel panel-default">
-  <div class="panel-heading">
+<div class="card">
+  <div class="card-header">
     Registration Information
   </div>
-  <div class="panel-body">
+  <div class="card-body">
     {% if (c.ATTRACTIONS_ENABLED and attractions) or attendee.promo_code_groups or attendee.art_show_applications or attendee.marketplace_applications or attendee.is_group_leader %}
       {% include 'confirm_tabs.html' with context %}
     {% endif %}
-    {% block panel_top %}{% endblock %}
-
-    {% if c.ART_SHOW_ENABLED and not attendee.is_new %}
-      {% include 'art_show_common/art_show_agent.html' %}
-    {% endif %}
 
       {% if not attendee.is_valid %}
-      <div class="alert alert-danger">
+      <div class="alert alert-danger" role="alert">
         Your registration is currently marked as <strong>{{ attendee.badge_status_label }}</strong>
         and is not considered a valid registration. Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you have any questions.
       </div>
       {% else %}
         {% if not attendee.placeholder and receipt and receipt.current_amount_owed %}
             {% if incomplete_txn %}
-            <div class="alert alert-warning">
+            <div class="alert alert-warning" role="alert">
               You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>
               with an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.
+              Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you need to change your purchases or if you have any questions.
               <br/><br/>Click here to complete your payment: {{ stripe_form('finish_pending_payment', attendee, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}
             </div>
             {% else %}
-            <div class="alert alert-danger">
+            <div class="alert alert-danger" role="alert">
               You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
-              Please <a href="" data-toggle="modal" data-target="#receiptModal">check your receipt here</a> to pay.
+              Please <a href="" data-bs-toggle="modal" data-bs-target="#receiptModal">check your receipt here</a> to pay or 
+              contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you need to change your purchases or if you have any questions.
             </div>
             {% endif %}
         {% elif attendee.badge_status == c.PENDING_STATUS %}
-            <div class="alert alert-warning">
+            <div class="alert alert-warning" role="alert">
               Your registration has not finished processing, likely because we don't have a verified completed payment. 
               Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if this issue persists or if you have any questions.
             </div>
         {% endif %}
         {% if attendee.badge_status == c.DEFERRED_STATUS %}
-          <div class="alert alert-warning">
+          <div class="alert alert-warning" role="alert">
             Your registration has been deferred to {{ c.EVENT_NAME }} {{ c.EVENT_YEAR|int + 1 }}.
             You can {% if attendee.shipping_fee_cost %}update your mailing address
             for your badge and kick-in merch below{% else %}update your information below for next year{% endif %}.
@@ -91,17 +76,13 @@
           {% else %}
             {% set bg_class = 'info' %}
           {% endif %}
-          <div class="alert alert-{{ bg_class }}">
+          <div class="alert alert-{{ bg_class }}" role="alert">
             Your group "<a href="group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>"
             is currently {{ attendee.group.status_label }}.
             {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and attendee.group.status not in [c.APPROVED, c.CANCELLED] %}
             <br/><br/>If you would like, you may instead
             <a href="../marketplace/index?attendee_id={{ attendee.id }}" target="_blank">apply for a table in the Marketplace.</a>{% endif %}
-            {% if False and attendee.group.status != c.APPROVED and attendee.paid == c.PAID_BY_GROUP and attendee.calculate_badge_cost() == attendee.new_badge_cost and not money_fields_ro %}
-              <br/><br/>You may also pay {{ (attendee.total_cost - attendee_group_discount)|format_currency }} for your individual registration using the button below.
-              {% if attendee_group_discount %}<br/>This does not include your current group discount of {{ attendee_group_discount|format_currency(true) }}.{% endif %}
-              <br/>{{ stripe_form('buy_own_group_badge', attendee) }}
-            {% elif attendee.group.status != c.APPROVED and not attendee.is_not_ready_to_checkin %}
+            {% if attendee.group.status != c.APPROVED and not attendee.is_not_ready_to_checkin %}
               <p><br/>
               {% if attendee.amount_unpaid %}Once you have paid your outstanding balance of {{ (attendee.amount_unpaid / 100)|format_currency }}, y{% else %}Y{% endif %}ou 
               will be able to check in regardless of whether or not your group is approved.</p>
@@ -110,47 +91,29 @@
         {% endif %}
       {% endif %}
 
-      {% if money_fields_ro and not incomplete_txn %}
-        {% include 'preregistration/upgrade_modal.html' %}
-      {% endif %}
-      {{ attendee_fields.receipt_modal }}
+    {% if c.ART_SHOW_ENABLED and c.AFTER_ART_SHOW_REG_START and not attendee.is_new %}
+      {% include 'art_show_common/art_show_agent.html' %}
+    {% endif %}
 
-      <form method="post" action="confirm" id="confirm" class="form-horizontal">
+      {% if receipt %}
+        {% include 'forms/receipt_modal.html' %}
+        {% if not incomplete_txn %}
+          {% include 'preregistration/upgrade_modal.html' %}
+        {% endif %}
+      {% endif %}
+
+      {{ form_macros.form_validation('confirm') }}
+
+      <form novalidate method="post" action="confirm" id="confirm">
         {{ csrf_token() }}
         <input type="hidden" name="id" value="{{ attendee.id }}" />
         <input type="hidden" name="return_to" value="{{ return_to }}" />
         <input type="hidden" name="undoing_extra" value="{{ undoing_extra }}" />
-  
-        {% block form_top %}{% endblock %}
 
-      {% if not money_fields_ro %}{{ attendee_fields.badge_buttons }}{% endif %}
-      {{ attendee_fields.prereg_intro }}
-      {{ attendee_fields.name }}
-      {{ attendee_fields.badge_type }}
-      {{ attendee_fields.amount_extra(form="confirm") }}
-      {{ attendee_fields.badge_printed_name }}
-      {{ attendee_fields.shirt_size }}
-      {{ attendee_fields.extra_donation() }}
-      {{ attendee_fields.staffing }}
-      {{ attendee_fields.job_interests }}
-      {{ attendee_fields.assigned_depts }}
-      {{ attendee_fields.agreed_to_volunteer_agreement }}
-      {{ attendee_fields.reviewed_emergency_procedures }}
-      {{ attendee_fields.age }}
-      {{ attendee_fields.email }}
-      {{ attendee_fields.address }}
-      {{ attendee_fields.emergency_contact }}
-      {{ attendee_fields.onsite_contact }}
-      {{ attendee_fields.cellphone }}
-      {{ attendee_fields.promo_code }}
-      {{ attendee_fields.interests }}
-      {{ attendee_fields.found_how }}
-      {{ attendee_fields.comments }}
-      {{ attendee_fields.can_spam }}
-      {{ attendee_fields.requested_accessibility_services }}
-      {{ attendee_fields.requested_hotel_info }}
-      {{ attendee_fields.attractions_opt_out }}
-      {% if attendee.placeholder %}{{ attendee_fields.pii_consent_checkbox }}{% endif %}
+      {% include "forms/attendee/badge_extras.html" %}
+      {% include "forms/attendee/personal_info.html" %}
+      {% include "forms/attendee/other_info.html" %}
+      {% include "forms/attendee/consents.html" %}
 
       {# Deprecated form included for backwards compatibility with old plugins #}
       {% include "regform.html" %}
@@ -170,8 +133,8 @@
           {% endif %}
           {% endif %}
           {% if receipt %}
-            <a class="btn btn-info" data-toggle="modal" data-target="#receiptModal">
-              <span class="glyphicon glyphicon-list-alt"></span> Receipt
+            <a class="btn btn-info" data-bs-toggle="modal" data-bs-target="#receiptModal">
+              <i class="fa fa-list-alt"></i> Receipt
             </a>
           {% endif %}
         </div>
@@ -199,5 +162,4 @@
     {% endif %}
   </div>
 </div>
-
 {% endblock %}

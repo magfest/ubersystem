@@ -1,190 +1,177 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% import "fields/group.html" as group_fields with context %}
+{% import "forms/group.html" as group_fields with context %}
+{% import 'forms/macros.html' as form_macros with context %}
 {% block title %}Group Form{% endblock %}
 {% block content %}
-{% include "group_admin/nav_menu.html" %}
+  {% include "group_admin/nav_menu.html" %}
 
   {% include "check_in.html" %}
-
+  <div class="card">
+    <div class="card-body">
     {% if not group.is_new %} 
-    <h1>
-    <a class="btn btn-primary" href="../preregistration/group_members?id={{ group.id }}">View as Attendee</a>
-    {% if group.guest %} 
-    <a class="btn btn-info" href="../guests/index?id={{ group.guest.id }}">{{ group.guest.group_type_label }} Checklist</a>
+    <div class="row mb-3">
+      <div class="col text-start">
+      <a class="btn btn-primary" href="../preregistration/group_members?id={{ group.id }}">View as Attendee</a>
+      {% if group.guest %} 
+      <a class="btn btn-info" href="../guests/index?id={{ group.guest.id }}">{{ group.guest.group_type_label }} Checklist</a>
+      {% endif %}
+      </div>
+      {% if signnow_last_emailed %}
+      <div class="col text-end">
+      <em>This dealer was last emailed their SignNow document at {{ signnow_last_emailed|datetime_local }}.</em>
+      <a class="btn btn-warning" href="../group_admin/resend_signnow_link?id={{ group.id }}">Resend SignNow Link</a>
+      </div>
+      {% endif %}
+    </div>
     {% endif %}
-    </h1> 
-    {% endif %}
-<div class="panel panel-body">
+
   {% if not group.is_new %}
-    <div role="tabpanel">
     <ul class="nav nav-tabs" role="tablist">
-    <li role="presentation">
-    <a href="#info" aria-controls="info" role="tab" data-toggle="tab">
-    <span class="glyphicon glyphicon-list"></span>&nbsp;Group Info
-    </a>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="group-info-tab" data-bs-toggle="tab" data-bs-target="#group-info" type="button" role="tab" aria-controls="group-info">
+        <i class="fa fa-list"></i>&nbsp;Group Info
+      </button>
     </li>
-    {% if group.sorted_attendees%}
-    <li role="presentation">
-    <a href="#badges" aria-controls="badges" role="tab" data-toggle="tab">
-    <span class="glyphicon glyphicon-user"></span>&nbsp;Badges
-    </a>
+    {% if group.sorted_attendees %}
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="attendees-tab" data-bs-toggle="tab" data-bs-target="#attendees" type="button" role="tab" aria-controls="attendees">
+        <i class="fa fa-user"></i>&nbsp;Badges
+      </button>
     </li>
     {% endif %}
     </ul>
-    </div>
 
     <div class="tab-content">
-    <div class="row" style="padding: 10px;"></div>
-    <div role="tabpanel" class="tab-pane" id="info">
-    {% else %}
+      &nbsp;
+    <div role="tabpanel" class="tab-pane" id="group-info" aria-labelledby="group-info-tab">
+  {% else %}
     <div>
-    <h3>Group Info</h3>
+      <a href="index{{ '#dealers' if group.is_dealer else '' }}" class="btn btn-info mb-3">Back to Group List</a>
+    <h3>New {{ c.DEALER_TERM|title if group.is_dealer else "Group" }} Info</h3>
+  {% endif %}
+  {{ form_macros.form_validation('group-form', 'validate_group') }}
+  <form novalidate method="post" id="group-form" action="form" class="form-horizontal">
+    {{ csrf_token() }}
+    <input type="hidden" name="id" value="{{ group.db_id }}" />
+    <input type="hidden" name="new_dealer" value="{{ new_dealer or '' }}" />
+
+    {% if forms and 'group_info' in forms %}
+      {% include "forms/group/group_info.html" %}
+    {% elif forms and 'table_info' in forms %}
+      {% include "forms/group/table_info.html" %}
+
+      {% if not group.is_new %}
+      <button type="submit" class="btn btn-primary" value="Upload">Save</button>
+      {% endif %}
+      <hr/>
+      <div class="form-text">Contact Info</div>
+      {% include "forms/group/contact_info.html" %}
     {% endif %}
-      <form method="post" action="form" class="form-horizontal">
-        {{ csrf_token() }}
-        <input type="hidden" name="id" value="{{ group.db_id }}" />
-        <input type="hidden" name="new_dealer" value="{{ new_dealer or '' }}" />
 
-        {{ group_fields.guest_group_type }}
-        {{ group_fields.group_name }}
-        {{ group_fields.badges_dropdown }}
-        {{ group_fields.tables }}
-        {{ group_fields.admin_notes }}
-        {{ group_fields.new_badge_type }}
-        {{ group_fields.new_badge_ribbon }}
-
-        {{ group_fields.cost }}
-        {% if group.cost %}
-        {{ group_fields.amount_paid }}
-        {{ group_fields.amount_refunded }}
-        {% endif %}
-        {{ group_fields.can_add }}
-
-        {{ group_fields.leader_info }}
-        {% if new_dealer or group.is_dealer or group.categories %}
-            {% if group.leader %}
-                <div class="form-group">
-                    <label class="col-sm-3 control-label">Phone Number</label>
-                    <div class="col-sm-6">
-                        {{ group.leader.cellphone }}
-                    </div>
-                </div>
-            {% endif %}
-
-        {% if new_dealer %}
-        <h3>Marketplace Info</h3>
-        {% endif %}
-
-          {{ group_fields.status }}
-          {{ group_fields.categories }}
-          {{ group_fields.wares }}
-          {{ group_fields.description }}
-          {{ group_fields.special_needs }}
-          {{ group_fields.website }}
-          {{ group_fields.address }}
-        {% endif %}
-
-        {% include "groupextra.html" %}
-
-        {% if not page_ro %}
-          <div class="form-group">
-            <div class="col-sm-6 col-sm-offset-3">
-              <button type="submit" class="btn btn-primary" value="Upload">Save</button>
-              {% if not group.is_new %}<button type="submit" form="delete" class="btn btn-danger">Delete Group</button>{% endif %}
-            </div>
-          </div>
-          </form>
-
-          {% if not group.is_new %}
-            <form method="post" action="delete" id="delete">
-              {{ csrf_token() }}
-              <input type="hidden" name="id" value="{{ group.id }}" />
-            </form>
-          {% endif %}
-        {% endif %}
-
-      {% if not group.is_new and group.sorted_attendees %}
+    {% if group.is_new %}
+    <hr/>
+      <div class="form-text">Group Leader's Info</div>
+      {% include "forms/group/leader_info.html" %}
+    {% endif %}
+    
+    <div class="form-group">
+      <div class="col-sm-6 col-sm-offset-3">
+        <button type="submit" class="btn btn-primary" value="Upload">Save</button>
+        {% if not group.is_new %}<button type="submit" form="delete" class="btn btn-danger">Delete Group</button>{% endif %}
       </div>
-      <div role="tabpanel" class="tab-pane" id="badges">
-        <table class="table datatable table-striped">
-        <thead>
+    </div>
+  </form>
+
+  {% if not group.is_new %}
+    <form method="post" action="delete" id="delete">
+      {{ csrf_token() }}
+      <input type="hidden" name="id" value="{{ group.id }}" />
+    </form>
+  {% endif %}
+
+  {% if not group.is_new and group.sorted_attendees %}
+  </div>
+  <div role="tabpanel" class="tab-pane" id="attendees" aria-labelledby="attendees-tab">
+    <table class="table datatable table-striped">
+    <thead>
+    <tr>
+      <th>Name</th>
+      <th>Paid</th>
+      <th>Badge</th>
+      <th>Amount Extra</th>
+      <th>Leader</th>
+      <th>Unassign</th>
+      {% if c.AT_THE_CON %}<th>Check In</th>{% endif %}
+    </tr>
+    </thead>
+    <tbody>
+      {% for attendee in group.attendees %}
         <tr>
-          <th>Name</th>
-          <th>Paid</th>
-          <th>Badge</th>
-          <th>Amount Extra</th>
-          <th>Leader</th>
-          <th>Unassign</th>
-          {% if c.AT_THE_CON %}<th>Check In</th>{% endif %}
+          <td style="padding:15px;"> <a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
+          <td>{{ attendee.paid_label }}</td>
+          <td>{{ attendee.badge }}</td>
+          <td>
+            {{ attendee.donation_tier_label }}
+          </td>
+          <td>
+            {% if attendee == group.leader %}
+              Group Leader
+            {% elif not attendee.is_unassigned %}
+              <form method="post" action="assign_leader">
+                {{ csrf_token() }}
+                <input type="hidden" name="group_id" value="{{ group.id }}" />
+                <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
+                <input type="submit" class="btn btn-primary" value="Make Leader" />
+              </form>
+            {% endif %}
+          </td><td>
+            {% if attendee == group.leader %}
+              N/A
+            {% elif not attendee.is_unassigned and not attendee.cannot_delete_badge_reason %}
+              <form method="post" action="../registration/delete_attendee" onSubmit="return confirm('Are you sure you want to unassign this badge?');">
+                {{ csrf_token() }}
+                <input type="hidden" name="id" value="{{ attendee.id }}" />
+                <input type="hidden" name="return_to" value="../group_admin/form?id={{ group.id }}" />
+                <input type="submit" value="Unassign" />
+              </form>
+            {% endif %}
+          </td>
+          {% if c.AT_THE_CON and attendee.checked_in %}
+            <td><b>Checked-in {{ attendee.checked_in_local|datetime("%-I:%M%p")|lower }} {{ attendee.checked_in_local|datetime("%a") }}</b></td>
+          {% elif c.AT_THE_CON %}
+            {% if attendee.is_not_ready_to_checkin %}
+              <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
+            {% else %}
+              <td id="cin_{{ attendee.id }}">
+                <button class="attendee-checkin btn btn-sm btn-success" data-attendee-id="{{ attendee.id }}">Check In</button>
+              </td>
+            {% endif %}
+          {% endif %}
         </tr>
-        </thead>
-        <tbody>
-          {% for attendee in group.attendees %}
-            <tr>
-              <td style="padding:15px;"> <a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a> </td>
-              <td>{{ attendee.paid_label }}</td>
-              <td>{{ attendee.badge }}</td>
-              <td>
-                {{ attendee.donation_tier_label }}
-              </td>
-              <td>
-                {% if attendee == group.leader %}
-                  Group Leader
-                {% elif not attendee.is_unassigned %}
-                  <form method="post" action="assign_leader">
-                    {{ csrf_token() }}
-                    <input type="hidden" name="group_id" value="{{ group.id }}" />
-                    <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
-                    <input type="submit" class="btn btn-primary" value="Make Leader" />
-                  </form>
-                {% endif %}
-              </td><td>
-                {% if attendee == group.leader %}
-                  N/A
-                {% elif not attendee.is_unassigned and not attendee.cannot_delete_badge_reason %}
-                  <form method="post" action="../registration/delete_attendee" onSubmit="return confirm('Are you sure you want to unassign this badge?');">
-                    {{ csrf_token() }}
-                    <input type="hidden" name="id" value="{{ attendee.id }}" />
-                    <input type="hidden" name="return_to" value="../group_admin/form?id={{ group.id }}" />
-                    <input type="submit" value="Unassign" />
-                  </form>
-                {% endif %}
-              </td>
-              {% if c.AT_THE_CON and attendee.checked_in %}
-                <td><b>Checked-in {{ attendee.checked_in_local|datetime("%-I:%M%p")|lower }} {{ attendee.checked_in_local|datetime("%a") }}</b></td>
-              {% elif c.AT_THE_CON %}
-                {% if attendee.is_not_ready_to_checkin %}
-                  <td>Can't checkin ({{ attendee.is_not_ready_to_checkin }})</td>
-                {% else %}
-                  <td id="cin_{{ attendee.id }}">
-                    <button class="attendee-checkin btn btn-sm btn-success" data-attendee-id="{{ attendee.id }}">Check In</button>
-                  </td>
-                {% endif %}
-              {% endif %}
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-        </div>
-        {% endif %}
-        </div>
-      </div>
-<script src="../static/js/window-hash-tabload.js" type="text/javascript"></script>
-{% if group.is_new %}
-<script type="text/javascript">
-$(function () {
-  if($.field('group_type').length) {
-    var autoTypeAndRibbon = function() {
-      if($.val('group_type') == '{{ c.GUEST }}') {
-        $.field('badge_type').val('{{ c.GUEST_BADGE }}');
-      } else if ($.val('group_type') == '{{ c.BAND }}') {
-        $.field('badge_type').val('{{ c.GUEST_BADGE }}');
-        $(':checkbox[value={{ c.BAND }}]').prop("checked","true");
-      }
-    };
-    $.field('group_type').change(autoTypeAndRibbon);
-    autoTypeAndRibbon();
-}});
-</script>
-{% endif %}
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% endif %}
+    </div>
+  </div>
+  {% if not group.is_new %}
+    {{ "js/window-hash-tabload.js"|serve_static_content }}
+  {% else %}
+    <script type="text/javascript">
+    $(function () {
+      if($.field('guest_group_type') && $.field('guest_group_type').length) {
+        var autoTypeAndRibbon = function() {
+          if($.val('guest_group_type') == '{{ c.GUEST }}') {
+            $.field('new_badge_type').val('{{ c.GUEST_BADGE }}');
+          } else if ($.val('guest_group_type') == '{{ c.BAND }}') {
+            $.field('new_badge_type').val('{{ c.GUEST_BADGE }}');
+            $(':checkbox[value={{ c.BAND }}]').prop("checked","true");
+          }
+        };
+        $.field('guest_group_type').change(autoTypeAndRibbon);
+        autoTypeAndRibbon();
+    }});
+    </script>
+  {% endif %}
 {% endblock %}

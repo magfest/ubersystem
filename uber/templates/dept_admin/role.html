@@ -40,9 +40,9 @@
 
 <h2>
   {%- if role.is_new -%}
-    <span class="glyphicon glyphicon-plus"></span> New Role for {{ department|form_link }}
+    <i class="fa fa-plus"></i> New Role for {{ department|form_link }}
   {%- else -%}
-    <span class="glyphicon glyphicon-cog"></span> Edit {{ role.name }} Role for {{ department|form_link }}
+    <i class="fa fa-cog"></i> Edit {{ role.name }} Role for {{ department|form_link }}
   {%- endif -%}
 </h2>
 
@@ -95,7 +95,7 @@
   <div class="form-group">
     <div class="col-sm-9 col-sm-offset-3">
       <button type="submit" class="btn btn-primary">Save</button>
-      <a href="form?id={{ department.id }}" type="button" class="btn btn-default">Cancel</a>
+      <a href="form?id={{ department.id }}" type="button" class="btn btn-outline-secondary">Cancel</a>
     </div>
   </div>
 </form>

@@ -18,13 +18,12 @@
   });
 </script>
 
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     {% block body %}
       {% if show_all %}
         <a class="btn btn-success btn-back" href="index">
-          <span class="glyphicon glyphicon-chevron-left"></span>
+          <i class="fa fa-chevron-left"></i>
           <span class="hidden-xxs">All Attractions</span>
           <span class="visible-xxs-inline">Back</span>
         </a>
@@ -41,7 +40,7 @@
               data-feature-name="{{ feature.name }}">
             <div class="hover-btn-title">
               <a class="btn btn-success btn-next pull-right" href="{{ attraction.slug }}?feature={{ feature.slug }}">
-                <span class="glyphicon glyphicon-chevron-right"></span>
+                <i class="fa fa-chevron-right"></i>
               </a>
               <h2><span class="bling-icon"></span> {{ feature.name }}</h2>
             </div>

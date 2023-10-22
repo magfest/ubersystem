@@ -26,7 +26,7 @@ from uber.jinja import JinjaEnv
 from uber.models import AdminAccount, Attendee, AttendeeAccount, ArtShowApplication, AutomatedEmail, Department, Group, \
     GuestGroup, IndieGame, IndieJudge, IndieStudio, MarketplaceApplication, MITSTeam, MITSApplicant, PanelApplication, \
     PanelApplicant, PromoCodeGroup, Room, RoomAssignment, Shift
-from uber.utils import after, before, days_after, days_before, localized_now, DeptChecklistConf
+from uber.utils import after, before, days_after, days_before, days_between, localized_now, DeptChecklistConf
 
 
 class AutomatedEmailFixture:
@@ -126,19 +126,20 @@ class AutomatedEmailFixture:
         before = [d.active_before for d in when if d.active_before]
         self.active_before = max(before) if before else None
 
+    def update_template_plugin_info(self):
+        env = JinjaEnv.env()
+        try:
+            template_path = pathlib.Path(env.get_or_select_template(os.path.join('emails', self.template)).filename)
+            self.template_plugin_name = template_path.parts[3]
+            self.template_url = f"https://github.com/magfest/{self.template_plugin_name}/tree/main/{self.template_plugin_name}/{pathlib.Path(*template_path.parts[5:]).as_posix()}"
+        except jinja2.exceptions.TemplateNotFound:
+            self.template_plugin_name = "ERROR: TEMPLATE NOT FOUND"
+            self.template_url = ""
+        return self.template_plugin_name, self.template_url
+
     @property
     def body(self):
         return decorators.render_empty(os.path.join('emails', self.template))
-    
-    @property
-    def template_url(self):
-        env = JinjaEnv.env()
-        try:
-            template_path = pathlib.Path(env.get_template(os.path.join('emails', self.template)).name)
-            self.template_plugin = template_path.parts[3]
-            self.template_url = f"https://github.com/magfest/{self.template_plugin}/tree/main/{self.template_plugin}/{pathlib.Path(*template_path.parts[5:]).as_posix()}"
-        except jinja2.exceptions.TemplateNotFound:
-            self.template_url = ""
 
 
 # Payment reminder emails, including ones for groups, which are always safe to be here, since they just
@@ -148,20 +149,9 @@ AutomatedEmailFixture(
     Attendee,
     '{EVENT_NAME} registration confirmed',
     'reg_workflow/attendee_confirmation.html',
-    lambda a: a.paid == c.HAS_PAID and not a.promo_code_groups,
+    lambda a: (a.paid == c.HAS_PAID and not a.promo_code_groups) or 
+              (a.paid == c.NEED_NOT_PAY and (a.confirmed or a.promo_code_id)),
     # query=Attendee.paid == c.HAS_PAID,
-    needs_approval=False,
-    allow_at_the_con=True,
-    ident='attendee_payment_received')
-
-AutomatedEmailFixture(
-    Attendee,
-    '{EVENT_NAME} registration confirmed',
-    'reg_workflow/attendee_confirmation.html',
-    lambda a: a.paid == c.NEED_NOT_PAY and (a.confirmed or a.promo_code_id),
-    # query=and_(
-    #     Attendee.paid == c.NEED_NOT_PAY,
-    #     or_(Attendee.confirmed != None, Attendee.promo_code_id != None)),
     needs_approval=False,
     allow_at_the_con=True,
     ident='attendee_badge_confirmed')
@@ -172,17 +162,18 @@ AutomatedEmailFixture(
     'placeholders/deferred.html',
     lambda a: a.placeholder and a.registered_local <= c.PREREG_OPEN and \
               a.badge_type == c.ATTENDEE_BADGE and a.paid == c.NEED_NOT_PAY and not a.admin_account,
+    when=after(c.PREREG_OPEN),
     ident='claim_deferred_badge')
 
-AutomatedEmailFixture(
-    AttendeeAccount,
-    '{EVENT_NAME} account creation confirmed',
-    'reg_workflow/account_confirmation.html',
-    lambda a: not a.password_reset and (
-              a.created.when_local > c.PREREG_OPEN or a.has_dealer and a.created.when_local > c.DEALER_REG_START),
-    needs_approval=False,
-    allow_at_the_con=True,
-    ident='attendee_account_confirmed')
+if c.ATTENDEE_ACCOUNTS_ENABLED:
+    AutomatedEmailFixture(
+        AttendeeAccount,
+        '{EVENT_NAME} account creation confirmed',
+        'reg_workflow/account_confirmation.html',
+        lambda a: not a.imported and a.hashed and not a.password_reset and not a.is_sso_account,
+        needs_approval=False,
+        allow_at_the_con=True,
+        ident='attendee_account_confirmed')
 
 AutomatedEmailFixture(
     PromoCodeGroup,
@@ -225,6 +216,7 @@ AutomatedEmailFixture(
     #     Attendee.amount_extra != 0,
     #     Attendee.amount_paid >= Attendee.amount_extra),
     needs_approval=False,
+    sender=c.MERCH_EMAIL,
     ident='group_extra_payment_received')
 
 
@@ -322,7 +314,7 @@ if c.ART_SHOW_ENABLED:
         'Reminder to pay for your {EVENT_NAME} Art Show application',
         'art_show/payment_reminder.txt',
         lambda a: a.status == c.APPROVED and a.is_unpaid,
-        when=days_before(14, c.ART_SHOW_PAYMENT_DUE),
+        when=days_between((14, c.ART_SHOW_PAYMENT_DUE), (1, c.EPOCH)),
         ident='art_show_payment_reminder')
 
     ArtShowAppEmailFixture(
@@ -343,7 +335,7 @@ if c.ART_SHOW_ENABLED:
         '{EVENT_NAME} Art Show MAIL IN Instructions',
         'art_show/mailing_in.html',
         lambda a: a.status == c.APPROVED and not a.is_unpaid and a.delivery_method == c.BY_MAIL,
-        when=days_before(40, c.ART_SHOW_DEADLINE),
+        when=days_between((c.ART_SHOW_REG_START, 13), (16, c.ART_SHOW_WAITLIST)),
         ident='art_show_mail_in')
 
 
@@ -561,7 +553,8 @@ AutomatedEmailFixture(
     'Last Chance to Accept Your {EVENT_NAME} ({EVENT_DATE}) Badge',
     'placeholders/reminder.txt',
     lambda a: a.placeholder and not a.is_dealer,
-    when=days_before(7, c.PLACEHOLDER_DEADLINE),
+    needs_approval=False,
+    when=days_before(7, c.PLACEHOLDER_DEADLINE if c.PLACEHOLDER_DEADLINE else c.UBER_TAKEDOWN),
     ident='badge_confirmation_reminder_last_chance')
 
 
@@ -648,13 +641,14 @@ if c.PRINTED_BADGE_DEADLINE:
         when=days_before(7, c.PRINTED_BADGE_DEADLINE),
         ident='volunteer_personalized_badge_reminder')
 
-    AutomatedEmailFixture(
-        Attendee,
-        'Personalized {EVENT_NAME} ({EVENT_DATE}) badges will be ordered next week',
-        'personalized_badges/reminder.txt',
-        lambda a: a.badge_type in c.PREASSIGNED_BADGE_TYPES and not a.placeholder,
-        when=days_before(7, c.PRINTED_BADGE_DEADLINE),
-        ident='personalized_badge_reminder')
+    if [badge_type for badge_type in c.PREASSIGNED_BADGE_TYPES if badge_type not in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]]:
+        AutomatedEmailFixture(
+            Attendee,
+            'Personalized {EVENT_NAME} ({EVENT_DATE}) badges will be ordered next week',
+            'personalized_badges/reminder.txt',
+            lambda a: a.badge_type in c.PREASSIGNED_BADGE_TYPES and not a.placeholder,
+            when=days_before(7, c.PRINTED_BADGE_DEADLINE),
+            ident='personalized_badge_reminder')
 
 
 # MAGFest requires signed and notarized parental consent forms for anyone under 18.  This automated email reminder to
@@ -1092,7 +1086,7 @@ if c.MITS_ENABLED:
         ident='mits_tax_form')
 
     MITSEmailFixture(
-        'MITS 2019 Developer Perspective Feedback',
+        'MITS 2024 Developer Perspective Feedback',
         'mits/mits_feedback.txt',
         lambda team: team.accepted,
         ident='mits_feedback',
@@ -1145,7 +1139,7 @@ if c.PANELS_ENABLED:
 
     PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Application Has Been Received: {{ app.name }}',
-        'panels/panel_app_confirmation.txt',
+        'panels/application.html',
         lambda a: True,
         needs_approval=False,
         ident='panel_received')
@@ -1173,8 +1167,7 @@ if c.PANELS_ENABLED:
         'panels/panel_accept_reminder.txt',
         lambda app: (
             c.PANELS_CONFIRM_DEADLINE
-            and app.status == c.ACCEPTED
-            and not app.confirmed
+            and app.confirm_deadline
             and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
         ident='panel_accept_reminder')
 

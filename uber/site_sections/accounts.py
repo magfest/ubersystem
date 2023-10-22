@@ -14,7 +14,7 @@ from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
 from uber.errors import HTTPRedirect
 from uber.models import AccessGroup, AdminAccount, Attendee, PasswordReset
 from uber.tasks.email import send_email
-from uber.utils import check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd, OAuthRequest
+from uber.utils import check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd
 
 
 def valid_password(password, account):
@@ -31,7 +31,7 @@ def valid_password(password, account):
 class Root:
     def index(self, session, message=''):
         attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, Attendee.badge_num) \
-            .filter(Attendee.first_name != '', Attendee.badge_status not in [c.INVALID_STATUS, c.WATCHED_STATUS])
+            .filter(Attendee.first_name != '', Attendee.is_valid == True)
 
         attendees = [
             (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
@@ -55,7 +55,7 @@ class Root:
         if not message:
             account = session.admin_account(params)
 
-            if account.is_new and not c.AUTH_DOMAIN:
+            if account.is_new and not c.SAML_SETTINGS:
                 if c.AT_OR_POST_CON:
                     if not password:
                         message = 'You must enter a password'
@@ -167,11 +167,23 @@ class Root:
 
     @public
     def login(self, session, message='', original_location=None, **params):
-        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
+        if c.SAML_SETTINGS:
+            from uber.utils import prepare_saml_request
+            from onelogin.saml2.auth import OneLogin_Saml2_Auth
 
+            if original_location:
+                redirect_url = c.URL_ROOT + create_valid_user_supplied_redirect_url(original_location, default_url='')
+            else:
+                redirect_url = ''
+
+            req = prepare_saml_request(cherrypy.request)
+            auth = OneLogin_Saml2_Auth(req, c.SAML_SETTINGS)
+            raise HTTPRedirect(auth.login(return_to=redirect_url))
+        
+        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='/accounts/homepage')
         if 'email' in params:
             try:
-                account = session.get_account_by_email(params['email'])
+                account = session.get_admin_account_by_email(params['email'])
                 if not valid_password(params.get('password'), account):
                     message = 'Incorrect password'
             except NoResultFound:
@@ -182,17 +194,6 @@ class Root:
                 ensure_csrf_token_exists()
                 raise HTTPRedirect(original_location)
 
-        if c.AUTH_DOMAIN:
-            try:
-                request = OAuthRequest()
-                request.set_auth_url()
-            except Exception as ex:
-                log.error("Third-party OAuth failed: " + str(ex))
-                message = "OAuth Server is not working."
-            else:
-                cherrypy.session['oauth_state'] = request.state
-                raise HTTPRedirect(request.auth_uri)
-
         return {
             'message': message,
             'email':   params.get('email', ''),
@@ -200,38 +201,9 @@ class Root:
         }
 
     @public
-    @not_site_mappable
-    def process_login(self, session, code, state, original_location=None, **params):
-        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='homepage')
-        if not cherrypy.session.get('oauth_state'):
-            raise HTTPRedirect('login?message={}', 'Authentication session expired')
-
-        message = params.get('error', '')
-        if not message:
-            try:
-                request = OAuthRequest(state=cherrypy.session['oauth_state'])
-            except Exception as ex:
-                log.error("Processing third-party OAuth login failed: " + str(ex))
-                message = "There was a problem logging in. Try again or contact your administrator."
-            else:
-                request.set_token(code, state)
-                try:
-                    account = session.get_account_by_email(request.get_email())
-                except NoResultFound:
-                    message = 'Could not find your account. Please contact your administrator.'
-        
-        if not message:
-            cherrypy.session['account_id'] = account.id
-            cherrypy.session['oauth_state'] = None
-            ensure_csrf_token_exists()
-            raise HTTPRedirect(original_location)
-        
-        raise HTTPRedirect('../landing/index?message={}', message)
-
-    @public
     def homepage(self, session, message=''):
         if not cherrypy.session.get('account_id'):
-            raise HTTPRedirect('login?message={}', 'You are not logged in')
+            raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
         
         return {
             'message': message,
@@ -242,7 +214,7 @@ class Root:
     @not_site_mappable
     def attendees(self, session, query=''):
         if not cherrypy.session.get('account_id'):
-            raise HTTPRedirect('login?message={}', 'You are not logged in')
+            raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
         
         attendees = session.access_query_matrix()[query].limit(c.ROW_LOAD_LIMIT).all() if query else None
         
@@ -256,25 +228,25 @@ class Root:
             if key not in ['preregs', 'paid_preregs', 'job_defaults', 'prev_location']:
                 cherrypy.session.pop(key)
         
-        if c.AUTH_DOMAIN:
-            raise HTTPRedirect(OAuthRequest().logout_uri)
-
-        raise HTTPRedirect('login?message={}', 'You have been logged out')
+        if c.SAML_SETTINGS:
+            raise HTTPRedirect('../landing/index?message={}', 'You have been logged out.')
+        else:
+            raise HTTPRedirect('login?message={}', 'You have been logged out.')
         
     @public
     @not_site_mappable
     def process_logout(self):
         # We shouldn't need this, but Auth0 is throwing errors
-        # when I try to include a message to the redirect url
+        # when I try to include a message in the redirect url
         # so here we are
 
-        raise HTTPRedirect('../landing/index?message={}', 'You have been logged out')
+        raise HTTPRedirect('../landing/index?message={}', 'You have been logged out.')
 
     @public
     def reset(self, session, message='', email=None):
         if email is not None:
             try:
-                account = session.get_account_by_email(email)
+                account = session.get_admin_account_by_email(email)
             except NoResultFound:
                 message = 'No account exists for email address {!r}'.format(email)
             else:
@@ -308,7 +280,7 @@ class Root:
             updater_password=None,
             new_password=None,
             csrf_token=None,
-            confirm_new_password=None):
+            confirm_password=None):
 
         if updater_password is not None:
             new_password = new_password.strip()
@@ -317,7 +289,7 @@ class Root:
                 message = 'New password is required'
             elif not valid_password(updater_password, updater_account):
                 message = 'Your password is incorrect'
-            elif new_password != confirm_new_password:
+            elif new_password != confirm_password:
                 message = 'Passwords do not match'
             else:
                 check_csrf(csrf_token)
@@ -338,10 +310,10 @@ class Root:
             old_password=None,
             new_password=None,
             csrf_token=None,
-            confirm_new_password=None):
+            confirm_password=None):
 
         if not cherrypy.session.get('account_id'):
-            raise HTTPRedirect('login?message={}', 'You are not logged in')
+            raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
 
         if old_password is not None:
             new_password = new_password.strip()
@@ -350,7 +322,7 @@ class Root:
                 message = 'New password is required'
             elif not valid_password(old_password, account):
                 message = 'Incorrect old password; please try again'
-            elif new_password != confirm_new_password:
+            elif new_password != confirm_password:
                 message = 'Passwords do not match'
             else:
                 check_csrf(csrf_token)
@@ -402,14 +374,14 @@ class Root:
                 if match:
                     account = session.admin_account(params)
                     if account.is_new:
-                        if not c.AUTH_DOMAIN:
+                        if not c.SAML_SETTINGS:
                             password = genpasswd()
                             account.hashed = bcrypt.hashpw(password, bcrypt.gensalt())
                         account.attendee = match
                         session.add(account)
                         body = render('emails/accounts/new_account.txt', {
                             'account': account,
-                            'password': password if not c.AUTH_DOMAIN else '',
+                            'password': password if not c.SAML_SETTINGS else '',
                             'creator': AdminAccount.admin_name()
                         }, encoding=None)
                         send_email.delay(

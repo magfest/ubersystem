@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Art Show Pieces Bought - {{ receipt.attendee.full_name }}{% endblock %}
 {% block content %}
-<h3>Art Show Purchases for {{ receipt.attendee|form_link }} <a href="../art_show_admin/sales_search" class="btn btn-default pull-right">Return to Search</a></h3>
+<h3>Art Show Purchases for {{ receipt.attendee|form_link }} <a href="../art_show_admin/sales_search" class="btn btn-outline-secondary pull-right">Return to Search</a></h3>
 {% for receipt_iter in receipt.attendee.art_show_receipts %}
 {% if receipt_iter.id != receipt.id %}
 <a href="pieces_bought?id={{ receipt_iter.id }}">(Invoice #{{ receipt_iter.invoice_num }})</a>
@@ -13,18 +13,16 @@ Invoice #{{ receipt.invoice_num }}
 <a href="pieces_bought?id={{ receipt.attendee.id }}">[Start New Invoice]</a>
 {% endif %}
 {% set receipt_open = (receipt.id == receipt.attendee.art_show_receipt.id) %}
-<div class="panel panel-default">
+<div class="card">
   {% if receipt_open %}
-  <div class="panel-body">
+  <div class="card-body">
     <div class="row text-center">
       <div class="col-sm-4">
         <form role="form" method="post" action="pieces_bought" id="search_form">
           <input type="hidden" name="id" value="{{ receipt.id }}" />
           <div class="input-group">
             <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
-            <span class="input-group-btn">
-              <button class="btn btn-primary">Add Piece</button>
-          </span>
+            <button class="btn btn-primary">Add Piece</button>
           </div>
         </form>
       </div>
@@ -35,7 +33,7 @@ Invoice #{{ receipt.invoice_num }}
     <div class="modal-dialog modal-lg" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
           <h4 class="modal-title">Choose Piece to Claim</h4>
         </div>
 
@@ -43,11 +41,11 @@ Invoice #{{ receipt.invoice_num }}
           <div class="modal-body">
             <input type="hidden" name="id" value="{{ receipt.id }}" />
             {% for piece in pieces %}
-            <button class="btn btn-default" name="search_text" value="{{ piece.artist_and_piece_id }}">
+            <button class="btn btn-outline-secondary" name="search_text" value="{{ piece.artist_and_piece_id }}">
               {{ piece.name }} by {{ piece.app.display_name }}
             </button>
             {% endfor %}
-            <br/><br/><button type="button" class="btn btn-danger" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">Nevermind</span></button>
+            <br/><br/><button type="button" class="btn btn-danger" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">Nevermind</span></button>
           </div>
         </form>
       </div>
@@ -67,7 +65,7 @@ Invoice #{{ receipt.invoice_num }}
         <th>Artist Name</th>
         <th>Gallery</th>
         <th>Type</th>
-        <th class="text-right">Price</th>
+        <th class="text-end">Price</th>
       </tr>
       </thead>
       <tbody>
@@ -94,19 +92,19 @@ Invoice #{{ receipt.invoice_num }}
         <td> {{ piece.type_label }}
           {% if piece.print_run_num and piece.type == c.PRINT %}({{ piece.print_run_num }} of {{ piece.print_run_total }}){% endif %}
         </td>
-        <td class="text-right"> {{ piece.sale_price|format_currency }}
+        <td class="text-end"> {{ piece.sale_price|format_currency }}
         </td>
       </tr>
       {% endfor %}
       {% if receipt.pieces %}
-      <tr><td colspan="9" class="text-right">Subtotal: {{ (receipt.subtotal / 100)|format_currency }}</td></tr>
-      <tr><td colspan="9" class="text-right">Sales Tax ({{ c.SALES_TAX / 100 }}%): {{ (receipt.tax / 100)|format_currency }}</td></tr>
-      <tr><td colspan="9" class="text-right">Total Cost: {{ (receipt.total / 100)|format_currency }}</td></tr>
-      <tr><td colspan="9" class="text-right">Total Paid: {{ (receipt.paid / 100)|format_currency }}</td></tr>
+      <tr><td colspan="9" class="text-end">Subtotal: {{ (receipt.subtotal / 100)|format_currency }}</td></tr>
+      <tr><td colspan="9" class="text-end">Sales Tax ({{ c.SALES_TAX / 100 }}%): {{ (receipt.tax / 100)|format_currency }}</td></tr>
+      <tr><td colspan="9" class="text-end">Total Cost: {{ (receipt.total / 100)|format_currency }}</td></tr>
+      <tr><td colspan="9" class="text-end">Total Paid: {{ (receipt.paid / 100)|format_currency }}</td></tr>
       <tr><td colspan="9"></td></tr>
       {% if receipt.owed and receipt_open %}
-      <tr><td colspan="9" class="text-right">Owed: {{ (receipt.owed / 100)|format_currency }}</td></tr>
-      <tr><td colspan="9" class="text-right">
+      <tr><td colspan="9" class="text-end">Owed: {{ (receipt.owed / 100)|format_currency }}</td></tr>
+      <tr><td colspan="9" class="text-end">
         <form role="form" method="post" class="form form-inline" action="record_payment">
           <input type="hidden" name="id" value="{{ receipt.id }}" />
           <input type="hidden" name="type" value="{{ c.CASH }}" />
@@ -116,7 +114,7 @@ Invoice #{{ receipt.invoice_num }}
           <button type="submit" class="btn btn-success">Record Cash Payment</button>
         </form>
       </td></tr>
-      <tr><td colspan="9" class="text-right">
+      <tr><td colspan="9" class="text-end">
       <div class="form form-inline">
           <div class="input-group">
             <input type="hidden" id="original_total_cents" value="{{ receipt.owed }}" />
@@ -126,7 +124,7 @@ Invoice #{{ receipt.invoice_num }}
       </div>
       </td></tr>
       {% endif %}
-      <tr><td colspan="9" class="text-right">
+      <tr><td colspan="9" class="text-end">
         <form role="form" method="post" class="form form-inline" action="record_payment">
           <input type="hidden" name="id" value="{{ receipt.id }}" />
           <input type="hidden" name="type" value="{{ c.REFUND }}" />
@@ -137,10 +135,10 @@ Invoice #{{ receipt.invoice_num }}
         </form>
       </td></tr>
       {% if not receipt.owed %}
-      <tr><td colspan="9" class="text-right"><button class="btn btn-primary" id="print_receipt">Print{% if receipt_open %} & Close Out{% endif %} Receipt</button></td></tr>
+      <tr><td colspan="9" class="text-end"><button class="btn btn-primary" id="print_receipt">Print{% if receipt_open %} & Close Out{% endif %} Receipt</button></td></tr>
       {% endif %}
       {% for payment in receipt.art_show_payments %}
-      <tr><td colspan="9" class="text-right">
+      <tr><td colspan="9" class="text-end">
         <form role="form" method="post" action="undo_payment">
           {%- set payment_desc -%}
           {%- if payment.type == c.REFUND -%}
@@ -154,7 +152,7 @@ Invoice #{{ receipt.invoice_num }}
           <input type="hidden" name="id" value="{{ payment.id }}" />
           {{ csrf_token() }}
           <button type="submit" 
-          class="undo_payment btn btn-sm btn-danger glyphicon glyphicon-remove" 
+          class="undo_payment btn btn-sm btn-danger fa fa-remove" 
           data-desc="{{ payment_desc }}"></button>
         </form>
       </td></tr>
@@ -188,7 +186,8 @@ Invoice #{{ receipt.invoice_num }}
     $('#print_receipt').click(printReceipt);
 
     {% if must_choose %}
-    $('.modal').modal('show');
+    var modal = bootstrap.Modal.getOrCreateInstance($('.modal'))
+    modal.show();
     $().ready(function() {
         $("#choose_modal").on("hidden.bs.modal", function () {
             window.location.assign('?id={{ receipt.id }}');
@@ -216,7 +215,7 @@ Invoice #{{ receipt.invoice_num }}
             message: 'Are you sure you want to remove this ' + payment_or_refund.toLowerCase() + '? This cannot be undone.',
             buttons: {
                 confirm: { label: 'Delete ' + payment_or_refund, className: 'btn-danger' },
-                cancel: { label: 'Nevermind', className: 'btn-default' }
+                cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
             },
             callback: function (result) {
                 if (result) {

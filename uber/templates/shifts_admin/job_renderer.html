@@ -51,8 +51,8 @@
 
 <script type="text/javascript" src="../static_views/ratings.js"></script>
 
-<div id="volunteers" class="panel panel-default">
-  <div class="panel-body">
+<div id="volunteers" class="card">
+  <div class="card-body">
     <b>Assign someone to any of these positions</b> <br/>
     <select id="attendee">
         <option value="">Select a volunteer</option>
@@ -80,7 +80,7 @@
                     )
                 ))
             .append(
-                $('<td class="text-right"></td>').append(
+                $('<td class="text-end"></td>').append(
                     $('<button class="btn btn-xs btn-warning">Unassign</button>').click(function() {
                         $.post('unassign', {
                             csrf_token: csrf_token,
@@ -133,7 +133,7 @@
                         '</td>')
                     .append('<td><span class="text-nowrap">(' + job.shifts.length + '/' + job.slots + ' slots filled)</span></td>')
                     .append(
-                        $('<td class="text-right"></td>').append(
+                        $('<td class="text-end"></td>').append(
                             jobIsFull ? '' : $('<button class="btn btn-xs btn-success">Assign</button>').click(function() {
                                 var attendee = $('#attendee').val();
                                 if (attendee) {

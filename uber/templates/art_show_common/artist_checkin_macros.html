@@ -7,7 +7,7 @@
   <div class="modal-dialog modal-lg" style="width:75%" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
         <h4 class="modal-title" id="app_title_{{ app.id }}">Check-{{ checkout|yesno("Out, In") }} Artist</h4>
       </div>
 
@@ -35,7 +35,7 @@
           {% else %}
           <button type="submit" class="btn btn-success save_app action">Save</button>
           {% endif %}
-          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
         </div>
       </form>
     </div>

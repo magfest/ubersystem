@@ -15,7 +15,7 @@
     $(function () {
         $("form[action*='/shifts_admin/']").submit(function(event){
             event.preventDefault();
-            toastr.clear();
+            hideMessageBox();
             var formURL = $(this).attr('action');
             var old_hash = window.location.hash;
             $.ajax({
@@ -28,17 +28,17 @@
                         // non-modal pages don't have a loadForm function, so we
                         // use that to tell whether we're in a modal form
                         if (window.loadForm) {
-                            toastr.info(json.message);
+                            $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
                             window.loadForm('Shifts');
                         } else {
                             location.search += '&message=' + json.message;
                         }
                     } else {
-                        toastr.error(json.message);
+                        showErrorMessage(json.message);
                     }
                 },
                 error: function () {
-                    toastr.error('Unable to connect to server, please try again.');
+                    showErrorMessage('Unable to connect to server, please try again.');
                 }
             });
         });
@@ -130,7 +130,7 @@
             <td>{{ shift.job.weighted_hours }}</td>
             <td id="shift_status_{{ shift.id }}"></td>
             <td id="shift_rating_{{ shift.id }}"></td>
-            <td class="text-right">
+            <td class="text-end">
               <form method="post" action="../shifts_admin/unassign_shift">
                 {{ csrf_token() }}
                 <input type="hidden" name="shift_id" value="{{ shift.id }}" />

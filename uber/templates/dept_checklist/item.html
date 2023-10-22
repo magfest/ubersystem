@@ -3,7 +3,7 @@
 {% block content %}
 
 <h2>Department Checklist: {{ conf.name }}
-  <a class="btn btn-info" href="item_csv?slug={{ conf.slug }}"><span class="glyphicon glyphicon-download"></span> Download CSV</a>
+  <a class="btn btn-info" href="item_csv?slug={{ conf.slug }}"><i class="fa fa-download"></i> Download CSV</a>
 </h2>
 
 {{ conf.description }}
@@ -11,7 +11,7 @@
 {% if delinquent_emails %}
   <p style="margin: 10px 0">
     <a href="mailto:?bcc={{ delinquent_emails|join(',')|urlencode }}&subject=Dept Checklist: {{ conf.name }}">
-      <span class="glyphicon glyphicon-envelope"></span>
+      <i class="fa fa-envelope"></i>
       Email Delinquent Department Heads
     </a>
   </p>

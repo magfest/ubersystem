@@ -7,7 +7,7 @@
   <a
       class="filter btn btn-xs btn-{% if only_empty %}plain{% else %}default{% endif %}"
       href="../guest_reports/rock_island{% if not only_empty %}?only_empty=1{% endif %}">
-    <span class="glyphicon glyphicon-filter"></span>
+    <i class="fa fa-filter"></i>
     Show Only Empty Inventory
   </a>
 {% endmacro %}
@@ -112,15 +112,15 @@
     </h1>
     <p>
       <a href="mailto:{{ guest_groups|selectattr('merch')|map(attribute='merch')|selectattr('email')|map(attribute='email')|join(',') }}">
-        <span class="glyphicon glyphicon-envelope"></span>
+        <i class="fa fa-envelope"></i>
         Email merch POCs for these groups
       </a>
     </p>
     {% for guest in guest_groups -%}
       {%- set guest_merch = guest.merch -%}
       {%- import 'guests_macros.html' as guests_macros with context -%}
-      <div class="panel panel-default inventory-table-panel">
-        <div class="panel-body">
+      <div class="card inventory-table-panel">
+        <div class="card-body">
           <h2>
             <span>Inventory for <a href="../guest_admin/checklist_info?id={{ guest.id }}">{{ guest.group.name }}</a></span>
             {% if guest_merch.inventory -%}
@@ -130,7 +130,7 @@
           </h2>
           {{ guest_merch_contact_info(guest_merch) }}
         </div>
-        {{ guests_macros.inventory_table_with_err('panel-body', suppress_preview=True) }}
+        {{ guests_macros.inventory_table_with_err('card-body', suppress_preview=True) }}
       </div>
     {%- endfor %}
   {% elif guest_groups|length > 0 %}

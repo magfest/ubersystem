@@ -46,9 +46,9 @@
     var invalidate = function (attendeeId) {
         $.post('invalidate_badge', {csrf_token: csrf_token, id: attendeeId}, function (response) {
             if (response.error) {
-                toastr.error(response.error);
+                showErrorMessage(response.error);
             } else {
-                toastr.info('Invalidated badge');
+                $("#message-alert").addClass("alert-info").show().children('span').html('Invalidated badge');
                 hideRows(response.invalidated);
             }
         }, 'json');

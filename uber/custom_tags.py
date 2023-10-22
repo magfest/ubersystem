@@ -6,6 +6,7 @@ https://github.com/django/django/blob/4696078832f486ba63f0783a0795294b3d80d862/L
 """
 
 import binascii
+import bleach
 import html
 import inspect
 import json
@@ -24,6 +25,7 @@ from dateutil.relativedelta import relativedelta
 from markupsafe import Markup
 from phonenumbers import PhoneNumberFormat
 from pockets import fieldify, unfieldify, listify, readable_join
+from pockets.autolog import log
 from sideboard.lib import serializer
 
 from uber.config import c
@@ -175,7 +177,7 @@ def icon_yesno(value, icon=None, color=None):
     icon = icon or 'ok-sign,remove-sign,question-sign'
     color = color or 'success,danger,info'
     icon_opts, color_opts = icon.split(','), color.split(',')
-    html = "<span class='glyphicon glyphicon-{} text-{}'></span>"
+    html = "<i class='fa fa-{} text-{}'></i>"
     if len(icon_opts) < 2 or len(color_opts) < 2:
         return value  # Invalid arg.
     try:
@@ -255,6 +257,14 @@ def email_to_link(email=None):
 
 
 @JinjaEnv.jinja_filter
+def popup_link(href, text='<sup>?</sup>', extra_classes=''):
+    return safe_string("<a onClick='window.open(&quot;{href}&quot;, &quot;info&quot;, " \
+        "&quot;toolbar=no,height=500,width=375,scrollbars=yes&quot;).focus();" \
+        "return false;' {classes}href='{href}'>{text}</a>".format(href=href, text=text,
+                                                                  classes=f'class="{extra_classes}" ' if extra_classes else ''))
+
+
+@JinjaEnv.jinja_filter
 def percent(numerator, denominator):
     if denominator == 0:
         return '0 / 0'
@@ -291,6 +301,26 @@ def format_currency(value, show_abs=False):
 @JinjaEnv.jinja_filter
 def remove_newlines(string):
     return string.replace('\n', ' ')
+
+
+@JinjaEnv.jinja_filter
+def sanitize_html(text, **kw):
+    if not kw:
+        kw = {'tags': ['br'] + bleach.sanitizer.ALLOWED_TAGS}
+
+    return Markup(bleach.clean(text, **kw))
+
+
+@JinjaEnv.jinja_filter
+def serve_static_content(relative_url):
+    hash = c.STATIC_HASH_LIST.get(relative_url, None)
+    hash_str = f' integrity="{hash}" crossorigin="anonymous"' if hash and c.STATIC_URL.startswith('http') else ''
+    if relative_url.endswith('.css'):
+        return Markup(f'<link rel="stylesheet" type="text/css" href="{c.STATIC_URL}{relative_url}"{hash_str} />')
+    elif relative_url.endswith('.js'):
+        return Markup(f'<script type="text/javascript" src="{c.STATIC_URL}{relative_url}"{hash_str}></script>')
+    else:
+        return "WARNING: Unsupported static content!"
 
 
 form_link_site_sections = {}
@@ -529,6 +559,14 @@ def int_options(minval, maxval, default=1):
     return safe_string('\n'.join(results))
 
 
+@JinjaEnv.jinja_export
+def int_choices(minval, maxval):
+    results = []
+    for i in range(minval, maxval+1):
+        results.append((i, str(i)))
+    return results
+
+
 RE_LOCATION = re.compile(r'(\(.*?\))')
 
 
@@ -679,6 +717,8 @@ def stripe_form(action, model=None, **params):
         new_params['params'][key] = val
     new_params['action'] = action
     new_params['id'] = model.id if model else None
+    new_params['cc_full_name'] = model.full_name if hasattr(model, 'full_name') else params.get('full_name', '')
+    new_params['cc_zip_code'] = model.zip_code if hasattr(model, 'zip_code') else params.get('zip_code', '')
 
     return safe_string(render('preregistration/stripeForm.html', new_params).decode('utf-8'))
 

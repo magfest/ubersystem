@@ -12,18 +12,18 @@ $("form[action='resend_email']").each(function(index) {
             dataType: 'json',
             data: data,
             success: function (json) {
-                toastr.clear();
+                hideMessageBox();
                 var message = json.message;
                 if (json.success) {
-                    toastr.info(message);
+                    $("#message-alert").addClass("alert-info").show().children('span').html(message);
                     window.history.replaceState("", document.title, window.location.href.replace(location.hash, "") + old_hash);
                     if(loadForm){loadForm("History");}
                 } else {
-                    toastr.error(message);
+                    showErrorMessage(message);
                 }
             },
             error: function () {
-                toastr.error('Unable to connect to server, please try again.');
+                showErrorMessage('Unable to connect to server, please try again.');
             }
         });
     });

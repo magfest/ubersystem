@@ -5,8 +5,7 @@
 {% block content %}
   {% include "panels_common.html" %}
 
-  {% include 'prereg_masthead.html' %}
-  <div class="panel panel-default">
+  <div class="panel">
     <div class="panel-body">
     {% if c.APP_LIMIT and attendee.panel_applications|length >= c.APP_LIMIT %}
       You have already submitted the maximum number of panels ({{ c.APP_LIMIT }}). Please contact your liaison if
@@ -38,6 +37,7 @@
         <p class="help-block col-sm-9 col-sm-offset-3">
           Please let us know of any schedule conflicts due to prior obligations, travel times, or other needs.
           (e.g. you made a deal with a fairy godmother to get here and have to be back in your room by midnight.)
+          Panels run form 12 PM to 3 AM Thursday, 10 AM to 3 AM Friday, 10 AM to 3 AM Saturday, and 10 AM to 3 PM Sunday.
         </p>
       </div>
       <div class="form-group">

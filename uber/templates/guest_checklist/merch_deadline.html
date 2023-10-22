@@ -20,7 +20,7 @@
     </td>
   </tr>
   {% block deadline_extra %}
-  {% if HAS_ROCK_ISLAND and guest.merch.selling_merch == c.ROCK_ISLAND %}
+  {% if HAS_ROCK_ISLAND and guest.merch_status and guest.merch.selling_merch == c.ROCK_ISLAND %}
     <tr>
       <td></td>
       <td>{{ macros.checklist_image(guest.merch.inventory) }} <b><a href="merch?guest_id={{ guest.id }}">Rock Island Inventory</a></b></td>
@@ -120,7 +120,7 @@
                 </div>
                 <div class="modal-footer">
                   <button type="submit" class="btn btn-primary save_inventory">Save</button>
-                  <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                  <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancel</button>
                 </div>
               </form>
             </div>
@@ -252,9 +252,8 @@
               is_required=False) }}
         </div>
 
+        {% include "region_opts.html" %}
         <script type="text/javascript">
-          {% include "region_opts.html" %}
-
             var showOrHideRockIsland = function() {
                 var isRockIsland = $.val('selling_merch') === {{ c.ROCK_ISLAND }};
                 setVisible('#rockisland', isRockIsland);
@@ -299,7 +298,7 @@
                     message: 'Remove this ' + titleText + ' from your inventory?',
                     buttons: {
                         confirm: { label: 'Remove', className: 'btn-danger' },
-                        cancel: { label: 'Nevermind', className: 'btn-default' }
+                        cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
                     },
                     callback: function (result) {
                         if (result) {
@@ -313,18 +312,18 @@
                                 },
                                 success: function(response, status) {
                                   if (response['error']) {
-                                    toastr.error('There was an error removing the item: ' + response['error']);
+                                    showErrorMessage('There was an error removing the item: ' + response['error']);
                                   } else {
                                     dataTable.row($inventoryRow).remove();
                                     dataTable.draw();
                                     if (!dataTable.rows().count()) {
                                         $('#inventory_container').hide();
                                     }
-                                    toastr.success('', titleText + ' successfully removed!', {timeOut: 2000});
+                                    $("#message-alert").addClass("alert-success").show().children('span').html('', titleText + ' successfully removed!', {timeOut: 2000});
                                   }
                                 },
                                 error: function(response, status) {
-                                  toastr.error('There was an error removing the item: ' + response);
+                                  showErrorMessage('There was an error removing the item: ' + response);
                                 }
                             });
                         }
@@ -345,7 +344,7 @@
                   message: 'Remove ' + $downloadFilename.val() + ' from your inventory?',
                   buttons: {
                       confirm: { label: 'Remove', className: 'btn-danger' },
-                      cancel: { label: 'Nevermind', className: 'btn-default' }
+                      cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
                   },
                   callback: function (result) {
                       if (result) {
@@ -409,10 +408,10 @@
                           });
                           $modals.modal('hide');
                         } else {
-                          toastr.error('', response['error'], {timeOut: 5000});
+                          showErrorMessage('', response['error'], {timeOut: 5000});
                         }
                       } catch(ex) {
-                        toastr.error('', 'There was an error saving the form: ' + responseText.substring(0, 1024), {timeOut: 5000});
+                        showErrorMessage('', 'There was an error saving the form: ' + responseText.substring(0, 1024), {timeOut: 5000});
                       }
                     }
                   } finally {
@@ -429,7 +428,7 @@
 
     <div class="form-group">
       <div class="col-sm-9 col-sm-offset-3">
-        <input type="submit" class="btn btn-primary" value="Save Merch Preference" />
+        <input type="submit" id="save-merch-button" class="btn btn-primary" value="Save Merch Preference" />
       </div>
     </div>
   </form>

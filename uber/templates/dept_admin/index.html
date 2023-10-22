@@ -7,13 +7,13 @@
     {% if filtered %}
       <a class="btn btn-xs btn-plain" href="index">
     {% else %}
-      <a class="btn btn-xs btn-default" href="index?filtered=1">
+      <a class="btn btn-xs btn-outline-secondary" href="index?filtered=1">
     {% endif %}
-        <span class="glyphicon glyphicon-filter"></span>
+        <i class="fa fa-filter"></i>
         Show only my departments
       </a>
     <a href="new" class="btn btn-primary pull-right">
-      <span class="glyphicon glyphicon-plus"></span>
+      <i class="fa fa-plus"></i>
       Create Department
     </a>
   </h1>
@@ -30,8 +30,6 @@
             <th>Description</th>
             <th>Shiftless</th>
             <th>Solicits Volunteers</th>
-            <th>Setup Approval Exempt</th>
-            <th>Teardown Approval Exempt</th>
             <th>Max Consecutive Hours</th>
             <th>Members</th>
           </tr>
@@ -43,8 +41,6 @@
               <td>{{ department.description }}</td>
               <td>{{ department.is_shiftless|yesno("Yes,No") }}</td>
               <td>{{ department.solicits_volunteers|yesno("Yes,No") }}</td>
-              <td>{{ department.is_setup_approval_exempt|yesno("Yes,No") }}</td>
-              <td>{{ department.is_teardown_approval_exempt|yesno("Yes,No") }}</td>
               <td>{{ department.max_consecutive_minutes / 60 }}</td>
               <td>{{ department.member_count }}</td>
             </tr>

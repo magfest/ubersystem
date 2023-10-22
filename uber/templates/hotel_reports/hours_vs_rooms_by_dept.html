@@ -36,7 +36,7 @@
 <h2 style="margin-bottom: 20px;">
   Volunteers Hours vs Room Nights by Dept
   <small style="margin-left: 10px;">
-    <a href="hours_vs_rooms_by_dept_csv"><span class="glyphicon glyphicon-download"></span> Download CSV</a>
+    <a href="hours_vs_rooms_by_dept_csv"><i class="fa fa-download"></i> Download CSV</a>
   </small>
 </h2>
 
@@ -55,8 +55,8 @@
       </tr>
       <tr class="nohover-body">
         <td colspan="2">
-          <a href="#{{ department.id }}" data-toggle="collapse" class="collapsed">
-            <span class="glyphicon glyphicon-chevron-down"></span> Attendees
+          <a href="#{{ department.id }}" data-bs-toggle="collapse" class="collapsed">
+            <i class="fa fa-chevron-down"></i> Attendees
           </a>
         </td>
         <td>{{ dept_report.total_weighted_hours }}</td>

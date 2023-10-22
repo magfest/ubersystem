@@ -1,5 +1,5 @@
 {% if not attendee.is_new and c.BADGE_PRINTING_ENABLED %}
-<div class="panel">
+<div class="card-body">
 <form class="print-badge form-horizontal" method="post">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ attendee.id }}">
@@ -39,7 +39,7 @@
 </div>
 
 <script type="text/javascript">
-age = {{ attendee.age_now_or_at_con|default(0, true)}};
+age = {{ attendee.age_now_or_at_con|default(0, true) }};
 
 if (age < 18) {
     $.field('printer_id').val(printer_minor_id);
@@ -57,14 +57,14 @@ printBadge = function ($form) {
                 if (json.message.includes('fee')) { 
                     window.location = window.location + '&message=' + json.message
                 } else {
-                    toastr.success(json.message);
+                    $("#message-alert").addClass("alert-success").show().children('span').html(json.message);
                 }
             } else {
-            toastr.error(json.message);
+            showErrorMessage(json.message);
             }
         },
         error: function () {
-            toastr.error('Unable to connect to server, please try again.');
+            showErrorMessage('Unable to connect to server, please try again.');
         }
     });
 }
@@ -72,7 +72,7 @@ printBadge = function ($form) {
 $('.print-badge').on('submit', function (event) {
     var $form = $(this);
     event.preventDefault();
-    toastr.clear();
+    hideMessageBox();
     if($.val('printer_id') == printer_default_id && age < 18) {
         bootbox.confirm({
             backdrop: true,
@@ -81,7 +81,7 @@ $('.print-badge').on('submit', function (event) {
             ' onto printer "' + $.val('printer_id') + '" before printing this badge.</p>',
             buttons: {
             confirm: { label: 'I\'ve Loaded the Minor Badge Stock', className: 'btn-success' },
-            cancel: { label: 'Nevermind', className: 'btn-default' }
+            cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
             },
             callback: function (result) {
             if (result) {

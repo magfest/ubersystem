@@ -1,11 +1,12 @@
 from datetime import datetime
+import traceback
 
 from pockets import groupify, listify
 from sqlalchemy import func, or_
 
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, public
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, AutomatedEmail, Email
 from uber.tasks.email import send_email
@@ -30,6 +31,7 @@ class Root:
         return {'emails': session.query(Email).filter_by(**params).order_by(Email.when).all()}
 
     def pending(self, session, message=''):
+        AutomatedEmail.reconcile_fixtures()
         emails_with_count = session.query(AutomatedEmail, AutomatedEmail.email_count).filter(
             AutomatedEmail.subject != '', AutomatedEmail.sender != '',).all()
         emails = []
@@ -107,6 +109,7 @@ class Root:
             'message': output_msg,
         }
 
+    @public
     @ajax
     def resend_email(self, session, id):
         """
@@ -131,6 +134,7 @@ class Root:
                         ident=email.ident)
                 session.commit()
             except Exception:
+                traceback.print_exc()
                 return {'success': False, 'message': 'Email not sent: unknown error.'}
             else:
                 return {'success': True, 'message': 'Email resent.'}

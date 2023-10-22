@@ -6,7 +6,7 @@ var setVisible = function (selector, visible) {
 
 $.field = function (field) {
     var $field = $('[name=' + field + ']');
-    return $field.size() ? $field : null;
+    return $field.length ? $field : null;
 };
 
 $.val = function (field) {

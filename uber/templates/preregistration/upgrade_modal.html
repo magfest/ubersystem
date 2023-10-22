@@ -3,27 +3,25 @@
     <div class="modal-dialog modal-lg" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-          <h4 class="modal-title" id="upgradeTitle">Add Upgrades</h4>
+          <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
+          <span class="h4 modal-title" id="upgradeTitle">Add Upgrades</span>
         </div>
         <div class="modal-body">
+            <div class="alert alert-dismissible" role="alert" id="upgrade-message-alert"><span></span><button type="button" class="btn-close" onClick="hideMessageBox('upgrade-message-alert')" aria-label="Close"></button></div>
             <form method="post" action="purchase_upgrades" id="purchase-upgrades" class="form-horizontal">
                 {{ csrf_token() }}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
-                <input type="hidden" id="upgrade_badge_type" name="badge_type" value="{{ attendee.badge_type }}" />
                 <input type="hidden" name="receipt_id" value="{{ receipt.id }}" />
-                {{ attendee_fields.badge_buttons }}
-                {{ attendee_fields.amount_extra(read_only=False, form="purchase-upgrades") }}
-                {{ attendee_fields.badge_printed_name }}
-                {{ attendee_fields.shirt_size }}
-                {{ attendee_fields.extra_donation(read_only=False) }}
+                {% set upgrade_modal = true %}
+                {% include "forms/attendee/badge_extras.html" %}
+                {% set upgrade_modal = false %}
             </form>
             <table class="table table-striped" id="upgrade-preview">
                 <tbody></tbody>
             </table>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
           <button type="submit" id="upgrade-purchase" form="purchase-upgrades" type="button" class="btn btn-success">Purchase<span id="upgrade-preview-total"></span></button>
         </div>
       </div>
@@ -33,6 +31,8 @@
 <script type="text/javascript">
     var costChangeDict = {};
     var lastAmountExtra; // I hate JavaScript
+    var upgradeModal = bootstrap.Modal.getOrCreateInstance($('#upgradeModal'))
+    
     var updateReceiptPreview = function(colName, val=0) {
         if (colName == 'amount_extra' && lastAmountExtra !== undefined && val == lastAmountExtra) {
             return;
@@ -54,7 +54,7 @@
         },
         function(result) {
           if (result.error) {
-            toastr.error(result.error);
+            showErrorMessage(result.error, 'upgrade-message-alert');
           } else {
             change_str = result.change > 0 ? "$" + result.change / 100 : "-$" + result.change * -1 / 100;
             costChangeDict[colName] = result.change;
@@ -86,6 +86,7 @@
         });
     };
     $().ready(function() {
+        hideMessageBox("upgrade-message-alert");
         $('#upgrade-purchase').prop('disabled', true);
         $("form[action='purchase_upgrades']").submit(function(event){
         var $form = $(this);
@@ -95,21 +96,14 @@
         $.post('purchase_upgrades', $form.serialize(), function(result) {
             $btn.prop('disabled', false);
             if (result.error) {
-                toastr.error(result.error);
+                showErrorMessage(result.error, 'upgrade-message-alert');
+                window.scrollTo(0,0);
             } else if (result.success) {
-                $('#upgradeModal').modal('toggle');
+                upgradeModal.hide();
                 callStripeAction(autoTrigger=true);
             }
         });
         });
-
-        // Hide upgrade buttons for badge type and amount extra if there's nothing to upgrade to
-        if (_(BADGE_TYPES.options).size() == 1) {
-            $('#upgrade-badge-type-btn').hide();
-        }
-        if($('input:radio[name=amount_extra]').size() == 1) {
-            $('#upgrade-amount-extra-btn').hide();
-        }
 
         // Always hide the button we use for the upgrade modal
         $("#upgrade-stripe-btn").hide();

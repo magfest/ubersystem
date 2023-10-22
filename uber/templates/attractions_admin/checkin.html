@@ -149,7 +149,7 @@
         },
         success: function(response, status) {
           if(response && response['error']) {
-            toastr.error(response['error'], '', {timeOut: 3000});
+            showErrorMessage(response['error'], '', {timeOut: 3000});
 
           } else if(response && response['result']) {
             updateAttendee(response['result']['attendee']);
@@ -182,7 +182,7 @@
           $badgeNum.focus();
         },
         error: function(response, status, statusText) {
-          toastr.error('Error searching badge number: ' + statusText, '', {timeOut: 3000});
+          showErrorMessage('Error searching badge number: ' + statusText, '', {timeOut: 3000});
           $badgeNum.focus();
         }
       });
@@ -190,7 +190,7 @@
 
     var toggleShowCheckedIn = function(isShowing) {
       $showCheckedInButton.toggleClass('btn-plain', !isShowing);
-      $showCheckedInButton.toggleClass('btn-default', isShowing);
+      $showCheckedInButton.toggleClass('btn-outline-secondary', isShowing);
       $container.toggleClass('show-checked-in', !isShowing);
     };
 
@@ -212,7 +212,7 @@
           signupId = $signup.data('signupId');
       checkinSignup(signupId, function(response) {
         if(response && response['error']) {
-          toastr.error(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], '', {timeOut: 3000});
         } else {
           $signup.addClass('checked-in').addClass('checked-in-force-visible');
         }
@@ -225,7 +225,7 @@
           signupId = $signup.data('signupId');
       undoCheckinSignup(signupId, function(response) {
         if(response && response['error']) {
-          toastr.error(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error'], '', {timeOut: 3000});
         } else {
           $signup.removeClass('checked-in').removeClass('checked-in-force-visible');
         }
@@ -243,7 +243,7 @@
 </script>
 
 <h1>
-  <span class="glyphicon glyphicon-check"></span>
+  <i class="fa fa-check"></i>
   {{ attraction|form_link }} Check In
 </h1>
 
@@ -263,12 +263,12 @@
                   placeholder="Badge #"
                   autofocus="autofocus"
                   min="1">
-              <span class="glyphicon glyphicon-remove form-control-feedback" aria-hidden="true"></span>
+              <i class="fa fa-remove form-control-feedback" aria-hidden="true"></i>
             </div>
           </div>
           <div class="col-xs-6" style="padding-left: 8px;">
             <button type="submit" class="btn btn-lg btn-primary" style="width: 100%">
-              <span class="glyphicon glyphicon-user"></span> Search
+              <i class="fa fa-user"></i> Search
             </button>
           </div>
         </div>
@@ -280,11 +280,11 @@
       <div class="col-sm-offset-2 col-sm-8">
         <div class="signup-body">
           <button class="btn btn-success btn-lg pull-right checked-in-hidden">
-            <span class="glyphicon glyphicon-check"></span>
+            <i class="fa fa-check"></i>
             Check In
           </button>
           <button class="btn btn-warning btn-lg pull-right checked-in-visible">
-            <span class="glyphicon glyphicon-check"></span>
+            <i class="fa fa-check"></i>
             Undo
           </button>
           <h2 class="feature_name"></h2>
@@ -296,7 +296,7 @@
     </div>
   </div>
   <div class="text-center">
-    <div id="attendee" class="attendee text-left">
+    <div id="attendee" class="attendee text-start">
       <h2 class="ident">
         <span class="name"></span>{#- strip -#}
         <sup class="badge_num"></sup>
@@ -314,8 +314,8 @@
     </div>
   </div>
   <div class="text-center">
-    <button id="filter" class="btn btn-xs btn-xs btn-default">
-      <span class="glyphicon glyphicon-filter"></span>
+    <button id="filter" class="btn btn-xs btn-xs btn-outline-secondary">
+      <i class="fa fa-filter"></i>
       Show Already Checked In
     </button>
   </div>

@@ -13,7 +13,8 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, not_site_mappable, public, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiJob, ApiToken
-from uber.utils import Charge, check
+from uber.utils import check
+from uber.payments import ReceiptManager
 
 
 @all_renderable()
@@ -22,7 +23,7 @@ class Root:
     def index(self, session, show_revoked=False, message='', **params):
         admin_account = session.current_admin_account()
         api_tokens = session.query(ApiToken)
-        if not admin_account.is_admin:
+        if not admin_account.is_super_admin:
             api_tokens = api_tokens.filter_by(admin_account_id=admin_account.id)
         if not show_revoked:
             api_tokens = api_tokens.filter(ApiToken.revoked_time == None)  # noqa: E711
@@ -172,7 +173,7 @@ class Root:
 
         if event and event['type'] == 'payment_intent.succeeded':
             payment_intent = event['data']['object']
-            matching_txns = Charge.mark_paid_from_intent_id(payment_intent['id'], payment_intent.charges.data[0].id)
+            matching_txns = ReceiptManager.mark_paid_from_stripe_intent(payment_intent)
             if not matching_txns:
                 cherrypy.response.status = 400
                 return "No matching Stripe transactions"

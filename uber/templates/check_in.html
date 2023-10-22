@@ -6,7 +6,7 @@
 </div>
 
 <script type="text/javascript">
-checkInModal = $('#checkin_modal');
+checkInModal = new bootstrap.Modal($('#checkin_modal'));
 reg_station = {{ reg_station|default(0, true) }};
 printer_default_id = "{{ printer_default_id }}";
 printer_minor_id = "{{ printer_minor_id }}";
@@ -26,21 +26,21 @@ var loadCheckInFormModal = function (attendeeID, printerID='') {
                 $('#stripeModal').remove();
             });
         } else {
-            toastr.error("Form loading failed.");
-            checkInModal.modal('hide');
+            showErrorMessage("Form loading failed.");
+            checkInModal.hide();
         }
     });
 }
 
 var loadCheckInModal = function (attendeeID) {
-    checkInModal.modal({show:true});
+    checkInModal.show();
     
     if (badge_printing_enabled && (!reg_station || !printer_default_id || !printer_minor_id)) {
     $('#checkin_modal .modal-content').load('../registration/printer_id_form?id=' + attendeeID, function() {
         if ($('.printer-id').length) {
         } else {
-            toastr.error("Form loading failed.");
-            checkInModal.modal('hide');
+            showErrorMessage("Form loading failed.");
+            checkInModal.hide();
         }
         });
     } else {
@@ -51,7 +51,7 @@ var loadCheckInModal = function (attendeeID) {
 // Hide modal on Esc keydown
 $(document).keydown(function(event) { 
     if (event.keyCode == 27) { 
-        checkInModal.modal('hide');
+        checkInModal.hide();
     }
 });
 
@@ -62,25 +62,25 @@ var checkIn = function (attendeeID) {
         dataType: 'json',
         data: $("#check_in_form_" + attendeeID).serialize(),
         success: function (json) {
-            toastr.clear();
+            hideMessageBox();
             var message = json.message;
             if (json.success) {
-                checkInModal.modal('hide');
+                checkInModal.hide();
                 message += ' &nbsp; <a href="#" onClick="undoCheckIn(\'' + attendeeID + '\', ' + json.pre_badge + ') ; return false">Undo</a>';
                 $('#paid_' + attendeeID).html(json.paid);
                 $('#cin_' + attendeeID).html(json.checked_in);
                 $('#age_' + attendeeID).parent().html(json.age_group);
                 $('#num_' + attendeeID).parent().html(json.badge);
-                toastr.success(message);
+                $("#message-alert").addClass("alert-success").show().children('span').html(message);
             } else {
-                toastr.error(message);
+                showErrorMessage(message);
             }
             if (json.increment) {
                 $('#checkin_count').html(1 + parseInt($("#checkin_count").text()));
             }
         },
         error: function () {
-            toastr.error('Unable to connect to server, please try again.');
+            showErrorMessage('Unable to connect to server, please try again.');
         }
     });
 };

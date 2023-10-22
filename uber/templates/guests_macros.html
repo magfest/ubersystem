@@ -283,7 +283,7 @@
         </div>
         <div class="clearfix"></div>
         <div class="panel panel-default panel-sizes">
-          <table class="table table-condensed">
+          <table class="table table-striped table-sm">
             <tbody>
               {% for cut_value, cut_label in cuts_opts %}
                 {% for size_value, size_label in sizes_opts %}
@@ -308,6 +308,15 @@
 
 {% macro cd_inventory_form(type, item=None, suffix='') -%}
   {% call base_inventory_form(type, item=item, suffix=suffix) %}
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Medium</label>
+      <div class="col-sm-6">
+        <select class="form-control" name="inventory_media{{ suffix }}" required>
+          <option value="">Select an option...</option>
+          {{ options(c.ALBUM_MEDIA_OPTS, item.media) }}
+        </select>
+      </div>
+    </div>
     <div class="form-group">
       <label class="col-sm-3 control-label">Sample Tracks</label>
       <div class="col-sm-6">
@@ -402,6 +411,12 @@
         <div class="inventory-item-name data-item">
           <dd>{{ item.name }}</dd>
         </div>
+        {% if item.media %}
+        <div class="inventory-item-media data-item">
+          <dt>Media</dt>
+          <dd>{{ c.ALBUM_MEDIAS[item.media|int] }}</dd>
+        </div>
+        {% endif %}
         <div class="inventory-item-price data-item">
           <dt>Price</dt>
           <dd>{{ item.price|format_currency }}</dd>

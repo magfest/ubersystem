@@ -1,7 +1,7 @@
 {% set admin_area=True %}
 {% set clientside_bool=True %}
 {% set badge_status_ro=not c.HAS_REG_ADMIN_ACCESS %}
-{% import "fields/attendee.html" as attendee_fields with context %}
+{% import "forms/attendee.html" as attendee_fields with context %}
 <script src="//cdnjs.cloudflare.com/ajax/libs/validate.js/0.13.1/validate.min.js"></script>
 <script type="text/javascript">
 createDateTextEntries();
@@ -10,12 +10,13 @@ $.field('placeholder').prop('checked', true);
 {% endif %}
 var saveAndClose = function() {
   $("#attendee_form").submit();
-  $("#attendee_modal").modal('hide');
+  var attendeeModal = bootstrap.Modal.getOrCreateInstance($("#attendee_modal"));
+  attendeeModal.hide();
 };
   
 var updateAttendee = function(event){
     event.preventDefault();
-    toastr.clear();
+    hideMessageBox();
 
     var formData = $("#attendee_form").serializeArray();
     var old_hash = window.location.hash;
@@ -32,7 +33,7 @@ var updateAttendee = function(event){
         data: formData,
         success: function (json) {
             if (json.success) {
-              toastr.info(json.message);
+              $("#message-alert").addClass("alert-info").show().children('span').html(json.message);
               {% if attendee.is_new %}
               old_hash = "#attendee_form?id=" + json.id
               window.location = window.location.href.replace(location.hash, "") + old_hash;
@@ -41,11 +42,11 @@ var updateAttendee = function(event){
               loadForm("Data");
               {% endif %}
             } else {
-              toastr.error(json.message);
+              showErrorMessage(json.message);
             }
         },
         error: function () {
-            toastr.error('Unable to connect to server, please try again.');
+            showErrorMessage('Unable to connect to server, please try again.');
         }
     });
     setTimeout(function(){ 
@@ -65,7 +66,7 @@ if($.field('return_to')) {
   <div class="pull-right">
       <button type="button" onClick="saveAndClose()" class="btn btn-primary">{{ save_text }} & Close</button>
       <button type="submit" form="attendee_form" class="btn btn-primary">{{ save_text }}</button>
-      <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
   </div>
 {% endset %}
 {% if not attendee.is_new %}

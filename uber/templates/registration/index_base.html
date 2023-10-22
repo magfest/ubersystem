@@ -54,11 +54,9 @@
             <input type="hidden" name="invalid" value="{{ invalid }}" />
             <div class="input-group">
                 <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
-                <span class="input-group-btn">
-                    <button class="btn btn-default" type="submit">
-                        <span class="glyphicon glyphicon-search"></span>
-                    </button>
-                </span>
+                <button class="btn btn-outline-secondary" type="submit">
+                    <i class="fa fa-search"></i>
+                </button>
             </div>
         </form>
     </div>
@@ -82,9 +80,9 @@
           display: inline-block;
         }
         </style>
-        <a href="#set-reg-station" class="btn btn-default" data-toggle="collapse">Set At-Door Reg Station</a>
+        <a href="#set-reg-station" class="btn btn-outline-secondary" data-bs-toggle="collapse">Set At-Door Reg Station</a>
         <span id="set-reg-station" class="collapse">
-        <label class="sr-only" for="reg_station">Reg Station #</label>
+        <label class="visually-hidden" for="reg_station">Reg Station #</label>
         <input class="form-control" id="reg_station" name="reg_station" placeholder="Reg Station #" value="{{ reg_station }}">
         <button type="submit" class="btn btn-primary">Save</button>
         </span>
@@ -102,7 +100,7 @@
                  ' Searches with large numbers of results will slow down the system!</p>',
         buttons: {
           confirm: { label: 'Yes, Export All The Data!', className: 'btn-success' },
-          cancel: { label: 'Nevermind', className: 'btn-default' }
+          cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
         },
         callback: function (result) {
           if (result) {
@@ -133,8 +131,8 @@
 
 
 {% if search_results %}
-    <div class="panel panel-info">
-      <div class="panel-body">
+    <div class="panel card-info">
+      <div class="card-body">
         <a href="index?order={{ order }}&page=1&invalid={{ invalid }}">Click here</a> to view full attendee list instead of only search results.
       </div>
     </div>
@@ -154,7 +152,7 @@
     </li>
 {% endfor %}
 </ul>
-<div class="panel panel-default">
+<div class="card">
     {% if page %}
       <table class="table table-striped" data-page-size="9999999">
         <thead>

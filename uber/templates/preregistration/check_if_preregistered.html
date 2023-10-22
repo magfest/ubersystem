@@ -1,10 +1,9 @@
 {% extends "./preregistration/preregbase.html" %}
-{% block title %}Check Registration for {{ c.EVENT_NAME }}{% endblock %}
+{% set title_text = "Check Registration for " ~ c.EVENT_NAME %}
 {% block content %}
 
-{% include 'prereg_masthead.html' %}
-<div class="panel panel-default">
-  <div class="panel-body">
+<div class="card">
+  <div class="card-body">
     <h2>Resend Registration Page Link</h2>
     <p>
       If you would like to update your registration page, adjust kick-in perks, or if you’re unsure if you pre-registered for {{ c.EVENT_NAME_AND_YEAR }}, enter your email address below to receive a link to your registration page.

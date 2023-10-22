@@ -136,7 +136,6 @@ class TestRegisterGroupMember(object):
             legal_name='Duplicate Follower',
             ec_name='Nana Fearless',
             ec_phone='555-555-1234',
-            requested_hotel_info='0',
             can_spam='1',
             badge_type=str(c.ATTENDEE_BADGE),
             shirt='0',

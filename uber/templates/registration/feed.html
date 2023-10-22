@@ -33,7 +33,7 @@
 
 {{ pages(page,count) }}
 
-<table class="table-striped table-bordered table-condensed">
+<table class="table table-striped table-bordered table-sm">
 <thead><tr>
     <th>When</th>
     <th>Who</th>
@@ -58,7 +58,7 @@
               <input type="hidden" name="what" value="{{ what }}"/>
               <input type="hidden" name="action" value="{{ action }}"/>
               <input type="hidden" name="id" value="{{ tracked.id }}"/>
-              <button type="submit" class="btn btn-default btn-sm">Undo</button>
+              <button type="submit" class="btn btn-outline-secondary btn-sm">Undo</button>
             </form>
           {% endif %}
         </td>

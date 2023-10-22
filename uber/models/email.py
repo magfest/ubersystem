@@ -71,6 +71,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
     needs_approval = Column(Boolean, default=True)
     unapproved_count = Column(Integer, default=0)
     currently_sending = Column(Boolean, default=False)
+    last_send_time = Column(UTCDateTime, nullable=True, default=None)
 
     allow_at_the_con = Column(Boolean, default=False)
     allow_post_con = Column(Boolean, default=False)
@@ -105,8 +106,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
         now = utils.localized_now()
         return cls.filters_for_allowed + [
             or_(cls.active_after == None, cls.active_after <= now),
-            or_(cls.active_before == None, cls.active_before >= now),
-            cls.currently_sending == False]  # noqa: E711
+            or_(cls.active_before == None, cls.active_before >= now)]  # noqa: E711
 
     @classproperty
     def filters_for_approvable(cls):
@@ -129,6 +129,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
             for ident, fixture in AutomatedEmail._fixtures.items():
                 automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first() or AutomatedEmail()
                 session.add(automated_email.reconcile(fixture))
+                fixture.update_template_plugin_info()
             session.flush()
             for automated_email in session.query(AutomatedEmail).all():
                 if automated_email.ident in AutomatedEmail._fixtures:

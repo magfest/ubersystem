@@ -1,20 +1,29 @@
 {% import 'macros.html' as macros with context %}
+{% set page_ro = false %}
+{% set bootstrap5 = 'preregistration' in c.PAGE_PATH or 'landing' in c.PAGE_PATH or 'art_show_applications' in c.PAGE_PATH or admin_area %}
 <!DOCTYPE HTML>
-<html>
+<html lang="en">
 <head>
     {{ macros.ie7_compatibility_check() }}
-    <title>{{ c.EVENT_NAME }} - {% block title %}{% endblock %}</title>
+    <title>{{ c.EVENT_NAME }} - {% block title %}{{ title_text }}{% endblock %}</title>
     <link rel="icon" href="../static/images/favicon.png" type="image/x-icon" />
-    <script src="https://js.stripe.com/v3/" async></script>
 
     {% block head_styles %}
-        <link rel="stylesheet" href="../static/deps/combined.min.css" />
+        {{ "deps/combined.min.css"|serve_static_content }}
         <link rel="stylesheet" href="../static_views/styles/main.css" />
+        {% if bootstrap5 %}
+        {{ "deps/bootstrap5/bootstrap.min.css"|serve_static_content }}
+        {{ "deps/bootstrap5/font-awesome.min.css"|serve_static_content }}
+        {{ "deps/bootstrap5/datatables.min.css"|serve_static_content }}
+        {% else %}
+        {{ "deps/bootstrap3/bootstrap.min.css"|serve_static_content }}
+        {{ "deps/bootstrap3/datatables.min.css"|serve_static_content }}
+        {% endif %}
         {% if admin_area %}
             <link rel="stylesheet" type="text/css" href="../static_views/additional-styles.css" />
         {% else %}
-            <link rel="stylesheet" href="../static/theme/prereg.css">
-            <link rel="stylesheet" href="../static/theme/prereg_extra.css">
+            {{ "theme/prereg.css"|serve_static_content }}
+            {{ "theme/prereg_extra.css"|serve_static_content }}
         {% endif %}
 
          <!-- additional styles -->
@@ -24,17 +33,33 @@
     {% endblock %}
 
     {% block head_javascript %}
-        <script>
-            var message = '{{ message|e }}';
-        </script>
-
-        <script src="../static/deps/combined.min.js" type="text/javascript"></script>
-        <script src="../static/js/common-static.js" type="text/javascript"></script>
+        {{ "deps/combined.min.js"|serve_static_content }}
+        {{ "deps/jquery/jquery-migrate-3.4.1.js"|serve_static_content }}
+        {{ "js/common-static.js"|serve_static_content }}
+        {% if bootstrap5 %}
+        {{ "deps/bootstrap5/bootstrap.bundle.min.js"|serve_static_content }}
+        {{ "deps/bootstrap5/bootbox.all.min.js"|serve_static_content }}
+        {{ "deps/bootstrap5/datatables.min.js"|serve_static_content }}
+        {% else %}
+        {{ "deps/bootstrap3/bootstrap.min.js"|serve_static_content }}
+        {{ "deps/bootstrap3/bootbox.min.js"|serve_static_content }}
+        {{ "deps/bootstrap3/datatables.min.js"|serve_static_content }}
+        {% endif %}
         
         <script type="text/javascript">
             $(window).on("runJavaScript", function () {
-              $('[data-toggle="tooltip"]').tooltip()
+              $('[data-bs-toggle="tooltip"]').tooltip();
             })
+
+            {% if not c.DEV_BOX %}jQuery.migrateMute = true;{% endif %}
+
+            showErrorMessage = function(message='', alertId="message-alert", scrollToTop=true) {
+                $("#" + alertId).addClass("alert-danger").show().children('span').html(message);
+                if (scrollToTop == true) { window.scrollTo(0,0); }
+            }
+            hideMessageBox = function(alertId="message-alert") {
+                $("#" + alertId).hide().removeClass().addClass("alert alert-dismissible").children("span").html("");
+            }
         </script>
 
         {% if not dont_show_csrf_token %}
@@ -57,11 +82,11 @@
         {% endif %}
     {% endblock %}
 
+    {% if c.DEV_BOX %}<meta name="robots" content="noindex">{% endif %}
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="mobile-web-app-capable" content="yes">
-    {% block sectionStyle %}{% endblock %}
 
     <style>
         .navbar {
@@ -86,25 +111,6 @@
             height: 100%;
             z-index: 9998;
             background: rgb(249,249,249);
-        }
-
-        #toast-container {
-          right: 5%;
-          max-width: 90%;
-          min-width: 300px;
-          width: auto;
-        }
-
-        #toast-container .toast {
-          width: auto;
-        }
-
-        @media screen and (max-width: 334px) {
-          #toast-container {
-            max-width: 90%;
-            min-width: 90%;
-            width: 90%;
-          }
         }
     </style>
 
@@ -210,49 +216,36 @@
         };
 
         $(function() {
-            $(window).load(function() {
+            {% if c.PRE_CON and c.SLOW_LOAD_CHECK %}
+            $(window).on('load', function() {
                 $(".loader").fadeOut("fast");
             });
-            toastr.options = {
-                closeButton: true,
-                debug: false,
-                positionClass: "toast-top-right",
-                onclick: null,
-                showDuration: "300",
-                hideDuration: "1000",
-                timeOut: "0",
-                extendedTimeOut: "0",
-                showEasing: "swing",
-                hideEasing: "linear",
-                showMethod: "fadeIn",
-                hideMethod: "fadeOut",
-                onShown: function() {
-                  replaceQueryParamInUrl('message');
-                  replaceQueryParamInUrl('error_message');
-                }
-            };
+            {% endif %}
 
             // This nonsense is so we can have line breaks AND unescaped quotes in our messages
-            var message = '{{ message|tojson|safe if message else "" }}';
-            var error_message = '{{ error_message|tojson|safe if error_message else "" }}';
-            if (error_message.length) {
-                error_message = error_message.slice(1,-1)
-                if (error_message.startsWith("ERROR: ")) {
-                    toastr.error(error_message.substr(7));
-                } else {
-                    toastr.error(error_message);
-                }
-            } else if (message.length) {
-                message = message.slice(1,-1)
-                if (message.startsWith("ERROR: ")) {
-                    toastr.error(message.substr(7));
-                } else if (message.startsWith("SUCCESS: ")) {
-                    toastr.success(message.substr(9));
-                } else {
-                    toastr.info(message);
+            var message = '{{ message|sanitize_html|tojson if message else "" }}';
+            var error_message = '{{ error_message|sanitize_html|tojson if error_message else "" }}';
+            if ($("#message-alert").length) {
+                $("#message-alert").hide();
+                if (error_message.length) {
+                    error_message = error_message.slice(1,-1)
+                    if (error_message.startsWith("ERROR: ")) {
+                        error_message = error_message.substr(7)
+                    }
+                    showErrorMessage(error_message);
+                } else if (message.length) {
+                    message = message.slice(1,-1)
+                    if (message.startsWith("ERROR: ")) {
+                        showErrorMessage(message.substr(7));
+                    } else if (message.startsWith("SUCCESS: ")) {
+                        $("#message-alert").addClass("alert-success").show().children('span').html(message.substr(9));
+                    } else {
+                        $("#message-alert").addClass("alert-info").show().children('span').html(message);
+                    }
                 }
             }
 
+            {% block datetextentries_init %}
             /*
               If datetextentries are contained inside of a multi-page
               datatable, the datetextentries that aren't on the first page
@@ -278,50 +271,100 @@
                     errorbox_y: 28
                 });
             };
+            {% endblock %}
 
+            {% block datatable_init %}
+            {% if bootstrap5 %}
+            
             loadDataTables = function() {$('.datatable').each(function() {
-                if (! $.fn.DataTable.isDataTable($(this))) {
-                var table = $(this).DataTable({
-                    aLengthMenu: [
-                        [25, 50, 100, 200, -1],
-                        [25, 50, 100, 200, 'All']
-                    ],
-                    stateSave: true,
-                    drawCallback: createDateTextEntries
-                });
+                if (! DataTable.isDataTable($(this))) {
+                    var table = new DataTable($(this), {
+                        aLengthMenu: [
+                            [25, 50, 100, 200, -1],
+                            [25, 50, 100, 200, 'All']
+                        ],
+                        stateSave: true,
+                        drawCallback: createDateTextEntries
+                    });
 
-                table.columns().flatten().each( function ( colIdx ) {
-                    var header_name = $(table.column(colIdx).header()).text();
+                    table.columns().flatten().each( function ( colIdx ) {
+                        var header_name = $(table.column(colIdx).header()).text();
 
-                    // Is there a filter set up for this?
-                    var filter_span = $('*[id="' + header_name.toLowerCase() + '_filter"]');
+                        // Is there a filter set up for this?
+                        var filter_span = $('*[id="' + header_name.toLowerCase() + '_filter"]');
 
-                    if($(filter_span).length) {
-                    // Create the select list and search operation
-                    var select = $('<select><option label="(No Filter)"></option> </select>')
-                        .appendTo(
-                            filter_span
-                        )
-                        .on( 'change', function () {
-                            table
-                                .column( colIdx )
-                                .search( $(this).val() )
-                                .draw();
-                        } );
+                        if($(filter_span).length) {
+                        // Create the select list and search operation
+                        var select = $('<select class="form-select form-select-sm"><option label="(No Filter)"></option> </select>')
+                            .appendTo(
+                                filter_span
+                            )
+                            .on( 'change', function () {
+                                table
+                                    .column( colIdx )
+                                    .search( $(this).val() )
+                                    .draw();
+                            } );
 
-                    // Get the search data for the first column and add to the select list
-                    table
-                        .column( colIdx )
-                        .cache( 'search' )
-                        .sort()
-                        .unique()
-                        .each( function ( d ) {
-                            select.append( $('<option value="'+d+'">'+d+'</option>') );
-                        } );
-                    }
-                } );
+                        // Get the search data for the first column and add to the select list
+                        table
+                            .column( colIdx )
+                            .cache( 'search' )
+                            .sort()
+                            .unique()
+                            .each( function ( d ) {
+                                select.append( $('<option value="'+d+'">'+d+'</option>') );
+                            } );
+                        }
+                    } );
                 }
             });}
+            {% else %}
+            loadDataTables = function() {$('.datatable').each(function() {
+                if (! $.fn.DataTable.isDataTable($(this))) {
+                    var table = $(this).DataTable({
+                        aLengthMenu: [
+                            [25, 50, 100, 200, -1],
+                            [25, 50, 100, 200, 'All']
+                        ],
+                        stateSave: true,
+                        drawCallback: createDateTextEntries
+                    });
+
+                    table.columns().flatten().each( function ( colIdx ) {
+                        var header_name = $(table.column(colIdx).header()).text();
+
+                        // Is there a filter set up for this?
+                        var filter_span = $('*[id="' + header_name.toLowerCase() + '_filter"]');
+
+                        if($(filter_span).length) {
+                        // Create the select list and search operation
+                        var select = $('<select class="form-control"><option label="(No Filter)"></option> </select>')
+                            .appendTo(
+                                filter_span
+                            )
+                            .on( 'change', function () {
+                                table
+                                    .column( colIdx )
+                                    .search( $(this).val() )
+                                    .draw();
+                            } );
+
+                        // Get the search data for the first column and add to the select list
+                        table
+                            .column( colIdx )
+                            .cache( 'search' )
+                            .sort()
+                            .unique()
+                            .each( function ( d ) {
+                                select.append( $('<option value="'+d+'">'+d+'</option>') );
+                            } );
+                        }
+                    } );
+                }
+            });}
+            {% endif %}
+            {% endblock %}
 
             loadDataTables();
             createDateTextEntries();
@@ -347,7 +390,7 @@
             }
             // prevent people from paying after prereg closes
             {% if c.PRE_CON %}
-                if ($('#stripeModal').size()) {
+                if ($('#stripeModal') && $('#stripeModal').length) {
                     var prevHour = new Date().getHours();
                     var checkHour = function() {
                         var currHour = new Date().getHours();
@@ -365,7 +408,7 @@
     </script>
     {% block head_additional %}{% endblock %}
 </head>
-<body>
+<body class="d-flex flex-column min-vh-100">
     {% if c.PRE_CON and c.SLOW_LOAD_CHECK %}
         <div class="loader"><a class="loader_link" href="../static_views/slow_load.html" target="_blank"></a></div>
     {% endif %}
@@ -390,95 +433,100 @@
     <div id="mainContainer" class="container-fluid">
         {% block backlink %}
         {% if admin_area %}
-            <nav class="navbar navbar-default navbar-static-top" role="navigation">
-                <!-- Brand and toggle get grouped for better mobile display -->
-                <div class="navbar-header">
-                  <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#main-navbar-collapse-1">
-                    <span class="sr-only">Toggle navigation</span>
-                    <span class="icon-bar"></span>
-                    <span class="icon-bar"></span>
-                    <span class="icon-bar"></span>
-                  </button>
-                  <a class="navbar-brand" href="../accounts/homepage">{{ c.EVENT_NAME }}</a>
-                </div>
-                <!-- Collect the nav links, forms, and other content for toggling -->
-                <div class="collapse navbar-collapse" id="main-navbar-collapse-1">
-                    <ul class="nav navbar-nav navbar-right">
-                      {% block feedback_menu %}
-                      {% if c.JIRA_ENABLED %}
-                        <li class="dropdown">
-                          <a href="#" class="dropdown-toggle" data-toggle="dropdown" title="Submit feedback">
-                            <span class="glyphicon glyphicon-send"></span>
-                          </a>
-                          <ul class="dropdown-menu" role="menu">
-                            <li><a id="report-a-bug" href="#" title="Report a Bug">Report a Bug</a></li>
-                            <li><a id="request-an-improvement" href="#" title="Request an Improvement">Request an Improvement</a></li>
-                          </ul>
-                        </li>
-                      {% endif %}
-                      {% endblock %}
-                        <li><a href="{{ c.ADMIN_GUIDE_URL }}" target="admin_guide"><span title="Admin Guide" class="glyphicon glyphicon-question-sign"></span></a></li>
-                        <li><a href="../accounts/sitemap"><span title="Site Map" class="glyphicon glyphicon-road"></span></a></li>
-                        <li class="dropdown">
-                            <a href="#" class="dropdown-toggle" data-toggle="dropdown">
-                                <span>Logged in as: {{ c.CURRENT_ADMIN.first_name }} {{ c.CURRENT_ADMIN.last_name }}</span> <span title="Account Settings" class="glyphicon glyphicon-cog"></span><span class="caret"></span>
+        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+            <div class="container-fluid">
+              <a class="navbar-brand" href="../accounts/homepage">
+                <img src="../static/images/favicon.png" alt="{{ c.EVENT_NAME }}" width="30" height="24" class="d-inline-block align-text-top">
+                {{ c.EVENT_NAME }}
+            </a>
+              <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#main-navbar-collapse" aria-controls="main-navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+              </button>
+              <div class="collapse navbar-collapse" id="main-navbar-collapse">
+                {% block mainmenu %}
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0" id="main-menu">
+                    {% block mainmenu_items %}
+                    {% for menu_item in c.MENU_FILTERED_BY_ACCESS_LEVELS.submenu -%}
+                        {% if menu_item.href -%}
+                            <li class="nav-item"><a class="nav-link" href="{{ menu_item.href }}">{{ menu_item.name }}</a></li>
+                        {% elif menu_item.submenu -%}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbar-dropdown-{{ menu_item.name }}" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                {{ menu_item.name }}
                             </a>
-                            <ul class="dropdown-menu" role="menu">
-                                {% if 'admin_account' in c.CURRENT_ADMIN %}
-                                  <li><a href="#attendee_form?id={{ c.CURRENT_ADMIN.id }}">My Registration</a></li>
-                                  {% if c.HAS_DEPT_ADMIN_ACCESS and c.CURRENT_ADMIN.assigned_depts %}
-                                    <li><a href="../dept_admin/?filtered=1">My Departments</a></li>
-                                    {% for dept in c.CURRENT_ADMIN.assigned_depts %}
-                                      <li><a href="../dept_admin/form?id={{ dept.id }}">&nbsp;&#8226;&nbsp;{{ dept.name }}</a></li>
-                                    {% endfor %}
-                                  {% endif %}
-                                  <li role="separator" class="divider"></li>
-                                {% endif %}
-                                <li><a href="../accounts/change_password">Change Password</a></li>
-                                <li><a href="../accounts/logout">Logout</a></li>
+                            <ul class="dropdown-menu" aria-labelledby="navbar-dropdown-{{ menu_item.name }}">
+                                {% for submenu_item in menu_item.submenu -%}
+                                    <li>
+                                    {% if submenu_item.href -%}<a class="dropdown-item" href="{{ submenu_item.href }}">
+                                    {% else -%}<a class="disabled">{% endif -%}
+                                        {{ submenu_item.name }}
+                                    </a></li>
+                                {% endfor -%}
                             </ul>
-                        </li>
-                    </ul>
-                    {% block mainmenu %}
-                    <ul class="nav navbar-nav" id="main-menu">
-                        {% block mainmenu_items %}
-                        {% for menu_item in c.MENU_FILTERED_BY_ACCESS_LEVELS.submenu -%}
-                            {% if menu_item.href -%}
-                                <li><a href="{{ menu_item.href }}">{{ menu_item.name }}</a></li>
-                            {% elif menu_item.submenu -%}
-                                <li class="dropdown">
-                                    <a href="#" class="dropdown-toggle" data-toggle="dropdown">
-                                        {{ menu_item.name }}
-                                        <span class="caret"></span>
-                                    </a>
-
-                                    <ul class="dropdown-menu" role="menu">
-                                    {% for submenu_item in menu_item.submenu -%}
-                                        <li>
-                                            {% if submenu_item.href -%}
-                                                <a href="{{ submenu_item.href }}">
-                                            {% else -%}
-                                                <a class="disabled">
-                                            {% endif -%}
-                                            {{ submenu_item.name }}</a>
-                                        </li>
-                                    {% endfor -%}
-                                    </ul>
-                                </li>
-
-                            {% endif -%}
-                        {% endfor -%}
-                        {% endblock mainmenu_items %}
-                    </ul>
-                    {% endblock mainmenu %}
-                </div>
-            </nav>
+                          </li>
+                        {% endif -%}
+                    {% endfor -%}
+                    {% endblock mainmenu_items %}
+                </ul>
+                {% endblock mainmenu %}
+                <ul class="navbar-nav d-flex">
+                    {% block feedback_menu %}
+                    {% if c.JIRA_ENABLED %}
+                      <li class="nav-item dropdown">
+                      <a class="nav-link dropdown-toggle" href="#" title="Submit feedback" id="feedback-dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fa fa-send"></i>
+                      </a>
+                      <ul class="dropdown-menu" role="menu" aria-labelledby="feedback-dropdown">
+                          <li><a class="dropdown-item" id="report-a-bug" href="#" title="Report a Bug">Report a Bug</a></li>
+                          <li><a class="dropdown-item" id="request-an-improvement" href="#" title="Request an Improvement">Request an Improvement</a></li>
+                        </ul>
+                      </li>
+                    {% endif %}
+                    {% endblock %}
+                    {% if c.ADMIN_GUIDE_URL %}
+                    <li class="nav-item"><a href="{{ c.ADMIN_GUIDE_URL }}" target="admin_guide" class="nav-link"><i title="Admin Guide" class="fa fa-question-circle"></i></a></li>
+                    {% endif %}
+                    <li class="nav-item"><a href="../accounts/sitemap" class="nav-link"><i title="Site Map" class="fa fa-road"></i></a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="account-dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span>Logged in as: {{ c.CURRENT_ADMIN.first_name }} {{ c.CURRENT_ADMIN.last_name }}</span> <i title="Account Settings" class="fa fa-cog"></i>
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="account-dropdown">
+                            {% if 'admin_account' in c.CURRENT_ADMIN %}
+                            {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+                            <li><a class="dropdown-item" href="../preregistration/homepage">My Homepage</a></li>
+                            {% else %}
+                            <li><a class="dropdown-item" href="../preregistration/confirm?id={{ c.CURRENT_ADMIN.id }}">View My Badge</a></li>
+                            {% if c.HAS_SHIFTS_ADMIN_ACCESS %}<li><a class="dropdown-item" href="../shifts_admin/goto_volunteer_checklist?id={{ c.CURRENT_ADMIN.id }}">My Shifts</a></li>{% endif %}
+                            {% endif %}
+                              <li><a class="dropdown-item" href="#attendee_form?id={{ c.CURRENT_ADMIN.id }}">My Registration</a></li>
+                              {% if c.HAS_DEPT_ADMIN_ACCESS and c.CURRENT_ADMIN.assigned_depts %}
+                                <li><a class="dropdown-item" href="../dept_admin/?filtered=1">My Departments</a></li>
+                                {% for dept in c.CURRENT_ADMIN.assigned_depts %}
+                                  <li><a class="dropdown-item" href="../dept_admin/form?id={{ dept.id }}">&nbsp;&#8226;&nbsp;{{ dept.name }}</a></li>
+                                {% endfor %}
+                              {% endif %}
+                              <li><hr class="dropdown-divider"></li>
+                            {% endif %}
+                            <li><a class="dropdown-item" href="../accounts/change_password">Change Password</a></li>
+                            <li><a class="dropdown-item" href="../accounts/logout">Logout</a></li>
+                        </ul>
+                    </li>
+                </ul>
+              </div>
+            </div>
+          </nav>
         {% endif %}
         {% endblock %}
         {% block header %}{% endblock %}
+        {% block alert %}
+        <div class="alert alert-dismissible" role="alert" id="message-alert"><span></span>{% if bootstrap5 %}<button type="button" class="btn-close" onClick="hideMessageBox()" aria-label="Close"></button>{% else %}<button type="button" class="close" onClick="hideMessageBox()" aria-label="Close"><span aria-hidden="true">&times;</span></button>{% endif %}</div>
+        {% endblock %}
+        {% block masthead %}{% endblock %}
+        {% if title_text %}<h1 class="visually-hidden">{{ title_text }}</h1>{% endif %}
         {% block content %}{% endblock %}
-        <div id="bottomAnchor"></div>
     </div>
+    {% block footer %}{% endblock %}
     {% block scripts %}
         <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
         <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -486,7 +534,6 @@
             <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
             <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
         <![endif]-->
-        {% include "baseextra.html" %}
       <script type="text/javascript">
           $(window).on("runJavaScript", function() {
               $('.form-control-static').each(function(index) {
@@ -496,7 +543,9 @@
               })
           });
       </script>
-      <script src="../static/js/load-attendee-modal.js" type="text/javascript"></script>
+      {% if admin_area %}
+      {{ "js/load-attendee-modal.js"|serve_static_content }}
+      {% endif %}
     {% endblock %}
     {% block additional_scripts %}
         {% block page_scripts %} {% endblock %}

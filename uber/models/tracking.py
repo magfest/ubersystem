@@ -134,6 +134,8 @@ class Tracking(MagModel):
 
     @classmethod
     def track(cls, action, instance):
+        from uber.models import AutomatedEmail
+
         if action in [c.CREATED, c.UNPAID_PREREG, c.EDITED_PREREG]:
             vals = {
                 attr: cls.repr(column, getattr(instance, attr))
@@ -144,6 +146,10 @@ class Tracking(MagModel):
             data = cls.format(diff)
             if len(diff) == 1 and 'badge_num' in diff and c.SHIFT_CUSTOM_BADGES:
                 action = c.AUTO_BADGE_SHIFT
+            if isinstance(instance, AutomatedEmail) and not diff.keys().isdisjoint(("currently_sending", 
+                                                                                    "last_send_time", 
+                                                                                    "unapproved_count")):
+                return
             elif not data:
                 return
         else:
