@@ -9,16 +9,15 @@ if [ ! -s /app/plugins/uber/development.ini ]; then
 fi
 if [ ! -s /app/development.ini ]; then
     envsubst < "sideboard-development.ini.template" > /app/development.ini
-fi
+    if [ -n "${UBERSYSTEM_GIT_CONFIG}" ]; then
+        echo "Loading UBERSYSTEM_CONFIG from git repo ${UBERSYSTEM_GIT_CONFIG}"
+        /app/env/bin/python /app/plugins/uber/make_config.py --repo "${UBERSYSTEM_GIT_CONFIG}" --paths ${UBERSYSTEM_GIT_CONFIG_PATHS} --overwrite
+    fi
 
-if [ -n "${UBERSYSTEM_GIT_CONFIG}" ]; then
-    echo "Loading UBERSYSTEM_CONFIG from git repo ${UBERSYSTEM_GIT_CONFIG}"
-    /app/env/bin/python /app/plugins/uber/make_config.py --repo "${UBERSYSTEM_GIT_CONFIG}" --paths ${UBERSYSTEM_GIT_CONFIG_PATHS}
-fi
-
-if [ -n "${UBERSYSTEM_CONFIG}" ]; then
-    echo "Parsing config from environment"
-    /app/env/bin/python /app/plugins/uber/make_config.py
+    if [ -n "${UBERSYSTEM_CONFIG}" ]; then
+        echo "Parsing config from environment"
+        /app/env/bin/python /app/plugins/uber/make_config.py --overwrite
+    fi
 fi
 
 RESULT_PROTOCOL=$(echo "${BROKER_PROTOCOL}" | sed 's/amqps/rpc/g;s/amqp/rpc/g')
