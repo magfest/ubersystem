@@ -4,8 +4,12 @@ set -e
 # This will replace any variable references in these files
 # If you want to add any additional settings here just add
 # the variables to the environment when running this.
-envsubst < "uber-development.ini.template" > /app/plugins/uber/development.ini
-envsubst < "sideboard-development.ini.template" > /app/development.ini
+if [ ! -f /app/plugins/uber/development.ini ]; then
+    envsubst < "uber-development.ini.template" > /app/plugins/uber/development.ini
+fi
+if [ ! -f /app/development.ini ]; then
+    envsubst < "sideboard-development.ini.template" > /app/development.ini
+fi
 
 if [ -n "${UBERSYSTEM_GIT_CONFIG}" ]; then
     echo "Loading UBERSYSTEM_CONFIG from git repo ${UBERSYSTEM_GIT_CONFIG}"
