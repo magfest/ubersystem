@@ -258,7 +258,7 @@ class PreregCart:
 class TransactionRequest:
     def __init__(self, receipt=None, receipt_email='', description='', amount=0, customer_id=None, create_receipt_item=False):
         self.amount = int(amount)
-        self.receipt_email = receipt_email
+        self.receipt_email = receipt_email[0] if isinstance(receipt_email, list) else receipt_email
         self.description = description
         self.customer_id = customer_id
         self.refund_str = "refunded" # Set to "voided" when applicable to better inform admins

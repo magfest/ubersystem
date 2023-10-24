@@ -25,7 +25,7 @@ from uber.models import Attendee, AttendeeAccount, Attraction, Email, Group, Mod
                         ReceiptTransaction, SignedDocument, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, check, check_pii_consent, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
-    valid_password, SignNowDocument, validate_model, remove_opt
+    valid_password, SignNowRequest, validate_model, remove_opt
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager
 
 
@@ -994,41 +994,30 @@ class Root:
         signnow_link = ''
 
         if group.is_dealer and c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_valid and group.status == c.APPROVED:
-            signnow_document = session.query(SignedDocument).filter_by(model="Group", fk_id=group.id).first()
+            signnow_request = SignNowRequest(session=session, group=group, ident="terms_and_conditions", create_if_none=True)
 
-            if not signnow_document:
-                signnow_document = SignedDocument(fk_id=group.id,
-                                                  model="Group",
-                                                  ident="terms_and_conditions")
+            if signnow_request.error_message:
+                log.error(signnow_request.error_message)
+            else:
+                signnow_document = signnow_request.document
                 session.add(signnow_document)
+
+                signnow_link = signnow_document.link
+
+                if not signnow_document.signed:
+                    signed = signnow_request.get_doc_signed_timestamp()
+                    if signed:
+                        signnow_document.signed = datetime.fromtimestamp(int(signed))
+                        signnow_link = ''
+                        signnow_document.link = signnow_link
+                    elif not signnow_link:
+                        signnow_link = signnow_request.create_dealer_signing_link()
+                        if signnow_request.error_message:
+                            log.error(signnow_request.error_message)
+                        else:
+                            signnow_document.link = signnow_link
+
                 session.commit()
-
-            signnow_link = signnow_document.link
-
-            if not signnow_link and signnow_document.signed:
-                d = SignNowDocument()
-                signnow_link = d.get_download_link(signnow_document.document_id)
-                if d.error_message:
-                    signnow_link = ""
-                    log.error(d.error_message)
-            elif not signnow_link:
-                signed = signnow_document.get_doc_signed_timestamp()
-                if signed:
-                    signnow_document.signed = datetime.fromtimestamp(int(signed))
-                    session.add(signnow_document)
-                    session.commit()
-                    d = SignNowDocument()
-                    signnow_link = d.get_download_link(signnow_document.document_id)
-                    if d.error_message:
-                        signnow_link = ""
-                        log.error(d.error_message)
-                else:
-                    signnow_link = signnow_document.create_dealer_signing_link(group)
-
-                if signnow_link:
-                    signnow_document.link = signnow_link
-                    session.add(signnow_document)
-                    session.commit()
 
         if cherrypy.request.method == 'POST':
             session.commit()
@@ -1059,6 +1048,22 @@ class Root:
             'incomplete_txn': receipt.get_last_incomplete_txn() if receipt else None,
             'message': message
         }
+
+    def download_signnow_document(self, session, id, return_to='../preregistration/group_members'):
+        group = session.group(id)
+        signnow_request = SignNowRequest(session=session, group=group)
+        if signnow_request.error_message:
+            log.error(signnow_request.error_message)
+            raise HTTPRedirect(return_to + "?id={}&message={}", id, "We're having an issue fetching this document link. Please try again later!")
+        elif signnow_request.document:
+            if signnow_request.document.signed:
+                download_link = signnow_request.get_download_link()
+                if signnow_request.error_message:
+                    log.error(signnow_request.error_message)
+                else:
+                    raise HTTPRedirect(download_link)
+            raise HTTPRedirect(return_to + "?id={}&message={}", id, "We don't have a record of this document being signed.")
+        raise HTTPRedirect(return_to + "?id={}&message={}", id, "We don't have a record of a document for this group.")
 
     def register_group_member(self, session, group_id, message='', **params):
         group = session.group(group_id, ignore_csrf=True)
@@ -1458,7 +1463,7 @@ class Root:
         return {'success': True}
 
     @requires_account()
-    def homepage(self, session, message=''):
+    def homepage(self, session, message='', **params):
         account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id'))
 
         attendees_who_owe_money = {}

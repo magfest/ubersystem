@@ -12,7 +12,7 @@ from uber.decorators import ajax, all_renderable, csrf_protected, log_pageview, 
 from uber.errors import HTTPRedirect
 from uber.forms import attendee as attendee_forms, group as group_forms, load_forms
 from uber.models import Attendee, Email, Event, Group, GuestGroup, GuestMerch, PageViewTracking, Tracking, SignedDocument
-from uber.utils import check, convert_to_absolute_url, validate_model, add_opt
+from uber.utils import check, convert_to_absolute_url, validate_model, add_opt, SignNowRequest
 from uber.payments import ReceiptManager
 
 
@@ -69,14 +69,18 @@ class Root:
     def resend_signnow_link(self, session, id):
         group = session.group(id)
 
-        document = session.query(SignedDocument).filter_by(model="Group", fk_id=id).first()
-        if not document:
+        signnow_request = SignNowRequest(session=session, group=group)
+        if not signnow_request.document:
             raise HTTPRedirect("form?id={}&message={}").format(id, "SignNow document not found.")
         
-        document.send_dealer_signing_invite(group)
-        document.last_emailed = datetime.now(UTC)
-        session.add(document)
-        raise HTTPRedirect("form?id={}&message={}", id, "SignNow link sent!")
+        signnow_request.send_dealer_signing_invite()
+        if signnow_request.error_message:
+            log.error(signnow_request.error_message)
+            raise HTTPRedirect("form?id={}&message={}", id, f"Error sending SignNow link: {signnow_request.error_message}")
+        else:
+            signnow_request.document.last_emailed = datetime.now(UTC)
+            session.add(signnow_request.document)
+            raise HTTPRedirect("form?id={}&message={}", id, "SignNow link sent!")
 
     @log_pageview
     def form(self, session, new_dealer='', message='', **params):
@@ -107,19 +111,32 @@ class Root:
             form.populate_obj(group, is_admin=True)
 
         signnow_last_emailed = None
+        signnow_signed = False
         if c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status == c.APPROVED:
-            existing_doc = session.query(SignedDocument).filter_by(model="Group", fk_id=group.id).first()
-            if not existing_doc:
-                document = SignedDocument(fk_id=group.id, model="Group", ident="terms_and_conditions")
-                document.send_dealer_signing_invite(group)
-                document.last_emailed = datetime.now(UTC)
-                session.add(document)
-                existing_doc = document
-            if not existing_doc.last_emailed:
-                existing_doc.send_dealer_signing_invite(group)
-                existing_doc.last_emailed = datetime.now(UTC)
-                session.add(existing_doc)
-            signnow_last_emailed = existing_doc.last_emailed
+            if cherrypy.request.method == 'POST':
+                signnow_request = SignNowRequest(session=session, group=group, ident="terms_and_conditions", create_if_none=True)
+            else:
+                signnow_request = SignNowRequest(session=session, group=group)
+
+            if signnow_request.error_message:
+                log.error(signnow_request.error_message)
+            elif signnow_request.document:
+                session.add(signnow_request.document)
+
+                signnow_signed = signnow_request.document.signed
+                if not signnow_signed:
+                    signnow_signed = signnow_request.get_doc_signed_timestamp()
+                    if signnow_signed:
+                        signnow_signed = datetime.fromtimestamp(int(signnow_signed))
+                        signnow_request.document.signed = signnow_signed
+                        signnow_link = ''
+                        signnow_request.document.link = signnow_link
+
+                if not signnow_signed and not signnow_request.document.last_emailed:
+                    signnow_request.send_dealer_signing_invite()
+                    signnow_request.document.last_emailed = datetime.now(UTC)
+
+                signnow_last_emailed = signnow_request.document.last_emailed
 
         group_info_form = forms.get('group_info', forms.get('table_info'))
 
@@ -186,6 +203,7 @@ class Root:
             'group': group,
             'forms': forms,
             'signnow_last_emailed': signnow_last_emailed,
+            'signnow_signed': signnow_signed,
             'new_dealer': new_dealer,
         }
     
