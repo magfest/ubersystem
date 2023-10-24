@@ -4,10 +4,10 @@
 {%- set attendee_or_group = attendee if attendee else group -%}
 
 {% set signed_document %}
-{% if c.SIGNNOW_DEALER_TEMPLATE_ID and signnow_link and attendee_or_group.is_valid and attendee_or_group.status == c.APPROVED %}
+{% if c.SIGNNOW_DEALER_TEMPLATE_ID and attendee_or_group.is_valid and attendee_or_group.status == c.APPROVED %}
   {% if signnow_document and signnow_document.signed %}
   <span id="tc-link">
-    <a href="{{ signnow_link }}" class="btn btn-info" target="_blank" role="button">
+    <a href="../preregistration/download_signnow_document?id={{ group.id }}" class="btn btn-info" role="button">
       <i class="fa fa-download"></i> Terms and Conditions
     </a>
   </span>
@@ -16,11 +16,11 @@
       $('#tc-link').insertAfter($("button[form='cancel_dealer']"));
     });
   </script>
-  {% else %}
+  {% elif signnow_link %}
   <div class="alert alert-danger pb-0" role="alert">
     <p>We need you to sign our terms and conditions for vending at {{ c.EVENT_NAME }}.</p>
     <p><a href="{{ signnow_link }}" class="btn btn-primary" target="_blank">
-      {% if group.signnow_document %}Finish Signing{% else %}Review and Sign{% endif %}
+      Review and Sign
     </a></p>
     <p>Make sure to click "Finish" in the top right to confirm your signature.</p>
   </div>

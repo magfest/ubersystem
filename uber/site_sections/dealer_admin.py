@@ -86,14 +86,15 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
                     send_email.delay(
                         c.MARKETPLACE_EMAIL,
                         attendee.email_to_address,
-                        'Do you still want to come to {}?'.format(c.EVENT_NAME),
+                        'Update About Your {} Registration'.format(c.EVENT_NAME),
                         render('emails/dealers/badge_converted.html', {
                             'attendee': attendee,
                             'group': group}, encoding=None),
                         format='html',
                         model=attendee.to_dict('id'))
                     emails_sent += 1
-                except Exception:
+                except Exception as e:
+                    log.error(f"Failed to send badge conversion email: {str(e)}")
                     emails_failed += 1
 
             badges_converted += 1

@@ -1124,11 +1124,37 @@ class OAuthRequest:
                     self.redirect_uri + "process_logout")
 
 
-class SignNowDocument:    
-    def __init__(self):
+class SignNowRequest:    
+    def __init__(self, session, group=None, ident='', create_if_none=False):
+        self.group = group
+        self.group_leader_name = ''
+        self.document = None
         self.access_token = None
         self.error_message = ''
+
         self.set_access_token()
+        if self.error_message:
+            log.error(self.error_message)
+            return
+
+        from uber.models import SignedDocument
+
+        if group:
+            self.document = session.query(SignedDocument).filter_by(model="Group", fk_id=group.id).first()
+        
+            if not self.document and create_if_none:
+                self.document = SignedDocument(fk_id=group.id, model="Group", ident=ident)
+                first_name = group.leader.first_name if group.leader else ''
+                last_name = group.leader.last_name if group.leader else ''
+                self.group_leader_name = first_name + ' ' + last_name
+            
+            if self.document and not self.document.document_id:
+                self.document.document_id = self.create_document(
+                    template_id=c.SIGNNOW_DEALER_TEMPLATE_ID,
+                    doc_title="MFF {} Dealer Terms - {}".format(c.EVENT_YEAR, group.name),
+                    folder_id=c.SIGNNOW_DEALER_FOLDER_ID,
+                    uneditable_texts_list=group.signnow_texts_list,
+                    fields={} if c.SIGNNOW_ENV == 'eval' else {'printed_name': self.group_leader_name})
 
     @property
     def api_call_headers(self):
@@ -1165,9 +1191,6 @@ class SignNowDocument:
             self.access_token = c.SIGNNOW_ACCESS_TOKEN
             return
 
-        if self.error_message:
-            log.error(self.error_message)
-
     def create_document(self, template_id, doc_title, folder_id='', uneditable_texts_list=None, fields={}):
         from requests import post, put
         from json import dumps, loads
@@ -1178,7 +1201,6 @@ class SignNowDocument:
         
             if 'error' in document_request:
                 self.error_message = "Error creating document from template with token {}: {}".format(self.access_token, document_request['error'])
-                return None
 
         if self.error_message:
             return None
@@ -1216,7 +1238,34 @@ class SignNowDocument:
         
         return document_request.get('id')
     
-    def get_signing_link(self, document_id, first_name="", last_name="", redirect_uri=""):
+    def get_doc_signed_timestamp(self):
+        if not self.document:
+            self.error_message = "Tried to get a signed timestamp without a document attached to the request!"
+            return
+        
+        details = self.get_document_details()
+        if details and details.get('signatures'):
+            return details['signatures'][0].get('created')
+
+    def create_dealer_signing_link(self):
+        if not self.group:
+            self.error_message = "Tried to send a dealer signing link without a group attached to the request!"
+            return
+        if not self.document:
+            self.error_message = "Tried to send a dealer signing link without a document attached to the request!"
+            return
+
+        first_name = self.group.leader.first_name if self.group.leader else ''
+        last_name = self.group.leader.last_name if self.group.leader else ''
+
+        if self.document.document_id and not self.document.signed:
+            link = self.get_signing_link(first_name,
+                                         last_name,
+                                         (c.REDIRECT_URL_BASE or c.URL_BASE) + '/preregistration/group_members?id={}'
+                                         .format(self.group.id))
+            return link
+    
+    def get_signing_link(self, first_name="", last_name="", redirect_uri=""):
         from requests import post
         from json import dumps, loads
 
@@ -1230,11 +1279,13 @@ class SignNowDocument:
             dict: A dictionary representing the JSON response containing the signing links for the document.
         """
 
-        self.set_access_token(refresh=True)
+        if not self.document:
+            self.error_message = "Tried to send a signing link without a document attached to the request!"
+            return
 
         response = post(signnow_sdk.Config().get_base_url() + '/link', headers=self.api_call_headers,
         data=dumps({
-            "document_id": document_id,
+            "document_id": self.document.document_id,
             "firstname": first_name,
             "lastname": last_name,
             "redirect_uri": redirect_uri
@@ -1245,43 +1296,49 @@ class SignNowDocument:
         else:
             return signing_request.get('url_no_signup')
 
-    def send_signing_invite(self, document_id, group, name):
+    def send_dealer_signing_invite(self):
         from uber.custom_tags import email_only
-        self.set_access_token(refresh=True)
+        if not self.group:
+            self.error_message = "Tried to send a dealer signing invite without a group attached to the request!"
+            return
 
         invite_payload = {
             "to": [
-                { "email": group.email, "prefill_signature_name": name, "role": "Dealer", "order": 1 }
+                { "email": self.group.email, "prefill_signature_name": self.group_leader_name, "role": "Dealer", "order": 1 }
             ],
             "from": email_only(c.MARKETPLACE_EMAIL),
             "cc": [],
             "subject": "ACTION REQUIRED: {} {} Terms and Conditions".format(c.EVENT_NAME, c.DEALER_TERM.title()),
             "message": "Congratulations on being accepted into the {} {}! Please click the button below to review and sign the terms and conditions. You MUST sign this in order to complete your registration.".format(
                         c.EVENT_NAME, c.DEALER_LOC_TERM.title()),
-            "redirect_uri": "{}/preregistration/group_members?id={}".format(c.REDIRECT_URL_BASE or c.URL_BASE, group.id)
+            "redirect_uri": "{}/preregistration/group_members?id={}".format(c.REDIRECT_URL_BASE or c.URL_BASE, self.group.id)
             }
-        
-        log.debug(str(invite_payload))
 
-        invite_request = signnow_sdk.Document.invite(self.access_token, document_id, invite_payload)
+        invite_request = signnow_sdk.Document.invite(self.access_token, self.document.document_id, invite_payload)
 
         if 'error' in invite_request:
             self.error_message = "Error sending invite to sign: " + invite_request['error']
         else:
             return invite_request
 
-    def get_download_link(self, document_id):
-        self.set_access_token(refresh=True)
-        download_request = signnow_sdk.Document.download_link(self.access_token, document_id)
+    def get_download_link(self):
+        if not self.document:
+            self.error_message = "Tried to get a download link from a request without a document!"
+            return
+
+        download_request = signnow_sdk.Document.download_link(self.access_token, self.document.document_id)
 
         if 'error' in download_request:
             self.error_message = "Error getting download link: " + download_request['error']
         else:
             return download_request.get('link')
     
-    def get_document_details(self, document_id):
-        self.set_access_token(refresh=True)
-        document_request = signnow_sdk.Document.get(self.access_token, document_id)
+    def get_document_details(self):
+        if not self.document:
+            self.error_message = "Tried to get document details from a request without a document!"
+            return
+
+        document_request = signnow_sdk.Document.get(self.access_token, self.document.document_id)
 
         if 'error' in document_request:
             self.error_message = "Error getting document: " + document_request['error']
