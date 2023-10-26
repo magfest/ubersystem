@@ -6,6 +6,7 @@
     name_desc
     badges_js
     badges_tables
+    cost (admin-only)
     group_status (admin-only)
     website
     categories
@@ -65,10 +66,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% endif %}
 {% endblock %}
 
-{% if admin_area %}
-{% include '/forms/group/admin_group_info.html' %}
-{% endif %}
-
+{% block cost %}{% endblock %}
 {% block group_status %}{% endblock %}
 
 {% if admin_area %}
