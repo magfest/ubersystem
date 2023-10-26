@@ -1,6 +1,7 @@
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 {% set other_info = other_info or forms['other_info'] %}
+{% set badge_flags = badge_flags or forms['badge_flags'] %}
 
 {# BLOCK NAMES in this form:
     hidden
@@ -19,7 +20,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% endblock %}
 
 {% block promo_code %}
-{% if c.BADGE_PROMO_CODES_ENABLED and (not attendee.active_receipt or admin_area) %}
+{% if not badge_flags and c.BADGE_PROMO_CODES_ENABLED and (not attendee.active_receipt or admin_area) %}
     {% set promo_code_admin_text %}
         {% if c.HAS_REG_ADMIN_ACCESS and attendee.promo_code_code %}
         <a href="" id="remove_promo_code" onClick="removePromoCode(event)">Remove Promo Code</a>
