@@ -91,8 +91,8 @@
   </p>
   <ul class="nav nav-pills">
   {% for sender in automated_emails.keys() %}
-    <li class="nav-item border border-primary rounded">
-      <a class="nav-link" href="#{{ sender|email_only }}">{{ sender|email_only }}</a>
+    <li class="nav-item">
+      <a class="nav-link border border-primary rounded" href="#{{ sender|email_only }}">{{ sender|email_only }}</a>
     </li>&nbsp;
   {% endfor %}
   </ul>

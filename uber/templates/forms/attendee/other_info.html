@@ -1,12 +1,12 @@
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 {% set other_info = other_info or forms['other_info'] %}
-{% set personal_info = personal_info or forms['personal_info'] %}
+{% set badge_flags = badge_flags or forms['badge_flags'] %}
 
 {# BLOCK NAMES in this form:
     hidden
     promo_code
-    staffing
+    staffing (ONLY for during prereg, use staffing_info.html otherwise)
     interests
     accessibility
 
@@ -20,44 +20,45 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 {% endblock %}
 
 {% block promo_code %}
-{% if 'promo_code_code' in other_info %}
-<div class="row g-sm-3">
-    <div class="col-12 col-sm-6">{{ form_macros.form_input(other_info.promo_code_code, help_text="" if not editing or not other_info.promo_code_code.data else "This might look different from the code you entered earlier.") }}</div>
-</div>
+{% if not badge_flags and c.BADGE_PROMO_CODES_ENABLED and (not attendee.active_receipt or admin_area) %}
+    {% set promo_code_admin_text %}
+        {% if c.HAS_REG_ADMIN_ACCESS and attendee.promo_code_code %}
+        <a href="" id="remove_promo_code" onClick="removePromoCode(event)">Remove Promo Code</a>
+        {% endif %}
+    {% endset %}
+    <div class="row g-sm-3">
+        <div class="col-12 col-sm-6">{{ form_macros.form_input(other_info.promo_code_code,
+                                                               read_only=attendee.promo_code_code and not editing,
+                                                               help_text="" if not editing or not other_info.promo_code_code.data else "This might look different from the code you entered earlier.",
+                                                               admin_text=promo_code_admin_text) }}</div>
+    </div>
+    {% if c.HAS_REG_ADMIN_ACCESS and attendee.promo_code_code %}
+        <script type="text/javascript">
+            var removePromoCode = function(event) {
+                event.preventDefault();
+                bootbox.confirm({
+                    backdrop: true,
+                    title: 'Remove "{{ attendee.promo_code_code }}" from "{{ attendee.full_name }}"?',
+                    message: 'This will remove the promo code\'s discount from the attendee and ' +
+                    'set them to unpaid. They will be asked to pay the difference to complete their registration.',
+                    buttons: {
+                        confirm: { label: 'Remove Promo Code', className: 'btn-danger' },
+                        cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+                    },
+                    callback: function(result) {
+                        if (result) {
+                            window.location.href = '../reg_admin/remove_promo_code?id={{ attendee.id }}'
+                        }
+                    }
+                });
+            };
+        </script>
+    {% endif %}
 {% endif %}
 {% endblock %}
 
 {% block staffing %}
-{% set include_cellphone = 'cellphone' in other_info and not other_info.cellphone.data %}
-{% set staffing_message = "" %}
-{% if not admin_area %}
-    {% if attendee.badge_type in [c.CONTRACTOR_BADGE, c.STAFF_BADGE] %}
-    {% set staffing_message = "This checkbox is required for Contractors, Volunteers, and Staff. Please contact Staffing Operations if you wish to change your status." %}
-    {% elif attendee.shifts %}
-    {% set staffing_message = "Please " ~ 'see Staffing Operations to change your volunteer status.' if c.AT_THE_CON else 'unassign yourself from shifts before changing your volunteer status.' %}
-    {% endif %}
-{% endif %}
-<div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.toggle_checkbox(other_info.staffing, 
-        [other_info.requested_depts_ids, other_info.cellphone] if include_cellphone else [other_info.requested_depts_ids], toggle_required=True, help_text=staffing_message) }}</div>
-</div>
-
-{% if include_cellphone %}
-<div class="row g-sm-3">
-{% set cellphone_extra_field = form_macros.toggle_checkbox(other_info.no_cellphone, [other_info.cellphone], hide_on_checked=True, toggle_required=True, prop="disabled") %}
-    <div class="col-12">{{ form_macros.form_input(other_info.cellphone, extra_field=cellphone_extra_field, required=True) }}</div>
-</div>
-{% elif 'cellphone' in other_info %}
-<input type="hidden" name="cellphone" value="{{ other_info.cellphone.data }}" />
-{% endif %}
-
-{% if c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
-<div class="row g-sm-3">
-    <div class="col-12">{{ form_macros.form_input(other_info.requested_depts_ids) }}</div>
-</div>
-{% endif %}
 {% endblock %}
-
 
 {% block interests %}
 {% if c.INTEREST_OPTS %}
@@ -69,7 +70,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 
 {% block accessibility %}
-{% if c.ACCESSIBILITY_SERVICES_ENABLED %}
+{% if c.ACCESSIBILITY_SERVICES_ENABLED and (not admin_area or c.HAS_OTHER_REPORTS_ACCESS) %}
 <div class="row g-sm-3">
     <div class="col-12">{{ form_macros.form_input(other_info.requested_accessibility_services) }}</div>
 </div>

@@ -1474,7 +1474,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         e.g. saying that someone gets a 'Supporter Pack' without listing each
         individual item in the pack.
         """
-        return readable_join([item for item in self.merch_items if not is_listy(item)])
+        return readable_join([item for item in self.merch_items if not is_listy(item)]) if self.merch_items else 'N/A'
 
     @property
     def staff_merch_items(self):
@@ -1501,7 +1501,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def staff_merch(self):
         """Used if c.SEPARATE_STAFF_MERCH is true to return the staff swag."""
-        return readable_join(self.staff_merch_items)
+        return readable_join(self.staff_merch_items) if self.staff_merch_items else 'N/A'
 
     @property
     def accoutrements(self):

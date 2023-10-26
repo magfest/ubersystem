@@ -3,14 +3,13 @@ from datetime import date
 
 from markupsafe import Markup
 from pockets.autolog import log
-from wtforms import (BooleanField, DateField, EmailField, Form, FormField,
+from wtforms import (BooleanField, DateField, DateTimeField, EmailField, Form, FormField,
                      HiddenField, SelectField, SelectMultipleField, IntegerField,
                      StringField, TelField, validators, TextAreaField)
-from wtforms.widgets import HiddenInput
 from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
-from uber.forms import AddressForm, MultiCheckbox, MagForm, SelectAvailableField, SwitchInput, NumberInputGroup, HiddenIntField, CustomValidation
+from uber.forms import AddressForm, MultiCheckbox, MagForm, SelectAvailableField, SwitchInput, NumberInputGroup, HiddenBoolField, HiddenIntField, CustomValidation
 from uber.custom_tags import popup_link
 from uber.model_checks import invalid_phone_number
 
@@ -20,7 +19,7 @@ from uber.models import Attendee, Session, PromoCode, PromoCodeGroup
 from uber.model_checks import invalid_zip_code, invalid_phone_number
 from uber.utils import get_age_from_birthday, get_age_conf_from_birthday
 
-__all__ = ['AdminInfo', 'BadgeExtras', 'PersonalInfo', 'PreregOtherInfo', 'OtherInfo', 'Consents']
+__all__ = ['AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo', 'BadgeExtras', 'BadgeFlags', 'BadgeAdminNotes', 'PersonalInfo', 'PreregOtherInfo', 'OtherInfo', 'StaffingInfo', 'Consents']
 
 # TODO: turn this into a proper validation class
 def valid_cellphone(form, field):
@@ -86,14 +85,23 @@ class PersonalInfo(AddressForm, MagForm):
     no_onsite_contact = BooleanField('My emergency contact is also on site with me at the event.')
     international = BooleanField('I\'m coming from outside the US.')
 
+    def placeholder_optional_field_names(self):
+        # Note that the fields below must ALWAYS be required if the attendee is not a placeholder
+        # Otherwise add them to get_optional_fields instead
+        return ['legal_name', 'birthdate', 'age_group', 'ec_name', 'ec_phone', 'address1', 'city',
+                'region', 'region_us', 'region_canada', 'zip_code', 'country', 'onsite_contact']
+    
+    def placeholder_optional_fields(self):
+        return [getattr(self, name) for name in self.placeholder_optional_field_names()]
+
     def get_optional_fields(self, attendee, is_admin=False):
         if is_admin:
             unassigned_group_reg = attendee.group_id and not attendee.first_name and not attendee.last_name
             valid_placeholder = attendee.placeholder and attendee.first_name and attendee.last_name
-            if unassigned_group_reg or valid_placeholder:
-                return ['first_name', 'last_name', 'legal_name', 'badge_printed_name', 'email', 'birthdate', 'age_group',
-                        'ec_name', 'ec_phone', 'address1', 'city', 'region', 'region_us', 'region_canada', 'zip_code', 'country', 
-                        'onsite_contact']
+            if valid_placeholder:
+                return self.placeholder_optional_field_names() + ['badge_printed_name', 'cellphone']
+            if unassigned_group_reg:
+                return ['first_name', 'last_name', 'email'] + self.placeholder_optional_field_names()
         
         optional_list = super().get_optional_fields(attendee, is_admin)
 
@@ -237,15 +245,60 @@ class BadgeExtras(MagForm):
                 raise ValidationError('We are sold out of {} badges.'.format(c.BADGES[badge_type]))
 
 
+class AdminBadgeExtras(BadgeExtras):
+    amount_extra = SelectField('Pre-ordered Merch', coerce=int, choices=c.DONATION_TIER_OPTS, validators=[
+        validators.NumberRange(min=0, message="Amount extra must be a number that is 0 or higher.")
+        ])
+    extra_merch = StringField('Extra Merch')
+    got_merch = BooleanField('This attendee has picked up their merch.')
+
+
 class OtherInfo(MagForm):
-    field_validation = CustomValidation()
+    field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
+
+    placeholder = HiddenBoolField()
+    promo_code_code = StringField('Promo Code')
+    interests = SelectMultipleField('What interests you?', choices=c.INTEREST_OPTS, coerce=int, validators=[validators.Optional()], widget=MultiCheckbox())
+    requested_accessibility_services = BooleanField(f'I would like to be contacted by the {c.EVENT_NAME} Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', widget=SwitchInput())
+
+    def get_non_admin_locked_fields(self, attendee):
+        locked_fields = [] 
+
+        if not attendee.placeholder:
+            # This is an admin field, but we need it on the confirmation page for placeholder attendees
+            locked_fields.append('placeholder')
+
+        if attendee.is_new:
+            return locked_fields
+        
+        if not attendee.is_valid or attendee.badge_status == c.REFUNDED_STATUS:
+            return list(self._fields.keys())
+
+        return locked_fields
+    
+    @new_or_changed_validation.promo_code_code
+    def promo_code_valid(form, field):
+        if field.data:
+            with Session() as session:
+                code = session.lookup_promo_code(field.data)
+                if not code:
+                    group = session.lookup_promo_or_group_code(field.data, PromoCodeGroup)
+                    if not group:
+                        raise ValidationError("The promo code you entered is invalid.")
+                    elif not group.valid_codes:
+                        raise ValidationError(f"There are no more badges left in the group {group.name}.")
+                else:
+                    if code.is_expired:
+                        raise ValidationError("That promo code has expired.")
+                    elif code.uses_remaining <= 0 and not code.is_unlimited:
+                        raise ValidationError("That promo code has been used already.")
+
+
+class StaffingInfo(MagForm):
     dynamic_choices_fields = {'requested_depts_ids': lambda: [(v[0], v[1]) for v in c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC]}
 
-    placeholder = BooleanField(widget=HiddenInput())
     staffing = BooleanField('I am interested in volunteering!', widget=SwitchInput(), description=popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?"))
     requested_depts_ids = SelectMultipleField('Where do you want to help?', widget=MultiCheckbox()) # TODO: Show attendees department descriptions
-    requested_accessibility_services = BooleanField(f'I would like to be contacted by the {c.EVENT_NAME} Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', widget=SwitchInput())
-    interests = SelectMultipleField('What interests you?', choices=c.INTEREST_OPTS, coerce=int, validators=[validators.Optional()], widget=MultiCheckbox())
 
     def get_non_admin_locked_fields(self, attendee):
         locked_fields = [] 
@@ -266,10 +319,30 @@ class OtherInfo(MagForm):
         return locked_fields
 
 
-class PreregOtherInfo(OtherInfo):
-    new_or_changed_validation = CustomValidation()
+class AdminStaffingInfo(StaffingInfo):
+    # TODO: Is there a good way to avoid having to redefine requested_depts_ids here?
+    dynamic_choices_fields = {'requested_depts_ids': lambda: [(v[0], v[1]) for v in c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC],
+                              'assigned_depts_ids': lambda: c.DEPARTMENT_OPTS}
 
-    promo_code_code = StringField('Promo Code')
+    assigned_depts_ids = SelectMultipleField('Assigned Departments', widget=MultiCheckbox())
+    walk_on_volunteer = BooleanField('This person signed up to volunteer at the event.')
+    got_staff_merch = BooleanField('This staffer has picked up their merch.')
+    agreed_to_volunteer_agreement = HiddenBoolField('Agreed to Volunteer Agreement')
+    reviewed_emergency_procedures = HiddenBoolField('Reviewed Emergency Procedures')
+    hotel_eligible = HiddenBoolField('Eligible for Staff Crash Space')
+
+    def staffing_label(self):
+        return "This attendee is volunteering or staffing."
+    
+    def requested_depts_ids_label(self):
+        return "Requested Departments"
+
+
+class PreregOtherInfo(OtherInfo, StaffingInfo):
+    dynamic_choices_fields = {'requested_depts_ids': lambda: [(v[0], v[1]) for v in c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC]}
+
+    staffing = BooleanField('I am interested in volunteering!', widget=SwitchInput(), description=popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?"))
+    requested_depts_ids = SelectMultipleField('Where do you want to help?', widget=MultiCheckbox()) # TODO: Show attendees department descriptions
     cellphone = TelField('Phone Number', description="A cellphone number is required for volunteers.", validators=[
         # Required in model_checks because the staffing property is too complex to rely on per-form logic
         valid_cellphone
@@ -278,23 +351,6 @@ class PreregOtherInfo(OtherInfo):
 
     def get_non_admin_locked_fields(self, attendee):
         return super().get_non_admin_locked_fields(attendee)
-    
-    @new_or_changed_validation.promo_code_code
-    def promo_code_valid(form, field):
-        if field.data:
-            with Session() as session:
-                code = session.lookup_promo_code(field.data)
-                if not code:
-                    group = session.lookup_promo_or_group_code(field.data, PromoCodeGroup)
-                    if not group:
-                        raise ValidationError("The promo code you entered is invalid.")
-                    elif not group.valid_codes:
-                        raise ValidationError(f"There are no more badges left in the group {group.name}.")
-                else:
-                    if code.is_expired:
-                        raise ValidationError("That promo code has expired.")
-                    elif code.uses_remaining <= 0 and not code.is_unlimited:
-                        raise ValidationError("That promo code has been used already.")
 
 
 class Consents(MagForm):
@@ -324,10 +380,31 @@ class Consents(MagForm):
         return Markup(label)
 
 
-class AdminInfo(MagForm):
-    field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
-    placeholder = BooleanField('Placeholder')
-    group_id = StringField('Group')
+class AdminConsents(Consents):
+    attractions_opt_out = HiddenBoolField('Can Sign Up for Attractions')
+    pii_consent = HiddenBoolField()
+
+    def can_spam_label(self):
+        return "This attendee has opted in to marketing emails."
+
+
+class BadgeFlags(MagForm):
+    new_or_changed_validation = CustomValidation()
+    dynamic_choices_fields = {'group_id': lambda: BadgeFlags.get_valid_groups()}
+
+    placeholder = BooleanField('Email this attendee to fill out their details.')
+    can_transfer = BooleanField('Make this attendee\'s badge always transferable.')
+    badge_status = SelectField('Badge Status', coerce=int, choices=c.BADGE_STATUS_OPTS)
+    badge_type = SelectField('Badge Type', coerce=int, choices=c.BADGE_OPTS)
+    badge_num = IntegerField('Badge #', validators=[validators.Optional()])
+    no_badge_num = BooleanField('Omit badge #')
+    ribbon = SelectMultipleField('Ribbons', coerce=int, validators=[validators.Optional()], choices=c.RIBBON_OPTS, widget=MultiCheckbox())
+    group_id = SelectField('Group')
+    paid = SelectField('Paid Status', coerce=int, choices=c.PAYMENT_OPTS)
+    overridden_price = IntegerField('Base Badge Price', validators=[
+        validators.NumberRange(min=0, message="Base badge price must be a number that is 0 or higher.")
+        ], widget=NumberInputGroup())
+    no_override = BooleanField('Let the system determine base badge price. (uncheck to override badge price)')
 
     @new_or_changed_validation.badge_num
     def dupe_badge_num(form, field):
@@ -341,3 +418,15 @@ class AdminInfo(MagForm):
                 else:
                     existing_name = existing.first().full_name
             raise ValidationError('That badge number already belongs to {!r}'.format(existing_name))
+        
+    def get_valid_groups():
+        from uber.models import Group
+        with Session() as session:
+            groups_list = [(g.id, g.name + (f"({g.status_label})" if g.is_dealer else "")) for g in session.query(Group).filter(Group.status != c.IMPORTED).order_by(Group.name).all()]
+            return [('', "No Group")] + groups_list
+
+
+class BadgeAdminNotes(MagForm):
+    regdesk_info = TextAreaField('Special Regdesk Instructions')
+    for_review = TextAreaField('Notes for Later Review')
+    admin_notes = TextAreaField('Admin Notes')
