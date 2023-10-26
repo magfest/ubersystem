@@ -29,7 +29,7 @@
       <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
       {% endif %}
       {{ csrf_token() }}
-      {% include "forms/attendee/other_info.html" %}
+      {% include "forms/attendee/prereg_other_info.html" %}
       &nbsp;
       {% if editing %}
       <button type="submit" class="btn btn-primary mt-3" value="Update">Update</button>

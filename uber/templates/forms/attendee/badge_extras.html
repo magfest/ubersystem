@@ -6,6 +6,7 @@
 
 {# BLOCK NAMES in this form:
     badge_type
+    merch_info (admin-only)
     add_ons
     perk_info
     donation
@@ -33,6 +34,9 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
         </div>
     </div>
 {% endif %}
+{% endblock %}
+
+{% block merch_info %}
 {% endblock %}
 
 {% block add_ons %}
@@ -75,7 +79,6 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 <div class="row g-sm-3">
     <div class="col-12 col-sm-6">{{ form_macros.form_input(badge_extras.extra_donation, id=id_upgrade_prepend ~ "extra_donation") }}</div>
 
-    {% if not admin_area %}
     <div class="col-12 col-sm-6">
         <div class="alert alert-warning" role="alert">
         <strong>This donation <em>is not a kick-in</em> and does not come with merchandise.</strong><br/>
@@ -83,7 +86,6 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
         Your employer may also have a charitable donation matching program. Contact us at {{ c.CONTACT_URL }} for details.
         </div>
     </div>
-    {% endif %}
 
     {% if receipt and not upgrade_modal and not admin_area %}
         <div class="form-text">&nbsp;</div>

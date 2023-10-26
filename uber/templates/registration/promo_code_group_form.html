@@ -60,7 +60,7 @@
       {% else %}
         <h3>Group Info for "{{ group.name }}"</h3>
       {% endif %}
-      {% if not group.is_new %}<a href="../preregistration/group_promo_codes?id={{ group.id }}" class="btn btn-primary">View as Attendee</a>{% endif %}
+      {% if not group.is_new %}<a href="../preregistration/group_promo_codes?id={{ group.id }}" class="btn btn-primary" target="_blank">View as Attendee</a>{% endif %}
       <a href="promo_code_groups" class="btn btn-info">Return to Group List</a>
       <form method="post" action="promo_code_group_form" class="form-horizontal">
         {{ csrf_token() }}

@@ -45,10 +45,12 @@
 </div>
 {% elif type == 'inputgroup' %}
 <div class="form-text">{{ form_label(field, required=label_required) }}</div>
-<div class="input-group{% if not no_margin %} mb-3{% endif %}">
+<div {% if not no_margin %}class="mb-3"{% endif %}>
+<div class="input-group">
 {{ field(class="form-control", **custom_kwargs) }}
 </div>
 {{ form_input_extras(field, help_text, admin_text, extra_field) }}
+</div>
 {% elif type == 'checkgroup' %}
 <div class="card card-body{% if not no_margin %} mb-3{% endif %}">
     {{ field(**custom_kwargs) }}
@@ -86,7 +88,7 @@
 {{ toggle_fields_js(checkbox_field, target_fields, off_values=[1 if hide_on_checked == True else 0], toggle_required=toggle_required, prop=prop, closest_hide_selector=closest_hide_selector) }}
 {%- endmacro %}
 
-{% macro toggle_fields_js(source_field, target_fields, off_values=[], on_values=[], toggle_required=False, prop='visibility', closest_hide_selector='.row', source_field_id='') %}
+{% macro toggle_fields_js(source_field, target_fields, off_values=[], on_values=[], toggle_required=False, prop='visibility', closest_hide_selector='.row', source_field_id='', target_call_func='') %}
 {% set source_id = source_field_id or source_field.id %}
 {% set suffix = "_" ~ source_id %}
 <script type="text/javascript">
@@ -122,18 +124,26 @@
                   $('#{{ target_field.id }}').closest('{{ closest_hide_selector }}').toggle(toggleOn);
               {%- endif %}
           {%- elif prop %}
-              $('#{{ target_field.id }}').prop('{{ prop }}', {{ "!" if prop != 'required' else '' }}toggleOn);
+              $('#{{ target_field.id }}').prop('{{ prop }}', {{ "!" if prop != 'required' and prop != 'checked' else '' }}toggleOn);
           {%- endif %}
           {%- if toggle_required %}
             $('#{{ target_field.id }}').prop('required', toggleOn);
             $('#{{ target_field.id }}').siblings('label').children('.required-indicator').toggle(toggleOn);
           {%- endif %}
+          {% if not target_call_func %}
+            $('#{{ target_field.id }}').trigger('change');
+          {% endif %}
         {% endfor %}
     }
 
     $(function () {
         toggleField{{ suffix }}();
         $('#{{ source_id }}').change(toggleField{{ suffix }});
+        {% for target_field in target_fields %}
+          {% if target_call_func %}
+            $('#{{ target_field.id }}').change({{ target_call_func }});
+          {% endif %}
+        {% endfor %}
     });
 </script>
 {%- endmacro %}
@@ -306,13 +316,13 @@
 </script>
 {%- endmacro %}
 
-{% macro form_validation(form_id, page_handler='validate_attendee', form_list=[], include_disclaimers_modal=false) %}
+{% macro form_validation(form_id, page_handler='validate_attendee', form_list=[], include_disclaimers_modal=false, callback='') %}
 <div class="alert" role="alert" id="form-validations"></div>
 
 <script type="text/javascript">
   var serverValidationPassed = false;
   
-  var runServerValidations = function($form, go_to_cart) {
+  var runServerValidations = function($form, submit_button_name) {
     var form_list = {{ form_list|safe }}.join(',')
     if (form_list != '') {
         form_list = '&form_list=' + form_list
@@ -353,11 +363,15 @@
         $('html, body').animate({scrollTop: $("#form-validations").offset().top}, 50);
       } else {
         serverValidationPassed = true;
-        if (go_to_cart != '') {
-          $("#{{ form_id }}").find($("[name=go_to_cart]")).click();
+        {% if callback %}
+          {{ callback|safe }};
+        {% else %}
+        if (submit_button_name != '') {
+          $("#{{ form_id }}").find($("[name=" + submit_button_name + "]")).click();
         } else {
           $("#{{ form_id }}").submit();
         }
+        {% endif %}
       }
     }, 'json');
   };
@@ -373,7 +387,11 @@
 {% macro submit_validation_and_disclaimer(form_id, include_disclaimers_modal=false) %}
 $("#{{ form_id }}").submit(function (event) { 
     if(!serverValidationPassed) {
-      runServerValidations($(this), event.originalEvent.submitter.name);
+      if (event.originalEvent !== undefined) {
+        runServerValidations($(this), event.originalEvent.submitter.name);
+      } else {
+        runServerValidations($(this), '');
+      }
       return false;
     }
     {% if include_disclaimers_modal %}

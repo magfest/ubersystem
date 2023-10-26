@@ -5,6 +5,9 @@
 
 {# BLOCK NAMES in this form:
     name_badges
+    badges_tables (admin-only)
+    cost (admin-only)
+    admin_info (admin-only)
 
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
@@ -21,6 +24,6 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 </div>
 {% endblock %}
 
-{% if admin_area %}
-{% include '/forms/group/admin_group_info.html' %}
-{% endif %}
+{% block badges_tables %}{% endblock %}
+{% block cost %}{% endblock %}
+{% block admin_info %}{% endblock %}

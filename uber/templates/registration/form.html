@@ -1,10 +1,44 @@
 {% extends "base.html" %}{% set admin_area=True %}
+{% import "forms/macros.html" as form_macros with context %}
 {% import "forms/attendee.html" as attendee_fields with context %}
 {% block title %}Attendee Form - {{ attendee.full_name }}{% endblock %}
 {% block content %}
 {% include "check_in.html" %}
 
 {% include "registration/menu.html" %}
+
+<div class="row mb-3">
+    <div class="col">
+    {% if not attendee.is_new %}
+    <a class="btn btn-primary" href="../preregistration/confirm?id={{ attendee.id }}" target="_blank">View as Attendee</a>
+    {% endif %}
+    {% if attendee.group and c.HAS_GROUP_ADMIN_ACCESS %}
+        <a class="btn btn-secondary" href="../group_admin/form?id={{ attendee.group.id }}" target="_blank">View Group "{{ attendee.group.name }}"</a>
+    {% endif %}
+    {% if attendee.promo_code_groups %}
+        <a class="btn btn-outline-secondary" href="../registration/promo_code_group_form?id={{ attendee.promo_code_groups[0].id }}" target="_blank">View Group "{{ attendee.promo_code_groups[0].name }}"</a>
+    {% endif %}
+    {% if not attendee.is_new %}
+        <form method="post" class="d-inline" id="delete_attendee" action="delete" onSubmit="return confirm('{% if attendee.group and attendee.is_unassigned %}Are you sure you want to delete this unassigned badge?{% elif attendee.group %}Are you sure you want to unassign this badge?{% else %}Are you sure you want to delete this attendee?{% endif %}');">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ attendee.id }}" />
+            {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}" />{% endif %}
+        </form>
+        <input type="submit" form="delete_attendee" class="btn btn-danger" value="{% if attendee.group and attendee.is_unassigned %}Delete this group badge{% elif attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}"
+                        {% if attendee.cannot_delete_badge_reason %} style="background-color:#BCBCBC" title="{{ attendee.cannot_delete_badge_reason }}" disabled {% endif %}/>
+        {% if c.HAS_SECURITY_ADMIN_ACCESS %}
+        <a href="../security_admin/watchlist_form?attendee_id={{ attendee.id }}" class="btn btn-warning">Add to Watchlist</a>
+        {% endif %}
+
+        {% if attendee.paid != c.LOST_BADGE %}
+            <form method="post" class="d-inline" action="lost_badge">
+                <input type="hidden" name="id" value="{{ attendee.id }}" />
+                <input type="submit" class="btn btn-outline-danger" value="Report Lost Badge">
+            </form>
+        {% endif %}
+{% endif %}
+    </div>
+</div>
 
 <div class="card">
 <div class="card-body">
@@ -43,126 +77,93 @@
     {% else %}Please ask an admin with receipt access to correct their receipt.{% endif %}
 </div>
 {% endif %}
-{{ attendee_fields.amount_extra_js }}
-    {% if c.AT_THE_CON %}
-    {% include 'registration/attendee_pending_warning.html' %}
-    {% endif %}
-    {% include 'badge_printing/queue_badge.html' %}
-<form method="post" action="form" class="form-horizontal">
+{% if c.AT_THE_CON %}
+{% include 'registration/attendee_pending_warning.html' %}
+{% endif %}
+{% include 'badge_printing/queue_badge.html' %}
+
+{% if attendee.regdesk_info %}
+<div class="alert alert-info">
+    <div class="form-text">Special Instructions</div>
+    <div class="mb-3">
+        <strong>{{ attendee.regdesk_info }}</strong>
+        <p class="form-text"><em>You can update these instructions below.</em></p>
+    </div>
+</div>
+{% endif %}
+
+{{ form_macros.form_validation('attendee-form') }}
+
+<form novalidate method="post" id="attendee-form" action="form">
 {{ csrf_token() }}
 <input type="hidden" name="id" value="{{ attendee.db_id }}" />
 <input type="hidden" name="return_to" value="{{ return_to }}" />
 
-{{ attendee_fields.created }}
-{{ attendee_fields.signed_up }}
-{{ attendee_fields.last_updated }}
-{{ attendee_fields.checked_in }}
-{{ attendee_fields.attendee_account }}
-
-{% if attendee.regdesk_info %}
-    <div class="form-group">
-        <label for="special_instructions" class="col-sm-3 control-label">Special Instructions</label>
-        <div class="col-sm-6">
-            <div class="form-control-static"><strong>{{ attendee.regdesk_info }}</strong></div>
-            <p class="help-block"><em>You can update these instructions below.</em></p>
-        </div>
-    </div>
+<div class="row">
+<div id="attendee-form-nav" class="col-12 col-lg-2">
+    <ul id="attendee-form-nav" class="nav flex-lg-column nav-pills sticky-lg-top pt-lg-3 mb-3">
+        <li class="nav-item">
+            <a class="nav-link border border-primary rounded active" href="#badge_flags">Badge Info</a>
+        </li>&nbsp;
+        <li class="nav-item">
+            <a class="nav-link border border-primary rounded" href="#personal_info">Personal Info</a>
+        </li>&nbsp;
+        <li class="nav-item">
+            <a class="nav-link border border-primary rounded" href="#badge_extras">Badge Extras</a>
+        </li>&nbsp;
+        <li class="nav-item">
+            <a class="nav-link border border-primary rounded" href="#staffing_info">Staffing Info</a>
+        </li>&nbsp;
+        <li class="nav-item">
+            <a class="nav-link border border-primary rounded" href="#other_info">Other Info</a>
+        </li>
+    </ul>
+    <script type="text/javascript">
+        $().ready(function() {
+            $('#attendee-form-nav').find('.nav-link').click(function() {
+                $(this).parents('#attendee-form-nav').find('.nav-link').removeClass('active');
+                $(this).addClass('active');
+            })
+        });
+    </script>
+</div>
+<div class="col-12 col-lg-10">
+<a id="badge_flags"></a>
+{% include "forms/attendee/badge_flags.html" %}
+{% if not attendee.is_new %}
+<button type="submit" class="btn btn-primary" value="Upload">Save</button>
 {% endif %}
-
-{{ attendee_fields.is_placeholder }}
-{{ attendee_fields.can_transfer }}
-{{ attendee_fields.badge_status }}
-{% if c.HAS_ACCOUNTS_ACCESS %}
-  {{ attendee_fields.admin_access }}
-{% endif %}
-{{ attendee_fields.badge_type }}
-{{ attendee_fields.ribbons }}
-{{ attendee_fields.group_link }}
-{{ attendee_fields.promo_code_group_link }}
-{{ attendee_fields.panel_app_link }}
-
-{% block pre_regform %}{% endblock %}
-
-{{ attendee_fields.name }}
-{{ attendee_fields.badge_printed_name }}
-{{ attendee_fields.age }}
-{{ attendee_fields.email }}
-{{ attendee_fields.emergency_contact }}
-{{ attendee_fields.onsite_contact }}
-{{ attendee_fields.cellphone }}
-{{ attendee_fields.address }}
-{{ attendee_fields.shirt_size }}
-{{ attendee_fields.extra_donation() }}
-{{ attendee_fields.paid }}
-{{ attendee_fields.promo_code }}
-{{ attendee_fields.interests }}
-{{ attendee_fields.found_how }}
-{{ attendee_fields.comments }}
-{{ attendee_fields.can_spam }}
-{{ attendee_fields.attractions_opt_out }}
-
-{% block post_regform %}{% endblock %}
-
-{{ attendee_fields.staffing }}
-{{ attendee_fields.job_interests }}
-{{ attendee_fields.assigned_depts }}
-{{ attendee_fields.setup_teardown }}
-{{ attendee_fields.hotel_eligible }}
-{{ attendee_fields.agreed_to_volunteer_agreement }}
-{{ attendee_fields.reviewed_emergency_procedures }}
-
-{{ attendee_fields.got_merch }}
-
-{{ attendee_fields.overridden_price }}
-{{ attendee_fields.amount_extra() }}
-
-{{ attendee_fields.merch }}
-{{ attendee_fields.staff_merch }}
-{{ attendee_fields.regdesk_info }}
-{{ attendee_fields.requested_accessibility_services }}
-{{ attendee_fields.for_review }}
-{{ attendee_fields.admin_notes }}
-{# Deprecated form included for backwards compatibility with old plugins #}
-{% include "regform.html" %}
+<hr/>
+<a id="personal_info"></a>
+{% include "forms/attendee/personal_info.html" %}
+{% include "forms/attendee/other_info.html" %}
+<button type="submit" class="btn btn-primary" value="Upload">Save</button>
+<hr/>
+<a id="badge_extras"></a>
+{% include "forms/attendee/admin_badge_extras.html" %}
+<button type="submit" class="btn btn-primary" value="Upload">Save</button>
+<hr/>
+<a id="staffing_info"></a>
+{% include "forms/attendee/admin_staffing_info.html" %}
+<button type="submit" class="btn btn-primary" value="Upload">Save</button>
+<hr/>
+<a id="other_info"></a>
+{% include "forms/attendee/admin_consents.html" %}
+{% include "forms/attendee/badge_admin_notes.html" %}
 
 <div class="form-group">
     <div class="col-sm-9 col-sm-offset-3">
-        <button type="submit" name="save" class="btn btn-primary" value="save_return_to_search">Save & Return{% if not return_to %} to Search{% endif %}</button>
-        <button type="submit" name="save" class="btn btn-primary" value="save">Save</button>
+        <button type="submit" name="save_return_to_search" class="btn btn-primary" value="1">Save & Return{% if not return_to %} to Search{% endif %}</button>
+        <button type="submit" name="save" class="btn btn-primary" value="1">Save</button>
         {% if c.AT_THE_CON and not attendee.checked_in and not attendee.is_not_ready_to_checkin and (not receipt or not receipt.current_amount_owed) %}
-        <button class="btn btn-success" name="save" value="save_check_in">Save & Check In</button>
+        <button class="btn btn-success" name="save_check_in" value="1">Save & Check In</button>
         {% endif %}
     </div>
 </div>
 
 </form>
-
-{{ attendee_fields.print_badge }}
-
-{% if not attendee.is_new %}
-    <div style="margin-left:25%">
-        <form method="post" id="delete_attendee" action="delete" onSubmit="return confirm('{% if attendee.group and attendee.is_unassigned %}Are you sure you want to delete this unassigned badge?{% elif attendee.group %}Are you sure you want to unassign this badge?{% else %}Are you sure you want to delete this attendee?{% endif %}');">
-            {{ csrf_token() }}
-            <input type="hidden" name="id" value="{{ attendee.id }}" />
-            {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}" />{% endif %}
-        </form>
-        <input type="submit" form="delete_attendee" class="btn btn-danger" value="{% if attendee.group and attendee.is_unassigned %}Delete this group badge{% elif attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}"
-                        {% if attendee.cannot_delete_badge_reason %} style="background-color:#BCBCBC" title="{{ attendee.cannot_delete_badge_reason }}" disabled {% endif %}/>
-        {% if c.HAS_SECURITY_ADMIN_ACCESS %}
-        <a href="../security_admin/watchlist_form?attendee_id={{ attendee.id }}" class="btn btn-warning">Add to Watchlist</a>
-        {% endif %}
-    </div>
-
-    {% if attendee.paid != c.LOST_BADGE %}
-        <br/>
-        <div style="margin-left:25%">
-            <form method="post" action="lost_badge">
-                <input type="hidden" name="id" value="{{ attendee.id }}" />
-                <input type="submit" value="Report Lost Badge">
-            </form>
-        </div>
-    {% endif %}
-{% endif %}
+</div>
+</div>
 </div>
 </div>
 {% endblock %}

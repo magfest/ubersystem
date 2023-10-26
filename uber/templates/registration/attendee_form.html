@@ -1,9 +1,5 @@
 {% set admin_area=True %}
 <style type="text/css">
-.modal-dialog {
-  width: 98%;
-  padding: 0;
-}
 .gly-spin {
   -webkit-animation: spin 2s infinite linear;
   -moz-animation: spin 2s infinite linear;
@@ -47,21 +43,26 @@
 </style>
 <script type="text/javascript">
 $('#attendee_form').load(function() {$(window).trigger( 'runJavaScript' );});
+$('.nav-tabs button').first().tab('show');
 var attendeeID = '{{ attendee.id }}';
 loadForm = function(kw) {
-  var glyphicon_span = $('a[href="#attendee' + kw + '"]').children('span');
-  var glyphicon_class = glyphicon_span.attr('class');
-  var old_hash = window.location.hash;
-  glyphicon_span.removeClass().addClass('fa fa-repeat gly-spin');
-  $('#attendee' + kw).load('../registration/attendee_' + kw.toLowerCase() + '?id=' + attendeeID, function(response, status){
-    window.history.replaceState("", document.title, window.location.href.replace(location.hash, "") + old_hash);
-    if (status == 'success') {
-      $(window).trigger( 'runJavaScript' );
-      glyphicon_span.removeClass().addClass(glyphicon_class);
-    } else {
-      showErrorMessage("Unable to connect to server, please try again.");
-      glyphicon_span.removeClass().addClass(glyphicon_class);
-    }
+  return new Promise(function (resolve, reject) {
+    var glyphicon_span = $('#attendee' + kw + '-tab').children('i');
+    var glyphicon_class = glyphicon_span.attr('class');
+    var old_hash = window.location.hash;
+    glyphicon_span.removeClass().addClass('fa fa-repeat gly-spin');
+    $('#attendee' + kw).load('../registration/attendee_' + kw.toLowerCase() + '?id=' + attendeeID, function(response, status){
+      window.history.replaceState("", document.title, window.location.href.replace(location.hash, "") + old_hash);
+      if (status == 'success') {
+        $(window).trigger( 'runJavaScript' );
+        glyphicon_span.removeClass().addClass(glyphicon_class);
+        resolve(status);
+      } else {
+        showErrorMessage("Unable to connect to server, please try again.");
+        glyphicon_span.removeClass().addClass(glyphicon_class);
+        reject("Unable to connect to server, please try again.");
+      }
+    });
   });
 };
 var refreshTab = function() {
@@ -69,20 +70,22 @@ var refreshTab = function() {
   loadForm(currentTab.attr('id').slice(8));
 };
 {% if tab_view %}
-var tab = $('.nav-tabs a[href="#attendee{{ tab_view }}"]');
+var tab = $('#attendee{{ tab_view }}-tab');
 if(tab.length) {
   tab.tab('show');
 } else {
-  $('.nav-tabs a').first().tab('show');
+  $('.nav-tabs button').first().tab('show');
 }
 loadForm("{{ tab_view }}");
 {% endif %}
 </script>
 <div class="modal-header">
-  <button type="button" class="close" data-bs-dismiss="modal">&times;</button>
   <h4 class="modal-title">Attendee Form{% if attendee.first_name %} - {{ attendee.full_name }}{% endif %}</h4>
+  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
   </div>
   <div class="modal-body">
+    <div class="alert alert-dismissible" role="alert" id="attendee-modal-alert"><span></span><button type="button" class="btn-close" onClick="hideMessageBox('attendee-modal-alert')" aria-label="Close"></button></div>
+    
     <div role="tabpanel">
       <!-- Nav tabs -->
       {% if not attendee.is_new %}
@@ -111,9 +114,11 @@ loadForm("{{ tab_view }}");
             </button>
           </li>
           {% endif %}
-          <button class='btn btn-info pull-right' onClick="refreshTab()">
-          Refresh&nbsp;<i class="fa fa-refresh pull-right"></i>
-          </button>
+          <li class="nav-item ms-auto">
+            <button class="btn btn-info" onClick="refreshTab()">
+            Refresh&nbsp;<i class="fa fa-refresh"></i>
+            </button>
+          </li>
       </ul>
       {% endif %}
       <!-- Tab panes -->

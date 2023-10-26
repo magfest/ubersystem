@@ -377,6 +377,10 @@ class HiddenIntField(IntegerField):
     widget = wtforms_widgets.HiddenInput()
 
 
+class HiddenBoolField(BooleanField):
+    widget = wtforms_widgets.HiddenInput()
+
+
 class SelectAvailableField(SelectField):
     """
     A select field that takes a flat list `sold_out_list` and compares each option to that list.

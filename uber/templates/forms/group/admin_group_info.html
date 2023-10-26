@@ -1,17 +1,6 @@
-{% import 'macros.html' as macros with context %}
-{% import 'forms/macros.html' as form_macros with context %}
-{% set group_info = group_info or forms['group_info']|default(None) or table_info or forms['table_info']|default(None) %}
-
-{# BLOCK NAMES in this form:
-    badges_tables
-    cost
-    admin_info
-
-Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
-#}
+{% extends 'forms/group/group_info.html' %}
 
 {% block badges_tables %}
-
 <div class="row g-sm-3">
     <div class="col-12 col-sm-6">{{ form_macros.form_input(group_info.tables, choices=c.ADMIN_TABLE_OPTS) }}</div>
     <div class="col-12 col-sm-6">{{ form_macros.form_input(group_info.badges,

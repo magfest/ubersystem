@@ -1685,7 +1685,7 @@ $(window).on("runJavaScript", function(){
 
 {% set panel_app_link %}
 {# Always read-only #}
-{% if attendee.panel_applicants -%}
+{% if attendee.panel_applicants and c.HAS_PANELS_ADMIN_ACCESS -%}
   <div class="form-group">
     <label class="col-sm-3 control-label">Panels</label>
     <div class="col-sm-9">
