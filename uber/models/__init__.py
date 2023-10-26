@@ -390,7 +390,7 @@ class MagModel:
         
         if name.startswith('default_') and name.endswith('_cost'):
             if self.active_receipt:
-                log.error('Cost property {} was called for object {}, which has an active receipt. This may cause problems.'.format(name, self))
+                log.debug('Cost property {} was called for object {}, which has an active receipt. This may cause problems.'.format(name, self))
 
         receipt_items = uber.receipt_items.cost_calculation.items
         try:
@@ -423,7 +423,7 @@ class MagModel:
             if value is None:
                 return  # Totally fine for value to be None
 
-            elif value == '' and isinstance(column.type, (Float, Numeric, Choice, Integer, UTCDateTime, Date)):
+            elif value == '' and isinstance(column.type, (UUID, Float, Numeric, Choice, Integer, UTCDateTime, Date)):
                 return None
 
             elif isinstance(column.type, Boolean):

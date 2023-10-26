@@ -17,6 +17,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 #}
 
 {% block attendee_info %}
+{% if not attendee.is_new %}
 <div class="row g-sm-3">
     {% if attendee.created and attendee.created.when|full_datetime_local != attendee.registered|full_datetime_local and attendee.created.who == "non-admin" %}
     <div class="col">
@@ -81,6 +82,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
     </div>
     {% endif %}
 </div>
+{% endif %}
 <div class="row g-sm-3">
     <div class="col-12 col-sm-6">
         <div class="form-text">Placeholder</div>
