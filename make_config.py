@@ -6,6 +6,7 @@ import pathlib
 import base64
 import gzip
 import yaml
+import sys
 import os
 
 root = os.environ.get("UBERSYSTEM_ROOT", "/app")
@@ -17,8 +18,13 @@ parser = argparse.ArgumentParser(
     description='Generates ubersystem config files from compressed environment variables'
 )
 parser.add_argument("--repo", required=False, help="Optional git repo to pull config from, used for development")
-parser.add_argument("--paths", nargs="*", help="Configuration paths to use when loading from git repo")
+parser.add_argument("--servername", help="Config key in servers.yaml for this instance")
+parser.add_argument("--environment", help="Which environment in servers.yaml to use")
+parser.add_argument("--overwrite", help="Overwrite an existing development.ini if it exists", action="store_true")
 args = parser.parse_args()
+
+if not args.overwrite and os.path.exists("development.ini"):
+    sys.exit("development.ini already exists. Use --overwrite to replace it.")
 
 if args.repo:
     repo_config = []
@@ -26,7 +32,10 @@ if args.repo:
         print(f"Cloning config repo {args.repo} into {temp}")
         os.system(f"git clone --depth=1 {args.repo} {temp}")
         files = []
-        for path in args.paths:
+        with open(f"{temp}/servers.yaml") as FILE:
+            environments = yaml.load(FILE, Loader=yaml.Loader)
+        paths = environments.get(args.environment, {}).get(args.servername, {}).get("config_paths", [])
+        for path in paths:
             print(f"Loading files from {path}")
             parts = pathlib.PurePath(path).parts
             for idx, part in enumerate(parts):
