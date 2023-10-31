@@ -329,7 +329,7 @@ class AdminStaffingInfo(StaffingInfo):
     got_staff_merch = BooleanField('This staffer has picked up their merch.')
     agreed_to_volunteer_agreement = HiddenBoolField('Agreed to Volunteer Agreement')
     reviewed_emergency_procedures = HiddenBoolField('Reviewed Emergency Procedures')
-    hotel_eligible = HiddenBoolField('Eligible for Staff Crash Space')
+    hotel_eligible = BooleanField('This staffer is eligible for staff crash space.')
 
     def staffing_label(self):
         return "This attendee is volunteering or staffing."
