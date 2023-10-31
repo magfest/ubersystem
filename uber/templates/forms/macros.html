@@ -30,7 +30,7 @@
 
 {% set type = field.meta.get_field_type(field) %}
 {% set label_required = kwargs['required'] if 'required' in kwargs else field.flags.required %}
-{% set disable_checkboxes = 'readonly' in kwargs or 'readonly' in field.render_kw %}
+{% set disable_checkboxes = ('readonly' in kwargs and kwargs['readonly'] == True) or 'readonly' in field.render_kw %}
 {% if type in ['checkbox','switch'] %}
 <div class="form-check{% if type == 'switch' %} form-switch{% endif %}{% if not no_margin %} mb-3{% endif %}">
   {% if disable_checkboxes %}

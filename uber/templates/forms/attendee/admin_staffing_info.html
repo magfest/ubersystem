@@ -96,10 +96,9 @@
     </div>
     {% endif %}
     <div class="col">
-        <div class="form-text">{{ staffing_info.hotel_eligible.label.text }}</div>
+        <div class="form-text">Staff Crash Space</div>
         <div class="mb-3">
-            {{ staffing_info.hotel_eligible }}
-            {{ staffing_info.hotel_eligible.data|yesno("Yes,No") }}
+            {{ form_macros.form_input(staffing_info.hotel_eligible, readonly=not c.HAS_DEVTOOLS_ACCESS) }}
         </div>
     </div>
 </div>
