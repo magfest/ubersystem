@@ -1,4 +1,5 @@
 import re
+import six
 import cherrypy
 
 from collections import defaultdict, OrderedDict
@@ -193,7 +194,8 @@ class MagForm(Form):
                 elif field_in_formdata and cherrypy.request.method == 'POST':
                     # We have to pre-process boolean fields because WTForms will print "False"
                     # for a BooleanField's hidden input value and then not process that as falsey
-                    formdata[name] = formdata[name].strip().lower() not in ('f', 'false', 'n', 'no', '0')
+                    formdata[name] = formdata[name].strip().lower() not in ('f', 'false', 'n', 'no', '0') \
+                        if isinstance(formdata[name], six.string_types) else formdata[name]
             elif (isinstance(field, SelectMultipleField) or hasattr(obj, 'all_checkgroups') and name in obj.all_checkgroups
                   ) and not field_in_formdata and field_in_obj:
                 if use_blank_formdata:
