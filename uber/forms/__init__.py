@@ -187,8 +187,13 @@ class MagForm(Form):
             field_in_obj = hasattr(obj, name)
             field_in_formdata = name in formdata
             use_blank_formdata = cherrypy.request.method == 'POST' and checkboxes_present
-            if isinstance(field, BooleanField) and not field_in_formdata and field_in_obj:
-                formdata[name] = False if use_blank_formdata else getattr(obj, name)
+            if isinstance(field, BooleanField):
+                if not field_in_formdata and field_in_obj:
+                    formdata[name] = False if use_blank_formdata else getattr(obj, name)
+                elif field_in_formdata and cherrypy.request.method == 'POST':
+                    # We have to pre-process boolean fields because WTForms will print "False"
+                    # for a BooleanField's hidden input value and then not process that as falsey
+                    formdata[name] = formdata[name].strip().lower() not in ('f', 'false', 'n', 'no', '0')
             elif (isinstance(field, SelectMultipleField) or hasattr(obj, 'all_checkgroups') and name in obj.all_checkgroups
                   ) and not field_in_formdata and field_in_obj:
                 if use_blank_formdata:
