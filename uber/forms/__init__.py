@@ -376,7 +376,8 @@ class AddressForm():
     
     def validate_zip_code(form, field):
         if field.data and invalid_zip_code(field.data) and (
-            not form.international.data or c.COLLECT_FULL_ADDRESS and form.country.data == 'United States'):
+            not c.COLLECT_FULL_ADDRESS and not form.international.data or 
+            c.COLLECT_FULL_ADDRESS and form.country.data == 'United States'):
             raise ValidationError('Please enter a valid 5 or 9-digit zip code.')
 
 
