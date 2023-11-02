@@ -38,6 +38,13 @@
         {% endif %}
 {% endif %}
     </div>
+    <div class="col text-end">
+        <button type="submit" form="attendee-form" name="save_return_to_search" class="btn btn-primary" value="1">Save & Return{% if not return_to %} to Search{% endif %}</button>
+        <button type="submit" form="attendee-form" name="save" class="btn btn-primary" value="1">Save</button>
+        {% if c.AT_THE_CON and not attendee.checked_in and not attendee.is_not_ready_to_checkin and (not receipt or not receipt.current_amount_owed) %}
+        <button class="btn btn-success" form="attendee-form" name="save_check_in" value="1">Save & Check In</button>
+        {% endif %}
+    </div>
 </div>
 
 <div class="card">
@@ -151,8 +158,8 @@
 {% include "forms/attendee/admin_consents.html" %}
 {% include "forms/attendee/badge_admin_notes.html" %}
 
-<div class="form-group">
-    <div class="col-sm-9 col-sm-offset-3">
+<div class="row g-sm-3">
+    <div class="col">
         <button type="submit" name="save_return_to_search" class="btn btn-primary" value="1">Save & Return{% if not return_to %} to Search{% endif %}</button>
         <button type="submit" name="save" class="btn btn-primary" value="1">Save</button>
         {% if c.AT_THE_CON and not attendee.checked_in and not attendee.is_not_ready_to_checkin and (not receipt or not receipt.current_amount_owed) %}

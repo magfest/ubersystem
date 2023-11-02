@@ -98,7 +98,7 @@
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
 {% if c.COLLECT_EXACT_BIRTHDATE %}
-  {{ form_macros.form_input(personal_info.birthdate) }}
+  {{ form_macros.form_input(personal_info.birthdate, admin_text=attendee.age_group_conf.desc) }}
 {% else %}
   TBD
 {% endif %}
@@ -112,8 +112,6 @@
         <a class="link-dark" target="_blank" href="{{ c.CONSENT_FORM_URL }}">parental consent form</a>.
       </em>
     </div>
-    {% elif admin_area and attendee.birthdate %}
-      ({{ attendee.age_group_conf.desc }})
     {% endif %}
   </div>
 </div>

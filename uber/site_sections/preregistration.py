@@ -1525,7 +1525,7 @@ class Root:
         placeholder = attendee.placeholder
 
         receipt = session.get_receipt_by_model(attendee)
-        form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents']
+        form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'StaffingInfo', 'Consents']
         forms = load_forms(params, attendee, form_list)
         if not attendee.is_new and not attendee.placeholder:
             forms['consents'].pii_consent.data = True

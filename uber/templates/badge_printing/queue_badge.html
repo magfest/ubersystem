@@ -1,15 +1,17 @@
 {% if not attendee.is_new and c.BADGE_PRINTING_ENABLED %}
-<div class="card-body">
-<form class="print-badge form-horizontal" method="post">
+<div class="row g-sm-3">
+<form class="print-badge d-inline" method="post">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ attendee.id }}">
-    <div class="form-group">
-        <label for="printer_id" class="col-sm-3 control-label">Printer ID and Reg Station #</label>
-        <div class="col-sm-4">
+    <div class="col">
+        <label for="printer_id" class="form-text">Printer ID and Reg Station #</label>
+        <div class="row g-sm-3">
+        <div class="col-3 mb-3">
             <input type="text" name="printer_id" class="form-control" value="{{ printer_id }}" placeholder="Printer ID" />
         </div>
-        <div class="col-sm-2">
+        <div class="col-3 mb-3">
             <input type="number" name="reg_station" class="form-control" value="{{ reg_station }}" placeholder="Station #" />
+        </div>
         </div>
     </div>
 
@@ -30,8 +32,8 @@
         </div>
     {% endif %}
 
-    <div class="form-group">
-        <div class="col-sm-9 col-sm-offset-3">
+    <div class="col-4">
+        <div class="mb-3">
             <button type="submit" class="btn btn-success">Queue for Printing</button>
         </div>
     </div>

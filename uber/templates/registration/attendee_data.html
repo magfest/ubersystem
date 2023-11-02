@@ -64,6 +64,9 @@ if($.field('return_to')) {
 {% if not attendee.is_new %}
 <div class="row g-sm-3 mt-1 mb-3">
   <div class="col">
+    {% if not attendee.is_new %}
+    <a class="btn btn-primary" href="../preregistration/confirm?id={{ attendee.id }}" target="_blank">View as Attendee</a>
+    {% endif %}
     <form method="post" class="d-inline" id="delete_attendee" action="delete" onSubmit="return confirm('{% if attendee.group and attendee.is_unassigned %}Are you sure you want to delete this unassigned badge?{% elif attendee.group %}Are you sure you want to unassign this badge?{% else %}Are you sure you want to delete this attendee?{% endif %}');">
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ attendee.id }}" />

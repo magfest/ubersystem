@@ -58,7 +58,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
                 {% if not loop.first %} / {% endif %}{{ manager|form_link(true) }}
                 {% if manager.attendees|length > 1 %}
                 (&nbsp;{%- for managed_attendee in manager.attendees|selectattr('id','!=',attendee.id) -%}
-                    {% if not loop.first %} / {% endif %}{{ managed_attendee|form_link }}{% if not managed_attendee.is_valid %} <span class="badge">Invalid</span>{% endif %}
+                    {% if not loop.first %} / {% endif %}{{ managed_attendee|form_link }}{% if not managed_attendee.is_valid %} <span class="badge bg-secondary">Invalid</span>{% endif %}
                     {%- endfor -%}&nbsp;)
                 {% endif %}
             {% else %}

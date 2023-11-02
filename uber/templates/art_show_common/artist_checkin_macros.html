@@ -48,147 +48,139 @@
 
 <input type="hidden" name="app_id" value="{{ app.id }}" />
 {% if checkout %}
-<div class="form-group">
-  <label class="col-sm-3 control-label optional-field">Artist Code</label>
-  <div class="col-sm-6">
+<div class="col-12 col-sm-6">
+  <label class="form-text">Artist Code</label>
+  <div class="mb-3">
     <div class="form-control-static">
       {{ app.artist_id }}
     </div>
   </div>
 </div>
-<div class="form-group">
-  <label class="col-sm-3 control-label optional-field">Artist Name</label>
-  <div class="col-sm-6">
+<div class="col-12 col-sm-6">
+  <label class="form-text">Artist Name</label>
+  <div class="mb-3">
     <div class="form-control-static">
       {{ app.display_name }}{% if app.display_name != app.attendee.full_name %} ({{ app.attendee.full_name }}){% endif %}
     </div>
   </div>
 </div>
 {% if app.attendee.country != 'United States' and app.country != 'United States' and printable %}
-<div class="form-group">
-  <label class="col-sm-3 control-label optional-field">Paypal Address</label>
-  <div class="col-sm-6">
+<div class="col-12 col-sm-6">
+  <label class="form-text">Paypal Address</label>
+  <div class="mb-3">
     <div class="form-control-static">
       {{ app.paypal_address }}
     </div>
   </div>
 </div>
 {% elif app.attendee.country != 'United States' and app.country != 'United States' %}
-{{ macros.form_group(app, 'paypal_address', label="Paypal Address", help="The Paypal address for the artist, whose personal address is outside the US.", placeholder='email@example.com') }}
+{{ macros.form_group(app, 'paypal_address', label="Paypal Address", help="The Paypal address for the artist, whose personal address is outside the US.", placeholder='email@example.com', use_bs5=True) }}
 {% endif %}
 {% else %}
-<div class="pull-left form-control-static">
-  <label class="control-label optional-field" style="padding:0;">Location</label>
-  {% if printable %}
-  &nbsp;<div style="outline: 1px solid black; width: 4em; height: 3em;" class="text-center">{{ app.locations }}</div>
-  {% else %}
-  <input class="form-control" type="text" name="locations" value="{{ app.locations }}" placeholder="Space assignments for this artist." />
-  {% endif %}
-</div>
-<div class="pull-right form-control-static" style="padding-top:0;">
-  <label class="control-label optional-field">Artist ID</label>
-  <br/><span style="font-size: 2em;">{{ app.artist_id }}</span>
-</div>
-<div class="clearfix"></div>
-<br/><br/>
-{% if not app.artist_name and printable %}
-<div class="form-group">
-  <label class="col-sm-3 control-label optional-field">Artist Name</label>
-  <div class="col-sm-6">
-    <div class="form-control-static">
-      {{ app.attendee.full_name }}
-    </div>
-  </div>
-</div>
-{% else %}
-{{ macros.form_group(app, 'artist_name', label="Artist Name", help="The name the artist wants to use with their artwork, if different from their first and last name.", placeholder=app.attendee.full_name, is_readonly=printable) }}
-{% endif %}
-
-{% if not app.banner_name and printable %}
-<div class="form-group">
-  <label class="col-sm-3 control-label optional-field">Banner Name</label>
-  <div class="col-sm-6">
-    <div class="form-control-static">
-      {{ app.artist_name or app.attendee.full_name }}
-    </div>
-  </div>
-</div>
-{% else %}
-{{ macros.form_group(app, 'banner_name', label="Banner Name", help="The name displayed with their art.", placeholder=app.artist_name or app.attendee.full_name, is_readonly=printable) }}
-{% endif %}
-
-{{ macros.name_form_group(app.attendee, label="Artist Full Name", is_readonly=printable) }}
-{{ macros.form_group(app.attendee, 'legal_name', label="Artist Legal Name", placeholder="Name exactly as it appears on Photo ID", is_readonly=printable) }}
-
-{% if app.attendee.badge_status != c.NOT_ATTENDING %}
-{{ macros.address_form(app.attendee, name_prefix="attendee_", label_prefix="Artist", is_readonly=printable) }}
-{% endif %}
-
-{% if app.delivery_method == c.BY_MAIL %}
-  {% if not app.business_name and printable %}
-  <div class="form-group">
-    <label class="col-sm-3 control-label optional-field">Mailing Business Name</label>
-    <div class="col-sm-6">
-      <div class="form-control-static">{{ app.attendee.full_name }}</div>
-    </div>
-  </div>
-  {% else %}
-    {{ macros.form_group(app, 'business_name', label="Mailing Business Name", placeholder=app.attendee.full_name, is_readonly=printable) }}
-  {% endif %}
-{{ macros.address_form(app, label_prefix="Mailing", is_readonly=printable) }}
-{% endif %}
-
-{% if not app.attendee.cellphone and printable %}
-<div class="form-group">
-  <label class="col-sm-3 control-label optional-field">Artist Phone</label>
-  <div class="col-sm-6">
-    <div class="form-control-static">
-    </div>
-  </div>
-</div>
-{% else %}
-  {{ macros.form_group(app.attendee, 'cellphone', label="Artist Phone", placeholder="A phone number we can use to contact the artist", is_readonly=printable) }}
-{% endif %}
-
-<br/>
-<div class="form-group">
-  <label class="col-sm-3 control-label optional-field">Artist Type</label>
-  <div class="col-sm-6">
+<div class="row g-sm-3 p-0">
+  <div class="col text-start">
+    <div class="form-text">Location</div>
     {% if printable %}
-    <div class="form-control-static">
-      {{ app.delivery_method_label }}
-    </div>
+    <div style="outline: 1px solid black; width: 4em; height: 3em;" class="text-center pt-0">{{ app.locations }}</div>
     {% else %}
-    <select name="delivery_method" class="form-control">
-      {{ options(c.ART_SHOW_DELIVERY_OPTS, app.delivery_method) }}
-    </select>
+    <input class="form-control" type="text" name="locations" value="{{ app.locations }}" placeholder="Space assignments for this artist." />
     {% endif %}
   </div>
-</div>
-{% if not printable and app.delivery_method == c.AGENT %}
-<div class="form-group">
-  <label class="col-sm-3 control-label optional-field">Agent</label>
-  <div class="col-sm-6">
-    <select name="agent_id" class="form-control">
-      {{ options(all_attendees, app.agent.id) }}
-    </select>
+  <div class="col text-end">
+    <div class="form-text">Artist ID</div>
+    <span style="font-size: 2em;">{{ app.artist_id }}</span>
   </div>
 </div>
-{% endif %}
-{% endif %}
-{% if not app.check_payable and printable %}
-<div class="form-group">
-  <label class="col-sm-3 control-label optional-field">Name on Check</label>
-  <div class="col-sm-6">
-    <div class="form-control-static">
-      {{ app.attendee.legal_first_name }} {{ app.attendee.legal_last_name }}
+<br/>
+<div class="row g-sm-3">
+  {% if not app.artist_name and printable %}
+  <div class="col-12 col-sm-6">
+    <div class="form-text">Artist Name</div>
+    <div class="mb-3">
+        {{ app.attendee.full_name }}
     </div>
   </div>
+  {% else %}
+  {{ macros.form_group(app, 'artist_name', label="Artist Name", help="The name the artist wants to use with their artwork, if different from their first and last name.", placeholder=app.attendee.full_name, is_readonly=printable, use_bs5=True) }}
+  {% endif %}
+
+  {% if not app.banner_name and printable %}
+  <div class="col-12 col-sm-6">
+    <div class="form-text">Banner Name</div>
+    <div class="mb-3">
+        {{ app.artist_name or app.attendee.full_name }}
+    </div>
+  </div>
+  {% else %}
+  {{ macros.form_group(app, 'banner_name', label="Banner Name", help="The name displayed with their art.", placeholder=app.artist_name or app.attendee.full_name, is_readonly=printable, use_bs5=True) }}
+  {% endif %}
 </div>
-{% else %}
-{{ macros.form_group(app, 'check_payable', label="Name on Check", placeholder=app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name, is_readonly=printable) }}
+
+<div class="row g-sm-3">
+  {{ macros.name_form_group(app.attendee, label="Artist Full Name", is_readonly=printable, use_bs5=True) }}
+  {{ macros.form_group(app.attendee, 'legal_name', label="Artist Legal Name", placeholder="Name exactly as it appears on Photo ID", is_readonly=printable, use_bs5=True) }}
+  {% if app.attendee.cellphone %}
+    {{ macros.form_group(app.attendee, 'cellphone', label="Artist Phone", placeholder="A phone number we can use to contact the artist", is_readonly=printable, use_bs5=True) }}
+  {% endif %}
+</div>
+
+{% if app.attendee.badge_status != c.NOT_ATTENDING %}
+{{ macros.address_form(app.attendee, name_prefix="attendee_", label_prefix="Artist", is_readonly=printable, use_bs5=True) }}
 {% endif %}
-<br/>
+
+<div class="row g-sm-3">
+  {% if app.delivery_method == c.BY_MAIL %}
+    {% if not app.business_name and printable %}
+    <div class="col-12 col-sm-6">
+      <label class="form-text">Mailing Business Name</label>
+      <div class="mb-3">
+        <div class="form-control-static">{{ app.attendee.full_name }}</div>
+      </div>
+    </div>
+    {% else %}
+      {{ macros.form_group(app, 'business_name', label="Mailing Business Name", placeholder=app.attendee.full_name, is_readonly=printable, use_bs5=True) }}
+    {% endif %}
+  {{ macros.address_form(app, label_prefix="Mailing", is_readonly=printable) }}
+  {% endif %}
+
+  <div class="col">
+    <label class="form-text">Artist Type</label>
+    <div class="mb-3">
+      {% if printable %}
+      <div class="form-control-static">
+        {{ app.delivery_method_label }}
+      </div>
+      {% else %}
+      <select name="delivery_method" class="form-control">
+        {{ options(c.ART_SHOW_DELIVERY_OPTS, app.delivery_method) }}
+      </select>
+      {% endif %}
+    </div>
+  </div>
+  {% if not printable and app.delivery_method == c.AGENT %}
+  <div class="col">
+    <label class="form-text">Agent</label>
+    <div class="mb-3">
+      <select name="agent_id" class="form-control">
+        {{ options(all_attendees, app.agent.id) }}
+      </select>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+  {% if not app.check_payable and printable %}
+  <div class="col-12 col-sm-6">
+    <label class="form-text">Name on Check</label>
+    <div class="mb-3">
+      <div class="form-control-static">
+        {{ app.attendee.legal_first_name }} {{ app.attendee.legal_last_name }}
+      </div>
+    </div>
+  </div>
+  {% else %}
+  {{ macros.form_group(app, 'check_payable', label="Name on Check", placeholder=app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name, is_readonly=printable, use_bs5=True) }}
+  {% endif %}
+</div>
 <div class="table-responsive">
   <table class="table table-striped"{% if not printable %} id="datatable_{{ app.id }}" {% endif %}>
     <thead>
@@ -234,48 +226,42 @@
 <p>I understand that all unsold art must be picked up between Noon and 5PM on Sunday.</p></strong><br/>
 </span>
 
-<div class="form-group">
-  <label class="col-sm-3 control-label optional-field">Artist Signature</label>
-  <div class="col-sm-6">
-    <div class="form-control-static">
-      ____________________________________________________________
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">
+    <label class="form-text">Artist Signature</label>
+    <div class="mb-3 mt-3">
+        ____________________________________________________________
     </div>
   </div>
-</div>
 
-<div class="form-group">
-  <label class="col-sm-3 control-label optional-field">Date</label>
-  <div class="col-sm-6">
-    <div class="form-control-static">
-      ______________________________
+  <div class="col-12 col-sm-6">
+    <label class="form-text">Date</label>
+    <div class="mb-3 mt-3">
+        ______________________________
     </div>
   </div>
 </div>
 
 {% if app.delivery_method == c.AGENT %}
-<div class="form-group">
-  <label class="col-sm-3 control-label optional-field">Agent Name</label>
-  <div class="col-sm-6">
-    <div class="form-control-static">
-      {{ app.agent.legal_first_name }} {{ app.agent.legal_last_name }}
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">
+    <label class="form-text">Agent Name</label>
+    <div class="mb-3 mt-3">
+        {{ app.agent.legal_first_name }} {{ app.agent.legal_last_name }}
     </div>
   </div>
-</div>
 
-<div class="form-group">
-  <label class="col-sm-3 control-label optional-field">Agent Signature</label>
-  <div class="col-sm-6">
-    <div class="form-control-static">
-      ____________________________________________________________
+  <div class="col-12 col-sm-6">
+    <label class="form-text">Agent Signature</label>
+    <div class="mb-3 mt-3">
+        ____________________________________________________________
     </div>
   </div>
-</div>
 
-<div class="form-group">
-  <label class="col-sm-3 control-label optional-field">Date</label>
-  <div class="col-sm-6">
-    <div class="form-control-static">
-      ______________________________
+  <div class="col-12 col-sm-6">
+    <label class="form-text">Date</label>
+    <div class="mb-3 mt-3">
+        ______________________________
     </div>
   </div>
 </div>
