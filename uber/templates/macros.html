@@ -184,7 +184,23 @@
     size=6,
     form_class='',
     static_wrap=False,
-    is_admin=False) -%}
+    is_admin=False,
+    use_bs5=False) -%}
+  {% if use_bs5 or is_admin %}
+  <div class="col {{ form_class }}">
+    <label class="form-text">
+      {{ label }}
+    </label>
+    <div class="mb-3">
+        {{ caller() }}
+    </div>
+    {% if help %}
+      <p class="form-text">
+        {{ help }}
+      </p>
+    {% endif %}
+  </div>
+  {% else %}
   <div class="form-group {{ form_class }}">
     <label class="{{ 'form-text' if is_admin else 'col-sm-3 control-label' }}{% if not is_required %} optional-field{% endif %}">
       {{ label }}
@@ -205,6 +221,7 @@
       </p>
     {% endif %}
   </div>
+  {% endif %}
 {% endmacro %}
 
 
@@ -225,14 +242,15 @@
     is_required=False,
     is_readonly=False,
     is_admin=False,
-    is_focused=False) -%}
+    is_focused=False,
+    use_bs5=False) -%}
 
   {%- set is_class = model is class -%}
   {%- set has_value = not is_class and model[field] -%}
   {%- set is_url = url_field or url_text or url_is_relative or type == 'url' -%}
   {%- set url_field = url_field if url_field else field -%}
   {% if not is_readonly or has_value %}
-    {% call form_group_scaffolding(label if label else field|unfieldify, help if not is_readonly else False, is_required, form_class=form_class, is_admin=is_admin) %}
+    {% call form_group_scaffolding(label if label else field|unfieldify, help if not is_readonly else False, is_required, form_class=form_class, is_admin=is_admin, use_bs5=use_bs5) %}
       {%- if is_readonly -%}
         <div class="form-control-static">
           {%- if type == 'email' -%}
@@ -333,7 +351,26 @@
 {%- endmacro %}
 
 
-{% macro name_form_group(model=None, label='Name', first_name_attr='first_name', last_name_attr='last_name', prefix='', suffix='', form_class='', is_required=False, is_readonly=False) -%}
+{% macro name_form_group(model=None, label='Name', first_name_attr='first_name', last_name_attr='last_name', prefix='', suffix='', form_class='', is_required=False, is_readonly=False, use_bs5=False) -%}
+{% if use_bs5 %}
+  <div class="col {{ form_class }}">
+    <label class="form-text">{{ label }}</label>
+    <div class="mb-3">
+      {%- if is_readonly -%}
+        {{ model[first_name_attr] ~ ' ' ~ model[last_name_attr] }}
+      {%- else -%}
+      <div class="row">
+        <div class="col-sm-6">
+          <input class="form-control first_name" type="text" name="{{ prefix }}{{ first_name_attr }}{{ suffix }}" value="{{ model[first_name_attr] if model else '' }}" placeholder="First Name" {% if is_required %}required{% endif %} />
+        </div>
+        <div class="col-sm-6">
+          <input class="form-control last_name" type="text" name="{{ prefix }}{{ last_name_attr }}{{ suffix }}" value="{{ model[last_name_attr] if model else '' }}" placeholder="Last Name" {% if is_required %}required{% endif %} />
+        </div>
+      </div>
+      {%- endif -%}
+    </div>
+  </div>
+{% else %}
   <div class="form-group {{ form_class }}">
     <label class="col-sm-3 control-label {% if not is_required %}optional-field{% endif %}">{{ label }}</label>
     <div class="col-sm-6">
@@ -353,6 +390,7 @@
       {%- endif -%}
     </div>
   </div>
+{% endif %}
 {%- endmacro %}
 
 
@@ -413,7 +451,7 @@
 {%- endmacro %}
 
 
-{% macro address_form(model, name_prefix='', model_prefix='', label_prefix='', update_international=False, is_required=False, is_readonly=False, check_dealer_editable=(None, '')) -%}
+{% macro address_form(model, name_prefix='', model_prefix='', label_prefix='', update_international=False, is_required=False, is_readonly=False, check_dealer_editable=(None, ''), use_bs5=False) -%}
   {%- set group, field_name = check_dealer_editable -%}
   {%- set is_readonly = False if group.is_dealer and group.status in c.DEALER_EDITABLE_STATUSES else is_readonly -%}
   {%- set suffix = model.id|replace("-", "") -%}
@@ -460,6 +498,76 @@
       });
   </script>
   <input type="hidden" class="address_suffixes" value="{{ suffix }}" />
+  {% if use_bs5 %}
+  <div class="row g-sm-3">
+    <div class="col address_details{{ suffix }}">
+      <label for="country{{ suffix }}" class="form-text">{{ label_prefix }} Country</label>
+      <div class="mb-3">
+        {%- if is_readonly -%}
+            {{ model[country_attr]|linebreaksbr }}
+        {%- else -%}
+        <select name="{{ name_prefix }}country" id="country{{ suffix }}" class="form-select" placeholder="Country" autocorrect="off" autocomplete="country" {% if is_required %}required="required"{% endif %}>
+          {% include "country_opts.html" %}
+        </select>
+        {%- endif -%}
+      </div>
+    </div>
+    <div class="col address_details{{ suffix }}">
+      <label for="address1{{ suffix }}" class="form-text">{{ label_prefix }} Street</label>
+      <div class="mb-3">
+        {%- if is_readonly -%}
+            {{ model[address1_attr]|linebreaksbr }}
+        {%- else -%}
+        <input type="text" name="{{ name_prefix }}address1" class="form-control" placeholder="Address Line 1" value="{{ model[address1_attr] }}" {% if is_required %}required="required"{% endif %}/>
+        {%- endif -%}
+      </div>
+    </div>
+  {%- if not is_readonly or model[address2_attr] -%}
+    <div class="col address_details{{ suffix }}">
+      <div class="mb-3">
+        {%- if is_readonly -%}
+          {{ model[address2_attr]|linebreaksbr }}
+        {%- else -%}
+        <input type="text" name="{{ name_prefix }}address2" class="form-control" placeholder="Address Line 2" value="{{ model[address2_attr] }}" />
+        {%- endif -%}
+      </div>
+    </div>
+  {%- endif -%}
+  </div>
+  <div class="row g-sm-3">
+    <div class="col address_details{{ suffix }}">
+      <label for="city{{ suffix }}" class="form-text">{{ label_prefix }} City</label>
+      <div class="mb-3">
+        {%- if is_readonly -%}
+          {{ model[city_attr]|linebreaksbr }}
+        {%- else -%}
+        <input type="text" name="{{ name_prefix }}city" class="form-control" placeholder="City" value="{{ model[city_attr] }}" {% if is_required %}required="required"{% endif %}/>
+        {%- endif -%}
+      </div>
+    </div>
+    <div class="col address_details{{ suffix }}">
+      <label for="region{{ suffix }}" class="form-text">{{ label_prefix }} State/Region</label>
+      <div class="mb-3">
+        {%- if is_readonly -%}
+          {{ model[region_attr]|linebreaksbr }}
+        {%- else -%}
+        <input type="hidden" name="{{ name_prefix }}region" value="{{ model[region_attr] }}" id="hidden_region{{ suffix }}" disabled />
+        <input type="text" name="{{ name_prefix }}region" id="region{{ suffix }}" class="form-control" placeholder="State/Province" value="{{ model[region_attr] }}" autocomplete="address-level1" {% if is_required %}required="required"{% endif %}/>
+        {%- endif -%}
+      </div>
+    </div>
+    <div class="col address_details{{ suffix }}">
+      <label for="zip_code{{ suffix }}" class="form-text">{{ label_prefix }} ZIP/Postal Code</label>
+      <div class="mb-3">
+        {%- if is_readonly -%}
+          {{  model[zip_code_attr]|linebreaksbr }}
+        {%- else -%}
+        <input type="text" name="{{ name_prefix }}zip_code" class="form-control" value="{{ model[zip_code_attr] }}" {% if is_required %}required="required"{% endif %}/>
+        {%- endif -%}
+      </div>
+    </div>
+  </div>
+  {% else %}
   <div class="form-group address_details{{ suffix }}">
     <label for="country{{ suffix }}" class="col-sm-3 control-label{% if not is_required %} optional-field{% endif %}">{{ label_prefix }} Country</label>
     <div class="col-sm-6">
@@ -536,6 +644,7 @@
       {%- endif -%}
     </div>
   </div>
+  {% endif %}
 {%- endmacro %}
 
 

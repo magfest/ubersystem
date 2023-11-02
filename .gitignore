@@ -31,3 +31,4 @@ uber/static/fonts/free3of9.pkl
 *.DS_Store
 .vscode/*
 .history
+.lh*
