@@ -422,7 +422,7 @@ class BadgeFlags(MagForm):
     def get_valid_groups():
         from uber.models import Group
         with Session() as session:
-            groups_list = [(g.id, g.name + (f"({g.status_label})" if g.is_dealer else "")) for g in session.query(Group).filter(Group.status != c.IMPORTED).order_by(Group.name).all()]
+            groups_list = [(g.id, g.name + (f" ({g.status_label})" if g.is_dealer else "")) for g in session.query(Group).filter(Group.status != c.IMPORTED).order_by(Group.name).all()]
             return [('', "No Group")] + groups_list
 
 
