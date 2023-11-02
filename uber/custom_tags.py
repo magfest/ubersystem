@@ -257,10 +257,11 @@ def email_to_link(email=None):
 
 
 @JinjaEnv.jinja_filter
-def popup_link(href, text='<sup>?</sup>'):
+def popup_link(href, text='<sup>?</sup>', extra_classes=''):
     return safe_string("<a onClick='window.open(&quot;{href}&quot;, &quot;info&quot;, " \
         "&quot;toolbar=no,height=500,width=375,scrollbars=yes&quot;).focus();" \
-        "return false;' href='{href}'>{text}</a>".format(href=href, text=text))
+        "return false;' {classes}href='{href}'>{text}</a>".format(href=href, text=text,
+                                                                  classes=f'class="{extra_classes}" ' if extra_classes else ''))
 
 
 @JinjaEnv.jinja_filter

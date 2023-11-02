@@ -15,6 +15,9 @@ celery.conf.update(config_dict['celery'])
 
 broker_url = config_dict['secret']['broker_url']
     
+celery.conf.update(result_backend_transport_options={
+    'global_prefix': config_dict['secret']['broker_prefix']
+})
 celery.conf.update(broker_url=broker_url)
 celery.conf.update(result_backend=broker_url.replace("amqps://", "rpc://").replace("amqp://", "rpc://"))
 celery.conf.update(task_ignore_result=True)

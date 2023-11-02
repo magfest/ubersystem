@@ -254,6 +254,13 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     badge_printed_name = Column(UnicodeText)
 
+    active_receipt = relationship(
+        'ModelReceipt',
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(Attendee.id),'
+                        'ModelReceipt.owner_model == "Attendee",'
+                        'ModelReceipt.closed == None)')
+
     dept_memberships = relationship('DeptMembership', backref='attendee')
     dept_membership_requests = relationship('DeptMembershipRequest', backref='attendee')
     anywhere_dept_membership_request = relationship(
@@ -399,7 +406,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     panel_applicants = relationship('PanelApplicant', backref='attendee')
     panel_applications = relationship('PanelApplication', backref='poc')
     panel_feedback = relationship('EventFeedback', backref='attendee')
-    panel_interest = Column(Boolean, default=False)
 
     # =========================
     # attractions
@@ -598,7 +604,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def refunded_if_receipt_has_refund(self):
-        if self.paid == c.HAS_PAID and self.active_receipt and self.active_receipt.get('refund_total'):
+        if self.paid == c.HAS_PAID and self.active_receipt and self.active_receipt.refund_total:
             self.paid = c.REFUNDED
 
     @presave_adjustment
@@ -634,6 +640,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     def age_now_or_at_con(self):
         if not self.birthdate:
             return None
+
         return get_age_from_birthday(self.birthdate, c.NOW_OR_AT_CON)
         
     @presave_adjustment
@@ -770,6 +777,19 @@ class Attendee(MagModel, TakesPaymentMixin):
         return badge_type_opts
 
     @property
+    def available_amount_extra_opts(self):
+        if self.is_new or self.amount_extra == 0 or self.is_unpaid:
+            return c.FORMATTED_MERCH_TIERS
+
+        preordered_merch_opts = []
+        
+        for opt in c.FORMATTED_MERCH_TIERS:
+            if 'price' not in opt or self.amount_extra <= opt['price']:
+                preordered_merch_opts.append(opt)
+
+        return preordered_merch_opts
+
+    @property
     def badge_cost_with_promo_code(self):
         return self.calculate_badge_cost(use_promo_code=True)
 
@@ -857,10 +877,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def age_group_conf(self):
-        if self.birthdate:
-            return get_age_conf_from_birthday(self.birthdate, c.NOW_OR_AT_CON)
-
-        return c.AGE_GROUP_CONFIGS[int(self.age_group or c.AGE_UNKNOWN)]
+        return get_age_conf_from_birthday(self.birthdate, c.NOW_OR_AT_CON)
 
     @property
     def total_cost(self):
@@ -868,7 +885,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             return 0
 
         if self.active_receipt:
-            return self.active_receipt['item_total'] / 100
+            return self.active_receipt.item_total / 100
         return self.default_cost
 
     @property
@@ -886,23 +903,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @property
     def amount_pending(self):
-        return self.active_receipt.get('pending_total', 0)
-    
-    @hybrid_property
-    def has_receipt(self):
-        return self.active_receipt
-    
-    @has_receipt.expression
-    def has_receipt(cls):
-        from uber.models import ModelReceipt
-        return exists().select_from(ModelReceipt).where(
-            and_(ModelReceipt.owner_id == cls.id,
-                 ModelReceipt.owner_model == "Attendee",
-                 ModelReceipt.closed == None))
+        return self.active_receipt.pending_total if self.active_receipt else 0
 
     @hybrid_property
     def is_paid(self):
-        return self.active_receipt.get('current_amount_owed', None) == 0
+        return self.active_receipt and self.active_receipt.current_amount_owed == 0
     
     @is_paid.expression
     def is_paid(cls):
@@ -918,7 +923,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def amount_paid(self):
-        return self.active_receipt.get('payment_total', 0)
+        return self.active_receipt.payment_total if self.active_receipt else 0
     
     @amount_paid.expression
     def amount_paid(cls):
@@ -932,7 +937,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     
     @hybrid_property
     def amount_refunded(self):
-        return self.active_receipt.get('refund_total', 0)
+        return self.active_receipt.refund_total if self.active_receipt else 0
     
     @amount_refunded.expression
     def amount_refunded(cls):
@@ -1324,6 +1329,8 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def cannot_transfer_reason(self):
+        from uber.custom_tags import readable_join
+
         reasons = []
         if self.admin_account:
             reasons.append("they have an admin account")
@@ -1331,7 +1338,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             reasons.append("their badge type ({}) is not transferable".format(self.badge_type_label))
         if self.has_role_somewhere:
             reasons.append("they are a department head, checklist admin, or point of contact for the following departments: {}".format(
-                                ", ".join([membership.department.name for membership in self.dept_memberships_with_role])))
+                                readable_join(self.get_labels_for_memberships('dept_memberships_with_role'))))
         return reasons
     
     @presave_adjustment
@@ -1467,7 +1474,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         e.g. saying that someone gets a 'Supporter Pack' without listing each
         individual item in the pack.
         """
-        return readable_join([item for item in self.merch_items if not is_listy(item)])
+        return readable_join([item for item in self.merch_items if not is_listy(item)]) if self.merch_items else 'N/A'
 
     @property
     def staff_merch_items(self):
@@ -1494,7 +1501,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def staff_merch(self):
         """Used if c.SEPARATE_STAFF_MERCH is true to return the staff swag."""
-        return readable_join(self.staff_merch_items)
+        return readable_join(self.staff_merch_items) if self.staff_merch_items else 'N/A'
 
     @property
     def accoutrements(self):
@@ -1648,6 +1655,11 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def requested_depts_labels(self):
         return [d.name for d in self.requested_depts]
+    
+    def get_labels_for_memberships(self, prop_name):
+        # Takes a string for one of the 'depts_memberships' properties on the Attendee model
+        # (e.g., dept_memberships_where_can_admin_checklist) and returns a list of department names
+        return [membership.department.name for membership in getattr(self, prop_name, [])]
 
     @property
     def assigned_depts_ids(self):
@@ -1919,7 +1931,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @presave_adjustment
     def staffer_hotel_eligibility(self):
-        if self.badge_type == c.STAFF_BADGE:
+        if self.badge_type == c.STAFF_BADGE and (self.is_new or self.orig_value_of('badge_type') != c.STAFF_BADGE):
             self.hotel_eligible = True
 
     @presave_adjustment

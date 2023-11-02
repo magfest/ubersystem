@@ -11,10 +11,9 @@
             <form method="post" action="purchase_upgrades" id="purchase-upgrades" class="form-horizontal">
                 {{ csrf_token() }}
                 <input type="hidden" name="id" value="{{ attendee.id }}" />
-                <input type="hidden" id="upgrade_badge_type" name="badge_type" value="{{ attendee.badge_type }}" />
                 <input type="hidden" name="receipt_id" value="{{ receipt.id }}" />
                 {% set upgrade_modal = true %}
-                {% include "forms/badge_extras.html" %}
+                {% include "forms/attendee/badge_extras.html" %}
                 {% set upgrade_modal = false %}
             </form>
             <table class="table table-striped" id="upgrade-preview">
@@ -98,6 +97,7 @@
             $btn.prop('disabled', false);
             if (result.error) {
                 showErrorMessage(result.error, 'upgrade-message-alert');
+                window.scrollTo(0,0);
             } else if (result.success) {
                 upgradeModal.hide();
                 callStripeAction(autoTrigger=true);

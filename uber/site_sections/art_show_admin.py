@@ -65,7 +65,7 @@ class Root:
                         app.attendee = attendee
 
                 session.add(app)
-                if params.get('save') == 'save_return_to_search':
+                if params.get('save_return_to_search', False):
                     return_to = 'index?'
                 else:
                     return_to = 'form?id=' + app.id + '&'

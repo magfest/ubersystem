@@ -1,15 +1,17 @@
 import ast
-import decimal
 import hashlib
 import inspect
+import math
 import os
 import pytz
 import re
 import redis
+import six
 import uuid
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, time, timedelta
 from hashlib import sha512
+from markupsafe import Markup
 from itertools import chain
 
 import cherrypy
@@ -17,7 +19,7 @@ import signnow_python_sdk
 from pockets import keydefaultdict, nesteddefaultdict, unwrap
 from pockets.autolog import log
 from sideboard.lib import cached_property, parse_config, request_cached_property
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from sqlalchemy.orm import joinedload, subqueryload
 
 import uber
@@ -108,6 +110,8 @@ class _Overridable:
 
     def make_integer_enums(self, config_section):
         def is_intstr(s):
+            if not isinstance(s, six.string_types):
+                return isinstance(s, int)
             if s and s[0] in ('-', '+'):
                 return str(s[1:]).isdigit()
             return str(s).isdigit()
@@ -246,6 +250,19 @@ class Config(_Overridable):
     def DEALER_REG_SOFT_CLOSED(self):
         return self.AFTER_DEALER_REG_DEADLINE or self.DEALER_APPS >= self.MAX_DEALER_APPS \
             if self.MAX_DEALER_APPS else self.AFTER_DEALER_REG_DEADLINE
+
+    @property
+    def TABLE_OPTS(self):
+        return [(x, str(x)) for x in list(range(1, c.MAX_TABLES + 1))]
+
+    @property
+    def ADMIN_TABLE_OPTS(self):
+        return [(0, '0')] + c.TABLE_OPTS
+
+    @property
+    def PREREG_TABLE_OPTS(self):
+        return [(count, '{}: ${}'.format(desc, self.get_table_price(count)))
+              for count, desc in c.TABLE_OPTS]
             
     @property
     def ART_SHOW_OPEN(self):
@@ -291,13 +308,14 @@ class Config(_Overridable):
                 return max(0, attendee_count - staff_count)
         else:
             with Session() as session:
-                attendees = session.attendees_with_badges()
-                individuals = attendees.filter(or_(
+                attendees = session.query(Attendee)
+                individuals = attendees.filter(Attendee.has_badge == True, or_(
                     Attendee.paid == self.HAS_PAID,
                     Attendee.paid == self.REFUNDED)
                 ).filter(Attendee.badge_status == self.COMPLETED_STATUS).count()
 
-                group_badges = attendees.filter(
+                group_badges = attendees.join(Attendee.group).filter(
+                    Attendee.has_badge == True,
                     Attendee.paid == self.PAID_BY_GROUP,
                     Group.amount_paid > 0).count()
 
@@ -389,9 +407,11 @@ class Config(_Overridable):
             getattr(self, level + "_LEVEL"), getattr(self, level + "_AVAILABLE")]
             for level in ['SHIRT', 'SUPPORTER', 'SEASON']
         ])
-
+    
     @property
     def PREREG_DONATION_OPTS(self):
+        # TODO: Remove this once the admin form is converted to the new form system
+
         if not self.SHARED_KICKIN_STOCKS:
             return [(amt, desc) for amt, desc in self.DONATION_TIER_OPTS
                     if amt not in self.kickin_availability_matrix or self.kickin_availability_matrix[amt]]
@@ -407,6 +427,8 @@ class Config(_Overridable):
 
     @property
     def FORMATTED_DONATION_DESCRIPTIONS(self):
+        # TODO: Remove this once the admin form is converted to the new form system
+        
         """
         A list of the donation descriptions, formatted for use on attendee-facing pages.
         
@@ -435,9 +457,102 @@ class Config(_Overridable):
                 entry[1]['all_descriptions'] += list(zip(descriptions, links))
 
         return [dict(tier[1]) for tier in donation_list]
+    
+    @property
+    def UNAVAILABLE_REG_TYPES(self):
+        unavailable_types = []
+
+        if c.GROUPS_ENABLED and c.AFTER_GROUP_PREREG_TAKEDOWN:
+            unavailable_types.append(c.PSEUDO_GROUP_BADGE)
+        
+        if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and not c.CHILD_BADGE_AVAILABLE:
+            unavailable_types.append(c.CHILD_BADGE)
+
+        return unavailable_types
+
+    @property
+    def FORMATTED_REG_TYPES(self):
+        # Returns a formatted list to help attendees select between different types of registrations,
+        # particularly between individual reg, group reg, and a child badge. Note that all values
+        # should correspond to a badge type and will change the hidden badge type input on the prereg page
+        
+        reg_type_opts = [{
+            'name': "Attendee",
+            'desc': "A single registration; you can register more before paying.",
+            'value': c.ATTENDEE_BADGE,
+            'price': c.BADGE_PRICE,
+            }]
+        
+        if c.GROUPS_ENABLED:
+            reg_type_opts.append({
+                'name': "Group Leader",
+                'desc': Markup(f"Register a group of {c.MIN_GROUP_SIZE} people or more at ${c.GROUP_PRICE} per badge. \
+                               <br/><br/><span class='form-text'>Please purchase badges for children 12 and under separate from your group.</span>"),
+                'value': c.PSEUDO_GROUP_BADGE,
+                'price': c.GROUP_PRICE,
+            })
+        
+        if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
+            reg_type_opts.append({
+                'name': "12 and Under",
+                'desc': Markup(f"Attendees 12 and younger at the start of {c.EVENT_NAME} must be accompanied by an adult with a valid Attendee badge. \
+                               <br/><br/><span class='form-text text-danger'>Price is always half that of the Single Attendee badge price.</span>"),
+                'value': c.CHILD_BADGE,
+                'price': str(c.BADGE_PRICE - math.ceil(c.BADGE_PRICE / 2)),
+            })
+
+        return reg_type_opts
+
+    @property
+    def SOLD_OUT_MERCH_TIERS(self):
+        if not self.SHARED_KICKIN_STOCKS:
+            return [price for price, available in self.kickin_availability_matrix.items() if available == False]
+
+        if self.BEFORE_SHIRT_DEADLINE and not self.SHIRT_AVAILABLE:
+            return [price for price, name in self.DONATION_TIERS.items() if price >= self.SHIRT_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SUPPORTER_AVAILABLE:
+            return [price for price, name in self.DONATION_TIERS.items() if price >= self.SUPPORTER_LEVEL]
+        elif self.BEFORE_SUPPORTER_DEADLINE and not self.SEASON_AVAILABLE:
+            return [price for price, name in self.DONATION_TIERS.items() if price >= self.SEASON_LEVEL]
+
+        return []
+    
+    @property
+    def AVAILABLE_MERCH_TIERS(self):
+        return [price for price, name in self.DONATION_TIERS.items() if price not in self.SOLD_OUT_MERCH_TIERS]
+
+    @property
+    def FORMATTED_MERCH_TIERS(self):
+        # Formats the data from DONATION_TIER_DESCRIPTIONS to match what the 'card_select' form macro expects.
+        
+        donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
+
+        donation_list = sorted(donation_list, key=lambda tier: tier[1]['price'])
+
+        merch_tiers = []
+
+        for entry in donation_list:
+            tier = entry[1].copy()
+            if '|' in tier['description']:
+                item_list = tier['description'].split('|')
+                formatted_desc = item_list[0]
+                for item in item_list[1:]:
+                    formatted_desc += "<hr class='m-2'>" + item
+                tier['desc'] = Markup(formatted_desc)
+            else:
+                tier['desc'] = tier['description']
+
+            tier.pop('description', '')
+            tier.pop('merch_items', '')
+
+            merch_tiers.append(tier)
+
+        return merch_tiers
 
     @property
     def PREREG_DONATION_DESCRIPTIONS(self):
+        # TODO: Remove this once the admin form is converted to the new form system
+
         donation_list = self.FORMATTED_DONATION_DESCRIPTIONS
 
         # include only the items that are actually available for purchase
@@ -461,10 +576,6 @@ class Config(_Overridable):
     def FORMATTED_DONATION_DESCRIPTIONS_EXCLUSIVE(self):
         """
         A list of the donation descriptions, formatted for use on attendee-facing pages.
-        
-        This does NOT filter out unavailable kick-ins so we can use it on attendees' confirmation pages
-        to show unavailable kick-ins they've already purchased. To show only available kick-ins, use
-        PREREG_DONATION_DESCRIPTIONS.
         """
         donation_list = self.DONATION_TIER_DESCRIPTIONS.items()
 
@@ -684,6 +795,29 @@ class Config(_Overridable):
                     ~Attendee.badge_status.in_([c.INVALID_GROUP_STATUS, c.INVALID_STATUS, 
                                                 c.IMPORTED_STATUS, c.REFUNDED_STATUS])).count()
         return count
+    
+    def get_shirt_count(self, shirt_enum_key):
+        from uber.models import Session, Attendee
+        with Session() as session:
+            shirt_count = 0
+
+            base_filters = [Attendee.shirt == shirt_enum_key,
+                           ~Attendee.badge_status.in_([c.INVALID_GROUP_STATUS, c.INVALID_STATUS, 
+                                                c.IMPORTED_STATUS, c.REFUNDED_STATUS])]
+            base_query = session.query(Attendee).filter(*base_filters)
+            
+            # Paid event shirts
+            shirt_count += base_query.filter(Attendee.amount_extra >= c.SHIRT_LEVEL).count()
+
+            if c.SHIRTS_PER_STAFFER > 0:
+                staff_event_shirts = session.query(func.sum(Attendee.num_event_shirts)).filter(*base_filters).filter(
+                    Attendee.badge_type == c.STAFF_BADGE, Attendee.num_event_shirts != -1).scalar()
+                shirt_count += staff_event_shirts or 0
+
+            if c.HOURS_FOR_SHIRT:
+                shirt_count += base_query.filter(Attendee.ribbon.contains(c.VOLUNTEER_RIBBON)).count()
+            
+        return shirt_count
 
     @request_cached_property
     @dynamic
@@ -989,7 +1123,7 @@ _unrepr(_config['appconf'])
 c.APPCONF = _config['appconf'].dict()
 c.SENTRY = _config['sentry'].dict()
 c.REDISCONF = _config['redis'].dict()
-
+c.REDIS_PREFIX = c.REDISCONF['prefix']
 c.REDIS_STORE = redis.Redis(host=c.REDISCONF['host'], port=c.REDISCONF['port'], db=c.REDISCONF['db'], decode_responses=True)
 
 c.BADGE_PRICES = _config['badge_prices']
@@ -1072,8 +1206,6 @@ for _name, _section in _config['age_groups'].items():
 
 c.TABLE_PRICES = defaultdict(lambda: _config['table_prices']['default_price'],
                              {int(k): v for k, v in _config['table_prices'].items() if k != 'default_price'})
-c.PREREG_TABLE_OPTS = list(range(1, c.MAX_TABLES + 1))
-c.ADMIN_TABLE_OPTS = [decimal.Decimal(x) for x in range(0, 9)]
 
 # Let admins remove door payment methods by making their label blank
 c.DOOR_PAYMENT_METHOD_OPTS = [opt for opt in c.DOOR_PAYMENT_METHOD_OPTS if opt[1]]
@@ -1148,8 +1280,6 @@ c.REGION_OPTS_CANADA = [('', 'Select a province')] + sorted([(region.name, regio
 
 c.MAX_BADGE = max(xs[1] for xs in c.BADGE_RANGES.values())
 
-c.JOB_LOCATION_OPTS.sort(key=lambda tup: tup[1])
-
 c.JOB_PAGE_OPTS = (
     ('index',    'Calendar View'),
     ('signups',  'Signups View'),
@@ -1164,9 +1294,13 @@ c.WEIGHT_OPTS = (
 c.JOB_DEFAULTS = ['name', 'description', 'duration', 'slots', 'weight', 'visibility', 'required_roles_ids', 'extra15']
 
 c.PREREG_SHIRT_OPTS = sorted(c.PREREG_SHIRT_OPTS if c.PREREG_SHIRT_OPTS else c.SHIRT_OPTS)[1:]
+c.PREREG_SHIRTS = {key: val for key, val in c.PREREG_SHIRT_OPTS}
 c.STAFF_SHIRT_OPTS = sorted(c.STAFF_SHIRT_OPTS if len(c.STAFF_SHIRT_OPTS) > 1 else c.SHIRT_OPTS)
 c.MERCH_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + sorted(list(c.SHIRT_OPTS))
 c.MERCH_STAFF_SHIRT_OPTS = [(c.SIZE_UNKNOWN, 'select a size')] + sorted(list(c.STAFF_SHIRT_OPTS))
+shirt_label_lookup = {val: key for key, val in c.SHIRT_OPTS}
+c.SHIRT_SIZE_STOCKS = {shirt_label_lookup[val]: key for key, val in c.SHIRT_STOCK_OPTS}
+
 c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
 
 c.DONATION_TIER_ITEMS = {}
@@ -1393,9 +1527,9 @@ c.ROCK_ISLAND_GROUPS = [getattr(c, group.upper()) for group in c.ROCK_ISLAND_GRO
 
 # A list of checklist items for display on the guest group admin page
 c.GUEST_CHECKLIST_ITEMS = [
+    {'name': 'bio', 'header': 'Announcement Info Provided'},
     {'name': 'panel', 'header': 'Panel'},
     {'name': 'mc', 'header': 'MC'},
-    {'name': 'bio', 'header': 'Bio Provided'},
     {'name': 'info', 'header': 'Agreement Completed'},
     {'name': 'taxes', 'header': 'W9 Uploaded', 'is_link': True},
     {'name': 'merch', 'header': 'Merch'},
@@ -1406,6 +1540,7 @@ c.GUEST_CHECKLIST_ITEMS = [
     {'name': 'interview'},
     {'name': 'travel_plans'},
     {'name': 'rehearsal'},
+    {'name': 'hospitality'},
 ]
 
 # Generate the possible template prefixes per step

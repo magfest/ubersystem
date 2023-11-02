@@ -1,4 +1,5 @@
 from datetime import datetime
+import traceback
 
 from pockets import groupify, listify
 from sqlalchemy import func, or_
@@ -30,6 +31,7 @@ class Root:
         return {'emails': session.query(Email).filter_by(**params).order_by(Email.when).all()}
 
     def pending(self, session, message=''):
+        AutomatedEmail.reconcile_fixtures()
         emails_with_count = session.query(AutomatedEmail, AutomatedEmail.email_count).filter(
             AutomatedEmail.subject != '', AutomatedEmail.sender != '',).all()
         emails = []
@@ -132,6 +134,7 @@ class Root:
                         ident=email.ident)
                 session.commit()
             except Exception:
+                traceback.print_exc()
                 return {'success': False, 'message': 'Email not sent: unknown error.'}
             else:
                 return {'success': True, 'message': 'Email resent.'}

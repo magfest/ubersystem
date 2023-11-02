@@ -60,7 +60,7 @@
       {% else %}
         <h3>Group Info for "{{ group.name }}"</h3>
       {% endif %}
-      {% if not group.is_new %}<a href="../preregistration/group_promo_codes?id={{ group.id }}" class="btn btn-primary">View as Attendee</a>{% endif %}
+      {% if not group.is_new %}<a href="../preregistration/group_promo_codes?id={{ group.id }}" class="btn btn-primary" target="_blank">View as Attendee</a>{% endif %}
       <a href="promo_code_groups" class="btn btn-info">Return to Group List</a>
       <form method="post" action="promo_code_group_form" class="form-horizontal">
         {{ csrf_token() }}
@@ -78,7 +78,7 @@
         <div class="form-group">
           <label for="attendee" class="col-sm-3 control-label">Buyer</label>
           <div class="col-sm-6">
-            <select class="form-control" id="attendee_id" name="buyer_id" required="required" onChange="setBuyerLink()">
+            <select class="form-select" id="attendee_id" name="buyer_id" required="required" onChange="setBuyerLink()">
               <option value="" selected="selected">Select an attendee</option>
               <option value="None">Create new attendee</option>
               {{ options(all_attendees, buyer_id) }}
@@ -103,7 +103,7 @@
         <div class="form-group">
           <label class="col-sm-3 control-label">Badges{% if not group.is_new %} to Add{% endif %}</label>
           <div class="col-sm-6">
-            <select class="form-control" name="badges">
+            <select class="form-select" name="badges">
               {{ int_options(0, 100, badges) }}
             </select>
           </div>
@@ -155,7 +155,13 @@
           
           <td>{{ code.created.when|datetime_local }}</td>
           <td>{{ code.cost|format_currency }}</td>
-          <td>{% if not code.valid_used_by %}<button class="btn btn-sm btn-danger" onClick="deleteCode('{{ code.id }}')"><i class="fa fa-remove"></i></button>{% endif %}</td>
+          <td>
+            {% if not code.valid_used_by %}
+              <button class="btn btn-sm btn-danger" onClick="deleteCode('{{ code.id }}')"><i class="fa fa-remove"></i></button>
+            {% elif code.refunded %}
+              <em>Refunded</em>
+            {% endif %}
+          </td>
         </tr>
       {% endfor -%}
       </tbody>

@@ -188,23 +188,6 @@ class MagModel:
         from uber.models.commerce import ReceiptTransaction
         return self.session.query(ReceiptTransaction).filter_by(fk_id=self.id).all()
 
-    @property
-    def active_receipt(self):
-        """
-        Returns a dictionary of this object's current active receipt, if there is one.
-        This lets us access various properties of the receipt as if they were directly
-        tied to the model without having to have an extra active Session().
-        """
-        from uber.models import Session, ModelReceipt
-        receipt_dict = {}
-        with Session() as session:
-            receipt = session.get_receipt_by_model(self)
-            if receipt:
-                receipt_dict = receipt.to_dict()
-                for property in ['item_total', 'txn_total', 'current_amount_owed', 'pending_total', 'payment_total', 'refund_total']:
-                    receipt_dict[property] = getattr(receipt, property)
-        return receipt_dict
-
     @cached_classproperty
     def unrestricted(cls):
         """
@@ -407,7 +390,7 @@ class MagModel:
         
         if name.startswith('default_') and name.endswith('_cost'):
             if self.active_receipt:
-                log.error('Cost property {} was called for object {}, which has an active receipt. This may cause problems.'.format(name, self))
+                log.debug('Cost property {} was called for object {}, which has an active receipt. This may cause problems.'.format(name, self))
 
         receipt_items = uber.receipt_items.cost_calculation.items
         try:
@@ -440,7 +423,7 @@ class MagModel:
             if value is None:
                 return  # Totally fine for value to be None
 
-            elif value == '' and isinstance(column.type, (Float, Numeric, Choice, Integer, UTCDateTime, Date)):
+            elif value == '' and isinstance(column.type, (UUID, Float, Numeric, Choice, Integer, UTCDateTime, Date)):
                 return None
 
             elif isinstance(column.type, Boolean):
@@ -835,7 +818,6 @@ class Session(SessionManager):
                 
             return_dict['panels_admin'] = self.query(Attendee).outerjoin(PanelApplicant).filter(
                                                  or_(Attendee.ribbon.contains(c.PANELIST_RIBBON),
-                                                     Attendee.panel_interest == True,
                                                      Attendee.panel_applications != None,
                                                      Attendee.assigned_panelists != None,
                                                      Attendee.panel_applicants != None,
@@ -1064,6 +1046,8 @@ class Session(SessionManager):
                 password = genpasswd()
             
             new_account = AdminAccount(attendee=attendee, hashed=bcrypt.hashpw(password, bcrypt.gensalt()))
+            if 'judge' in params:
+                new_account.judge = params.pop('judge')
             new_account.apply(params)
             self.add(new_account)
             return new_account
@@ -1154,7 +1138,7 @@ class Session(SessionManager):
         def lookup_agent_code(self, code):
             return self.query(ArtShowApplication).filter_by(agent_code=code).all()
 
-        def add_promo_code_to_attendee(self, attendee, code):
+        def add_promo_code_to_attendee(self, attendee, code, used_codes=defaultdict(int)):
             """
             Convenience method for adding a promo code to an attendee.
 
@@ -1169,6 +1153,10 @@ class Session(SessionManager):
                     should be added.
                 code (str): The promo code as typed by an end user, or an
                     empty string to unset the promo code.
+                used_codes (defaultdict(int)): A list of codes already used
+                    but not added to the session, e.g., in PreregCart.
+                    These codes are flattened to the list, as they're only
+                    used here to check for used PromoCodeGroup codes.
 
             Returns:
                 str: Either a failure message or an empty string
@@ -1176,7 +1164,7 @@ class Session(SessionManager):
             """
             code = code.strip() if code else ''
             if code:
-                attendee.promo_code = self.lookup_promo_code(code)
+                attendee.promo_code = self.lookup_promo_code(code, list(used_codes.keys()))
                 if attendee.promo_code:
                     attendee.promo_code_id = attendee.promo_code.id
                     return ''
@@ -1188,7 +1176,7 @@ class Session(SessionManager):
                 attendee.promo_code_id = None
                 return ''
 
-        def lookup_promo_code(self, code):
+        def lookup_promo_code(self, code, used_codes=[]):
             """
             Convenience method for finding a promo code by id or code.
             Accounts for PromoCodeGroups.
@@ -1205,10 +1193,9 @@ class Session(SessionManager):
                 return promo_code
 
             group = self.lookup_promo_or_group_code(code, PromoCodeGroup)
-            if not group:
-                return None
-
-            return group.valid_codes[0] if group.valid_codes else None
+            if group:
+                unused_valid_codes = [code for code in group.valid_codes if code.code not in used_codes]
+                return unused_valid_codes[0] if unused_valid_codes else None
 
         def lookup_promo_or_group_code(self, code, model=PromoCode):
             """

@@ -20,6 +20,7 @@
                 <th>Judge</th>
                 <th>Video Review</th>
                 <th>Game Review</th>
+                <th>Has Code?</th>
                 <th>Remove Judge</th>
             </tr>
         </thead>
@@ -29,6 +30,13 @@
                     <td>{{ review.judge.full_name }}</td>
                     <td>{{ review.video_status_label }}</td>
                     <td>{{ review.game_status_label }}</td>
+                    <td>
+                        {% if game.unlimited_code %}
+                        Unlimited
+                        {% else %}
+                        {{ review.judge.get_code_for(game.id)|yesno }}
+                        {% endif %}
+                    </td>
                     <td><input type="checkbox" name="judge_id" value="{{ review.judge.id }}" /></td>
                 </tr>
             {% endfor %}

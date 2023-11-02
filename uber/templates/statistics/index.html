@@ -30,7 +30,7 @@
   Badges that count against badge stocks -- these represent the physical badges we have promised attendees so far.
   <br/>
   <ul>
-    {% for desc, count in counts.counts.items() %}
+    {% for desc, count in counts.badge_counts.items() %}
       <li><i>{{ desc }}:</i> {{ count }}</li>
     {% endfor %}
   </ul>
@@ -46,10 +46,26 @@
 
 <h4>Badge Stocks</h4>
 <ul>
-    {% for desc, count in counts.stocks.items() %}
+    {% for desc, count in counts.badge_stocks.items() %}
         <li><i>{{ desc }}:</i> {{ count }}</li>
     {% endfor %}
 </ul>
+
+<h4>Shirt Size Stocks</h4>
+<ul>
+    {% for desc, count in counts.shirt_stocks.items() %}
+        <li><i>{{ desc }}:</i> {{ count }}</li>
+    {% endfor %}
+</ul>
+
+<h4>Shirt Size Counts</h4>
+  The number of each shirt size that is claimed by an attendee -- these are counted against shirt size stocks, but DO NOT represent the number of shirts we need to manufacture. The algorithm matches that of our preordered merch counts to make sure we don't oversell.
+  <br/>
+  <ul>
+    {% for desc, count in counts.shirt_counts.items() %}
+      <li><i>{{ desc }}:</i> {{ count }}</li>
+    {% endfor %}
+  </ul>
 
 <h4>Interests</h4>
 <ul>

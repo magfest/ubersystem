@@ -129,6 +129,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
             for ident, fixture in AutomatedEmail._fixtures.items():
                 automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first() or AutomatedEmail()
                 session.add(automated_email.reconcile(fixture))
+                fixture.update_template_plugin_info()
             session.flush()
             for automated_email in session.query(AutomatedEmail).all():
                 if automated_email.ident in AutomatedEmail._fixtures:

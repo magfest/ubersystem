@@ -80,7 +80,7 @@
       value="{{ travel_plan.arrival_time.astimezone(c.EVENT_TIMEZONE).strftime('%-m/%-d/%Y %-I:%M %p') if travel_plan.arrival_time and not is_class else '' }}"
       required="required">
       <span class="input-group-addon">
-        <i class="fa fa-calendar"></i>
+        <span class="glyphicon glyphicon-calendar"></span>
       </span>
     </div>
   </div>
@@ -109,7 +109,7 @@
       value="{{ travel_plan.departure_time.astimezone(c.EVENT_TIMEZONE).strftime('%-m/%-d/%Y %-I:%M %p') if travel_plan.departure_time and not is_class else '' }}"
       required="required">
       <span class="input-group-addon">
-        <i class="fa fa-calendar"></i>
+        <span class="glyphicon glyphicon-calendar"></span>
       </span>
     </div>
   </div>
@@ -148,7 +148,7 @@
   {%- set inventory_url = guest_merch.inventory_url(item.id, name) -%}
   <a href="{{ inventory_url }}" target="_blank" class="preview image-preview {{ class }}">
     {%- if suppress_preview -%}
-      <div><i class="fa fa-picture"></i> View image</div>
+      <div><span class="glyphicon glyphicon-picture"></span> View image</div>
     {%- else -%}
       <img src="{{ inventory_url }}"/>
     {%- endif -%}
@@ -282,8 +282,8 @@
           <input type="number" name="inventory_{{ one_size_attr }}{{ suffix }}" class="one_size_quantity" {% if is_one_size %}value="{{ item[one_size_attr] }}"{% endif %} min="0" required/>
         </div>
         <div class="clearfix"></div>
-        <div class="card card-sizes">
-          <table class="table table-condensed">
+        <div class="panel panel-default panel-sizes">
+          <table class="table table-striped table-sm">
             <tbody>
               {% for cut_value, cut_label in cuts_opts %}
                 {% for size_value, size_label in sizes_opts %}
@@ -308,6 +308,15 @@
 
 {% macro cd_inventory_form(type, item=None, suffix='') -%}
   {% call base_inventory_form(type, item=item, suffix=suffix) %}
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Medium</label>
+      <div class="col-sm-6">
+        <select class="form-control" name="inventory_media{{ suffix }}" required>
+          <option value="">Select an option...</option>
+          {{ options(c.ALBUM_MEDIA_OPTS, item.media) }}
+        </select>
+      </div>
+    </div>
     <div class="form-group">
       <label class="col-sm-3 control-label">Sample Tracks</label>
       <div class="col-sm-6">
@@ -402,6 +411,12 @@
         <div class="inventory-item-name data-item">
           <dd>{{ item.name }}</dd>
         </div>
+        {% if item.media %}
+        <div class="inventory-item-media data-item">
+          <dt>Media</dt>
+          <dd>{{ c.ALBUM_MEDIAS[item.media|int] }}</dd>
+        </div>
+        {% endif %}
         <div class="inventory-item-price data-item">
           <dt>Price</dt>
           <dd>{{ item.price|format_currency }}</dd>
@@ -424,10 +439,10 @@
       <td class="inventory-item-controls">
         <div class="btn-group-vertical" role="group">
           <button type="button" class="btn btn-danger remove_inventory">
-            <i class="fa fa-remove"></i>
+            <span class="glyphicon glyphicon-remove"></span>
           </button>
           <button type="button" class="btn btn-primary edit_inventory">
-            <i class="fa fa-pencil"></i>
+            <span class="glyphicon glyphicon-pencil"></span>
           </button>
         </div>
       </td>

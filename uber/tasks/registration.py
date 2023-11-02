@@ -157,7 +157,7 @@ def email_pending_attendees():
         for badge in pending_badges:
             # Update `compare_date` to prevent early deletion of badges registered before a certain date
             # Implemented for MFF 2023 but let's be honest, we'll probably need it again
-            compare_date = max(badge.registered, datetime(2023, 9, 12, tzinfo=pytz.UTC))
+            compare_date = max(badge.registered, datetime(2023, 9, 25, tzinfo=pytz.UTC))
             if compare_date < four_days_old:
                 badge.badge_status = c.INVALID_STATUS
                 session.commit()
@@ -217,7 +217,7 @@ def check_missed_stripe_payments():
         payment_intent = event.data.object
         if payment_intent.id in pending_ids:
             paid_ids.append(payment_intent.id)
-            ReceiptManager.mark_paid_from_intent_id(payment_intent.id, payment_intent.charges.data[0].id)
+            ReceiptManager.mark_paid_from_stripe_intent(payment_intent)
     return paid_ids
 
 

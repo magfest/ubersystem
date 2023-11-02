@@ -1,16 +1,16 @@
 Ahoy {{ judge.attendee.first_name }},
 
-Thanks again for helping judge entries for the MAGFest Indie Video Game Showcase. Please stop by the MIVS area and talk with the indie devs showcasing their games. You can also say Hi to the MIVS staff at the MIVS Ops booth.
+Thanks again for helping judge entries for the MAGFest Indie Video Game Showcase. Please stop by the MIVS area and talk with the indie devs showcasing their games. You can also say hi to the MIVS staff at the MIVS Ops booth.
 
 *** Survey ***
 
-First, please fill out this short survey about your experience being a judge: https://forms.gle/RvtuHN1Nsrp8hcQV8 - It only takes a minute and helps us to make your judging experience better next year!
+First, please fill out this short survey about your experience being a judge: https://forms.gle/a4gCGkTeBgvKRKK37 - It only takes a minute and helps us to make your judging experience better next year!
 
 *** Badge Information ***
 
 {% if judge.attendee.paid == c.NEED_NOT_PAY %}Your complementary badge will be waiting for you at our registration desk under your name ({{ judge.attendee.full_name }}). Simply bring a photo ID{{ c.EXTRA_CHECKIN_DOCS }} to pick it up. Due to limitations in our system, we can not transfer complementary judge badges to other people right now.{% else %}We provide complementary badges to our judges that completed their assigned games, but if you already paid for a badge, please reply to this email to let us know to issue you a refund.{% endif %}
 
-If you're not attending {{ c.EVENT_NAME }} this year, everything is taken care of and you don't need to do anything. If you are attending, then please stop by the MIVS area and talk with the indie devs showcasing their games. You can also say hi to the MIVS staff at the MIVS Ops booth.
+If you're not attending {{ c.EVENT_NAME }} this year, everything is taken care of and you don't need to do anything. If you are attending, we hope you stop by and say hello!
 
 We sincerely thank you for taking time to judge entries for this year's MIVS, and we hope you'll be able to make a future {{ c.EVENT_NAME }} event! It's due to your efforts that we were able to identify and spotlight great quality games for our {{ c.EVENT_NAME }} attendees to enjoy at the event.
 

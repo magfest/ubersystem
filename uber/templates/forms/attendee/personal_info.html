@@ -2,6 +2,8 @@
 {% import 'forms/macros.html' as form_macros with context %}
 {% set personal_info = personal_info or forms['personal_info'] %}
 {% set other_info = other_info or forms['other_info'] if 'other_info' in forms else None %}
+{% set badge_flags = badge_flags or forms['badge_flags'] %}
+{% set staffing_info = staffing_info or forms['staffing_info'] %}
 
 {# BLOCK NAMES in this form:
       name
@@ -33,6 +35,15 @@
 {% else %}
 <input type="hidden" id="same_legal_name" name="same_legal_name" {% if attendee.first_name != '' and attendee.legal_name == '' %}value="1" {% endif %}/>
 {% endif %}
+
+{% if admin_area or attendee.badge_type in c.PREASSIGNED_BADGE_TYPES %}
+<div class="row g-sm-3">
+  <div class="col-12">{{ form_macros.form_input(personal_info.badge_printed_name) }}</div>
+</div>
+  {% if badge_flags %}
+  {{ form_macros.toggle_fields_js(badge_flags.badge_type, [personal_info.badge_printed_name], on_values=c.PREASSIGNED_BADGE_TYPES, toggle_required=True) }}
+  {% endif %}
+{% endif %}
 {% endblock %}
 
 
@@ -42,7 +53,7 @@
   {% set email_extra_field = form_macros.toggle_checkbox(personal_info.copy_email, [personal_info.email], hide_on_checked=True, toggle_required=True, prop="disabled", checked=group and loaded_from_group and attendee.email == group.email_address) %}
   {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.copy_phone, [personal_info.cellphone], hide_on_checked=True, toggle_required=True, prop="disabled", checked=group and loaded_from_group and attendee.cellphone == group.phone) %}
 {% elif attendee.staffing or (other_info and other_info is not none) %}
-  {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.no_cellphone, [personal_info.cellphone], hide_on_checked=True, toggle_required=True if attendee.staffing else False, prop="disabled") %}
+  {% set cellphone_extra_field = form_macros.toggle_checkbox(personal_info.no_cellphone, [personal_info.cellphone], hide_on_checked=True, prop="disabled") %}
 {% endif %}
 
 <div class="row g-sm-3">
@@ -54,6 +65,32 @@
     {{ form_macros.form_input(personal_info.cellphone, extra_field=cellphone_extra_field, required=is_prereg_dealer or attendee.is_dealer or attendee.staffing) }}
   </div>
 </div>
+<script type="text/javascript">
+  var checkCellphoneRequired = function() {
+      true_evals = [];
+      false_evals = [];
+      false_evals.push($("#{{ personal_info.no_cellphone.id }}").prop('checked') == false);
+      {% if staffing_info %}
+        true_evals.push($("#{{ staffing_info.staffing.id }}").prop('checked'));
+      {% endif %}
+      {% if badge_flags %}
+        false_evals.push($("#{{ badge_flags.placeholder.id }}").prop('checked') == false);
+      {% endif %}
+      toggleOn = true_evals.some(item => item) && false_evals.every(item => item)
+      $("#{{ personal_info.cellphone.id }}").prop('required', toggleOn);
+      $('#{{ personal_info.cellphone.id }}').siblings('label').children('.required-indicator').toggle(toggleOn);
+  }
+  $().ready(function () {
+    checkCellphoneRequired();
+    $("#{{ personal_info.no_cellphone.id }}").change(checkCellphoneRequired);
+      {% if staffing_info %}
+      $("#{{ staffing_info.staffing.id }}").change(checkCellphoneRequired);
+      {% endif %}
+      {% if badge_flags %}
+      $("#{{ badge_flags.placeholder.id }}").change(checkCellphoneRequired);
+      {% endif %}
+  })
+</script>
 {% endblock %}
 
 
@@ -61,7 +98,7 @@
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
 {% if c.COLLECT_EXACT_BIRTHDATE %}
-  {{ form_macros.form_input(personal_info.birthdate) }}
+  {{ form_macros.form_input(personal_info.birthdate, admin_text=attendee.age_group_conf.desc) }}
 {% else %}
   TBD
 {% endif %}
@@ -75,8 +112,6 @@
         <a class="link-dark" target="_blank" href="{{ c.CONSENT_FORM_URL }}">parental consent form</a>.
       </em>
     </div>
-    {% elif admin_area and attendee.birthdate %}
-      ({{ attendee.age_group_conf.desc }})
     {% endif %}
   </div>
 </div>
@@ -120,7 +155,7 @@
 {% else %}
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
-    {{ form_macros.form_input(personal_info.zip_code, extra_field=form_macros.form_input(personal_info.international, disabled=address_ro or page_ro)) }}
+    {{ form_macros.form_input(personal_info.zip_code, extra_field=form_macros.toggle_checkbox(personal_info.international, [personal_info.zip_code], hide_on_checked=True, toggle_required=True, prop='')) }}
   </div>
 
   <div class="col-12 col-sm-6">

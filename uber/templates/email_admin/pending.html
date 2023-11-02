@@ -32,7 +32,11 @@
               require{{ email.unapproved_count|pluralize('s', '') }} approval
             {% endif %}
           </td>
-          <td><a href="{{ email.fixture.template_url }}" target="_blank">{{ email.fixture.template_plugin }}</a></td>
+          <td>
+            {% if email.fixture.template_url %}
+            <a href="{{ email.fixture.template_url }}" target="_blank">{{ email.fixture.template_plugin_name }}</a>
+            {% else %}{{ email.fixture.template_plugin_name }}{% endif %}
+          </td>
           <td>{{ email.sender }}</td>
           <td>{{ email.sent_email_count }}</td>
           <td>{{ email.unapproved_count }}</td>
@@ -87,8 +91,8 @@
   </p>
   <ul class="nav nav-pills">
   {% for sender in automated_emails.keys() %}
-    <li class="nav-item border border-primary rounded">
-      <a class="nav-link" href="#{{ sender|email_only }}">{{ sender|email_only }}</a>
+    <li class="nav-item">
+      <a class="nav-link border border-primary rounded" href="#{{ sender|email_only }}">{{ sender|email_only }}</a>
     </li>&nbsp;
   {% endfor %}
   </ul>

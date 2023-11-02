@@ -16,9 +16,8 @@
       });
   </script>
 
-  {% include 'prereg_masthead.html' %}
-  <div class="card">
-    <div class="card-body">
+  <div class="panel">
+    <div class="panel-body">
       <h2>{{ c.EVENT_NAME }} Panel Submission Form</h2>
 
       {% if c.AFTER_PANELS_DEADLINE and not c.HAS_PANELS_ADMIN_ACCESS %}
@@ -43,8 +42,6 @@
         all. We WILL be contacting potential panelists for more information as necessary.
         To increase your odds of acceptance, fill this form out accurately and keep an eye out for communication from us.
         <br/><br/>
-        {% if c.COVID_POLICIES_URL %}Please review the MAGFest COVID policy at <a href="{{ c.COVID_POLICIES_URL }}" target="_blank">{{ c.COVID_POLICIES_URL }}</a>.{% endif %}
-        <br/> <br/>
         Panel requests are due by {{ c.PANELS_DEADLINE|datetime_local('%-I:%M%p %Z on %A, %B %-e') }}.
         <br/> <br/>
         We hope to send acceptance emails out no later than {{ c.EXPECTED_RESPONSE }}.
@@ -109,6 +106,7 @@
             <p class="help-block col-sm-9 col-sm-offset-3">
               Please list all times during the event when you will NOT be available to hold your panel.
               This is used for scheduling purposes. Rescheduling based on information not given here will be very difficult.
+              <br/><br/>Panels run form 12 PM to 3 AM Thursday, 10 AM to 3 AM Friday, 10 AM to 3 AM Saturday, and 10 AM to 3 PM Sunday.
             </p>
           </div>
           <div class="form-group">
@@ -156,7 +154,6 @@
             <p class="help-block">For more information on our privacy practices please contact us via <a href='{{ c.CONTACT_URL }}'>{{ c.CONTACT_URL }}</a>.</p>
             </div>
           </div>
-          {% include "preregistration/covid_checkbox.html" ignore missing %}
 
           <h3>Other Panelists</h3>
           {% include "other_panelists_form.html" %}

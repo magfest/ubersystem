@@ -36,8 +36,7 @@
 
       {% if cart.attendees or cart.groups %}
         {% include 'preregistration/index_payment_form.html' %}
-  </div>
-
+  <br/>
   <table class="charge table table-striped">
     <caption class="visually-hidden">A table listing the preregistrations currently in your cart. 
       Column one shows the name associated with the preregistration along with a list of purchased items and discounts,
@@ -45,10 +44,10 @@
       and column three gives options to modify or delete the preregistration.</caption>
     <thead>
       <tr>
-        <th>Preregistration</th>
-        <th data-hide="phone" data-sort-ignore="true">Details</th>
-        <th data-type="numeric">Price</th>
-        <th data-sort-ignore="true"></th>
+        <th scope="col">Preregistration</th>
+        <th scope="col" data-hide="phone" data-sort-ignore="true">Details</th>
+        <th scope="col" data-type="numeric">Price</th>
+        <th scope="col" data-sort-ignore="true"></th>
       </tr>
     </thead>
     <tbody>
@@ -87,7 +86,7 @@
           <td>
               {{ attendee.default_cost|format_currency }}
           </td>
-          <td>
+          <td class="text-nowrap">
             <span id="edit-{{ attendee.first_name }}-{{ attendee.last_name }}">
               <a href="form?edit_id={{ attendee.id }}" aria-describedby="edit-{{ attendee.first_name }}-{{ attendee.last_name }}">Edit</a>
             </span> / 
@@ -138,6 +137,6 @@
     {% include "preregistration/disclaimers.html" %}
   </div>
 </div>
-<em class="form-text">Please note: your badge and any upgrades are not reserved until you complete the registration process, including payment.</em>
+<div class="text-center"><em class="badge bg-dark fw-normal">Please note: your badge and any upgrades are not reserved until you complete the registration process, including payment.</em></div>
 {{ "js/warn-before-logout.js"|serve_static_content }}
 {% endblock %}

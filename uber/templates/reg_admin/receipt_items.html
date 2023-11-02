@@ -207,8 +207,8 @@
     });
   };
 
-  var compOrUndoRefundItem = function (page_handler, itemId, amount) {
-      $.post(page_handler, {csrf_token: csrf_token, id: itemId, amount: amount}, function (response) {
+  var compOrUndoRefundItem = function (page_handler, itemId, amount, exclude_fees = false) {
+      $.post(page_handler, {csrf_token: csrf_token, id: itemId, amount: amount, exclude_fees: exclude_fees}, function (response) {
         if (response.error) {
           showErrorMessage(response.error);
         } else {
@@ -221,7 +221,7 @@
     var bootboxBtns = {
           cancel: {
               label: 'Nevermind',
-              className: 'btn-default',
+              className: 'btn-outline-secondary',
           },
           comp: {
               label: 'Comp and Refund',
@@ -244,6 +244,17 @@
           }
         }
       }
+      {% if not c.AUTHORIZENET_LOGIN_ID %}
+      bootboxBtns.revertExcludeFees = {
+        label: 'Undo and Refund Excluding Fees',
+        className: 'btn-danger',
+        callback: function (result) {
+          if(result) {
+            compOrUndoRefundItem('undo_refund_receipt_item', itemId, amount.substring(1), true)
+          }
+        }
+      }
+      {% endif %}
     }
     
     bootbox.dialog({
@@ -268,10 +279,20 @@
   };
 
   var fullRefund = function (receiptId) {
+    let message = '';
+    {% if group_leader_receipt and not receipt %}
+      message = "This will refund this attendee's group leader the cost of one badge.";
+    {% else %}
+      let extra_message = '';
+      {% if group_leader_receipt %}
+        extra_message = " for this attendee, plus the cost of one badge for their group leader";
+      {% endif %}
+      message = "This will refund ALL existing {{ processor_str }} transactions that have not already been refunded" + 
+                extra_message + ".";
+    {% endif %}
     bootbox.confirm({
       title: "Refund and Cancel Registration?",
-      message: "This will refund ALL existing {{ processor_str }} transactions that have not already been refunded. " +
-               "It will also cancel this {{ model_str }}'s registration. Are you sure?",
+      message: message + " It will also cancel this {{ model_str }}'s registration. Are you sure?",
       buttons: {
           confirm: {
               label: 'Fully Refund and Cancel',
@@ -285,6 +306,47 @@
       callback: function (result) {
         if(result) {
           window.location = 'process_full_refund?id=' + receiptId +
+          {% if attendee %}
+          '&attendee_id={{ attendee.id }}'
+          {% else %}
+          '&group_id={{ group.id }}'
+          {% endif %}
+        }
+      }
+    });
+  };
+
+  var mostlyFullRefund = function (receiptId, fee_str, group_leader_fee_str = '') {
+    let message = '';
+    {% if group_leader_receipt and not receipt %}
+      message = "This will refund this attendee's group leader the cost of one badge minus " + fee_str + " in processing fees. It will also";
+    {% else %}
+      let extra_message = '';
+      {% if group_leader_receipt %}
+        extra_message = " It will also refund their group leader the cost of one badge minus " + group_leader_fee_str + " in processing fees, and it will";
+      {% else %}
+        extra_message = " It will also"
+      {% endif %}
+      message = "This will refund ALL existing {{ processor_str }} transactions that have not already been refunded, " + 
+                "minus " + fee_str + " in processing fees." + extra_message
+    {% endif %}
+
+    bootbox.confirm({
+      title: "Refund and Cancel Registration?",
+      message: message + " cancel this {{ model_str }}'s registration. Are you sure?",
+      buttons: {
+          confirm: {
+              label: 'Fully Refund and Cancel',
+              className: 'btn-danger'
+          },
+          cancel: {
+              label: 'Nevermind',
+              className: 'btn-outline-secondary'
+          }
+      },
+      callback: function (result) {
+        if(result) {
+          window.location = 'process_full_refund?id=' + receiptId + '&exclude_fees=True' +
           {% if attendee %}
           '&attendee_id={{ attendee.id }}'
           {% else %}
@@ -400,8 +462,7 @@
         <div class="col-auto">
           <div class="input-group">
             <span class="input-group-text">$</span>
-            <input type="number" name="amount" class="form-control" placeholder="0" required>
-            <span class="input-group-text">.00</span>
+            <input type="number" name="amount" class="form-control" placeholder="0" required step=".01">
           </div>
         </div>
         <label for="count" class="col-auto col-form-label">Quantity</label>
@@ -450,19 +511,19 @@
   {% endmacro %}
 
 {% macro receipt_table(receipt, items) %}
-<ul class="nav nav-tabs" role="tablist">
-  <li class="nav-item" role="presentation" class="active">
-    <button class="nav-link" id="{{ receipt.id }}-home-tab" data-bs-toggle="tab" data-bs-target="#{{ receipt.id }}-home" type="button" role="tab" aria-controls="{{ receipt.id }}-home">
+<ul class="nav nav-tabs" role="tablist" id="tabs-{{ receipt.id }}">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="receipt-tab-{{ receipt.id }}" data-bs-toggle="tab" data-bs-target="#receipt-{{ receipt.id }}" type="button" role="tab" aria-controls="receipt-{{ receipt.id }}">
       Receipt
     </button>
   </li>
   <li class="nav-item" role="presentation">
-    <button class="nav-link" id="{{ receipt.id }}-history-tab" data-bs-toggle="tab" data-bs-target="#{{ receipt.id }}-history" type="button" role="tab" aria-controls="{{ receipt.id }}-history">
+    <button class="nav-link" id="history-tab-{{ receipt.id }}" data-bs-toggle="tab" data-bs-target="#history-{{ receipt.id }}" type="button" role="tab" aria-controls="history-{{ receipt.id }}">
       History
     </button>
 </ul>
 <div class="tab-content">
-  <div role="tabpanel" class="tab-pane active" id="{{ receipt.id }}-home">
+  <div role="tabpanel" class="tab-pane active" id="receipt-{{ receipt.id }}">
   <table class="table table-striped">
     <thead><tr>
       <th>Added</th>
@@ -507,7 +568,7 @@
                   Refund
                   {% else %}
                   refundItem('{{ item.id }}', '{{ (item.amount / 100)|format_currency }}', '{{ item.count }}', '{{ item.revert_change|yesno }}')">
-                  Refund Item
+                  Refund Options
                   {% endif %}
           </button>
           {% endif %}
@@ -566,8 +627,8 @@
     {% endif %}
   </table>
 </div>
-<div role="tabpanel" class="tab-pane" id="{{ receipt.id }}-history" aria-labelledby="{{ receipt.id }}-history-tab">
-  <table class="table-striped table-bordered table-condensed">
+<div role="tabpanel" class="tab-pane" id="history-{{ receipt.id }}">
+  <table class="table table-striped table-bordered table-sm">
     <thead><tr>
       <th>Which</th>
       <th>What</th>
@@ -597,9 +658,17 @@
 {% if receipt %}
   {{ receipt_table(receipt, receipt.all_sorted_items_and_txns) }}
   <button class="btn btn-danger" onClick="fullRefund('{{ receipt.id }}')">Refund and Cancel This {{ model_str|title }}</button>
+  {% if not c.AUTHORIZENET_LOGIN_ID %}
+  OR
+  <button class="btn btn-danger" onClick="mostlyFullRefund('{{ receipt.id }}', '{{ (receipt.remaining_processing_fees / 100)|format_currency }}', '{{ (group_processing_fee / 100)|format_currency if group_leader_receipt else '' }}')">Refund and Cancel This {{ model_str|title }} Excluding Processing Fees</button>
+  {% endif %}
 {% else %}
-There are no active receipts for this {{ model_str }}.
-<br/><a href="create_receipt?id={{ model.id }}" class="btn btn-success">Create Default Receipt</a> <a href="create_receipt?id={{ model.id }}&blank=true" class="btn btn-info">Create Blank Receipt</a>
+  There are no active receipts for this {{ model_str }}.
+  <br/><a href="create_receipt?id={{ model.id }}" class="btn btn-success">Create Default Receipt</a> <a href="create_receipt?id={{ model.id }}&blank=true" class="btn btn-info">Create Blank Receipt</a>
+  {% if group_leader_receipt and attendee and attendee.badge_status != c.REFUNDED_STATUS %}
+  <button class="btn btn-danger" onClick="fullRefund('{{ group_leader_receipt.id }}')">Refund Badge Cost To Group Leader</button>
+  <button class="btn btn-danger" onClick="mostlyFullRefund('{{ group_leader_receipt.id }}', '{{ (group_processing_fee / 100)|format_currency }}')">Refund Badge Cost To Group Leader Excluding Processing Fees</a>
+  {% endif %}
 {% endif %}
 </div>
 </div>

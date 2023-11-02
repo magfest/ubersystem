@@ -564,7 +564,7 @@ def render(template_name_list, data=None, encoding='utf-8'):
 
 def render_empty(template_name_list):
     env = JinjaEnv.env()
-    template = env.get_or_select_template(template_name_list, use_request_cache=False)
+    template = env.get_or_select_template(template_name_list)
     return open(template.filename, 'rb').read().decode('utf-8')
 
 
@@ -726,27 +726,6 @@ class Validation:
         return wrapper
 
 validation, prereg_validation = Validation(), Validation()
-
-
-class WTFormValidation:
-    def __init__(self):
-        self.validations = defaultdict(OrderedDict)
-
-    def __getattr__(self, field_name):
-        def wrapper(func):
-            self.validations[field_name][func.__name__] = func
-            return func
-        return wrapper
-    
-    def get_validations_by_field(self, field_name):
-        field_validations = self.validations.get(field_name)
-        return list(field_validations.values()) if field_validations else []
-
-    def get_validation_dict(self):
-        all_validations = {}
-        for key, dict in self.validations.items():
-            all_validations[key] = list(dict.values())
-        return all_validations
 
 
 class ReceiptItemConfig:

@@ -190,6 +190,24 @@ def url_domain(url):
     return url.split('/', 1)[0].strip('@#?=. ')
 
 
+def extract_urls(text):
+    """
+    Extract all URLs from a block of text and returns them in a list.
+    Designed for use with attendee-submitted URLs, e.g., URLs inside
+    seller application fields.
+
+    This is a simplified version of https://stackoverflow.com/a/50790119.
+    We don't look for IP addresses of any kind, and we assume that
+    attendees put whitespace after each URL so we can match complex
+    resources paths with a wide variety of characters.
+    """
+    if not text:
+        return
+
+    regex=r"\b((?:https?:\/\/)?(?:(?:www\.)?(?:[\da-z\.-]+)\.(?:[a-z]{2,6}))(?::[0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])?(?:\/\S*)*\/?)\b"
+    return re.findall(regex, text, re.IGNORECASE)
+
+
 def create_valid_user_supplied_redirect_url(url, default_url):
     """
     Create a valid redirect from user-supplied data.
@@ -562,6 +580,8 @@ def check(model, *, prereg=False):
         for validator in v[model.__class__.__name__].values():
             message = validator(model)
             if message:
+                if isinstance(message, tuple):
+                    message = message[1]
                 errors.append(message)
     return "ERROR: " + "<br>".join(errors) if errors else None
 
@@ -600,45 +620,43 @@ def check_pii_consent(params, attendee=None):
     return ''
 
 
-def validate_model(forms, model, preview_model=None, extra_validators_module=None, is_admin=False):
+def validate_model(forms, model, preview_model=None, is_admin=False):
     from wtforms import validators
-    from wtforms.validators import ValidationError, StopValidation
 
     all_errors = defaultdict(list)
     
     if not preview_model:
         preview_model = model
     else:
-        for module in forms.values():
-            module.populate_obj(preview_model) # We need a populated model BEFORE we get its optional fields below
+        for form in forms.values():
+            form.populate_obj(preview_model) # We need a populated model BEFORE we get its optional fields below
 
-    for module in forms.values():
+    for form in forms.values():
         extra_validators = defaultdict(list)
-        for field_name in module.get_optional_fields(preview_model, is_admin):
-            field = getattr(module, field_name)
+        for field_name in form.get_optional_fields(preview_model, is_admin):
+            field = getattr(form, field_name)
             if field:
-                field.validators = [validators.Optional()]
+                field.validators = [validators.Optional()] + [validator for validator in field.validators if not isinstance(validator, (validators.DataRequired, validators.InputRequired))]
 
-        if extra_validators_module:
-            for key, field in module.field_list:
-                extra_validators[key].extend(extra_validators_module.form_validation.get_validations_by_field(key))
-                if field and (model.is_new or getattr(model, key, None) != field.data):
-                    extra_validators[key].extend(extra_validators_module.new_or_changed_validation.get_validations_by_field(key))
-
-        valid = module.validate(extra_validators=extra_validators)
+        # TODO: Do we need to check for custom validations or is this code performant enough to skip that?
+        for key, field in form.field_list:
+            extra_validators[key].extend(form.field_validation.get_validations_by_field(key))
+            if field and (model.is_new or getattr(model, key, None) != field.data):
+                extra_validators[key].extend(form.new_or_changed_validation.get_validations_by_field(key))
+        valid = form.validate(extra_validators=extra_validators)
         if not valid:
-            for key, val in module.errors.items():
+            for key, val in form.errors.items():
                 all_errors[key].extend(map(str, val))
 
-    if extra_validators_module:
-        for key, val in extra_validators_module.post_form_validation.get_validation_dict().items():
-            for func in val:
-                try:
-                    func(preview_model)
-                except (ValidationError, StopValidation) as e:
-                    all_errors[key].append(str(e))
-                    if isinstance(e, StopValidation):
-                        break
+    validations = [uber.model_checks.validation.validations]
+    prereg_validations = [uber.model_checks.prereg_validation.validations] if not is_admin else []
+    for v in validations + prereg_validations:
+        for validator in v[model.__class__.__name__].values():
+            error = validator(preview_model)
+            if error and isinstance(error, tuple):
+                all_errors[error[0]].append(error[1])
+            elif error:
+                all_errors[''].append(error)
 
     if all_errors:
         return all_errors
@@ -911,14 +929,15 @@ def remove_opt(opts, other):
 def _server_to_url(server):
     if not server:
         return ''
+    protocol = 'https' if 'https' in server or 'http' not in server else 'http'
     host, _, path = urllib.parse.unquote(server).replace('http://', '').replace('https://', '').rstrip('/').partition('/')
     if path.startswith('reggie'):
-        return 'https://{}/reggie'.format(host)
+        return f'{protocol}://{host}/reggie'
     elif path.startswith('uber'):
-        return 'https://{}/uber'.format(host)
+        return f'{protocol}://{host}/uber'
     elif path in ['uber', 'rams']:
-        return 'https://{}/{}'.format(host, path)
-    return 'https://{}'.format(host)
+        f'{protocol}://{host}/{path}'
+    return f'{protocol}://{host}'
 
 
 def _server_to_host(server):
@@ -942,6 +961,8 @@ def get_api_service_from_server(target_server, api_token):
     Helper method that gets a service that can be used for API calls between servers.
     Returns the service or None, an error message or '', and a JSON-RPC URI
     """
+    import ssl
+
     target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
     uri = '{}/jsonrpc/'.format(target_url)
 
@@ -953,7 +974,7 @@ def get_api_service_from_server(target_server, api_token):
             message = 'Unrecognized hostname: {}'.format(target_server)
 
         if not message:
-            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token})
+            service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token}, ssl_opts={'ssl_version': ssl.PROTOCOL_SSLv23})
 
     return service, message, target_url
 

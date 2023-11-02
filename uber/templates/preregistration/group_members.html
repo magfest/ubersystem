@@ -72,10 +72,10 @@
       <form method="post" action="group_members" role="form">
         <input type="hidden" name="id" value="{{ group.id }}" />
         {% if forms and 'group_info' in forms %}
-          {% include "forms/group_info.html" %}
+          {% include "forms/group/group_info.html" %}
         {% elif forms and 'table_info' in forms %}
-          {% include "forms/table_info.html" %}
-          {% include "forms/contact_info.html" %}
+          {% include "forms/group/table_info.html" %}
+          {% include "forms/group/contact_info.html" %}
         {% endif %}
         {% include "groupextra.html" %}
         {% if group.status in c.DEALER_EDITABLE_STATUSES %}

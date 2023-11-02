@@ -20,7 +20,7 @@
     </td>
   </tr>
   {% block deadline_extra %}
-  {% if HAS_ROCK_ISLAND and guest.merch.selling_merch == c.ROCK_ISLAND %}
+  {% if HAS_ROCK_ISLAND and guest.merch_status and guest.merch.selling_merch == c.ROCK_ISLAND %}
     <tr>
       <td></td>
       <td>{{ macros.checklist_image(guest.merch.inventory) }} <b><a href="merch?guest_id={{ guest.id }}">Rock Island Inventory</a></b></td>
@@ -109,7 +109,7 @@
           <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
               <div class="modal-header">
-                <button type="button" class="btn-close visually-hidden" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                 <h4 class="modal-title" id="inventory_item_title_{{ item.id or type }}">{{ label }}</h4>
               </div>
               <form method="post" action="save_inventory_item" target="upload_frame" class="form-horizontal" role="form" enctype="multipart/form-data">
@@ -120,7 +120,7 @@
                 </div>
                 <div class="modal-footer">
                   <button type="submit" class="btn btn-primary save_inventory">Save</button>
-                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                  <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancel</button>
                 </div>
               </form>
             </div>
@@ -201,7 +201,7 @@
           <div class="well well-sm well-success col-sm-6 col-sm-offset-3 text-success text-center">
             <h4>Add some merch to your inventory!</h4>
             <div class="inventory-add-item text-success">
-              <i class="fa fa-plus-sign"></i>
+              <span class="glyphicon glyphicon-plus-sign"></span>
               <select class="form-control add_inventory">
                 <option value="">Select an item to add it...</option>
                 {{ options(c.MERCH_TYPES_OPTS) }}
@@ -271,8 +271,7 @@
                   $inventoryItem = $('#inventory_item_' + $addInventory.val());
 
               $inventoryItem.find('.one_size').each(function() { onOneSizeChange.call(this); });
-              var modal = bootstrap.Modal.getOrCreateInstance($inventoryItem);
-              modal.show();
+              $inventoryItem.modal();
               $addInventory.val('');
             };
 
@@ -283,8 +282,7 @@
                   $inventoryItem = $('#inventory_item_' + itemId);
 
               $inventoryItem.find('.one_size').each(function() { onOneSizeChange.call(this); });
-              var modal = bootstrap.Modal.getOrCreateInstance($inventoryItem);
-              modal.show();
+              $inventoryItem.modal();
             };
 
             var onRemoveInventory = function(e) {
@@ -362,7 +360,7 @@
             var onOneSizeChange = function() {
               var $varietyColumn = $(this).closest('.col-variety'),
                   $oneSizeQuantity = $varietyColumn.find('.one_size_quantity'),
-                  $sizesPanel = $varietyColumn.find('.card-sizes'),
+                  $sizesPanel = $varietyColumn.find('.panel-sizes'),
                   isOneSize = $(this).prop('checked');
 
               $oneSizeQuantity.toggle(isOneSize);
@@ -408,8 +406,7 @@
                           $modals.on('hidden.bs.modal', function (e) {
                             location.href = '?guest_id={{ guest.id }}';
                           });
-                          var modal = bootstrap.Modal.getOrCreateInstance($modals)
-                          modal.hide();
+                          $modals.modal('hide');
                         } else {
                           showErrorMessage('', response['error'], {timeOut: 5000});
                         }
@@ -431,7 +428,7 @@
 
     <div class="form-group">
       <div class="col-sm-9 col-sm-offset-3">
-        <input type="submit" class="btn btn-primary" value="Save Merch Preference" />
+        <input type="submit" id="save-merch-button" class="btn btn-primary" value="Save Merch Preference" />
       </div>
     </div>
   </form>

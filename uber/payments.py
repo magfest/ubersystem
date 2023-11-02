@@ -258,7 +258,7 @@ class PreregCart:
 class TransactionRequest:
     def __init__(self, receipt=None, receipt_email='', description='', amount=0, customer_id=None, create_receipt_item=False):
         self.amount = int(amount)
-        self.receipt_email = receipt_email
+        self.receipt_email = receipt_email[0] if isinstance(receipt_email, list) else receipt_email
         self.description = description
         self.customer_id = customer_id
         self.refund_str = "refunded" # Set to "voided" when applicable to better inform admins
@@ -684,7 +684,7 @@ class TransactionRequest:
         transaction.customerIP = cherrypy.request.headers.get('X-Forwarded-For', cherrypy.request.remote.ip)
 
         if self.amount:
-            transaction.amount = Decimal(int(self.amount) / 100)
+            transaction.amount = Decimal(int(self.amount)) / Decimal(100)
 
         transactionRequest = apicontractsv1.createTransactionRequest()
         transactionRequest.merchantAuthentication = self.merchant_auth
@@ -705,7 +705,7 @@ class TransactionRequest:
                     log.debug(f"Transaction {self.tracking_id} request successful. Transaction ID: {auth_txn_id}")
                     
                     if txn_type in [c.AUTHCAPTURE, c.CAPTURE]:
-                        ReceiptManager.mark_paid_from_intent_id(params.get('intent_id'), auth_txn_id)
+                        ReceiptManager.mark_paid_from_ids(params.get('intent_id'), auth_txn_id)
                 else:
                     error_code = str(response.transactionResponse.errors.error[0].errorCode)
                     error_msg = str(response.transactionResponse.errors.error[0].errorText)
@@ -763,6 +763,16 @@ class ReceiptManager:
                                                     desc=desc,
                                                     who=AdminAccount.admin_name() or 'non-admin'
                                                     ))
+
+    def create_receipt_item(self, receipt, desc, amount):
+        from uber.models import AdminAccount, ReceiptItem
+
+        self.items_to_add.append(ReceiptItem(receipt_id=receipt.id,
+                                    desc=desc,
+                                    amount=amount,
+                                    count=1,
+                                    who=AdminAccount.admin_name() or 'non-admin'
+                                ))
 
     def update_transaction_refund(self, txn, refund_amount):
         txn.refunded += refund_amount
@@ -1040,19 +1050,41 @@ class ReceiptManager:
             log.error(str(e))
 
     @staticmethod
-    def mark_paid_from_intent_id(intent_id, charge_id):
+    def mark_paid_from_stripe_intent(payment_intent):
+        if not payment_intent.charges.data:
+            log.error(f"Tried to mark payments with intent ID {payment_intent.id} as paid but that intent doesn't have a charge!")
+            return []
+
+        if payment_intent.status != "succeeded":
+            log.error(f"Tried to mark payments with intent ID {payment_intent.id} as paid but the charge on this intent wasn't successful!")
+            return []
+        
+        return ReceiptManager.mark_paid_from_ids(payment_intent.id, payment_intent.charges.data[0].id)
+        
+    @staticmethod
+    def mark_paid_from_ids(intent_id, charge_id):
         from uber.models import Attendee, ArtShowApplication, MarketplaceApplication, Group, ReceiptTransaction, Session
         from uber.tasks.email import send_email
         from uber.decorators import render
-        
+
         session = Session().session
         matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).filter(
             ReceiptTransaction.charge_id == '').all()
-
+        
+        if not matching_txns:
+            log.debug(f"Tried to mark payments with intent ID {intent_id} as paid but we couldn't find any!")
+            return []
+        
         for txn in matching_txns:
+            if not c.AUTHORIZENET_LOGIN_ID:
+                txn.processing_fee = txn.calc_processing_fee()
+
             txn.charge_id = charge_id
             session.add(txn)
             txn_receipt = txn.receipt
+
+            if txn.cancelled != None:
+                txn.cancelled == None
 
             for item in txn.receipt_items:
                 item.closed = datetime.now()

@@ -9,9 +9,9 @@
 {%- endmacro %}
 
 
-{% macro upgrade_button(upgrade_btn_id, text="Upgrade") %}
+{% macro upgrade_button(upgrade_btn_id, text="Upgrade", extra_classes=" btn-sm") %}
 {% if receipt and receipt.current_amount_owed <= 0 %}
-  <a class="btn btn-sm btn-success" id="upgrade-{{ upgrade_btn_id }}-btn" data-bs-toggle="modal" data-bs-target="#upgradeModal">
+  <a class="btn btn-success{{ extra_classes }}" id="upgrade-{{ upgrade_btn_id }}-btn" data-bs-toggle="modal" data-bs-target="#upgradeModal">
     <span class="glyphicon glyphicon-circle-arrow-up"></span> {{ text }}
   </a>
 {% endif %}
@@ -50,7 +50,7 @@
 {%- endmacro %}
 
 
-{% macro checkbox(model, field_name, id=None, label=None, label_class=None, is_readonly=False, title=None, clientside_bool=False, is_required=False) -%}
+{% macro checkbox(model, field_name, id=None, label=None, label_class=None, suffix='', is_readonly=False, title=None, clientside_bool=False, is_required=False) -%}
   {%- set is_class = model is class -%}
   {%- set is_checked = not is_class and model[field_name] -%}
   {% set true_val, false_val = ('true', 'false') if clientside_bool else ('1', '0') %}
@@ -62,7 +62,7 @@
   {% if is_readonly %}
     <input
         type="hidden"
-        name="{{ field_name }}"
+        name="{{ field_name }}{{ suffix }}"
         id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
         value="{% if is_checked %}{{ true_val }}{% else %}{{ false_val }}{% endif %}" />
     <input
@@ -73,7 +73,7 @@
   {% else %}
     <input
         type="checkbox"
-        name="{{ field_name }}"
+        name="{{ field_name }}{{ suffix }}"
         id="{% if id %}{{ id }}{% else %}{{ field_name }}{% endif %}"
         {% if not label and title %} title="{{ title }}"{% endif %}
         {% if not clientside_bool %}value="1"{% endif %}
@@ -202,7 +202,7 @@
   </div>
   {% else %}
   <div class="form-group {{ form_class }}">
-    <label class="col-sm-3 control-label{% if not is_required %} optional-field{% endif %}">
+    <label class="{{ 'form-text' if is_admin else 'col-sm-3 control-label' }}{% if not is_required %} optional-field{% endif %}">
       {{ label }}
     </label>
     <div class="col-sm-{{ size }}">
@@ -316,7 +316,7 @@
   {%- set has_other_value = not is_class and other_field and model[other_field] -%}
   {%- set is_other_value_visible = not is_readonly or has_other_value -%}
   {%- set is_wrapped = not is_readonly or has_value or desc -%}
-  {% call form_group_scaffolding(label if label else field|unfieldify, help if not is_readonly else False, is_required, 9, form_class, is_wrapped) %}
+  {% call form_group_scaffolding(label if label else field|unfieldify, help if not is_readonly else False, is_required, 9, form_class, is_wrapped, is_admin=is_admin) %}
     {%- if desc and not is_admin -%}<p>{{ desc }}</p>{%- endif -%}
 
     {% if not is_readonly or has_value %}

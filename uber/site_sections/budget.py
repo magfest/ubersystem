@@ -39,7 +39,7 @@ class Root:
         }
 
     def badge_cost_summary(self, session):
-        attendees = session.attendees_with_badges()
+        attendees = session.query(Attendee)
 
         base_filter = [Attendee.has_or_will_have_badge]
 
@@ -55,7 +55,7 @@ class Root:
         
         paid_group_badges = get_grouped_costs(session, badge_cost_matters_filter + [Group.is_paid == True], [Attendee.group])
         unpaid_group_badges = get_grouped_costs(session, 
-                                                badge_cost_matters_filter + [Group.has_receipt == True, Group.is_paid == False], 
+                                                badge_cost_matters_filter + [Group.active_receipt != None, Group.is_paid == False], 
                                                 [Attendee.group])
 
         group_total = session.query(Attendee).filter(*group_filter).count()
@@ -82,15 +82,15 @@ class Root:
                                            Attendee.promo_code_group_name == None,
                                            Attendee.badge_cost > 0]
         paid_ind_filter = individual_filter + [Attendee.is_paid == True]
-        unpaid_ind_filter = individual_filter + [Attendee.has_receipt == True, Attendee.is_paid == False]
+        unpaid_ind_filter = individual_filter + [Attendee.active_receipt != None, Attendee.is_paid == False]
 
         not_unpaid_badges = 0
 
         individual_badges = get_grouped_costs(session, paid_ind_filter)
         unpaid_badges = get_grouped_costs(session, unpaid_ind_filter)
 
-        receiptless_ind_filter = individual_filter + [Attendee.has_receipt == False]
-        receiptless_group_filter = badge_cost_matters_filter + [Group.has_receipt == False]
+        receiptless_ind_filter = individual_filter + [Attendee.active_receipt == None]
+        receiptless_group_filter = badge_cost_matters_filter + [Group.active_receipt == None]
 
         for attendee in session.query(Attendee).outerjoin(Attendee.group).filter(*receiptless_group_filter):
             if attendee.group.amount_unpaid == 0:
@@ -211,7 +211,7 @@ class Root:
                                                   preordered_merch_filter + [Attendee.is_paid == True],
                                                   selector=Attendee.amount_extra)
         unpaid_preordered_merch = get_grouped_costs(session,
-                                                  preordered_merch_filter + [Attendee.has_receipt == True,
+                                                  preordered_merch_filter + [Attendee.active_receipt != None,
                                                                              Attendee.is_paid == False],
                                                   selector=Attendee.amount_extra)
         
@@ -219,13 +219,13 @@ class Root:
                                                   extra_donation_filter + [Attendee.is_paid == True],
                                                   selector=Attendee.extra_donation)
         unpaid_extra_donations = get_grouped_costs(session,
-                                                  extra_donation_filter + [Attendee.has_receipt == True,
+                                                  extra_donation_filter + [Attendee.active_receipt != None,
                                                                              Attendee.is_paid == False],
                                                   selector=Attendee.extra_donation)
         not_unpaid_preordered_merch = 0
         not_unpaid_extra_donations = 0
 
-        for attendee in session.query(Attendee).filter(*base_filter).filter(Attendee.has_receipt == False).filter(
+        for attendee in session.query(Attendee).filter(*base_filter).filter(Attendee.active_receipt == None).filter(
                                                                         or_(Attendee.amount_extra > 0,
                                                                             Attendee.extra_donation > 0)):
             if attendee.amount_unpaid == 0:

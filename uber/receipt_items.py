@@ -67,7 +67,7 @@ Attendee.cost_changes = {
     'overridden_price': ('Custom Badge Price', "calc_badge_cost_change"),
     'badge_type': ('Badge ({})', "calc_badge_cost_change", c.BADGES),
     'ribbon': ('Ribbon ({})', "calc_badge_cost_change", c.RIBBONS),
-    'amount_extra': ('Kickin ({})', None, c.DONATION_TIERS),
+    'amount_extra': ('Preordered Merch ({})', None, c.DONATION_TIERS),
     'extra_donation': ('Extra Donation', None),
 }
 
@@ -109,7 +109,7 @@ def donation_cost(attendee):
 
 @cost_calculation.Attendee
 def kickin_cost(attendee):
-    return ("Kickin ({})".format(attendee.amount_extra_label),
+    return ("Preordered Merch ({})".format(attendee.amount_extra_label),
             attendee.amount_extra * 100, 'amount_extra') if attendee.amount_extra else None
 
 @credit_calculation.Attendee

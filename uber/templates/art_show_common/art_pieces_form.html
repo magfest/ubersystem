@@ -256,7 +256,7 @@
           <select name="status" class="form-control">
             {{ options(c.ART_PIECE_STATUS_OPTS, piece.status) }}
           </select>
-            <button type="submit" class="btn btn-primary status_button"><i class="fa fa-ok"></i></button>
+            <button type="submit" class="btn btn-primary status_button"><i class="fa fa-check"></i></button>
             <br/><label class="checkbox-label optional-field">
               <input type="checkbox" name="voice_auctioned" value="1"{% if piece.voice_auctioned %} checked{% endif %} />
               This piece went to voice auction.

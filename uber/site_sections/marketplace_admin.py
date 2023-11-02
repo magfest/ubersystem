@@ -59,7 +59,7 @@ class Root:
                         session.commit()  # Lets us remove the dealer ribbon
                         attendee.ribbon = remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
 
-                if params.get('save') == 'save_return_to_search':
+                if params.get('save_return_to_search', False):
                     return_to = 'index?'
                 else:
                     return_to = 'form?id=' + app.id + '&'

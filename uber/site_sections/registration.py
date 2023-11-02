@@ -20,11 +20,12 @@ from uber.custom_tags import format_currency
 from uber.decorators import ajax, ajax_gettable, all_renderable, attendee_view, check_for_encrypted_badge_num, credit_card, \
     csrf_protected, department_id_adapter, log_pageview, not_site_mappable, render, requires_account, site_mappable, public
 from uber.errors import HTTPRedirect
+from uber.forms import load_forms
 from uber.models import Attendee, AttendeeAccount, Department, Email, Group, Job, PageViewTracking, PrintJob, PromoCode, \
     PromoCodeGroup, Sale, Session, Shift, Tracking, WatchList
 from uber.site_sections.preregistration import check_if_can_reg
 from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
-    localized_now, Order, normalize_email
+    localized_now, Order, normalize_email, validate_model
 from uber.payments import TransactionRequest, ReceiptManager
 
 
@@ -59,6 +60,58 @@ def check_atd(func):
         else:
             raise HTTPRedirect('index')
     return checking_at_the_door
+
+
+def load_attendee(session, params):
+    id = params.get('id', None)
+
+    if id in [None, '', 'None']:
+        attendee = Attendee()
+    else:
+        attendee = session.attendee(id)
+
+    forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo', 'BadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
+
+    for form in forms.values():
+        form.populate_obj(attendee)
+    
+    return attendee, forms
+
+
+def save_attendee(session, params):
+    id = params.get('id', None)
+    message = ''
+
+    if id in [None, '', 'None']:
+        attendee = Attendee()
+    else:
+        attendee = session.attendee(id)
+
+    forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo', 'BadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
+
+    for form in forms.values():
+        form.populate_obj(attendee)
+
+    if cherrypy.request.method == 'POST':
+        if id not in [None, '', 'None']:
+            receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
+            session.add_all(receipt_items)
+
+        message = ''
+
+        if c.NUMBERED_BADGES and (params.get('no_badge_num') or not attendee.badge_num):
+            if params.get('save_check_in', False) and attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES:
+                message = "Please enter a badge number to check this attendee in."
+            else:
+                attendee.badge_num = None
+
+        if 'no_override' in params:
+            attendee.overridden_price = None
+
+        if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
+            message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
+
+        return message
 
 
 @all_renderable()
@@ -125,35 +178,32 @@ class Root:
             'printer_default_id': cherrypy.session.get('printer_default_id', ''),
             'printer_minor_id': cherrypy.session.get('printer_minor_id', ''),
         }  # noqa: E711
+    
+    @ajax
+    def validate_attendee(self, session, form_list=[], **params):
+        if params.get('id') in [None, '', 'None']:
+            attendee = Attendee()
+        else:
+            attendee = session.attendee(params.get('id'))
+
+        if not form_list:
+            form_list = ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo', 'BadgeFlags', 'BadgeAdminNotes', 'OtherInfo']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+        forms = load_forms(params, attendee, form_list, get_optional=False)
+
+        all_errors = validate_model(forms, attendee, Attendee(**attendee.to_dict()), is_admin=True)
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
 
     @log_pageview
     def form(self, session, message='', return_to='', **params):
-        if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-            attendee = session.attendee(params.get('id'))
-            receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
-            session.add_all(receipt_items)
+        attendee, forms = load_attendee(session, params)
 
-        attendee = session.attendee(
-            params, checkgroups=Attendee.all_checkgroups, bools=Attendee.all_bools, allow_invalid=True)
-
-        if 'first_name' in params:
-            message = ''
-            
-            attendee.group_id = params['group_opt'] or None
-            if c.NUMBERED_BADGES and (params.get('no_badge_num') or not attendee.badge_num):
-                if params.get('save') == 'save_check_in' and attendee.badge_type not in c.PREASSIGNED_BADGE_TYPES:
-                    message = "Please enter a badge number to check this attendee in"
-                else:
-                    attendee.badge_num = None
-
-            if 'no_override' in params:
-                attendee.overridden_price = None
-
-            if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
-                message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
-
-            if not message:
-                message = check(attendee)
+        if cherrypy.request.method == 'POST':
+            message = save_attendee(session, params)
 
             if not message:
                 if attendee.is_new and \
@@ -164,11 +214,11 @@ class Root:
                     session.commit()
                     raise HTTPRedirect('duplicate?id={}&return_to={}', attendee.id, return_to or 'index')
 
-                message = '{} has been saved'.format(attendee.full_name)
-                stay_on_form = params.get('save') != 'save_return_to_search'
+                message = '{} has been saved.'.format(attendee.full_name)
+                stay_on_form = params.get('save_return_to_search', False) == False
                 session.add(attendee)
                 session.commit()
-                if params.get('save') == 'save_check_in':
+                if params.get('save_check_in', False):
                     if attendee.is_not_ready_to_checkin:
                         message = "Attendee saved, but they cannot check in now. Reason: {}".format(
                             attendee.is_not_ready_to_checkin)
@@ -179,22 +229,16 @@ class Root:
                         stay_on_form = True
                     else:
                         attendee.checked_in = localized_now()
-                        message = check(attendee)
-                        if message:
-                            message = "Attendee saved, but they cannot check in. Reason: {}".format(message)
-                            attendee.checked_in = None
-                            stay_on_form = True
-                        else:
-                            session.commit()
-                            message = '{} saved and checked in as {}{}'.format(
-                                attendee.full_name, attendee.badge, attendee.accoutrements)
-                            stay_on_form = False
+                        session.commit()
+                        message = '{} saved and checked in as {}{}.'.format(
+                            attendee.full_name, attendee.badge, attendee.accoutrements)
+                        stay_on_form = False
                         
                 if stay_on_form:
                     raise HTTPRedirect('form?id={}&message={}&return_to={}', attendee.id, message, return_to)
                 else:
                     if return_to:
-                        raise HTTPRedirect(return_to + '&message={}', 'Attendee data saved')
+                        raise HTTPRedirect(return_to + '&message={}', 'Attendee updated.')
                     else:
                         raise HTTPRedirect(
                             'index?uploaded_id={}&message={}&search_text={}',
@@ -206,6 +250,7 @@ class Root:
         return {
             'message':    message,
             'attendee':   attendee,
+            'forms': forms,
             'return_to':  return_to,
             'no_badge_num': params.get('no_badge_num'),
             'group_opts': [(g.id, g.name) for g in session.query(Group).order_by(Group.name).all()],
@@ -567,7 +612,9 @@ class Root:
     @check_atd
     @requires_account()
     def register(self, session, message='', error_message='', **params):
-        check_if_can_reg()
+        errors = check_if_can_reg()
+        if errors:
+            return errors
 
         params['id'] = 'None'
         login_email = None
@@ -716,7 +763,7 @@ class Root:
         if not reg_station:
             message = "Please enter a number for this reg station"
             
-        if not message and not reg_station.isdigit() or not (0 <= int(reg_station) < 100):
+        if not message and (not reg_station.isdigit() or (reg_station.isdigit() and not (0 <= int(reg_station) < 100))):
             message = "Reg station must be a positive integer between 0 and 100"
 
         if not message:
@@ -967,11 +1014,22 @@ class Root:
     @attendee_view
     @cherrypy.expose(['attendee_data'])
     def attendee_form(self, session, message='', tab_view=None, **params):
-        attendee = session.attendee(params, allow_invalid=True)
+        id = params.get('id', None)
+
+        if id in [None, '', 'None']:
+            attendee = Attendee()
+        else:
+            attendee = session.attendee(id)
+
+        forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo', 'BadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
+
+        for form in forms.values():
+            form.populate_obj(attendee)
 
         return_dict = {
             'message': message,
             'attendee': attendee,
+            'forms': forms,
             'tab_view': tab_view,
             'group_opts': [(g.id, g.name) for g in session.query(Group).order_by(Group.name).all()],
         }
@@ -1037,45 +1095,17 @@ class Root:
     @ajax
     @attendee_view
     def update_attendee(self, session, message='', success=False, **params):
-        if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-            attendee = session.attendee(params.get('id'))
-            receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee), params)
-            session.add_all(receipt_items)
+        attendee, forms = load_attendee(session, params)
 
-        for key in params:
-            if params[key] == "false":
-                params[key] = False
-            if params[key] == "true":
-                params[key] = True
-            if params[key] == "null":
-                params[key] = ""
+        if cherrypy.request.method == 'POST':
+            message = save_attendee(session, params)
 
-        attendee = session.attendee(params, allow_invalid=True)
-
-        if attendee.is_new and (not attendee.first_name or not attendee.last_name):
-            message = 'Please enter a name for this attendee'
-        
-        if not message and attendee.is_new and \
+        if not message:
+            if attendee.is_new and \
                     session.attendees_with_badges().filter_by(first_name=attendee.first_name,
                                                                 last_name=attendee.last_name,
                                                                 email=attendee.email).count():
                 message = 'An attendee with this name and email address already exists.'
-
-        if not message:
-            if 'group_opt' in params:
-                attendee.group_id = params.get('group_opt') or None
-            
-            if params.get('no_badge_num') or not attendee.badge_num:
-                attendee.badge_num = None
-                
-            if params.get('no_override'):
-                attendee.overridden_price = None
-
-            if c.BADGE_PROMO_CODES_ENABLED and 'promo_code' in params:
-                message = session.add_promo_code_to_attendee(attendee, params.get('promo_code'))
-
-        if not message:
-            message = check(attendee)
 
         if not message:
             success = True

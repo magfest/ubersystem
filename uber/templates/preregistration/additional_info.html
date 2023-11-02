@@ -29,7 +29,7 @@
       <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
       {% endif %}
       {{ csrf_token() }}
-      {% include "forms/other_info.html" %}
+      {% include "forms/attendee/prereg_other_info.html" %}
       &nbsp;
       {% if editing %}
       <button type="submit" class="btn btn-primary mt-3" value="Update">Update</button>
@@ -44,7 +44,7 @@
 {% if is_prereg_dealer %}
 {{ "js/warn-before-logout-dealer.js"|serve_static_content }}
 {% else %}
-<em class="form-text">Please note: your badge and any upgrades are not reserved until you complete the registration process, including payment.</em>
+<div class="text-center"><em class="badge bg-dark fw-normal">Please note: your badge and any upgrades are not reserved until you complete the registration process, including payment.</em></div>
 {{ "js/warn-before-logout.js"|serve_static_content }}
 {% endif %}
 {% endblock %}

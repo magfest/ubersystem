@@ -173,7 +173,7 @@ class Root:
 
         if event and event['type'] == 'payment_intent.succeeded':
             payment_intent = event['data']['object']
-            matching_txns = ReceiptManager.mark_paid_from_intent_id(payment_intent['id'], payment_intent.charges.data[0].id)
+            matching_txns = ReceiptManager.mark_paid_from_stripe_intent(payment_intent)
             if not matching_txns:
                 cherrypy.response.status = 400
                 return "No matching Stripe transactions"

@@ -1,0 +1,78 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set other_info = other_info or forms['other_info'] %}
+{% set badge_flags = badge_flags or forms['badge_flags'] %}
+
+{# BLOCK NAMES in this form:
+    hidden
+    promo_code
+    staffing (ONLY for during prereg, use staffing_info.html otherwise)
+    interests
+    accessibility
+
+Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+{% block hidden %}
+{% if not admin_area and attendee.placeholder %}
+{{ other_info.placeholder(value=false) }}
+{% endif %}
+{% endblock %}
+
+{% block promo_code %}
+{% if not badge_flags and c.BADGE_PROMO_CODES_ENABLED and (not attendee.active_receipt or admin_area) %}
+    {% set promo_code_admin_text %}
+        {% if c.HAS_REG_ADMIN_ACCESS and attendee.promo_code_code %}
+        <a href="" id="remove_promo_code" onClick="removePromoCode(event)">Remove Promo Code</a>
+        {% endif %}
+    {% endset %}
+    <div class="row g-sm-3">
+        <div class="col-12 col-sm-6">{{ form_macros.form_input(other_info.promo_code_code,
+                                                               read_only=attendee.promo_code_code and not editing,
+                                                               help_text="" if not editing or not other_info.promo_code_code.data else "This might look different from the code you entered earlier.",
+                                                               admin_text=promo_code_admin_text) }}</div>
+    </div>
+    {% if c.HAS_REG_ADMIN_ACCESS and attendee.promo_code_code %}
+        <script type="text/javascript">
+            var removePromoCode = function(event) {
+                event.preventDefault();
+                bootbox.confirm({
+                    backdrop: true,
+                    title: 'Remove "{{ attendee.promo_code_code }}" from "{{ attendee.full_name }}"?',
+                    message: 'This will remove the promo code\'s discount from the attendee and ' +
+                    'set them to unpaid. They will be asked to pay the difference to complete their registration.',
+                    buttons: {
+                        confirm: { label: 'Remove Promo Code', className: 'btn-danger' },
+                        cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+                    },
+                    callback: function(result) {
+                        if (result) {
+                            window.location.href = '../reg_admin/remove_promo_code?id={{ attendee.id }}'
+                        }
+                    }
+                });
+            };
+        </script>
+    {% endif %}
+{% endif %}
+{% endblock %}
+
+{% block staffing %}
+{% endblock %}
+
+{% block interests %}
+{% if c.INTEREST_OPTS %}
+<div class="row g-sm-3">
+    <div class="col-12">{{ form_macros.form_input(other_info.interests) }}</div>
+</div>
+{% endif %}
+{% endblock %}
+
+
+{% block accessibility %}
+{% if c.ACCESSIBILITY_SERVICES_ENABLED and (not admin_area or c.HAS_OTHER_REPORTS_ACCESS) %}
+<div class="row g-sm-3">
+    <div class="col-12">{{ form_macros.form_input(other_info.requested_accessibility_services) }}</div>
+</div>
+{% endif %}
+{% endblock %}

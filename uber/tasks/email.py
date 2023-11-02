@@ -72,11 +72,11 @@ def send_email(
                             bccAddresses=bcc,
                             message=message)
             if error_msg:
-                log.error('Error while sending email: ' + error_msg)
+                log.error('Error while sending email: ' + str(error_msg))
             else:
                 record_email = True
         except Exception as error:
-            log.error('Error while sending email: {}'.format(error))
+            log.error('Error while sending email: {}'.format(str(error)))
         sleep(0.1)  # Avoid hitting rate limit
     else:
         log.error('Email sending turned off, so unable to send {}', locals())
@@ -145,7 +145,7 @@ def notify_admins_of_pending_emails():
             body = render('emails/daily_checks/pending_emails.html', {
                 'pending_emails_by_sender': emails_by_sender,
                 'primary_sender': sender,
-            })
+            }, encoding=None)
             send_email(c.STAFF_EMAIL, sender, subject, body, format='html', model='n/a', session=session)
 
         return groupify(pending_emails, 'sender', 'ident')
@@ -198,7 +198,7 @@ def send_automated_emails():
                         if model_instance.id not in automated_email.emails_by_fk_id:
                             if automated_email.would_send_if_approved(model_instance):
                                 if automated_email.approved or not automated_email.needs_approval:
-                                    if model_instance.active_receipt:
+                                    if getattr(model_instance, 'active_receipt', None):
                                         session.refresh_receipt_and_model(model_instance)
                                     automated_email.send_to(model_instance, delay=False)
                                     quantity_sent += 1

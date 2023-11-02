@@ -1,7 +1,7 @@
 """Add import flag to attendee accounts
 
 Revision ID: 9122d9b6f62c
-Revises: c31a2e5b6fbd
+Revises: 1fcbcf875d8e
 Create Date: 2023-09-05 06:35:31.397510
 
 """
@@ -9,6 +9,8 @@ Create Date: 2023-09-05 06:35:31.397510
 
 # revision identifiers, used by Alembic.
 revision = '9122d9b6f62c'
+# Uncomment the line below next year to reorder this branched revision.
+# down_revision = '1fcbcf875d8e'
 down_revision = 'c31a2e5b6fbd'
 branch_labels = None
 depends_on = None

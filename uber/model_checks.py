@@ -20,6 +20,7 @@ import cherrypy
 import phonenumbers
 from pockets.autolog import log
 
+from uber.badge_funcs import get_real_badge_type
 from uber.config import c
 from uber.custom_tags import format_currency
 from uber.decorators import prereg_validation, validation
@@ -28,7 +29,7 @@ from uber.models import AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowAp
     GuestDetailedTravelPlan, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio, Job, MarketplaceApplication, \
     MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam, PanelApplicant, PanelApplication, \
     PromoCode, PromoCodeGroup, Sale, Session, WatchList
-from uber.utils import localized_now, valid_email
+from uber.utils import localized_now, valid_email, get_age_from_birthday
 from uber.payments import PreregCart
 
 
@@ -134,80 +135,6 @@ def ignore_unassigned_and_placeholders(func):
         if not unassigned_group_reg and not valid_placeholder:
             return func(attendee)
     return with_skipping
-
-
-@prereg_validation.Attendee
-def group_leader_under_13(attendee):
-    if attendee.badge_type == c.PSEUDO_GROUP_BADGE and attendee.age_group_conf['val'] in [c.UNDER_6, c.UNDER_13]:
-        return "Children under 13 cannot be group leaders."
-
-
-@prereg_validation.Attendee
-def child_badge_over_13(attendee):
-    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.is_new and attendee.badge_type == c.CHILD_BADGE \
-            and attendee.age_now_or_at_con and attendee.age_now_or_at_con >= 13:
-        return "If you will be 13 or older at the start of {}, " \
-            "please select an Attendee badge instead of a 12 and Under badge.".format(c.EVENT_NAME)
-
-
-@prereg_validation.Attendee
-def attendee_badge_under_13(attendee):
-    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.is_new and attendee.badge_type == c.ATTENDEE_BADGE \
-            and attendee.age_now_or_at_con and attendee.age_now_or_at_con < 13:
-        return "If you will be 12 or younger at the start of {}, " \
-            "please select the 12 and Under badge instead of an Attendee badge.".format(c.EVENT_NAME)
-
-
-@prereg_validation.Attendee
-def total_cost_over_paid(attendee):
-    return
-    if (attendee.total_cost * 100) < attendee.amount_paid:
-        if (not attendee.orig_value_of('birthdate') or attendee.orig_value_of('birthdate') < attendee.birthdate) \
-                and attendee.age_group_conf['val'] in [c.UNDER_6, c.UNDER_13]:
-            return 'The date of birth you entered incurs a discount; ' \
-                'please email {} to change your badge and receive a refund'.format(c.REGDESK_EMAIL)
-        return 'You have already paid {}, you cannot reduce your extras below that.'.format(
-            format_currency(attendee.amount_paid / 100))
-
-
-@validation.Attendee
-def attendee_money(attendee):
-    if attendee.overridden_price is not None:
-        try:
-            overridden_price = int(float(attendee.overridden_price))
-            if overridden_price < 0:
-                return 'Overridden price must be a positive integer'
-        except Exception:
-            return 'Invalid overridden price ({})'.format(attendee.overridden_price)
-
-
-@validation.Attendee
-def invalid_badge_num(attendee):
-    if c.NUMBERED_BADGES and attendee.badge_num:
-        try:
-            assert int(attendee.badge_num) is not None
-        except Exception:
-            return '{!r} is not a valid badge number'.format(attendee.badge_num)
-
-
-@validation.Attendee
-def no_more_custom_badges(attendee):
-    if (attendee.badge_type != attendee.orig_value_of('badge_type') or attendee.is_new) \
-            and attendee.has_personalized_badge and c.AFTER_PRINTED_BADGE_DEADLINE:
-        with Session() as session:
-            admin = session.current_admin_account()
-            if not admin.is_admin:
-                return 'Custom badges have already been ordered so you cannot use this badge type'
-
-
-@validation.Attendee
-def out_of_badge_type(attendee):
-    if attendee.badge_type != attendee.orig_value_of('badge_type'):
-        with Session() as session:
-            try:
-                session.get_next_badge_num(attendee.badge_type_real)
-            except AssertionError:
-                return 'There are no more badges available for that type'
 
 
 WatchList.required = [
@@ -656,9 +583,13 @@ def overlapping_events(event, other_event_id=None):
 PanelApplication.required = [
     ('name', 'Panel Name'),
     ('description', 'Panel Description'),
+    ('presentation', 'Panel Type'),
     ('length', 'Panel Length'),
     ('noise_level', 'Noise Level'),
 ]
+
+if len(c.PANEL_DEPT_OPTS) > 1:
+    PanelApplication.required.append(('department', 'Department'))
 
 PanelApplicant.required = [
     ('first_name', 'First Name'),
@@ -725,6 +656,18 @@ def specify_cost_details(app):
 def specify_rating(app):
     if len(c.PANEL_RATING_OPTS) > 1 and app.rating == c.UNRATED:
         return 'Please select a content rating for your panel.'
+
+
+@validation.PanelApplication
+def specify_granular_rating(app):
+    if len(c.PANEL_CONTENT_OPTS) > 1 and not app.granular_rating:
+        return "Please select what your panel's content will contain, or None."
+
+
+@validation.PanelApplication
+def none_is_none_granular_rating(app):
+    if c.NONE in app.granular_rating_ints and len(app.granular_rating_ints) > 1:
+        return "You cannot select mature content for your panel and also 'None'."
 
 
 Attraction.required = [
@@ -1011,8 +954,142 @@ def media_max_length(piece):
     if len(piece.media) > 15:
         return "The description of the piece's media must be 15 characters or fewer."
 
+### New validations, which return a tuple with the field name (or an empty string) and the message
 
 @prereg_validation.Attendee
+def reasonable_total_cost(attendee):
+    if attendee.total_cost >= 999999:
+        return ('', 'We cannot charge {}. Please reduce extras so the total is below $9,999.'.format(
+            format_currency(attendee.total_cost)))
+
+
+@prereg_validation.Attendee
+def allowed_to_register(attendee):
+    if not attendee.age_group_conf['can_register']:
+        return ('', 'Attendees {} years of age do not need to register, ' \
+            'but MUST be accompanied by a parent at all times!'.format(attendee.age_group_conf['desc'].lower()))
+
+
+@prereg_validation.Attendee
+def child_group_leaders(attendee):
+    if attendee.badge_type == c.PSEUDO_GROUP_BADGE and attendee.birthdate and \
+            get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) < 13:
+        return ('badge_type', "Children under 13 cannot be group leaders.")
+
+
+@prereg_validation.Attendee
+def no_more_child_badges(attendee):
+    if not attendee.is_new and not attendee.badge_status == c.PENDING_STATUS:
+        return
+
+    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.birthdate and \
+            get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) < 18 and not c.CHILD_BADGE_AVAILABLE:
+        return ('badge_type', "Unfortunately, we are sold out of badges for attendees under 18.")
+
+
+@prereg_validation.Attendee
+def child_badge_over_13(attendee):
+    if not attendee.is_new and not attendee.badge_status == c.PENDING_STATUS:
+        return
+
+    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.birthdate and attendee.badge_type == c.CHILD_BADGE \
+            and get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) >= 13:
+        return ('badge_type', "If you will be 13 or older at the start of {}, " \
+                                "please select an Attendee badge instead of a 12 and Under badge.".format(c.EVENT_NAME))
+
+
+@prereg_validation.Attendee
+def attendee_badge_under_13(attendee):
+    if not attendee.is_new and not attendee.badge_status == c.PENDING_STATUS:
+        return
+
+    if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.birthdate and attendee.badge_type == c.ATTENDEE_BADGE \
+        and get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) < 13:
+        return ('badge_type', "If you will be 12 or younger at the start of {}, " \
+                                "please select the 12 and Under badge instead of an Attendee badge.".format(c.EVENT_NAME))
+
+
+@prereg_validation.Attendee
+def age_discount_after_paid(attendee):
+    if (attendee.total_cost * 100) < attendee.amount_paid:
+        if (not attendee.orig_value_of('birthdate') or attendee.orig_value_of('birthdate') < attendee.birthdate) \
+                and attendee.age_group_conf['discount'] > 0:
+            return ('birthdate', 'The date of birth you entered incurs a discount; \
+                                please email {} to change your badge and receive a refund'.format(c.REGDESK_EMAIL))
+
+
+@prereg_validation.Attendee
+def require_staff_shirt_size(attendee):
+    if attendee.gets_staff_shirt and not attendee.shirt_size_marked:
+        return ('staff_shirt', "Please select a shirt size for your staff shirt.")
+
+
+@validation.Attendee
+def volunteers_cellphone_or_checkbox(attendee):
+    if not attendee.placeholder and not attendee.no_cellphone and attendee.staffing_or_will_be and not attendee.cellphone:
+        return ('cellphone', "Volunteers and staffers must provide a cellphone number or indicate they do not have a cellphone.")
+
+
+@prereg_validation.Attendee
+def promo_code_is_useful(attendee):
+    if attendee.promo_code:
+        with Session() as session:
+            if session.lookup_agent_code(attendee.promo_code.code):
+                return
+            code = session.lookup_promo_or_group_code(attendee.promo_code.code, PromoCode)
+            group = code.group if code and code.group else session.lookup_promo_or_group_code(attendee.promo_code.code, PromoCodeGroup)
+            if group and group.total_cost == 0:
+                return
+
+    if attendee.is_new and attendee.promo_code:
+        if not attendee.is_unpaid:
+            return ('promo_code', "You can't apply a promo code after you've paid or if you're in a group.")
+        elif attendee.is_dealer:
+            return ('promo_code', "You can't apply a promo code to a {}.".format(c.DEALER_REG_TERM))
+        elif attendee.age_discount != 0:
+            return ('promo_code', "You are already receiving an age based discount, you can't use a promo code on top of that.")
+        elif attendee.badge_type == c.ONE_DAY_BADGE or attendee.is_presold_oneday:
+            return ('promo_code', "You can't apply a promo code to a one day badge.")
+        elif attendee.overridden_price:
+            return ('promo_code', "You already have a special badge price, you can't use a promo code on top of that.")
+        elif attendee.badge_cost_with_promo_code >= attendee.calculate_badge_cost():
+            return ('promo_code', "That promo code doesn't make your badge any cheaper. You may already have other discounts.")
+
+
+@prereg_validation.Attendee
+def promo_code_not_is_expired(attendee):
+    if attendee.is_new and attendee.promo_code and attendee.promo_code.is_expired:
+        return ('promo_code', 'That promo code is expired.')
+
+
+@validation.Attendee
+def promo_code_has_uses_remaining(attendee):
+    from uber.payments import PreregCart
+    if attendee.is_new and attendee.promo_code and not attendee.promo_code.is_unlimited:
+        unpaid_uses_count = PreregCart.get_unpaid_promo_code_uses_count(
+            attendee.promo_code.id, attendee.id)
+        if (attendee.promo_code.uses_remaining - unpaid_uses_count) < 0:
+            return ('promo_code', 'That promo code has been used too many times.')
+
+
+@validation.Attendee
+def allowed_to_volunteer(attendee):
+    if attendee.staffing_or_will_be \
+            and not attendee.age_group_conf['can_volunteer'] \
+            and attendee.badge_type not in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] \
+            and c.PRE_CON:
+        return ('staffing', 'Your interest is appreciated, but ' + c.EVENT_NAME + ' volunteers must be 18 or older.')
+
+
+@validation.Attendee
+def banned_volunteer(attendee):
+    if attendee.staffing_or_will_be and attendee.full_name in c.BANNED_STAFFERS:
+        return ('staffing', "We've declined to invite {} back as a volunteer, ".format(attendee.full_name) + (
+                    'talk to STOPS to override if necessary' if c.AT_THE_CON else
+                    'Please contact us via {} if you believe this is in error'.format(c.CONTACT_URL)))
+
+
+@validation.Attendee
 def agent_code_already_used(attendee):
     if attendee.promo_code:
         with Session() as session:
@@ -1021,4 +1098,37 @@ def agent_code_already_used(attendee):
                 for app in apps_with_code:
                     if not app.agent_id or app.agent_id == attendee.id:
                         return
-                return "That agent code has already been used."
+                return ('promo_code', "That agent code has already been used.")
+
+
+@validation.Attendee
+def not_in_range(attendee):
+    if not attendee.badge_num:
+        return
+    
+    badge_type = get_real_badge_type(attendee.badge_type)
+    lower_bound, upper_bound = c.BADGE_RANGES[badge_type]
+    if not (lower_bound <= attendee.badge_num <= upper_bound):
+        return ('badge_num', 'Badge number {} is out of range for badge type {} ({} - {})'.format(attendee.badge_num, 
+                                                                                    c.BADGES[attendee.badge_type],
+                                                                                    lower_bound, 
+                                                                                    upper_bound))
+
+@validation.Attendee
+def dealer_needs_group(attendee):
+    if attendee.is_dealer and not attendee.group_id and attendee.badge_type != c.PSEUDO_DEALER_BADGE:
+        return ('group_id', '{}s must be associated with a group'.format(c.DEALER_TERM.title()))
+
+
+@validation.Attendee
+def group_leadership(attendee):
+    if attendee.session and not attendee.group_id:
+        orig_group_id = attendee.orig_value_of('group_id')
+        if orig_group_id and attendee.id == attendee.session.group(orig_group_id).leader_id:
+            return ('group_id', 'You cannot remove the leader of a group from that group; make someone else the leader first')
+
+
+@prereg_validation.Group
+def edit_only_correct_statuses(group):
+    if group.status not in c.DEALER_EDITABLE_STATUSES:
+        return "You cannot change your {} after it has been {}.".format(c.DEALER_APP_TERM, group.status_label)

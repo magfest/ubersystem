@@ -1,6 +1,6 @@
 {{ judge.attendee.first_name }},
 
-Don't forget! The final date we can accept judging is {{ c.MIVS_JUDGING_DEADLINE|datetime_local }}.  The scores and feedback you submit are valued, so it's important to us and the developers that you're heard.
+Don't forget! The final date we can accept judging is {{ c.MIVS_JUDGING_DEADLINE|datetime_local }}.  The scores and feedback you submit are valued, so it's important to us and the developers that you're heard. As a reminder, any feedback you leave goes directly to the devs and is not able to be edited by MIVS in any way. It should be constructive and solely about the game, not MIVS or the show floor. 
 
 {% if judge.judging_complete %}Our records indicate that you've completed reviews of all the games you've been assigned.  Thanks!  Please let us know if you're available to judge any additional games, as some other judges may find themselves unable to do so.{% else %}Our records indicate that you have completed judging on {{ judge.game_reviews|length }} games, out of the {{ judge.reviews|length }} you have been assigned.  Please try to get the remainder evaluated before the deadline, and if you don't think you'll be able to do so, please let us know so that we can assign those games to another judge.{% endif %}
 

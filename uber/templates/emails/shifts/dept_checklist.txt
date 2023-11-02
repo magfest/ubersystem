@@ -1,6 +1,6 @@
 {{ attendee.first_name }},
 
-As a department head for {{ attendee.assigned_depts_labels|readable_join }} we need some information from you about: {{ conf.name|safe }}
+As a department head or checklist admin for {{ attendee.get_labels_for_memberships('dept_memberships_where_can_admin_checklist')|readable_join }} we need some information from you about: {{ conf.name|safe }}
 {% if conf.full_description %}
 {{ conf.full_description|safe }}{% endif %}{% if conf.slug == 'approve_setup_teardown' %}
 

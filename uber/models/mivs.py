@@ -65,6 +65,10 @@ class IndieJudge(MagModel, ReviewMixin):
     def email(self):
         return self.attendee.email
 
+    def get_code_for(self, game_id):
+        codes_for_game = [code for code in self.codes if code.game_id == game_id]
+        return codes_for_game[0] if codes_for_game else ''
+
 
 class IndieStudio(MagModel):
     group_id = Column(UUID, ForeignKey('group.id'), nullable=True)

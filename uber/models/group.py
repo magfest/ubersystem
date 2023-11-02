@@ -65,6 +65,12 @@ class Group(MagModel, TakesPaymentMixin):
     leader = relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
     studio = relationship('IndieStudio', uselist=False, backref='group')
     guest = relationship('GuestGroup', backref='group', uselist=False)
+    active_receipt = relationship(
+        'ModelReceipt',
+        cascade='save-update,merge,refresh-expire,expunge',
+        primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(Group.id),'
+                        'ModelReceipt.owner_model == "Group",'
+                        'ModelReceipt.closed == None)',)
 
     _repr_attr_names = ['name']
 
@@ -305,24 +311,12 @@ class Group(MagModel, TakesPaymentMixin):
             return 0
 
         if self.active_receipt:
-            return self.active_receipt['item_total'] / 100
+            return self.active_receipt.item_total / 100
         return self.default_cost + self.amount_extra
-    
-    @hybrid_property
-    def has_receipt(self):
-        return self.active_receipt
-    
-    @has_receipt.expression
-    def has_receipt(cls):
-        from uber.models import ModelReceipt
-        return exists().select_from(ModelReceipt).where(
-            and_(ModelReceipt.owner_id == cls.id,
-                 ModelReceipt.owner_model == "Group",
-                 ModelReceipt.closed == None))
 
     @hybrid_property
     def is_paid(self):
-        return self.active_receipt.get('current_amount_owed', None) == 0
+        return self.active_receipt and self.active_receipt.current_amount_owed == 0
     
     @is_paid.expression
     def is_paid(cls):
@@ -336,6 +330,9 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def amount_unpaid(self):
+        if self.is_dealer and self.status != c.APPROVED:
+            return 0
+
         if self.registered:
             return max(0, ((self.total_cost * 100) - self.amount_paid - self.amount_pending) / 100)
         else:
@@ -343,7 +340,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @property
     def amount_pending(self):
-        return self.active_receipt.get('pending_total', 0)
+        return self.active_receipt.pending_total if self.active_receipt else 0
 
     @property
     def amount_paid_repr(self):
@@ -355,7 +352,7 @@ class Group(MagModel, TakesPaymentMixin):
 
     @hybrid_property
     def amount_paid(self):
-        return self.active_receipt.get('payment_total', 0)
+        return self.active_receipt.payment_total if self.active_receipt else 0
     
     @amount_paid.expression
     def amount_paid(cls):
@@ -369,7 +366,7 @@ class Group(MagModel, TakesPaymentMixin):
     
     @hybrid_property
     def amount_refunded(self):
-        return self.active_receipt.get('refund_total', 0)
+        return self.active_receipt.refund_total if self.active_receipt else 0
     
     @amount_refunded.expression
     def amount_refunded(cls):

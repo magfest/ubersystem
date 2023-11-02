@@ -9,7 +9,6 @@
 {% set title_text = "Registration Step 1 of 4: Personal Info" %}
 {% endif %}
 {% block content %}
-  {{ attendee_fields.amount_extra_js }}
 {% set original_location = ".." ~ c.PAGE_PATH %}
 <div class="card">
   <div class="card-body">
@@ -27,19 +26,27 @@
 {% endif %}
 {{ csrf_token() }}
 
+{% include "forms/prereg_fields.html" %}
+
 {% if forms and 'group_info' in forms %}
-  {% include "forms/group_info.html" %}
-{% elif attendee.badge_type == c.PSEUDO_DEALER_BADGE %}
+  {% include "forms/group/group_info.html" %}
+{% endif %}
+
+{% if attendee.badge_type == c.PSEUDO_DEALER_BADGE %}
+{# Dealer reg does not involve payment, so they cannot select badge add-ons until after applying. #}
   <h2 class="h3 text-center">{{ c.DEALER_TERM|title }} Personal Info</h2>
   {{ forms['badge_extras'].badge_type }}
 {% else %}
-  {% include "forms/badge_extras.html" %}
+  {% include "forms/attendee/badge_extras.html" %}
+  {# hidden field to keep promo code if an attendee clicked the group invite link #}
+  <input type="hidden" name="promo_code_code" value="{{ promo_code_code }}" />
 {% endif %}
-  {% include "forms/personal_info.html" %}
-  {% include "forms/consents.html" %}
+
+{% include "forms/attendee/personal_info.html" %}
+{% include "forms/attendee/consents.html" %}
 
 {# old fields, kept for reference as we migrate to new fields
-  {% include "forms/other_info.html" %}
+  {% include "forms/attendee/other_info.html" %}
   {{ group_fields.group_name }}
   {{ group_fields.badges_dropdown }}
   {% if is_prereg_dealer %}
@@ -76,7 +83,6 @@
   {{ attendee_fields.comments }}
   {{ attendee_fields.requested_accessibility_services }}
   {{ attendee_fields.can_spam }}
-  {{ attendee_fields.panel_interest }}
   {{ attendee_fields.pii_consent_checkbox }} #}
 
   {# Deprecated forms included for backwards compatibility with old plugins #}
@@ -102,7 +108,7 @@
 {% if is_prereg_dealer %}
 {{ "js/warn-before-logout-dealer.js"|serve_static_content }}
 {% else %}
-<em class="form-text">Please note: your badge and any upgrades are not reserved until you complete the registration process, including payment.</em>
+<div class="text-center"><em class="badge bg-dark fw-normal">Please note: your badge and any upgrades are not reserved until you complete the registration process, including payment.</em></div>
 {% if cart_not_empty %}{{ "js/warn-before-logout.js"|serve_static_content }}{% endif %}
 {% endif %}
 {% endblock %}

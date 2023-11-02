@@ -528,7 +528,11 @@ class Root:
 
     @csv_file
     def attendee_hotel_pins(self, out, session):
-        hotel_query = session.attendees_with_badges().filter(Attendee.email != '')
+        hotel_query = session.query(Attendee).filter(Attendee.email != '', Attendee.is_valid == True,
+                                                     ~Attendee.badge_status.in_([c.REFUNDED_STATUS,
+                                                                                 c.NOT_ATTENDING,
+                                                                                 c.DEFERRED_STATUS]),
+                                                     or_(Attendee.badge_type != c.STAFF_BADGE, Attendee.hotel_eligible == True))
 
         attendees_without_hotel_pin = hotel_query.filter(or_(
             Attendee.hotel_pin == None,
