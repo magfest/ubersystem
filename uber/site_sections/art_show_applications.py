@@ -147,16 +147,17 @@ class Root:
         piece = session.art_show_piece(params, restricted=restricted, bools=['for_sale', 'no_quick_sale'])
         app = session.art_show_application(app_id)
 
-        if not params.get('name'):
-            message += "ERROR: Please enter a name for this piece."
-        if not params.get('gallery'):
-            message += "<br>" if not params.get('name') else "ERROR: "
-            message += "Please select which gallery you will hang this piece in."
-        if not params.get('type'):
-            message += "<br>" if not params.get('gallery') or not params.get('name') else "ERROR: "
-            message += "Please choose whether this piece is a print or an original."
-        if message:
-            return {'error': message}
+        if restricted:
+            if not params.get('name'):
+                message += "ERROR: Please enter a name for this piece."
+            if not params.get('gallery'):
+                message += "<br>" if not params.get('name') else "ERROR: "
+                message += "Please select which gallery you will hang this piece in."
+            if not params.get('type'):
+                message += "<br>" if not params.get('gallery') or not params.get('name') else "ERROR: "
+                message += "Please choose whether this piece is a print or an original."
+            if message:
+                return {'error': message}
 
         piece.app_id = app.id
         piece.app = app
