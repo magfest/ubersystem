@@ -1212,7 +1212,7 @@ class Root:
         count = int(count)
         charge_desc = '{} extra badge{} for {}'.format(count, 's' if count > 1 else '', group.name)
         charge = TransactionRequest(receipt, group.email, charge_desc,
-                                    group.new_badge_cost * count * 100, create_receipt_item=True)
+                                    group.new_badge_cost * count * 100, create_receipt_item=receipt.current_amount_owed == 0)
         if charge.dollar_amount % group.new_badge_cost:
             session.rollback()
             return {'error': 'Our preregistration price has gone up since you tried to add the badges; please try again'}
