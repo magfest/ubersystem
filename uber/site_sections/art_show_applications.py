@@ -132,7 +132,7 @@ class Root:
         if not stripe_intent:
             return {'error': "Something went wrong. Please contact us at {}.".format(email_only(c.REGDESK_EMAIL))}
 
-        if stripe_intent.status == "succeeded":
+        if not c.AUTHORIZENET_LOGIN_ID and stripe_intent.status == "succeeded":
             return {'error': "This payment has already been finalized!"}
 
         return {'stripe_intent': stripe_intent,
@@ -300,7 +300,7 @@ class Root:
         receipt = session.get_receipt_by_model(app, create_if_none="DEFAULT")
         
         charge_desc = "{}'s Art Show Application: {}".format(app.attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, app.attendee.email, charge_desc, create_receipt_item=True)
+        charge = TransactionRequest(receipt, app.attendee.email, charge_desc)
         
         message = charge.process_payment()
 
