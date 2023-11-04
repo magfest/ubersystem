@@ -1210,15 +1210,9 @@ class Root:
         session.add(receipt)
         session.commit()
         count = int(count)
-        session.add(ReceiptItem(receipt_id=receipt.id,
-                                desc='Extra badge for {}'.format(group.name),
-                                amount=group.new_badge_cost * 100,
-                                count=count,
-                                who='non-admin',
-                            ))
         charge_desc = '{} extra badge{} for {}'.format(count, 's' if count > 1 else '', group.name)
         charge = TransactionRequest(receipt, group.email, charge_desc,
-                                    group.new_badge_cost * count * 100, create_receipt_item=receipt.current_amount_owed == 0)
+                                    group.new_badge_cost * count * 100, create_receipt_item=True)
         if charge.dollar_amount % group.new_badge_cost:
             session.rollback()
             return {'error': 'Our preregistration price has gone up since you tried to add the badges; please try again'}
