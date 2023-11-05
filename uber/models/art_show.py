@@ -64,7 +64,9 @@ class ArtShowApplication(MagModel):
         cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(ArtShowApplication.id),'
                         'ModelReceipt.owner_model == "ArtShowApplication",'
-                        'ModelReceipt.closed == None)')
+                        'ModelReceipt.closed == None)',
+        uselist=False)
+    default_cost = Column(Integer, nullable=True)
 
     email_model_name = 'app'
 
@@ -72,6 +74,8 @@ class ArtShowApplication(MagModel):
     def _cost_adjustments(self):
         if self.overridden_price == '':
             self.overridden_price = None
+        if self.is_valid:
+            self.default_cost = self.calc_default_cost()
 
     @presave_adjustment
     def add_artist_id(self):

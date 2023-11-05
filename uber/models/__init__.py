@@ -168,8 +168,7 @@ class MagModel:
     def multichoice_columns(cls):
         return [c for c in cls.__table__.columns if isinstance(c.type, MultiChoice)]
 
-    @property
-    def default_cost(self):
+    def calc_default_cost(self):
         """
         Returns the sum of all cost and credit receipt items for this model instance.
 
@@ -1104,6 +1103,10 @@ class Session(SessionManager):
                 self.refresh(receipt)
             
             try:
+                if isinstance(model, Group):
+                    model.cost = model.calc_default_cost()
+                else:
+                    model.default_cost = model.calc_default_cost()
                 self.refresh(model)
             except sqlalchemy.exc.InvalidRequestError:
                 # Non-persistent object, so nothing to refresh
@@ -1505,7 +1508,7 @@ class Session(SessionManager):
 
             badge_statuses = [c.NEW_STATUS, c.COMPLETED_STATUS]
             if pending:
-                badge_statuses.append(c.PENDING_STATUS)
+                badge_statuses.append(c.AT_DOOR_PENDING_STATUS, c.PENDING_STATUS)
 
             badge_filter = Attendee.badge_status.in_(badge_statuses)
 
