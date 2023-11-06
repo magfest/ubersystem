@@ -6,7 +6,7 @@
     {{ macros.button_menu(
         c.PAGE_PATH, "btn-outline-primary",
         "../reg_reports/attendee_receipt_discrepancies", "Attendees with Receipt Discrepancies", c.HAS_REG_REPORTS_ACCESS,
-        "../reg_reports/attendees_nonzero_balance", "Attendees with Nonzero Balances", c.HAS_REG_REPORTS_ACCESS,
+        "../reg_reports/attendees_nonzero_balance", "Attendees with Non-Zero Balances", c.HAS_REG_REPORTS_ACCESS,
         ) }}
 </p>
 <div class="card">
@@ -27,7 +27,9 @@
             <th>Badge Type</th>
             <th>Default Cost</th>
             <th>Receipt Total</th>
-            <th>Amount Paid</th>
+            <th>Paid</th>
+            <th>Refunded</th>
+            <th>Total</th>
             {% if c.HAS_REG_ADMIN_ACCESS %}
                 <th></th>
                 <th></th>
@@ -55,7 +57,9 @@
             <td id="{{ attendee.id }}-receipt-total">
                 {{ (attendee.active_receipt.item_total / 100)|format_currency }}
             </td>
-            <td>{{ (attendee.amount_paid / 100)|format_currency }}</td>
+            <td>{{ (attendee.active_receipt.payment_total / 100)|format_currency }}</td>
+            <td>{{ (attendee.active_receipt.refund_total / 100)|format_currency }}</td>
+            <td>{{ (attendee.active_receipt.txn_total / 100)|format_currency }}</td>
             {% if c.HAS_REG_ADMIN_ACCESS %}
                 <td>
                     <a class="btn btn-success" href="../reg_admin/receipt_items?id={{ attendee.id }}" target="_blank">View Receipt Items</a>

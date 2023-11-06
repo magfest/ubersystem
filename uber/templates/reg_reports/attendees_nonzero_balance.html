@@ -1,12 +1,12 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% set title_text = "Attendees With Nonzero Balances" %}
+{% set title_text = "Attendees With Non-Zero Balances" %}
 {% block content %}
 <h2>Discrepancy Reports</h2>
 <p>
     {{ macros.button_menu(
         c.PAGE_PATH, "btn-outline-primary",
         "../reg_reports/attendee_receipt_discrepancies", "Attendees with Receipt Discrepancies", c.HAS_REG_REPORTS_ACCESS,
-        "../reg_reports/attendees_nonzero_balance", "Attendees with Nonzero Balances", c.HAS_REG_REPORTS_ACCESS,
+        "../reg_reports/attendees_nonzero_balance", "Attendees with Non-Zero Balances", c.HAS_REG_REPORTS_ACCESS,
         ) }}
 </p>
 <div class="card">
@@ -31,7 +31,9 @@
             <th>Email</th>
             <th>Badge Type</th>
             <th>Amount Owed</th>
-            <th>Amount Paid</th>
+            <th>Paid</th>
+            <th>Refunded</th>
+            <th>Total</th>
             <th>Difference</th>
             {% if c.HAS_REG_ADMIN_ACCESS %}<th></th>{% endif %}
             </tr>
@@ -62,8 +64,16 @@
                     if attendee.active_receipt else attendee.default_cost|format_currency }}
             </td>
             <td>
-                {{ (attendee.active_receipt.txn_total / 100)|format_currency 
+                {{ (attendee.active_receipt.payment_total / 100)|format_currency 
                     if attendee.active_receipt else "Unpaid" }}
+            </td>
+            <td>
+                {{ (attendee.active_receipt.refund_total / 100)|format_currency 
+                    if attendee.active_receipt else "N/A" }}
+            </td>
+            <td>
+                {{ (attendee.active_receipt.txn_total / 100)|format_currency 
+                    if attendee.active_receipt else "N/A" }}
             </td>
             <td>
                 {{ (attendee.active_receipt.current_receipt_amount / 100)|format_currency 
