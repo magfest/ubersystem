@@ -977,13 +977,13 @@ class ReceiptManager:
             if overridden_unset:
                 current_cost = model.overridden_price
                 model.overridden_price = None
-                new_cost = model.default_cost
+                new_cost = model.calc_default_cost()
 
                 revert_change = {'overridden_price': model.overridden_price}
             else:
                 current_cost = model.cost
                 model.auto_recalc = True
-                new_cost = model.default_cost
+                new_cost = model.calc_default_cost()
 
                 revert_change = {'auto_recalc': True, 'cost': model.cost}
             

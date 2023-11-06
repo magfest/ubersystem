@@ -145,7 +145,7 @@ class ArtShowApplication(MagModel):
     def true_default_cost(self):
         # why did I do this
         if self.overridden_price == None:
-            return self.default_cost
+            return self.default_cost or self.calc_default_cost()
         return self.overridden_price
     
     @true_default_cost.expression
@@ -165,11 +165,11 @@ class ArtShowApplication(MagModel):
         else:
             if self.active_receipt:
                 return self.active_receipt.item_total / 100
-            return self.default_cost or 0
+            return self.default_cost or self.calc_default_cost()
 
     @property
     def potential_cost(self):
-        return self.default_cost or 0
+        return self.default_cost or self.calc_default_cost() or 0
 
     def calc_app_price_change(self, **kwargs):
         preview_app = ArtShowApplication(**self.to_dict())

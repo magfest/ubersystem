@@ -39,7 +39,7 @@ def convert_dealer_badge(session, attendee, admin_note=''):
         attendee.append_admin_note(admin_note)
     attendee.badge_cost = None # Triggers re-calculating the base badge price on save
 
-    if receipt and receipt.item_total != int(attendee.default_cost * 100):
+    if receipt and receipt.item_total != int(attendee.calc_default_cost() * 100):
         session.add_all(receipt_items)
     else:
         session.get_receipt_by_model(attendee, create_if_none="DEFAULT")

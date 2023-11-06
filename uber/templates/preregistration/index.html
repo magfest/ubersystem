@@ -84,7 +84,7 @@
             </ul>
           </td>
           <td>
-              {{ attendee.default_cost|format_currency }}
+              {{ attendee.calc_default_cost()|format_currency }}
           </td>
           <td class="text-nowrap">
             <span id="edit-{{ attendee.first_name }}-{{ attendee.last_name }}">
@@ -108,7 +108,7 @@
               {% endfor %}
             </ul>
           </td>
-          <td>{{ group.default_cost|format_currency }}</td>
+          <td>{{ group.calc_default_cost()|format_currency }}</td>
           <td>
             <span id="edit-{{ group.name }}">
               <a href="form?edit_id={{ group.id }}" aria-describedby="edit-{{ group.name }}">Edit</a>
