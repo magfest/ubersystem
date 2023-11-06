@@ -118,6 +118,10 @@ class Group(MagModel, TakesPaymentMixin):
     def assign_creator(self):
         if self.is_new and not self.creator_id:
             self.creator_id = self.session.admin_attendee().id if self.session.admin_attendee() else None
+
+    @hybrid_property
+    def cost_cents(self):
+        return self.cost * 100
     
     @property
     def signnow_texts_list(self):

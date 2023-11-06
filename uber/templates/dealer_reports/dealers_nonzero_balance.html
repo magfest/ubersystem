@@ -1,0 +1,77 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% set title_text = "Attendees With Non-Zero Balances" %}
+{% block content %}
+{% include 'discrepancy_reports_header.html' with context %}
+<div class="card">
+    <div class="card-body">
+        <p>
+            {% if include_no_receipts %}
+                <a href="groups_nonzero_balance" class="btn btn-secondary">Hide Dealers Without Receipts</a>
+            {% else %}
+                <a href="groups_nonzero_balance?include_no_receipts=True" class="btn btn-outline-secondary">Show Dealers Without Receipts</a>
+            {% endif %}
+            <br/><span class="form-text">
+                Groups without receipts will typically have their receipt created when they start the payment process after approval.
+            </span>
+        </p>
+        <table class="table table-striped datatable">
+        <thead>
+            <tr>
+            <th></th>
+            <th>Group Name</th>
+            <th>Group Leader</th>
+            <th>Amount Owed</th>
+            <th>Paid</th>
+            <th>Refunded</th>
+            <th>Total</th>
+            <th>Difference</th>
+            {% if c.HAS_REG_ADMIN_ACCESS %}<th></th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for group in groups %}
+        <tr id="{{ group.id }}">
+            <td>
+                {% if group.id in discrepancy_ids %}
+                <i class="fa fa-exclamation-circle" data-bs-toggle="tooltip" data-bs-placement="top" 
+                    title="This group's current cost is different from their receipt total!"></i>
+                {% endif %}
+            </td>
+            <td data-order="{{ group.name }}" data-search="{{ group.name }}">
+                {{ group|form_link("true") }}
+            </td>
+            <td data-order="{{ group.leader.full_name }}" data-search="{{ group.leader.full_name }}">
+                {{ group.leader|form_link("true") }}
+            </td>
+            <td>
+                {{ (group.active_receipt.item_total / 100)|format_currency 
+                    if group.active_receipt else group.cost|format_currency }}
+            </td>
+            <td>
+                {{ (group.active_receipt.payment_total / 100)|format_currency 
+                    if group.active_receipt else "Unpaid" }}
+            </td>
+            <td>
+                {{ (group.active_receipt.refund_total / 100)|format_currency 
+                    if group.active_receipt else "N/A" }}
+            </td>
+            <td>
+                {{ (group.active_receipt.txn_total / 100)|format_currency 
+                    if group.active_receipt else "N/A" }}
+            </td>
+            <td>
+                {{ (group.active_receipt.current_receipt_amount / 100)|format_currency 
+                    if group.active_receipt else "N/A" }}
+            </td>
+            {% if c.HAS_REG_ADMIN_ACCESS %}
+            <td>
+                <a class="btn btn-success" href="../reg_admin/receipt_items?id={{ group.id }}" target="_blank">View Receipt Items</a>
+            </td>
+            {% endif %}
+            </tr>
+        {% endfor %}
+        </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

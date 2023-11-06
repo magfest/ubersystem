@@ -1,11 +1,41 @@
+from sqlalchemy import or_, and_
+
 from uber.config import c
-from uber.decorators import all_renderable, csv_file, xlsx_file
-from uber.models import Group
+from uber.decorators import all_renderable, csv_file, xlsx_file, log_pageview
+from uber.models import Group, ModelReceipt
 from uber.utils import extract_urls
 
 
 @all_renderable()
 class Root:
+    @log_pageview
+    def dealer_receipt_discrepancies(self, session):
+        filters = [Group.cost_cents != ModelReceipt.item_total, Group.is_dealer == True, Group.status == c.APPROVED]
+        
+        return {
+            'groups': session.query(Group).join(Group.active_receipt).filter(*filters),
+        }
+    
+    @log_pageview
+    def dealers_nonzero_balance(self, session, include_no_receipts=False):
+        if include_no_receipts:
+            groups = session.query(Group).outerjoin(Group.active_receipt).filter(
+                or_(and_(ModelReceipt.id == None, Group.cost > 0),
+                    and_(ModelReceipt.id != None, ModelReceipt.current_receipt_amount != 0)))
+        else:
+            groups = session.query(Group).join(Group.active_receipt).filter(ModelReceipt.current_receipt_amount != 0)
+
+        discrepancy_ids = [id[0] for id in 
+                           session.query(Group.id).join(Group.active_receipt).filter(Group.is_dealer == True,
+                                                                                     Group.status == c.APPROVED,
+                                                                                     Group.cost_cents != ModelReceipt.item_total)]
+
+        return {
+            'groups': groups.filter(Group.is_dealer == True, Group.status == c.APPROVED),
+            'discrepancy_ids': discrepancy_ids,
+            'include_no_receipts': include_no_receipts,
+        }
+
     @csv_file
     def seller_initial_review(self, out, session):
         out.writerow([

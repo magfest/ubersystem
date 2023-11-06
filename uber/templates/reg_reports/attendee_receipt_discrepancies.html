@@ -1,14 +1,7 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Attendees With Receipt Discrepancies{% endblock %}
 {% block content %}
-<h2>Discrepancy Reports</h2>
-<p>
-    {{ macros.button_menu(
-        c.PAGE_PATH, "btn-outline-primary",
-        "../reg_reports/attendee_receipt_discrepancies", "Attendees with Receipt Discrepancies", c.HAS_REG_REPORTS_ACCESS,
-        "../reg_reports/attendees_nonzero_balance", "Attendees with Non-Zero Balances", c.HAS_REG_REPORTS_ACCESS,
-        ) }}
-</p>
+{% include 'discrepancy_reports_header.html' with context %}
 <div class="card">
     <div class="card-body">
         <p>

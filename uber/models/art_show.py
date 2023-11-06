@@ -140,6 +140,10 @@ class ArtShowApplication(MagModel):
     @hybrid_property
     def is_valid(self):
         return self.status != c.DECLINED
+    
+    @hybrid_property
+    def default_cost_cents(self):
+        return self.default_cost * 100
 
     @property
     def total_cost(self):
