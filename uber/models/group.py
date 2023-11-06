@@ -111,7 +111,7 @@ class Group(MagModel, TakesPaymentMixin):
             return self.current_badge_cost * 100, self.new_badge_cost * num_new_badges * 100
 
         if not new_cost:
-            new_cost = int(preview_group.default_cost * 100)
+            new_cost = int(preview_group.calc_default_cost() * 100)
         return current_cost, new_cost - current_cost
                 
     @presave_adjustment
@@ -317,7 +317,7 @@ class Group(MagModel, TakesPaymentMixin):
 
         if self.active_receipt:
             return self.active_receipt.item_total / 100
-        return self.default_cost + self.amount_extra
+        return (self.cost or self.calc_default_cost()) + self.amount_extra
 
     @hybrid_property
     def is_paid(self):

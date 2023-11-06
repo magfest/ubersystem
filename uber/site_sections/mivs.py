@@ -248,7 +248,7 @@ class Root:
                             group.leader_id = attendee.id
                 for i in range(badges_remaining):
                     group.attendees.append(Attendee(badge_type=c.ATTENDEE_BADGE, paid=c.NEED_NOT_PAY))
-                group.cost = group.default_cost
+                group.cost = group.calc_default_cost()
                 group.guest = GuestGroup()
                 group.guest.group_type = c.MIVS
                 raise HTTPRedirect('index?message={}', 'Your studio has been registered')
