@@ -1981,7 +1981,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             not self.hotel_eligible
             or self.hotel_requests
             or not c.BEFORE_ROOM_DEADLINE
-            or not c.HOTELS_ENABLED) and (
+            or not c.HOTELS_ENABLED
+            or c.HOTEL_REQUESTS_URL) and (
             not c.VOLUNTEER_AGREEMENT_ENABLED or self.agreed_to_volunteer_agreement) and (
             not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures) \
             and c.SHIFTS_CREATED
