@@ -956,7 +956,7 @@ class Root:
         count = int(count)
         charge_desc = '{} extra badge{} for {}'.format(count, 's' if count > 1 else '', group.name)
         charge = TransactionRequest(receipt, receipt_email=group.email, description=charge_desc,
-                                    amount=c.get_group_price() * 100 * count, create_receipt_item=True)
+                                    amount=c.get_group_price() * 100 * count, create_receipt_item=receipt.current_amount_owed == 0)
         if charge.dollar_amount % c.GROUP_PRICE:
             session.rollback()
             return {'error': 'Our preregistration price has gone up since you tried to add more codes; please try again'}
@@ -1210,15 +1210,9 @@ class Root:
         session.add(receipt)
         session.commit()
         count = int(count)
-        session.add(ReceiptItem(receipt_id=receipt.id,
-                                desc='Extra badge for {}'.format(group.name),
-                                amount=group.new_badge_cost * 100,
-                                count=count,
-                                who='non-admin',
-                            ))
         charge_desc = '{} extra badge{} for {}'.format(count, 's' if count > 1 else '', group.name)
         charge = TransactionRequest(receipt, group.email, charge_desc,
-                                    group.new_badge_cost * count * 100, create_receipt_item=True)
+                                    group.new_badge_cost * count * 100, create_receipt_item=receipt.current_amount_owed == 0)
         if charge.dollar_amount % group.new_badge_cost:
             session.rollback()
             return {'error': 'Our preregistration price has gone up since you tried to add the badges; please try again'}
@@ -1700,7 +1694,7 @@ class Root:
         if not stripe_intent:
             return {'error': "Something went wrong. Please contact us at {}.".format(email_only(c.REGDESK_EMAIL))}
 
-        if stripe_intent.status == "succeeded":
+        if not c.AUTHORIZENET_LOGIN_ID and stripe_intent.status == "succeeded":
             return {'error': "This payment has already been finalized!"}
 
         return {'stripe_intent': stripe_intent,

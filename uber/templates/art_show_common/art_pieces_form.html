@@ -92,7 +92,7 @@
               </div>
               <div class="media mt-2">
                 <label class="form-text" for="media-{{ real_piece.id or 'new' }}">Original Media</label>
-                <input type="text" class="form-control" name="media" id="media-{{ real_piece.id or 'new' }}" length="15", placeholder="The exact media for this piece in a few words" required>
+                <input type="text" class="form-control" name="media" value="{{ real_piece.media or '' }}" id="media-{{ real_piece.id or 'new' }}" length="15", placeholder="The exact media for this piece in a few words" required>
               </div>
               <div class="print mt-2">
                 <label class="form-text">
@@ -158,7 +158,7 @@
         {% if readonly %}
           {{ app.hotel_name|default("N/A") }}
         {% else %}
-          <input type="text" class="form-control" name="hotel_name" id="hotel_name"/>
+          <input type="text" class="form-control" name="hotel_name" id="hotel_name" value="{{ app.hotel_name }}"/>
         {% endif %}
       </div>
       <div class="col-12 col-sm-6">
@@ -166,7 +166,7 @@
         {% if readonly %}
           {{ app.hotel_room_num|default("N/A") }}
         {% else %}
-          <input type="text" class="form-control" name="hotel_room_num" id="hotel_room_num"/>
+          <input type="text" class="form-control" name="hotel_room_num" id="hotel_room_num" value="{{ app.hotel_room_num }}"/>
         {% endif %}
       </div>
     </div>
@@ -253,10 +253,12 @@
             {% if piece.for_sale %}<input type="hidden" name="for_sale" value=1 />{% endif %}
             {% if piece.no_quick_sale %}<input type="hidden" name="no_quick_sale" value=1 />{% endif %}
             {{ csrf_token() }}
-          <select name="status" class="form-control">
-            {{ options(c.ART_PIECE_STATUS_OPTS, piece.status) }}
-          </select>
-            <button type="submit" class="btn btn-primary status_button"><i class="fa fa-check"></i></button>
+            <div class="input-group">
+              <select name="status" class="form-select">
+                {{ options(c.ART_PIECE_STATUS_OPTS, piece.status) }}
+              </select>
+              <button type="submit" class="btn btn-primary status_button"><i class="fa fa-check"></i></button>
+            </div>
             <br/><label class="checkbox-label optional-field">
               <input type="checkbox" name="voice_auctioned" value="1"{% if piece.voice_auctioned %} checked{% endif %} />
               This piece went to voice auction.
@@ -337,7 +339,6 @@
     var showOrHidePrint = function() {
         var type_checked = $(this).closest("input[type=radio][name=type]:checked");
         var form_group = $(this).parents('form').first();
-        console.log($(this))
 
         setVisible(form_group.find('.print').first(), type_checked && type_checked.val() == {{ c.PRINT }});
         setVisible(form_group.find('.media').first(), type_checked && type_checked.val() == {{ c.ORIGINAL }});

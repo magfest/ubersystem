@@ -15,7 +15,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 {% block hidden %}
 {% if not admin_area and attendee.placeholder %}
-{{ other_info.placeholder(value=false) }}
+{{ other_info.placeholder(value=0) }}
 {% endif %}
 {% endblock %}
 

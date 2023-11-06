@@ -538,6 +538,38 @@ class Root:
                            "{}'s registration has been cancelled and they have been refunded {}.{}".format(
                             getattr(model, 'full_name', None) or model.name, format_currency(refund_total / 100), message_end
                            ))
+    
+    @ajax
+    def refresh_model_receipt(self, session, id=''):
+        try:
+            model = session.attendee(id)
+        except NoResultFound:
+            try:
+                model = session.group(id)
+            except NoResultFound:
+                model = session.art_show_application(id)
+
+        receipt = session.get_receipt_by_model(model)
+
+        old_cost = getattr(model, 'default_cost', getattr(model, 'cost', -1)) * 100
+        old_receipt_total = receipt.item_total
+
+        session.refresh_receipt_and_model(model)
+
+        new_cost = getattr(model, 'default_cost', getattr(model, 'cost', -1)) * 100
+        new_receipt_total = receipt.item_total
+        formatted_new_cost = format_currency(new_cost / 100)
+        formatted_new_receipt_total = format_currency(new_receipt_total / 100)
+
+        if new_cost == old_cost and new_receipt_total == old_receipt_total:
+            message = 'Model and receipt refreshed, but nothing changed.'
+        elif new_cost == new_receipt_total:
+            return {'message': 'Model and receipt refreshed and all discrepancies resolved!'}
+        elif new_cost != old_cost and new_receipt_total != old_receipt_total:
+            message = 'Model\'s default cost and receipt total updated.'
+        else:
+            message = "{} updated.".format('Model\'s default cost' if new_cost != old_cost else 'Receipt total')
+        return {'new_cost': formatted_new_cost, 'new_receipt_total': formatted_new_receipt_total, 'message': message}
 
     @not_site_mappable
     def remove_promo_code(self, session, id=''):
@@ -678,13 +710,6 @@ class Root:
         session.commit()
 
         return {'invalidated': id}
-
-    def attendees_who_owe_money(self, session):
-        unpaid_attendees = [attendee for attendee in session.attendees_with_badges() 
-                            if attendee.amount_unpaid]
-        return {
-            'attendees': unpaid_attendees,
-        }
 
     @csv_file
     @not_site_mappable
