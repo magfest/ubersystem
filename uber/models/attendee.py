@@ -897,7 +897,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.active_receipt:
             return self.active_receipt.item_total / 100
-        return self.default_cost
+        return self.default_cost or self.calc_default_cost()
 
     @property
     def total_donation(self):
