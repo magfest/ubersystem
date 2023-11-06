@@ -38,7 +38,7 @@ class Root:
     def attendee_receipt_discrepancies(self, session, include_pending=False):
         filters = [Attendee.default_cost_cents != ModelReceipt.item_total]
         if include_pending:
-            filters.append(or_(Attendee.badge_status == c.PENDING, Attendee.is_valid == True))
+            filters.append(or_(Attendee.badge_status == c.PENDING_STATUS, Attendee.is_valid == True))
         else:
             filters.append(Attendee.is_valid == True)
         
