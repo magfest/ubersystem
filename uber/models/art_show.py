@@ -75,7 +75,7 @@ class ArtShowApplication(MagModel):
         if self.overridden_price == '':
             self.overridden_price = None
         if self.is_valid:
-            self.default_cost = self.calc_default_cost()
+            self.default_cost = self.overridden_price or self.calc_default_cost()
 
     @presave_adjustment
     def add_artist_id(self):
