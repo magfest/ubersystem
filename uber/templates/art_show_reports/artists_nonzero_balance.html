@@ -49,7 +49,7 @@
             </td>
             <td>
                 {{ (app.active_receipt.item_total / 100)|format_currency 
-                    if app.active_receipt else app.default_cost|format_currency }}
+                    if app.active_receipt else app.true_default_cost|format_currency }}
             </td>
             <td>
                 {{ (app.active_receipt.payment_total / 100)|format_currency 
@@ -65,7 +65,7 @@
             </td>
             <td>
                 {{ (app.active_receipt.current_receipt_amount / 100)|format_currency 
-                    if app.active_receipt else app.default_cost|format_currency }}
+                    if app.active_receipt else app.true_default_cost|format_currency }}
             </td>
             {% if c.HAS_REG_ADMIN_ACCESS %}
             <td>

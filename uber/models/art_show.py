@@ -1,7 +1,7 @@
 import random
 import string
 
-from sqlalchemy import func
+from sqlalchemy import func, case, or_
 from datetime import datetime
 from pytz import UTC
 
@@ -75,7 +75,7 @@ class ArtShowApplication(MagModel):
         if self.overridden_price == '':
             self.overridden_price = None
         if self.is_valid:
-            self.default_cost = self.overridden_price or self.calc_default_cost()
+            self.default_cost = self.calc_default_cost()
 
     @presave_adjustment
     def add_artist_id(self):
@@ -142,8 +142,21 @@ class ArtShowApplication(MagModel):
         return self.status != c.DECLINED
     
     @hybrid_property
-    def default_cost_cents(self):
-        return self.default_cost * 100
+    def true_default_cost(self):
+        # why did I do this
+        if self.overridden_price == None:
+            return self.default_cost
+        return self.overridden_price
+    
+    @true_default_cost.expression
+    def true_default_cost(cls):
+        return case(
+            [(cls.overridden_price == None, cls.default_cost)],
+            else_=cls.overridden_price)
+    
+    @hybrid_property
+    def true_default_cost_cents(self):
+        return self.true_default_cost * 100
 
     @property
     def total_cost(self):

@@ -10,7 +10,7 @@
             <th>Artist</th>
             <th>Application</th>
             <th>Artist Type</th>
-            <th>Default Cost</th>
+            <th>Current Cost</th>
             <th>Receipt Total</th>
             <th>Paid</th>
             <th>Refunded</th>
@@ -34,7 +34,7 @@
                 {{ app.deliver_method_label }}
             </td>
             <td id="{{ app.id }}-cost">
-                {{ app.default_cost|format_currency }}
+                {{ app.true_default_cost|format_currency }}
             </td>
             <td id="{{ app.id }}-receipt-total">
                 {{ (app.active_receipt.item_total / 100)|format_currency }}

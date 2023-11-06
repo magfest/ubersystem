@@ -139,7 +139,7 @@ class Root:
     
     @log_pageview
     def artist_receipt_discrepancies(self, session):
-        filters = [ArtShowApplication.default_cost_cents != ModelReceipt.item_total, ArtShowApplication.status == c.APPROVED]
+        filters = [ArtShowApplication.true_default_cost_cents != ModelReceipt.item_total, ArtShowApplication.status == c.APPROVED]
         
         return {
             'apps': session.query(ArtShowApplication).join(ArtShowApplication.active_receipt).filter(*filters),
@@ -149,7 +149,7 @@ class Root:
     def artists_nonzero_balance(self, session, include_no_receipts=False):
         if include_no_receipts:
             apps = session.query(ArtShowApplication).outerjoin(ArtShowApplication.active_receipt).filter(
-                or_(and_(ModelReceipt.id == None, ArtShowApplication.default_cost > 0),
+                or_(and_(ModelReceipt.id == None, ArtShowApplication.true_default_cost > 0),
                     and_(ModelReceipt.id != None, ModelReceipt.current_receipt_amount != 0)))
         else:
             apps = session.query(ArtShowApplication).join(ArtShowApplication.active_receipt).filter(ModelReceipt.current_receipt_amount != 0)
@@ -157,7 +157,7 @@ class Root:
         discrepancy_ids = [id[0] for id in 
                            session.query(ArtShowApplication.id).join(
                                ArtShowApplication.active_receipt).filter(ArtShowApplication.is_valid == True,
-                                                                         ArtShowApplication.default_cost_cents != ModelReceipt.item_total)]
+                                                                         ArtShowApplication.true_default_cost_cents != ModelReceipt.item_total)]
 
         return {
             'apps': apps.filter(ArtShowApplication.status == c.APPROVED),
