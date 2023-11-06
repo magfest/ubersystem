@@ -70,7 +70,7 @@
             </td>
             <td>
                 {{ (attendee.active_receipt.current_receipt_amount / 100)|format_currency 
-                    if attendee.active_receipt else "N/A" }}
+                    if attendee.active_receipt else attendee.default_cost|format_currency }}
             </td>
             {% if c.HAS_REG_ADMIN_ACCESS %}
             <td>

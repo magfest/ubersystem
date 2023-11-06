@@ -6,13 +6,12 @@
     <div class="card-body">
         <p>
             {% if include_no_receipts %}
-                <a href="apps_nonzero_balance" class="btn btn-secondary">Hide Artists Without Receipts</a>
+                <a href="artists_nonzero_balance" class="btn btn-secondary">Hide Artists Without Receipts</a>
             {% else %}
-                <a href="apps_nonzero_balance?include_no_receipts=True" class="btn btn-outline-secondary">Show Artists Without Receipts</a>
+                <a href="artists_nonzero_balance?include_no_receipts=True" class="btn btn-outline-secondary">Show Artists Without Receipts</a>
             {% endif %}
             <br/><span class="form-text">
-                Artists without receipts will typically have their receipt created and 
-                be prompted to pay when they, e.g., claim their badge.
+                Artists without receipts will typically have their receipt created when they start the payment process after approval.
             </span>
         </p>
         <table class="table table-striped datatable">
@@ -66,7 +65,7 @@
             </td>
             <td>
                 {{ (app.active_receipt.current_receipt_amount / 100)|format_currency 
-                    if app.active_receipt else "N/A" }}
+                    if app.active_receipt else app.default_cost|format_currency }}
             </td>
             {% if c.HAS_REG_ADMIN_ACCESS %}
             <td>
