@@ -70,7 +70,8 @@ class Group(MagModel, TakesPaymentMixin):
         cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(Group.id),'
                         'ModelReceipt.owner_model == "Group",'
-                        'ModelReceipt.closed == None)',)
+                        'ModelReceipt.closed == None)',
+        uselist=False)
 
     _repr_attr_names = ['name']
 
@@ -80,7 +81,7 @@ class Group(MagModel, TakesPaymentMixin):
         if len(assigned) == 1:
             [self.leader] = assigned
         if self.auto_recalc:
-            self.cost = self.default_cost
+            self.cost = self.calc_default_cost()
         elif not self.cost:
             self.cost = 0
         if self.status == c.APPROVED and not self.approved:
@@ -117,6 +118,10 @@ class Group(MagModel, TakesPaymentMixin):
     def assign_creator(self):
         if self.is_new and not self.creator_id:
             self.creator_id = self.session.admin_attendee().id if self.session.admin_attendee() else None
+
+    @hybrid_property
+    def cost_cents(self):
+        return self.cost * 100
     
     @property
     def signnow_texts_list(self):

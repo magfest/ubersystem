@@ -259,7 +259,9 @@ class Attendee(MagModel, TakesPaymentMixin):
         cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(Attendee.id),'
                         'ModelReceipt.owner_model == "Attendee",'
-                        'ModelReceipt.closed == None)')
+                        'ModelReceipt.closed == None)',
+        uselist=False)
+    default_cost = Column(Integer, nullable=True)
 
     dept_memberships = relationship('DeptMembership', backref='attendee')
     dept_membership_requests = relationship('DeptMembershipRequest', backref='attendee')
@@ -606,6 +608,15 @@ class Attendee(MagModel, TakesPaymentMixin):
     def refunded_if_receipt_has_refund(self):
         if self.paid == c.HAS_PAID and self.active_receipt and self.active_receipt.refund_total:
             self.paid = c.REFUNDED
+
+    @presave_adjustment
+    def update_default_cost(self):
+        if self.is_valid or self.badge_status == c.PENDING_STATUS:
+            self.default_cost = self.calc_default_cost()
+
+    @hybrid_property
+    def default_cost_cents(self):
+        return self.default_cost * 100
 
     @presave_adjustment
     def assign_creator(self):

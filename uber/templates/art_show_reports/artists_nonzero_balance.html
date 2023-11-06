@@ -1,0 +1,81 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% set title_text = "Artists With Non-Zero Balances" %}
+{% block content %}
+{% include 'discrepancy_reports_header.html' with context %}
+<div class="card">
+    <div class="card-body">
+        <p>
+            {% if include_no_receipts %}
+                <a href="artists_nonzero_balance" class="btn btn-secondary">Hide Artists Without Receipts</a>
+            {% else %}
+                <a href="artists_nonzero_balance?include_no_receipts=True" class="btn btn-outline-secondary">Show Artists Without Receipts</a>
+            {% endif %}
+            <br/><span class="form-text">
+                Artists without receipts will typically have their receipt created when they start the payment process after approval.
+            </span>
+        </p>
+        <table class="table table-striped datatable">
+        <thead>
+            <tr>
+            <th></th>
+            <th>Artist</th>
+            <th>Application</th>
+            <th>Artist Type</th>
+            <th>Amount Owed</th>
+            <th>Paid</th>
+            <th>Refunded</th>
+            <th>Total</th>
+            <th>Difference</th>
+            {% if c.HAS_REG_ADMIN_ACCESS %}<th></th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for app in apps %}
+        <tr id="{{ app.id }}">
+            <td>
+                {% if app.id in discrepancy_ids %}
+                <i class="fa fa-exclamation-circle" data-bs-toggle="tooltip" data-bs-placement="top" 
+                    title="This app's default cost is different from their receipt total!"></i>
+                {% endif %}
+            </td>
+            <td data-order="{{ app.attendee.full_name }}" data-search="{{ app.attendee.full_name }}">
+                {{ app.attendee|form_link("true") }}
+            </td>
+            <td>
+                <a href="../art_show_admin/form?id={{ app.id }}" target="_blank" class="btn btn-primary">View</a>
+            </td>
+            <td>
+                {{ app.deliver_method_label }}
+            </td>
+            <td>
+                {{ (app.active_receipt.item_total / 100)|format_currency 
+                    if app.active_receipt else app.true_default_cost|format_currency }}
+            </td>
+            <td>
+                {{ (app.active_receipt.payment_total / 100)|format_currency 
+                    if app.active_receipt else "Unpaid" }}
+            </td>
+            <td>
+                {{ (app.active_receipt.refund_total / 100)|format_currency 
+                    if app.active_receipt else "N/A" }}
+            </td>
+            <td>
+                {{ (app.active_receipt.txn_total / 100)|format_currency 
+                    if app.active_receipt else "N/A" }}
+            </td>
+            <td>
+                {{ (app.active_receipt.current_receipt_amount / 100)|format_currency 
+                    if app.active_receipt else app.true_default_cost|format_currency }}
+            </td>
+            {% if c.HAS_REG_ADMIN_ACCESS %}
+            <td>
+                <a class="btn btn-success" href="../reg_admin/receipt_items?id={{ app.id }}" target="_blank">View Receipt Items</a>
+            </td>
+            {% endif %}
+            </tr>
+        {% endfor %}
+        </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

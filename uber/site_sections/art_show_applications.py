@@ -132,7 +132,7 @@ class Root:
         if not stripe_intent:
             return {'error': "Something went wrong. Please contact us at {}.".format(email_only(c.REGDESK_EMAIL))}
 
-        if stripe_intent.status == "succeeded":
+        if not c.AUTHORIZENET_LOGIN_ID and stripe_intent.status == "succeeded":
             return {'error': "This payment has already been finalized!"}
 
         return {'stripe_intent': stripe_intent,
@@ -147,16 +147,17 @@ class Root:
         piece = session.art_show_piece(params, restricted=restricted, bools=['for_sale', 'no_quick_sale'])
         app = session.art_show_application(app_id)
 
-        if not params.get('name'):
-            message += "ERROR: Please enter a name for this piece."
-        if not params.get('gallery'):
-            message += "<br>" if not params.get('name') else "ERROR: "
-            message += "Please select which gallery you will hang this piece in."
-        if not params.get('type'):
-            message += "<br>" if not params.get('gallery') or not params.get('name') else "ERROR: "
-            message += "Please choose whether this piece is a print or an original."
-        if message:
-            return {'error': message}
+        if restricted:
+            if not params.get('name'):
+                message += "ERROR: Please enter a name for this piece."
+            if not params.get('gallery'):
+                message += "<br>" if not params.get('name') else "ERROR: "
+                message += "Please select which gallery you will hang this piece in."
+            if not params.get('type'):
+                message += "<br>" if not params.get('gallery') or not params.get('name') else "ERROR: "
+                message += "Please choose whether this piece is a print or an original."
+            if message:
+                return {'error': message}
 
         piece.app_id = app.id
         piece.app = app
@@ -300,7 +301,7 @@ class Root:
         receipt = session.get_receipt_by_model(app, create_if_none="DEFAULT")
         
         charge_desc = "{}'s Art Show Application: {}".format(app.attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, app.attendee.email, charge_desc, create_receipt_item=True)
+        charge = TransactionRequest(receipt, app.attendee.email, charge_desc)
         
         message = charge.process_payment()
 

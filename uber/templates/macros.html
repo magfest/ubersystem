@@ -412,6 +412,16 @@
 {%- endmacro %}
 
 
+{% macro button_menu(current_page_path, btn_class) -%}
+<div class="btn-group" role="group">
+  {% for href, label, display in varargs|batch(3, False) if display %}
+    {% set active = current_page_path.endswith(href.replace('.', '')) %}
+    <a href="{{ '#' if active else href }}" class="btn {{ btn_class }}{{ ' active' if active else '' }}">{{ label }}</a>
+  {% endfor %}
+</div>
+{%- endmacro %}
+
+
 {% macro checklist_image(enabled) -%}
   <img src="../static/images/checkbox_{% if not enabled %}un{% endif %}checked.png" style="vertical-align:top ; margin-right:5px" height="20" width="20" />
 {%- endmacro %}
