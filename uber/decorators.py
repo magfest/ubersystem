@@ -1,6 +1,7 @@
 import cgi
 import csv
 import functools
+import cProfile
 import inspect
 import json
 import os
@@ -507,10 +508,14 @@ def timed(prepend_text=''):
     def timed_decorator(func):
         @wraps(func)
         def with_timed(*args, **kwargs):
+            pr = cProfile.Profile()
             before = datetime.now()
             try:
+                pr.enable()
                 return func(*args, **kwargs)
             finally:
+                pr.disable()
+                pr.print_stats()
                 log.debug('{}{}.{} loaded in {} seconds'.format(
                     prepend_text,
                     func.__module__,
