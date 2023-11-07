@@ -728,11 +728,8 @@ def redirect_to_allowed_dept(session, department_id, page):
         if len(c.ADMIN_DEPARTMENT_OPTS) == 1:
             raise HTTPRedirect('{}?department_id={}', page, c.DEFAULT_DEPARTMENT_ID)
         return
-    
-    if department_id == None and len(c.ADMIN_DEPARTMENTS) > 5:
-        raise HTTPRedirect('{}?department_id={}', page, 'All')
 
-    if department_id == None and c.DEFAULT_DEPARTMENT_ID:
+    if department_id == None and c.DEFAULT_DEPARTMENT_ID and len(c.ADMIN_DEPARTMENTS) < 5:
         raise HTTPRedirect('{}?department_id={}', page, c.DEFAULT_DEPARTMENT_ID)
 
     if not department_id:
