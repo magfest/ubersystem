@@ -2,7 +2,9 @@
 {% block title %}All Shifts{% endblock %}
 {% block content %}
 {% include "shifts_admin/main_menu.html" %}
-
+{% if department_id == '' %}
+Please select a department above to view its unfilled shifts.
+{% else %}
 <style type="text/css">
   h2 {
     margin-bottom: 40px;
@@ -42,5 +44,5 @@ $().ready(function() {
 <div id="jobs-container">
 {% include "shifts_admin/job_renderer.html" %}
 </div>
-
+{% endif %}
 {% endblock %}

@@ -10,7 +10,9 @@
 </style>
 
 {% include "shifts_admin/main_menu.html" %}
-
+{% if department_id == '' %}
+Please select a department above to view its signups.
+{% else %}
 {% if c.POST_CON and checklist.relevant %}
   <div class="center">
     {% if checklist.completed %}
@@ -65,5 +67,5 @@
 <div id="jobs-container">
 {% include "shifts_admin/job_renderer.html" %}
 </div>
-
+{% endif %}
 {% endblock %}

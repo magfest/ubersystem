@@ -730,7 +730,7 @@ def redirect_to_allowed_dept(session, department_id, page):
         return
 
     if not department_id:
-        raise HTTPRedirect('{}?department_id=All', page, department_id)
+        raise HTTPRedirect('{}?department_id=None', page)
     if 'shifts_admin' in c.PAGE_PATH:
         can_access = session.admin_attendee().can_admin_shifts_for(department_id)
     elif 'dept_checklist' in c.PAGE_PATH:

@@ -22,7 +22,9 @@
 {% block content %}
 
 {% include "shifts_admin/main_menu.html" %}
-
+{% if department_id == '' %}
+Please select a department above to view its shifts.
+{% else %}
 <div clas="row">
 {% if checklist.relevant %}
     {% if checklist.completed %}
@@ -73,9 +75,10 @@
 <div class="row" style="margin-bottom:50px;"></div>
 
 
-
+{% endif %}
 {% endblock %}
 {% block page_scripts %}
+{% if department_id != '' %}
 {{ "js/moment.js"|serve_static_content }}
 {{ "fullcalendar-5.3.2/lib/main.min.js"|serve_static_content }}
 <script type="text/javascript">
@@ -179,5 +182,6 @@ $(document).ready(function() {
 });
 
 </script>
+{% endif %}
 {% endblock %}
 
