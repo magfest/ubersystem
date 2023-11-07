@@ -2,9 +2,10 @@
 {% import 'forms/macros.html' as form_macros with context %}
 {% set other_info = other_info or forms['other_info'] %}
 {% set badge_flags = badge_flags or forms['badge_flags'] %}
+{% set personal_info = personal_info or forms['personal_info'] %}
+{% set badge_extras = badge_extras or forms['badge_extras'] %}
 
 {# BLOCK NAMES in this form:
-    hidden
     promo_code
     staffing (ONLY for during prereg, use staffing_info.html otherwise)
     interests
@@ -13,11 +14,6 @@
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 
-{% block hidden %}
-{% if not admin_area and attendee.placeholder %}
-{{ other_info.placeholder(value=0) }}
-{% endif %}
-{% endblock %}
 
 {% block promo_code %}
 {% if not badge_flags and c.BADGE_PROMO_CODES_ENABLED and (not attendee.active_receipt or admin_area) %}

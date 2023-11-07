@@ -13,7 +13,9 @@
 </script>
 
 {% include "dept_checklist/dept_menu.html" %}
-
+{% if department_id == '' %}
+Please select a department above to view its hotel requests.
+{% else %}
 <h2> {{ department_name }} Hotel Requests </h2>
 
 <div class="center">
@@ -98,5 +100,5 @@
 {% endfor %}
 </table>
 {% endif %}
-
+{% endif %}
 {% endblock %}

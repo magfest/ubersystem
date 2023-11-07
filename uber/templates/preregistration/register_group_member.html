@@ -12,6 +12,7 @@
       <input type="hidden" name="id" value="{{ attendee.id }}" />
       <input type="hidden" name="group_id" value="{{ group.id }}" />
 
+      {% include "forms/attendee/badge_flags.html" %}
       {% include "forms/attendee/badge_extras.html" %}
       {% include "forms/attendee/personal_info.html" %}
       {% include "forms/attendee/other_info.html" %}

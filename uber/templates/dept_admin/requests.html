@@ -62,8 +62,8 @@
     </a>
 </p>
 
-{%- set requesting_attendees = department.unassigned_requesting_attendees
-    if requested_any else department.unassigned_explicitly_requesting_attendees -%}
+{%- set requesting_attendees = department.unassigned_requesting_attendees|selectattr('is_valid')
+    if requested_any else department.unassigned_explicitly_requesting_attendees|selectattr('is_valid') -%}
 
 {% if requesting_attendees %}
   <form method="post" action="requests" class="form-horizontal" role="form">

@@ -1,3 +1,4 @@
+import cherrypy
 import re
 from datetime import date
 
@@ -19,7 +20,7 @@ from uber.models import Attendee, Session, PromoCode, PromoCodeGroup
 from uber.model_checks import invalid_zip_code, invalid_phone_number
 from uber.utils import get_age_from_birthday, get_age_conf_from_birthday
 
-__all__ = ['AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo', 'BadgeExtras', 'BadgeFlags', 'BadgeAdminNotes', 'PersonalInfo', 'PreregOtherInfo', 'OtherInfo', 'StaffingInfo', 'Consents']
+__all__ = ['AdminBadgeExtras', 'AdminBadgeFlags', 'AdminConsents', 'AdminStaffingInfo', 'BadgeExtras', 'BadgeFlags', 'BadgeAdminNotes', 'PersonalInfo', 'PreregOtherInfo', 'OtherInfo', 'StaffingInfo', 'Consents']
 
 # TODO: turn this into a proper validation class
 def valid_cellphone(form, field):
@@ -95,13 +96,10 @@ class PersonalInfo(AddressForm, MagForm):
         return [getattr(self, name) for name in self.placeholder_optional_field_names()]
 
     def get_optional_fields(self, attendee, is_admin=False):
-        if is_admin:
-            unassigned_group_reg = attendee.group_id and not attendee.first_name and not attendee.last_name
-            valid_placeholder = attendee.placeholder and attendee.first_name and attendee.last_name
-            if valid_placeholder:
-                return self.placeholder_optional_field_names() + ['badge_printed_name', 'cellphone']
-            if unassigned_group_reg:
-                return ['first_name', 'last_name', 'email'] + self.placeholder_optional_field_names()
+        if attendee.valid_placeholder and (is_admin or cherrypy.request.method == 'POST'):
+            return self.placeholder_optional_field_names() + ['badge_printed_name', 'cellphone']
+        if is_admin and attendee.unassigned_group_reg:
+            return ['first_name', 'last_name', 'email', 'badge_printed_name', 'cellphone'] + self.placeholder_optional_field_names()
         
         optional_list = super().get_optional_fields(attendee, is_admin)
 
@@ -129,7 +127,7 @@ class PersonalInfo(AddressForm, MagForm):
         elif not attendee.is_valid or attendee.badge_status == c.REFUNDED_STATUS:
             return list(self._fields.keys())
 
-        if attendee.placeholder:
+        if attendee.valid_placeholder or attendee.unassigned_group_reg:
             return locked_fields
         
         return locked_fields + ['first_name', 'last_name', 'legal_name', 'same_legal_name']
@@ -256,17 +254,12 @@ class AdminBadgeExtras(BadgeExtras):
 class OtherInfo(MagForm):
     field_validation, new_or_changed_validation = CustomValidation(), CustomValidation()
 
-    placeholder = HiddenBoolField()
     promo_code_code = StringField('Promo Code')
     interests = SelectMultipleField('What interests you?', choices=c.INTEREST_OPTS, coerce=int, validators=[validators.Optional()], widget=MultiCheckbox())
     requested_accessibility_services = BooleanField(f'I would like to be contacted by the {c.EVENT_NAME} Accessibility Services department prior to the event and I understand my contact information will be shared with Accessibility Services for this purpose.', widget=SwitchInput())
 
     def get_non_admin_locked_fields(self, attendee):
-        locked_fields = [] 
-
-        if not attendee.placeholder:
-            # This is an admin field, but we need it on the confirmation page for placeholder attendees
-            locked_fields.append('placeholder')
+        locked_fields = []
 
         if attendee.is_new:
             return locked_fields
@@ -303,10 +296,6 @@ class StaffingInfo(MagForm):
     def get_non_admin_locked_fields(self, attendee):
         locked_fields = [] 
 
-        if not attendee.placeholder:
-            # This is an admin field, but we need it on the confirmation page for placeholder attendees
-            locked_fields.append('placeholder')
-
         if attendee.is_new:
             return locked_fields
         
@@ -320,9 +309,8 @@ class StaffingInfo(MagForm):
 
 
 class AdminStaffingInfo(StaffingInfo):
-    # TODO: Is there a good way to avoid having to redefine requested_depts_ids here?
-    dynamic_choices_fields = {'requested_depts_ids': lambda: [(v[0], v[1]) for v in c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC],
-                              'assigned_depts_ids': lambda: c.DEPARTMENT_OPTS}
+    dynamic_choices_fields = StaffingInfo.dynamic_choices_fields
+    dynamic_choices_fields['assigned_depts_ids'] = lambda: c.DEPARTMENT_OPTS
 
     assigned_depts_ids = SelectMultipleField('Assigned Departments', widget=MultiCheckbox())
     walk_on_volunteer = BooleanField('This person signed up to volunteer at the event.')
@@ -364,6 +352,15 @@ class Consents(MagForm):
             return []
         
         return ['pii_consent']
+    
+    def get_optional_fields(self, attendee, is_admin=False):
+        optional_fields = super().get_optional_fields(attendee, is_admin)
+
+        if attendee.valid_placeholder and cherrypy.request.method == 'POST':
+            # Special handling for unassigned group badges marked as placeholders
+            optional_fields.append('pii_consent')
+
+        return optional_fields
 
     def pii_consent_label(self):
         base_label = f"<strong>Yes</strong>, I understand and agree that {c.ORGANIZATION_NAME} will store the personal information I provided above for the limited purposes of contacting me about my registration"
@@ -389,10 +386,22 @@ class AdminConsents(Consents):
 
 
 class BadgeFlags(MagForm):
-    new_or_changed_validation = CustomValidation()
-    dynamic_choices_fields = {'group_id': lambda: BadgeFlags.get_valid_groups()}
+    placeholder = BooleanField('Email this person to fill out their details.', description="You will only need to fill out their name and email address.")
 
-    placeholder = BooleanField('Email this attendee to fill out their details.')
+    def get_non_admin_locked_fields(self, attendee):
+        locked_fields = [] 
+
+        if not attendee.valid_placeholder and not attendee.unassigned_group_reg:
+            # This field is locked to False except on register_group_member
+            locked_fields.append('placeholder')
+
+        return locked_fields
+
+
+class AdminBadgeFlags(BadgeFlags):
+    new_or_changed_validation = CustomValidation()
+    dynamic_choices_fields = {'group_id': lambda: AdminBadgeFlags.get_valid_groups()}
+
     can_transfer = BooleanField('Make this attendee\'s badge always transferable.')
     badge_status = SelectField('Badge Status', coerce=int, choices=c.BADGE_STATUS_OPTS)
     badge_type = SelectField('Badge Type', coerce=int, choices=c.BADGE_OPTS)

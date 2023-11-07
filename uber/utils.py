@@ -728,9 +728,12 @@ def redirect_to_allowed_dept(session, department_id, page):
         if len(c.ADMIN_DEPARTMENT_OPTS) == 1:
             raise HTTPRedirect('{}?department_id={}', page, c.DEFAULT_DEPARTMENT_ID)
         return
+    
+    if department_id == None and c.DEFAULT_DEPARTMENT_ID:
+        raise HTTPRedirect('{}?department_id={}', page, c.DEFAULT_DEPARTMENT_ID)
 
     if not department_id:
-        raise HTTPRedirect('{}?department_id=All', page, department_id)
+        raise HTTPRedirect('{}?department_id=None', page)
     if 'shifts_admin' in c.PAGE_PATH:
         can_access = session.admin_attendee().can_admin_shifts_for(department_id)
     elif 'dept_checklist' in c.PAGE_PATH:

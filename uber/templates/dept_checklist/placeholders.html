@@ -2,7 +2,9 @@
 {% block title %}Placeholder Attendees{% endblock %}}
 {% block content %}
 {% include "dept_checklist/dept_menu.html" %}
-
+{% if department_id == '' %}
+Please select a department above to view its assigned placeholders.
+{% else %}
 <h2>{{ dept_name }} Unconfirmed Volunteers: {{ placeholders|length }}</h2>
 
 {% if checklist.relevant %}
@@ -51,5 +53,5 @@ We create placeholder registrations for volunteers and ask them to fill out the 
     </tr>
 {% endfor %}
 </table>
-
+{% endif %}
 {% endblock %}
