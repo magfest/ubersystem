@@ -49,14 +49,14 @@ cherrypy.tools.sentry_end_transaction = cherrypy.Tool('on_end_request', sentry_e
 
 class ProfileTool(cherrypy.Tool):
     def __init__(self):
-        cherrypy.Tool.__init__(self, 'before_handler',
+        cherrypy.Tool.__init__(self, 'on_start_resource',
                                self.start_profiler,
                                priority=95)
         self.pr = cProfile.Profile()
 
     def _setup(self):
         cherrypy.Tool._setup(self)
-        cherrypy.request.hooks.attach('before_finalize',
+        cherrypy.request.hooks.attach('on_end_request',
                                       self.end_profiler,
                                       priority=5)
 
