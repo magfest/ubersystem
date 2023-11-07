@@ -23,7 +23,7 @@
 <div class="col-12 col-sm-6">{{ form_macros.form_input(personal_info.last_name, value=attendee_last_name) }}</div>
 </div>
 
-{% if attendee.legal_name or attendee.is_new or attendee.placeholder %}
+{% if attendee.legal_name or attendee.is_new or attendee.placeholder or admin_area %}
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">{{ form_macros.toggle_checkbox(personal_info.same_legal_name, [personal_info.legal_name], toggle_required=True, hide_on_checked=True, prop="disabled",
                    checked=attendee.first_name != '' and attendee.legal_name == '') }}
@@ -40,7 +40,7 @@
 <div class="row g-sm-3">
   <div class="col-12">{{ form_macros.form_input(personal_info.badge_printed_name) }}</div>
 </div>
-  {% if badge_flags %}
+  {% if badge_flags and admin_area %}
   {{ form_macros.toggle_fields_js(badge_flags.badge_type, [personal_info.badge_printed_name], on_values=c.PREASSIGNED_BADGE_TYPES, toggle_required=True) }}
   {% endif %}
 {% endif %}

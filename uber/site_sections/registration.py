@@ -92,7 +92,9 @@ def save_attendee(session, params):
                                           'AdminBadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
 
     for form in forms.values():
-        form.populate_obj(attendee)
+        if hasattr(form, 'same_legal_name') and params.get('same_legal_name'):
+            form['legal_name'].data = ''
+        form.populate_obj(attendee, is_admin=True)
 
     if cherrypy.request.method == 'POST':
         if id not in [None, '', 'None']:
