@@ -1,5 +1,5 @@
 import cherrypy
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from uber.config import c
 from uber.custom_tags import safe_string
@@ -208,6 +208,16 @@ class Root:
         has_setup = volunteer.can_work_setup or any(d.is_setup_approval_exempt for d in volunteer.assigned_depts)
         has_teardown = volunteer.can_work_teardown or any(
             d.is_teardown_approval_exempt for d in volunteer.assigned_depts)
+        
+        if not start and has_setup:
+            start = c.SETUP_JOB_START
+        elif not start:
+            start = c.EPOCH
+        else:
+            if start.endswith('Z'):
+                start = datetime.strptime(start[:-1], '%Y-%m-%dT%H:%M:%S.%f')
+            else:
+                start = datetime.strptime(start, '%Y-%m-%dT%H:%M:%S.%f')
 
         if has_setup and has_teardown:
             cal_length = c.CON_TOTAL_DAYS
@@ -227,8 +237,8 @@ class Root:
             'assigned_depts_labels': volunteer.assigned_depts_labels,
             'view': view,
             'start': start,
+            'end': start + timedelta(days=cal_length),
             'start_day': c.SHIFTS_START_DAY if has_setup else c.EPOCH,
-            'cal_length': cal_length,
             'show_all': all,
         }
 

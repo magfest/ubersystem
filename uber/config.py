@@ -777,12 +777,13 @@ class Config(_Overridable):
             if current_admin.full_shifts_admin:
                 return [(d.id, d.name) for d in query]
             else:
-                return [(d.id, d.name) for d in query if d.id in current_admin.attendee.assigned_depts_ids]
+                return [(d.id, d.name) for d in query if d.id in 
+                        [str(d.id) for d in current_admin.attendee.dept_memberships_with_inherent_role]]
 
     @request_cached_property
     @dynamic
     def DEFAULT_DEPARTMENT_ID(self):
-        return list(c.ADMIN_DEPARTMENTS.keys())[0] if c.ADMIN_DEPARTMENTS else 0
+        return list(c.ADMIN_DEPARTMENTS.keys())[0] if c.ADMIN_DEPARTMENTS and len(c.ADMIN_DEPARTMENTS) < 5 else 0
 
     @property
     def HTTP_METHOD(self):

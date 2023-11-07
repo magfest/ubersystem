@@ -197,7 +197,7 @@ class Root:
 
     @department_id_adapter
     @requires_shifts_admin
-    def staffers(self, session, department_id='', message=''):
+    def staffers(self, session, department_id=None, message=''):
         redirect_to_allowed_dept(session, department_id, 'staffers')
 
         if department_id == 'None':

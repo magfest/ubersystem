@@ -1548,7 +1548,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             all_minutes.update(shift.job.minutes)
         return all_minutes
 
-    @property
+    @cached_property
     def shift_minute_map(self):
         all_minutes = {}
         for shift in self.shifts:
