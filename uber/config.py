@@ -473,8 +473,8 @@ class Config(_Overridable):
     @property
     def FORMATTED_REG_TYPES(self):
         # Returns a formatted list to help attendees select between different types of registrations,
-        # particularly between individual reg, group reg, and a child badge. Note that all values
-        # should correspond to a badge type and will change the hidden badge type input on the prereg page
+        # particularly between individual reg, group reg, and a child badge. Note that all values should
+        # correspond to a badge type and will change the hidden badge type input on the prereg page.
         
         reg_type_opts = [{
             'name': "Attendee",
@@ -777,7 +777,8 @@ class Config(_Overridable):
             if current_admin.full_shifts_admin:
                 return [(d.id, d.name) for d in query]
             else:
-                return [(d.id, d.name) for d in query if d.id in current_admin.attendee.assigned_depts_ids]
+                return [(d.id, d.name) for d in query if d.id in 
+                        [str(d.id) for d in current_admin.attendee.dept_memberships_with_inherent_role]]
 
     @request_cached_property
     @dynamic

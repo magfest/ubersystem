@@ -104,10 +104,13 @@ class Root:
 
         forms = load_forms(params, group, form_list)
         for form_name, form in forms.items():
-            if hasattr(form, 'new_badge_type') and not params.get('new_badge_type'):
-                form['new_badge_type'].data = group.leader.badge_type if group.leader else c.ATTENDEE_BADGE
-            if hasattr(form, 'new_ribbons') and not params.get('new_ribbons'):
-                form['new_ribbons'].data = group.leader.ribbon_ints if group.leader else []
+            if cherrypy.request.method != 'POST':
+                if hasattr(form, 'new_badge_type') and not params.get('new_badge_type'):
+                    form['new_badge_type'].data = group.leader.badge_type if group.leader else c.ATTENDEE_BADGE
+                if hasattr(form, 'new_ribbons') and not params.get('new_ribbons'):
+                    form['new_ribbons'].data = group.leader.ribbon_ints if group.leader else []
+                if hasattr(form, 'guest_group_type') and not params.get('guest_group_type') and group.guest:
+                    form['guest_group_type'].data = group.guest.group_type
             form.populate_obj(group, is_admin=True)
 
         signnow_last_emailed = None

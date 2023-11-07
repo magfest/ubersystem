@@ -70,7 +70,8 @@ def load_attendee(session, params):
     else:
         attendee = session.attendee(id)
 
-    forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo', 'BadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
+    forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
+                                          'AdminBadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
 
     for form in forms.values():
         form.populate_obj(attendee)
@@ -87,10 +88,13 @@ def save_attendee(session, params):
     else:
         attendee = session.attendee(id)
 
-    forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo', 'BadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
+    forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
+                                          'AdminBadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
 
     for form in forms.values():
-        form.populate_obj(attendee)
+        if hasattr(form, 'same_legal_name') and params.get('same_legal_name'):
+            form['legal_name'].data = ''
+        form.populate_obj(attendee, is_admin=True)
 
     if cherrypy.request.method == 'POST':
         if id not in [None, '', 'None']:
@@ -187,7 +191,8 @@ class Root:
             attendee = session.attendee(params.get('id'))
 
         if not form_list:
-            form_list = ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo', 'BadgeFlags', 'BadgeAdminNotes', 'OtherInfo']
+            form_list = ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo', 'AdminBadgeFlags',
+                         'BadgeAdminNotes', 'OtherInfo']
         elif isinstance(form_list, str):
             form_list = [form_list]
         forms = load_forms(params, attendee, form_list, get_optional=False)
@@ -1021,7 +1026,8 @@ class Root:
         else:
             attendee = session.attendee(id)
 
-        forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo', 'BadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
+        forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
+                                              'AdminBadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
 
         for form in forms.values():
             form.populate_obj(attendee)

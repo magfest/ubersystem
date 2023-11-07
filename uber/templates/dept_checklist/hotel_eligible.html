@@ -2,6 +2,9 @@
 {% block title %}Hotel Eligible Staffers{% endblock %}}
 {% block content %}
 {% include "dept_checklist/dept_menu.html" %}
+{% if department_id == '' %}
+Please select a department above to view its hotel-eligible staffers.
+{% else %}
 <h2>{{ department_name }} Hotel-Eligible Staffers</h2>
 
 <div class="center">
@@ -35,5 +38,5 @@
 {% endfor %}
 </table>
 {% endif %}
-
+{% endif %}
 {% endblock %}

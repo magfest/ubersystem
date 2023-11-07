@@ -1064,6 +1064,14 @@ class Attendee(MagModel, TakesPaymentMixin):
     @is_unassigned.expression
     def is_unassigned(cls):
         return cls.first_name == ''
+    
+    @property
+    def unassigned_group_reg(self):
+        return self.group_id and self.is_unassigned
+    
+    @property
+    def valid_placeholder(self):
+        return self.placeholder and self.first_name and self.last_name
 
     @hybrid_property
     def is_valid(self):
@@ -1540,7 +1548,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             all_minutes.update(shift.job.minutes)
         return all_minutes
 
-    @property
+    @cached_property
     def shift_minute_map(self):
         all_minutes = {}
         for shift in self.shifts:
@@ -1981,7 +1989,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             not self.hotel_eligible
             or self.hotel_requests
             or not c.BEFORE_ROOM_DEADLINE
-            or not c.HOTELS_ENABLED) and (
+            or not c.HOTELS_ENABLED
+            or c.HOTEL_REQUESTS_URL) and (
             not c.VOLUNTEER_AGREEMENT_ENABLED or self.agreed_to_volunteer_agreement) and (
             not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures) \
             and c.SHIFTS_CREATED

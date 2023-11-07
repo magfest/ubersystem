@@ -56,18 +56,27 @@ class Root:
     @requires_shifts_admin
     def index(self, session, department_id=None, message='', time=None):
         redirect_to_allowed_dept(session, department_id, 'index')
+
+        if department_id == 'None':
+            department_id = ''
+        elif department_id == 'All':
+            department_id = None
+
+        jobs = []
+
         initial_date = max(datetime.now(c.EVENT_TIMEZONE), c.SHIFTS_START_DAY)
         if time:
             initial_date = max(initial_date, datetime.strptime(time, "%Y-%m-%dT%H:%M:%S%z"))
 
-        department_id = None if department_id == 'All' else department_id
         department = session.query(Department).get(department_id) if department_id else None
-        jobs = session.jobs(department_id).all()
         by_start = defaultdict(list)
-        for job in jobs:
-            if job.type == c.REGULAR:
-                by_start[job.start_time_local].append(job)
         times = [c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH)]
+
+        if department_id != '':
+            jobs = session.jobs(department_id).all()
+            for job in jobs:
+                if job.type == c.REGULAR:
+                    by_start[job.start_time_local].append(job)
 
         try:
             checklist = session.checklist_status('creating_shifts', department_id)
@@ -75,7 +84,7 @@ class Root:
             checklist = {'conf': None, 'relevant': False, 'completed': None}
 
         return {
-            'department_id': department_id,
+            'department_id': 'All' if department_id is None else department_id,
             'department': department,
             'setup': [j for j in jobs if j.type == c.SETUP],
             'teardown': [j for j in jobs if j.type == c.TEARDOWN],
@@ -92,7 +101,12 @@ class Root:
     def signups(self, session, department_id=None, message='', toggle_filter=''):
         if not toggle_filter:
             redirect_to_allowed_dept(session, department_id, 'signups')
-        department_id = None if department_id == 'All' or department_id == 'None' else department_id
+
+        if department_id == 'None':
+            department_id = ''
+        elif department_id == 'All':
+            department_id = None
+
         cherrypy.session['prev_department_id'] = department_id
 
         if toggle_filter:
@@ -102,17 +116,18 @@ class Root:
         show_restricted = cherrypy.session.get('signups_show_restricted', True)
         show_nonpublic = cherrypy.session.get('signups_show_nonpublic', True)
 
-        job_filters = [Job.department_id == department_id] if department_id else []
-        if not show_past_shifts:
-            job_filters.append(Job.start_time > localized_now() - timedelta(hours=2))
-        if not show_restricted:
-            job_filters.append(Job.restricted == False)  # noqa: E712
-        if not show_nonpublic:
-            job_filters.append(Job.department_id.in_(
-                select([Department.id]).where(
-                    Department.solicits_volunteers == True)))  # noqa: E712
+        if department_id != '':
+            job_filters = [Job.department_id == department_id] if department_id else []
+            if not show_past_shifts:
+                job_filters.append(Job.start_time > localized_now() - timedelta(hours=2))
+            if not show_restricted:
+                job_filters.append(Job.restricted == False)  # noqa: E712
+            if not show_nonpublic:
+                job_filters.append(Job.department_id.in_(
+                    select([Department.id]).where(
+                        Department.solicits_volunteers == True)))  # noqa: E712
 
-        jobs = session.jobs().filter(*job_filters)
+            jobs = session.jobs().filter(*job_filters)
 
         try:
             checklist = session.checklist_status('postcon_hours', department_id)
@@ -121,7 +136,7 @@ class Root:
 
         return {
             'message': message,
-            'department_id': department_id,
+            'department_id': 'All' if department_id is None else department_id,
             'show_past_shifts': show_past_shifts,
             'show_restricted': show_restricted,
             'show_nonpublic': show_nonpublic,
@@ -142,7 +157,11 @@ class Root:
         """
         if not toggle_filter:
             redirect_to_allowed_dept(session, department_id, 'unfilled_shifts')
-        department_id = None if department_id == 'All' or department_id == 'None' else department_id
+        
+        if department_id == 'None':
+            department_id = ''
+        elif department_id == 'All':
+            department_id = None
 
         if toggle_filter:
             cherrypy.session[toggle_filter] = not cherrypy.session.get(toggle_filter)
@@ -151,21 +170,24 @@ class Root:
         show_restricted = cherrypy.session.get('unfilled_show_restricted')
         show_nonpublic = cherrypy.session.get('unfilled_show_nonpublic')
 
-        job_filters = [Job.department_id == department_id] if department_id else []
-        if not show_past_shifts:
-            job_filters.append(Job.start_time > localized_now() - timedelta(hours=2))
-        if not show_restricted:
-            job_filters.append(Job.restricted == False)  # noqa: E712
-        if not show_nonpublic:
-            job_filters.append(Job.department_id.in_(
-                select([Department.id]).where(
-                    Department.solicits_volunteers == True)))  # noqa: E712
+        jobs = []
 
-        jobs = session.jobs().filter(*job_filters)
+        if department_id != '':
+            job_filters = [Job.department_id == department_id] if department_id else []
+            if not show_past_shifts:
+                job_filters.append(Job.start_time > localized_now() - timedelta(hours=2))
+            if not show_restricted:
+                job_filters.append(Job.restricted == False)  # noqa: E712
+            if not show_nonpublic:
+                job_filters.append(Job.department_id.in_(
+                    select([Department.id]).where(
+                        Department.solicits_volunteers == True)))  # noqa: E712
+
+            jobs = session.jobs().filter(*job_filters)
 
         return {
             'message': message,
-            'department_id': department_id,
+            'department_id': 'All' if department_id is None else department_id,
             'show_past_shifts': show_past_shifts,
             'show_restricted': show_restricted,
             'show_nonpublic': show_nonpublic,
@@ -178,29 +200,35 @@ class Root:
     def staffers(self, session, department_id=None, message=''):
         redirect_to_allowed_dept(session, department_id, 'staffers')
 
-        department_id = None if department_id == 'All' else department_id
+        if department_id == 'None':
+            department_id = ''
+        elif department_id == 'All':
+            department_id = None
+
+        attendees = []
+        counts = defaultdict(int)
 
         if department_id:
             department = session.query(Department).filter_by(id=department_id).first()
             if not department:
-                department_id = None
+                department_id = ''
 
-        dept_filter = [] if not department_id \
-            else [Attendee.dept_memberships.any(department_id=department_id)]
-        attendees = session.staffers(pending=True).filter(*dept_filter).all()
-        for attendee in attendees:
-            if session.admin_has_staffer_access(attendee) or department_id:
-                attendee.is_dept_head_here = attendee.is_dept_head_of(department_id) if department_id \
-                    else attendee.is_dept_head
-                attendee.trusted_here = attendee.trusted_in(department_id) if department_id \
-                    else attendee.has_role_somewhere
-                attendee.hours_here = attendee.weighted_hours_in(department_id)
-            else:
-                attendees.remove(attendee)
+        if department_id != '':
+            dept_filter = [] if department_id == None \
+                else [Attendee.dept_memberships.any(department_id=department_id)]
+            attendees = session.staffers(pending=True).filter(*dept_filter).all()
+            for attendee in attendees:
+                if session.admin_has_staffer_access(attendee) or department_id:
+                    attendee.is_dept_head_here = attendee.is_dept_head_of(department_id) if department_id \
+                        else attendee.is_dept_head
+                    attendee.trusted_here = attendee.trusted_in(department_id) if department_id \
+                        else attendee.has_role_somewhere
+                    attendee.hours_here = attendee.weighted_hours_in(department_id)
+                else:
+                    attendees.remove(attendee)
 
-        counts = defaultdict(int)
-        for job in session.jobs(department_id):
-            update_counts(job, counts)
+            for job in session.jobs(department_id):
+                update_counts(job, counts)
 
         try:
             checklist = session.checklist_status('assigned_volunteers', department_id)
@@ -209,7 +237,7 @@ class Root:
 
         return {
             'counts': counts,
-            'department_id': department_id,
+            'department_id': 'All' if department_id is None else department_id,
             'attendees': attendees,
             'emails': ','.join(a.email for a in attendees),
             'emails_with_shifts': ','.join([a.email for a in attendees if department_id and a.hours_here]),

@@ -189,11 +189,12 @@ class Root:
 
         out.writerow(headers)
         for attendee in requesting_attendees:
-            row = [attendee.full_name, attendee.email, attendee.badge, yesno(attendee.placeholder, 'Yes,No')]
-            if requested_any:
-                row.append(yesno(attendee in department.unassigned_explicitly_requesting_attendees, 'Yes,No'))
+            if attendee.is_valid:
+                row = [attendee.full_name, attendee.email, attendee.badge, yesno(attendee.placeholder, 'Yes,No')]
+                if requested_any:
+                    row.append(yesno(attendee in department.unassigned_explicitly_requesting_attendees, 'Yes,No'))
 
-            out.writerow(row)
+                out.writerow(row)
 
     @department_id_adapter
     @csv_file

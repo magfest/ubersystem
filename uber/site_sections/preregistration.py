@@ -453,6 +453,8 @@ class Root:
             forms['consents'].pii_consent.data = True
 
         for form in forms.values():
+            if hasattr(form, 'same_legal_name') and params.get('same_legal_name'):
+                form['legal_name'].data = ''
             form.populate_obj(attendee)
 
         if cherrypy.request.method == 'POST' or edit_id is not None:
@@ -1086,38 +1088,40 @@ class Root:
             # Someone claimed this badge while we had the form open
             # Grab the next one instead
             attendee.id = group.unassigned[0].id
+            if cherrypy.request.method != 'POST':
+                attrs_to_preserve_from_unassigned_group_member = [
+                    'id',
+                    'group_id',
+                    'badge_type',
+                    'badge_num',
+                    'badge_cost',
+                    'staffing',
+                    'ribbon',
+                    'paid',
+                    'overridden_price'
+                    ]
 
-        if cherrypy.request.method != 'POST':
-            attrs_to_preserve_from_unassigned_group_member = [
-                'id',
-                'group_id',
-                'badge_type',
-                'badge_num',
-                'badge_cost',
-                'staffing',
-                'ribbon',
-                'paid',
-                'overridden_price'
-                ]
-
-            attr_attendee = group.unassigned[0]
-            for attr in attrs_to_preserve_from_unassigned_group_member:
-                setattr(attendee, attr, getattr(attr_attendee, attr))
+                attr_attendee = group.unassigned[0]
+                for attr in attrs_to_preserve_from_unassigned_group_member:
+                    setattr(attendee, attr, getattr(attr_attendee, attr))
         
-        if group.unassigned[0].staffing:
-            params['staffing'] = True
+            if group.unassigned[0].staffing:
+                params['staffing'] = True
 
         receipt = session.get_receipt_by_model(attendee)
-        form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents']
+        form_list = ['BadgeFlags', 'PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents']
         forms = load_forms(params, attendee, form_list)
 
         for form in forms.values():
             form.populate_obj(attendee)
 
         if cherrypy.request.method == 'POST':
-            if params.get('id') not in [None, '', 'None']:
+            if attendee and receipt:
                 receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params)
                 session.add_all(receipt_items)
+
+            if attendee.placeholder:
+                raise HTTPRedirect('group_members?id={}&message={}', group.id, f"Thanks! We'll email {attendee.full_name} to finish filling out their badge!")
 
             # Free group badges are considered 'registered' when they are actually claimed.
             if group.cost == 0:
@@ -1519,12 +1523,14 @@ class Root:
         placeholder = attendee.placeholder
 
         receipt = session.get_receipt_by_model(attendee)
-        form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'StaffingInfo', 'Consents']
+        form_list = ['PersonalInfo', 'BadgeExtras', 'BadgeFlags', 'OtherInfo', 'StaffingInfo', 'Consents']
         forms = load_forms(params, attendee, form_list)
         if not attendee.is_new and not attendee.placeholder:
             forms['consents'].pii_consent.data = True
 
         for form in forms.values():
+            if hasattr(form, 'same_legal_name') and params.get('same_legal_name'):
+                form['legal_name'].data = ''
             form.populate_obj(attendee)
 
         if cherrypy.request.method == 'POST' and not message:
@@ -1610,7 +1616,7 @@ class Root:
                     if_not_found=HTTPRedirect('form?message={}', 'That preregistration expired or has already been finalized.'))
 
         if not form_list:
-            form_list = ['PersonalInfo', 'BadgeExtras', 'OtherInfo', 'Consents']
+            form_list = ['PersonalInfo', 'BadgeExtras', 'BadgeFlags', 'OtherInfo', 'Consents']
         elif isinstance(form_list, str):
             form_list = [form_list]
 
