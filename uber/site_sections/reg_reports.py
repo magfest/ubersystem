@@ -54,15 +54,11 @@ class Root:
                 or_(and_(ModelReceipt.id == None, Attendee.default_cost > 0),
                     and_(ModelReceipt.id != None, ModelReceipt.current_receipt_amount != 0)))
         else:
-            attendees = session.query(Attendee).join(Attendee.active_receipt).filter(ModelReceipt.current_receipt_amount != 0)
-
-        discrepancy_ids = [id[0] for id in 
-                           session.query(Attendee.id).join(Attendee.active_receipt).filter(Attendee.is_valid == True,
-                                                                                           Attendee.default_cost_cents != ModelReceipt.item_total)]
+            attendees = session.query(Attendee).join(Attendee.active_receipt).filter(Attendee.default_cost_cents == ModelReceipt.item_total,
+                                                                                     ModelReceipt.current_receipt_amount != 0)
 
         return {
             'attendees': attendees.filter(Attendee.is_valid == True),
-            'discrepancy_ids': discrepancy_ids,
             'include_no_receipts': include_no_receipts,
         }
 
