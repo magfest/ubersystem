@@ -214,7 +214,7 @@ class Root:
                 department_id = ''
 
         if department_id != '':
-            dept_filter = [] if department_id == 'All' \
+            dept_filter = [] if department_id == None \
                 else [Attendee.dept_memberships.any(department_id=department_id)]
             attendees = session.staffers(pending=True).filter(*dept_filter).all()
             for attendee in attendees:
