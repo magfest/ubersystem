@@ -1064,6 +1064,14 @@ class Attendee(MagModel, TakesPaymentMixin):
     @is_unassigned.expression
     def is_unassigned(cls):
         return cls.first_name == ''
+    
+    @property
+    def unassigned_group_reg(self):
+        return self.group_id and self.is_unassigned
+    
+    @property
+    def valid_placeholder(self):
+        return self.placeholder and self.first_name and self.last_name
 
     @hybrid_property
     def is_valid(self):

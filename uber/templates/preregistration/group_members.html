@@ -158,7 +158,7 @@
             </td>
         {% else %}
             <td colspan="5">
-              <a href="register_group_member?group_id={{ group.id }}">Register someone for this badge</a>:
+              <a href="register_group_member?group_id={{ group.id }}&id={{ attendee.id }}">Register someone for this badge</a>:
               {{ attendee.badge }}
             </td>
         {% endif %}

@@ -110,6 +110,7 @@
         <input type="hidden" name="return_to" value="{{ return_to }}" />
         <input type="hidden" name="undoing_extra" value="{{ undoing_extra }}" />
 
+      {% include "forms/attendee/badge_flags.html" %}
       {% include "forms/attendee/badge_extras.html" %}
       {% include "forms/attendee/personal_info.html" %}
       {% include "forms/attendee/staffing_info.html" %}

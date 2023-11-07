@@ -67,12 +67,12 @@ if($.field('return_to')) {
     {% if not attendee.is_new %}
     <a class="btn btn-primary" href="../preregistration/confirm?id={{ attendee.id }}" target="_blank">View as Attendee</a>
     {% endif %}
-    <form method="post" class="d-inline" id="delete_attendee" action="delete" onSubmit="return confirm('{% if attendee.group and attendee.is_unassigned %}Are you sure you want to delete this unassigned badge?{% elif attendee.group %}Are you sure you want to unassign this badge?{% else %}Are you sure you want to delete this attendee?{% endif %}');">
+    <form method="post" class="d-inline" id="delete_attendee" action="delete" onSubmit="return confirm('{% if attendee.unassigned_group_reg %}Are you sure you want to delete this unassigned badge?{% elif attendee.group %}Are you sure you want to unassign this badge?{% else %}Are you sure you want to delete this attendee?{% endif %}');">
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ attendee.id }}" />
       {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}" />{% endif %}
   </form>
-  <input type="submit" form="delete_attendee" class="btn btn-danger" value="{% if attendee.group and attendee.is_unassigned %}Delete this group badge{% elif attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}"
+  <input type="submit" form="delete_attendee" class="btn btn-danger" value="{% if attendee.unassigned_group_reg %}Delete this group badge{% elif attendee.group %}Unassign this group badge{% else %}Delete Attendee{% endif %}"
                   {% if attendee.cannot_delete_badge_reason %} style="background-color:#BCBCBC" title="{{ attendee.cannot_delete_badge_reason }}" disabled {% endif %}/>
   {% if c.HAS_SECURITY_ADMIN_ACCESS %}
   <a href="../security_admin/watchlist_form?attendee_id={{ attendee.id }}" class="btn btn-warning">Add to Watchlist</a>
@@ -107,7 +107,7 @@ if($.field('return_to')) {
 <form novalidate method="post" action="../registration/update_attendee" id="attendee_form">
   {{ csrf_token() }}
   <input type="hidden" name="id" value="{{ attendee.db_id }}" />
-  {% include "forms/attendee/badge_flags.html" %}
+  {% include "forms/attendee/admin_badge_flags.html" %}
   <hr/>
   {% include "forms/attendee/personal_info.html" %}
   {% include "forms/attendee/other_info.html" %}

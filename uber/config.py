@@ -473,8 +473,8 @@ class Config(_Overridable):
     @property
     def FORMATTED_REG_TYPES(self):
         # Returns a formatted list to help attendees select between different types of registrations,
-        # particularly between individual reg, group reg, and a child badge. Note that all values
-        # should correspond to a badge type and will change the hidden badge type input on the prereg page
+        # particularly between individual reg, group reg, and a child badge. Note that all values should
+        # correspond to a badge type and will change the hidden badge type input on the prereg page.
         
         reg_type_opts = [{
             'name': "Attendee",

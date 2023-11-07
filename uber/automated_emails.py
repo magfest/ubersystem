@@ -553,7 +553,6 @@ AutomatedEmailFixture(
     'Last Chance to Accept Your {EVENT_NAME} ({EVENT_DATE}) Badge',
     'placeholders/reminder.txt',
     lambda a: a.placeholder and not a.is_dealer,
-    needs_approval=False,
     when=days_before(7, c.PLACEHOLDER_DEADLINE if c.PLACEHOLDER_DEADLINE else c.UBER_TAKEDOWN),
     ident='badge_confirmation_reminder_last_chance')
 
@@ -657,7 +656,8 @@ AutomatedEmailFixture(
     Attendee,
     '{EVENT_NAME} ({EVENT_DATE}) parental consent form reminder',
     'reg_workflow/under_18_reminder.txt',
-    lambda a: c.CONSENT_FORM_URL and a.age_group_conf['consent_form'],
+    lambda a: c.CONSENT_FORM_URL and a.age_group_conf['consent_form'] and days_after(14, a.registered)(),
+    when=days_before(60, c.EPOCH),
     allow_at_the_con=True,
     ident='under_18_parental_consent_reminder')
 
@@ -669,6 +669,7 @@ AutomatedEmailFixture(
     'Check in faster at {EVENT_NAME}',
     'reg_workflow/attendee_qrcode.html',
     lambda a: not a.is_not_ready_to_checkin and c.USE_CHECKIN_BARCODE,
+    when=days_before(7, c.EPOCH),
     allow_at_the_con=True,
     ident='qrcode_for_checkin')
 
