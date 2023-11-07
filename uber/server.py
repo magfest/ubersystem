@@ -2,6 +2,7 @@ import json
 import mimetypes
 import os
 import traceback
+import cProfile
 from pprint import pformat
 
 import cherrypy
@@ -46,6 +47,27 @@ def sentry_end_transaction():
     cherrypy.request.sentry_transaction.__exit__(None, None, None)
 cherrypy.tools.sentry_end_transaction = cherrypy.Tool('on_end_request', sentry_end_transaction)
 
+class ProfileTool(cherrypy.Tool):
+    def __init__(self):
+        cherrypy.Tool.__init__(self, 'before_handler',
+                               self.start_profiler,
+                               priority=95)
+        self.pr = cProfile.Profile()
+
+    def _setup(self):
+        cherrypy.Tool._setup(self)
+        cherrypy.request.hooks.attach('before_finalize',
+                                      self.end_profiler,
+                                      priority=5)
+
+    def start_profiler(self):
+        self.pr.enable()
+
+    def end_profiler(self):
+        self.pr.disable()
+        self.pr.print_stats()
+
+cherrypy.tools.profiler = ProfileTool()
 
 def _add_email():
     [body] = cherrypy.response.body
