@@ -247,11 +247,12 @@ class Root:
         attendee = session.logged_in_volunteer()
         icalendar = ics.Calendar()
 
-        calname = "".join(filter(str.isalnum, f"{attendee.full_name}_shifts"))
+        calname = "".join(filter(str.isalnum, attendee.full_name)) + "_Shifts"
 
         for shift in attendee.shifts:
             icalendar.events.add(ics.Event(
-                name=f"{shift.job.department_name}: {shift.job.name}",
+                name=shift.job.name,
+                location=shift.job.department_name,
                 begin=shift.job.start_time,
                 end=(shift.job.start_time + timedelta(minutes=shift.job.duration)),
                 description=shift.job.description))
