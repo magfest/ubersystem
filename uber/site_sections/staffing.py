@@ -1,5 +1,6 @@
 import cherrypy
 from datetime import datetime, timedelta
+import ics
 
 from uber.config import c
 from uber.custom_tags import safe_string
@@ -241,6 +242,26 @@ class Root:
             'start_day': c.SHIFTS_START_DAY if has_setup else c.EPOCH,
             'show_all': all,
         }
+    
+    def shifts_ical(self, session, **params):
+        attendee = session.logged_in_volunteer()
+        icalendar = ics.Calendar()
+
+        calname = "".join(filter(str.isalnum, f"{attendee.full_name}_shifts"))
+
+        for shift in attendee.shifts:
+            icalendar.events.add(ics.Event(
+                name=f"{shift.job.department_name}: {shift.job.name}",
+                begin=shift.job.start_time,
+                end=(shift.job.start_time + timedelta(minutes=shift.job.duration)),
+                description=shift.job.description))
+
+        cherrypy.response.headers['Content-Type'] = \
+            'text/calendar; charset=utf-8'
+        cherrypy.response.headers['Content-Disposition'] = \
+            'attachment; filename="{}.ics"'.format(calname)
+
+        return icalendar
 
     @check_shutdown
     @ajax_gettable
