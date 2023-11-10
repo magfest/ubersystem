@@ -2091,7 +2091,7 @@ class Session(SessionManager):
         for name in dir(model):
             if not name.startswith('_'):
                 attr = getattr(model, name)
-                if hasattr('target', '__table__') and name in target.__table__.c:
+                if hasattr(target, '__table__') and name in target.__table__.c:
                     attr.key = attr.key or name
                     attr.name = attr.name or name
                     attr.table = target.__table__
