@@ -65,18 +65,21 @@ def check_placeholder_registrations():
         emails = [[
             'Staff',
             c.STAFF_EMAIL,
-            Attendee.staffing == True
+            Attendee.staffing == True,
+            Attendee.is_valid == True
         ], [
             'Panelist',
             c.PANELS_EMAIL,
-            or_(Attendee.badge_type == c.GUEST_BADGE, Attendee.ribbon.contains(c.PANELIST_RIBBON))
+            or_(Attendee.badge_type == c.GUEST_BADGE, Attendee.ribbon.contains(c.PANELIST_RIBBON)),
+            Attendee.is_valid == True
         ], [
             'Attendee',
             c.REGDESK_EMAIL,
             not_(or_(
                 Attendee.staffing == True,
                 Attendee.badge_type == c.GUEST_BADGE,
-                Attendee.ribbon.contains(c.PANELIST_RIBBON)))
+                Attendee.ribbon.contains(c.PANELIST_RIBBON))),
+            Attendee.is_valid == True
         ]]  # noqa: E712
 
         with Session() as session:
@@ -126,6 +129,7 @@ def check_unassigned_volunteers():
     if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS):
         with Session() as session:
             unassigned = session.query(Attendee).filter(
+                Attendee.is_valid == True,
                 Attendee.staffing == True,
                 not_(Attendee.dept_memberships.any())).order_by(Attendee.full_name).all()  # noqa: E712
             subject = c.EVENT_NAME + ' Unassigned Volunteer Report for ' + localized_now().strftime('%Y-%m-%d')
