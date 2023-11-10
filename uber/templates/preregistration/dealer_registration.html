@@ -16,6 +16,7 @@
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}
 {{ csrf_token() }}
+<input type="hidden" name="is_prereg" value="True" />
 
 <h2 class="h3 text-center mt-3">{{ c.DEALER_APP_TERM|title }} Info</h2>
 
