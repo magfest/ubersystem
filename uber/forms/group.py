@@ -63,6 +63,9 @@ class ContactInfo(AddressForm, MagForm):
     def get_optional_fields(self, group, is_admin=False):
         optional_list = super().get_optional_fields(group, is_admin)
         
+        if not group.is_dealer:
+            optional_list.extend(['address1', 'city', 'region', 'zip_code', 'country'])
+        
         return optional_list
     
     def validate_phone(form, field):
@@ -94,9 +97,7 @@ class TableInfo(GroupInfo):
     def get_optional_fields(self, group, is_admin=False):
         optional_list = super().get_optional_fields(group, is_admin)
         if not group.is_dealer:
-            optional_list.extend(
-                ['description', 'website', 'wares', 'categories',
-                 'address1', 'city', 'region', 'zip_code', 'country'])
+            optional_list.extend(['description', 'website', 'wares', 'categories'])
         return optional_list
 
     def get_non_admin_locked_fields(self, group):

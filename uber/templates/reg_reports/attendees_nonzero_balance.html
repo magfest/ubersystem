@@ -18,7 +18,6 @@
         <table class="table table-striped datatable">
         <thead>
             <tr>
-            <th></th>
             <th>Badge Status</th>
             <th>Attendee</th>
             <th>Email</th>
@@ -34,12 +33,6 @@
         <tbody>
         {% for attendee in attendees %}
         <tr id="{{ attendee.id }}">
-            <td>
-                {% if attendee.id in discrepancy_ids %}
-                <i class="fa fa-exclamation-circle" data-bs-toggle="tooltip" data-bs-placement="top" 
-                    title="This attendee's default cost is different from their receipt total!"></i>
-                {% endif %}
-            </td>
             <td>
                 {{ attendee.badge_status_label }}
             </td>

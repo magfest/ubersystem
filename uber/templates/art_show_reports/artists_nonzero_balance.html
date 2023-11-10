@@ -14,10 +14,13 @@
                 Artists without receipts will typically have their receipt created when they start the payment process after approval.
             </span>
         </p>
+        <p>
+            This page only shows artists whose receipt matches their default cost{% if include_no_receipts %} or who do not have a receipt{% endif %}.
+            Please see the "Artists with Receipt Discrepancies" page to view artists who may owe money but whose default cost does not match their receipt.
+        </p>
         <table class="table table-striped datatable">
         <thead>
             <tr>
-            <th></th>
             <th>Artist</th>
             <th>Application</th>
             <th>Artist Type</th>
@@ -32,12 +35,6 @@
         <tbody>
         {% for app in apps %}
         <tr id="{{ app.id }}">
-            <td>
-                {% if app.id in discrepancy_ids %}
-                <i class="fa fa-exclamation-circle" data-bs-toggle="tooltip" data-bs-placement="top" 
-                    title="This app's default cost is different from their receipt total!"></i>
-                {% endif %}
-            </td>
             <td data-order="{{ app.attendee.full_name }}" data-search="{{ app.attendee.full_name }}">
                 {{ app.attendee|form_link("true") }}
             </td>

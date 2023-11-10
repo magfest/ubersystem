@@ -14,10 +14,13 @@
                 Groups without receipts will typically have their receipt created when they start the payment process after approval.
             </span>
         </p>
+        <p>
+            This page only shows dealers whose receipt matches their default cost{% if include_no_receipts %} or who do not have a receipt{% endif %}.
+            Please see the "Dealers with Receipt Discrepancies" page to view dealers who may owe money but whose default cost does not match their receipt.
+        </p>
         <table class="table table-striped datatable">
         <thead>
             <tr>
-            <th></th>
             <th>Group Name</th>
             <th>Group Leader</th>
             <th>Amount Owed</th>
@@ -31,12 +34,6 @@
         <tbody>
         {% for group in groups %}
         <tr id="{{ group.id }}">
-            <td>
-                {% if group.id in discrepancy_ids %}
-                <i class="fa fa-exclamation-circle" data-bs-toggle="tooltip" data-bs-placement="top" 
-                    title="This group's current cost is different from their receipt total!"></i>
-                {% endif %}
-            </td>
             <td data-order="{{ group.name }}" data-search="{{ group.name }}">
                 {{ group|form_link("true") }}
             </td>

@@ -23,16 +23,11 @@ class Root:
                 or_(and_(ModelReceipt.id == None, Group.cost > 0),
                     and_(ModelReceipt.id != None, ModelReceipt.current_receipt_amount != 0)))
         else:
-            groups = session.query(Group).join(Group.active_receipt).filter(ModelReceipt.current_receipt_amount != 0)
-
-        discrepancy_ids = [id[0] for id in 
-                           session.query(Group.id).join(Group.active_receipt).filter(Group.is_dealer == True,
-                                                                                     Group.status == c.APPROVED,
-                                                                                     Group.cost_cents != ModelReceipt.item_total)]
+            groups = session.query(Group).join(Group.active_receipt).filter(Group.cost_cents == ModelReceipt.item_total,
+                                                                            ModelReceipt.current_receipt_amount != 0)
 
         return {
             'groups': groups.filter(Group.is_dealer == True, Group.status == c.APPROVED),
-            'discrepancy_ids': discrepancy_ids,
             'include_no_receipts': include_no_receipts,
         }
 

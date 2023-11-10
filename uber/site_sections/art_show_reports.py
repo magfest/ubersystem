@@ -152,16 +152,11 @@ class Root:
                 or_(and_(ModelReceipt.id == None, ArtShowApplication.true_default_cost > 0),
                     and_(ModelReceipt.id != None, ModelReceipt.current_receipt_amount != 0)))
         else:
-            apps = session.query(ArtShowApplication).join(ArtShowApplication.active_receipt).filter(ModelReceipt.current_receipt_amount != 0)
-
-        discrepancy_ids = [id[0] for id in 
-                           session.query(ArtShowApplication.id).join(
-                               ArtShowApplication.active_receipt).filter(ArtShowApplication.is_valid == True,
-                                                                         ArtShowApplication.true_default_cost_cents != ModelReceipt.item_total)]
+            apps = session.query(ArtShowApplication).join(ArtShowApplication.active_receipt).filter(ArtShowApplication.true_default_cost_cents == ModelReceipt.item_total,
+                                                                                                    ModelReceipt.current_receipt_amount != 0)
 
         return {
             'apps': apps.filter(ArtShowApplication.status == c.APPROVED),
-            'discrepancy_ids': discrepancy_ids,
             'include_no_receipts': include_no_receipts,
         }
 
