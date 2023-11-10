@@ -24,6 +24,7 @@
 {% if edit_id %}
     <input type="hidden" name="edit_id" value="{{ edit_id }}" />
 {% endif %}
+<input type="hidden" name="is_prereg" value="True" />
 {{ csrf_token() }}
 
 {% include "forms/prereg_fields.html" %}
