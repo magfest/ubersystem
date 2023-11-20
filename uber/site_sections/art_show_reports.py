@@ -167,6 +167,29 @@ class Root:
             out.writerow([app.display_name, app.locations])
 
     @csv_file
+    def approved_international_artists(self, out, session):
+        out.writerow(['Artist\'s Name',
+                      'Legal Name',
+                      'Name on Check',
+                      'Email',
+                      'Agent Name',
+                      'Agent Email',
+                      ])
+        
+        for app in session.query(ArtShowApplication).join(Attendee, ArtShowApplication.attendee_id == Attendee.id
+                                                          ).filter(or_(and_(ArtShowApplication.country != '',
+                                                                            ArtShowApplication.country != 'United States'),
+                                                                       and_(Attendee.country != '',
+                                                                            Attendee.country != 'United States'))):
+              out.writerow([app.artist_name or app.attendee.full_name,
+                            app.attendee.legal_first_name + " " + app.attendee.legal_last_name,
+                            app.check_payable or (app.attendee.legal_first_name + " " + app.attendee.legal_last_name),
+                            app.email,
+                            app.agent.full_name if app.agent else '',
+                            app.agent.email if app.agent else '',
+                            ])
+
+    @csv_file
     def artist_csv(self, out, session):
         out.writerow(['Application Status',
                       'Paid?',
