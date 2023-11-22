@@ -21,7 +21,7 @@
     {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
         {% if logged_in_account %}
         <div class="text-center">
-            {% if logged_in_account.attendees %}
+            {% if logged_in_account.attendees or c.AFTER_PREREG_TAKEDOWN %}
             <a class="btn btn-info btn-lg" href="../preregistration/homepage" role="button">Continue to Homepage</a>
             {% else %}
             <div class="btn-group">
@@ -44,7 +44,7 @@
         {% endblock %}
             {% include 'preregistration/login_or_create_account.html' %}
         {% endif %}
-    {% else %}
+    {% elif c.BEFORE_PREREG_TAKEDOWN %}
     <div class="text-center">
     <div class="btn-group">
         <a class="btn btn-primary btn-lg" href="../preregistration/form" role="button">
