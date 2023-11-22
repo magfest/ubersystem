@@ -177,8 +177,8 @@ class Root:
                       ])
         
         for app in session.query(ArtShowApplication).join(Attendee, ArtShowApplication.attendee_id == Attendee.id
-                                                          ).filter_by(
-                                                              status=c.APPROVED
+                                                          ).filter(
+                                                              ArtShowApplication.status == c.APPROVED
                                                           ).filter(or_(and_(ArtShowApplication.country != '',
                                                                             ArtShowApplication.country != 'United States'),
                                                                        and_(Attendee.country != '',
