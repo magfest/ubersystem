@@ -4,7 +4,7 @@
 
 {{ attendee.first_name }},
 
-<br/><br/>Although your group ({{ group.name }}) {{ 'cancelled their ' + c.DEALER_APP_TERM if group.status == c.CANCELLED else 'was not taken off the waitlist' }}, we think you may still want to come and enjoy all that {{ c.EVENT_NAME }} has to offer!
+<br/><br/>Although your group ({{ group.name }}) {{ 'cancelled their ' + c.DEALER_APP_TERM if group.status == c.CANCELLED else ('was declined' if group.status == c.DECLINED else 'was not taken off the waitlist') }}, we think you may still want to come and enjoy all that {{ c.EVENT_NAME }} has to offer!
 Therefore, we have reserved a badge for you{% if c.PRICE_BUMPS and attendee.badge_cost < c.BADGE_PRICE %} at the price of registration when you first applied{% endif %}.
 Badges went to anyone in your group who had a valid email on the badge, and any unassigned badges were dropped.
 
