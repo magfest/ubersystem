@@ -21,9 +21,9 @@
     {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
         {% if logged_in_account %}
         <div class="text-center">
-            {% if logged_in_account.attendees or c.AFTER_PREREG_TAKEDOWN %}
+            {% if logged_in_account.attendees %}
             <a class="btn btn-info btn-lg" href="../preregistration/homepage" role="button">Continue to Homepage</a>
-            {% else %}
+            {% elif c.BEFORE_PREREG_TAKEDOWN or c.AT_THE_CON %}
             <div class="btn-group">
                 <a class="btn btn-primary btn-lg" href="../preregistration/form" role="button">
                     Register for {{ c.EVENT_NAME_AND_YEAR }}
@@ -44,7 +44,7 @@
         {% endblock %}
             {% include 'preregistration/login_or_create_account.html' %}
         {% endif %}
-    {% elif c.BEFORE_PREREG_TAKEDOWN %}
+    {% elif c.BEFORE_PREREG_TAKEDOWN or c.AT_THE_CON %}
     <div class="text-center">
     <div class="btn-group">
         <a class="btn btn-primary btn-lg" href="../preregistration/form" role="button">
