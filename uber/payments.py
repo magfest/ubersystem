@@ -879,6 +879,8 @@ class SpinTerminalRequest(TransactionRequest):
                 else:
                     txn.amount = running_total
                 txn.txn_total = approval_amount
+                session.add(txn)
+                session.commit()
 
             if txn.amount == 0:
                 session.delete(txn)
@@ -1332,6 +1334,8 @@ class ReceiptManager:
                 old_cost, cost_change = change_func(**{col_name: new_val})
 
         is_removable_item = col_name != 'badge_type'
+        log.debug(old_cost)
+        log.debug(cost_change)
         if not old_cost and is_removable_item:
             cost_desc = "Adding {}".format(cost_change_name)
         elif cost_change * -1 == old_cost and is_removable_item: # We're crediting the full amount of the item
@@ -1366,7 +1370,7 @@ class ReceiptManager:
         receipt_items = []
 
         model_overridden_price = getattr(model, 'overridden_price', None)
-        overridden_unset = model_overridden_price and not params.get('overridden_price')
+        overridden_unset = model_overridden_price and params.get('no_override')
         model_auto_recalc = getattr(model, 'auto_recalc', True) if isinstance(model, Group) else None
         auto_recalc_unset = not model_auto_recalc and params.get('auto_recalc', None)
 
@@ -1396,9 +1400,11 @@ class ReceiptManager:
                                     revert_change=revert_change,
                                 )]
 
-        if not params.get('no_override') and params.get('overridden_price'):
+        if not params.get('no_override') and params.get('overridden_price', None) != None:
             receipt_item = self.add_receipt_item_from_param(model, receipt, 'overridden_price', params)
             return [receipt_item] if receipt_item else []
+        elif params.get('no_override'):
+            params.pop('overridden_price')
 
         if not params.get('auto_recalc') and isinstance(model, Group):
             receipt_item = self.add_receipt_item_from_param(model, receipt, 'cost', params)
