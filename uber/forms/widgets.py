@@ -39,7 +39,7 @@ class IntSelect():
         self.choices = choices
 
     def __call__(self, field, choices=None, **kwargs):
-        choices = choices or self.choices
+        choices = choices or self.choices or [('', "ERROR: No choices provided")]
         field_id = kwargs.pop('id', field.id)
         options = dict(kwargs, id=field_id, name=field.name)
         if 'readonly' in options:

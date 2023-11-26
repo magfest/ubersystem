@@ -334,7 +334,7 @@ class Group(MagModel, TakesPaymentMixin):
             return 0
 
         if self.registered:
-            return max(0, ((self.total_cost * 100) - self.amount_paid - self.amount_pending) / 100)
+            return max(0, ((self.total_cost * 100) - self.amount_paid) / 100)
         else:
             return self.total_cost
 

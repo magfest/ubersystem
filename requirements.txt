@@ -3,6 +3,7 @@ authorizenet==1.1.4
 bleach==4.1.0
 boto3==1.14.45
 celery==5.1.2
+checkdigit==0.3.1
 cherrypy==17.3.0
 email_validator==1.0.2
 fpdf==1.7.2

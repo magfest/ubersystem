@@ -114,7 +114,7 @@ c.MENU = MenuItem(name='Root', submenu=[
     ]),
 
     MenuItem(name='People', submenu=[
-        MenuItem(name='Attendees', href='../registration/{}'.format('?invalid=True' if c.AT_THE_CON else '')),
+        MenuItem(name='Attendees', href='../registration/'),
         MenuItem(name='Pending Badges', href='../registration/pending_badges'),
         MenuItem(name='Promo Code Groups', href='../registration/promo_code_groups'),
         MenuItem(name='Groups', href='../group_admin/'),
@@ -135,8 +135,10 @@ c.MENU = MenuItem(name='Root', submenu=[
     ]),
 ])
 
+
 if c.ATTENDEE_ACCOUNTS_ENABLED:
     c.MENU['People'].append_menu_item(MenuItem(name='Attendee Accounts', href='../reg_admin/attendee_accounts'), position=1)
+
 
 if c.ATTRACTIONS_ENABLED:
     c.MENU['Schedule'].append_menu_item(MenuItem(name='Attractions', href='../attractions_admin/'))
@@ -149,6 +151,9 @@ if c.BADGE_PRINTING_ENABLED:
         MenuItem(name='Print Jobs List', href='../badge_printing/print_jobs_list'),
         MenuItem(name='Kiosk Print', href='../badge_printing/print_next_badge'),
     ]))
+
+if c.BADGE_PRINTING_ENABLED or c.SPIN_TERMINAL_AUTH_KEY:
+    c.MENU['Admin'].append_menu_item(MenuItem(name='Manage Workstations', href='../reg_admin/manage_workstations'))
 
 
 if c.ART_SHOW_ENABLED:

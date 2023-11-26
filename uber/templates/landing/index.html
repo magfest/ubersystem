@@ -21,7 +21,7 @@
     {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
         {% if logged_in_account %}
         <div class="text-center">
-            {% if logged_in_account.attendees %}
+            {% if logged_in_account.attendees and (c.BEFORE_PREREG_TAKEDOWN or c.AT_THE_CON) %}
             <a class="btn btn-info btn-lg" href="../preregistration/homepage" role="button">Continue to Homepage</a>
             {% elif c.BEFORE_PREREG_TAKEDOWN or c.AT_THE_CON %}
             <div class="btn-group">
@@ -65,7 +65,7 @@
         Exit Kiosk Mode
     </a>
 </p>
-{% elif c.AT_THE_CON and c.ATTENDEE_ACCOUNTS_ENABLED %}
+{% elif c.AT_THE_CON and c.ATTENDEE_ACCOUNTS_ENABLED and not c.SPIN_TERMINAL_AUTH_KEY %}
 <p class="text-end">
     <a class="btn btn-link btn-lg" href="../registration/register?kiosk_mode=True" role="button">
         Enter Kiosk Mode

@@ -21,7 +21,20 @@
   <div id="{{ field.id }}-validation" class="invalid-feedback" role="alert"></div>
 {% endmacro %}
 
-{% macro form_input(field, help_text='', admin_text='', extra_field=None, no_margin=False) %}
+{% macro form_input(field, help_text='', admin_text='', extra_field=None, no_margin=False, hidden_field_text='', force_hidden=False) %}
+{#
+  Renders the bootstrap scaffolding needed for a WTForms field based on its widget.
+  field (Field): WTForms form field.
+  help_text (str): Extra text to display on non-admin pages underneath the field.
+  admin_text (str): Extra test to display on admin pages underneath the field.
+  extra_field (Field): A second field to render underneath this field. Particularly useful for a toggle checkbox that affects the 
+        field.
+  no_margin (bool): If true, removes the `mb-3` class. Useful in cases where a containing div already has a margin.
+  hidden_field_text (str): For fields with the HiddenInput widget, this is the custom display text for the field, which is 
+        useful in situations where a field is always read-only. If not set, the field is rendered without any scaffolding.
+  force_hidden (bool): If true, the field is rendered as a hidden field instead of whatever its widget is.
+
+#}
 
 {% set custom_kwargs = kwargs %}
 {% if locked_fields|default(None, true) and field.name in locked_fields and not upgrade_modal %}
@@ -31,7 +44,21 @@
 {% set type = field.meta.get_field_type(field) %}
 {% set label_required = kwargs['required'] if 'required' in kwargs else field.flags.required %}
 {% set disable_checkboxes = ('readonly' in kwargs and kwargs['readonly'] == True) or 'readonly' in field.render_kw %}
-{% if type in ['checkbox','switch'] %}
+{% if type == 'hidden' or force_hidden %}
+  {% if hidden_field_text %}
+    <div class="form-text">{{ field.label.text }}</div>
+    <div{% if not no_margin %} class="mb-3"{% endif %}>
+      {% if force_hidden %}
+        <input type="hidden" name="{{ field.name }}" id="{{ field.id }}" value="{{ field.data }}" />
+      {% else %}
+        {{ field(**custom_kwargs) }}
+      {% endif %}
+      {{ hidden_field_text }}
+    </div>
+  {% else %}
+    {{ field(**custom_kwargs) }}
+  {% endif %}
+{% elif type in ['checkbox','switch'] %}
 <div class="form-check{% if type == 'switch' %} form-switch{% endif %}{% if not no_margin %} mb-3{% endif %}">
   {% if disable_checkboxes %}
   <input type="hidden" name="{{ field.id }}" value="{{ field.data }}" />
@@ -317,7 +344,7 @@
 {%- endmacro %}
 
 {% macro form_validation(form_id, page_handler='validate_attendee', form_list=[], include_disclaimers_modal=false, callback='') %}
-<div class="alert" role="alert" id="form-validations"></div>
+<div class="alert" role="alert" id="form-validations-{{ form_id }}"><span></span></div>
 
 <script type="text/javascript">
   var serverValidationPassed = false;
@@ -328,14 +355,14 @@
         form_list = '&form_list=' + form_list
     }
     $.post("{{ page_handler }}", $form.serialize() + form_list, function (response) {
-      $("#form-validations").hide().removeClass().addClass("alert").html("");
+      $("#form-validations-{{ form_id }}").hide().removeClass().addClass("alert").children('span').html("");
       $(".is-invalid").each(function() {
         var field_id = $(this).attr('id');
         $(this).removeClass('is-invalid');
         $("#" + field_id + "-validation").hide();
       });
       if (response.error) {
-        $("#form-validations").addClass("alert-danger").html(
+        $("#form-validations-{{ form_id }}").addClass("alert-danger").children('span').html(
           "Please correct the following errors:" +
           "<ul></ul>"
           );
@@ -345,13 +372,13 @@
             var field_label = $("label[for='" + key + "'] .form-label").text();
             if (field_label == '') { field_label = $("#" + key).children("legend").children(".form-label").text(); }
             if (field_label == '') {
-              $("#form-validations").find("ul").append("<li>" + val + "</li>");
+              $("#form-validations-{{ form_id }}").find("ul").append("<li>" + val + "</li>");
             } else {
-              $("#form-validations").find("ul").append("<li>" + field_label + ": " + val + "</li>");
+              $("#form-validations-{{ form_id }}").find("ul").append("<li>" + field_label + ": " + val + "</li>");
               $("#" + key).addClass("is-invalid");
             }
           } else {
-            $("#form-validations").find("ul").append("<li>" + val + "</li>");
+            $("#form-validations-{{ form_id }}").find("ul").append("<li>" + val + "</li>");
           }
 
           if ($("#" + key + "-validation").length != 0)
@@ -359,8 +386,8 @@
             $("#" + key + "-validation").html(val).show();
           }
         });
-        $("#form-validations").show();
-        $('html, body').animate({scrollTop: $("#form-validations").offset().top}, 50);
+        $("#form-validations-{{ form_id }}").show();
+        $('html, body').animate({scrollTop: $("#form-validations-{{ form_id }}").offset().top}, 50);
       } else {
         serverValidationPassed = true;
         {% if callback %}
@@ -378,13 +405,13 @@
   
 
   $(function () {
-    $("#form-validations").hide();
-    {{ submit_validation_and_disclaimer(form_id, include_disclaimers_modal) }}
+    $("#form-validations-{{ form_id }}").hide();
+    {{ submit_validation_and_disclaimer(form_id, include_disclaimers_modal, callback=callback) }}
 });
 </script>
 {%- endmacro %}
 
-{% macro submit_validation_and_disclaimer(form_id, include_disclaimers_modal=false) %}
+{% macro submit_validation_and_disclaimer(form_id, include_disclaimers_modal=false, callback='') %}
 $("#{{ form_id }}").submit(function (event) { 
     if(!serverValidationPassed) {
       if (event.originalEvent !== undefined) {
@@ -395,10 +422,14 @@ $("#{{ form_id }}").submit(function (event) {
       return false;
     }
     {% if include_disclaimers_modal %}
-    if(!disclaimersConfirmed) {
-        openDisclaimersModal();
-        return false;
-    }
+      if(!disclaimersConfirmed) {
+          openDisclaimersModal();
+          return false;
+      }
+    {% endif %}
+    {% if callback %}
+      {{ callback|safe }};
+      return false;
     {% endif %}
 });
 {%- endmacro %}

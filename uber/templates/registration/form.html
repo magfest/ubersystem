@@ -1,6 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% import "forms/macros.html" as form_macros with context %}
-{% import "forms/attendee.html" as attendee_fields with context %}
 {% block title %}Attendee Form - {{ attendee.full_name }}{% endblock %}
 {% block content %}
 {% include "check_in.html" %}
@@ -38,13 +37,6 @@
         {% endif %}
 {% endif %}
     </div>
-    <div class="col text-end">
-        <button type="submit" form="attendee-form" name="save_return_to_search" class="btn btn-primary" value="1">Save & Return{% if not return_to %} to Search{% endif %}</button>
-        <button type="submit" form="attendee-form" name="save" class="btn btn-primary" value="1">Save</button>
-        {% if c.AT_THE_CON and not attendee.checked_in and not attendee.is_not_ready_to_checkin and (not receipt or not receipt.current_amount_owed) %}
-        <button class="btn btn-success" form="attendee-form" name="save_check_in" value="1">Save & Check In</button>
-        {% endif %}
-    </div>
 </div>
 
 <div class="card">
@@ -53,9 +45,15 @@
     <div class="alert alert-warning center" role="alert">
     <h4>{{ attendee.full_name }} currently owes <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.</h4>
     {% if payment_enabled %}
-    {{ stripe_form('manual_reg_charge', attendee) }}
+        {% if c.SPIN_TERMINAL_AUTH_KEY %}
+            <button class="btn btn-success" id="start-payment-button" onClick="startTerminalPayment('{{ attendee.id }}')">Prompt Payment at Terminal</button>
+            <div class="row justify-content-center"><div id="payment-loading-message" class="alert alert-info text-center mt-3 col-8"></div></div>
+            {% include 'registration/spin_terminal_form.html' with context %}
+        {% else %}
+            {{ stripe_form('manual_reg_charge', attendee) }}
+        {% endif %}
     {% else %}
-    Please instruct them to pay at an at-door or manager station.
+        Please instruct them to pay at an at-door or manager station.
     {% endif %}
     </div>
     <iframe id="stripe_frame" name="stripe_frame" style="display:none"></iframe>
@@ -158,8 +156,8 @@
 {% include "forms/attendee/admin_consents.html" %}
 {% include "forms/attendee/badge_admin_notes.html" %}
 
-<div class="row g-sm-3">
-    <div class="col">
+<div class="form-group">
+    <div class="col-sm-9 col-sm-offset-3">
         <button type="submit" name="save_return_to_search" class="btn btn-primary" value="1">Save & Return{% if not return_to %} to Search{% endif %}</button>
         <button type="submit" name="save" class="btn btn-primary" value="1">Save</button>
         {% if c.AT_THE_CON and not attendee.checked_in and not attendee.is_not_ready_to_checkin and (not receipt or not receipt.current_amount_owed) %}

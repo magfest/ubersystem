@@ -123,7 +123,7 @@ class Root:
             # Authorize.net doesn't actually have a concept of pending transactions,
             # so there's no transaction to resume. Create a new one.
             new_txn_requent = TransactionRequest(txn.receipt, app.attendee.email, txn.desc, txn.amount)
-            stripe_intent = new_txn_requent.stripe_or_authnet_intent()
+            stripe_intent = new_txn_requent.stripe_or_mock_intent()
             txn.intent_id = stripe_intent.id
             session.commit()
         else:
@@ -303,7 +303,7 @@ class Root:
         charge_desc = "{}'s Art Show Application: {}".format(app.attendee.full_name, receipt.charge_description_list)
         charge = TransactionRequest(receipt, app.attendee.email, charge_desc)
         
-        message = charge.process_payment()
+        message = charge.prepare_payment()
 
         if message:
             return {'error': message}

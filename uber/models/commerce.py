@@ -9,7 +9,9 @@ from sqlalchemy import and_, case, func, or_, select
 from sideboard.lib import request_cached_property
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.types import Boolean, Integer, LargeBinary
+from sqlalchemy.dialects.postgresql.json import JSONB
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref
 
 from uber.config import c
@@ -22,7 +24,7 @@ from uber.payments import ReceiptManager
 
 __all__ = [
     'ArbitraryCharge', 'MerchDiscount', 'MerchPickup', 'ModelReceipt', 'MPointsForCash',
-    'NoShirt', 'OldMPointExchange', 'ReceiptItem', 'ReceiptTransaction', 'Sale']
+    'NoShirt', 'OldMPointExchange', 'ReceiptInfo', 'ReceiptItem', 'ReceiptTransaction', 'Sale', 'TerminalSettlement']
 
 
 class ArbitraryCharge(MagModel):
@@ -84,13 +86,13 @@ class Sale(MagModel):
 
 
 """
-Attendees and groups have a running receipt that has items and transactions added to it dynamically.
+Attendees, groups, and art show apps have a running receipt that has items and transactions added to it dynamically.
 
 Receipt items can be purchases or credits added to the receipt. They do not involve money changing hands.
 
 Receipt transactions keep track of payments and refunds, along with the method (e.g., cash, Stripe, Square)
-and, if applicable, the Stripe ID for that transaction. In some cases, such as during prereg or when an attendee
-pays for their art show application and badge at the same time, there may be multiple receipt transactions for one Stripe ID.
+and reference IDs (e.g., Stripe's payment intent and charge IDs) for that transaction. In some cases, such
+as during prereg, there may be multiple receipt transactions created with the same reference ID across multiple receipts.
 """
 class ModelReceipt(MagModel):
     invoice_num = Column(Integer, default=0)
@@ -253,6 +255,10 @@ class ReceiptTransaction(MagModel):
     receipt = relationship('ModelReceipt', foreign_keys=receipt_id,
                            cascade='save-update, merge',
                            backref=backref('receipt_txns', cascade='save-update, merge'))
+    receipt_info_id = Column(UUID, ForeignKey('receipt_info.id', ondelete='SET NULL'), nullable=True)
+    receipt_info = relationship('ReceiptInfo', foreign_keys=receipt_info_id,
+                           cascade='save-update, merge',
+                           backref=backref('receipt_txns', cascade='save-update, merge'))
     intent_id = Column(UnicodeText)
     charge_id = Column(UnicodeText)
     refund_id = Column(UnicodeText)
@@ -284,6 +290,9 @@ class ReceiptTransaction(MagModel):
 
         if not self.stripe_id:
             actions.append('remove_receipt_item')
+
+        if self.receipt_info:
+            actions.append('resend_receipt')
         
         return actions
 
@@ -350,7 +359,7 @@ class ReceiptTransaction(MagModel):
         # Check all possible Stripe IDs for invalid request errors
         # Stripe IDs become invalid if, for example, the Stripe API keys change
 
-        if c.AUTHORIZENET_LOGIN_ID or not self.stripe_id:
+        if c.AUTHORIZENET_LOGIN_ID or self.method != c.STRIPE or not self.stripe_id:
             return
         
         refund_intent_id = None
@@ -397,7 +406,7 @@ class ReceiptTransaction(MagModel):
             log.error(e)
 
     def check_paid_from_stripe(self, intent=None):
-        if self.charge_id or c.AUTHORIZENET_LOGIN_ID:
+        if self.charge_id or c.AUTHORIZENET_LOGIN_ID or self.method != c.STRIPE:
             return
 
         intent = intent or self.get_stripe_intent()
@@ -413,6 +422,7 @@ class ReceiptTransaction(MagModel):
         
         last_refund_id = None
         refunded_total = 0
+        # TODO: Ideally would like this to work with SPIn terminals too
         for refund in stripe.Refund.list(payment_intent=self.intent_id):
             refunded_total += refund.amount
             last_refund_id = refund.id
@@ -488,3 +498,26 @@ class ReceiptItem(MagModel):
     def cannot_delete_reason(self):
         if self.closed:
             return "You cannot delete items with payments attached. If necessary, please delete or cancel the payment first."
+
+
+class ReceiptInfo(MagModel):
+    fk_email_model = Column(UnicodeText)
+    fk_email_id = Column(UnicodeText)
+    terminal_id = Column(UnicodeText)
+    reference_id = Column(UnicodeText)
+    charged = Column(UTCDateTime)
+    voided = Column(UTCDateTime, nullable=True)
+    card_data = Column(MutableDict.as_mutable(JSONB), default={})
+    txn_info = Column(MutableDict.as_mutable(JSONB), default={})
+    emv_data = Column(MutableDict.as_mutable(JSONB), default={})
+    signature = Column(UnicodeText)
+    receipt_html = Column(UnicodeText)
+
+
+class TerminalSettlement(MagModel):
+    batch_timestamp = Column(UnicodeText)
+    requested = Column(UTCDateTime, default=lambda: datetime.now(UTC))
+    workstation_num = Column(Integer, default=0)
+    terminal_id = Column(UnicodeText)
+    response = Column(MutableDict.as_mutable(JSONB), default={})
+    error = Column(UnicodeText)

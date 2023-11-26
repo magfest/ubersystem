@@ -1075,6 +1075,26 @@ class Session(SessionManager):
             if existing_account:
                 self.add_attendee_to_account(attendee, existing_account)
 
+        def get_assigned_terminal_id(self):
+            reg_station_id = cherrypy.session.get('reg_station', '')
+
+            if not reg_station_id:
+                return "Workstation ID not set!", None
+            
+            workstation_assignment = self.query(WorkstationAssignment).filter_by(reg_station_id=int(reg_station_id)).first()
+
+            if not workstation_assignment:
+                return "This workstation does not have anything assigned, please double-check your workstation number.", None
+            
+            if not workstation_assignment.terminal_id:
+                return "This workstation has no terminal assigned, please contact a manager.", None
+            
+            lookup_key = workstation_assignment.terminal_id.lower().replace('-', '')
+            if lookup_key not in c.TERMINAL_ID_TABLE:
+                return f"Could not find terminal ID {workstation_assignment.terminal_id} in our terminal lookup table."
+            
+            return "", c.TERMINAL_ID_TABLE[lookup_key]
+
         def get_receipt_by_model(self, model, include_closed=False, create_if_none=""):
             receipt_select = self.query(ModelReceipt).filter_by(owner_id=model.id, owner_model=model.__class__.__name__)
             if not include_closed:
@@ -1112,6 +1132,31 @@ class Session(SessionManager):
                 # Non-persistent object, so nothing to refresh
                 pass
             return receipt
+
+        def terminal_settlements(self):
+            from uber.models import TerminalSettlement
+
+            settlements = {}
+
+            counts_base_query = self.query(TerminalSettlement.batch_timestamp, TerminalSettlement.error,
+                                           TerminalSettlement.response, func.count(TerminalSettlement.batch_timestamp))
+
+            settlements['completed'] = counts_base_query.filter(or_(TerminalSettlement.error != '',
+                                                                    TerminalSettlement.response != {})).group_by(
+                                                                        TerminalSettlement.batch_timestamp)
+            
+            settlements['succeeded'] = counts_base_query.filter(TerminalSettlement.error == '',
+                                                                TerminalSettlement.response != {}).group_by(
+                                                                    TerminalSettlement.batch_timestamp)
+
+            for timestamp in self.query(TerminalSettlement.batch_timestamp).distinct():
+                dt = datetime.fromtimestamp(timestamp)
+                settlements['errors'][timestamp] = self.query(TerminalSettlement.workstation_num,
+                                                              TerminalSettlement.terminal_id,
+                                                              TerminalSettlement.error).filter(TerminalSettlement.batch_timestamp == timestamp,
+                                                                                               TerminalSettlement.error != '')
+
+            return settlements
 
         def attendee_from_marketplace_app(self, **params):
             attendee, message = self.create_or_find_attendee_by_id(**params)
@@ -1508,7 +1553,7 @@ class Session(SessionManager):
 
             badge_statuses = [c.NEW_STATUS, c.COMPLETED_STATUS]
             if pending:
-                badge_statuses.append(c.PENDING_STATUS)
+                badge_statuses.extend([c.PENDING_STATUS, c.AT_DOOR_PENDING_STATUS])
 
             badge_filter = Attendee.badge_status.in_(badge_statuses)
 
@@ -1610,6 +1655,19 @@ class Session(SessionManager):
                 op = operator.eq
             
             return target, term, search_term, op
+        
+        def index_attendees(self):
+            # Returns a base attendee query with extra joins for the index page
+            attendees = self.query(Attendee).outerjoin(Attendee.group) \
+                                            .outerjoin(Attendee.promo_code) \
+                                            .outerjoin(PromoCodeGroup, PromoCode.group) \
+                                            .options(
+                                                joinedload(Attendee.group),
+                                                joinedload(Attendee.promo_code).joinedload(PromoCode.group)
+                                                )
+            if c.ATTENDEE_ACCOUNTS_ENABLED:
+                attendees = attendees.outerjoin(Attendee.managers).options(joinedload(Attendee.managers))
+            return attendees
 
         def search(self, text, *filters):
             # We need to both outerjoin on the PromoCodeGroup table and also
@@ -1618,15 +1676,19 @@ class Session(SessionManager):
             # with the outerjoin.  See https://docs.sqlalchemy.org/en/13/orm/query.html#sqlalchemy.orm.query.Query.join
             aliased_pcg = aliased(PromoCodeGroup)
 
-            attendees = self.query(Attendee) \
-                            .outerjoin(Attendee.group) \
-                            .outerjoin(Attendee.promo_code) \
-                            .outerjoin(Attendee.managers) \
-                            .outerjoin(aliased_pcg, PromoCode.group) \
-                            .options(
-                                joinedload(Attendee.group),
-                                joinedload(Attendee.promo_code).joinedload(PromoCode.group)
-                            ).filter(*filters)
+            aliased_pcg = aliased(PromoCodeGroup)
+
+            attendees = self.query(Attendee).outerjoin(Attendee.group) \
+                                            .outerjoin(Attendee.promo_code) \
+                                            .outerjoin(aliased_pcg, PromoCode.group) \
+                                            .options(
+                                                joinedload(Attendee.group),
+                                                joinedload(Attendee.promo_code).joinedload(PromoCode.group)
+                                                )
+            if c.ATTENDEE_ACCOUNTS_ENABLED:
+                attendees = attendees.outerjoin(Attendee.managers).options(joinedload(Attendee.managers))
+
+            attendees = attendees.filter(*filters)
 
             terms = text.split()
             if len(terms) == 2:
@@ -1661,6 +1723,8 @@ class Session(SessionManager):
                 return attendees.filter(or_(
                     Attendee.id == terms[0],
                     Attendee.public_id == terms[0],
+                    AttendeeAccount.id == terms[0],
+                    AttendeeAccount.public_id == terms[0],
                     aliased_pcg.id == terms[0],
                     Group.id == terms[0],
                     Group.public_id == terms[0])), ''
@@ -1678,7 +1742,8 @@ class Session(SessionManager):
             def check_text_fields(search_text):
                 check_list = [
                     Group.name.ilike('%' + search_text + '%'),
-                    aliased_pcg.name.ilike('%' + search_text + '%')
+                    aliased_pcg.name.ilike('%' + search_text + '%'),
+                    AttendeeAccount.email.ilike('%' + search_text + '%'),
                 ]
 
                 for attr in Attendee.searchable_fields:

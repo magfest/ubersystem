@@ -48,34 +48,35 @@
 
 <input type="hidden" name="app_id" value="{{ app.id }}" />
 {% if checkout %}
-<div class="col-12 col-sm-6">
-  <label class="form-text">Artist Code</label>
-  <div class="mb-3">
-    <div class="form-control-static">
-      {{ app.artist_id }}
+<div class="row g-sm-3">
+  <div class="col-12 col-sm-6">
+    <label class="form-text">Artist Code</label>
+    <div class="mb-3">
+      <div class="form-control-static">
+        {{ app.artist_id }}
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6">
+    <label class="form-text">Artist Name</label>
+    <div class="mb-3">
+      <div class="form-control-static">
+        {{ app.display_name }}{% if app.display_name != app.attendee.full_name %} ({{ app.attendee.full_name }}){% endif %}
+      </div>
     </div>
   </div>
 </div>
-<div class="col-12 col-sm-6">
-  <label class="form-text">Artist Name</label>
-  <div class="mb-3">
-    <div class="form-control-static">
-      {{ app.display_name }}{% if app.display_name != app.attendee.full_name %} ({{ app.attendee.full_name }}){% endif %}
+<div class="row g-sm-3">
+  {% if app.attendee.country != 'United States' and app.country != 'United States' and printable %}
+    <div class="col-12 col-sm-6">
+      <label class="form-text">Paypal Address</label>
+      <div class="mb-3">
+          {{ app.paypal_address }}
+      </div>
     </div>
-  </div>
-</div>
-{% if app.attendee.country != 'United States' and app.country != 'United States' and printable %}
-<div class="col-12 col-sm-6">
-  <label class="form-text">Paypal Address</label>
-  <div class="mb-3">
-    <div class="form-control-static">
-      {{ app.paypal_address }}
-    </div>
-  </div>
-</div>
-{% elif app.attendee.country != 'United States' and app.country != 'United States' %}
-{{ macros.form_group(app, 'paypal_address', label="Paypal Address", help="The Paypal address for the artist, whose personal address is outside the US.", placeholder='email@example.com', use_bs5=True) }}
-{% endif %}
+  {% elif app.attendee.country != 'United States' and app.country != 'United States' %}
+    {{ macros.form_group(app, 'paypal_address', label="Paypal Address", help="The Paypal address for the artist, whose personal address is outside the US.", placeholder='email@example.com', use_bs5=True) }}
+  {% endif %}
 {% else %}
 <div class="row g-sm-3 p-0">
   <div class="col text-start">
@@ -167,8 +168,9 @@
     </div>
   </div>
   {% endif %}
-  {% endif %}
-  {% if not app.check_payable and printable %}
+<div class="row g-sm-3">
+{% endif %}
+{% if not app.check_payable and printable %}
   <div class="col-12 col-sm-6">
     <label class="form-text">Name on Check</label>
     <div class="mb-3">
@@ -177,9 +179,9 @@
       </div>
     </div>
   </div>
-  {% else %}
+{% else %}
   {{ macros.form_group(app, 'check_payable', label="Name on Check", placeholder=app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name, is_readonly=printable, use_bs5=True) }}
-  {% endif %}
+{% endif %}
 </div>
 <div class="table-responsive">
   <table class="table table-striped"{% if not printable %} id="datatable_{{ app.id }}" {% endif %}>
@@ -199,7 +201,7 @@
       <td data-order="{{ piece.piece_id|int }}"> {{ piece.artist_and_piece_id }} <input type="hidden" name="piece_ids{{ app.id }}" value="{{ piece.id }}" /> </td>
       <td data-order="{{ piece.status_label }}">
         {% if printable %}{{ piece.status_label }} {% else %}
-        <select name="status{{ piece.id }}" class="form-control">
+        <select name="status{{ piece.id }}" class="form-select">
           {{ options(c.ART_PIECE_STATUS_OPTS, piece.status) }}
         </select>
         {% endif %}

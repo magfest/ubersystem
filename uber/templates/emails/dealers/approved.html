@@ -17,8 +17,8 @@ Payment is expected by: {{ c.DEALER_PAYMENT_DUE|datetime_local }} or your applic
 
 This registration includes:
 <ul>
-    <li> {{ group.tables }} table{{ group.tables|pluralize }} ({{ group.default_table_cost|format_currency }}) </li>
-    <li> {{ group.badges }} badge{{ group.badges|pluralize }} ({{ group.default_badge_cost|format_currency }}) </li>
+    <li> {{ group.tables }} table{{ group.tables|pluralize }}{% if group.auto_recalc %} ({{ group.default_table_cost|format_currency }}){% endif %}</li>
+    <li> {{ group.badges }} badge{{ group.badges|pluralize }}{% if group.auto_recalc %} ({{ group.default_badge_cost|format_currency }}){% endif %}</li>
 </ul>
 
 <br/> <u>{{ c.DEALER_LOC_TERM|title }} Rules and Information</u>

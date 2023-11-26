@@ -271,7 +271,7 @@
         </div>
     {% endif %}
     <div class="col">
-        {{ form_macros.form_input(badge_flags.overridden_price, value=attendee.overridden_price or attendee.badge_price or 0,
+        {{ form_macros.form_input(badge_flags.overridden_price, value=attendee.overridden_price or attendee.badge_cost or 0,
                                   extra_field=form_macros.form_input(badge_flags.no_override, checked=not attendee.overridden_price)) }}
     </div>
 </div>

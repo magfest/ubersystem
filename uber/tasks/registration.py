@@ -4,14 +4,17 @@ from datetime import datetime, timedelta
 import stripe
 import time
 import pytz
+import json
 from celery.schedules import crontab
 from pockets.autolog import log
 from sqlalchemy import not_, or_
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
+from uber.custom_tags import readable_join
 from uber.decorators import render
-from uber.models import ApiJob, Attendee, Email, Session, ReceiptTransaction
+from uber.models import ApiJob, Attendee, TerminalSettlement, Email, Session, ReceiptInfo, ReceiptTransaction
 from uber.tasks.email import send_email
 from uber.tasks import celery
 from uber.utils import localized_now, TaskUtils
@@ -19,7 +22,8 @@ from uber.payments import ReceiptManager
 
 
 __all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_pending_badges',
-           'check_unassigned_volunteers', 'check_near_cap', 'check_missed_stripe_payments', 'process_api_queue']
+           'check_unassigned_volunteers', 'check_near_cap', 'check_missed_stripe_payments', 'process_api_queue',
+           'process_terminal_sale', 'send_receipt_email']
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
@@ -196,7 +200,173 @@ def email_pending_attendees():
                 
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
                     already_emailed_accounts.append(email_to)
+
+
+@celery.task
+def send_receipt_email(receipt_id):
+    with Session() as session:
+        receipt = session.query(ReceiptInfo).filter_by(id=receipt_id).first()
+        if not receipt:
+            log.error(f"Could not send receipt {receipt_id} to model {receipt.fk_email_model} {receipt.fk_email_id}: receipt info not found!")
+            return
+
+        if not receipt.receipt_txns:
+            log.error(f"Could not send receipt {receipt_id} to model {receipt.fk_email_model} {receipt.fk_email_id}: receipt transactions not found!")
+            return
+
+        model = Session.resolve_model(receipt.fk_email_model)
+        email_to = session.query(model).filter_by(id=receipt.fk_email_id).first()
+        if not email_to:
+            log.error(f"Could not send receipt {receipt_id} to model {receipt.fk_email_model} {receipt.fk_email_id}: model not found!")
+            return
+
+        to = getattr(email_to, 'email', getattr(email_to, 'email_address', ''))
+        subject = f"Your {c.EVENT_NAME_AND_YEAR} receipt [#{receipt.reference_id}]"
+
+        body = render('emails/reg_workflow/receipt.html', {'receipt': receipt}, encoding=None)
+        send_email.delay(c.ADMIN_EMAIL, to, subject, body, format='html', model='n/a')
+
+
+@celery.task
+def close_out_terminals(workstation_and_terminal_ids):
+    from uber.payments import SpinTerminalRequest
+
+    request_timestamp = datetime.now().timestamp()
+
+    with Session() as session:
+        for workstation_num, terminal_id in workstation_and_terminal_ids:
+            settlement = TerminalSettlement(
+                batch_timestamp=request_timestamp,
+                workstation_num=workstation_num,
+                terminal_id=terminal_id,
+            )
+            session.add(settlement)
+            session.commit()
+
+            settle_request = SpinTerminalRequest(terminal_id)
+            settle_response = settle_request.close_out_terminal()
+            if settle_response:
+                settle_response_json = settle_response.json()
+                settlement.response = settle_response_json
+                if not settle_request.api_response_successful(settle_response_json):
+                    settlement.error = settle_request.error_message_from_response(settle_response_json)
+            else:
+                settlement.error = "No response!"
+            session.add(settlement)
+            session.commit()
+
+
+@celery.task
+def process_terminal_sale(workstation_num, terminal_id, model_id=None, account_id=None, **kwargs):
+    from uber.payments import SpinTerminalRequest
+    from uber.models import TxnRequestTracking, AdminAccount
+
+    message = ''
+    c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id, 'last_request_timestamp', datetime.now().timestamp())
+
+    with Session() as session:
+        txn_tracker = TxnRequestTracking(workstation_num=workstation_num, terminal_id=terminal_id, who=AdminAccount.admin_name())
+        session.add(txn_tracker)
+        session.commit()
         
+        c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id, 'tracking_id', txn_tracker.id)
+        intent_id = SpinTerminalRequest.intent_id_from_txn_tracker(txn_tracker)
+
+        if account_id:
+            try:
+                account = session.attendee_account(account_id)
+            except NoResultFound:
+                txn_tracker.internal_error = f"Account {account_id} not found!"
+                session.commit()
+                return
+            
+            txn_total = 0
+            attendee_names_list = []
+            receipts = []
+            try:
+                for attendee in account.at_door_attendees:
+                    receipt = session.get_receipt_by_model(attendee)
+                    if receipt:
+                        incomplete_txn = receipt.get_last_incomplete_txn()
+                        if incomplete_txn:
+                            incomplete_txn.cancelled = datetime.now()
+                            session.add(incomplete_txn)
+                    else:
+                        receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
+                        session.add(receipt)
+                    receipts.append(receipt)
+                    txn_total += receipt.current_amount_owed
+                    attendee_names_list.append(attendee.full_name + 
+                                            (f" ({attendee.badge_printed_name})" if attendee.badge_printed_name else ""))
+            except Exception as e:
+                txn_tracker.internal_error = f"Exception while building at-door group payment: {str(e)}"
+                session.commit()
+                return
+            
+            # Accounts get a custom payment description defined here, so get rid of whatever was passed in
+            kwargs.pop("description", None)
+
+            payment_request = SpinTerminalRequest(terminal_id=terminal_id,
+                                                  receipt_email=account.email,
+                                                  description=f"At-door registration for {readable_join(attendee_names_list)}",
+                                                  amount=txn_total,
+                                                  tracker=txn_tracker,
+                                                  **kwargs)
+            message = payment_request.create_stripe_intent(intent_id)
+            if message:
+                txn_tracker.internal_error = message
+                session.commit()
+                return
+            for receipt in receipts:
+                receipt_manager = ReceiptManager(receipt)
+                error = receipt_manager.create_payment_transaction(payment_request.description,
+                                                                   payment_request.intent,
+                                                                   receipt.current_amount_owed,
+                                                                   method=c.SQUARE)
+                if error:
+                    session.rollback()
+                    txn_tracker.internal_error = error
+                    session.commit()
+                    return
+                session.add_all(receipt_manager.items_to_add)
+        elif model_id:
+            try:
+                model = session.attendee(model_id)
+            except NoResultFound:
+                try:
+                    model = session.group(model_id)
+                except NoResultFound:
+                    try:
+                        model = session.art_show_application(model_id)
+                    except NoResultFound:
+                        txn_tracker.internal_error = f"Could not find model {model_id}!"
+                        session.commit()
+                        return
+            receipt = session.get_receipt_by_model(model, create_if_none="DEFAULT")
+            payment_request = SpinTerminalRequest(terminal_id=terminal_id,
+                                                  receipt=receipt,
+                                                  tracker=txn_tracker,
+                                                  **kwargs)
+            message = payment_request.prepare_payment(intent_id=intent_id, payment_method=c.SQUARE)
+            if message:
+                txn_tracker.internal_error = message
+                session.commit()
+                return
+        c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id, 'intent_id', payment_request.intent.id)
+
+        # Save receipt transactions to DB so that payment_request can find them
+        receipt_items_to_add = payment_request.get_receipt_items_to_add()
+        if receipt_items_to_add:
+            session.add_all(receipt_items_to_add)
+            session.commit()
+        
+        response = payment_request.send_sale_txn()
+        
+        if response:
+            payment_request.process_sale_response(session, response)
+        else:
+            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id, 'last_error', payment_request.error_message)
+            txn_tracker.internal_error = payment_request.error_message
 
 
 @celery.schedule(timedelta(minutes=30))

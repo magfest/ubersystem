@@ -457,7 +457,7 @@ class Root:
                 form['legal_name'].data = ''
             form.populate_obj(attendee)
 
-        if cherrypy.request.method == 'POST' or edit_id is not None:
+        if (cherrypy.request.method == 'POST' or edit_id is not None) and c.PRE_CON:
             if not message and attendee.badge_type not in c.PREREG_BADGE_TYPES:
                 message = 'Invalid badge type!'
 
@@ -618,6 +618,44 @@ class Root:
         return {
             'attendee': attendee,
             'id': id
+        }
+
+    def at_door_confirmation(self, session, message='', **params):
+        # Currently this feature relies on attendee accounts
+        # It is not clear if that needs to be changed or not
+
+        cart = PreregCart(listify(PreregCart.unpaid_preregs.values()))
+        used_codes = defaultdict(int)
+        registrations_list = []
+        for attendee in cart.attendees:
+            registrations_list.append(attendee.full_name)
+            attendee.badge_status = c.AT_DOOR_PENDING_STATUS
+            if attendee.id in cherrypy.session.setdefault('imported_attendee_ids', {}):
+                old_attendee = session.attendee(cherrypy.session['imported_attendee_ids'][attendee.id])
+                old_attendee.current_attendee = attendee
+                session.add(old_attendee)
+                del cherrypy.session['imported_attendee_ids'][attendee.id]
+
+            if attendee.promo_code_code:
+                message = check_prereg_promo_code(session, attendee, used_codes)
+                if not message:
+                    used_codes[attendee.promo_code_code] += 1
+            
+            if message:
+                session.rollback()
+                raise HTTPRedirect('index?message={}', message)
+            elif c.ATTENDEE_ACCOUNTS_ENABLED:
+                session.add_attendee_to_account(attendee, session.current_attendee_account())
+        for group in cart.groups:
+            session.add(group)
+    
+        PreregCart.unpaid_preregs.clear()
+        session.commit()
+
+        return {
+            'account': session.current_attendee_account(),
+            'completed_registrations': registrations_list,
+            'logged_in_account': session.current_attendee_account(),
         }
 
     def process_free_prereg(self, session, message='', **params):
@@ -952,18 +990,17 @@ class Root:
     @ajax
     @credit_card
     def pay_for_extra_codes(self, session, id, count):
-        from uber.models import ReceiptItem
         group = session.promo_code_group(id)
         receipt = session.get_receipt_by_model(group.buyer, create_if_none="DEFAULT")
         count = int(count)
         charge_desc = '{} extra badge{} for {}'.format(count, 's' if count > 1 else '', group.name)
         charge = TransactionRequest(receipt, receipt_email=group.email, description=charge_desc,
                                     amount=c.get_group_price() * 100 * count, create_receipt_item=receipt.current_amount_owed == 0)
-        if charge.dollar_amount % c.GROUP_PRICE:
+        if int(charge.dollar_amount) % c.GROUP_PRICE:
             session.rollback()
             return {'error': 'Our preregistration price has gone up since you tried to add more codes; please try again'}
         
-        message = charge.process_payment()
+        message = charge.prepare_payment()
         if message:
             return {'error': message}
 
@@ -1153,7 +1190,7 @@ class Root:
         charge_desc = "{}: {}".format(group.name, receipt.charge_description_list)
         charge = TransactionRequest(receipt, group.email, charge_desc)
 
-        message = charge.process_payment()
+        message = charge.prepare_payment()
         if message:
             return {'error': message}
         
@@ -1208,7 +1245,6 @@ class Root:
     @ajax
     @credit_card
     def pay_for_extra_members(self, session, id, count):
-        from uber.models import ReceiptItem
         group = session.group(id)
         receipt = session.get_receipt_by_model(group, create_if_none="DEFAULT")
         session.add(receipt)
@@ -1217,11 +1253,11 @@ class Root:
         charge_desc = '{} extra badge{} for {}'.format(count, 's' if count > 1 else '', group.name)
         charge = TransactionRequest(receipt, group.email, charge_desc,
                                     group.new_badge_cost * count * 100, create_receipt_item=receipt.current_amount_owed == 0)
-        if charge.dollar_amount % group.new_badge_cost:
+        if int(charge.dollar_amount) % group.new_badge_cost:
             session.rollback()
             return {'error': 'Our preregistration price has gone up since you tried to add the badges; please try again'}
 
-        message = charge.process_payment()
+        message = charge.prepare_payment()
         if message:
             return {'error': message}
 
@@ -1691,7 +1727,7 @@ class Root:
             # Authorize.net doesn't actually have a concept of pending transactions,
             # so there's no transaction to resume. Create a new one.
             new_txn_requent = TransactionRequest(txn.receipt, attendee.email, txn.desc, txn.amount)
-            stripe_intent = new_txn_requent.stripe_or_authnet_intent()
+            stripe_intent = new_txn_requent.stripe_or_mock_intent()
             txn.intent_id = stripe_intent.id
             session.commit()
         else:
@@ -1731,7 +1767,7 @@ class Root:
             elif group.attendees:
                 receipt_email = group.attendees[0].email
             new_txn_requent = TransactionRequest(txn.receipt, receipt_email, txn.desc, txn.amount)
-            stripe_intent = new_txn_requent.stripe_or_authnet_intent()
+            stripe_intent = new_txn_requent.stripe_or_mock_intent()
             txn.intent_id = stripe_intent.id
             session.commit()
         else:
@@ -1758,7 +1794,7 @@ class Root:
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = TransactionRequest(receipt, attendee.email, charge_desc)
 
-        message = charge.process_payment()
+        message = charge.prepare_payment()
         if message:
             return {'error': message}
 
@@ -1827,7 +1863,7 @@ class Root:
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
         charge = TransactionRequest(receipt, attendee.email, charge_desc)
 
-        message = charge.process_payment()
+        message = charge.prepare_payment()
         if message:
             return {'error': message}
 

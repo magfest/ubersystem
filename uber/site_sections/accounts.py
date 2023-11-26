@@ -12,7 +12,7 @@ from uber.config import c
 from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
                              department_id_adapter, not_site_mappable, render, site_mappable, public)
 from uber.errors import HTTPRedirect
-from uber.models import AccessGroup, AdminAccount, Attendee, PasswordReset
+from uber.models import AccessGroup, AdminAccount, Attendee, PasswordReset, WorkstationAssignment
 from uber.tasks.email import send_email
 from uber.utils import check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd
 
@@ -207,7 +207,8 @@ class Root:
         
         return {
             'message': message,
-            'site_sections': [key for key in session.access_query_matrix().keys() if getattr(c, 'HAS_' + key.upper() + '_ACCESS')]
+            'site_sections': [key for key in session.access_query_matrix().keys() if getattr(c, 'HAS_' + key.upper() + '_ACCESS')],
+            'reg_station_id': cherrypy.session.get('reg_station', ''),
             }
         
     @public

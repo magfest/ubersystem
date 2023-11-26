@@ -80,20 +80,14 @@
 <div class="row g-sm-3">
     {% if c.VOLUNTEER_AGREEMENT_ENABLED %}
     <div class="col">
-        <div class="form-text">{{ staffing_info.agreed_to_volunteer_agreement.label.text }}</div>
-        <div class="mb-3">
-            {{ staffing_info.agreed_to_volunteer_agreement }}
-            {{ staffing_info.agreed_to_volunteer_agreement.data|yesno("Yes,No") }}
-        </div>
+        {{ form_macros.form_input(staffing_info.agreed_to_volunteer_agreement,
+            hidden_field_text=staffing_info.agreed_to_volunteer_agreement.data|yesno("Yes,No")) }}
     </div>
     {% endif %}
     {% if c.EMERGENCY_PROCEDURES_ENABLED %}
     <div class="col">
-        <div class="form-text">{{ staffing_info.reviewed_emergency_procedures.label.text }}</div>
-        <div class="mb-3">
-            {{ staffing_info.reviewed_emergency_procedures }}
-            {{ staffing_info.reviewed_emergency_procedures.data|yesno("Yes,No") }}
-        </div>
+        {{ form_macros.form_input(staffing_info.reviewed_emergency_procedures,
+            hidden_field_text=staffing_info.reviewed_emergency_procedures.data|yesno("Yes,No")) }}
     </div>
     {% endif %}
     <div class="col">

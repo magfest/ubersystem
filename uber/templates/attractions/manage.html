@@ -22,34 +22,34 @@
     width: 100%;
   }
 
-  #notifications .input-group-addon {
+  #notifications .input-group-text {
     text-align: left;
   }
 
-  #notifications .input-group-addon:first-child {
+  #notifications .input-group-text:first-child {
     width: 100px;
   }
 
   .checkgroup label,
-  #notifications .input-group-addon,
-  #notifications .input-group-addon input {
+  #notifications .input-group-text,
+  #notifications .input-group-text input {
     cursor: pointer;
   }
 
-  #notifications .input-group.disabled .input-group-addon,
-  #notifications .input-group.disabled .input-group-addon input {
+  #notifications .input-group.disabled .input-group-text,
+  #notifications .input-group.disabled .input-group-text input {
     cursor: not-allowed;
   }
 
-  #notifications .input-group-addon .glyphicon {
+  #notifications .input-group-text .glyphicon {
     vertical-align: text-top;
   }
 
-  #notifications .input-group-addon input {
+  #notifications .input-group-text input {
     margin-right: 6px;
   }
 
-  #notifications .input-group-addon,
+  #notifications .input-group-text,
   #notifications .form-control-static {
     border-color: #d8d8d8;
   }
@@ -61,7 +61,7 @@
     text-overflow: ellipsis;
   }
 
-  #notifications .form-control-static.input-group-addon {
+  #notifications .form-control-static.input-group-text {
     cursor: default;
     padding-top: 9px;
   }
@@ -414,7 +414,7 @@
               </div>
               <div class="col-sm-12">
                 <div class="input-group">
-                  <label class="input-group-addon">
+                  <label class="input-group-text">
                     <input type="radio"
                         name="notification_pref"
                         value="{{ attendee._NOTIFICATION_EMAIL }}"
@@ -428,7 +428,7 @@
             <div class="form-group">
               <div class="col-sm-12">
                 <div class="input-group{% if not attendee.cellphone %} disabled{% endif %}">
-                  <label class="input-group-addon">
+                  <label class="input-group-text">
                     <input type="radio"
                         name="notification_pref"
                         value="{{ attendee._NOTIFICATION_TEXT }}"
@@ -449,14 +449,14 @@
             <div class="form-group">
               <div class="col-sm-12">
                 <div class="input-group">
-                  <label class="input-group-addon">
+                  <label class="input-group-text">
                     <input type="radio"
                         name="notification_pref"
                         value="{{ attendee._NOTIFICATION_NONE }}"
                         {%- if attendee.notification_pref == attendee._NOTIFICATION_NONE %} checked="checked"{% endif %}>
                     <i class="fa fa-ban-circle"></i> None
                   </label>
-                  <div class="input-group-addon form-control form-control-static">
+                  <div class="input-group-text form-control form-control-static">
                     <em>Don't notify me about my signups</em>
                   </div>
                 </div>
