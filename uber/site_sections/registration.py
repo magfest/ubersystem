@@ -317,6 +317,7 @@ class Root:
     
     @ajax
     def poll_terminal_payment(self, session, **params):
+        import spin_rest_utils
         error, terminal_id = session.get_assigned_terminal_id()
 
         if error:
@@ -334,16 +335,9 @@ class Root:
                     txn.cancelled = datetime.now()
                     session.add(txn)
                 session.commit()
-            if error_message == 'busy':
-                return {'message': "The terminal is currently busy. Clear any prompts and try again."}
-            if error_message == 'Service busy':
-                return {'message': "The terminal is currently in bypass mode. Press the circle with an arrow curving around it to take it out of bypass mode."}
-            if error_message == 'Canceled':
-                return {'message': "The transaction was cancelled on the terminal."}
-            if error_message == 'Partial approval':
-                return {'message': f"{format_currency(response['Amounts']['TotalAmount'])} has been paid. Retry the payment to charge the remaining balance."}
-            if error_message == 'Register not found':
-                return {'error': f'Register {terminal_id} not found'}
+            custom_error = spin_rest_utils.better_error_message(error_message, response, terminal_id, format_currency)
+            if custom_error:
+                return custom_error
             return {'error': error_message}
         elif response:
             if not intent_id:
