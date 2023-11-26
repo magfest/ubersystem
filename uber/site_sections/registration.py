@@ -317,7 +317,7 @@ class Root:
     
     @ajax
     def poll_terminal_payment(self, session, **params):
-        import spin_rest_utils
+        from spin_rest_utils import utils as spin_rest_utils
         error, terminal_id = session.get_assigned_terminal_id()
 
         if error:
