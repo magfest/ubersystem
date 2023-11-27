@@ -1,5 +1,6 @@
 alembic==0.9.1
 authorizenet==1.1.4
+aztec-code-generator==0.11
 bleach==4.1.0
 boto3==1.14.45
 celery==5.1.2
