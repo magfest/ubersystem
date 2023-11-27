@@ -157,4 +157,101 @@
         {% endif %}
     </div>
 </div>
+
+<br/><div class="card">
+    <div class="card-header">Closeout Reports</div>
+    <div class="card-body">
+        {% if settlements['in_progress'] %}
+        <div class="row">
+            <div class="col-12 col-sm-6">
+                The following closeouts are still pending:
+                <table class="table table-striped">
+                    <thead>
+                        <th>Request Time</th>
+                        <th>Admin</th>
+                        <th>Workstation #</th>
+                        <th>Terminal ID</th>
+                    </thead>
+                    <tbody>
+                        {% for timestamp, admin, workstation_num, terminal_id in settlements['in_progress'] %}
+                        <tr>
+                            <td>{{ timestamp|timestamp_to_dt|datetime_local }}</td>
+                            <td>{{ admin }}</td>
+                            <td>{{ workstation_num }}</td>
+                            <td>{{ terminal_id|tpn_to_terminal_id }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+        {% if settlements['completed'] %}
+        <div class="row">
+            <div class="col-6">
+                <table class="table table-striped">
+                    <thead>
+                        <th>Request Time</th>
+                        <th>Admin</th>
+                        <th># Closeouts</th>
+                        <th># Errors</th>
+                    </thead>
+                    <tbody>
+                        {% for timestamp, count in settlements['completed'] %}
+                        <tr>
+                            <td>{{ timestamp|timestamp_to_dt|datetime_local }}</td>
+                            <td>{{ settlements['batch_info'][timestamp] }}</td>
+                            <td>{{ settlements['succeeded'][timestamp]|default("0") }}</td>
+                            <td>
+                                {% if settlements['errors'][timestamp] %}
+                                {{ settlements['errors'][timestamp]|length }}
+                                <a class="btn btn-sm btn-warning" data-bs-toggle="collapse" href="#errors-{{ timestamp|float|int }}">View</a>
+                                {% else %}
+                                0
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="col-6">
+                <strong>Closeout Errors</strong>
+                <div class="accordion" id="closeout-errors">
+                {% for timestamp, error_info in settlements['errors'].items() %}
+                {% if error_info %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed btn-warning" type="button" data-bs-toggle="collapse" data-bs-target="#errors-{{ timestamp|float|int }}" aria-expanded="false" aria-controls="{{ timestamp}}-errors">
+                            {{ timestamp|timestamp_to_dt|datetime_local }}
+                        </button>
+                    </h2>
+                    <div id="errors-{{ timestamp|float|int }}" class="accordion-collapse collapse" data-bs-parent="#closeout-errors">
+                        <div class="accordion-body">
+                            <table class="table table-striped">
+                                <thead>
+                                    <th>Workstation #</th>
+                                    <th>Terminal ID</th>
+                                    <th>Error</th>
+                                </thead>
+                                <tbody>
+                                    {% for workstation_num, terminal_id, error in error_info %}
+                                    <tr>
+                                        <td>{{ workstation_num }}</td>
+                                        <td>{{ terminal_id|tpn_to_terminal_id }}</td>
+                                        <td>{{ error }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}

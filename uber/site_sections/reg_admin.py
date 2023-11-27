@@ -252,10 +252,11 @@ class Root:
         item = session.receipt_item(id)
         
         if item.receipt_txn and item.receipt_txn.amount_left:
+            refund_amount = min(item.amount * item.count, item.receipt_txn.amount_left)
             if item.receipt_txn.method == c.SQUARE and c.SPIN_TERMINAL_AUTH_KEY:
-                refund = SpinTerminalRequest(receipt=item.receipt, amount=min(item.amount, item.receipt_txn.amount_left), method=item.receipt_txn.method)
+                refund = SpinTerminalRequest(receipt=item.receipt, amount=refund_amount, method=item.receipt_txn.method)
             else:
-                refund = TransactionRequest(receipt=item.receipt, amount=min(item.amount, item.receipt_txn.amount_left), method=item.receipt_txn.method)
+                refund = TransactionRequest(receipt=item.receipt, amount=refund_amount, method=item.receipt_txn.method)
 
             error = refund.refund_or_cancel(item.receipt_txn)
             if error:
@@ -309,7 +310,7 @@ class Root:
             return {'error': message}
 
         if item.receipt_txn and item.receipt_txn.amount_left:
-            refund_amount = min(item.amount, item.receipt_txn.amount_left)
+            refund_amount = min(item.amount * item.count, item.receipt_txn.amount_left)
             if params.get('exclude_fees'):
                 processing_fees = item.receipt_txn.calc_processing_fee(refund_amount)
                 session.add(ReceiptItem(
@@ -771,24 +772,6 @@ class Root:
         return {'invalidated': id}
     
     def manage_workstations(self, session, message='', **params):
-        completed_closeouts = c.REDIS_STORE.hgetall(c.REDIS_PREFIX + 'completed_closeout_requests')
-        closeouts_report = {}
-
-        # Recent closeouts are grouped by request time in closeouts_report.
-        # Each item contains an 'errors' list of terminal_id, error message tuples, 
-        # plus a similar list of terminal_id, response json tuples under 'responses'
-        if completed_closeouts:
-            for request_timestamp, statuses_dict in json.loads(completed_closeouts).items():
-                request_datetime = datetime.fromtimestamp(request_timestamp)
-                closeouts_report[request_datetime] = {}
-                
-                for terminal_id, status_dict in statuses_dict.items():
-                    if status_dict.get('error'):
-                        closeouts_report[request_datetime]['errors'].append((terminal_id, status_dict.get('error')))
-                    elif status_dict.get('response'):
-                        closeouts_report[request_datetime]['responses'].append((terminal_id, status_dict.get('error')))
-
-
         if cherrypy.request.method == 'POST':
             skipped_reg_stations = []
             terminal_ids = []
@@ -839,7 +822,7 @@ class Root:
 
         return {
             'workstation_assignments': session.query(WorkstationAssignment).all(),
-            'closeouts_report': closeouts_report,
+            'settlements': session.get_terminal_settlements(),
             'message': message,
         }
     
@@ -927,7 +910,7 @@ class Root:
                 no_valid_workstations = False
                 workstation_and_terminal_ids.append((id, terminal_id))
         
-        close_out_terminals(workstation_and_terminal_ids)
+        close_out_terminals(workstation_and_terminal_ids, AdminAccount.admin_name())
 
         if no_matching_workstations:
             raise HTTPRedirect('manage_workstations?message={}', f"No workstations found matching ID(s) {params.get('workstation_ids')}")

@@ -651,6 +651,8 @@ class Root:
         unclaimed_pieces = []
         unpaid_pieces = []
         charge = None
+        reg_station_id = cherrypy.session.get('reg_station', '')
+        workstation_assignment = session.query(WorkstationAssignment).filter_by(reg_station_id=reg_station_id or -1).first()
 
         if search_text:
             if re.match('\w+-[0-9]+', search_text):
@@ -715,7 +717,8 @@ class Root:
             'message': message,
             'must_choose': must_choose,
             'pieces': unclaimed_pieces or unpaid_pieces,
-            'reg_station_id': cherrypy.session.get('reg_station', ''),
+            'reg_station_id': reg_station_id,
+            'workstation_assignment': workstation_assignment,
         }
 
     def unclaim_piece(self, session, id, piece_id, **params):

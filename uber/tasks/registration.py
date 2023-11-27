@@ -228,7 +228,7 @@ def send_receipt_email(receipt_id):
 
 
 @celery.task
-def close_out_terminals(workstation_and_terminal_ids):
+def close_out_terminals(workstation_and_terminal_ids, who):
     from uber.payments import SpinTerminalRequest
 
     request_timestamp = datetime.now().timestamp()
@@ -237,6 +237,7 @@ def close_out_terminals(workstation_and_terminal_ids):
         for workstation_num, terminal_id in workstation_and_terminal_ids:
             settlement = TerminalSettlement(
                 batch_timestamp=request_timestamp,
+                batch_who=who,
                 workstation_num=workstation_num,
                 terminal_id=terminal_id,
             )
@@ -294,10 +295,12 @@ def process_terminal_sale(workstation_num, terminal_id, model_id=None, account_i
                     else:
                         receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
                         session.add(receipt)
-                    receipts.append(receipt)
-                    txn_total += receipt.current_amount_owed
-                    attendee_names_list.append(attendee.full_name + 
-                                            (f" ({attendee.badge_printed_name})" if attendee.badge_printed_name else ""))
+
+                    if receipt.current_amount_owed:
+                        receipts.append(receipt)
+                        txn_total += receipt.current_amount_owed
+                        attendee_names_list.append(attendee.full_name + 
+                                                (f" ({attendee.badge_printed_name})" if attendee.badge_printed_name else ""))
             except Exception as e:
                 txn_tracker.internal_error = f"Exception while building at-door group payment: {str(e)}"
                 session.commit()
@@ -353,12 +356,6 @@ def process_terminal_sale(workstation_num, terminal_id, model_id=None, account_i
                 session.commit()
                 return
         c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id, 'intent_id', payment_request.intent.id)
-
-        # Save receipt transactions to DB so that payment_request can find them
-        receipt_items_to_add = payment_request.get_receipt_items_to_add()
-        if receipt_items_to_add:
-            session.add_all(receipt_items_to_add)
-            session.commit()
         
         response = payment_request.send_sale_txn()
         

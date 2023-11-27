@@ -1133,28 +1133,38 @@ class Session(SessionManager):
                 pass
             return receipt
 
-        def terminal_settlements(self):
+        def get_terminal_settlements(self):
             from uber.models import TerminalSettlement
 
             settlements = {}
 
-            counts_base_query = self.query(TerminalSettlement.batch_timestamp, TerminalSettlement.error,
-                                           TerminalSettlement.response, func.count(TerminalSettlement.batch_timestamp))
+            counts_base_query = self.query(TerminalSettlement.batch_timestamp,
+                                           func.count(TerminalSettlement.batch_timestamp))
+
 
             settlements['completed'] = counts_base_query.filter(or_(TerminalSettlement.error != '',
                                                                     TerminalSettlement.response != {})).group_by(
-                                                                        TerminalSettlement.batch_timestamp)
-            
-            settlements['succeeded'] = counts_base_query.filter(TerminalSettlement.error == '',
-                                                                TerminalSettlement.response != {}).group_by(
-                                                                    TerminalSettlement.batch_timestamp)
+                                                                        TerminalSettlement.batch_timestamp).all()
 
-            for timestamp in self.query(TerminalSettlement.batch_timestamp).distinct():
-                dt = datetime.fromtimestamp(timestamp)
+            settlements['succeeded'] = dict(counts_base_query.filter(TerminalSettlement.error == '',
+                                                                     TerminalSettlement.response != {}).group_by(
+                                                                         TerminalSettlement.batch_timestamp).all())
+            
+            settlements['in_progress'] = self.query(TerminalSettlement.batch_timestamp,
+                                                    TerminalSettlement.batch_who,
+                                                    TerminalSettlement.workstation_num,
+                                                    TerminalSettlement.terminal_id).filter(TerminalSettlement.error == '',
+                                                                                           TerminalSettlement.response == {}).all()
+
+            settlements['errors'] = {}
+            settlements['batch_info'] = self.query(TerminalSettlement.batch_timestamp, TerminalSettlement.batch_who).distinct().all()
+
+            for timestamp, who in settlements['batch_info']:
                 settlements['errors'][timestamp] = self.query(TerminalSettlement.workstation_num,
                                                               TerminalSettlement.terminal_id,
-                                                              TerminalSettlement.error).filter(TerminalSettlement.batch_timestamp == timestamp,
-                                                                                               TerminalSettlement.error != '')
+                                                              TerminalSettlement.error).filter(
+                                                                  TerminalSettlement.batch_timestamp == timestamp,
+                                                                  TerminalSettlement.error != '').all()
 
             return settlements
 

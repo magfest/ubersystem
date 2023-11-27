@@ -21,6 +21,16 @@
   </div>
   <div class="col"><a href="../art_show_admin/sales_search" class="btn btn-outline-secondary pull-right">Return to Search</a></div>
 </div>
+<div class="row mb-2 mt-2">
+  <div class="col">
+    <span class="pull-right me-2">
+      Workstation #: {{ reg_station_id|default("None",true) }}
+      {% if c.SPIN_TERMINAL_AUTH_KEY %}
+      <br/>Terminal ID: {{ workstation_assignment.terminal_id|default("None") if workstation_assignment else "None" }}
+      {% endif %}
+    </span>
+  </div>
+</div>
 <div class="card">
   <div class="card-body">
 <p>

@@ -300,10 +300,16 @@ class ReceiptTransaction(MagModel):
     def refundable(self):
         return not self.receipt.closed and self.charge_id and self.amount > 0 and \
             self.amount_left and self.amount_left != self.calc_processing_fee()
+    
+    @property
+    def card_info(self):
+        if self.receipt_info and self.receipt_info.card_data:
+            return self.receipt_info.card_data.get('CardType', '') + ' ' + self.receipt_info.card_data['Last4']
+        return ''
 
     @property
     def stripe_url(self):
-        if not self.stripe_id:
+        if not self.stripe_id or self.method != c.STRIPE:
             return ''
         
         if c.AUTHORIZENET_LOGIN_ID:
@@ -516,6 +522,7 @@ class ReceiptInfo(MagModel):
 
 class TerminalSettlement(MagModel):
     batch_timestamp = Column(UnicodeText)
+    batch_who = Column(UnicodeText)
     requested = Column(UTCDateTime, default=lambda: datetime.now(UTC))
     workstation_num = Column(Integer, default=0)
     terminal_id = Column(UnicodeText)

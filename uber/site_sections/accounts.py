@@ -205,10 +205,14 @@ class Root:
         if not cherrypy.session.get('account_id'):
             raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
         
+        reg_station_id = cherrypy.session.get('reg_station', '')
+        workstation_assignment = session.query(WorkstationAssignment).filter_by(reg_station_id=reg_station_id or -1).first()
+        
         return {
             'message': message,
             'site_sections': [key for key in session.access_query_matrix().keys() if getattr(c, 'HAS_' + key.upper() + '_ACCESS')],
-            'reg_station_id': cherrypy.session.get('reg_station', ''),
+            'reg_station_id': reg_station_id,
+            'workstation_assignment': workstation_assignment,
             }
         
     @public

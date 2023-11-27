@@ -759,6 +759,9 @@ class SpinTerminalRequest(TransactionRequest):
         else:
             self.capture_signature = capture_signature
 
+    def get_or_create_customer(self, customer_id=''):
+        self.customer_id = ''
+
     @property
     def base_request(self):
         return spin_rest_utils.base_request(self.terminal_id, self.auth_key)
@@ -821,9 +824,17 @@ class SpinTerminalRequest(TransactionRequest):
         from uber.models import ReceiptTransaction
         from uber.tasks.registration import send_receipt_email
 
-        response_json = response.json()
+        try:
+            response_json = response.json()
+        except AttributeError:
+            response_json = response
         self.tracker.response = response_json
         self.tracker.resolved = datetime.utcnow()
+
+        receipt_items_to_add = self.get_receipt_items_to_add()
+        if receipt_items_to_add:
+            session.add_all(receipt_items_to_add)
+        session.commit()
 
         self.check_retry_sale(session, response_json)
 
@@ -860,7 +871,7 @@ class SpinTerminalRequest(TransactionRequest):
         if approval_amount != self.amount:
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id, 'last_error', "Partial approval")
 
-        matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=self.intent.id).filter(ReceiptTransaction.receipt_info == None)
+        matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=self.intent.id).all()
         if not matching_txns:
             error_message = "Payment was successful, but did not have any matching transactions"
             log.error(f"Error while processing terminal sale for transaction {self.tracking_id}: {error_message}")
@@ -874,18 +885,16 @@ class SpinTerminalRequest(TransactionRequest):
             if txn.txn_total != approval_amount:
                 if txn.amount == txn.txn_total: # Single transaction, nothing complicated to do here
                     txn.amount = approval_amount
-                elif running_total >= txn.amount: # There's still enough approved money left to cover this transaction
-                    running_total -= txn.amount
                 else:
-                    txn.amount = running_total
+                    if running_total < txn.amount:
+                        txn.amount = running_total
+                    running_total -= txn.amount
                 txn.txn_total = approval_amount
-                session.add(txn)
-                session.commit()
-
             if txn.amount == 0:
                 session.delete(txn)
             else:
                 txn.receipt_info = self.receipt_info_from_txn(session, txn, model_receipt_info, response_json)
+                session.add(txn)
                 session.add(txn.receipt_info)
 
         session.commit()
@@ -1334,8 +1343,7 @@ class ReceiptManager:
                 old_cost, cost_change = change_func(**{col_name: new_val})
 
         is_removable_item = col_name != 'badge_type'
-        log.debug(old_cost)
-        log.debug(cost_change)
+
         if not old_cost and is_removable_item:
             cost_desc = "Adding {}".format(cost_change_name)
         elif cost_change * -1 == old_cost and is_removable_item: # We're crediting the full amount of the item

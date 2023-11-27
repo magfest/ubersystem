@@ -584,7 +584,7 @@
             {{ "Purchase" if item.amount > 0 else "Credit" }}
           {% endif %}
         </td>
-        <td>
+        <td>{% if item.card_info %}{{ item.card_info }}{% endif %}
           {% if stripe_url %}<a class="btn btn-sm btn-info" href="{{ stripe_url }}" target="_blank">View <span class="glyphicon glyphicon-new-window"></span></a>{% endif %}
         </td>
         <td>{{ item.desc }}{{ " (" ~ processors[item.method] ~ " ID: " ~ item.stripe_id ~ ")" if item.stripe_id else "" }}</td>
