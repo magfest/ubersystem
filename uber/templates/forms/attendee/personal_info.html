@@ -168,7 +168,6 @@
 {% block ec_info %}
 {% set show_ec = admin_area and (attendee.admin_read_access() > 2 or c.HAS_REG_ADMIN_ACCESS or c.HAS_SECURITY_ADMIN_ACCESS) or (attendee.is_new or not admin_area) %}
 {% if show_ec or not personal_info.ec_name.data %}
-{% set onsite_extra_field = form_macros.toggle_checkbox(personal_info.no_onsite_contact, [personal_info.onsite_contact], toggle_required=True, hide_on_checked=True, prop="disabled") %}
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
     {{ form_macros.form_input(personal_info.ec_name) }}
@@ -180,6 +179,7 @@
 </div>
 {% endif %}
 {% if show_ec or not personal_info.onsite_contact.data %}
+{% set onsite_extra_field = form_macros.toggle_checkbox(personal_info.no_onsite_contact, [personal_info.onsite_contact], toggle_required=True, hide_on_checked=True, prop="disabled") %}
 <div class="row g-sm-3">
   <div class="col-12 col-sm-6">
     {{ form_macros.form_input(personal_info.onsite_contact, extra_field=onsite_extra_field, maxlength="500") }}
