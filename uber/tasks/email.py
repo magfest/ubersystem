@@ -192,9 +192,9 @@ def send_automated_emails():
                     
                     log.debug("Loading instances for " + automated_email.ident)
                     model_instances = query_func(session)
-                    log.debug("Finished loading instances")
+                    log.trace("Finished loading instances")
                     for model_instance in model_instances:
-                        log.debug("Checking " + str(model_instance.id))
+                        log.trace("Checking " + str(model_instance.id))
                         if model_instance.id not in automated_email.emails_by_fk_id:
                             if automated_email.would_send_if_approved(model_instance):
                                 if automated_email.approved or not automated_email.needs_approval:
