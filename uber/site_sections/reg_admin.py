@@ -657,6 +657,9 @@ class Root:
     def orphaned_attendees(self, session, message='', **params):
         attendees = session.query(Attendee).filter(~Attendee.managers.any())
 
+        for domain in c.SSO_EMAIL_DOMAINS:
+            attendees = attendees.filter(~Attendee.email.ilike(f"%{domain}%"))
+
         if not params.get('show_all'):
             attendees = attendees.filter_by(is_valid=True, is_unassigned=False)
 
