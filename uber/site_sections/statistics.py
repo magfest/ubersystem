@@ -11,12 +11,21 @@ from sqlalchemy.sql.expression import literal
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable
 from uber.jinja import JinjaEnv
-from uber.models import Attendee, Group, PromoCode
+from uber.models import Attendee, Group, PromoCode, Tracking
+from uber.utils import localize_datetime
 
 
 @JinjaEnv.jinja_filter
 def get_count(counter, key):
     return counter.get(key)
+
+
+def date_trunc_hour(*args, **kwargs):
+    # sqlite doesn't support date_trunc
+    if c.SQLALCHEMY_URL.startswith('sqlite'):
+        return func.strftime(literal('%Y-%m-%d %H:00'), *args, **kwargs)
+    else:
+        return func.date_trunc(literal('hour'), *args, **kwargs)
 
 
 class RegistrationDataOneYear:
@@ -218,14 +227,7 @@ class Root:
 
     @csv_file
     def checkins_by_hour(self, out, session):
-        def date_trunc_hour(*args, **kwargs):
-            # sqlite doesn't support date_trunc
-            if c.SQLALCHEMY_URL.startswith('sqlite'):
-                return func.strftime(literal('%Y-%m-%d %H:00'), *args, **kwargs)
-            else:
-                return func.date_trunc(literal('hour'), *args, **kwargs)
-
-        out.writerow(["time_utc", "count"])
+        out.writerow(["Time", "# Checked In"])
         query_result = session.query(
             date_trunc_hour(Attendee.checked_in),
             func.count(date_trunc_hour(Attendee.checked_in))
@@ -236,7 +238,7 @@ class Root:
             .all()
 
         for result in query_result:
-            hour = result[0]
+            hour = localize_datetime(result[0])
             count = result[1]
             out.writerow([hour, count])
 
@@ -247,6 +249,47 @@ class Root:
         return {
             'current_registrations': graph_data_current_year.dump_data(),
         }
+    
+    @csv_file
+    def checkins_by_admin_by_hour(self, out, session):
+        header = ["Time", "Total Checked In"]
+        admins = session.query(Tracking.who).filter(Tracking.action == c.UPDATED,
+                                                    Tracking.model == "Attendee",
+                                                    Tracking.data.contains("checked_in='None -> datetime")
+                                                    ).group_by(Tracking.who).order_by(Tracking.who).distinct().all()
+        for admin in admins:
+            if not isinstance(admin, six.string_types):
+                admin = admin[0] # SQLAlchemy quirk
+            
+            header.append(f"{admin} # Checked In")
+
+        out.writerow(header)
+
+        query_result = session.query(
+            date_trunc_hour(Attendee.checked_in),
+            func.count(date_trunc_hour(Attendee.checked_in))
+        ) \
+            .filter(Attendee.checked_in.isnot(None)) \
+            .group_by(date_trunc_hour(Attendee.checked_in)) \
+            .order_by(date_trunc_hour(Attendee.checked_in)) \
+            .all()
+        
+        for result in query_result:
+            hour = localize_datetime(result[0])
+            count = result[1]
+            row = [hour, count]
+            for admin in admins:
+                if not isinstance(admin, six.string_types):
+                    admin = admin[0] # SQLAlchemy quirk
+                admin_count = session.query(Tracking.which).filter(
+                    date_trunc_hour(Tracking.when) == result[0],
+                    Tracking.who == admin,
+                    Tracking.action == c.UPDATED,
+                    Tracking.model == "Attendee",
+                    Tracking.data.contains("checked_in='None -> datetime")).group_by(Tracking.which).count()
+                row.append(admin_count)
+            out.writerow(row)
+
 
     if c.MAPS_ENABLED:
         from uszipcode import SearchEngine
