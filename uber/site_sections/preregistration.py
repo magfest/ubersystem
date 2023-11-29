@@ -1107,7 +1107,7 @@ class Root:
     def register_group_member(self, session, group_id, message='', **params):
         group = session.group(group_id, ignore_csrf=True)
         if params.get('id') in [None, '', 'None']:
-            attendee = Attendee()
+            attendee = group.unassigned[0] if group.unassigned else None
         else:
             attendee = session.attendee(params.get('id'), ignore_csrf=True)
 
@@ -1613,7 +1613,7 @@ class Root:
         }
     
     @ajax
-    def validate_dealer(self, session, form_list=[], **params):
+    def validate_dealer(self, session, form_list=[], is_prereg=False, **params):
         id = params.get('id', params.get('edit_id'))
         if id in [None, '', 'None']:
             group = Group(tables=1)
@@ -1621,10 +1621,13 @@ class Root:
             try:
                 group = session.group(id)
             except NoResultFound:
-                group = self._get_unsaved(
-                    id,
-                    PreregCart.pending_dealers,
-                    if_not_found=HTTPRedirect('dealer_registration?message={}', 'That application expired or has already been finalized.'))
+                if is_prereg:
+                    group = self._get_unsaved(
+                        id,
+                        PreregCart.pending_dealers,
+                        if_not_found=HTTPRedirect('dealer_registration?message={}', 'That application expired or has already been finalized.'))
+                else:
+                    return {"error": {'': ["We could not find the group you're trying to update."]}}
 
         if not form_list:
             form_list = ['ContactInfo', 'TableInfo']
@@ -1639,7 +1642,7 @@ class Root:
         return {"success": True}
 
     @ajax
-    def validate_attendee(self, session, form_list=[], **params):
+    def validate_attendee(self, session, form_list=[], is_prereg=False, **params):
         id = params.get('id', params.get('edit_id', params.get('attendee_id')))
         if id in [None, '', 'None']:
             attendee = Attendee()
@@ -1647,9 +1650,12 @@ class Root:
             try:
                 attendee = session.attendee(id)
             except NoResultFound:
-                attendee = self._get_unsaved(
-                    id,
-                    if_not_found=HTTPRedirect('form?message={}', 'That preregistration expired or has already been finalized.'))
+                if is_prereg:
+                    attendee = self._get_unsaved(
+                        id,
+                        if_not_found=HTTPRedirect('form?message={}', 'That preregistration expired or has already been finalized.'))
+                else:
+                    return {"error": {'': ["We could not find the badge you're trying to update."]}}
 
         if not form_list:
             form_list = ['PersonalInfo', 'BadgeExtras', 'BadgeFlags', 'OtherInfo', 'Consents']

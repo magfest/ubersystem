@@ -296,10 +296,19 @@ class Root:
         guest = session.guest_group(guest_id)
         guest_autograph = session.guest_autograph(params)
         if cherrypy.request.method == 'POST':
-            guest_autograph.length = 60 * int(params.get('length'), 0)  # Convert hours to minutes
-            guest_autograph.rock_island_length = 60 * int(params.get('rock_island_length', 0))  # Convert hours to minutes
             guest.autograph = guest_autograph
             session.add(guest_autograph)
+            guest_autograph.length = 60 * int(params.get('length'), 0)  # Convert hours to minutes
+            guest_autograph.rock_island_length = 60 * int(params.get('rock_island_length', 0))  # Convert hours to minutes
+
+            if guest_autograph.rock_island_autographs or \
+                guest_autograph.orig_value_of('rock_island_autographs') != guest_autograph.rock_island_autographs:
+                send_email.delay(
+                    c.ROCK_ISLAND_EMAIL,
+                    c.ROCK_ISLAND_EMAIL,
+                    '{} Meet & Greet Notification'.format(guest.group.name),
+                    render('emails/guests/meetgreet_notification.txt', {'guest': guest}, encoding=None),
+                            model=guest.to_dict('id'))
             raise HTTPRedirect('index?id={}&message={}', guest.id, 'Your autograph sessions have been saved')
 
         return {

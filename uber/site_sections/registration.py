@@ -10,7 +10,7 @@ from io import BytesIO
 from pockets.autolog import log
 
 import cherrypy
-import treepoem
+from aztec_code_generator import AztecCode
 from pytz import UTC
 from six import string_types
 from sqlalchemy import and_, func, or_
@@ -459,11 +459,7 @@ class Root:
         this function.  Or, offload image generation to a dedicated microservice that replicates this functionality.
 
         """
-        checkin_barcode = treepoem.generate_barcode(
-            barcode_type='azteccode',
-            data=c.EVENT_QR_ID + str(data),
-            options={},
-        )
+        checkin_barcode = AztecCode(c.EVENT_QR_ID+str(data), size=(27, True)).image(module_size=4, border=1)
         buffer = BytesIO()
         checkin_barcode.save(buffer, "PNG")
         buffer.seek(0)

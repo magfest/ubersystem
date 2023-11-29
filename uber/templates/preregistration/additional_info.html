@@ -23,6 +23,7 @@
     {% endif %}
 
     <form novalidate method="post" id="prereg-form" action="additional_info" class="form-horizontal" role="form">
+      <input type="hidden" name="is_prereg" value="True" />
       {% if is_prereg_dealer %}
       <input type="hidden" name="group_id" value="{{ attendee.group_id }}" />
       {% else %}

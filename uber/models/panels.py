@@ -8,6 +8,7 @@ from sqlalchemy.types import Boolean, Integer
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from uber.config import c
+from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
     MultiChoice, SocialMediaMixin
@@ -135,6 +136,12 @@ class PanelApplication(MagModel):
     applicants = relationship('PanelApplicant', backref='application')
 
     email_model_name = 'app'
+
+    @presave_adjustment
+    def update_event_info(self):
+        if self.event:
+            self.event.name = self.name
+            self.event.description = self.description
 
     @property
     def email(self):
