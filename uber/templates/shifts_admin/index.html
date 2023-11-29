@@ -129,8 +129,8 @@ $(document).ready(function() {
             agendaEvent: {
                 type: 'timeGrid',
                 visibleRange: {
-                    start: '{{ c.EPOCH.strftime('%Y-%m-%d') }}',
-                    end: '{{ c.ESCHATON.strftime('%Y-%m-%d') }}'
+                    start: '{{ c.EPOCH }}',
+                    end: '{{ c.ESCHATON }}'
                 },
                 buttonText: 'Event',
             },

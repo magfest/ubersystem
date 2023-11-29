@@ -62,10 +62,9 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
     """
     if not admin_note:
         if delete_group:
-            admin_note = f'Converted badge from {AdminAccount.admin_name()} declining and converting {c.DEALER_REG_TERM} "{group.name}.'
+            admin_note = f'Converted badge from {AdminAccount.admin_name() or "server admin"} declining and converting {c.DEALER_REG_TERM} "{group.name}".'
         else:
-            admin_note = f'Converted badge from {AdminAccount.admin_name()} setting {c.DEALER_REG_TERM} "{group.name}" to {c.DEALER_STATUS[status]}.'
-
+            admin_note = f'Converted badge from {AdminAccount.admin_name() or "non-admin"} setting {c.DEALER_REG_TERM} "{group.name}" to {c.DEALER_STATUS[status]}.'
     if not group.is_unpaid:
         group.tables = 0
         for attendee in group.attendees:
@@ -102,12 +101,14 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
             attendee.badge_status = c.INVALID_GROUP_STATUS
 
         if delete_group:
-            group.attendees.remove(attendee)
+            attendee.group = None
+            attendee.group_id = None
 
         session.add(attendee)
         session.commit()
 
     if delete_group:
+        group.leader = None
         session.delete(group)
     else:
         group.status = status
@@ -116,10 +117,8 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
             (badges_converted, '{} badge{} converted'),
             (emails_sent, '{} email{} sent'),
             (emails_failed, '{} email{} failed to send')]:
-
         if count > 0:
             message.append(template.format(count, pluralize(count)))
-
     return ', '.join(message)
 
 
