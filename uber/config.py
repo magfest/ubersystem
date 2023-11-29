@@ -1123,6 +1123,7 @@ def _unrepr(d):
 _unrepr(_config['appconf'])
 c.APPCONF = _config['appconf'].dict()
 c.SENTRY = _config['sentry'].dict()
+c.HSTS = _config['hsts'].dict()
 c.REDISCONF = _config['redis'].dict()
 c.REDIS_PREFIX = c.REDISCONF['prefix']
 c.REDIS_STORE = redis.Redis(host=c.REDISCONF['host'], port=c.REDISCONF['port'], db=c.REDISCONF['db'], decode_responses=True)

@@ -46,6 +46,10 @@ def sentry_end_transaction():
     cherrypy.request.sentry_transaction.__exit__(None, None, None)
 cherrypy.tools.sentry_end_transaction = cherrypy.Tool('on_end_request', sentry_end_transaction)
 
+@cherrypy.tools.register('before_finalize', priority=60)
+def secureheaders():
+    headers = cherrypy.response.headers
+    headers['Strict-Transport-Security'] = 'max-age=' + str(c.HSTS['max_age'])
 
 def _add_email():
     [body] = cherrypy.response.body
