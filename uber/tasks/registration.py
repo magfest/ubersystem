@@ -118,7 +118,8 @@ def check_pending_badges():
         subject = c.EVENT_NAME + ' Pending {} Badge Report for ' + localized_now().strftime('%Y-%m-%d')
         with Session() as session:
             for badge_type, to, per_email_filter, site_section in emails:
-                pending = session.query(Attendee).filter_by(badge_status=c.PENDING_STATUS).filter(per_email_filter).all()
+                pending = session.query(Attendee).filter_by(badge_status=c.PENDING_STATUS).filter(Attendee.paid != c.PENDING,
+                                                                                                  per_email_filter).all()
                 if pending and session.no_email(subject.format(badge_type)):
                     body = render('emails/daily_checks/pending.html', {'pending': pending, 'site_section': site_section}, encoding=None)
                     send_email.delay(c.ADMIN_EMAIL, to, subject.format(badge_type), body, format='html', model='n/a')
