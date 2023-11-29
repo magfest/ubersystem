@@ -54,7 +54,7 @@ def check_duplicate_registrations():
                     for a in paid:
                         a.badge_status = c.NEW_STATUS
 
-                if dupes:
+                if dupes and session.no_email(subject):
                     body = render('emails/daily_checks/duplicates.html', {'dupes': sorted(dupes.items())}, encoding=None)
                     send_email.delay(c.ADMIN_EMAIL, c.REGDESK_EMAIL, subject, body, format='html', model='n/a')
 
@@ -197,7 +197,6 @@ def email_pending_attendees():
                 
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
                     already_emailed_accounts.append(email_to)
-        
 
 
 @celery.schedule(timedelta(minutes=30))
