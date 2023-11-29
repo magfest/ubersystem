@@ -29,6 +29,8 @@ class Root:
             'Twitter', 'Instagram', 'Twitch', 'Bandcamp', 'Discord', 'Other Social Media', 'Bio Pic', 'Bio Pic Link',
             'Wants Panel', 'Panel Name',
             'Panel Length', 'Panel Description', 'Panel Tech Needs',
+            '# of Autograph Sessions', 'Autograph Session Length (Minutes)',
+            'Wants RI Meet & Greet', 'Meet & Greet Length (Minutes)',
             'Completed W9', 'Stage Plot',
             'Selling Merchandise',
             'Charity Answer', 'Charity Donation',
@@ -53,6 +55,8 @@ class Root:
                 getattr(guest.panel, 'wants_panel', ''), getattr(guest.panel, 'name', ''),
                 getattr(guest.panel, 'length', ''), getattr(guest.panel, 'desc', ''),
                 ' / '.join(getattr(guest.panel, 'panel_tech_needs_labels', '')),
+                getattr(guest.autograph, 'num', ''), getattr(guest.autograph, 'length', ''),
+                getattr(guest.autograph, 'rock_island_autographs', ''), getattr(guest.autograph, 'rock_island_length', ''),
                 getattr(guest.taxes, 'w9_sent', ''), absolute_stageplot_url,
                 getattr(guest.merch, 'selling_merch_label', ''),
                 getattr(guest.charity, 'donating_label', ''), getattr(guest.charity, 'desc', ''),
@@ -147,9 +151,14 @@ class Root:
     @csv_file
     def autograph_requests(self, out, session):
         out.writerow([
-            'Group Name', '# of Sessions', 'Session Length (Minutes)',
+            'Group Name', '# of Sessions', 'Session Length (Minutes)', 'Wants RI Meet & Greet', 'Meet & Greet Length (Minutes)'
         ])
 
-        autograph_sessions = session.query(GuestAutograph).filter(GuestAutograph.num > 0)
+        autograph_sessions = session.query(GuestAutograph).filter(or_(GuestAutograph.num > 0,
+                                                                      GuestAutograph.rock_island_autographs == True))
         for request in autograph_sessions:
-            out.writerow([request.guest.group.name, request.num, request.length])
+            out.writerow([request.guest.group.name,
+                          request.num,
+                          request.length,
+                          request.rock_island_autographs,
+                          request.rock_island_length])

@@ -1,0 +1,7 @@
+"{{ guest.group.name }}" has just updated their meet and greet preferences. They {% if guest.autograph.rock_island_autographs %}DO{% else %}DO NOT{% endif %} want to run a meet and greet.{% if guest.autograph.rock_island_autographs %}
+
+
+They want a {{ guest.autograph.rock_island_length // 60 }}-hour session.{% endif %}
+
+
+Their group leader is {{ guest.group.leader.full_name }} and their email address is {{ guest.group.leader.email }}.
