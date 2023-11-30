@@ -389,6 +389,31 @@
     });
   };
 
+  var settleUp = function(receiptId, refundAmt) {
+    bootbox.confirm({
+      title: "Settle Balance?",
+      message: "This will refund this {{ model_str }} " + refundAmt +
+              " on their latest refundable transaction that can cover the amount. " +
+              " If refunding via cash, please simply record the refund. Please also " +
+              "make sure we actually owe this {{ model_str }} " + refundAmt + " before proceeding.",
+      buttons: {
+          confirm: {
+              label: 'Yes, Refund ' + refundAmt,
+              className: 'btn-success'
+          },
+          cancel: {
+              label: 'Nevermind',
+              className: 'btn-outline-secondary'
+          }
+      },
+      callback: function (result) {
+        if(result) {
+          window.location = 'settle_up?id=' + receiptId
+        }
+      }
+    });
+  };
+
   $().ready(function () {
     $('#refundTxnForm').submit(function(event) {
       return false;
@@ -706,6 +731,9 @@
   {% if not c.AUTHORIZENET_LOGIN_ID %}
   OR
   <button class="btn btn-danger" onClick="mostlyFullRefund('{{ receipt.id }}', '{{ (receipt.remaining_processing_fees / 100)|format_currency }}', '{{ (group_processing_fee / 100)|format_currency if group_leader_receipt else '' }}')">Refund and Cancel This {{ model_str|title }} Excluding Processing Fees</button>
+  {% endif %}
+  {% if receipt.current_receipt_amount < 0 %}
+  <button class="btn btn-success" onClick="settleUp('{{ receipt.id }}', '{{ (receipt.current_receipt_amount * -1 / 100)|format_currency }}')">Settle Receipt (Refund {{ (receipt.current_receipt_amount * -1 / 100)|format_currency }})</button>
   {% endif %}
 {% else %}
   There are no active receipts for this {{ model_str }}.

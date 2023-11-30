@@ -4,6 +4,7 @@ from uber.models.attendee import AttendeeAccount
 import cherrypy
 import json
 import re
+from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal
 from pockets import groupify
@@ -482,6 +483,47 @@ class Root:
         
         send_receipt_email.delay(txn.receipt_info.id)
         return {}
+    
+    @not_site_mappable
+    def settle_up(self, session, id=''):
+        receipt = session.model_receipt(id)
+        refund_amount = receipt.current_receipt_amount * -1
+        if refund_amount <= 0:
+            raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
+                               session.get_model_by_receipt(receipt).id,
+                               "We do not owe any money on this receipt!")
+        
+        txn_candidates = []
+        stripe_txns = []
+        for txn in sorted(receipt.refundable_txns, key=lambda txn: txn.added):
+            if txn.amount_left >= refund_amount:
+                txn_candidates.append(txn)
+                if txn.method == c.STRIPE:
+                    stripe_txns.append(txn)
+
+        if stripe_txns:
+            txn = stripe_txns[-1]
+        elif txn_candidates:
+            txn = txn_candidates[-1]
+        else:
+            raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
+                               session.get_model_by_receipt(receipt).id,
+                               f"There is no transaction with enough left to refund {format_currency(refund_amount / 100)}.")
+
+        if txn.method == c.SQUARE and c.SPIN_TERMINAL_AUTH_KEY:
+            refund = SpinTerminalRequest(receipt=txn.receipt, amount=refund_amount, method=txn.method)
+        else:
+            refund = TransactionRequest(receipt=txn.receipt, amount=refund_amount, method=txn.method)
+
+        error = refund.refund_or_cancel(txn)
+        if error:
+            raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', session.get_model_by_receipt(receipt), error)
+        
+        session.add_all(refund.get_receipt_items_to_add())
+        session.commit()
+        raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
+                           session.get_model_by_receipt(receipt).id,
+                           f"{format_currency(refund_amount / 100)} refunded.")
     
     @not_site_mappable
     def process_full_refund(self, session, id='', attendee_id='', group_id='', exclude_fees=False):
